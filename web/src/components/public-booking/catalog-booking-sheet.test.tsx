@@ -179,3 +179,54 @@ test("the live path loads real slots instead of fixture hours", async () => {
   act(() => root.unmount());
   host.remove();
 });
+
+test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
+  const book = mockBook();
+  const handoffs: unknown[] = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="demo"
+        tenantId={null}
+        bookFn={book}
+        showAsk
+        onAsk={(h) => handoffs.push(h)}
+      />,
+    );
+  });
+  open(detail({ addOns: [] }), "when");
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+
+  const ask = host.querySelector<HTMLButtonElement>("[data-catalog-ask]");
+  assert.ok(ask);
+  assert.match(ask.textContent ?? "", /Preguntá antes de reservar/);
+  act(() => ask.click());
+  // Nombre + WhatsApp required — no handoff, sheet stays open.
+  assert.equal(handoffs.length, 0);
+  assert.ok(host.querySelector("[data-catalog-ask]"));
+  assert.match(host.textContent ?? "", /WhatsApp hace falta para chatear/);
+  assert.equal(book.calls.length, 0);
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("request-intent who primary is Chat now", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(detail({ addOns: [], intent: "request" }), "when");
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+  const cta = host.querySelector<HTMLButtonElement>('[data-catalog-chat="primary"]');
+  assert.ok(cta);
+  assert.match(cta.textContent ?? "", /Chateá ahora/);
+  unmount();
+});

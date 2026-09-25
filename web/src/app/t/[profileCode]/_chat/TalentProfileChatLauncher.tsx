@@ -171,6 +171,8 @@ export function TalentProfileChatLauncher({
   // Storefront CTA seam: a service card's "Book/Request/Ask for quote" opens
   // this launcher carrying the clicked offering (structured provenance +
   // visible "Requesting: …" first-message prefix downstream).
+  // Booking-sheet Ask / Chat now uses `tulala:ask-question` so the sheet
+  // (which also listens for offering-request) does not reopen on top.
   useEffect(() => {
     const onOfferingRequest = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -183,9 +185,17 @@ export function TalentProfileChatLauncher({
       setOpen(true);
     };
     window.addEventListener("tulala:open-guest-chat", onOpenClean);
+    const onAskQuestion = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { demo?: boolean } | null;
+      // Demo harness panels consume the event without a live dock write.
+      if (detail?.demo === true) return;
+      setOpen(true);
+    };
+    window.addEventListener("tulala:ask-question", onAskQuestion);
     return () => {
       window.removeEventListener("tulala:offering-request", onOfferingRequest);
       window.removeEventListener("tulala:open-guest-chat", onOpenClean);
+      window.removeEventListener("tulala:ask-question", onAskQuestion);
     };
   }, []);
   // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a

@@ -3,12 +3,10 @@
 /**
  * DemoAskPanel — stands in for the Tulala chat launcher in the prototype.
  *
- * On the LIVE profile, `MaisonAskButton` dispatches two events and the real
- * `TalentProfileChatLauncher` picks the second one up and opens the guest
- * thread. This harness has no launcher (it needs a tenant, guest cookies and
- * Supabase), so this panel listens for the named `tulala:ask-question` event
- * and shows what the visitor would land in — plus exactly what it forwarded,
- * so the chat developer can see the payload without reading the source.
+ * On the LIVE profile, Ask / Chat now opens TalentProfileChatLauncher with
+ * pending offering + visitor contact. This harness has no launcher (no tenant,
+ * guest cookies, Supabase), so this panel listens for `tulala:ask-question`
+ * and shows what the visitor would land in — plus the exact payload.
  *
  * It sends nothing and stores nothing.
  */
@@ -23,6 +21,18 @@ type AskDetail = {
   offeringId?: string | null;
   offeringTitle?: string | null;
   from?: string;
+  selection?: {
+    variantLabel?: string | null;
+    addOnLabels?: string[];
+    slotLabel?: string | null;
+    totalCents?: number | null;
+  } | null;
+  visitor?: {
+    name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null;
+  demo?: boolean;
 };
 
 export function DemoAskPanel() {
@@ -45,6 +55,13 @@ export function DemoAskPanel() {
   }, [ask]);
 
   if (!ask) return null;
+
+  const bits = [
+    ask.offeringTitle,
+    ask.selection?.variantLabel,
+    ...(ask.selection?.addOnLabels ?? []),
+    ask.selection?.slotLabel,
+  ].filter(Boolean);
 
   return (
     <div
@@ -72,8 +89,13 @@ export function DemoAskPanel() {
           <div className="ask-bubble">
             ¡Hola! Contame qué tenés en mente y te ayudo a elegir el servicio.
           </div>
-          {ask.offeringTitle ? (
-            <div className="ask-chip">Sobre: {ask.offeringTitle}</div>
+          {bits.length ? <div className="ask-chip">Sobre: {bits.join(" · ")}</div> : null}
+          {ask.visitor?.name || ask.visitor?.phone ? (
+            <p className="ask-note">
+              {ask.visitor.name ? `Nombre: ${ask.visitor.name}` : null}
+              {ask.visitor.name && ask.visitor.phone ? " · " : null}
+              {ask.visitor.phone ? `WhatsApp: ${ask.visitor.phone}` : null}
+            </p>
           ) : null}
           <label className="ask-field">
             <span>Tu pregunta</span>
