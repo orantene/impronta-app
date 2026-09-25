@@ -7,6 +7,7 @@
 
 import { revalidatePath } from "next/cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
 import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
@@ -91,6 +92,37 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
   const title = (hold.title ?? "Booking").trim() || "Booking";
   const clientName = (hold.client_label ?? "").trim() || "Client";
 
+  // B2 — prefer inquiry.customer_id / contact; else ensure when email/phone known.
+  // Name-only holds skip customer create.
+  let customerId: string | null = null;
+  let contactEmail: string | null = null;
+  let contactPhone: string | null = null;
+  if (hold.inquiry_id) {
+    const { data: inq, error: inqErr } = await admin
+      .from("inquiries")
+      .select("customer_id, contact_email, contact_phone, contact_name")
+      .eq("id", hold.inquiry_id)
+      .maybeSingle();
+    if (!inqErr && inq) {
+      customerId = typeof inq.customer_id === "string" ? inq.customer_id : null;
+      contactEmail = typeof inq.contact_email === "string" ? inq.contact_email.trim() || null : null;
+      contactPhone = typeof inq.contact_phone === "string" ? inq.contact_phone.trim() || null : null;
+    }
+  }
+  if (!customerId && (contactEmail || contactPhone)) {
+    const ensured = await ensureCustomer(
+      {
+        tenantId: hold.tenant_id,
+        email: contactEmail,
+        phone: contactPhone,
+        displayName: clientName,
+        ownerTalentProfileId: identity.talentId,
+      },
+      { admin },
+    );
+    if (ensured.ok) customerId = ensured.customerId;
+  }
+
   const { data: agencyRow, error: agencyErr } = await admin
     .from("agency_bookings")
     .insert({
@@ -105,6 +137,9 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       contact_name: clientName,
+      contact_email: contactEmail,
+      contact_phone: contactPhone,
+      customer_id: customerId,
       source_type_snapshot: hold.inquiry_id ? "tulala" : "manual",
       internal_notes: "Converted from calendar hold by talent.",
     })

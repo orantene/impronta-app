@@ -41,6 +41,10 @@ function mockAdmin(seed?: { connections?: Row[]; inquiries?: Row[]; deliveries?:
         q.filters.push({ k, v });
         return api;
       },
+      is(k: string, v: unknown) {
+        q.filters.push({ k, v });
+        return api;
+      },
       limit() {
         return api;
       },
