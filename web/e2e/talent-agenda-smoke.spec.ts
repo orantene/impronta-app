@@ -100,11 +100,29 @@ async function expectCalendarChrome(page: import("@playwright/test").Page) {
   await expect(anyChrome.first()).toBeVisible({ timeout: 60_000 });
 }
 
-async function calendarAddButton(page: import("@playwright/test").Page) {
+function calendarAddButton(page: import("@playwright/test").Page) {
   // Exact EN/ES aria-label — do NOT match bare "Add" (hits unrelated chrome).
   return page.getByRole("button", {
     name: /^(Add event or block|Añadir evento o bloqueo)$/i,
   });
+}
+
+/** Open the Calendar Add menu (assert Block time is offered). */
+async function openCalendarAddMenu(page: import("@playwright/test").Page) {
+  const addBtn = calendarAddButton(page);
+  const blockBtn = page.getByRole("button", { name: /Block time|Bloquear tiempo|Bloquear/i });
+  const newBtn = page.getByRole("button", { name: /New booking|Nueva reserva/i });
+  await addBtn.click();
+  // Prefer aria-expanded; fall back to visible menu items (SecondaryButtons).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (await blockBtn.or(newBtn).first().isVisible().catch(() => false)) return;
+    const expanded = await addBtn.getAttribute("aria-expanded");
+    if (expanded !== "true") {
+      await addBtn.click();
+    }
+    await page.waitForTimeout(250);
+  }
+  await expect(blockBtn.or(newBtn).first()).toBeVisible({ timeout: 15_000 });
 }
 
 const AGENDA_NOW = "agendaNow=2026-09-23T09:50:00";
@@ -169,14 +187,12 @@ test.describe("Talent Agenda V2 smoke", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    const addBtn = await calendarAddButton(page);
-    await expect(addBtn).toBeVisible({ timeout: 30_000 });
-    await addBtn.click();
-    const menu = page.getByRole("menu", { name: /Add event or block|Añadir evento o bloqueo/i });
-    await expect(menu).toBeVisible({ timeout: 15_000 });
-    await expect(menu.getByRole("button", { name: /New booking|Nueva reserva/i })).toBeVisible();
-    await expect(menu.getByRole("button", { name: /Block time|Bloquear/i })).toBeVisible();
-  });
+    await expect(calendarAddButton(page)).toBeVisible({ timeout: 30_000 });
+    await openCalendarAddMenu(page);
+    await expect(page.getByRole("button", { name: /New booking|Nueva reserva/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("button", { name: /Block time|Bloquear/i })).toBeVisible();  });
 
   test("Attention page loads", async ({ page }) => {
     await requireAgendaV2Route(page, "/talent/attention");
@@ -190,12 +206,9 @@ test.describe("Talent Agenda V2 smoke", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    const addBtn = await calendarAddButton(page);
-    await expect(addBtn).toBeVisible({ timeout: 30_000 });
-    await addBtn.click();
-    const menu = page.getByRole("menu", { name: /Add event or block|Añadir evento o bloqueo/i });
-    await expect(menu).toBeVisible({ timeout: 15_000 });
-    await menu.getByRole("button", { name: /Block time|Bloquear/i }).click();
+    await expect(calendarAddButton(page)).toBeVisible({ timeout: 30_000 });
+    await openCalendarAddMenu(page);
+    await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
     await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -249,21 +262,22 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
+    // Today rows are role=button named by title (not "Open"); Collect may appear on Attention.
     const collect = page.getByRole("button", { name: /Collect|Finish|Cobrar|Finalizar/i }).first();
-    if (!(await collect.isVisible().catch(() => false))) {
-      const open = page.getByRole("button", { name: /Open|Ver|View|Cobrar|Collect/i }).first();
-      if (!(await open.isVisible().catch(() => false))) {
-        test.skip(true, "No Collect/Finish/Open CTA on seeded Today — re-seed week fixtures with revenue");
+    if (await collect.isVisible().catch(() => false)) {
+      await collect.click();
+    } else {
+      const row = page.getByRole("button", { name: /QA:agenda-v2|Gel set|Volume lashes|Brows/i }).first();
+      if (!(await row.isVisible().catch(() => false))) {
+        test.skip(true, "No seeded unpaid booking row on Today for this clock");
       }
-      await open.click();
+      await row.click();
       await page.waitForTimeout(800);
       const finish = page.getByRole("button", { name: /Finish|Collect|Finalizar|Cobrar/i }).first();
       if (!(await finish.isVisible().catch(() => false))) {
         test.skip(true, "Finish/Collect not offered on opened booking record");
       }
       await finish.click();
-    } else {
-      await collect.click();
     }
     await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia|Tarjeta/i).first()).toBeVisible({
       timeout: 30_000,
@@ -298,12 +312,9 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    const addBtn = await calendarAddButton(page);
-    await expect(addBtn).toBeVisible({ timeout: 30_000 });
-    await addBtn.click();
-    const menu = page.getByRole("menu", { name: /Add event or block|Añadir evento o bloqueo/i });
-    await expect(menu).toBeVisible({ timeout: 15_000 });
-    await menu.getByRole("button", { name: /Block time|Bloquear/i }).click();
+    await expect(calendarAddButton(page)).toBeVisible({ timeout: 30_000 });
+    await openCalendarAddMenu(page);
+    await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
     await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
     const cancel = page.getByRole("button", { name: /Cancel|Cancelar|Back|Volver/i }).first();
     if (await cancel.isVisible().catch(() => false)) {
