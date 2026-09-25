@@ -61,17 +61,18 @@ Remaining for full Step 1:
 ### Step 2 — Full rollout
 
 **Armed 2026-09-25 (Production):**
-- `TALENT_AGENDA_V2=all` (owner unlock via “do all”)
+- [x] `TALENT_AGENDA_V2=all` (owner unlock via “do all”)
+- [x] Client bridge stamp merged (#2251) — shell reads `talentAgendaV2` from layout bridge
 - Rollback: set `TALENT_AGENDA_V2=0`
 - **Day-7 legacy clock starts:** 2026-09-25 → earliest Step 4 **2026-10-02**
-- Redeploy Production after env change so runtimes pick up `all`
+- Redeploy / promote after env + bridge so runtimes pick up `all`
 
 ### Step 3 — Jor demo (owner click-through)
 
 **With Step 2 `all`, Jor is included.** Agents: **read-only only** — no writes to `f048e578-…` rows.
-1. Owner clicks Today / Calendar / a booking record on her account.
-2. Capture notes under `docs/plans/program/evidence/today-calendar/` if useful.
-3. Leave this item open until owner confirms the session.
+1. [ ] Owner clicks Today / Calendar / a booking record on her account.
+2. Agent SQL probe + note: `docs/plans/program/evidence/today-calendar/jor-readonly-probe-2026-09-25.md` (0 bookings; no agent UI session).
+3. Leave owner click open until confirmed.
 
 ### Step 4 — Delete legacy (separate PR, after ≥7 days green)
 
