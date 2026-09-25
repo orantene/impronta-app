@@ -572,7 +572,9 @@ const BUDGETS: Record<string, number> = {
   // single fields threaded through, with their logic in lib/workspace and
   // lib/pos, so there is nothing here to extract.
   // 2026-09-24 services-rebuild: +13 (2464). Measured wc -l.
-  "src/components/admin/shell/internal/state/context.tsx": 2483,
+  // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
+  // the client shell does not re-read non-NEXT_PUBLIC env.
+  "src/components/admin/shell/internal/state/context.tsx": 2488,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
