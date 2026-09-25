@@ -54,10 +54,22 @@ export function catalogRowCtaLabel(opts: {
   if (opts.inspectorLabel?.trim()) return opts.inspectorLabel.trim();
   const es = opts.locale.startsWith("es");
   const cta = resolveOfferingCta(opts.offering);
-  if (cta === "request" || cta === "ask_quote" || opts.offering.visibility === "on_request") {
-    return es ? "Consultar" : "Inquire";
+  // Meaning-preserving labels (brief §10). Never say Book when the path is inquiry/quote.
+  if (cta === "ask_quote") return es ? "Pedir cotización" : "Request a quote";
+  if (cta === "request" || opts.offering.visibility === "on_request") {
+    return es ? "Consultar" : "Ask about this";
+  }
+  if (cta === "request_to_book") {
+    if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
+    return es ? "Solicitar cita" : "Request appointment";
+  }
+  if (cta === "buy_now") {
+    // Product purchase UI in this sheet is not a full cart — open options/detail only.
+    if (catalogRowHasOptions(opts.offering)) return es ? "Ver opciones" : "View options";
+    return es ? "Ver" : "View";
   }
   if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
+  // Instant appointment — menu-style "Select" matches mockups; sheet opens time picker.
   return es ? "Seleccionar" : "Select";
 }
 

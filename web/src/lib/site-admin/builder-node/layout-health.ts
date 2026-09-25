@@ -10,6 +10,7 @@ import type {
   BuilderNodeKind,
   BuilderNodeTree,
   BuilderMasonryNode,
+  BuilderServicesCatalogNode,
   BuilderSpacerNode,
   BuilderSplitNode,
   BuilderTabPanelNode,
@@ -26,7 +27,8 @@ export type BuilderNodeLayoutHealthNode =
   | BuilderCarouselNode
   | BuilderMasonryNode
   | BuilderDividerNode
-  | BuilderSpacerNode;
+  | BuilderSpacerNode
+  | BuilderServicesCatalogNode;
 
 export type BuilderNodeLayoutFindingLevel = "info" | "warning";
 
@@ -69,7 +71,8 @@ function isLayoutHealthNode(node: BuilderNode): node is BuilderNodeLayoutHealthN
     node.kind === "carousel" ||
     node.kind === "masonry" ||
     node.kind === "divider" ||
-    node.kind === "spacer"
+    node.kind === "spacer" ||
+    node.kind === "services_catalog"
   );
 }
 
@@ -208,7 +211,7 @@ export function getBuilderNodeLayoutFindings(
 ): ReadonlyArray<BuilderNodeLayoutFinding> {
   const findings: BuilderNodeLayoutFinding[] = [];
 
-  if (node.kind === "divider") {
+  if (node.kind === "divider" || node.kind === "services_catalog") {
     return findings;
   }
 

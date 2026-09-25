@@ -142,6 +142,7 @@ import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 
@@ -4430,15 +4431,48 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
 .site-builder-node--services-catalog-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"]{gap:0;border-bottom:1px solid var(--token-color-line);padding-bottom:0}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill{border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;padding:.55rem .9rem;margin-bottom:-1px}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill[data-active="true"]{background:transparent;color:var(--token-color-ink);border-bottom-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.4rem 1rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);background:transparent;text-decoration:none;cursor:pointer}
 .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-group{margin-bottom:0}
 .site-builder-node--services-catalog-group-title{margin:0 0 .75rem;font-size:1.05rem;font-weight:600;scroll-margin-top:5rem}
+.site-builder-node--services-catalog-accordion-trigger{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 0;border:0;border-bottom:1px solid var(--token-color-line);background:transparent;cursor:pointer;font:inherit;font-weight:600;text-align:left;color:var(--token-color-ink)}
+.site-builder-node--services-catalog-accordion-trigger[aria-expanded="false"]+ .site-builder-node--services-catalog-list{display:none}
 .site-builder-node--services-catalog-list{list-style:none;margin:0;padding:0}
-.site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
-@media (max-width:560px){.site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{display:grid;grid-template-columns:1fr auto auto;gap:.75rem;align-items:baseline;padding:.55rem 0;border-bottom:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-photo{display:none}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.25rem}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{padding:0 1rem}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-cta,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-cta,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-cta{margin:0 1rem 1rem;align-self:flex-start}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-name{font-family:var(--token-font-display,inherit);font-size:1.15rem;font-weight:500}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-list{display:flex;flex-direction:column;gap:1rem}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{display:grid;grid-template-columns:minmax(180px,42%) 1fr;gap:1.5rem;padding:1.25rem;border:1px solid var(--token-color-line);border-radius:16px;margin-bottom:.5rem}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child .site-builder-node--services-catalog-photo{width:100%;height:100%;min-height:200px;border-radius:12px}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:72px 1fr auto auto;gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--token-color-line)}
+@media (max-width:560px){.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(1),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(2),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(3),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(4),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}}
 .site-builder-node--services-catalog-photo{width:120px;height:120px;border-radius:0;object-fit:cover;flex-shrink:0;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
-@media (max-width:560px){.site-builder-node--services-catalog-photo{width:72px;height:72px}}
+.site-builder-node--services-catalog[data-photo-radius="soft"] .site-builder-node--services-catalog-photo{border-radius:12px}
+.site-builder-node--services-catalog[data-photo-radius="round"] .site-builder-node--services-catalog-photo{border-radius:999px}
+@media (max-width:560px){.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-photo,.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-photo{width:72px;height:72px}}
 .site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.25rem}
 .site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
 .site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -4446,7 +4480,11 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}
 .site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.4rem .85rem;font-size:.75rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff)}
-.site-builder-node--services-catalog-cta[data-selected="true"]{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 12%,transparent);color:var(--token-color-ink);border:1px solid transparent}
+.site-builder-node--services-catalog[data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.65rem;padding-bottom:.65rem}
+.cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
 `;
 
 function renderBuilderNode(
@@ -5616,14 +5654,21 @@ function renderBuilderNodeElement(
         text("emptyMessage", p.emptyMessage) ||
         (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
 
-      // Defensive re-filter — `loadPublicOfferingsForProfile` already applies
-      // the public policy, but a render path never trusts a data source alone
-      // (same rule `TalentStorefront` follows on the hub profile).
-      const visible = (options.dataSources.talentOfferings ?? []).filter(
-        (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
-      );
+      // Defensive re-filter + widget selection (references only).
+      const visible = filterOfferingsForCatalog(options.dataSources.talentOfferings ?? [], {
+        selectionMode: p.selectionMode,
+        selectedCategoryNames: p.selectedCategoryNames,
+        selectedOfferingIds: p.selectedOfferingIds,
+        autoIncludeNew: p.autoIncludeNew,
+        featuredOfferingIds: p.featuredOfferingIds,
+        sort: p.sort,
+        manualOrderIds: p.manualOrderIds,
+      });
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+      const layout = p.layout ?? "rows";
+      const useWebsiteTheme = p.useWebsiteTheme !== false;
+      const columns = p.columns ?? (layout === "cards" || layout === "grid" || layout === "editorial" ? 2 : 1);
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -5633,9 +5678,13 @@ function renderBuilderNodeElement(
       }
       const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
-      const filterNav = p.categoryNav === "tabs" || p.categoryNav === "pills" || p.categoryNav == null;
+      const categoryNav = p.categoryNav ?? "pills";
+      const filterNav = categoryNav === "tabs" || categoryNav === "pills";
+      const accordionNav = categoryNav === "accordion";
+      const jumpNav = categoryNav === "jump_strip" || categoryNav === "sections";
       const notes = options.dataSources.talentOfferingsCategoryNotes;
-      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = showCategoryNav
+      const groupByCategory = showCategoryNav || accordionNav || jumpNav;
+      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
               name: c,
@@ -5648,15 +5697,32 @@ function renderBuilderNodeElement(
           ]
         : [{ name: null, items: visible }];
 
+      const navMode = !showCategoryNav && !accordionNav
+        ? "flat"
+        : filterNav
+          ? categoryNav === "tabs"
+            ? "tabs"
+            : "pills"
+          : accordionNav
+            ? "accordion"
+            : "jump";
+
       return (
         <section
           key={node.id}
           {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind="services_catalog"
-          {...builderNodeStyleAttrs(p.style)}
+          data-layout={layout}
+          data-photo-radius={p.photoRadius ?? "soft"}
+          data-cta-variant={p.rowCtaVariant ?? "outline"}
+          data-density={p.density ?? "comfortable"}
+          {...(useWebsiteTheme ? {} : builderNodeStyleAttrs(p.style))}
           className="site-builder-node site-builder-node--services-catalog"
-          style={inlineNodeStyle(p.style, undefined)}
+          style={{
+            ...(useWebsiteTheme ? undefined : inlineNodeStyle(p.style, undefined)),
+            ["--svc-columns" as string]: String(columns),
+          }}
         >
           <style>{SERVICES_CATALOG_CSS}</style>
           <header className="site-builder-node--services-catalog-header">
@@ -5689,7 +5755,7 @@ function renderBuilderNodeElement(
                 <ServicesCatalogStaticFallback
                   groups={groups}
                   locale={locale}
-                  showPhoto={p.showPhoto !== false}
+                  showPhoto={p.showPhoto !== false && layout !== "compact_list"}
                   showDuration={p.showDuration !== false}
                   showUsdEquivalent={p.showUsdEquivalent !== false}
                   ctaLabel={ctaLabel}
@@ -5699,16 +5765,9 @@ function renderBuilderNodeElement(
               <ServicesCatalogFilter
                 groups={groups}
                 locale={locale}
-                nav={
-                  showCategoryNav && filterNav
-                    ? p.categoryNav === "tabs"
-                      ? "tabs"
-                      : "pills"
-                    : showCategoryNav
-                      ? "jump"
-                      : "flat"
-                }
-                showPhoto={p.showPhoto !== false}
+                nav={navMode}
+                showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+                showDescription={p.showDescription !== false}
                 showDuration={p.showDuration !== false}
                 showUsdEquivalent={p.showUsdEquivalent !== false}
                 confirmsByHand={confirmsByHand}
@@ -5717,6 +5776,10 @@ function renderBuilderNodeElement(
                 bookingMode={bookingMode}
                 tenantId={options.dataSources.tenantId ?? null}
                 nodeId={node.id}
+                durationFormat={p.durationFormat ?? "auto"}
+                mobileBar={p.mobileBar ?? "float"}
+                showAskLink={p.showAskLink !== false}
+                sheetAccent={p.bookingSheet?.accent ?? "ink"}
               />
             </CatalogIslandBoundary>
           )}

@@ -219,8 +219,34 @@ test("category_order wins over first-seen order in the pill strip", () => {
   assert.ok(pest >= 0 && unas >= 0 && pest < unas);
 });
 
+test("layout prop is emitted and cards layout uses a multi-column list", () => {
+  const html = render([catalogNode({ layout: "cards", columns: 2 })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-layout="cards"/);
+  assert.match(html, /--svc-columns:\s*2/);
+});
+
+test("compact_list omits photos even when showPhoto is true", () => {
+  const html = render([catalogNode({ layout: "compact_list", showPhoto: true })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-layout="compact_list"/);
+  assert.doesNotMatch(html, /gel-pedicure\.jpg/);
+});
+
+test("tabs categoryNav uses distinct data-category-nav=tabs", () => {
+  const html = render([catalogNode({ categoryNav: "tabs" })], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+  });
+  assert.match(html, /data-category-nav="tabs"/);
+});
+
 test("jump nav uses serializable nodeId-derived fragment ids", () => {
-  const html = render([catalogNode({ categoryNav: "jump" })], {
+  const html = render([catalogNode({ categoryNav: "jump_strip" })], {
     talentOfferings: [
       offering({ id: "a", title: "Manicure", category: "Uñas" }),
       offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
@@ -290,4 +316,35 @@ test("golive-shaped services_catalog SSR markup has no __next_error__", () => {
   assert.match(html, /class="cb-island"/);
   assert.doesNotMatch(html, /__next_error__/);
   assert.doesNotMatch(html, /Algo no cargó/);
+});
+
+test("selectionMode ids only renders selected eligible offerings", () => {
+  const html = render(
+    [
+      catalogNode({
+        selectionMode: "ids",
+        selectedOfferingIds: ["keep-me"],
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "keep-me", title: "Keep me" }),
+        offering({ id: "hide-me", title: "Hide me" }),
+      ],
+    },
+  );
+  assert.match(html, /Keep me/);
+  assert.doesNotMatch(html, /Hide me/);
+});
+
+test("mixed duration formats as hours and minutes", () => {
+  const html = render([catalogNode({ durationFormat: "auto" })], {
+    talentOfferings: [offering({ durationMinutes: 135, title: "Long service" })],
+  });
+  assert.match(html, /2 h 15 min · estimated duration/);
+});
+
+test("outline CTA variant is the default data attribute", () => {
+  const html = render([catalogNode()], { talentOfferings: [offering({})] });
+  assert.match(html, /data-cta-variant="outline"/);
 });

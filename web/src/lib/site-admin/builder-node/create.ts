@@ -5,6 +5,7 @@ import type {
 } from "./types";
 import { createBuilderSectionEmbed } from "./section-embed-presets";
 import { makeId, randomUuid } from "./make-id";
+import { SERVICES_CATALOG_DEFAULT_PROPS } from "./services-catalog-defaults";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
@@ -239,7 +240,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
           emptyMessage: "Menu items are not published yet.",
         },
       };
-    case "services_catalog": return { id: makeId("services_catalog"), kind: "services_catalog", props: { layout: "rows", categoryNav: "pills", eyebrow: "The menu", title: "Services {i}and prices{/i}", showStats: true, showPhoto: true, showDuration: true, showUsdEquivalent: true, ctaLabel: "", emptyMessage: "No services are published yet." } };
+    case "services_catalog":
+      return { id: makeId("services_catalog"), kind: "services_catalog", props: { ...SERVICES_CATALOG_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
     case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
