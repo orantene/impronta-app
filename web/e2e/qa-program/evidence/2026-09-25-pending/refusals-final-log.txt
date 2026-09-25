@@ -1,0 +1,11 @@
+money_vis true
+agency_panel Total $150 Paid $0 Balance due $150
+resolve_vis true
+resolve_refusal cannot
+more true
+menu rename,handover,copy_link,history,close_lost
+refusal_copy_link You cannot
+refusal_rename You cannot
+refusal_handover You cannot
+refusal_close_lost You cannot
+refusal_history You cannot

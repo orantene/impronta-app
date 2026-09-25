@@ -1,0 +1,6 @@
+rows 36
+row 0 bar=0 approve=0 decline=0 approveBtn=14
+row 1 bar=0 approve=0 decline=0 approveBtn=14
+row 2 bar=1 approve=1 decline=1 approveBtn=15
+after bar=0 approve=0
+SCAN_DONE

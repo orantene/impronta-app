@@ -1,0 +1,4 @@
+agency_panel 
+has_client_word false
+has_dollar false
+note_toggle false

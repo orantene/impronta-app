@@ -1,0 +1,5 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/qa-program/capacity/appointment-double-book.spec.ts:27:7 › QA capacity — appointment double-book › confirm refuses already-booked talent window — no second record
+[1A[2K  1 passed (23.2s)
