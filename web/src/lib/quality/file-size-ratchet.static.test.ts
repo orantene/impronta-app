@@ -574,7 +574,8 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-24 services-rebuild: +13 (2464). Measured wc -l.
   // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
   // the client shell does not re-read non-NEXT_PUBLIC env.
-  "src/components/admin/shell/internal/state/context.tsx": 2488,
+  // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
+  "src/components/admin/shell/internal/state/context.tsx": 2491,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
