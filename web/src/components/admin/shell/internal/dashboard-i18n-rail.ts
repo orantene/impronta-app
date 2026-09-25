@@ -49,4 +49,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "Setup is owner-only · ask the owner": "La configuración es solo del propietario · pídesela",
   // The tagline under the wordmark at the head of the rail.
   "Sell what you do, not what you ship": "Vende lo que haces, no lo que envías",
+  // Talent Messages + Actions: shown when no thread is open (kept out of
+  // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
+  "Pick a conversation first": "Elige una conversación primero",
 };

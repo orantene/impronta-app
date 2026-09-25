@@ -1652,7 +1652,8 @@
       "backToThread": "Back to the conversation",
       "smsPlain": "Same order and the same secure page, in plain text. This channel cannot show cards.",
       "talentView": "You see the client, the service and the chair notes. Not the conversation or other prices.",
-      "payBy": "Pay by this time to keep the slot."
+      "payBy": "Pay by this time to keep the slot.",
+      "replaced": "This payment link was replaced. Ask for the new one."
     },
     "storefront": {
       "refusal": {

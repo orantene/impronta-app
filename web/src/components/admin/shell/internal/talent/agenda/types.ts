@@ -95,6 +95,8 @@ export type AgendaListItem = {
   sourceLabel: string;
   /** ISO start for gating (no-show, etc.). */
   startsAtIso?: string;
+  /** ISO end — pre-fills the reschedule sheet. */
+  endsAtIso?: string;
   clientTz?: string;
   talentTz?: string;
   bookingState?: AgendaBookingState;

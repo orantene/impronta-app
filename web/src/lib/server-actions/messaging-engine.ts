@@ -568,14 +568,7 @@ export async function messagingRequestPayment(input: {
   const { data: lines } = await scoped(g.admin, "order_lines", g.tenantId)
     .select("id, label, units, unit_cents")
     .eq("order_id", parsed.data.orderId);
-  const snapshot = await scoped(g.admin, "checkout_snapshots", g.tenantId).insert({
-    inquiry_id: parsed.data.inquiryId,
-    basket: { lines: lines ?? [], version: basketVersion },
-    customer: {},
-    basket_version: basketVersion,
-  }).select("id").single();
-  if (snapshot.error || !snapshot.data) return fail("unavailable");
-
+  // A2/#14: mint first — snapshot only after success (no orphan rows on refuse).
   const minted = await createPaymentLink(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
@@ -583,9 +576,7 @@ export async function messagingRequestPayment(input: {
     idempotencyKey: parsed.data.idempotencyKey,
     actorUserId: g.userId,
     publicOrigin: parsed.data.publicOrigin,
-    // The mint itself names the conversation on the link and on the order
-    // (D-145, D-150); nothing here has to remember to do it afterwards.
-    inquiryId: parsed.data.inquiryId,
+    inquiryId: parsed.data.inquiryId, // D-145/D-150: stamp conversation on link+order
   });
   if (!minted.ok) {
     if (minted.reason === "exceeds_outstanding") return fail("invalid");
@@ -599,9 +590,18 @@ export async function messagingRequestPayment(input: {
   await scoped(g.admin, "payment_links", g.tenantId)
     .update({ basket_version: basketVersion })
     .eq("code", minted.code);
-  await scoped(g.admin, "checkout_snapshots", g.tenantId)
-    .update({ payment_link_id: (linkRow as { id: string } | null)?.id ?? null })
-    .eq("id", (snapshot.data as { id: string }).id);
+  const linkId = (linkRow as { id: string } | null)?.id ?? null;
+  const snapshot = await scoped(g.admin, "checkout_snapshots", g.tenantId)
+    .insert({
+      inquiry_id: parsed.data.inquiryId,
+      basket: { lines: lines ?? [], version: basketVersion },
+      customer: {},
+      basket_version: basketVersion,
+      payment_link_id: linkId,
+    })
+    .select("id")
+    .single();
+  if (snapshot.error) logServerError("messaging.requestPayment.snapshot", snapshot.error);
   const card = await insertMessage(g.admin, {
     tenantId: g.tenantId,
     inquiryId: parsed.data.inquiryId,

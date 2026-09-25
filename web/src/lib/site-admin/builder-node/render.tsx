@@ -277,10 +277,10 @@ export interface BuilderNodeRenderDataSources {
   };
   /**
    * Full `TalentOffering` rows (`loadPublicOfferingsForProfile`), not a
-   * narrowed projection — `services_catalog` reuses `OfferingCta`
-   * (`app/t/[profileCode]/_shared`), the SAME click-to-book island the hub
-   * profile's storefront uses, and that component reads reserveMode /
-   * depositPct / variants / addOns / talentProfileId off the full shape.
+   * narrowed projection — `services_catalog` builds the same click-to-book
+   * event payload the hub profile storefront uses (`OfferingRequestDetail`),
+   * and that shape needs reserveMode / depositPct / variants / addOns /
+   * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
@@ -5634,7 +5634,6 @@ function renderBuilderNodeElement(
       const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
       const filterNav = p.categoryNav === "tabs" || p.categoryNav === "pills" || p.categoryNav == null;
-      const slug = (c: string) => `${node.id}-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
       const notes = options.dataSources.talentOfferingsCategoryNotes;
       const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = showCategoryNav
         ? [
@@ -5717,7 +5716,7 @@ function renderBuilderNodeElement(
                 ctaLabel={ctaLabel}
                 bookingMode={bookingMode}
                 tenantId={options.dataSources.tenantId ?? null}
-                jumpSlug={slug}
+                nodeId={node.id}
               />
             </CatalogIslandBoundary>
           )}

@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { resolveOfferingCta, offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import type { OfferingRequestDetail } from "@/app/t/[profileCode]/_shared/OfferingCta";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { CatalogBookingSheet } from "@/components/public-booking/CatalogBookingSheet";
 import {
   catalogRowCtaLabel,
   catalogRowHasOptions,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
-import { catalogDurationPhrase } from "./services-catalog-title";
+import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 
 export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
@@ -78,7 +78,7 @@ export function ServicesCatalogFilter({
   ctaLabel,
   bookingMode = "demo",
   tenantId = null,
-  jumpSlug,
+  nodeId,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -91,7 +91,8 @@ export function ServicesCatalogFilter({
   ctaLabel?: string;
   bookingMode?: CatalogBookingMode;
   tenantId?: string | null;
-  jumpSlug?: (name: string) => string;
+  /** Builder node id — used only for jump-nav fragment ids (serializable). */
+  nodeId: string;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -185,7 +186,7 @@ export function ServicesCatalogFilter({
           {groups.map((g) => (
             <a
               key={g.name ?? "_"}
-              href={`#${jumpSlug?.(g.name ?? "_") ?? g.name ?? "_"}`}
+              href={`#${catalogCategoryJumpId(nodeId, g.name ?? "_")}`}
               className="site-builder-node--services-catalog-pill"
             >
               {g.name ?? (es ? "Otros" : "Other")}
@@ -200,7 +201,7 @@ export function ServicesCatalogFilter({
           <div
             key={g.name ?? "_"}
             hidden={hidden}
-            id={nav === "jump" ? jumpSlug?.(g.name ?? "_") : undefined}
+            id={nav === "jump" ? catalogCategoryJumpId(nodeId, g.name ?? "_") : undefined}
             data-catalog-category={g.name ?? "_"}
             className="site-builder-node--services-catalog-group"
           >

@@ -18,7 +18,7 @@ g.IS_REACT_ACT_ENVIRONMENT = true;
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { CatalogBookingSheet } from "./CatalogBookingSheet";
-import type { OfferingRequestDetail } from "@/app/t/[profileCode]/_shared/OfferingCta";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 /* eslint-enable import/first */
 
 function detail(partial: Partial<OfferingRequestDetail> = {}): OfferingRequestDetail {

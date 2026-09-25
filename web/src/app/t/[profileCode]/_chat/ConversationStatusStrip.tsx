@@ -33,6 +33,7 @@ import type {
   InquiryReceiptData,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { StreamRow } from "./MiniChatMessageBubble";
+import { resolveStatusStripActor } from "./conversation-status-strip-actor";
 import {
   FONT,
   paletteFor,
@@ -46,6 +47,12 @@ export type ConversationStatusStripProps = {
   receipt?: InquiryReceiptData | null;
   /** Brand display name — the single-agency fallback when receipt has no name. */
   agencyName: string;
+  /**
+   * Solo talent / personal site: never qualify the actor with the platform
+   * tenant name from the receipt (that reads "… de Tulala"). Speak as the
+   * talent brand alone.
+   */
+  omitPlatformBrand?: boolean;
   /**
    * The live thread rows. The latest non-system author role drives the guest-vs-
    * coordinator turn nuance for the `open` status (last word = guest -> coordinator
@@ -65,17 +72,11 @@ export type ConversationStatusStripProps = {
   surfaceMode?: SurfaceMode;
 };
 
-/** First name only, so the reassurance reads human ("Maya is on it"). */
-function firstNameOf(displayName: string): string {
-  const trimmed = displayName.trim();
-  if (!trimmed) return "";
-  return trimmed.split(/\s+/)[0] ?? trimmed;
-}
-
 export function ConversationStatusStrip({
   threadStatus,
   receipt = null,
   agencyName,
+  omitPlatformBrand = false,
   rows,
   scrollRef,
   suppressed = false,
@@ -114,21 +115,22 @@ export function ConversationStatusStrip({
   // Cross-agency lineups never name a single agency/coordinator (TIERED BY
   // TRUTH, mirroring the receipt header). Fall back to the neutral agency word.
   const isCrossAgency = (receipt?.owningPartyCount ?? 0) > 1;
-  const resolvedAgency = (receipt?.agencyName?.trim() || agencyName).trim();
-  const coordinatorFirst =
-    !isCrossAgency && receipt?.coordinator
-      ? firstNameOf(receipt.coordinator.displayName)
-      : "";
-  // Who the next step belongs to / who is being reassured. A bare first name
-  // ("Oran is on it") reads as a stranger, so when we have a named coordinator
-  // qualify them with the agency ("Oran from Impronta"); otherwise fall back to
-  // the agency name alone (P1-12).
-  const actor = coordinatorFirst
-    ? interpolate(t("public.guestChat.stripActorFromAgency"), {
-        first: coordinatorFirst,
-        agency: resolvedAgency,
-      })
-    : resolvedAgency;
+  const resolvedAgency = omitPlatformBrand
+    ? agencyName.trim()
+    : (receipt?.agencyName?.trim() || agencyName).trim();
+  // Who the next step belongs to / who is being reassured. Solo sites speak as
+  // the talent brand only (no "… de Tulala"). Hub/agency sites still qualify a
+  // named coordinator with their agency ("Oran from Impronta").
+  const actor = resolveStatusStripActor({
+    omitPlatformBrand,
+    brandAgencyName: agencyName,
+    receiptAgencyName: isCrossAgency ? null : receipt?.agencyName,
+    coordinatorDisplayName:
+      !omitPlatformBrand && !isCrossAgency
+        ? receipt?.coordinator?.displayName
+        : null,
+    stripActorFromAgency: t("public.guestChat.stripActorFromAgency"),
+  });
 
   const baseWrap = {
     display: "flex",

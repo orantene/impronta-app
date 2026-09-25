@@ -502,12 +502,46 @@ export async function createAgendaBookingPayLink(input: {
   });
   if (!shell.ok) return shell;
 
+  // Criterion 4: a new Collect deposit link must kill prior open links so
+  // the old /pay/<code> page shows "replaced" and cannot take a second pay.
+  const { data: priorOpen, error: priorErr } = await admin
+    .from("payment_links")
+    .select("id")
+    .eq("tenant_id", String(row.tenant_id))
+    .eq("order_id", shell.orderId)
+    .eq("status", "open");
+  if (priorErr) {
+    logServerError("agenda.createPayLink.prior", priorErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (priorOpen && priorOpen.length > 0) {
+    const { cancelPaymentLink } = await import("@/lib/payments/links");
+    for (const prior of priorOpen as { id: string }[]) {
+      const cancelled = await cancelPaymentLink(admin, {
+        tenantId: String(row.tenant_id),
+        linkId: prior.id,
+        asReplaced: true,
+      });
+      if (!cancelled.ok && cancelled.reason === "unavailable") {
+        return { ok: false, reason: "unavailable" };
+      }
+    }
+  }
+
   const { createPaymentLink } = await import("@/lib/payments/links");
+  const { agendaFinishCardPayKey, newPaymentRequestAttemptId } = await import(
+    "@/lib/payments/payment-request-attempt"
+  );
   const minted = await createPaymentLink(admin, {
     tenantId: String(row.tenant_id),
     orderId: shell.orderId,
     amountCents,
-    idempotencyKey: `agenda-finish-card-${input.bookingId}-${amountCents}`,
+    // Unique per mint so remints are not rebound to a cancelled/replaced row.
+    idempotencyKey: agendaFinishCardPayKey({
+      bookingId: input.bookingId,
+      amountCents,
+      attemptId: newPaymentRequestAttemptId(),
+    }),
     actorUserId: null,
     publicOrigin: input.publicOrigin.replace(/\/$/, ""),
   });

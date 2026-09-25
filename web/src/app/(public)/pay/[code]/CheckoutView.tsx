@@ -10,7 +10,7 @@ export type CheckoutViewProps = {
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
-  readonly status: "open" | "paid" | "expired" | "cancelled" | "unknown" | "declined" | "processing";
+  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing";
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
   readonly holdUntil: string | null;
   readonly stripeUrl: string | null;
@@ -80,6 +80,14 @@ export function CheckoutView(props: CheckoutViewProps) {
     return (
       <Shell>
         <h1 className="text-[22px] font-semibold">{t("public.thread.cancelled")}</h1>
+      </Shell>
+    );
+  }
+
+  if (phase === "replaced") {
+    return (
+      <Shell>
+        <h1 className="text-[22px] font-semibold">{t("public.thread.replaced")}</h1>
       </Shell>
     );
   }

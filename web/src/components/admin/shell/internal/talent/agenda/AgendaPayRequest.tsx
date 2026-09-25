@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { TaskShell } from "./primitives/TaskShell";
 import { createPaymentLink } from "@/lib/server-actions/pos-engine";
+import {
+  agendaPayRequestKey,
+  newPaymentRequestAttemptId,
+} from "@/lib/payments/payment-request-attempt";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 /** T8.1 / G3.4 Pay-request composer in TaskShell. */
@@ -30,7 +34,11 @@ export function AgendaPayRequest({
       const res = await createPaymentLink({
         orderId,
         amountCents: cents,
-        idempotencyKey: `agenda-pay-req-${orderId}-${cents}`,
+        idempotencyKey: agendaPayRequestKey({
+          orderId,
+          amountCents: cents,
+          attemptId: newPaymentRequestAttemptId(),
+        }),
       });
       if ("ok" in res && res.ok) {
         const url = (res as unknown as { url: string }).url ?? "";

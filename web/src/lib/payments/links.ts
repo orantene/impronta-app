@@ -81,18 +81,38 @@ export async function createPaymentLink(
   }
   if (existing) {
     const row = existing as { code: string; amount_cents: number; expires_at: string; status: string };
-    if (row.status === "expired" || row.status === "cancelled") return { ok: false, reason: "expired" };
-    if (input.inquiryId) {
-      await attachPaymentLinkInquiry(admin, { tenantId: input.tenantId, code: row.code, orderId: input.orderId, inquiryId: input.inquiryId });
+    // A2 / #14: an expired or cancelled key must never block a new mint.
+    // Callers send a fresh attempt id; this path is defensive when the same
+    // key still points at a dead row — free the unique key, then fall through.
+    if (row.status === "expired" || row.status === "cancelled") {
+      const freedKey = `${input.idempotencyKey.trim()}:was:${row.status}:${row.code}`;
+      const { error: freeErr } = await admin
+        .from("payment_links")
+        .update({ operation_key: freedKey.slice(0, 200) })
+        .eq("tenant_id", input.tenantId)
+        .eq("code", row.code);
+      if (freeErr) {
+        logServerError("payments.createPaymentLink.freeExpiredKey", freeErr);
+        return { ok: false, reason: "unavailable" };
+      }
+    } else {
+      if (input.inquiryId) {
+        await attachPaymentLinkInquiry(admin, {
+          tenantId: input.tenantId,
+          code: row.code,
+          orderId: input.orderId,
+          inquiryId: input.inquiryId,
+        });
+      }
+      return {
+        ok: true,
+        code: row.code,
+        url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${row.code}`,
+        amountCents: Number(row.amount_cents),
+        expiresAt: row.expires_at,
+        already: true,
+      };
     }
-    return {
-      ok: true,
-      code: row.code,
-      url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${row.code}`,
-      amountCents: Number(row.amount_cents),
-      expiresAt: row.expires_at,
-      already: true,
-    };
   }
 
   const { data: order, error } = await admin
@@ -389,7 +409,7 @@ export async function markPaymentLinkPaid(
  */
 export async function cancelPaymentLink(
   admin: Admin,
-  input: { tenantId: string; linkId: string },
+  input: { tenantId: string; linkId: string; asReplaced?: boolean },
   deps: { expireSession?: typeof expireCheckoutSession } = {},
 ): Promise<{ ok: true; already: boolean } | { ok: false; reason: "not_found" | "already_paid" | "unavailable" }> {
   const { data, error } = await admin
@@ -418,7 +438,12 @@ export async function cancelPaymentLink(
     const killed = await expireBoundSession(admin, row.reservation_id, deps.expireSession ?? expireCheckoutSession);
     if (!killed.ok) return { ok: false, reason: killed.reason === "complete" ? "already_paid" : "unavailable" };
   }
-  const { error: updErr } = await admin.from("payment_links").update({ status: "cancelled" }).eq("id", row.id).eq("status", "open");
+  const nextStatus = input.asReplaced ? "replaced" : "cancelled";
+  const { error: updErr } = await admin
+    .from("payment_links")
+    .update({ status: nextStatus })
+    .eq("id", row.id)
+    .eq("status", "open");
   if (updErr) {
     logServerError("payments.cancelPaymentLink.update", updErr);
     return { ok: false, reason: "unavailable" };
