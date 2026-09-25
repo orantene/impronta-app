@@ -5,6 +5,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { zonedLocalToUtc } from "@/lib/scheduling/tz";
+import {
+  majorMoneyToCents,
+  totalClientRevenueToCents,
+} from "@/lib/money/total-client-revenue";
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
 import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
@@ -112,7 +116,10 @@ function paidCentsFrom(
     .filter((row) => row.status === "paid" || row.status === "payout_pending" || row.status === "payout_sent")
     .reduce((sum, row) => sum + row.gross_amount_cents, 0);
   if (paid > 0) return paid;
-  if (agency?.payment_status === "paid") return agency.total_client_revenue;
+  // total_client_revenue is major units; paidCents consumers expect cents.
+  if (agency?.payment_status === "paid") {
+    return totalClientRevenueToCents(agency.total_client_revenue);
+  }
   if (agency?.payment_status === "partial") return agency.deposit_amount_cents ?? 0;
   return 0;
 }
@@ -263,8 +270,9 @@ export async function loadTalentAgenda(
         }>)
           .map((row) => {
             if (typeof row.booking_id !== "string" || !row.booking_id) return null;
-            const cents = Number(row.client_charge_total);
-            if (Number.isFinite(cents) && cents > 0) {
+            // client_charge_total is major units (same family as total_client_revenue).
+            const cents = majorMoneyToCents(row.client_charge_total);
+            if (cents > 0) {
               legChargeByBooking.set(row.booking_id, cents);
             }
             return row.booking_id;
@@ -403,9 +411,10 @@ export async function loadTalentAgenda(
       const txRows = transactionsByBooking.get(booking.id) ?? [];
       const latest = latestTransaction(txRows);
       const paidCents = paidCentsFrom(agency, txRows);
-      const agencyTotal = Number(agency?.total_client_revenue);
+      // Prefer agency total (major → cents); else talent leg charge already in cents.
+      const agencyTotalCents = totalClientRevenueToCents(agency?.total_client_revenue);
       const totalCents =
-        agencyTotal > 0 ? agencyTotal : (legChargeByBooking.get(booking.id) ?? 0);
+        agencyTotalCents > 0 ? agencyTotalCents : (legChargeByBooking.get(booking.id) ?? 0);
       const openLink =
         agency?.order_id != null ? openLinkByOrder.get(agency.order_id) : undefined;
       const linkOpen =
@@ -419,9 +428,13 @@ export async function loadTalentAgenda(
         agencyStatus: agency?.status,
         talentBookingStatus: booking.status,
         agency: agency
-          ? { ...agency, total_client_revenue: totalCents }
+          ? { ...agency, total_client_revenue: agency.total_client_revenue }
           : totalCents > 0
-            ? { payment_status: "unpaid", total_client_revenue: totalCents }
+            ? {
+                payment_status: "unpaid",
+                // Synthetic fallback: store major so the mapper converts once.
+                total_client_revenue: totalCents / 100,
+              }
             : undefined,
         paidCents,
         latestTxStatus: latest?.status,
