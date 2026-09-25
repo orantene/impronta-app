@@ -66,7 +66,10 @@ export interface TalentAgendaItem {
   where: {
     mode: "studio" | "client_home" | "away" | "online";
     label: string;
+    /** @deprecated Prefer travelBeforeMin / travelAfterMin. Kept as max(before, after) for older callers. */
     travelMin?: number;
+    travelBeforeMin?: number;
+    travelAfterMin?: number;
   };
   bufferAfterMin: number;
   booking: BookingState;

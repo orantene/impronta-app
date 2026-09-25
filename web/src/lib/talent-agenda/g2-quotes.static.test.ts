@@ -28,6 +28,16 @@ describe("G2.2 quote writers", () => {
     );
     assert.ok(ui.includes("createOwnEventQuote"));
     assert.ok(ui.includes("createOwnProjectQuote"));
+    assert.ok(ui.includes("Save draft"));
+    assert.ok(!ui.includes("Send quote"));
+    assert.ok(ui.includes("Saves a draft only"));
     assert.ok(!ui.includes("Project quote drafted. Attach deliverables on the booking after the client accepts."));
+  });
+
+  it("cancel-actions use talent ownership, not staff()", () => {
+    const src = readFileSync(path.join(ROOT, "cancel-actions.ts"), "utf8");
+    assert.ok(src.includes("requireOwnBooking"));
+    assert.ok(src.includes("cancelBookingSet"));
+    assert.ok(!src.includes("cancelBookingSetAction"));
   });
 });

@@ -420,8 +420,10 @@ export async function loadTalentAgenda(
         0,
         agency?.travel_after_min ?? booking.travel_after_min ?? 0,
       );
-      // occupiedInterval uses one travelMin on both sides; take the larger pad.
-      const travelMin = Math.max(travelBefore, travelAfter);
+      const travelMin =
+        travelBefore > 0 || travelAfter > 0
+          ? Math.max(travelBefore, travelAfter)
+          : 0;
 
       const history: TalentAgendaItem["history"] = [];
       const pendingReschedule = pendingRescheduleByBooking.get(booking.id);
@@ -489,6 +491,8 @@ export async function loadTalentAgenda(
             booking.location_text ??
             "Booking",
           travelMin: travelMin > 0 ? travelMin : undefined,
+          travelBeforeMin: travelBefore > 0 ? travelBefore : undefined,
+          travelAfterMin: travelAfter > 0 ? travelAfter : undefined,
         },
         bufferAfterMin: hours?.bufferAfterMin ?? 0,
         booking: bookingState,

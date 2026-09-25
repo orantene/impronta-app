@@ -153,7 +153,6 @@ export function AgendaBookingRecord({
   const [, startTransition] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [refundPreview, setRefundPreview] = useState<number | null>(null);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
 
@@ -177,18 +176,9 @@ export function AgendaBookingRecord({
     });
   }
 
-  // ── Cancel preview ───────────────────────────────────────────────
-  async function handleCancelRequest() {
+  // ── Cancel confirm (A1.7 — do not cancel on open; only on confirm) ─
+  function handleCancelRequest() {
     if (!bookingId) return;
-    // Pre-flight: get refundable amount.
-    const res = await cancelBookingWithRefund({
-      bookingId,
-      cancelledBy: "talent",
-      operationKey: `agenda-cancel-preview-${bookingId}`,
-    });
-    if (res.ok) {
-      setRefundPreview(res.refundableCents);
-    }
     setConfirmCancel(true);
   }
 
@@ -463,11 +453,7 @@ export function AgendaBookingRecord({
       {confirmCancel && (
         <ConfirmDialog
           title="Cancel this booking?"
-          body={
-            refundPreview != null && refundPreview > 0
-              ? `The client will be refunded $${(refundPreview / 100).toFixed(2)}. This cannot be undone.`
-              : "This cannot be undone."
-          }
+          body="This cannot be undone. Any refund due is calculated when you confirm."
           confirmLabel="Cancel booking"
           destructive
           onConfirm={handleCancelConfirm}

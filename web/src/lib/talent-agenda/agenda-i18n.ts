@@ -216,6 +216,9 @@ const ES: Record<string, string> = {
   "Line description": "Descripción",
   Amount: "Importe",
   "Card needs a linked order": "La tarjeta necesita un pedido vinculado",
+  "Card needs an amount due": "La tarjeta necesita un importe pendiente",
+  "Creates a pay link you can open or send. Works even without a prior order.":
+    "Crea un enlace de pago que puedes abrir o enviar. Funciona aunque no haya un pedido previo.",
   "Marks transfer awaiting. Confirm when the money lands.":
     "Marca la transferencia como pendiente. Confirma cuando llegue el dinero.",
   "Pay link ready": "Enlace de pago listo",

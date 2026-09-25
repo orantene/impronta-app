@@ -13,12 +13,13 @@ import { useAgendaCopy } from "./use-agenda-copy";
 type CollectMethod = "cash" | "card" | "transfer" | "unpaid" | null;
 
 /**
- * T8.2 / G2.1 / G3.4 / A0.4 Finish and collect inside TaskShell.
+ * T8.2 / G2.1 / G3.4 / A0.4 / A1.1 Finish and collect inside TaskShell.
  * No adjust-lines UI until a real writer exists (A0.4).
+ * Card mints a pay link; server creates an order shell when the booking has none.
  */
 export function AgendaFinishCollect({
   bookingId,
-  orderId,
+  orderId: _orderId,
   dueCents,
   onClose,
   onDone,
@@ -53,14 +54,14 @@ export function AgendaFinishCollect({
           return;
         }
       } else if (method === "card") {
-        if (!orderId) {
-          setResult(copy.t("Card needs a linked order"));
+        if (!(dueCents && dueCents > 0)) {
+          setResult(copy.t("Card needs an amount due"));
           return;
         }
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         const link = await createAgendaBookingPayLink({
           bookingId,
-          amountCents: dueCents && dueCents > 0 ? dueCents : undefined,
+          amountCents: dueCents,
           publicOrigin: origin,
         });
         if (!link.ok) {
@@ -88,13 +89,15 @@ export function AgendaFinishCollect({
     });
   }
 
+  const cardBlocked = method === "card" && !(dueCents && dueCents > 0);
+
   return (
     <TaskShell
       open
       onClose={onClose}
       title={copy.t("Finish and collect")}
       primaryActionLabel={pending ? copy.t("Completing…") : copy.t("Complete booking")}
-      onPrimaryAction={method && !(method === "card" && !orderId) ? handleFinish : undefined}
+      onPrimaryAction={method && !cardBlocked ? handleFinish : undefined}
       secondaryActionLabel={copy.t("Back")}
     >
       <div className="space-y-4">
@@ -121,8 +124,13 @@ export function AgendaFinishCollect({
           {!method ? (
             <p className="text-[13px] text-[#5F6368]">{copy.t("Complete stays off until a method is selected.")}</p>
           ) : null}
-          {method === "card" && !orderId ? (
-            <p className="text-[13px] text-[#B42318]">{copy.t("Card needs a linked order")}</p>
+          {cardBlocked ? (
+            <p className="text-[13px] text-[#B42318]">{copy.t("Card needs an amount due")}</p>
+          ) : null}
+          {method === "card" && !cardBlocked ? (
+            <p className="text-[13px] text-[#5F6368]">
+              {copy.t("Creates a pay link you can open or send. Works even without a prior order.")}
+            </p>
           ) : null}
           {method === "transfer" ? (
             <p className="text-[13px] text-[#5F6368]">

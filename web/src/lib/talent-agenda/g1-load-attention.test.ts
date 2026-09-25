@@ -40,6 +40,21 @@ describe("G1.1 travel / intake / reschedule attention", () => {
     assert.equal(occ.endsAt.toISOString(), new Date("2026-09-23T15:30:00-05:00").toISOString());
   });
 
+  it("occupiedInterval uses travelBeforeMin and travelAfterMin independently", () => {
+    const item = baseBooking({
+      where: {
+        mode: "away",
+        label: "Client home",
+        travelBeforeMin: 30,
+        travelAfterMin: 10,
+      },
+      bufferAfterMin: 0,
+    });
+    const occ = occupiedInterval(item);
+    assert.equal(occ.startsAt.toISOString(), new Date("2026-09-23T13:30:00-05:00").toISOString());
+    assert.equal(occ.endsAt.toISOString(), new Date("2026-09-23T15:10:00-05:00").toISOString());
+  });
+
   it("needsAttention includes pending intake", () => {
     const item = baseBooking({
       tradeSection: { kind: "intake", payload: { status: "pending" } },

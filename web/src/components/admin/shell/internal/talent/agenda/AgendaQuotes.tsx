@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { TALENT_AGENDA_VARS } from "./primitives";
 import { createOwnEventQuote, createOwnProjectQuote } from "@/lib/talent-agenda/create-quote";
 
-/** T7.2 / G2.2 Event quote — writes draft inquiry + offer; optional date hold. */
+/** T7.2 / G2.2 / A1.4 Event quote — saves a draft inquiry + offer; optional date hold. */
 export function AgendaEventQuote({
   title = "New event quote",
   onCancel,
@@ -21,7 +21,7 @@ export function AgendaEventQuote({
   const [status, setStatus] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  function handleSend() {
+  function handleSave() {
     if (!what.trim() || !date) return;
     start(async () => {
       const res = await createOwnEventQuote({
@@ -30,13 +30,13 @@ export function AgendaEventQuote({
         holdDate: hold,
       });
       if (!res.ok) {
-        setStatus(res.message ?? `Could not save quote: ${res.reason}`);
+        setStatus(res.message ?? `Could not save draft: ${res.reason}`);
         return;
       }
       setStatus(
         hold
-          ? "Quote draft saved. Date blocked while the quote is out. Nothing else is reserved until accepted."
-          : "Quote draft saved. Nothing is reserved until the quote is accepted.",
+          ? "Draft saved. Date blocked while the draft is out. Nothing else is reserved until accepted."
+          : "Draft saved. Nothing is reserved until the quote is accepted.",
       );
       onSent?.();
     });
@@ -62,7 +62,7 @@ export function AgendaEventQuote({
           Hold this date for a few days
         </label>
         <p className="text-[13px] text-[#5F6368]">
-          Nothing is reserved until the quote is accepted
+          Saves a draft only. No client email is sent. Nothing is reserved until accepted
           {hold ? ", except the optional hold. Other requests still show." : "."}
         </p>
       </section>
@@ -72,17 +72,17 @@ export function AgendaEventQuote({
         <button
           type="button"
           disabled={!what.trim() || !date || pending}
-          onClick={() => void handleSend()}
+          onClick={() => void handleSave()}
           className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white disabled:opacity-40"
         >
-          {pending ? "Working…" : "Send quote"}
+          {pending ? "Working…" : "Save draft"}
         </button>
       </div>
     </div>
   );
 }
 
-/** T7.3 / G2.2 Project quote — draft booking + deliverables with due_at. No appointment. */
+/** T7.3 / G2.2 / A1.4 Project quote — draft booking + deliverables with due_at. No appointment. */
 export function AgendaProjectQuote({
   onCancel,
   onSent,
@@ -96,7 +96,7 @@ export function AgendaProjectQuote({
   const [status, setStatus] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  function handleSend() {
+  function handleSave() {
     if (!what.trim()) return;
     start(async () => {
       const lines = deliverables
@@ -109,11 +109,11 @@ export function AgendaProjectQuote({
         deliverables: lines.length > 0 ? lines : undefined,
       });
       if (!res.ok) {
-        setStatus(res.message ?? `Could not save: ${res.reason}`);
+        setStatus(res.message ?? `Could not save draft: ${res.reason}`);
         return;
       }
       setStatus(
-        "Project quote drafted. Due dates appear on your calendar. No appointment was created.",
+        "Project draft saved. Due dates appear on your calendar. No appointment was created. No client email was sent.",
       );
       onSent?.();
     });
@@ -139,7 +139,7 @@ export function AgendaProjectQuote({
           <input type="date" className="mt-1 w-full rounded-xl border border-black/10 px-3 py-2" value={due} onChange={(e) => setDue(e.target.value)} />
         </label>
         <p className="rounded-xl bg-[#f5f5f0] p-3 text-[13px] text-[#5F6368]">
-          No appointment is created. Due dates appear in your calendar all-day row once saved
+          Saves a draft only. No appointment is created. Due dates appear in your calendar all-day row once saved
           {due ? ` (target ${due})` : ""}.
         </p>
       </section>
@@ -149,10 +149,10 @@ export function AgendaProjectQuote({
         <button
           type="button"
           disabled={!what.trim() || pending}
-          onClick={() => void handleSend()}
+          onClick={() => void handleSave()}
           className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white disabled:opacity-40"
         >
-          {pending ? "Working…" : "Send quote"}
+          {pending ? "Working…" : "Save draft"}
         </button>
       </div>
     </div>

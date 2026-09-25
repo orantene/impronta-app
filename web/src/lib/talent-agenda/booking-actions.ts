@@ -18,8 +18,9 @@ type OwnOk = { ok: true; talentId: string };
 
 /**
  * Talent must appear on booking_talent or own the talent_bookings mirror id.
+ * Exported for cancel / other talent-owned writers in this package.
  */
-async function requireOwnBooking(bookingId: string): Promise<OwnOk | AgendaActionFail> {
+export async function requireOwnBooking(bookingId: string): Promise<OwnOk | AgendaActionFail> {
   if (!bookingId) return { ok: false, reason: "missing" };
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, reason: "unavailable" };
@@ -306,7 +307,92 @@ export type CreateAgendaPayLinkResult =
   | { ok: false; reason: string };
 
 /**
- * Mint (or reuse) a payment link for a booking that already has an order.
+ * A1.1 — Find or create a minimal pending_payment order for a booking so Card
+ * finish can mint a real `/pay/<code>` even when create-slot never set order_id.
+ */
+async function ensureAgendaOrderShell(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  input: {
+    bookingId: string;
+    tenantId: string;
+    talentId: string;
+    title: string | null;
+    amountCents: number;
+    currencyCode: string | null;
+    existingOrderId: string | null;
+  },
+): Promise<{ ok: true; orderId: string } | AgendaActionFail> {
+  if (input.existingOrderId) return { ok: true, orderId: String(input.existingOrderId) };
+  if (input.amountCents <= 0) return { ok: false, reason: "invalid_amount" };
+
+  const currency = (input.currencyCode?.trim() || "MXN").toUpperCase();
+  const { generateOpaqueCode } = await import("@/lib/links/code");
+
+  const { data: order, error: orderErr } = await admin
+    .from("orders")
+    .insert({
+      tenant_id: input.tenantId,
+      status: "pending_payment",
+      currency,
+      version: 1,
+      subtotal_cents: input.amountCents,
+      discount_cents: 0,
+      tax_cents: 0,
+      total_cents: input.amountCents,
+      receipt_code: generateOpaqueCode(),
+      source_channel: "talent_agenda",
+      source_page: "finish_collect_card",
+      payout_release_rule: "immediate",
+    })
+    .select("id")
+    .single();
+  if (orderErr || !order) {
+    logServerError("agenda.ensureOrderShell.order", orderErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  const orderId = String((order as { id: string }).id);
+
+  const label = (input.title?.trim() || "Booking").slice(0, 120);
+  const { error: lineErr } = await admin.from("order_lines").insert({
+    order_id: orderId,
+    tenant_id: input.tenantId,
+    label,
+    units: 1,
+    unit_cents: input.amountCents,
+    total_cents: input.amountCents,
+    talent_profile_id: input.talentId,
+    sort_order: 0,
+    booking_id: input.bookingId,
+    booking_kind: "agency_booking",
+  });
+  if (lineErr) {
+    logServerError("agenda.ensureOrderShell.line", lineErr);
+    return { ok: false, reason: "unavailable" };
+  }
+
+  const { error: linkErr } = await admin
+    .from("agency_bookings")
+    .update({ order_id: orderId })
+    .eq("id", input.bookingId)
+    .is("order_id", null);
+  if (linkErr) {
+    // Race: another writer may have linked an order — re-read and use that.
+    const { data: raced } = await admin
+      .from("agency_bookings")
+      .select("order_id")
+      .eq("id", input.bookingId)
+      .maybeSingle();
+    if (raced?.order_id) return { ok: true, orderId: String(raced.order_id) };
+    logServerError("agenda.ensureOrderShell.link", linkErr);
+    return { ok: false, reason: "unavailable" };
+  }
+
+  return { ok: true, orderId };
+}
+
+/**
+ * Mint (or reuse) a payment link for a booking. Creates an order shell when
+ * the booking has none (manual slots).
  */
 export async function createAgendaBookingPayLink(input: {
   bookingId: string;
@@ -321,7 +407,7 @@ export async function createAgendaBookingPayLink(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, order_id, total_client_revenue, payment_status")
+    .select("id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -329,9 +415,7 @@ export async function createAgendaBookingPayLink(input: {
     return { ok: false, reason: "unavailable" };
   }
   if (!row) return { ok: false, reason: "not_found" };
-  if (!row.order_id || !row.tenant_id) {
-    return { ok: false, reason: "no_order" };
-  }
+  if (!row.tenant_id) return { ok: false, reason: "no_tenant" };
   if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
 
   const total = Math.max(0, Number(row.total_client_revenue) || 0);
@@ -339,10 +423,21 @@ export async function createAgendaBookingPayLink(input: {
     input.amountCents != null && input.amountCents > 0 ? input.amountCents : total;
   if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
 
+  const shell = await ensureAgendaOrderShell(admin, {
+    bookingId: input.bookingId,
+    tenantId: String(row.tenant_id),
+    talentId: own.talentId,
+    title: row.title ?? null,
+    amountCents,
+    currencyCode: row.currency_code ?? null,
+    existingOrderId: row.order_id ? String(row.order_id) : null,
+  });
+  if (!shell.ok) return shell;
+
   const { createPaymentLink } = await import("@/lib/payments/links");
   const minted = await createPaymentLink(admin, {
     tenantId: String(row.tenant_id),
-    orderId: String(row.order_id),
+    orderId: shell.orderId,
     amountCents,
     idempotencyKey: `agenda-finish-card-${input.bookingId}-${amountCents}`,
     actorUserId: null,

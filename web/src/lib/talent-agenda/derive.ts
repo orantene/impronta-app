@@ -112,11 +112,18 @@ export function occupiedInterval(
 ): { startsAt: Date; endsAt: Date } {
   const starts = new Date(item.startsAt);
   const ends = new Date(item.endsAt);
-  const travel = Math.max(0, item.where.travelMin ?? 0);
+  const before = Math.max(
+    0,
+    item.where.travelBeforeMin ?? item.where.travelMin ?? 0,
+  );
+  const after = Math.max(
+    0,
+    item.where.travelAfterMin ?? item.where.travelMin ?? 0,
+  );
   const buffer = Math.max(0, item.bufferAfterMin);
   return {
-    startsAt: new Date(starts.getTime() - travel * 60_000),
-    endsAt: new Date(ends.getTime() + (travel + buffer) * 60_000),
+    startsAt: new Date(starts.getTime() - before * 60_000),
+    endsAt: new Date(ends.getTime() + (after + buffer) * 60_000),
   };
 }
 
