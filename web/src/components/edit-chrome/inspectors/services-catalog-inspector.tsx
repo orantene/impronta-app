@@ -58,7 +58,7 @@ export function ServicesCatalogContentInspector({
     <div className="flex flex-col gap-4" data-services-catalog-inspector="content">
       <Section
         title="Content"
-        info="Section copy and which catalog items this widget shows. Prices and booking rules stay in Services — use Edit offering there."
+        info="Section copy and which catalog items this widget shows. Prices and booking rules stay in Services - use Edit offering there."
       >
         <p className="text-xs text-black/55">
           Catalog edits (price, duration, extras) go live when you publish the offering. Website layout and
@@ -252,7 +252,7 @@ export function ServicesCatalogContentInspector({
             <option value="inline">Inline expansion</option>
           </select>
           <p className="text-xs text-black/50">
-            Sheet chrome and chat CTAs (Ask / Chat now) are owned by the booking sheet — do not
+            Sheet chrome and chat CTAs (Ask / Chat now) are owned by the booking sheet - do not
             duplicate chat payload here.
           </p>
         </div>
