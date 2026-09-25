@@ -74,11 +74,11 @@ Remaining for full Step 1:
 2. [x] Agent SQL probe + note: `docs/plans/program/evidence/today-calendar/jor-readonly-probe-2026-09-25.md` (0 bookings / 0 booking_talent / 0 hours; no agent UI session). Refreshed 2026-09-25.
 3. Leave owner click open until confirmed.
 
-### Step 4 — Delete legacy (owner waive 2026-09-25; Day-7 was 2026-10-02)
+### Step 4 — Delete legacy (separate PR, after ≥7 days green)
 
-1. [x] Remove `isAgendaV2` / `bridgeTalentAgendaV2` branches that render legacy `TalentTodayPage` body / `CalendarPage` for agenda routes — Agenda surfaces only; kill switch empties agenda load.
-2. [ ] Delete unused `talent/pages/CalendarPage.tsx` file after one release with no flag-off traffic (kept on disk unused).
-3. Soft kill switch retained: `TALENT_AGENDA_V2=0` → empty V2 chrome (no legacy remount).
+1. Remove `isAgendaV2` branches that render `TalentTodayPage` / `CalendarPage` for agenda routes.
+2. Delete unused legacy calendar day-14 helpers only after no flag-off traffic.
+3. Leave this checklist item unchecked until that PR merges.
 
 ### Rollback
 
