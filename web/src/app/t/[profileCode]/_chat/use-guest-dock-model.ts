@@ -118,6 +118,7 @@ export function useGuestDockModel(input: {
       onEnsureInquiry: (() => Promise<string | null>) | null;
       onAsk: (text: string) => void;
     }): GuestDockCatalogProps => ({
+      serviceMenu: input.brand.dockServiceMenu,
       tenantSlug: c.tenantSlug,
       businessName,
       locale,
