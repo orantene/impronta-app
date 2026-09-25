@@ -331,7 +331,6 @@ Signed in as `qa-journeys-talent@impronta.test`. Inbox now lists conversations (
 - Stripe 4242 + full/partial refund (live Checkout on R2).
 - Talent: hub money half, clean Accept disappearance, full refusal matrix, real builder publish column move.
 - Capacity event-tier + race (no local QA SRK).
-- Production pointer advance to `e90d9d3e4`.
 
 No D-MSG-423 opened. No hand move of `production`. No Impronta / Jorgelina / El Paisa content edits.
 
