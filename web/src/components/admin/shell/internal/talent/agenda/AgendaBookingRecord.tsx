@@ -527,12 +527,12 @@ export function AgendaBookingRecord({
           </section>
         ) : null}
         {item.history && item.history.length > 0 ? (
-          <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-[#5F6368]">
+          <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-admin-ink-muted">
             <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("History")}</h2>
             <ul className="space-y-2">
               {item.history.map((line) => (
                 <li key={`${line.at}-${line.label}`}>
-                  <time dateTime={line.at} className="block text-[11px] text-[#8A8F98]">
+                  <time dateTime={line.at} className="block text-[11px] text-admin-ink-dim">
                     {new Date(line.at).toLocaleString()}
                   </time>
                   <span>{line.label}</span>
