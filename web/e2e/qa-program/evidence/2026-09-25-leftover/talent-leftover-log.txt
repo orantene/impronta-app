@@ -1,0 +1,14 @@
+inbox_url https://staging-qa-journeys.tulala.digital/talent/inbox
+inbox_snip Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page content Today WORK Messages Calendar Money PRESENCE Profile Public page Services Reviews Plan FREE Preview profile Settings Inbox 35 conversations New Needs action 35 Waiting All 35 Mine Unassigned Unread Payment issues Orders Offers Appointments UNASSIGNED CC Cora Cuevas Need two mode
+rows 0
+OPEN 515d5c9e-3305-4d73-88e9-c62de498f73e snip=Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page content Today WORK Messages Calendar Money PRESENCE Profile Public page Services Reviews Plan FREE Preview profile Settings Inbox 35 conversations New Needs action 35 Waiting All 35 Mine Unassigned Unread Payment issues Orders Offers Ap
+has_decision true
+has_money true
+OPEN 88122fb7-b464-4fb7-a0a6-7c0ad5530ed9 snip=Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page content Today WORK Messages Calendar Money PRESENCE Profile Public page Services Reviews Plan FREE Preview profile Settings Inbox 35 conversations New Needs action 35 Waiting All 35 Mine Unassigned Unread Payment issues Orders Offers Ap
+has_decision true
+has_money true
+profile_url https://staging-qa-journeys.tulala.digital/talent/profile snip=Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page content Today WORK Messages Calendar Money PRESENCE Profile Public page Services Revie
+ROUTE /talent/public-page -> https://staging-qa-journeys.tulala.digital/talent/site Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page conten
+ROUTE /talent/site -> https://staging-qa-journeys.tulala.digital/talent/site Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page conten
+ROUTE /talent/pages -> https://staging-qa-journeys.tulala.digital/talent/pages QA JOURNEYS This page is no longer here We couldn't find that page on QA Journeys. The roster, news, or campaign you wer
+ROUTE /t/QA-JNY-T1 -> https://staging-qa-journeys.tulala.digital/t/QA-JNY-T1 Skip to content QA JOURNEYS Book now EN | ES QA Journeys Talent QA-JNY-T1 SHARE THIS PROFILE SERVICES & PRICING She conf

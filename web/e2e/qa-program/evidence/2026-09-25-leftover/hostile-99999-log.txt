@@ -1,0 +1,7 @@
+after_99999_total 1 selected · $99,999
+has99999 true
+catalog_rows 30
+after_catalog_total 30 selected · from $251.50
+catalog_selected_clicks 30
+no_crash true
+alive true

@@ -1,0 +1,10 @@
+
+Running 5 tests using 5 workers
+
+[1A[2K[1/5] [chromium] › e2e/qa-program/isolation/hostile-data.spec.ts:44:7 › QA hostile data › $0 and $99,999 line prices survive offer editor
+[1A[2K[2/5] [chromium] › e2e/qa-program/isolation/hostile-data.spec.ts:21:7 › QA hostile data › 4000-char message + long name do not crash Messages
+[1A[2K[3/5] [chromium] › e2e/qa-program/capacity/event-tier-sold-out.spec.ts:28:7 › QA capacity — event tier sold out › door tier held → second guest sold out + Messages door tier disabled
+[1A[2K[4/5] [chromium] › e2e/qa-program/isolation/permissions-money.spec.ts:35:7 › QA permissions — money gate › staff without money permission sees refusal on Refund
+[1A[2K[5/5] [chromium] › e2e/qa-program/capacity/table-overbook.spec.ts:53:7 › QA capacity — table overbook › table pool full → reserve refuses + Messages omits Tables chip
+[1A[2K  3 skipped
+  2 passed (14.1s)

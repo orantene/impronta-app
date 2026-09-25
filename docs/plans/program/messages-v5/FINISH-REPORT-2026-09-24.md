@@ -273,4 +273,66 @@ Playwright against journeys (bypass, no production SRK):
 
 No D-MSG-423 opened. Closest product gap noted: outside **deposit** on a booking refuses with unavailable when `deposit_amount_cents` / `deposit_pct` are zero (`createInquiryTransactionDraft`: "This offer has no valid deposit configured.") while the sheet still offers Other amount as a deposit-shaped request.
 
+---
+
+## Finish proofs leftover (25 Sep, evening)
+
+Worktree `docs/finish-proofs-leftover` off `origin/main` `e90d9d3e4` (#2246). Host still `staging-qa-journeys` / `dpl_C4vxn4tsVy3wQiQbyqgEDt7tqKHq`. Evidence under `web/e2e/qa-program/evidence/2026-09-25-leftover/`. Production Supabase was used only for `signInAgentOwnedHost` magic-link cookies on `qa-stripe-r2` (not for Impronta content). QA SQL via MCP on `fxlankepwnvelxjrahwk`. Local `.env.capacity-isolated.local` still has no QA service-role key on disk.
+
+### Pointer (12)
+
+| Ref | Sha |
+|---|---|
+| `origin/main` | `e90d9d3e4` |
+| `origin/production` | `e90d9d3e4` (fast-forward via `promote-production.yml` run 36090868249) |
+
+`e90d9d3e4` **is** an ancestor of `origin/production`. Pointer was **not** pushed by hand.
+
+### Stripe (6–7) — precise stop
+
+| Step | Result |
+|---|---|
+| Sign-in on `qa-stripe-r2` with `QA_ALLOW_AGENT_PROD_HOST=1` + production URL/SRK/anon | ok |
+| Open payment sheet / mint Checkout on existing inquiry `a3c937e7-…` | ok |
+| Checkout session mode | **`cs_live_`** |
+| Card 4242 + refund | **not proven** — harness stops on D-MSG-330 (live Checkout) |
+| Partial refund | **not in spec** / not reached |
+
+Unblock in one sentence: put `sk_test_` / matching `pk_test_` on `qa-stripe-r2` (or mint `provider=stripe` with test keys on journeys). Do not 4242 against live. Evidence: `stripe-result.txt`, earlier hung fresh-offer run showed empty Menu on R2 (`No items yet`); existing accepted-offer inquiry bypassed that hang.
+
+### Talent dashboard (8)
+
+Signed in as `qa-journeys-talent@impronta.test`. Inbox now lists conversations (35–49). Screenshots `talent-*.png`, logs `talent-seven-*.txt`.
+
+| # | Item | Status | Evidence |
+|---|---|---|---|
+| 1 | Money split both halves | **partial** | Agency thread `88122fb7-…`: `$` + `net`, **no** “client total”. Hub/seller half with a visible client total **not** shown on fixture (Money page YTD `$0`). |
+| 2 | Group thread silent on amounts | **partial** | Multi-participant inquiry `cd7bf520-…`; stream check `group_stream_has_dollar false`. No dedicated Group tab found. |
+| 3 | Accept / Decline bar | **partial** | Decline: UI + DB `inquiry_participants.status=declined` on `515d5c9e-…`. Accept: button seen earlier; re-scan of Needs action did not land a clean Accept→gone with DB `active`/`accepted_at` on a fresh invite. |
+| 4 | Ask in place | **partial** | `/t/QA-JNY-T1`: guest dock visible, URL stayed on the profile. Dedicated `#talent-ask` control count was 0. |
+| 5 | Request-only copy | **proven** | Public profile shows request-only copy; instant Book count 0. |
+| 6 | Named refusals with sentences | **not proven** | Talent thread header More not present; refusal menu walk returned no hits. |
+| 7 | Builder publish | **not proven** | Publish control visible on `/talent/site`; click did not show a clear published-tree / `talent_sites` column move in this pass. |
+
+### Matrix + hostile (9–10)
+
+| Item | Status | Notes |
+|---|---|---|
+| Tampered client link | **proven** | `cross-tenant.spec.ts` tampered case **passed** (3.7s) on retry. |
+| Permissions money | **partial** | Seeded `messages.refund` for owner via QA MCP. Nomoney staff: Refund button count 0 (hidden door). Full Playwright skip remains without local QA SRK. Screenshot `permissions-nomoney.png`. |
+| Table overbook (Messages Items) | **partial** | MCP filled table pool to 4 committed units. Items picker chips had Menu/Tickets/Packages/Services/Talent and **no Tables**. Screenshot `capacity-table-full-items.png`. Storefront reserve path still needs local SRK for the full spec. |
+| Event tier / race | **not proven** | Specs skip without disk QA SRK. |
+| Hostile `$99,999` custom line | **proven** | Items picker total `1 selected · $99,999`. `hostile-99999-only.png`. |
+| Hostile 30 lines | **proven** | 30 catalog rows selected; total `30 selected · from $251.50`. `hostile-30-catalog-lines.png`. No application error / NaN / Infinity. |
+| Hostile 4000-char + $0 | still proven | Prior `hostile-data.spec.ts`. |
+
+### Still not proven (short list)
+
+- Stripe 4242 + full/partial refund (live Checkout on R2).
+- Talent: hub money half, clean Accept disappearance, full refusal matrix, real builder publish column move.
+- Capacity event-tier + race (no local QA SRK).
+- Production pointer advance to `e90d9d3e4`.
+
+No D-MSG-423 opened. No hand move of `production`. No Impronta / Jorgelina / El Paisa content edits.
+
 
