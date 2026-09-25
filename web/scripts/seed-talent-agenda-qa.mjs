@@ -153,6 +153,17 @@ async function resetTagged() {
     const { error } = await admin.from(table).delete().in("talent_profile_id", ids);
     if (error) console.warn(`[seed] ${table} cleanup:`, error.message);
   }
+  // Commercial rows share ids with talent_bookings for agenda fixtures.
+  const { data: taggedBookings } = await admin
+    .from("agency_bookings")
+    .select("id")
+    .ilike("title", `${TAG}%`);
+  const bookingIds = (taggedBookings ?? []).map((r) => r.id);
+  if (bookingIds.length) {
+    await admin.from("booking_deliverables").delete().in("booking_id", bookingIds);
+    await admin.from("booking_talent").delete().in("booking_id", bookingIds);
+    await admin.from("agency_bookings").delete().in("id", bookingIds);
+  }
   const { error } = await admin.from("talent_profiles").delete().in("id", ids);
   if (error) console.warn("[seed] talent_profiles cleanup:", error.message);
   console.log(`[seed] reset ${ids.length} talent(s)`);
@@ -190,6 +201,171 @@ async function seedHours(talentProfileId, tenantId) {
     onConflict: "talent_profile_id",
   });
   if (error) console.warn("[seed] hours:", error.message);
+}
+
+/**
+ * W1.2 — week rows for primary beauty talent around CLOCK.
+ * Mirrors jor-week fixture intervals; tagged via title prefix for --reset.
+ */
+async function seedWeekFixtures(talentProfileId, tenantId, createdByUserId) {
+  if (!tenantId) {
+    console.warn("[seed] week fixtures skipped: no tenant");
+    return;
+  }
+
+  // Clear prior QA calendar rows for this talent (safe — only our titles).
+  const { data: prior } = await admin
+    .from("talent_bookings")
+    .select("id")
+    .eq("talent_profile_id", talentProfileId)
+    .ilike("title", `${TAG}%`);
+  const priorIds = (prior ?? []).map((r) => r.id);
+  if (priorIds.length) {
+    await admin.from("booking_talent").delete().in("booking_id", priorIds);
+    await admin.from("booking_deliverables").delete().in("booking_id", priorIds);
+    await admin.from("talent_bookings").delete().in("id", priorIds);
+    await admin.from("agency_bookings").delete().in("id", priorIds);
+  }
+  await admin
+    .from("talent_holds")
+    .delete()
+    .eq("talent_profile_id", talentProfileId)
+    .ilike("title", `${TAG}%`);
+
+  async function insertBooking({
+    title,
+    clientName,
+    startsAt,
+    endsAt,
+    paymentStatus,
+    status = "confirmed",
+    internalNotes,
+  }) {
+    const { data: agencyRow, error: agencyErr } = await admin
+      .from("agency_bookings")
+      .insert({
+        tenant_id: tenantId,
+        source_inquiry_id: null,
+        owner_staff_id: createdByUserId,
+        created_by_staff_id: createdByUserId,
+        title: `${TAG} ${title}`,
+        status,
+        payment_status: paymentStatus,
+        currency_code: "MXN",
+        starts_at: startsAt,
+        ends_at: endsAt,
+        contact_name: clientName,
+        source_type_snapshot: "manual",
+        internal_notes: internalNotes ?? `${TAG} fixture`,
+      })
+      .select("id")
+      .single();
+    if (agencyErr || !agencyRow) {
+      console.warn(`[seed] agency_bookings ${title}:`, agencyErr?.message);
+      return null;
+    }
+    const bookingId = agencyRow.id;
+    const { error: legErr } = await admin.from("booking_talent").insert({
+      tenant_id: tenantId,
+      booking_id: bookingId,
+      talent_profile_id: talentProfileId,
+      sort_order: 0,
+      units: 1,
+      pricing_unit: "event",
+      talent_cost_rate: 0,
+      client_charge_rate: 0,
+      talent_cost_total: 0,
+      client_charge_total: 0,
+      gross_profit: 0,
+    });
+    if (legErr) {
+      console.warn(`[seed] booking_talent ${title}:`, legErr.message);
+      await admin.from("agency_bookings").delete().eq("id", bookingId);
+      return null;
+    }
+    const { error: calErr } = await admin.from("talent_bookings").insert({
+      id: bookingId,
+      talent_profile_id: talentProfileId,
+      tenant_id: tenantId,
+      title: `${TAG} ${title}`,
+      client_label: clientName,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      all_day: false,
+      status: status === "confirmed" ? "confirmed" : "confirmed",
+      created_by_user_id: createdByUserId,
+    });
+    if (calErr) {
+      console.warn(`[seed] talent_bookings ${title}:`, calErr.message);
+      await admin.from("booking_talent").delete().eq("booking_id", bookingId);
+      await admin.from("agency_bookings").delete().eq("id", bookingId);
+      return null;
+    }
+    return bookingId;
+  }
+
+  const b1 = await insertBooking({
+    title: "Gel set",
+    clientName: "Camila Ruiz",
+    startsAt: "2026-09-23T10:00:00-05:00",
+    endsAt: "2026-09-23T11:00:00-05:00",
+    paymentStatus: "unpaid",
+  });
+  const b2 = await insertBooking({
+    title: "Volume lashes",
+    clientName: "Ana López",
+    startsAt: "2026-09-23T12:00:00-05:00",
+    endsAt: "2026-09-23T14:15:00-05:00",
+    paymentStatus: "partial",
+  });
+  const b3 = await insertBooking({
+    title: "Brows",
+    clientName: "Lucía Méndez",
+    startsAt: "2026-09-23T16:00:00-05:00",
+    endsAt: "2026-09-23T17:30:00-05:00",
+    paymentStatus: "unpaid",
+    internalNotes: `${TAG} overdue fixture — due before appointment`,
+  });
+
+  const { error: holdErr } = await admin.from("talent_holds").insert({
+    talent_profile_id: talentProfileId,
+    tenant_id: tenantId,
+    title: `${TAG} Full set`,
+    client_label: "Sofía Vega",
+    starts_at: "2026-09-24T11:00:00-05:00",
+    ends_at: "2026-09-24T13:00:00-05:00",
+    all_day: false,
+    hold_strength: "soft",
+    expires_at: "2026-09-23T11:40:00-05:00",
+    created_by_user_id: createdByUserId,
+  });
+  if (holdErr) console.warn("[seed] hold:", holdErr.message);
+
+  // Project-style deadline (no appointment window) via deliverable on a draft booking.
+  const deadlineBk = await insertBooking({
+    title: "Project quote deadline",
+    clientName: "Deadline Client",
+    startsAt: "2026-09-26T09:00:00-05:00",
+    endsAt: "2026-09-26T09:30:00-05:00",
+    paymentStatus: "unpaid",
+    status: "draft",
+  });
+  if (deadlineBk) {
+    const { error: delErr } = await admin.from("booking_deliverables").insert({
+      booking_id: deadlineBk,
+      tenant_id: tenantId,
+      title: `${TAG} Moodboard due`,
+      kind: "service",
+      status: "draft",
+      due_at: "2026-09-25T18:00:00-05:00",
+      notes: `${TAG} fixture`,
+    });
+    if (delErr) console.warn("[seed] deliverable:", delErr.message);
+  }
+
+  console.log(
+    `[seed] week fixtures: bookings=${[b1, b2, b3, deadlineBk].filter(Boolean).length} hold=${holdErr ? "fail" : "ok"}`,
+  );
 }
 
 async function main() {
@@ -294,14 +470,16 @@ async function main() {
       loginEmail: k.withLogin ? k.email : null,
     });
     console.log(`  ${k.kind.padEnd(8)} ${t.id}  ${k.slug}`);
+
+    if (k.withLogin && !t._virtual && agencyId && userId) {
+      await seedWeekFixtures(t.id, agencyId, userId);
+    }
   }
 
   console.log(`
 [seed] Done. Wire these profile ids into TALENT_AGENDA_V2_TALENTS for QA.
 [seed] Primary login (beauty): qa-agenda-jor@impronta.test / (QA_AGENDA_TALENT_PASSWORD or default)
-[seed] Full Jor week rows (bookings, hold, request, overdue, agency) land in a follow-up
-       once T2.1 fixtures define the exact intervals. This script establishes the talents
-       and hours shell safely.
+[seed] Week fixtures (today bookings + hold + deadline) land on the primary beauty talent.
 `);
   console.log(JSON.stringify({ tag: TAG, talents: created }, null, 2));
 }
