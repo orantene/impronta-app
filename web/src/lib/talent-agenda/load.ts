@@ -235,7 +235,7 @@ export async function loadTalentAgenda(
             .eq("status", "pending"),
       supabase
         .from("booking_talent")
-        .select("booking_id")
+        .select("booking_id, client_charge_total")
         .eq("talent_profile_id", talentProfileId),
     ]);
 
@@ -245,10 +245,21 @@ export async function loadTalentAgenda(
     if (rescheduleRes.error) logServerError("talent-agenda.reschedule", rescheduleRes.error);
     if (talentLegsRes.error) logServerError("talent-agenda.booking-talent", talentLegsRes.error);
 
+    const legChargeByBooking = new Map<string, number>();
     const legBookingIds = [
       ...new Set(
-        ((talentLegsRes.data ?? []) as Array<{ booking_id: string }>)
-          .map((r) => r.booking_id)
+        ((talentLegsRes.data ?? []) as Array<{
+          booking_id: string;
+          client_charge_total?: number | string | null;
+        }>)
+          .map((row) => {
+            if (typeof row.booking_id !== "string" || !row.booking_id) return null;
+            const cents = Number(row.client_charge_total);
+            if (Number.isFinite(cents) && cents > 0) {
+              legChargeByBooking.set(row.booking_id, cents);
+            }
+            return row.booking_id;
+          })
           .filter((id): id is string => typeof id === "string" && id.length > 0),
       ),
     ];
@@ -383,6 +394,9 @@ export async function loadTalentAgenda(
       const txRows = transactionsByBooking.get(booking.id) ?? [];
       const latest = latestTransaction(txRows);
       const paidCents = paidCentsFrom(agency, txRows);
+      const agencyTotal = Number(agency?.total_client_revenue);
+      const totalCents =
+        agencyTotal > 0 ? agencyTotal : (legChargeByBooking.get(booking.id) ?? 0);
       const openLink =
         agency?.order_id != null ? openLinkByOrder.get(agency.order_id) : undefined;
       const linkOpen =
@@ -395,7 +409,11 @@ export async function loadTalentAgenda(
       const payment = mapAgencyBookingPayment({
         agencyStatus: agency?.status,
         talentBookingStatus: booking.status,
-        agency,
+        agency: agency
+          ? { ...agency, total_client_revenue: totalCents }
+          : totalCents > 0
+            ? { payment_status: "unpaid", total_client_revenue: totalCents }
+            : undefined,
         paidCents,
         latestTxStatus: latest?.status,
         linkOpen,
@@ -468,7 +486,7 @@ export async function loadTalentAgenda(
           phone: agency?.contact_phone ?? undefined,
         },
         title: booking.title,
-        lines: [{ label: booking.title, cents: agency?.total_client_revenue ?? 0 }],
+        lines: [{ label: booking.title, cents: totalCents }],
         startsAt: booking.starts_at,
         endsAt: booking.ends_at,
         allDay: booking.all_day,
@@ -489,10 +507,10 @@ export async function loadTalentAgenda(
         booking: bookingState,
         payment,
         money: {
-          totalCents: agency?.total_client_revenue ?? 0,
+          totalCents,
           paidCents,
           depositCents: agency?.deposit_amount_cents ?? undefined,
-          dueCents: Math.max(0, (agency?.total_client_revenue ?? 0) - paidCents),
+          dueCents: Math.max(0, totalCents - paidCents),
           currency: agency?.currency_code ?? "MXN",
         },
         source: mapSource(agency?.source_type_snapshot),

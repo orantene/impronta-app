@@ -258,11 +258,11 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
   });
 
   test("finish/collect Card mints a pay link for seeded unpaid booking", async ({ page }) => {
-    await page.goto(`${BASE_URL}/talent/today?${AGENDA_NOW}`, {
+    // Gel set is 10:00–11:00; pin after start so Finish is offered.
+    await page.goto(`${BASE_URL}/talent/today?agendaNow=2026-09-23T10:30:00`, {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
-    // Today rows are role=button named by title (not "Open"); Collect may appear on Attention.
     const collect = page.getByRole("button", { name: /Collect|Finish|Cobrar|Finalizar/i }).first();
     if (await collect.isVisible().catch(() => false)) {
       await collect.click();
@@ -273,6 +273,11 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
       }
       await row.click();
       await page.waitForTimeout(800);
+      const more = page.getByRole("button", { name: /More actions/i });
+      if (await more.isVisible().catch(() => false)) {
+        await more.click();
+        await page.waitForTimeout(300);
+      }
       const finish = page.getByRole("button", { name: /Finish and collect|Finish|Collect|Finalizar|Cobrar/i }).first();
       if (!(await finish.isVisible().catch(() => false))) {
         test.skip(true, "Finish/Collect not offered on opened booking record");
@@ -298,10 +303,10 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
   });
 
   test("hold release CTA reachable when hold is seeded", async ({ page }) => {
-    await requireAgendaV2Route(page, "/talent/today?agendaNow=2026-09-23T09:50:00");
-    const release = page.getByRole("button", { name: /Release|Liberar/i }).first();
+    await requireAgendaV2Route(page, "/talent/attention?agendaNow=2026-09-23T09:50:00");
+    const release = page.getByRole("button", { name: /Release hold|Liberar reserva|Release|Liberar/i }).first();
     if (!(await release.isVisible().catch(() => false))) {
-      test.skip(true, "No hold Release CTA on Today for this seed/clock");
+      test.skip(true, "No hold Release CTA on Attention for this seed/clock");
     }
     await expect(release).toBeVisible();
     await page.screenshot({ path: path.join(EVIDENCE, "hold-release-entry.png"), fullPage: true });
