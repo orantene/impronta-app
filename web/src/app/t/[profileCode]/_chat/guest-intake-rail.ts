@@ -124,6 +124,19 @@ export function intakeRailLabel(
   return t("public.guestChat.railMissing").replace("{fact}", factLabel(next, t));
 }
 
+/** Column helper: null trade → no rail. Keeps MiniChatPanelColumn under max-lines. */
+export function resolveGuestRailLabel(
+  trade: IntakeTrade | null | undefined,
+  intent: InquiryIntent | null | undefined,
+  captured: Partial<Record<string, GuestChipValue>> | null | undefined,
+  booked: boolean,
+  hasInquiry: boolean,
+  t: (key: string) => string,
+): string | null {
+  if (!trade) return null;
+  return intakeRailLabel(trade, intakeFactsFromInquiry(intent, captured, booked), hasInquiry, t);
+}
+
 /** The next missing fact, or "ready" when every fact this trade asks for is set. */
 export function nextIntakeFact(trade: IntakeTrade, facts: IntakeFacts): RailFactId | "ready" {
   return intakeSteps(trade, facts).find((step) => !step.filled)?.id ?? "ready";
