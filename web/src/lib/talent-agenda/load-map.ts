@@ -3,6 +3,8 @@
  * assert the same payment / deadline wiring `loadTalentAgenda` uses.
  */
 
+import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
+
 import { deriveBookingState, derivePaymentState } from "./derive";
 import type { PaymentState, TalentAgendaItem } from "./types";
 
@@ -49,7 +51,8 @@ export function mapAgencyBookingPayment(input: {
     transferAwaiting: (input.agency?.payment_method ?? "").toLowerCase() === "transfer",
     startsAt: input.startsAt,
     balanceDueAt: input.agency?.balance_due_at ?? null,
-    totalCents: input.agency?.total_client_revenue ?? 0,
+    // Column is major units; payment state + UI money fields are cents.
+    totalCents: totalClientRevenueToCents(input.agency?.total_client_revenue),
     paidCents: input.paidCents,
     depositCents: input.agency?.deposit_amount_cents ?? 0,
     managedByAgency: (input.agency?.source_type_snapshot ?? "").toLowerCase() === "agency",

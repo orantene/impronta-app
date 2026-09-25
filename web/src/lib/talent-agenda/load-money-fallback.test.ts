@@ -16,7 +16,7 @@ describe("agenda load money fallback contract", () => {
     const payment = mapAgencyBookingPayment({
       agencyStatus: "confirmed",
       talentBookingStatus: "confirmed",
-      agency: { payment_status: "unpaid", total_client_revenue: 85000 },
+      agency: { payment_status: "unpaid", total_client_revenue: 850 },
       paidCents: 0,
       latestTxStatus: null,
       linkOpen: false,

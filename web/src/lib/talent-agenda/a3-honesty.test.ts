@@ -132,7 +132,7 @@ describe("A3.1 load-mapper — transfer ≠ overdue", () => {
       agency: {
         payment_status: "unpaid",
         payment_method: "transfer",
-        total_client_revenue: 950_00,
+        total_client_revenue: 950,
         deposit_amount_cents: 0,
       },
       paidCents: 0,
@@ -151,7 +151,7 @@ describe("A3.1 load-mapper — transfer ≠ overdue", () => {
       agency: {
         payment_status: "unpaid",
         payment_method: "cash",
-        total_client_revenue: 950_00,
+        total_client_revenue: 950,
       },
       paidCents: 0,
       latestTxStatus: null,

@@ -9,6 +9,7 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
 
 import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
 import type { OwnBookingResult } from "./ownership";
@@ -229,7 +230,7 @@ export async function recordBookingCashCollected(input: {
   if (!row) return { ok: false, reason: "not_found" };
   if (row.payment_status === "paid") return { ok: true, already: true };
 
-  const total = Math.max(0, Number(row.total_client_revenue) || 0);
+  const total = totalClientRevenueToCents(row.total_client_revenue);
   const amount = input.amountCents != null ? Math.max(0, input.amountCents) : total;
   const nextStatus =
     total > 0 && amount > 0 && amount < total
@@ -482,7 +483,7 @@ export async function createAgendaBookingPayLink(input: {
   if (!row.tenant_id) return { ok: false, reason: "no_tenant" };
   if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
 
-  const total = Math.max(0, Number(row.total_client_revenue) || 0);
+  const total = totalClientRevenueToCents(row.total_client_revenue);
   const amountCents =
     input.amountCents != null && input.amountCents > 0 ? input.amountCents : total;
   if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
