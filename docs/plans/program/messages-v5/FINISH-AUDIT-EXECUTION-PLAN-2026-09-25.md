@@ -160,3 +160,5 @@ CLEAN when **all** are true:
 - Editing Jorgelina / Impronta / El Paisa / MiniChatPanel.
 - Hand-moving `production`.
 - Opening D-MSG-423 unless a new defect is found during Phase 1–2.
+
+# stripe test-key preview branch (D-MSG-330 unblock)
