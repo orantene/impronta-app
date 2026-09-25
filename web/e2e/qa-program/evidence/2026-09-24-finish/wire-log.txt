@@ -1,0 +1,9 @@
+selected Offer
+after_outside_visible 1
+SHEET For Offer Order Amount Deposit 25% $200 Full amount $800 Other amount Other amount How Send a pay link in this thread Needs an order on this thread Collect here at the counter Needs an order on this thread Record as paid outside Cash, transfer or a terminal you already ran Method Cash Transfer Terminal (offline) Reference (required)
+send_count 1
+enabled true
+has_recorded true
+has_try_again false
+refusal_text 
+SHEET_AFTER 

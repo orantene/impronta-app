@@ -1,0 +1,10 @@
+OPEN_SHEET For Offer Order Order Amount Full amount Other amount How Send a pay link in this thread The client pays on a secure page Collect here at the counter Opens the sale in the POS Record as paid outside Cash, transfer or a terminal you already ran Message with the link Here is a secure link to pay .
+targets_raw ["Offer","Order","Order"]
+send true for 54.00
+AFTER_54.00 
+OK_54.00 false
+OPEN_SHEET For Offer Order Order Amount Full amount Other amount How Send a pay link in this thread The client pays on a secure page Collect here at the counter Opens the sale in the POS Record as paid outside Cash, transfer or a terminal you already ran Message with the link Here is a secure link to pay .
+targets_raw ["Offer","Order","Order"]
+send true for 800.00
+AFTER_800.00 
+OK_800.00 false
