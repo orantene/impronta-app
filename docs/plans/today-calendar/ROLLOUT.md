@@ -55,7 +55,7 @@ Pin the agenda clock in QA with `?agendaNow=2026-09-23T09:50:00` on `/talent/tod
 
 Remaining for full Step 1:
 1. ~~Add up to ~19 more beta talent UUIDs~~ — **skipped 2026-09-25:** no owner UUID list; Step 2 `all` supersedes.
-2. Confirm migration applied: `cd web && npm run db:check`.
+2. [x] Confirm migration applied: `cd web && npm run db:check` — OK 2026-09-25 (869 local migrations all applied).
 3. ~~Monitor 48 h~~ — superseded by Step 2 the same day.
 
 ### Step 2 — Full rollout
