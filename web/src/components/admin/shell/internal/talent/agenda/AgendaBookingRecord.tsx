@@ -205,6 +205,14 @@ export function AgendaBookingRecord({
   }
 
   const moreActions: MoreMenuAction[] = [
+    ...(canAct && (item.bookingState === "confirmed" || item.bookingState === "requested")
+      ? [
+          {
+            label: copy.t("Reschedule"),
+            onClick: () => setShowReschedule(true),
+          },
+        ]
+      : []),
     ...(cancellable
       ? [{ label: copy.t("Cancel booking"), destructive: true, onClick: () => void handleCancelRequest() }]
       : []),
@@ -341,6 +349,8 @@ export function AgendaBookingRecord({
         {showReschedule && bookingId ? (
           <AgendaRescheduleSheet
             bookingId={bookingId}
+            currentStartsAt={item.startsAtIso}
+            currentEndsAt={item.endsAtIso}
             onClose={() => setShowReschedule(false)}
             onProposed={() => {
               setShowReschedule(false);

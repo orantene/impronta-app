@@ -93,6 +93,7 @@ const ES: Record<string, string> = {
   "Completing…": "Completando…",
 
   // Reschedule
+  "Reschedule": "Reagendar",
   "Propose reschedule": "Proponer cambio de fecha",
   "Send proposal": "Enviar propuesta",
   "Sending…": "Enviando…",

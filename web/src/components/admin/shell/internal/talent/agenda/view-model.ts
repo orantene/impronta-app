@@ -236,6 +236,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     orderId: item.orderId ?? null,
     paymentMethod: item.paymentMethod ?? null,
     startsAtIso: item.startsAt,
+    endsAtIso: item.endsAt,
     clientTz: item.clientTz,
     talentTz: item.tz,
     tradeSectionPayloads: (() => {
