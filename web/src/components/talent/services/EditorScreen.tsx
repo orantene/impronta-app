@@ -133,6 +133,7 @@ export function EditorScreen({
     depositPct && item.amountCents ? Math.round((item.amountCents * depositPct) / 100) : null;
   const where = attr<Where[]>(item, "where", (defaults?.where as Where[] | undefined)?.length ? (defaults!.where as Where[]) : ["studio"]);
   const bufferAfter = attr<number | null>(item, "bufferAfterMin", defaults?.bufferAfterMin ?? null);
+  const bufferBefore = attr<number | null>(item, "bufferBeforeMin", defaults?.bufferBeforeMin ?? null);
 
   const syncPhotos = async (next: Photo[]) => {
     setPhotos(next);
@@ -325,6 +326,13 @@ export function EditorScreen({
                     <span className={LABEL}>{copy.t("How long it takes")}</span>
                     <div className="relative">
                       <input type="number" min={0} className={`${INPUT} pr-12`} value={item.durationMinutes ?? ""} onChange={(e) => patch({ durationMinutes: e.target.value ? Number(e.target.value) : null })} />
+                      <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">min</span>
+                    </div>
+                  </label>
+                  <label className="block">
+                    <span className={LABEL}>{copy.t("Prep before")}</span>
+                    <div className="relative">
+                      <input type="number" min={0} className={`${INPUT} pr-12`} value={bufferBefore ?? ""} onChange={(e) => patchAttr("bufferBeforeMin", e.target.value === "" ? null : Number(e.target.value))} />
                       <span className="pointer-events-none absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-[14px] text-admin-ink-dim">min</span>
                     </div>
                   </label>
