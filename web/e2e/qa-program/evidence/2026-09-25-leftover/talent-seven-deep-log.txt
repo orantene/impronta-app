@@ -1,0 +1,20 @@
+needs_rows 35
+decision_candidates ["Notification preferences →","Decline","CCCora CuevasNeed two models for a catalog shoot next month.A talent accepted the invitation.Needs replyGathering detailsWeb chatSep 111unassigned","CCCora CuevasNeed two models for a catalog shoot next month.A talent accepted the invitation.Needs replyGathering detailsWeb chatSep 111unassigned","CCCora CuevasNeed two models for a catalog shoot next month.A talent accepted the invitation.Needs replyGathering detailsWeb chatSep 111unassigned","CCCora CuevasNeed two models for a catalog shoot next month.A talent accepted the invitation.Needs replyGathering detailsWeb chatSep 111unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.Inquiry converted to booking.Needs replyAccepted · deposit dueWeb chatSep 10unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.Inquiry converted to booking.Needs replyAccepted · deposit dueWeb chatSep 10unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.QA Journeys Talent approved the offer.Needs replyAccepted · deposit dueWeb chatSep 10unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.You've received an offer , open the Offer tab to review and approve.Needs replyAwaiting acceptanceWeb chatSep 10unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.QA Journeys Talent approved the offer.Needs replyAccepted · deposit dueWeb chatSep 10unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.QA Journeys Talent approved the offer.Needs replyAccepted · deposit dueWeb chatSep 10unassigned","NVNadia VarelaA brand shoot with one model, to be collected at the desk.QA Journeys Talent approved the offer.Needs replyAccepted · deposit dueWeb chatSep 10unassigned","CCCora CuevasNeed two models for a catalog shoot next month.Inquiry converted to booking.Needs replyAccepted · deposit dueWeb chatSep 8unassigned","CCCora CuevasNeed two models for a catalog shoot next month.You've received an offer , open the Offer tab to review and approve.Needs replyAwaiting acceptanceWeb chatSep 8unassigned","Internal note","Team notes0"]
+accept_vis true
+accept_gone false
+decline_vis true
+decline_gone true
+agency_money {"hasDollar":true,"hasNet":true,"hasClientTotal":false,"dollarSnips":["$0"]}
+money_card false
+thread_tabs []
+group_money {"hasDollar":true,"hasNet":true,"hasClientTotal":false,"dollarSnips":["$0"]}
+group_stream_has_dollar false
+ask_el 0
+ask_dock true
+ask_same true
+request_only 2
+header_more false
+refusals []
+publish_vis true
+publish_body Skip to main content SELL WHAT YOU DO, NOT WHAT YOU SHIP QA Journeys (48-case fixture) $0 net YTD 9+ Skip to page content Today WORK Messages Calendar Money PRESENCE Profile Public page Services Reviews Plan FREE Preview profile Settings My site Manage your own Tulala profile/site and see the agency
+DONE

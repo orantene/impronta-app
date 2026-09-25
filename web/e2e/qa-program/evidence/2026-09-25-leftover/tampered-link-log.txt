@@ -1,0 +1,5 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › e2e/qa-program/isolation/cross-tenant.spec.ts:82:7 › QA isolation — cross-tenant refusal › tampered client link shows expired/refused page — not content
+[1A[2K  1 passed (3.7s)

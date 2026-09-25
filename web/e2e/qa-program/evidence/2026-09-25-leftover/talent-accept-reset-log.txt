@@ -1,0 +1,5 @@
+url https://staging-qa-journeys.tulala.digital/talent/inbox?inquiry=c08fbead-19fc-423a-a7f7-fda6c124d98d
+has_accept_text false
+decision_snip quiry converted to booking. Needs reply Accepted · deposit due Web chat Sep 10 unassig
+accept_count 0
+accept_vis false

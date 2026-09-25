@@ -1,0 +1,8 @@
+result=not_proven
+host=qa-stripe-r2.tulala.digital
+sign_in=ok (production supabase for magic-link only)
+mint=ok (payment sheet opened; Checkout session created)
+checkout=cs_live_ (D-MSG-330 / D-MSG-418) — 4242 refused by harness
+refund=not_reached
+partial_refund=not_in_spec
+unblock=set STRIPE_SECRET_KEY=sk_test_… (and matching pk_test_) on qa-stripe-r2, or mint stripe provider on journeys with test keys
