@@ -89,7 +89,10 @@ export function GuestDockNav({
       }}
     >
       {tabs.map(({ view, labelKey, Icon }) => {
-        const isActive = view === active;
+        // Fresh visitors land on the Home hub, which has no nav tab of its own
+        // (empty-first-visit). Hablar is the closest control — paint it active
+        // and keep the intake rail ("Nada todavía") reachable from the header.
+        const isActive = view === active || (active === "home" && view === "chat");
         const count = countFor(view);
         return (
           <button
@@ -99,6 +102,10 @@ export function GuestDockNav({
             aria-selected={isActive}
             aria-label={labelFor(view, labelKey)}
             onClick={() => {
+              if (active === "home" && view === "chat") {
+                onChange("chat");
+                return;
+              }
               if (!isActive) onChange(view);
             }}
             style={{
@@ -115,7 +122,7 @@ export function GuestDockNav({
               borderRadius: 999,
               background: isActive ? "#fff" : "transparent",
               color: isActive ? accent : C.inkMuted,
-              cursor: isActive ? "default" : "pointer",
+              cursor: isActive && !(active === "home" && view === "chat") ? "default" : "pointer",
               fontFamily: FONT,
               transition: "color 120ms",
             }}

@@ -25,3 +25,10 @@ test("Send stays hidden until an inquiry exists", () => {
   const panel = readFileSync(join(DIR, "MiniChatPanel.tsx"), "utf8");
   assert.match(panel, /onEnsureInquiry && inquiryId && !unified\.contactPromoted/);
 });
+
+test("empty Home still exposes the intake rail (Nada todavía) and paints Hablar active", () => {
+  const column = readFileSync(join(DIR, "MiniChatPanelColumn.tsx"), "utf8");
+  assert.match(column, /activeDockView === "chat" \|\| activeDockView === "home"/);
+  const nav = readFileSync(join(DIR, "GuestDockNav.tsx"), "utf8");
+  assert.match(nav, /active === "home" && view === "chat"/);
+});

@@ -446,7 +446,9 @@ export function MiniChatPanelColumn({
           dockEnabled && activeDockView === "chat" ? () => setSwitcherOpen(true) : null
         }
         onOpenDetails={
-          detailsEnabled && activeDockView === "chat" ? () => setDetailsOpen(true) : null
+          detailsEnabled && (activeDockView === "chat" || activeDockView === "home")
+            ? () => setDetailsOpen(true)
+            : null
         }
         detailsFilled={detailsProgress?.filled ?? 0}
         detailsTotal={detailsProgress?.total ?? 0}
