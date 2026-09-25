@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { useAdminShell } from "@/components/admin/shell/internal/state";
+import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
 import { AdminFinancialsCurrencyTabs } from "@/components/admin/applications/AdminFinancialsCurrencyTabs";
