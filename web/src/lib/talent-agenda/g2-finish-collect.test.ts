@@ -63,6 +63,7 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     assert.match(src, /createAgendaBookingPayLink/);
     assert.match(src, /recordBookingCashCollected/);
     assert.match(src, /Card needs an amount due/);
+    assert.match(src, /invalid_amount/);
     assert.doesNotMatch(src, /Card needs a linked order/);
     assert.doesNotMatch(src, /Adjust lines/);
     assert.doesNotMatch(src, /adjustLines/);

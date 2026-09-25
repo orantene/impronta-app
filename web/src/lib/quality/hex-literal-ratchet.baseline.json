@@ -277,7 +277,7 @@
   "src/components/admin/shell/internal/talent/agenda/AgendaBookingRecord.tsx": 12,
   "src/components/admin/shell/internal/talent/agenda/AgendaCalendarPage.tsx": 4,
   "src/components/admin/shell/internal/talent/agenda/AgendaCalendarViews.tsx": 16,
-  "src/components/admin/shell/internal/talent/agenda/AgendaFinishCollect.tsx": 7,
+  "src/components/admin/shell/internal/talent/agenda/AgendaFinishCollect.tsx": 6,
   "src/components/admin/shell/internal/talent/agenda/AgendaFirstDay.tsx": 3,
   "src/components/admin/shell/internal/talent/agenda/AgendaHoldFlows.tsx": 5,
   "src/components/admin/shell/internal/talent/agenda/AgendaHoldOffer.tsx": 2,

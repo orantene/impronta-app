@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { zonedLocalToUtc } from "@/lib/scheduling/tz";
@@ -133,6 +134,11 @@ function requestWindow(
  * Layout note: `app/(workspace)/talent/layout.tsx` should call this only when
  * `isAgendaV2(talentProfileId)` is true, leaving the legacy calendar bridge
  * untouched while the flag is off.
+ *
+ * Money join: talent session RLS cannot read agency_bookings / booking_talent /
+ * booking_transactions (staff/client/coordinator only). After talent_bookings
+ * scopes the id set under user RLS, commercial money is loaded via service role
+ * for those ids only — same elevation pattern as agenda writers.
  */
 export async function loadTalentAgenda(
   talentProfileId: string,
@@ -141,6 +147,9 @@ export async function loadTalentAgenda(
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { items: [], hours: null };
+    // Commercial tables are opaque to talent RLS — elevate only after
+    // talent_bookings has already scoped bookingIds to this profile.
+    const moneyDb = createServiceRoleClient() ?? supabase;
 
     const fromIso = range.from.toISOString();
     const toIso = range.to.toISOString();
@@ -203,7 +212,7 @@ export async function loadTalentAgenda(
       await Promise.all([
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
-        : supabase
+        : moneyDb
             .from("agency_bookings")
             .select(
               "id, status, payment_status, total_client_revenue, deposit_amount_cents, currency_code, timezone, client_timezone, balance_due_at, source_type_snapshot, contact_name, contact_email, contact_phone, venue_name, venue_location_text, travel_before_min, travel_after_min, intake_status, intake_sent_at, order_id, tenant_id, payment_method, payment_notes",
@@ -211,7 +220,7 @@ export async function loadTalentAgenda(
             .in("id", bookingIds),
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
-        : supabase
+        : moneyDb
             .from("booking_transactions")
             .select("booking_id, status, gross_amount_cents, requested_at, paid_at, refunded_at")
             .in("booking_id", bookingIds),
@@ -233,7 +242,7 @@ export async function loadTalentAgenda(
             .select("id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at")
             .in("booking_id", bookingIds)
             .eq("status", "pending"),
-      supabase
+      moneyDb
         .from("booking_talent")
         .select("booking_id, client_charge_total")
         .eq("talent_profile_id", talentProfileId),
@@ -325,7 +334,7 @@ export async function loadTalentAgenda(
     const paymentLinkQueries: PromiseLike<{ data: unknown; error: unknown }>[] = [];
     if (orderIds.length > 0) {
       paymentLinkQueries.push(
-        supabase
+        moneyDb
           .from("payment_links")
           .select("order_id, inquiry_id, status, expires_at")
           .in("order_id", orderIds)
@@ -334,7 +343,7 @@ export async function loadTalentAgenda(
     }
     if (holdInquiryIds.length > 0) {
       paymentLinkQueries.push(
-        supabase
+        moneyDb
           .from("payment_links")
           .select("order_id, inquiry_id, status, expires_at")
           .in("inquiry_id", holdInquiryIds)
