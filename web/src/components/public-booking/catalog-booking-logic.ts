@@ -1,4 +1,4 @@
-import type { OfferingRequestDetail } from "@/app/t/[profileCode]/_shared/OfferingCta";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 
 export type CatalogBookingMode = "demo" | "live";

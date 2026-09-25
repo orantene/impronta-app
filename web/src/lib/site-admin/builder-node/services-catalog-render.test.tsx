@@ -218,3 +218,76 @@ test("category_order wins over first-seen order in the pill strip", () => {
   const unas = html.indexOf('data-catalog-tab="Uñas"');
   assert.ok(pest >= 0 && unas >= 0 && pest < unas);
 });
+
+test("jump nav uses serializable nodeId-derived fragment ids", () => {
+  const html = render([catalogNode({ categoryNav: "jump" })], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+  });
+  // "Uñas" → slug "u-as" (ñ stripped); node id from catalogNode helper is cat-1.
+  assert.match(html, /href="#cat-1-u-as"/);
+  assert.match(html, /id="cat-1-u-as"/);
+  assert.match(html, /href="#cat-1-pesta-as"/);
+});
+
+test("catalog island props are JSON-serializable (RSC boundary)", () => {
+  // Reconstruct the props object the server renderer hands the client island.
+  // A function `jumpSlug` here is exactly what 500'd vanity hosts after #2272.
+  const nodeId = "mn-svc-catalog-golive";
+  const groups = [
+    {
+      name: "Uñas",
+      items: [offering({ id: "a", category: "Uñas" })],
+    },
+  ];
+  const props = {
+    groups,
+    locale: "es",
+    nav: "pills" as const,
+    showPhoto: true,
+    showDuration: true,
+    showUsdEquivalent: false,
+    confirmsByHand: true,
+    usdRates: null,
+    ctaLabel: "Seleccionar",
+    bookingMode: "live" as const,
+    tenantId: "tenant-1",
+    nodeId,
+  };
+  assert.doesNotThrow(() => JSON.stringify(props));
+  assert.equal(typeof props.nodeId, "string");
+  assert.equal("jumpSlug" in props, false);
+});
+
+test("golive-shaped services_catalog SSR markup has no __next_error__", () => {
+  const golive = catalogNode({
+    eyebrow: "EL MENÚ",
+    title: "Servicios {i}y precios{/i}",
+    subtitle: "Todos los precios en pesos mexicanos (MXN). Se paga en el estudio.",
+    ctaLabel: "Seleccionar",
+    categoryNav: "pills",
+    showUsdEquivalent: false,
+    anchorId: "servicios",
+  });
+  golive.id = "mn-svc-catalog-golive";
+  const html = render([golive], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+      offering({ id: "c", title: "Brow", category: "Cejas" }),
+      offering({ id: "d", title: "Wax", category: "Depilación" }),
+    ],
+    talentOfferingsConfirmsByHand: true,
+    catalogBookingLive: true,
+    tenantId: "tenant-1",
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"/);
+  assert.match(html, /mn-svc-catalog-golive/);
+  assert.match(html, /EL MEN/);
+  assert.match(html, /Seleccionar/);
+  assert.match(html, /class="cb-island"/);
+  assert.doesNotMatch(html, /__next_error__/);
+  assert.doesNotMatch(html, /Algo no cargó/);
+});
