@@ -377,8 +377,8 @@ export function AgendaBookingRecord({
                     ? "danger"
                     : "info"
             }
-            title={item.nowTitle}
-            body={item.nowBody ?? ""}
+            title={copy.t(item.nowTitle)}
+            body={item.nowBody ? copy.t(item.nowBody) : ""}
             primaryAction={item.primaryAction}
             secondaryAction={item.secondaryAction}
           />

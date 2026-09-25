@@ -86,6 +86,19 @@ describe("resolveAttentionCta", () => {
       "reschedule",
     );
   });
+  it("confirms transfer awaiting with mutating collect CTA", () => {
+    assert.deepEqual(
+      resolveAttentionCta(
+        base({
+          booking: "completed",
+          payment: "awaiting",
+          paymentMethod: "transfer",
+          money: { totalCents: 100, paidCents: 0, dueCents: 100, currency: "MXN" },
+        }),
+      ),
+      { kind: "collect", label: "Confirm transfer", mutates: true },
+    );
+  });
 });
 
 describe("peekActionLabels", () => {

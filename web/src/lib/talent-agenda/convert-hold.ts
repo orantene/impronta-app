@@ -18,17 +18,19 @@ export type ConvertOwnHoldResult =
 async function ownTalentProfileId(): Promise<{ talentId: string; userId: string } | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !authData?.user) return null;
+  const { data, error } = await supabase
     .from("talent_profiles")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("user_id", authData.user.id)
     .maybeSingle();
+  if (error) {
+    logServerError("agenda.convertHold.ownTalent", error);
+    return null;
+  }
   if (typeof data?.id !== "string") return null;
-  return { talentId: data.id, userId: user.id };
+  return { talentId: data.id, userId: authData.user.id };
 }
 
 /**

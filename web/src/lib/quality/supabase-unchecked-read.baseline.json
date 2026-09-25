@@ -97,7 +97,6 @@
   "src/app/api/client/messages/route.ts": 1,
   "src/app/api/cms/forms/submit/route.ts": 2,
   "src/app/api/conversation/continue/route.ts": 3,
-  "src/app/api/cron/expire-calendar-holds/route.ts": 1,
   "src/app/api/cron/reap-support-replays/route.ts": 1,
   "src/app/api/directory/preview/[talentId]/route.ts": 1,
   "src/app/api/directory/talents-by-ids/route.ts": 1,

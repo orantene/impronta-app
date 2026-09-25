@@ -11,9 +11,10 @@
  *   --i-understand-this-writes-to-the-database
  * and either a local URL or --allow-isolated.
  *
- *   npx --env-file=.env.local node scripts/seed-talent-agenda-qa.mjs \
+ *   node --env-file=.env.local scripts/seed-talent-agenda-qa.mjs \
  *     --i-understand-this-writes-to-the-database
- *   … --reset   # deletes only rows tagged by this script
+ *   … --allow-isolated   # required for remote isolated Supabase
+ *   … --reset            # deletes only rows tagged by this script
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -68,55 +69,81 @@ const admin = createClient(url, key, { auth: { persistSession: false } });
 
 const CLOCK = "2026-09-23T09:50:00-05:00"; // America/Cancun
 
-async function findOrCreateTalent({ slug, displayName, email }) {
+async function resolveQaAgencyId() {
+  const { data } = await admin
+    .from("agencies")
+    .select("id")
+    .ilike("slug", "%qa%")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+async function findOrCreateTalent({ slug, displayName, email, userId }) {
   const { data: existing } = await admin
     .from("talent_profiles")
-    .select("id, display_name, slug")
-    .eq("slug", slug)
+    .select("id, display_name, public_slug_part, profile_code")
+    .eq("public_slug_part", slug)
     .maybeSingle();
   if (existing?.id) {
     if ([...FORBIDDEN_TALENT_IDS].some((p) => String(existing.id).startsWith(p))) {
       refuse(`Refusing to touch forbidden talent ${existing.id}`);
     }
+    if (userId && existing.id) {
+      const { error: linkErr } = await admin
+        .from("talent_profiles")
+        .update({ user_id: userId, is_test_account: true, short_bio: `${TAG} ${displayName}` })
+        .eq("id", existing.id)
+        .is("user_id", null);
+      if (linkErr) console.warn(`[seed] link user_id for ${slug}:`, linkErr.message);
+    }
     return existing;
   }
 
-  // Minimal insert: many tenants share talents via roster. Prefer attaching to
-  // a known QA tenant if one exists; otherwise leave tenant_id null if schema allows.
-  const { data: tenant } = await admin
-    .from("tenants")
-    .select("id")
-    .ilike("slug", "%qa%")
-    .limit(1)
-    .maybeSingle();
+  const { data: profileCode, error: codeError } = await admin.rpc("generate_profile_code");
+  if (codeError || !profileCode) {
+    console.warn(`[seed] generate_profile_code failed for ${slug}:`, codeError?.message);
+  }
 
   const id = randomUUID();
+  if ([...FORBIDDEN_TALENT_IDS].some((p) => id.startsWith(p))) {
+    refuse(`Refusing generated id that collides with forbidden prefix`);
+  }
+
   const row = {
     id,
-    slug,
+    profile_code: typeof profileCode === "string" ? profileCode : `TAL-QAAGENDA-${slug.slice(-8).toUpperCase()}`,
+    public_slug_part: slug,
     display_name: displayName,
-    public_slug: slug,
-    // Tag so --reset can find us
-    bio: `${TAG} ${displayName}`,
+    invitation_email: email,
+    short_bio: `${TAG} ${displayName}`,
+    is_test_account: true,
+    workflow_status: "draft",
+    visibility: "hidden",
+    is_publicly_listed: false,
+    is_discoverable: false,
+    ...(userId ? { user_id: userId } : {}),
   };
-  const { data, error } = await admin.from("talent_profiles").insert(row).select("id, slug, display_name").single();
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .insert(row)
+    .select("id, public_slug_part, display_name, profile_code")
+    .single();
   if (error) {
     console.warn(`[seed] talent_profiles insert failed for ${slug}:`, error.message);
     console.warn("[seed] Continuing without DB write for this talent — check schema and re-run.");
-    return { id, slug, display_name: displayName, _virtual: true };
+    return { id, public_slug_part: slug, display_name: displayName, _virtual: true };
   }
-  void tenant;
-  void email;
   return data;
 }
 
 async function resetTagged() {
   console.log(`[seed] --reset: removing rows tagged ${TAG}`);
-  // Soft approach: delete talent_profiles whose bio starts with TAG
   const { data: talents } = await admin
     .from("talent_profiles")
     .select("id")
-    .ilike("bio", `${TAG}%`);
+    .ilike("short_bio", `${TAG}%`);
   const ids = (talents ?? []).map((t) => t.id);
   if (ids.length === 0) {
     console.log("[seed] nothing to reset");
@@ -132,18 +159,24 @@ async function resetTagged() {
 }
 
 async function seedHours(talentProfileId, tenantId) {
+  if (!tenantId) {
+    console.warn(`[seed] hours skipped for ${talentProfileId}: no QA agency tenant_id`);
+    return;
+  }
+  // Match BookingHours weekly shape: weekday keys 0-6 (Sun-Sat), startMin/endMin.
+  const day = (startH, endH) => [{ startMin: startH * 60, endMin: endH * 60 }];
   const row = {
     talent_profile_id: talentProfileId,
     tenant_id: tenantId,
     timezone: "America/Cancun",
     weekly: {
-      mon: [{ start: "10:00", end: "19:00" }],
-      tue: [{ start: "10:00", end: "19:00" }],
-      wed: [{ start: "10:00", end: "19:00" }],
-      thu: [{ start: "10:00", end: "19:00" }],
-      fri: [{ start: "10:00", end: "19:00" }],
-      sat: [{ start: "10:00", end: "15:00" }],
-      sun: [],
+      0: [],
+      1: day(10, 19),
+      2: day(10, 19),
+      3: day(10, 19),
+      4: day(10, 19),
+      5: day(10, 19),
+      6: day(10, 15),
     },
     exceptions: [],
     slot_minutes: 15,
@@ -168,8 +201,56 @@ async function main() {
   console.log(`[seed] clock reference ${CLOCK}`);
   console.log(`[seed] target ${url}`);
 
+  const agencyId = await resolveQaAgencyId();
+  if (agencyId) console.log(`[seed] QA agency tenant ${agencyId}`);
+  else console.warn("[seed] No QA agency found — hours rows will be skipped");
+
+  // Optional dedicated login for the primary beauty talent (never steals
+  // IMPERSONATION_QA_TALENT_USER_ID — that user already owns another profile).
+  const primaryPassword =
+    (process.env.QA_AGENDA_TALENT_PASSWORD ?? process.env.QA_TALENT_PASSWORD ?? "qa-agenda-v2-local").trim();
+
+  async function ensureLogin(email, displayName) {
+    const target = email.toLowerCase();
+    let page = 1;
+    for (;;) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) {
+        console.warn("[seed] listUsers:", error.message);
+        return null;
+      }
+      const found = (data.users ?? []).find((u) => u.email?.toLowerCase() === target);
+      if (found) {
+        await admin.auth.admin.updateUserById(found.id, {
+          password: primaryPassword,
+          email_confirm: true,
+        });
+        return found.id;
+      }
+      if ((data.users ?? []).length < 200) break;
+      page += 1;
+    }
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password: primaryPassword,
+      email_confirm: true,
+      user_metadata: { full_name: displayName },
+    });
+    if (createErr) {
+      console.warn("[seed] createUser:", createErr.message);
+      return null;
+    }
+    return created.user?.id ?? null;
+  }
+
   const kinds = [
-    { slug: "qa-agenda-jor", displayName: "QA Agenda Jor", email: "qa-agenda-jor@impronta.test", kind: "beauty" },
+    {
+      slug: "qa-agenda-jor",
+      displayName: "QA Agenda Jor",
+      email: "qa-agenda-jor@impronta.test",
+      kind: "beauty",
+      withLogin: true,
+    },
     { slug: "qa-agenda-barber", displayName: "QA Agenda Barber", email: "qa-agenda-barber@impronta.test", kind: "barber" },
     { slug: "qa-agenda-chef", displayName: "QA Agenda Chef", email: "qa-agenda-chef@impronta.test", kind: "chef" },
     { slug: "qa-agenda-dancer", displayName: "QA Agenda Dancer", email: "qa-agenda-dancer@impronta.test", kind: "dancer" },
@@ -178,13 +259,46 @@ async function main() {
 
   const created = [];
   for (const k of kinds) {
-    const t = await findOrCreateTalent(k);
-    created.push({ ...k, id: t.id, virtual: Boolean(t._virtual) });
+    let userId = null;
+    if (k.withLogin) {
+      userId = await ensureLogin(k.email, k.displayName);
+      if (userId) {
+        // Ensure profiles.app_role so /talent routes resolve.
+        await admin.from("profiles").upsert(
+          {
+            id: userId,
+            display_name: k.displayName,
+            app_role: "talent",
+            account_status: "active",
+          },
+          { onConflict: "id" },
+        );
+      }
+    }
+    const t = await findOrCreateTalent({ ...k, userId });
+    if (!t._virtual) {
+      if (userId) {
+        const { error: linkErr } = await admin
+          .from("talent_profiles")
+          .update({ user_id: userId })
+          .eq("id", t.id);
+        if (linkErr) console.warn(`[seed] link ${k.slug}:`, linkErr.message);
+      }
+      await seedHours(t.id, agencyId);
+    }
+    created.push({
+      ...k,
+      id: t.id,
+      virtual: Boolean(t._virtual),
+      userId: userId,
+      loginEmail: k.withLogin ? k.email : null,
+    });
     console.log(`  ${k.kind.padEnd(8)} ${t.id}  ${k.slug}`);
   }
 
   console.log(`
 [seed] Done. Wire these profile ids into TALENT_AGENDA_V2_TALENTS for QA.
+[seed] Primary login (beauty): qa-agenda-jor@impronta.test / (QA_AGENDA_TALENT_PASSWORD or default)
 [seed] Full Jor week rows (bookings, hold, request, overdue, agency) land in a follow-up
        once T2.1 fixtures define the exact intervals. This script establishes the talents
        and hours shell safely.

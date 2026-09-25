@@ -18,15 +18,17 @@ export type AttentionActionResult =
 async function ownTalentProfileId(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !authData?.user) return null;
+  const { data, error } = await supabase
     .from("talent_profiles")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("user_id", authData.user.id)
     .maybeSingle();
+  if (error) {
+    logServerError("agenda.ownTalentProfileId", error);
+    return null;
+  }
   return typeof data?.id === "string" ? data.id : null;
 }
 
@@ -74,53 +76,17 @@ export async function releaseOwnTalentHold(holdId: string): Promise<AttentionAct
   return { ok: true };
 }
 
-/** Complete a booking the talent is on (agency_bookings id). */
+/** Complete a booking the talent is on (agency_bookings id). Ownership via requireOwnBooking. */
 export async function completeOwnAgendaBooking(bookingId: string): Promise<AttentionActionResult> {
   if (!bookingId) return { ok: false, reason: "missing" };
-  const talentId = await ownTalentProfileId();
-  if (!talentId) return { ok: false, reason: "unauthorized" };
-
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, reason: "unavailable" };
-
-  const { data: leg } = await admin
-    .from("booking_talent")
-    .select("booking_id")
-    .eq("booking_id", bookingId)
-    .eq("talent_profile_id", talentId)
-    .maybeSingle();
-  if (!leg) {
-    // Direct talent_bookings mirror id may equal agency id in some paths.
-    const { data: tb } = await admin
-      .from("talent_bookings")
-      .select("id")
-      .eq("id", bookingId)
-      .eq("talent_profile_id", talentId)
-      .maybeSingle();
-    if (!tb) return { ok: false, reason: "unauthorized" };
-  }
-
   const result = await completeBooking({ bookingId });
   if (result.ok) revalidatePath("/", "layout");
   return result;
 }
 
-/** Mark no-show when start is in the past. */
+/** Mark no-show when start is in the past. Same ownership as complete (leg or mirror). */
 export async function markOwnAgendaNoShow(bookingId: string): Promise<AttentionActionResult> {
   if (!bookingId) return { ok: false, reason: "missing" };
-  const talentId = await ownTalentProfileId();
-  if (!talentId) return { ok: false, reason: "unauthorized" };
-
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, reason: "unavailable" };
-  const { data: leg } = await admin
-    .from("booking_talent")
-    .select("booking_id")
-    .eq("booking_id", bookingId)
-    .eq("talent_profile_id", talentId)
-    .maybeSingle();
-  if (!leg) return { ok: false, reason: "unauthorized" };
-
   const result = await markBookingNoShow({ bookingId });
   if (result.ok) revalidatePath("/", "layout");
   return result;

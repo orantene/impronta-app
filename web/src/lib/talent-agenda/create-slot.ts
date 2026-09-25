@@ -28,17 +28,19 @@ export type PaymentChoice = "received" | "due_later" | "request_link";
 async function ownTalentProfileId(): Promise<{ talentId: string; userId: string } | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !authData?.user) return null;
+  const { data, error } = await supabase
     .from("talent_profiles")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("user_id", authData.user.id)
     .maybeSingle();
+  if (error) {
+    logServerError("agenda.createSlot.ownTalent", error);
+    return null;
+  }
   if (typeof data?.id !== "string") return null;
-  return { talentId: data.id, userId: user.id };
+  return { talentId: data.id, userId: authData.user.id };
 }
 
 function overlaps(aStart: Date, aEnd: Date, busy: readonly BusyInterval[]): boolean {
@@ -74,6 +76,8 @@ async function readBufferAfterMs(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
 ): Promise<number> {
+  // supabase-read-unchecked-ok: missing hours row and a failed read both mean
+  // the 15-minute default buffer — callers never treat empty as "configured".
   const { data } = await admin
     .from("talent_booking_hours")
     .select("buffer_after_min")

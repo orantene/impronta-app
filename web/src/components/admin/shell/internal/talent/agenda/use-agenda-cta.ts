@@ -6,6 +6,7 @@ import {
   completeOwnAgendaBooking,
   releaseOwnTalentHold,
 } from "@/lib/talent-agenda/attention-actions";
+import { markBookingTransferReceived } from "@/lib/talent-agenda/booking-actions";
 import {
   resolveAttentionCta,
   whoLabel,
@@ -43,7 +44,12 @@ export function useAgendaCta(nav: AgendaCtaNav) {
         onOpenMessages?.();
         return;
       }
-      if (resolved.kind === "collect" || resolved.kind === "open") {
+      // Non-mutating collect (e.g. overdue) → open record to finish/pay.
+      if (resolved.kind === "collect" && !resolved.mutates) {
+        onOpenBooking?.(item.id);
+        return;
+      }
+      if (resolved.kind === "open") {
         onOpenBooking?.(item.id);
         return;
       }
@@ -60,7 +66,9 @@ export function useAgendaCta(nav: AgendaCtaNav) {
             ? await releaseOwnTalentHold(id)
             : resolved.kind === "complete"
               ? await completeOwnAgendaBooking(id)
-              : { ok: false as const, reason: "unsupported" };
+              : resolved.kind === "collect" && resolved.mutates
+                ? await markBookingTransferReceived({ bookingId: id })
+                : { ok: false as const, reason: "unsupported" };
 
         if (!result.ok) {
           setError(
@@ -105,6 +113,10 @@ export function useAgendaCta(nav: AgendaCtaNav) {
       }
       if (label === "Mark finished" || label === "Mark complete") {
         await runCta(item, { kind: "complete", label: "Mark finished", mutates: true });
+        return;
+      }
+      if (label === "Confirm transfer") {
+        await runCta(item, { kind: "collect", label: "Confirm transfer", mutates: true });
         return;
       }
       // Reschedule / Decline later → open the record for now.

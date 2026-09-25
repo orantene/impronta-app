@@ -24,13 +24,22 @@ export type AgendaActionResult = AgendaActionOk | AgendaActionFail;
 export async function requireOwnBooking(bookingId: string): Promise<OwnBookingResult> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, reason: "unavailable" };
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  const user = authErr ? null : authData?.user ?? null;
 
-  const { data: profile } = user
-    ? await supabase.from("talent_profiles").select("id").eq("user_id", user.id).maybeSingle()
-    : { data: null };
+  let profile: { id: string } | null = null;
+  if (user) {
+    const { data, error } = await supabase
+      .from("talent_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) {
+      logServerError("agenda.requireOwnBooking.profile", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    profile = data;
+  }
 
   const talentId = typeof profile?.id === "string" ? profile.id : null;
   if (!user || !talentId) {
@@ -46,21 +55,31 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
-  const { data: leg } = await admin
+  const { data: leg, error: legErr } = await admin
     .from("booking_talent")
     .select("booking_id")
     .eq("booking_id", bookingId)
     .eq("talent_profile_id", talentId)
     .maybeSingle();
+  if (legErr) {
+    logServerError("agenda.requireOwnBooking.leg", legErr);
+    return { ok: false, reason: "unavailable" };
+  }
 
-  const { data: tb } = leg
-    ? { data: null }
-    : await admin
-        .from("talent_bookings")
-        .select("id")
-        .eq("id", bookingId)
-        .eq("talent_profile_id", talentId)
-        .maybeSingle();
+  let tb: { id: string } | null = null;
+  if (!leg) {
+    const { data, error: tbErr } = await admin
+      .from("talent_bookings")
+      .select("id")
+      .eq("id", bookingId)
+      .eq("talent_profile_id", talentId)
+      .maybeSingle();
+    if (tbErr) {
+      logServerError("agenda.requireOwnBooking.mirror", tbErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    tb = data;
+  }
 
   return ownBookingGate({
     bookingId,
@@ -122,13 +141,17 @@ export async function markBookingNoShow(input: {
     .eq("talent_profile_id", mirror.talent_profile_id);
 
   if (row.customer_id) {
-    const { data: cust } = await admin
+    const { data: cust, error: custErr } = await admin
       .from("customers")
       .select("no_shows")
       .eq("id", row.customer_id)
       .maybeSingle();
-    const next = (Number(cust?.no_shows) || 0) + 1;
-    await admin.from("customers").update({ no_shows: next }).eq("id", row.customer_id);
+    if (custErr) {
+      logServerError("agenda.markBookingNoShow.customer", custErr);
+    } else {
+      const next = (Number(cust?.no_shows) || 0) + 1;
+      await admin.from("customers").update({ no_shows: next }).eq("id", row.customer_id);
+    }
   }
 
   return { ok: true };
@@ -390,12 +413,12 @@ async function ensureAgendaOrderShell(
     .is("order_id", null);
   if (linkErr) {
     // Race: another writer may have linked an order — re-read and use that.
-    const { data: raced } = await admin
+    const { data: raced, error: racedErr } = await admin
       .from("agency_bookings")
       .select("order_id")
       .eq("id", input.bookingId)
       .maybeSingle();
-    if (raced?.order_id) return { ok: true, orderId: String(raced.order_id) };
+    if (!racedErr && raced?.order_id) return { ok: true, orderId: String(raced.order_id) };
     logServerError("agenda.ensureOrderShell.link", linkErr);
     return { ok: false, reason: "unavailable" };
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { TALENT_AGENDA_VARS } from "./primitives";
+import { useAgendaCopy } from "./use-agenda-copy";
 
 export type TradeSectionPayload = {
   type: "event" | "performance" | "intake" | "tz" | "estimate" | "project";
@@ -23,44 +24,45 @@ export function TradeSections({ sections }: { sections?: TradeSectionPayload[] }
 }
 
 function TradeSectionCard({ section }: { section: TradeSectionPayload }) {
+  const copy = useAgendaCopy();
   const d = section.data ?? {};
   switch (section.type) {
     case "event":
       return (
-        <Card title="Event">
-          <Line label="Guests" value={d.guests} />
-          <Line label="Diet" value={d.diet} />
-          <Line label="Kitchen" value={d.kitchen} />
-          <Line label="Menu" value={d.menu} />
-          <Line label="Prep" value={d.prep} />
+        <Card title={copy.t("Event")}>
+          <Line label={copy.t("Guests")} value={d.guests} />
+          <Line label={copy.t("Diet")} value={d.diet} />
+          <Line label={copy.t("Kitchen")} value={d.kitchen} />
+          <Line label={copy.t("Menu")} value={d.menu} />
+          <Line label={copy.t("Prep")} value={d.prep} />
         </Card>
       );
     case "performance":
       return (
-        <Card title="Performance">
-          <Line label="Call time" value={d.callTime} />
-          <Line label="Sets" value={d.sets} />
-          <Line label="End" value={d.end} />
-          <Line label="Venue rules" value={d.venueRules} />
+        <Card title={copy.t("Performance")}>
+          <Line label={copy.t("Call time")} value={d.callTime} />
+          <Line label={copy.t("Sets")} value={d.sets} />
+          <Line label={copy.t("End")} value={d.end} />
+          <Line label={copy.t("Venue rules")} value={d.venueRules} />
         </Card>
       );
     case "intake":
       return (
-        <Card title="Intake">
-          <Line label="Status" value={d.status ?? "Not received"} />
+        <Card title={copy.t("Intake")}>
+          <Line label={copy.t("Status")} value={d.status ?? copy.t("Not received")} />
           {d.resendUrl ? (
             <a
               className="mt-2 inline-flex min-h-[44px] items-center text-[13px] text-[var(--tc-accent)]"
               href={String(d.resendUrl)}
             >
-              Resend form
+              {copy.t("Resend form")}
             </a>
           ) : null}
         </Card>
       );
     case "tz":
       return (
-        <Card title="Time zones">
+        <Card title={copy.t("Time zones")}>
           <p className="text-[14px]">
             {d.localTime ?? "—"} · {d.clientTime ?? "—"}
           </p>
@@ -68,19 +70,19 @@ function TradeSectionCard({ section }: { section: TradeSectionPayload }) {
       );
     case "estimate":
       return (
-        <Card title="Estimate">
+        <Card title={copy.t("Estimate")}>
           <p className="text-[14px] text-[#5F6368]">
-            Booked to the top of the range. Finishing early frees the rest.
+            {copy.t("Booked to the top of the range. Finishing early frees the rest.")}
           </p>
-          <Line label="Range" value={d.range} />
+          <Line label={copy.t("Range")} value={d.range} />
         </Card>
       );
     case "project":
       return (
-        <Card title="Project">
-          <Line label="Stage" value={d.stage} />
-          <Line label="Deliverables" value={d.deliverables} />
-          <Line label="Due" value={d.due} />
+        <Card title={copy.t("Project")}>
+          <Line label={copy.t("Stage")} value={d.stage} />
+          <Line label={copy.t("Deliverables")} value={d.deliverables} />
+          <Line label={copy.t("Due")} value={d.due} />
         </Card>
       );
     default:

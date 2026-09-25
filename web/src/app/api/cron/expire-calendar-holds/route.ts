@@ -53,6 +53,8 @@ export async function GET(request: Request) {
   try {
     const nowIso = new Date().toISOString();
     const soonIso = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    // supabase-read-unchecked-ok: expiring-soon emit is best-effort hygiene —
+    // a failed select and an empty select both mean "no holds to notify".
     const { data: expiring } = await admin
       .from("talent_holds")
       .select("id, inquiry_id, starts_at")
@@ -78,13 +80,17 @@ export async function GET(request: Request) {
 
     // T1.5: if a firm hold expires while a checkout is still pending, extend it
     // once by ten minutes instead of deleting it immediately.
-    const { data: expiredCandidates } = await admin
+    const { data: expiredCandidates, error: expiredErr } = await admin
       .from("talent_holds")
       .select("id, inquiry_id, expires_at, created_at")
       .eq("hold_strength", "firm")
       .not("expires_at", "is", null)
       .lt("expires_at", nowIso)
       .limit(100);
+    if (expiredErr) {
+      logServerError("cron/expire-calendar-holds/candidates", expiredErr);
+      return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+    }
 
     let extended = 0;
     const toDelete: string[] = [];
@@ -102,6 +108,8 @@ export async function GET(request: Request) {
         expiresMs - createdMs > 10 * 60_000 + 5_000;
       let pendingPay = false;
       if (hold.inquiry_id && !alreadyExtended) {
+        // supabase-read-unchecked-ok: missing booking and a failed read both
+        // mean "do not extend" — the hold is deleted on the else branch.
         const { data: booking } = await admin
           .from("agency_bookings")
           .select("id, payment_status")
@@ -110,6 +118,8 @@ export async function GET(request: Request) {
           .limit(1)
           .maybeSingle();
         if (booking?.id && booking.payment_status !== "paid" && booking.payment_status !== "refunded") {
+          // supabase-read-unchecked-ok: missing tx and a failed read both mean
+          // no pending checkout — delete the hold rather than extend it.
           const { data: tx } = await admin
             .from("booking_transactions")
             .select("id")

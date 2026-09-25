@@ -17,12 +17,9 @@ Parent plans: [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md), [`CURSOR-EXECU
 | Track | State | Blocker |
 |---|---|---|
 | Services [#2244](https://github.com/orantene/impronta-app/pull/2244) | **MERGED** `9ab5feabf` | Talent Website E2E still flaky; Structural was green |
-| Agenda [#2245](https://github.com/orantene/impronta-app/pull/2245) | OPEN; structural ratchets + A3.2 evidence on branch | A0–A2 + A3.1 landed; A3.2 PNGs in `docs/plans/program/evidence/today-calendar/*-evidence.png` (prod capture; V2 flag may be off) |
+| Agenda [#2245](https://github.com/orantene/impronta-app/pull/2245) | OPEN; **Track A Step 0 code-complete** (A0–A3 + residual honesty/i18n) | Next = **A4** owner ROLLOUT Steps 1–3; full Playwright smoke when `QA_TALENT_*` set |
 | Services P7 live `#servicios` | Not started | Explicit owner “swap” only |
-| Gap plan G0–G4 “DONE” | Demoted to PARTIAL for overstated items | See A3.3 |
-
-Premature DONE in [`GAP-EXECUTION-PLAN.md`](./GAP-EXECUTION-PLAN.md) and [`ROLLOUT.md`](./ROLLOUT.md) Step 0 “G0–G4 code ready” must be demoted as part of **A5.1** (below: A3.3).
-
+| Gap plan G0–G4 “DONE” | Demoted where overstated; Step 0 residuals closed on branch | A4 owner-gated |
 ---
 
 ## Severity key
