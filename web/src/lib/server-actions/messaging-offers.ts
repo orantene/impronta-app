@@ -3,14 +3,15 @@
 /**
  * L6 (Messages v5, D-MSG-134): the offer-editor writers, split out of
  * `messaging-engine.ts` to keep that file under the repo's `max-lines` ratchet
- * (it was already near the cap). Same pattern as every other action in that
- * file: `staff()` guard (imported from there — it is the identical tenant +
- * service-role guard every Messages action uses), zod-parse the input, call
+ * (it was already near the cap). Same pattern as shared-draft / catalog:
+ * `messagingInquiryManager` (staff OR active coordinator) so talent inbox
+ * Continue→Send is not refused with `not_allowed`, zod-parse the input, call
  * the `lib/inquiry/inquiry-engine-offers.ts` engine, translate its
  * `EngineResult` into the Messages refusal catalogue.
  *
  * `messagingSendOffer` (sending) stays in `messaging-engine.ts` — it shipped
- * there before this lane and nothing about moving it was in scope.
+ * there before this lane and nothing about moving it was in scope. It uses
+ * the same inquiry-manager gate.
  */
 
 import { z } from "zod";
@@ -19,12 +20,14 @@ import { counterOffer, createOffer, reopenOfferForAmendment, updateOfferDraft, t
 import { loadInquiryOffers, loadOfferForEditor } from "@/lib/messaging/sheets";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
-import { staff } from "./messaging-engine";
+import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
 const scoped = tenantScopedQuery;
+
+type OfferGuardOk = Extract<Awaited<ReturnType<typeof messagingInquiryManager>>, { ok: true }>;
 
 /**
  * L6 (Messages v5, D-MSG-134): translate an `inquiry-engine-offers.ts`
@@ -53,10 +56,10 @@ function offerEngineFail(result: { success: false; forbidden?: boolean; conflict
 
 /** L6: start (or re-fetch an existing draft for) offer v1 on this inquiry. */
 export async function messagingCreateOffer(input: { inquiryId: string; expectedVersion: number; currencyCode?: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, currencyCode: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   // Creating the draft is the operator's own move on a thread they are
   // looking at: the version guard reads the row now instead of trusting a
   // number the sheet captured before the picker linked the shared draft.
@@ -84,7 +87,7 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
  * "Add items → Continue to offer" opens an editor that already prices them.
  * Nothing to copy, or a failed copy, leaves the empty offer as before.
  */
-async function seedOfferFromSharedDraft(g: Extract<Awaited<ReturnType<typeof staff>>, { ok: true }>, inquiryId: string, offerId: string) {
+async function seedOfferFromSharedDraft(g: OfferGuardOk, inquiryId: string, offerId: string) {
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
     .select("id, currency")
     .eq("inquiry_id", inquiryId)
@@ -125,10 +128,10 @@ async function seedOfferFromSharedDraft(g: Extract<Awaited<ReturnType<typeof sta
 
 /** L6: the full draft (header + lines) for the editor sheet. */
 export async function messagingLoadOfferForEditor(input: { inquiryId: string; offerId: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId).select("version").eq("id", parsed.data.inquiryId).maybeSingle();
   const draft = await loadOfferForEditor(g.admin, {
     tenantId: g.tenantId,
@@ -153,8 +156,6 @@ export async function messagingUpdateOfferDraft(input: {
   lineItems: OfferLineDraft[];
   terms?: { depositPct?: number | null } | null;
 }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z
     .object({
       inquiryId: uuid,
@@ -168,6 +169,8 @@ export async function messagingUpdateOfferDraft(input: {
     })
     .safeParse({ ...input, lineItems: undefined, terms: undefined });
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const result = await updateOfferDraft(g.supabase, {
     inquiryId: input.inquiryId,
     tenantId: g.tenantId,
@@ -188,10 +191,10 @@ export async function messagingUpdateOfferDraft(input: {
 
 /** L6: an accepted/sent offer -> a new draft version (never edits an accepted version — owner ruling 2). */
 export async function messagingReopenOfferForAmendment(input: { inquiryId: string; offerId: string; expectedVersion: number }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const result = await reopenOfferForAmendment(g.supabase, {
     inquiryId: parsed.data.inquiryId,
     tenantId: g.tenantId,
@@ -212,10 +215,10 @@ export async function messagingReopenOfferForAmendment(input: { inquiryId: strin
  * same currency. The caller still populates lines with `updateOfferDraft`.
  */
 export async function messagingCounterOffer(input: { inquiryId: string; expectedVersion: number; previousOfferId: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, previousOfferId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const result = await counterOffer(g.supabase, {
     inquiryId: parsed.data.inquiryId,
     tenantId: g.tenantId,
@@ -229,11 +232,10 @@ export async function messagingCounterOffer(input: { inquiryId: string; expected
 
 /** L6: the offer's version history (for the version chips and the Compare picker). */
 export async function messagingListOffers(input: { inquiryId: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const offers = await loadInquiryOffers(g.admin, { tenantId: g.tenantId, inquiryId: parsed.data.inquiryId });
   return { ok: true as const, offers };
 }
-

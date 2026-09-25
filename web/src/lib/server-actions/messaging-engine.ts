@@ -711,10 +711,10 @@ export async function messagingRecoverSnapshot(input: { snapshotId: string; orde
 }
 
 export async function messagingSendOffer(input: { inquiryId: string; offerId: string }) {
-  const g = await staff();
-  if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
   const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId)
     .select("version")
     .eq("id", parsed.data.inquiryId)
