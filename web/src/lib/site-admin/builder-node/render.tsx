@@ -5780,6 +5780,7 @@ function renderBuilderNodeElement(
                 mobileBar={p.mobileBar ?? "float"}
                 showAskLink={p.showAskLink !== false}
                 sheetAccent={p.bookingSheet?.accent ?? "ink"}
+                captcha={options.captcha ?? null}
               />
             </CatalogIslandBoundary>
           )}
