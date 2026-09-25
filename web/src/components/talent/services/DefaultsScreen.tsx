@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { type SellingDefaults } from "@/lib/talent/services-settings-actions";
+import { whoPrimaryCtaLabel } from "@/lib/talent/selling-booking-settings";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 // PDF p15 "Defaults · the rules every item starts with". Four cards in a
@@ -128,6 +129,7 @@ export function DefaultsScreen({
   const cancelH = defaults.cancelHours ?? 24;
   const reschedH = defaults.rescheduleHours ?? 24;
   const buffer = defaults.bufferAfterMin ?? 0;
+  const prep = defaults.bufferBeforeMin ?? 0;
   const noticeMin = defaults.minNoticeMin ?? 0;
   const noticeHours = Math.round((noticeMin / 60) * 10) / 10;
   const travels = defaults.where.includes("client");
@@ -302,9 +304,18 @@ export function DefaultsScreen({
           )}
         </Card>
 
-        {/* Time between appointments */}
-        <Card title={copy.t("Time between appointments")} hint={copy.t("Blocked, never charged")}>
+        {/* Preparation + gaps between appointments */}
+        <Card title={copy.t("Preparation and gaps")} hint={copy.t("Blocked, never charged")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <span className={fieldLabel}>{copy.t("Preparation before each booking")}</span>
+              <UnitInput
+                label={copy.t("Preparation before each booking")}
+                value={defaults.bufferBeforeMin}
+                unit="min"
+                onValue={(n) => patch({ bufferBeforeMin: n })}
+              />
+            </div>
             <div>
               <span className={fieldLabel}>{copy.t("Buffer after each one")}</span>
               <UnitInput
@@ -314,7 +325,7 @@ export function DefaultsScreen({
                 onValue={(n) => patch({ bufferAfterMin: n })}
               />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <span className={fieldLabel}>{copy.t("Shortest notice you accept")}</span>
               <UnitInput
                 label={copy.t("Shortest notice you accept")}
@@ -326,9 +337,93 @@ export function DefaultsScreen({
           </div>
           <p className={noteBox}>
             {copy
-              .t("A 60 minute service booked at 10:00 therefore ends at 11:00 for the client and {end} for you.")
+              .t(
+                "A 60 minute service booked at 10:00 needs prep from {prepStart}. It ends at 11:00 for the client and {end} for you.",
+              )
+              .replace("{prepStart}", clock(600 - prep))
               .replace("{end}", clock(660 + buffer))}{" "}
-            {copy.t("These times are saved on your defaults. A buffer hides the next slot that would overlap, and the notice hides anything sooner.")}
+            {copy.t(
+              "Preparation blocks time before the start so the previous client cannot run into your setup. The after buffer hides the next slot that would overlap, and the notice hides anything sooner.",
+            )}
+          </p>
+        </Card>
+
+        {/* How clients finish the booking sheet */}
+        <Card title={copy.t("How clients book")} hint={copy.t("Sheet button and path")}>
+          <div>
+            <span className={fieldLabel}>{copy.t("Booking mode")}</span>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "on_demand" as const, label: copy.t("On-demand reservation") },
+                  { id: "inquiry" as const, label: copy.t("Contact / inquiry") },
+                ] as const
+              ).map((m) => {
+                const on = defaults.bookingPosture === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() =>
+                      patch({
+                        bookingPosture: m.id,
+                        whoPrimaryCta:
+                          m.id === "inquiry" && defaults.whoPrimaryCta === "confirm_now"
+                            ? "contact"
+                            : defaults.whoPrimaryCta,
+                      })
+                    }
+                    className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
+                      on
+                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <span className={fieldLabel}>{copy.t("Who-step button")}</span>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {(
+                [
+                  { id: "confirm_now" as const },
+                  { id: "contact" as const },
+                  { id: "check_availability" as const },
+                ] as const
+              ).map((c) => {
+                const disabled =
+                  defaults.bookingPosture === "inquiry" && c.id === "confirm_now";
+                const on = defaults.whoPrimaryCta === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => patch({ whoPrimaryCta: c.id })}
+                    className={`rounded-lg border px-3 py-2 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
+                      on
+                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
+                    }`}
+                  >
+                    {whoPrimaryCtaLabel(c.id, copy.locale)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <p className={noteBox}>
+            {defaults.bookingPosture === "inquiry" || defaults.whoPrimaryCta !== "confirm_now"
+              ? copy.t(
+                  "After the client fills name and contact, this button opens chat with those details already filled in. It does not create a confirmed booking.",
+                )
+              : copy.t(
+                  "After the client fills name and contact, this button confirms the appointment when the service allows instant booking.",
+                )}
           </p>
         </Card>
       </div>

@@ -5,7 +5,7 @@ import { resolveOfferingCta, offeringPriceLabel, type TalentOffering } from "@/l
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
-import { CatalogBookingSheet } from "@/components/public-booking/CatalogBookingSheet";
+import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
   catalogRowCtaLabel,
@@ -13,15 +13,25 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
+import {
+  DEFAULT_SHEET_BOOKING_SETTINGS,
+  forceRequestIntent,
+  type TalentBookingPosture,
+} from "@/lib/talent/selling-booking-settings";
 
 export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
 export type CatalogNavMode = "pills" | "tabs" | "jump" | "accordion" | "flat";
 
-function detailFor(offering: TalentOffering, confirmsByHand: boolean): OfferingRequestDetail {
+function detailFor(
+  offering: TalentOffering,
+  confirmsByHand: boolean,
+  bookingPosture: TalentBookingPosture = "on_demand",
+): OfferingRequestDetail {
   const raw = resolveOfferingCta(offering);
-  const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
-  const instant = !confirmsByHand && (cta === "book_now" || cta === "buy_now");
+  const forceRequest = confirmsByHand || forceRequestIntent(bookingPosture);
+  const cta = forceRequest && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
+  const instant = !forceRequest && (cta === "book_now" || cta === "buy_now");
   return {
     offeringId: offering.id,
     talentProfileId: offering.talentProfileId,
@@ -50,21 +60,27 @@ function dispatchOffering(
   confirmsByHand: boolean,
   startAt?: "when",
   inclusion?: string | null,
+  bookingPosture: TalentBookingPosture = "on_demand",
 ) {
   const raw = resolveOfferingCta(offering);
-  const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
-  const instant = !confirmsByHand && (cta === "book_now" || cta === "buy_now");
+  const forceRequest = confirmsByHand || forceRequestIntent(bookingPosture);
+  const cta = forceRequest && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
+  const instant = !forceRequest && (cta === "book_now" || cta === "buy_now");
   const slotEligible =
     cta === "request_to_book" && offering.kind !== "product" && (offering.durationMinutes ?? 0) > 0;
   const eventName =
-    instant || (confirmsByHand && raw !== "ask_quote")
+    instant || (forceRequest && raw !== "ask_quote")
       ? "tulala:offering-instant"
       : slotEligible
         ? "tulala:offering-slot"
         : "tulala:offering-request";
   window.dispatchEvent(
     new CustomEvent(eventName, {
-      detail: { ...detailFor(offering, confirmsByHand), startAt, inclusion: inclusion ?? undefined },
+      detail: {
+        ...detailFor(offering, confirmsByHand, bookingPosture),
+        startAt,
+        inclusion: inclusion ?? undefined,
+      },
     }),
   );
 }
@@ -88,6 +104,7 @@ export function ServicesCatalogFilter({
   showAskLink = true,
   sheetAccent = "ink",
   captcha = null,
+  bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -110,6 +127,7 @@ export function ServicesCatalogFilter({
   sheetAccent?: "ink" | "primary";
   /** Tenant captcha — required when createInstantBookingAction enforces it. */
   captcha?: GuestCaptchaConfig | null;
+  bookingSettings?: CatalogSheetBookingSettings;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -123,6 +141,7 @@ export function ServicesCatalogFilter({
   const [sheetOpen, setSheetOpen] = useState(false);
   const es = locale.startsWith("es");
   const filterNav = nav === "pills" || nav === "tabs";
+  const bookingPosture = bookingSettings.bookingPosture;
 
   useEffect(() => {
     const onSelected = (e: Event) => {
@@ -156,7 +175,7 @@ export function ServicesCatalogFilter({
     const hasOptions = catalogRowHasOptions(item);
     const onRequest = item.visibility === "on_request";
     if (hasOptions || onRequest) {
-      dispatchOffering(item, confirmsByHand, undefined, inclusion);
+      dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
     }
     setSelectedId(item.id);
@@ -164,14 +183,14 @@ export function ServicesCatalogFilter({
     setSelectedBits(null);
     setSelectedTotal(item.amountCents ?? 0);
     setSelectedCurrency(item.currency);
-    dispatchOffering(item, confirmsByHand, "when", inclusion);
+    dispatchOffering(item, confirmsByHand, "when", inclusion, bookingPosture);
   };
 
   const continueFromBar = () => {
     const group = groups.find((g) => g.items.some((o) => o.id === selectedId));
     const found = group?.items.find((o) => o.id === selectedId);
     if (!found) return;
-    dispatchOffering(found, confirmsByHand, "when", group?.note);
+    dispatchOffering(found, confirmsByHand, "when", group?.note, bookingPosture);
   };
 
   return (
@@ -255,7 +274,7 @@ export function ServicesCatalogFilter({
                     showDescription={showDescription}
                     showDuration={showDuration}
                     showUsdEquivalent={showUsdEquivalent}
-                    confirmsByHand={confirmsByHand}
+                    confirmsByHand={confirmsByHand || forceRequestIntent(bookingPosture)}
                     usdRates={usdRates}
                     ctaLabel={ctaLabel}
                     durationFormat={durationFormat}
@@ -299,6 +318,7 @@ export function ServicesCatalogFilter({
         tenantId={tenantId}
         showAsk={showAskLink}
         captcha={captcha}
+        bookingSettings={bookingSettings}
       />
     </div>
   );
