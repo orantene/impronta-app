@@ -1,6 +1,5 @@
 export * from "./derive";
 export * from "./flag";
-export * from "./load";
 export * from "./overnight";
 export * from "./trades";
 export * from "./types";
@@ -22,7 +21,7 @@ export type { CreateAgendaPayLinkResult } from "./booking-actions";
 export { proposeReschedule, respondToReschedule } from "./reschedule-actions";
 export { cancelBookingWithRefund } from "./cancel-actions";
 export type { CancelWithRefundResult } from "./cancel-actions";
-export { loadTalentAgenda } from "./load";
+// loadTalentAgenda stays in ./load (server-only) — import from there, not this barrel.
 export { tradeCalendarRules } from "./trade-calendar";
 export {
   completeOwnAgendaBooking,

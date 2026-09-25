@@ -35,13 +35,18 @@ describe("G2.1 / A0 finish-collect honesty", () => {
 
   it("booking-actions require ownership and scope calendar mirrors by id", () => {
     const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    const ownership = readFileSync(join(root, "ownership.ts"), "utf8");
+    assert.match(ownership, /reason: "unauthorized"/);
+    assert.match(src, /ownBookingGate/);
+    assert.match(src, /if \(!own\.ok\) return own;/);
     assert.match(src, /requireOwnBooking/);
+    assert.match(src, /talentBookingMirrorEq/);
     assert.match(src, /recordBookingTransferAwaiting/);
     assert.match(src, /markBookingTransferReceived/);
     assert.match(src, /createAgendaBookingPayLink/);
     assert.match(src, /payment_method:\s*"transfer"/);
     assert.match(src, /createPaymentLink/);
-    assert.match(src, /\.eq\("id",\s*input\.bookingId\)/);
+    assert.match(src, /\.eq\("id",\s*(input\.bookingId|mirror\.id)\)/);
     assert.doesNotMatch(src, /gte\("starts_at"/);
     assert.doesNotMatch(src, /void input\.adjustLines/);
   });

@@ -6,6 +6,7 @@ import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { zonedLocalToUtc } from "@/lib/scheduling/tz";
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
+import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
 import type { TalentAgendaItem, TalentAgendaLoadResult, TalentAgendaRange } from "./types";
 
 type AgencyBookingRow = {
@@ -391,26 +392,16 @@ export async function loadTalentAgenda(
         status: agency?.status ?? booking.status,
         now: range.from,
       });
-      const paymentState = derivePaymentState({
-        booking: bookingState,
-        paymentStatus: agency?.payment_status,
-        transactionStatus: latest?.status,
-        checking: linkOpen && (latest?.status === "pending" || latest?.status === "processing"),
-        paymentMethod: agency?.payment_method ?? null,
-        transferAwaiting: (agency?.payment_method ?? "").toLowerCase() === "transfer",
-        startsAt: booking.starts_at,
-        balanceDueAt: agency?.balance_due_at ?? null,
-        totalCents: agency?.total_client_revenue ?? 0,
+      const payment = mapAgencyBookingPayment({
+        agencyStatus: agency?.status,
+        talentBookingStatus: booking.status,
+        agency,
         paidCents,
-        depositCents: agency?.deposit_amount_cents ?? 0,
-        managedByAgency: mapSource(agency?.source_type_snapshot) === "agency",
+        latestTxStatus: latest?.status,
+        linkOpen,
         now: range.from,
+        startsAt: booking.starts_at,
       });
-      // Open unpaid link with no txn yet → awaiting deposit/payment.
-      const payment =
-        paymentState === "none" && linkOpen && (agency?.payment_status ?? "unpaid") === "unpaid"
-          ? "awaiting"
-          : paymentState;
 
       const travelBefore = Math.max(
         0,
@@ -654,33 +645,8 @@ export async function loadTalentAgenda(
       due_at: string;
       status: string | null;
     }>) {
-      if (!deliverable.due_at) continue;
-      const due = new Date(deliverable.due_at);
-      if (Number.isNaN(due.getTime())) continue;
-      const dayStart = new Date(due);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(due);
-      dayEnd.setHours(23, 59, 59, 999);
-      items.push({
-        id: `deadline-${deliverable.id}`,
-        kind: "deadline",
-        ref: { table: "booking_deliverables", id: deliverable.id },
-        title: deliverable.title || "Delivery",
-        lines: [],
-        startsAt: dayStart.toISOString(),
-        endsAt: dayEnd.toISOString(),
-        allDay: true,
-        tz: hours?.timezone ?? "UTC",
-        where: { mode: "online", label: "Deadline" },
-        bufferAfterMin: 0,
-        booking: deliverable.status === "delivered" ? "completed" : "confirmed",
-        payment: "none",
-        money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" },
-        source: "manual",
-        blocksTime: false,
-        tradeSection: { kind: "estimate", payload: { bookingId: deliverable.booking_id } },
-        history: [],
-      });
+      const deadline = mapDeliverableDeadline(deliverable, hours?.timezone ?? "UTC");
+      if (deadline) items.push(deadline);
     }
 
     items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));

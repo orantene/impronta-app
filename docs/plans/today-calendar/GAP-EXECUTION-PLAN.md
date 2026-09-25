@@ -48,7 +48,7 @@ Parent plan: [`CURSOR-EXECUTION-PLAN.md`](./CURSOR-EXECUTION-PLAN.md). Audit sou
 
 Ship these before any beta allow-list expansion.
 
-### G0.1 New booking writes a commercial record (**P0**) — DONE 2026-09-24
+### G0.1 New booking writes a commercial record (**P0**) — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** `createOwnSlotBooking` inserts only `talent_bookings` and `void`s `paymentChoice`. No `agency_bookings`, no money, payment UI is fake.
 
@@ -113,7 +113,7 @@ Ship these before any beta allow-list expansion.
 
 Without these, numbers and Attention are wrong even when UI looks right.
 
-### G1.1 Load travel, intake, payment links, reschedule requests — DONE 2026-09-24
+### G1.1 Load travel, intake, payment links, reschedule requests — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** Migration columns/tables exist; `load.ts` does not select them. Travel never enters `occupiedInterval`. Intake attention never fires. Pending reschedules never appear. Hold-linked payment link expiry is weak.
 
@@ -152,7 +152,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ## 3. Phase G2 — Money and quote honesty (P1)
 
-### G2.1 Finish and collect — transfer + card — DONE 2026-09-24
+### G2.1 Finish and collect — transfer + card — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** Transfer copy says “awaiting” but nothing is written. Card never opens `/pay/[code]` or creates a link. Cash uses `payment_status` only (acceptable if labeled honestly; plan preferred `settleAtDoor` when POS/order exists).
 
@@ -170,7 +170,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G2.2 Event + project quotes write real offers — DONE 2026-09-24
+### G2.2 Event + project quotes write real offers — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** Event quote optionally blocks a date; no `inquiry_offers`. Project quote is local status text.
 
@@ -186,7 +186,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G2.3 Pay request currency + copy — DONE 2026-09-24 (MXN label)
+### G2.3 Pay request currency + copy — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** “Amount (USD)” while tenants often use MXN; `$` hard-coded in reschedule fee.
 
@@ -196,7 +196,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ## 4. Phase G3 — Record, CTAs, i18n (P1)
 
-### G3.1 Booking record uses `TradeSections` — DONE 2026-09-24
+### G3.1 Booking record uses `TradeSections` — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** Inline key→value dump; plan §T6.4 wants section renderers (event, performance, intake+resend, estimate, project, tz).
 
@@ -214,7 +214,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G3.3 Flow screens i18n (EN + ES) — DONE 2026-09-24
+### G3.3 Flow screens i18n (EN + ES) — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** New booking, Finish/collect, Holds, Quotes, Reschedule, Rebook, Pay request are English-only. Calendar list chips hard-code “All / Requests / …”.
 
@@ -224,7 +224,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G3.4 Focused flows use `TaskShell` — DONE 2026-09-24
+### G3.4 Focused flows use `TaskShell` — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** `TaskShell` exists; Finish/collect, Hold, Reschedule, Pay, Rebook build ad-hoc wrappers.
 
@@ -242,7 +242,7 @@ Without these, numbers and Attention are wrong even when UI looks right.
 
 ---
 
-### G4.2 Replace shallow “journey” unit stubs — DONE 2026-09-24
+### G4.2 Replace shallow “journey” unit stubs — PARTIAL — see POST-AUDIT-EXECUTION-PLAN.md
 
 **Problem:** `journeys.test.ts` includes `Array.slice` contract theater.
 

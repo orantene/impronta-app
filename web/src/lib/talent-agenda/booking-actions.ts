@@ -10,32 +10,38 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
+import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
+import type { OwnBookingResult } from "./ownership";
+
 export type AgendaActionOk = { ok: true; already?: boolean };
 export type AgendaActionFail = { ok: false; reason: string };
 export type AgendaActionResult = AgendaActionOk | AgendaActionFail;
-
-type OwnOk = { ok: true; talentId: string };
 
 /**
  * Talent must appear on booking_talent or own the talent_bookings mirror id.
  * Exported for cancel / other talent-owned writers in this package.
  */
-export async function requireOwnBooking(bookingId: string): Promise<OwnOk | AgendaActionFail> {
-  if (!bookingId) return { ok: false, reason: "missing" };
+export async function requireOwnBooking(bookingId: string): Promise<OwnBookingResult> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, reason: "unavailable" };
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, reason: "unauthorized" };
 
-  const { data: profile } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (typeof profile?.id !== "string") return { ok: false, reason: "unauthorized" };
-  const talentId = profile.id;
+  const { data: profile } = user
+    ? await supabase.from("talent_profiles").select("id").eq("user_id", user.id).maybeSingle()
+    : { data: null };
+
+  const talentId = typeof profile?.id === "string" ? profile.id : null;
+  if (!user || !talentId) {
+    return ownBookingGate({
+      bookingId,
+      hasSessionUser: Boolean(user),
+      talentProfileId: talentId,
+      onBookingTalent: false,
+      ownsTalentBookingMirror: false,
+    });
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
@@ -46,17 +52,23 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnOk | Agen
     .eq("booking_id", bookingId)
     .eq("talent_profile_id", talentId)
     .maybeSingle();
-  if (leg) return { ok: true, talentId };
 
-  const { data: tb } = await admin
-    .from("talent_bookings")
-    .select("id")
-    .eq("id", bookingId)
-    .eq("talent_profile_id", talentId)
-    .maybeSingle();
-  if (tb) return { ok: true, talentId };
+  const { data: tb } = leg
+    ? { data: null }
+    : await admin
+        .from("talent_bookings")
+        .select("id")
+        .eq("id", bookingId)
+        .eq("talent_profile_id", talentId)
+        .maybeSingle();
 
-  return { ok: false, reason: "unauthorized" };
+  return ownBookingGate({
+    bookingId,
+    hasSessionUser: true,
+    talentProfileId: talentId,
+    onBookingTalent: Boolean(leg),
+    ownsTalentBookingMirror: Boolean(tb),
+  });
 }
 
 /**
@@ -102,11 +114,12 @@ export async function markBookingNoShow(input: {
   }
 
   // Mirror calendar copy by shared id only (never a naked time window).
+  const mirror = talentBookingMirrorEq(input.bookingId, own.talentId);
   await admin
     .from("talent_bookings")
     .update({ status: "no_show", updated_at: now.toISOString() })
-    .eq("id", input.bookingId)
-    .eq("talent_profile_id", own.talentId);
+    .eq("id", mirror.id)
+    .eq("talent_profile_id", mirror.talent_profile_id);
 
   if (row.customer_id) {
     const { data: cust } = await admin
@@ -161,7 +174,7 @@ export async function completeBooking(input: {
   await admin
     .from("talent_bookings")
     .update({ status: "completed", updated_at: new Date().toISOString() })
-    .eq("id", input.bookingId)
+    .eq("id", talentBookingMirrorEq(input.bookingId, own.talentId).id)
     .eq("talent_profile_id", own.talentId);
 
   return { ok: true };
