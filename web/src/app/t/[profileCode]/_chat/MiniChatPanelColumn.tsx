@@ -42,6 +42,7 @@ import type { StreamRow } from "./MiniChatMessageBubble";
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
 import { countCoreDetails } from "./guest-detail-progress";
+import { resolveGuestRailLabel } from "./guest-intake-rail";
 import { GuestDockHomeView } from "./GuestDockHomeView";
 import { GuestDockLineupView } from "./GuestDockLineupView";
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
@@ -424,12 +425,8 @@ export function MiniChatPanelColumn({
   // the panel without starting anything has no thread at all; reporting that as
   // "Sent, awaiting reply" would be a flat lie about what the agency has.
   const headerThreadState: GuestHeaderThreadState = guestHeaderThreadState(threadStateInput);
-
-  const detailsProgress =
-    detailsEnabled && inquiryIntent
-      ? countCoreDetails(inquiryIntent, capturedChipValues)
-      : null;
-
+  const detailsProgress = detailsEnabled && inquiryIntent ? countCoreDetails(inquiryIntent, capturedChipValues) : null;
+  const railLabel = resolveGuestRailLabel(brand.dockIntake, inquiryIntent, capturedChipValues, threadStatus === "booked", Boolean(inquiryId), t);
   return (
     <>
       {/* ── DOCK v2 slim header (avatar + name + draft chip + overflow + X) ── */}
@@ -453,6 +450,7 @@ export function MiniChatPanelColumn({
         }
         detailsFilled={detailsProgress?.filled ?? 0}
         detailsTotal={detailsProgress?.total ?? 0}
+        railLabel={railLabel}
         t={t}
         onClose={onClose}
       />
