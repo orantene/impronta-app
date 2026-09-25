@@ -2,6 +2,8 @@
 
 Cited against `origin/main` = `origin/production` = `259ae741d` (Merge #2225). Worktree `.claude/worktrees/usd-vanity-rates`. Shared checkout was not the source.
 
+> **Canonical open list:** see [§ Still open (canonical)](#still-open-canonical) at the end of this file (after the pending close-out). Mid-file “not proven” blocks are historical. Execution plan: [`FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md`](./FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md).
+
 ---
 
 ## Pointers
@@ -326,11 +328,9 @@ Signed in as `qa-journeys-talent@impronta.test`. Inbox now lists conversations (
 | Hostile 30 lines | **proven** | 30 catalog rows selected; total `30 selected · from $251.50`. `hostile-30-catalog-lines.png`. No application error / NaN / Infinity. |
 | Hostile 4000-char + $0 | still proven | Prior `hostile-data.spec.ts`. |
 
-### Still not proven (short list)
+### Still not proven (short list) — superseded
 
-- Stripe 4242 + full/partial refund (live Checkout on R2).
-- Talent: hub money half, clean Accept disappearance, full refusal matrix, real builder publish column move.
-- Capacity event-tier + race (no local QA SRK).
+Historical leftover list. Talent money / Approve / refusals / publish and event door were proven in the pending close-out below. Canonical open items: [§ Still open (canonical)](#still-open-canonical).
 
 No D-MSG-423 opened. No hand move of `production`. No Impronta / Jorgelina / El Paisa content edits.
 
@@ -338,14 +338,14 @@ No D-MSG-423 opened. No hand move of `production`. No Impronta / Jorgelina / El 
 
 ## Finish proofs pending close-out (25 Sep, late)
 
-Branch `docs/finish-proofs-pending` off `origin/main` `ff84ce3a3`. Evidence: `web/e2e/qa-program/evidence/2026-09-25-pending/`.
+Branch `docs/finish-proofs-pending` off `origin/main` `ff84ce3a3`. Merge #2249 → `b2e348168`. Evidence: `web/e2e/qa-program/evidence/2026-09-25-pending/`.
 
 ### Pointer
 
 | Ref | Sha |
 |---|---|
-| `origin/main` | `4841fef06` (ahead of production; includes #2247) |
-| `origin/production` | `fffc5bcbd` at close-out write; promote follows green CI — not hand-pushed |
+| `origin/main` | `b2e348168` (#2249) |
+| `origin/production` | `4841fef06` at hygiene write; promote follows green CI on tip — not hand-pushed |
 
 Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via workflow earlier this evening.
 
@@ -355,8 +355,8 @@ Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via w
 |---|---|---|---|
 | 1 | Money split both halves | **proven** | Hub seed inquiry `aaaaaaaa-…0001` (tenant hub `00000000-…0002`) money panel: `Total $150 Paid $0 Balance due $150` (`hub-money-open.png`). Agency `88122fb7-…` money panel shows her Total without a “client” label (`agency-money-panel-v2.png`). |
 | 2 | Group silence | still partial | Prior leftover: stream dollar check false on multi-participant thread. |
-| 3 | Accept / Decline | **proven** | Decline already DB-proven (`515d5c9e-…`). Accept: `data-talent-approve` / Approve on Needs-action row; bar gone after click; DB `c08fbead-…` `status=active` + `accepted_at` set (`approve-after-v3.png`, `approve-scan-log.txt`). Label is **Approve**, not Accept. |
-| 4 | Ask in place | still partial | Prior leftover. |
+| 3 | Accept / Decline | **proven** | Decline already DB-proven (`515d5c9e-…`). **Approve** (`data-talent-approve`) on Needs-action row; bar gone after click; DB `c08fbead-…` `status=active` + `accepted_at` set (`approve-after-v3.png`, `approve-scan-log.txt`). Label is **Approve**, not Accept. |
+| 4 | Ask in place | still partial | Prior leftover: dock present; dedicated `#talent-ask` count was 0 (bridge fallback may apply — see audit plan Phase 2). |
 | 5 | Request-only | still proven | Prior leftover. |
 | 6 | Named refusals | **proven** | Agency sale: Resolve → “cannot”; More menu `copy_link`, `rename`, `handover`, `close_lost`, `history` each return “You cannot…” (`refusals-final-log.txt`, `refusals-final.png`). Buttons stayed visible. |
 | 7 | Builder publish | **proven** | `talent_sites` `c4ac191d-…`: `version` 3→5, `published_at` / `draft_updated_at` moved to `2026-09-25 04:13:31+00`, `status=published`. |
@@ -369,55 +369,19 @@ Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via w
 | Appointment double-book | **proven** | `appointment-double-book.spec.ts` **passed** (23.2s) with `PLAYWRIGHT_BASE_URL` set (`appt-double-log.txt`). Concurrent both-win race remains D-MSG-312 (product lock). |
 | Stripe 4242 + refund | **not proven** | Unchanged: `qa-stripe-r2` mints `cs_live_` (D-MSG-330). Local `.env.local` has `sk_test_`, but the **host** secret is live. Unblock: set `STRIPE_SECRET_KEY=sk_test_…` (and matching `pk_test_`) on `qa-stripe-r2` in Vercel, then re-run `stripe-pay-refund.spec.ts`. Do not 4242 live. |
 
-### Still open
+### Still open (canonical)
 
-- Stripe test-mode Checkout on an agent-owned host (Vercel env change).
-- Concurrent TOCTOU race (D-MSG-312).
-- Ask-in-place `#talent-ask` control (dock present; dedicated ask control count was 0).
-
-No D-MSG-423 opened. No Impronta / Jorgelina / El Paisa content edits.
-
----
-
-## Finish proofs pending close-out (25 Sep, late)
-
-Branch `docs/finish-proofs-pending` off `origin/main` `ff84ce3a3`. Evidence: `web/e2e/qa-program/evidence/2026-09-25-pending/`.
-
-### Pointer
-
-| Ref | Sha |
-|---|---|
-| `origin/main` | `ff84ce3a3` (#2247 leftover report) |
-| `origin/production` | *(checked at write time; promote runs after structural gate on that tip)* |
-
-Pointer never hand-pushed. Prior tip `e90d9d3e4` had already been promoted via workflow earlier this evening.
-
-### Talent dashboard — remaining items
-
-| # | Item | Status | Evidence |
-|---|---|---|---|
-| 1 | Money split both halves | **proven** | Hub seed inquiry `aaaaaaaa-…0001` (tenant `hub` / `00000000-…0002`) money panel: `Total $150 Paid $0 Balance due $150` (`hub-money-open.png`). Agency `88122fb7-…` money panel shows her Total without a “client” label (`agency-money-panel-v2.png`). |
-| 2 | Group silence | still partial | Prior leftover: stream dollar check false on multi-participant thread. |
-| 3 | Accept / Decline | **proven** | Decline already DB-proven (`515d5c9e-…`). Accept: `data-talent-approve` / Approve on Needs-action row; bar gone after click; DB `c08fbead-…` `status=active` + `accepted_at` set (`approve-after-v3.png`, `approve-scan-log.txt`). Label is **Approve**, not Accept. |
-| 4 | Ask in place | still partial | Prior leftover. |
-| 5 | Request-only | still proven | Prior leftover. |
-| 6 | Named refusals | **proven** | Agency sale: Resolve → “cannot”; More menu `copy_link`, `rename`, `handover`, `close_lost`, `history` each return “You cannot…” (`refusals-final-log.txt`, `refusals-final.png`). Buttons stayed visible. |
-| 7 | Builder publish | **proven** | `talent_sites` `c4ac191d-…`: `version` 3→5, `published_at` / `draft_updated_at` moved to `2026-09-25 04:13:31+00`, `status=published`. |
-
-### Matrix remainder
-
-| Item | Status | Evidence |
-|---|---|---|
-| Event door tier sold out | **proven** | MCP released door pool; first guest held; second got sentence “That night just sold out at that ticket…” (`event-door-held.png`, `event-door-sold-out.png`, `event-tier-log.txt`). |
-| Appointment double-book | **proven** | `appointment-double-book.spec.ts` **passed** (23.2s) with `PLAYWRIGHT_BASE_URL` set (`appt-double-log.txt`). Concurrent both-win race remains D-MSG-312 (product lock). |
-| Stripe 4242 + refund | **not proven** | Unchanged: `qa-stripe-r2` mints `cs_live_` (D-MSG-330). Local `.env.local` has `sk_test_`, but the **host** secret is live. Unblock: set `STRIPE_SECRET_KEY=sk_test_…` (and matching `pk_test_`) on `qa-stripe-r2` in Vercel, then re-run `stripe-pay-refund.spec.ts`. Do not 4242 live. |
-
-### Still open
-
-- Stripe test-mode Checkout on an agent-owned host (env change on Vercel).
-- Concurrent TOCTOU race (D-MSG-312).
-- Ask-in-place `#talent-ask` control (dock present; dedicated ask control count was 0).
+- Stripe test-mode Checkout on `qa-stripe-r2` (Vercel env: `sk_test_` / `pk_test_`), then `stripe-pay-refund.spec.ts` — see [`FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md`](./FINISH-AUDIT-EXECUTION-PLAN-2026-09-25.md) Phase 1.
+- Concurrent TOCTOU race (D-MSG-312) — product backlog, not finish CLEAN.
+- Ask-in-place `#talent-ask` / bridge fallback — audit plan Phase 2.
+- Group silence (soft), permissions/table Playwright without disk QA SRK — optional Phase 2.
 
 No D-MSG-423 opened. No Impronta / Jorgelina / El Paisa content edits.
+
+### Hygiene (25 Sep, this PR)
+
+- Removed duplicate “pending close-out” section that landed twice on #2249.
+- Added top-of-file pointer to this canonical open list.
+- Added execution plan file for remaining work.
 
 
