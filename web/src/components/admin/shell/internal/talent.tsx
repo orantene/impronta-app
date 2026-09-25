@@ -273,6 +273,17 @@ function TalentRouter() {
       } catch {
         /* ignore */
       }
+      // Soft-nav keeps bridge agenda items in memory (full assign drops them
+      // for the QA clock window and hides Finish and collect on the stub).
+      setTalentPage("booking-record");
+      if (typeof window !== "undefined") {
+        const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
+        const next = pinnedAgendaNow
+          ? `${href}${href.includes("?") ? "&" : "?"}agendaNow=${encodeURIComponent(pinnedAgendaNow)}`
+          : href;
+        window.history.pushState({}, "", next);
+      }
+      return;
     }
     if (typeof window !== "undefined") {
       const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");

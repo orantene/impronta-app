@@ -84,6 +84,23 @@ export function TalentTodayPage() {
   const firstSessionDismissed = dismissedLocal || bridgeTalentChecklistDismissed === true;
   const openAgendaPath = (path: string, fallbackPage: Parameters<typeof setTalentPage>[0]) => {
     const href = path.startsWith("/") ? path : `/talent/${path}`;
+    const bookingMatch = href.match(/\/talent\/bookings\/([^/?#]+)/);
+    if (bookingMatch?.[1] && bookingMatch[1] !== "new") {
+      try {
+        sessionStorage.setItem("tulala:agenda:bookingId", bookingMatch[1]);
+      } catch {
+        /* ignore */
+      }
+      setTalentPage("booking-record");
+      if (typeof window !== "undefined") {
+        const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
+        const next = pinnedAgendaNow
+          ? `${href}${href.includes("?") ? "&" : "?"}agendaNow=${encodeURIComponent(pinnedAgendaNow)}`
+          : href;
+        window.history.pushState({}, "", next);
+      }
+      return;
+    }
     if (typeof window !== "undefined") {
       const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
       const withPin =
