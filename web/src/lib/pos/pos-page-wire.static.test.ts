@@ -104,11 +104,14 @@ test("every return of the POS route tells the shell it is the point of sale", ()
 });
 
 test("POS actions require workspace staff and booking.payment.request", () => {
+  // Staff gate lives in `staff-actor.ts` (shared by counter + inquiry-manager path).
+  const actor = read("src/lib/pos/staff-actor.ts");
+  assert.match(actor, /requireWorkspaceStaffAction/);
+  assert.match(actor, /booking.payment.request/);
+  assert.match(actor, /userHasCapability\(capability/);
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
-  assert.match(src, /requireWorkspaceStaffAction/);
-  assert.match(src, /booking.payment.request/);
-  assert.match(src, /userHasCapability\(capability/);
-  assert.match(src, /staff\("booking.payment.mark_received"\)/);
+  assert.match(src, /posStaff\(/);
+  assert.match(src, /posStaff\("booking.payment.mark_received"\)/);
   assert.doesNotMatch(src, /view_dashboard/);
 });
 
