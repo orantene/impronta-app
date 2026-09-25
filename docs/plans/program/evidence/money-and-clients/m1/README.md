@@ -49,8 +49,13 @@ Note: LEDGER-CONTRACT outstanding table row for Lucía listed Paid 620 / Left 0;
 | Gate | Result |
 |---|---|
 | Unit: `september-ledger-fixture.test.ts` + cleanup static | **12 pass** (2026-09-25) |
-| `npm run typecheck` | **exit 0** |
+| `npm run typecheck` | **exit 0** (post-A4 rebase + COLORS fix) |
 | `npm run lint` | **exit 0** |
+
+## PR
+
+- Draft: https://github.com/orantene/impronta-app/pull/2278
+- Branch: `feat/mc-m1-definitions-read-model`
 
 ## Base / rebase
 
