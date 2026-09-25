@@ -39,8 +39,10 @@ NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' npx tsx --test 
   src/lib/talent-agenda/b4-activity-log.static.test.ts
 # → 33 pass / 0 fail
 
-npm run typecheck   # exit recorded at gate time
-npm run lint        # exit recorded at gate time
+npm run typecheck   # exit 0 (2026-09-25)
+npm run lint        # exit 0 (2026-09-25)
 ```
+
+Commit: `d1cc88745` on `cursor/mc-b4-activity-log-d350`.
 
 No migration (table + autofill already exist). No new engines.
