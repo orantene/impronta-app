@@ -84,6 +84,34 @@ test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () =>
   assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null\)/);
 });
 
+test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)", () => {
+  const proxy = src("src/proxy.ts");
+  const helper = src("src/lib/saas/talent-site-rewrite-reentry.ts");
+  // Short-circuit must delegate to the extracted helper (keeps proxy under
+  // max-lines and is the single place the rebound lives).
+  assert.match(proxy, /talentSiteRewriteReentryResponse\(request, sanitizedInboundHeaders\)/);
+  assert.doesNotMatch(
+    proxy,
+    /pathname\.startsWith\("\/_talent-site\/"\)\s*\)\s*\{\s*return NextResponse\.next\(\{\s*request:\s*\{\s*headers:\s*sanitizedInboundHeaders\s*\}\s*\}\)/,
+  );
+  assert.match(helper, /D-MSG-431/);
+  assert.match(helper, /resolveTenantContext\(request, candidateHost\)/);
+  assert.match(
+    helper,
+    /rebound\.set\(HOST_TALENT_PROFILE_HEADER, reboundCtx\.talentProfileId\)/,
+  );
+  assert.match(
+    helper,
+    /rebound\.set\(HOST_CONTEXT_HEADER, "talent_site"\)/,
+  );
+  // D-MSG-422 shape: rebound talent_site path must re-attach guest identity.
+  assert.match(
+    helper,
+    /attachTalentSiteGuestIdentity\(request, rebound\)/,
+    "rebound talent_site path must call attachTalentSiteGuestIdentity",
+  );
+});
+
 test("every talent-reachable builder surface pins raw HTML off", () => {
   for (const file of [
     "src/components/talent/site/TalentMaxBuilderMount.tsx",

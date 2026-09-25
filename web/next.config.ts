@@ -404,6 +404,7 @@ const nextConfig: NextConfig = {
     "nova.local",
     "midnight.local",
     "lvh.me",
+    "*.lvh.me",
     "impronta.lvh.me",
     "app.lvh.me",
     // Local-host-proxy QA harness (scripts/local-host-proxy.mjs): the browser

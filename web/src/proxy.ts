@@ -21,6 +21,7 @@ import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-iden
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
+import { talentSiteRewriteReentryResponse } from "@/lib/saas/talent-site-rewrite-reentry";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
@@ -136,10 +137,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/_talent-site" ||
     pathname.startsWith("/_talent-site/")
   ) {
-    // Forward the sanitized headers so the `/_talent-site` short-circuit can
-    // NEVER carry a client-forged `x-impronta-talent-profile` /
-    // `x-impronta-host-context` into the route.
-    return NextResponse.next({ request: { headers: sanitizedInboundHeaders } });
+    return talentSiteRewriteReentryResponse(request, sanitizedInboundHeaders);
   }
 
   // Dev surfaces skip host gating but still mint guest cookie for /c/[inquiryId].
