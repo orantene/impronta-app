@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useFocusTrap } from "@/app/t/[profileCode]/_chat/use-focus-trap";
+import { useFocusTrap } from "@/components/support/use-focus-trap";
 import type { OfferingRequestDetail } from "@/app/t/[profileCode]/_shared/OfferingCta";
-import { durationLabel } from "@/app/t/[profileCode]/_maison/MaisonMenu";
 import type { InstantBookActionResult, InstantBookFormPayload } from "@/lib/server-actions/instant-book-action";
+import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
 import {
