@@ -19,6 +19,13 @@ describe("G0.1 createOwnSlotBooking", () => {
     assert.ok(src.includes("id: bookingId"), "calendar row shares commercial id");
   });
 
+  it("uses hub seller tenant, not agency roster gate", () => {
+    assert.ok(src.includes("resolveTalentOwnWorkTenant"));
+    assert.ok(src.includes("loadTalentActor"));
+    assert.ok(!src.includes("getActiveTalentAgencyContext"));
+    assert.ok(!src.includes('"no_agency"'));
+  });
+
   it("honors paymentChoice instead of voiding it", () => {
     assert.ok(!/void\s+input\.paymentChoice/.test(src));
     assert.ok(src.includes("paymentStatusFor("));
@@ -53,5 +60,7 @@ describe("G0.2–G0.3 HoldFlows + convert", () => {
     assert.ok(convert.includes('.from("talent_bookings")'));
     assert.ok(convert.includes('.from("talent_holds")'));
     assert.ok(convert.includes(".delete()"));
+    assert.ok(convert.includes("resolveTalentOwnWorkTenant"));
+    assert.ok(!convert.includes("getActiveTalentAgencyContext"));
   });
 });

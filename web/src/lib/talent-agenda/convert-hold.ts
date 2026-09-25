@@ -1,49 +1,36 @@
 /**
- * G0.2 — Convert a talent-owned hold into a confirmed commercial booking.
+ * G0.2 / Stage B1 — Convert a talent-owned hold into a confirmed commercial
+ * booking on the platform hub (talent as seller).
  */
 
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
+import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
+import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
 
 export type ConvertOwnHoldResult =
   | { ok: true; bookingId: string; already?: boolean }
   | { ok: false; reason: string; message?: string };
 
-async function ownTalentProfileId(): Promise<{ talentId: string; userId: string } | null> {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return null;
-  const { data: authData, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !authData?.user) return null;
-  const { data, error } = await supabase
-    .from("talent_profiles")
-    .select("id")
-    .eq("user_id", authData.user.id)
-    .maybeSingle();
-  if (error) {
-    logServerError("agenda.convertHold.ownTalent", error);
-    return null;
-  }
-  if (typeof data?.id !== "string") return null;
-  return { talentId: data.id, userId: authData.user.id };
-}
-
 /**
- * Turn a talent_holds row into agency_bookings + talent_bookings (shared id),
+ * Turn a talent_holds row into agency_bookings + talent_bookings on the hub,
  * then delete the hold. Payment stays unpaid until collected.
  */
 export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHoldResult> {
   if (!holdId) return { ok: false, reason: "missing" };
-  const identity = await ownTalentProfileId();
-  if (!identity) return { ok: false, reason: "unauthorized" };
+  const actor = await loadTalentActor();
+  if (!actor.ok) return { ok: false, reason: "unauthorized" };
 
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, reason: "unavailable" };
+  const admin = actor.admin;
+  const ownTenant = await resolveTalentOwnWorkTenant();
+  if (!ownTenant.ok) {
+    return { ok: false, reason: "no_hub", message: "Platform hub is not available." };
+  }
+  const tenantId = ownTenant.tenantId;
 
   const { data: hold, error: holdErr } = await admin
     .from("talent_holds")
@@ -57,7 +44,7 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
     return { ok: false, reason: "unavailable" };
   }
   if (!hold) return { ok: false, reason: "not_found" };
-  if (hold.talent_profile_id !== identity.talentId) {
+  if (hold.talent_profile_id !== actor.talentProfileId) {
     return { ok: false, reason: "unauthorized" };
   }
 
@@ -77,7 +64,7 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
   try {
     const busy = await loadBusyIntervals({
       admin,
-      talentProfileId: identity.talentId,
+      talentProfileId: actor.talentProfileId,
       from: new Date(startsAt.getTime() - 60 * 60_000),
       to: new Date(endsAt.getTime() + 60 * 60_000),
     });
@@ -107,10 +94,10 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
   const { data: agencyRow, error: agencyErr } = await admin
     .from("agency_bookings")
     .insert({
-      tenant_id: hold.tenant_id,
+      tenant_id: tenantId,
       source_inquiry_id: hold.inquiry_id,
-      owner_staff_id: identity.userId,
-      created_by_staff_id: identity.userId,
+      owner_staff_id: actor.userId,
+      created_by_staff_id: actor.userId,
       title,
       status: "confirmed" as never,
       payment_status: "unpaid" as never,
@@ -133,9 +120,9 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
   const totals = computeBookingTalentRowTotals(1, 0, 0);
 
   const { error: legErr } = await admin.from("booking_talent").insert({
-    tenant_id: hold.tenant_id,
+    tenant_id: tenantId,
     booking_id: bookingId,
-    talent_profile_id: identity.talentId,
+    talent_profile_id: actor.talentProfileId,
     sort_order: 0,
     units: 1,
     pricing_unit: "event" as never,
@@ -153,8 +140,8 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
 
   const { error: calErr } = await admin.from("talent_bookings").insert({
     id: bookingId,
-    talent_profile_id: identity.talentId,
-    tenant_id: hold.tenant_id,
+    talent_profile_id: actor.talentProfileId,
+    tenant_id: tenantId,
     inquiry_id: hold.inquiry_id,
     title,
     client_label: clientName,
@@ -162,7 +149,7 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
     ends_at: endsAt.toISOString(),
     all_day: hold.all_day === true,
     status: "confirmed",
-    created_by_user_id: identity.userId,
+    created_by_user_id: actor.userId,
   });
 
   if (calErr) {
@@ -183,7 +170,7 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
     .from("talent_holds")
     .delete()
     .eq("id", holdId)
-    .eq("talent_profile_id", identity.talentId);
+    .eq("talent_profile_id", actor.talentProfileId);
   if (delErr) {
     // Booking exists; hold leak is recoverable — log and still succeed.
     logServerError("agenda.convertHold.deleteHold", delErr);

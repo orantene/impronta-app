@@ -10,12 +10,16 @@ import path from "node:path";
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 describe("G2.2 quote writers", () => {
-  it("create-quote writes inquiry_offers and booking_deliverables", () => {
+  it("create-quote writes inquiry_offers and booking_deliverables on hub", () => {
     const src = readFileSync(path.join(ROOT, "create-quote.ts"), "utf8");
     assert.ok(src.includes('.from("inquiries")'));
     assert.ok(src.includes('.from("inquiry_offers")'));
     assert.ok(src.includes('.from("booking_deliverables")'));
     assert.ok(src.includes("status: \"draft\""));
+    assert.ok(src.includes("resolveTalentOwnWorkTenant"));
+    assert.ok(src.includes("loadTalentActor"));
+    assert.ok(!src.includes("getActiveTalentAgencyContext"));
+    assert.ok(!src.includes('"no_agency"'));
   });
 
   it("AgendaQuotes calls createOwnEventQuote / createOwnProjectQuote", () => {
