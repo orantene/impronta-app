@@ -172,9 +172,10 @@ test.describe("Talent Agenda V2 smoke", () => {
     const addBtn = await calendarAddButton(page);
     await expect(addBtn).toBeVisible({ timeout: 30_000 });
     await addBtn.click();
-    await expect(page.getByRole("menu").or(page.getByText(/New booking|Block time|Bloquear/i).first())).toBeVisible({
-      timeout: 15_000,
-    });
+    const menu = page.getByRole("menu", { name: /Add event or block|Añadir evento o bloqueo/i });
+    await expect(menu).toBeVisible({ timeout: 15_000 });
+    await expect(menu.getByRole("button", { name: /New booking|Nueva reserva/i })).toBeVisible();
+    await expect(menu.getByRole("button", { name: /Block time|Bloquear/i })).toBeVisible();
   });
 
   test("Attention page loads", async ({ page }) => {
@@ -192,7 +193,9 @@ test.describe("Talent Agenda V2 smoke", () => {
     const addBtn = await calendarAddButton(page);
     await expect(addBtn).toBeVisible({ timeout: 30_000 });
     await addBtn.click();
-    await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
+    const menu = page.getByRole("menu", { name: /Add event or block|Añadir evento o bloqueo/i });
+    await expect(menu).toBeVisible({ timeout: 15_000 });
+    await menu.getByRole("button", { name: /Block time|Bloquear/i }).click();
     await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -248,9 +251,20 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
     });
     const collect = page.getByRole("button", { name: /Collect|Finish|Cobrar|Finalizar/i }).first();
     if (!(await collect.isVisible().catch(() => false))) {
-      test.skip(true, "No Collect/Finish CTA on seeded Today — re-seed week fixtures with revenue");
+      const open = page.getByRole("button", { name: /Open|Ver|View|Cobrar|Collect/i }).first();
+      if (!(await open.isVisible().catch(() => false))) {
+        test.skip(true, "No Collect/Finish/Open CTA on seeded Today — re-seed week fixtures with revenue");
+      }
+      await open.click();
+      await page.waitForTimeout(800);
+      const finish = page.getByRole("button", { name: /Finish|Collect|Finalizar|Cobrar/i }).first();
+      if (!(await finish.isVisible().catch(() => false))) {
+        test.skip(true, "Finish/Collect not offered on opened booking record");
+      }
+      await finish.click();
+    } else {
+      await collect.click();
     }
-    await collect.click();
     await expect(page.getByText(/Cash|Transfer|Card|Efectivo|Transferencia|Tarjeta/i).first()).toBeVisible({
       timeout: 30_000,
     });
@@ -287,7 +301,9 @@ test.describe("Talent Agenda V2 T9.5 journeys", () => {
     const addBtn = await calendarAddButton(page);
     await expect(addBtn).toBeVisible({ timeout: 30_000 });
     await addBtn.click();
-    await page.getByRole("button", { name: /Block time|Bloquear/i }).click();
+    const menu = page.getByRole("menu", { name: /Add event or block|Añadir evento o bloqueo/i });
+    await expect(menu).toBeVisible({ timeout: 15_000 });
+    await menu.getByRole("button", { name: /Block time|Bloquear/i }).click();
     await expect(page.locator('input[type="time"]').first()).toBeVisible({ timeout: 15_000 });
     const cancel = page.getByRole("button", { name: /Cancel|Cancelar|Back|Volver/i }).first();
     if (await cancel.isVisible().catch(() => false)) {
