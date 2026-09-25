@@ -216,7 +216,8 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-row-thumb img { object-fit: cover; transition: transform 500ms var(--mn-ease); }
 .mn-row:hover .mn-row-thumb img { transform: scale(1.07); }
 .mn-row-text { flex: 1 1 0; min-width: 0; }
-.mn-row-title { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
+.mn-row-title { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
+.mn-row-title-text { flex: 1 1 0; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 .mn-check { flex: 0 0 auto; width: 21px; height: 21px; border-radius: 99px; background: var(--mn-rose); color: var(--mn-on-primary, #fff); display: inline-grid; place-items: center; font-size: 0.75rem; animation: mn-pop 320ms var(--mn-ease); }
 @keyframes mn-pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .mn-row-desc { margin: 7px 0 0; font-size: 0.9375rem; line-height: 1.55; color: var(--mn-ink-2); max-width: 46ch; }

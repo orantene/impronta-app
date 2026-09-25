@@ -9,6 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 // ─────────────────────────────────────────────────────────────────────
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { TalentStudioFlagProvider } from "@/components/talent/studio/flag";
 import { devSetTalentPlanTierForSelfAction } from "@/lib/talent-site/server/dev-plan";
 // Client-safe (no `server-only`): resolves the workspace's REAL public address
 // from plan tier + live agency_domains rows instead of synthesizing a host.
@@ -356,6 +357,8 @@ type Ctx = {
    * null = mock mode; `_talent.tsx` falls back to MY_TALENT_PROFILE.
    */
   bridgeTalentSelfProfile: BridgeTalentSelfProfile | null;
+  /** Active talent plan trial, when the layout loaded one. null = none. */
+  bridgeTalentPlanTrial: { active: boolean; expiresAt: string | null } | null;
   /** Real completeness from the layout bridge (see data-bridge.ts). */
   bridgeTalentCompletion: { percent: number; missing: Array<{ key: string; label: string }> } | null;
   /** The talent's OWN page analytics (views + inquiry conversion) from the
@@ -901,6 +904,7 @@ function talentPageToSegment(p: TalentPage): string {
     reviews:   "reviews",
     calendar:  "calendar",
     money:     "money",
+    clients:   "clients",
     payouts:   "payouts",
     agencies:  "money",   // legacy alias
     activity:  "money",   // legacy alias
@@ -925,6 +929,7 @@ export function AdminShellProvider({
   tenantSlug,
   brandedHost = false,
   platformTalentRoutes = false,
+  talentStudioV2 = false,
 }: {
   children: ReactNode;
   /**
@@ -965,6 +970,8 @@ export function AdminShellProvider({
   brandedHost?: boolean;
   /** Platform `/talent/*` routes on app.tulala.digital (no `/{slug}` prefix). */
   platformTalentRoutes?: boolean;
+  /** Talent Studio v2, read once by the talent layout. Default false. */
+  talentStudioV2?: boolean;
 }) {
   const router = useRouter();
   const tenantSlugRef = useRef(tenantSlug);
@@ -2112,6 +2119,7 @@ export function AdminShellProvider({
     [initialBridgeData?.talentInquiries],
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
+  const bridgeTalentPlanTrial = initialBridgeData?.talentPlanTrial ?? null;
   const bridgeTalentCompletion = initialBridgeData?.talentCompletion ?? null;
   const bridgeTalentPageAnalytics = initialBridgeData?.talentPageAnalytics ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
@@ -2276,6 +2284,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentPlanTrial,
       bridgeTalentCompletion,
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
@@ -2401,6 +2410,7 @@ export function AdminShellProvider({
       totalUnread,
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
+      bridgeTalentPlanTrial,
       bridgeTalentCompletion,
       bridgeTalentPageAnalytics,
       bridgeTalentPayoutSnapshot,
@@ -2440,7 +2450,11 @@ export function AdminShellProvider({
     ],
   );
 
-  return <AdminShellContext.Provider value={value}>{children}</AdminShellContext.Provider>;
+  return (
+    <AdminShellContext.Provider value={value}>
+      <TalentStudioFlagProvider enabled={talentStudioV2}>{children}</TalentStudioFlagProvider>
+    </AdminShellContext.Provider>
+  );
 }
 
 export function useAdminShell(): Ctx {

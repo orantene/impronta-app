@@ -56,18 +56,9 @@ function clientIp(request: NextRequest): string {
 }
 
 /**
- * Internal host-context headers that the proxy itself sets AFTER host
- * resolution. A client must never be able to supply them: a forged
- * `x-impronta-talent-profile` would otherwise let `/_talent-site` render an
- * arbitrary talent's Max site on a host that isn't that talent's domain
- * (header-confusion / host-binding bypass), and a forged
- * `x-impronta-host-context` would defeat the route's defense-in-depth gate.
- *
- * These are stripped from the INBOUND request on EVERY path — including the
- * `/_talent-site` short-circuit's `NextResponse.next()` — so the only value
- * the app ever sees is one the proxy set on the legitimate `talent_site`
- * rewrite. Mirrors the actor-header hygiene in `lib/supabase/middleware.ts`
- * and the `TENANT_HEADER_NAME` strip below.
+ * Strip client-forged host-context headers on every inbound path so only the
+ * proxy-written values reach `/_talent-site` (and mirrors actor-header hygiene
+ * in `lib/supabase/middleware.ts`).
  */
 const HOST_CONTEXT_HEADERS_TO_STRIP = [
   HOST_CONTEXT_HEADER,
@@ -143,14 +134,22 @@ export async function proxy(request: NextRequest) {
     // recurse back through host resolution. The route reads the resolved
     // talent_profile_id from the host header set by the talent_site block.
     pathname === "/_talent-site" ||
-    pathname.startsWith("/_talent-site/") ||
-    (allowDevSurfaces && pathname.startsWith("/api/dev/")) ||
-    (allowDevSurfaces && pathname.startsWith("/dev/"))
+    pathname.startsWith("/_talent-site/")
   ) {
     // Forward the sanitized headers so the `/_talent-site` short-circuit can
     // NEVER carry a client-forged `x-impronta-talent-profile` /
     // `x-impronta-host-context` into the route.
     return NextResponse.next({ request: { headers: sanitizedInboundHeaders } });
+  }
+
+  // Dev surfaces skip host gating but still mint guest cookie for /c/[inquiryId].
+  if (
+    allowDevSurfaces &&
+    (pathname.startsWith("/api/dev/") || pathname.startsWith("/dev/"))
+  ) {
+    const devHeaders = new Headers(sanitizedInboundHeaders);
+    const attachGuest = attachTalentSiteGuestIdentity(request, devHeaders);
+    return attachGuest(NextResponse.next({ request: { headers: devHeaders } }));
   }
 
   // SaaS Phase 4 — unified host resolution. Every hostname (marketing /

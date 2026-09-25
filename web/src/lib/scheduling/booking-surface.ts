@@ -67,7 +67,9 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 
 export function bookingSurfaceFromHost(kind: string): BookingSurfaceKind {
   if (kind === "agency") return "workspace_site";
-  if (kind === "talent_site") return "own_page";
+  // The app host is where her own page is previewed (localhost, the talent
+  // shell). It books as her page, not as an inquiry-only "other" surface.
+  if (kind === "talent_site" || kind === "app") return "own_page";
   if (kind === "hub") return "hub";
   return "other";
 }

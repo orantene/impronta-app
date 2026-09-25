@@ -22,6 +22,7 @@ import {
 } from "@/lib/scheduling/instant-book-guest";
 import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
+import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 
 export type InstantBookFormPayload = {
   talentProfileId: string;
@@ -118,6 +119,7 @@ export async function createInstantBookingAction(
           clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
+          guestSessionId: await resolveGuestSessionId(),
         });
 
         if (!booked.ok) {

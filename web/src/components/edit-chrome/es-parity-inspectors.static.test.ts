@@ -127,6 +127,9 @@ const INTENTIONALLY_UNTRANSLATED: ReadonlyMap<string, string> = new Map([
   ["Copa de vino", "sample includes line; already Spanish"],
   ["Instagram bio", "sample link name; a product name plus a loanword used as-is"],
   ["© Nova Crew", "sample copyright line built from the sample studio name; the glyph and the name are identical in Spanish"],
+  // builder-node-content person picker: the placeholder is intentionally bilingual
+  // so a Spanish operator reading an English-locale inspector still sees the cue.
+  ["Select / Seleccionar", "already bilingual placeholder; translating would drop one language"],
 ]);
 
 /** Regex-shaped exemptions: pure symbols, hex colors, bare URLs and paths. */

@@ -13,6 +13,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadOfferingChildren } from "./offerings-children";
 import {
+  loadAddonGroupsForOfferings,
+  mergeAddonGroupsIntoAddOns,
+} from "./merge-addon-groups";
+import {
   rowToOffering,
   type TalentOffering,
   type TalentOfferingRow,
@@ -80,10 +84,16 @@ export async function loadPublicOfferingsForProfile(
     }
     // D4 — attach the public options/extras (RLS-mirrored child tables).
     const children = await loadOfferingChildren(db, rows.map((r) => r.id));
+    const groups = await loadAddonGroupsForOfferings(
+      db,
+      talentProfileId,
+      rows.map((r) => r.id),
+    );
+    const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     return rows.map((r) => ({
       ...rowToOffering(r, locale, images.get(r.id) ?? []),
       variants: children.variants.get(r.id) ?? [],
-      addOns: children.addOns.get(r.id) ?? [],
+      addOns: addOnsByOffering.get(r.id) ?? [],
     }));
   } catch (err) {
     logServerError("public.offerings.load", err);

@@ -157,7 +157,9 @@ export function CalendarPage() {
   // (replacing the mock fixture composition below). Empty arrays from the
   // bridge still take precedence so users see a real empty state instead
   // of mock data.
-  const events: CalendarEvent[] = bridgeEvents ?? [
+  const events: CalendarEvent[] = isBridgeMode
+    ? (bridgeEvents ?? [])
+    : (bridgeEvents ?? [
     // Confirmed bookings
     ...confirmedBookings.map((b): CalendarEvent => ({
       id: b.id,
@@ -287,7 +289,7 @@ export function CalendarPage() {
         drawer: { id: "talent-offer-detail", payload: { id: r.id } },
       }),
     ),
-  ];
+  ]);
 
   // Bridge mode: replace the mock event list with real inquiry data.
   // `conversations` is bridge-adapted when bridgeTalentSelfProfile is set,

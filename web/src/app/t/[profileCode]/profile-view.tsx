@@ -120,6 +120,8 @@ import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligib
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
+import { pickHeadlinePrice } from "@/lib/directory/headline-price";
+import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
@@ -2388,7 +2390,36 @@ export async function TalentProfileView({
           });
         })()}
         serviceAreas={structuredServiceAreas}
-        startingFrom={profile.starting_from ?? null}
+        startingFrom={(() => {
+          // Prefer the modern catalogue headline (same picker as directory cards).
+          // Legacy `talent_profiles.starting_from` is free text and often raw cents.
+          const headline = pickHeadlinePrice(
+            storefrontOfferings
+              .filter(
+                (o) =>
+                  o.priceDisplay !== "quote" &&
+                  o.priceType !== "custom" &&
+                  typeof o.amountCents === "number" &&
+                  o.amountCents > 0,
+              )
+              .map((o) => ({
+                amountCents: o.amountCents as number,
+                currency: o.currency,
+                priceType: o.priceType,
+                isFeatured: o.isFeatured === true,
+              })),
+          );
+          if (headline) return formatMoney(headline.amountCents, headline.currency, locale);
+          const legacy = profile.starting_from?.trim() ?? "";
+          if (!legacy) return null;
+          if (/^\d+$/.test(legacy)) {
+            const cents = Number(legacy);
+            if (Number.isFinite(cents) && cents > 0) {
+              return formatMoney(cents, instantBook.currencyCode || "USD", locale);
+            }
+          }
+          return legacy;
+        })()}
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
         storefrontOfferings={storefrontOfferings}

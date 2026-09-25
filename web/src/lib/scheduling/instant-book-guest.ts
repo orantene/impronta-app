@@ -59,6 +59,16 @@ async function verifyTenantCaptchaToken(input: {
   token: string | null | undefined;
   ip: string | null;
 }): Promise<{ configured: boolean; ok: boolean | null }> {
+  // Localhost proof of the widget. The catalog sheet has no challenge widget,
+  // and the dev flag is what already unlocks /dev surfaces. A production host
+  // still has to pass the tenant challenge.
+  if (process.env.TULALA_ALLOW_DEV_SURFACES === "1") {
+    const h = await headers();
+    const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(",")[0]?.trim() ?? "";
+    if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) {
+      return { configured: false, ok: true };
+    }
+  }
   const captcha = await resolveTenantCaptcha(input.tenantId);
   if (captcha.provider === "none" || !captcha.siteKey) {
     return { configured: false, ok: true };
@@ -160,7 +170,9 @@ export async function resolveInstantBookActor(input: {
       contactName: (input.contactName || input.user.email || "Client").toString(),
       contactEmail: (input.contactEmail || input.user.email || "").toString(),
       contactPhone: input.contactPhone ?? null,
-      useServiceRoleConvert: false,
+      // `customers` has no INSERT policy; the purchase pipeline always needs
+      // the service role for ensureCustomer, session or guest.
+      useServiceRoleConvert: true,
     };
   }
 
@@ -252,7 +264,13 @@ export function convertClientForActor(
 ): SupabaseClient {
   if (!actor.useServiceRoleConvert) return sessionClient;
   const admin = createServiceRoleClient();
-  return admin ?? sessionClient;
+  // Do not fall back to the anon/session client: guest writes need the
+  // service role (`customers` has no INSERT policy by design). Falling back
+  // surfaces as `42501 permission denied for table customers`.
+  if (!admin) {
+    throw new Error("Service role client unavailable for guest booking.");
+  }
+  return admin;
 }
 
 export async function notifyGuestInstantBooking(input: {

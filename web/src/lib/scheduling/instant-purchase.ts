@@ -47,6 +47,8 @@ export type InstantPurchaseInput = {
   /** Per CART, not per click. The idempotency anchor. */
   clientOrderKey: string;
   openThread: boolean;
+  /** Cookie guest id so `/c/[inquiryId]` owns the thread after confirm. */
+  guestSessionId?: string | null;
 };
 
 export type InstantPurchaseResult =
@@ -228,5 +230,6 @@ export async function placeInstantPurchase(
           }))
         : undefined,
     openThread: input.openThread,
+    guestSessionId: input.guestSessionId ?? null,
   });
 }

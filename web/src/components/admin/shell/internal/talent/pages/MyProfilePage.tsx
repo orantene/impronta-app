@@ -107,7 +107,12 @@ export function MyProfilePage() {
     ? `${primaryRoleLabel} · ${t("dashboard.talentMyProfile.roleAlso")} ${secondaryRoleLabels.join(" · ")}`
     : primaryRoleLabel;
 
+  const previewHref = bridgeTalentSelfProfile?.profileCode
+    ? `https://tulala.digital/t/${encodeURIComponent(bridgeTalentSelfProfile.profileCode)}`
+    : null;
+
   return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
     <>
       <PageHeader
         title={bridgeTalentSelfProfile?.displayName ?? p.name}
@@ -341,5 +346,23 @@ export function MyProfilePage() {
       <Divider label={t("dashboard.talentMyProfile.personalPage")} />
       <PersonalPageBand />
     </>
+    <aside className="hidden xl:block">
+      <p className="mb-2 font-admin-body text-[12px] font-semibold uppercase tracking-wide text-admin-ink-muted">
+        {t("dashboard.talentMyProfile.previewAsClient")}
+      </p>
+      {previewHref ? (
+        <a
+          href={previewHref}
+          target="_blank"
+          rel="noreferrer"
+          className="block rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] font-semibold text-admin-brand"
+        >
+          {previewHref.replace(/^https?:\/\//, "")}
+        </a>
+      ) : (
+        <p className="font-admin-body text-[13px] text-admin-ink-muted">Not available</p>
+      )}
+    </aside>
+    </div>
   );
 }

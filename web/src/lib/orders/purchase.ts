@@ -724,6 +724,8 @@ export async function createPurchase(
     // the thread is where people talk about it.
     let inquiryId: string | null = null;
     if (input.openThread) {
+      const threadGuestSessionId =
+        input.guestSessionId ?? guestSessionId ?? null;
       const { data: inqRow, error: inqErr } = await admin
         .from("inquiries")
         .insert({
@@ -733,6 +735,8 @@ export async function createPurchase(
           contact_email: input.contact.email ?? "",
           contact_phone: input.contact.phone ?? null,
           client_user_id: input.actorUserId,
+          // Guest confirmation at `/c/[id]` gates on this matching the cookie.
+          guest_session_id: input.actorUserId ? null : threadGuestSessionId,
         })
         .select("id")
         .single();

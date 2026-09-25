@@ -366,6 +366,7 @@ function toOffering(s: Seed, index: number, locale = "es"): TalentOffering {
     category: s.category,
     inventoryQty: null,
     status: "published",
+    firstPublishedAt: "2026-09-01T00:00:00.000Z",
     visibility: s.onRequest ? "on_request" : "public",
     moderationState: "approved",
     isFeatured: s.featured === true,

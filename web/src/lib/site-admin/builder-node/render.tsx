@@ -139,6 +139,9 @@ import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -270,6 +273,24 @@ export interface BuilderNodeRenderDataSources {
       href?: string;
     };
   };
+  /**
+   * Full `TalentOffering` rows (`loadPublicOfferingsForProfile`), not a
+   * narrowed projection — `services_catalog` reuses `OfferingCta`
+   * (`app/t/[profileCode]/_shared`), the SAME click-to-book island the hub
+   * profile's storefront uses, and that component reads reserveMode /
+   * depositPct / variants / addOns / talentProfileId off the full shape.
+   */
+  talentOfferings?: ReadonlyArray<TalentOffering>;
+  /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
+  talentOfferingsConfirmsByHand?: boolean;
+  /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
+  talentOfferingsUsdRates?: UsdRates;
+  /** Saved `category_order` from the talent profile. Missing names append after. */
+  talentOfferingsCategoryOrder?: string[];
+  /** Optional inclusion line per category name. Omitted when the talent has none. */
+  talentOfferingsCategoryNotes?: Record<string, string>;
+  /** Published talent site: write bookings. Editor / draft: demo sheet. */
+  catalogBookingLive?: boolean;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -4379,6 +4400,53 @@ function withExperimentAttrs(
   } as Record<string, string>);
 }
 
+// `services_catalog` — token-based (`--token-color-*`), matching every other
+// native builder block's theming, NOT the `--plt-*` hub-profile namespace
+// `OfferingCta`'s sibling public-profile markup (StorefrontBody) uses. The
+// server-rendered list is the content (SEO, no-JS); `OfferingCta` is the one
+// client island, and it is the SAME component + the same
+// `tulala:offering-request` / `-instant` / `-slot` events the hub profile's
+// storefront and the Max/vanity-domain chat dock (`TalentSiteMessagesDock` →
+// `TalentProfileChatLauncherMount`) already listen for — so Select works
+// without any new wiring. That reuse has one cost: `OfferingCta`'s own
+// inline styles hardcode `--plt-ink` / `--plt-bg` / `--plt-hairline-strong`
+// (the hub-profile namespace), which are never defined on a Max/builder
+// site. The root rule below ALIASES those three onto their `--token-color-*`
+// equivalents, scoped to this block only — the button asks for `--plt-ink`,
+// the cascade hands it `--token-color-ink`. Do not remove this without first
+// confirming the button still has a visible fill and legible text.
+const SERVICES_CATALOG_CSS = `
+.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
+.site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
+.site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
+.site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}
+.site-builder-node--services-catalog-title em{font-style:italic;font-weight:400}
+.site-builder-node--services-catalog-subtitle{margin:.6rem 0 0;color:var(--token-color-muted);font-size:.9rem;line-height:1.5;max-width:36rem}
+.site-builder-node--services-catalog-stats{display:flex;gap:1.75rem;margin:0;align-items:flex-start}
+.site-builder-node--services-catalog-stat{display:flex;flex-direction:column;line-height:1}
+.site-builder-node--services-catalog-stat strong{font-size:2rem;font-weight:500}
+.site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
+.site-builder-node--services-catalog-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}
+.site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.4rem 1rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);background:transparent;text-decoration:none;cursor:pointer}
+.site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border-color:var(--token-color-ink)}
+.site-builder-node--services-catalog-group{margin-bottom:0}
+.site-builder-node--services-catalog-group-title{margin:0 0 .75rem;font-size:1.05rem;font-weight:600;scroll-margin-top:5rem}
+.site-builder-node--services-catalog-list{list-style:none;margin:0;padding:0}
+.site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+@media (max-width:560px){.site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}}
+.site-builder-node--services-catalog-photo{width:120px;height:120px;border-radius:0;object-fit:cover;flex-shrink:0;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
+@media (max-width:560px){.site-builder-node--services-catalog-photo{width:72px;height:72px}}
+.site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.25rem}
+.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}
+.site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.4rem .85rem;font-size:.75rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+`;
+
 function renderBuilderNode(
   rawNode: BuilderNode,
   options: NormalizedBuilderNodeRenderOptions,
@@ -5530,6 +5598,117 @@ function renderBuilderNodeElement(
     // and `reserve_table` do. What decays (price, stock) is re-read by the
     // island after paint; see `menu-board-actions.ts` for why that split, and
     // why a re-read never reorders or re-groups what is emitted here.
+    case "services_catalog": {
+      const p = node.props;
+      const locale = options.contentLocale?.locale ?? "en";
+      const es = locale.startsWith("es");
+      const text = (prop: string, value: string | undefined) =>
+        value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "";
+      const rawTitle = text("title", p.title) || (p.title ?? "Services");
+      const title = renderItalicMarkedTitle(rawTitle);
+      const eyebrow = text("eyebrow", p.eyebrow);
+      const subtitle = text("subtitle", p.subtitle);
+      const ctaLabel = p.ctaLabel?.trim() || undefined;
+      const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
+      const emptyMessage =
+        text("emptyMessage", p.emptyMessage) ||
+        (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
+
+      // Defensive re-filter — `loadPublicOfferingsForProfile` already applies
+      // the public policy, but a render path never trusts a data source alone
+      // (same rule `TalentStorefront` follows on the hub profile).
+      const visible = (options.dataSources.talentOfferings ?? []).filter(
+        (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
+      );
+      const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
+      const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+
+      // Categories: saved `category_order` first, then first-seen leftovers.
+      const seen: string[] = [];
+      for (const o of visible) {
+        const c = o.category?.trim();
+        if (c && !seen.includes(c)) seen.push(c);
+      }
+      const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
+      const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
+      const filterNav = p.categoryNav === "tabs" || p.categoryNav === "pills" || p.categoryNav == null;
+      const slug = (c: string) => `${node.id}-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+      const notes = options.dataSources.talentOfferingsCategoryNotes;
+      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = showCategoryNav
+        ? [
+            ...categories.map((c) => ({
+              name: c,
+              note: notes?.[c] ?? null,
+              items: visible.filter((o) => o.category?.trim() === c),
+            })),
+            ...(visible.some((o) => !o.category?.trim())
+              ? [{ name: null, items: visible.filter((o) => !o.category?.trim()) }]
+              : []),
+          ]
+        : [{ name: null, items: visible }];
+
+      return (
+        <section
+          key={node.id}
+          {...anchorIdAttrs(node)}
+          data-builder-node-id={node.id}
+          data-builder-node-kind="services_catalog"
+          {...builderNodeStyleAttrs(p.style)}
+          className="site-builder-node site-builder-node--services-catalog"
+          style={inlineNodeStyle(p.style, undefined)}
+        >
+          <style>{SERVICES_CATALOG_CSS}</style>
+          <header className="site-builder-node--services-catalog-header">
+            <div>
+              {eyebrow ? <p className="site-builder-node--services-catalog-eyebrow">{eyebrow}</p> : null}
+              <h2 className="site-builder-node--services-catalog-title">{title}</h2>
+              {subtitle ? <p className="site-builder-node--services-catalog-subtitle">{subtitle}</p> : null}
+            </div>
+            {p.showStats !== false && visible.length >= 2 ? (
+              <p className="site-builder-node--services-catalog-stats">
+                <span className="site-builder-node--services-catalog-stat">
+                  <strong>{visible.length}</strong>
+                  <span>{es ? "servicios" : "services"}</span>
+                </span>
+                {categories.length >= 2 ? (
+                  <span className="site-builder-node--services-catalog-stat">
+                    <strong>{categories.length}</strong>
+                    <span>{es ? "categorías" : "categories"}</span>
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+          </header>
+
+          {visible.length === 0 ? (
+            <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
+          ) : (
+            <ServicesCatalogFilter
+              groups={groups}
+              locale={locale}
+              nav={
+                showCategoryNav && filterNav
+                  ? p.categoryNav === "tabs"
+                    ? "tabs"
+                    : "pills"
+                  : showCategoryNav
+                    ? "jump"
+                    : "flat"
+              }
+              showPhoto={p.showPhoto !== false}
+              showDuration={p.showDuration !== false}
+              showUsdEquivalent={p.showUsdEquivalent !== false}
+              confirmsByHand={confirmsByHand}
+              usdRates={usdRates}
+              ctaLabel={ctaLabel}
+              bookingMode={bookingMode}
+              tenantId={options.dataSources.tenantId ?? null}
+              jumpSlug={slug}
+            />
+          )}
+        </section>
+      );
+    }
     case "menu_board": {
       const p = node.props;
       const offerings = options.dataSources.menuOfferings ?? [];

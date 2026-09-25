@@ -83,6 +83,7 @@ export type OfferingsEditor = {
   syncImages: (offeringId: string, assets: { id: string; url: string }[]) => void;
   syncOptions: (offeringId: string, variants: OfferingVariant[], addOns: OfferingAddOn[]) => void;
   syncStock: (offeringId: string, available: number | null) => void;
+  reload: () => void;
 };
 
 export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
@@ -101,6 +102,11 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
   const [draft, setDraft] = useState<TalentOffering | null>(null);
   const [perf, setPerf] = useState<Record<string, ServicePerformanceStat>>({});
   const [, startTransition] = useTransition();
+  const [loadTick, setLoadTick] = useState(0);
+  const reload = useCallback(() => {
+    setLoading(true);
+    setLoadTick((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +117,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
       .then((res) => {
         if (cancelled) return;
         if (res.ok) {
+          setError(null);
           setItems(res.items);
           setDefaultCurrency(res.defaultCurrency);
           setLegacyImportable("legacyImportable" in res ? !!res.legacyImportable : false);
@@ -121,12 +128,15 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
         setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError("Could not refresh your services.");
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [isWorkspace, talentId, workspaceTenantId]);
+  }, [isWorkspace, talentId, workspaceTenantId, loadTick]);
 
   useEffect(() => {
     if (isWorkspace) return;
@@ -360,5 +370,6 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     syncImages,
     syncOptions,
     syncStock,
+    reload,
   };
 }

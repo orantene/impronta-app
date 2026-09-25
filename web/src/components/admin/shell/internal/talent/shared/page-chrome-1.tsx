@@ -31,6 +31,12 @@ export function PageHeader({
           font-size: 19px !important; line-height: 1.2 !important; letter-spacing: -0.25px !important; font-weight: 700 !important;
         }
         [data-tulala-page-header] { margin-bottom: 10px !important; gap: 8px !important; align-items: baseline !important; }
+        [data-talent-studio-v2="1"] [data-tulala-page-header] {
+          margin: -28px -28px 20px !important;
+          padding: 18px 28px 16px;
+          background: #fff;
+          border-bottom: 1px solid rgba(11,11,13,0.08);
+        }
         [data-tulala-page-header] [data-tulala-page-eyebrow] { display: none !important; }
         [data-tulala-page-header] p { display: none !important; }
         [data-tulala-page-header-actions] { flex-shrink: 0 !important; }

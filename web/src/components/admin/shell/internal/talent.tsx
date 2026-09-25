@@ -14,7 +14,9 @@ import { TalentPayoutsPage } from "./page-modules/TalentPayoutsPage";
 import { TalentTodayPage } from "./talent/pages/TodayPage";
 import { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 import { PageHeader } from "./talent/shared/page-chrome-1";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { MoneyPage } from "@/components/talent/money/MoneyPage";
+import { TalentClientsPage } from "./talent/pages/ClientsPage";
 
 // ── Re-export barrel: public API preserved for external importers ──
 export { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
@@ -62,7 +64,7 @@ export function TalentSurface() {
 
 const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }> = [
   { label: null, pages: ["today"] },
-  { label: "Work", pages: ["messages", "calendar", "money"] },
+  { label: "Work", pages: ["messages", "calendar", "clients", "money"] },
   { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
 ];
 
@@ -70,6 +72,7 @@ const TALENT_SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = 
   today: "home",
   messages: "mail",
   calendar: "calendar",
+  clients: "team",
   money: "credit",
   profile: "user",
   "public-page": "globe",
@@ -128,7 +131,8 @@ function TalentSidebarNavButton({
 
 function TalentSidebar() {
   const copy = useDashboardText();
-  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread } = useAdminShell();
+  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial } = useAdminShell();
+  const studioV2 = useTalentStudioV2();
   // WS-12.6 — roving tabindex on the rail: arrow keys move between pages.
   const railNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(railNavRef, "button");
@@ -140,7 +144,8 @@ function TalentSidebar() {
     : (bridgeTalentSelfProfile ? null : MY_TALENT_PROFILE.publicUrl);
 
   const tier = state.talentTier;
-  const tierLabel = TALENT_TIER_META[tier].label;
+  const trialOn = studioV2 && bridgeTalentPlanTrial?.active === true;
+  const tierLabel = trialOn ? "Trial" : TALENT_TIER_META[tier].label;
   const tierChipClass =
     tier === "max"
       ? "bg-admin-ink text-white border border-admin-ink"
@@ -217,6 +222,7 @@ function TalentSidebar() {
           <span>{copy.t("Plan")}</span>
           <span
             aria-hidden
+            title={trialOn && bridgeTalentPlanTrial?.expiresAt ? bridgeTalentPlanTrial.expiresAt : undefined}
             className={`rounded-full px-[6px] py-[2px] text-[9.5px] font-bold uppercase tracking-[0.4px] ${tierChipClass}`}
           >
             {tierLabel}
@@ -297,6 +303,9 @@ function TalentRouter() {
       break;
     case "money":
       page = <MoneyPage />;
+      break;
+    case "clients":
+      page = <TalentClientsPage />;
       break;
     case "payouts":
       page = <TalentPayoutsPage />;

@@ -1,0 +1,1 @@
+Defaults empty: bufferAfterMin and minNoticeMin are null when selling_defaults has no keys. See p-phase4-defaults-empty.json. Talent UI Inputs bind to null (empty), not 10/120.

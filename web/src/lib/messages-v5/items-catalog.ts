@@ -35,7 +35,7 @@ import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadOfferingChildren } from "@/lib/talent/offerings-children";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
-import { clampPublicSlotDays, computePublicSlots, parsePublicSlotFrom, type NoSlotsReason } from "@/lib/scheduling/public-slots";
+import { applySellingTimeToHours, clampPublicSlotDays, computePublicSlots, parsePublicSlotFrom, type NoSlotsReason } from "@/lib/scheduling/public-slots";
 import { addUtcDays, utcToZonedYmd, zonedLocalToUtc } from "@/lib/scheduling/tz";
 import { readSessionSeats, type WaitlistSeats } from "@/lib/scheduling/waitlist-desk";
 import { logServerError } from "@/lib/server/safe-error";
@@ -371,12 +371,25 @@ export async function loadPersonSlots(admin: Admin, input: { tenantId: string; t
   if (onRoster.error) return { ok: false, reason: "unavailable" };
   if ((onRoster.data ?? []).length === 0) return { ok: false, reason: "not_found" };
 
-  const [hoursRes, offeringRes] = await Promise.all([
+  const [hoursRes, offeringRes, defaultsRes] = await Promise.all([
     admin.from("talent_booking_hours").select("timezone, weekly, exceptions, slot_minutes, buffer_before_min, buffer_after_min, min_notice_min, horizon_days").eq("talent_profile_id", input.talentProfileId).maybeSingle(),
-    input.offeringId ? admin.from("talent_offerings").select("duration_minutes").eq("id", input.offeringId).eq("tenant_id", input.tenantId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    input.offeringId ? admin.from("talent_offerings").select("duration_minutes, attributes").eq("id", input.offeringId).eq("tenant_id", input.tenantId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    admin.from("talent_profiles").select("selling_defaults").eq("id", input.talentProfileId).maybeSingle(),
   ]);
   if (hoursRes.error) return { ok: false, reason: "unavailable" };
-  const hours = parseBookingHours(hoursRes.data);
+  const parsed = parseBookingHours(hoursRes.data);
+  const offeringAttr = (offeringRes.data as { attributes?: unknown } | null)?.attributes;
+  const offeringBuffer =
+    offeringAttr && typeof offeringAttr === "object" && !Array.isArray(offeringAttr)
+      ? (offeringAttr as { bufferAfterMin?: unknown }).bufferAfterMin
+      : null;
+  const hours = parsed
+    ? applySellingTimeToHours(
+        parsed,
+        (defaultsRes.data as { selling_defaults?: unknown } | null)?.selling_defaults,
+        typeof offeringBuffer === "number" ? offeringBuffer : null,
+      )
+    : null;
   if (!hours) return { ok: true, starts: [], timezone: "UTC", reason: hoursRes.data ? "hours_unreadable" : "no_booking_hours" };
 
   const now = input.now ?? new Date();

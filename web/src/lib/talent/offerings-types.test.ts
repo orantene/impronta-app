@@ -80,6 +80,7 @@ describe("validateOffering", () => {
     assert.deepEqual(validateOffering(o), []);
     o.amountCents = null;
     o.priceDisplay = "quote";
+    o.bookingMode = "request";
     assert.deepEqual(validateOffering(o), []); // contact-for-price is valid without amount
   });
   it("instant booking demands one exact price, including free", () => {

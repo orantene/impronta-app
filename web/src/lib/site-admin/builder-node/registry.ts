@@ -70,6 +70,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // which point `restaurant-orderable` and `store-orderable` failed and
   // rendered NOTHING.
   "menu_board",
+  "services_catalog",
   "reserve_table",
   "session_picker",
   "ticket_picker",
@@ -1023,6 +1024,21 @@ const menuBoardPropsSchema = z.object({
    * the common case today — shows no strip at all rather than an empty one.
    */
   categoryNav: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+export const servicesCatalogPropsSchema = z.object({
+  layout: z.enum(["rows", "cards", "grid", "compact_list", "editorial"]).optional(),
+  categoryNav: z.enum(["pills", "tabs", "jump_strip", "sections", "none"]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  subtitle: z.string().max(240).optional(),
+  showStats: z.boolean().optional(),
+  showPhoto: z.boolean().optional(),
+  showDuration: z.boolean().optional(),
+  showUsdEquivalent: z.boolean().optional(),
+  ctaLabel: z.string().max(40).optional(),
+  emptyMessage: z.string().max(240).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -1985,6 +2001,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Workspace-owned menu items with quantity steppers and an order form. Renders from live tenant data, never from child nodes.",
       children: { type: "none" },
       propsSchema: menuBoardPropsSchema,
+    },
+    services_catalog: {
+      kind: "services_catalog",
+      label: "Services menu",
+      description:
+        "The talent's live catalogue: services, packages and products, with the same card the public profile uses.",
+      children: { type: "none" },
+      propsSchema: servicesCatalogPropsSchema,
     },
     reserve_table: {
       kind: "reserve_table",

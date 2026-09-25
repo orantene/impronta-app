@@ -35,7 +35,7 @@ export type OfferingRequestDetail = {
   /** D4 — selectable options (client picks one; null price = base applies). */
   variants?: { id: string; label: string; amountCents: number | null }[];
   /** D4 — stackable extras (client picks any). */
-  addOns?: { id: string; label: string; amountCents: number }[];
+  addOns?: { id: string; label: string; amountCents: number; durationMinutes?: number | null }[];
   /** D5 — null = unlimited; products with stock cap the qty stepper. */
   inventoryQty?: number | null;
   /** Set when the offering sells from a capacity pool; null = unlimited. */
@@ -57,12 +57,15 @@ export function OfferingCta({
   locale,
   compact = false,
   confirmsByHand = false,
+  label: labelOverride,
 }: {
   offering: TalentOffering;
   locale: string;
   compact?: boolean;
   /** Free and Pro confirm by hand. Book opens the chooser, not a charge. */
   confirmsByHand?: boolean;
+  /** Widget override (e.g. Seleccionar). Empty keeps the behavior label. */
+  label?: string;
 }) {
   const raw = resolveOfferingCta(offering);
   const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
@@ -71,7 +74,7 @@ export function OfferingCta({
     cta === "request_to_book" &&
     offering.kind !== "product" &&
     (offering.durationMinutes ?? 0) > 0;
-  const label = pickLocale(locale, CTA_COPY[cta]);
+  const label = labelOverride?.trim() || pickLocale(locale, CTA_COPY[cta]);
 
   const onClick = () => {
     const detail: OfferingRequestDetail = {

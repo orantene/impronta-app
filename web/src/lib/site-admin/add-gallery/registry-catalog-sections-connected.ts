@@ -487,6 +487,18 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     searchTerms: ["menu board", "menu_order", "order food", "catering", "workspace menu"],
   }),
   connected({
+    id: "conn-services-catalog-native",
+    label: "Services menu",
+    description: "The talent's live catalogue of services, packages and products.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "services_catalog",
+    sourceType: "native-freeform",
+    connectedSource: "Your services",
+    searchTerms: ["services", "menu", "prices", "catalog", "offerings"],
+  }),
+  connected({
     id: "conn-reserve-table-native",
     label: "Reserve a table",
     description:

@@ -9,13 +9,16 @@ import {
   COLORS,
   FAB_PALETTE_OPEN_EVENT,
   FONTS,
-  TALENT_PAGES,
+  TALENT_MOBILE_MORE,
+  TALENT_MOBILE_TABS,
   TALENT_PAGE_META,
   TRANSITION,
   WORKSPACE_PAGES,
   Z,
   useAdminShell,
 } from "../state";
+import { TalentMoreScreen } from "@/components/talent/studio/MoreScreen";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { MOBILE_NAV_CSS } from "./mobile-nav-css";
 import { MOBILE_BUTTON_SECONDARY, MobileSheet } from "./MobileSheet";
 import { WORKSPACE_SWITCH_OPEN_EVENT, WorkspaceSwitchSheet } from "./WorkspaceSwitchSheet";
@@ -88,6 +91,7 @@ export function MobileBottomNav() {
     effectiveTenant,
   } = useAdminShell();
   const copy = useDashboardText();
+  const studioV2 = useTalentStudioV2();
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -410,17 +414,16 @@ export function MobileBottomNav() {
     const TALENT_TAB_BADGE: Partial<Record<TalentPage, number>> = {
       messages: bridgeTalentUnread || undefined,
     };
-    const tabs = TALENT_PAGES.map((p) => ({
+    const toTab = (p: TalentPage) => ({
       id: p,
       label: copy.t(TALENT_PAGE_META[p].label),
       active: state.talentPage === p,
-      run: () => setTalentPage(p as TalentPage),
-      icon: TALENT_TAB_ICON[p as TalentPage] ?? "info",
-      badge: TALENT_TAB_BADGE[p as TalentPage],
-    }));
-
-    const visible = tabs.slice(0, MOBILE_TAB_LIMIT - 1);
-    const overflow = tabs.slice(MOBILE_TAB_LIMIT - 1);
+      run: () => setTalentPage(p),
+      icon: TALENT_TAB_ICON[p] ?? "info",
+      badge: TALENT_TAB_BADGE[p],
+    });
+    const visible = TALENT_MOBILE_TABS.map(toTab);
+    const overflow = TALENT_MOBILE_MORE.map(toTab);
     const hasOverflow = overflow.length > 0;
     const moreActive = overflow.some((t) => t.active);
 
@@ -458,7 +461,8 @@ export function MobileBottomNav() {
             )}
           </div>
         </nav>
-        {moreOpen && (
+        {moreOpen && studioV2 && <TalentMoreScreen onClose={() => setMoreOpen(false)} />}
+        {moreOpen && !studioV2 && (
           <div
             onClick={() => setMoreOpen(false)}
             style={{
@@ -595,6 +599,7 @@ const TALENT_TAB_ICON: Partial<Record<TalentPage, AdminShellIconName>> = {
   profile: "user",
   "public-page": "globe",
   services: "briefcase", // mirrors desktop rail (talent.tsx)
+  clients: "team",
   reviews: "star",
   settings: "info",
   // legacy aliases

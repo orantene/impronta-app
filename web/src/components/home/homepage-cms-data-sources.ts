@@ -8,6 +8,10 @@
  * in one parallel batch — returning `{}` (no round-trips) when nothing is bound.
  */
 import { headers } from "next/headers";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
+import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
   collectBuilderCollectionSourceKeys,
   collectBuilderImageMediaIds,
@@ -106,6 +110,7 @@ export async function loadBuilderNodeDataSources(
    * `tenantId`, keeping the homepage path byte-identical.
    */
   previewSubject?: { kind: string; id: string } | null,
+  talentProfileId?: string | null,
 ): Promise<BuilderNodeRenderDataSources> {
   const dataTenantId = previewSubject?.id ?? tenantId;
   // The public origin the qr_code block composes `<origin>/q/<code>` from. Read
@@ -158,6 +163,7 @@ export async function loadBuilderNodeDataSources(
     !needsSocialLinks &&
     !nativeNeeds.needsTalentCount &&
     !nativeNeeds.menuBoard &&
+    !nativeNeeds.servicesCatalog &&
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
@@ -318,6 +324,9 @@ export async function loadBuilderNodeDataSources(
       ]
     : undefined;
 
+  const catalogTalentId =
+    talentProfileId ?? (previewSubject?.kind === "talent" ? previewSubject.id : null);
+
   return {
     tenantId: dataTenantId,
     publicOrigin,
@@ -338,5 +347,68 @@ export async function loadBuilderNodeDataSources(
     ...(featuredTalentProfilesByNodeId === undefined
       ? {}
       : { featuredTalentProfilesByNodeId }),
+    ...(nativeNeeds.servicesCatalog && catalogTalentId
+      ? await loadServicesCatalogSources(catalogTalentId, locale)
+      : {}),
+  };
+}
+
+/**
+ * `services_catalog` needs two things `loadPublicOfferingsForProfile` alone
+ * doesn't carry: whether this talent confirms bookings by hand (their plan
+ * tier — same rule `TalentStorefront` uses on the hub profile, so the widget
+ * behaves identically there and on a Max site) and the USD-equivalent rates,
+ * fetched once here rather than per-render. Both are optional reads that
+ * degrade to the safe default (confirm-by-hand; no USD line) on any failure,
+ * never to a thrown error.
+ */
+async function loadServicesCatalogSources(
+  talentProfileId: string,
+  locale: string,
+): Promise<
+  Pick<
+    BuilderNodeRenderDataSources,
+    | "talentOfferings"
+    | "talentOfferingsConfirmsByHand"
+    | "talentOfferingsUsdRates"
+    | "talentOfferingsCategoryOrder"
+    | "talentOfferingsCategoryNotes"
+  >
+> {
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
+  let confirmsByHand = true;
+  let categoryOrder: string[] = [];
+  let categoryNotes: Record<string, string> | undefined;
+  const admin = createServiceRoleClient();
+  if (admin) {
+    const { data, error } = await admin
+      .from("talent_profiles")
+      .select("talent_plan_key, category_order, selling_defaults")
+      .eq("id", talentProfileId)
+      .maybeSingle();
+    if (!error) {
+      confirmsByHand = !talentOffersInstantBooking(
+        (data as { talent_plan_key?: string | null } | null)?.talent_plan_key,
+      );
+      const raw = (data as { category_order?: string[] | null } | null)?.category_order;
+      if (Array.isArray(raw)) categoryOrder = raw.filter((name): name is string => typeof name === "string");
+      const defaults = (data as { selling_defaults?: { categoryNotes?: unknown } | null } | null)?.selling_defaults;
+      const notes = defaults?.categoryNotes;
+      if (notes && typeof notes === "object" && !Array.isArray(notes)) {
+        const next: Record<string, string> = {};
+        for (const [key, value] of Object.entries(notes)) {
+          if (typeof value === "string" && value.trim()) next[key] = value.trim();
+        }
+        if (Object.keys(next).length) categoryNotes = next;
+      }
+    }
+  }
+  const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  return {
+    talentOfferings: offerings,
+    talentOfferingsConfirmsByHand: confirmsByHand,
+    ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
+    ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
+    ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),
   };
 }

@@ -27,6 +27,10 @@ import {
 } from "@/lib/talent/offerings-types";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadOfferingChildren, replaceOfferingChildren } from "@/lib/talent/offerings-children";
+import {
+  loadAddonGroupsForOfferings,
+  mergeAddonGroupsIntoAddOns,
+} from "@/lib/talent/merge-addon-groups";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -189,7 +193,6 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     const { data, error } = await offeringsTable(admin)
       .select("*")
       .eq("talent_profile_id", talentProfileId)
-      .neq("status", "archived")
       .order("sort_order", { ascending: true });
     if (error) {
       logServerError("talent.offerings.load", error);
@@ -198,12 +201,18 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     const rows = (data ?? []) as TalentOfferingRow[];
     const images = await loadImageAssets(admin, rows.map((r) => r.id));
     const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
+    const groups = await loadAddonGroupsForOfferings(
+      admin,
+      talentProfileId,
+      rows.map((r) => r.id),
+    );
+    const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     const items = rows.map((r) => {
       const assets = images.get(r.id) ?? [];
       const item = rowToOffering(r, "en", assets.map((a) => a.url));
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
-      item.addOns = children.addOns.get(r.id) ?? [];
+      item.addOns = addOnsByOffering.get(r.id) ?? [];
       return item;
     });
 
@@ -356,6 +365,68 @@ export async function deleteTalentOffering(
   }
   revalidatePath("/talent/services");
   return { ok: true };
+}
+
+export async function setOfferingPublication(
+  talentProfileId: string,
+  offeringId: string,
+  next: "published" | "draft" | "archived",
+): Promise<SaveResult> {
+  const loaded = await loadTalentOfferingsForEditor(talentProfileId);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const item = loaded.items.find((row) => row.id === offeringId);
+  if (!item) return { ok: false, error: "Item not found." };
+  return upsertTalentOffering(talentProfileId, { ...item, status: next });
+}
+
+export async function duplicateTalentOffering(
+  talentProfileId: string,
+  offeringId: string,
+): Promise<SaveResult> {
+  const loaded = await loadTalentOfferingsForEditor(talentProfileId);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const item = loaded.items.find((row) => row.id === offeringId);
+  if (!item) return { ok: false, error: "Item not found." };
+  const copy: TalentOffering = {
+    ...item,
+    id: "",
+    title: `${item.title} (copy)`,
+    status: "draft",
+    firstPublishedAt: null,
+    inventoryQty: null,
+    capacityPoolId: null,
+  };
+  const saved = await upsertTalentOffering(talentProfileId, copy);
+  if (!saved.ok) return saved;
+  if (item.imageAssets?.length) {
+    const ids = item.imageAssets.map((asset) => asset.id);
+    await setOfferingImages(talentProfileId, saved.item.id, ids);
+  }
+  if (item.variants?.length || item.addOns?.length) {
+    await setOfferingOptions(talentProfileId, saved.item.id, {
+      variants: item.variants ?? [],
+      addOns: item.addOns ?? [],
+    });
+  }
+  return saved;
+}
+
+export async function deleteTalentOfferingForever(
+  talentProfileId: string,
+  offeringId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const auth = await authorizeForTalent(talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+  const { count: bookingCount } = await admin
+    .from("talent_bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("offering_id", offeringId);
+  if ((bookingCount ?? 0) > 0) {
+    return { ok: false, error: "This item has bookings, so it cannot be deleted." };
+  }
+  return deleteTalentOffering(talentProfileId, offeringId);
 }
 
 /** Persist a drag-reorder: the array order IS the public order. */

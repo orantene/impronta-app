@@ -330,8 +330,8 @@ export function MaisonMenu({
                           </span>
                         ) : null}
                         <div className="mn-row-text">
-                          <h3 className="mn-row-title">
-                            {o.title}
+                          <h3 className="mn-row-title" title={o.title}>
+                            <span className="mn-row-title-text">{o.title}</span>
                             {isSelected ? (
                               <span className="mn-check" aria-hidden="true">
                                 ✓

@@ -51,7 +51,26 @@ export const TALENT_PAGES: TalentPage[] = [
   "today",
   "messages",
   "calendar",
+  "clients",
   "money",
+  "profile",
+  "public-page",
+  "services",
+  "reviews",
+  "settings",
+];
+
+/** Phone bar: Today, Messages, Calendar, Money, More. */
+export const TALENT_MOBILE_TABS: TalentPage[] = [
+  "today",
+  "messages",
+  "calendar",
+  "money",
+];
+
+/** More sheet: the rest of the rail, plus Settings. */
+export const TALENT_MOBILE_MORE: TalentPage[] = [
+  "clients",
   "profile",
   "public-page",
   "services",
@@ -304,8 +323,9 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   reach:       { label: "Reach" },         // legacy — redirects to money
   agencies:    { label: "Agencies" },      // legacy — redirects to money
   money:       { label: "Money" },
+  clients:     { label: "Clients" },
   payouts:     { label: "Payouts" },       // in-shell section, reached from Settings
-  "public-page": { label: "Public page" }, // canonical URL segment: /talent/site
+  "public-page": { label: "My presence" }, // canonical URL segment: /talent/site
   settings:    { label: "Settings" },
 };
 

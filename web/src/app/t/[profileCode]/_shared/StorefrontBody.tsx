@@ -80,7 +80,7 @@ function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { i
       ) : null}
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-2 font-medium" style={{ color: "var(--plt-ink)" }}>
-          <span className="truncate">{it.title}</span>
+          <span className="line-clamp-2" title={it.title}>{it.title}</span>
           {it.durationMinutes ? <DurationChip minutes={it.durationMinutes} locale={locale} /> : null}
         </p>
         {it.description ? (
@@ -153,7 +153,7 @@ function ProductTile({ it, locale, confirmsByHand = false, usdRates = null }: { 
         </span>
       ) : null}
       <div className="p-3">
-        <p className="truncate text-sm font-medium" style={{ color: "var(--plt-ink)" }}>
+        <p className="line-clamp-2 text-sm font-medium" style={{ color: "var(--plt-ink)" }} title={it.title}>
           {it.title}
         </p>
         <p className="mt-0.5 text-sm font-medium tabular-nums" style={{ color: "var(--plt-ink)" }}>

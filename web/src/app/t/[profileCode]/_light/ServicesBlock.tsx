@@ -123,7 +123,7 @@ export function ServicesBlock({
           {hasStartingFrom ? (
             <p className="text-sm" style={{ color: "var(--plt-ink-soft)" }}>
               <span className="font-medium" style={{ color: "var(--plt-ink)" }}>
-                Starting from:
+                {pickLocale(locale, { en: "Starting from:", es: "Desde:" })}
               </span>{" "}
               {startingFrom}
             </p>

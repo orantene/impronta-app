@@ -81,7 +81,7 @@ export async function TalentSiteFreeformRenderer({
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
     await Promise.all([
       tenantId
-        ? loadBuilderNodeDataSources(tree, tenantId, locale)
+        ? loadBuilderNodeDataSources(tree, tenantId, locale, null, context?.talentProfileId)
         : Promise.resolve({}),
       tenantId && treeHasInstances(tree)
         ? loadBuilderComponentsForTenant(tenantId)

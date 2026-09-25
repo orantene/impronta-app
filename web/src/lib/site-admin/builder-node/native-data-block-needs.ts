@@ -60,6 +60,7 @@ export type NativeFeaturedTalentNeed = {
 export type NativeDataBlockNeeds = {
   needsTalentCount: boolean;
   menuBoard: boolean;
+  servicesCatalog: boolean;
   /** Every native `featured_talent` node in the tree, in document order. */
   featuredTalent: NativeFeaturedTalentNeed[];
   /**
@@ -139,6 +140,7 @@ export function collectNativeDataBlockNeeds(
 ): NativeDataBlockNeeds {
   let needsTalentCount = false;
   let menuBoard = false;
+  let servicesCatalog = false;
   let needsTalentLocations = false;
   const featuredTalent: NativeFeaturedTalentNeed[] = [];
   let disciplines: {
@@ -158,6 +160,9 @@ export function collectNativeDataBlockNeeds(
     }
     if (node.kind === "menu_board") {
       menuBoard = true;
+    }
+    if (node.kind === "services_catalog") {
+      servicesCatalog = true;
     }
     if (node.kind === "header_account") headerWidgets.account = true;
     if (node.kind === "header_inquiry") headerWidgets.inquiry = true;
@@ -234,6 +239,7 @@ export function collectNativeDataBlockNeeds(
   return {
     needsTalentCount,
     menuBoard,
+    servicesCatalog,
     featuredTalent,
     needsTalentLocations,
     disciplines,

@@ -106,6 +106,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     nav: "layout",
     social_links: "utility",
     menu_board: "actions",
+    services_catalog: "actions",
     reserve_table: "actions",
     session_picker: "actions",
     ticket_picker: "actions",
@@ -197,6 +198,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     hero_search: "hero search find talent directory discovery search bar landing",
     talent_type_grid: "talent disciplines categories roster taxonomy grid cards by discipline",
   menu_board: "menu orderable items quantities checkout restaurant catering workspace menu",
+  services_catalog: "services menu catalog prices booking talent offerings packages products",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   session_picker: "session class book seat booking schedule sign up capacity workshop course",
   ticket_picker: "ticket tickets event night buy card checkout tier admission door show concert festival",
@@ -280,6 +282,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     // MVP_ELEMENT_LIBRARY_KINDS and only need to survive the shipped filter.
     "hero_search",
     "menu_board",
+    "services_catalog",
     "reserve_table",
     "session_picker",
     "ticket_picker",

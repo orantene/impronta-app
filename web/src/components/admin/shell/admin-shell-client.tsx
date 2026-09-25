@@ -260,6 +260,7 @@ export function TalentShellClient({
   initialTalentPage,
   tenantSlug,
   platformTalentRoutes = false,
+  talentStudioV2 = false,
   children,
   supportSlot,
 }: {
@@ -270,6 +271,8 @@ export function TalentShellClient({
   tenantSlug?: string;
   /** When true, tab navigation uses `/talent/<segment>` (no tenant slug). */
   platformTalentRoutes?: boolean;
+  /** Talent Studio v2. Read once in the talent layout. Default false. */
+  talentStudioV2?: boolean;
   /**
    * Slot for TalentPageRouteSyncer — a tiny component rendered inside the
    * AdminShellProvider that calls setTalentPage on mount to sync the shell's
@@ -286,6 +289,7 @@ export function TalentShellClient({
         initialTalentPage={initialTalentPage}
         tenantSlug={tenantSlug}
         platformTalentRoutes={platformTalentRoutes}
+        talentStudioV2={talentStudioV2}
       >
         {children}
         <RealtimeBridge />

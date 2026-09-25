@@ -32,7 +32,7 @@ import type { PurchaseRefusalReason } from "@/lib/orders/purchase-types";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
-import { computePublicSlots, type NoSlotsReason } from "@/lib/scheduling/public-slots";
+import { applySellingTimeToHours, computePublicSlots, type NoSlotsReason } from "@/lib/scheduling/public-slots";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -126,8 +126,14 @@ export async function freeStartsForPerson(
     logServerError("pos.classes.walkin/hours", hoursRow.error);
     return { ok: false, reason: "unavailable" };
   }
-  const hours = parseBookingHours(hoursRow.data);
-  if (!hours) return { ok: false, reason: hoursRow.data ? "hours_unreadable" : "no_booking_hours" };
+  const parsed = parseBookingHours(hoursRow.data);
+  if (!parsed) return { ok: false, reason: hoursRow.data ? "hours_unreadable" : "no_booking_hours" };
+  const defaultsRow = await admin
+    .from("talent_profiles")
+    .select("selling_defaults")
+    .eq("id", input.talentProfileId)
+    .maybeSingle();
+  const hours = applySellingTimeToHours(parsed, defaultsRow.data?.selling_defaults);
 
   // The day on the venue's calendar; the person's own zone decides their
   // hours, exactly as the public endpoint lets it.

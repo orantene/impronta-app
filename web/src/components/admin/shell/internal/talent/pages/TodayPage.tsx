@@ -20,11 +20,14 @@ import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 import { TalentSiteActivateNudge } from "@/components/talent/site/TalentSiteActivateNudge";
+import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
+import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
 export function TalentTodayPage() {
   const copy = useDashboardText();
+  const studio = useTalentStudioV2();
   const {
     openDrawer,
     setTalentPage,
@@ -581,6 +584,11 @@ export function TalentTodayPage() {
           {copy.t("Agency analytics")}
         </button>
       </div>
+      {studio && (
+        <div className="mt-6">
+          <WorkFlowsScreen />
+        </div>
+      )}
     </>
   );
 }
