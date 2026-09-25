@@ -1,12 +1,10 @@
 # TEMPORARY — diagnose A6 #2276 Vercel preview FAILURE. Delete before merge.
 name: Debug — Vercel inspect A6
 on:
-  workflow_dispatch:
-    inputs:
-      dpl:
-        description: "Deployment id (dpl_…)"
-        required: true
-        default: "dpl_6RmVAgPf6fbCY1RXffS3xLCEQDrV"
+  push:
+    branches: [feat/mc-a6-notes-privacy]
+    paths:
+      - .github/workflows/vercel-inspect-a6-debug.yml
 jobs:
   inspect:
     runs-on: ubuntu-latest
@@ -20,9 +18,8 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          DPLS=("${{ github.event.inputs.dpl }}" "dpl_9qsHZDoFyjbKoeM6vn6Pgs4pbpvR" "dpl_CSohscqxwTN8a1Bd3crRDF7aemBX")
+          DPLS=("dpl_6RmVAgPf6fbCY1RXffS3xLCEQDrV" "dpl_9qsHZDoFyjbKoeM6vn6Pgs4pbpvR" "dpl_CSohscqxwTN8a1Bd3crRDF7aemBX")
           for DPL in "${DPLS[@]}"; do
-            [ -n "$DPL" ] || continue
             echo "======== INSPECT $DPL ========"
             npx --yes vercel@latest inspect "$DPL" --token "$VERCEL_TOKEN" --scope oran-tenes-projects 2>&1 || true
             echo "======== LOGS $DPL ========"
