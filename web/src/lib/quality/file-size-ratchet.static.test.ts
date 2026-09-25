@@ -344,7 +344,9 @@ const BUDGETS: Record<string, number> = {
     // Merged with main twice on 2026-09-10 while the pull request was open; the
   // budget is the merged file's measured size, which CI checks on the merge
   // rather than on the head alone.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5185,
+  // 2026-09-24 services-rebuild: +20 (5205). Measured wc -l after services
+  // catalogue / hub fixtures landed; raise in the same commit as the growth.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5205,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -440,7 +442,10 @@ const BUDGETS: Record<string, number> = {
   // ratchet should absorb, not block — and the alternative, deleting one of
   // this file's 89 blank lines to stay under, is cosmetic churn to dodge a
   // guard rather than a real trim.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3609,
+  // 2026-09-24 services-rebuild: +359 (3968). Spanish + English catalogue /
+  // services hub copy for the rebuild; ES_TEXT is a flat map so the strings
+  // have nowhere else to live. Measured wc -l; raise with the growth.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3968,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -529,7 +534,8 @@ const BUDGETS: Record<string, number> = {
   // derivation, thirteen for the legacy segments still in the wild, and the
   // note saying why deriving it turns a missed registration into a compile
   // error. Net +4 against the 29 literals it replaced.
-  "src/components/admin/shell/internal/state/types.ts": 2890,
+  // 2026-09-24 services-rebuild: +1 (2891). Measured wc -l.
+  "src/components/admin/shell/internal/state/types.ts": 2891,
   // 2026-09-09 messages mobile pass: the ≤720px messages stylesheet (360
   // lines, no interpolation, a self-contained concern) moved out to
   // internal/messages-mobile-css.ts rather than growing this file past its
@@ -542,7 +548,8 @@ const BUDGETS: Record<string, number> = {
   // here, precisely so this budget moves by the fix and not by commentary.
   // Merged with main on 2026-09-10: main raised this by three lines for the
   // signup work; the budget is the merged file's measured size.
-  "src/components/admin/shell/admin-shell-client.tsx": 2185,
+  // 2026-09-24 services-rebuild: +4 (2189). Measured wc -l.
+  "src/components/admin/shell/admin-shell-client.tsx": 2189,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;
@@ -564,7 +571,8 @@ const BUDGETS: Record<string, number> = {
   // row). Either alone fit; together they are one line over. Both are
   // single fields threaded through, with their logic in lib/workspace and
   // lib/pos, so there is nothing here to extract.
-  "src/components/admin/shell/internal/state/context.tsx": 2451,
+  // 2026-09-24 services-rebuild: +13 (2464). Measured wc -l.
+  "src/components/admin/shell/internal/state/context.tsx": 2464,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,
@@ -603,7 +611,8 @@ const BUDGETS: Record<string, number> = {
   // +2 — P2 SlotPicker instant branch (tenantId + bookingMode).
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
-  "src/app/t/[profileCode]/profile-view.tsx": 2671,
+  // 2026-09-24 services-rebuild: +11 (2682). Measured wc -l.
+  "src/app/t/[profileCode]/profile-view.tsx": 2682,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:

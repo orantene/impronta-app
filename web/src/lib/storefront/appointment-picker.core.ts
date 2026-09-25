@@ -151,6 +151,8 @@ async function readSlots(
     .maybeSingle();
   if (error) return { ok: false, code: "unavailable" };
   const parsed = parseBookingHours(hoursRow);
+  // supabase-read-unchecked-ok: missing profile and failed read both mean no
+  // selling-defaults overlay; booking hours alone still drive availability.
   const { data: defaultsRow } = await deps.admin
     .from("talent_profiles")
     .select("selling_defaults")

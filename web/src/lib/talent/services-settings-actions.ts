@@ -36,11 +36,15 @@ async function requireOwner(talentProfileId: string) {
   if (!session.user) return { ok: false as const, error: "Not authenticated." };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "Server configuration error." };
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (error) {
+    logServerError("talent.servicesSettings.requireOwner", error);
+    return { ok: false as const, error: "Could not verify ownership." };
+  }
   if (!data || data.user_id !== session.user.id) return { ok: false as const, error: "Forbidden." };
   return { ok: true as const, admin, profile: data };
 }
@@ -116,11 +120,12 @@ export async function renameCategory(
   if (!auth.ok) return auth;
   const next = to.trim().slice(0, 80);
   if (!next) return { ok: false, error: "Give the category a name." };
-  const { data: rows } = await auth.admin
+  const { data: rows, error: rowsError } = await auth.admin
     .from("talent_offerings")
     .select("id, category")
     .eq("talent_profile_id", talentProfileId)
     .eq("category", from);
+  if (rowsError) return { ok: false, error: "Could not rename." };
   const ids = (rows ?? []).map((row) => row.id as string);
   if (ids.length > 0) {
     const { error } = await auth.admin
@@ -169,11 +174,15 @@ export async function loadOfferingDestinations(
       enquiryTo: auth.profile.display_name ?? "You",
     });
   }
-  const { data: roster } = await auth.admin
+  const { data: roster, error: rosterError } = await auth.admin
     .from("agency_talent_roster")
     .select("tenant_id, agencies:tenant_id ( name, slug )")
     .eq("talent_profile_id", talentProfileId)
     .neq("status", "removed");
+  if (rosterError) {
+    logServerError("talent.servicesSettings.destinations.roster", rosterError);
+    return { ok: false, error: "Could not load destinations." };
+  }
   for (const row of roster ?? []) {
     const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
     if (!agency) continue;
@@ -184,11 +193,15 @@ export async function loadOfferingDestinations(
       enquiryTo: agency.name ?? "The agency",
     });
   }
-  const { data: site } = await auth.admin
+  const { data: site, error: siteError } = await auth.admin
     .from("talent_sites")
     .select("status, site_slug")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
+  if (siteError) {
+    logServerError("talent.servicesSettings.destinations.site", siteError);
+    return { ok: false, error: "Could not load destinations." };
+  }
   if (site?.status === "published" && site.site_slug) {
     destinations.push({
       id: "website",
@@ -205,11 +218,15 @@ export async function loadAddonGroups(
 ): Promise<{ ok: true; groups: AddonGroup[] } | { ok: false; error: string }> {
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
-  const { data: groups } = await auth.admin
+  const { data: groups, error: groupsError } = await auth.admin
     .from("talent_addon_groups")
     .select("id, name, amount_cents, duration_minutes, media_asset_id")
     .eq("talent_profile_id", talentProfileId)
     .order("name");
+  if (groupsError) {
+    logServerError("talent.servicesSettings.addonGroups", groupsError);
+    return { ok: false, error: "Could not load extras." };
+  }
   const ids = (groups ?? []).map((g) => g.id as string);
   const attachments =
     ids.length === 0

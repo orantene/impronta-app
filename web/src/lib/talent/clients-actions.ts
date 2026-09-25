@@ -20,11 +20,12 @@ async function assertTalentOwner(talentProfileId: string): Promise<boolean> {
   if (!session.user) return false;
   const admin = createServiceRoleClient();
   if (!admin) return false;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("user_id")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (error) return false;
   return data?.user_id === session.user.id;
 }
 
@@ -40,12 +41,16 @@ export async function loadTalentClients(
 
     const byKey = new Map<string, TalentClientRow>();
 
-    const { data: bookings } = await admin
+    const { data: bookings, error: bookingsError } = await admin
       .from("talent_bookings")
       .select("id, client_name, starts_at, amount_cents, currency, inquiry_id, status")
       .eq("talent_profile_id", talentProfileId)
       .order("starts_at", { ascending: false })
       .limit(200);
+    if (bookingsError) {
+      logServerError("talent.clients.bookings", bookingsError);
+      return { ok: false, error: "Could not load clients." };
+    }
 
     for (const row of bookings ?? []) {
       const name = (row.client_name as string | null)?.trim() || "Client";
@@ -71,13 +76,17 @@ export async function loadTalentClients(
       }
     }
 
-    const { data: participants } = await admin
+    const { data: participants, error: participantsError } = await admin
       .from("inquiry_participants")
       .select("inquiry_id, inquiries!inner ( id, contact_name, company, created_at, status )")
       .eq("talent_profile_id", talentProfileId)
       .eq("role", "talent")
       .neq("status", "removed")
       .limit(200);
+    if (participantsError) {
+      logServerError("talent.clients.participants", participantsError);
+      return { ok: false, error: "Could not load clients." };
+    }
 
     for (const part of participants ?? []) {
       const inquiry = Array.isArray(part.inquiries) ? part.inquiries[0] : part.inquiries;
