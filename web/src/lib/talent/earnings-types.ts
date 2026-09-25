@@ -96,6 +96,8 @@ export function mapBookingPayoutStatus(
   if (booking.status === "cancelled") return "confirmed";
   if (
     booking.payment_status === "paid"
+    || booking.payment_status === "partial"
+    // Legacy alias — writers use `partial`; keep reading the old token.
     || booking.payment_status === "partially_paid"
   ) {
     return "pending";

@@ -1,20 +1,17 @@
 "use client";
 
-import { EARNINGS_ROWS, useAdminShell } from "@/components/admin/shell/internal/state";
-import {
-  mockTalentEarningsFromFixtures,
-  type TalentEarnings,
-} from "@/lib/talent/earnings-view";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
+import { EMPTY_TALENT_EARNINGS, type TalentEarnings } from "@/lib/talent/earnings-types";
 import { useActiveTabEarnings } from "./TalentActiveEarningsContext";
 
+/**
+ * Resolve the active earnings bundle for Money sub-components.
+ * A4: never fall back to EARNINGS_ROWS fixtures (defect #8). Empty bridge → empty totals.
+ */
 export function useResolvedTalentEarnings(): TalentEarnings {
-  // Both hooks must be called unconditionally (Rules of Hooks).
   const activeTabEarnings = useActiveTabEarnings();
-  const { bridgeTalentEarnings, bridgeTalentAgencies } = useAdminShell();
+  const { bridgeTalentEarnings } = useAdminShell();
 
-  // When inside a MoneyPage currency tab, the active-tab context provides
-  // the per-currency bundle. Sub-components (MoneyKpiStrip etc.) receive the
-  // correct data for the selected tab without needing props.
   if (activeTabEarnings != null) {
     return activeTabEarnings;
   }
@@ -23,5 +20,5 @@ export function useResolvedTalentEarnings(): TalentEarnings {
     return bridgeTalentEarnings;
   }
 
-  return mockTalentEarningsFromFixtures(EARNINGS_ROWS, bridgeTalentAgencies);
+  return EMPTY_TALENT_EARNINGS;
 }
