@@ -66,6 +66,37 @@ export function MiniChatMessageBubble({
   // Non-text kinds (offer/payment cards) get a generic labelled fallback for
   // the MVP popup — full ChatCard rendering is a fast-follow per the contract.
   const isCard = m.kind !== "text";
+  const pay = m.kind === "payment_paid" || m.kind === "payment_request" ? readPayStamp(m, locale) : null;
+  if (pay) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+        <div
+          data-guest-pay={pay.paid ? "paid" : "due"}
+          style={{
+            width: "100%",
+            maxWidth: 320,
+            textAlign: "center",
+            borderRadius: 24,
+            padding: "18px 16px 16px",
+            background: "#fff",
+            border: `1px solid ${C.borderSoft}`,
+          }}
+        >
+          <div style={{ width: 36, height: 36, margin: "0 auto 8px", borderRadius: "50%", background: accent, color: readableOn(accent), display: "grid", placeItems: "center", fontWeight: 700 }}>
+            {pay.paid ? "✓" : "·"}
+          </div>
+          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 600, color: accentText(accent, "#fff") }}>{pay.kicker}</div>
+          <div style={{ marginTop: 6, fontSize: 22, fontWeight: 560, color: C.ink }}>{pay.title}</div>
+          <div style={{ marginTop: 6, fontSize: 13, color: C.inkMuted }}>{pay.detail}</div>
+          {pay.href ? (
+            <a href={pay.href} style={{ display: "block", marginTop: 14, padding: "12px 14px", borderRadius: 999, background: accent, color: readableOn(accent), textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
+              {pay.action}
+            </a>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
   // W2-3 — offer cards graduate from the bare fallback: the guest-thread reader
   // enriches the payload with a client-safe per-line breakdown (label + note +
   // client price), which we render below the card body.
@@ -220,4 +251,39 @@ export function SendIcon({ color }: { color: string }) {
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   );
+}
+
+function readPayStamp(m: StreamRow, locale: string): {
+  paid: boolean;
+  kicker: string;
+  title: string;
+  detail: string;
+  href: string | null;
+  action: string;
+} {
+  const es = locale === "es";
+  const raw = m.cardPayload && typeof m.cardPayload === "object" ? (m.cardPayload as Record<string, unknown>) : {};
+  const checkout = typeof raw.checkout_type === "string" ? raw.checkout_type : typeof raw.amountKind === "string" ? raw.amountKind : "";
+  const deposit = checkout === "deposit";
+  const paid = m.kind === "payment_paid" || raw.state === "paid";
+  const amount = typeof raw.amount_label === "string" && raw.amount_label ? raw.amount_label : m.body || "";
+  const code = typeof raw.paymentLinkCode === "string" ? raw.paymentLinkCode : typeof raw.code === "string" ? raw.code : "";
+  const method = typeof raw.method === "string" ? raw.method : "";
+  const methodLine = method === "cash"
+    ? (es ? "Pagado en efectivo." : "Paid in cash.")
+    : method === "transfer" || method === "wire"
+      ? (es ? "Pagado por transferencia." : "Paid by transfer.")
+      : deposit
+        ? (es ? "Seña pagada. El saldo sigue pendiente." : "Deposit paid. The balance is still due.")
+        : (es ? "Pagado. Nada pendiente." : "Paid. Nothing left.");
+  return {
+    paid,
+    kicker: paid
+      ? (deposit ? (es ? "Seña pagada" : "Deposit paid") : (es ? "Pagado" : "Paid"))
+      : (deposit ? (es ? "Pagar la seña" : "Pay the deposit") : (es ? "Pago" : "Payment")),
+    title: amount || (es ? "Tu cita" : "Your booking"),
+    detail: paid ? methodLine : (es ? "La tarjeta cobra la seña. El efectivo y la transferencia los anota el estudio." : "The card pays the deposit. Cash and transfer are recorded by the studio."),
+    href: !paid && code ? `/pay/${code}` : null,
+    action: es ? "Pagar la seña" : "Pay the deposit",
+  };
 }

@@ -14,7 +14,7 @@
  * at 380px (four equal flex cells, icon over a short label).
  */
 
-import { Home, MessageCircle, Users, Sparkles } from "lucide-react";
+import { Briefcase, Calendar, MessageCircle } from "lucide-react";
 
 import type { Translator } from "@/i18n/interpolate";
 
@@ -40,12 +40,11 @@ export type GuestDockNavProps = {
 const TABS: Array<{
   view: GuestDockView;
   labelKey: string;
-  Icon: typeof Home;
+  Icon: typeof MessageCircle;
 }> = [
-  { view: "home", labelKey: "public.guestChat.dockNavHome", Icon: Home },
   { view: "chat", labelKey: "public.guestChat.dockNavChat", Icon: MessageCircle },
-  { view: "lineup", labelKey: "public.guestChat.dockNavLineup", Icon: Users },
-  { view: "projects", labelKey: "public.guestChat.dockNavProjects", Icon: Sparkles },
+  { view: "lineup", labelKey: "public.guestChat.dockNavLineup", Icon: Briefcase },
+  { view: "projects", labelKey: "public.guestChat.dockNavProjects", Icon: Calendar },
 ];
 
 export function GuestDockNav({
@@ -74,11 +73,13 @@ export function GuestDockNav({
       aria-label={t("public.guestChat.dockNavAria")}
       style={{
         display: "flex",
-        alignItems: "stretch",
-        borderTop: `1px solid ${C.borderSoft}`,
+        alignItems: "center",
+        gap: 6,
+        margin: "0 16px 8px",
+        padding: 4,
+        borderRadius: 999,
         background: C.surfaceFaint,
         flexShrink: 0,
-        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
       {tabs.map(({ view, labelKey, Icon }) => {
@@ -99,13 +100,14 @@ export function GuestDockNav({
               flex: 1,
               minWidth: 0,
               display: "inline-flex",
-              flexDirection: "column",
+              flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              gap: 3,
-              padding: "9px 2px 8px",
+              gap: 6,
+              padding: "8px 10px",
               border: "none",
-              background: "transparent",
+              borderRadius: 999,
+              background: isActive ? "#fff" : "transparent",
               color: isActive ? accent : C.inkMuted,
               cursor: isActive ? "default" : "pointer",
               fontFamily: FONT,

@@ -90,18 +90,18 @@ function readStoredDockView(): GuestDockView | null {
 }
 
 /**
- * The view the dock opens into. A remembered session view wins; otherwise an
- * active conversation (a resumed inquiry or a seeded lineup) lands on Chat, and a
- * truly fresh visitor lands on the Home hub.
+ * The view the dock opens into. A remembered session view wins. Otherwise the
+ * panel opens on Chat (Talk). Home stays in the view union for a stored session.
  */
 function resolveInitialDockView(
   existingInquiryId: string | null,
   cartTalentIds: readonly string[] | undefined,
 ): GuestDockView {
+  void existingInquiryId;
+  void cartTalentIds;
   const stored = readStoredDockView();
   if (stored) return stored;
-  if (existingInquiryId || (cartTalentIds?.length ?? 0) > 0) return "chat";
-  return "home";
+  return "chat";
 }
 
 function persistDockView(view: GuestDockView): void {
