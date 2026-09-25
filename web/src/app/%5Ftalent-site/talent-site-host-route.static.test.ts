@@ -103,6 +103,18 @@ test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)
     source,
     /rebound\.set\(HOST_CONTEXT_HEADER, "talent_site"\)/,
   );
+  // D-MSG-422 shape: rebound talent_site path must re-attach guest identity
+  // so a second-pass `next()` does not drop the vanity guest cookie/header.
+  const shortCircuitAt = source.indexOf('pathname.startsWith("/_talent-site/")');
+  const talentSiteBranchAt = source.indexOf('if (hostContext.kind === "talent_site")');
+  assert.ok(shortCircuitAt > 0, "short-circuit must exist");
+  assert.ok(talentSiteBranchAt > shortCircuitAt, "talent_site block follows short-circuit");
+  const shortCircuit = source.slice(shortCircuitAt, talentSiteBranchAt);
+  assert.match(
+    shortCircuit,
+    /attachTalentSiteGuestIdentity\(request, rebound\)/,
+    "rebound talent_site path must call attachTalentSiteGuestIdentity",
+  );
 });
 
 test("every talent-reachable builder surface pins raw HTML off", () => {

@@ -139,17 +139,22 @@ export async function proxy(request: NextRequest) {
     // Next re-invokes proxy on the rewrite destination. The first pass sets
     // talent headers, but this short-circuit previously forwarded only the
     // STRIPPED inbound clone — wiping `x-impronta-host-context` /
-    // `x-impronta-talent-profile` and 404ing every talent vanity host
+    // `x-impronta-talent-profile` and 404ing every vanity host
     // (D-MSG-431). Re-resolve from the proxy-written host name (or Host) and
     // re-bind; never trust client-supplied talent headers alone.
+    // Also re-attach guest identity (D-MSG-422): a plain `next()` here would
+    // replace the first-pass rewrite response and drop Set-Cookie / the
+    // `x-impronta-guest` header the vanity dock actions need.
     const rebound = new Headers(sanitizedInboundHeaders);
     const candidateHost =
       (request.headers.get(HOST_NAME_HEADER) ?? "").trim() ||
       (request.headers.get("host") ?? "").split(":")[0]?.trim() ||
       "";
+    let reboundTalentSite = false;
     if (candidateHost) {
       const reboundCtx = await resolveTenantContext(request, candidateHost);
       if (reboundCtx.kind === "talent_site") {
+        reboundTalentSite = true;
         rebound.set(HOST_CONTEXT_HEADER, "talent_site");
         rebound.set(HOST_NAME_HEADER, reboundCtx.hostname);
         rebound.set(HOST_TALENT_PROFILE_HEADER, reboundCtx.talentProfileId);
@@ -157,6 +162,10 @@ export async function proxy(request: NextRequest) {
         rebound.delete(HOST_TENANT_SLUG_HEADER);
         rebound.delete(PUBLIC_PATH_PREFIX_HEADER);
       }
+    }
+    if (reboundTalentSite) {
+      const attachGuest = attachTalentSiteGuestIdentity(request, rebound);
+      return attachGuest(NextResponse.next({ request: { headers: rebound } }));
     }
     return NextResponse.next({ request: { headers: rebound } });
   }
