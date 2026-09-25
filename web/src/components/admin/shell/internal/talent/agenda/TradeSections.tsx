@@ -49,12 +49,13 @@ function TradeSectionCard({ section }: { section: TradeSectionPayload }) {
         <Card title="Intake">
           <Line label="Status" value={d.status ?? "Not received"} />
           {d.resendUrl ? (
-            <a className="mt-2 inline-flex min-h-[44px] items-center text-[13px] text-[var(--tc-accent)]" href={String(d.resendUrl)}>
+            <a
+              className="mt-2 inline-flex min-h-[44px] items-center text-[13px] text-[var(--tc-accent)]"
+              href={String(d.resendUrl)}
+            >
               Resend form
             </a>
-          ) : (
-            <p className="mt-2 text-[13px] text-[#5F6368]">Resend when a form link exists.</p>
-          )}
+          ) : null}
         </Card>
       );
     case "tz":

@@ -198,7 +198,7 @@ export async function loadTalentAgenda(
     const ownerUserId =
       typeof profileRes.data?.user_id === "string" ? profileRes.data.user_id : null;
 
-    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes] =
+    const [agencyBookingsRes, transactionsRes, inquiriesRes, deliverablesRes, rescheduleRes, talentLegsRes] =
       await Promise.all([
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
@@ -223,15 +223,8 @@ export async function loadTalentAgenda(
             .is("booked_at", null)
             .gte("event_date", fromYmd)
             .lte("event_date", toYmd),
-      bookingIds.length === 0
-        ? Promise.resolve({ data: [], error: null })
-        : supabase
-            .from("booking_deliverables")
-            .select("id, booking_id, title, due_at, status")
-            .in("booking_id", bookingIds)
-            .not("due_at", "is", null)
-            .gte("due_at", fromIso)
-            .lt("due_at", toIso),
+      // Placeholder — replaced after talentLegs resolve below when needed.
+      Promise.resolve({ data: [], error: null }),
       bookingIds.length === 0
         ? Promise.resolve({ data: [], error: null })
         : supabase
@@ -239,13 +232,39 @@ export async function loadTalentAgenda(
             .select("id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at")
             .in("booking_id", bookingIds)
             .eq("status", "pending"),
+      supabase
+        .from("booking_talent")
+        .select("booking_id")
+        .eq("talent_profile_id", talentProfileId),
     ]);
 
     if (agencyBookingsRes.error) logServerError("talent-agenda.agency-bookings", agencyBookingsRes.error);
     if (transactionsRes.error) logServerError("talent-agenda.transactions", transactionsRes.error);
     if (inquiriesRes.error) logServerError("talent-agenda.inquiries", inquiriesRes.error);
-    if (deliverablesRes.error) logServerError("talent-agenda.deliverables", deliverablesRes.error);
     if (rescheduleRes.error) logServerError("talent-agenda.reschedule", rescheduleRes.error);
+    if (talentLegsRes.error) logServerError("talent-agenda.booking-talent", talentLegsRes.error);
+
+    const legBookingIds = [
+      ...new Set(
+        ((talentLegsRes.data ?? []) as Array<{ booking_id: string }>)
+          .map((r) => r.booking_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    const deliverableBookingIds = [...new Set([...bookingIds, ...legBookingIds])];
+    const deliverablesQuery =
+      deliverableBookingIds.length === 0
+        ? { data: [], error: null }
+        : await supabase
+            .from("booking_deliverables")
+            .select("id, booking_id, title, due_at, status")
+            .in("booking_id", deliverableBookingIds)
+            .not("due_at", "is", null)
+            .gte("due_at", fromIso)
+            .lt("due_at", toIso);
+    if (deliverablesQuery.error) logServerError("talent-agenda.deliverables", deliverablesQuery.error);
+    // Prefer live query over the placeholder slot.
+    const deliverablesData = deliverablesQuery.data ?? deliverablesRes.data;
 
     const agencyById = new Map(
       ((agencyBookingsRes.data ?? []) as AgencyBookingRow[]).map((row) => [row.id, row]),
@@ -624,7 +643,7 @@ export async function loadTalentAgenda(
       items.push(item);
     }
 
-    for (const deliverable of (deliverablesRes.data ?? []) as Array<{
+    for (const deliverable of (deliverablesData ?? []) as Array<{
       id: string;
       booking_id: string;
       title: string;
