@@ -85,7 +85,12 @@ export function TalentTodayPage() {
   const openAgendaPath = (path: string, fallbackPage: Parameters<typeof setTalentPage>[0]) => {
     const href = path.startsWith("/") ? path : `/talent/${path}`;
     if (typeof window !== "undefined") {
-      window.location.assign(href);
+      const pinnedAgendaNow = new URLSearchParams(window.location.search).get("agendaNow");
+      const withPin =
+        pinnedAgendaNow && !href.includes("agendaNow=")
+          ? `${href}${href.includes("?") ? "&" : "?"}agendaNow=${encodeURIComponent(pinnedAgendaNow)}`
+          : href;
+      window.location.assign(withPin);
       return;
     }
     setTalentPage(fallbackPage);
