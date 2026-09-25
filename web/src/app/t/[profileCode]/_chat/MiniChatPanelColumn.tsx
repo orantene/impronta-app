@@ -775,7 +775,7 @@ export function MiniChatPanelColumn({
       )}
 
       {/* ── Send to agency (finding #2): explicit submit + success note ───── */}
-      {!showGate && extrasEnabled && onSendToAgency && (
+      {!showGate && extrasEnabled && onSendToAgency && !rows.some((m) => new Set<string>(["payment_paid", "offer_declined", "payment_failed", "refunded"]).has(m.kind)) && (
         <SendToAgencyBar
           accent={accent}
           accentInk={accentInk}

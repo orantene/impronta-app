@@ -16,7 +16,15 @@
 import type { ClientOfferSummary } from "./client-thread-view";
 import { offerCardState, offerDepositCents } from "./client-thread-view";
 
-export type GuestNextStepKind = "pay" | "accept_offer" | "waiting_confirm" | "booked";
+export type GuestNextStepKind =
+  | "pay"
+  | "accept_offer"
+  | "waiting_confirm"
+  | "booked"
+  | "paid"
+  | "refunded"
+  | "declined"
+  | "pay_failed";
 
 export type GuestNextStep = {
   readonly kind: GuestNextStepKind;
@@ -35,6 +43,8 @@ export type GuestNextStepInput = {
   /** The `professional_times` payloads in the thread (a pick holds a slot). */
   readonly timesPayloads: readonly (Record<string, unknown> | null)[];
   readonly records: readonly { readonly fulfilmentState: string | null; readonly recordDate: string | null }[];
+  /** Message kinds already in the thread. A state with no card is not invented. */
+  readonly messageKinds?: readonly string[];
   readonly now: Date;
   readonly money: (cents: number, currency: string) => string;
   readonly date: (iso: string) => string;
@@ -66,6 +76,12 @@ function heldTime(payloads: readonly (Record<string, unknown> | null)[], now: Da
 export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | null {
   const { now } = input;
   if (input.threadStatus === "draft" || input.threadStatus === "closed") return null;
+
+  const kinds = input.messageKinds ?? [];
+  if (kinds.includes("refunded")) return { kind: "refunded", values: {} };
+  if (kinds.includes("offer_declined")) return { kind: "declined", values: {} };
+  if (kinds.includes("payment_failed")) return { kind: "pay_failed", values: {} };
+  if (kinds.includes("payment_paid")) return { kind: "paid", values: {} };
 
   const offer = pendingOffer(input.offers, now);
   if (input.payCode) {

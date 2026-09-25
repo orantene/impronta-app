@@ -25,12 +25,20 @@ const TITLE_KEY = {
   accept_offer: "public.guestChat.nextAcceptTitle",
   waiting_confirm: "public.guestChat.nextWaitingTitle",
   booked: "public.guestChat.nextBookedTitle",
+  paid: "public.guestChat.nextPaidTitle",
+  refunded: "public.guestChat.nextRefundedTitle",
+  declined: "public.guestChat.nextDeclinedTitle",
+  pay_failed: "public.guestChat.nextPayFailedTitle",
 } as const;
 const SUB_KEY = {
   pay: "public.guestChat.nextPaySub",
   accept_offer: "public.guestChat.nextAcceptSub",
   waiting_confirm: "public.guestChat.nextWaitingSub",
   booked: "public.guestChat.nextBookedSub",
+  paid: "public.guestChat.nextPaidSub",
+  refunded: "public.guestChat.nextRefundedSub",
+  declined: "public.guestChat.nextDeclinedSub",
+  pay_failed: "public.guestChat.nextPayFailedSub",
 } as const;
 const BUTTON_KEY = { pay: "public.guestChat.nextPayButton", accept_offer: "public.guestChat.nextAcceptButton" } as const;
 
@@ -46,6 +54,7 @@ export function GuestNextStep({
   accent,
   accentInk,
   bookAgainNotice = false,
+  messageKinds = [],
 }: {
   v5: GuestThreadV5Extras | null;
   model: GuestClientCardsModel;
@@ -58,6 +67,7 @@ export function GuestNextStep({
   accent: string;
   accentInk: string;
   bookAgainNotice?: boolean;
+  messageKinds?: readonly string[];
 }) {
   const step = useMemo(() => {
     if (!v5) return null;
@@ -66,12 +76,13 @@ export function GuestNextStep({
       offers: v5.offers,
       payCode: v5.payCode,
       timesPayloads: model.messages.filter((m) => m.kind === "professional_times").map((m) => m.payload),
+      messageKinds,
       records: v5.items?.records ?? [],
       now,
       money: formatOrderMoney,
       date: (iso) => new Date(iso).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" }),
     });
-  }, [v5, threadStatus, model.messages, now, locale]);
+  }, [v5, threadStatus, model.messages, messageKinds, now, locale]);
   if (!step && !bookAgainNotice) return null;
   const notice = bookAgainNotice ? (
     <div data-book-again-started style={{ padding: "10px 14px 0", fontFamily: FONT, fontSize: 13, fontWeight: 600, color: C.ink }}>

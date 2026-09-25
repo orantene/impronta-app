@@ -13,6 +13,14 @@ const base = (over: Partial<GuestNextStepInput> = {}): GuestNextStepInput => ({
   money: (c, cur) => `${cur} ${(c / 100).toFixed(0)}`, date: (iso) => iso.slice(0, 10), ...over,
 });
 
+test("a guest card replaces Pay, and a missing card is not invented", () => {
+  assert.equal(deriveGuestNextStep(base({ payCode: "abc", messageKinds: ["payment_paid"] }))?.kind, "paid");
+  assert.equal(deriveGuestNextStep(base({ messageKinds: ["offer_declined"] }))?.kind, "declined");
+  assert.equal(deriveGuestNextStep(base({ messageKinds: ["payment_failed"] }))?.kind, "pay_failed");
+  assert.equal(deriveGuestNextStep(base({ messageKinds: ["refunded"] }))?.kind, "refunded");
+  assert.equal(deriveGuestNextStep(base({ payCode: "abc" }))?.kind, "pay");
+});
+
 test("a draft or closed thread shows no step (the send bar owns the draft)", () => {
   assert.equal(deriveGuestNextStep(base({ threadStatus: "draft", offers: [offer()] })), null);
   assert.equal(deriveGuestNextStep(base({ threadStatus: "closed", payCode: "abc" })), null);
