@@ -15,12 +15,13 @@ async function inquiryInTenant(
   inquiryId: string,
   tenantId: string,
 ): Promise<boolean> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("inquiries")
     .select("id")
     .eq("id", inquiryId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
+  if (error) return false;
   return !!data;
 }
 
@@ -36,13 +37,13 @@ export async function moveToCoordination(
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "move_to_coordination");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
-    const { data: inq } = await supabase
+    const { data: inq, error: inqErr } = await supabase
       .from("inquiries")
       .select("status, version, is_frozen, uses_new_engine")
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (inqErr || !inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
     const t = canTransition(inq.status as string, "coordination", { isFrozen: !!inq.is_frozen });
@@ -100,13 +101,13 @@ export async function setPriority(
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "set_priority");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
-    const { data: inq } = await supabase
+    const { data: inq, error: inqErr } = await supabase
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen")
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (inqErr || !inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
     const writePriority = await inquiryWriteClient(supabase);

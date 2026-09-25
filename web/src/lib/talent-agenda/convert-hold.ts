@@ -111,12 +111,12 @@ export async function convertOwnTalentHold(holdId: string): Promise<ConvertOwnHo
   let contactEmail: string | null = null;
   let contactPhone: string | null = null;
   if (hold.inquiry_id) {
-    const { data: inq } = await admin
+    const { data: inq, error: inqErr } = await admin
       .from("inquiries")
       .select("customer_id, contact_email, contact_phone, contact_name")
       .eq("id", hold.inquiry_id)
       .maybeSingle();
-    if (inq) {
+    if (!inqErr && inq) {
       customerId = typeof inq.customer_id === "string" ? inq.customer_id : null;
       contactEmail = typeof inq.contact_email === "string" ? inq.contact_email.trim() || null : null;
       contactPhone = typeof inq.contact_phone === "string" ? inq.contact_phone.trim() || null : null;
