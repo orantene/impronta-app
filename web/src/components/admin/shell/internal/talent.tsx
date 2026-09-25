@@ -17,6 +17,15 @@ import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { MoneyPage } from "@/components/talent/money/MoneyPage";
 import { TalentClientsPage } from "./talent/pages/ClientsPage";
+import { AgendaAttentionPage } from "./talent/agenda/AgendaAttentionPage";
+import { AgendaCalendarPage } from "./talent/agenda/AgendaCalendarPage";
+import { AgendaAvailabilityPage } from "./talent/agenda/AgendaAvailabilityPage";
+import { AgendaBookingRecord } from "./talent/agenda/AgendaBookingRecord";
+import { AgendaNewBooking } from "./talent/agenda/AgendaNewBooking";
+import { buildAgendaListItemFromAgendaItem } from "./talent/agenda/view-model";
+import { isAgendaV2 } from "@/lib/talent-agenda/flag";
+import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
+import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
 
 // ── Re-export barrel: public API preserved for external importers ──
 export { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
@@ -250,7 +259,28 @@ function TalentSidebar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function TalentRouter() {
-  const { state } = useAdminShell();
+  const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, toast } = useAdminShell();
+  const agendaV2 = isAgendaV2(bridgeTalentSelfProfile?.id);
+  const agendaNow = readAgendaNowClient(new Date());
+  const tradeRules = tradeCalendarRules(bridgeTalentSelfProfile?.primaryTypeLabel);
+  const openAgendaPath = (path: string, fallbackPage: TalentPage) => {
+    // Absolute /talent/… paths only. Relative "bookings/new" breaks under
+    // /talent/calendar/availability → /talent/calendar/bookings/new.
+    const href = path.startsWith("/") ? path : `/talent/${path}`;
+    const bookingMatch = href.match(/\/talent\/bookings\/([^/?#]+)/);
+    if (bookingMatch?.[1] && bookingMatch[1] !== "new") {
+      try {
+        sessionStorage.setItem("tulala:agenda:bookingId", bookingMatch[1]);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window !== "undefined") {
+      window.location.assign(href);
+      return;
+    }
+    setTalentPage(fallbackPage);
+  };
   // W12 — the entry fade must NOT run on the very first paint: the browser
   // holds a CSS animation's timeline at frame 0 (from{opacity:0}) until the
   // JS bundle finishes loading, so animating the initial page left the WHOLE
@@ -287,7 +317,116 @@ function TalentRouter() {
       page = <TalentMessagesPage />;
       break;
     case "calendar":
-      page = <CalendarPage />;
+      page = agendaV2
+        ? (
+          <AgendaCalendarPage
+            items={bridgeTalentAgendaItems ?? []}
+            hours={bridgeTalentAgendaHours}
+            now={agendaNow}
+            talentProfileId={bridgeTalentSelfProfile?.id}
+            overnightToHour={tradeRules.overnightDisplayToHour}
+            loadError={bridgeTalentAgendaError}
+            tradeRules={tradeRules}
+            onOpenToday={() => setTalentPage("today")}
+            onNewBooking={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
+            onOpenAvailability={() => setTalentPage("calendar-availability")}
+            onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
+            onOpenMessages={() => setTalentPage("messages")}
+          />
+        )
+        : <CalendarPage />;
+      break;
+    case "attention":
+      page = agendaV2
+        ? (
+          <AgendaAttentionPage
+            items={bridgeTalentAgendaItems ?? []}
+            now={agendaNow}
+            loadError={bridgeTalentAgendaError}
+            onOpenCalendar={() => setTalentPage("calendar")}
+            onOpenBooking={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
+            onOpenMessages={() => setTalentPage("messages")}
+          />
+        )
+        : <TalentTodayPage />;
+      break;
+    case "bookings-new":
+      page = agendaV2
+        ? (
+          <AgendaNewBooking
+            talentTypeSlug={bridgeTalentSelfProfile?.primaryTypeLabel}
+            talentProfileId={bridgeTalentSelfProfile?.id}
+            onCancel={() => setTalentPage("calendar")}
+            onSaved={() => { toast("Booking saved"); setTalentPage("calendar"); }}
+          />
+        )
+        : <TalentTodayPage />;
+      break;
+    case "booking-record": {
+      const storedId = (() => {
+        try {
+          const fromStore = sessionStorage.getItem("tulala:agenda:bookingId");
+          if (fromStore) return fromStore;
+        } catch {
+          /* ignore */
+        }
+        if (typeof window !== "undefined") {
+          const match = window.location.pathname.match(/\/talent\/bookings\/([^/?#]+)/);
+          if (match?.[1] && match[1] !== "new") {
+            try {
+              sessionStorage.setItem("tulala:agenda:bookingId", match[1]);
+            } catch {
+              /* ignore */
+            }
+            return match[1];
+          }
+        }
+        return "";
+      })();
+      const agendaItem = (bridgeTalentAgendaItems ?? []).find((e) => e.id === storedId);
+      if (agendaV2) {
+        page = (
+          <AgendaBookingRecord
+            bookingId={storedId || undefined}
+            isAgency={Boolean(agendaItem?.managedBy)}
+            refTable={agendaItem?.ref?.table}
+            refId={agendaItem?.ref?.id}
+            tradeSection={
+              agendaItem?.tradeSection
+                ? {
+                    kind: agendaItem.tradeSection.kind,
+                    payload: agendaItem.tradeSection.payload as Record<string, unknown>,
+                  }
+                : undefined
+            }
+            item={
+              agendaItem
+                ? buildAgendaListItemFromAgendaItem(agendaItem)
+                : {
+                    id: storedId || "unknown",
+                    title: "Booking",
+                    whenLabel: "-",
+                    whereLabel: "-",
+                    sourceLabel: "Direct",
+                  }
+            }
+            onBack={() => setTalentPage("calendar")}
+            onMessage={() => setTalentPage("messages")}
+          />
+        );
+      }
+      break;
+    }
+    case "calendar-availability":
+      page = agendaV2 && bridgeTalentSelfProfile?.id
+        ? (
+          <AgendaAvailabilityPage
+            talentProfileId={bridgeTalentSelfProfile.id}
+            initialHours={bridgeTalentAgendaHours}
+            onBack={() => setTalentPage("calendar")}
+          />
+        )
+        : <CalendarPage />;
       break;
     case "activity":
       // Legacy URL alias → money (earnings absorbed into Money page)

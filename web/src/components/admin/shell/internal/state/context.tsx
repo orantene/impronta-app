@@ -413,6 +413,13 @@ type Ctx = {
    * TALENT_REQUESTS fixtures); empty array = live mode with no entries yet.
    */
   bridgeTalentCalendarEntries: import("../data-bridge").TalentCalendarEntry[] | null;
+  /**
+   * Agenda V2 items from `loadTalentAgenda`. null when flag off / not loaded.
+   */
+  bridgeTalentAgendaItems: import("@/lib/talent-agenda/types").TalentAgendaItem[] | null;
+  bridgeTalentAgendaHours: import("@/lib/scheduling/hours-types").BookingHours | null;
+  /** Non-null when the agenda load failed behind the flag. */
+  bridgeTalentAgendaError: string | null;
 
   /**
    * Media photos from the bridge. `null` = mock mode (Media page falls
@@ -898,11 +905,15 @@ function talentPageToSegment(p: TalentPage): string {
   // Canonical canonical paths mirror the existing /talent/* route tree.
   const map: Partial<Record<TalentPage, string>> = {
     today:     "today",
+    attention: "attention",
     messages:  "inbox",  // messages → inbox canonical route
     inbox:     "inbox",
     profile:   "profile",
     reviews:   "reviews",
     calendar:  "calendar",
+    "calendar-availability": "calendar/availability",
+    "bookings-new": "bookings/new",
+    "booking-record": "bookings",
     money:     "money",
     clients:   "clients",
     payouts:   "payouts",
@@ -911,8 +922,7 @@ function talentPageToSegment(p: TalentPage): string {
     reach:     "money",   // legacy alias
     "public-page": "site",
     settings:  "settings",
-  };
-  return map[p] ?? p;
+  };  return map[p] ?? p;
 }
 
 // Segments the talent layout serves — used by the prefetcher below.
@@ -2145,6 +2155,9 @@ export function AdminShellProvider({
   // B.3 — talent calendar entries from bookings + holds + blocks.
   // `null` falls back to mock TALENT_BOOKINGS + TALENT_REQUESTS in CalendarPage.
   const bridgeTalentCalendarEntries = initialBridgeData?.talentCalendarEntries ?? null;
+  const bridgeTalentAgendaItems = initialBridgeData?.talentAgendaItems ?? null;
+  const bridgeTalentAgendaHours = initialBridgeData?.talentAgendaHours ?? null;
+  const bridgeTalentAgendaError = initialBridgeData?.talentAgendaError ?? null;
 
   // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
   // empty array means "live mode, no photos yet" → renders empty state.
@@ -2293,6 +2306,9 @@ export function AdminShellProvider({
       bridgeTalentRepresentation,
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
+      bridgeTalentAgendaItems,
+      bridgeTalentAgendaHours,
+      bridgeTalentAgendaError,
       bridgeTalentEarnings,
       bridgeTalentEarningsByCurrency,
       bridgeMediaPhotos,
@@ -2419,6 +2435,9 @@ export function AdminShellProvider({
       bridgeTalentRepresentation,
       bridgeUserNotifications,
       bridgeTalentCalendarEntries,
+      bridgeTalentAgendaItems,
+      bridgeTalentAgendaHours,
+      bridgeTalentAgendaError,
       bridgeTalentEarnings,
       bridgeTalentEarningsByCurrency,
       bridgeMediaPhotos,

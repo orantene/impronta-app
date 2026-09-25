@@ -21,6 +21,8 @@ export type HoldBusyRow = BusySourceRow & {
 
 export type BookingBusyRow = BusySourceRow & {
   status?: string | null;
+  travel_before_min?: number | null;
+  travel_after_min?: number | null;
 };
 
 function intervalFromRow(row: BusySourceRow): BusyInterval | null {
@@ -36,9 +38,18 @@ export function busyFromHold(row: HoldBusyRow, now: Date = new Date()): BusyInte
   return intervalFromRow(row);
 }
 
+/** Expand a booking interval by travel before/after (T1.7). */
 export function busyFromBooking(row: BookingBusyRow): BusyInterval | null {
   if (row.status === "cancelled") return null;
-  return intervalFromRow(row);
+  const base = intervalFromRow(row);
+  if (!base) return null;
+  const before = Math.max(0, Number(row.travel_before_min) || 0);
+  const after = Math.max(0, Number(row.travel_after_min) || 0);
+  if (before === 0 && after === 0) return base;
+  return {
+    startsAt: new Date(base.startsAt.getTime() - before * 60_000),
+    endsAt: new Date(base.endsAt.getTime() + after * 60_000),
+  };
 }
 
 export function busyFromBlock(row: BusySourceRow): BusyInterval | null {
@@ -91,7 +102,7 @@ export async function loadBusyIntervals(input: {
       .or(liveHolds),
     input.admin
       .from("talent_bookings")
-      .select("starts_at, ends_at, status")
+      .select("starts_at, ends_at, status, travel_before_min, travel_after_min")
       .eq("talent_profile_id", input.talentProfileId)
       .lt("starts_at", toIso)
       .gt("ends_at", fromIso),

@@ -408,6 +408,15 @@ export function MobileBottomNav() {
   }
 
   if (state.surface === "talent") {
+    // T9.2 — focused agenda flows own the screen; hide the tab bar.
+    const focusedAgendaPages = new Set([
+      "bookings-new",
+      "booking-record",
+      "calendar-availability",
+      "attention",
+    ]);
+    if (focusedAgendaPages.has(state.talentPage)) return null;
+
     // Per-tab unread badges — live bridge count only (matches the desktop
     // talent rail, which reads bridgeTalentUnread). 0 shows no badge; no
     // fixture fallback (was echoing TALENT_NOTIFICATION_COUNT on live 0).

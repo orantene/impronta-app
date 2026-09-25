@@ -22,6 +22,11 @@ import { TalentServicesNudge } from "@/components/talent/services/TalentServices
 import { TalentSiteActivateNudge } from "@/components/talent/site/TalentSiteActivateNudge";
 import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
+import { moneyFromEarnings } from "../agenda/present";
+import { isAgendaV2 } from "@/lib/talent-agenda/flag";
+import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
+import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -33,6 +38,9 @@ export function TalentTodayPage() {
     setTalentPage,
     bridgeTalentCompletion,
     bridgeTalentSelfProfile,
+    bridgeTalentAgendaItems,
+    bridgeTalentAgendaHours,
+    bridgeTalentAgendaError,
     bridgeTalentPageAnalytics,
     bridgeTalentEarnings,
     bridgeTalentPayoutSnapshot,
@@ -74,6 +82,44 @@ export function TalentTodayPage() {
   // Seeded from the bridge, then optimistic on click.
   const [dismissedLocal, setFirstSessionDismissed] = useState(false);
   const firstSessionDismissed = dismissedLocal || bridgeTalentChecklistDismissed === true;
+  const openAgendaPath = (path: string, fallbackPage: Parameters<typeof setTalentPage>[0]) => {
+    const href = path.startsWith("/") ? path : `/talent/${path}`;
+    if (typeof window !== "undefined") {
+      window.location.assign(href);
+      return;
+    }
+    setTalentPage(fallbackPage);
+  };
+  if (isAgendaV2(bridgeTalentSelfProfile?.id)) {
+    return (
+      <AgendaTodayPage
+        profile={bridgeTalentSelfProfile}
+        items={bridgeTalentAgendaItems ?? []}
+        now={readAgendaNowClient(new Date())}
+        loadError={bridgeTalentAgendaError}
+        hours={bridgeTalentAgendaHours}
+        completionMissingKeys={bridgeTalentCompletion?.missing.map((m) => m.key) ?? null}
+        moneyItems={moneyFromEarnings({
+          // Collected/payout come from earnings bridge; AgendaTodayPage
+          // overwrites "Still to collect" with todayTotals from agenda items.
+          collectedLabel: bridgeTalentEarnings
+            ? `${(computePaidThisMonth(bridgeTalentEarnings).totalCents / 100).toFixed(2)} ${computePaidThisMonth(bridgeTalentEarnings).currency}`
+            : "not shared",
+          owedCents: bridgeTalentEarnings?.totals.pendingCents ?? null,
+          currency: bridgeTalentEarnings?.totals.currency ?? "",
+          cardPayouts: payoutSet,
+        })}
+        newLabel={resolveTradeProfile(bridgeTalentSelfProfile?.primaryTypeLabel).words.newLabel[copy.isSpanish ? 1 : 0]}
+        onOpenAttention={() => setTalentPage("attention")}
+        onOpenCalendar={() => setTalentPage("calendar")}
+        onNewBooking={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
+        onOpenAvailability={() => setTalentPage("calendar-availability")}
+        onOpenServices={() => setTalentPage("services")}
+        onOpenSite={() => setTalentPage("public-page")}
+        onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
+      />
+    );
+  }
 
   // ── Today's data is derived from conversations (bridge-aware) — the
   //    same source the messages shell reads. One source, one truth.

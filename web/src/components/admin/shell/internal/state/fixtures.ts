@@ -313,12 +313,16 @@ export const PAGE_META: Record<WorkspacePage, PageMetaEntry> = {
 
 export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   today:       { label: "Today" },
+  attention:   { label: "Needs attention" },
   messages:    { label: "Messages" },
   profile:     { label: "Profile" },
   services:    { label: "Services" },
   reviews:     { label: "Reviews" },
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },
+  "calendar-availability": { label: "Availability" },
+  "bookings-new": { label: "New booking" },
+  "booking-record": { label: "Booking" },
   activity:    { label: "Activity" },      // legacy — redirects to money
   reach:       { label: "Reach" },         // legacy — redirects to money
   agencies:    { label: "Agencies" },      // legacy — redirects to money
