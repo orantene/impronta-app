@@ -31,6 +31,7 @@ import Image from "next/image";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveOfferingCta } from "@/lib/talent/offerings-types";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { durationLabel } from "@/lib/talent/duration-label";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { OfferingRequestDetail } from "../_shared/OfferingCta";
 
@@ -44,13 +45,7 @@ export type MaisonSelection = {
   currency: string;
 };
 
-export function durationLabel(minutes: number, locale: string): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h && m) return `${h} h ${m} min`;
-  if (h) return `${h} h`;
-  return `${m} min`;
-}
+export { durationLabel };
 
 /** The production event payload, built from an offering. */
 function detailFor(o: TalentOffering): OfferingRequestDetail {

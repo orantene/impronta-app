@@ -140,7 +140,9 @@ import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 
 export interface BuilderNodeRenderDataSources {
@@ -5683,28 +5685,41 @@ function renderBuilderNodeElement(
           {visible.length === 0 ? (
             <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
           ) : (
-            <ServicesCatalogFilter
-              groups={groups}
-              locale={locale}
-              nav={
-                showCategoryNav && filterNav
-                  ? p.categoryNav === "tabs"
-                    ? "tabs"
-                    : "pills"
-                  : showCategoryNav
-                    ? "jump"
-                    : "flat"
+            <CatalogIslandBoundary
+              fallback={
+                <ServicesCatalogStaticFallback
+                  groups={groups}
+                  locale={locale}
+                  showPhoto={p.showPhoto !== false}
+                  showDuration={p.showDuration !== false}
+                  showUsdEquivalent={p.showUsdEquivalent !== false}
+                  ctaLabel={ctaLabel}
+                />
               }
-              showPhoto={p.showPhoto !== false}
-              showDuration={p.showDuration !== false}
-              showUsdEquivalent={p.showUsdEquivalent !== false}
-              confirmsByHand={confirmsByHand}
-              usdRates={usdRates}
-              ctaLabel={ctaLabel}
-              bookingMode={bookingMode}
-              tenantId={options.dataSources.tenantId ?? null}
-              jumpSlug={slug}
-            />
+            >
+              <ServicesCatalogFilter
+                groups={groups}
+                locale={locale}
+                nav={
+                  showCategoryNav && filterNav
+                    ? p.categoryNav === "tabs"
+                      ? "tabs"
+                      : "pills"
+                    : showCategoryNav
+                      ? "jump"
+                      : "flat"
+                }
+                showPhoto={p.showPhoto !== false}
+                showDuration={p.showDuration !== false}
+                showUsdEquivalent={p.showUsdEquivalent !== false}
+                confirmsByHand={confirmsByHand}
+                usdRates={usdRates}
+                ctaLabel={ctaLabel}
+                bookingMode={bookingMode}
+                tenantId={options.dataSources.tenantId ?? null}
+                jumpSlug={slug}
+              />
+            </CatalogIslandBoundary>
           )}
         </section>
       );
