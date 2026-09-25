@@ -389,7 +389,7 @@ export async function markPaymentLinkPaid(
  */
 export async function cancelPaymentLink(
   admin: Admin,
-  input: { tenantId: string; linkId: string },
+  input: { tenantId: string; linkId: string; asReplaced?: boolean },
   deps: { expireSession?: typeof expireCheckoutSession } = {},
 ): Promise<{ ok: true; already: boolean } | { ok: false; reason: "not_found" | "already_paid" | "unavailable" }> {
   const { data, error } = await admin
@@ -418,7 +418,12 @@ export async function cancelPaymentLink(
     const killed = await expireBoundSession(admin, row.reservation_id, deps.expireSession ?? expireCheckoutSession);
     if (!killed.ok) return { ok: false, reason: killed.reason === "complete" ? "already_paid" : "unavailable" };
   }
-  const { error: updErr } = await admin.from("payment_links").update({ status: "cancelled" }).eq("id", row.id).eq("status", "open");
+  const nextStatus = input.asReplaced ? "replaced" : "cancelled";
+  const { error: updErr } = await admin
+    .from("payment_links")
+    .update({ status: nextStatus })
+    .eq("id", row.id)
+    .eq("status", "open");
   if (updErr) {
     logServerError("payments.cancelPaymentLink.update", updErr);
     return { ok: false, reason: "unavailable" };

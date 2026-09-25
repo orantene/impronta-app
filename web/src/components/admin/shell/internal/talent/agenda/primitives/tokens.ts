@@ -21,6 +21,7 @@ export const TALENT_AGENDA_VARS: CSSProperties = {
   ["--tc-accent" as string]: TC.accent,
   ["--tc-primary" as string]: TC.primary,
   ["--tc-canvas" as string]: TC.canvas,
+  ["--tc-ok" as string]: TC.ok,
   background: TC.canvas,
 };
 

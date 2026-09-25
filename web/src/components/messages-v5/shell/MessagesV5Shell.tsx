@@ -87,6 +87,11 @@ export type MessagesV5ShellProps = {
   readonly hideInboxRail?: boolean;
   /** Talent inbox: the open conversation, so her approve or decline can follow it. */
   readonly onActiveInquiry?: (inquiryId: string | null) => void;
+  /**
+   * Talent studio Actions menu: expose shell dispatch so "+ Actions" can open
+   * the same sheets as the thread toolbar (create_offer, send_times, …).
+   */
+  readonly onDispatchReady?: (dispatch: (id: ShellActionId) => void) => void;
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -524,6 +529,10 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     },
     [copy.kit.composer.attach, copyText, engine, withVersion],
   );
+
+  useEffect(() => {
+    props.onDispatchReady?.(dispatch);
+  }, [dispatch, props.onDispatchReady]);
 
   const onPanelAction = useCallback(
     (kind: ContextPanelAction) => {
