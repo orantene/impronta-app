@@ -24,7 +24,6 @@ import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
 import { moneyFromEarnings } from "../agenda/present";
-import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 
@@ -41,6 +40,7 @@ export function TalentTodayPage() {
     bridgeTalentAgendaItems,
     bridgeTalentAgendaHours,
     bridgeTalentAgendaError,
+    bridgeTalentAgendaV2,
     bridgeTalentPageAnalytics,
     bridgeTalentEarnings,
     bridgeTalentPayoutSnapshot,
@@ -90,7 +90,7 @@ export function TalentTodayPage() {
     }
     setTalentPage(fallbackPage);
   };
-  if (isAgendaV2(bridgeTalentSelfProfile?.id)) {
+  if (bridgeTalentAgendaV2) {
     return (
       <AgendaTodayPage
         profile={bridgeTalentSelfProfile}

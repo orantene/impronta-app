@@ -420,6 +420,8 @@ type Ctx = {
   bridgeTalentAgendaHours: import("@/lib/scheduling/hours-types").BookingHours | null;
   /** Non-null when the agenda load failed behind the flag. */
   bridgeTalentAgendaError: string | null;
+  /** Server-stamped Agenda V2 gate (do not re-read env on the client). */
+  bridgeTalentAgendaV2: boolean;
 
   /**
    * Media photos from the bridge. `null` = mock mode (Media page falls
@@ -2158,6 +2160,7 @@ export function AdminShellProvider({
   const bridgeTalentAgendaItems = initialBridgeData?.talentAgendaItems ?? null;
   const bridgeTalentAgendaHours = initialBridgeData?.talentAgendaHours ?? null;
   const bridgeTalentAgendaError = initialBridgeData?.talentAgendaError ?? null;
+  const bridgeTalentAgendaV2 = initialBridgeData?.talentAgendaV2 === true;
 
   // Media gallery bridge — `null` falls back to MOCK_MEDIA in WorkspaceMediaPage,
   // empty array means "live mode, no photos yet" → renders empty state.
@@ -2309,6 +2312,7 @@ export function AdminShellProvider({
       bridgeTalentAgendaItems,
       bridgeTalentAgendaHours,
       bridgeTalentAgendaError,
+      bridgeTalentAgendaV2,
       bridgeTalentEarnings,
       bridgeTalentEarningsByCurrency,
       bridgeMediaPhotos,
@@ -2438,6 +2442,7 @@ export function AdminShellProvider({
       bridgeTalentAgendaItems,
       bridgeTalentAgendaHours,
       bridgeTalentAgendaError,
+      bridgeTalentAgendaV2,
       bridgeTalentEarnings,
       bridgeTalentEarningsByCurrency,
       bridgeMediaPhotos,
