@@ -3,7 +3,7 @@ import "server-only";
 /**
  * Never-published Maison apply Undo (A4 / W35–W36).
  * Snapshot lives in `talent_sites.pending_design.previous` after apply; live
- * `pending_design` proposed-design flow is PR8.
+ * sites use `kind: live_pending` (maison-pending-design.ts).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -102,9 +102,12 @@ export async function restoreMaisonDraftSnapshot(
     siteId: string;
     snapshot: MaisonDraftSnapshot;
     userId?: string | null;
+    /** Default true. PR8 restore keeps live `pending_design` after writing draft. */
+    clearPending?: boolean;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = new Date().toISOString();
+  const clearPending = input.clearPending !== false;
   const { error: siteErr, count: siteCount } = await admin
     .from("talent_sites")
     .update(
@@ -117,7 +120,7 @@ export async function restoreMaisonDraftSnapshot(
         theme_demo_slug: input.snapshot.theme_demo_slug,
         menu_style: input.snapshot.menu_style,
         custom_palette: input.snapshot.custom_palette,
-        pending_design: null,
+        ...(clearPending ? { pending_design: null } : {}),
         draft_updated_at: now,
         updated_at: now,
         ...(input.userId ? { updated_by: input.userId } : {}),

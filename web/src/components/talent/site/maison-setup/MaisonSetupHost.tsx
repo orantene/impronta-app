@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * Maison free-website setup host (PR4–PR5).
+ * Maison free-website setup host (PR4–PR8).
  * Flag-off / gate fail → renders nothing so TalentMaxSiteManager keeps today's path.
  * Screens: gallery → detail → review; live card mounts from the manager.
  */
 import { useEffect, useEffectEvent, useState } from "react";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { ChooseDesignScreen } from "./ChooseDesignScreen";
 import { ThemeDetailScreen } from "./ThemeDetailScreen";
 import { ReviewWebsiteScreen } from "./ReviewWebsiteScreen";
@@ -29,7 +30,7 @@ export function MaisonSetupHost({
   onCloseToSite?: () => void;
   /** After successful publish — manager reloads + shows My website card. */
   onPublished?: () => void;
-  /** Optional override (e.g. Change design from the live card). */
+  /** Optional override (e.g. Change design / restore from the live card). */
   forceScreen?: MaisonSetupChoices["screen"] | null;
   onForceScreenConsumed?: () => void;
 }) {
@@ -37,6 +38,10 @@ export function MaisonSetupHost({
   const locale: MaisonSetupLocale = rawLocale === "es" ? "es" : "en";
   const [talentProfileId, setTalentProfileId] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [sitePublished, setSitePublished] = useState(false);
+  const [liveLookSlug, setLiveLookSlug] = useState<string | null>(null);
+  const [liveCustomPalette, setLiveCustomPalette] =
+    useState<MaisonCustomPaletteStored | null>(null);
   const [choices, setChoices] = useState<MaisonSetupChoices>(defaultMaisonChoices);
   const [appliedToast, setAppliedToast] = useState(false);
   const consumeForceScreen = useEffectEvent(() => {
@@ -53,6 +58,9 @@ export function MaisonSetupHost({
       }
       setEnabled(true);
       setTalentProfileId(boot.talentProfileId);
+      setSitePublished(boot.sitePublished);
+      setLiveLookSlug(boot.themeLookSlug);
+      setLiveCustomPalette(boot.customPalette);
       setChoices(loadMaisonChoices(boot.talentProfileId));
     });
     return () => {
@@ -63,12 +71,20 @@ export function MaisonSetupHost({
   useEffect(() => {
     if (!forceScreen || !talentProfileId) return;
     setChoices((prev) => {
-      const merged: MaisonSetupChoices = { ...prev, screen: forceScreen, phoneSheet: null };
+      const merged: MaisonSetupChoices = {
+        ...prev,
+        screen: forceScreen,
+        phoneSheet: null,
+        // Change design from live card → My content (spec §10.1).
+        ...(forceScreen === "detail" && sitePublished
+          ? { contentMode: "mine" as const }
+          : {}),
+      };
       saveMaisonChoices(talentProfileId, merged);
       return merged;
     });
     consumeForceScreen();
-  }, [forceScreen, talentProfileId]);
+  }, [forceScreen, talentProfileId, sitePublished]);
 
   useEffect(() => {
     if (!appliedToast) return;
@@ -133,6 +149,12 @@ export function MaisonSetupHost({
             setAppliedToast(true);
             patch({ screen: "review", status: "Draft saved", phoneSheet: null });
           }}
+          onColorsPublished={() => {
+            onPublished?.();
+          }}
+          fromLiveSite={sitePublished}
+          liveLookSlug={liveLookSlug}
+          liveCustomPalette={liveCustomPalette}
         />
       )}
     </div>
