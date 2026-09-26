@@ -21,5 +21,5 @@ export const SERVICES_CATALOG_DEFAULT_PROPS: BuilderServicesCatalogNode["props"]
   showAskLink: true,
   ctaLabel: "",
   emptyMessage: "No services are published yet.",
-  bookingSheet: { accent: "ink" },
+  bookingSheet: { accent: "primary" },
 };

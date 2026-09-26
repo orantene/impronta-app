@@ -4483,14 +4483,17 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-photo-radius="round"] .site-builder-node--services-catalog-photo{border-radius:999px}
 @media (max-width:560px){.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-photo,.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-photo{width:72px;height:72px}}
 .site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.25rem}
-.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-word}
+.site-builder-node--services-catalog-name-text{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--token-color-accent,var(--token-color-primary,#A82458));color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
 .site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
-.site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}
+.site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;white-space:nowrap;font-size:1rem}
+.site-builder-node--services-catalog-price small{font-size:.6875rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.4rem .85rem;font-size:.75rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff)}
 .site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
-.site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 12%,transparent);color:var(--token-color-ink);border:1px solid transparent}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-accent,var(--token-color-primary,#A82458)) 14%,transparent);color:var(--token-color-ink);border:1px solid var(--token-color-accent,var(--token-color-primary,#A82458))}
 .site-builder-node--services-catalog[data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.65rem;padding-bottom:.65rem}
 .cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
@@ -5793,7 +5796,11 @@ function renderBuilderNodeElement(
                 durationFormat={p.durationFormat ?? "auto"}
                 mobileBar={p.mobileBar ?? "float"}
                 showAskLink={p.showAskLink !== false}
-                sheetAccent={p.bookingSheet?.accent ?? "ink"}
+                // Maison 1:1: rose Continuar/check. CMS nodes that stored
+                // accent "ink" made booking chrome black on vanity — coerce.
+                sheetAccent={
+                  p.bookingSheet?.accent === "ink" ? "primary" : (p.bookingSheet?.accent ?? "primary")
+                }
                 captcha={options.captcha ?? null}
                 bookingSettings={options.dataSources.talentOfferingsBookingSettings}
               />

@@ -187,8 +187,8 @@ test("ctaLabel overrides the OfferingCta text", () => {
   assert.match(html, />Seleccionar</);
 });
 
-test("row with extras uses Elegir opciones unless inspector overrides", () => {
-  const html = render([catalogNode()], {
+test("row with extras uses Choose options even when inspector ctaLabel is Select", () => {
+  const html = render([catalogNode({ ctaLabel: "Select" })], {
     talentOfferings: [
       offering({
         addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
@@ -196,7 +196,26 @@ test("row with extras uses Elegir opciones unless inspector overrides", () => {
     ],
   });
   assert.match(html, />Choose options</);
+  assert.doesNotMatch(html, />Select</);
   assert.match(html, /data-offering-cta=/);
+});
+
+test("ladder rows print Desde / From above region-aware money", () => {
+  const html = render([catalogNode()], {
+    talentOfferings: [
+      offering({
+        title: "Soft Gel",
+        amountCents: 50000,
+        variants: [
+          { id: "v2", label: "Largo #2", amountCents: 50000 },
+          { id: "v3", label: "Largo #3", amountCents: 55000 },
+        ],
+      }),
+    ],
+  });
+  assert.match(html, /<small>From<\/small>/);
+  assert.match(html, /\$500/);
+  assert.doesNotMatch(html, /500\s*MXN/);
 });
 
 test("the catalog island mounts the booking sheet and bar", () => {

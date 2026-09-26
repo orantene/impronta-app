@@ -97,4 +97,14 @@ test("row CTA follows Maison labels", () => {
     catalogRowCtaLabel({ selected: false, offering, locale: "es", inspectorLabel: "Reservar" }),
     "Reservar",
   );
+  // CMS "Seleccionar" must not wipe Elegir opciones on Soft Gel-style rows.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: { ...offering, variants: [{ id: "v1", label: "Largo #3", amountCents: 55000 }] },
+      locale: "es",
+      inspectorLabel: "Seleccionar",
+    }),
+    "Elegir opciones",
+  );
 });
