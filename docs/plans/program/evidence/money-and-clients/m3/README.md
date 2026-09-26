@@ -41,6 +41,7 @@
 
 ## PR
 
+- Draft: https://github.com/orantene/impronta-app/pull/2300
 - Branch: `cursor/mc-m3-today-tiles-bcab`
 - Base: `origin/main` @ `47aebf8ae` (M2 #2299)
 
