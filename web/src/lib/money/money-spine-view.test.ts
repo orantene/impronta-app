@@ -11,6 +11,7 @@ import {
   buildMoneySpineView,
   buildPaymentDetail,
   buildPayoutDetail,
+  buildBreakdownView,
   filterOutstanding,
   outstandingFilterTotal,
   payoutAccountStates,
@@ -127,5 +128,27 @@ describe("Money spine view (M2)", () => {
     assert.equal(states[7]?.chip, "Failed");
     assert.equal(states[8]?.chip, "Could not load");
     assert.ok(states[8]?.body.includes("hidden rather than shown as zero"));
+  });
+
+  it("breakdown view matches LEDGER-CONTRACT reconciliation (mc_breakdown)", () => {
+    const bd = buildBreakdownView();
+    assert.equal(bd.title, "Breakdown · September");
+    assert.equal(bd.processorLines.length, 6);
+    assert.equal(bd.processorLines[0]?.amountLabel, "$1,860 MXN");
+    assert.equal(bd.processorLines[1]?.amountLabel, "$12,300 MXN");
+    assert.equal(bd.processorLines[2]?.amountLabel, "− $120 MXN");
+    assert.equal(bd.processorLines[2]?.sub, "Daniela Ortiz, Wed 16 Sep");
+    assert.equal(bd.processorLines[3]?.amountLabel, "− $289 MXN");
+    assert.equal(bd.processorLines[4]?.amountLabel, "− $7,751 MXN");
+    assert.ok(bd.processorLines[4]?.label.includes("BBVA"));
+    assert.equal(bd.processorLines[5]?.amountLabel, "$6,000 MXN");
+    assert.equal(bd.processorLines[5]?.strong, true);
+    assert.ok(bd.processorLines[5]?.sub?.includes("$5,784"));
+    assert.ok(bd.processorLines[5]?.sub?.includes("$216"));
+    assert.equal(bd.outsideLines[0]?.amountLabel, "$4,150 MXN");
+    assert.equal(bd.outsideLines[1]?.amountLabel, "$2,000 MXN");
+    assert.equal(bd.collectedLines[0]?.amountLabel, "$18,450 MXN");
+    assert.equal(bd.collectedLines[2]?.amountLabel, "$18,330 MXN");
+    assert.ok(bd.whyTitle.includes("payout"));
   });
 });

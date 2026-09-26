@@ -38,13 +38,21 @@ export const LEDGER_CONTRACT_AGGREGATES = {
 
 /**
  * Reconciliation identity (`mc_breakdown`) — fixture placeholders for fees.
- * Live fees come from Stripe balance transactions (M5).
+ * Live fees come from Stripe balance transactions later; Stage C M5 uses these.
  */
 export const LEDGER_CONTRACT_RECONCILIATION = {
   waiting_on_1_sep: 1860,
+  /** August card payments carried into Fri 4 (visual-spec count). */
+  waiting_on_1_sep_payments: 3,
   card: 12300,
+  /** September card payments 2–22 Sep. */
+  card_payments: 15,
   refund: 120,
   fees_placeholder: 289,
   paid_out: 7751,
   waiting_for_fri_25: 6000,
+  /** Fri 25 estimated fees (PO-0925). */
+  fri_25_fees_estimated: 216,
+  cash_payments: 6,
+  transfer_payments: 3,
 } as const;

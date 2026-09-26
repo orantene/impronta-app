@@ -51,6 +51,24 @@ describe("Money page M2 spine", () => {
     assert.match(states, /Design reference/);
     assert.match(states, /onViewFailedPayout/);
   });
+
+  it("MoneyPage M5 opens breakdown from Payouts View breakdown", () => {
+    const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
+    const spine = readFileSync(join(moneyDir, "MoneySpine.tsx"), "utf8");
+    const payouts = readFileSync(join(moneyDir, "MoneyPayoutsPanel.tsx"), "utf8");
+    const breakdown = readFileSync(join(moneyDir, "MoneyBreakdownPanel.tsx"), "utf8");
+    const view = readFileSync(join(here, "money-spine-view.ts"), "utf8");
+    assert.match(page, /MoneyBreakdownPanel/);
+    assert.match(page, /onViewBreakdown/);
+    assert.match(spine, /onViewBreakdown/);
+    assert.match(payouts, /data-money-view-breakdown/);
+    assert.match(payouts, /View breakdown/);
+    assert.match(breakdown, /data-money-breakdown/);
+    assert.match(breakdown, /buildBreakdownView/);
+    assert.match(view, /Waiting now, goes in the Fri 25 payout/);
+    assert.match(view, /buildBreakdownView/);
+    assert.match(view, /LEDGER_CONTRACT_RECONCILIATION/);
+  });
 });
 
 describe("Today money tiles M3", () => {

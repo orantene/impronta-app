@@ -113,5 +113,10 @@ describe("September ledger fixture vs LEDGER-CONTRACT", () => {
     assert.equal(r.card, c.by_method.card);
     assert.equal(r.refund, c.refunded);
     assert.equal(r.paid_out, c.platform_paid_out);
+    assert.equal(r.card_payments, 15);
+    assert.equal(r.cash_payments, 6);
+    assert.equal(r.transfer_payments, 3);
+    assert.equal(r.fri_25_fees_estimated, 216);
+    assert.equal(c.next_payout_estimated, r.waiting_for_fri_25 - r.fri_25_fees_estimated);
   });
 });
