@@ -449,6 +449,8 @@ export function ClientOutcomeCard({
       : outcome === "pay_failed"
         ? copy.outcome.payFailedTitle
         : copy.outcome.refundedTitle;
+  const label =
+    outcome === "declined" ? copy.offer.cat : copy.pay.cat;
   const body =
     outcome === "declined"
       ? copy.outcome.declinedBody
@@ -469,7 +471,7 @@ export function ClientOutcomeCard({
   return (
     <Card
       category={category}
-      label={title}
+      label={label}
       title={title}
       variant="mobile"
       testId={`client-outcome-${outcome}`}
