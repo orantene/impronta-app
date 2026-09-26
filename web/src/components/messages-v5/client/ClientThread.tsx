@@ -90,7 +90,15 @@ export function ClientThread(props: ClientThreadProps) {
     [props.token, router],
   );
 
-  const refused = useCallback((key: string, reason: MessagingRefusal) => setAct(key, { phase: "refused", refusal: reason }), [setAct]);
+  const refused = useCallback(
+    (key: string, reason: MessagingRefusal, nextFreeTimes?: readonly string[]) =>
+      setAct(key, {
+        phase: "refused",
+        refusal: reason,
+        ...(nextFreeTimes && nextFreeTimes.length > 0 ? { nextFreeTimes } : {}),
+      }),
+    [setAct],
+  );
 
   const onChoose = useCallback(
     async (messageId: string, ids: readonly string[]) => {
@@ -125,7 +133,8 @@ export function ClientThread(props: ClientThreadProps) {
       setAct(messageId, { phase: "busy" });
       const result = await messagingClientPickTime({ token: props.token, messageId, startsAt });
       if (!result.ok) {
-        refused(messageId, result.reason);
+        // Engine nextFreeTimes only — never invent a clock on the client link.
+        refused(messageId, result.reason, result.nextFreeTimes);
         return;
       }
       setAct(messageId, { phase: "done" });
