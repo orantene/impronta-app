@@ -221,7 +221,14 @@ export function ServicesCatalogFilter({
   };
 
   return (
-    <div className="cb-island" data-sheet-accent={sheetAccent}>
+    <div className="cb-island" data-sheet-accent={sheetAccent} data-booking-mode={bookingMode}>
+      {bookingMode === "demo" ? (
+        <p className="site-builder-node--services-catalog-demo" role="status">
+          {es
+            ? "Vista previa: no se crea ninguna reserva real."
+            : "Preview: no real bookings are created."}
+        </p>
+      ) : null}
       {enableCatalogSearch ? (
         <div className="site-builder-node--services-catalog-search">
           <input
