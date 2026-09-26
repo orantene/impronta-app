@@ -50,7 +50,6 @@ const ES: Record<string, string> = {
   "Service menu": "Menú de servicios",
   "Booking-ready": "Listo para reservar",
   Portfolio: "Portafolio",
-  "Custom colors open in a later step.": "Los colores personalizados llegan en un paso posterior.",
   "Import opens in a later step.": "La importación llega en un paso posterior.",
   "Apply & review land in the next release. Your choices are saved.":
     "Aplicar y revisar llegan en la siguiente versión. Tus elecciones están guardadas.",

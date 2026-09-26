@@ -10,17 +10,21 @@ import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
-import { MAISON_PALETTE_ORDER } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { MAISON_DEFAULT_PALETTE_KEY, MAISON_PALETTE_ORDER } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { MAISON_BUILTIN_DEMO } from "@/lib/talent-site/theme-catalog/maison/builtins";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
-
-function isMaisonPaletteKey(value: string): value is MaisonPaletteKey {
-  return (MAISON_PALETTE_ORDER as readonly string[]).includes(value);
-}
+import {
+  buildMaisonCustomPalette,
+  isCompleteCustomFields,
+  maisonCustomLookTokens,
+  parseMaisonCustomPaletteStored,
+  type MaisonCustomPaletteStored,
+} from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
-import { applyDesign, applyLook } from "./theme-apply-core";
+import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import {
   captureMaisonDraftSnapshot,
@@ -29,31 +33,59 @@ import {
   type MaisonPendingUndo,
 } from "./maison-design-snapshot";
 
+function isMaisonPaletteKey(value: string): value is MaisonPaletteKey {
+  return (MAISON_PALETTE_ORDER as readonly string[]).includes(value);
+}
+
 const DESIGN_SLUG = "maison";
 
 export type MaisonApplyResult = {
   designSlug: string;
-  lookSlug: string;
-  paletteKey: MaisonPaletteKey;
+  lookSlug: string | null;
+  paletteKey: MaisonPaletteKey | null;
   contentMode: MaisonPreviewContentMode;
+  customPalette: MaisonCustomPaletteStored | null;
 };
 
 export async function applyMaisonDesignAction(input: {
   paletteKey: string;
   contentMode?: string;
+  customPalette?: MaisonCustomPaletteStored | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
   if (!isTalentMaisonThemeEnabled()) {
     return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
   }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
-  if (!isMaisonPaletteKey(input?.paletteKey ?? "")) {
-    return { ok: false, code: "invalid_input", error: "Unknown palette." };
-  }
-  const paletteKey = input.paletteKey as MaisonPaletteKey;
+
   const contentMode: MaisonPreviewContentMode =
     input?.contentMode === "mine" ? "mine" : "demo";
-  const lookSlug = `maison-${paletteKey}`;
+
+  const customParsed = input?.customPalette
+    ? parseMaisonCustomPaletteStored(input.customPalette) ??
+      (isCompleteCustomFields(input.customPalette.fields)
+        ? buildMaisonCustomPalette(
+            input.customPalette.fields,
+            input.customPalette.name,
+          )
+        : null)
+    : null;
+  const useCustom = customParsed !== null;
+
+  let paletteKey: MaisonPaletteKey | null = null;
+  let lookSlug: string | null = null;
+  if (!useCustom) {
+    if (!isMaisonPaletteKey(input?.paletteKey ?? "")) {
+      return { ok: false, code: "invalid_input", error: "Unknown palette." };
+    }
+    paletteKey = input.paletteKey as MaisonPaletteKey;
+    lookSlug = `maison-${paletteKey}`;
+  } else {
+    // Keep a named fallback for resume; tokens come from custom_palette.
+    paletteKey = isMaisonPaletteKey(input?.paletteKey ?? "")
+      ? (input.paletteKey as MaisonPaletteKey)
+      : MAISON_DEFAULT_PALETTE_KEY;
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
@@ -85,10 +117,6 @@ export async function applyMaisonDesignAction(input: {
   if (!design) {
     return { ok: false, code: "theme_not_found", error: "Maison design not found." };
   }
-  const look = await loadMaisonCatalogRow(admin, "look", lookSlug);
-  if (!look) {
-    return { ok: false, code: "theme_not_found", error: "Maison palette not found." };
-  }
 
   const captured = await captureMaisonDraftSnapshot(admin, {
     talentProfileId: g.talentProfileId,
@@ -107,8 +135,54 @@ export async function applyMaisonDesignAction(input: {
   });
   if (!designRes.ok) return designRes;
 
-  const lookRes = await applyLook(admin, { siteId, look, userId: g.userId });
-  if (!lookRes.ok) return lookRes;
+  if (useCustom && customParsed) {
+    const { data: draftRow, error: draftErr } = await admin
+      .from("talent_sites")
+      .select("design_tokens_draft")
+      .eq("id", siteId)
+      .maybeSingle();
+    if (draftErr) {
+      logServerError("maison.apply.custom.read", draftErr);
+      return { ok: false, code: "server_error", error: "Could not apply custom colors." };
+    }
+    const draftTokens = mergeLookIntoTokens(
+      coerceTokenMap(
+        (draftRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
+      ),
+      maisonCustomLookTokens(customParsed),
+    );
+    const nowTokens = new Date().toISOString();
+    const { error: customErr } = await admin
+      .from("talent_sites")
+      .update({
+        design_tokens_draft: draftTokens,
+        theme_look_slug: null,
+        custom_palette: customParsed,
+        draft_updated_at: nowTokens,
+        updated_at: nowTokens,
+        updated_by: g.userId,
+      })
+      .eq("id", siteId);
+    if (customErr) {
+      logServerError("maison.apply.custom.write", customErr);
+      return { ok: false, code: "server_error", error: "Could not apply custom colors." };
+    }
+  } else {
+    const look = await loadMaisonCatalogRow(admin, "look", lookSlug!);
+    if (!look) {
+      return { ok: false, code: "theme_not_found", error: "Maison palette not found." };
+    }
+    const lookRes = await applyLook(admin, { siteId, look, userId: g.userId });
+    if (!lookRes.ok) return lookRes;
+    // Clear prior custom palette when applying a named look.
+    const { error: clearErr } = await admin
+      .from("talent_sites")
+      .update({ custom_palette: null })
+      .eq("id", siteId);
+    if (clearErr) {
+      logServerError("maison.apply.clearCustom", clearErr);
+    }
+  }
 
   const demoPayload = MAISON_BUILTIN_DEMO.buildPayload();
   const pending: MaisonPendingUndo = {
@@ -117,10 +191,11 @@ export async function applyMaisonDesignAction(input: {
     created_at: new Date().toISOString(),
     applied: {
       designSlug: DESIGN_SLUG,
-      lookSlug,
-      paletteKey,
+      lookSlug: useCustom ? null : lookSlug,
+      paletteKey: useCustom ? null : paletteKey,
       contentMode,
       demoSlug: MAISON_BUILTIN_DEMO.slug,
+      customPalette: useCustom ? customParsed : null,
     },
   };
   const now = new Date().toISOString();
@@ -143,7 +218,13 @@ export async function applyMaisonDesignAction(input: {
 
   return {
     ok: true,
-    data: { designSlug: DESIGN_SLUG, lookSlug, paletteKey, contentMode },
+    data: {
+      designSlug: DESIGN_SLUG,
+      lookSlug: useCustom ? null : lookSlug,
+      paletteKey: useCustom ? null : paletteKey,
+      contentMode,
+      customPalette: useCustom ? customParsed : null,
+    },
   };
 }
 
