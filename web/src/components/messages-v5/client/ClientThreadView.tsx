@@ -33,7 +33,7 @@ import { fill, type KitCopy } from "../kit/copy";
 import { DaySeparator, MessageBubble, SystemLine } from "../kit/MessageBubble";
 import { Avatar, Btn, Icon } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTimesCard, type CardPhase } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeFromMessage, ClientPaymentCard, ClientTimesCard, type CardPhase } from "./ClientCards";
 import type { ClientCopy } from "./copy";
 
 export type ComposerPhase = "idle" | "sending" | "failed" | "sent";
@@ -162,6 +162,15 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
   const payload = message.payload;
+  const outcome = ClientOutcomeFromMessage({
+    kind,
+    payload,
+    body: message.body,
+    copy,
+    payCode: p.payCode,
+    onPay: p.onPay ?? null,
+  });
+  if (outcome) return outcome;
   switch (kind) {
     case "menu_options":
     case "service_card":
