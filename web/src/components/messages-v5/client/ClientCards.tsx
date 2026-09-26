@@ -8,7 +8,8 @@
  *   ClientOfferCard    offer_event / offer_review (accept exact version, ask for a change, decline)
  *   ClientPaymentCard  payment_request (Pay opens /pay/<code>) and payment_paid
  *                      (total / paid / due when the shell stamped them)
- *   ClientConfirmedCard order_confirmation / appointment_confirmation (Ask for a change, Receipt)
+ *   ClientConfirmedCard order_confirmation / appointment_confirmation
+ *                      (Ask for a change, Receipt; Add to calendar when booked)
  *   ClientChangeCard   change_request / change_result, including cancel + refund sentences
  *   ClientOutcomeCard  Declined / Pay failed / Refunded (front-door v27; engine producers only)
  *   ClientDraftCard    basket (read-only: what the client picked so far)
@@ -19,6 +20,7 @@
 
 import { useState } from "react";
 
+import { buildIcsEvent, downloadIcs } from "@/lib/ui/ics";
 import type { MessagingRefusal } from "@/lib/messaging/types";
 import type { GuestOutcomeKind } from "@/lib/messages-v5/guest-outcome";
 import {
@@ -396,6 +398,22 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
   const [text, setText] = useState("");
   const busy = phase === "busy";
   const order = kind === "order_confirmation";
+  const booked = Boolean(view.when);
+  function addToCalendar() {
+    if (!view.when) return;
+    const startsAt = new Date(view.when);
+    if (Number.isNaN(startsAt.getTime())) return;
+    const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+    const summary = view.title ?? view.summary ?? (order ? copy.confirmed.catOrder : copy.confirmed.catBooking);
+    const payload = buildIcsEvent({
+      uid: view.recordId ?? `confirmed-${startsAt.toISOString()}`,
+      summary: summary || business,
+      description: view.summary ?? undefined,
+      startsAt,
+      endsAt,
+    });
+    downloadIcs("booking.ics", payload);
+  }
   return (
     <Card category={order ? "order" : "appt"} label={order ? copy.confirmed.catOrder : copy.confirmed.catBooking} title={view.title ?? view.summary ?? (order ? copy.confirmed.catOrder : copy.confirmed.catBooking)} variant="mobile" testId="client-confirmed"
       pills={<Pill tone="money">{copy.confirmed.pill}</Pill>}
@@ -412,6 +430,11 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
             </div>
           ) : (
             <div className="cx-row">
+              {booked ? (
+                <Btn size="sm" icon="cal" onClick={addToCalendar} data-client-action="add_calendar">
+                  {copy.confirmed.addToCalendar}
+                </Btn>
+              ) : null}
               {onChange ? <Btn size="sm" icon="refresh" onClick={() => setOpen(true)} data-client-action="ask_change">{copy.confirmed.askChange}</Btn> : null}
               <Btn size="sm" icon="file" disabled title={copy.confirmed.receiptSoon} data-client-action="receipt">{copy.confirmed.receipt}</Btn>
             </div>

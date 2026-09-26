@@ -81,6 +81,8 @@ export async function syncPaymentCardsForRecord(
   if (!target || !input.tenantId || !input.recordId) return { ok: true, updated: 0 };
   if (typeof admin.from !== "function") return { ok: true, updated: 0 };
   const from = (table: string) => admin.from!(table);
+  /** Outside cash/transfer: money settled without a paid link. */
+  const outsideSettle = target === "paid" && Boolean(input.method);
 
   const { data: records, error: recordErr } = await from("conversation_records")
     .select("inquiry_id")
@@ -111,6 +113,7 @@ export async function syncPaymentCardsForRecord(
     tenantId: input.tenantId,
     orderId: input.recordId,
     target,
+    outsideSettle,
   });
 
   const needsPaidMoney = target === "paid" || target === "partially_refunded" || target === "refunded";
@@ -127,10 +130,13 @@ export async function syncPaymentCardsForRecord(
       needsPaidMoney &&
       (typeof payload.totalCents !== "number" || typeof payload.currency !== "string" || typeof payload.method !== "string");
     // Never reopen Pay. Allow paid → refunded / partially_refunded (truth), and
-    // fill missing money fields on an already-paid card.
+    // fill missing money fields on an already-paid card. Outside settle may
+    // supersede a cancelled/expired request card when cash was recorded.
     const refundForward =
       current === "paid" && (target === "refunded" || target === "partially_refunded");
-    if (TERMINAL.has(current) && current !== target && !needsMoney && !refundForward) continue;
+    const outsidePaid =
+      outsideSettle && (current === "cancelled" || current === "expired" || current === "sent");
+    if (TERMINAL.has(current) && current !== target && !needsMoney && !refundForward && !outsidePaid) continue;
     if (current === target && !needsMoney) continue;
 
     const paidCents = typeof payload.amountCents === "number" ? payload.amountCents : orderTotal?.totalCents;
@@ -202,9 +208,14 @@ async function loadRelevantLinkCodes(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     select: (cols: string) => any;
   },
-  input: { tenantId: string; orderId: string; target: PaymentCardState },
+  input: { tenantId: string; orderId: string; target: PaymentCardState; outsideSettle?: boolean },
 ): Promise<Set<string> | null> {
-  const statuses = LINK_STATUS_FOR_CARD[input.target];
+  // Outside cash: the open link was often cancelled first, so "paid" status
+  // codes are empty. Include the superseded link statuses so the matching
+  // payment_request card still flips to Pagado.
+  const statuses = input.outsideSettle
+    ? new Set(["paid", "cancelled", "expired", "open", "replaced"])
+    : LINK_STATUS_FOR_CARD[input.target];
   try {
     const { data, error } = await from("payment_links")
       .select("code, status")

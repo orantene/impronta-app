@@ -503,6 +503,15 @@ export async function messagingRequestPayment(input: {
   const { data: lines } = await scoped(g.admin, "order_lines", g.tenantId)
     .select("id, label, units, unit_cents")
     .eq("order_id", parsed.data.orderId);
+  // Messages often runs on app.tulala.digital; /pay is agency/hub only. Same
+  // rewrite as agenda Collect deposit (#2311) so the minted URL does not 404.
+  const { resolveAgendaPayPublicOrigin } = await import("@/lib/talent-agenda/pay-public-origin");
+  const publicOrigin = await resolveAgendaPayPublicOrigin(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    g.admin as any,
+    g.tenantId,
+    parsed.data.publicOrigin,
+  );
   // A2/#14: mint first — snapshot only after success (no orphan rows on refuse).
   const minted = await createPaymentLink(g.admin, {
     tenantId: g.tenantId,
@@ -510,7 +519,7 @@ export async function messagingRequestPayment(input: {
     amountCents,
     idempotencyKey: parsed.data.idempotencyKey,
     actorUserId: g.userId,
-    publicOrigin: parsed.data.publicOrigin,
+    publicOrigin,
     inquiryId: parsed.data.inquiryId, // D-145/D-150: stamp conversation on link+order
   });
   if (!minted.ok) {

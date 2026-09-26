@@ -43,6 +43,15 @@ test("messagingRecordOutsidePayment requires a reference of at least 3 character
   assert.match(body, /reference:\s*z\.string\(\)\.trim\(\)\.min\(3\)/);
 });
 
+test("messagingRecordOutsidePayment order path stamps payment_request cards after verified collection", () => {
+  const start = SRC.indexOf("export async function messagingRecordOutsidePayment");
+  const body = SRC.slice(start, SRC.indexOf("async function recordOutsidePaymentFollowUp"));
+  assert.match(body, /recordVerifiedCollection/);
+  assert.match(body, /syncPaymentCardsForRecord/);
+  assert.match(body, /paymentState:\s*"paid"/);
+  assert.match(body, /method/);
+});
+
 test("messagingRecordOutsidePayment maps a payout-receiver failure to the no_payout_receiver refusal on BOTH paths (order and workspace)", () => {
   const start = SRC.indexOf("export async function messagingRecordOutsidePayment");
   const body = SRC.slice(start, SRC.indexOf("async function recordOutsidePaymentFollowUp"));

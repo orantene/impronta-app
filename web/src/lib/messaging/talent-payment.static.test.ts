@@ -8,7 +8,10 @@ test("request payment uses the talent seller actor and still mints with the POS 
   const fn = src.slice(src.indexOf("export async function messagingRequestPayment"));
   const body = fn.slice(0, fn.indexOf("\nexport async function", 10));
   assert.match(body, /talentSellerPaymentActor\(parsed\.data\.inquiryId\)/);
+  assert.match(body, /resolveAgendaPayPublicOrigin/);
   assert.match(body, /createPaymentLink\(g\.admin, \{[\s\S]*?inquiryId: parsed\.data\.inquiryId,[\s\S]*?\}\)/);
+  assert.match(body, /publicOrigin,/);
+  assert.doesNotMatch(body, /publicOrigin:\s*parsed\.data\.publicOrigin/);
   const actor = readFileSync(join(process.cwd(), "src/lib/messaging/talent-payment-actor.ts"), "utf8");
   assert.match(actor, /talentPaymentRefusal/);
   assert.match(actor, /not_her_sale|fail\(refusal\)/);

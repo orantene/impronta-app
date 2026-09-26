@@ -19137,6 +19137,7 @@
             "pill": "Confirmed",
             "when": "When",
             "askChange": "Ask for a change",
+            "addToCalendar": "Add to calendar",
             "receipt": "Receipt",
             "receiptSoon": "Your receipt will be available here soon."
           },

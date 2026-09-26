@@ -180,6 +180,7 @@ export function buildClientCopy(t: Translator) {
       pill: t("dashboard.messagesV5.client.link.confirmed.pill"),
       when: t("dashboard.messagesV5.client.link.confirmed.when"),
       askChange: t("dashboard.messagesV5.client.link.confirmed.askChange"),
+      addToCalendar: t("dashboard.messagesV5.client.link.confirmed.addToCalendar"),
       receipt: t("dashboard.messagesV5.client.link.confirmed.receipt"),
       receiptSoon: t("dashboard.messagesV5.client.link.confirmed.receiptSoon"),
     },
