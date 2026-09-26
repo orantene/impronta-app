@@ -84,7 +84,7 @@ export function ClientCard({ message, kind, copy, kit, locale, business, now, of
     }
     case "professional_times": {
       const a = act(message.id);
-      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={(startsAt) => void actions.onPickTime(message.id, startsAt)} onAsk={onAsk} />;
+      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={business} locale={locale} now={now} phase={a.phase} refusal={a.refusal} nextFreeTimes={a.nextFreeTimes} onPick={(startsAt) => void actions.onPickTime(message.id, startsAt)} onAsk={onAsk} />;
     }
     case "offer_event":
     case "offer_review":

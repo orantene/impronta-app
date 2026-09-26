@@ -122,7 +122,27 @@ export function ClientTicketsCard({ view, copy, business, onOpen }: Omit<Common,
 
 /* ---------- times ---------- */
 
-export function ClientTimesCard({ view, copy, kit, business, locale, now, phase = "idle", refusal, onPick, onAsk, startReopened = false }: Common & { readonly view: TimesView; readonly now: Date; readonly onPick?: (startsAt: string) => void; readonly onAsk?: (text: string) => void; readonly startReopened?: boolean }) {
+export function ClientTimesCard({
+  view,
+  copy,
+  kit,
+  business,
+  locale,
+  now,
+  phase = "idle",
+  refusal,
+  nextFreeTimes,
+  onPick,
+  onAsk,
+  startReopened = false,
+}: Common & {
+  readonly view: TimesView;
+  readonly now: Date;
+  readonly nextFreeTimes?: readonly string[];
+  readonly onPick?: (startsAt: string) => void;
+  readonly onAsk?: (text: string) => void;
+  readonly startReopened?: boolean;
+}) {
   const state = timesState(view, now);
   const [reopened, setReopened] = useState(startReopened);
   const left = holdCountdown(view.holdExpiresAt, now);
@@ -145,6 +165,7 @@ export function ClientTimesCard({ view, copy, kit, business, locale, now, phase 
       {onAsk ? <Btn size="sm" onClick={() => onAsk(copy.times.askPrefill)} data-client-action="ask_hold">{copy.times.ask}</Btn> : null}
     </>
   ) : null;
+  const freeAlts = phase === "refused" && (refusal === "unavailable" || refusal === "hold_ended") ? (nextFreeTimes ?? []).filter((s) => s.length > 0) : [];
   return (
     <Card category="appt" label={copy.times.cat} title={view.professionalName ? fill(copy.times.titleWith, { name: view.professionalName }) : copy.times.title} variant="mobile" testId="client-times" busy={phase === "busy"} pills={pill} foot={foot} actions={endedActions}>
       {view.slots.map((s) => {
@@ -160,9 +181,28 @@ export function ClientTimesCard({ view, copy, kit, business, locale, now, phase 
         );
       })}
       {phase === "refused" && refusal ? (
-        <div className="cx-inline">
+        <div className="cx-inline" data-slot-taken="1">
           <RefusalLine code={refusal} copy={kit} variant="mobile" />
           {refusal === "unavailable" || refusal === "hold_ended" ? <CardLine muted label={fill(copy.times.taken, { business })} /> : null}
+          {freeAlts.length > 0 ? (
+            <div data-next-free-times="" style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+              <CardLine muted label={copy.times.nextFree} />
+              {freeAlts.map((startsAt) => (
+                <button
+                  key={startsAt}
+                  type="button"
+                  className="cx-pick rad"
+                  disabled={!onPick}
+                  onClick={() => onPick?.(startsAt)}
+                  data-next-free={startsAt}
+                >
+                  <span className="tx">
+                    <b>{formatSlot(startsAt, locale, view.timezone)}</b>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </Card>

@@ -83,7 +83,7 @@ export type MiniChatSendArgs = {
     code: string,
     message: string,
     retryAfterMs?: number,
-    extra?: { gateTier?: GuestIdentityTier; activeCount?: number; limit?: number },
+    extra?: { gateTier?: GuestIdentityTier; activeCount?: number; limit?: number; nextFreeTimes?: string[] },
   ) => void;
   /** Called once a "Send to agency" submission lands, to show the success note. */
   onSent?: () => void;
@@ -258,6 +258,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         gateTier: res.gateTier,
         activeCount: res.activeCount,
         limit: res.limit,
+        nextFreeTimes: res.nextFreeTimes,
       });
       return;
     }
@@ -317,6 +318,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         gateTier: res.gateTier,
         activeCount: res.activeCount,
         limit: res.limit,
+        nextFreeTimes: res.nextFreeTimes,
       });
       return false;
     }

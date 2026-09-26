@@ -67,6 +67,7 @@ export function buildClientCopy(t: Translator) {
       ask: t("public.guestChat.catalogAsk"),
       askPrefill: t("public.guestChat.timesAskPrefill"),
       taken: t("dashboard.messagesV5.client.link.times.taken"),
+      nextFree: t("dashboard.messagesV5.client.link.times.nextFree"),
       noSlots: t("dashboard.messagesV5.client.link.times.noSlots"),
     },
     offer: {

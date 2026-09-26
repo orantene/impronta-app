@@ -36,6 +36,7 @@ import { fail } from "@/lib/messaging/refusals";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
 import type { ActionResult, MessagingRefusal } from "@/lib/messaging/types";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
+import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { placeReservationHold } from "@/lib/scheduling/reservation-hold";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -191,7 +192,14 @@ export async function messagingClientPickTime(input: { token: string; messageId:
     ttlSeconds: CLIENT_TIME_HOLD_SECONDS,
     createdByUserId: null,
   });
-  if (!hold.ok) return fail(hold.code === "slot_taken" ? "unavailable" : hold.code === "invalid" ? "invalid" : "unavailable");
+  if (!hold.ok) {
+    if (hold.code === "slot_taken") {
+      // Same producer as guest-chat start: real next free starts only. Empty list ⇒ panel says pick another, never invents a clock.
+      const nextFreeTimes = await nextFreeTimesForTalent(l.admin, talentProfileId).catch(() => []);
+      return fail("unavailable", { nextFreeTimes });
+    }
+    return fail(hold.code === "invalid" ? "invalid" : "unavailable");
+  }
   await scoped(l.admin, "inquiry_messages", l.tenantId)
     .update({ card_payload: { ...p, state: "selected", pickedStartsAt: parsed.data.startsAt, holdId: hold.holdId, holdExpiresAt: hold.expiresAt, pickedAt: new Date().toISOString() } })
     .eq("id", card.id);

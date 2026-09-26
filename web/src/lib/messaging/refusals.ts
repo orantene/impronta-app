@@ -35,6 +35,10 @@ export function isMessagingRefusal(value: string): value is MessagingRefusal {
   return (MESSAGING_REFUSAL_CODES as readonly string[]).includes(value);
 }
 
-export function fail(reason: MessagingRefusal): { ok: false; reason: MessagingRefusal } {
+export function fail(
+  reason: MessagingRefusal,
+  extra?: { nextFreeTimes?: string[] },
+): { ok: false; reason: MessagingRefusal; nextFreeTimes?: string[] } {
+  if (extra?.nextFreeTimes) return { ok: false, reason, nextFreeTimes: extra.nextFreeTimes };
   return { ok: false, reason };
 }

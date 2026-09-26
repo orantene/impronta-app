@@ -57,6 +57,7 @@ import { MiniChatComposer } from "./MiniChatComposer";
 import { GuestNextStep } from "./GuestNextStep";
 import { useGuestDockModel } from "./use-guest-dock-model";
 import { MiniChatGateForm } from "./MiniChatGateForm";
+import { GuestHandoffContactStrip } from "./GuestHandoffContactStrip";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
 import { SendToAgencyBar } from "./SendToAgencyBar";
 import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
@@ -114,6 +115,7 @@ export type MiniChatPanelColumnProps = {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
   honeypot: string;
   sending: boolean;
   error: string | null;
@@ -304,6 +306,7 @@ export function MiniChatPanelColumn({
   firstName,
   lastName,
   email,
+  phone = "",
   honeypot,
   sending,
   error,
@@ -418,7 +421,7 @@ export function MiniChatPanelColumn({
     onDockViewChange?.("chat");
   };
 
-  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, inquiryId, onOpenInquiry: (id) => { onSwitchInquiry(id); onDockViewChange?.("chat"); }, onAsk: (text) => onDraftChange(text), contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: capturedChipValues?.contact?.contactPhone ?? inquiryIntent?.requester?.phone ?? null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
+  const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, inquiryId, onOpenInquiry: (id) => { onSwitchInquiry(id); onDockViewChange?.("chat"); }, onAsk: (text) => onDraftChange(text), contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: phone.trim() || capturedChipValues?.contact?.contactPhone || inquiryIntent?.requester?.phone || null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
   const [detailsOpen, setDetailsOpen] = useState(false); // header-triggered sheet
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // The header's status line has THREE states, not two. A guest who has opened
@@ -590,7 +593,6 @@ export function MiniChatPanelColumn({
         sendBarActive={sendBarActive}
       />
 
-      {/* ── Inline gate ─────────────────────────────────────────────────── */}
       {showGate && (
         <MiniChatGateForm
           t={t}
@@ -618,7 +620,6 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Captcha slot ─────────────────────────────────────────────────── */}
       {captchaRequired && !showGate && (
         <div
           data-guest-chat-captcha-slot
@@ -634,7 +635,6 @@ export function MiniChatPanelColumn({
         </div>
       )}
 
-      {/* ── Error line ───────────────────────────────────────────────────── */}
       {error && !showGate && (
         <div
           role="alert"
@@ -740,7 +740,9 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── W1-G: services strip, above the composer, inside the palette. ─── */}
+      {!showGate && !inquiryId ? (
+        <GuestHandoffContactStrip label={t("public.guestChat.handoffContactLabel")} name={`${firstName} ${lastName}`.trim()} email={email} phone={phone} surfaceMode={surfaceMode} />
+      ) : null}
       {!showGate && onPickOffering && offerings.length > 0 && (
         <OfferingQuickPicker
           offerings={offerings}
@@ -753,7 +755,6 @@ export function MiniChatPanelColumn({
 
       {!showGate && (brand.dockCardsV5 === true || dock.nextStepProps.bookAgainNotice) && <GuestNextStep {...dock.nextStepProps} />}
 
-      {/* ── Composer ─────────────────────────────────────────────────────── */}
       {!showGate && (
         <MiniChatComposer
           draft={draft}
@@ -776,8 +777,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Send to agency (finding #2): explicit submit + success note ───── */}
-      {!showGate && extrasEnabled && onSendToAgency && !rows.some((m) => new Set<string>(["payment_paid", "offer_declined", "payment_failed", "refunded"]).has(m.kind)) && (
+      {!showGate && extrasEnabled && onSendToAgency && !rows.some((m) => ["payment_paid", "offer_declined", "payment_failed", "refunded"].includes(m.kind)) && (
         <SendToAgencyBar
           accent={accent}
           accentInk={accentInk}

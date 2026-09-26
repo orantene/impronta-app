@@ -46,7 +46,15 @@ export function useClientCardActions(input: {
   const { token, messages, refresh, onTick } = input;
   const [activity, setActivity] = useState<Readonly<Record<string, CardActivity>>>({});
   const setAct = useCallback((key: string, a: CardActivity) => setActivity((prev) => ({ ...prev, [key]: a })), []);
-  const refused = useCallback((key: string, reason: MessagingRefusal) => setAct(key, { phase: "refused", refusal: reason }), [setAct]);
+  const refused = useCallback(
+    (key: string, reason: MessagingRefusal, nextFreeTimes?: readonly string[]) =>
+      setAct(key, {
+        phase: "refused",
+        refusal: reason,
+        ...(nextFreeTimes && nextFreeTimes.length > 0 ? { nextFreeTimes } : {}),
+      }),
+    [setAct],
+  );
   const noToken = useCallback((key: string) => refused(key, "not_allowed"), [refused]);
 
   const onChoose = useCallback(
@@ -80,7 +88,7 @@ export function useClientCardActions(input: {
       if (!token) return noToken(messageId);
       setAct(messageId, { phase: "busy" });
       const result = await messagingClientPickTime({ token, messageId, startsAt });
-      if (!result.ok) return refused(messageId, result.reason);
+      if (!result.ok) return refused(messageId, result.reason, result.nextFreeTimes);
       setAct(messageId, { phase: "done" });
       onTick?.();
       refresh();

@@ -106,7 +106,8 @@ export type MessagingRefusal =
   | "no_payout_receiver";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
-export type ActionFail = { ok: false; reason: MessagingRefusal };
+/** `nextFreeTimes` is only set when a time pick comes back `unavailable` / slot taken. Empty = calendar has no open time; never invent one. */
+export type ActionFail = { ok: false; reason: MessagingRefusal; nextFreeTimes?: string[] };
 export type ActionResult<T extends Record<string, unknown> = Record<string, never>> = ActionOk<T> | ActionFail;
 
 export const NEXT_ACTIONS = ["reply", "assign", "collect", "follow_up"] as const;

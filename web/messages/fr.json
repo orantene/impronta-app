@@ -505,6 +505,8 @@
       "detailsChipAdd": "Ajouter des détails",
       "detailsChipProgress": "Détails {filled}/{total}",
       "errTalentUnavailable": "Ce talent ne reçoit pas de demandes ici pour le moment. Vous pouvez toujours écrire à l'agence.",
+      "errSlotTaken": "Ce créneau vient d'être pris. Choisissez-en un autre.",
+      "handoffContactLabel": "Vos coordonnées",
       "accountSavedConfirm": "Vos conversations sont enregistrées dans votre compte Tulala.",
       "accountInvalidEmail": "Saisissez une adresse e-mail valide.",
       "accountLinkFailed": "Impossible d'envoyer le lien. Veuillez réessayer.",
@@ -7911,6 +7913,7 @@
             "heldNoClock": "{slot} est réservé pour vous",
             "holdEnded": "La réservation temporaire a expiré. Choisissez un autre horaire ou écrivez à {business}.",
             "taken": "Cet horaire vient d'être pris. Choisissez-en un autre ou écrivez à {business}.",
+            "nextFree": "Prochains créneaux libres",
             "noSlots": "Aucun horaire à choisir pour l'instant."
           },
           "offer": {

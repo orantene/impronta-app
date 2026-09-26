@@ -39,7 +39,13 @@ import type { ClientCopy } from "./copy";
 export type ComposerPhase = "idle" | "sending" | "failed" | "sent";
 
 /** `epoch` changes when a card's local form should reset (a change request was sent); the view keys the card on it. */
-export type CardActivity = { readonly phase: CardPhase; readonly refusal?: MessagingRefusal | null; readonly epoch?: number };
+/** `nextFreeTimes` is only set when a time pick is refused as taken — engine times only, never invented. */
+export type CardActivity = {
+  readonly phase: CardPhase;
+  readonly refusal?: MessagingRefusal | null;
+  readonly epoch?: number;
+  readonly nextFreeTimes?: readonly string[];
+};
 
 export type ClientThreadViewProps = {
   readonly copy: ClientCopy;
@@ -147,7 +153,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
     }
     case "professional_times": {
       const a = act(message.id);
-      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} onPick={p.onPickTime ? (startsAt) => p.onPickTime?.(message.id, startsAt) : undefined} onAsk={p.onComposerChange} />;
+      return <ClientTimesCard view={readTimes(payload)} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} nextFreeTimes={a.nextFreeTimes} onPick={p.onPickTime ? (startsAt) => p.onPickTime?.(message.id, startsAt) : undefined} onAsk={p.onComposerChange} />;
     }
     case "offer_event":
     case "offer_review":
