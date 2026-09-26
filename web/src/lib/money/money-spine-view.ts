@@ -60,7 +60,8 @@ export function buildMoneySpineView(): MoneySpineView {
     summary,
     payments: [...ledger.payments].sort((a, b) => b.day - a.day || (a.id < b.id ? 1 : -1)),
     refunds: ledger.refunds,
-    payouts: ledger.payouts,
+    // Newest first — matches Part1 p16 `mc_payouts` (Fri 25 → Fri 4).
+    payouts: [...ledger.payouts].sort((a, b) => b.day - a.day || (a.id < b.id ? 1 : -1)),
     outstanding: ledger.outstanding,
     payoutAccount: PAYOUT_ACCOUNT,
     waitingRequest: PAYMENT_REQUEST_WAITING,
