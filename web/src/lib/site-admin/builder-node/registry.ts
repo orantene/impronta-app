@@ -517,6 +517,8 @@ const accordionPropsSchema = z.object({
   defaultOpenItemIds: z.array(z.string().min(1)).max(30).optional(),
   layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
+  /** Maison FAQ bind — expand from published `talent_faq_items` at render. */
+  bindSource: z.literal("talent_faq_items").optional(),
 });
 
 const accordionItemPropsSchema = z.object({

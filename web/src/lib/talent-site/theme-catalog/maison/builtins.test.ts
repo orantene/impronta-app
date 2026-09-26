@@ -26,11 +26,15 @@ test("DESIGN_ALLOWED_NODE_KINDS admits Maison node kinds", () => {
   }
 });
 
-test("Maison Design placeholder validates", () => {
-  const check = validateDesign(MAISON_BUILTIN_DESIGN.buildPayload());
+test("Maison Design payload validates (real trees, not editorial placeholder)", () => {
+  const payload = MAISON_BUILTIN_DESIGN.buildPayload();
+  const check = validateDesign(payload);
   assert.equal(check.ok, true, check.errors.join(" · "));
   assert.equal(MAISON_BUILTIN_DESIGN.slug, "maison");
   assert.ok(isMaisonCatalogSlug(MAISON_BUILTIN_DESIGN.slug));
+  const kinds = JSON.stringify(payload.homeTree);
+  assert.match(kinds, /services_catalog/);
+  assert.match(kinds, /talent_faq_items/);
 });
 
 test("Maison Looks validate and are scoped to maison", () => {

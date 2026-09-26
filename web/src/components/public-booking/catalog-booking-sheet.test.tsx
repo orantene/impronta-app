@@ -95,6 +95,49 @@ test("an offering event opens the catalog sheet", () => {
   unmount();
 });
 
+test("W15 demo mode never writes a booking even after confirm", async () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(detail({ addOns: [] }), "when");
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+  const nameInput = host.querySelector<HTMLInputElement>('input[name="name"], input[autocomplete="name"]');
+  const emailInput = host.querySelector<HTMLInputElement>('input[type="email"], input[name="email"]');
+  const phoneInput = host.querySelector<HTMLInputElement>('input[type="tel"], input[name="phone"]');
+  if (nameInput) {
+    act(() => {
+      nameInput.value = "Vale Demo";
+      nameInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+  }
+  if (emailInput) {
+    act(() => {
+      emailInput.value = "vale@example.com";
+      emailInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+  }
+  if (phoneInput) {
+    act(() => {
+      phoneInput.value = "+525551112233";
+      phoneInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+  }
+  const confirm = host.querySelector<HTMLButtonElement>(
+    '[data-catalog-confirm], [data-catalog-who-cta="confirm_now"], button[type="submit"]',
+  );
+  if (confirm && !confirm.disabled) {
+    await act(async () => {
+      confirm.click();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+  }
+  assert.equal(book.calls.length, 0, "demo CatalogBookingSheet must not call bookFn");
+  assert.ok(host.querySelector('[data-catalog-booking="demo"]'));
+  unmount();
+});
+
 test("checking an extra raises the footer total", () => {
   const book = mockBook();
   const { host, unmount } = mount("demo", book);

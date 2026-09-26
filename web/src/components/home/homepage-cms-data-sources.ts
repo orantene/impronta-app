@@ -9,6 +9,7 @@
  */
 import { headers } from "next/headers";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
@@ -350,6 +351,9 @@ export async function loadBuilderNodeDataSources(
       : { featuredTalentProfilesByNodeId }),
     ...(nativeNeeds.servicesCatalog && catalogTalentId
       ? await loadServicesCatalogSources(catalogTalentId, locale)
+      : {}),
+    ...(nativeNeeds.talentFaq && catalogTalentId
+      ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }
       : {}),
   };
 }
