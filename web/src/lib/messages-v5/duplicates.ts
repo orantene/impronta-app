@@ -11,7 +11,7 @@ import type { IdentityLevel } from "@/lib/messaging/types";
  * A match only counts when it names a real customer AND that customer has
  * another conversation that is still open — a match against someone whose
  * only other history is long resolved is not a "possible duplicate" worth a
- * pill. SEAM: `messagingMatchCustomers` (server-actions/messaging-engine.ts)
+ * pill. SEAM: `messagingMatchCustomers` (server-actions/messaging-identity.ts)
  * returns `CustomerMatch` rows sourced from `customers` alone and does not
  * carry this flag today — a caller that wants the pill live has to look up
  * each match's other conversations itself and pass `hasOpenConversation`

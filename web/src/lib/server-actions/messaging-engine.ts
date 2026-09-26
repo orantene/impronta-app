@@ -19,7 +19,6 @@ import { loadMessagingEssentials } from "@/lib/messaging/essentials";
 import { loadConversationHistory as loadConversationHistoryReader } from "@/lib/messaging/history";
 import { loadMessagingInbox } from "@/lib/messaging/inbox";
 import { insertMessage, recordDelivery } from "@/lib/messaging/insert-message";
-import { matchCustomers } from "@/lib/messaging/match-customers";
 import { mergeInquiries } from "@/lib/messaging/merge";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
@@ -30,7 +29,6 @@ import { searchMessaging } from "@/lib/messaging/search";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import { issueVisitorCode, verifyThreadToken } from "@/lib/messaging/thread-token";
 import type { ActionResult, CardKind, ConversationHistoryEntry, InboxFilter, MessagingChannel, RecordKind } from "@/lib/messaging/types";
-import { normalizeEmail, normalizePhoneE164 } from "@/lib/customers/customer-identity";
 
 const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
@@ -302,70 +300,6 @@ async function setConversationState(
     await logConversationState(g.admin, { inquiryId: parsed.data.inquiryId, actorUserId: g.userId, state });
   }
   return result;
-}
-
-export async function messagingMatchCustomers(input: {
-  name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-}) {
-  const g = await staff();
-  if (!g.ok) return g;
-  // D-MSG-336: tenants can exceed 200 customers. An unordered `.limit(200)`
-  // missed the fixture customer (446 on journeys) so Same person? never
-  // fired. Prefer identity-key lookup when email/phone is present; keep a
-  // capped scan only for name-only match.
-  const email = normalizeEmail(input.email);
-  const phone = normalizePhoneE164(input.phone);
-  let query = scoped(g.admin, "customers", g.tenantId).select("id, display_name, email, phone_e164");
-  if (email || phone) {
-    const parts: string[] = [];
-    if (email) parts.push(`email.eq.${email}`);
-    if (phone) parts.push(`phone_e164.eq.${phone}`);
-    query = query.or(parts.join(","));
-  } else {
-    query = query.order("updated_at", { ascending: false }).limit(200);
-  }
-  const { data, error } = await query;
-  if (error) return fail("unavailable");
-  return {
-    ok: true as const,
-    matches: matchCustomers({
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      customers: (data ?? []) as { id: string; display_name: string | null; email: string | null; phone_e164: string | null }[],
-    }),
-  };
-}
-
-export async function messagingCaptureIdentity(input: {
-  inquiryId: string;
-  level: "linked" | "confirmed" | "granted";
-  method: "phone" | "email" | "sms_code" | "name_only" | "staff";
-  customerId: string | null;
-  expectedVersion: number;
-}) {
-  const g = await staff();
-  if (!g.ok) return g;
-  const parsed = z
-    .object({
-      inquiryId: uuid,
-      level: z.enum(["linked", "confirmed", "granted"]),
-      method: z.enum(["phone", "email", "sms_code", "name_only", "staff"]),
-      customerId: uuid.nullable(),
-      expectedVersion: version,
-    })
-    .safeParse(input);
-  if (!parsed.success) return fail("invalid");
-  return callRpc(g.admin, "messaging_set_identity", {
-    p_tenant_id: g.tenantId,
-    p_inquiry_id: parsed.data.inquiryId,
-    p_level: parsed.data.level,
-    p_method: parsed.data.method,
-    p_customer_id: parsed.data.customerId,
-    p_expected_version: parsed.data.expectedVersion,
-  });
 }
 
 export async function messagingLinkRecord(input: {
