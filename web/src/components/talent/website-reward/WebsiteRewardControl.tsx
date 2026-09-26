@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { websiteRewardCopy, websiteRewardState } from "@/lib/talent/website-reward";
-import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
@@ -29,8 +28,8 @@ const MISSING_SECTION: Record<string, string> = {
 
 const SLICE_LABEL = {
   who: "Your name and what you do",
-  photos: "Three photos of your work",
-  offer: "One thing clients can book or ask about",
+  photos: "Photos of your work",
+  offer: "Things clients can book or ask about",
   intro: "A short intro",
   when: "When you are available",
   where: "Where you work",
@@ -54,7 +53,6 @@ const MISSING_TIME: Record<string, string> = {
 
 export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" | "services" }) {
   const { bridgeTalentCompletion, bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
-  const studio = useTalentStudioV2();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const copy = useDashboardText();
   const router = useRouter();
@@ -65,7 +63,8 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   const [introDraft, setIntroDraft] = useState("");
   const [introOwn, setIntroOwn] = useState(false);
   const [introPending, startIntro] = useTransition();
-  const loaded = useWebsiteEligibility();
+  // Single source for website unlock % — never the agency checklist score (W17).
+  const eligibility = useWebsiteEligibility();
   const openIntroTask = useCallback(() => {
     setOpen(false);
     setIntroOwn(false);
@@ -88,9 +87,9 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     window.addEventListener("hashchange", openFromHash);
     return () => window.removeEventListener("hashchange", openFromHash);
   }, [placement, openIntroTask]);
-  const eligibility = studio ? loaded : null;
-  const percent = eligibility?.percent ?? bridgeTalentCompletion?.percent ?? null;
-  const knownPercent = percent ?? bridgeTalentCompletion?.percent ?? 0;
+  const percent = eligibility.percent;
+  // Null percent = still loading slices → treat as unfinished (0), never checklist %.
+  const knownPercent = percent ?? 0;
   const siteStatus = siteLoad?.ok ? siteLoad.state.site?.status ?? null : null;
   const reward = websiteRewardState({ completionPercent: knownPercent, siteStatus });
   const labels = websiteRewardCopy(reward, knownPercent, copy.isSpanish ? "es" : "en");
@@ -138,7 +137,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     reward === "unlocked_not_activated"
       ? copy.isSpanish ? "Activar" : "Activate"
       : reward === "setup_unfinished"
-        ? copy.isSpanish ? "Continuar" : "Continue"
+        ? copy.isSpanish ? "Terminar" : "Finish"
         : reward === "ready_to_publish"
           ? copy.isSpanish ? "Ver y publicar" : "Preview & publish"
           : null;
@@ -167,9 +166,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         ? "md:hidden mb-4 w-full"
         : "md:hidden";
 
-  const leftCount = eligibility
-    ? eligibility.slices.filter((s) => s.done === false).length
-    : missing.length;
+  const leftCount = eligibility.slices.filter((s) => s.required && s.done === false).length;
 
   return (
     <div className={wrapClass}>
@@ -267,20 +264,14 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                 </div>
               </div>
               <p className="mt-4 text-[13.5px] font-semibold text-admin-ink">
-                {eligibility
-                  ? eligibility.percent == null
-                    ? copy.t("Not available")
-                    : `${eligibility.slices.filter((s) => s.done).length} ${copy.isSpanish ? "de" : "of"} ${eligibility.slices.length}`
-                  : (
-                    <>
-                      {copy.t("What is left")}{" "}
-                      <span className="ml-1 text-[12px] font-normal text-admin-ink-dim">{missing.length}</span>
-                    </>
-                  )}
+                {eligibility.percent == null
+                  ? copy.t("Not available")
+                  : `${eligibility.slices.filter((s) => s.required && s.done).length} ${copy.isSpanish ? "de" : "of"} ${eligibility.slices.filter((s) => s.required).length}`}
               </p>
               <ul className="mt-2 space-y-0.5">
-                {eligibility
-                  ? eligibility.slices.map((slice) => (
+                {eligibility.slices
+                  .filter((slice) => slice.required)
+                  .map((slice) => (
                       <li key={slice.key}>
                         {slice.key === "intro" ? (
                           <button
@@ -309,23 +300,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                           </div>
                         )}
                       </li>
-                    ))
-                  : missing.map((item) => (
-                  <li key={item.key}>
-                    <button
-                      type="button"
-                      onClick={() => openMissing(item.key)}
-                      className="flex w-full items-center gap-2.5 rounded-md py-1.5 text-left text-[13.5px] text-admin-ink hover:bg-black/[0.03]"
-                    >
-                      <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white" />
-                      <span className="min-w-0 flex-1 truncate">{copy.t(item.label)}</span>
-                      {MISSING_TIME[item.key] && (
-                        <span className="shrink-0 text-[11.5px] text-admin-ink-dim">{copy.t(MISSING_TIME[item.key])}</span>
-                      )}
-                      {chevron}
-                    </button>
-                  </li>
-                ))}
+                    ))}
               </ul>
               <p className="mt-3 text-[12px] leading-snug text-admin-ink-dim">
                 {copy.t("Stop whenever you like. What you have written is saved and this sheet picks up where you left off.")}
@@ -357,7 +332,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
             <div className="min-w-0">
               <h2 className="text-[16px] font-semibold text-admin-ink">{copy.t("Write your intro")}</h2>
               <p className="text-[12px] text-admin-ink-dim">
-                {leftCount} {copy.t("of")} {eligibility?.slices.length ?? 6} {copy.t("left")}
+                {leftCount} {copy.t("of")} {eligibility.slices.filter((s) => s.required).length} {copy.t("left")}
               </p>
             </div>
           </header>

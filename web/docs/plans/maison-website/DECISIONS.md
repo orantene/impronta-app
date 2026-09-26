@@ -125,6 +125,14 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - Demo \| My content is preview-time only (`preview-hydration.ts`); gallery UI toggle lands with Choose-a-design (PR 4).
 - Visual pixel match deferred until owner uploads PDF/prototype.
 
+### PR 3 notes (W17–W23)
+
+- Single website completion source: `getWebsiteEligibility` (not agency checklist %).
+- Profession modes `bookings` / `inquiries` / `quotes` with optional slices omitted from the score.
+- Unlock threshold **100** in `websiteRewardState`; header copy follows product §4.1.
+- Finish-with-AI chrome: plain assistant text + soft surface-alt user bubble — no black chat bubbles.
+- Live published sites short-circuit to Website live before any Unlock path.
+
 ---
 
 ## File lock / coordination

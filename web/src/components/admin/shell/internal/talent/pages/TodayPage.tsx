@@ -19,7 +19,7 @@ import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
-import { TalentSiteActivateNudge } from "@/components/talent/site/TalentSiteActivateNudge";
+import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
 import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
@@ -482,11 +482,9 @@ export function TalentTodayPage() {
         />
       )}
 
-      {/* Phase 3 — "activate your free website". Hides itself unless the plan
-          grants site editing and the site is still unpublished, so it never
-          fires for mock sessions or for a talent already live. */}
+      {/* PR3 W21–W22 — Finish with AI / unlocked card. Hides when live (W23). */}
       {bridgeTalentSelfProfile && (
-        <TalentSiteActivateNudge onOpenSite={() => setTalentPage("public-page")} />
+        <WebsiteTodayUnlockCard onActivate={() => setTalentPage("public-page")} />
       )}
 
       <TalentTodayHero

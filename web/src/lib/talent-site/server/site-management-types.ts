@@ -75,4 +75,6 @@ export type TalentSiteActivationState = {
   hasSite: boolean;
   /** The site has been published at least once. */
   isPublished: boolean;
+  /** Provisioned slug when hasSite; null otherwise (Today suggests from name). */
+  siteSlug: string | null;
 };
