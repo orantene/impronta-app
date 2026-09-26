@@ -1127,11 +1127,16 @@ export async function markRefunded(
       return { ok: false, error: "Refund records cannot be refunded again." };
     }
 
-    const { data: linkedRefundRows } = await sb
+    const { data: linkedRefundRows, error: linkedRefundErr } = await sb
       .from("booking_transactions")
       .select("id, gross_amount_cents, provider_refund_id")
       .eq("refund_of_transaction_id", transactionId)
       .eq("status", "refunded");
+    if (linkedRefundErr) {
+      // Empty linked rows means "no prior partials"; a failed read must not.
+      logServerError("transactions.markRefunded.linkedRefunds", linkedRefundErr);
+      return { ok: false, error: "Could not read linked refund transactions." };
+    }
 
     const linked = (linkedRefundRows ?? []) as Array<{
       id: string;
@@ -1194,11 +1199,15 @@ export async function markRefunded(
         // Unique violation on provider_refund_id = concurrent re-delivery; fall
         // through to flip the parent using any linked row we can resolve.
         if ((refundRowError as { code?: string } | null)?.code === "23505" && providerRefundId) {
-          const { data: raced } = await sb
+          const { data: raced, error: racedErr } = await sb
             .from("booking_transactions")
             .select("id")
             .eq("provider_refund_id", providerRefundId)
             .maybeSingle();
+          if (racedErr) {
+            logServerError("transactions.markRefunded.racedRefundLookup", racedErr);
+            return { ok: false, error: "Failed to create linked refund transaction." };
+          }
           refundRowId = (raced as { id: string } | null)?.id ?? refundRowId;
         } else {
           logServerError("transactions.markRefunded.insertRefundRecord", refundRowError);
