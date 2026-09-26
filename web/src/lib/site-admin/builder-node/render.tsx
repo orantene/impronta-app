@@ -4454,29 +4454,34 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{display:grid;grid-template-columns:1fr auto auto;gap:.75rem;align-items:baseline;padding:.55rem 0;border-bottom:1px solid var(--token-color-line)}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-photo{display:none}
-.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.25rem}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.5rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:hidden;background:transparent}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{padding:0 1rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price{padding:0}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-cta,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-cta,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-cta{margin:0 1rem 1rem;align-self:flex-start}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-cta{margin:.25rem 0 0;align-self:flex-start}
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-name{font-family:var(--token-font-display,inherit);font-size:1.15rem;font-weight:500}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-list{display:flex;flex-direction:column;gap:1rem}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{display:grid;grid-template-columns:minmax(180px,42%) 1fr;gap:1.5rem;padding:1.25rem;border:1px solid var(--token-color-line);border-radius:16px;margin-bottom:.5rem}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child .site-builder-node--services-catalog-photo{width:100%;height:100%;min-height:200px;border-radius:12px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:72px 1fr auto auto;gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog-nav[data-category-nav="jump"]{gap:.5rem;padding-bottom:.85rem;border-bottom:1px solid var(--token-color-line);margin-bottom:1.25rem}
+.site-builder-node--services-catalog[data-category-nav="sections"] .site-builder-node--services-catalog-group-title{margin-top:1.75rem;padding-top:.5rem;border-top:1px solid var(--token-color-line);font-size:1.15rem;letter-spacing:.02em}
+.site-builder-node--services-catalog[data-category-nav="sections"] .site-builder-node--services-catalog-group:first-of-type .site-builder-node--services-catalog-group-title{margin-top:0;padding-top:0;border-top:0}
 @media (max-width:560px){.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(1),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(2),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(3),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(4),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}}
 .site-builder-node--services-catalog-photo{width:120px;height:120px;border-radius:0;object-fit:cover;flex-shrink:0;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
 .site-builder-node--services-catalog[data-photo-radius="soft"] .site-builder-node--services-catalog-photo{border-radius:12px}
@@ -5682,7 +5687,9 @@ function renderBuilderNodeElement(
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
       const layout = p.layout ?? "rows";
       const useWebsiteTheme = p.useWebsiteTheme !== false;
-      const columns = p.columns ?? (layout === "cards" || layout === "grid" || layout === "editorial" ? 2 : 1);
+      const columns =
+        p.columns ??
+        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -5695,9 +5702,12 @@ function renderBuilderNodeElement(
       const categoryNav = p.categoryNav ?? "pills";
       const filterNav = categoryNav === "tabs" || categoryNav === "pills";
       const accordionNav = categoryNav === "accordion";
-      const jumpNav = categoryNav === "jump_strip" || categoryNav === "sections";
+      const jumpNav = categoryNav === "jump_strip";
+      const sectionsNav = categoryNav === "sections";
       const notes = options.dataSources.talentOfferingsCategoryNotes;
-      const groupByCategory = showCategoryNav || accordionNav || jumpNav;
+      // Featured layout needs a single flat list so CSS :first-child is the hero.
+      const groupByCategory =
+        layout !== "featured" && (showCategoryNav || accordionNav || jumpNav || sectionsNav);
       const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
@@ -5711,15 +5721,22 @@ function renderBuilderNodeElement(
           ]
         : [{ name: null, items: visible }];
 
-      const navMode = !showCategoryNav && !accordionNav
-        ? "flat"
-        : filterNav
-          ? categoryNav === "tabs"
-            ? "tabs"
-            : "pills"
-          : accordionNav
-            ? "accordion"
-            : "jump";
+      const navMode =
+        layout === "featured"
+          ? "flat"
+          : !showCategoryNav && !accordionNav
+            ? "flat"
+            : filterNav
+              ? categoryNav === "tabs"
+                ? "tabs"
+                : "pills"
+              : accordionNav
+                ? "accordion"
+                : sectionsNav
+                  ? "sections"
+                  : jumpNav
+                    ? "jump"
+                    : "flat";
 
       return (
         <section
@@ -5731,6 +5748,7 @@ function renderBuilderNodeElement(
           data-photo-radius={p.photoRadius ?? "soft"}
           data-cta-variant={p.rowCtaVariant ?? "outline"}
           data-density={p.density ?? "comfortable"}
+          data-category-nav={categoryNav}
           {...(useWebsiteTheme ? {} : builderNodeStyleAttrs(p.style))}
           className="site-builder-node site-builder-node--services-catalog"
           style={{

@@ -21,7 +21,7 @@ import {
 
 export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
-export type CatalogNavMode = "pills" | "tabs" | "jump" | "accordion" | "flat";
+export type CatalogNavMode = "pills" | "tabs" | "jump" | "sections" | "accordion" | "flat";
 
 function detailFor(
   offering: TalentOffering,
@@ -239,15 +239,16 @@ export function ServicesCatalogFilter({
       {groups.map((g) => {
         const hidden = filterNav && Boolean(g.name) && active !== g.name;
         const accordionOpen = nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
+        const showGroupHeading = nav === "jump" || nav === "sections";
         return (
           <div
             key={g.name ?? "_"}
             hidden={hidden}
-            id={nav === "jump" ? catalogCategoryJumpId(nodeId, g.name ?? "_") : undefined}
+            id={showGroupHeading ? catalogCategoryJumpId(nodeId, g.name ?? "_") : undefined}
             data-catalog-category={g.name ?? "_"}
             className="site-builder-node--services-catalog-group"
           >
-            {nav === "jump" ? (
+            {showGroupHeading ? (
               <h3 className="site-builder-node--services-catalog-group-title">
                 {g.name ?? (es ? "Otros" : "Other")}
               </h3>

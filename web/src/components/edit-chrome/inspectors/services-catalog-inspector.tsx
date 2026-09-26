@@ -339,13 +339,16 @@ export function ServicesCatalogLayoutInspector({
   onPatch: (patch: Record<string, unknown>) => void;
 }) {
   const catalog = node.props;
+  const layout = catalog.layout ?? "rows";
+  const showColumns = layout === "cards" || layout === "grid" || layout === "editorial";
+  const showPhotoCorners = layout !== "compact_list" && catalog.showPhoto !== false;
   return (
     <div className="flex flex-col gap-3" data-builder-node-layout-panel="services_catalog">
       <div className={KIT.field}>
         <label className={KIT.label}>Layout</label>
         <select
           className={KIT.input}
-          value={catalog.layout ?? "rows"}
+          value={layout}
           onChange={(e) => onPatch({ layout: e.target.value })}
         >
           <option value="rows">Service list</option>
@@ -356,8 +359,9 @@ export function ServicesCatalogLayoutInspector({
           <option value="featured">Featured offering</option>
         </select>
         <p className="text-xs text-black/50">
-          Recommended from your catalog: photo-led → cards; price menu → compact list; beauty menu →
-          service list. Always changeable.
+          Suggested from your catalog: photo-led → cards; many items without photos → compact list;
+          beauty menu → service list. Always changeable. Featured puts the first featured offering in a
+          hero row.
         </p>
       </div>
       <div className={KIT.field}>
@@ -371,22 +375,27 @@ export function ServicesCatalogLayoutInspector({
           <option value="tabs">Tabs (filter)</option>
           <option value="accordion">Accordions</option>
           <option value="jump_strip">Jump links + headings</option>
-          <option value="sections">Section headings + anchors</option>
+          <option value="sections">Section headings only</option>
           <option value="none">None</option>
         </select>
+        <p className="text-xs text-black/50">
+          Chips and tabs filter the list. Jump links scroll. Section headings group without a top strip.
+        </p>
       </div>
-      <div className={KIT.field}>
-        <label className={KIT.label}>Columns (cards / grid)</label>
-        <select
-          className={KIT.input}
-          value={String(catalog.columns ?? 2)}
-          onChange={(e) => onPatch({ columns: Number(e.target.value) })}
-        >
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
-      </div>
+      {showColumns ? (
+        <div className={KIT.field}>
+          <label className={KIT.label}>Columns</label>
+          <select
+            className={KIT.input}
+            value={String(catalog.columns ?? (layout === "grid" ? 3 : 2))}
+            onChange={(e) => onPatch({ columns: Number(e.target.value) })}
+          >
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+      ) : null}
       <div className={KIT.field}>
         <label className={KIT.label}>Density</label>
         <select
@@ -409,18 +418,20 @@ export function ServicesCatalogLayoutInspector({
           <option value="solid">Solid fill</option>
         </select>
       </div>
-      <div className={KIT.field}>
-        <label className={KIT.label}>Photo corners</label>
-        <select
-          className={KIT.input}
-          value={catalog.photoRadius ?? "soft"}
-          onChange={(e) => onPatch({ photoRadius: e.target.value })}
-        >
-          <option value="square">Square</option>
-          <option value="soft">Soft</option>
-          <option value="round">Round</option>
-        </select>
-      </div>
+      {showPhotoCorners ? (
+        <div className={KIT.field}>
+          <label className={KIT.label}>Photo corners</label>
+          <select
+            className={KIT.input}
+            value={catalog.photoRadius ?? "soft"}
+            onChange={(e) => onPatch({ photoRadius: e.target.value })}
+          >
+            <option value="square">Square</option>
+            <option value="soft">Soft</option>
+            <option value="round">Round</option>
+          </select>
+        </div>
+      ) : null}
       <div className={KIT.field}>
         <label className={KIT.label}>Duration format</label>
         <select

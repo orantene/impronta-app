@@ -70,13 +70,24 @@ export function filterOfferingsForCatalog(
     });
   }
 
-  const featured = props.featuredOfferingIds ?? [];
-  if (featured.length) {
-    const feat = new Set(featured);
+  // Featured ids win; else fall back to offering.isFeatured so Featured layout
+  // still gets a hero when the talent marked items in Services but never set
+  // widget-level featuredOfferingIds.
+  const featuredIds = props.featuredOfferingIds ?? [];
+  if (featuredIds.length) {
+    const rank = new Map(featuredIds.map((id, i) => [id, i]));
     visible = [...visible].sort((a, b) => {
-      const af = feat.has(a.id) ? 0 : 1;
-      const bf = feat.has(b.id) ? 0 : 1;
-      return af - bf;
+      const ai = rank.has(a.id) ? rank.get(a.id)! : Number.MAX_SAFE_INTEGER;
+      const bi = rank.has(b.id) ? rank.get(b.id)! : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return a.sortOrder - b.sortOrder;
+    });
+  } else if (visible.some((o) => o.isFeatured)) {
+    visible = [...visible].sort((a, b) => {
+      const af = a.isFeatured ? 0 : 1;
+      const bf = b.isFeatured ? 0 : 1;
+      if (af !== bf) return af - bf;
+      return a.sortOrder - b.sortOrder;
     });
   }
 
