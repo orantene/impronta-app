@@ -120,6 +120,16 @@ export type AgendaListItem = {
     type: "event" | "performance" | "intake" | "tz" | "estimate" | "project";
     data?: Record<string, string | number | null | undefined>;
   }>;
+  /**
+   * Pending reschedule proposal (talent proposed; waiting for accept/decline).
+   * When set, the booking record shows Accept / Decline for the new time.
+   */
+  pendingReschedule?: {
+    requestId: string;
+    newStartsAt: string;
+    newEndsAt: string;
+    feeCents: number;
+  } | null;
   history?: AgendaHistoryLine[];
   terms?: string;
 };
