@@ -204,6 +204,18 @@ export async function createCheckoutSessionForTransaction(
         ...(input.inquiryId ? { inquiry_id: input.inquiryId } : {}),
         booking_id: input.bookingId,
       },
+      // Session metadata alone is NOT copied onto the PaymentIntent Stripe
+      // mints for this Checkout. `charge.refunded` / dispute handlers resolve
+      // the booking via `PaymentIntent.metadata.transaction_id` (see
+      // `refunds.ts`), so the same routing keys must land on the PI or a
+      // Dashboard / webhook refund no-ops with empty PI metadata.
+      payment_intent_data: {
+        metadata: {
+          transaction_id: input.transactionId,
+          ...(input.inquiryId ? { inquiry_id: input.inquiryId } : {}),
+          booking_id: input.bookingId,
+        },
+      },
     };
 
     // Always the PLATFORM account. See the module header for why the

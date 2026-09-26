@@ -37,3 +37,11 @@ test("transaction_id is still always present — it is the linkage", () => {
   // and returns null. That one must never be conditional.
   assert.match(SRC, /transaction_id:\s*input\.transactionId/);
 });
+
+test("payment_intent_data.metadata mirrors the session routing keys", () => {
+  // Stripe does not copy session.metadata onto the PaymentIntent. Without
+  // this block, charge.refunded sees metadata:{} and the booking refund
+  // handler no-ops (Story 3 FAIL on message shells).
+  assert.match(SRC, /payment_intent_data:\s*\{[\s\S]*metadata:\s*\{[\s\S]*transaction_id:\s*input\.transactionId/);
+  assert.match(SRC, /payment_intent_data:[\s\S]*booking_id:\s*input\.bookingId/);
+});

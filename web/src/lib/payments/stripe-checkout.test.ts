@@ -133,3 +133,25 @@ test("an unparseable expiry is dropped rather than failing a real payment", asyn
   assert.equal(out.ok, true, "a malformed optional field must not sink the charge");
   assert.equal("expires_at" in calls[0].params, false);
 });
+
+test("payment_intent_data.metadata carries the same routing keys as the session", async () => {
+  const { calls, stripe } = fakeStripe();
+  await createCheckoutSessionForTransaction(input(), { stripe });
+
+  const piMeta = (calls[0].params.payment_intent_data as { metadata: Record<string, string> }).metadata;
+  assert.deepEqual(piMeta, {
+    transaction_id: "txn_abc",
+    inquiry_id: "inq_1",
+    booking_id: "bk_1",
+  });
+});
+
+test("a null inquiryId omits inquiry_id from payment_intent_data too", async () => {
+  const { calls, stripe } = fakeStripe();
+  await createCheckoutSessionForTransaction(input({ inquiryId: null }), { stripe });
+
+  const piMeta = (calls[0].params.payment_intent_data as { metadata: Record<string, string> }).metadata;
+  assert.equal(piMeta.transaction_id, "txn_abc");
+  assert.equal(piMeta.booking_id, "bk_1");
+  assert.equal("inquiry_id" in piMeta, false);
+});
