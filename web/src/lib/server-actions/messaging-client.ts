@@ -36,6 +36,7 @@ import { bookAgainFromRecord } from "@/lib/messaging/client-book-again";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
+import { threadTokenMatchesRequestHost } from "@/lib/messaging/thread-token-host";
 import type { ActionResult, MessagingRefusal } from "@/lib/messaging/types";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
@@ -56,6 +57,9 @@ type Link = { tenantId: string; inquiryId: string; admin: SupabaseClient };
 async function link(token: string): Promise<Link | { ok: false; reason: MessagingRefusal }> {
   const verified = verifyThreadToken(token);
   if (!verified.ok) return fail(verified.reason === "expired" ? "expired" : "not_allowed");
+  // Same host↔tenant gate as `/c/t/[token]/page.tsx` — writers must not
+  // act on a foreign agency host even if the HMAC is valid (Story 7).
+  if (!(await threadTokenMatchesRequestHost(verified.tenantId))) return fail("not_allowed");
   const admin = createServiceRoleClient();
   if (!admin) return fail("unavailable");
   return { tenantId: verified.tenantId, inquiryId: verified.inquiryId, admin };
