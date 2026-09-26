@@ -39,9 +39,11 @@ export async function loadThemeGalleryBootstrapAction(): Promise<ThemeGalleryBoo
     return { ok: true, data: { enabled: false } };
   }
 
-  const g = await gate();
+  // Free talents get personalSiteEdit (and DesignPresets); personalSiteSections
+  // is Web Office only. Default gate() would lock Free out of the gallery.
+  const g = await gate("personalSiteEdit");
   if (!g.ok) {
-    // Not Max / not signed in — the manager's own gate already handles the
+    // Not entitled / not signed in — the manager's own gate already handles the
     // upsell; this bootstrap just degrades to the old gallery rather than
     // surfacing a second error.
     return { ok: true, data: { enabled: false } };
