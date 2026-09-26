@@ -1653,6 +1653,7 @@
       "cancelled": "Este pago se cancelo. No se tomo nada.",
       "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
       "paid": "Pagado",
+      "refunded": "Reembolsado. El dinero esta en camino de vuelta.",
       "receipt": "Ver recibo",
       "backToThread": "Volver a la conversacion",
       "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",

@@ -483,7 +483,14 @@ const talentLeg = (over: Partial<Row> = {}): Row => ({
 });
 
 test("e2e full refund: markRefunded + every leg reversed + booking flipped refunded + notified", async () => {
-  const db = makeDb({ booking_payouts: [talentLeg(), wsLeg()], agency_bookings: [{ id: E2E_BOOKING }] });
+  const orderId = "ord_e2e";
+  const tenantId = "ten_e2e";
+  const db = makeDb({
+    booking_payouts: [talentLeg(), wsLeg()],
+    agency_bookings: [{ id: E2E_BOOKING, order_id: orderId, tenant_id: tenantId }],
+    booking_transactions: [{ id: E2E_TXN, booking_id: E2E_BOOKING, order_id: orderId, source_tenant_id: tenantId }],
+    orders: [{ id: orderId, tenant_id: tenantId, status: "paid" }],
+  });
   const { deps, calls } = stubDeps(db);
   const { reversals, stripe } = makeStripe({
     transfers: [
@@ -507,6 +514,9 @@ test("e2e full refund: markRefunded + every leg reversed + booking flipped refun
   const bookingPatch = db.updates.find((u) => u.table === "agency_bookings")?.patch;
   assert.equal(bookingPatch?.payment_status, "refunded");
   assert.equal(bookingPatch?.client_revenue_lifecycle, "refunded");
+  const orderPatch = db.updates.find((u) => u.table === "orders")?.patch;
+  assert.equal(orderPatch?.status, "refunded", "linked order stamped refunded for Money rail");
+  assert.equal(db.tables.orders[0]?.status, "refunded");
   assert.deepEqual(calls.notifyReversal, [E2E_BOOKING], "reversal notified once");
 });
 

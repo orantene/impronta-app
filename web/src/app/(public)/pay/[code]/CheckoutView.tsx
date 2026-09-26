@@ -13,7 +13,7 @@ export type CheckoutViewProps = {
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
-  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing";
+  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing" | "refunded";
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
   readonly holdUntil: string | null;
   readonly stripeUrl: string | null;
@@ -38,6 +38,20 @@ export function CheckoutView(props: CheckoutViewProps) {
             {t("public.thread.receipt")}
           </a>
         ) : null}
+        {props.threadHref ? (
+          <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
+            {t("public.thread.backToThread")}
+          </a>
+        ) : null}
+      </Shell>
+    );
+  }
+
+  if (phase === "refunded") {
+    return (
+      <Shell>
+        <h1 className="text-[22px] font-semibold">{t("public.thread.refunded")}</h1>
+        <p className="mt-3 text-[16px]">{total}</p>
         {props.threadHref ? (
           <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
             {t("public.thread.backToThread")}

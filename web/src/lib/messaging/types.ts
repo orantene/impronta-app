@@ -61,6 +61,8 @@ export const CARD_STATES = [
   "unavailable",
   "price_changed",
   "cancelled",
+  "refunded",
+  "partially_refunded",
 ] as const;
 export type CardState = (typeof CARD_STATES)[number];
 
