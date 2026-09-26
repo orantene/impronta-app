@@ -17,6 +17,16 @@ import {
 } from "./money-spine-view";
 
 describe("Money spine view (M2)", () => {
+  it("payouts list is newest-first (Part1 p16 mc_payouts)", () => {
+    const view = buildMoneySpineView();
+    assert.deepEqual(
+      view.payouts.map((p) => p.id),
+      ["PO-0925", "PO-0918", "PO-0911", "PO-0904"],
+    );
+    assert.equal(view.payouts[0]?.day, 25);
+    assert.equal(view.payouts[0]?.estimated, true);
+  });
+
   it("summary matches LEDGER-CONTRACT aggregates via M1 fixture", () => {
     const view = buildMoneySpineView();
     const s = view.summary;
