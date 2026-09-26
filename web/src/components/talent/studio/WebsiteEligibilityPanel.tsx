@@ -5,8 +5,8 @@ import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteElig
 
 const SLICE_LABEL = {
   who: "Your name and what you do",
-  photos: "Three photos of your work",
-  offer: "One thing clients can book or ask about",
+  photos: "Photos of your work",
+  offer: "Things clients can book or ask about",
   intro: "A short intro",
   when: "When you are available",
   where: "Where you work",
@@ -23,7 +23,9 @@ export function WebsiteEligibilityPanel() {
         {copy.t("Same score as Today and Where I appear.")} · {headline}
       </p>
       <ul className="mt-3 space-y-1 text-[13px] text-admin-ink">
-        {eligibility.slices.map((slice) => (
+        {eligibility.slices
+          .filter((slice) => slice.required)
+          .map((slice) => (
           <li key={slice.key}>
             {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}
             {slice.done == null ? ` · ${copy.t("Not available")}` : ""}
