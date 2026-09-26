@@ -1,6 +1,6 @@
 /**
- * PR4 static contracts: no search/filters (W75), flag gate, tag kinds (W26),
- * one phone sheet at a time (W34), Use-this-design chrome without apply (PR5).
+ * Maison setup static contracts (PR4–PR5): W75, flag gate, tags, sheets,
+ * Use this design → applyMaisonDesignAction, Review/Publish chrome, W72.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -52,7 +52,6 @@ test("W34: phone sheets are mutually exclusive state", () => {
   const detail = read("ThemeDetailScreen.tsx");
   assert.match(detail, /phoneSheet/);
   assert.match(detail, /data-maison-phone-sheet/);
-  // Opening one sheet replaces the other via single phoneSheet field.
   assert.match(detail, /openSheet\("demos"\)/);
   assert.match(detail, /openSheet\("colors"\)/);
 });
@@ -66,11 +65,32 @@ test("W30–W32: Demo|My content, status words, five palettes", () => {
   assert.match(detail, /Choices saved/);
 });
 
-test("Use this design is chrome-only in PR4 (no applySiteDesignAction)", () => {
+test("W35: Use this design calls applyMaisonDesignAction (no confirm table)", () => {
   const detail = read("ThemeDetailScreen.tsx");
   assert.match(detail, /maison-use-design/);
+  assert.match(detail, /applyMaisonDesignAction/);
+  assert.match(detail, /no summary\/confirm table/);
   assert.equal(/applySiteDesignAction/.test(detail), false);
-  assert.equal(/applySiteLookAction/.test(detail), false);
+  assert.equal(/confirm.*replace/i.test(detail), false);
+});
+
+test("W37–W42: Review + Publish + failure banner wired", () => {
+  const review = read("ReviewWebsiteScreen.tsx");
+  assert.match(review, /data-testid="maison-review"/);
+  assert.match(review, /maison-readiness/);
+  assert.match(review, /publishMaxSiteAction/);
+  assert.match(review, /maison-publish-failure/);
+  assert.match(review, /maison-undo-design/);
+  assert.match(review, /No trial, plan, or price/);
+});
+
+test("W40: My website card has Live + View / Change / Design options", () => {
+  const card = read("MyWebsiteCard.tsx");
+  assert.match(card, /maison-my-website-card/);
+  assert.match(card, /maison-view-website/);
+  assert.match(card, /maison-change-design/);
+  assert.match(card, /maison-design-options/);
+  assert.match(card, /● Live/);
 });
 
 test("manager mounts MaisonSetupHost ahead of theme gallery", () => {
@@ -81,7 +101,30 @@ test("manager mounts MaisonSetupHost ahead of theme gallery", () => {
   assert.match(manager, /MaisonSetupHost/);
   assert.match(manager, /next\/dynamic/);
   assert.match(manager, /maison-setup\/MaisonSetupHost/);
+  assert.match(manager, /MyWebsiteCard/);
   const maisonIdx = manager.indexOf("<MaisonSetupHost");
   const galleryIdx = manager.indexOf("<ManagerThemeGallery");
   assert.ok(maisonIdx > 0 && galleryIdx > maisonIdx);
+});
+
+test("apply actions are Maison-flag gated", () => {
+  const apply = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-apply-actions.ts"),
+    "utf8",
+  );
+  assert.match(apply, /isTalentMaisonThemeEnabled/);
+  assert.match(apply, /feature_disabled/);
+  assert.match(apply, /pending_design/);
+  assert.match(apply, /captureMaisonDraftSnapshot/);
+});
+
+test("publishMaxSiteAction gates on Maison readiness when flag on", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/site-management-actions.ts"),
+    "utf8",
+  );
+  assert.match(src, /evaluateMaisonPublishReadiness/);
+  assert.match(src, /readiness_blocked/);
+  assert.match(src, /writeMaisonDesignPublishedRevision/);
+  assert.match(src, /isTalentMaisonThemeEnabled/);
 });

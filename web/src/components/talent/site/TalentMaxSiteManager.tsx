@@ -25,11 +25,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 
 import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
+import type { MaisonSetupScreen } from "@/components/talent/site/maison-setup/maison-choices";
 
 /** Maison Choose-a-design chrome — lazy so flag-off / non-site routes skip the chunk. */
 const MaisonSetupHost = dynamic(
   () =>
     import("@/components/talent/site/maison-setup/MaisonSetupHost").then((m) => m.MaisonSetupHost),
+  { ssr: false },
+);
+const MyWebsiteCard = dynamic(
+  () =>
+    import("@/components/talent/site/maison-setup/MyWebsiteCard").then((m) => m.MyWebsiteCard),
   { ssr: false },
 );
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
@@ -132,11 +138,17 @@ function ManagerBody({
 }) {
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [publishErrorCode, setPublishErrorCode] = useState<string | null>(null);
   const [publishedJustNow, setPublishedJustNow] = useState(false);
+  const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
+
+  const maisonLive =
+    Boolean(state.sitePublishedAt) && state.themeDesignSlug === "maison";
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     startTransition(async () => {
       setActionError(null);
+      setPublishErrorCode(null);
       const res = await fn();
       if (!res.ok) {
         setActionError(res.error ?? "Something went wrong.");
@@ -149,9 +161,11 @@ function ManagerBody({
   function handlePublish() {
     startTransition(async () => {
       setActionError(null);
+      setPublishErrorCode(null);
       const res = await publishMaxSiteAction();
       if (!res.ok) {
         setActionError(res.error);
+        setPublishErrorCode(res.code);
         return;
       }
       setPublishedJustNow(true);
@@ -161,64 +175,112 @@ function ManagerBody({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }} data-talent-max-site-manager>
-      {/* Live URL + publish */}
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={sectionLabel}>Your website</div>
-            <p style={{ margin: "4px 0 10px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 520 }}>
-              A full multi-page site with your own header, logo and footer — published at its own
-              link, separate from your discovery profile.
-            </p>
-            {state.publicSiteUrl ? (
-              <div
+      {/* W40 — Maison My website card when live with Maison design */}
+      {maisonLive ? (
+        <MyWebsiteCard
+          locale={locale}
+          publicSiteUrl={state.publicSiteUrl}
+          siteSlug={state.siteSlug}
+          themeLookSlug={state.themeLookSlug}
+          contentModeLabel="mine"
+          onChangeDesign={() => setMaisonForceScreen("detail")}
+        />
+      ) : (
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={sectionLabel}>Your website</div>
+              <p style={{ margin: "4px 0 10px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 520 }}>
+                A full multi-page site with your own header, logo and footer — published at its own
+                link, separate from your discovery profile.
+              </p>
+              {state.publicSiteUrl ? (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 12px",
+                    background: COLORS.surfaceAlt,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    borderRadius: 999,
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                  }}
+                >
+                  <span style={{ color: COLORS.inkMuted, fontWeight: 700 }}>Your site link</span>
+                  <Link
+                    href={state.publicSiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: COLORS.ink, fontWeight: 600, textDecoration: "none" }}
+                  >
+                    {state.publicSiteUrl} ↗
+                  </Link>
+                </div>
+              ) : (
+                <span style={mutedText}>Set a site address below to claim your link.</span>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+              <PrimaryButton onClick={handlePublish} disabled={pending}>
+                {pending ? "Publishing…" : state.sitePublishedAt ? "Republish site" : "Publish site"}
+              </PrimaryButton>
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                {publishedJustNow
+                  ? "Published — your site is live."
+                  : state.sitePublishedAt
+                    ? `Live · last published ${formatWhen(state.sitePublishedAt)}`
+                    : "Not published yet"}
+              </span>
+            </div>
+          </div>
+          {actionError ? (
+            <div
+              data-testid="maison-manager-publish-failure"
+              data-error-code={publishErrorCode ?? undefined}
+              style={{ margin: "10px 0 0" }}
+            >
+              <p style={{ margin: 0, fontSize: 12, color: COLORS.criticalDeep }}>{actionError}</p>
+              {publishErrorCode ? (
+                <p style={{ margin: "4px 0 0", fontSize: 11, color: COLORS.inkMuted }}>
+                  {publishErrorCode}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={handlePublish}
+                disabled={pending}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 12px",
-                  background: COLORS.surfaceAlt,
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 999,
-                  fontFamily: FONTS.body,
+                  marginTop: 6,
+                  border: "none",
+                  background: "none",
+                  padding: 0,
                   fontSize: 12,
+                  fontWeight: 700,
+                  color: COLORS.criticalDeep,
+                  textDecoration: "underline",
+                  cursor: "pointer",
                 }}
               >
-                <span style={{ color: COLORS.inkMuted, fontWeight: 700 }}>Your site link</span>
-                <Link
-                  href={state.publicSiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: COLORS.ink, fontWeight: 600, textDecoration: "none" }}
-                >
-                  {state.publicSiteUrl} ↗
-                </Link>
-              </div>
-            ) : (
-              <span style={mutedText}>Set a site address below to claim your link.</span>
-            )}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-            <PrimaryButton onClick={handlePublish} disabled={pending}>
-              {pending ? "Publishing…" : state.sitePublishedAt ? "Republish site" : "Publish site"}
-            </PrimaryButton>
-            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
-              {publishedJustNow
-                ? "Published — your site is live."
-                : state.sitePublishedAt
-                  ? `Live · last published ${formatWhen(state.sitePublishedAt)}`
-                  : "Not published yet"}
-            </span>
-          </div>
-        </div>
-        {actionError ? (
-          <p style={{ margin: "10px 0 0", fontSize: 12, color: COLORS.criticalDeep }}>{actionError}</p>
-        ) : null}
-      </Card>
+                Try again
+              </button>
+            </div>
+          ) : null}
+        </Card>
+      )}
 
-      {/* Maison Choose-a-design / Theme detail (PR4). Flag-off → renders null;
-          existing theme gallery path below stays production-unchanged. */}
-      <MaisonSetupHost />
+      {/* Maison Choose-a-design / Theme detail / Review (PR4–5). Flag-off → null. */}
+      <MaisonSetupHost
+        forceScreen={maisonForceScreen}
+        onForceScreenConsumed={() => setMaisonForceScreen(null)}
+        onPublished={() => {
+          setPublishedJustNow(true);
+          setMaisonForceScreen(null);
+          void onReload();
+        }}
+        onCloseToSite={() => setMaisonForceScreen(null)}
+      />
 
       {/* Starter template gallery; the theme gallery replaces it only when
           TALENT_THEME_GALLERY_ENABLED is on (read server-side). */}
@@ -229,8 +291,10 @@ function ManagerBody({
         fallback={<TemplateGallery talentProfileId={state.talentProfileId} onReload={onReload} />}
       />
 
-      {/* Site address (slug) */}
-      <SlugEditor state={state} onSaved={onReload} />
+      {/* Site address (slug) — hash target for Review blocker fix links */}
+      <div id="maison-site-address">
+        <SlugEditor state={state} onSaved={onReload} />
+      </div>
 
       {/* Logo */}
       <LogoPanel state={state} onSaved={onReload} />

@@ -41,6 +41,10 @@ export type MaxSiteManagerState = {
   hasPublishedShell: boolean;
   /** The talent's site URL (`/t/site/<slug>`), null until a slug exists. */
   publicSiteUrl: string | null;
+  /** Applied Design slug (Maison = `maison`); null until Use this design. */
+  themeDesignSlug: string | null;
+  /** Applied Look slug (e.g. `maison-lilac`); null until a Look is applied. */
+  themeLookSlug: string | null;
   pages: MaxSiteManagerPage[];
 };
 
@@ -59,8 +63,11 @@ export type MaxSiteActionResult<T = void> =
         | "invalid_input"
         | "slug_taken"
         | "cannot_delete_home"
+        | "readiness_blocked"
         | "server_error";
       error: string;
+      /** Present when code is readiness_blocked (W76). */
+      blockers?: Array<{ id: string; message: string; fixLabel: string; fixHref: string }>;
     };
 
 /**

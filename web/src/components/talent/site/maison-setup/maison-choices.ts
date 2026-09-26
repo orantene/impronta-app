@@ -1,7 +1,6 @@
 /**
  * Maison setup choices (W32–W33) — persist palette / content mode / screen so
- * close → reopen resumes. Preview-time only until PR5 applies the design.
- * Never writes site draft trees.
+ * close → reopen resumes. Apply writes live in maison-apply-actions (PR5).
  */
 import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import {
@@ -10,7 +9,7 @@ import {
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
 
-export type MaisonSetupScreen = "gallery" | "detail";
+export type MaisonSetupScreen = "gallery" | "detail" | "review";
 export type MaisonPreviewDevice = "desktop" | "phone";
 export type MaisonStatusWord = "Preview" | "Choices saved" | "Draft saved" | "Live";
 export type MaisonPhoneSheet = null | "demos" | "colors";
@@ -46,7 +45,8 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
   const base = defaultMaisonChoices();
   if (!raw || typeof raw !== "object") return base;
   const o = raw as Record<string, unknown>;
-  const screen = o.screen === "detail" ? "detail" : "gallery";
+  const screen =
+    o.screen === "detail" || o.screen === "review" ? o.screen : "gallery";
   const paletteKey =
     typeof o.paletteKey === "string" && isMaisonPaletteKey(o.paletteKey)
       ? o.paletteKey
