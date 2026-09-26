@@ -4,9 +4,11 @@
  * GuestNextStep — L13. The one next step above the dock's composer, derived
  * from state (`deriveGuestNextStep`) and acting through the same card actions
  * the cards use: Pay opens the pay page, Accept accepts the pending offer.
- * Sentences without a button (waiting for the business, booked) are drawn as
- * sentences, never as a fake button. Hidden when there is nothing to do or
- * when the tenant keeps the legacy bubbles (cards_v5 off).
+ * Outcome cards (Declined / Pay failed / Refunded) own the dock CTA to the
+ * mockup: start another request, try again, book again. Sentences without a
+ * button (waiting for the business, booked) are drawn as sentences, never as
+ * a fake button. Hidden when there is nothing to do or when the tenant keeps
+ * the legacy bubbles (cards_v5 off).
  */
 
 import { useMemo } from "react";
@@ -40,7 +42,13 @@ const SUB_KEY = {
   declined: "public.guestChat.nextDeclinedSub",
   pay_failed: "public.guestChat.nextPayFailedSub",
 } as const;
-const BUTTON_KEY = { pay: "public.guestChat.nextPayButton", accept_offer: "public.guestChat.nextAcceptButton" } as const;
+const BUTTON_KEY = {
+  pay: "public.guestChat.nextPayButton",
+  accept_offer: "public.guestChat.nextAcceptButton",
+  declined: "public.guestChat.nextDeclinedButton",
+  pay_failed: "public.guestChat.nextPayFailedButton",
+  refunded: "public.guestChat.nextRefundedButton",
+} as const;
 
 export function GuestNextStep({
   v5,
@@ -55,6 +63,8 @@ export function GuestNextStep({
   accentInk,
   bookAgainNotice = false,
   messageKinds = [],
+  onBookAgain = null,
+  onStartAnother = null,
 }: {
   v5: GuestThreadV5Extras | null;
   model: GuestClientCardsModel;
@@ -68,6 +78,10 @@ export function GuestNextStep({
   accentInk: string;
   bookAgainNotice?: boolean;
   messageKinds?: readonly string[];
+  /** Refunded dock CTA — same writer as Home "Book again". */
+  onBookAgain?: (() => void) | null;
+  /** Declined dock CTA — start another request (composer / browse). */
+  onStartAnother?: (() => void) | null;
 }) {
   const step = useMemo(() => {
     if (!v5) return null;
@@ -77,6 +91,7 @@ export function GuestNextStep({
       payCode: v5.payCode,
       timesPayloads: model.messages.filter((m) => m.kind === "professional_times").map((m) => m.payload),
       messageKinds,
+      messages: model.messages.map((m) => ({ kind: m.kind, payload: m.payload, body: m.body })),
       records: v5.items?.records ?? [],
       now,
       money: formatOrderMoney,
@@ -98,8 +113,19 @@ export function GuestNextStep({
       ? () => model.actions.onPay(step.payCode as string)
       : step.kind === "accept_offer" && step.offer
         ? () => void model.actions.onAcceptOffer(step.offer as NonNullable<typeof step.offer>)
-        : null;
-  const buttonKey = step.kind === "pay" || step.kind === "accept_offer" ? BUTTON_KEY[step.kind] : null;
+        : step.kind === "pay_failed" && model.payCode
+          ? () => model.actions.onPay(model.payCode as string)
+          : step.kind === "refunded" && onBookAgain
+            ? () => onBookAgain()
+            : step.kind === "declined" && onStartAnother
+              ? () => onStartAnother()
+              : null;
+  const buttonKey =
+    step.kind === "pay" || step.kind === "accept_offer" || step.kind === "declined" || step.kind === "pay_failed" || step.kind === "refunded"
+      ? BUTTON_KEY[step.kind]
+      : null;
+  // Pay-failed without a live pay code still shows the card; hide a dead button.
+  const showButton = Boolean(onClick && buttonKey && !(step.kind === "pay_failed" && !model.payCode));
 
   return (
     <>
@@ -110,8 +136,8 @@ export function GuestNextStep({
     >
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkMuted }}>{t("public.guestChat.nextLabel")}</div>
       <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>{interpolate(t(TITLE_KEY[step.kind]), values)}</div>
-      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: onClick ? 6 : 0 }}>{interpolate(t(SUB_KEY[step.kind]), values)}</div>
-      {onClick && buttonKey && (
+      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton ? 6 : 0 }}>{interpolate(t(SUB_KEY[step.kind]), values)}</div>
+      {showButton && onClick && buttonKey && (
         <button
           type="button"
           onClick={onClick}

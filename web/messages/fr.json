@@ -588,13 +588,16 @@
       "nextPaidSub": "Rien à payer sur ce règlement.",
       "nextRefundedTitle": "Acompte rendu",
       "nextRefundedSub": "Le paiement a été rendu.",
-      "nextDeclinedTitle": "Refusée",
-      "nextDeclinedSub": "Cette offre a été refusée.",
+      "nextDeclinedTitle": "Offre refusée",
+      "nextDeclinedSub": "Rien n'a été débité. Tu peux faire une autre demande.",
       "nextPayFailedTitle": "Paiement refusé",
-      "nextPayFailedSub": "Le paiement n'est pas passé.",
+      "nextPayFailedSub": "La carte a été refusée. Rien n'a été débité.",
       "dockItemsRecordOffer": "Offre",
       "dockLineupEmptyItems": "Rien de choisi pour l'instant. Choisissez dans les cartes du chat ou parcourez le menu.",
-      "homeItemsSub": "Vos choix et ce qui a été ajouté pour vous"
+      "homeItemsSub": "Vos choix et ce qui a été ajouté pour vous",
+      "nextDeclinedButton": "Autre demande",
+      "nextPayFailedButton": "Réessayer",
+      "nextRefundedButton": "Réserver à nouveau"
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",
@@ -8025,6 +8028,16 @@
           },
           "generic": {
             "message": "Message"
+          },
+          "outcome": {
+            "declinedTitle": "Offre refusée",
+            "declinedBody": "Rien n'a été débité. Tu peux faire une autre demande.",
+            "payFailedTitle": "Paiement refusé",
+            "payFailedBody": "La carte a été refusée. Rien n'a été débité. Essaie une autre carte.",
+            "payFailedRetry": "Réessayer",
+            "refundedTitle": "Acompte rendu",
+            "refundedBody": "Tu as annulé à temps. L'acompte revient sur ta carte.",
+            "refundedBodyAmount": "Tu as annulé à temps. {amount} reviennent sur ta carte."
           }
         }
       },

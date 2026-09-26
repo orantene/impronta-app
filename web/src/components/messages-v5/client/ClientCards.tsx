@@ -10,6 +10,7 @@
  *                      (total / paid / due when the shell stamped them)
  *   ClientConfirmedCard order_confirmation / appointment_confirmation (Ask for a change, Receipt)
  *   ClientChangeCard   change_request / change_result, including cancel + refund sentences
+ *   ClientOutcomeCard  Declined / Pay failed / Refunded (front-door v27; engine producers only)
  *   ClientDraftCard    basket (read-only: what the client picked so far)
  *
  * Nothing here reads net, commission, payout, discount or tax: the payload
@@ -19,6 +20,7 @@
 import { useState } from "react";
 
 import type { MessagingRefusal } from "@/lib/messaging/types";
+import type { GuestOutcomeKind } from "@/lib/messages-v5/guest-outcome";
 import {
   formatClientDate,
   formatSlot,
@@ -422,6 +424,58 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
         <CardLine key={i} label={l.units > 1 ? `${l.label} × ${l.units}` : l.label} amount={money(l.amountCents, view.currency)} />
       ))}
       {view.summary && view.title ? <CardLine muted label={view.summary} /> : null}
+    </Card>
+  );
+}
+
+/* ---------- front-door outcome (declined / pay failed / refunded) ---------- */
+
+export function ClientOutcomeCard({
+  outcome,
+  copy,
+  amountLabel = null,
+  onRetry = null,
+}: {
+  readonly outcome: GuestOutcomeKind;
+  readonly copy: ClientCopy;
+  /** Preformatted amount when the engine stamped refund cents. */
+  readonly amountLabel?: string | null;
+  /** Pay-failed only: reopen the pay link when one still exists. */
+  readonly onRetry?: (() => void) | null;
+}) {
+  const title =
+    outcome === "declined"
+      ? copy.outcome.declinedTitle
+      : outcome === "pay_failed"
+        ? copy.outcome.payFailedTitle
+        : copy.outcome.refundedTitle;
+  const label =
+    outcome === "declined" ? copy.offer.cat : copy.pay.cat;
+  const body =
+    outcome === "declined"
+      ? copy.outcome.declinedBody
+      : outcome === "pay_failed"
+        ? copy.outcome.payFailedBody
+        : amountLabel
+          ? fill(copy.outcome.refundedBodyAmount, { amount: amountLabel })
+          : copy.outcome.refundedBody;
+  const category = outcome === "pay_failed" ? "pay" : outcome === "refunded" ? "change" : "offer";
+  return (
+    <Card
+      category={category}
+      label={label}
+      title={title}
+      variant="mobile"
+      testId={`client-outcome-${outcome}`}
+      actions={
+        outcome === "pay_failed" && onRetry ? (
+          <Btn size="xl" variant="primary" fill onClick={onRetry} data-client-action="retry_pay">
+            {copy.outcome.payFailedRetry}
+          </Btn>
+        ) : null
+      }
+    >
+      <CardLine muted label={body} />
     </Card>
   );
 }

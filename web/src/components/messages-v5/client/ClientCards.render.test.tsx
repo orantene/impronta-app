@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { readChange, readChoices, readConfirmation, readPayment, readTickets, readTimes } from "@/lib/messages-v5/client-thread-view";
 
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
 import { EN_CLIENT, EN_KIT, ES_CLIENT } from "./test-copy";
 
 const now = new Date("2026-09-17T10:00:00.000Z");
@@ -284,4 +284,28 @@ test("draft card: what the client picked so far, with a total", () => {
   assert.match(html, /Taco × 2/);
   assert.match(html, /\$18\.00/);
   assert.match(html, /Impronta confirms before anything is charged\./);
+});
+
+test("outcome cards match the front-door mockup sentences", () => {
+  const declined = renderToStaticMarkup(<ClientOutcomeCard outcome="declined" copy={EN_CLIENT} />);
+  assert.match(declined, /data-card="client-outcome-declined"/);
+  assert.match(declined, /Offer declined/);
+  assert.match(declined, /Nothing was charged\. You can start another request\./);
+  assert.doesNotMatch(declined, /data-client-action/);
+
+  const failed = renderToStaticMarkup(<ClientOutcomeCard outcome="pay_failed" copy={EN_CLIENT} onRetry={() => {}} />);
+  assert.match(failed, /data-card="client-outcome-pay_failed"/);
+  assert.match(failed, /Payment failed/);
+  assert.match(failed, /The card was declined\. Nothing was charged/);
+  assert.match(failed, /data-client-action="retry_pay"/);
+  assert.match(failed, />Try again</);
+
+  const refunded = renderToStaticMarkup(<ClientOutcomeCard outcome="refunded" copy={EN_CLIENT} amountLabel="$200.00" />);
+  assert.match(refunded, /data-card="client-outcome-refunded"/);
+  assert.match(refunded, /Deposit returned/);
+  assert.match(refunded, /\$200\.00 is on its way back/);
+
+  const es = renderToStaticMarkup(<ClientOutcomeCard outcome="declined" copy={ES_CLIENT} />);
+  assert.match(es, /Oferta rechazada/);
+  assert.match(es, /No se cobró nada\. Puedes pedir otro horario\./);
 });
