@@ -74,6 +74,43 @@ const ES: Record<string, string> = {
   Address: "Dirección",
   Design: "Diseño",
   "No trial, plan, or price in this flow.": "Sin prueba, plan ni precio en este flujo.",
+  "Publish new colors?": "¿Publicar colores nuevos?",
+  "Publish changes": "Publicar cambios",
+  "Keep editing": "Seguir editando",
+  "Only colors change. Your services, photos, text, sections and layout stay exactly as they are.":
+    "Solo cambian los colores. Tus servicios, fotos, textos, secciones y diseño se quedan exactamente igual.",
+  "Your live site stays as it is until you publish.":
+    "Tu sitio en vivo se queda igual hasta que publiques.",
+  "The preview didn't load": "La vista previa no cargó",
+  "Your choices are saved. Try again.":
+    "Tus elecciones están guardadas. Inténtalo de nuevo.",
+  "Reset colors": "Restablecer colores",
+  "Back to the demo colors, Pink & Lipstick.":
+    "Vuelve a los colores de la demo, Rosa y labial.",
+  Reset: "Restablecer",
+  "Reapply demo layout": "Reaplicar diseño de la demo",
+  "Section order and menu style return to the demo's. Your content stays.":
+    "El orden de secciones y el estilo del menú vuelven a los de la demo. Tu contenido se queda.",
+  Reapply: "Reaplicar",
+  "Discard design changes": "Descartar cambios de diseño",
+  "Drop unpublished design changes.": "Descarta los cambios de diseño sin publicar.",
+  "No unpublished design changes right now.":
+    "No hay cambios de diseño sin publicar ahora.",
+  Discard: "Descartar",
+  "Undo import": "Deshacer importación",
+  "Restore previous design": "Restaurar diseño anterior",
+  "Bring back a published version as a draft.":
+    "Trae de vuelta una versión publicada como borrador.",
+  Choose: "Elegir",
+  Restore: "Restaurar",
+  "Restoring puts that design in your draft. The live site changes only when you publish.":
+    "Restaurar pone ese diseño en tu borrador. El sitio en vivo cambia solo cuando publiques.",
+  "Colors reset to draft · Undo": "Colores restablecidos en el borrador · Deshacer",
+  "Demo layout reapplied · Undo": "Diseño de la demo reaplicado · Deshacer",
+  "Unpublished design changes discarded": "Cambios de diseño sin publicar descartados",
+  "Import undone": "Importación deshecha",
+  "Previous design restored to your draft · Undo":
+    "Diseño anterior restaurado en tu borrador · Deshacer",
 };
 
 export function maisonSetupT(locale: MaisonSetupLocale, key: string): string {

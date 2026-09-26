@@ -61,8 +61,8 @@ import type { MaxSiteTemplateKey } from "../max-site-templates/types";
 import { buildAppliedTemplateTrees } from "./apply-template-core";
 import { publishSiteThemeForTalent } from "./theme-publish-hook";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
-import { evaluateMaisonPublishReadiness } from "./maison-publish-readiness";
 import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
+import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -605,7 +605,7 @@ export async function publishMaxSiteAction(): Promise<
 
   const { data: preSite, error: preErr } = await sb
     .from("talent_sites")
-    .select("id, site_slug, shell_tree, theme_design_slug")
+    .select("id, site_slug, shell_tree, theme_design_slug, pending_design")
     .eq("talent_profile_id", g.talentProfileId)
     .maybeSingle();
   if (preErr) {
@@ -614,29 +614,27 @@ export async function publishMaxSiteAction(): Promise<
   }
   if (!preSite) return { ok: false, code: "site_not_found", error: "Site not found." };
 
-  const pre = preSite as {
-    id: string;
-    site_slug: string | null;
-    shell_tree: unknown;
-    theme_design_slug: string | null;
-  };
-
-  // W76 — when Maison is on, refuse publish while Review blockers exist.
-  // Flag-off production keeps the previous ungated path.
-  if (isTalentMaisonThemeEnabled()) {
-    const readiness = evaluateMaisonPublishReadiness({
-      siteSlug: pre.site_slug,
-      themeDesignSlug: pre.theme_design_slug,
-    });
-    if (!readiness.ready) {
-      return {
-        ok: false,
-        code: "readiness_blocked",
-        error: readiness.blockers[0]?.message ?? "Fix the items below before publishing.",
-        blockers: readiness.blockers,
-      };
-    }
+  const prepared = await prepareMaisonSiteForPublish(sb, {
+    talentProfileId: g.talentProfileId,
+    userId: g.userId,
+    displayName: g.displayName,
+    pre: preSite as {
+      id: string;
+      site_slug: string | null;
+      shell_tree: unknown;
+      theme_design_slug: string | null;
+      pending_design: unknown;
+    },
+  });
+  if (!prepared.ok) {
+    return {
+      ok: false,
+      code: prepared.code,
+      error: prepared.error,
+      ...(prepared.blockers ? { blockers: prepared.blockers } : {}),
+    };
   }
+  const pre = prepared.pre;
 
   const now = new Date().toISOString();
 

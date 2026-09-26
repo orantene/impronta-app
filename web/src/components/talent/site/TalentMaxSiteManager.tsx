@@ -184,6 +184,7 @@ function ManagerBody({
           themeLookSlug={state.themeLookSlug}
           contentModeLabel="mine"
           onChangeDesign={() => setMaisonForceScreen("detail")}
+          onRestoredToReview={() => setMaisonForceScreen("review")}
         />
       ) : (
         <Card>

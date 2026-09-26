@@ -144,7 +144,7 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 
 ### PR 5 notes (W35–W43, W72, W76)
 
-- `applyMaisonDesignAction` / `undoMaisonDesignAction` — never-published path writes shell/home/tokens_draft; Undo snapshot in `pending_design.previous` (source `apply`). Live sites refuse (PR8).
+- `applyMaisonDesignAction` / `undoMaisonDesignAction` — never-published path writes shell/home/tokens_draft; Undo snapshot in `pending_design.previous` (source `apply`). Live pending apply = PR8.
 - `ReviewWebsiteScreen` — Ready / named blockers (`no_slug`, `no_design`) + Publish; W72 no trial/plan/price chrome.
 - `publishMaxSiteAction` — when Maison flag on, refuses with `readiness_blocked`; writes Maison design revision (W41); clears `pending_design` on success.
 - `MyWebsiteCard` — Live · address · View / Change / Design options (options body = PR8).
@@ -164,6 +164,16 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - Suggestion previewed; applied only on "Use this adjustment". Derived rule (section −6%) + on_accent.
 - Save as My colors (renameable) → `custom_palette` jsonb + tokens_draft on apply; named look cleared.
 - Review summary: `Maison · My colors · Your content` (W66).
+- Visual pixel match deferred until owner PDF/prototype.
+
+### PR 8 notes (W67–W71, W73–W74)
+
+- Live `applyMaisonDesignAction` writes **only** `pending_design` (`kind: live_pending`, source `colors_only`); never mutates live trees.
+- `publishMaxSiteAction` materializes live pending into draft before bake + theme publish; clears pending on success.
+- Colors-only: `PublishColorsDialog` — one combined Publish new colors step (W68).
+- `DesignOptionsPanel` — Reset colors / Reapply demo layout / Discard (only when pending) / Undo import / Restore (W69–W70, W73–W74).
+- Restore writes draft from revision + pending source `restore`; never live-direct.
+- Preview fail copy: "Your choices are saved. Try again." (W71).
 - Visual pixel match deferred until owner PDF/prototype.
 
 ---

@@ -2,11 +2,13 @@
 
 /**
  * My website card after publish (W40) — Live · address · View / Change / Design options.
- * Design options body is PR8; button is present with honest deferral.
+ * Design options body: DesignOptionsPanel (PR8 / W69).
  */
 
+import { useState } from "react";
 import Link from "next/link";
 import { MAISON_PALETTES, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -16,6 +18,8 @@ type Props = {
   themeLookSlug: string | null;
   contentModeLabel?: "mine" | "demo";
   onChangeDesign: () => void;
+  /** After restore → open Review (W70). */
+  onRestoredToReview?: () => void;
 };
 
 function lookToPalette(lookSlug: string | null): MaisonPaletteKey | null {
@@ -31,7 +35,9 @@ export function MyWebsiteCard({
   themeLookSlug,
   contentModeLabel = "mine",
   onChangeDesign,
+  onRestoredToReview,
 }: Props) {
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const paletteKey = lookToPalette(themeLookSlug);
   const paletteName = paletteKey
     ? MAISON_PALETTES[paletteKey].name[locale === "es" ? "es" : "en"]
@@ -98,14 +104,21 @@ export function MyWebsiteCard({
         <button
           type="button"
           data-testid="maison-design-options"
-          onClick={() =>
-            window.alert(maisonSetupT(locale, "Design options open in a later step."))
-          }
+          onClick={() => setOptionsOpen(true)}
           className="inline-flex min-h-11 items-center rounded-xl border border-admin-border-soft px-4 text-[13px] font-semibold text-admin-ink"
         >
           {maisonSetupT(locale, "Design options")}
         </button>
       </div>
+      <DesignOptionsPanel
+        locale={locale}
+        open={optionsOpen}
+        onClose={() => setOptionsOpen(false)}
+        onRestoredToReview={() => {
+          setOptionsOpen(false);
+          onRestoredToReview?.();
+        }}
+      />
     </section>
   );
 }

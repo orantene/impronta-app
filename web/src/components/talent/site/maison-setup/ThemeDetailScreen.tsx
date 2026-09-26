@@ -18,6 +18,7 @@ import {
   type MaisonPaletteKey,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
+import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import {
   buildMaisonCustomPalette,
   defaultCustomFieldsFromPalette,
@@ -30,6 +31,10 @@ import { useThemePreview } from "@/components/talent/site/theme-gallery/useTheme
 import { MaisonTagChips } from "./MaisonTagChips";
 import { ImportStarterPanel } from "./ImportStarterPanel";
 import { CustomColorsPanel } from "./CustomColorsPanel";
+import {
+  PublishColorsDialog,
+  type MaisonColorSwatchRef,
+} from "./PublishColorsDialog";
 import { MAISON_STARTER_COUNTS } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -42,6 +47,12 @@ type Props = {
   onBackToGallery: () => void;
   onClose: () => void;
   onAppliedToReview: () => void;
+  /** After colors-only publish on a live site (W68). */
+  onColorsPublished?: () => void;
+  /** Current live look — used for before swatch in Publish new colors (W68). */
+  liveLookSlug?: string | null;
+  liveCustomPalette?: MaisonCustomPaletteStored | null;
+  fromLiveSite?: boolean;
 };
 
 export function ThemeDetailScreen({
@@ -52,12 +63,27 @@ export function ThemeDetailScreen({
   onBackToGallery,
   onClose,
   onAppliedToReview,
+  onColorsPublished,
+  liveLookSlug = null,
+  liveCustomPalette = null,
+  fromLiveSite = false,
 }: Props) {
   const preview = useThemePreview({ talentProfileId, locale });
   const [applyError, setApplyError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  const [colorsDialog, setColorsDialog] = useState<{
+    before: MaisonColorSwatchRef;
+    after: MaisonColorSwatchRef;
+  } | null>(null);
+  const [publishColorsError, setPublishColorsError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const livePaletteKey = ((): MaisonPaletteKey | null => {
+    if (!liveLookSlug?.startsWith("maison-")) return null;
+    const key = liveLookSlug.slice("maison-".length);
+    return key in MAISON_PALETTES ? (key as MaisonPaletteKey) : null;
+  })();
   const lookSlug = `maison-${choices.paletteKey}`;
   const url = preview.src("maison", lookSlug);
   const demoTitle =
@@ -129,6 +155,7 @@ export function ThemeDetailScreen({
 
   const handleUseDesign = () => {
     // W35 — apply draft immediately (no summary/confirm table).
+    // W68 — live colors-only → one Publish new colors dialog.
     startTransition(async () => {
       setApplyError(null);
       const res = await applyMaisonDesignAction({
@@ -143,8 +170,36 @@ export function ThemeDetailScreen({
         setApplyError(res.error);
         return;
       }
+      if (res.data.livePending && res.data.colorsOnly) {
+        setColorsDialog({
+          before: {
+            paletteKey: livePaletteKey,
+            customPalette: liveCustomPalette,
+          },
+          after: {
+            paletteKey: res.data.paletteKey,
+            customPalette: res.data.customPalette,
+          },
+        });
+        onChange({ status: "Choices saved", phoneSheet: null });
+        return;
+      }
       onChange({ status: "Draft saved", phoneSheet: null, screen: "review" });
       onAppliedToReview();
+    });
+  };
+
+  const handlePublishColors = () => {
+    startTransition(async () => {
+      setPublishColorsError(null);
+      const res = await publishMaxSiteAction();
+      if (!res.ok) {
+        setPublishColorsError(res.error);
+        return;
+      }
+      setColorsDialog(null);
+      onChange({ status: "Live", phoneSheet: null, screen: "gallery" });
+      onColorsPublished?.();
     });
   };
 
@@ -167,6 +222,9 @@ export function ThemeDetailScreen({
           url={url}
           locale={locale}
           title={MAISON_BUILTIN_DESIGN.title}
+          errorTitle={maisonSetupT(locale, "The preview didn't load")}
+          errorBody={maisonSetupT(locale, "Your choices are saved. Try again.")}
+          retryLabel={maisonSetupT(locale, "Try again")}
         />
         {choices.contentMode === "demo" ? (
           <span className="absolute bottom-3 left-3 rounded bg-admin-ink/85 px-2 py-1 text-[10px] font-bold tracking-wide text-white">
@@ -281,10 +339,14 @@ export function ThemeDetailScreen({
       <header className="hidden items-center gap-3 border-b border-admin-border-soft px-4 py-3 md:flex md:min-h-16">
         <button
           type="button"
-          onClick={onBackToGallery}
+          onClick={fromLiveSite ? onClose : onBackToGallery}
           className="min-h-11 text-[13.5px] font-semibold text-admin-ink"
+          data-testid={fromLiveSite ? "maison-back-my-website" : "maison-back-designs"}
         >
-          ‹ {maisonSetupT(locale, "Designs")}
+          ‹{" "}
+          {fromLiveSite
+            ? maisonSetupT(locale, "My website")
+            : maisonSetupT(locale, "Designs")}
         </button>
         <span aria-hidden className="h-6 w-px bg-admin-border-soft" />
         <div className="min-w-0 flex-1">
@@ -293,6 +355,17 @@ export function ThemeDetailScreen({
           </p>
           <p className="truncate text-[12px] text-admin-ink-muted">{description}</p>
         </div>
+        {fromLiveSite ? (
+          <span
+            data-testid="maison-live-stays-pill"
+            className="hidden max-w-[220px] shrink-0 text-[11.5px] text-admin-ink-dim lg:inline"
+          >
+            {maisonSetupT(
+              locale,
+              "Your live site stays as it is until you publish.",
+            )}
+          </span>
+        ) : null}
         <span
           data-maison-status=""
           data-testid="maison-status-word"
@@ -677,6 +750,21 @@ export function ThemeDetailScreen({
           onPreviewFields={handleCustomPreview}
           onClose={() => setCustomOpen(false)}
           onSaved={handleCustomSaved}
+        />
+      ) : null}
+
+      {colorsDialog ? (
+        <PublishColorsDialog
+          locale={locale}
+          before={colorsDialog.before}
+          after={colorsDialog.after}
+          pending={pending}
+          error={publishColorsError}
+          onPublish={handlePublishColors}
+          onKeepEditing={() => {
+            setColorsDialog(null);
+            setPublishColorsError(null);
+          }}
         />
       ) : null}
     </section>

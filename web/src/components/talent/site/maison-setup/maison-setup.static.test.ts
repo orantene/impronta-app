@@ -91,6 +91,55 @@ test("W40: My website card has Live + View / Change / Design options", () => {
   assert.match(card, /maison-change-design/);
   assert.match(card, /maison-design-options/);
   assert.match(card, /● Live/);
+  assert.match(card, /DesignOptionsPanel/);
+  assert.equal(/Design options open in a later step/.test(card), false);
+});
+
+test("W67–W74: live pending + Design options + colors publish + preview fail copy", () => {
+  const apply = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-apply-actions.ts"),
+    "utf8",
+  );
+  assert.match(apply, /live_pending/);
+  assert.match(apply, /colors_only/);
+  assert.match(apply, /livePending: true/);
+  assert.equal(/Changing a live design lands in a later step/.test(apply), false);
+
+  const publish = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/site-management-actions.ts"),
+    "utf8",
+  );
+  assert.match(publish, /prepareMaisonSiteForPublish/);
+  assert.match(publish, /writeMaisonDesignPublishedRevision/);
+  assert.match(publish, /isTalentMaisonThemeEnabled/);
+
+  const options = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-options-actions.ts"),
+    "utf8",
+  );
+  assert.match(options, /discardMaisonLivePendingAction/);
+  assert.match(options, /resetMaisonColorsAction/);
+  assert.match(options, /reapplyMaisonDemoLayoutAction/);
+  assert.match(options, /restoreMaisonDesignRevisionAction/);
+  assert.match(options, /canDiscard/);
+
+  const panel = read("DesignOptionsPanel.tsx");
+  assert.match(panel, /maison-design-options/);
+  assert.match(panel, /maison-option-reset-colors/);
+  assert.match(panel, /maison-option-reapply-layout/);
+  assert.match(panel, /maison-option-discard-idle/);
+  assert.match(panel, /maison-restore-list/);
+  assert.match(panel, /never a dead Discard button/);
+
+  const colorsDlg = read("PublishColorsDialog.tsx");
+  assert.match(colorsDlg, /maison-publish-colors-dialog/);
+  assert.match(colorsDlg, /Publish new colors\?/);
+  assert.match(colorsDlg, /Publish changes/);
+
+  const detail = read("ThemeDetailScreen.tsx");
+  assert.match(detail, /PublishColorsDialog/);
+  assert.match(detail, /Your choices are saved\. Try again\./);
+  assert.match(detail, /The preview didn't load/);
 });
 
 test("manager mounts MaisonSetupHost ahead of theme gallery", () => {
@@ -123,10 +172,16 @@ test("publishMaxSiteAction gates on Maison readiness when flag on", () => {
     join(process.cwd(), "src/lib/talent-site/server/site-management-actions.ts"),
     "utf8",
   );
-  assert.match(src, /evaluateMaisonPublishReadiness/);
-  assert.match(src, /readiness_blocked/);
+  assert.match(src, /prepareMaisonSiteForPublish/);
   assert.match(src, /writeMaisonDesignPublishedRevision/);
   assert.match(src, /isTalentMaisonThemeEnabled/);
+  const prep = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-pending-apply.ts"),
+    "utf8",
+  );
+  assert.match(prep, /evaluateMaisonPublishReadiness/);
+  assert.match(prep, /readiness_blocked/);
+  assert.match(prep, /materializeMaisonLivePendingIfAny/);
 });
 
 test("W60–W65: Custom colors panel + Theme detail entry (no placeholder alert)", () => {

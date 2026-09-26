@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * Maison Use this design + Undo (W35–W36). Behind TALENT_MAISON_THEME_ENABLED.
+ * Maison Use this design + Undo (W35–W36, W67–W68). Behind TALENT_MAISON_THEME_ENABLED.
  * Never-published path: writes shell/home/tokens_draft + stores previous in
- * pending_design for Undo. Live sites refuse (pending_design apply = PR8).
+ * pending_design for Undo. Live sites write ONLY `pending_design` (colors_only).
  */
 
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
@@ -32,6 +32,10 @@ import {
   restoreMaisonDraftSnapshot,
   type MaisonPendingUndo,
 } from "./maison-design-snapshot";
+import {
+  isMaisonLivePending,
+  type MaisonLivePending,
+} from "./maison-pending-design";
 
 function isMaisonPaletteKey(value: string): value is MaisonPaletteKey {
   return (MAISON_PALETTE_ORDER as readonly string[]).includes(value);
@@ -45,6 +49,10 @@ export type MaisonApplyResult = {
   paletteKey: MaisonPaletteKey | null;
   contentMode: MaisonPreviewContentMode;
   customPalette: MaisonCustomPaletteStored | null;
+  /** Set when the site is already live — only pending_design was written (W67). */
+  livePending?: boolean;
+  /** Journey 4: Use this design on a live site → one Publish new colors step (W68). */
+  colorsOnly?: boolean;
 };
 
 export async function applyMaisonDesignAction(input: {
@@ -98,18 +106,68 @@ export async function applyMaisonDesignAction(input: {
 
   const { data: liveRow, error: liveErr } = await admin
     .from("talent_sites")
-    .select("site_published_at")
+    .select(
+      "site_published_at, theme_look_slug, custom_palette, design_tokens_draft, menu_style, theme_design_slug, theme_demo_slug",
+    )
     .eq("id", siteId)
     .maybeSingle();
   if (liveErr) {
     logServerError("maison.apply.readLive", liveErr);
     return { ok: false, code: "server_error", error: "Could not read your site." };
   }
-  if ((liveRow as { site_published_at?: string | null } | null)?.site_published_at) {
+  const liveSite = liveRow as Record<string, unknown> | null;
+  if (liveSite?.site_published_at) {
+    // W67/W68 — live: write ONLY pending_design (colors_only). Publish materializes.
+    const demoPayload = MAISON_BUILTIN_DEMO.buildPayload();
+    const pending: MaisonLivePending = {
+      kind: "live_pending",
+      source: "colors_only",
+      created_at: new Date().toISOString(),
+      proposed: {
+        designSlug: DESIGN_SLUG,
+        lookSlug: useCustom ? null : lookSlug,
+        paletteKey: useCustom ? null : paletteKey,
+        contentMode,
+        demoSlug: MAISON_BUILTIN_DEMO.slug,
+        customPalette: useCustom ? customParsed : null,
+        menuStyle: demoPayload.menu_style ?? "tabs",
+      },
+      liveBaseline: {
+        theme_look_slug:
+          typeof liveSite.theme_look_slug === "string" ? liveSite.theme_look_slug : null,
+        custom_palette: liveSite.custom_palette ?? null,
+        design_tokens_draft: liveSite.design_tokens_draft ?? {},
+        menu_style: typeof liveSite.menu_style === "string" ? liveSite.menu_style : null,
+        theme_design_slug:
+          typeof liveSite.theme_design_slug === "string" ? liveSite.theme_design_slug : null,
+      },
+    };
+    const nowLive = new Date().toISOString();
+    const { error: pendingErr } = await admin
+      .from("talent_sites")
+      .update({
+        pending_design: pending,
+        draft_updated_at: nowLive,
+        updated_at: nowLive,
+        updated_by: g.userId,
+      })
+      .eq("id", siteId)
+      .eq("talent_profile_id", g.talentProfileId);
+    if (pendingErr) {
+      logServerError("maison.apply.livePending", pendingErr);
+      return { ok: false, code: "server_error", error: "Could not save the color change." };
+    }
     return {
-      ok: false,
-      code: "invalid_input",
-      error: "Changing a live design lands in a later step. Your live site is unchanged.",
+      ok: true,
+      data: {
+        designSlug: DESIGN_SLUG,
+        lookSlug: useCustom ? null : lookSlug,
+        paletteKey: useCustom ? null : paletteKey,
+        contentMode,
+        customPalette: useCustom ? customParsed : null,
+        livePending: true,
+        colorsOnly: true,
+      },
     };
   }
 
@@ -249,21 +307,42 @@ export async function undoMaisonDesignAction(): Promise<
     return { ok: false, code: "server_error", error: "Could not undo." };
   }
   if (!site) return { ok: false, code: "site_not_found", error: "Site not found." };
+  const pending = (site as { pending_design?: unknown }).pending_design;
+  const siteId = (site as { id: string }).id;
+
+  // W70 — Undo after restore / reset / reapply on a live site.
+  if (
+    (site as { site_published_at?: string | null }).site_published_at &&
+    isMaisonLivePending(pending) &&
+    pending.undoDraft
+  ) {
+    const restoredLive = await restoreMaisonDraftSnapshot(admin, {
+      talentProfileId: g.talentProfileId,
+      siteId,
+      snapshot: pending.undoDraft,
+      userId: g.userId,
+      clearPending: true,
+    });
+    if (!restoredLive.ok) {
+      return { ok: false, code: "server_error", error: restoredLive.error };
+    }
+    return { ok: true, data: { restored: true } };
+  }
+
   if ((site as { site_published_at?: string | null }).site_published_at) {
     return {
       ok: false,
       code: "invalid_input",
-      error: "Undo for a live site lands in a later step.",
+      error: "Use Discard in Design options to drop unpublished live changes.",
     };
   }
-  const pending = (site as { pending_design?: unknown }).pending_design;
   if (!isMaisonPendingUndo(pending)) {
     return { ok: false, code: "invalid_input", error: "Nothing to undo." };
   }
 
   const restored = await restoreMaisonDraftSnapshot(admin, {
     talentProfileId: g.talentProfileId,
-    siteId: (site as { id: string }).id,
+    siteId,
     snapshot: pending.previous,
     userId: g.userId,
   });
