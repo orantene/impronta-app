@@ -504,6 +504,12 @@ export async function handleBookingRefund(
   const marked = await d.markRefunded(ref.transactionId, {
     providerReference: input.chargeId,
     refundNote: "Stripe charge.refunded (full)",
+    // Pass THIS event's slice + Stripe refund id so a partial→remainder
+    // completing path books the remainder row (not a duplicate full gross)
+    // and can dedup on re-delivery. Without these, markRefunded still books
+    // `remaining = gross − prior partials`, but loses the `re_...` key.
+    refundAmountCents: input.refundAmountCents ?? input.refundedCents,
+    providerRefundId: input.refundId ?? null,
   });
   if (!marked.ok) {
     // "already refunded" / bad-state transitions are expected on re-delivery —
