@@ -19,6 +19,7 @@ import { z } from "zod";
 import { counterOffer, createOffer, reopenOfferForAmendment, updateOfferDraft, type OfferLineDraft } from "@/lib/inquiry/inquiry-engine-offers";
 import { loadInquiryOffers, loadOfferForEditor } from "@/lib/messaging/sheets";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
+import { offerDraftNeedsSharedSeed } from "@/lib/messaging/offer-shared-seed";
 import { fail } from "@/lib/messaging/refusals";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -86,6 +87,9 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
  * picker / the client link added to the `messages` draft order), so
  * "Add items → Continue to offer" opens an editor that already prices them.
  * Nothing to copy, or a failed copy, leaves the empty offer as before.
+ * Placeholder-only drafts (auto-seeded $0 talent rows) are replaced via
+ * `offerDraftNeedsSharedSeed` — bare `lines.length > 0` skipped the copy and
+ * left Send on empty_offer → unavailable.
  */
 async function seedOfferFromSharedDraft(g: OfferGuardOk, inquiryId: string, offerId: string) {
   const { data: order } = await scoped(g.admin, "orders", g.tenantId)
@@ -101,7 +105,7 @@ async function seedOfferFromSharedDraft(g: OfferGuardOk, inquiryId: string, offe
   if (lines.length === 0) return;
   const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId).select("version").eq("id", inquiryId).maybeSingle();
   const draft = await loadOfferForEditor(g.admin, { tenantId: g.tenantId, inquiryId, offerId, inquiryExpectedVersion: Number((inquiry as { version?: number } | null)?.version ?? 1) });
-  if (!draft || draft.lines.length > 0) return;
+  if (!draft || !offerDraftNeedsSharedSeed(draft.lines)) return;
   const lineItems: OfferLineDraft[] = lines.map((l, i) => {
     const units = Number(l.units ?? 1);
     const unit = Number(l.unit_cents ?? 0) / 100;

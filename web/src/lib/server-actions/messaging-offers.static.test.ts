@@ -51,3 +51,12 @@ test("messagingSendOffer gates via messagingInquiryManager", () => {
   assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
   assert.doesNotMatch(body, /const g = await staff\(\)/);
 });
+
+test("seedOfferFromSharedDraft replaces $0 createOffer placeholders, not only empty drafts", () => {
+  assert.match(offers, /from "@\/lib\/messaging\/offer-shared-seed"/);
+  assert.match(offers, /offerDraftNeedsSharedSeed\(draft\.lines\)/);
+  assert.doesNotMatch(
+    offers.slice(offers.indexOf("async function seedOfferFromSharedDraft")),
+    /if \(!draft \|\| draft\.lines\.length > 0\) return/,
+  );
+});
