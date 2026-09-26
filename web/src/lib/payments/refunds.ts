@@ -29,9 +29,12 @@
  *     `refunded`. On a WON dispute we restore the transaction to `paid` (the
  *     talent keeps the money that was never reversed).
  *
- * Linkage: the embedded-checkout PaymentIntent carries metadata.transaction_id
- * + booking_id (see stripe-payment-intent.ts). The charge/dispute event only
- * gives us the PaymentIntent id, so we retrieve the PI to read that metadata.
+ * Linkage: the PaymentIntent carries metadata.transaction_id + booking_id
+ * (hosted Checkout via `payment_intent_data.metadata` in stripe-checkout.ts;
+ * embedded via stripe-payment-intent.ts). Older Checkout sessions left the PI
+ * metadata empty — for those, we fall back to
+ * `booking_transactions.provider_metadata.payment_intent_id` (stamped by
+ * `markPaid`). The charge/dispute event only gives us the PaymentIntent id.
  *
  * Everything here is best-effort and never throws: the refund/dispute already
  * happened at Stripe, so a bookkeeping hiccup must not 5xx the webhook into a
@@ -111,10 +114,16 @@ function resolveRefundDeps(deps: RefundDeps): {
  * Retrieve the PaymentIntent and pull the booking linkage off its metadata.
  * Returns null when the PI isn't a booking charge (subscriptions, balance
  * top-ups, deposits) or can't be retrieved — callers then no-op.
+ *
+ * Hosted Checkout used to stamp `transaction_id` only on the *session*, so
+ * older PaymentIntents arrive with `metadata: {}`. `markPaid` still records
+ * the PI id on `booking_transactions.provider_metadata.payment_intent_id`,
+ * which is the fallback lookup below (same path `provider-disputes.ts` uses).
  */
 async function resolveBookingFromPaymentIntent(
   stripe: Stripe,
   paymentIntentId: string | null,
+  sb: SupabaseClient | null,
 ): Promise<BookingRef | null> {
   if (!paymentIntentId || paymentIntentId.startsWith("mock_pi_")) return null;
   let intent: Stripe.PaymentIntent;
@@ -124,13 +133,36 @@ async function resolveBookingFromPaymentIntent(
     logServerError("refunds.retrievePaymentIntent", err);
     return null;
   }
-  const transactionId = intent.metadata?.transaction_id ?? null;
-  if (!transactionId) return null; // not a booking PaymentIntent
-  return {
-    transactionId,
-    bookingId: intent.metadata?.booking_id ?? null,
-    chargeAmountCents: intent.amount ?? 0,
-  };
+  const fromMeta = intent.metadata?.transaction_id ?? null;
+  if (fromMeta) {
+    return {
+      transactionId: fromMeta,
+      bookingId: intent.metadata?.booking_id ?? null,
+      chargeAmountCents: intent.amount ?? 0,
+    };
+  }
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from("booking_transactions")
+      .select("id, booking_id")
+      .eq("provider_metadata->>payment_intent_id", paymentIntentId)
+      .maybeSingle();
+    if (error) {
+      logServerError("refunds.resolveBookingFromPaymentIntent.providerMeta", error);
+      return null;
+    }
+    if (!data) return null; // not a booking PaymentIntent
+    const row = data as { id: string; booking_id: string | null };
+    return {
+      transactionId: row.id,
+      bookingId: row.booking_id ?? null,
+      chargeAmountCents: intent.amount ?? 0,
+    };
+  } catch (err) {
+    logServerError("refunds.resolveBookingFromPaymentIntent.providerMeta", err);
+    return null;
+  }
 }
 
 /**
@@ -399,7 +431,7 @@ export async function handleBookingRefund(
   deps: RefundDeps = {},
 ): Promise<boolean> {
   const d = resolveRefundDeps(deps);
-  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
+  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId, d.resolveSupabase());
   if (!ref) return false;
 
   const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents;
@@ -465,7 +497,7 @@ export async function handleBookingDispute(
   deps: RefundDeps = {},
 ): Promise<boolean> {
   const d = resolveRefundDeps(deps);
-  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId);
+  const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId, d.resolveSupabase());
   if (!ref) return false;
 
   // ── dispute opened: flag + alert, do NOT touch the money ──

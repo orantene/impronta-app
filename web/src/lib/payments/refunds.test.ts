@@ -293,7 +293,15 @@ function makeDb(seed: Record<string, Row[]>): RecordingDb {
     const eqFilters: Array<[string, unknown]> = [];
     let pendingPatch: Row | null = null;
     let isDelete = false;
-    const matches = (r: Row) => eqFilters.every(([c, v]) => r[c] === v);
+    const matches = (r: Row) =>
+      eqFilters.every(([c, v]) => {
+        // PostgREST jsonb path filter used by refund / dispute PI fallback.
+        if (c === "provider_metadata->>payment_intent_id") {
+          const meta = r.provider_metadata as Record<string, unknown> | null | undefined;
+          return (meta?.payment_intent_id ?? null) === v;
+        }
+        return r[c] === v;
+      });
 
     // Apply a pending write (update/delete) to every matching row. Called from
     // the awaited terminal, so a chained `.eq().eq()` narrows the filter set
@@ -663,4 +671,32 @@ test("e2e non-booking charge → handler returns false (caller falls through)", 
     deps,
   );
   assert.equal(handled, false, "not a booking refund → caller handles the balance-top-up path");
+});
+
+test("e2e empty PI metadata → resolve via provider_metadata.payment_intent_id (hosted Checkout legacy)", async () => {
+  // Story 3 FAIL: Checkout stamped session metadata but left the PaymentIntent
+  // metadata {}, so charge.refunded no-op'd. markPaid still wrote the PI id
+  // onto provider_metadata — that is enough to book the refund.
+  const db = makeDb({
+    booking_transactions: [
+      {
+        ...parentTxn(),
+        provider_metadata: { payment_intent_id: E2E_PI },
+      },
+    ],
+    booking_payouts: [wsLeg(), talentLeg()],
+    booking_commission_snapshots: [snap()],
+  });
+  const { deps, calls } = stubDeps(db);
+  const { stripe, reversals } = makeStripe({ metadata: {} });
+
+  const handled = await handleBookingRefund(
+    stripe,
+    { paymentIntentId: E2E_PI, chargeId: E2E_CHARGE, refundedCents: 100000, refundId: "re_legacy", refundAmountCents: 100000 },
+    deps,
+  );
+
+  assert.equal(handled, true, "provider_metadata fallback finds the booking txn");
+  assert.deepEqual(calls.markRefunded, [E2E_TXN]);
+  assert.ok(reversals.length >= 1, "payouts reversed once the txn is resolved");
 });

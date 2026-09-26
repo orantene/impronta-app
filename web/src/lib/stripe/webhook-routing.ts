@@ -447,9 +447,11 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
       }
       // Embedded client checkout (Payment Element): the booking-transaction id
       // rides on metadata.transaction_id. Same idempotent mark-paid path as
-      // the hosted flow's checkout.session.completed. (The hosted flow's PI
-      // does NOT carry transaction_id — it sits on the Checkout session — so
-      // this branch only fires for the on-page Payment Element charge.)
+      // the hosted flow's checkout.session.completed. Hosted Checkout now also
+      // stamps `payment_intent_data.metadata` (same keys) so refund/dispute
+      // handlers can resolve the row off the PI; this branch still only fires
+      // for `payment_intent.succeeded`, which hosted Checkout settles via
+      // `checkout.session.completed` instead.
       const transactionId = strOrNull(intent.metadata?.transaction_id);
       if (transactionId) {
         return { kind: "booking_payment", transactionId, paymentIntentId: intent.id };

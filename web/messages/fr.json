@@ -7696,6 +7696,7 @@
           "paid": "Payé",
           "balance": "Solde dû",
           "requestPayment": "Demander le paiement",
+          "refund": "Rembourser",
           "none": "Aucun frais pour l'instant"
         },
         "files": {

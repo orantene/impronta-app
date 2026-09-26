@@ -18805,6 +18805,7 @@
           "paid": "Paid",
           "balance": "Balance due",
           "requestPayment": "Request payment",
+          "refund": "Refund",
           "none": "No charges yet"
         },
         "files": {

@@ -536,7 +536,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
 
   const onPanelAction = useCallback(
     (kind: ContextPanelAction) => {
-      const map: Record<ContextPanelAction, ShellActionId> = { reply: "reply", capture_identity: "capture_identity", open_client: "open_client", add_items: "add_items", create_offer: "create_offer", revise_offer: "revise_offer", request_payment: "request_payment", confirm: "confirm", remind: "remind", add_note: "add_note", add_file: "send_file", link_record: "link_record", open_record: "open_record", history: "history", reopen: "reopen" };
+      const map: Record<ContextPanelAction, ShellActionId> = { reply: "reply", capture_identity: "capture_identity", open_client: "open_client", add_items: "add_items", create_offer: "create_offer", revise_offer: "revise_offer", request_payment: "request_payment", refund: "refund", confirm: "confirm", remind: "remind", add_note: "add_note", add_file: "send_file", link_record: "link_record", open_record: "open_record", history: "history", reopen: "reopen" };
       setDrawerOpen(false);
       if (sheet === "details") setSheet(null);
       dispatch(map[kind]);
