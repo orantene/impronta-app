@@ -38,6 +38,7 @@ import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 
 import type { StreamRow } from "./MiniChatMessageBubble";
+import { guestThreadBlocksSendBar } from "./guest-thread-blocks-send";
 
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
@@ -777,7 +778,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {!showGate && extrasEnabled && onSendToAgency && !rows.some((m) => ["payment_paid", "offer_declined", "payment_failed", "refunded"].includes(m.kind)) && (
+      {!showGate && extrasEnabled && onSendToAgency && !guestThreadBlocksSendBar(rows) && (
         <SendToAgencyBar
           accent={accent}
           accentInk={accentInk}

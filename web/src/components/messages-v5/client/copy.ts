@@ -160,6 +160,17 @@ export function buildClientCopy(t: Translator) {
       noRefund: t("dashboard.messagesV5.client.link.cancel.noRefund"),
       refundOnly: t("dashboard.messagesV5.client.link.cancel.refundOnly"),
     },
+    /** Front-door v27 Declined / Pay failed / Refunded (engine producers only). */
+    outcome: {
+      declinedTitle: t("dashboard.messagesV5.client.link.outcome.declinedTitle"),
+      declinedBody: t("dashboard.messagesV5.client.link.outcome.declinedBody"),
+      payFailedTitle: t("dashboard.messagesV5.client.link.outcome.payFailedTitle"),
+      payFailedBody: t("dashboard.messagesV5.client.link.outcome.payFailedBody"),
+      payFailedRetry: t("dashboard.messagesV5.client.link.outcome.payFailedRetry"),
+      refundedTitle: t("dashboard.messagesV5.client.link.outcome.refundedTitle"),
+      refundedBody: t("dashboard.messagesV5.client.link.outcome.refundedBody"),
+      refundedBodyAmount: t("dashboard.messagesV5.client.link.outcome.refundedBodyAmount"),
+    },
     confirmed: {
       catBooking: t("dashboard.messagesV5.client.link.confirmed.catBooking"),
       catOrder: t("dashboard.messagesV5.client.link.confirmed.catOrder"),

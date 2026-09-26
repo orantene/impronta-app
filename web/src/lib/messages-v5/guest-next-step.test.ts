@@ -21,6 +21,36 @@ test("a guest card replaces Pay, and a missing card is not invented", () => {
   assert.equal(deriveGuestNextStep(base({ payCode: "abc" }))?.kind, "pay");
 });
 
+test("engine producer payloads drive Declined / Pay failed / Refunded", () => {
+  assert.equal(
+    deriveGuestNextStep(
+      base({
+        messages: [{ kind: "change_result", payload: { state: "declined", summary: "Offer declined", offerId: "o1" } }],
+        payCode: "abc",
+      }),
+    )?.kind,
+    "declined",
+  );
+  assert.equal(
+    deriveGuestNextStep(
+      base({
+        messages: [{ kind: "change_result", payload: { state: "failed", summary: "Payment failed" } }],
+        payCode: "abc",
+      }),
+    )?.kind,
+    "pay_failed",
+  );
+  assert.equal(
+    deriveGuestNextStep(
+      base({
+        messages: [{ kind: "payment_request", payload: { state: "refunded", amountCents: 20000, currency: "MXN" } }],
+        payCode: "abc",
+      }),
+    )?.kind,
+    "refunded",
+  );
+});
+
 test("a draft or closed thread shows no step (the send bar owns the draft)", () => {
   assert.equal(deriveGuestNextStep(base({ threadStatus: "draft", offers: [offer()] })), null);
   assert.equal(deriveGuestNextStep(base({ threadStatus: "closed", payCode: "abc" })), null);
