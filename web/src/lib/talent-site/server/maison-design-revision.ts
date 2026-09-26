@@ -34,7 +34,7 @@ async function nextPublishedVersion(
   admin: SupabaseClient,
   siteId: string,
 ): Promise<number> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_site_revisions")
     .select("version")
     .eq("talent_site_id", siteId)
@@ -42,6 +42,11 @@ async function nextPublishedVersion(
     .order("version", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) {
+    // Best-effort revision numbering — fall back to v1 rather than fail publish.
+    logServerError("maison.revision.nextVersion", error);
+    return 1;
+  }
   const current = (data as { version?: number } | null)?.version;
   return typeof current === "number" ? current + 1 : 1;
 }
