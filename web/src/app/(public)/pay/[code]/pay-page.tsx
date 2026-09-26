@@ -155,13 +155,15 @@ export async function PayByCodePage({
   if (loaded.status === "paid") {
     // Link schema has no refunded status; consult order / booking truth so a
     // full Stripe refund does not leave /pay stuck on Paid.
-    const { data: bookingForPay } = await admin
+    const { data: bookingForPay, error: bookingForPayError } = await admin
       .from("agency_bookings")
       .select("payment_status")
       .eq("order_id", loaded.orderId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    // Empty = no linked booking (fine). A failed read must not look like "paid".
+    if (bookingForPayError) notFound();
     const bookingPaymentStatus =
       (bookingForPay as { payment_status?: string | null } | null)?.payment_status ?? null;
     const paidDisplay = resolvePaidLinkDisplayStatus({
