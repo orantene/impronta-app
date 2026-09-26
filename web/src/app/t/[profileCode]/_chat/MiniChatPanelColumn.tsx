@@ -12,8 +12,7 @@
  * In expanded mode, ExpandedChatLayout passes this as the `right` pane.
  */
 
-import { useState } from "react";
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 
 import type {
   AddClaimEmailCallback,
@@ -39,7 +38,6 @@ import { interpolate } from "@/i18n/interpolate";
 
 import type { StreamRow } from "./MiniChatMessageBubble";
 import { guestThreadBlocksSendBar } from "./guest-thread-blocks-send";
-
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
 import { countCoreDetails } from "./guest-detail-progress";
