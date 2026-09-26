@@ -185,7 +185,7 @@ export function ClientTimesCard({
           <RefusalLine code={refusal} copy={kit} variant="mobile" />
           {refusal === "unavailable" || refusal === "hold_ended" ? <CardLine muted label={fill(copy.times.taken, { business })} /> : null}
           {freeAlts.length > 0 ? (
-            <div data-next-free-times="" style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            <div className="cx-stack" data-next-free-times="">
               <CardLine muted label={copy.times.nextFree} />
               {freeAlts.map((startsAt) => (
                 <button
