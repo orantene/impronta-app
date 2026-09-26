@@ -230,3 +230,49 @@ test("request-intent who primary is Chat now", () => {
   assert.match(cta.textContent ?? "", /Chateá ahora/);
   unmount();
 });
+
+test("settings Contact CTA opens chat even for instant intent", () => {
+  const book = mockBook();
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="demo"
+        bookingSettings={{ bookingPosture: "on_demand", whoPrimaryCta: "contact" }}
+        slotsFn={async () => ({
+          slots: ["2026-09-25T15:00:00.000Z"],
+          timezone: "UTC",
+        })}
+      />,
+    );
+  });
+  open(detail({ addOns: [], intent: "instant" }), "when");
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+  const cta = host.querySelector<HTMLButtonElement>('[data-catalog-chat="primary"]');
+  assert.ok(cta);
+  assert.equal(cta.getAttribute("data-catalog-who-cta"), "contact");
+  assert.match(cta.textContent ?? "", /Contactar/);
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("settings Confirm now keeps Confirmar cita for instant Path A", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(detail({ addOns: [] }), "when");
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+  const cta = host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]');
+  assert.ok(cta);
+  assert.equal(cta.getAttribute("data-catalog-chat"), null);
+  assert.match(cta.textContent ?? "", /Confirmar cita/);
+  unmount();
+});
