@@ -211,7 +211,34 @@ export function getBuilderNodeLayoutFindings(
 ): ReadonlyArray<BuilderNodeLayoutFinding> {
   const findings: BuilderNodeLayoutFinding[] = [];
 
-  if (node.kind === "divider" || node.kind === "services_catalog") {
+  if (node.kind === "divider") {
+    return findings;
+  }
+
+  if (node.kind === "services_catalog") {
+    const mode = node.props.selectionMode ?? "all";
+    if (mode === "ids" && !(node.props.selectedOfferingIds?.length)) {
+      findings.push({
+        id: "services-catalog-empty-selection",
+        level: "warning",
+        title: "Services menu has no offerings selected",
+        message:
+          "This block is set to show individually selected offerings, but none are selected. Visitors will see an empty section. Pick offerings in Content, or switch to All eligible.",
+        quickFixLabel: "Show all eligible",
+        quickFixPatch: { selectionMode: "all", selectedOfferingIds: undefined },
+      });
+    }
+    if (mode === "categories" && !(node.props.selectedCategoryNames?.length)) {
+      findings.push({
+        id: "services-catalog-empty-categories",
+        level: "warning",
+        title: "Services menu has no categories selected",
+        message:
+          "This block filters by category but none are checked. Visitors will see an empty section.",
+        quickFixLabel: "Show all eligible",
+        quickFixPatch: { selectionMode: "all", selectedCategoryNames: undefined },
+      });
+    }
     return findings;
   }
 

@@ -525,6 +525,11 @@ export function ServicesHome({
         <div className="mt-8 text-[13px] text-admin-ink-muted">
           <p className="font-semibold text-admin-ink">{copy.t("Genuinely empty")}</p>
           <p className="mt-1">{copy.t("No services yet. Add your first one. It takes about twenty seconds and nothing is public until you save.")}</p>
+          <p className="mt-2">
+            {copy.t(
+              "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.",
+            )}
+          </p>
           <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => setTypeOpen(true)}>
             + {copy.t("Add a service")}
           </button>
@@ -535,6 +540,18 @@ export function ServicesHome({
           <p>{copy.t("No items match.")}</p>
         </div>
       )}
+
+      {!editor.loading && !editor.error && items.length > 0 ? (
+        <p
+          className="mt-4 rounded-[12px] border border-admin-border-soft bg-admin-canvas px-3.5 py-2.5 text-[12.5px] leading-snug text-admin-ink-muted"
+          data-services-website-parity-note=""
+        >
+          <span className="font-semibold text-admin-ink">{copy.t("Same catalog as your website.")}</span>{" "}
+          {copy.t(
+            "Prices and booking rules you save here go live on the Services menu widget when the offering is published. Website layout and styling stay draft until you publish the page.",
+          )}
+        </p>
+      ) : null}
 
       <WebsiteRewardControl placement="services" />
 

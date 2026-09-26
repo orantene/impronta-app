@@ -72,4 +72,13 @@ export const RAIL_ES_TEXT: Record<string, string> = {
     "Cuando el cliente completa nombre y contacto, este botón abre el chat con esos datos ya cargados. No crea una cita confirmada.",
   "After the client fills name and contact, this button confirms the appointment when the service allows instant booking.":
     "Cuando el cliente completa nombre y contacto, este botón confirma la cita si el servicio admite reserva al momento.",
+  // Services dashboard ↔ website catalog parity (#2315). Keep out of
+  // dashboard-i18n.ts — that file is locked at the 3968-line size-ratchet budget.
+  "Put your menu on your page: the website Services widget shows the same offerings clients can book. It takes about a minute per service.":
+    "Pon tu menú en tu página: el widget de Servicios del sitio muestra las mismas ofertas que los clientes pueden reservar. Toma alrededor de un minuto por servicio.",
+  "Same catalog as your website.": "El mismo catálogo que tu sitio.",
+  "Prices and booking rules you save here go live on the Services menu widget when the offering is published. Website layout and styling stay draft until you publish the page.":
+    "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+  "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.":
+    "El widget de menú de Servicios de tu sitio muestra el mismo catálogo: agrega una oferta aquí y puede aparecer en tu página sin reconstruir el menú.",
 };
