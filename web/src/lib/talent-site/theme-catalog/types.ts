@@ -12,8 +12,8 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
-/** `kind` column. Look may later split into palette / typography / finish. */
-export type TalentThemeKind = "design" | "look";
+/** `kind` column. Look may later split into palette / typography / finish. Demo = content pack. */
+export type TalentThemeKind = "design" | "look" | "demo";
 
 /** `required_talent_tier` column, ascending. */
 export type TalentThemeRequiredTier = "talent_basic" | "talent_pro" | "talent_portfolio";
@@ -44,6 +44,24 @@ export interface LookPayload {
   tokens: Record<string, string>;
 }
 
+/**
+ * Demo payload (catalog kind `demo`). Content pack + starter content for one
+ * profession under a Design. Hydration shape matches the preview fixture.
+ */
+export interface DemoPayload {
+  offering_mode: "bookings" | "quotes" | "inquiries";
+  default_look: string;
+  section_arrangement?: string[];
+  menu_style?: "tabs" | "list" | "accordion";
+  hydration: Record<string, unknown>;
+  starter_content: {
+    services: unknown[];
+    faq_prompts: string[];
+    section_text: unknown[];
+  };
+  image_licence: { reusable: boolean; per_image?: Record<string, unknown> };
+}
+
 export interface ThemePreviewSwatch {
   primary: string;
   secondary: string;
@@ -68,6 +86,8 @@ interface TalentThemeCatalogRowBase {
   summary: string;
   category: string | null;
   tags: string[];
+  /** Design slug this Look/Demo is scoped to; null = global. */
+  for_design: string | null;
   preview: ThemePreview;
   required_talent_tier: TalentThemeRequiredTier;
   status: TalentThemeStatus;
@@ -85,10 +105,12 @@ interface TalentThemeCatalogRowBase {
 /** A `talent_theme_catalog` row, discriminated on `kind` (snake_case = DB). */
 export type TalentThemeCatalogRow =
   | (TalentThemeCatalogRowBase & { kind: "design"; payload: DesignPayload })
-  | (TalentThemeCatalogRowBase & { kind: "look"; payload: LookPayload });
+  | (TalentThemeCatalogRowBase & { kind: "look"; payload: LookPayload })
+  | (TalentThemeCatalogRowBase & { kind: "demo"; payload: DemoPayload });
 
 export type TalentThemeDesignRow = Extract<TalentThemeCatalogRow, { kind: "design" }>;
 export type TalentThemeLookRow = Extract<TalentThemeCatalogRow, { kind: "look" }>;
+export type TalentThemeDemoRow = Extract<TalentThemeCatalogRow, { kind: "demo" }>;
 
 /**
  * Client-safe gallery entry (no payload trees). What the loader hands the
@@ -101,6 +123,8 @@ export interface CatalogEntry {
   summary: string;
   category: string | null;
   tags: string[];
+  /** Present for Looks/Demos scoped to one Design (e.g. Maison palettes). */
+  forDesign: string | null;
   preview: ThemePreview;
   requiredTier: TalentThemeRequiredTier;
   version: number;

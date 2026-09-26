@@ -63,6 +63,13 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "divider",
   "spacer",
   "icon",
+  // Maison free-website Design (PR 1 allowlist; PR 2 ports the real trees).
+  "tabs",
+  "tab_panel",
+  "accordion",
+  "accordion_item",
+  "reveal",
+  "services_catalog",
 ]);
 
 /** Kinds rejected with a specific message (raw markup / third-party / agency data). */
