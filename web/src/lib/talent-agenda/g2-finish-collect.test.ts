@@ -78,6 +78,17 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     assert.doesNotMatch(src, /reason:\s*"no_order"/);
   });
 
+  it("createAgendaBookingPayLink rewrites app origin onto a tenant /pay host", () => {
+    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    assert.match(src, /resolveAgendaPayPublicOrigin/);
+    assert.match(src, /pay-public-origin/);
+    // Must not pass a raw window origin straight into createPaymentLink.
+    assert.doesNotMatch(
+      src,
+      /createPaymentLink\([\s\S]*publicOrigin:\s*input\.publicOrigin\.replace/,
+    );
+  });
+
   it("ensureAgendaOrderShell aligns a short unpaid talent_agenda shell before mint", () => {
     const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
     assert.match(src, /alignAgendaOrderShellToAmount/);
