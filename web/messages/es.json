@@ -18982,7 +18982,8 @@
             "yesterday": "Ayer",
             "emptyTitle": "Todavía no hay nada",
             "emptyBody": "Cuando {business} te escriba, aparecerá aquí. Puedes escribir primero.",
-            "loading": "Cargando tu conversación"
+            "loading": "Cargando tu conversación",
+            "backFromEmail": "Volviste desde el correo"
           },
           "composer": {
             "placeholder": "Escribe a {business}",
@@ -18996,6 +18997,8 @@
             "secure": "Enlace seguro · válido para tu reserva",
             "saveToEmail": "Guardar esta conversación en tu correo",
             "saveToEmailSoon": "Guardar en el correo aún no está disponible desde este enlace",
+            "saveToEmailSent": "Enlace enviado a tu correo",
+            "saveToEmailFailed": "No se pudo enviar el enlace. Inténtalo de nuevo.",
             "expires": "Este enlace es válido hasta el {date}"
           },
           "choices": {

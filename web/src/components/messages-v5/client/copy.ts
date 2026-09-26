@@ -25,6 +25,7 @@ export function buildClientCopy(t: Translator) {
       emptyTitle: t("dashboard.messagesV5.client.link.stream.emptyTitle"),
       emptyBody: t("dashboard.messagesV5.client.link.stream.emptyBody"),
       loading: t("dashboard.messagesV5.client.link.stream.loading"),
+      backFromEmail: t("dashboard.messagesV5.client.link.stream.backFromEmail"),
     },
     composer: {
       placeholder: t("dashboard.messagesV5.client.link.composer.placeholder"),
@@ -38,6 +39,8 @@ export function buildClientCopy(t: Translator) {
       secure: t("dashboard.messagesV5.client.link.footer.secure"),
       saveToEmail: t("dashboard.messagesV5.client.link.footer.saveToEmail"),
       saveToEmailSoon: t("dashboard.messagesV5.client.link.footer.saveToEmailSoon"),
+      saveToEmailSent: t("dashboard.messagesV5.client.link.footer.saveToEmailSent"),
+      saveToEmailFailed: t("dashboard.messagesV5.client.link.footer.saveToEmailFailed"),
       expires: t("dashboard.messagesV5.client.link.footer.expires"),
     },
     choices: {

@@ -8,7 +8,7 @@
  * `messagingGuestDraftAdd` already treats it. There is no staff guard here,
  * and nothing in this file reads or returns a staff-only field.
  *
- * Writers (D-MSG-160..166):
+ * Writers (D-MSG-160..166, D-MSG-432):
  *   - reply       -> `insertMessage` (kind "text", sender null) — inquiry_messages only
  *   - choose      -> POS `addLine` on the conversation's shared draft, `proposedBy: "client"`
  *                    (the same writer `messagingGuestDraftAdd` uses; a pick never books)
@@ -17,6 +17,7 @@
  *                    a guarded direct write of the same two rows otherwise (D-MSG-162)
  *   - decline     -> engine `clientRejectOffer` / the same fallback (D-MSG-162)
  *   - change      -> a `change_request` card + client message; staff revise (D-MSG-164)
+ *   - save email  -> mail the contact the `/c/t/<token>?from=email` link (D-MSG-432)
  *
  * Split out of `messaging-engine.ts` (already at the 800-line cap, same move
  * S6/L6 made) and kept apart from the staff wrappers on purpose: the client
@@ -28,6 +29,7 @@ import { z } from "zod";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { renameClientContact } from "@/lib/messaging/client-rename";
+import { saveConversationToEmail } from "@/lib/messaging/client-save-to-email";
 import { resolveTenantOwnerId } from "@/lib/inquiry/coordinator-assignment";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { bookAgainFromRecord } from "@/lib/messaging/client-book-again";
@@ -474,5 +476,25 @@ export async function messagingClientBookAgain(input: { token: string; recordId:
     recordId: parsed.data.recordId,
     createInquiry: createInquiryFromIntent as never,
     resolveOwner: (admin, tenantId) => resolveTenantOwnerId(admin as never, tenantId),
+  });
+}
+
+/* ---------- 8. save conversation to email (D-MSG-432 / closes D-MSG-166b) ---------- */
+
+export async function messagingClientSaveToEmail(input: {
+  token: string;
+  requestOrigin?: string | null;
+}): Promise<ActionResult<{ email: string }>> {
+  const parsed = z
+    .object({ token: z.string().min(1), requestOrigin: z.string().max(200).nullable().optional() })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  return saveConversationToEmail(l.admin, {
+    tenantId: l.tenantId,
+    inquiryId: l.inquiryId,
+    token: parsed.data.token,
+    requestOrigin: parsed.data.requestOrigin ?? null,
   });
 }
