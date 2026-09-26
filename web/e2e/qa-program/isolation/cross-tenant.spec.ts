@@ -102,6 +102,46 @@ test.describe("QA isolation — cross-tenant refusal", () => {
     ).toEqual([]);
   });
 
+  test("valid Host A /c/t/ token on Host B refuses — no Maria body (Story 7)", async ({
+    browser,
+  }) => {
+    // Replay a Host A client token against Host B's origin. Possession of a
+    // valid HMAC is not enough: agency hosts must own the token tenant.
+    const hostAToken = process.env.QA_HOST_A_CLIENT_TOKEN?.trim();
+    const hostBOrigin = (
+      process.env.QA_JOURNEYS_B_ORIGIN ?? "https://staging-qa-journeys-b.tulala.digital"
+    ).replace(/\/$/, "");
+    test.skip(
+      !hostAToken,
+      "set QA_HOST_A_CLIENT_TOKEN to a live Host A /c/t/v1.… token to prove Story 7 isolation",
+    );
+    const ctx = await browser.newContext();
+    const bPage = await ctx.newPage();
+    const { errors: bErrors } = attachConsoleGuard(bPage);
+    await bPage.goto(`${hostBOrigin}/c/t/${encodeURIComponent(hostAToken!)}`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+    await bPage.waitForTimeout(1000);
+    const body = ((await bPage.locator("body").innerText()) || "").replace(/\s+/g, " ");
+    expect(
+      /Maria QA|lifting de pestañas|1790354904219/i.test(body),
+      `Host B must not render Host A Maria thread; got: ${body.slice(0, 400)}`,
+    ).toBeFalsy();
+    expect(
+      /expired|invalid|not (available|found)|couldn'?t find|no longer here|refused|page not found|404/i.test(
+        body,
+      ) || (await bPage.locator("[data-messages-v5]").count()) === 0,
+      `Host B replay must refuse or 404; got: ${body.slice(0, 300)}`,
+    ).toBeTruthy();
+    await shot(bPage, "iso-host-b-replay-host-a-token");
+    await ctx.close();
+    expect(
+      bErrors.filter((e) => !/Failed to load resource:.*404/i.test(e)),
+      bErrors.join("\n"),
+    ).toEqual([]);
+  });
+
   test("foreign /pay/<code> refuses — no payment content", async ({ page }) => {
     const { errors } = attachConsoleGuard(page);
     await prepareJourneysPage(page);
