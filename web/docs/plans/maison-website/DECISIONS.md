@@ -54,9 +54,9 @@ On every successful site publish, write a `talent_site_revisions` row (kind `pub
 
 ---
 
-## A6. FAQ items (owner default: yes)
+## A6. FAQ items (already ruled: yes)
 
-Add `talent_faq_items` (talent_profile_id, question, answer, status draft/published, sort_order, import_batch_id, timestamps; RLS owner-write, public read of published). Maison FAQ binds like `services_catalog` binds offerings.
+Add `talent_faq_items` (talent_profile_id, question, answer, status draft/published, sort_order, import_batch_id, timestamps; RLS owner-read + public read of published; writes via service role). Maison FAQ binds like `services_catalog` binds offerings.
 
 ---
 
@@ -110,13 +110,13 @@ Choose a design, Theme detail, Import, Custom colors, Review, Design options = t
 | 2 | Contrast check is **advisory**, not blocking. |
 | 3 | Demo images — licensed stock from `platform_stock_images` only, preview-only; never jor-beauty photos. |
 | 4 | Jor stays on her hand-built page / read-only for this build; migration is a later owner-approved step. |
-| 5 | Free-plan services and prices are public (owner 2026-09-24). Maison's menu shows published offerings on the free plan. |
+| 5 | Free-plan services and prices are public (owner 2026-09-24, comment at `web/src/app/t/[profileCode]/_light/LightProfileLayout.tsx:543`). Maison's menu shows published offerings on the free plan. |
 
 ---
 
 ## Deviations
 
-_None._ PR #2317 keeps docs + flag + seed + **conditional** gallery gate + catalog filter (no schema yet; migrations wait for program-assigned timestamps). Prefer next: serial PR 1 for schema after this is green.
+_None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_website_foundation.sql`, seeds, allowlist, flag, conditional gate, catalog filter, flags-off tests, W8 probe).
 
 ---
 
