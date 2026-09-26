@@ -3286,6 +3286,13 @@ const ES_TEXT: Record<string, string> = {
   // ── W8: services nudge + premium-pages read-only notice ──
   "Add your first service": "Agrega tu primer servicio",
   "Put your menu on your page: clients can ask about a service or book it directly. It takes about a minute per service.": "Pon tu menú en tu página: los clientes pueden preguntar por un servicio o reservarlo directamente. Toma alrededor de un minuto por servicio.",
+  "Put your menu on your page: the website Services widget shows the same offerings clients can book. It takes about a minute per service.":
+    "Pon tu menú en tu página: el widget de Servicios del sitio muestra las mismas ofertas que los clientes pueden reservar. Toma alrededor de un minuto por servicio.",
+  "Same catalog as your website.": "El mismo catálogo que tu sitio.",
+  "Prices and booking rules you save here go live on the Services menu widget when the offering is published. Website layout and styling stay draft until you publish the page.":
+    "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+  "Your website Services menu widget shows the same catalog — add an offering here and it can appear on your page without rebuilding the menu.":
+    "El widget de menú de Servicios de tu sitio muestra el mismo catálogo: agrega una oferta aquí y puede aparecer en tu página sin reconstruir el menú.",
   "Set up services": "Configurar servicios",
   "Later": "Más tarde",
   "Read-only preview. Edit your page content from Public page.": "Vista de solo lectura. Edita el contenido de tu página desde Página pública.",
