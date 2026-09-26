@@ -60,6 +60,7 @@ export type AgendaMoneyItem = {
   value: string;
   helper?: string;
   tone?: "default" | "success" | "attention";
+  onClick?: () => void;
 };
 
 export type AgendaNowAction = {
