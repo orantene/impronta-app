@@ -24,3 +24,11 @@ test("messagingEnsureSharedDraft gates via messagingInquiryManager", () => {
   const staffIdx = guard.indexOf("return messagingStaff()");
   assert.ok(mgrIdx >= 0 && staffIdx > mgrIdx, "manager gate before staff fallback");
 });
+
+test("messagingSendOffer gates via messagingInquiryManager", () => {
+  const fn = engine.slice(engine.indexOf("export async function messagingSendOffer"));
+  const end = fn.indexOf("export async function messagingGuestDraftAdd");
+  const body = end >= 0 ? fn.slice(0, end) : fn;
+  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
+  assert.doesNotMatch(body, /const g = await staff\(\)/);
+});
