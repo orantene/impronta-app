@@ -163,6 +163,44 @@ test("empty catalogue renders the empty state, never a blank section", () => {
   assert.match(html, /No services are published yet\.|Todavía no hay servicios publicados\./);
 });
 
+test("talentOfferingsLoading paints dedicated loading skeleton (BRIEF-03)", () => {
+  const en = render([catalogNode()], { talentOfferingsLoading: true });
+  assert.match(en, /data-catalog-loading=""/);
+  assert.match(en, /aria-busy="true"/);
+  assert.match(en, /Loading services/);
+  assert.match(en, /site-builder-node--services-catalog-skel/);
+  assert.doesNotMatch(en, /No services are published yet/);
+  assert.doesNotMatch(en, /data-offering-cta=/);
+
+  const esHtml = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode()], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      visitorLocale: "es",
+      dataSources: { talentOfferingsLoading: true },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(esHtml, /Cargando servicios/);
+});
+
+test("talentOfferingsLoading wins over empty and over ready rows", () => {
+  const overEmpty = render([catalogNode()], {
+    talentOfferingsLoading: true,
+    talentOfferings: [],
+  });
+  assert.match(overEmpty, /data-catalog-loading=""/);
+  assert.doesNotMatch(overEmpty, /No services are published yet/);
+
+  const overReady = render([catalogNode()], {
+    talentOfferingsLoading: true,
+    talentOfferings: [offering({})],
+  });
+  assert.match(overReady, /data-catalog-loading=""/);
+  assert.doesNotMatch(overReady, /Gel pedicure/);
+  assert.doesNotMatch(overReady, /data-offering-cta=/);
+});
+
 test("a product's price row omits '· N min', a service's does not", () => {
   const html = render([catalogNode()], {
     talentOfferings: [

@@ -69,6 +69,7 @@ test("catalog island graph does not import app/t/[profileCode] or use-server ins
   const files = [
     "lib/site-admin/builder-node/services-catalog-filter.tsx",
     "lib/site-admin/builder-node/services-catalog-static-fallback.tsx",
+    "lib/site-admin/builder-node/services-catalog-loading.tsx",
     "components/public-booking/CatalogBookingSheet.tsx",
     "components/public-booking/catalog-booking-logic.ts",
     "components/public-booking/catalog-island-boundary.tsx",
