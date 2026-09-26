@@ -4493,6 +4493,12 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--token-color-accent,var(--token-color-primary,#A82458));color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
 .site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-meta{font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.2rem}
+.site-builder-node--services-catalog-badge{display:inline-flex;align-items:center;font-size:.65rem;font-weight:600;letter-spacing:.02em;padding:.15rem .45rem;border-radius:999px;border:1px solid var(--token-color-line);color:var(--token-color-ink);background:transparent}
+.site-builder-node--services-catalog-search{display:flex;gap:.5rem;align-items:center;margin:0 0 1rem}
+.site-builder-node--services-catalog-search input{flex:1;min-height:2.5rem;border:1px solid var(--token-color-line);border-radius:10px;padding:0 .85rem;font:inherit;background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink)}
+.site-builder-node--services-catalog-search button{appearance:none;border:0;background:transparent;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--token-color-ink);text-decoration:underline;min-height:44px}
 .site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;white-space:nowrap;font-size:1rem}
 .site-builder-node--services-catalog-price small{font-size:.6875rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
@@ -5672,10 +5678,6 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const ctaLabel = p.ctaLabel?.trim() || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
-      const emptyMessage =
-        text("emptyMessage", p.emptyMessage) ||
-        (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
-
       // Defensive re-filter + widget selection (references only).
       const visible = filterOfferingsForCatalog(options.dataSources.talentOfferings ?? [], {
         selectionMode: p.selectionMode,
@@ -5684,8 +5686,20 @@ function renderBuilderNodeElement(
         autoIncludeNew: p.autoIncludeNew,
         featuredOfferingIds: p.featuredOfferingIds,
         sort: p.sort,
-        manualOrderIds: p.manualOrderIds,
+        manualOrderIds:
+          p.sort === "manual"
+            ? (p.manualOrderIds ?? p.selectedOfferingIds)
+            : p.manualOrderIds,
       });
+      const emptyMessage =
+        text("emptyMessage", p.emptyMessage) ||
+        (visible.length === 0 && (p.selectionMode === "ids" || p.selectionMode === "categories")
+          ? es
+            ? "Ningún servicio elegible en esta selección."
+            : "No eligible offerings in this selection."
+          : es
+            ? "Todavía no hay servicios publicados."
+            : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
       const layout = p.layout ?? "rows";
@@ -5803,8 +5817,13 @@ function renderBuilderNodeElement(
                 nav={navMode}
                 showPhoto={p.showPhoto !== false && layout !== "compact_list"}
                 showDescription={p.showDescription !== false}
+                showCategory={p.showCategory === true}
                 showDuration={p.showDuration !== false}
+                showDelivery={p.showDelivery === true}
+                showAvailability={p.showAvailability === true}
+                showPrice={p.showPrice !== false}
                 showUsdEquivalent={p.showUsdEquivalent !== false}
+                showBadges={p.showBadges === true}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
@@ -5819,6 +5838,9 @@ function renderBuilderNodeElement(
                 sheetAccent={
                   p.bookingSheet?.accent === "ink" ? "primary" : (p.bookingSheet?.accent ?? "primary")
                 }
+                categoryShowAll={p.categoryShowAll === true}
+                categoryShowCounts={p.categoryShowCounts === true}
+                enableCatalogSearch={p.enableCatalogSearch === true}
                 captcha={options.captcha ?? null}
                 bookingSettings={options.dataSources.talentOfferingsBookingSettings}
               />

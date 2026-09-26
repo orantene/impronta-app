@@ -1558,13 +1558,7 @@ function BuilderNodeContentInspectorBody({
   }
 
   if (node.kind === "services_catalog") {
-    return (
-      <ServicesCatalogContentInspector
-        node={node}
-        commitPatch={commitPatch}
-        eligibleOfferings={[]}
-      />
-    );
+    return <ServicesCatalogContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────

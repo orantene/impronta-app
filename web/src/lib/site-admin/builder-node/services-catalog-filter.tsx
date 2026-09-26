@@ -93,8 +93,13 @@ export function ServicesCatalogFilter({
   nav,
   showPhoto,
   showDescription = true,
+  showCategory = false,
   showDuration,
+  showDelivery = false,
+  showAvailability = false,
+  showPrice = true,
   showUsdEquivalent,
+  showBadges = false,
   confirmsByHand,
   usdRates,
   ctaLabel,
@@ -105,6 +110,9 @@ export function ServicesCatalogFilter({
   mobileBar = "float",
   showAskLink = true,
   sheetAccent = "primary",
+  categoryShowAll = false,
+  categoryShowCounts = false,
+  enableCatalogSearch = false,
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
 }: {
@@ -113,8 +121,13 @@ export function ServicesCatalogFilter({
   nav: CatalogNavMode;
   showPhoto: boolean;
   showDescription?: boolean;
+  showCategory?: boolean;
   showDuration: boolean;
+  showDelivery?: boolean;
+  showAvailability?: boolean;
+  showPrice?: boolean;
   showUsdEquivalent: boolean;
+  showBadges?: boolean;
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
@@ -127,13 +140,16 @@ export function ServicesCatalogFilter({
   /** Pass-through to sheet; chat handoff owned by sibling sheet/chat PR. */
   showAskLink?: boolean;
   sheetAccent?: "ink" | "primary";
+  categoryShowAll?: boolean;
+  categoryShowCounts?: boolean;
+  enableCatalogSearch?: boolean;
   /** Tenant captcha — required when createInstantBookingAction enforces it. */
   captcha?: GuestCaptchaConfig | null;
   bookingSettings?: CatalogSheetBookingSettings;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
-  const [active, setActive] = useState<string | null>(first);
+  const [active, setActive] = useState<string | null>(categoryShowAll ? null : first);
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
@@ -141,9 +157,12 @@ export function ServicesCatalogFilter({
   const [selectedTotal, setSelectedTotal] = useState(0);
   const [selectedCurrency, setSelectedCurrency] = useState("MXN");
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const es = locale.startsWith("es");
   const filterNav = nav === "pills" || nav === "tabs";
   const bookingPosture = bookingSettings.bookingPosture;
+  const q = searchQuery.trim().toLowerCase();
+
 
   useEffect(() => {
     const onSelected = (e: Event) => {
@@ -195,16 +214,54 @@ export function ServicesCatalogFilter({
     dispatchOffering(found, confirmsByHand, "when", group?.note, bookingPosture);
   };
 
+  const matchesSearch = (item: TalentOffering) => {
+    if (!q) return true;
+    const hay = `${item.title} ${item.category ?? ""} ${item.description ?? ""}`.toLowerCase();
+    return hay.includes(q);
+  };
+
   return (
     <div className="cb-island" data-sheet-accent={sheetAccent}>
+      {enableCatalogSearch ? (
+        <div className="site-builder-node--services-catalog-search">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={es ? "Buscar servicios…" : "Search services…"}
+            aria-label={es ? "Buscar servicios" : "Search services"}
+          />
+          {q ? (
+            <button type="button" onClick={() => setSearchQuery("")}>
+              {es ? "Restablecer" : "Reset"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {filterNav ? (
         <nav
           aria-label={es ? "Categorías" : "Categories"}
           className="site-builder-node--services-catalog-nav"
           data-category-nav={nav}
         >
+          {categoryShowAll ? (
+            <button
+              type="button"
+              aria-pressed={active === null}
+              data-catalog-tab="__all__"
+              className="site-builder-node--services-catalog-pill"
+              data-active={active === null ? "true" : "false"}
+              onClick={() => setActive(null)}
+            >
+              {es ? "Todos" : "All"}
+              {categoryShowCounts
+                ? ` (${groups.reduce((n, g) => n + g.items.filter(matchesSearch).length, 0)})`
+                : ""}
+            </button>
+          ) : null}
           {named.map((g) => {
             const selected = active === g.name;
+            const count = g.items.filter(matchesSearch).length;
             return (
               <button
                 key={g.name}
@@ -216,6 +273,7 @@ export function ServicesCatalogFilter({
                 onClick={() => setActive(g.name)}
               >
                 {g.name}
+                {categoryShowCounts ? ` (${count})` : ""}
               </button>
             );
           })}
@@ -239,9 +297,13 @@ export function ServicesCatalogFilter({
       ) : null}
 
       {groups.map((g) => {
-        const hidden = filterNav && Boolean(g.name) && active !== g.name;
-        const accordionOpen = nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
+        // Changing filter must not clear selectedId / booking sheet state (brief §7).
+        const hidden =
+          filterNav && active !== null && Boolean(g.name) && active !== g.name;
+        const accordionOpen =
+          nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
         const showGroupHeading = nav === "jump" || nav === "sections";
+        const visibleItems = g.items.filter(matchesSearch);
         return (
           <div
             key={g.name ?? "_"}
@@ -267,25 +329,39 @@ export function ServicesCatalogFilter({
               </button>
             ) : null}
             {nav !== "accordion" || accordionOpen || !g.name ? (
-              <ul className="site-builder-node--services-catalog-list">
-                {g.items.map((item) => (
-                  <CatalogRow
-                    key={item.id}
-                    item={item}
-                    locale={locale}
-                    showPhoto={showPhoto}
-                    showDescription={showDescription}
-                    showDuration={showDuration}
-                    showUsdEquivalent={showUsdEquivalent}
-                    confirmsByHand={confirmsByHand || forceRequestIntent(bookingPosture)}
-                    usdRates={usdRates}
-                    ctaLabel={ctaLabel}
-                    durationFormat={durationFormat}
-                    selected={selectedId === item.id}
-                    onSelect={() => onRowAction(item, g.note)}
-                  />
-                ))}
-              </ul>
+              visibleItems.length === 0 && q ? (
+                <p className="site-builder-node--services-catalog-empty">
+                  {es ? "Sin resultados." : "No results."}{" "}
+                  <button type="button" onClick={() => setSearchQuery("")}>
+                    {es ? "Restablecer" : "Reset"}
+                  </button>
+                </p>
+              ) : (
+                <ul className="site-builder-node--services-catalog-list">
+                  {visibleItems.map((item) => (
+                    <CatalogRow
+                      key={item.id}
+                      item={item}
+                      locale={locale}
+                      showPhoto={showPhoto}
+                      showDescription={showDescription}
+                      showCategory={showCategory}
+                      showDuration={showDuration}
+                      showDelivery={showDelivery}
+                      showAvailability={showAvailability}
+                      showPrice={showPrice}
+                      showUsdEquivalent={showUsdEquivalent}
+                      showBadges={showBadges}
+                      confirmsByHand={confirmsByHand || forceRequestIntent(bookingPosture)}
+                      usdRates={usdRates}
+                      ctaLabel={ctaLabel}
+                      durationFormat={durationFormat}
+                      selected={selectedId === item.id}
+                      onSelect={() => onRowAction(item, g.note)}
+                    />
+                  ))}
+                </ul>
+              )
             ) : null}
           </div>
         );
@@ -332,8 +408,13 @@ export function CatalogRow({
   locale,
   showPhoto,
   showDescription = true,
+  showCategory = false,
   showDuration,
+  showDelivery = false,
+  showAvailability = false,
+  showPrice = true,
   showUsdEquivalent,
+  showBadges = false,
   confirmsByHand,
   usdRates,
   ctaLabel,
@@ -345,8 +426,13 @@ export function CatalogRow({
   locale: string;
   showPhoto: boolean;
   showDescription?: boolean;
+  showCategory?: boolean;
   showDuration: boolean;
+  showDelivery?: boolean;
+  showAvailability?: boolean;
+  showPrice?: boolean;
   showUsdEquivalent: boolean;
+  showBadges?: boolean;
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
@@ -354,8 +440,8 @@ export function CatalogRow({
   selected?: boolean;
   onSelect?: () => void;
 }) {
-  const cover = showPhoto ? item.imageUrls[0] : undefined;
   const es = locale.startsWith("es");
+  const cover = showPhoto ? item.imageUrls[0] : undefined;
   const onRequest = item.visibility === "on_request";
   const quote =
     item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
@@ -370,6 +456,19 @@ export function CatalogRow({
     locale,
     inspectorLabel: selected ? undefined : ctaLabel,
   });
+  const where = Array.isArray(item.attributes?.where)
+    ? (item.attributes.where as string[])
+    : [];
+  const whereLabels: Record<string, string> = es
+    ? { studio: "En el estudio", client: "A domicilio", remote: "Remoto", agreed: "A convenir" }
+    : { studio: "At studio", client: "At client", remote: "Remote", agreed: "By agreement" };
+  const deliveryText = where.map((w) => whereLabels[w] ?? w).filter(Boolean).join(" · ");
+  const badges: string[] = [];
+  if (showBadges) {
+    if (item.bookingMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
+    if (item.reserveMode === "deposit") badges.push(es ? "Seña" : "Deposit required");
+    if (where.includes("remote")) badges.push(es ? "En línea" : "Online session");
+  }
   return (
     <li className="site-builder-node--services-catalog-row" data-selected={selected ? "true" : undefined}>
       {cover ? (
@@ -387,6 +486,9 @@ export function CatalogRow({
             </span>
           ) : null}
         </strong>
+        {showCategory && item.category ? (
+          <span className="site-builder-node--services-catalog-meta">{item.category}</span>
+        ) : null}
         {showDescription && item.description ? (
           <span className="site-builder-node--services-catalog-desc">{item.description}</span>
         ) : null}
@@ -395,18 +497,45 @@ export function CatalogRow({
             {catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
           </span>
         ) : null}
+        {showDelivery && deliveryText ? (
+          <span className="site-builder-node--services-catalog-meta">{deliveryText}</span>
+        ) : null}
+        {showAvailability ? (
+          <span className="site-builder-node--services-catalog-meta">
+            {item.bookingMode === "instant"
+              ? es
+                ? "Confirmación inmediata"
+                : "Instant confirmation"
+              : es
+                ? "Sujeto a confirmación"
+                : "Subject to confirmation"}
+          </span>
+        ) : null}
+        {badges.length ? (
+          <span className="site-builder-node--services-catalog-badges">
+            {badges.map((b) => (
+              <span key={b} className="site-builder-node--services-catalog-badge">
+                {b}
+              </span>
+            ))}
+          </span>
+        ) : null}
       </span>
-      <span className="site-builder-node--services-catalog-price">
-        {onRequest || quote || minCents == null ? (
-          <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
-        ) : (
-          <>
-            {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-            <strong>{formatMoney(minCents, item.currency, locale)}</strong>
-          </>
-        )}
-        {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
-      </span>
+      {showPrice ? (
+        <span className="site-builder-node--services-catalog-price">
+          {onRequest || quote || minCents == null ? (
+            <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+          ) : (
+            <>
+              {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+              <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+            </>
+          )}
+          {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+        </span>
+      ) : (
+        <span className="site-builder-node--services-catalog-price" aria-hidden />
+      )}
       <button
         type="button"
         onClick={() => {
