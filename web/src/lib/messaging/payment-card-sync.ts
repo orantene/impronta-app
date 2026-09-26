@@ -217,10 +217,17 @@ async function loadRelevantLinkCodes(
     ? new Set(["paid", "cancelled", "expired", "open", "replaced"])
     : LINK_STATUS_FOR_CARD[input.target];
   try {
+    // Appointment sync passes bookingId as recordId; payment_links are keyed
+    // by order_id. Resolve booking → order when the id is a booking row.
+    let orderId = input.orderId;
+    const { data: booking } = await from("agency_bookings").select("order_id").eq("id", orderId).maybeSingle();
+    const bookingOrderId = (booking as { order_id?: string | null } | null)?.order_id;
+    if (typeof bookingOrderId === "string" && bookingOrderId) orderId = bookingOrderId;
+
     const { data, error } = await from("payment_links")
       .select("code, status")
       .eq("tenant_id", input.tenantId)
-      .eq("order_id", input.orderId);
+      .eq("order_id", orderId);
     if (error || !data) return null;
     const codes = new Set<string>();
     for (const row of data as Array<{ code?: string; status?: string }>) {

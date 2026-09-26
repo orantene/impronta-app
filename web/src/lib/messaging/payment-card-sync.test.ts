@@ -210,6 +210,43 @@ test("cardsMatchingRequest leaves siblings alone when codes are known but none m
   assert.deepEqual(cardsMatchingRequest(cards, new Set(["z"])), []);
 });
 
+test("appointment recordId resolves booking.order_id so paid-link cards flip to refunded", async () => {
+  const booking = uuid(4);
+  const { admin, store } = fakeAdmin({
+    conversation_records: [
+      { id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "appointment", record_id: booking, unlinked_at: null },
+    ],
+    agency_bookings: [{ id: booking, order_id: ORDER, tenant_id: TENANT }],
+    payment_links: [{ id: "pl-1", tenant_id: TENANT, order_id: ORDER, code: "pay-abc", status: "paid" }],
+    inquiry_messages: [
+      {
+        id: "m-1",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 1800, paymentLinkCode: "pay-abc", state: "paid" },
+        deleted_at: null,
+      },
+      {
+        id: "m-2",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 500, paymentLinkCode: "other", state: "paid" },
+        deleted_at: null,
+      },
+    ],
+  });
+  const result = await syncPaymentCardsForRecord(admin, {
+    tenantId: TENANT,
+    recordId: booking,
+    paymentState: "refunded",
+  });
+  assert.deepEqual(result, { ok: true, updated: 1 });
+  assert.equal(payload(store, 0)?.state, "refunded");
+  assert.equal(payload(store, 1)?.state, "paid", "sibling request with other code untouched");
+});
+
 test("a booking deposit stamps the sale total and the method that settled", async () => {
   const booking = uuid(4);
   const { admin, store } = fakeAdmin({

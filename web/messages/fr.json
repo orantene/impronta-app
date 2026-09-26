@@ -720,6 +720,7 @@
       "cancelled": "Ce paiement a ete annule. Rien n a ete pris.",
       "unknown": "Le statut du paiement est inconnu. Ne payez pas une seconde fois. Le commerce confirmera.",
       "paid": "Paye",
+      "refunded": "Rembourse. L argent est en chemin.",
       "receipt": "Voir le recu",
       "backToThread": "Retour a la conversation",
       "smsPlain": "La meme commande et la meme page securisee, en texte. Ce canal n affiche pas de cartes.",

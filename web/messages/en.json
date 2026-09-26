@@ -1653,6 +1653,7 @@
       "cancelled": "This payment was cancelled. Nothing was taken.",
       "unknown": "Payment status is unknown. Do not pay again. The business will confirm.",
       "paid": "Paid",
+      "refunded": "Refunded. The money is on its way back.",
       "receipt": "View receipt",
       "backToThread": "Back to the conversation",
       "smsPlain": "Same order and the same secure page, in plain text. This channel cannot show cards.",

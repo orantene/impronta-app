@@ -11,6 +11,7 @@ import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
 import { CheckoutView } from "./CheckoutView";
+import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -94,7 +95,7 @@ export async function PayByCodePage({
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id, currency, inquiry_id, receipt_code, hold_expires_at")
+    .select("id, currency, inquiry_id, receipt_code, hold_expires_at, status")
     .eq("id", loaded.orderId)
     .maybeSingle();
   if (orderError) notFound();
@@ -103,6 +104,7 @@ export async function PayByCodePage({
     inquiry_id: string | null;
     receipt_code: string | null;
     hold_expires_at: string | null;
+    status: string | null;
   } | null;
   const { data: lines, error: linesError } = await admin
     .from("order_lines")
@@ -151,6 +153,23 @@ export async function PayByCodePage({
     );
   }
   if (loaded.status === "paid") {
+    // Link schema has no refunded status; consult order / booking truth so a
+    // full Stripe refund does not leave /pay stuck on Paid.
+    const { data: bookingForPay, error: bookingForPayError } = await admin
+      .from("agency_bookings")
+      .select("payment_status")
+      .eq("order_id", loaded.orderId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    // Empty = no linked booking (fine). A failed read must not look like "paid".
+    if (bookingForPayError) notFound();
+    const bookingPaymentStatus =
+      (bookingForPay as { payment_status?: string | null } | null)?.payment_status ?? null;
+    const paidDisplay = resolvePaidLinkDisplayStatus({
+      orderStatus: orderRow?.status ?? null,
+      bookingPaymentStatus,
+    });
     return (
       <CheckoutView
         code={code}
@@ -158,12 +177,12 @@ export async function PayByCodePage({
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
-        status="paid"
+        status={paidDisplay}
         lines={[]}
         holdUntil={holdUntilLabel}
         stripeUrl={null}
         threadHref={threadHref}
-        receiptHref={receiptHref}
+        receiptHref={paidDisplay === "paid" ? receiptHref : null}
       />
     );
   }

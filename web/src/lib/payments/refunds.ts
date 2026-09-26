@@ -201,6 +201,63 @@ async function markBookingRefunded(sb: SupabaseClient, bookingId: string): Promi
 }
 
 /**
+ * Money rail + payment_request cards + order chip read `orders.status` /
+ * order-scoped `syncConversationRecord` — not `agency_bookings.payment_status`.
+ * Full-refund webhook used to flip only the booking, leaving Money / card / chip
+ * stuck on Paid. Stamp the linked order when one exists, then sync kind:"order"
+ * so `syncPaymentCardsForRecord` matches `payment_links.order_id`.
+ */
+export async function stampLinkedOrderRefunded(
+  sb: SupabaseClient,
+  input: { bookingId: string; transactionId: string },
+): Promise<void> {
+  const { data: bookingData, error: bookingErr } = await sb
+    .from("agency_bookings")
+    .select("order_id, tenant_id, tenant_id_snapshot")
+    .eq("id", input.bookingId)
+    .maybeSingle();
+  if (bookingErr) {
+    logServerError("refunds.stampLinkedOrderRefunded.booking", bookingErr);
+  }
+  const booking = bookingData as {
+    order_id?: string | null;
+    tenant_id?: string | null;
+    tenant_id_snapshot?: string | null;
+  } | null;
+
+  let orderId = booking?.order_id ?? null;
+  let tenantId = booking?.tenant_id ?? booking?.tenant_id_snapshot ?? null;
+
+  if (!orderId || !tenantId) {
+    const { data: txnData, error: txnErr } = await sb
+      .from("booking_transactions")
+      .select("order_id, source_tenant_id")
+      .eq("id", input.transactionId)
+      .maybeSingle();
+    if (txnErr) {
+      logServerError("refunds.stampLinkedOrderRefunded.txn", txnErr);
+      return;
+    }
+    const txn = txnData as { order_id?: string | null; source_tenant_id?: string | null } | null;
+    orderId = orderId ?? txn?.order_id ?? null;
+    tenantId = tenantId ?? txn?.source_tenant_id ?? null;
+  }
+
+  if (!orderId || !tenantId) return;
+
+  const { error } = await sb
+    .from("orders")
+    .update({ status: "refunded", updated_at: new Date().toISOString() })
+    .eq("id", orderId);
+  if (error) {
+    logServerError(`refunds.stampLinkedOrderRefunded.orders[order=${orderId}]`, error);
+    return;
+  }
+
+  await syncConversationRecord(sb, { tenantId, kind: "order", recordId: orderId });
+}
+
+/**
  * Record a PARTIAL refund as a linked refund transaction so the books
  * reconcile, WITHOUT transitioning the parent (it stays `paid` — it was). The
  * refund row carries the partial amount (platform_fee 0 / net = refunded, which
@@ -461,6 +518,7 @@ export async function handleBookingRefund(
     const outcomes = await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: `refund ${input.chargeId}` }, { sb, stripe });
     if (sb) {
       await markBookingRefunded(sb, ref.bookingId);
+      await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
       await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
     }
   }
@@ -560,6 +618,7 @@ export async function handleBookingDispute(
       );
       if (sb) {
         await markBookingRefunded(sb, ref.bookingId);
+        await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
         await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
       }
     }
