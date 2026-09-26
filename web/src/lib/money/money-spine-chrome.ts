@@ -70,6 +70,100 @@ export const PAYOUT_ACCOUNT = {
   state: "verified",
 } as const;
 
+/** Failed-branch destination when Fri 18 went to an old account (`mc_payout_failed`). */
+export const PAYOUT_FAILED_DESTINATION = {
+  bank: "BBVA ···0932",
+  returnedDay: 21,
+  reason: "account ···0932 is closed",
+} as const;
+
+export type PayoutAccountStateTone = "" | "ok" | "info" | "warn" | "risk";
+
+/**
+ * Design-reference cards for `mc_payout_states` (Part1 p30).
+ * Amounts in Scheduled / Paid bodies are September fixture nets only.
+ */
+export type PayoutAccountStateCard = {
+  id: string;
+  chip: string;
+  tone: PayoutAccountStateTone;
+  body: string;
+  cta: string | null;
+  /** Opens payout detail when set. */
+  opensPayoutId?: string;
+  /** Opens failed alternate for the named payout. */
+  opensFailedPayoutId?: string;
+};
+
+export const PAYOUT_ACCOUNT_STATES: readonly PayoutAccountStateCard[] = [
+  {
+    id: "not_connected",
+    chip: "Not connected",
+    tone: "",
+    body: "Card payments need a payout account. Cash and transfers work without one.",
+    cta: "Connect bank account",
+  },
+  {
+    id: "setup_incomplete",
+    chip: "Setup incomplete",
+    tone: "warn",
+    body: "2 of 4 steps done. Card payments are collected and held until it is finished.",
+    cta: "Continue setup",
+  },
+  {
+    id: "verification_required",
+    chip: "Verification required",
+    tone: "warn",
+    body: "The processor asks for an ID photo. Payouts wait until it is checked.",
+    cta: "Upload ID",
+  },
+  {
+    id: "paused",
+    chip: "Payouts paused",
+    tone: "risk",
+    body: "Paused by the processor on Mon 21. Reason: a document expired. Card payments still arrive.",
+    cta: "See what is needed",
+  },
+  {
+    id: "no_payout_yet",
+    chip: "No payout yet",
+    tone: "",
+    body: "Your first card payment will be paid out on the Friday after it settles.",
+    cta: null,
+  },
+  {
+    id: "scheduled",
+    chip: "Scheduled · estimated",
+    tone: "info",
+    body: "About $5,784 on Fri 25 Sep. Final after settling.",
+    cta: "View payout",
+    opensPayoutId: "PO-0925",
+  },
+  {
+    id: "paid",
+    chip: "Paid",
+    tone: "ok",
+    body: "$1,928 arrived Fri 18 Sep in BBVA ···4471.",
+    cta: "View payout",
+    opensPayoutId: "PO-0918",
+  },
+  {
+    id: "failed",
+    chip: "Failed",
+    tone: "risk",
+    body: "Returned by the bank: account closed. Money is back in your balance.",
+    cta: "Update account",
+    opensFailedPayoutId: "PO-0918",
+  },
+  {
+    id: "could_not_load",
+    chip: "Could not load",
+    tone: "",
+    body: "We could not reach the processor. Figures are hidden rather than shown as zero.",
+    cta: "Try again",
+  },
+];
+
 export function outstandingChromeFor(
   bookingId: string,
   scope: OutstandingScope,

@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
-import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
-import type { MoneyPaymentRow } from "@/lib/money/money-read-model";
+import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+import type { MoneyPaymentRow, MoneyPayoutRow } from "@/lib/money/money-read-model";
 import {
   buildMoneySpineView,
   buildPaymentDetail,
+  buildPayoutDetail,
   filterOutstanding,
   filterPayments,
   formatMoneyMajor,
@@ -17,6 +18,7 @@ import {
   type MoneyTab,
   type OutstandingFilter,
   type PaymentDetailView,
+  type PayoutDetailView,
 } from "@/lib/money/money-spine-view";
 import { consumeMoneyLanding } from "@/lib/money/today-money-tiles";
 
@@ -25,15 +27,18 @@ import { MoneyPaymentsPanel } from "./MoneyPaymentsPanel";
 import { MoneyPayoutsPanel } from "./MoneyPayoutsPanel";
 import { MoneySummaryCard } from "./money-spine-shared";
 import { PaymentDetailDrawer } from "./PaymentDetailDrawer";
+import { PayoutAccountStatesSheet } from "./PayoutAccountStatesSheet";
+import { PayoutDetailDrawer } from "./PayoutDetailDrawer";
 
 export function MoneySpine() {
-  const { openDrawer } = useAdminShell();
   const view = useMemo(() => buildMoneySpineView(), []);
   const [tab, setTab] = useState<MoneyTab>("payments");
   const [method, setMethod] = useState<MethodFilter>("all");
   const [query, setQuery] = useState("");
   const [outFilt, setOutFilt] = useState<OutstandingFilter>("all");
-  const [detail, setDetail] = useState<PaymentDetailView | null>(null);
+  const [paymentDetail, setPaymentDetail] = useState<PaymentDetailView | null>(null);
+  const [payoutDetail, setPayoutDetail] = useState<PayoutDetailView | null>(null);
+  const [accountStatesOpen, setAccountStatesOpen] = useState(false);
 
   // Today "Due by today" (and sibling tiles) pin a landing via sessionStorage.
   useEffect(() => {
@@ -49,7 +54,31 @@ export function MoneySpine() {
   const { summary } = view;
 
   function openPayment(p: MoneyPaymentRow) {
-    setDetail(buildPaymentDetail(p, view.refunds, view.payouts));
+    setPayoutDetail(null);
+    setPaymentDetail(buildPaymentDetail(p, view.refunds, view.payouts));
+  }
+
+  function openPaymentById(paymentId: string) {
+    const p = view.payments.find((row) => row.id === paymentId);
+    if (p) openPayment(p);
+  }
+
+  function openPayout(po: MoneyPayoutRow, failed = false) {
+    setPaymentDetail(null);
+    setPayoutDetail(buildPayoutDetail(po, view.payments, view.refunds, { failed }));
+  }
+
+  function openPayoutById(payoutId: string, failed = false) {
+    const po = view.payouts.find((row) => row.id === payoutId);
+    if (!po) return;
+    setAccountStatesOpen(false);
+    openPayout(po, failed);
+  }
+
+  function openAccountStates() {
+    setPaymentDetail(null);
+    setPayoutDetail(null);
+    setAccountStatesOpen(true);
   }
 
   function goOutstanding(filt: OutstandingFilter = "all") {
@@ -58,7 +87,7 @@ export function MoneySpine() {
   }
 
   return (
-    <div data-money-spine="m2" style={{ fontFamily: FONTS.body }}>
+    <div data-money-spine="m4" style={{ fontFamily: FONTS.body }}>
       <style>{`
         @media (max-width: 720px) {
           [data-money-spine] [data-money-desk-actions] { display: none !important; }
@@ -72,6 +101,9 @@ export function MoneySpine() {
           [data-money-spine] [data-money-desk-po] { display: none !important; }
           [data-money-spine] [data-money-mob-po] { display: flex !important; }
           [data-money-spine] [data-money-mob-actions] { display: flex !important; }
+          [data-money-spine] [data-money-desk-po-cta] { display: none !important; }
+          [data-money-payout-states] { width: calc(100vw - 16px) !important; max-height: calc(100vh - 24px) !important; }
+          [data-money-payout-states] > div:last-child > div { grid-template-columns: 1fr !important; }
         }
         @media (min-width: 721px) {
           [data-money-spine] [data-money-mob-list] { display: none !important; }
@@ -105,7 +137,7 @@ export function MoneySpine() {
           <b style={{ color: COLORS.ink }}>{view.payoutAccount.bank}</b> · verified{" "}
           <button
             type="button"
-            onClick={() => openDrawer("talent-payouts")}
+            onClick={openAccountStates}
             style={{
               color: COLORS.indigoDeep,
               fontWeight: 600,
@@ -172,7 +204,7 @@ export function MoneySpine() {
           <SecondaryButton size="sm">Record payment</SecondaryButton>
         </div>
         <div style={{ flex: 1 }}>
-          <SecondaryButton size="sm" onClick={() => openDrawer("talent-payouts")}>
+          <SecondaryButton size="sm" onClick={openAccountStates}>
             Payout account
           </SecondaryButton>
         </div>
@@ -204,11 +236,35 @@ export function MoneySpine() {
       ) : null}
 
       {tab === "payouts" ? (
-        <MoneyPayoutsPanel payouts={view.payouts} currency={view.currency} />
+        <MoneyPayoutsPanel
+          payouts={view.payouts}
+          currency={view.currency}
+          onOpen={(po) => openPayout(po)}
+        />
       ) : null}
 
-      {detail ? (
-        <PaymentDetailDrawer detail={detail} onClose={() => setDetail(null)} />
+      {paymentDetail ? (
+        <PaymentDetailDrawer detail={paymentDetail} onClose={() => setPaymentDetail(null)} />
+      ) : null}
+
+      {payoutDetail ? (
+        <PayoutDetailDrawer
+          detail={payoutDetail}
+          onClose={() => setPayoutDetail(null)}
+          onOpenPayment={openPaymentById}
+          onUpdateAccount={() => {
+            setPayoutDetail(null);
+            setAccountStatesOpen(true);
+          }}
+        />
+      ) : null}
+
+      {accountStatesOpen ? (
+        <PayoutAccountStatesSheet
+          onClose={() => setAccountStatesOpen(false)}
+          onViewPayout={(id) => openPayoutById(id)}
+          onViewFailedPayout={(id) => openPayoutById(id, true)}
+        />
       ) : null}
     </div>
   );

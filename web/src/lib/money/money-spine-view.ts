@@ -16,8 +16,11 @@ import {
   AGENCY_MONEY_LINE,
   PAYMENT_REQUEST_WAITING,
   PAYOUT_ACCOUNT,
+  PAYOUT_ACCOUNT_STATES,
+  PAYOUT_FAILED_DESTINATION,
   outstandingChromeFor,
   type OutstandingChrome,
+  type PayoutAccountStateCard,
 } from "./money-spine-chrome";
 import {
   formatMoneyMajor,
@@ -217,6 +220,158 @@ export function payoutIncludesLabel(po: MoneyPayoutRow): string {
   const n = po.includes.length + (po.id === "PO-0904" ? 3 : 0);
   const refundBit = po.refund > 0 ? ", 1 refund" : "";
   return `${n} card payments${refundBit}, fees ${formatMoneyShort(po.fees)}`;
+}
+
+/** Unicode minus + major amount — prototype `− $120 MXN`. */
+export function formatMoneyMinus(amount: number, currency = "MXN"): string {
+  return `− ${formatMoneyMajor(amount, currency)}`;
+}
+
+export type PayoutLineKind = "payment" | "carry" | "refund" | "fees" | "total";
+
+export type PayoutDetailLine = {
+  kind: PayoutLineKind;
+  label: string;
+  amountLabel: string;
+  /** Payment id when the row opens payment detail. */
+  paymentId?: string;
+  strong?: boolean;
+};
+
+export type PayoutDetailView = {
+  payout: MoneyPayoutRow;
+  failed: boolean;
+  dayLabel: string;
+  netLabel: string;
+  stateChip: string;
+  stateTone: "ok" | "info" | "risk";
+  alert: { title: string; body: string } | null;
+  toBank: string;
+  arrivedLabel: string;
+  arrivedKey: "Arrived" | "Expected";
+  reference: string;
+  lines: readonly PayoutDetailLine[];
+  estimatedNote: string | null;
+  showDownloadStatement: boolean;
+};
+
+export function buildPayoutDetail(
+  payout: MoneyPayoutRow,
+  payments: readonly MoneyPaymentRow[],
+  refunds: readonly MoneyRefundRow[],
+  opts?: { failed?: boolean },
+): PayoutDetailView {
+  const failed = Boolean(opts?.failed);
+  const currency = "MXN";
+  const included = payout.includes
+    .map((id) => payments.find((p) => p.id === id))
+    .filter((p): p is MoneyPaymentRow => Boolean(p))
+    .sort((a, b) => a.day - b.day || (a.id < b.id ? -1 : 1));
+
+  const includedSum = included.reduce((n, p) => n + p.amount, 0);
+  const carry = Math.max(0, Math.round(payout.gross - includedSum));
+
+  const lines: PayoutDetailLine[] = included.map((p) => ({
+    kind: "payment" as const,
+    label: `${p.clientName} · ${formatSeptemberDay(p.day)}`,
+    amountLabel: formatMoneyMajor(p.amount, currency),
+    paymentId: p.id,
+  }));
+
+  if (carry > 0) {
+    const carryCount = payout.id === "PO-0904" ? 3 : 0;
+    lines.push({
+      kind: "carry",
+      label:
+        carryCount > 0
+          ? `${carryCount} August card payments`
+          : "Earlier card payments",
+      amountLabel: formatMoneyMajor(carry, currency),
+    });
+  }
+
+  if (payout.refund > 0) {
+    const refund = refunds.find((r) => r.payoutId === payout.id);
+    lines.push({
+      kind: "refund",
+      label: refund
+        ? `Refund · ${refund.clientName}`
+        : "Refund",
+      amountLabel: formatMoneyMinus(payout.refund, currency),
+    });
+  }
+
+  lines.push({
+    kind: "fees",
+    label: payout.estimated ? "Processor fees (estimated)" : "Processor fees",
+    amountLabel: formatMoneyMinus(payout.fees, currency),
+  });
+
+  lines.push({
+    kind: "total",
+    label: payout.estimated ? "Estimated payout" : "Payout",
+    amountLabel: formatMoneyMajor(payout.net, currency),
+    strong: true,
+  });
+
+  let stateChip: string;
+  let stateTone: "ok" | "info" | "risk";
+  if (failed) {
+    stateChip = "Failed · returned by the bank";
+    stateTone = "risk";
+  } else if (payout.state === "paid") {
+    stateChip = "Paid";
+    stateTone = "ok";
+  } else if (payout.state === "failed") {
+    stateChip = "Failed · returned";
+    stateTone = "risk";
+  } else {
+    stateChip = payout.estimated ? "Scheduled · estimated" : "Scheduled";
+    stateTone = "info";
+  }
+
+  const alert = failed
+    ? {
+        title: `BBVA returned this payout on ${formatSeptemberDay(PAYOUT_FAILED_DESTINATION.returnedDay)}.`,
+        body: `Reason from the bank: ${PAYOUT_FAILED_DESTINATION.reason}. The money is back in your Tulala balance; nothing is lost.`,
+      }
+    : null;
+
+  let arrivedLabel: string;
+  let arrivedKey: "Arrived" | "Expected";
+  if (failed) {
+    arrivedKey = "Arrived";
+    arrivedLabel = "Did not arrive";
+  } else if (payout.estimated) {
+    arrivedKey = "Expected";
+    arrivedLabel = `${formatSeptemberDay(payout.day)}; your bank may take 1 business day to show it`;
+  } else {
+    arrivedKey = "Arrived";
+    arrivedLabel = formatSeptemberDay(payout.day);
+  }
+
+  return {
+    payout,
+    failed,
+    dayLabel: formatSeptemberDay(payout.day),
+    netLabel: formatMoneyMajor(payout.net, currency),
+    stateChip,
+    stateTone,
+    alert,
+    toBank: failed ? PAYOUT_FAILED_DESTINATION.bank : PAYOUT_ACCOUNT.bank,
+    arrivedLabel,
+    arrivedKey,
+    reference: payout.id,
+    lines,
+    estimatedNote: payout.estimated
+      ? "Estimated: payments made through Wed 23 are still settling, and the final fee comes from the processor. Payments made today go in this payout; later ones go in the next."
+      : null,
+    showDownloadStatement: !failed && !payout.estimated && payout.state === "paid",
+  };
+}
+
+export function payoutAccountStates(): readonly PayoutAccountStateCard[] {
+  return PAYOUT_ACCOUNT_STATES;
 }
 
 export {

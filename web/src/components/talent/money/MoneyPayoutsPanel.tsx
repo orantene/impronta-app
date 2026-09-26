@@ -12,9 +12,11 @@ import { MoneyStateChip } from "./money-spine-shared";
 export function MoneyPayoutsPanel({
   payouts,
   currency,
+  onOpen,
 }: {
   payouts: readonly MoneyPayoutRow[];
   currency: string;
+  onOpen: (payout: MoneyPayoutRow) => void;
 }) {
   return (
     <div style={{ marginTop: 12 }}>
@@ -27,15 +29,24 @@ export function MoneyPayoutsPanel({
 
       <div data-money-desk-po>
         {payouts.map((po) => (
-          <div
+          <button
             key={po.id}
+            type="button"
+            onClick={() => onOpen(po)}
             style={{
               display: "grid",
               gridTemplateColumns: "150px 170px 1fr 1.2fr 140px",
               gap: 14,
               alignItems: "center",
+              width: "100%",
               padding: "14px 12px",
+              border: "none",
               borderBottom: `1px solid ${COLORS.borderSoft}`,
+              background: "transparent",
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
+              color: COLORS.ink,
             }}
           >
             <span style={{ fontSize: 14.5, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
@@ -75,19 +86,25 @@ export function MoneyPayoutsPanel({
             >
               {formatMoneyMajor(po.net, currency)}
             </span>
-          </div>
+          </button>
         ))}
       </div>
 
       <div data-money-mob-po style={{ display: "none", flexDirection: "column", gap: 10 }}>
         {payouts.map((po) => (
-          <div
+          <button
             key={po.id}
+            type="button"
+            onClick={() => onOpen(po)}
             style={{
               padding: 14,
               border: `1px solid ${COLORS.borderSoft}`,
               borderRadius: RADIUS.lg,
               background: "#fff",
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
+              color: COLORS.ink,
             }}
           >
             <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
@@ -109,10 +126,9 @@ export function MoneyPayoutsPanel({
             <div style={{ fontSize: 13.5, color: COLORS.inkDim, marginTop: 4 }}>
               {payoutIncludesLabel(po)}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
   );
 }
-
