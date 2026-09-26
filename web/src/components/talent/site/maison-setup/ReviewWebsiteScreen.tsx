@@ -248,7 +248,7 @@ export function ReviewWebsiteScreen({
           data-testid="maison-publish"
           onClick={handlePublish}
           disabled={pending || !ready}
-          className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-40"
+          className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-40"
         >
           {pending
             ? maisonSetupT(locale, "Publishing…")

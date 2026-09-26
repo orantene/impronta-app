@@ -18,9 +18,31 @@ test("W75: Choose a design has no search or filter controls", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /data-maison-choose-design/);
   assert.match(src, /no search input and no filter chips/);
+  assert.match(src, /maison-gallery-back/);
+  assert.match(src, /Find your website style/);
   assert.equal(/type=["']search["']/.test(src), false);
   assert.equal(/placeholder=\{?["'].*Search/.test(src), false);
   assert.equal(/filter/i.test(src) && /<input/.test(src), false);
+});
+
+test("cr_gallery chrome: Today back + close + hero hierarchy", () => {
+  const src = read("ChooseDesignScreen.tsx");
+  assert.match(src, /maisonSetupT\(locale, "Today"\)/);
+  assert.match(src, /maison-gallery-close/);
+  assert.match(src, /Find your website style/);
+  // Hero is the large heading; chrome title is Choose a design
+  const heroIdx = src.indexOf('maisonSetupT(locale, "Find your website style")');
+  const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
+  assert.ok(chooseIdx > 0 && heroIdx > chooseIdx);
+});
+
+test("PDF primary CTAs use admin-ink (black), not emerald", () => {
+  const detail = read("ThemeDetailScreen.tsx");
+  assert.match(detail, /maison-use-design[\s\S]*?bg-admin-ink/);
+  assert.match(detail, /maison-use-design-phone[\s\S]*?bg-admin-ink/);
+  assert.match(detail, /maison-phone-colors-close/);
+  const review = read("ReviewWebsiteScreen.tsx");
+  assert.match(review, /maison-publish[\s\S]*?bg-admin-ink/);
 });
 
 test("W26: Maison tags map style→outlined and layout→filled", () => {

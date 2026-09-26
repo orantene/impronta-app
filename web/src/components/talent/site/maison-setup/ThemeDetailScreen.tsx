@@ -545,7 +545,7 @@ export function ThemeDetailScreen({
               data-testid="maison-use-design"
               onClick={handleUseDesign}
               disabled={pending}
-              className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-50"
+              className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-50"
             >
               {maisonSetupT(locale, "Use this design")}
             </button>
@@ -582,7 +582,7 @@ export function ThemeDetailScreen({
           data-testid="maison-use-design-phone"
           onClick={handleUseDesign}
           disabled={pending}
-          className="min-h-12 min-w-0 flex-1 truncate rounded-xl bg-emerald-900 px-3 text-[14px] font-semibold text-white disabled:opacity-50"
+          className="min-h-12 min-w-0 flex-1 truncate rounded-xl bg-admin-ink px-3 text-[14px] font-semibold text-white disabled:opacity-50"
         >
           {maisonSetupT(locale, "Use this design")}
         </button>
@@ -637,9 +637,20 @@ export function ThemeDetailScreen({
               </>
             ) : (
               <>
-                <h2 className="text-[16px] font-semibold text-admin-ink">
-                  {maisonSetupT(locale, "Colors")}
-                </h2>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h2 className="text-[16px] font-semibold text-admin-ink">
+                    {maisonSetupT(locale, "Colors")}
+                  </h2>
+                  <button
+                    type="button"
+                    aria-label={maisonSetupT(locale, "Close")}
+                    data-testid="maison-phone-colors-close"
+                    className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
+                    onClick={() => onChange({ phoneSheet: null })}
+                  >
+                    ✕
+                  </button>
+                </div>
                 <ul className="mt-3 space-y-1">
                   {MAISON_PALETTE_ORDER.map((key) => {
                     const p = MAISON_PALETTES[key];
