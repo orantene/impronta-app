@@ -357,7 +357,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     if ((c.identityLevel !== "none" && c.identityLevel !== "linked") || (!c.phone && !c.email)) return;
     if (dupeDismissed.has(activeId)) return;
     let cancelled = false;
-    void engine.identity.match({ name: c.name, phone: c.phone ?? "", email: c.email ?? "" }).then((r) => {
+    void engine.identity.match({ inquiryId: activeId, name: c.name, phone: c.phone ?? "", email: c.email ?? "" }).then((r) => {
       if (cancelled || !r.ok) return;
       const others = rowsRef.current.filter((row) => row.id !== activeId && row.conversationState !== "resolved");
       const candidates = r.matches.map((m) => ({ match: m, other: others.find((row) => sameContact(row, m)) ?? null }));
