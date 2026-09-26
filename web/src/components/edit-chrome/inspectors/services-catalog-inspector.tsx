@@ -132,7 +132,7 @@ export function ServicesCatalogContentInspector({
     <div className="flex flex-col gap-4" data-services-catalog-inspector="content">
       <Section
         title="Content"
-        info="Section copy and which catalog items this widget shows. Prices and booking rules stay in Services — use Edit offering there."
+        info="Section copy and which catalog items this widget shows. Prices and booking rules stay in Services - use Edit offering there."
       >
         <p className="text-xs text-black/55">
           Catalog edits (price, duration, extras) go live when you publish the offering. Website layout and
@@ -378,11 +378,11 @@ export function ServicesCatalogContentInspector({
 
       <Section
         title="Behavior"
-        info="How visitors open details and start booking. Chat Ask handoff is owned by the booking sheet / front-door — not duplicated here."
+        info="How visitors open details and start booking. Chat Ask handoff is shared with the booking sheet."
       >
         <p className="text-xs text-black/55">
           Details open in the booking sheet (modal on desktop, bottom sheet on mobile). Inline expansion
-          is not supported in this release — no dead control.
+          is not supported in this release - no dead control.
         </p>
         <label className="flex items-center gap-2 text-sm">
           <input

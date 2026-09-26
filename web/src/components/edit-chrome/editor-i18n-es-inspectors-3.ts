@@ -82,7 +82,9 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Show counts on category chips": "Mostrar conteos en chips de categoría",
   "Enable visitor catalog search": "Activar búsqueda del catálogo para visitantes",
   "Style preset": "Preset de estilo",
-  "Details open in the booking sheet (modal on desktop, bottom sheet on mobile). Inline expansion is not supported in this release — no dead control.":
+  "Image-led": "Con imagen",
+  "Search offerings…": "Buscar ofertas…",
+  "Details open in the booking sheet (modal on desktop, bottom sheet on mobile). Inline expansion is not supported in this release - no dead control.":
     "Los detalles se abren en la hoja de reserva (modal en escritorio, hoja inferior en móvil). La expansión en línea no está en esta versión: sin controles muertos.",
   "How visitors open details and start booking. Chat Ask handoff is shared with the booking sheet.":
     "Cómo abren los visitantes los detalles y empiezan a reservar. El Ask del chat se comparte con la hoja de reserva.",
