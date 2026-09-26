@@ -347,27 +347,27 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
 export function buildAgendaMoneyItems(
   _profile: TalentSelfProfile | null | undefined,
 ): AgendaMoneyItem[] {
-  // Live Today path prefers moneyFromEarnings + todayTotals; this helper is only
-  // a safe empty shell when no earnings bridge is present.
+  // Prefer AgendaTodayPage + todayMoneyTilesFromLedger (M3). This helper is a
+  // safe empty shell for surfaces that still call it without the Money ledger.
   return [
     {
       id: "collected",
-      label: "Collected this month",
+      label: "Collected in September",
       value: "—",
-      helper: "Appears when payout data is available.",
+      helper: "Appears when Money ledger data is available.",
     },
     {
-      id: "owed",
-      label: "Still to collect",
+      id: "due_by_today",
+      label: "Due by today",
       value: "—",
-      helper: "Computed from today’s due and overdue on the agenda.",
+      helper: "Overdue plus due today — opens Outstanding with that filter.",
       tone: "attention",
     },
     {
       id: "payout",
-      label: "Next payout",
+      label: "Next payout · estimated",
       value: "—",
-      helper: "Appears when card payouts are set up.",
+      helper: "Appears when the next platform payout is estimated.",
       tone: "success",
     },
   ];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
@@ -18,6 +18,7 @@ import {
   type OutstandingFilter,
   type PaymentDetailView,
 } from "@/lib/money/money-spine-view";
+import { consumeMoneyLanding } from "@/lib/money/today-money-tiles";
 
 import { MoneyOutstandingPanel } from "./MoneyOutstandingPanel";
 import { MoneyPaymentsPanel } from "./MoneyPaymentsPanel";
@@ -33,6 +34,14 @@ export function MoneySpine() {
   const [query, setQuery] = useState("");
   const [outFilt, setOutFilt] = useState<OutstandingFilter>("all");
   const [detail, setDetail] = useState<PaymentDetailView | null>(null);
+
+  // Today "Due by today" (and sibling tiles) pin a landing via sessionStorage.
+  useEffect(() => {
+    const landing = consumeMoneyLanding();
+    if (!landing) return;
+    setTab(landing.tab);
+    if (landing.outFilt) setOutFilt(landing.outFilt);
+  }, []);
 
   const counts = methodCounts(view.payments);
   const payments = filterPayments(view.payments, method, query);

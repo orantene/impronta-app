@@ -30,6 +30,28 @@ describe("Money page M2 spine", () => {
     assert.match(spine, /Payouts/);
     assert.match(spine, /buildMoneySpineView/);
     assert.match(spine, /PaymentDetailDrawer/);
+    assert.match(spine, /consumeMoneyLanding/);
     assert.match(outstanding, /Due by today/);
+  });
+});
+
+describe("Today money tiles M3", () => {
+  it("Agenda Today wires ledger tiles and Money deep-link", () => {
+    const today = readFileSync(
+      join(here, "../../components/admin/shell/internal/talent/pages/TodayPage.tsx"),
+      "utf8",
+    );
+    const agenda = readFileSync(
+      join(here, "../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx"),
+      "utf8",
+    );
+    assert.match(agenda, /todayMoneyTilesFromLedger/);
+    assert.match(agenda, /moneyFromLedger/);
+    assert.match(agenda, /pinMoneyLanding/);
+    assert.match(agenda, /onOpenMoney/);
+    assert.match(today, /onOpenMoney/);
+    assert.equal(today.includes("moneyFromEarnings"), false);
+    assert.equal(agenda.includes("moneyFromEarnings"), false);
+    assert.equal(agenda.includes("stillToCollectCents"), false);
   });
 });
