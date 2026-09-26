@@ -460,14 +460,6 @@ export function ClientOutcomeCard({
           ? fill(copy.outcome.refundedBodyAmount, { amount: amountLabel })
           : copy.outcome.refundedBody;
   const category = outcome === "pay_failed" ? "pay" : outcome === "refunded" ? "change" : "offer";
-  const pill =
-    outcome === "declined" ? (
-      <Pill tone="lost">{copy.offer.declined}</Pill>
-    ) : outcome === "pay_failed" ? (
-      <Pill tone="lost">{copy.outcome.payFailedTitle}</Pill>
-    ) : (
-      <Pill tone="lost">{copy.outcome.refundedTitle}</Pill>
-    );
   return (
     <Card
       category={category}
@@ -475,7 +467,6 @@ export function ClientOutcomeCard({
       title={title}
       variant="mobile"
       testId={`client-outcome-${outcome}`}
-      pills={pill}
       actions={
         outcome === "pay_failed" && onRetry ? (
           <Btn size="xl" variant="primary" fill onClick={onRetry} data-client-action="retry_pay">
