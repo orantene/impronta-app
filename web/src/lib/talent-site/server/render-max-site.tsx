@@ -427,16 +427,23 @@ async function renderMaxSiteDocument(args: {
   const designTokens = designSlice.tokens;
   const talentComponentStyleDefaults = designSlice.componentStyles;
 
-  // Captcha for native `form` nodes. /api/cms/forms/submit enforces captcha
-  // per TENANT — a talent Max site that rendered no widget silently rejected
-  // every submission once a provider was configured (improntamodels 2026-08-16).
-  // Gated on the tree actually containing a form so pages without one pay no query.
-  const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
-    if (Array.isArray(nodes)) return nodes.some(hasForm);
+  // Captcha for native `form` nodes AND live `services_catalog` booking.
+  // /api/cms/forms/submit and createInstantBookingAction both enforce captcha
+  // per TENANT — a Max site that rendered no widget silently rejected every
+  // submission / confirm once a provider was configured (improntamodels
+  // 2026-08-16; book-jorgelina catalog sheet 2026-09-25). Gated on the tree
+  // actually containing a form or services_catalog so pages without one pay
+  // no query. Live catalog booking also needs the site key whenever the
+  // vanity host is not a draft preview (catalogBookingLive below).
+  const pageNeedsCaptcha = (function needsCaptcha(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(needsCaptcha);
     if (!nodes || typeof nodes !== "object") return false;
     const n = nodes as { kind?: unknown; children?: unknown };
-    return n.kind === "form" || hasForm(n.children);
+    return n.kind === "form" || n.kind === "services_catalog" || needsCaptcha(n.children);
   })([shellTree, blocks]);
+  // Published vanity with a tenant always runs catalogBookingLive — resolve
+  // captcha even if the tree scan missed a nested catalog (defense in depth).
+  const resolveCaptcha = Boolean(tenantId) && (pageNeedsCaptcha || !draftPreview);
 
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
@@ -453,8 +460,8 @@ async function renderMaxSiteDocument(args: {
       // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the
       // talent's personal Max site.
       resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
-      tenantId && pageHasFormNode
-        ? resolveTenantCaptcha(tenantId)
+      resolveCaptcha
+        ? resolveTenantCaptcha(tenantId!)
         : Promise.resolve(null),
       // D-MSG-421 — vanity hosts never went through profile-storefront-payload,
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is

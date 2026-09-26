@@ -7,12 +7,14 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
+
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const AGENDA = path.join(ROOT, "../../components/admin/shell/internal/talent/agenda");
 
 describe("G3.1–G3.4 polish contracts", () => {
-    it("BookingRecord uses TradeSections and gates no-show", () => {
-    const src = readFileSync(path.join(AGENDA, "AgendaBookingRecord.tsx"), "utf8");
+  it("BookingRecord uses TradeSections and gates no-show", () => {
+    const src = blankComments(readFileSync(path.join(AGENDA, "AgendaBookingRecord.tsx"), "utf8"));
     assert.ok(src.includes("<TradeSections"));
     assert.ok(!src.includes("function TradeSection("));
     assert.ok(src.includes("Available after the start time"));
@@ -20,7 +22,7 @@ describe("G3.1–G3.4 polish contracts", () => {
   });
 
   it("Intake Resend is hidden without resendUrl", () => {
-    const src = readFileSync(path.join(AGENDA, "TradeSections.tsx"), "utf8");
+    const src = blankComments(readFileSync(path.join(AGENDA, "TradeSections.tsx"), "utf8"));
     assert.ok(src.includes("d.resendUrl ?"));
     assert.ok(!src.includes("Resend when a form link exists"));
   });
@@ -35,9 +37,17 @@ describe("G3.1–G3.4 polish contracts", () => {
       "AgendaQuotes.tsx",
       "AgendaRebookSuggestion.tsx",
     ]) {
-      const src = readFileSync(path.join(AGENDA, file), "utf8");
+      const src = blankComments(readFileSync(path.join(AGENDA, file), "utf8"));
       assert.ok(src.includes("<TaskShell"), file);
       assert.ok(src.includes("useAgendaCopy("), file);
     }
+  });
+
+  it("BookingRecord wires respondToReschedule Accept/Decline", () => {
+    const src = blankComments(readFileSync(path.join(AGENDA, "AgendaBookingRecord.tsx"), "utf8"));
+    assert.ok(src.includes("respondToReschedule"));
+    assert.ok(src.includes("Accept new time"));
+    assert.ok(src.includes("Decline new time"));
+    assert.ok(src.includes("pendingReschedule"));
   });
 });

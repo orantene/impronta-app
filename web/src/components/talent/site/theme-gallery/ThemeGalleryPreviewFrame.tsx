@@ -14,11 +14,18 @@ export function ThemeGalleryPreviewFrame({
   url,
   locale,
   title,
+  /** W71 — Maison setup uses exact fail copy; gallery keeps its own defaults. */
+  errorTitle,
+  errorBody,
+  retryLabel,
 }: {
   preview: ReturnType<typeof useThemePreview>;
   url: string;
   locale: ThemeGalleryLocale | string | undefined;
   title: string;
+  errorTitle?: string;
+  errorBody?: string;
+  retryLabel?: string;
 }) {
   const { iframeRef, loadState, attempt, onLoad, onError, beginLoad, retry } = preview;
 
@@ -62,12 +69,15 @@ export function ThemeGalleryPreviewFrame({
       ) : null}
 
       {loadState === "error" ? (
-        <PreviewOverlay>
-          <span style={{ ...overlayText, color: COLORS.criticalDeep }}>
-            {themeGalleryCopy(locale, "previewError")}
+        <PreviewOverlay data-testid="maison-preview-fail">
+          <span style={{ ...overlayText, color: COLORS.criticalDeep, fontWeight: 600 }}>
+            {errorTitle ?? themeGalleryCopy(locale, "previewError")}
           </span>
-          <button type="button" onClick={retry} style={retryBtn}>
-            {themeGalleryCopy(locale, "previewRetry")}
+          {errorBody ? (
+            <span style={{ ...overlayText, textAlign: "center", maxWidth: 220 }}>{errorBody}</span>
+          ) : null}
+          <button type="button" onClick={retry} style={retryBtn} data-testid="maison-preview-retry">
+            {retryLabel ?? themeGalleryCopy(locale, "previewRetry")}
           </button>
         </PreviewOverlay>
       ) : null}
@@ -75,10 +85,14 @@ export function ThemeGalleryPreviewFrame({
   );
 }
 
-function PreviewOverlay({ children }: { children: React.ReactNode }) {
+function PreviewOverlay({
+  children,
+  ...rest
+}: { children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       role="status"
+      {...rest}
       style={{
         position: "absolute",
         inset: 0,

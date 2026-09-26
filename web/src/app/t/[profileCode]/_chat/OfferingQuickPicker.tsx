@@ -37,6 +37,10 @@ function titleEndsWithWord(title: string, word: string): boolean {
   return stripped.toLowerCase() === word.toLowerCase();
 }
 
+/**
+ * Chip money line for Hablar empty-home. Mockup shows "Soft Gel 500 MXN"
+ * (amount + code, no currency symbol). Other currencies keep Intl formatting.
+ */
 export function offeringChipPriceLabel(o: ChatOffering, locale: string): string {
   if (o.amountCents == null) {
     const label = pickLocale(locale, { en: "quote", es: "cotización" });
@@ -47,6 +51,16 @@ export function offeringChipPriceLabel(o: ChatOffering, locale: string): string 
       return "";
     }
     return label;
+  }
+  const cur = (o.currency || "USD").trim().toUpperCase() || "USD";
+  if (cur === "MXN") {
+    const amount = o.amountCents / 100;
+    const whole = Number.isInteger(amount);
+    const shown = amount.toLocaleString("en-US", {
+      minimumFractionDigits: whole ? 0 : 2,
+      maximumFractionDigits: whole ? 0 : 2,
+    });
+    return `${shown} MXN`;
   }
   return formatOfferingPrice(o.amountCents, o.currency, locale);
 }
@@ -136,7 +150,7 @@ export function OfferingQuickPicker({
                 whiteSpace: "nowrap",
               }}
             >
-              {o.title}
+              <span style={{ fontWeight: 700 }}>{o.title}</span>
               {priceLabel && (
                 <span style={{ fontWeight: 500, color: C.inkMuted }}>{priceLabel}</span>
               )}

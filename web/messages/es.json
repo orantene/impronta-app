@@ -1199,10 +1199,13 @@
       "nextPaidSub": "Nada pendiente en este pago.",
       "nextRefundedTitle": "Seña devuelta",
       "nextRefundedSub": "El pago fue devuelto.",
-      "nextDeclinedTitle": "Rechazada",
-      "nextDeclinedSub": "Esta oferta fue rechazada.",
-      "nextPayFailedTitle": "Pago rechazado",
-      "nextPayFailedSub": "El pago no se completó.",
+      "nextDeclinedTitle": "Oferta rechazada",
+      "nextDeclinedSub": "No se cobró nada. Puedes pedir otro horario.",
+      "nextPayFailedTitle": "El pago no pasó",
+      "nextPayFailedSub": "La tarjeta fue rechazada. No se cobró.",
+      "nextDeclinedButton": "Otro pedido",
+      "nextPayFailedButton": "Intentar de nuevo",
+      "nextRefundedButton": "Pedir de nuevo",
       "dockItemsRecordOffer": "Oferta",
       "dockLineupEmptyItems": "Aún no elegiste nada. Elige en las tarjetas del chat o mira el menú.",
       "homeItemsSub": "Lo que elegiste y lo que añadieron para ti",
@@ -1290,6 +1293,8 @@
       "detailsChipAdd": "Añadir detalles",
       "detailsChipProgress": "Detalles {filled}/{total}",
       "errTalentUnavailable": "Este talento no está recibiendo solicitudes aquí en este momento. Aún puedes escribir a la agencia.",
+      "errSlotTaken": "Ese horario se acaba de ocupar. Elige otro.",
+      "handoffContactLabel": "Tus datos",
       "accountSavedConfirm": "Tus conversaciones se guardan en tu cuenta de Tulala.",
       "accountSavedConfirmSolo": "Tus conversaciones se guardan en tu cuenta.",
       "accountInvalidEmail": "Introduce un correo electrónico válido.",
@@ -1648,6 +1653,7 @@
       "cancelled": "Este pago se cancelo. No se tomo nada.",
       "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
       "paid": "Pagado",
+      "refunded": "Reembolsado. El dinero esta en camino de vuelta.",
       "receipt": "Ver recibo",
       "backToThread": "Volver a la conversacion",
       "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
@@ -18981,7 +18987,8 @@
             "yesterday": "Ayer",
             "emptyTitle": "Todavía no hay nada",
             "emptyBody": "Cuando {business} te escriba, aparecerá aquí. Puedes escribir primero.",
-            "loading": "Cargando tu conversación"
+            "loading": "Cargando tu conversación",
+            "backFromEmail": "Volviste desde el correo"
           },
           "composer": {
             "placeholder": "Escribe a {business}",
@@ -18995,6 +19002,8 @@
             "secure": "Enlace seguro · válido para tu reserva",
             "saveToEmail": "Guardar esta conversación en tu correo",
             "saveToEmailSoon": "Guardar en el correo aún no está disponible desde este enlace",
+            "saveToEmailSent": "Enlace enviado a tu correo",
+            "saveToEmailFailed": "No se pudo enviar el enlace. Inténtalo de nuevo.",
             "expires": "Este enlace es válido hasta el {date}"
           },
           "choices": {
@@ -19021,6 +19030,7 @@
             "heldNoClock": "{slot} está reservado para ti",
             "holdEnded": "La reserva temporal terminó. Elige otro horario o escribe a {business}.",
             "taken": "Ese horario se acaba de ocupar. Elige otro o escribe a {business}.",
+            "nextFree": "Horarios libres",
             "noSlots": "Aún no hay horarios para elegir."
           },
           "offer": {
@@ -19113,12 +19123,23 @@
             "noRefund": "Cancelado. Sin reembolso.",
             "refundOnly": "Se reembolsaron {amount}."
           },
+          "outcome": {
+            "declinedTitle": "Oferta rechazada",
+            "declinedBody": "No se cobró nada. Puedes pedir otro horario.",
+            "payFailedTitle": "El pago no pasó",
+            "payFailedBody": "La tarjeta fue rechazada. No se cobró. Puedes intentar otra.",
+            "payFailedRetry": "Intentar de nuevo",
+            "refundedTitle": "Seña devuelta",
+            "refundedBody": "Cancelaste a tiempo. La seña vuelve a tu tarjeta.",
+            "refundedBodyAmount": "Cancelaste a tiempo. {amount} vuelven a tu tarjeta."
+          },
           "confirmed": {
             "catBooking": "Reservado",
             "catOrder": "Pedido",
             "pill": "Confirmado",
             "when": "Cuándo",
             "askChange": "Pedir un cambio",
+            "addToCalendar": "Agregar al calendario",
             "receipt": "Recibo",
             "receiptSoon": "Tu recibo estará disponible aquí pronto."
           },

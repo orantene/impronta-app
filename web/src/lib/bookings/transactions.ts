@@ -28,6 +28,7 @@ import { applyBookingPaymentSync } from "@/lib/bookings/booking-payment-sync";
 import {
   describeTransactionTransitionEvent,
 } from "@/lib/bookings/transaction-events";
+import { planMarkRefundedLinkedRow } from "@/lib/bookings/mark-refunded-plan";
 import {
   notifyDepositReceived,
   notifyInvoiceIssued,
@@ -1083,12 +1084,21 @@ export async function markDisputed(
 
 /**
  * Mark a transaction as refunded.
+ *
+ * Cumulative / partial→remainder: prior linked refund rows (from
+ * `recordPartialRefund`) are NOT a refusal. We book only the remaining cents
+ * (or flip the parent when partials already cover the gross) so Stripe's
+ * remainder webhook can complete the books. See `planMarkRefundedLinkedRow`.
  */
 export async function markRefunded(
   transactionId: string,
   opts?: {
     providerReference?: string | null;
     refundNote?: string | null;
+    /** THIS refund event's own slice (Stripe Refund.amount) when known. */
+    refundAmountCents?: number | null;
+    /** Stripe Refund id (`re_...`) for event-based dedup on the linked row. */
+    providerRefundId?: string | null;
   },
 ): Promise<TransactionResult<BookingTransaction>> {
   const sb = createServiceRoleClient();
@@ -1117,76 +1127,132 @@ export async function markRefunded(
       return { ok: false, error: "Refund records cannot be refunded again." };
     }
 
-    const { data: existingRefund } = await sb
+    const { data: linkedRefundRows, error: linkedRefundErr } = await sb
       .from("booking_transactions")
-      .select("id")
+      .select("id, gross_amount_cents, provider_refund_id")
       .eq("refund_of_transaction_id", transactionId)
-      .eq("status", "refunded")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (existingRefund) {
-      return {
-        ok: false,
-        error: "A linked refund transaction already exists for this payment.",
-      };
+      .eq("status", "refunded");
+    if (linkedRefundErr) {
+      // Empty linked rows means "no prior partials"; a failed read must not.
+      logServerError("transactions.markRefunded.linkedRefunds", linkedRefundErr);
+      return { ok: false, error: "Could not read linked refund transactions." };
     }
 
-    const nowIso = new Date().toISOString();
-    const { data: refundRowData, error: refundRowError } = await sb
-      .from("booking_transactions")
-      .insert({
-        booking_id: existing.booking_id,
-        source_tenant_id: existing.source_tenant_id,
-        source_inquiry_id: existing.source_inquiry_id,
-        payer_user_id: existing.payer_user_id,
-        payer_email: existing.payer_email,
-        payout_receiver_id: existing.payout_receiver_id,
-        payout_receiver_kind: existing.payout_receiver_kind,
-        payout_receiver_display_name: existing.payout_receiver_display_name,
-        gross_amount_cents: existing.gross_amount_cents,
-        platform_fee_basis_points: existing.platform_fee_basis_points,
-        platform_fee_cents: existing.platform_fee_cents,
-        net_amount_cents: existing.net_amount_cents,
-        currency: existing.currency,
-        provider: existing.provider,
-        provider_reference: opts?.providerReference?.trim() || null,
-        provider_metadata: existing.provider_metadata,
-        status: "refunded",
-        refund_of_transaction_id: existing.id,
-        refunded_at: nowIso,
-        failure_reason: opts?.refundNote?.trim() || null,
-        created_by_profile_id: existing.created_by_profile_id,
-      })
-      .select("*")
-      .single();
+    const linked = (linkedRefundRows ?? []) as Array<{
+      id: string;
+      gross_amount_cents: number;
+      provider_refund_id: string | null;
+    }>;
 
-    if (refundRowError || !refundRowData) {
-      logServerError("transactions.markRefunded.insertRefundRecord", refundRowError);
-      return { ok: false, error: "Failed to create linked refund transaction." };
+    const providerRefundId = opts?.providerRefundId?.trim() || null;
+    // Same Stripe refund id already booked (re-delivery) → flip parent only.
+    const alreadyBookedByRefundId = providerRefundId
+      ? linked.find((r) => r.provider_refund_id === providerRefundId)
+      : undefined;
+
+    const plan = planMarkRefundedLinkedRow({
+      parentGrossCents: existing.gross_amount_cents,
+      existingLinkedRefundGrossCents: linked.map((r) => Number(r.gross_amount_cents ?? 0)),
+      refundAmountCents: opts?.refundAmountCents,
+    });
+
+    let refundRowId: string | null = alreadyBookedByRefundId?.id ?? linked[linked.length - 1]?.id ?? null;
+    let insertedNewRow = false;
+
+    if (!alreadyBookedByRefundId && plan.insertAmountCents > 0) {
+      const nowIso = new Date().toISOString();
+      // Full single-shot (no prior partials, covering the whole gross): preserve
+      // the fee split on the linked row. Remainder / partial-style amounts must
+      // use fee 0 so platform_fee + net = gross still holds.
+      const isFullCoveringRow =
+        plan.alreadyRefundedCents === 0 && plan.insertAmountCents === existing.gross_amount_cents;
+      const { data: refundRowData, error: refundRowError } = await sb
+        .from("booking_transactions")
+        .insert({
+          booking_id: existing.booking_id,
+          source_tenant_id: existing.source_tenant_id,
+          source_inquiry_id: existing.source_inquiry_id,
+          payer_user_id: existing.payer_user_id,
+          payer_email: existing.payer_email,
+          payout_receiver_id: existing.payout_receiver_id,
+          payout_receiver_kind: existing.payout_receiver_kind,
+          payout_receiver_display_name: existing.payout_receiver_display_name,
+          gross_amount_cents: plan.insertAmountCents,
+          platform_fee_basis_points: isFullCoveringRow ? existing.platform_fee_basis_points : 0,
+          platform_fee_cents: isFullCoveringRow ? existing.platform_fee_cents : 0,
+          net_amount_cents: isFullCoveringRow ? existing.net_amount_cents : plan.insertAmountCents,
+          currency: existing.currency,
+          provider: existing.provider,
+          provider_reference: opts?.providerReference?.trim() || null,
+          provider_refund_id: providerRefundId,
+          provider_metadata: existing.provider_metadata,
+          status: "refunded",
+          refund_of_transaction_id: existing.id,
+          refunded_at: nowIso,
+          failure_reason: opts?.refundNote?.trim() || null,
+          created_by_profile_id: existing.created_by_profile_id,
+        })
+        .select("*")
+        .single();
+
+      if (refundRowError || !refundRowData) {
+        // Unique violation on provider_refund_id = concurrent re-delivery; fall
+        // through to flip the parent using any linked row we can resolve.
+        if ((refundRowError as { code?: string } | null)?.code === "23505" && providerRefundId) {
+          const { data: raced, error: racedErr } = await sb
+            .from("booking_transactions")
+            .select("id")
+            .eq("provider_refund_id", providerRefundId)
+            .maybeSingle();
+          if (racedErr) {
+            logServerError("transactions.markRefunded.racedRefundLookup", racedErr);
+            return { ok: false, error: "Failed to create linked refund transaction." };
+          }
+          refundRowId = (raced as { id: string } | null)?.id ?? refundRowId;
+        } else {
+          logServerError("transactions.markRefunded.insertRefundRecord", refundRowError);
+          return { ok: false, error: "Failed to create linked refund transaction." };
+        }
+      } else {
+        refundRowId = (refundRowData as TransactionRow).id;
+        insertedNewRow = true;
+      }
     }
 
-    const refundRow = refundRowData as TransactionRow;
+    if (!refundRowId) {
+      // Flip-only with no linked row id to point at (zero-gross edge) — still
+      // transition; leave refund_of_transaction_id unset.
+      return transitionStatus(
+        transactionId,
+        ["paid", "payout_pending", "payout_sent", "disputed"],
+        "refunded",
+        {
+          provider_reference: opts?.providerReference?.trim() || null,
+          failure_reason: opts?.refundNote?.trim() || null,
+        },
+      );
+    }
+
     const transition = await transitionStatus(
       transactionId,
       ["paid", "payout_pending", "payout_sent", "disputed"],
       "refunded",
       {
-        refund_of_transaction_id: refundRow.id,
+        refund_of_transaction_id: refundRowId,
         provider_reference: opts?.providerReference?.trim() || null,
         failure_reason: opts?.refundNote?.trim() || null,
       },
     );
 
-    if (!transition.ok) {
+    if (!transition.ok && insertedNewRow) {
       const { error: deleteError } = await sb
         .from("booking_transactions")
         .delete()
-        .eq("id", refundRow.id);
+        .eq("id", refundRowId);
       if (deleteError) {
         logServerError("transactions.markRefunded.orphan", {
-          message: `CRITICAL: Orphan refund row ${refundRow.id} created — manual cleanup required`,
-          refundRowId: refundRow.id,
+          message: `CRITICAL: Orphan refund row ${refundRowId} created — manual cleanup required`,
+          refundRowId,
           originalTransactionId: transactionId,
           deleteError,
         });

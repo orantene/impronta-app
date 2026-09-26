@@ -23,6 +23,7 @@ const DESIGNS: GalleryCatalogEntry[] = [
     summary: "A split hero with an editorial gallery.",
     category: "Editorial",
     tags: [],
+    forDesign: null,
     preview: {
       swatch: { primary: "#111111", secondary: "#222222", accent: "#333333", background: "#ffffff", ink: "#000000" },
     },
@@ -39,6 +40,7 @@ const DESIGNS: GalleryCatalogEntry[] = [
     summary: "A centered hero for a minimal studio site.",
     category: "Studio",
     tags: [],
+    forDesign: null,
     preview: {},
     requiredTier: "talent_portfolio",
     version: 1,
@@ -56,6 +58,7 @@ const LOOKS: GalleryCatalogEntry[] = [
     summary: "",
     category: null,
     tags: [],
+    forDesign: null,
     preview: {
       swatch: { primary: "#a00000", secondary: "#b00000", accent: "#c00000", background: "#ffffff", ink: "#000000" },
       fontPreview: { heading: "Georgia", body: "Arial" },

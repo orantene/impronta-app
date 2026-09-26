@@ -1,5 +1,6 @@
 import { formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/derive";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
+import type { MoneyLanding, TodayMoneyTile } from "@/lib/money/today-money-tiles";
 import type { TalentCalendarEntry } from "../../data-bridge";
 import type { AgendaMoneyItem, AgendaPaymentState, AgendaRowItem } from "./types";
 
@@ -268,6 +269,26 @@ export function moneyFromEarnings(input: {
       tone: "success",
     },
   ];
+}
+
+/**
+ * Today Money tiles (M3) — Collected / Due by today / Next payout · estimated
+ * from the Money read model. Click handlers open Money with the matching tab
+ * (Due by today → Outstanding filter `"today"` / `mc_out_today`).
+ */
+export function moneyFromLedger(input: {
+  tiles: readonly TodayMoneyTile[];
+  isSpanish?: boolean;
+  onOpen: (landing: MoneyLanding) => void;
+}): AgendaMoneyItem[] {
+  return input.tiles.map((tile) => ({
+    id: tile.id,
+    label: input.isSpanish ? tile.labelEs : tile.labelEn,
+    value: tile.amountLabel,
+    helper: input.isSpanish ? tile.linesEs : tile.linesEn,
+    tone: tile.tone,
+    onClick: () => input.onOpen(tile.landing),
+  }));
 }
 
 /** One optional rebook hint from a prior completed visit for the same client. */

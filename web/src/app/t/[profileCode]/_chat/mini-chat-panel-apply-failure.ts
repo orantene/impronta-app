@@ -18,7 +18,12 @@ export type ApplyFailureFn = (
   code: string,
   message: string,
   retryAfterMs?: number,
-  extra?: { gateTier?: GuestIdentityTier; activeCount?: number; limit?: number },
+  extra?: {
+    gateTier?: GuestIdentityTier;
+    activeCount?: number;
+    limit?: number;
+    nextFreeTimes?: string[];
+  },
 ) => void;
 
 export function createApplyFailure({
@@ -68,6 +73,27 @@ export function createApplyFailure({
       // unavailable. The catalog copy also adds the way forward (message the
       // agency instead), which the server string cannot know to offer.
       setError(t("public.guestChat.errTalentUnavailable"));
+      return;
+    }
+    if (code === "slot_taken") {
+      // Engine may stamp nextFreeTimes (ISO). Never invent a clock — empty list
+      // keeps the plain sentence only.
+      const base = message || t("public.guestChat.errSlotTaken");
+      const times = (extra?.nextFreeTimes ?? []).filter((s) => typeof s === "string" && s.length > 0);
+      if (times.length === 0) {
+        setError(base);
+        return;
+      }
+      const labels = times.map((iso) => {
+        const ms = Date.parse(iso);
+        if (!Number.isFinite(ms)) return null;
+        try {
+          return new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }).format(new Date(ms));
+        } catch {
+          return null;
+        }
+      }).filter((x): x is string => Boolean(x));
+      setError(labels.length > 0 ? `${base} ${labels.join(" · ")}` : base);
       return;
     }
     if (code === "blocked") {

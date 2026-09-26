@@ -84,6 +84,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   "r",
   // POS payment link `/pay/<code>`. Same shadowing as the receipt.
   "pay",
+  // Platform pay-host fallback `/link/<code>` (PICK: P). Same shadowing as
+  // `/pay`. Distinct from QR `/q`. Mirrored in `…288000_reserve_link_slug.sql`.
+  "link",
   // Customer self-manage `/manage/<token>` (A07 / R04). Same shadowing.
   // Mirrored in `…222000_reserve_manage_slug.sql`.
   "manage",

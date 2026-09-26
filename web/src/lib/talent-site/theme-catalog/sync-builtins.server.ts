@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { BUILTIN_DESIGNS, BUILTIN_LOOKS } from "./builtins";
 import type { BuiltinDesignEntry, BuiltinLookEntry } from "./builtins/types";
+import { MAISON_BUILTIN_DESIGN, MAISON_BUILTIN_LOOKS } from "./maison/builtins";
 import { TALENT_THEME_SCHEMA_VERSION, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
 
@@ -75,6 +76,7 @@ export interface BuiltinUpsertRow {
   summary: string;
   category: string | null;
   tags: string[];
+  for_design: string | null;
   payload: unknown;
   preview: unknown;
   required_talent_tier: string;
@@ -135,6 +137,11 @@ export function planBuiltinSync(
       created += 1;
     }
 
+    const forDesign =
+      entry.kind === "look" && "for_design" in entry && typeof entry.for_design === "string"
+        ? entry.for_design
+        : null;
+
     upserts.push({
       kind: entry.kind,
       slug: entry.slug,
@@ -142,6 +149,7 @@ export function planBuiltinSync(
       summary: entry.summary,
       category: entry.category,
       tags: entry.tags,
+      for_design: forDesign,
       payload,
       preview: entry.preview,
       required_talent_tier: entry.required_talent_tier,
@@ -183,7 +191,15 @@ export async function syncBuiltinTalentThemes(
   admin: SupabaseClient,
   userId: string | null = null,
 ): Promise<SyncBuiltinTalentThemesResult> {
-  const entries: BuiltinThemeEntry[] = [...BUILTIN_DESIGNS, ...BUILTIN_LOOKS];
+  // Maison Design + scoped Looks sync even while the flag is off so rows are
+  // ready when the owner flips TALENT_MAISON_THEME_ENABLED. loadTalentThemeCatalog
+  // still hides them until the flag is on.
+  const entries: BuiltinThemeEntry[] = [
+    ...BUILTIN_DESIGNS,
+    MAISON_BUILTIN_DESIGN,
+    ...BUILTIN_LOOKS,
+    ...MAISON_BUILTIN_LOOKS,
+  ];
   const built = entries.map((entry) => ({ entry, payload: entry.buildPayload() }));
 
   const errors = built.flatMap(({ entry, payload }) => validateEntry(entry, payload));

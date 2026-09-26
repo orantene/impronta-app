@@ -12,6 +12,7 @@ import {
 } from "@/lib/server-actions/messaging-talent";
 import type { MessagingRefusal } from "@/lib/messaging/types";
 
+import { engineIdentityActions } from "../screens/IdentityCaptureWire";
 import type { ShellEngine } from "./engine";
 
 const refused = (reason: MessagingRefusal = "not_allowed") => Promise.resolve({ ok: false as const, reason });
@@ -19,6 +20,10 @@ const refused = (reason: MessagingRefusal = "not_allowed") => Promise.resolve({ 
 /**
  * The same shell, with readers and writers that resolve the talent on the
  * server. Actions that are not hers return a refusal code. The buttons stay.
+ *
+ * Identity uses the shared inquiry-manager writers (match / capture / create
+ * client) — stubbing them to `not_allowed` blocked Request payment → Pagado
+ * for guest threads the talent already coordinates (Ana, 2026-09-26).
  */
 export const talentShellEngine: ShellEngine = {
   loadInbox: (input) => messagingTalentLoadInbox(input),
@@ -44,9 +49,5 @@ export const talentShellEngine: ShellEngine = {
     reopen: () => refused(),
     upload: async () => ({ ok: false, error: "You cannot do that from here." }),
   },
-  identity: {
-    match: async () => ({ ok: false, reason: "not_allowed" }),
-    capture: async () => ({ ok: false, reason: "not_allowed" }),
-    createClient: async () => ({ ok: false, reason: "not_allowed" }),
-  },
+  identity: engineIdentityActions,
 };

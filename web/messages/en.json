@@ -1199,10 +1199,13 @@
       "nextPaidSub": "Nothing left on this payment.",
       "nextRefundedTitle": "Deposit returned",
       "nextRefundedSub": "The payment was returned.",
-      "nextDeclinedTitle": "Declined",
-      "nextDeclinedSub": "This offer was declined.",
-      "nextPayFailedTitle": "Pay failed",
-      "nextPayFailedSub": "The payment did not go through.",
+      "nextDeclinedTitle": "Offer declined",
+      "nextDeclinedSub": "Nothing was charged. You can start another request.",
+      "nextPayFailedTitle": "Payment failed",
+      "nextPayFailedSub": "The card was declined. Nothing was charged.",
+      "nextDeclinedButton": "Start another request",
+      "nextPayFailedButton": "Try again",
+      "nextRefundedButton": "Book again",
       "dockItemsRecordOffer": "Offer",
       "dockLineupEmptyItems": "Nothing picked yet. Choose from the cards in Chat, or browse the menu.",
       "homeItemsSub": "What you picked and what was added for you",
@@ -1290,6 +1293,8 @@
       "detailsChipAdd": "Add details",
       "detailsChipProgress": "Details {filled}/{total}",
       "errTalentUnavailable": "This talent is not taking inquiries here right now. You can still message the agency.",
+      "errSlotTaken": "That time was just taken. Pick another time.",
+      "handoffContactLabel": "Your details",
       "accountSavedConfirm": "Your conversations are saved to your Tulala account.",
       "accountSavedConfirmSolo": "Your conversations are saved to your account.",
       "accountInvalidEmail": "Enter a valid email address.",
@@ -1648,6 +1653,7 @@
       "cancelled": "This payment was cancelled. Nothing was taken.",
       "unknown": "Payment status is unknown. Do not pay again. The business will confirm.",
       "paid": "Paid",
+      "refunded": "Refunded. The money is on its way back.",
       "receipt": "View receipt",
       "backToThread": "Back to the conversation",
       "smsPlain": "Same order and the same secure page, in plain text. This channel cannot show cards.",
@@ -18981,7 +18987,8 @@
             "yesterday": "Yesterday",
             "emptyTitle": "Nothing here yet",
             "emptyBody": "When {business} writes to you, it shows up here. You can write first.",
-            "loading": "Loading your conversation"
+            "loading": "Loading your conversation",
+            "backFromEmail": "You are back from the email link"
           },
           "composer": {
             "placeholder": "Write to {business}",
@@ -18995,6 +19002,8 @@
             "secure": "Secure link · valid for your booking",
             "saveToEmail": "Save this conversation to your email",
             "saveToEmailSoon": "Saving to email is not available from this link yet",
+            "saveToEmailSent": "Link sent to your email",
+            "saveToEmailFailed": "Could not email the link. Try again.",
             "expires": "This link is valid until {date}"
           },
           "choices": {
@@ -19021,6 +19030,7 @@
             "heldNoClock": "{slot} is held for you",
             "holdEnded": "The hold ended. Pick another time, or write to {business}.",
             "taken": "That time was just taken. Pick another, or write to {business}.",
+            "nextFree": "Next free times",
             "noSlots": "No times to pick yet."
           },
           "offer": {
@@ -19113,12 +19123,23 @@
             "noRefund": "Cancelled. No refund.",
             "refundOnly": "{amount} was refunded."
           },
+          "outcome": {
+            "declinedTitle": "Offer declined",
+            "declinedBody": "Nothing was charged. You can start another request.",
+            "payFailedTitle": "Payment failed",
+            "payFailedBody": "The card was declined. Nothing was charged. Try another card.",
+            "payFailedRetry": "Try again",
+            "refundedTitle": "Deposit returned",
+            "refundedBody": "You cancelled in time. The deposit is on its way back.",
+            "refundedBodyAmount": "You cancelled in time. {amount} is on its way back."
+          },
           "confirmed": {
             "catBooking": "Booked",
             "catOrder": "Order",
             "pill": "Confirmed",
             "when": "When",
             "askChange": "Ask for a change",
+            "addToCalendar": "Add to calendar",
             "receipt": "Receipt",
             "receiptSoon": "Your receipt will be available here soon."
           },

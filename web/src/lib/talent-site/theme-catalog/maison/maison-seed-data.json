@@ -1,0 +1,620 @@
+{
+ "_about": "Exact Maison data from the approved prototype (2026-09-25). Theme/demo/palette/tags/starter content. Copy is Spanish on the site (demo content is Mexican Spanish); UI strings are in MAISON-PRODUCT-SPEC.md. Image paths refer to prototype-source/img/ and are PREVIEW ONLY (not licensed for tenant reuse) unless marked otherwise.",
+ "theme": {
+  "key": "maison",
+  "name": "Maison",
+  "status": "released",
+  "description": {
+   "en": "Beauty editorial: expressive serif, layered portraits, an elegant service menu",
+   "es": "Editorial de belleza: serif expresiva, retratos en capas y un menú elegante"
+  },
+  "tags": [
+   {
+    "key": "editorial",
+    "kind": "style"
+   },
+   {
+    "key": "warm",
+    "kind": "style"
+   },
+   {
+    "key": "menu",
+    "kind": "layout"
+   },
+   {
+    "key": "booking",
+    "kind": "layout"
+   },
+   {
+    "key": "portfolio",
+    "kind": "layout"
+   }
+  ],
+  "fonts": {
+   "heading": "Fraunces (400/500, italic)",
+   "body": "Inter"
+  },
+  "radius": {
+   "button": 10,
+   "image": [
+    16,
+    22
+   ]
+  },
+  "canvas": {
+   "desktop_width": 1200,
+   "desktop_padding": 64,
+   "phone_padding": 20
+  },
+  "sections_default_order": [
+   "nav",
+   "hero",
+   "about",
+   "menu",
+   "recent_work",
+   "custom",
+   "how_to_book",
+   "faq",
+   "footer"
+  ],
+  "menu_styles": [
+   "tabs",
+   "list",
+   "accordion"
+  ],
+  "menu_style_default": "tabs",
+  "palette_order": [
+   "pink",
+   "pearl",
+   "lilac",
+   "sand",
+   "peach"
+  ],
+  "demos_planned": [
+   {
+    "key": "nails",
+    "en": "Nails & Lashes Artist",
+    "es": "Uñas y pestañas",
+    "status": "built"
+   },
+   {
+    "key": "model",
+    "en": "Model",
+    "es": "Modelo",
+    "status": "planned"
+   },
+   {
+    "key": "singer",
+    "en": "Singer",
+    "es": "Cantante",
+    "status": "planned"
+   },
+   {
+    "key": "chef",
+    "en": "Private Chef",
+    "es": "Chef privado",
+    "status": "planned"
+   },
+   {
+    "key": "trainer",
+    "en": "Personal Trainer",
+    "es": "Entrenador personal",
+    "status": "planned"
+   },
+   {
+    "key": "bridal",
+    "en": "Bridal Hair & Makeup",
+    "es": "Novias: peinado y maquillaje",
+    "status": "planned"
+   }
+  ]
+ },
+ "palettes": {
+  "pink": {
+   "name": {
+    "en": "Pink & Lipstick",
+    "es": "Rosa y labial"
+   },
+   "page": "#FFFFFF",
+   "section": "#FFF5F8",
+   "rule": "#EDE8EB",
+   "text": "#241F26",
+   "accent": "#A82458",
+   "on_accent": "#FFFFFF",
+   "source": "read from the live reference site book-jorgelina",
+   "contrast": {
+    "text_page": 16.17,
+    "button": 6.87
+   }
+  },
+  "pearl": {
+   "name": {
+    "en": "Pearl & Ink",
+    "es": "Perla y tinta"
+   },
+   "page": "#FFFFFF",
+   "section": "#F6F4F0",
+   "rule": "#E6E2DC",
+   "text": "#1F1E1C",
+   "accent": "#1F1E1C",
+   "on_accent": "#FFFFFF",
+   "contrast": {
+    "text_page": 16.66,
+    "button": 16.66
+   }
+  },
+  "lilac": {
+   "name": {
+    "en": "Lilac & Plum",
+    "es": "Lila y ciruela"
+   },
+   "page": "#FFFFFF",
+   "section": "#F6F0F8",
+   "rule": "#E8DFEC",
+   "text": "#261E2B",
+   "accent": "#6A2C70",
+   "on_accent": "#FFFFFF",
+   "contrast": {
+    "text_page": 16.12,
+    "button": 9.51
+   }
+  },
+  "sand": {
+   "name": {
+    "en": "Sand & Espresso",
+    "es": "Arena y espresso"
+   },
+   "page": "#FFFFFF",
+   "section": "#F7F1E8",
+   "rule": "#E9DFD0",
+   "text": "#2A211B",
+   "accent": "#4B3222",
+   "on_accent": "#FFFFFF",
+   "contrast": {
+    "text_page": 15.77,
+    "button": 11.81
+   }
+  },
+  "peach": {
+   "name": {
+    "en": "Peach & Terracotta",
+    "es": "Durazno y terracota"
+   },
+   "page": "#FFFFFF",
+   "section": "#FFF3EC",
+   "rule": "#F1E0D5",
+   "text": "#2B201C",
+   "accent": "#A4482A",
+   "on_accent": "#FFFFFF",
+   "contrast": {
+    "text_page": 15.84,
+    "button": 5.93
+   }
+  }
+ },
+ "custom_colors_example_chef": {
+  "fields": {
+   "page": "#FFFBF4",
+   "text": "#2B1C14",
+   "accent": "#C8643B",
+   "section": "#F3E6D6"
+  },
+  "check": {
+   "button_contrast": 3.93,
+   "threshold": 4.5,
+   "message_key": "adjust_button_contrast",
+   "suggestion_accent": "#A34E2C",
+   "after": {
+    "button_contrast": 5.7,
+    "text_page": 15.92
+   }
+  },
+  "saved_name": {
+   "en": "My colors",
+   "es": "Mis colores"
+  },
+  "derived_tokens_rule": "rule = section darkened 6%; on_accent = #FFFFFF or text, whichever passes 4.5:1"
+ },
+ "demo_nails": {
+  "key": "nails",
+  "default_palette": "pink",
+  "offering_mode": "bookings",
+  "site_content": {
+   "name": "Lía Studio",
+   "logo": [
+    "Lía",
+    "Studio"
+   ],
+   "eyebrow": "ESTUDIO PRIVADO · TU CIUDAD",
+   "headline": [
+    "Uñas y pestañas,",
+    "con calma."
+   ],
+   "intro": "Manicura, extensiones y lifting con acabado natural, atendiendo a una persona a la vez.",
+   "buttons": [
+    "Ver servicios y reservar ↓",
+    "Conóceme"
+   ],
+   "meta": [
+    "Con cita previa",
+    "Estudio privado"
+   ],
+   "about_title": "Hola, soy Lía",
+   "about": [
+    "Este es un texto de ejemplo. Aquí va tu historia: cómo empezaste, qué te gusta hacer y cómo es una cita contigo.",
+    "En tu sitio se reemplaza por tu propia presentación."
+   ],
+   "menu_title": [
+    "Servicios",
+    "y precios"
+   ],
+   "menu_sub": "Precios de ejemplo en pesos mexicanos (MXN).",
+   "categories": [
+    {
+     "name": "Uñas",
+     "items": [
+      {
+       "name": "Manicura en gel",
+       "desc": "Esmaltado semipermanente con preparación de cutícula.",
+       "duration": "1 h",
+       "price_mxn": 450
+      },
+      {
+       "name": "Extensiones de uñas",
+       "desc": "Largo y forma a elección, acabado en gel.",
+       "duration": "2 h",
+       "price_mxn": 750
+      },
+      {
+       "name": "Retiro de gel o acrílico",
+       "desc": "Retiro cuidadoso con hidratación.",
+       "duration": "40 min",
+       "price_mxn": 200
+      },
+      {
+       "name": "Nail art · por uña",
+       "desc": "Diseño a mano alzada.",
+       "duration": "10 min",
+       "price_mxn": 40
+      }
+     ]
+    },
+    {
+     "name": "Pestañas",
+     "items": [
+      {
+       "name": "Extensiones clásicas",
+       "desc": "Una extensión por pestaña natural.",
+       "duration": "2 h",
+       "price_mxn": 900
+      },
+      {
+       "name": "Retoque de pestañas",
+       "desc": "Relleno entre 2 y 3 semanas.",
+       "duration": "1 h",
+       "price_mxn": 550
+      },
+      {
+       "name": "Lifting de pestañas",
+       "desc": "Curvatura y tinte, sin extensiones.",
+       "duration": "1 h",
+       "price_mxn": 600
+      },
+      {
+       "name": "Laminado de cejas",
+       "desc": "Cejas peinadas y definidas.",
+       "duration": "50 min",
+       "price_mxn": 550
+      }
+     ]
+    }
+   ],
+   "recent_work_count": 6,
+   "how_to_book": [
+    [
+     "ZONA",
+     "Tu zona o colonia"
+    ],
+    [
+     "ESTUDIO",
+     "Estudio privado. La dirección se comparte al confirmar."
+    ],
+    [
+     "DÍAS",
+     "Lunes a sábado"
+    ],
+    [
+     "CITAS",
+     "Únicamente con cita previa"
+    ]
+   ],
+   "faq": [
+    "¿Cómo reservo una cita?",
+    "¿Cuánto dura un retoque?",
+    "¿Qué pasa si llego tarde?",
+    "¿Puedo llevar mi diseño?"
+   ],
+   "header_action": "Reservar",
+   "item_action": "Seleccionar"
+  },
+  "starter_content": {
+   "services": [
+    {
+     "name": "Manicura en gel",
+     "category": "Uñas",
+     "price_mxn": 450,
+     "duration_min": 60,
+     "image_reuse": "preview_only"
+    },
+    {
+     "name": "Extensiones de uñas",
+     "category": "Uñas",
+     "price_mxn": 750,
+     "duration_min": 120,
+     "image_reuse": "preview_only"
+    },
+    {
+     "name": "Extensiones clásicas",
+     "category": "Pestañas",
+     "price_mxn": 900,
+     "duration_min": 120,
+     "image_reuse": "preview_only"
+    },
+    {
+     "name": "Retoque de pestañas",
+     "category": "Pestañas",
+     "price_mxn": 550,
+     "duration_min": 60,
+     "image_reuse": "preview_only"
+    },
+    {
+     "name": "Lifting de pestañas",
+     "category": "Pestañas",
+     "price_mxn": 600,
+     "duration_min": 60,
+     "image_reuse": "preview_only"
+    },
+    {
+     "name": "Laminado de cejas",
+     "category": "Pestañas",
+     "price_mxn": 550,
+     "duration_min": 50,
+     "image_reuse": "preview_only"
+    }
+   ],
+   "faq_prompts": [
+    "¿Cómo reservo una cita?",
+    "¿Cuánto dura un retoque?",
+    "¿Qué pasa si llego tarde?",
+    "¿Puedo llevar mi diseño?"
+   ],
+   "section_text": [
+    {
+     "key": "about_intro_prompt",
+     "en": "About you · intro prompt",
+     "es": "Sobre ti · guía de presentación"
+    },
+    {
+     "key": "how_booking_works",
+     "en": "How booking works",
+     "es": "Cómo reservar"
+    },
+    {
+     "key": "studio_details",
+     "en": "Studio details",
+     "es": "Datos del estudio"
+    }
+   ],
+   "images_licensed_for_reuse": false,
+   "counts_shown": {
+    "services": 6,
+    "faq_prompts": 4,
+    "section_text": 3,
+    "total": 13
+   }
+  }
+ },
+ "fixtures": {
+  "vale": {
+   "name": "Vale Montes",
+   "trade": "nails",
+   "city": "Mérida",
+   "area": "García Ginerés",
+   "offering_mode": "bookings",
+   "address": "valemontes.tulala.digital",
+   "services": [
+    {
+     "name": "Manicura en gel",
+     "category": "Uñas",
+     "price_mxn": 420,
+     "duration_min": 60
+    },
+    {
+     "name": "Nail art a mano alzada · por uña",
+     "category": "Uñas",
+     "price_mxn": 40,
+     "duration_min": 10
+    },
+    {
+     "name": "Retiro de gel",
+     "category": "Uñas",
+     "price_mxn": 150,
+     "duration_min": 30
+    }
+   ],
+   "photos": 6,
+   "faq": 0,
+   "intro_at_start": null,
+   "intro_after_ai": "Hago manicura en gel y nail art a mano alzada en mi estudio en García Ginerés. Trabajo con cita y con calma.",
+   "expected_import_result": {
+    "selected_services": 6,
+    "possible_duplicates": [
+     "Manicura en gel"
+    ],
+    "default_resolution": "keep_existing",
+    "service_drafts_created": 5,
+    "faq_prompts_created": 4,
+    "undo_removes": 9
+   }
+  },
+  "ivan": {
+   "name": "Iván Lugo",
+   "trade": "private_chef",
+   "city": "Oaxaca",
+   "offering_mode": "quotes",
+   "address": "ivanlugo.tulala.digital",
+   "services": [
+    {
+     "name": "Cena privada en tu casa · 2 a 12 personas",
+     "category": "Cenas privadas"
+    },
+    {
+     "name": "Menú de degustación mole y mezcal",
+     "category": "Cenas privadas"
+    },
+    {
+     "name": "Clase de cocina oaxaqueña · 3 horas",
+     "category": "Clases"
+    },
+    {
+     "name": "Preparación semanal de comidas",
+     "category": "Clases"
+    }
+   ],
+   "photos": 2,
+   "header_action": "Cotizar",
+   "item_action": "Pedir cotización"
+  }
+ },
+ "tag_catalog": {
+  "style": {
+   "editorial": [
+    "Editorial",
+    "Editorial"
+   ],
+   "minimal": [
+    "Minimal",
+    "Minimalista"
+   ],
+   "bold": [
+    "Bold",
+    "Audaz"
+   ],
+   "warm": [
+    "Warm",
+    "Cálido"
+   ],
+   "imageled": [
+    "Image-led",
+    "Con imágenes"
+   ],
+   "dark": [
+    "Dark",
+    "Oscuro"
+   ]
+  },
+  "layout": {
+   "menu": [
+    "Service menu",
+    "Menú de servicios"
+   ],
+   "booking": [
+    "Booking-ready",
+    "Listo para reservas"
+   ],
+   "portfolio": [
+    "Portfolio",
+    "Portafolio"
+   ],
+   "stories": [
+    "Project stories",
+    "Historias de proyectos"
+   ],
+   "list": [
+    "Service list",
+    "Lista de servicios"
+   ],
+   "textfirst": [
+    "Text-first",
+    "Texto primero"
+   ],
+   "classes": [
+    "Classes",
+    "Clases"
+   ],
+   "programs": [
+    "Programs",
+    "Programas"
+   ],
+   "media": [
+    "Video & media",
+    "Video y medios"
+   ],
+   "quotes": [
+    "Quote requests",
+    "Cotizaciones"
+   ],
+   "chapters": [
+    "Chapters",
+    "Capítulos"
+   ],
+   "photogrid": [
+    "Photo grid",
+    "Cuadrícula de fotos"
+   ],
+   "areas": [
+    "Areas served",
+    "Zonas de servicio"
+   ],
+   "bento": [
+    "Bento tiles",
+    "Mosaico"
+   ],
+   "process": [
+    "Process steps",
+    "Pasos del proceso"
+   ],
+   "packages": [
+    "Packages",
+    "Paquetes"
+   ],
+   "itinerary": [
+    "Itinerary",
+    "Itinerario"
+   ],
+   "multi": [
+    "Multi-talent",
+    "Multitalento"
+   ],
+   "story": [
+    "Personal story",
+    "Historia personal"
+   ],
+   "onepage": [
+    "One section",
+    "Una sección"
+   ]
+  }
+ },
+ "future_catalog_do_not_build": [
+  "folio",
+  "index",
+  "solace",
+  "tempo",
+  "stage",
+  "lumen",
+  "frame",
+  "common",
+  "orbit",
+  "ledger",
+  "craft",
+  "atlas",
+  "table",
+  "ribbon",
+  "gridline",
+  "muse",
+  "fieldnote",
+  "prism",
+  "mono"
+ ]
+}

@@ -163,6 +163,44 @@ test("empty catalogue renders the empty state, never a blank section", () => {
   assert.match(html, /No services are published yet\.|Todavía no hay servicios publicados\./);
 });
 
+test("talentOfferingsLoading paints dedicated loading skeleton (BRIEF-03)", () => {
+  const en = render([catalogNode()], { talentOfferingsLoading: true });
+  assert.match(en, /data-catalog-loading=""/);
+  assert.match(en, /aria-busy="true"/);
+  assert.match(en, /Loading services/);
+  assert.match(en, /site-builder-node--services-catalog-skel/);
+  assert.doesNotMatch(en, /No services are published yet/);
+  assert.doesNotMatch(en, /data-offering-cta=/);
+
+  const esHtml = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode()], {
+      mode: "freeform",
+      includeRendererStyles: false,
+      includeFontLinks: false,
+      visitorLocale: "es",
+      dataSources: { talentOfferingsLoading: true },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(esHtml, /Cargando servicios/);
+});
+
+test("talentOfferingsLoading wins over empty and over ready rows", () => {
+  const overEmpty = render([catalogNode()], {
+    talentOfferingsLoading: true,
+    talentOfferings: [],
+  });
+  assert.match(overEmpty, /data-catalog-loading=""/);
+  assert.doesNotMatch(overEmpty, /No services are published yet/);
+
+  const overReady = render([catalogNode()], {
+    talentOfferingsLoading: true,
+    talentOfferings: [offering({})],
+  });
+  assert.match(overReady, /data-catalog-loading=""/);
+  assert.doesNotMatch(overReady, /Gel pedicure/);
+  assert.doesNotMatch(overReady, /data-offering-cta=/);
+});
+
 test("a product's price row omits '· N min', a service's does not", () => {
   const html = render([catalogNode()], {
     talentOfferings: [
@@ -187,8 +225,8 @@ test("ctaLabel overrides the OfferingCta text", () => {
   assert.match(html, />Seleccionar</);
 });
 
-test("row with extras uses Elegir opciones unless inspector overrides", () => {
-  const html = render([catalogNode()], {
+test("row with extras uses Choose options even when inspector ctaLabel is Select", () => {
+  const html = render([catalogNode({ ctaLabel: "Select" })], {
     talentOfferings: [
       offering({
         addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
@@ -196,7 +234,26 @@ test("row with extras uses Elegir opciones unless inspector overrides", () => {
     ],
   });
   assert.match(html, />Choose options</);
+  assert.doesNotMatch(html, />Select</);
   assert.match(html, /data-offering-cta=/);
+});
+
+test("ladder rows print Desde / From above region-aware money", () => {
+  const html = render([catalogNode()], {
+    talentOfferings: [
+      offering({
+        title: "Soft Gel",
+        amountCents: 50000,
+        variants: [
+          { id: "v2", label: "Largo #2", amountCents: 50000 },
+          { id: "v3", label: "Largo #3", amountCents: 55000 },
+        ],
+      }),
+    ],
+  });
+  assert.match(html, /<small>From<\/small>/);
+  assert.match(html, /\$500/);
+  assert.doesNotMatch(html, /500\s*MXN/);
 });
 
 test("the catalog island mounts the booking sheet and bar", () => {
@@ -217,4 +274,196 @@ test("category_order wins over first-seen order in the pill strip", () => {
   const pest = html.indexOf('data-catalog-tab="Pestañas"');
   const unas = html.indexOf('data-catalog-tab="Uñas"');
   assert.ok(pest >= 0 && unas >= 0 && pest < unas);
+});
+
+test("layout prop is emitted and cards layout uses a multi-column list", () => {
+  const html = render([catalogNode({ layout: "cards", columns: 2 })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-layout="cards"/);
+  assert.match(html, /--svc-columns:\s*2/);
+});
+
+test("compact_list omits photos even when showPhoto is true", () => {
+  const html = render([catalogNode({ layout: "compact_list", showPhoto: true })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-layout="compact_list"/);
+  assert.doesNotMatch(html, /gel-pedicure\.jpg/);
+});
+
+test("tabs categoryNav uses distinct data-category-nav=tabs", () => {
+  const html = render([catalogNode({ categoryNav: "tabs" })], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+  });
+  assert.match(html, /data-category-nav="tabs"/);
+});
+
+test("jump nav uses serializable nodeId-derived fragment ids", () => {
+  const html = render([catalogNode({ categoryNav: "jump_strip" })], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+    ],
+  });
+  // "Uñas" → slug "u-as" (ñ stripped); node id from catalogNode helper is cat-1.
+  assert.match(html, /href="#cat-1-u-as"/);
+  assert.match(html, /id="cat-1-u-as"/);
+  assert.match(html, /href="#cat-1-pesta-as"/);
+});
+
+test("catalog island props are JSON-serializable (RSC boundary)", () => {
+  // Reconstruct the props object the server renderer hands the client island.
+  // A function `jumpSlug` here is exactly what 500'd vanity hosts after #2272.
+  const nodeId = "mn-svc-catalog-golive";
+  const groups = [
+    {
+      name: "Uñas",
+      items: [offering({ id: "a", category: "Uñas" })],
+    },
+  ];
+  const props = {
+    groups,
+    locale: "es",
+    nav: "pills" as const,
+    showPhoto: true,
+    showDuration: true,
+    showUsdEquivalent: false,
+    confirmsByHand: true,
+    usdRates: null,
+    ctaLabel: "Seleccionar",
+    bookingMode: "live" as const,
+    tenantId: "tenant-1",
+    nodeId,
+  };
+  assert.doesNotThrow(() => JSON.stringify(props));
+  assert.equal(typeof props.nodeId, "string");
+  assert.equal("jumpSlug" in props, false);
+});
+
+test("golive-shaped services_catalog SSR markup has no __next_error__", () => {
+  const golive = catalogNode({
+    eyebrow: "EL MENÚ",
+    title: "Servicios {i}y precios{/i}",
+    subtitle: "Todos los precios en pesos mexicanos (MXN). Se paga en el estudio.",
+    ctaLabel: "Seleccionar",
+    categoryNav: "pills",
+    showUsdEquivalent: false,
+    anchorId: "servicios",
+  });
+  golive.id = "mn-svc-catalog-golive";
+  const html = render([golive], {
+    talentOfferings: [
+      offering({ id: "a", title: "Manicure", category: "Uñas" }),
+      offering({ id: "b", title: "Lash lift", category: "Pestañas" }),
+      offering({ id: "c", title: "Brow", category: "Cejas" }),
+      offering({ id: "d", title: "Wax", category: "Depilación" }),
+    ],
+    talentOfferingsConfirmsByHand: true,
+    catalogBookingLive: true,
+    tenantId: "tenant-1",
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"/);
+  assert.match(html, /mn-svc-catalog-golive/);
+  assert.match(html, /EL MEN/);
+  assert.match(html, /Seleccionar/);
+  assert.match(html, /class="cb-island"/);
+  assert.doesNotMatch(html, /__next_error__/);
+  assert.doesNotMatch(html, /Algo no cargó/);
+});
+
+test("selectionMode ids only renders selected eligible offerings", () => {
+  const html = render(
+    [
+      catalogNode({
+        selectionMode: "ids",
+        selectedOfferingIds: ["keep-me"],
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "keep-me", title: "Keep me" }),
+        offering({ id: "hide-me", title: "Hide me" }),
+      ],
+    },
+  );
+  assert.match(html, /Keep me/);
+  assert.doesNotMatch(html, /Hide me/);
+});
+
+test("mixed duration formats as hours and minutes", () => {
+  const html = render([catalogNode({ durationFormat: "auto" })], {
+    talentOfferings: [offering({ durationMinutes: 135, title: "Long service" })],
+  });
+  assert.match(html, /2 h 15 min · estimated duration/);
+});
+
+test("outline CTA variant is the default data attribute", () => {
+  const html = render([catalogNode()], { talentOfferings: [offering({})] });
+  assert.match(html, /data-cta-variant="outline"/);
+});
+
+test("each layout sets a distinct data-layout attribute", () => {
+  for (const layout of ["rows", "cards", "grid", "compact_list", "editorial", "featured"] as const) {
+    const html = render([catalogNode({ layout })], {
+      talentOfferings: [offering({ id: "a" }), offering({ id: "b", title: "Other" })],
+    });
+    assert.match(html, new RegExp(`data-layout="${layout}"`));
+  }
+});
+
+test("featured layout puts featuredOfferingIds first as hero", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "featured",
+        featuredOfferingIds: ["hero"],
+        categoryNav: "pills",
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "other", title: "Other service", category: "A", sortOrder: 0 }),
+        offering({ id: "hero", title: "Hero service", category: "B", sortOrder: 1 }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="featured"/);
+  // Flat list for featured — hero title appears before other in markup
+  const heroAt = html.indexOf("Hero service");
+  const otherAt = html.indexOf("Other service");
+  assert.ok(heroAt >= 0 && otherAt >= 0 && heroAt < otherAt);
+});
+
+test("grid defaults to 3 columns via --svc-columns", () => {
+  const html = render([catalogNode({ layout: "grid" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /--svc-columns:\s*3/);
+});
+
+test("sections categoryNav omits jump strip", () => {
+  const html = render([catalogNode({ categoryNav: "sections" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas" }),
+      offering({ id: "b", category: "Cejas", title: "Brow" }),
+    ],
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"[^>]*data-category-nav="sections"/);
+  // Jump strip is a <nav data-category-nav="jump"> — sections must not emit one.
+  assert.doesNotMatch(html, /<nav[^>]*data-category-nav="jump"/);
+  assert.match(html, /site-builder-node--services-catalog-group-title/);
+});
+
+test("jump_strip categoryNav renders jump strip", () => {
+  const html = render([catalogNode({ categoryNav: "jump_strip" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas" }),
+      offering({ id: "b", category: "Cejas", title: "Brow" }),
+    ],
+  });
+  assert.match(html, /data-category-nav="jump"/);
 });

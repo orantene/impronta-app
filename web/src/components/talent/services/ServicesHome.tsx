@@ -51,6 +51,8 @@ import {
   useNeedsWorkingHoursBanner,
 } from "./ServicesHoursNeeded";
 import { HideOutcome, RowMenu, listPrice } from "./ServicesHomeRowChrome";
+import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
+import { useSearchParams } from "next/navigation";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
@@ -68,7 +70,9 @@ export function ServicesHome({
   const locale = copy.isSpanish ? "es" : "en";
   const { setTalentPage } = useAdminShell();
   const editor = useOfferingsEditor({ kind: "talent", talentProfileId: talentId });
-  const [filter, setFilter] = useState<Filter>("all");
+  const searchParams = useSearchParams();
+  const fromWebsiteSetup = searchParams?.get("from") === "website-setup";
+  const [filter, setFilter] = useState<Filter>(fromWebsiteSetup ? "draft" : "all");
   const [query, setQuery] = useState("");
   const [screen, setScreen] = useState<Screen>("list");
   const [typeOpen, setTypeOpen] = useState(false);
@@ -399,6 +403,7 @@ export function ServicesHome({
 
   return (
     <div className="font-admin-body">
+      <ServicesWebsiteSetupBanner />
       <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
           <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>
@@ -525,6 +530,11 @@ export function ServicesHome({
         <div className="mt-8 text-[13px] text-admin-ink-muted">
           <p className="font-semibold text-admin-ink">{copy.t("Genuinely empty")}</p>
           <p className="mt-1">{copy.t("No services yet. Add your first one. It takes about twenty seconds and nothing is public until you save.")}</p>
+          <p className="mt-2">
+            {copy.t(
+              "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.",
+            )}
+          </p>
           <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => setTypeOpen(true)}>
             + {copy.t("Add a service")}
           </button>
@@ -535,6 +545,18 @@ export function ServicesHome({
           <p>{copy.t("No items match.")}</p>
         </div>
       )}
+
+      {!editor.loading && !editor.error && items.length > 0 ? (
+        <p
+          className="mt-4 rounded-[12px] border border-admin-border-soft bg-admin-canvas px-3.5 py-2.5 text-[12.5px] leading-snug text-admin-ink-muted"
+          data-services-website-parity-note=""
+        >
+          <span className="font-semibold text-admin-ink">{copy.t("Same catalog as your website.")}</span>{" "}
+          {copy.t(
+            "Prices and booking rules you save here go live on the Services menu widget when the offering is published. Website layout and styling stay draft until you publish the page.",
+          )}
+        </p>
+      ) : null}
 
       <WebsiteRewardControl placement="services" />
 

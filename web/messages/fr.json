@@ -505,6 +505,8 @@
       "detailsChipAdd": "Ajouter des détails",
       "detailsChipProgress": "Détails {filled}/{total}",
       "errTalentUnavailable": "Ce talent ne reçoit pas de demandes ici pour le moment. Vous pouvez toujours écrire à l'agence.",
+      "errSlotTaken": "Ce créneau vient d'être pris. Choisissez-en un autre.",
+      "handoffContactLabel": "Vos coordonnées",
       "accountSavedConfirm": "Vos conversations sont enregistrées dans votre compte Tulala.",
       "accountInvalidEmail": "Saisissez une adresse e-mail valide.",
       "accountLinkFailed": "Impossible d'envoyer le lien. Veuillez réessayer.",
@@ -586,13 +588,16 @@
       "nextPaidSub": "Rien à payer sur ce règlement.",
       "nextRefundedTitle": "Acompte rendu",
       "nextRefundedSub": "Le paiement a été rendu.",
-      "nextDeclinedTitle": "Refusée",
-      "nextDeclinedSub": "Cette offre a été refusée.",
+      "nextDeclinedTitle": "Offre refusée",
+      "nextDeclinedSub": "Rien n'a été débité. Tu peux faire une autre demande.",
       "nextPayFailedTitle": "Paiement refusé",
-      "nextPayFailedSub": "Le paiement n'est pas passé.",
+      "nextPayFailedSub": "La carte a été refusée. Rien n'a été débité.",
       "dockItemsRecordOffer": "Offre",
       "dockLineupEmptyItems": "Rien de choisi pour l'instant. Choisissez dans les cartes du chat ou parcourez le menu.",
-      "homeItemsSub": "Vos choix et ce qui a été ajouté pour vous"
+      "homeItemsSub": "Vos choix et ce qui a été ajouté pour vous",
+      "nextDeclinedButton": "Autre demande",
+      "nextPayFailedButton": "Réessayer",
+      "nextRefundedButton": "Réserver à nouveau"
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",
@@ -715,6 +720,7 @@
       "cancelled": "Ce paiement a ete annule. Rien n a ete pris.",
       "unknown": "Le statut du paiement est inconnu. Ne payez pas une seconde fois. Le commerce confirmera.",
       "paid": "Paye",
+      "refunded": "Rembourse. L argent est en chemin.",
       "receipt": "Voir le recu",
       "backToThread": "Retour a la conversation",
       "smsPlain": "La meme commande et la meme page securisee, en texte. Ce canal n affiche pas de cartes.",
@@ -7872,7 +7878,8 @@
             "yesterday": "Hier",
             "emptyTitle": "Rien pour l'instant",
             "emptyBody": "Quand {business} vous écrira, cela apparaîtra ici. Vous pouvez écrire en premier.",
-            "loading": "Chargement de votre conversation"
+            "loading": "Chargement de votre conversation",
+            "backFromEmail": "Vous êtes de retour depuis l'e-mail"
           },
           "composer": {
             "placeholder": "Écrire à {business}",
@@ -7886,6 +7893,8 @@
             "secure": "Lien sécurisé · valable pour votre réservation",
             "saveToEmail": "Enregistrer cette conversation dans votre e-mail",
             "saveToEmailSoon": "L'enregistrement par e-mail n'est pas encore disponible depuis ce lien",
+            "saveToEmailSent": "Lien envoyé à votre e-mail",
+            "saveToEmailFailed": "Impossible d'envoyer le lien. Réessayez.",
             "expires": "Ce lien est valable jusqu'au {date}"
           },
           "choices": {
@@ -7912,6 +7921,7 @@
             "heldNoClock": "{slot} est réservé pour vous",
             "holdEnded": "La réservation temporaire a expiré. Choisissez un autre horaire ou écrivez à {business}.",
             "taken": "Cet horaire vient d'être pris. Choisissez-en un autre ou écrivez à {business}.",
+            "nextFree": "Prochains créneaux libres",
             "noSlots": "Aucun horaire à choisir pour l'instant."
           },
           "offer": {
@@ -8010,6 +8020,7 @@
             "pill": "Confirmé",
             "when": "Quand",
             "askChange": "Demander un changement",
+            "addToCalendar": "Ajouter au calendrier",
             "receipt": "Reçu",
             "receiptSoon": "Votre reçu sera bientôt disponible ici."
           },
@@ -8020,6 +8031,16 @@
           },
           "generic": {
             "message": "Message"
+          },
+          "outcome": {
+            "declinedTitle": "Offre refusée",
+            "declinedBody": "Rien n'a été débité. Tu peux faire une autre demande.",
+            "payFailedTitle": "Paiement refusé",
+            "payFailedBody": "La carte a été refusée. Rien n'a été débité. Essaie une autre carte.",
+            "payFailedRetry": "Réessayer",
+            "refundedTitle": "Acompte rendu",
+            "refundedBody": "Tu as annulé à temps. L'acompte revient sur ta carte.",
+            "refundedBodyAmount": "Tu as annulé à temps. {amount} reviennent sur ta carte."
           }
         }
       },

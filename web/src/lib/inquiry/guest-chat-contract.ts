@@ -345,6 +345,14 @@ export type StartGuestChatInput = {
     currency: string;
     price_type: string;
     kind: string;
+    /** Booking-sheet selection carried into Messages (optional). */
+    variant_id?: string | null;
+    variant_label?: string | null;
+    add_on_ids?: string[];
+    add_on_labels?: string[];
+    slot_label?: string | null;
+    starts_at?: string | null;
+    total_cents?: number | null;
   } | null;
   /**
    * Signed service choice (`signTalentOfferingIntent`). The server reloads

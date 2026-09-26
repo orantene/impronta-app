@@ -9,6 +9,7 @@ import { settleAtDoor } from "@/lib/orders/settle-at-door";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { expireCheckoutSession } from "@/lib/payments/stripe-checkout";
 import { expireBoundSession } from "@/lib/payments/link-checkout";
+import { paymentLinkPublicUrl } from "@/lib/payments/pay-link-url";
 
 type PaymentEnv = Readonly<Record<string, string | undefined>>;
 
@@ -81,18 +82,38 @@ export async function createPaymentLink(
   }
   if (existing) {
     const row = existing as { code: string; amount_cents: number; expires_at: string; status: string };
-    if (row.status === "expired" || row.status === "cancelled") return { ok: false, reason: "expired" };
-    if (input.inquiryId) {
-      await attachPaymentLinkInquiry(admin, { tenantId: input.tenantId, code: row.code, orderId: input.orderId, inquiryId: input.inquiryId });
+    // A2 / #14: an expired or cancelled key must never block a new mint.
+    // Callers send a fresh attempt id; this path is defensive when the same
+    // key still points at a dead row — free the unique key, then fall through.
+    if (row.status === "expired" || row.status === "cancelled") {
+      const freedKey = `${input.idempotencyKey.trim()}:was:${row.status}:${row.code}`;
+      const { error: freeErr } = await admin
+        .from("payment_links")
+        .update({ operation_key: freedKey.slice(0, 200) })
+        .eq("tenant_id", input.tenantId)
+        .eq("code", row.code);
+      if (freeErr) {
+        logServerError("payments.createPaymentLink.freeExpiredKey", freeErr);
+        return { ok: false, reason: "unavailable" };
+      }
+    } else {
+      if (input.inquiryId) {
+        await attachPaymentLinkInquiry(admin, {
+          tenantId: input.tenantId,
+          code: row.code,
+          orderId: input.orderId,
+          inquiryId: input.inquiryId,
+        });
+      }
+      return {
+        ok: true,
+        code: row.code,
+        url: paymentLinkPublicUrl(input.publicOrigin, row.code),
+        amountCents: Number(row.amount_cents),
+        expiresAt: row.expires_at,
+        already: true,
+      };
     }
-    return {
-      ok: true,
-      code: row.code,
-      url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${row.code}`,
-      amountCents: Number(row.amount_cents),
-      expiresAt: row.expires_at,
-      already: true,
-    };
   }
 
   const { data: order, error } = await admin
@@ -159,7 +180,7 @@ export async function createPaymentLink(
   return {
     ok: true,
     code,
-    url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${code}`,
+    url: paymentLinkPublicUrl(input.publicOrigin, code),
     amountCents: claimed.amountCents,
     expiresAt,
   };

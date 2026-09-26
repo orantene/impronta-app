@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  parseSellingBookingSettings,
+  type TalentBookingPosture,
+  type WhoPrimaryCta,
+} from "@/lib/talent/selling-booking-settings";
+
 export type SellingDefaults = {
   depositPct: number | null;
   cancelHours: number | null;
@@ -11,8 +17,14 @@ export type SellingDefaults = {
   where: string[];
   travelRadiusKm: number | null;
   travelFeeCents: number | null;
+  /** Preparation minutes blocked before each start (slot engine). */
+  bufferBeforeMin: number | null;
   bufferAfterMin: number | null;
   minNoticeMin: number | null;
+  /** Talent-wide on-demand vs contact/inquiry. */
+  bookingPosture: TalentBookingPosture;
+  /** Who-step primary CTA vocabulary. */
+  whoPrimaryCta: WhoPrimaryCta;
 };
 
 export type AddonGroup = {
@@ -55,6 +67,7 @@ export async function loadSellingDefaults(
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const raw = (auth.profile.selling_defaults ?? {}) as Record<string, unknown>;
+  const booking = parseSellingBookingSettings(raw);
   return {
     ok: true,
     defaults: {
@@ -64,8 +77,11 @@ export async function loadSellingDefaults(
       where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
+      bufferBeforeMin: booking.bufferBeforeMin,
       bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : null,
       minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : null,
+      bookingPosture: booking.bookingPosture,
+      whoPrimaryCta: booking.whoPrimaryCta,
     },
   };
 }
@@ -76,9 +92,17 @@ export async function saveSellingDefaults(
 ): Promise<{ ok: boolean; error?: string }> {
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
+  const prev =
+    auth.profile.selling_defaults &&
+    typeof auth.profile.selling_defaults === "object" &&
+    !Array.isArray(auth.profile.selling_defaults)
+      ? (auth.profile.selling_defaults as Record<string, unknown>)
+      : {};
+  // Merge so non-form keys (e.g. categoryNotes) survive a Defaults save.
+  const selling_defaults = { ...prev, ...defaults };
   const { error } = await auth.admin
     .from("talent_profiles")
-    .update({ selling_defaults: defaults, updated_at: new Date().toISOString() })
+    .update({ selling_defaults, updated_at: new Date().toISOString() })
     .eq("id", talentProfileId);
   if (error) {
     logServerError("talent.sellingDefaults.save", error);

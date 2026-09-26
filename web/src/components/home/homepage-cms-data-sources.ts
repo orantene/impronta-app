@@ -9,7 +9,9 @@
  */
 import { headers } from "next/headers";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { needsUsdRates } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
@@ -350,6 +352,9 @@ export async function loadBuilderNodeDataSources(
     ...(nativeNeeds.servicesCatalog && catalogTalentId
       ? await loadServicesCatalogSources(catalogTalentId, locale)
       : {}),
+    ...(nativeNeeds.talentFaq && catalogTalentId
+      ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }
+      : {}),
   };
 }
 
@@ -370,6 +375,7 @@ async function loadServicesCatalogSources(
     BuilderNodeRenderDataSources,
     | "talentOfferings"
     | "talentOfferingsConfirmsByHand"
+    | "talentOfferingsBookingSettings"
     | "talentOfferingsUsdRates"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
@@ -379,6 +385,9 @@ async function loadServicesCatalogSources(
   let confirmsByHand = true;
   let categoryOrder: string[] = [];
   let categoryNotes: Record<string, string> | undefined;
+  let bookingSettings:
+    | { bookingPosture: "on_demand" | "inquiry"; whoPrimaryCta: "confirm_now" | "contact" | "check_availability" }
+    | undefined;
   const admin = createServiceRoleClient();
   if (admin) {
     const { data, error } = await admin
@@ -401,12 +410,18 @@ async function loadServicesCatalogSources(
         }
         if (Object.keys(next).length) categoryNotes = next;
       }
+      const parsed = parseSellingBookingSettings(defaults);
+      bookingSettings = {
+        bookingPosture: parsed.bookingPosture,
+        whoPrimaryCta: parsed.whoPrimaryCta,
+      };
     }
   }
   const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
+    ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
     ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),

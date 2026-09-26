@@ -10,6 +10,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { unexpiredHoldOrFilter } from "@/lib/scheduling/hold-expiry";
 import { logServerError } from "@/lib/server/safe-error";
+import { logBookingActivity } from "@/lib/server/commercial-audit";
+import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { requirePlatformTalentContext } from "@/lib/talent/platform-talent-context";
 
 const RESCHEDULE_HOLD_MINUTES = 10;
@@ -263,6 +265,21 @@ export async function proposeReschedule(input: {
     await cleanupHold(holdData.id);
     return { ok: false, reason: "unavailable" };
   }
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: ctx.userId,
+    eventType: BOOKING_AUDIT.STATUS_CHANGED,
+    payload: {
+      kind: "reschedule_proposed",
+      surface: "talent_agenda",
+      requestId: data.id,
+      newStartsAt: input.newStartsAt,
+      newEndsAt: input.newEndsAt,
+      feeCents: Math.max(0, input.feeCents ?? 0),
+    },
+  });
+
   revalidateTalentAgendaPaths(input.bookingId);
   return { ok: true, reason: "pending", requestId: data.id };
 }
@@ -309,6 +326,18 @@ export async function respondToReschedule(input: {
       return { ok: false, reason: "unavailable" };
     }
     await cleanupHold(row.hold_id);
+
+    await logBookingActivity(admin, {
+      bookingId: row.booking_id,
+      actorUserId: ctx.userId,
+      eventType: BOOKING_AUDIT.STATUS_CHANGED,
+      payload: {
+        kind: "reschedule_declined",
+        surface: "talent_agenda",
+        requestId: input.requestId,
+      },
+    });
+
     revalidateTalentAgendaPaths(row.booking_id);
     return { ok: true, reason: "declined" };
   }
@@ -346,6 +375,22 @@ export async function respondToReschedule(input: {
     return { ok: false, reason: "unavailable" };
   }
   await cleanupHold(row.hold_id);
+
+  if (!moved.already) {
+    await logBookingActivity(admin, {
+      bookingId: row.booking_id,
+      actorUserId: ctx.userId,
+      eventType: BOOKING_AUDIT.STATUS_CHANGED,
+      payload: {
+        kind: "rescheduled",
+        surface: "talent_agenda",
+        requestId: input.requestId,
+        previous: { starts_at: moved.previous.startsAt, ends_at: moved.previous.endsAt },
+        next: { starts_at: moved.startsAt, ends_at: moved.endsAt },
+      },
+    });
+  }
+
   revalidateTalentAgendaPaths(row.booking_id);
   return { ok: true, reason: moved.already ? "already" : "accepted" };
 }

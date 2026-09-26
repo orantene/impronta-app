@@ -1,9 +1,16 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { BUILTIN_DESIGNS, BUILTIN_LOOKS } from "./builtins";
+import {
+  MAISON_BUILTIN_DEMO,
+  MAISON_BUILTIN_DESIGN,
+  MAISON_BUILTIN_LOOKS,
+} from "./maison/builtins";
+import { filterCatalogRowsForMaisonFlag } from "./maison/catalog-visibility";
 import { isTalentThemeRequiredTier, talentPlanAllowsThemeTier } from "./tier";
 import type {
   TalentThemeCatalogEntry,
@@ -16,19 +23,9 @@ import type {
  * Talent theme gallery: CATALOG LOADER — the read path the gallery UI (0.C)
  * calls to render the Design + Look pickers.
  *
- * Whether a talent's plan may APPLY a row is a per-caller fact (it depends
- * on `planKey`), not a property of the row, so it is not baked into the
- * cached catalog read: this module returns `TalentThemeCatalogEntry`
- * (`./types.ts`, `CatalogEntry & { locked }`), computing `locked` fresh per
- * call from `talentPlanAllowsThemeTier`. The gallery UI renders that shape
- * directly (`GalleryCatalogEntry` is an alias of it).
- *
- * `locked` decides the gallery's grey-out-with-upsell treatment; it does
- * NOT hide anything. Every published row of both kinds is returned
- * regardless of `planKey`, so a Basic talent still SEES the Pro/Portfolio
- * designs and looks (locked) rather than the catalog silently shrinking.
- * (`themeTiersAllowedForPlan` remains available for a caller that wants the
- * DB-side `.in("required_talent_tier", …)` hide-entirely variant instead.)
+ * Maison Design / Looks / Demos are omitted unless `TALENT_MAISON_THEME_ENABLED`
+ * is on — including when this path falls back to in-code built-ins — so
+ * flag-off production stays unchanged.
  */
 
 export type { TalentThemeCatalogEntry };
@@ -36,14 +33,14 @@ export type { TalentThemeCatalogEntry };
 export interface TalentThemeCatalog {
   designs: TalentThemeCatalogEntry[];
   looks: TalentThemeCatalogEntry[];
+  demos: TalentThemeCatalogEntry[];
 }
 
 const CATALOG_CACHE_TAG = "talent-theme-catalog";
-/** Safety-net TTL; the sync action should `revalidateTag(CATALOG_CACHE_TAG)` for instant refresh (not wired yet — see sync-builtins.server.ts's invocation note). */
 const CATALOG_TTL_SECONDS = 300;
 
 const LISTING_COLUMNS =
-  "kind, slug, title, summary, category, tags, preview, required_talent_tier, version, sort_order, is_new_until";
+  "kind, slug, title, summary, category, tags, for_design, preview, required_talent_tier, version, sort_order, is_new_until";
 
 interface CatalogListingRow {
   kind: TalentThemeKind;
@@ -52,6 +49,7 @@ interface CatalogListingRow {
   summary: string;
   category: string | null;
   tags: string[];
+  for_design: string | null;
   preview: ThemePreview;
   required_talent_tier: TalentThemeRequiredTier;
   version: number;
@@ -62,7 +60,7 @@ interface CatalogListingRow {
 function coerceListingRow(raw: unknown): CatalogListingRow | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  if (r.kind !== "design" && r.kind !== "look") return null;
+  if (r.kind !== "design" && r.kind !== "look" && r.kind !== "demo") return null;
   if (typeof r.slug !== "string" || r.slug.trim() === "") return null;
   if (!isTalentThemeRequiredTier(r.required_talent_tier)) return null;
   return {
@@ -72,6 +70,7 @@ function coerceListingRow(raw: unknown): CatalogListingRow | null {
     summary: typeof r.summary === "string" ? r.summary : "",
     category: typeof r.category === "string" ? r.category : null,
     tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === "string") : [],
+    for_design: typeof r.for_design === "string" ? r.for_design : null,
     preview: (r.preview && typeof r.preview === "object" ? r.preview : {}) as ThemePreview,
     required_talent_tier: r.required_talent_tier,
     version: typeof r.version === "number" ? r.version : 1,
@@ -80,14 +79,6 @@ function coerceListingRow(raw: unknown): CatalogListingRow | null {
   };
 }
 
-/**
- * Cached read of every PUBLISHED row (both kinds). `null` = the read failed
- * (missing env, DB error); `[]` = the table has no published rows yet
- * (before the first sync). Callers fall back to the in-code built-ins on
- * either. Cached as ONE global entry (no `planKey` in the key) since the raw
- * rows do not depend on the caller's plan; `loadTalentThemeCatalog` computes
- * `locked` per call, outside the cache.
- */
 function loadPublishedRows(): Promise<CatalogListingRow[] | null> {
   return unstable_cache(
     async (): Promise<CatalogListingRow[] | null> => {
@@ -110,28 +101,66 @@ function loadPublishedRows(): Promise<CatalogListingRow[] | null> {
       }
       return rows;
     },
-    ["talent-theme-catalog:published"],
+    ["talent-theme-catalog:published-v2"],
     { revalidate: CATALOG_TTL_SECONDS, tags: [CATALOG_CACHE_TAG] },
   )();
 }
 
-function fallbackRows(kind: TalentThemeKind): CatalogListingRow[] {
-  const entries = kind === "design" ? BUILTIN_DESIGNS : BUILTIN_LOOKS;
-  return entries.map((entry) => ({
-    kind: entry.kind,
+function fallbackRows(): CatalogListingRow[] {
+  const maisonOn = isTalentMaisonThemeEnabled();
+  const designs = [
+    ...BUILTIN_DESIGNS,
+    ...(maisonOn ? [MAISON_BUILTIN_DESIGN] : []),
+  ].map((entry) => ({
+    kind: entry.kind as TalentThemeKind,
     slug: entry.slug,
     title: entry.title,
     summary: entry.summary,
     category: entry.category,
     tags: entry.tags,
+    for_design: null as string | null,
     preview: entry.preview,
     required_talent_tier: entry.required_talent_tier,
-    // The table has no synced version yet; 1 matches every fresh built-in's
-    // first-sync version (`sync-builtins.server.ts`'s `planBuiltinSync`).
     version: 1,
     sort_order: entry.sort_order,
     is_new_until: entry.is_new_until,
   }));
+  const looks = [
+    ...BUILTIN_LOOKS,
+    ...(maisonOn ? [...MAISON_BUILTIN_LOOKS] : []),
+  ].map((entry) => ({
+    kind: entry.kind as TalentThemeKind,
+    slug: entry.slug,
+    title: entry.title,
+    summary: entry.summary,
+    category: entry.category,
+    tags: entry.tags,
+    for_design: "for_design" in entry && typeof entry.for_design === "string" ? entry.for_design : null,
+    preview: entry.preview,
+    required_talent_tier: entry.required_talent_tier,
+    version: 1,
+    sort_order: entry.sort_order,
+    is_new_until: entry.is_new_until,
+  }));
+  const demos = maisonOn
+    ? [
+        {
+          kind: "demo" as const,
+          slug: MAISON_BUILTIN_DEMO.slug,
+          title: MAISON_BUILTIN_DEMO.title,
+          summary: MAISON_BUILTIN_DEMO.summary,
+          category: MAISON_BUILTIN_DEMO.category,
+          tags: MAISON_BUILTIN_DEMO.tags,
+          for_design: MAISON_BUILTIN_DEMO.for_design,
+          preview: MAISON_BUILTIN_DEMO.preview,
+          required_talent_tier: MAISON_BUILTIN_DEMO.required_talent_tier,
+          version: 1,
+          sort_order: MAISON_BUILTIN_DEMO.sort_order,
+          is_new_until: MAISON_BUILTIN_DEMO.is_new_until,
+        },
+      ]
+    : [];
+  return [...designs, ...looks, ...demos];
 }
 
 function isNewNow(isNewUntil: string | null): boolean {
@@ -151,6 +180,7 @@ function toEntry(
     summary: row.summary,
     category: row.category,
     tags: row.tags,
+    forDesign: row.for_design,
     preview: row.preview,
     requiredTier: row.required_talent_tier,
     version: row.version,
@@ -161,18 +191,14 @@ function toEntry(
 }
 
 /**
- * Load the talent theme gallery catalog for one caller's plan. Published
- * rows only, sorted by `sortOrder`, each carrying a `locked` flag for
- * `planKey`. Falls back to the in-code built-ins (`./builtins`) when the
- * table read fails OR returns no published rows, so the gallery renders
- * correctly even before `syncBuiltinTalentThemes` has ever run.
+ * Load the talent theme gallery catalog for one caller's plan.
  */
 export async function loadTalentThemeCatalog(input: {
   planKey: string | null | undefined;
 }): Promise<TalentThemeCatalog> {
   const rows = await loadPublishedRows();
-  const source: CatalogListingRow[] =
-    rows && rows.length > 0 ? rows : [...fallbackRows("design"), ...fallbackRows("look")];
+  const raw: CatalogListingRow[] = rows && rows.length > 0 ? rows : fallbackRows();
+  const source = filterCatalogRowsForMaisonFlag(raw, isTalentMaisonThemeEnabled());
 
   const bySortOrder = (a: CatalogListingRow, b: CatalogListingRow) => a.sort_order - b.sort_order;
   const designs = source
@@ -183,6 +209,10 @@ export async function loadTalentThemeCatalog(input: {
     .filter((r) => r.kind === "look")
     .sort(bySortOrder)
     .map((r) => toEntry(r, input.planKey));
+  const demos = source
+    .filter((r) => r.kind === "demo")
+    .sort(bySortOrder)
+    .map((r) => toEntry(r, input.planKey));
 
-  return { designs, looks };
+  return { designs, looks, demos };
 }

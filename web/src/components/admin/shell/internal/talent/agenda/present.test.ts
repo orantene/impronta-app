@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 
 import { needsAttention, todayTotals } from "@/lib/talent-agenda/derive";
 import { JOR_CLOCK, JOR_DAY_KEY, JOR_WEEK } from "@/lib/talent-agenda/__fixtures__/jor-week";
+import { LEDGER_CONTRACT_AGGREGATES } from "@/lib/money/september-ledger-contract";
+import { todayMoneyTilesFromLedger } from "@/lib/money/today-money-tiles";
 
-import { formatDualTimezoneWhen, moneyFromEarnings, todayFromAgenda } from "./present";
+import { formatDualTimezoneWhen, moneyFromEarnings, moneyFromLedger, todayFromAgenda } from "./present";
 
 describe("T4.1 Today V2 · Jor clock 09:50", () => {
   it("next up is Camila 10:00; rest is Ana then Lucía", () => {
@@ -26,12 +28,13 @@ describe("T4.1 Today V2 · Jor clock 09:50", () => {
     );
   });
 
-  it("attention count is 5; still-to-collect is 2620 MXN cents", () => {
+  it("attention count is 5; agenda still-to-collect matches ledger due_by_today cents", () => {
     assert.equal(needsAttention(JOR_WEEK, JOR_CLOCK).length, 5);
     const totals = todayTotals(JOR_WEEK, JOR_CLOCK, JOR_DAY_KEY);
     assert.equal(totals.appointmentsToday, 3);
     assert.equal(totals.bookedMinutes, 285);
     assert.equal(totals.stillToCollectCents, 262000);
+    // Legacy helper kept for non-M3 callers; M3 uses moneyFromLedger.
     const money = moneyFromEarnings({
       collectedLabel: "not shared",
       stillToCollectCents: totals.stillToCollectCents,
@@ -40,6 +43,23 @@ describe("T4.1 Today V2 · Jor clock 09:50", () => {
     });
     assert.equal(money.find((row) => row.id === "collect")?.value, "2620.00 MXN");
     assert.equal(money.find((row) => row.id === "payout")?.value, "No payout");
+  });
+
+  it("M3 tiles use Money ledger amounts (not earnings / invent)", () => {
+    const landings: string[] = [];
+    const items = moneyFromLedger({
+      tiles: todayMoneyTilesFromLedger(),
+      onOpen: (landing) => landings.push(`${landing.tab}:${landing.outFilt ?? ""}`),
+    });
+    assert.equal(items.find((r) => r.id === "collected")?.value, "$18,450 MXN");
+    assert.equal(items.find((r) => r.id === "due_by_today")?.value, "$2,620 MXN");
+    assert.equal(items.find((r) => r.id === "due_by_today")?.label, "Due by today");
+    assert.equal(
+      items.find((r) => r.id === "payout")?.value,
+      `$${LEDGER_CONTRACT_AGGREGATES.next_payout_estimated.toLocaleString("en-US")} MXN`,
+    );
+    items.find((r) => r.id === "due_by_today")?.onClick?.();
+    assert.deepEqual(landings, ["outstanding:today"]);
   });
 });
 

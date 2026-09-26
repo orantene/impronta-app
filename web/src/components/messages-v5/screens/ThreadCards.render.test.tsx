@@ -93,3 +93,24 @@ test("professional_times, hold ended: See alternatives label wired to send_times
   const html = render("professional_times", { slots: [], timezone: "UTC", state: "expired" });
   assert.match(html, /data-times-action="offer_new"[^>]*>See alternatives/);
 });
+
+test("payment_request refunded state renders Refunded (not Requested)", () => {
+  const html = render("payment_request", {
+    amountCents: 1800,
+    currency: "USD",
+    state: "refunded",
+    paymentLinkCode: "pay-abc",
+  });
+  assert.match(html, /pill ch">Refunded/);
+  assert.doesNotMatch(html, /Requested/);
+});
+
+test("payment_request partially_refunded state renders Partly refunded", () => {
+  const html = render("payment_request", {
+    amountCents: 1800,
+    currency: "USD",
+    state: "partially_refunded",
+    paymentLinkCode: "pay-abc",
+  });
+  assert.match(html, /Partly refunded/);
+});

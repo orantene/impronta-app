@@ -55,6 +55,10 @@ import {
 import { messagingRequestPayment } from "@/lib/server-actions/messaging-engine";
 import { messagingRecordOutsidePayment } from "@/lib/server-actions/messaging-money-actions";
 import { messagingLoadOffers } from "@/lib/server-actions/messaging-sheets";
+import {
+  msgv5PaymentRequestKey,
+  newPaymentRequestAttemptId,
+} from "@/lib/payments/payment-request-attempt";
 
 import { registerActionSheet, type ActionSheetProps } from "../sheet-registry";
 import { amountCentsForKind, PaymentRequestView, type OutsideMethod, type PaymentHow, type PaymentRequestPhase } from "./PaymentRequest.view";
@@ -149,7 +153,12 @@ export function PaymentRequestSheet(props: ActionSheetProps) {
         // The engine knows deposit | full | none; "other" is a deposit-shaped request with a typed amount.
         amountKind: amountKind === "other" ? "deposit" : amountKind,
         amountCents: amountKind === "full" ? 0 : (amountCents ?? 0),
-        idempotencyKey: `msgv5-pay-${inquiryId}-${selectedTarget.recordId}-${amountKind}`,
+        idempotencyKey: msgv5PaymentRequestKey({
+          inquiryId,
+          recordId: selectedTarget.recordId,
+          amountKind,
+          attemptId: newPaymentRequestAttemptId(),
+        }),
         publicOrigin: typeof window !== "undefined" ? window.location.origin : "",
         expectedVersion: ctx.version,
       });

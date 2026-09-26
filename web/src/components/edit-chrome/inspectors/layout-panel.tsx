@@ -86,6 +86,7 @@ import { ContainerFieldLabel } from "./layout-panel/field-label";
 import {
   NodeLayoutPresetGrid,
   nodeLayoutResetPatch,
+  renderAdvancedSpecialLayout,
 } from "./layout-panel/node-layout-presets";
 import {
   CAROUSEL_AUTOPLAY_OPTIONS,
@@ -95,6 +96,7 @@ import {
   NODE_GAP_OPTIONS,
   SPACER_SIZE_OPTIONS,
   SPLIT_RATIO_OPTIONS,
+  isAdvancedEditableBuilderKind,
   nodeKindLabel,
   type AdvancedEditableBuilderNode,
 } from "./layout-panel/node-layout-options";
@@ -1208,6 +1210,9 @@ function AdvancedNodeLayoutEditor({
     );
   }
 
+  const special = renderAdvancedSpecialLayout(node, onPatch);
+  if (special) return special;
+
   return null;
 }
 
@@ -1389,24 +1394,10 @@ export function LayoutPanel({
       },
     });
   };
-  const selectedBuilderNode = useMemo(() => {
+  const selectedBuilderNode = useMemo((): AdvancedEditableBuilderNode | null => {
     const resolved = findBuilderNodeById(builderTree, selectedBuilderNodeId);
-    if (!resolved) return null;
-    switch (resolved.kind) {
-      case "container":
-      case "card":
-      case "cta_group":
-      case "split":
-      case "accordion":
-      case "tabs":
-      case "carousel":
-      case "masonry":
-      case "divider":
-      case "spacer":
-        return resolved;
-      default:
-        return null;
-    }
+    if (!resolved || !isAdvancedEditableBuilderKind(resolved.kind)) return null;
+    return resolved as AdvancedEditableBuilderNode;
   }, [builderTree, selectedBuilderNodeId]);
   const selectedBuilderNodeFindings = useMemo(
     () =>

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { BUILTIN_DESIGNS, BUILTIN_LOOKS } from "./builtins";
+import { isMaisonCatalogSlug } from "./maison/catalog-visibility";
 import { validateDesign, validateLook } from "./validate";
 
 test("every built-in Design validates", () => {
@@ -32,6 +33,16 @@ test("every built-in slug matches the DB slug format", () => {
   const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
   for (const entry of [...BUILTIN_DESIGNS, ...BUILTIN_LOOKS]) {
     assert.match(entry.slug, SLUG_RE, entry.slug);
+  }
+});
+
+test("built-ins fallback has no Maison rows (flag-off catalog stays 5×6)", () => {
+  for (const entry of [...BUILTIN_DESIGNS, ...BUILTIN_LOOKS]) {
+    assert.equal(
+      isMaisonCatalogSlug(entry.slug),
+      false,
+      `built-in ${entry.slug} must not be Maison-owned; filter alone is not enough if sync lands it under a non-maison slug`,
+    );
   }
 });
 

@@ -52,5 +52,7 @@ export interface BuiltinLookEntry extends BuiltinEntryBase {
   kind: "look";
   /** Looks are not filtered by category today; reserved for a future split. */
   category: string | null;
+  /** When set, this Look is valid only for that Design slug (Maison palettes). */
+  for_design?: string | null;
   buildPayload: () => LookPayload;
 }

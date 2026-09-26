@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useFocusTrap } from "@/components/support/use-focus-trap";
-import type { OfferingRequestDetail } from "@/app/t/[profileCode]/_shared/OfferingCta";
-import type { InstantBookActionResult, InstantBookFormPayload } from "@/lib/server-actions/instant-book-action";
+import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import type {
+  InstantBookActionResult,
+  InstantBookFormPayload,
+} from "@/lib/server-actions/instant-book-types";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
@@ -20,8 +23,19 @@ import {
   groupIsoSlotsByDay,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
+import {
+  openCatalogBookingChat,
+  type CatalogBookingChatHandoff,
+  type CatalogBookingSelection,
+} from "./catalog-booking-chat";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import {
+  resolveWhoPrimaryAction,
+  whoStepPrimaryLabel,
+  DEFAULT_SHEET_BOOKING_SETTINGS,
+  type CatalogSheetBookingSettings,
+} from "@/lib/talent/selling-booking-settings";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -31,6 +45,7 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 
 export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
 export type CatalogSlotsFn = (offeringId: string) => Promise<{ slots: string[]; timezone: string }>;
+export type { CatalogSheetBookingSettings };
 
 const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -71,6 +86,7 @@ export function CatalogBookingSheet({
   showAsk = false,
   onAsk,
   captcha = null,
+  bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -78,8 +94,11 @@ export function CatalogBookingSheet({
   bookFn?: CatalogBookFn;
   slotsFn?: CatalogSlotsFn;
   showAsk?: boolean;
-  onAsk?: (detail: CatalogBookingDetail) => void;
+  /** Override ask/chat handoff. Default opens existing guest chat with context. */
+  onAsk?: (handoff: CatalogBookingChatHandoff) => void;
   captcha?: GuestCaptchaConfig | null;
+  /** Talent selling defaults: posture + who-step CTA vocabulary. */
+  bookingSettings?: CatalogSheetBookingSettings;
 }) {
   const es = locale.startsWith("es");
   const DAYS = es ? DAYS_ES : DAYS_EN;
@@ -103,6 +122,7 @@ export function CatalogBookingSheet({
   const [error, setError] = useState<string | null>(null);
   const [wrote, setWrote] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
+  const [askAttempted, setAskAttempted] = useState(false);
 
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
@@ -132,6 +152,7 @@ export function CatalogBookingSheet({
       setError(null);
       setBusy(false);
       setWrote(false);
+      setAskAttempted(false);
       const needsOption = catalogNeedsOptions(d);
       setStep(d.startAt === "when" && !needsOption ? "when" : "choose");
     };
@@ -223,7 +244,59 @@ export function CatalogBookingSheet({
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
   const isRequest = detail.intent === "request";
+  const whoAction = resolveWhoPrimaryAction({
+    bookingPosture: bookingSettings.bookingPosture,
+    whoPrimaryCta: bookingSettings.whoPrimaryCta,
+    offeringIntent: detail.intent,
+  });
+  const whoCtaText = whoStepPrimaryLabel({
+    action: whoAction,
+    whoPrimaryCta: bookingSettings.whoPrimaryCta,
+    locale,
+  });
   const selectedTime = catalogCanContinueWhen(time);
+  const chatNameValid = name.trim().length >= 2;
+  const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
+
+  const slotLabel =
+    time != null
+      ? `${DAYS[day.getDay()]} ${day.getDate()} ${es ? "de" : ""} ${MONTHS[day.getMonth()]}, ${time}`.replace(
+          /\s+/g,
+          " ",
+        ).trim()
+      : null;
+
+  const buildSelection = (): CatalogBookingSelection => ({
+    variantId,
+    variantLabel: variant?.label ?? null,
+    addOnIds,
+    addOnLabels: extras.map((e) => e.label),
+    slotLabel,
+    startsAt: liveStarts,
+    totalCents: total,
+  });
+
+  const startChat = () => {
+    setTouched(true);
+    setAskAttempted(true);
+    // Product: Nombre + WhatsApp required to start chat / create client-or-prospect.
+    if (!chatNameValid || !chatPhoneValid) return;
+    const handoff: CatalogBookingChatHandoff = {
+      detail,
+      selection: buildSelection(),
+      visitor: {
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || undefined,
+      },
+      from: "sheet",
+      sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
+      demo: mode === "demo",
+    };
+    setDetail(null);
+    if (onAsk) onAsk(handoff);
+    else openCatalogBookingChat(handoff);
+  };
 
   const confirm = async () => {
     setTouched(true);
@@ -563,8 +636,12 @@ export function CatalogBookingSheet({
                   autoComplete="tel"
                   placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
                   aria-invalid={touched && !phoneValid}
+                  data-testid="cb-phone"
                 />
                 {touched && !phoneValid ? <em>{es ? "Revisá el número." : "Check the number."}</em> : null}
+                {askAttempted && !chatPhoneValid ? (
+                  <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em>
+                ) : null}
               </label>
               <label className="jb-field">
                 <span>{es ? "Correo" : "Email"}</span>
@@ -595,9 +672,16 @@ export function CatalogBookingSheet({
                   onToken={(token) => setCaptchaToken(token)}
                 />
               ) : null}
-              {showAsk && onAsk ? (
-                <button type="button" className="jb-ask" onClick={() => onAsk(detail)}>
-                  {es ? "¿Tenés una duda? Preguntá antes de reservar →" : "Have a question? Ask first →"}
+              {showAsk ? (
+                <button
+                  type="button"
+                  className="jb-ask"
+                  data-catalog-ask=""
+                  onClick={() => startChat()}
+                >
+                  {es
+                    ? "¿Tenés una duda? Preguntá antes de reservar →"
+                    : "Have a question? Ask before booking →"}
                 </button>
               ) : null}
               {error ? <p className="jb-error">{error}</p> : null}
@@ -677,8 +761,20 @@ export function CatalogBookingSheet({
             </button>
           ) : null}
           {step === "who" ? (
-            <button type="button" className="jb-cta" data-catalog-continue="who" disabled={busy} onClick={() => void confirm()}>
-              {busy ? (es ? "Enviando…" : "Sending…") : isRequest ? (es ? "Enviar solicitud" : "Send request") : es ? "Confirmar cita" : "Confirm"}
+            <button
+              type="button"
+              className="jb-cta"
+              data-catalog-continue="who"
+              data-catalog-chat={whoAction === "chat" ? "primary" : undefined}
+              data-catalog-who-cta={bookingSettings.whoPrimaryCta}
+              disabled={busy}
+              onClick={() => (whoAction === "chat" ? startChat() : void confirm())}
+            >
+              {busy && whoAction === "confirm"
+                ? es
+                  ? "Enviando…"
+                  : "Sending…"
+                : whoCtaText}
             </button>
           ) : null}
           {step === "done" ? (

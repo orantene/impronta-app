@@ -63,6 +63,8 @@ function offerState(kind: CardKind, payload: Record<string, unknown> | null): Of
 function paymentState(payload: Record<string, unknown> | null): PaymentCardState {
   const state = readCardState(payload);
   if (state === "paid") return "paid";
+  if (state === "refunded") return "refunded";
+  if (state === "partially_refunded") return "partially_refunded";
   if (state === "viewed") return "opened";
   if (state === "expired") return "expired";
   if (state === "cancelled") return "refunded";

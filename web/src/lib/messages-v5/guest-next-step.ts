@@ -5,6 +5,7 @@
  * the action to the same card actions the cards use.
  *
  * Order of precedence, first match wins:
+ *   0. an engine outcome card (Declined / Pay failed / Refunded)
  *   1. an open payment link            → Pay {amount}
  *   2. an offer waiting on the client  → Accept offer v{n} · {total}
  *   3. a held time not yet confirmed   → Waiting for {business} to confirm (no button)
@@ -15,6 +16,11 @@
 
 import type { ClientOfferSummary } from "./client-thread-view";
 import { offerCardState, offerDepositCents } from "./client-thread-view";
+import {
+  deriveGuestOutcomeFromMessages,
+  type GuestOutcomeKind,
+  type GuestOutcomeMessage,
+} from "./guest-outcome";
 
 export type GuestNextStepKind =
   | "pay"
@@ -43,8 +49,13 @@ export type GuestNextStepInput = {
   /** The `professional_times` payloads in the thread (a pick holds a slot). */
   readonly timesPayloads: readonly (Record<string, unknown> | null)[];
   readonly records: readonly { readonly fulfilmentState: string | null; readonly recordDate: string | null }[];
-  /** Message kinds already in the thread. A state with no card is not invented. */
+  /**
+   * @deprecated Prefer `messages`. Kept so older callers that only passed
+   * phantom kinds (`offer_declined` / `payment_failed` / `refunded`) still work.
+   */
   readonly messageKinds?: readonly string[];
+  /** Real engine rows — outcomes are classified from kind + payload. */
+  readonly messages?: readonly GuestOutcomeMessage[];
   readonly now: Date;
   readonly money: (cents: number, currency: string) => string;
   readonly date: (iso: string) => string;
@@ -73,15 +84,36 @@ function heldTime(payloads: readonly (Record<string, unknown> | null)[], now: Da
   });
 }
 
+function legacyOutcomeFromKinds(kinds: readonly string[]): GuestOutcomeKind | null {
+  if (kinds.includes("refunded")) return "refunded";
+  if (kinds.includes("offer_declined")) return "declined";
+  if (kinds.includes("payment_failed")) return "pay_failed";
+  return null;
+}
+
+function threadOutcome(input: GuestNextStepInput): GuestOutcomeKind | null {
+  if (input.messages && input.messages.length > 0) {
+    return deriveGuestOutcomeFromMessages(input.messages);
+  }
+  // Declined live offer with no change_result/offer_state row yet.
+  for (let i = input.offers.length - 1; i >= 0; i -= 1) {
+    if (offerCardState(input.offers[i]!, input.now) === "declined") return "declined";
+  }
+  return legacyOutcomeFromKinds(input.messageKinds ?? []);
+}
+
 export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | null {
   const { now } = input;
   if (input.threadStatus === "draft" || input.threadStatus === "closed") return null;
 
   const kinds = input.messageKinds ?? [];
-  if (kinds.includes("refunded")) return { kind: "refunded", values: {} };
-  if (kinds.includes("offer_declined")) return { kind: "declined", values: {} };
-  if (kinds.includes("payment_failed")) return { kind: "pay_failed", values: {} };
-  if (kinds.includes("payment_paid")) return { kind: "paid", values: {} };
+  const outcome = threadOutcome(input);
+  if (outcome === "refunded") return { kind: "refunded", values: {} };
+  if (outcome === "declined") return { kind: "declined", values: {} };
+  if (outcome === "pay_failed") return { kind: "pay_failed", values: {} };
+  if (kinds.includes("payment_paid") || (input.messages ?? []).some((m) => m.kind === "payment_paid")) {
+    return { kind: "paid", values: {} };
+  }
 
   const offer = pendingOffer(input.offers, now);
   if (input.payCode) {

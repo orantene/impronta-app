@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { loadBookingHours } from "@/lib/server-actions/booking-hours";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { availabilityFromHours } from "@/lib/talent/availability-from-hours";
-import { getWebsiteEligibility, type WebsiteEligibilityInput } from "@/lib/talent/website-eligibility";
+import {
+  getWebsiteEligibility,
+  inferWebsiteWorkingMode,
+  type WebsiteEligibilityInput,
+} from "@/lib/talent/website-eligibility";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 type Cache = {
@@ -55,6 +59,7 @@ export function useWebsiteEligibility() {
     };
   }, [talentId]);
 
+  const workingMode = inferWebsiteWorkingMode(bridgeTalentSelfProfile?.primaryTypeLabel);
   const input: WebsiteEligibilityInput = {
     hasNameAndWork: bridgeTalentSelfProfile
       ? Boolean(bridgeTalentSelfProfile.displayName?.trim() && bridgeTalentSelfProfile.primaryTypeLabel)
@@ -64,6 +69,7 @@ export function useWebsiteEligibility() {
     hasIntro: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.hasBio : null,
     hasAvailability,
     hasPlace: bridgeTalentSelfProfile ? Boolean(bridgeTalentSelfProfile.homeCity) : null,
+    workingMode,
   };
   return {
     ...getWebsiteEligibility(input),

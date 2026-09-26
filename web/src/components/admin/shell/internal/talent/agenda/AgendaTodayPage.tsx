@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
+import {
+  pinMoneyLanding,
+  todayMoneyTilesFromLedger,
+  type MoneyLanding,
+} from "@/lib/money/today-money-tiles";
 import type { TalentSelfProfile } from "../../data-bridge";
 import { PageHeader } from "../shared/page-chrome-1";
 import { SecondaryButton } from "../../primitives";
@@ -14,16 +19,15 @@ import {
   TALENT_AGENDA_VARS,
 } from "./primitives";
 import { formatAgendaDate } from "./view-model";
-import type { AgendaMoneyItem, AgendaRowItem } from "./types";
+import type { AgendaRowItem } from "./types";
 import { AgendaFirstDay } from "./AgendaFirstDay";
 import {
-  moneyFromEarnings,
+  moneyFromLedger,
   rebookHint,
   rowFromAgendaItem,
   todayFromAgenda,
 } from "./present";
 import {
-  FIRST_DAY_STEPS,
   firstDayCompletedStepIds,
   hasBookingHoursWindows,
   isFirstDayEligible,
@@ -61,7 +65,7 @@ export function AgendaTodayPage({
   onOpenAvailability,
   onOpenServices,
   onOpenSite,
-  moneyItems: moneyItemsProp,
+  onOpenMoney,
   newLabel,
   now,
   loadError,
@@ -77,7 +81,8 @@ export function AgendaTodayPage({
   onOpenAvailability?: () => void;
   onOpenServices?: () => void;
   onOpenSite?: () => void;
-  moneyItems?: AgendaMoneyItem[];
+  /** Open Money after pinning a landing (M3 Due by today → mc_out_today). */
+  onOpenMoney?: (landing: MoneyLanding) => void;
   newLabel?: string;
   now?: Date;
   loadError?: string | null;
@@ -105,16 +110,18 @@ export function AgendaTodayPage({
   const nextUp = derived.next ? withOpen(rowFromAgendaItem(derived.next, clock), onOpenRecord) : null;
   const restOfToday = derived.rest.map((item) => withOpen(rowFromAgendaItem(item, clock), onOpenRecord));
   const totals = todayTotals(items, clock, localYmd(clock));
-  const collectedRow = moneyItemsProp?.find((row) => row.id === "collected");
-  const payoutRow = moneyItemsProp?.find((row) => row.id === "payout");
-  const currencyMatch = collectedRow?.value.match(/[A-Z]{3}|€|\$|£|MX\$/)?.[0] ?? "";
-  const moneyItems = moneyFromEarnings({
-    collectedLabel: collectedRow?.value ?? copy.t("not shared"),
-    stillToCollectCents: totals.stillToCollectCents,
-    currency: currencyMatch,
-    cardPayouts: payoutRow ? payoutRow.value !== copy.t("No payout") && payoutRow.value !== "No payout" : false,
-    t: copy.t,
-  });
+  const ledgerTiles = useMemo(() => todayMoneyTilesFromLedger(), []);
+  const moneyItems = useMemo(() => {
+    if (!onOpenMoney) return [];
+    return moneyFromLedger({
+      tiles: ledgerTiles,
+      isSpanish: copy.isSpanish,
+      onOpen: (landing) => {
+        pinMoneyLanding(landing);
+        onOpenMoney(landing);
+      },
+    });
+  }, [copy.isSpanish, ledgerTiles, onOpenMoney]);
   const firstName = profile?.displayName?.split(" ")[0] ?? "";
   const city = profile?.homeCity ?? "";
   const rebook = rebookDismissed ? null : rebookHint(items, derived.next);
@@ -128,7 +135,6 @@ export function AgendaTodayPage({
     workflowStatus: profile?.workflowStatus,
     hours,
   });
-  const readinessPct = Math.round((completedStepIds.length / FIRST_DAY_STEPS.length) * 100);
   const hasAvailability = hasBookingHoursWindows(hours);
   const isFirstDay = isFirstDayEligible({
     loadError,
@@ -189,11 +195,9 @@ export function AgendaTodayPage({
         subtitle={[formatAgendaDate(clock), city].filter(Boolean).join(" · ")}
         actions={(
           <div className="flex flex-wrap items-center gap-2">
-            {readinessPct < 100 ? (
-              <span className="inline-flex min-h-[44px] items-center rounded-full bg-[rgba(59,76,202,0.08)] px-3 text-[12.5px] font-medium text-[var(--tc-accent)]">
-                {readinessPct}% {copy.t("ready")}
-              </span>
-            ) : null}
+            {/* Website % lives only in the top-bar reward control (criterion 1:
+                one number everywhere). Do not show a second first-day
+                readiness chip on a populated Today. */}
             <SecondaryButton onClick={onNewBooking ?? onOpenCalendar}>
               {newLabel ?? copy.t("New booking")}
             </SecondaryButton>
@@ -260,7 +264,7 @@ export function AgendaTodayPage({
         )}
       </section>
 
-      <MoneyBlock items={moneyItems} />
+      {moneyItems.length > 0 ? <MoneyBlock items={moneyItems} /> : null}
 
       {rebook ? (
         <div className="rounded-[16px] border border-[rgba(11,11,13,0.10)] bg-white px-4 py-3">

@@ -60,6 +60,9 @@ import { isMaxSiteTemplateKey } from "../max-site-templates/registry";
 import type { MaxSiteTemplateKey } from "../max-site-templates/types";
 import { buildAppliedTemplateTrees } from "./apply-template-core";
 import { publishSiteThemeForTalent } from "./theme-publish-hook";
+import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
+import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
+import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -148,6 +151,8 @@ export async function loadMaxSiteManagerAction(): Promise<
         sitePublishedAt: null,
         hasPublishedShell: false,
         publicSiteUrl: null,
+        themeDesignSlug: null,
+        themeLookSlug: null,
         pages: [],
       },
     };
@@ -161,7 +166,9 @@ export async function loadMaxSiteManagerAction(): Promise<
 
   const { data: siteRow, error: siteErr } = await sb
     .from("talent_sites")
-    .select("site_slug, logo_url, site_published_at, shell_published")
+    .select(
+      "id, site_slug, logo_url, site_published_at, shell_published, theme_design_slug, theme_look_slug",
+    )
     .eq("talent_profile_id", scope.talentProfile.id)
     .maybeSingle();
   if (siteErr) {
@@ -180,10 +187,13 @@ export async function loadMaxSiteManagerAction(): Promise<
   }
 
   const site = (siteRow ?? null) as {
+    id: string;
     site_slug: string | null;
     logo_url: string | null;
     site_published_at: string | null;
     shell_published: unknown;
+    theme_design_slug: string | null;
+    theme_look_slug: string | null;
   } | null;
 
   const pages: MaxSiteManagerPage[] = ((pageRows ?? []) as Array<{
@@ -222,6 +232,8 @@ export async function loadMaxSiteManagerAction(): Promise<
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
       publicSiteUrl: siteUrl(site?.site_slug ?? null),
+      themeDesignSlug: site?.theme_design_slug ?? null,
+      themeLookSlug: site?.theme_look_slug ?? null,
       pages,
     },
   };
@@ -586,7 +598,43 @@ export async function publishMaxSiteAction(): Promise<
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
   // Ensure the site exists (idempotent) before publishing.
-  await provisionTalentMaxSite(g.talentProfileId, g.userId);
+  const provisioned = await provisionTalentMaxSite(g.talentProfileId, g.userId);
+  if (!provisioned.ok) {
+    return { ok: false, code: "server_error", error: provisioned.error };
+  }
+
+  const { data: preSite, error: preErr } = await sb
+    .from("talent_sites")
+    .select("id, site_slug, shell_tree, theme_design_slug, pending_design")
+    .eq("talent_profile_id", g.talentProfileId)
+    .maybeSingle();
+  if (preErr) {
+    logServerError("maxSiteManager.publish.readPre", preErr);
+    return { ok: false, code: "server_error", error: "Could not read your site." };
+  }
+  if (!preSite) return { ok: false, code: "site_not_found", error: "Site not found." };
+
+  const prepared = await prepareMaisonSiteForPublish(sb, {
+    talentProfileId: g.talentProfileId,
+    userId: g.userId,
+    displayName: g.displayName,
+    pre: preSite as {
+      id: string;
+      site_slug: string | null;
+      shell_tree: unknown;
+      theme_design_slug: string | null;
+      pending_design: unknown;
+    },
+  });
+  if (!prepared.ok) {
+    return {
+      ok: false,
+      code: prepared.code,
+      error: prepared.error,
+      ...(prepared.blockers ? { blockers: prepared.blockers } : {}),
+    };
+  }
+  const pre = prepared.pre;
 
   const now = new Date().toISOString();
 
@@ -597,21 +645,15 @@ export async function publishMaxSiteAction(): Promise<
     .eq("talent_profile_id", g.talentProfileId);
   if (pagesErr) {
     logServerError("maxSiteManager.publish.pages", pagesErr);
-    return { ok: false, code: "server_error", error: "Could not publish your pages." };
+    return {
+      ok: false,
+      code: "server_error",
+      error: `Could not publish your pages. (${pagesErr.code ?? "pages"})`,
+    };
   }
 
-  // 2 + 3. Bake the shell + mark the site live. Read the current draft shell so
-  //        shell_published mirrors shell_tree exactly.
-  const { data: siteRow, error: readErr } = await sb
-    .from("talent_sites")
-    .select("shell_tree")
-    .eq("talent_profile_id", g.talentProfileId)
-    .maybeSingle();
-  if (readErr) {
-    logServerError("maxSiteManager.publish.readShell", readErr);
-    return { ok: false, code: "server_error", error: "Could not read your shell." };
-  }
-  const shellTree = (siteRow as { shell_tree: unknown } | null)?.shell_tree ?? [];
+  // 2 + 3. Bake the shell + mark the site live.
+  const shellTree = pre.shell_tree ?? [];
 
   const { error: siteErr, count } = await sb
     .from("talent_sites")
@@ -621,6 +663,7 @@ export async function publishMaxSiteAction(): Promise<
         site_published_at: now,
         status: "published",
         published_at: now,
+        pending_design: null,
         updated_at: now,
         updated_by: g.userId,
       },
@@ -629,7 +672,11 @@ export async function publishMaxSiteAction(): Promise<
     .eq("talent_profile_id", g.talentProfileId);
   if (siteErr) {
     logServerError("maxSiteManager.publish.site", siteErr);
-    return { ok: false, code: "server_error", error: "Could not publish your site." };
+    return {
+      ok: false,
+      code: "server_error",
+      error: `Could not publish your site. (${siteErr.code ?? "site"})`,
+    };
   }
   if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
 
@@ -640,7 +687,24 @@ export async function publishMaxSiteAction(): Promise<
     profileCode: g.profileCode,
   });
   if (!theme.ok) {
-    return { ok: false, code: "server_error", error: "Your pages are live, but the theme could not be published. Try again." };
+    return {
+      ok: false,
+      code: "server_error",
+      error: "Your pages are live, but the theme could not be published. Try again. (theme)",
+    };
+  }
+
+  // 5. W41 — design version snapshot (Maison flag; best-effort, never fails publish).
+  if (isTalentMaisonThemeEnabled()) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      await writeMaisonDesignPublishedRevision(admin, {
+        talentProfileId: g.talentProfileId,
+        siteId: pre.id,
+        userId: g.userId,
+        publishedAt: now,
+      });
+    }
   }
 
   return { ok: true, data: { publishedAt: now } };

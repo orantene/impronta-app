@@ -43,3 +43,13 @@ test("the Today nudge hides itself unless the site is unpublished", () => {
   assert.match(NUDGE_SRC, /s\.canManage && !s\.isPublished/);
   assert.match(NUDGE_SRC, /if \(!show \|\| dismissed\) return null;/);
 });
+
+test("the Today nudge requires website eligibility unlocked (W22)", () => {
+  assert.match(NUDGE_SRC, /eligibility\.unlocked/);
+  assert.match(NUDGE_SRC, /Your free website is unlocked/);
+});
+
+test("activation state exposes siteSlug for suggested address", () => {
+  assert.match(ACTIVATION_SRC, /siteSlug: slug/);
+  assert.match(ACTIVATION_SRC, /siteSlug: null/);
+});

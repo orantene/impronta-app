@@ -65,6 +65,7 @@ import { useVisualViewportInset } from "./use-visual-viewport-inset";
 import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
 import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
+import { consumeBookingSheetChatHandoff } from "./booking-sheet-chat-handoff";
 import { useGateEmailCheck } from "./use-gate-email-check";
 import { useGuestInquiriesList } from "./use-guest-inquiries-list";
 import { createApplyFailure } from "./mini-chat-panel-apply-failure";
@@ -90,10 +91,12 @@ function readStoredDockView(): GuestDockView | null {
   return null;
 }
 
-/**
- * The view the dock opens into. A remembered session view wins. Otherwise the
- * panel opens on Chat (Talk). Home stays in the view union for a stored session.
- */
+/** Remap stale "home" sessions to Hablar chat (empty-home = bubble + chips). */
+function normalizeDockView(view: GuestDockView): GuestDockView {
+  return view === "home" ? "chat" : view;
+}
+
+/** Remembered view wins (home→chat); otherwise open on Hablar chat. */
 function resolveInitialDockView(
   existingInquiryId: string | null,
   cartTalentIds: readonly string[] | undefined,
@@ -101,7 +104,7 @@ function resolveInitialDockView(
   void existingInquiryId;
   void cartTalentIds;
   const stored = readStoredDockView();
-  if (stored) return stored;
+  if (stored) return normalizeDockView(stored);
   return "chat";
 }
 
@@ -113,10 +116,6 @@ function persistDockView(view: GuestDockView): void {
     /* best-effort */
   }
 }
-
-// ───────────────────────────────────────────────────────────────────────────
-// Component
-// ───────────────────────────────────────────────────────────────────────────
 
 export function MiniChatPanel({
   open,
@@ -183,7 +182,7 @@ export function MiniChatPanel({
   const [firstName, setFirstName] = useState(prefill?.firstName ?? prefillNames.firstName);
   const [lastName, setLastName] = useState(prefill?.lastName ?? prefillNames.lastName);
   const [email, setEmail] = useState(prefill?.email ?? "");
-  const [phone] = useState(prefill?.phone ?? "");
+  const [phone, setPhone] = useState(prefill?.phone ?? "");
   const [honeypot, setHoneypot] = useState("");
 
   const [stage, setStage] = useState<Stage>(existingInquiryId ? "thread" : "intro");
@@ -226,10 +225,7 @@ export function MiniChatPanel({
   // hook below.
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
-  // DOCK v2: the active dock view (Home / Chat / Lineup / Projects). Home is the
-  // friendly landing for a fresh visitor; an active conversation (a resumed
-  // inquiry or a seeded lineup) lands on Chat. The last view is remembered per
-  // session so re-opening the dock returns where the guest left off.
+  // DOCK v2: Home / Chat / Lineup / Projects. Remembered per session.
   const [dockView, setDockViewState] = useState<GuestDockView>(() =>
     resolveInitialDockView(existingInquiryId, cartTalentIds),
   );
@@ -237,25 +233,26 @@ export function MiniChatPanel({
     setDockViewState(view);
     persistDockView(view);
   };
-  // The panel mounts (closed) before any talent is added, so the lazy initializer
-  // above can only see the empty cart. Re-resolve the landing view on each fresh
-  // OPEN: a remembered session view wins, else an active conversation (resumed id
-  // or a seeded lineup) lands on Chat and a truly fresh visitor lands on Home.
+  // Fresh OPEN: remembered view (home→chat), else Hablar chat empty-home.
   const wasOpenRef = useRef(false);
-  const hasActiveContext = Boolean(existingInquiryId) || (cartTalentIds?.length ?? 0) > 0;
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       const stored = readStoredDockView();
-      setDockViewState(stored ?? (hasActiveContext ? "chat" : "home"));
+      setDockViewState(stored ? normalizeDockView(stored) : "chat");
+      const h = consumeBookingSheetChatHandoff(brand.locale ?? "en");
+      if (h.firstName != null) setFirstName(h.firstName);
+      if (h.lastName != null) setLastName(h.lastName);
+      if (h.phone) setPhone(h.phone);
+      if (h.email) setEmail(h.email);
+      if (h.draftPrefix) {
+        setDraft((cur) => (cur.trim() ? cur : h.draftPrefix!));
+        setDockViewState("chat");
+      }
     }
     wasOpenRef.current = open;
-  }, [open, hasActiveContext]);
+  }, [open, brand.locale]);
 
-  // useGuestInquiriesList (W1-A decomposition pre-pass). W2-A: also feeds the
-  // Projects dock view (compact + expanded). The refreshKey flips only when the
-  // guest ENTERS the Projects view (not on every Chat<->Lineup switch), forcing
-  // exactly one refetch so an inquiry created earlier in this open session shows
-  // up without reopening the panel.
+  // useGuestInquiriesList — W2-A also feeds Projects; refresh on enter only.
   const inquiries = useGuestInquiriesList({
     open,
     expanded,
@@ -530,6 +527,7 @@ export function MiniChatPanel({
     talentProfileCode,
     sourcePage,
     locale: brand.locale,
+    t,
     contactPromoted: unified.contactPromoted,
     promoteContact: unified.promoteContact,
     onStartInquiry,
@@ -688,6 +686,7 @@ export function MiniChatPanel({
     onFirstNameChange: setFirstName,
     onLastNameChange: setLastName,
     onEmailChange: setEmail,
+    phone,
     onHoneypotChange: setHoneypot,
     onSubmit: submit,
     onFirstSend: () => void handleFirstSend(),

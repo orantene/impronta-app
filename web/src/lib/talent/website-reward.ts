@@ -7,18 +7,24 @@ export type WebsiteRewardState =
   | "ready_to_publish"
   | "live";
 
+/**
+ * Header / reward state machine (§4.1).
+ * Live always wins — a published site must never produce Unlock copy (W23).
+ * Unlock requires 100% completion (W19); eligibility is the sole percent source.
+ */
 export function websiteRewardState(input: {
   completionPercent: number;
   siteStatus: TalentSiteStatus | null;
 }): WebsiteRewardState {
   if (input.siteStatus === "published") return "live";
-  if (input.completionPercent < 80) return "profile_unfinished";
+  if (input.completionPercent < 100) return "profile_unfinished";
   if (!input.siteStatus) return "unlocked_not_activated";
   if (input.siteStatus === "draft") return "setup_unfinished";
   if (input.siteStatus === "unpublished") return "ready_to_publish";
   return "setup_unfinished";
 }
 
+/** Spec §4.1 header titles — keep EN strings as i18n keys via dashboard-i18n. */
 export function websiteRewardCopy(
   state: WebsiteRewardState,
   percent: number,
@@ -28,7 +34,7 @@ export function websiteRewardCopy(
   switch (state) {
     case "live":
       return {
-        title: es ? "Tu sitio está en vivo" : "Your website is live",
+        title: es ? "Sitio en vivo" : "Website live",
         detail: es ? "Ábrelo o sigue editando." : "Open it or keep editing.",
       };
     case "ready_to_publish":
@@ -38,20 +44,20 @@ export function websiteRewardCopy(
       };
     case "setup_unfinished":
       return {
-        title: es ? "Termina tu sitio" : "Finish setting up your website",
-        detail: es ? "Elegiste tu dirección y te detuviste ahí" : "You chose your address and stopped there",
+        title: es ? "Termina la configuración del sitio" : "Finish website setup",
+        detail: es ? "Perfil completo · sigue donde lo dejaste" : "Profile complete · pick up where you left off",
       };
     case "unlocked_not_activated":
       return {
-        title: es ? "Sitio gratis desbloqueado" : "Free website unlocked",
-        detail: es ? "Actívalo y lo armamos con tu perfil" : "Activate it and we build it from your profile",
+        title: es ? "Activa tu sitio" : "Activate your website",
+        detail: es ? "Perfil completo" : "Profile complete",
       };
     default:
       return {
         title: es ? "Desbloquea tu sitio gratis" : "Unlock your free website",
         detail: es
-          ? `Tu perfil está al ${percent}%`
-          : `Your profile is ${percent}% complete`,
+          ? `${percent}%`
+          : `${percent}%`,
       };
   }
 }

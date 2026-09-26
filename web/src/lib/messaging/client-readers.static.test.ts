@@ -138,7 +138,7 @@ test("client offer payload: the offer line select carries no staff-only column (
 });
 
 test("pay page and the sent-basket snapshot read label, units and unit price only (S5)", () => {
-  const pay = src("app/(public)/pay/[code]/page.tsx");
+  const pay = src("app/(public)/pay/[code]/pay-page.tsx");
   assert.match(selectArg(pay, '.from("order_lines")'), /\.select\("label, units, unit_cents"\)/);
   const engine = src("lib/server-actions/messaging-engine.ts");
   const request = engine.slice(engine.indexOf("export async function messagingRequestPayment"));

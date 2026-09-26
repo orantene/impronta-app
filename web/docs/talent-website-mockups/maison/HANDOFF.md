@@ -81,6 +81,24 @@ muted/tint 5.76, primary/white 6.87, white-on-primary 6.87. All pass AA.
 
 ## 4. Alternate palettes — the acceptance test
 
+**Updated 2026-09-26 (Maison website pack):** the approved Product Spec §11.3 and
+`maison-seed-data.json` supersede the four Looks below. **Ship these five**
+(scoped to the Maison Design; not the old global Looks):
+
+| Key | Name EN / ES | page | section | rule | text | accent | on_accent | text/page | button |
+|---|---|---|---|---|---|---|---|---|---|
+| **pink** (default) | Pink & Lipstick / Rosa y labial | `#FFFFFF` | `#FFF5F8` | `#EDE8EB` | `#241F26` | `#A82458` | `#FFFFFF` | 16.2 | 6.9 |
+| **pearl** | Pearl & Ink / Perla y tinta | `#FFFFFF` | `#F6F4F0` | `#E6E2DC` | `#1F1E1C` | `#1F1E1C` | `#FFFFFF` | 16.7 | 16.7 |
+| **lilac** | Lilac & Plum / Lila y ciruela | `#FFFFFF` | `#F6F0F8` | `#E8DFEC` | `#261E2B` | `#6A2C70` | `#FFFFFF` | 16.1 | 9.5 |
+| **sand** | Sand & Espresso / Arena y espresso | `#FFFFFF` | `#F7F1E8` | `#E9DFD0` | `#2A211B` | `#4B3222` | `#FFFFFF` | 15.8 | 11.8 |
+| **peach** | Peach & Terracotta / Durazno y terracota | `#FFFFFF` | `#FFF3EC` | `#F1E0D5` | `#2B201C` | `#A4482A` | `#FFFFFF` | 15.8 | 5.9 |
+
+Pink is read from the live reference site (book-jorgelina). Heading font for all
+five: **Fraunces**; body: **Inter**. Source of truth: seed JSON — do not retype
+from screenshots.
+
+<details><summary>Historical four Looks (superseded — do not ship)</summary>
+
 Same layout, same markup, tokens only. `frames/looks-hero.jpg`, `frames/looks-menu.jpg`.
 
 | Look | bg | ink | muted | primary | accent | surface | line | heading |
@@ -89,6 +107,8 @@ Same layout, same markup, tokens only. `frames/looks-hero.jpg`, `frames/looks-me
 | **noir-champagne** | `#FFFFFF` | `#17151A` | `#6E6873` | `#1F1B22` | `#E7DAC4` | `#F7F4EF` | `#E8E3DB` | Playfair Display |
 | **sage-linen** | `#FFFFFF` | `#1F2621` | `#606B63` | `#2F6B4F` | `#CFE0D4` | `#F2F7F3` | `#E4EBE6` | Fraunces |
 | **cacao-cream** | `#FFFDFB` | `#2A201A` | `#7A6A5F` | `#8A4A2B` | `#EFD9C4` | `#FBF2E9` | `#EDE2D6` | Cinzel |
+
+</details>
 
 ## 4b. Address form — current, not target
 

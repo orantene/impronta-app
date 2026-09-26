@@ -169,7 +169,19 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
   let nowTitle: string | undefined;
   let nowBody: string | undefined;
   let nowTone: AgendaListItem["nowTone"] = "info";
-  if (item.booking === "hold") {
+  const pendingRescheduleId =
+    typeof item.tradeSection?.payload?.rescheduleRequestId === "string"
+      ? item.tradeSection.payload.rescheduleRequestId
+      : null;
+  const pendingRescheduleStatus = item.tradeSection?.payload?.rescheduleStatus;
+  const hasPendingReschedule =
+    Boolean(pendingRescheduleId) && pendingRescheduleStatus === "pending";
+
+  if (hasPendingReschedule) {
+    nowTitle = "Reschedule proposed";
+    nowBody = "Accept to move the booking. Decline keeps the current time.";
+    nowTone = "warn";
+  } else if (item.booking === "hold") {
     nowTitle = "Calendar hold";
     nowBody = "This slot is reserved while the client completes the booking.";
     nowTone = "warn";
@@ -270,6 +282,18 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
       }
       return out.length > 0 ? out : undefined;
     })(),
+    pendingReschedule: hasPendingReschedule
+      ? {
+          requestId: pendingRescheduleId!,
+          newStartsAt: String(item.tradeSection?.payload?.newStartsAt ?? ""),
+          newEndsAt: String(item.tradeSection?.payload?.newEndsAt ?? ""),
+          feeCents:
+            typeof item.tradeSection?.payload?.feeCents === "number"
+              ? item.tradeSection.payload.feeCents
+              : 0,
+        }
+      : null,
+    history: item.history.map((h) => ({ at: h.at, label: h.text })),
     terms: undefined,
   };
 }
@@ -346,27 +370,27 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
 export function buildAgendaMoneyItems(
   _profile: TalentSelfProfile | null | undefined,
 ): AgendaMoneyItem[] {
-  // Live Today path prefers moneyFromEarnings + todayTotals; this helper is only
-  // a safe empty shell when no earnings bridge is present.
+  // Prefer AgendaTodayPage + todayMoneyTilesFromLedger (M3). This helper is a
+  // safe empty shell for surfaces that still call it without the Money ledger.
   return [
     {
       id: "collected",
-      label: "Collected this month",
+      label: "Collected in September",
       value: "—",
-      helper: "Appears when payout data is available.",
+      helper: "Appears when Money ledger data is available.",
     },
     {
-      id: "owed",
-      label: "Still to collect",
+      id: "due_by_today",
+      label: "Due by today",
       value: "—",
-      helper: "Computed from today’s due and overdue on the agenda.",
+      helper: "Overdue plus due today — opens Outstanding with that filter.",
       tone: "attention",
     },
     {
       id: "payout",
-      label: "Next payout",
+      label: "Next payout · estimated",
       value: "—",
-      helper: "Appears when card payouts are set up.",
+      helper: "Appears when the next platform payout is estimated.",
       tone: "success",
     },
   ];

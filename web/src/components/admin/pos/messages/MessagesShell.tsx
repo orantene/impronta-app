@@ -21,6 +21,10 @@ import { INBOX_FILTERS } from "@/lib/messaging/types";
 import type { PosMode } from "@/lib/pos/modes";
 import type { BasketDiff, DeliveryRow, HandOverTarget, OfferRow, SnapshotRow } from "@/lib/messaging/sheets";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import {
+  messagesShellPaymentRequestKey,
+  newPaymentRequestAttemptId,
+} from "@/lib/payments/payment-request-attempt";
 import { schedulingEngineSentence, schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
 import {
   messagingAssignOwner,
@@ -355,7 +359,11 @@ export function MessagesShell(props: MessagesClientProps) {
           // total for "full". A deposit with no amount is refused in a
           // sentence rather than minted at a placeholder (D-row).
           amountCents: 0,
-          idempotencyKey: `pay-${active.id}-${chip.recordId}`,
+          idempotencyKey: messagesShellPaymentRequestKey({
+            inquiryId: active.id,
+            recordId: chip.recordId,
+            attemptId: newPaymentRequestAttemptId(),
+          }),
           publicOrigin: window.location.origin,
           expectedVersion: active.version,
         }).then((result) => {

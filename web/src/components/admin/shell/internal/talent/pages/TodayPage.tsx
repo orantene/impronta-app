@@ -19,13 +19,13 @@ import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
-import { TalentSiteActivateNudge } from "@/components/talent/site/TalentSiteActivateNudge";
+import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
 import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
-import { moneyFromEarnings } from "../agenda/present";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
+import { type MoneyLanding } from "@/lib/money/today-money-tiles";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
@@ -113,6 +113,9 @@ export function TalentTodayPage() {
     setTalentPage(fallbackPage);
   };
   if (bridgeTalentAgendaV2) {
+    const openMoney = (_landing: MoneyLanding) => {
+      setTalentPage("money");
+    };
     return (
       <AgendaTodayPage
         profile={bridgeTalentSelfProfile}
@@ -121,16 +124,6 @@ export function TalentTodayPage() {
         loadError={bridgeTalentAgendaError}
         hours={bridgeTalentAgendaHours}
         completionMissingKeys={bridgeTalentCompletion?.missing.map((m) => m.key) ?? null}
-        moneyItems={moneyFromEarnings({
-          // Collected/payout come from earnings bridge; AgendaTodayPage
-          // overwrites "Still to collect" with todayTotals from agenda items.
-          collectedLabel: bridgeTalentEarnings
-            ? `${(computePaidThisMonth(bridgeTalentEarnings).totalCents / 100).toFixed(2)} ${computePaidThisMonth(bridgeTalentEarnings).currency}`
-            : "not shared",
-          owedCents: bridgeTalentEarnings?.totals.pendingCents ?? null,
-          currency: bridgeTalentEarnings?.totals.currency ?? "",
-          cardPayouts: payoutSet,
-        })}
         newLabel={resolveTradeProfile(bridgeTalentSelfProfile?.primaryTypeLabel).words.newLabel[copy.isSpanish ? 1 : 0]}
         onOpenAttention={() => setTalentPage("attention")}
         onOpenCalendar={() => setTalentPage("calendar")}
@@ -139,6 +132,7 @@ export function TalentTodayPage() {
         onOpenServices={() => setTalentPage("services")}
         onOpenSite={() => setTalentPage("public-page")}
         onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
+        onOpenMoney={openMoney}
       />
     );
   }
@@ -488,11 +482,9 @@ export function TalentTodayPage() {
         />
       )}
 
-      {/* Phase 3 — "activate your free website". Hides itself unless the plan
-          grants site editing and the site is still unpublished, so it never
-          fires for mock sessions or for a talent already live. */}
+      {/* PR3 W21–W22 — Finish with AI / unlocked card. Hides when live (W23). */}
       {bridgeTalentSelfProfile && (
-        <TalentSiteActivateNudge onOpenSite={() => setTalentPage("public-page")} />
+        <WebsiteTodayUnlockCard onActivate={() => setTalentPage("public-page")} />
       )}
 
       <TalentTodayHero

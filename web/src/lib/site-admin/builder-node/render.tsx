@@ -142,6 +142,8 @@ import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { filterOfferingsForCatalog } from "./services-catalog-selection";
+import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 
@@ -277,14 +279,29 @@ export interface BuilderNodeRenderDataSources {
   };
   /**
    * Full `TalentOffering` rows (`loadPublicOfferingsForProfile`), not a
-   * narrowed projection — `services_catalog` reuses `OfferingCta`
-   * (`app/t/[profileCode]/_shared`), the SAME click-to-book island the hub
-   * profile's storefront uses, and that component reads reserveMode /
-   * depositPct / variants / addOns / talentProfileId off the full shape.
+   * narrowed projection — `services_catalog` builds the same click-to-book
+   * event payload the hub profile storefront uses (`OfferingRequestDetail`),
+   * and that shape needs reserveMode / depositPct / variants / addOns /
+   * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
+  /**
+   * When true, `services_catalog` paints the dedicated loading skeleton
+   * (BRIEF-03 / §14) instead of the empty message or interactive list.
+   * Callers that await offerings before render leave this unset.
+   */
+  talentOfferingsLoading?: boolean;
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
+  /**
+   * Talent selling defaults for sheet CTAs (on-demand vs inquiry + who-step
+   * vocabulary). Prep minutes live in the same JSON but are applied server-side
+   * in the slots route — not needed on the catalog island.
+   */
+  talentOfferingsBookingSettings?: {
+    bookingPosture: "on_demand" | "inquiry";
+    whoPrimaryCta: "confirm_now" | "contact" | "check_availability";
+  };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
   /** Saved `category_order` from the talent profile. Missing names append after. */
@@ -293,6 +310,17 @@ export interface BuilderNodeRenderDataSources {
   talentOfferingsCategoryNotes?: Record<string, string>;
   /** Published talent site: write bookings. Editor / draft: demo sheet. */
   catalogBookingLive?: boolean;
+  /**
+   * Maison FAQ (W16) — published `talent_faq_items` for accordion
+   * `bindSource: "talent_faq_items"`. Absent ⇒ bound accordion stays empty
+   * (or falls back to authored children).
+   */
+  talentFaqItems?: ReadonlyArray<{
+    id: string;
+    question: string;
+    answer: string;
+    sort_order?: number;
+  }>;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -4429,24 +4457,87 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-stat strong{font-size:2rem;font-weight:500}
 .site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
+.site-builder-node--services-catalog-loading{margin:0}
+.site-builder-node--services-catalog-loading-label{margin:0 0 .85rem;font-size:.8125rem;font-weight:600;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-skel{display:block;background:color-mix(in srgb,var(--token-color-ink) 8%,transparent);border-radius:8px;animation:svc-catalog-skel-pulse 1.2s ease-in-out infinite}
+.site-builder-node--services-catalog-skel-line{height:.75rem;margin:.2rem 0}
+.site-builder-node--services-catalog-skel-name{width:58%;height:.95rem}
+.site-builder-node--services-catalog-skel-desc{width:82%;height:.7rem}
+.site-builder-node--services-catalog-skel-meta{width:36%;height:.65rem}
+.site-builder-node--services-catalog-skel-price{width:4.5rem;height:.95rem}
+.site-builder-node--services-catalog-skel-cta{width:5.5rem;min-height:2rem;border-radius:10px;pointer-events:none}
+.site-builder-node--services-catalog-skel.site-builder-node--services-catalog-photo{background:color-mix(in srgb,var(--token-color-ink) 10%,transparent)}
+@keyframes svc-catalog-skel-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.site-builder-node--services-catalog-skel{animation:none}}
 .site-builder-node--services-catalog-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"]{gap:0;border-bottom:1px solid var(--token-color-line);padding-bottom:0}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill{border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;padding:.55rem .9rem;margin-bottom:-1px}
+.site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill[data-active="true"]{background:transparent;color:var(--token-color-ink);border-bottom-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.4rem 1rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);background:transparent;text-decoration:none;cursor:pointer}
 .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-group{margin-bottom:0}
 .site-builder-node--services-catalog-group-title{margin:0 0 .75rem;font-size:1.05rem;font-weight:600;scroll-margin-top:5rem}
+.site-builder-node--services-catalog-accordion-trigger{appearance:none;width:100%;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 0;border:0;border-bottom:1px solid var(--token-color-line);background:transparent;cursor:pointer;font:inherit;font-weight:600;text-align:left;color:var(--token-color-ink)}
+.site-builder-node--services-catalog-accordion-trigger[aria-expanded="false"]+ .site-builder-node--services-catalog-list{display:none}
 .site-builder-node--services-catalog-list{list-style:none;margin:0;padding:0}
-.site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
-@media (max-width:560px){.site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:grid;grid-template-columns:120px 1fr auto auto;gap:1.1rem;align-items:center;padding:1.1rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{display:grid;grid-template-columns:1fr auto auto;gap:.75rem;align-items:baseline;padding:.55rem 0;border-bottom:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-photo{display:none}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.5rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:hidden;background:transparent}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{padding:0 1rem}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price{padding:0}
+.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-cta,
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-cta{margin:0 1rem 1rem;align-self:flex-start}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-cta{margin:.25rem 0 0;align-self:flex-start}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-name{font-family:var(--token-font-display,inherit);font-size:1.15rem;font-weight:500}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-list{display:flex;flex-direction:column;gap:1rem}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{display:grid;grid-template-columns:minmax(180px,42%) 1fr;gap:1.5rem;padding:1.25rem;border:1px solid var(--token-color-line);border-radius:16px;margin-bottom:.5rem}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child .site-builder-node--services-catalog-photo{width:100%;height:100%;min-height:200px;border-radius:12px}
+.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:72px 1fr auto auto;gap:1rem;align-items:center;padding:.85rem 0;border-bottom:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog-nav[data-category-nav="jump"]{gap:.5rem;padding-bottom:.85rem;border-bottom:1px solid var(--token-color-line);margin-bottom:1.25rem}
+.site-builder-node--services-catalog[data-category-nav="sections"] .site-builder-node--services-catalog-group-title{margin-top:1.75rem;padding-top:.5rem;border-top:1px solid var(--token-color-line);font-size:1.15rem;letter-spacing:.02em}
+.site-builder-node--services-catalog[data-category-nav="sections"] .site-builder-node--services-catalog-group:first-of-type .site-builder-node--services-catalog-group-title{margin-top:0;padding-top:0;border-top:0}
+@media (max-width:560px){.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{grid-template-columns:72px 1fr;grid-template-areas:"photo copy" "photo price" "cta cta"}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(1),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(1){grid-area:photo}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(2),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(2){grid-area:copy}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(3),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(3){grid-area:price;justify-self:start}.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row>:nth-child(4),.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row>:nth-child(4){grid-area:cta;justify-self:start}.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}.site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}}
 .site-builder-node--services-catalog-photo{width:120px;height:120px;border-radius:0;object-fit:cover;flex-shrink:0;background:color-mix(in srgb,var(--token-color-ink) 6%,transparent)}
-@media (max-width:560px){.site-builder-node--services-catalog-photo{width:72px;height:72px}}
+.site-builder-node--services-catalog[data-photo-radius="soft"] .site-builder-node--services-catalog-photo{border-radius:12px}
+.site-builder-node--services-catalog[data-photo-radius="round"] .site-builder-node--services-catalog-photo{border-radius:999px}
+@media (max-width:560px){.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-photo,.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-photo{width:72px;height:72px}}
 .site-builder-node--services-catalog-copy{min-width:0;display:flex;flex-direction:column;gap:.25rem}
-.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.site-builder-node--services-catalog-name{font-weight:600;font-size:1rem;line-height:1.3;overflow:hidden;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-word}
+.site-builder-node--services-catalog-name-text{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--token-color-accent,var(--token-color-primary,#A82458));color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
 .site-builder-node--services-catalog-desc{font-size:.8125rem;line-height:1.45;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .site-builder-node--services-catalog-duration{font-size:.75rem;color:var(--token-color-muted)}
-.site-builder-node--services-catalog-price{text-align:right;white-space:nowrap;font-size:1rem}
+.site-builder-node--services-catalog-meta{font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.2rem}
+.site-builder-node--services-catalog-badge{display:inline-flex;align-items:center;font-size:.65rem;font-weight:600;letter-spacing:.02em;padding:.15rem .45rem;border-radius:999px;border:1px solid var(--token-color-line);color:var(--token-color-ink);background:transparent}
+.site-builder-node--services-catalog-demo{margin:0 0 .85rem;padding:.55rem .75rem;border-radius:10px;background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 8%,transparent);color:var(--token-color-ink);font-size:.75rem;font-weight:600}.site-builder-node--services-catalog-search{display:flex;gap:.5rem;align-items:center;margin:0 0 1rem}
+.site-builder-node--services-catalog-search input{flex:1;min-height:2.5rem;border:1px solid var(--token-color-line);border-radius:10px;padding:0 .85rem;font:inherit;background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink)}
+.site-builder-node--services-catalog-search button{appearance:none;border:0;background:transparent;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--token-color-ink);text-decoration:underline;min-height:44px}
+.site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right;white-space:nowrap;font-size:1rem}
+.site-builder-node--services-catalog-price small{font-size:.6875rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-usd{display:block;font-size:.75rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.4rem .85rem;font-size:.75rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff)}
-.site-builder-node--services-catalog-cta[data-selected="true"]{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-accent,var(--token-color-primary,#A82458)) 14%,transparent);color:var(--token-color-ink);border:1px solid var(--token-color-accent,var(--token-color-primary,#A82458))}
+.site-builder-node--services-catalog[data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.65rem;padding-bottom:.65rem}
+.cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
 `;
 
 function renderBuilderNode(
@@ -4551,13 +4642,49 @@ function renderBuilderNodeElement(
           {renderChildren(node, options)}
         </div>
       );
-    case "accordion":
+    case "accordion": {
+      // Maison FAQ bind (W16): expand from published talent_faq_items when set.
+      const bindFaq = node.props.bindSource === "talent_faq_items";
+      const faqChildren = bindFaq
+        ? (() => {
+            const items = options.dataSources.talentFaqItems ?? [];
+            if (items.length === 0) {
+              return nodeChildren(node);
+            }
+            return items.map((item, index) => {
+              const id = `${node.id}-faq-${item.id || index}`;
+              const answer = item.answer?.trim() || "";
+              return {
+                id,
+                kind: "accordion_item" as const,
+                props: { title: item.question.trim() || "…" },
+                children: answer
+                  ? [
+                      {
+                        id: `${id}-a`,
+                        kind: "paragraph" as const,
+                        props: {
+                          text: answer,
+                          style: { tone: "muted" as const, size: "md" as const },
+                        },
+                      },
+                    ]
+                  : [],
+              };
+            });
+          })()
+        : null;
+      const accordionNode =
+        faqChildren != null
+          ? ({ ...node, children: faqChildren } as typeof node)
+          : node;
       return (
         <div
           key={node.id}
           {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
+          {...(bindFaq ? { "data-faq-bind": "talent_faq_items" } : {})}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--accordion"
           style={inlineNodeStyle(node.props.style, CONTAINER_STYLE, {
@@ -4565,12 +4692,13 @@ function renderBuilderNodeElement(
             gap: GAP_BY_SIZE.m,
           })}
         >
-          {renderChildren(node, {
+          {renderChildren(accordionNode, {
             ...options,
             accordionOpenIds: node.props.defaultOpenItemIds,
           })}
         </div>
       );
+    }
     case "accordion_item": {
       const titleResolved = resolveNodeLocalizedText(
         node,
@@ -5602,7 +5730,12 @@ function renderBuilderNodeElement(
     // why a re-read never reorders or re-groups what is emitted here.
     case "services_catalog": {
       const p = node.props;
-      const locale = options.contentLocale?.locale ?? "en";
+      // Talent Max vanity SSR passes visitorLocale (preferred_locale / resolved
+      // guest locale) but often no contentLocale. Falling back to hard "en"
+      // left Jorg Beauty chrome in ENGLISH (YOUR BOOKING / estimated duration)
+      // while html lang + CMS copy were Spanish — mockup 1:1 fail on
+      // book-jorgelina. Prefer contentLocale, then visitorLocale, then en.
+      const locale = options.contentLocale?.locale ?? options.visitorLocale ?? "en";
       const es = locale.startsWith("es");
       const text = (prop: string, value: string | undefined) =>
         value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "";
@@ -5612,18 +5745,35 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const ctaLabel = p.ctaLabel?.trim() || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
+      // Defensive re-filter + widget selection (references only).
+      const visible = filterOfferingsForCatalog(options.dataSources.talentOfferings ?? [], {
+        selectionMode: p.selectionMode,
+        selectedCategoryNames: p.selectedCategoryNames,
+        selectedOfferingIds: p.selectedOfferingIds,
+        autoIncludeNew: p.autoIncludeNew,
+        featuredOfferingIds: p.featuredOfferingIds,
+        sort: p.sort,
+        manualOrderIds:
+          p.sort === "manual"
+            ? (p.manualOrderIds ?? p.selectedOfferingIds)
+            : p.manualOrderIds,
+      });
       const emptyMessage =
         text("emptyMessage", p.emptyMessage) ||
-        (es ? "Todavía no hay servicios publicados." : "No services are published yet.");
-
-      // Defensive re-filter — `loadPublicOfferingsForProfile` already applies
-      // the public policy, but a render path never trusts a data source alone
-      // (same rule `TalentStorefront` follows on the hub profile).
-      const visible = (options.dataSources.talentOfferings ?? []).filter(
-        (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
-      );
+        (visible.length === 0 && (p.selectionMode === "ids" || p.selectionMode === "categories")
+          ? es
+            ? "Ningún servicio elegible en esta selección."
+            : "No eligible offerings in this selection."
+          : es
+            ? "Todavía no hay servicios publicados."
+            : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+      const layout = p.layout ?? "rows";
+      const useWebsiteTheme = p.useWebsiteTheme !== false;
+      const columns =
+        p.columns ??
+        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -5633,10 +5783,16 @@ function renderBuilderNodeElement(
       }
       const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
-      const filterNav = p.categoryNav === "tabs" || p.categoryNav === "pills" || p.categoryNav == null;
-      const slug = (c: string) => `${node.id}-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+      const categoryNav = p.categoryNav ?? "pills";
+      const filterNav = categoryNav === "tabs" || categoryNav === "pills";
+      const accordionNav = categoryNav === "accordion";
+      const jumpNav = categoryNav === "jump_strip";
+      const sectionsNav = categoryNav === "sections";
       const notes = options.dataSources.talentOfferingsCategoryNotes;
-      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = showCategoryNav
+      // Featured layout needs a single flat list so CSS :first-child is the hero.
+      const groupByCategory =
+        layout !== "featured" && (showCategoryNav || accordionNav || jumpNav || sectionsNav);
+      const groups: Array<{ name: string | null; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
               name: c,
@@ -5649,15 +5805,40 @@ function renderBuilderNodeElement(
           ]
         : [{ name: null, items: visible }];
 
+      const navMode =
+        layout === "featured"
+          ? "flat"
+          : !showCategoryNav && !accordionNav
+            ? "flat"
+            : filterNav
+              ? categoryNav === "tabs"
+                ? "tabs"
+                : "pills"
+              : accordionNav
+                ? "accordion"
+                : sectionsNav
+                  ? "sections"
+                  : jumpNav
+                    ? "jump"
+                    : "flat";
+
       return (
         <section
           key={node.id}
           {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind="services_catalog"
-          {...builderNodeStyleAttrs(p.style)}
+          data-layout={layout}
+          data-photo-radius={p.photoRadius ?? "soft"}
+          data-cta-variant={p.rowCtaVariant ?? "outline"}
+          data-density={p.density ?? "comfortable"}
+          data-category-nav={categoryNav}
+          {...(useWebsiteTheme ? {} : builderNodeStyleAttrs(p.style))}
           className="site-builder-node site-builder-node--services-catalog"
-          style={inlineNodeStyle(p.style, undefined)}
+          style={{
+            ...(useWebsiteTheme ? undefined : inlineNodeStyle(p.style, undefined)),
+            ["--svc-columns" as string]: String(columns),
+          }}
         >
           <style>{SERVICES_CATALOG_CSS}</style>
           <header className="site-builder-node--services-catalog-header">
@@ -5682,7 +5863,13 @@ function renderBuilderNodeElement(
             ) : null}
           </header>
 
-          {visible.length === 0 ? (
+          {options.dataSources.talentOfferingsLoading ? (
+            <ServicesCatalogLoadingSkeleton
+              locale={locale}
+              showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+              rows={Math.min(Math.max(visible.length, 4), 6)}
+            />
+          ) : visible.length === 0 ? (
             <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
           ) : (
             <CatalogIslandBoundary
@@ -5690,7 +5877,7 @@ function renderBuilderNodeElement(
                 <ServicesCatalogStaticFallback
                   groups={groups}
                   locale={locale}
-                  showPhoto={p.showPhoto !== false}
+                  showPhoto={p.showPhoto !== false && layout !== "compact_list"}
                   showDuration={p.showDuration !== false}
                   showUsdEquivalent={p.showUsdEquivalent !== false}
                   ctaLabel={ctaLabel}
@@ -5700,24 +5887,35 @@ function renderBuilderNodeElement(
               <ServicesCatalogFilter
                 groups={groups}
                 locale={locale}
-                nav={
-                  showCategoryNav && filterNav
-                    ? p.categoryNav === "tabs"
-                      ? "tabs"
-                      : "pills"
-                    : showCategoryNav
-                      ? "jump"
-                      : "flat"
-                }
-                showPhoto={p.showPhoto !== false}
+                nav={navMode}
+                showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+                showDescription={p.showDescription !== false}
+                showCategory={p.showCategory === true}
                 showDuration={p.showDuration !== false}
+                showDelivery={p.showDelivery === true}
+                showAvailability={p.showAvailability === true}
+                showPrice={p.showPrice !== false}
                 showUsdEquivalent={p.showUsdEquivalent !== false}
+                showBadges={p.showBadges === true}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
                 bookingMode={bookingMode}
                 tenantId={options.dataSources.tenantId ?? null}
-                jumpSlug={slug}
+                nodeId={node.id}
+                durationFormat={p.durationFormat ?? "auto"}
+                mobileBar={p.mobileBar ?? "float"}
+                showAskLink={p.showAskLink !== false}
+                // Maison 1:1: rose Continuar/check. CMS nodes that stored
+                // accent "ink" made booking chrome black on vanity — coerce.
+                sheetAccent={
+                  p.bookingSheet?.accent === "ink" ? "primary" : (p.bookingSheet?.accent ?? "primary")
+                }
+                categoryShowAll={p.categoryShowAll === true}
+                categoryShowCounts={p.categoryShowCounts === true}
+                enableCatalogSearch={p.enableCatalogSearch === true}
+                captcha={options.captcha ?? null}
+                bookingSettings={options.dataSources.talentOfferingsBookingSettings}
               />
             </CatalogIslandBoundary>
           )}

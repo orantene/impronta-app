@@ -26,6 +26,7 @@ import type { PurchaseResult } from "@/lib/orders/purchase-types";
 import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
 import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
+import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
@@ -183,6 +184,34 @@ export async function placeInstantPurchase(
     });
   }
 
+  // Prep from selling defaults (+ optional offering attr) pads the hold so
+  // the calendar blocks preparation time when the client reserves.
+  const { data: talentDefaultsRow, error: talentDefaultsErr } = await admin
+    .from("talent_profiles")
+    .select("selling_defaults")
+    .eq("id", input.talentProfileId)
+    .maybeSingle();
+  // Missing / failed defaults → zero buffers (same as unset). Purchase proceeds.
+  const defaultsRaw =
+    !talentDefaultsErr && isRecord(talentDefaultsRow) ? talentDefaultsRow.selling_defaults : null;
+  const selling = parseSellingBookingSettings(defaultsRaw);
+  const attrPrep =
+    isRecord(policy.attributes) && typeof policy.attributes.bufferBeforeMin === "number"
+      ? Math.max(0, Math.trunc(policy.attributes.bufferBeforeMin))
+      : null;
+  const attrAfter =
+    isRecord(policy.attributes) && typeof policy.attributes.bufferAfterMin === "number"
+      ? Math.max(0, Math.trunc(policy.attributes.bufferAfterMin))
+      : null;
+  const prepMin = attrPrep ?? selling.bufferBeforeMin ?? 0;
+  const afterMin =
+    attrAfter ??
+    (isRecord(defaultsRaw) && typeof defaultsRaw.bufferAfterMin === "number"
+      ? Math.max(0, Math.trunc(defaultsRaw.bufferAfterMin))
+      : 0);
+  const bufferBeforeSeconds = prepMin * 60;
+  const bufferAfterSeconds = afterMin * 60;
+
   return createPurchase(admin, {
     tenantId,
     clientOrderKey: input.clientOrderKey,
@@ -217,6 +246,8 @@ export async function placeInstantPurchase(
           startsAt: reservation.startsAt,
           endsAt: reservation.endsAt,
           poolId,
+          bufferBeforeSeconds,
+          bufferAfterSeconds,
         }
       : null,
     // Several people (couples). Reserved with the primary slot as one set.
@@ -227,6 +258,8 @@ export async function placeInstantPurchase(
             startsAt: reservation.startsAt,
             endsAt: reservation.endsAt,
             title: "Couples therapist",
+            bufferBeforeSeconds,
+            bufferAfterSeconds,
           }))
         : undefined,
     openThread: input.openThread,

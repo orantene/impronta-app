@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loadTalentClients, type TalentClientRow } from "@/lib/talent/clients-actions";
+import { loadTalentClients } from "@/lib/talent/clients-actions";
+import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
-import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink } from "@/lib/talent-agenda";
+import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink, respondToReschedule } from "@/lib/talent-agenda";
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
@@ -352,6 +352,54 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
+        {item.pendingReschedule?.requestId ? (
+          <NowBox
+            tone="attention"
+            title={copy.t("Reschedule proposed")}
+            body={copy.t(
+              "Accept to move the booking. Decline keeps the current time. Deposit stays with the booking.",
+            )}
+            primaryAction={{
+              label: copy.t("Accept new time"),
+              onClick: () => {
+                const requestId = item.pendingReschedule?.requestId;
+                if (!requestId) return;
+                setStatus(copy.t("Accepting…"));
+                startTransition(async () => {
+                  const res = await respondToReschedule({ requestId, accept: true });
+                  if (res.ok) {
+                    setStatus(copy.t("Booking moved. Deposit kept. Old time is free."));
+                    router.refresh();
+                  } else {
+                    setStatus(
+                      `${copy.t("Could not accept")}: ${res.reason ?? "unavailable"}`,
+                    );
+                  }
+                });
+              },
+            }}
+            secondaryAction={{
+              label: copy.t("Decline new time"),
+              onClick: () => {
+                const requestId = item.pendingReschedule?.requestId;
+                if (!requestId) return;
+                setStatus(copy.t("Declining…"));
+                startTransition(async () => {
+                  const res = await respondToReschedule({ requestId, accept: false });
+                  if (res.ok) {
+                    setStatus(copy.t("Reschedule declined. Current time kept."));
+                    router.refresh();
+                  } else {
+                    setStatus(
+                      `${copy.t("Could not decline")}: ${res.reason ?? "unavailable"}`,
+                    );
+                  }
+                });
+              },
+            }}
+          />
+        ) : null}
+
         {item.bookingState === "requested" && refTable === "inquiries" ? (
           <button
             type="button"
@@ -524,6 +572,21 @@ export function AgendaBookingRecord({
           <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-[#5F6368]">
             <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Terms")}</h2>
             <p>{item.terms}</p>
+          </section>
+        ) : null}
+        {item.history && item.history.length > 0 ? (
+          <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-admin-ink-muted">
+            <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("History")}</h2>
+            <ul className="space-y-2">
+              {item.history.map((line) => (
+                <li key={`${line.at}-${line.label}`}>
+                  <time dateTime={line.at} className="block text-[11px] text-admin-ink-dim">
+                    {new Date(line.at).toLocaleString()}
+                  </time>
+                  <span>{line.label}</span>
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
       </aside>

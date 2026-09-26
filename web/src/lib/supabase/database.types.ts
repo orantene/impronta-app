@@ -789,6 +789,7 @@ export type Database = {
           created_by_staff_id: string | null
           created_with_override: boolean
           currency_code: string
+          customer_id: string | null
           deadline_at: string | null
           deposit_amount_cents: number | null
           deposit_currency: string | null
@@ -864,6 +865,7 @@ export type Database = {
           created_by_staff_id?: string | null
           created_with_override?: boolean
           currency_code?: string
+          customer_id?: string | null
           deadline_at?: string | null
           deposit_amount_cents?: number | null
           deposit_currency?: string | null
@@ -939,6 +941,7 @@ export type Database = {
           created_by_staff_id?: string | null
           created_with_override?: boolean
           currency_code?: string
+          customer_id?: string | null
           deadline_at?: string | null
           deposit_amount_cents?: number | null
           deposit_currency?: string | null
@@ -988,6 +991,13 @@ export type Database = {
           wardrobe_notes?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "agency_bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agency_bookings_call_sheet_updated_by_user_id_fkey"
             columns: ["call_sheet_updated_by_user_id"]
@@ -6078,6 +6088,7 @@ export type Database = {
           merged_into_id: string | null
           no_shows: number
           notes: string | null
+          owner_talent_profile_id: string | null
           phone_e164: string | null
           spend_cents: number
           tags: string[]
@@ -6097,6 +6108,7 @@ export type Database = {
           merged_into_id?: string | null
           no_shows?: number
           notes?: string | null
+          owner_talent_profile_id?: string | null
           phone_e164?: string | null
           spend_cents?: number
           tags?: string[]
@@ -6116,6 +6128,7 @@ export type Database = {
           merged_into_id?: string | null
           no_shows?: number
           notes?: string | null
+          owner_talent_profile_id?: string | null
           phone_e164?: string | null
           spend_cents?: number
           tags?: string[]
@@ -6137,6 +6150,13 @@ export type Database = {
             columns: ["merged_into_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_owner_talent_profile_id_fkey"
+            columns: ["owner_talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -6804,6 +6824,7 @@ export type Database = {
           coordinator_id: string | null
           created_at: string
           current_offer_id: string | null
+          customer_id: string | null
           deadline_at: string | null
           duplicate_of_inquiry_id: string | null
           email_mirror_muted_at: string | null
@@ -6874,6 +6895,7 @@ export type Database = {
           coordinator_id?: string | null
           created_at?: string
           current_offer_id?: string | null
+          customer_id?: string | null
           deadline_at?: string | null
           duplicate_of_inquiry_id?: string | null
           email_mirror_muted_at?: string | null
@@ -6944,6 +6966,7 @@ export type Database = {
           coordinator_id?: string | null
           created_at?: string
           current_offer_id?: string | null
+          customer_id?: string | null
           deadline_at?: string | null
           duplicate_of_inquiry_id?: string | null
           email_mirror_muted_at?: string | null
@@ -6994,6 +7017,13 @@ export type Database = {
           wardrobe_notes?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inquiries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_inquiries_current_offer"
             columns: ["current_offer_id"]
@@ -20848,6 +20878,7 @@ export type Database = {
         Args: {
           p_display_name?: string
           p_email: string
+          p_owner_talent_profile_id?: string
           p_phone?: string
           p_tenant_id: string
           p_user_id?: string

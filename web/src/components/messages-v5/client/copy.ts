@@ -25,6 +25,7 @@ export function buildClientCopy(t: Translator) {
       emptyTitle: t("dashboard.messagesV5.client.link.stream.emptyTitle"),
       emptyBody: t("dashboard.messagesV5.client.link.stream.emptyBody"),
       loading: t("dashboard.messagesV5.client.link.stream.loading"),
+      backFromEmail: t("dashboard.messagesV5.client.link.stream.backFromEmail"),
     },
     composer: {
       placeholder: t("dashboard.messagesV5.client.link.composer.placeholder"),
@@ -38,6 +39,8 @@ export function buildClientCopy(t: Translator) {
       secure: t("dashboard.messagesV5.client.link.footer.secure"),
       saveToEmail: t("dashboard.messagesV5.client.link.footer.saveToEmail"),
       saveToEmailSoon: t("dashboard.messagesV5.client.link.footer.saveToEmailSoon"),
+      saveToEmailSent: t("dashboard.messagesV5.client.link.footer.saveToEmailSent"),
+      saveToEmailFailed: t("dashboard.messagesV5.client.link.footer.saveToEmailFailed"),
       expires: t("dashboard.messagesV5.client.link.footer.expires"),
     },
     choices: {
@@ -67,6 +70,7 @@ export function buildClientCopy(t: Translator) {
       ask: t("public.guestChat.catalogAsk"),
       askPrefill: t("public.guestChat.timesAskPrefill"),
       taken: t("dashboard.messagesV5.client.link.times.taken"),
+      nextFree: t("dashboard.messagesV5.client.link.times.nextFree"),
       noSlots: t("dashboard.messagesV5.client.link.times.noSlots"),
     },
     offer: {
@@ -159,12 +163,24 @@ export function buildClientCopy(t: Translator) {
       noRefund: t("dashboard.messagesV5.client.link.cancel.noRefund"),
       refundOnly: t("dashboard.messagesV5.client.link.cancel.refundOnly"),
     },
+    /** Front-door v27 Declined / Pay failed / Refunded (engine producers only). */
+    outcome: {
+      declinedTitle: t("dashboard.messagesV5.client.link.outcome.declinedTitle"),
+      declinedBody: t("dashboard.messagesV5.client.link.outcome.declinedBody"),
+      payFailedTitle: t("dashboard.messagesV5.client.link.outcome.payFailedTitle"),
+      payFailedBody: t("dashboard.messagesV5.client.link.outcome.payFailedBody"),
+      payFailedRetry: t("dashboard.messagesV5.client.link.outcome.payFailedRetry"),
+      refundedTitle: t("dashboard.messagesV5.client.link.outcome.refundedTitle"),
+      refundedBody: t("dashboard.messagesV5.client.link.outcome.refundedBody"),
+      refundedBodyAmount: t("dashboard.messagesV5.client.link.outcome.refundedBodyAmount"),
+    },
     confirmed: {
       catBooking: t("dashboard.messagesV5.client.link.confirmed.catBooking"),
       catOrder: t("dashboard.messagesV5.client.link.confirmed.catOrder"),
       pill: t("dashboard.messagesV5.client.link.confirmed.pill"),
       when: t("dashboard.messagesV5.client.link.confirmed.when"),
       askChange: t("dashboard.messagesV5.client.link.confirmed.askChange"),
+      addToCalendar: t("dashboard.messagesV5.client.link.confirmed.addToCalendar"),
       receipt: t("dashboard.messagesV5.client.link.confirmed.receipt"),
       receiptSoon: t("dashboard.messagesV5.client.link.confirmed.receiptSoon"),
     },

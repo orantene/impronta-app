@@ -70,7 +70,9 @@ export function TalentServicesNudge({
           {copy.t("Add your first service")}
         </p>
         <p style={{ margin: "3px 0 0", fontSize: 12.5, color: C.inkMuted, lineHeight: 1.45 }}>
-          {copy.t("Put your menu on your page: clients can ask about a service or book it directly. It takes about a minute per service.")}
+          {copy.t(
+            "Put your menu on your page: the website Services widget shows the same offerings clients can book. It takes about a minute per service.",
+          )}
         </p>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

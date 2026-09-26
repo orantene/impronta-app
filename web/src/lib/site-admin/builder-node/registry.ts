@@ -517,6 +517,8 @@ const accordionPropsSchema = z.object({
   defaultOpenItemIds: z.array(z.string().min(1)).max(30).optional(),
   layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
+  /** Maison FAQ bind — expand from published `talent_faq_items` at render. */
+  bindSource: z.literal("talent_faq_items").optional(),
 });
 
 const accordionItemPropsSchema = z.object({
@@ -1028,17 +1030,56 @@ const menuBoardPropsSchema = z.object({
 });
 
 export const servicesCatalogPropsSchema = z.object({
-  layout: z.enum(["rows", "cards", "grid", "compact_list", "editorial"]).optional(),
-  categoryNav: z.enum(["pills", "tabs", "jump_strip", "sections", "none"]).optional(),
+  layout: z.enum(["rows", "cards", "grid", "compact_list", "editorial", "featured"]).optional(),
+  categoryNav: z.enum(["pills", "tabs", "jump_strip", "sections", "accordion", "none"]).optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
   subtitle: z.string().max(240).optional(),
   showStats: z.boolean().optional(),
   showPhoto: z.boolean().optional(),
+  showDescription: z.boolean().optional(),
+  showCategory: z.boolean().optional(),
   showDuration: z.boolean().optional(),
+  showDelivery: z.boolean().optional(),
+  showAvailability: z.boolean().optional(),
+  showPrice: z.boolean().optional(),
   showUsdEquivalent: z.boolean().optional(),
+  showBadges: z.boolean().optional(),
   ctaLabel: z.string().max(40).optional(),
   emptyMessage: z.string().max(240).optional(),
+  categoryShowAll: z.boolean().optional(),
+  categoryShowCounts: z.boolean().optional(),
+  enableCatalogSearch: z.boolean().optional(),
+  stylePreset: z.enum(["clean", "editorial", "compact", "image_led"]).optional(),
+  selectionMode: z.enum(["all", "categories", "ids"]).optional(),
+  selectedCategoryNames: z.array(z.string().max(80)).max(40).optional(),
+  selectedOfferingIds: z.array(z.string().max(80)).max(200).optional(),
+  autoIncludeNew: z.boolean().optional(),
+  featuredOfferingIds: z.array(z.string().max(80)).max(20).optional(),
+  sort: z.enum(["catalog", "manual"]).optional(),
+  manualOrderIds: z.array(z.string().max(80)).max(200).optional(),
+  rowCtaVariant: z.enum(["outline", "solid"]).optional(),
+  photoRadius: z.enum(["square", "soft", "round"]).optional(),
+  durationFormat: z.enum(["auto", "minutes", "hours_minutes"]).optional(),
+  mobileBar: z.enum(["dock", "float", "hidden"]).optional(),
+  columns: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  density: z.enum(["comfortable", "compact"]).optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  detailPresentation: z.enum(["modal", "sheet_mobile", "inline"]).optional(),
+  showAskLink: z.boolean().optional(),
+  bookingSheet: z
+    .object({
+      accent: z.enum(["ink", "primary"]).optional(),
+      payNoteMode: z.enum(["studio", "none", "custom"]).optional(),
+      payNoteCustom: z.string().max(240).optional(),
+      extrasLegend: z.string().max(80).optional(),
+      optionalBadge: z.string().max(40).optional(),
+      continueChooseLabel: z.string().max(80).optional(),
+      continueWhenLabel: z.string().max(80).optional(),
+      confirmLabel: z.string().max(80).optional(),
+      successKicker: z.string().max(80).optional(),
+    })
+    .optional(),
   style: builderNodeStyleSchema,
 });
 

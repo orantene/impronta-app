@@ -30,7 +30,7 @@ export async function loadTalentSiteActivationStateAction(): Promise<
 
   const capabilities = buildTalentSiteCapabilities(scope.planKey);
   if (!capabilities.personalSiteEdit) {
-    return { canManage: false, hasSite: false, isPublished: false };
+    return { canManage: false, hasSite: false, isPublished: false, siteSlug: null };
   }
 
   const sb = await getCachedServerSupabase();
@@ -52,5 +52,5 @@ export async function loadTalentSiteActivationStateAction(): Promise<
   const hasSite = Boolean(slug);
   const isPublished = hasSite && Boolean(data?.site_published_at);
 
-  return { canManage: true, hasSite, isPublished };
+  return { canManage: true, hasSite, isPublished, siteSlug: slug };
 }

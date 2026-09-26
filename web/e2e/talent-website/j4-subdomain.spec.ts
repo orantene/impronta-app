@@ -28,12 +28,8 @@
 
 import { test, expect, type Page } from "@playwright/test";
 
-import {
-  signInJourneysStaff,
-  assertNotAuthWall,
-  awaitHydrated,
-} from "../cases/_harness";
-import { TALENT_FIXTURES, ACME_AGENCY_SLUG, talentFixture } from "./fixtures";
+import { ACME_AGENCY_SLUG, TALENT_FIXTURES, talentFixture } from "./fixtures";
+import { signInTalentFixture, TALENT_SITE_FIXTURE_READY } from "./helpers";
 
 // The canonical fixture identities live in ./fixtures.ts, which is the
 // companion to web/e2e/talent-website/seed.ts: the seed creates exactly these
@@ -43,11 +39,10 @@ const ACME_SLUG = ACME_AGENCY_SLUG;
 const T_MAX = talentFixture("t_max");
 const T_FREE_SITE = talentFixture("t_free_site");
 const T_MAX_SLUG = T_MAX.siteSlug as string;
-const T_MAX_EMAIL = T_MAX.email;
 const T_MAX_CUSTOM_DOMAIN = T_MAX.customDomain as string;
 const T_FREE_SITE_SLUG = T_FREE_SITE.siteSlug as string;
 
-const FIXTURE_READY = process.env.TALENT_SITE_E2E_FIXTURE_READY === "1";
+const FIXTURE_READY = TALENT_SITE_FIXTURE_READY;
 /** Port the local dev server (or `local-host-proxy.mjs`) answers `*.lvh.me` on. */
 const SUBDOMAIN_PORT = process.env.TALENT_SITE_E2E_SUBDOMAIN_PORT ?? "3000";
 
@@ -83,7 +78,8 @@ test("the t_max / t_free_site / acme fixture is really seeded", async ({ request
 
 /** Not a login page, not "host not registered", and not a blank document. */
 async function assertRealSitePage(page: Page): Promise<void> {
-  await assertNotAuthWall(page);
+  const url = page.url().toLowerCase();
+  expect(url, "login URL cannot pass a journey").not.toMatch(/\/login|\/signin|\/auth\//);
   await expect(page.getByText(/host not registered/i)).toHaveCount(0);
   await expect(page.locator("body")).toBeVisible();
 }
@@ -160,8 +156,7 @@ async function openStartWorkspaceDialog(page: Page): Promise<void> {
 test("creating a workspace whose slug collides with a live talent site is refused", async ({
   page,
 }) => {
-  await signInJourneysStaff(page, "/talent/today", T_MAX_EMAIL);
-  await awaitHydrated(page);
+  await signInTalentFixture(page, "t_max", "/talent/today");
 
   await openStartWorkspaceDialog(page);
 
@@ -180,8 +175,7 @@ test("creating a workspace whose slug collides with a live talent site is refuse
 });
 
 test("setting a talent slug to an existing agency slug ('acme') is refused", async ({ page }) => {
-  await signInJourneysStaff(page, "/talent/page-builder", T_MAX_EMAIL);
-  await awaitHydrated(page);
+  await signInTalentFixture(page, "t_max", "/talent/page-builder");
 
   const slugField = page.getByPlaceholder("your-name");
   await slugField.waitFor({ state: "visible", timeout: 15_000 });

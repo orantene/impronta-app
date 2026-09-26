@@ -1,6 +1,11 @@
 /** Token-first sheet chrome. Falls back to Jor blush when a site has no tokens. */
 export const CATALOG_BOOKING_CSS = `
-.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 12%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
+/* Prefer brand accent/rose over site --token-color-primary: vanity Max trees
+   often set primary to ink (#111), which made Continuar/check read black and
+   broke Maison 1:1 on book-jorgelina (CMS also stores bookingSheet.accent=ink). */
+.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-accent,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
+.cb-island[data-sheet-accent="ink"]{--cb-primary:var(--token-color-ink,var(--plt-ink,#242126));--cb-blush:color-mix(in srgb,var(--cb-primary) 8%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface))}
+.cb-island[data-sheet-accent="primary"]{--cb-primary:var(--token-color-accent,var(--plt-accent,#A82458));--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
 .jb-back{position:fixed;inset:0;z-index:120;background:rgba(36,33,38,.42);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:jb-fade 200ms cubic-bezier(.22,1,.36,1)}
 @keyframes jb-fade{from{opacity:0}to{opacity:1}}
 .jb-sheet{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:var(--cb-surface);color:var(--cb-ink);border-radius:22px 22px 0 0;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);box-shadow:0 -24px 60px -28px rgba(36,33,38,.45);animation:jb-rise 300ms cubic-bezier(.22,1,.36,1)}
@@ -65,7 +70,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-cta{appearance:none;border:0;cursor:pointer;min-height:52px;padding:0 24px;border-radius:10px;background:var(--cb-primary);color:#fff;font-family:inherit;font-size:.9375rem;font-weight:600}
 .jb-cta:hover:not(:disabled){filter:brightness(.92)}
 .jb-cta:disabled{background:var(--cb-edge);color:#fff;cursor:not-allowed}
-.jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:600;color:var(--cb-primary);text-align:left;min-height:44px}
+.jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:700;color:var(--cb-ink);text-align:left;min-height:44px}
 @media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh}.jb-foot{border-radius:0 0 20px 20px}}
 .cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -12px 32px -20px rgba(36,33,38,.4)}
 .cb-bar[data-show="true"]{display:flex}
@@ -73,6 +78,14 @@ export const CATALOG_BOOKING_CSS = `
 .cb-bar-text strong{font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cb-bar-text span{font-size:.75rem;color:var(--cb-muted)}
 .cb-bar button{appearance:none;border:0;cursor:pointer;min-height:44px;padding:0 18px;border-radius:10px;background:var(--cb-primary);color:#fff;font:inherit;font-size:.8125rem;font-weight:600;flex:0 0 auto}
-.site-builder-node--services-catalog-row[data-selected="true"]{background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 8%,transparent)}
-.site-builder-node--services-catalog-cta[data-selected="true"]{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog-name{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--cb-primary,#A82458);color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
+.site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.site-builder-node--services-catalog-price small{font-size:.6875rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--cb-muted,#66616B)}
+.site-builder-node--services-catalog-row[data-selected="true"]{background:var(--cb-blush,color-mix(in srgb,var(--cb-primary,#A82458) 8%,transparent))}
+.site-builder-node--services-catalog-cta[data-selected="true"]{background:var(--cb-blush,color-mix(in srgb,var(--cb-primary,#A82458) 14%,transparent))!important;color:var(--cb-ink)!important;border:1px solid var(--cb-primary,#A82458)!important}
+@media (min-width:720px){
+  .cb-bar:not([data-has-selection="true"]){display:none!important}
+  .cb-bar[data-show="true"][data-has-selection="true"]{left:auto;right:32px;bottom:32px;width:min(460px,calc(100vw - 64px));border:1px solid var(--cb-line);border-radius:18px;padding:16px 20px;box-shadow:0 24px 50px -30px rgba(36,33,38,.4)}
+}
 `;

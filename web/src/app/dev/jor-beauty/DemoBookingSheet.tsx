@@ -2,7 +2,7 @@
 
 import { CatalogBookingSheet } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
-import { askQuestion } from "@/app/t/[profileCode]/_maison/MaisonAsk";
+import { askFromBookingSheet } from "@/app/t/[profileCode]/_maison/MaisonAsk";
 
 /** Prototype consumer. `live` writes a real booking; the default does not. */
 export function DemoBookingSheet({
@@ -23,12 +23,12 @@ export function DemoBookingSheet({
       tenantId={tenantId}
       captcha={captcha}
       showAsk
-      onAsk={(detail) =>
-        askQuestion({
+      onAsk={(handoff) =>
+        askFromBookingSheet({
+          ...handoff,
           talentName: "Jorg Beauty",
           sourcePage: "/dev/jor-beauty",
-          offering: { id: detail.offeringId, title: detail.title },
-          from: "sheet",
+          demo: mode === "demo",
         })
       }
     />

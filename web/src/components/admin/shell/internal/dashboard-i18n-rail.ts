@@ -20,9 +20,11 @@
  */
 
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
+import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   ...LINKS_ES_TEXT,
+  ...WEBSITE_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
   // both the destination label and its landing child, and already has a row in
@@ -52,4 +54,33 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent Messages + Actions: shown when no thread is open (kept out of
   // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
   "Pick a conversation first": "Elige una conversación primero",
+  // Services Defaults — prep time + booking CTA modes (#2294). Same reason:
+  // do not grow the grandfathered dashboard-i18n.ts map.
+  "Preparation and gaps": "Preparación y márgenes",
+  "Preparation before each booking": "Preparación antes de cada cita",
+  "A 60 minute service booked at 10:00 needs prep from {prepStart}. It ends at 11:00 for the client and {end} for you.":
+    "Un servicio de 60 minutos reservado a las 10:00 necesita preparación desde las {prepStart}. Termina a las 11:00 para el cliente y a las {end} para ti.",
+  "Preparation blocks time before the start so the previous client cannot run into your setup. The after buffer hides the next slot that would overlap, and the notice hides anything sooner.":
+    "La preparación bloquea el tiempo antes del inicio para que el cliente anterior no se meta en tu setup. El margen de después oculta el siguiente horario que se encimaría, y el aviso oculta todo lo que sea antes.",
+  "How clients book": "Cómo reservan los clientes",
+  "Sheet button and path": "Botón y camino de la hoja",
+  "Booking mode": "Modo de reserva",
+  "On-demand reservation": "Reserva al momento",
+  "Contact / inquiry": "Contacto / consulta",
+  "Who-step button": "Botón del paso de datos",
+  "Confirm now": "Confirmar ahora",
+  "Check availability": "Consultar disponibilidad",
+  "After the client fills name and contact, this button opens chat with those details already filled in. It does not create a confirmed booking.":
+    "Cuando el cliente completa nombre y contacto, este botón abre el chat con esos datos ya cargados. No crea una cita confirmada.",
+  "After the client fills name and contact, this button confirms the appointment when the service allows instant booking.":
+    "Cuando el cliente completa nombre y contacto, este botón confirma la cita si el servicio admite reserva al momento.",
+  // Services dashboard ↔ website catalog parity (#2315). Keep out of
+  // dashboard-i18n.ts — that file is locked at the 3968-line size-ratchet budget.
+  "Put your menu on your page: the website Services widget shows the same offerings clients can book. It takes about a minute per service.":
+    "Pon tu menú en tu página: el widget de Servicios del sitio muestra las mismas ofertas que los clientes pueden reservar. Toma alrededor de un minuto por servicio.",
+  "Same catalog as your website.": "El mismo catálogo que tu sitio.",
+  "Prices and booking rules you save here go live on the Services menu widget when the offering is published. Website layout and styling stay draft until you publish the page.":
+    "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
+  "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.":
+    "El widget de menú de Servicios de tu sitio muestra el mismo catálogo: agrega una oferta aquí y puede aparecer en tu página sin reconstruir el menú.",
 };

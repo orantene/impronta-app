@@ -4,13 +4,16 @@ import { useState, type ReactNode } from "react";
 
 import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import { useT } from "@/i18n/use-t";
+import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 
 export type CheckoutViewProps = {
   readonly code: string;
+  /** Presentation path; defaults to branded `/pay`. */
+  readonly pathPrefix?: PayLinkPathPrefix;
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
-  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing";
+  readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing" | "refunded";
   readonly lines: readonly { label: string; units: number; unitCents: number }[];
   readonly holdUntil: string | null;
   readonly stripeUrl: string | null;
@@ -21,6 +24,7 @@ export type CheckoutViewProps = {
 export function CheckoutView(props: CheckoutViewProps) {
   const t = useT();
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
+  const pathPrefix = props.pathPrefix ?? "/pay";
   const total = `${props.currency} ${(props.amountCents / 100).toFixed(2)}`.trim();
 
   if (phase === "paid") {
@@ -34,6 +38,20 @@ export function CheckoutView(props: CheckoutViewProps) {
             {t("public.thread.receipt")}
           </a>
         ) : null}
+        {props.threadHref ? (
+          <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
+            {t("public.thread.backToThread")}
+          </a>
+        ) : null}
+      </Shell>
+    );
+  }
+
+  if (phase === "refunded") {
+    return (
+      <Shell>
+        <h1 className="text-[22px] font-semibold">{t("public.thread.refunded")}</h1>
+        <p className="mt-3 text-[16px]">{total}</p>
         {props.threadHref ? (
           <a className={POS_SECONDARY_ACTION} href={props.threadHref}>
             {t("public.thread.backToThread")}
@@ -124,7 +142,11 @@ export function CheckoutView(props: CheckoutViewProps) {
             {t("public.thread.pay")}
           </a>
         ) : (
-          <a className={POS_PRIMARY_ACTION} href={`/pay/${props.code}?confirm=mock`} onClick={() => setPhase("processing")}>
+          <a
+            className={POS_PRIMARY_ACTION}
+            href={`${pathPrefix}/${props.code}?confirm=mock`}
+            onClick={() => setPhase("processing")}
+          >
             {t("public.thread.pay")}
           </a>
         )}

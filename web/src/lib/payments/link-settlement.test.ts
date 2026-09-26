@@ -178,6 +178,21 @@ test("cancelling a link kills its Checkout session before the balance goes back"
   assert.equal(store.order_collection_reservations[0].state, "released");
 });
 
+// GAP-JOR-4: remint must mark the prior open link replaced (not merely cancelled).
+test("cancelPaymentLink asReplaced writes status=replaced", async () => {
+  const store = makeStore();
+  const { admin, code, link } = await mintStripeLink(store);
+  await openPaymentLinkCheckout(admin, { code, successUrl: SUCCESS, cancelUrl: CANCEL }, fakeStripe().deps);
+
+  const result = await cancelPaymentLink(
+    admin,
+    { tenantId: "t1", linkId: String(link.id), asReplaced: true },
+    { expireSession: async () => ({ ok: true, already: false }) },
+  );
+  assert.deepEqual(result, { ok: true, already: false });
+  assert.equal(link.status, "replaced");
+});
+
 test("cancelling a link whose session already completed says paid, and gives nothing back", async () => {
   const store = makeStore();
   const { admin, code, link } = await mintStripeLink(store);
@@ -332,7 +347,7 @@ test("?confirm=mock settles nothing on production, and never settles a Stripe li
 // ─── wiring guards ─────────────────────────────────────────────────────────────
 
 test("the pay page opens Checkout through the link's money row, never a bare session", () => {
-  const page = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  const page = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
   assert.doesNotMatch(page, /checkout\.sessions\.create/);
   assert.match(page, /openPaymentLinkCheckout\(/);
   assert.match(page, /mockPaymentsAllowed\(\)/);
