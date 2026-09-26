@@ -18810,6 +18810,7 @@
           "paid": "Pagado",
           "balance": "Saldo pendiente",
           "requestPayment": "Solicitar pago",
+          "refund": "Reembolsar",
           "none": "Sin cargos aún"
         },
         "files": {

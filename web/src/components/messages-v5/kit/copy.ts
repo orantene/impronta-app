@@ -490,6 +490,7 @@ export function buildKitCopy(t: Translator) {
         paid: t("dashboard.messagesV5.panel.money.paid"),
         balance: t("dashboard.messagesV5.panel.money.balance"),
         requestPayment: t("dashboard.messagesV5.panel.money.requestPayment"),
+        refund: t("dashboard.messagesV5.panel.money.refund"),
         none: t("dashboard.messagesV5.panel.money.none"),
       },
       files: { title: t("dashboard.messagesV5.panel.files.title") },
