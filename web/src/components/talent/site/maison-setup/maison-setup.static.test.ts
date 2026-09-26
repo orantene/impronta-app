@@ -128,3 +128,32 @@ test("publishMaxSiteAction gates on Maison readiness when flag on", () => {
   assert.match(src, /writeMaisonDesignPublishedRevision/);
   assert.match(src, /isTalentMaisonThemeEnabled/);
 });
+
+test("W60–W65: Custom colors panel + Theme detail entry (no placeholder alert)", () => {
+  const panel = read("CustomColorsPanel.tsx");
+  assert.match(panel, /data-testid="maison-custom-colors-panel"/);
+  assert.match(panel, /maison-custom-field-\$\{meta\.key\}/);
+  assert.match(panel, /key: "page"/);
+  assert.match(panel, /key: "text"/);
+  assert.match(panel, /key: "accent"/);
+  assert.match(panel, /key: "section"/);
+  assert.match(panel, /maison-contrast-advisory/);
+  assert.match(panel, /maison-contrast-preview-suggestion/);
+  assert.match(panel, /maison-contrast-use-adjustment/);
+  assert.match(panel, /enterKeyHint="done"/);
+  assert.match(panel, /maison-custom-kbd-strip/);
+  const detail = read("ThemeDetailScreen.tsx");
+  assert.match(detail, /CustomColorsPanel/);
+  assert.match(detail, /openCustomColors/);
+  assert.equal(/Custom colors open in a later step/.test(detail), false);
+});
+
+test("W66: Review summary uses My colors when custom_palette applied", () => {
+  const review = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-review-actions.ts"),
+    "utf8",
+  );
+  assert.match(review, /customPalette/);
+  assert.match(review, /buildSummaryLine/);
+  assert.match(review, /My colors|customPalette\.name/);
+});

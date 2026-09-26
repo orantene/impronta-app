@@ -18,10 +18,18 @@ import {
   type MaisonPaletteKey,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
+import {
+  buildMaisonCustomPalette,
+  defaultCustomFieldsFromPalette,
+  maisonCustomLookTokens,
+  type MaisonCustomColorFields,
+  type MaisonCustomPaletteStored,
+} from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { MaisonTagChips } from "./MaisonTagChips";
 import { ImportStarterPanel } from "./ImportStarterPanel";
+import { CustomColorsPanel } from "./CustomColorsPanel";
 import { MAISON_STARTER_COUNTS } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -48,6 +56,7 @@ export function ThemeDetailScreen({
   const preview = useThemePreview({ talentProfileId, locale });
   const [applyError, setApplyError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const lookSlug = `maison-${choices.paletteKey}`;
   const url = preview.src("maison", lookSlug);
@@ -57,24 +66,65 @@ export function ThemeDetailScreen({
     locale === "es"
       ? MAISON_SEED.theme.description.es
       : MAISON_SEED.theme.description.en;
-  const palette = MAISON_PALETTES[choices.paletteKey];
-  const paletteName = locale === "es" ? palette.name.es : palette.name.en;
-  const isDefaultPalette = choices.paletteKey === MAISON_DEFAULT_PALETTE_KEY;
+  const namedPalette = MAISON_PALETTES[choices.paletteKey];
+  const usingCustom = choices.useCustomPalette && choices.customPalette !== null;
+  const activeCustom = usingCustom ? choices.customPalette! : null;
+  const palette = activeCustom
+    ? {
+        section: activeCustom.fields.section,
+        accent: activeCustom.fields.accent,
+        page: activeCustom.fields.page,
+        text: activeCustom.fields.text,
+      }
+    : namedPalette;
+  const paletteName = activeCustom
+    ? locale === "es"
+      ? activeCustom.name.es
+      : activeCustom.name.en
+    : locale === "es"
+      ? namedPalette.name.es
+      : namedPalette.name.en;
+  const isDefaultPalette =
+    !usingCustom && choices.paletteKey === MAISON_DEFAULT_PALETTE_KEY;
 
   useEffect(() => {
-    preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
-  }, [choices.paletteKey, preview]);
+    if (usingCustom && choices.customPalette) {
+      preview.sendTokens(maisonCustomLookTokens(choices.customPalette));
+    } else {
+      preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
+    }
+  }, [choices.paletteKey, choices.useCustomPalette, choices.customPalette, usingCustom, preview]);
 
   const setPalette = (key: MaisonPaletteKey) => {
     onChange({
       paletteKey: key,
+      useCustomPalette: false,
       status: "Choices saved",
       phoneSheet: null,
     });
   };
 
+  const openCustomColors = () => {
+    onChange({ phoneSheet: null });
+    setCustomOpen(true);
+  };
+
   const openSheet = (sheet: MaisonPhoneSheet) => {
     onChange({ phoneSheet: sheet });
+  };
+
+  const handleCustomSaved = (paletteStored: MaisonCustomPaletteStored) => {
+    onChange({
+      customPalette: paletteStored,
+      useCustomPalette: true,
+      status: "Choices saved",
+      phoneSheet: null,
+    });
+    setCustomOpen(false);
+  };
+
+  const handleCustomPreview = (fields: MaisonCustomColorFields) => {
+    preview.sendTokens(maisonCustomLookTokens(buildMaisonCustomPalette(fields)));
   };
 
   const handleUseDesign = () => {
@@ -84,6 +134,10 @@ export function ThemeDetailScreen({
       const res = await applyMaisonDesignAction({
         paletteKey: choices.paletteKey,
         contentMode: choices.contentMode,
+        customPalette:
+          choices.useCustomPalette && choices.customPalette
+            ? choices.customPalette
+            : null,
       });
       if (!res.ok) {
         setApplyError(res.error);
@@ -93,6 +147,10 @@ export function ThemeDetailScreen({
       onAppliedToReview();
     });
   };
+
+  const customInitialFields: MaisonCustomColorFields =
+    choices.customPalette?.fields ??
+    defaultCustomFieldsFromPalette(namedPalette);
 
   const previewFrame = (
     <div
@@ -150,7 +208,7 @@ export function ThemeDetailScreen({
     <div data-maison-palette-swatches="" className="flex flex-wrap items-center gap-2">
       {MAISON_PALETTE_ORDER.map((key) => {
         const p = MAISON_PALETTES[key];
-        const selected = choices.paletteKey === key;
+        const selected = !usingCustom && choices.paletteKey === key;
         return (
           <button
             key={key}
@@ -173,13 +231,39 @@ export function ThemeDetailScreen({
           </button>
         );
       })}
+      {choices.customPalette ? (
+        <button
+          type="button"
+          data-testid="maison-palette-custom"
+          aria-label={
+            locale === "es"
+              ? choices.customPalette.name.es
+              : choices.customPalette.name.en
+          }
+          aria-pressed={usingCustom}
+          onClick={() =>
+            onChange({
+              useCustomPalette: true,
+              status: "Choices saved",
+              phoneSheet: null,
+            })
+          }
+          className={`relative h-[34px] w-[34px] min-h-11 min-w-11 rounded-full p-1 ${
+            usingCustom ? "ring-2 ring-admin-ink ring-offset-2" : ""
+          }`}
+        >
+          <span
+            className="block h-full w-full rounded-full"
+            style={{
+              background: `linear-gradient(135deg, ${choices.customPalette.fields.section} 50%, ${choices.customPalette.fields.accent} 50%)`,
+            }}
+          />
+        </button>
+      ) : null}
       <button
         type="button"
         data-testid="maison-custom-colors"
-        onClick={() => {
-          // Custom colors editor = PR7; keep entry chrome only.
-          window.alert(maisonSetupT(locale, "Custom colors open in a later step."));
-        }}
+        onClick={openCustomColors}
         className="min-h-11 rounded-full border border-admin-border-soft px-3 text-[12.5px] font-semibold text-admin-ink"
       >
         ✎ {maisonSetupT(locale, "Custom colors")}
@@ -486,7 +570,7 @@ export function ThemeDetailScreen({
                 <ul className="mt-3 space-y-1">
                   {MAISON_PALETTE_ORDER.map((key) => {
                     const p = MAISON_PALETTES[key];
-                    const selected = choices.paletteKey === key;
+                    const selected = !usingCustom && choices.paletteKey === key;
                     return (
                       <li key={key}>
                         <button
@@ -515,18 +599,45 @@ export function ThemeDetailScreen({
                       </li>
                     );
                   })}
+                  {choices.customPalette ? (
+                    <li>
+                      <button
+                        type="button"
+                        data-testid="maison-phone-my-colors"
+                        onClick={() =>
+                          onChange({
+                            useCustomPalette: true,
+                            status: "Choices saved",
+                            phoneSheet: null,
+                          })
+                        }
+                        className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-admin-surface-alt"
+                      >
+                        <span
+                          className="h-9 w-9 shrink-0 rounded-full"
+                          style={{
+                            background: `linear-gradient(135deg, ${choices.customPalette.fields.section} 50%, ${choices.customPalette.fields.accent} 50%)`,
+                          }}
+                        />
+                        <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-admin-ink">
+                          {locale === "es"
+                            ? choices.customPalette.name.es
+                            : choices.customPalette.name.en}
+                        </span>
+                        {usingCustom ? <span aria-hidden>✓</span> : null}
+                      </button>
+                    </li>
+                  ) : null}
                 </ul>
                 <button
                   type="button"
+                  data-testid="maison-phone-custom-colors"
                   className="mt-2 flex min-h-12 w-full items-center rounded-xl border border-admin-border-soft px-3 text-[13.5px] font-semibold"
-                  onClick={() => {
-                    onChange({ phoneSheet: null });
-                    window.alert(maisonSetupT(locale, "Custom colors open in a later step."));
-                  }}
+                  onClick={openCustomColors}
                 >
                   {maisonSetupT(locale, "Custom colors")} ›
                 </button>
-                {!isDefaultPalette ? (
+                {!isDefaultPalette || usingCustom ? (
                   <button
                     type="button"
                     className="mt-2 min-h-11 w-full text-[13px] font-semibold text-emerald-900"
@@ -549,6 +660,23 @@ export function ThemeDetailScreen({
           locale={locale}
           onClose={() => setImportOpen(false)}
           onContinueDesigning={() => setImportOpen(false)}
+        />
+      ) : null}
+
+      {customOpen ? (
+        <CustomColorsPanel
+          locale={locale}
+          initialFields={customInitialFields}
+          initialName={
+            choices.customPalette
+              ? locale === "es"
+                ? choices.customPalette.name.es
+                : choices.customPalette.name.en
+              : undefined
+          }
+          onPreviewFields={handleCustomPreview}
+          onClose={() => setCustomOpen(false)}
+          onSaved={handleCustomSaved}
         />
       ) : null}
     </section>

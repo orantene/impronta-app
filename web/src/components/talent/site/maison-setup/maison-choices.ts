@@ -1,6 +1,7 @@
 /**
  * Maison setup choices (W32–W33) — persist palette / content mode / screen so
  * close → reopen resumes. Apply writes live in maison-apply-actions (PR5).
+ * Custom colors (W60–W64) persist as `customPalette` when saved.
  */
 import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import {
@@ -8,6 +9,10 @@ import {
   MAISON_PALETTE_ORDER,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
+import {
+  parseMaisonCustomPaletteStored,
+  type MaisonCustomPaletteStored,
+} from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 
 export type MaisonSetupScreen = "gallery" | "detail" | "review";
 export type MaisonPreviewDevice = "desktop" | "phone";
@@ -21,6 +26,9 @@ export type MaisonSetupChoices = {
   previewDevice: MaisonPreviewDevice;
   status: MaisonStatusWord;
   phoneSheet: MaisonPhoneSheet;
+  /** When set and `useCustomPalette`, preview/apply use these colors (W64). */
+  customPalette: MaisonCustomPaletteStored | null;
+  useCustomPalette: boolean;
 };
 
 export const MAISON_CHOICES_STORAGE_PREFIX = "maison-setup-choices:";
@@ -33,6 +41,8 @@ export function defaultMaisonChoices(): MaisonSetupChoices {
     previewDevice: "desktop",
     status: "Preview",
     phoneSheet: null,
+    customPalette: null,
+    useCustomPalette: false,
   };
 }
 
@@ -60,6 +70,8 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
     o.status === "Preview"
       ? o.status
       : "Preview";
+  const customPalette = parseMaisonCustomPaletteStored(o.customPalette);
+  const useCustomPalette = o.useCustomPalette === true && customPalette !== null;
   return {
     screen,
     paletteKey,
@@ -67,6 +79,8 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
     previewDevice,
     status,
     phoneSheet: null, // sheets never persist across reopen
+    customPalette,
+    useCustomPalette,
   };
 }
 

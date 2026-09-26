@@ -158,6 +158,14 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - Services `?from=website-setup` banner + draft filter.
 - Visual pixel match deferred until owner PDF/prototype.
 
+### PR 7 notes (W60–W66)
+
+- `CustomColorsPanel` — four fields, live preview tokens, advisory contrast (never blocks).
+- Suggestion previewed; applied only on "Use this adjustment". Derived rule (section −6%) + on_accent.
+- Save as My colors (renameable) → `custom_palette` jsonb + tokens_draft on apply; named look cleared.
+- Review summary: `Maison · My colors · Your content` (W66).
+- Visual pixel match deferred until owner PDF/prototype.
+
 ---
 
 ## File lock / coordination

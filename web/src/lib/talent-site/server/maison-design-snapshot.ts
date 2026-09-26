@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
+import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 
 export type MaisonDraftSnapshot = {
   shell_tree: unknown;
@@ -29,10 +30,12 @@ export type MaisonPendingUndo = {
   created_at: string;
   applied: {
     designSlug: string;
-    lookSlug: string;
-    paletteKey: MaisonPaletteKey;
+    lookSlug: string | null;
+    paletteKey: MaisonPaletteKey | null;
     contentMode: MaisonPreviewContentMode;
     demoSlug: string;
+    /** Present when talent saved My colors (W64 / W66). */
+    customPalette?: MaisonCustomPaletteStored | null;
   };
 };
 

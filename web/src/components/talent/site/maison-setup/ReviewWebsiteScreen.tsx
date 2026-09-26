@@ -14,6 +14,7 @@ import { undoMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-ac
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import { maisonReadinessHeadline } from "@/lib/talent-site/server/maison-publish-readiness";
 import { maisonPaletteLookTokens } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { maisonCustomLookTokens } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import type { MaisonSetupChoices } from "./maison-choices";
@@ -47,8 +48,17 @@ export function ReviewWebsiteScreen({
   const previewUrl = preview.src("maison", `maison-${choices.paletteKey}`);
 
   useEffect(() => {
-    preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
-  }, [choices.paletteKey, preview]);
+    if (choices.useCustomPalette && choices.customPalette) {
+      preview.sendTokens(maisonCustomLookTokens(choices.customPalette));
+    } else {
+      preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
+    }
+  }, [
+    choices.paletteKey,
+    choices.useCustomPalette,
+    choices.customPalette,
+    preview,
+  ]);
 
   const reload = useCallback(() => {
     startTransition(async () => {
@@ -175,6 +185,21 @@ export function ReviewWebsiteScreen({
             <span className="text-admin-ink-muted"> · </span>
             <span data-testid="maison-review-summary">{state?.summaryLine ?? "…"}</span>
           </p>
+          {state?.customPalette ? (
+            <details
+              data-testid="maison-review-design-details"
+              className="text-[12px] text-admin-ink-dim"
+            >
+              <summary className="min-h-11 cursor-pointer font-semibold text-admin-ink-muted">
+                {locale === "es" ? "Detalles del diseño" : "Design details"}
+              </summary>
+              <p className="mt-1">
+                {locale === "es"
+                  ? "Empezaste desde la demo Nails & Lashes Artist. Nada de su contenido está en tu sitio."
+                  : "Started from the Nails & Lashes Artist demo. None of its content is on your site."}
+              </p>
+            </details>
+          ) : null}
           <p>
             <span className="font-semibold text-admin-ink">
               {maisonSetupT(locale, "Address")}

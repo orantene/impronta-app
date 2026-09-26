@@ -20,6 +20,10 @@ import {
 } from "./maison-publish-readiness";
 import { isMaisonPendingUndo } from "./maison-design-snapshot";
 import { MAISON_PALETTES, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
+import {
+  parseMaisonCustomPaletteStored,
+  type MaisonCustomPaletteStored,
+} from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 
 export type MaisonReviewState = {
   siteSlug: string | null;
@@ -28,10 +32,11 @@ export type MaisonReviewState = {
   themeLookSlug: string | null;
   canUndo: boolean;
   readiness: MaisonPublishReadiness;
-  /** e.g. "Maison · Lilac & Plum · Your content" */
+  /** e.g. "Maison · Lilac & Plum · Your content" or "Maison · My colors · Your content" (W66) */
   summaryLine: string;
   contentMode: "demo" | "mine";
   paletteKey: MaisonPaletteKey | null;
+  customPalette: MaisonCustomPaletteStored | null;
 };
 
 function siteUrl(slug: string | null): string | null {
@@ -51,14 +56,17 @@ function lookSlugToPaletteKey(lookSlug: string | null): MaisonPaletteKey | null 
 
 function buildSummaryLine(input: {
   paletteKey: MaisonPaletteKey | null;
+  customPalette: MaisonCustomPaletteStored | null;
   contentMode: "demo" | "mine";
   locale: "en" | "es";
 }): string {
-  const paletteName = input.paletteKey
-    ? MAISON_PALETTES[input.paletteKey].name[input.locale]
-    : input.locale === "es"
-      ? "Colores"
-      : "Colors";
+  const paletteName = input.customPalette
+    ? input.customPalette.name[input.locale]
+    : input.paletteKey
+      ? MAISON_PALETTES[input.paletteKey].name[input.locale]
+      : input.locale === "es"
+        ? "Colores"
+        : "Colors";
   const content =
     input.contentMode === "mine"
       ? input.locale === "es"
@@ -84,7 +92,7 @@ export async function loadMaisonReviewStateAction(input?: {
 
   const { data, error } = await sb
     .from("talent_sites")
-    .select("site_slug, theme_design_slug, theme_look_slug, pending_design")
+    .select("site_slug, theme_design_slug, theme_look_slug, pending_design, custom_palette")
     .eq("talent_profile_id", g.talentProfileId)
     .maybeSingle();
   if (error) {
@@ -96,6 +104,7 @@ export async function loadMaisonReviewStateAction(input?: {
     theme_design_slug: string | null;
     theme_look_slug: string | null;
     pending_design: unknown;
+    custom_palette: unknown;
   } | null;
 
   const contentMode = input?.contentMode === "mine" ? "mine" : "demo";
@@ -104,10 +113,16 @@ export async function loadMaisonReviewStateAction(input?: {
   const pending = row?.pending_design;
   const appliedMode =
     isMaisonPendingUndo(pending) && pending.applied.contentMode === "mine" ? "mine" : contentMode;
+  const appliedCustom =
+    (isMaisonPendingUndo(pending) && pending.applied.customPalette
+      ? parseMaisonCustomPaletteStored(pending.applied.customPalette)
+      : null) ?? parseMaisonCustomPaletteStored(row?.custom_palette);
   const appliedPalette =
-    isMaisonPendingUndo(pending) && pending.applied.paletteKey
-      ? pending.applied.paletteKey
-      : paletteKey;
+    appliedCustom
+      ? null
+      : isMaisonPendingUndo(pending) && pending.applied.paletteKey
+        ? pending.applied.paletteKey
+        : paletteKey;
 
   const readiness = evaluateMaisonPublishReadiness({
     siteSlug: row?.site_slug ?? null,
@@ -125,11 +140,13 @@ export async function loadMaisonReviewStateAction(input?: {
       readiness,
       summaryLine: buildSummaryLine({
         paletteKey: appliedPalette,
+        customPalette: appliedCustom,
         contentMode: appliedMode,
         locale,
       }),
       contentMode: appliedMode,
       paletteKey: appliedPalette,
+      customPalette: appliedCustom,
     },
   };
 }
