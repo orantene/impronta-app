@@ -121,6 +121,8 @@ export function MaisonSetupHost({
           locale={locale}
           talentProfileId={talentProfileId}
           onExplore={() => patch({ screen: "detail", status: "Preview" })}
+          onBack={onCloseToSite}
+          onClose={onCloseToSite}
         />
       ) : choices.screen === "review" ? (
         <ReviewWebsiteScreen

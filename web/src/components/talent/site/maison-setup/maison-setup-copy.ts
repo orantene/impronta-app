@@ -3,6 +3,7 @@ export type MaisonSetupLocale = "en" | "es";
 
 const ES: Record<string, string> = {
   "Choose a design": "Elige un diseño",
+  Today: "Hoy",
   "Your free website": "Tu sitio web gratis",
   "Find your website style": "Encuentra el estilo de tu sitio",
   "Explore designs, then see them with your photos and services.":
