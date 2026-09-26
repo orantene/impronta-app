@@ -527,7 +527,7 @@ export function ServicesHome({
           <p className="mt-1">{copy.t("No services yet. Add your first one. It takes about twenty seconds and nothing is public until you save.")}</p>
           <p className="mt-2">
             {copy.t(
-              "Your website Services menu widget shows the same catalog — add an offering here and it can appear on your page without rebuilding the menu.",
+              "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.",
             )}
           </p>
           <button type="button" className="mt-2 font-semibold text-admin-brand" onClick={() => setTypeOpen(true)}>
