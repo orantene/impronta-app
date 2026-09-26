@@ -12,6 +12,7 @@
  * degrades to `{ enabled: false }` so the manager falls back to the old
  * `TemplateGallery` silently, never a thrown error.
  */
+import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -39,9 +40,12 @@ export async function loadThemeGalleryBootstrapAction(): Promise<ThemeGalleryBoo
     return { ok: true, data: { enabled: false } };
   }
 
-  // Free talents get personalSiteEdit (and DesignPresets); personalSiteSections
-  // is Web Office only. Default gate() would lock Free out of the gallery.
-  const g = await gate("personalSiteEdit");
+  // Free → personalSiteEdit ONLY when the Maison theme flag is on. Otherwise
+  // keep today's Web Office gate (personalSiteSections) so flag-off production
+  // is unchanged (TALENT_THEME_GALLERY_ENABLED is already on in prod).
+  const g = await gate(
+    isTalentMaisonThemeEnabled() ? "personalSiteEdit" : "personalSiteSections",
+  );
   if (!g.ok) {
     // Not entitled / not signed in — the manager's own gate already handles the
     // upsell; this bootstrap just degrades to the old gallery rather than

@@ -84,9 +84,15 @@ Talent-site color editor writing `custom_palette`. Contrast via existing a11y he
 
 ---
 
-## A11. Feature flag
+## A11. Feature flag + flag-off production unchanged
 
-`TALENT_MAISON_THEME_ENABLED` — default off; off in production until the owner flips it. Existing three flags are already on in production.
+`TALENT_MAISON_THEME_ENABLED` — default off; off in production until the owner flips it.
+
+**Critical (binding plan correction):** `TALENT_THEME_GALLERY_ENABLED` is already on in production. Therefore:
+
+1. **Gallery gate:** `gallery-bootstrap-action` uses `personalSiteEdit` **only when** `TALENT_MAISON_THEME_ENABLED` is on. When the Maison flag is off, keep today's `personalSiteSections` gate (Free talents still get the old starter-gallery fallback path). Unconditional `personalSiteEdit` would ship Free→5×6 gallery while Maison is off = prod change.
+2. **Catalog load:** Maison Design, its Look palettes (`maison-*` / `for_design=maison`), and its Demo must **not** appear in `loadTalentThemeCatalog` — including the in-code built-ins fallback — unless the Maison flag is on.
+3. **Tests:** explicit flags-off tests for both the gallery gate and catalog filter.
 
 ---
 
@@ -96,22 +102,21 @@ Choose a design, Theme detail, Import, Custom colors, Review, Design options = t
 
 ---
 
-## Owner decisions (defaults — ask once in plain language)
+## Owner rulings (already ruled — not defaults to re-ask)
 
-| # | Question | Default if unanswered |
-|---|---|---|
-| 1 | FAQ as real data (`talent_faq_items`)? | **Yes** |
-| 2 | Contrast check advisory, not blocking? | **Yes** |
-| 3 | Demo images source? | Licensed stock / preview-only; **never** jor-beauty photos as Maison demo |
-| 4 | Migrate Jor to Maison theme now? | **No** — separate owner-approved step after this build is proven |
-
-Already ruled (do not re-ask): services and prices show on the free site (2026-09-24).
+| # | Ruling |
+|---|---|
+| 1 | FAQ as real data — add `talent_faq_items`. |
+| 2 | Contrast check is **advisory**, not blocking. |
+| 3 | Demo images — licensed stock from `platform_stock_images` only, preview-only; never jor-beauty photos. |
+| 4 | Jor stays on her hand-built page / read-only for this build; migration is a later owner-approved step. |
+| 5 | Free-plan services and prices are public (owner 2026-09-24). Maison's menu shows published offerings on the free plan. |
 
 ---
 
 ## Deviations
 
-_None yet. Phase A ships docs + gallery gate fix + Maison flag + typed seed constants; schema migrations wait for program-assigned timestamps._
+_None._ PR #2317 keeps docs + flag + seed + **conditional** gallery gate + catalog filter (no schema yet; migrations wait for program-assigned timestamps). Prefer next: serial PR 1 for schema after this is green.
 
 ---
 
@@ -119,3 +124,4 @@ _None yet. Phase A ships docs + gallery gate fix + Maison flag + typed seed cons
 
 - Do **not** collide with CatalogBookingSheet vanity 1:1 PR (#2308). Prefer Maison layout / theme / import / gallery paths.
 - `services_catalog` behaviour for live vanity may land elsewhere — build on it, do not fork chrome.
+- Demo inertness (A3) includes `CatalogBookingSheet` — never open a real booking/chat/payment from a demo preview (W15; PR 2).

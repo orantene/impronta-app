@@ -1,9 +1,11 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { BUILTIN_DESIGNS, BUILTIN_LOOKS } from "./builtins";
+import { filterCatalogRowsForMaisonFlag } from "./maison/catalog-visibility";
 import { isTalentThemeRequiredTier, talentPlanAllowsThemeTier } from "./tier";
 import type {
   TalentThemeCatalogEntry,
@@ -166,13 +168,18 @@ function toEntry(
  * `planKey`. Falls back to the in-code built-ins (`./builtins`) when the
  * table read fails OR returns no published rows, so the gallery renders
  * correctly even before `syncBuiltinTalentThemes` has ever run.
+ *
+ * Maison Design / Looks / Demos are omitted unless `TALENT_MAISON_THEME_ENABLED`
+ * is on — including when this path falls back to in-code built-ins — so
+ * flag-off production stays unchanged.
  */
 export async function loadTalentThemeCatalog(input: {
   planKey: string | null | undefined;
 }): Promise<TalentThemeCatalog> {
   const rows = await loadPublishedRows();
-  const source: CatalogListingRow[] =
+  const raw: CatalogListingRow[] =
     rows && rows.length > 0 ? rows : [...fallbackRows("design"), ...fallbackRows("look")];
+  const source = filterCatalogRowsForMaisonFlag(raw, isTalentMaisonThemeEnabled());
 
   const bySortOrder = (a: CatalogListingRow, b: CatalogListingRow) => a.sort_order - b.sort_order;
   const designs = source
