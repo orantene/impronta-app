@@ -29,14 +29,17 @@ type AdminLike = {
   };
 };
 
-const APP_HOSTS = new Set([
+const APP_HOSTS: ReadonlySet<string> = new Set([
   "app.tulala.digital",
   "app.local",
   "localhost",
   "127.0.0.1",
 ]);
 
-const MARKETING_HOSTS = new Set([TULALA_APEX_HOST, TULALA_WWW_HOST]);
+const MARKETING_HOSTS: ReadonlySet<string> = new Set([
+  TULALA_APEX_HOST,
+  TULALA_WWW_HOST,
+]);
 
 export function payOriginNeedsTenantHost(origin: string): boolean {
   try {

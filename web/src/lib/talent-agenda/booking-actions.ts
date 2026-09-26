@@ -703,9 +703,10 @@ export async function createAgendaBookingPayLink(input: {
   }
 
   const { resolveAgendaPayPublicOrigin } = await import("./pay-public-origin");
-  // Service-role client is wider than the helper's AdminLike; cast at the boundary.
+  // Service-role client is wider than the helper's narrow AdminLike surface.
   const publicOrigin = await resolveAgendaPayPublicOrigin(
-    admin as Parameters<typeof resolveAgendaPayPublicOrigin>[0],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+    admin as any,
     String(row.tenant_id),
     input.publicOrigin,
   );
