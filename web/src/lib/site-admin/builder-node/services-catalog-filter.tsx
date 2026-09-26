@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { resolveOfferingCta, offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
@@ -10,6 +10,8 @@ import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptch
 import {
   catalogRowCtaLabel,
   catalogRowHasOptions,
+  catalogRowMinCents,
+  catalogRowShowsFrom,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
@@ -102,7 +104,7 @@ export function ServicesCatalogFilter({
   durationFormat = "auto",
   mobileBar = "float",
   showAskLink = true,
-  sheetAccent = "ink",
+  sheetAccent = "primary",
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
 }: {
@@ -290,7 +292,7 @@ export function ServicesCatalogFilter({
 
       <div
         className="cb-bar"
-        data-show={!sheetOpen}
+        data-show={!sheetOpen && (selectedId !== null || mobileBar !== "hidden")}
         data-has-selection={selectedId !== null}
         data-bar-style={mobileBar}
       >
@@ -300,8 +302,8 @@ export function ServicesCatalogFilter({
             {selectedId
               ? `${selectedBits ? `${selectedBits} · ` : ""}${formatMoney(selectedTotal, selectedCurrency, locale)}`
               : es
-                ? "Tocá Seleccionar para armar tu reserva"
-                : "Tap Select to start your booking"}
+                ? "Del menú completo, con sus opciones"
+                : "From the full menu, with its options"}
           </span>
         </div>
         {selectedId ? (
@@ -352,8 +354,13 @@ export function CatalogRow({
   onSelect?: () => void;
 }) {
   const cover = showPhoto ? item.imageUrls[0] : undefined;
-  const price = offeringPriceLabel(item, locale);
-  const usd = usdEquivalentLabel(item.amountCents, item.currency, usdRates, locale);
+  const es = locale.startsWith("es");
+  const onRequest = item.visibility === "on_request";
+  const quote =
+    item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+  const minCents = catalogRowMinCents(item);
+  const ladder = catalogRowShowsFrom(item);
+  const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
   const raw = resolveOfferingCta(item);
   const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
   const label = catalogRowCtaLabel({
@@ -372,10 +379,9 @@ export function CatalogRow({
       ) : null}
       <span className="site-builder-node--services-catalog-copy">
         <strong className="site-builder-node--services-catalog-name" title={item.title}>
-          {item.title}
+          <span className="site-builder-node--services-catalog-name-text">{item.title}</span>
           {selected ? (
             <span className="site-builder-node--services-catalog-check" aria-hidden>
-              {" "}
               ✓
             </span>
           ) : null}
@@ -390,7 +396,14 @@ export function CatalogRow({
         ) : null}
       </span>
       <span className="site-builder-node--services-catalog-price">
-        <strong>{price}</strong>
+        {onRequest || quote || minCents == null ? (
+          <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+        ) : (
+          <>
+            {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+            <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+          </>
+        )}
         {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
       </span>
       <button

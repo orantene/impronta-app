@@ -51,26 +51,46 @@ export function catalogRowCtaLabel(opts: {
   inspectorLabel?: string;
 }): string {
   if (opts.selected) return opts.locale.startsWith("es") ? "Seleccionado" : "Selected";
-  if (opts.inspectorLabel?.trim()) return opts.inspectorLabel.trim();
   const es = opts.locale.startsWith("es");
   const cta = resolveOfferingCta(opts.offering);
   // Meaning-preserving labels (brief §10). Never say Book when the path is inquiry/quote.
+  // Inspector ctaLabel must not clobber option / quote / consult CTAs — Jorg Beauty
+  // CMS stored "Seleccionar" and wiped "Elegir opciones" on Soft Gel (vanity 1:1).
   if (cta === "ask_quote") return es ? "Pedir cotización" : "Request a quote";
   if (cta === "request" || opts.offering.visibility === "on_request") {
     return es ? "Consultar" : "Ask about this";
   }
   if (cta === "request_to_book") {
     if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
-    return es ? "Solicitar cita" : "Request appointment";
+    return opts.inspectorLabel?.trim() || (es ? "Solicitar cita" : "Request appointment");
   }
   if (cta === "buy_now") {
     // Product purchase UI in this sheet is not a full cart — open options/detail only.
     if (catalogRowHasOptions(opts.offering)) return es ? "Ver opciones" : "View options";
-    return es ? "Ver" : "View";
+    return opts.inspectorLabel?.trim() || (es ? "Ver" : "View");
   }
   if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
   // Instant appointment — menu-style "Select" matches mockups; sheet opens time picker.
-  return es ? "Seleccionar" : "Select";
+  // Inspector may rename the plain Select label only.
+  return opts.inspectorLabel?.trim() || (es ? "Seleccionar" : "Select");
+}
+
+/** Min bookable cents for a row — base amount or cheapest variant. */
+export function catalogRowMinCents(
+  o: Pick<TalentOffering, "amountCents" | "variants">,
+): number | null {
+  const prices = [
+    ...(o.variants ?? []).map((v) => v.amountCents ?? o.amountCents),
+    o.amountCents,
+  ].filter((c): c is number => typeof c === "number" && c > 0);
+  return prices.length ? Math.min(...prices) : o.amountCents ?? null;
+}
+
+/** Maison ladder: "from" display OR more than one variant → DESDE / From. */
+export function catalogRowShowsFrom(
+  o: Pick<TalentOffering, "priceDisplay" | "variants">,
+): boolean {
+  return o.priceDisplay === "from" || (o.variants ?? []).length > 1;
 }
 
 /** Published hours for demo / canvas: Monday–Saturday. Sunday is closed. */

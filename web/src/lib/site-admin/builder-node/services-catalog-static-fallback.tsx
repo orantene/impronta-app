@@ -2,8 +2,14 @@
 
 import type { ReactNode } from "react";
 
+import {
+  catalogRowCtaLabel,
+  catalogRowMinCents,
+  catalogRowShowsFrom,
+} from "@/components/public-booking/catalog-booking-logic";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
-import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { formatMoney } from "@/lib/talent/offerings-money";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 import { catalogDurationPhrase } from "@/lib/site-admin/builder-node/services-catalog-title";
 
@@ -34,9 +40,8 @@ export function ServicesCatalogStaticFallback({
   ctaLabel?: string;
 }): ReactNode {
   const es = locale.startsWith("es");
-  const label = ctaLabel?.trim() || (es ? "Seleccionar" : "Select");
   return (
-    <div className="cb-island" data-catalog-static-fallback="">
+    <div className="cb-island" data-catalog-static-fallback="" data-sheet-accent="primary">
       {groups.map((g) => (
         <div
           key={g.name ?? "_"}
@@ -49,10 +54,20 @@ export function ServicesCatalogStaticFallback({
           <ul className="site-builder-node--services-catalog-list">
             {g.items.map((item) => {
               const cover = showPhoto ? item.imageUrls[0] : undefined;
-              const price = offeringPriceLabel(item, locale);
+              const onRequest = item.visibility === "on_request";
+              const quote =
+                item.priceDisplay === "quote" || item.priceType === "custom" || item.amountCents == null;
+              const minCents = catalogRowMinCents(item);
+              const ladder = catalogRowShowsFrom(item);
               const usd = showUsdEquivalent
-                ? usdEquivalentLabel(item.amountCents, item.currency, null, locale)
+                ? usdEquivalentLabel(minCents, item.currency, null, locale)
                 : null;
+              const label = catalogRowCtaLabel({
+                selected: false,
+                offering: item,
+                locale,
+                inspectorLabel: ctaLabel,
+              });
               return (
                 <li key={item.id} className="site-builder-node--services-catalog-row">
                   {cover ? (
@@ -73,7 +88,22 @@ export function ServicesCatalogStaticFallback({
                     ) : null}
                   </span>
                   <span className="site-builder-node--services-catalog-price">
-                    <strong>{price}</strong>
+                    {onRequest || quote || minCents == null ? (
+                      <strong>
+                        {es
+                          ? onRequest
+                            ? "Bajo consulta"
+                            : "Cotización a pedido"
+                          : onRequest
+                            ? "On request"
+                            : "Quote on request"}
+                      </strong>
+                    ) : (
+                      <>
+                        {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                        <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+                      </>
+                    )}
                     {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
                   </span>
                   <span className="site-builder-node--services-catalog-cta" aria-hidden>
