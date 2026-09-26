@@ -49,12 +49,18 @@ import {
 } from "../../src/lib/talent-site/default-max-site-trees";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
 
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 import {
   ACME_AGENCY_DOMAIN,
   ACME_AGENCY_LOCAL_DOMAIN,
   ACME_AGENCY_SLUG,
+  AUTH_STATE_DIR,
   EXTRA_PAGE_SLUG,
   FIXTURE_PASSWORD,
+  MAISON_IVAN_SERVICES,
+  MAISON_VALE_SERVICES,
   MULTI_ROSTER_AGENCIES,
   TALENT_FIXTURES,
   type TalentFixture,
@@ -220,7 +226,32 @@ async function pickReferenceLocationId(): Promise<string> {
 
 /** Any active `taxonomy_terms` row of kind `talent_type` — the "primary talent type" fixtures need. */
 async function pickTalentTypeTermId(): Promise<string> {
-  const { data, error } = await admin
+  return ensureTalentTypeTerm({
+    slug: "qa-fixture-talent-type",
+    nameEn: "QA Fixture Type",
+    nameEs: "Tipo QA",
+  });
+}
+
+/**
+ * Ensure a talent_type term whose English label matches website-eligibility
+ * mode inference (nails → bookings, chef → quotes).
+ */
+async function ensureTalentTypeTerm(opts: {
+  slug: string;
+  nameEn: string;
+  nameEs: string;
+}): Promise<string> {
+  const { data: bySlug, error: slugErr } = await admin
+    .from("taxonomy_terms")
+    .select("id")
+    .eq("kind", "talent_type")
+    .eq("slug", opts.slug)
+    .maybeSingle();
+  if (slugErr) throw slugErr;
+  if (bySlug?.id) return bySlug.id as string;
+
+  const { data: anyActive, error } = await admin
     .from("taxonomy_terms")
     .select("id")
     .eq("kind", "talent_type")
@@ -229,22 +260,26 @@ async function pickTalentTypeTermId(): Promise<string> {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  if (data?.id) return data.id as string;
+  // Prefer an exact slug match above; only create when missing. For the
+  // generic QA term we still accept any active row so hermetic DBs stay green.
+  if (opts.slug === "qa-fixture-talent-type" && anyActive?.id) {
+    return anyActive.id as string;
+  }
 
-  log("No active talent_type taxonomy term found — inserting a fallback QA term.");
+  log(`No talent_type '${opts.slug}' — inserting.`);
   const { data: inserted, error: insErr } = await admin
     .from("taxonomy_terms")
     .insert({
       kind: "talent_type",
       term_type: "talent_type",
-      slug: "qa-fixture-talent-type",
-      name_i18n: { en: "QA Fixture Type", es: "Tipo QA" },
+      slug: opts.slug,
+      name_i18n: { en: opts.nameEn, es: opts.nameEs },
       is_active: true,
     })
     .select("id")
     .single();
   if (insErr) throw insErr;
-  return must(inserted, "fallback taxonomy term").id as string;
+  return must(inserted, `taxonomy term ${opts.slug}`).id as string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -533,14 +568,23 @@ async function ensureTalentProfile(
   }
 
   if (readiness.media) {
-    await ensureApprovedMedia(talentProfileId, ctx.hubTenantId, 3);
+    const mediaCount =
+      fx.maisonRole === "vale" ? 6 : fx.maisonRole === "ivan" ? 2 : 3;
+    await ensureApprovedMedia(talentProfileId, ctx.hubTenantId, mediaCount);
   }
 
   if (readiness.offering) {
-    await ensurePublishedOffering(talentProfileId, `${fx.displayName}'s signature service`);
-    // The Maison catalogue needs a tabbable, optioned, instant-asking menu that
-    // the single signature service above cannot provide. See ensureMaisonCatalogue.
-    await ensureMaisonCatalogue(talentProfileId);
+    if (fx.maisonRole === "vale") {
+      await ensureValeServices(talentProfileId);
+      await ensureBookingHours(talentProfileId, ctx.hubTenantId);
+    } else if (fx.maisonRole === "ivan") {
+      await ensureIvanServices(talentProfileId);
+    } else {
+      await ensurePublishedOffering(talentProfileId, `${fx.displayName}'s signature service`);
+      // The Maison catalogue needs a tabbable, optioned, instant-asking menu that
+      // the single signature service above cannot provide. See ensureMaisonCatalogue.
+      await ensureMaisonCatalogue(talentProfileId);
+    }
   }
 
   return talentProfileId;
@@ -730,6 +774,90 @@ async function ensurePublishedOffering(talentProfileId: string, title: string): 
   if (error) throw error;
 }
 
+/** Vale's three nail services from maison-seed-data.json fixtures.vale. */
+async function ensureValeServices(talentProfileId: string): Promise<void> {
+  for (const svc of MAISON_VALE_SERVICES) {
+    await upsertOffering(talentProfileId, {
+      title: svc.title,
+      category: svc.category,
+      duration_minutes: svc.durationMin,
+      amount_cents: svc.amountCents,
+    });
+  }
+}
+
+/** Iván's four quote services (no prices) from maison-seed-data.json fixtures.ivan. */
+async function ensureIvanServices(talentProfileId: string): Promise<void> {
+  for (const svc of MAISON_IVAN_SERVICES) {
+    const { data: existing, error: selErr } = await admin
+      .from("talent_offerings")
+      .select("id")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("title", svc.title)
+      .maybeSingle();
+    if (selErr) throw selErr;
+    if (existing) {
+      const { error } = await admin
+        .from("talent_offerings")
+        .update({
+          status: "published",
+          booking_mode: "request",
+          price_display: "hidden",
+          amount_cents: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", (existing as { id: string }).id);
+      if (error) throw error;
+      continue;
+    }
+    const { error } = await admin.from("talent_offerings").insert({
+      talent_profile_id: talentProfileId,
+      owner_kind: "talent",
+      kind: "service",
+      title: svc.title,
+      category: svc.category,
+      price_type: "flat_package",
+      price_display: "hidden",
+      amount_cents: 0,
+      currency: "MXN",
+      booking_mode: "request",
+      status: "published",
+      visibility: "public",
+    });
+    if (error) throw error;
+  }
+}
+
+/** Weekday booking hours so website-eligibility `when` is done (bookings mode). */
+async function ensureBookingHours(talentProfileId: string, tenantId: string): Promise<void> {
+  const weekly = {
+    0: [] as { startMin: number; endMin: number }[],
+    1: [{ startMin: 600, endMin: 1140 }],
+    2: [{ startMin: 600, endMin: 1140 }],
+    3: [{ startMin: 600, endMin: 1140 }],
+    4: [{ startMin: 600, endMin: 1140 }],
+    5: [{ startMin: 600, endMin: 1140 }],
+    6: [{ startMin: 600, endMin: 900 }],
+  };
+  const { error } = await admin.from("talent_booking_hours").upsert(
+    {
+      talent_profile_id: talentProfileId,
+      tenant_id: tenantId,
+      timezone: "America/Merida",
+      weekly,
+      exceptions: [],
+      slot_minutes: 30,
+      buffer_before_min: 0,
+      buffer_after_min: 0,
+      min_notice_min: 60,
+      horizon_days: 60,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "talent_profile_id" },
+  );
+  if (error) throw error;
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Talent site (free OR Max — same shape; only `talent_plan_key` on the
 // profile decides which tier gate the render path applies).
@@ -915,9 +1043,18 @@ async function main(): Promise<void> {
   await ensureMarketingOrAppDomainExists();
 
   const locationId = await pickReferenceLocationId();
-  const talentTypeTermId = await pickTalentTypeTermId();
+  const defaultTalentTypeTermId = await pickTalentTypeTermId();
+  const nailsTermId = await ensureTalentTypeTerm({
+    slug: "qa-nails-artist",
+    nameEn: "Nail artist",
+    nameEs: "Manicurista",
+  });
+  const chefTermId = await ensureTalentTypeTerm({
+    slug: "qa-private-chef",
+    nameEn: "Private chef",
+    nameEs: "Chef privado",
+  });
 
-  const ctx: TalentContext = { hubTenantId, locationId, talentTypeTermId };
   const talentIds = new Map<TalentFixture["key"], string>();
 
   for (const fx of TALENT_FIXTURES) {
@@ -925,7 +1062,22 @@ async function main(): Promise<void> {
     const userId = await ensureAuthUser(fx.email, fx.displayName);
     await ensureProfileRow(userId, fx.displayName);
 
-    const readiness = fx.key === "t_incomplete" ? INCOMPLETE_READINESS : FULL_READINESS;
+    // Vale: everything except intro (short_bio) — journey 1 starts at ~83–90%.
+    // Iván / others: full readiness.
+    let readiness: ReadinessPlan =
+      fx.key === "t_incomplete" ? INCOMPLETE_READINESS : FULL_READINESS;
+    if (fx.maisonRole === "vale") {
+      readiness = { ...FULL_READINESS, shortBio: false };
+    }
+
+    const talentTypeTermId =
+      fx.maisonRole === "vale"
+        ? nailsTermId
+        : fx.maisonRole === "ivan"
+          ? chefTermId
+          : defaultTalentTypeTermId;
+    const ctx: TalentContext = { hubTenantId, locationId, talentTypeTermId };
+
     const talentProfileId = await ensureTalentProfile(fx, userId, ctx, readiness);
     talentIds.set(fx.key, talentProfileId);
 
@@ -949,7 +1101,24 @@ async function main(): Promise<void> {
         customDomain: must(fx.customDomain, `${fx.key}.customDomain`),
       });
     }
+    // Vale / Iván start WITHOUT a published site — journeys publish them.
   }
+
+  // Specs need UUIDs without importing the seeder. Write next to auth states.
+  const idsPath = join(process.cwd(), AUTH_STATE_DIR, "ids.json");
+  mkdirSync(dirname(idsPath), { recursive: true });
+  writeFileSync(
+    idsPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        profiles: Object.fromEntries(talentIds.entries()),
+      },
+      null,
+      2,
+    ),
+  );
+  log(`Wrote talent profile ids → ${idsPath}`);
 
   // ── acme — collision-test agency ──────────────────────────────────────
   log(`Seeding agency '${ACME_AGENCY_SLUG}'…`);

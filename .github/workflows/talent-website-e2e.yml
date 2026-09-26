@@ -333,8 +333,10 @@ jobs:
           127.0.0.1 max-site.test
           127.0.0.1 impronta.lvh.me
           127.0.0.1 acme.lvh.me
+          127.0.0.1 valemontes.lvh.me
+          127.0.0.1 ivanlugo.lvh.me
           HOSTS
-          for h in free-site.test max-site.test impronta.lvh.me acme.lvh.me; do
+          for h in free-site.test max-site.test impronta.lvh.me acme.lvh.me valemontes.lvh.me ivanlugo.lvh.me; do
             getent hosts "$h" || { echo "::error::$h did not resolve after the hosts edit"; exit 1; }
           done
 
@@ -378,6 +380,12 @@ jobs:
           TALENT_THEME_GALLERY_ENABLED: "true"
           TALENT_FREE_WEBSITE_ENABLED: "true"
           TALENT_SITE_SUBDOMAINS_ENABLED: "true"
+          # Maison PR9 — journeys 1–6 + fixture helpers require the Maison flag.
+          TALENT_MAISON_THEME_ENABLED: "true"
+          MAISON_JOURNEY_E2E: "1"
+          TALENT_SITE_E2E_FIXTURE_READY: "1"
+          # Read-only W20 check against live Jor (public GETs only).
+          JOR_LIVE_CHECK: "1"
           NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
