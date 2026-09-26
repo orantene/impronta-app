@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
-import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink } from "@/lib/talent-agenda";
+import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink, respondToReschedule } from "@/lib/talent-agenda";
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
@@ -348,6 +348,54 @@ export function AgendaBookingRecord({
             secondaryAction={{
               label: copy.t("Suggest another time"),
               onClick: () => setShowReschedule(true),
+            }}
+          />
+        ) : null}
+
+        {item.pendingReschedule?.requestId ? (
+          <NowBox
+            tone="attention"
+            title={copy.t("Reschedule proposed")}
+            body={copy.t(
+              "Accept to move the booking. Decline keeps the current time. Deposit stays with the booking.",
+            )}
+            primaryAction={{
+              label: copy.t("Accept new time"),
+              onClick: () => {
+                const requestId = item.pendingReschedule?.requestId;
+                if (!requestId) return;
+                setStatus(copy.t("Accepting…"));
+                startTransition(async () => {
+                  const res = await respondToReschedule({ requestId, accept: true });
+                  if (res.ok) {
+                    setStatus(copy.t("Booking moved. Deposit kept. Old time is free."));
+                    router.refresh();
+                  } else {
+                    setStatus(
+                      `${copy.t("Could not accept")}: ${res.reason ?? "unavailable"}`,
+                    );
+                  }
+                });
+              },
+            }}
+            secondaryAction={{
+              label: copy.t("Decline new time"),
+              onClick: () => {
+                const requestId = item.pendingReschedule?.requestId;
+                if (!requestId) return;
+                setStatus(copy.t("Declining…"));
+                startTransition(async () => {
+                  const res = await respondToReschedule({ requestId, accept: false });
+                  if (res.ok) {
+                    setStatus(copy.t("Reschedule declined. Current time kept."));
+                    router.refresh();
+                  } else {
+                    setStatus(
+                      `${copy.t("Could not decline")}: ${res.reason ?? "unavailable"}`,
+                    );
+                  }
+                });
+              },
             }}
           />
         ) : null}

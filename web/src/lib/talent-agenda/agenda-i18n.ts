@@ -234,6 +234,17 @@ const ES: Record<string, string> = {
   "Confirm transfer": "Confirmar transferencia",
   "Review intake": "Revisar intake",
   "Respond to reschedule": "Responder al cambio de fecha",
+  "Reschedule proposed": "Cambio de fecha propuesto",
+  "Accept to move the booking. Decline keeps the current time.":
+    "Acepta para mover la reserva. Rechazar mantiene la hora actual.",
+  "Accept to move the booking. Decline keeps the current time. Deposit stays with the booking.":
+    "Acepta para mover la reserva. Rechazar mantiene la hora actual. El depósito se queda con la reserva.",
+  "Accept new time": "Aceptar nueva hora",
+  "Decline new time": "Rechazar nueva hora",
+  "Booking moved. Deposit kept. Old time is free.":
+    "Reserva movida. Depósito conservado. La hora anterior queda libre.",
+  "Reschedule declined. Current time kept.":
+    "Cambio de fecha rechazado. Se mantiene la hora actual.",
   Event: "Evento",
   Guests: "Invitados",
   Diet: "Dieta",

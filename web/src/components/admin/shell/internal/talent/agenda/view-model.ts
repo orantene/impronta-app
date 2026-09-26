@@ -169,7 +169,19 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
   let nowTitle: string | undefined;
   let nowBody: string | undefined;
   let nowTone: AgendaListItem["nowTone"] = "info";
-  if (item.booking === "hold") {
+  const pendingRescheduleId =
+    typeof item.tradeSection?.payload?.rescheduleRequestId === "string"
+      ? item.tradeSection.payload.rescheduleRequestId
+      : null;
+  const pendingRescheduleStatus = item.tradeSection?.payload?.rescheduleStatus;
+  const hasPendingReschedule =
+    Boolean(pendingRescheduleId) && pendingRescheduleStatus === "pending";
+
+  if (hasPendingReschedule) {
+    nowTitle = "Reschedule proposed";
+    nowBody = "Accept to move the booking. Decline keeps the current time.";
+    nowTone = "warn";
+  } else if (item.booking === "hold") {
     nowTitle = "Calendar hold";
     nowBody = "This slot is reserved while the client completes the booking.";
     nowTone = "warn";
@@ -270,6 +282,17 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
       }
       return out.length > 0 ? out : undefined;
     })(),
+    pendingReschedule: hasPendingReschedule
+      ? {
+          requestId: pendingRescheduleId!,
+          newStartsAt: String(item.tradeSection?.payload?.newStartsAt ?? ""),
+          newEndsAt: String(item.tradeSection?.payload?.newEndsAt ?? ""),
+          feeCents:
+            typeof item.tradeSection?.payload?.feeCents === "number"
+              ? item.tradeSection.payload.feeCents
+              : 0,
+        }
+      : null,
     history: item.history.map((h) => ({ at: h.at, label: h.text })),
     terms: undefined,
   };

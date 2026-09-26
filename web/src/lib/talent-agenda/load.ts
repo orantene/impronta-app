@@ -81,6 +81,7 @@ type RescheduleRequestRow = {
   fee_cents: number;
   status: string;
   created_at: string;
+  expires_at: string | null;
 };
 
 type ActivityLogRow = {
@@ -256,7 +257,9 @@ export async function loadTalentAgenda(
         ? Promise.resolve({ data: [], error: null })
         : moneyDb
             .from("booking_reschedule_requests")
-            .select("id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at")
+            .select(
+              "id, booking_id, new_starts_at, new_ends_at, fee_cents, status, created_at, expires_at",
+            )
             .in("booking_id", bookingIds)
             .eq("status", "pending"),
       moneyDb
@@ -331,7 +334,9 @@ export async function loadTalentAgenda(
     }
 
     const pendingRescheduleByBooking = new Map<string, RescheduleRequestRow>();
+    const nowMs = Date.now();
     for (const row of (rescheduleRes.data ?? []) as RescheduleRequestRow[]) {
+      if (row.expires_at && Date.parse(row.expires_at) <= nowMs) continue;
       if (!pendingRescheduleByBooking.has(row.booking_id)) {
         pendingRescheduleByBooking.set(row.booking_id, row);
       }
