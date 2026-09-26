@@ -71,3 +71,29 @@ test("filter categories mode keeps matching categories only", () => {
   assert.equal(out.length, 1);
   assert.equal(out[0]?.id, "1");
 });
+
+test("featuredOfferingIds order becomes list order", () => {
+  const out = filterOfferingsForCatalog(
+    [
+      offering({ id: "a", title: "A", sortOrder: 0 }),
+      offering({ id: "b", title: "B", sortOrder: 1 }),
+      offering({ id: "c", title: "C", sortOrder: 2 }),
+    ],
+    { featuredOfferingIds: ["c", "a"] },
+  );
+  assert.deepEqual(
+    out.map((o) => o.id),
+    ["c", "a", "b"],
+  );
+});
+
+test("isFeatured falls back when featuredOfferingIds empty", () => {
+  const out = filterOfferingsForCatalog(
+    [
+      offering({ id: "a", isFeatured: false, sortOrder: 0 }),
+      offering({ id: "b", isFeatured: true, sortOrder: 1 }),
+    ],
+    {},
+  );
+  assert.equal(out[0]?.id, "b");
+});

@@ -367,3 +367,65 @@ test("outline CTA variant is the default data attribute", () => {
   const html = render([catalogNode()], { talentOfferings: [offering({})] });
   assert.match(html, /data-cta-variant="outline"/);
 });
+
+test("each layout sets a distinct data-layout attribute", () => {
+  for (const layout of ["rows", "cards", "grid", "compact_list", "editorial", "featured"] as const) {
+    const html = render([catalogNode({ layout })], {
+      talentOfferings: [offering({ id: "a" }), offering({ id: "b", title: "Other" })],
+    });
+    assert.match(html, new RegExp(`data-layout="${layout}"`));
+  }
+});
+
+test("featured layout puts featuredOfferingIds first as hero", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "featured",
+        featuredOfferingIds: ["hero"],
+        categoryNav: "pills",
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "other", title: "Other service", category: "A", sortOrder: 0 }),
+        offering({ id: "hero", title: "Hero service", category: "B", sortOrder: 1 }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="featured"/);
+  // Flat list for featured — hero title appears before other in markup
+  const heroAt = html.indexOf("Hero service");
+  const otherAt = html.indexOf("Other service");
+  assert.ok(heroAt >= 0 && otherAt >= 0 && heroAt < otherAt);
+});
+
+test("grid defaults to 3 columns via --svc-columns", () => {
+  const html = render([catalogNode({ layout: "grid" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /--svc-columns:\s*3/);
+});
+
+test("sections categoryNav omits jump strip", () => {
+  const html = render([catalogNode({ categoryNav: "sections" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas" }),
+      offering({ id: "b", category: "Cejas", title: "Brow" }),
+    ],
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"[^>]*data-category-nav="sections"/);
+  // Jump strip is a <nav data-category-nav="jump"> — sections must not emit one.
+  assert.doesNotMatch(html, /<nav[^>]*data-category-nav="jump"/);
+  assert.match(html, /site-builder-node--services-catalog-group-title/);
+});
+
+test("jump_strip categoryNav renders jump strip", () => {
+  const html = render([catalogNode({ categoryNav: "jump_strip" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas" }),
+      offering({ id: "b", category: "Cejas", title: "Brow" }),
+    ],
+  });
+  assert.match(html, /data-category-nav="jump"/);
+});
