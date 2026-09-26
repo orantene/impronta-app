@@ -25,7 +25,7 @@ test("the payment request hands the conversation to the mint, which names it on 
 });
 
 test("the pay page leads back to the link's conversation when the order names none", () => {
-  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
   assert.match(src, /orderRow\?\.inquiry_id \?\? loaded\.inquiryId/);
   // The expired view hands the conversation over too (D-150).
   const expired = src.slice(src.indexOf('loaded.reason === "expired"'), src.indexOf("if (!loaded.ok) notFound();"));
@@ -40,7 +40,7 @@ test("the pay page leads back to the link's conversation when the order names no
 });
 
 test("Stripe confirm=stripe builds absolute success_url from request host when BASE_URL unset (D-MSG-329)", () => {
-  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
   assert.match(src, /async function checkoutOrigin/);
   assert.match(src, /x-forwarded-host/);
   assert.match(src, /const origin = await checkoutOrigin\(\)/);

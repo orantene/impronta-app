@@ -347,7 +347,7 @@ test("?confirm=mock settles nothing on production, and never settles a Stripe li
 // ─── wiring guards ─────────────────────────────────────────────────────────────
 
 test("the pay page opens Checkout through the link's money row, never a bare session", () => {
-  const page = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/page.tsx"), "utf8");
+  const page = readFileSync(join(process.cwd(), "src/app/(public)/pay/[code]/pay-page.tsx"), "utf8");
   assert.doesNotMatch(page, /checkout\.sessions\.create/);
   assert.match(page, /openPaymentLinkCheckout\(/);
   assert.match(page, /mockPaymentsAllowed\(\)/);

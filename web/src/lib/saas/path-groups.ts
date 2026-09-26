@@ -429,6 +429,13 @@ export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 export const CANONICAL_PAY_PREFIX = "/pay" as const;
 
 /**
+ * Platform payment-link fallback (`/link/<code>` on `pay.tulala.digital`).
+ * Same engine as `/pay/<code>`; agency and hub only. Distinct from
+ * `CANONICAL_LINK_PREFIX` (`/q`) which is QR tracked links.
+ */
+export const CANONICAL_PAY_LINK_PREFIX = "/link" as const;
+
+/**
  * Customer self-manage (`/manage/<token>`, A07 / R04 / R05). Agency and hub
  * only, same as `/r/<code>`. The signed token is the credential
  * (`lib/bookings/manage-token.ts`): it names the booking, the tenant and the

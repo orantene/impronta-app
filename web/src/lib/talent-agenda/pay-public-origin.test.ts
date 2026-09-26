@@ -39,6 +39,48 @@ describe("agenda pay public origin", () => {
     assert.equal(origin, "https://qa-stripe-r2.tulala.digital");
   });
 
+  it("falls back to pay.tulala.digital when the tenant has no live website domain", async () => {
+    const admin = {
+      from: () => ({
+        select: () => ({
+          eq: async () => ({ data: [], error: null }),
+        }),
+      }),
+    };
+    const origin = await resolveAgendaPayPublicOrigin(
+      admin,
+      "tenant-hub-no-site",
+      "https://app.tulala.digital",
+    );
+    assert.equal(origin, "https://pay.tulala.digital");
+  });
+
+  it("ignores hub platform rows when choosing a branded website host", async () => {
+    const admin = {
+      from: () => ({
+        select: () => ({
+          eq: async () => ({
+            data: [
+              {
+                hostname: "pay.tulala.digital",
+                kind: "hub",
+                is_primary: false,
+                status: "active",
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    };
+    const origin = await resolveAgendaPayPublicOrigin(
+      admin,
+      "40081ec3-5ca8-43a0-b50b-31c927b2716b",
+      "https://app.tulala.digital",
+    );
+    assert.equal(origin, "https://pay.tulala.digital");
+  });
+
   it("keeps a capable requested origin without hitting the DB path result", async () => {
     let called = false;
     const admin = {
