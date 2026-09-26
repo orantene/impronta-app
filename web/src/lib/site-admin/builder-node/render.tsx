@@ -5649,7 +5649,12 @@ function renderBuilderNodeElement(
     // why a re-read never reorders or re-groups what is emitted here.
     case "services_catalog": {
       const p = node.props;
-      const locale = options.contentLocale?.locale ?? "en";
+      // Talent Max vanity SSR passes visitorLocale (preferred_locale / resolved
+      // guest locale) but often no contentLocale. Falling back to hard "en"
+      // left Jorg Beauty chrome in ENGLISH (YOUR BOOKING / estimated duration)
+      // while html lang + CMS copy were Spanish — mockup 1:1 fail on
+      // book-jorgelina. Prefer contentLocale, then visitorLocale, then en.
+      const locale = options.contentLocale?.locale ?? options.visitorLocale ?? "en";
       const es = locale.startsWith("es");
       const text = (prop: string, value: string | undefined) =>
         value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "";

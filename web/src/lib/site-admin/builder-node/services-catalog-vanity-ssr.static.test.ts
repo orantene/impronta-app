@@ -43,6 +43,28 @@ test("services_catalog island receives nodeId, never a jumpSlug function prop", 
   assert.match(filterSrc, /catalogCategoryJumpId\(/);
 });
 
+test("services_catalog chrome locale falls back to visitorLocale, not hard en", () => {
+  // Vanity Max SSR (render-max-site) threads visitorLocale and often omits
+  // contentLocale. Hard `?? "en"` made Spanish-preferred talents render EN
+  // sheet/catalog chrome on live book-jorgelina.
+  const renderSrc = read("lib/site-admin/builder-node/render.tsx");
+  const catalogCase = renderSrc.slice(renderSrc.indexOf('case "services_catalog"'));
+  const localeLine = catalogCase
+    .split("\n")
+    .find((line) => /const locale = /.test(line));
+  assert.ok(localeLine, "services_catalog must assign locale");
+  assert.match(
+    localeLine!,
+    /contentLocale\?\.locale\s*\?\?\s*options\.visitorLocale\s*\?\?\s*"en"/,
+    "services_catalog must prefer visitorLocale before hard en",
+  );
+  assert.doesNotMatch(
+    localeLine!,
+    /contentLocale\?\.locale\s*\?\?\s*"en"/,
+    "services_catalog must not hard-fallback locale to en when visitorLocale exists",
+  );
+});
+
 test("catalog island graph does not import app/t/[profileCode] or use-server instant-book-action", () => {
   const files = [
     "lib/site-admin/builder-node/services-catalog-filter.tsx",
