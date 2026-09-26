@@ -4,9 +4,12 @@ import { useState, type ReactNode } from "react";
 
 import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
 import { useT } from "@/i18n/use-t";
+import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 
 export type CheckoutViewProps = {
   readonly code: string;
+  /** Presentation path; defaults to branded `/pay`. */
+  readonly pathPrefix?: PayLinkPathPrefix;
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
@@ -21,6 +24,7 @@ export type CheckoutViewProps = {
 export function CheckoutView(props: CheckoutViewProps) {
   const t = useT();
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
+  const pathPrefix = props.pathPrefix ?? "/pay";
   const total = `${props.currency} ${(props.amountCents / 100).toFixed(2)}`.trim();
 
   if (phase === "paid") {
@@ -124,7 +128,11 @@ export function CheckoutView(props: CheckoutViewProps) {
             {t("public.thread.pay")}
           </a>
         ) : (
-          <a className={POS_PRIMARY_ACTION} href={`/pay/${props.code}?confirm=mock`} onClick={() => setPhase("processing")}>
+          <a
+            className={POS_PRIMARY_ACTION}
+            href={`${pathPrefix}/${props.code}?confirm=mock`}
+            onClick={() => setPhase("processing")}
+          >
             {t("public.thread.pay")}
           </a>
         )}

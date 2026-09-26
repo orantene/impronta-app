@@ -1,13 +1,19 @@
 /**
- * Resolve a host that can serve `/pay/<code>`.
+ * Resolve a host that can serve public payment links.
  *
- * Talents work on `app.tulala.digital`, but `/pay` is gated to agency/hub
- * hosts only (`surface-allow-list`). Minting with `window.location.origin`
- * therefore hands clients a 404. Prefer the tenant's live agency domain.
+ * Talents work on `app.tulala.digital`, but `/pay` and `/link` are gated to
+ * agency/hub hosts only (`surface-allow-list`). Minting with
+ * `window.location.origin` therefore hands clients a 404.
+ *
+ * Prefer the tenant's live branded website domain (subdomain / custom).
+ * When none is active, fall back to the platform pay host
+ * (`pay.tulala.digital` → `/link/{code}`). Never invent a fake free-site
+ * hostname (e.g. `tulala.tulala.digital`) for hub-without-website sellers.
  *
  * Pure helper — no `server-only` imports so unit tests can load it.
  */
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
+import { PAY_PLATFORM_ORIGIN } from "@/lib/payments/pay-link-url";
 import { isLiveDomainStatus } from "@/lib/saas/workspace-live-url";
 
 type DomainRow = {
@@ -67,7 +73,7 @@ export async function resolveAgendaPayPublicOrigin(
     .select("hostname, kind, is_primary, status")
     .eq("tenant_id", tenantId);
   if (error) {
-    return cleaned || `https://${TULALA_APEX_HOST}`;
+    return PAY_PLATFORM_ORIGIN;
   }
 
   const rows = (data ?? []).filter(
@@ -77,8 +83,8 @@ export async function resolveAgendaPayPublicOrigin(
       (r.kind === "subdomain" || r.kind === "custom"),
   );
   if (rows.length === 0) {
-    // Last resort: keep requested (caller may be on a capable host we didn't recognize).
-    return cleaned || `https://${TULALA_APEX_HOST}`;
+    // No active pay-capable website → platform fallback (PICK: P).
+    return PAY_PLATFORM_ORIGIN;
   }
   const primary =
     rows.find((r) => r.is_primary) ?? rows.find((r) => r.kind === "custom") ?? rows[0];

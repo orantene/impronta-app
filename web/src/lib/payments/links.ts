@@ -9,6 +9,7 @@ import { settleAtDoor } from "@/lib/orders/settle-at-door";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { expireCheckoutSession } from "@/lib/payments/stripe-checkout";
 import { expireBoundSession } from "@/lib/payments/link-checkout";
+import { paymentLinkPublicUrl } from "@/lib/payments/pay-link-url";
 
 type PaymentEnv = Readonly<Record<string, string | undefined>>;
 
@@ -107,7 +108,7 @@ export async function createPaymentLink(
       return {
         ok: true,
         code: row.code,
-        url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${row.code}`,
+        url: paymentLinkPublicUrl(input.publicOrigin, row.code),
         amountCents: Number(row.amount_cents),
         expiresAt: row.expires_at,
         already: true,
@@ -179,7 +180,7 @@ export async function createPaymentLink(
   return {
     ok: true,
     code,
-    url: `${input.publicOrigin.replace(/\/$/, "")}/pay/${code}`,
+    url: paymentLinkPublicUrl(input.publicOrigin, code),
     amountCents: claimed.amountCents,
     expiresAt,
   };
