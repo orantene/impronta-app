@@ -13,8 +13,14 @@ const PRIM = path.join(ROOT, "../../components/admin/shell/internal/talent/agend
 describe("T9.3 agenda a11y contracts", () => {
   it("PaymentStateChip exposes aria-label text (not colour alone)", () => {
     const src = readFileSync(path.join(PRIM, "PaymentStateChip.tsx"), "utf8");
-    assert.match(src, /aria-label=\{meta\.label\}/);
-    assert.match(src, /meta\.label/);
+    assert.match(src, /aria-label=\{label\}/);
+    assert.match(src, /copy\.t\(meta\.labelKey\)/);
+  });
+
+  it("BookingStateChip exposes aria-label text (not colour alone)", () => {
+    const src = readFileSync(path.join(PRIM, "BookingStateChip.tsx"), "utf8");
+    assert.match(src, /aria-label=\{label\}/);
+    assert.match(src, /copy\.t\(meta\.labelKey\)/);
   });
 
   it("CountdownText exposes aria-label for screen readers", () => {

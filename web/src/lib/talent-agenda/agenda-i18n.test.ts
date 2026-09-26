@@ -12,6 +12,12 @@ describe("T9.4 agenda i18n", () => {
     assert.equal(t("Confirm transfer"), "Confirmar transferencia");
     assert.equal(t("Collect"), "Cobrar");
     assert.equal(t("Release hold"), "Liberar reserva");
+    assert.equal(t("View all"), "Ver todo");
+    assert.equal(t("On hold"), "En hold");
+    assert.equal(t("Deposit paid"), "Depósito pagado");
+    assert.equal(t("Hold expired"), "Hold vencido");
+    assert.equal(t("Not requested"), "Sin solicitud");
+    assert.equal(t("Checking payment"), "Verificando pago");
     assert.equal(t("__missing_key__"), "__missing_key__");
   });
 
