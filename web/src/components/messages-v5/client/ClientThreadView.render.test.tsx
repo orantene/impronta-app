@@ -144,6 +144,23 @@ test("footer: secure line and a greyed Save to email when no writer is reachable
   assert.doesNotMatch(live, /disabled=""[^>]*data-client-action="save_to_email"/);
 });
 
+test("from-email: Volviste / You are back system line when fromEmail is set", () => {
+  const en = renderToStaticMarkup(<ClientThreadView {...base} fromEmail />);
+  assert.match(en, /data-client-from-email/);
+  assert.match(en, /You are back from the email link/);
+  const es = renderToStaticMarkup(<ClientThreadView {...base} copy={ES_CLIENT} locale="es" fromEmail />);
+  assert.match(es, /Volviste desde el correo/);
+});
+
+test("save-to-email feedback: sent ok line and failed retry", () => {
+  const sent = renderToStaticMarkup(<ClientThreadView {...base} onSaveToEmail={() => {}} saveEmail="sent" />);
+  assert.match(sent, /Link sent to your email/);
+  const failed = renderToStaticMarkup(<ClientThreadView {...base} onSaveToEmail={() => {}} saveEmail="failed" />);
+  assert.match(failed, /data-save-email-failed/);
+  assert.match(failed, /Could not email the link/);
+  assert.match(failed, />Try again</);
+});
+
 test("footer: link-expiry sentence only on /c/t/[token] when threadTokenExpiresAt is passed", () => {
   const dock = renderToStaticMarkup(<ClientThreadView {...base} />);
   assert.doesNotMatch(dock, /data-client-link-expiry/);

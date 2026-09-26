@@ -35,6 +35,7 @@ import type {
   SendGuestMessageInput,
   SendGuestMessageResult,
 } from "@/lib/inquiry/guest-chat-contract";
+import type { Translator } from "@/i18n/interpolate";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import { makePendingRow, markRowFailed } from "./mini-chat-panel-helpers";
 import { EMAIL_RE, joinGuestDisplayName } from "./mini-chat-styles";
@@ -58,6 +59,7 @@ export type MiniChatSendArgs = {
   talentProfileCode: string;
   sourcePage: string;
   locale?: string | null;
+  t: Translator;
   // Unified record (early-row create + contact promotion).
   contactPromoted: boolean;
   promoteContact: (value: {
@@ -145,6 +147,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     mergeServer,
     applyFailure,
     onSent,
+    t,
   } = args;
 
   // Set when sendToAgency forced the ContactCard gate, so the gate's own submit
@@ -165,35 +168,43 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     setDraft("");
     setStage("thread");
 
-    // Promote the placeholder contact FIRST so the inquiry carries a reachable
-    // contact before the message is delivered.
-    const promoted = await promoteContact({
-      name: joinGuestDisplayName(firstName, lastName),
-      email: email.trim(),
-      phone: phone.trim() || null,
-    });
-    if (!promoted) {
+    try {
+      // Promote the placeholder contact FIRST so the inquiry carries a reachable
+      // contact before the message is delivered.
+      const promoted = await promoteContact({
+        name: joinGuestDisplayName(firstName, lastName),
+        email: email.trim(),
+        phone: phone.trim() || null,
+      });
+      if (!promoted) {
+        setSending(false);
+        setRows((cur) => markRowFailed(cur, tmpId));
+        setDraft(body);
+        setError("We couldn't save your contact details. Please try again.");
+        return false;
+      }
+
+      const res = await onSendMessage({ inquiryId: earlyId, body, honeypot: honeypot || null });
+      setSending(false);
+      if (!res.ok) {
+        setRows((cur) => markRowFailed(cur, tmpId));
+        setDraft(body);
+        applyFailure(res.code, res.message, res.retryAfterMs);
+        return false;
+      }
+      setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
+      const iso = res.message.createdAt;
+      if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
+        lastSeenIsoRef.current = iso;
+      }
+      return true;
+    } catch {
       setSending(false);
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);
-      setError("We couldn't save your contact details. Please try again.");
+      applyFailure("engine_error", t("public.guestChat.notSent"));
       return false;
     }
-
-    const res = await onSendMessage({ inquiryId: earlyId, body, honeypot: honeypot || null });
-    setSending(false);
-    if (!res.ok) {
-      setRows((cur) => markRowFailed(cur, tmpId));
-      setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs);
-      return false;
-    }
-    setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
-    const iso = res.message.createdAt;
-    if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
-      lastSeenIsoRef.current = iso;
-    }
-    return true;
   }
 
   async function handleFirstSend() {
@@ -230,53 +241,60 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     setRows((cur) => [...cur, makePendingRow(tmpId, "", body)]);
     setDraft("");
     setStage("thread");
-    const res = await onStartInquiry({
-      tenantSlug,
-      talentProfileId,
-      talentProfileCode,
-      contactFirstName: firstName.trim(),
-      contactLastName: lastName.trim() || null,
-      contactName,
-      contactEmail: email.trim(),
-      contactPhone: phone.trim() || null,
-      firstMessage: body,
-      sourcePage,
-      honeypot: honeypot || null,
-      offering: pendingOfferingPayload() ?? null,
-      offeringIntent: peekPendingOfferingIntent(),
-      locale: args.locale ?? null,
-    });
-    setSending(false);
-    if (res.ok) {
-      clearPendingOffering();
-      clearPendingOfferingIntent();
-    }
-    if (!res.ok) {
+    try {
+      const res = await onStartInquiry({
+        tenantSlug,
+        talentProfileId,
+        talentProfileCode,
+        contactFirstName: firstName.trim(),
+        contactLastName: lastName.trim() || null,
+        contactName,
+        contactEmail: email.trim(),
+        contactPhone: phone.trim() || null,
+        firstMessage: body,
+        sourcePage,
+        honeypot: honeypot || null,
+        offering: pendingOfferingPayload() ?? null,
+        offeringIntent: peekPendingOfferingIntent(),
+        locale: args.locale ?? null,
+      });
+      setSending(false);
+      if (res.ok) {
+        clearPendingOffering();
+        clearPendingOfferingIntent();
+      }
+      if (!res.ok) {
+        setRows((cur) => markRowFailed(cur, tmpId));
+        setDraft(body);
+        applyFailure(res.code, res.message, res.retryAfterMs, {
+          gateTier: res.gateTier,
+          activeCount: res.activeCount,
+          limit: res.limit,
+          nextFreeTimes: res.nextFreeTimes,
+        });
+        return;
+      }
+      setInquiryId(res.inquiryId);
+      setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
+      if (!res.claimEmailSent && res.guestActivation !== "unlinked") {
+        setError(
+          "Your message was sent, but we couldn't email a sign-in link. Use \"Email me a sign-in link\" below to try again.",
+        );
+      }
+      lastSeenIsoRef.current = null;
+      setRows((cur) => cur.filter((r) => r.id !== tmpId));
+      const seeded: GuestThreadMessage[] = [res.openingMessage];
+      if (res.autoAckMessage) seeded.push(res.autoAckMessage);
+      mergeServer(seeded);
+      if (sendToAgencyPendingRef.current) {
+        sendToAgencyPendingRef.current = false;
+        onSent?.();
+      }
+    } catch {
+      setSending(false);
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs, {
-        gateTier: res.gateTier,
-        activeCount: res.activeCount,
-        limit: res.limit,
-        nextFreeTimes: res.nextFreeTimes,
-      });
-      return;
-    }
-    setInquiryId(res.inquiryId);
-    setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
-    if (!res.claimEmailSent && res.guestActivation !== "unlinked") {
-      setError(
-        "Your message was sent, but we couldn't email a sign-in link. Use \"Email me a sign-in link\" below to try again.",
-      );
-    }
-    lastSeenIsoRef.current = null;
-    setRows((cur) => cur.filter((r) => r.id !== tmpId));
-    const seeded: GuestThreadMessage[] = [res.openingMessage];
-    if (res.autoAckMessage) seeded.push(res.autoAckMessage);
-    mergeServer(seeded);
-    if (sendToAgencyPendingRef.current) {
-      sendToAgencyPendingRef.current = false;
-      onSent?.();
+      applyFailure("engine_error", t("public.guestChat.notSent"));
     }
   }
 
@@ -290,46 +308,54 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     setRows((cur) => [...cur, makePendingRow(tmpId, "", body)]);
     setDraft("");
     setStage("thread");
-    const res = await onStartInquiry({
-      tenantSlug,
-      talentProfileId,
-      talentProfileCode,
-      contactFirstName: firstName.trim(),
-      contactLastName: lastName.trim() || null,
-      contactName,
-      contactEmail: email.trim(),
-      contactPhone: phone.trim() || null,
-      firstMessage: body,
-      sourcePage,
-      honeypot: honeypot || null,
-      offering: pendingOfferingPayload() ?? null,
-      offeringIntent: peekPendingOfferingIntent(),
-      locale: args.locale ?? null,
-    });
-    setSending(false);
-    if (res.ok) {
-      clearPendingOffering();
-      clearPendingOfferingIntent();
-    }
-    if (!res.ok) {
+    try {
+      const res = await onStartInquiry({
+        tenantSlug,
+        talentProfileId,
+        talentProfileCode,
+        contactFirstName: firstName.trim(),
+        contactLastName: lastName.trim() || null,
+        contactName,
+        contactEmail: email.trim(),
+        contactPhone: phone.trim() || null,
+        firstMessage: body,
+        sourcePage,
+        honeypot: honeypot || null,
+        offering: pendingOfferingPayload() ?? null,
+        offeringIntent: peekPendingOfferingIntent(),
+        locale: args.locale ?? null,
+      });
+      setSending(false);
+      if (res.ok) {
+        clearPendingOffering();
+        clearPendingOfferingIntent();
+      }
+      if (!res.ok) {
+        setRows((cur) => markRowFailed(cur, tmpId));
+        setDraft(body);
+        applyFailure(res.code, res.message, res.retryAfterMs, {
+          gateTier: res.gateTier,
+          activeCount: res.activeCount,
+          limit: res.limit,
+          nextFreeTimes: res.nextFreeTimes,
+        });
+        return false;
+      }
+      setInquiryId(res.inquiryId);
+      setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
+      lastSeenIsoRef.current = null;
+      setRows((cur) => cur.filter((r) => r.id !== tmpId));
+      const seeded: GuestThreadMessage[] = [res.openingMessage];
+      if (res.autoAckMessage) seeded.push(res.autoAckMessage);
+      mergeServer(seeded);
+      return true;
+    } catch {
+      setSending(false);
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs, {
-        gateTier: res.gateTier,
-        activeCount: res.activeCount,
-        limit: res.limit,
-        nextFreeTimes: res.nextFreeTimes,
-      });
+      applyFailure("engine_error", t("public.guestChat.notSent"));
       return false;
     }
-    setInquiryId(res.inquiryId);
-    setEmailedTo(res.claimEmailSent ? res.guestEmail : null);
-    lastSeenIsoRef.current = null;
-    setRows((cur) => cur.filter((r) => r.id !== tmpId));
-    const seeded: GuestThreadMessage[] = [res.openingMessage];
-    if (res.autoAckMessage) seeded.push(res.autoAckMessage);
-    mergeServer(seeded);
-    return true;
   }
 
   /**
@@ -377,18 +403,26 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     const tmpId = `tmp-${Date.now()}`;
     setRows((cur) => [...cur, makePendingRow(tmpId, inquiryId, body)]);
     setDraft("");
-    const res = await onSendMessage({ inquiryId, body, honeypot: honeypot || null });
-    setSending(false);
-    if (!res.ok) {
+    try {
+      const res = await onSendMessage({ inquiryId, body, honeypot: honeypot || null });
+      setSending(false);
+      if (!res.ok) {
+        setRows((cur) => markRowFailed(cur, tmpId));
+        setDraft(body);
+        applyFailure(res.code, res.message, res.retryAfterMs);
+        return;
+      }
+      setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
+      const iso = res.message.createdAt;
+      if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
+        lastSeenIsoRef.current = iso;
+      }
+    } catch {
+      // Transport / fetch rejection: leave "Not sent" + restore the draft (D-MSG-432).
+      setSending(false);
       setRows((cur) => markRowFailed(cur, tmpId));
       setDraft(body);
-      applyFailure(res.code, res.message, res.retryAfterMs);
-      return;
-    }
-    setRows((cur) => cur.map((r) => (r.id === tmpId ? { ...res.message, pending: false } : r)));
-    const iso = res.message.createdAt;
-    if (!lastSeenIsoRef.current || iso > lastSeenIsoRef.current) {
-      lastSeenIsoRef.current = iso;
+      applyFailure("engine_error", t("public.guestChat.notSent"));
     }
   }
 

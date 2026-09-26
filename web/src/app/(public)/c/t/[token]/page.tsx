@@ -22,7 +22,7 @@ export default async function PublicConversationPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string }>;
+  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string; from?: string }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
@@ -50,6 +50,8 @@ export default async function PublicConversationPage({
   // D-MSG-337: honor ?lang=es|fr for QA / share links; fall back to business.locale.
   const lang = (query.lang || "").toLowerCase();
   const locale = lang === "es" || lang === "fr" || lang === "en" ? lang : business.locale;
+  // Mockup `return` / from-email: `?from=email` on the save-to-email CTA (D-MSG-432).
+  const fromEmail = (query.from || "").toLowerCase() === "email";
   return (
     <ClientThread
       token={token}
@@ -59,6 +61,7 @@ export default async function PublicConversationPage({
       offers={offers}
       payCode={payCode}
       threadTokenExpiresAt={new Date(verified.expiresAtMs).toISOString()}
+      fromEmail={fromEmail}
     />
   );
 }

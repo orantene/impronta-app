@@ -18982,7 +18982,8 @@
             "yesterday": "Yesterday",
             "emptyTitle": "Nothing here yet",
             "emptyBody": "When {business} writes to you, it shows up here. You can write first.",
-            "loading": "Loading your conversation"
+            "loading": "Loading your conversation",
+            "backFromEmail": "You are back from the email link"
           },
           "composer": {
             "placeholder": "Write to {business}",
@@ -18996,6 +18997,8 @@
             "secure": "Secure link · valid for your booking",
             "saveToEmail": "Save this conversation to your email",
             "saveToEmailSoon": "Saving to email is not available from this link yet",
+            "saveToEmailSent": "Link sent to your email",
+            "saveToEmailFailed": "Could not email the link. Try again.",
             "expires": "This link is valid until {date}"
           },
           "choices": {

@@ -7873,7 +7873,8 @@
             "yesterday": "Hier",
             "emptyTitle": "Rien pour l'instant",
             "emptyBody": "Quand {business} vous écrira, cela apparaîtra ici. Vous pouvez écrire en premier.",
-            "loading": "Chargement de votre conversation"
+            "loading": "Chargement de votre conversation",
+            "backFromEmail": "Vous êtes de retour depuis l'e-mail"
           },
           "composer": {
             "placeholder": "Écrire à {business}",
@@ -7887,6 +7888,8 @@
             "secure": "Lien sécurisé · valable pour votre réservation",
             "saveToEmail": "Enregistrer cette conversation dans votre e-mail",
             "saveToEmailSoon": "L'enregistrement par e-mail n'est pas encore disponible depuis ce lien",
+            "saveToEmailSent": "Lien envoyé à votre e-mail",
+            "saveToEmailFailed": "Impossible d'envoyer le lien. Réessayez.",
             "expires": "Ce lien est valable jusqu'au {date}"
           },
           "choices": {

@@ -24,10 +24,11 @@ import {
   messagingClientPickTime,
   messagingClientReply,
   messagingClientRequestChange,
+  messagingClientSaveToEmail,
 } from "@/lib/server-actions/messaging-client";
 
 import { buildKitCopy } from "../kit/copy";
-import { ClientThreadView, type CardActivity, type ComposerPhase } from "./ClientThreadView";
+import { ClientThreadView, type CardActivity, type ComposerPhase, type SaveEmailPhase } from "./ClientThreadView";
 import { buildClientCopy } from "./copy";
 
 export type ClientThreadProps = {
@@ -38,6 +39,8 @@ export type ClientThreadProps = {
   readonly offers: readonly ClientOfferSummary[];
   readonly payCode: string | null;
   readonly threadTokenExpiresAt?: string | null;
+  /** True when the visitor opened this page from the save-to-email link (`?from=email`). */
+  readonly fromEmail?: boolean;
 };
 
 export function ClientThread(props: ClientThreadProps) {
@@ -52,6 +55,7 @@ export function ClientThread(props: ClientThreadProps) {
   const [optimistic, setOptimistic] = useState<readonly ThreadMessage[]>([]);
   const [activity, setActivity] = useState<Readonly<Record<string, CardActivity>>>({});
   const [now, setNow] = useState(() => new Date());
+  const [saveEmail, setSaveEmail] = useState<SaveEmailPhase>("idle");
 
   // A held time shows a countdown; tick once a second while any card is held.
   const anyHold = props.messages.some((m) => m.kind === "professional_times" && typeof m.payload?.holdExpiresAt === "string");
@@ -73,19 +77,24 @@ export function ClientThread(props: ClientThreadProps) {
       if (!text) return;
       setPhase("sending");
       setLastBody(text);
-      const result = await messagingClientReply({ token: props.token, body: text });
-      if (!result.ok) {
+      try {
+        const result = await messagingClientReply({ token: props.token, body: text });
+        if (!result.ok) {
+          setPhase("failed");
+          return;
+        }
+        setOptimistic((prev) => [
+          ...prev,
+          { id: result.messageId, inquiryId: "", kind: "text", body: text, payload: null, senderUserId: null, guestSessionId: null, createdAt: new Date().toISOString(), editedAt: null, deletedAt: null, thread: "private", internal: false, delivery: null },
+        ]);
+        setValue("");
+        setPhase("sent");
+        router.refresh();
+        setTimeout(() => setPhase((p) => (p === "sent" ? "idle" : p)), 2500);
+      } catch {
+        // Transport / fetch rejection: leave the draft and surface Retry (D-MSG-432).
         setPhase("failed");
-        return;
       }
-      setOptimistic((prev) => [
-        ...prev,
-        { id: result.messageId, inquiryId: "", kind: "text", body: text, payload: null, senderUserId: null, guestSessionId: null, createdAt: new Date().toISOString(), editedAt: null, deletedAt: null, thread: "private", internal: false, delivery: null },
-      ]);
-      setValue("");
-      setPhase("sent");
-      router.refresh();
-      setTimeout(() => setPhase((p) => (p === "sent" ? "idle" : p)), 2500);
     },
     [props.token, router],
   );
@@ -186,6 +195,23 @@ export function ClientThread(props: ClientThreadProps) {
     [props.token, refused, router, setAct],
   );
 
+  const onSaveToEmail = useCallback(async () => {
+    if (saveEmail === "sending") return;
+    setSaveEmail("sending");
+    try {
+      const origin = typeof window !== "undefined" ? window.location.origin : null;
+      const result = await messagingClientSaveToEmail({ token: props.token, requestOrigin: origin });
+      if (!result.ok) {
+        setSaveEmail("failed");
+        return;
+      }
+      setSaveEmail("sent");
+      setTimeout(() => setSaveEmail((p) => (p === "sent" ? "idle" : p)), 4000);
+    } catch {
+      setSaveEmail("failed");
+    }
+  }, [props.token, saveEmail]);
+
   return (
     <ClientThreadView
       copy={copy}
@@ -198,6 +224,8 @@ export function ClientThread(props: ClientThreadProps) {
       now={now}
       activity={activity}
       composer={{ value, phase }}
+      fromEmail={props.fromEmail === true}
+      saveEmail={saveEmail}
       onComposerChange={(v) => {
         setValue(v);
         if (phase === "failed" || phase === "sent") setPhase("idle");
@@ -211,8 +239,7 @@ export function ClientThread(props: ClientThreadProps) {
       onChangeOffer={(o, text) => void onChangeRecord("offer", o.id, text, o.id)}
       onChangeRecord={(k, id, text) => void onChangeRecord(k, id, text, id)}
       onPay={onPay}
-      // D-MSG-166: `sendGuestClaimToEmail` needs the guest cookie session that owns the inquiry; a link holder has none.
-      onSaveToEmail={null}
+      onSaveToEmail={() => void onSaveToEmail()}
       threadTokenExpiresAt={props.threadTokenExpiresAt}
     />
   );
