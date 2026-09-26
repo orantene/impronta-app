@@ -196,16 +196,20 @@ export async function loadMaisonDesignOptionsStateAction(): Promise<
   const livePending = isMaisonLivePending(pending);
   const siteId = (site as { id: string }).id;
 
-  const { data: batch } = await admin
+  const { data: batch, error: batchErr } = await admin
     .from("talent_content_import_batches")
     .select("id, created_at, created_record_ids, status")
     .eq("talent_profile_id", g.talentProfileId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (batchErr) {
+    // Best-effort — Design options still opens without Undo import row.
+    logServerError("maison.options.importBatch", batchErr);
+  }
 
   let importBatch: MaisonDesignOptionsState["importBatch"] = null;
-  if (batch) {
+  if (!batchErr && batch) {
     const b = batch as {
       id: string;
       created_at: string;
