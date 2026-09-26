@@ -20,10 +20,18 @@
  */
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
+
+/** Maison Choose-a-design chrome — lazy so flag-off / non-site routes skip the chunk. */
+const MaisonSetupHost = dynamic(
+  () =>
+    import("@/components/talent/site/maison-setup/MaisonSetupHost").then((m) => m.MaisonSetupHost),
+  { ssr: false },
+);
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import {
   loadMaxSiteManagerAction,
@@ -207,6 +215,10 @@ function ManagerBody({
           <p style={{ margin: "10px 0 0", fontSize: 12, color: COLORS.criticalDeep }}>{actionError}</p>
         ) : null}
       </Card>
+
+      {/* Maison Choose-a-design / Theme detail (PR4). Flag-off → renders null;
+          existing theme gallery path below stays production-unchanged. */}
+      <MaisonSetupHost />
 
       {/* Starter template gallery; the theme gallery replaces it only when
           TALENT_THEME_GALLERY_ENABLED is on (read server-side). */}

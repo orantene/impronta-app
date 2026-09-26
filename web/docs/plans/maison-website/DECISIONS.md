@@ -133,6 +133,15 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - Finish-with-AI chrome: plain assistant text + soft surface-alt user bubble — no black chat bubbles.
 - Live published sites short-circuit to Website live before any Unlock path.
 
+### PR 4 notes (W24–W34, W75)
+
+- New setup chrome under `components/talent/site/maison-setup/` (not the old ThemeGallery wizard).
+- Mounted from `TalentMaxSiteManager` only when `TALENT_MAISON_THEME_ENABLED` + `personalSiteEdit`; flag-off → null (prod gallery path unchanged).
+- One theme card, **no search/filters** (W75). Live preview via `/template-preview/maison`.
+- Choices (palette, Demo|My content, screen) persist in localStorage; phone sheets do not.
+- **Use this design** is chrome-only here — apply / Undo / Review = PR 5.
+- Visual pixel match deferred until owner PDF/prototype.
+
 ---
 
 ## File lock / coordination
