@@ -221,17 +221,26 @@ test("payment: open link shows Pay with the amount and the expiry; paid shows th
 
 /* ---------- confirmation, change, draft ---------- */
 
-test("confirmation: Confirmed pill, when line, Ask for a change and a greyed Receipt", () => {
+test("confirmation: Confirmed pill, when line, Add to calendar, Ask for a change and a greyed Receipt", () => {
   const view = readConfirmation({ recordKind: "appointment", recordId: "r1", when: "2026-09-20T15:00:00.000Z", title: "Balayage with Dani", lines: [{ label: "Balayage", units: 1, unitCents: 12000 }], currency: "USD" });
   const html = renderToStaticMarkup(<ClientConfirmedCard {...base} view={view} kind="appointment_confirmation" onChange={() => {}} />);
   assert.match(html, /class="cat">Booked</);
   assert.match(html, />Confirmed</);
   assert.match(html, /Balayage with Dani/);
   assert.match(html, /When</);
+  assert.match(html, /data-client-action="add_calendar"/);
+  assert.match(html, /Add to calendar/);
   assert.match(html, /data-client-action="ask_change"/);
   assert.match(html, /data-client-action="receipt"[^>]*disabled|disabled[^>]*data-client-action="receipt"/);
   const order = renderToStaticMarkup(<ClientConfirmedCard {...base} view={view} kind="order_confirmation" />);
   assert.match(order, /class="cat">Order</);
+  assert.match(order, /data-client-action="add_calendar"/);
+  const noWhen = renderToStaticMarkup(
+    <ClientConfirmedCard {...base} view={{ ...view, when: null }} kind="appointment_confirmation" onChange={() => {}} />,
+  );
+  assert.doesNotMatch(noWhen, /data-client-action="add_calendar"/);
+  const es = renderToStaticMarkup(<ClientConfirmedCard {...base} copy={ES_CLIENT} view={view} kind="appointment_confirmation" onChange={() => {}} />);
+  assert.match(es, /Agregar al calendario/);
 });
 
 test("change request and result are read-only with the state", () => {

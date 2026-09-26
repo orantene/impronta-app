@@ -156,6 +156,52 @@ test("A3: two requests on one inquiry — only the paid link's card flips", asyn
   assert.equal(open.card_payload?.state, "sent");
 });
 
+test("outside settle with a cancelled link still flips that request card to paid", async () => {
+  const { admin, store } = fakeAdmin({
+    conversation_records: [{ id: "cr-1", tenant_id: TENANT, inquiry_id: INQUIRY, record_kind: "order", record_id: ORDER, unlinked_at: null }],
+    orders: [{ id: ORDER, total_cents: 200000, currency: "MXN" }],
+    payment_links: [
+      { tenant_id: TENANT, order_id: ORDER, code: "old_code", status: "cancelled" },
+      { tenant_id: TENANT, order_id: ORDER, code: "live_code", status: "cancelled" },
+    ],
+    inquiry_messages: [
+      {
+        id: "m-old",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 20000, currency: "MXN", paymentLinkCode: "old_code", state: "cancelled" },
+        deleted_at: null,
+      },
+      {
+        id: "m-live",
+        tenant_id: TENANT,
+        inquiry_id: INQUIRY,
+        message_kind: "payment_request",
+        card_payload: { amountCents: 50000, currency: "MXN", paymentLinkCode: "live_code", state: "expired" },
+        deleted_at: null,
+      },
+    ],
+  });
+  // Without method (link-paid path): no paid codes → do not guess among siblings.
+  const skipped = await syncPaymentCardsForRecord(admin, { tenantId: TENANT, recordId: ORDER, paymentState: "paid" });
+  assert.deepEqual(skipped, { ok: true, updated: 0 });
+  // Outside cash: method expands matching to cancelled/expired links.
+  const result = await syncPaymentCardsForRecord(admin, {
+    tenantId: TENANT,
+    recordId: ORDER,
+    paymentState: "paid",
+    method: "cash",
+  });
+  assert.deepEqual(result, { ok: true, updated: 2 });
+  const live = store.inquiry_messages.find((m) => (m as { id: string }).id === "m-live") as CardRow;
+  assert.equal(live.card_payload?.state, "paid");
+  assert.equal(live.card_payload?.method, "cash");
+  assert.equal(live.card_payload?.paidCents, 50000);
+  assert.equal(live.card_payload?.totalCents, 200000);
+  assert.equal(live.card_payload?.dueCents, 150000);
+});
+
 test("cardsMatchingRequest leaves siblings alone when codes are known but none match", () => {
   const cards = [
     { id: "a", card_payload: { paymentLinkCode: "x", state: "sent" } },

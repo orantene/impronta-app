@@ -15,6 +15,7 @@ test("the payment request hands the conversation to the mint, which names it on 
   const fn = src.slice(src.indexOf("export async function messagingRequestPayment"));
   const body = fn.slice(0, fn.indexOf("\nexport async function", 10));
   assert.match(body, /createPaymentLink\(g\.admin, \{[\s\S]*?inquiryId: parsed\.data\.inquiryId,[\s\S]*?\}\)/);
+  assert.match(body, /resolveAgendaPayPublicOrigin/);
   // A reused link (same operation key) is attached too (D-150).
   assert.match(body, /reused: true/);
   assert.match(body, /attachPaymentLinkInquiry\(g\.admin, \{[\s\S]*?inquiryId: parsed\.data\.inquiryId,[\s\S]*?\}\)/);
