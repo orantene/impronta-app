@@ -702,6 +702,14 @@ export async function createAgendaBookingPayLink(input: {
     }
   }
 
+  const { resolveAgendaPayPublicOrigin } = await import("./pay-public-origin");
+  // Service-role client is wider than the helper's AdminLike; cast at the boundary.
+  const publicOrigin = await resolveAgendaPayPublicOrigin(
+    admin as Parameters<typeof resolveAgendaPayPublicOrigin>[0],
+    String(row.tenant_id),
+    input.publicOrigin,
+  );
+
   const { createPaymentLink } = await import("@/lib/payments/links");
   const { agendaFinishCardPayKey, newPaymentRequestAttemptId } = await import(
     "@/lib/payments/payment-request-attempt"
@@ -717,7 +725,7 @@ export async function createAgendaBookingPayLink(input: {
       attemptId: newPaymentRequestAttemptId(),
     }),
     actorUserId: null,
-    publicOrigin: input.publicOrigin.replace(/\/$/, ""),
+    publicOrigin,
   });
   if (!minted.ok) return { ok: false, reason: minted.reason };
   return { ok: true, url: minted.url, code: minted.code, already: minted.already };

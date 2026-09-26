@@ -28,7 +28,6 @@ import {
   todayFromAgenda,
 } from "./present";
 import {
-  FIRST_DAY_STEPS,
   firstDayCompletedStepIds,
   hasBookingHoursWindows,
   isFirstDayEligible,
@@ -136,7 +135,6 @@ export function AgendaTodayPage({
     workflowStatus: profile?.workflowStatus,
     hours,
   });
-  const readinessPct = Math.round((completedStepIds.length / FIRST_DAY_STEPS.length) * 100);
   const hasAvailability = hasBookingHoursWindows(hours);
   const isFirstDay = isFirstDayEligible({
     loadError,
@@ -197,11 +195,9 @@ export function AgendaTodayPage({
         subtitle={[formatAgendaDate(clock), city].filter(Boolean).join(" · ")}
         actions={(
           <div className="flex flex-wrap items-center gap-2">
-            {readinessPct < 100 ? (
-              <span className="inline-flex min-h-[44px] items-center rounded-full bg-[rgba(59,76,202,0.08)] px-3 text-[12.5px] font-medium text-[var(--tc-accent)]">
-                {readinessPct}% {copy.t("ready")}
-              </span>
-            ) : null}
+            {/* Website % lives only in the top-bar reward control (criterion 1:
+                one number everywhere). Do not show a second first-day
+                readiness chip on a populated Today. */}
             <SecondaryButton onClick={onNewBooking ?? onOpenCalendar}>
               {newLabel ?? copy.t("New booking")}
             </SecondaryButton>
