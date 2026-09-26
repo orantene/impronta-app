@@ -79,6 +79,8 @@ test("manager mounts MaisonSetupHost ahead of theme gallery", () => {
     "utf8",
   );
   assert.match(manager, /MaisonSetupHost/);
+  assert.match(manager, /next\/dynamic/);
+  assert.match(manager, /maison-setup\/MaisonSetupHost/);
   const maisonIdx = manager.indexOf("<MaisonSetupHost");
   const galleryIdx = manager.indexOf("<ManagerThemeGallery");
   assert.ok(maisonIdx > 0 && galleryIdx > maisonIdx);

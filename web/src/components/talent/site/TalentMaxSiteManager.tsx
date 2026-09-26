@@ -20,11 +20,18 @@
  */
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
-import { MaisonSetupHost } from "@/components/talent/site/maison-setup/MaisonSetupHost";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
+
+/** Maison Choose-a-design chrome — lazy so flag-off / non-site routes skip the chunk. */
+const MaisonSetupHost = dynamic(
+  () =>
+    import("@/components/talent/site/maison-setup/MaisonSetupHost").then((m) => m.MaisonSetupHost),
+  { ssr: false },
+);
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import {
   loadMaxSiteManagerAction,
