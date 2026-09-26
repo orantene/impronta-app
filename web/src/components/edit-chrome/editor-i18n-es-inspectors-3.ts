@@ -65,6 +65,27 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Section copy and which catalog items this widget shows. Prices and booking rules stay in Services - use Edit offering there.":
     "Texto de la sección y qué ítems del catálogo muestra este widget. Precios y reglas de reserva quedan en Servicios: úsalos en Editar oferta.",
   "Leave blank for behavior-aware labels": "Déjalo en blanco para etiquetas según el comportamiento",
+  "Open Services catalog editor": "Abrir el editor del catálogo de Servicios",
+  "Add your first offering": "Agrega tu primera oferta",
+  "Featured offerings": "Ofertas destacadas",
+  "Search to feature…": "Buscar para destacar…",
+  "Presentation order": "Orden de presentación",
+  "Catalog order": "Orden del catálogo",
+  "Manual (selected ids order)": "Manual (orden de IDs seleccionados)",
+  "Visible fields": "Campos visibles",
+  "Show category": "Mostrar categoría",
+  "Show delivery / location": "Mostrar entrega / ubicación",
+  "Show booking badge": "Mostrar insignia de reserva",
+  "Show price": "Mostrar precio",
+  "Show Instant / Deposit badges": "Mostrar insignias Instantánea / Seña",
+  "Show All chip in category filter": "Mostrar chip Todos en el filtro de categorías",
+  "Show counts on category chips": "Mostrar conteos en chips de categoría",
+  "Enable visitor catalog search": "Activar búsqueda del catálogo para visitantes",
+  "Style preset": "Preset de estilo",
+  "Image-led": "Con imagen",
+  "Search offerings…": "Buscar ofertas…",
+  "Details open in the booking sheet (modal on desktop, bottom sheet on mobile). Inline expansion is not supported in this release - no dead control.":
+    "Los detalles se abren en la hoja de reserva (modal en escritorio, hoja inferior en móvil). La expansión en línea no está en esta versión: sin controles muertos.",
   "How visitors open details and start booking. Chat Ask handoff is shared with the booking sheet.":
     "Cómo abren los visitantes los detalles y empiezan a reservar. El Ask del chat se comparte con la hoja de reserva.",
 };

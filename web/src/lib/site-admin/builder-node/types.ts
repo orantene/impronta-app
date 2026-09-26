@@ -1287,10 +1287,20 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     showStats?: boolean;
     showPhoto?: boolean;
     showDescription?: boolean;
+    showCategory?: boolean;
     showDuration?: boolean;
+    showDelivery?: boolean;
+    showAvailability?: boolean;
+    showPrice?: boolean;
     showUsdEquivalent?: boolean;
+    /** Instant / Deposit badges from real offering flags only. */
+    showBadges?: boolean;
     ctaLabel?: string;
     emptyMessage?: string;
+    categoryShowAll?: boolean;
+    categoryShowCounts?: boolean;
+    enableCatalogSearch?: boolean;
+    stylePreset?: "clean" | "editorial" | "compact" | "image_led";
     /** all = every eligible offering; categories / ids = subset by reference */
     selectionMode?: "all" | "categories" | "ids";
     selectedCategoryNames?: string[];
