@@ -150,6 +150,14 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - `MyWebsiteCard` — Live · address · View / Change / Design options (options body = PR8).
 - Visual pixel match deferred until owner PDF/prototype.
 
+### PR 6 notes (W44–W59)
+
+- `ImportStarterPanel` from Theme detail Personalise entry (13 available; no images group — preview-only).
+- Writes draft `talent_offerings` + `talent_faq_items` into `talent_content_import_batches`; section text keys recorded on the batch.
+- Idempotent on starter keys; duplicate default Keep existing; Undo removes batch records (ask if edited).
+- Services `?from=website-setup` banner + draft filter.
+- Visual pixel match deferred until owner PDF/prototype.
+
 ---
 
 ## File lock / coordination

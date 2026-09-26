@@ -51,6 +51,8 @@ import {
   useNeedsWorkingHoursBanner,
 } from "./ServicesHoursNeeded";
 import { HideOutcome, RowMenu, listPrice } from "./ServicesHomeRowChrome";
+import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
+import { useSearchParams } from "next/navigation";
 
 type Filter = "all" | "service" | "package" | "product" | "draft" | "hidden" | "archived" | "attention";
 type Screen = "list" | "editor" | "defaults" | "organize" | "addMany" | "camera" | "firstRun" | "patterns";
@@ -68,7 +70,9 @@ export function ServicesHome({
   const locale = copy.isSpanish ? "es" : "en";
   const { setTalentPage } = useAdminShell();
   const editor = useOfferingsEditor({ kind: "talent", talentProfileId: talentId });
-  const [filter, setFilter] = useState<Filter>("all");
+  const searchParams = useSearchParams();
+  const fromWebsiteSetup = searchParams?.get("from") === "website-setup";
+  const [filter, setFilter] = useState<Filter>(fromWebsiteSetup ? "draft" : "all");
   const [query, setQuery] = useState("");
   const [screen, setScreen] = useState<Screen>("list");
   const [typeOpen, setTypeOpen] = useState(false);
@@ -399,6 +403,7 @@ export function ServicesHome({
 
   return (
     <div className="font-admin-body">
+      <ServicesWebsiteSetupBanner />
       <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
           <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>

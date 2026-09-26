@@ -21,6 +21,8 @@ import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-a
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { MaisonTagChips } from "./MaisonTagChips";
+import { ImportStarterPanel } from "./ImportStarterPanel";
+import { MAISON_STARTER_COUNTS } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
@@ -45,6 +47,7 @@ export function ThemeDetailScreen({
 }: Props) {
   const preview = useThemePreview({ talentProfileId, locale });
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const lookSlug = `maison-${choices.paletteKey}`;
   const url = preview.src("maison", lookSlug);
@@ -362,12 +365,12 @@ export function ThemeDetailScreen({
               <button
                 type="button"
                 data-testid="maison-import-entry"
-                onClick={() =>
-                  window.alert(maisonSetupT(locale, "Import opens in a later step."))
-                }
+                onClick={() => setImportOpen(true)}
                 className="flex min-h-12 w-full items-center justify-between rounded-xl border border-admin-border-soft px-3 text-left text-[13px] font-semibold text-admin-ink"
               >
-                {maisonSetupT(locale, "Import starter content · 13 available ›")}
+                {locale === "es"
+                  ? `Importar contenido inicial · ${MAISON_STARTER_COUNTS.total} disponibles ›`
+                  : `Import starter content · ${MAISON_STARTER_COUNTS.total} available ›`}
               </button>
               <p className="mt-1.5 text-[12px] text-admin-ink-dim">
                 {maisonSetupT(locale, "Optional. Imported items are saved as drafts.")}
@@ -539,6 +542,14 @@ export function ThemeDetailScreen({
             )}
           </div>
         </div>
+      ) : null}
+
+      {importOpen ? (
+        <ImportStarterPanel
+          locale={locale}
+          onClose={() => setImportOpen(false)}
+          onContinueDesigning={() => setImportOpen(false)}
+        />
       ) : null}
     </section>
   );
