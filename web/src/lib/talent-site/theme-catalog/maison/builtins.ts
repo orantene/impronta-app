@@ -10,12 +10,8 @@
 import type { BuiltinDesignEntry, BuiltinLookEntry } from "../builtins/types";
 import { buildBuiltinDesignPayload } from "../builtins/designs/_shared";
 import type { DemoPayload, LookPayload } from "../types";
+import { buildMaisonDesignPayload } from "./design-payload";
 import { MAISON_PALETTE_ORDER, MAISON_PALETTES, MAISON_SEED, type MaisonPaletteKey } from "./seed";
-
-/** Placeholder Design payload until PR 2 ports real Maison builder trees. */
-function buildMaisonPlaceholderPayload() {
-  return buildBuiltinDesignPayload("editorial");
-}
 
 export const MAISON_BUILTIN_DESIGN: BuiltinDesignEntry = {
   kind: "design",
@@ -38,7 +34,7 @@ export const MAISON_BUILTIN_DESIGN: BuiltinDesignEntry = {
     },
     fontPreview: { heading: "Fraunces", body: "Inter" },
   },
-  buildPayload: buildMaisonPlaceholderPayload,
+  buildPayload: buildMaisonDesignPayload,
 };
 
 function lookTokensFor(key: MaisonPaletteKey): LookPayload {

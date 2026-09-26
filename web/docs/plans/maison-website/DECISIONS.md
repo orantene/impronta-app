@@ -118,6 +118,13 @@ Choose a design, Theme detail, Import, Custom colors, Review, Design options = t
 
 _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_website_foundation.sql`, seeds, allowlist, flag, conditional gate, catalog filter, flags-off tests, W8 probe).
 
+### PR 2 notes (W9–W16)
+
+- Maison Design payload replaces the editorial placeholder (`design-payload.ts`).
+- FAQ binds via accordion `bindSource: "talent_faq_items"` (nested in contact kit slot — no new kit slot).
+- Demo \| My content is preview-time only (`preview-hydration.ts`); gallery UI toggle lands with Choose-a-design (PR 4).
+- Visual pixel match deferred until owner uploads PDF/prototype.
+
 ---
 
 ## File lock / coordination

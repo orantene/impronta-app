@@ -793,6 +793,11 @@ export interface BuilderAccordionNode extends BuilderNodeBase {
     defaultOpenItemIds?: string[];
     layerLabel?: string;
     style?: BuilderNodeStyle;
+    /**
+     * Maison FAQ (W16): when `"talent_faq_items"`, render children from
+     * `dataSources.talentFaqItems` instead of authored accordion_item nodes.
+     */
+    bindSource?: "talent_faq_items";
   };
   children: BuilderNode[];
 }

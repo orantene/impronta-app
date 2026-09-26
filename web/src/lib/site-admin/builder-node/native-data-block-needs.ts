@@ -61,6 +61,8 @@ export type NativeDataBlockNeeds = {
   needsTalentCount: boolean;
   menuBoard: boolean;
   servicesCatalog: boolean;
+  /** Maison FAQ accordion with `bindSource: "talent_faq_items"`. */
+  talentFaq: boolean;
   /** Every native `featured_talent` node in the tree, in document order. */
   featuredTalent: NativeFeaturedTalentNeed[];
   /**
@@ -141,6 +143,7 @@ export function collectNativeDataBlockNeeds(
   let needsTalentCount = false;
   let menuBoard = false;
   let servicesCatalog = false;
+  let talentFaq = false;
   let needsTalentLocations = false;
   const featuredTalent: NativeFeaturedTalentNeed[] = [];
   let disciplines: {
@@ -163,6 +166,12 @@ export function collectNativeDataBlockNeeds(
     }
     if (node.kind === "services_catalog") {
       servicesCatalog = true;
+    }
+    if (
+      node.kind === "accordion" &&
+      (node.props as { bindSource?: string }).bindSource === "talent_faq_items"
+    ) {
+      talentFaq = true;
     }
     if (node.kind === "header_account") headerWidgets.account = true;
     if (node.kind === "header_inquiry") headerWidgets.inquiry = true;
@@ -240,6 +249,7 @@ export function collectNativeDataBlockNeeds(
     needsTalentCount,
     menuBoard,
     servicesCatalog,
+    talentFaq,
     featuredTalent,
     needsTalentLocations,
     disciplines,

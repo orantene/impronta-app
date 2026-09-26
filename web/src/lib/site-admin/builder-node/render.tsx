@@ -303,6 +303,17 @@ export interface BuilderNodeRenderDataSources {
   talentOfferingsCategoryNotes?: Record<string, string>;
   /** Published talent site: write bookings. Editor / draft: demo sheet. */
   catalogBookingLive?: boolean;
+  /**
+   * Maison FAQ (W16) — published `talent_faq_items` for accordion
+   * `bindSource: "talent_faq_items"`. Absent ⇒ bound accordion stays empty
+   * (or falls back to authored children).
+   */
+  talentFaqItems?: ReadonlyArray<{
+    id: string;
+    question: string;
+    answer: string;
+    sort_order?: number;
+  }>;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -4612,13 +4623,49 @@ function renderBuilderNodeElement(
           {renderChildren(node, options)}
         </div>
       );
-    case "accordion":
+    case "accordion": {
+      // Maison FAQ bind (W16): expand from published talent_faq_items when set.
+      const bindFaq = node.props.bindSource === "talent_faq_items";
+      const faqChildren = bindFaq
+        ? (() => {
+            const items = options.dataSources.talentFaqItems ?? [];
+            if (items.length === 0) {
+              return nodeChildren(node);
+            }
+            return items.map((item, index) => {
+              const id = `${node.id}-faq-${item.id || index}`;
+              const answer = item.answer?.trim() || "";
+              return {
+                id,
+                kind: "accordion_item" as const,
+                props: { title: item.question.trim() || "…" },
+                children: answer
+                  ? [
+                      {
+                        id: `${id}-a`,
+                        kind: "paragraph" as const,
+                        props: {
+                          text: answer,
+                          style: { tone: "muted" as const, size: "md" as const },
+                        },
+                      },
+                    ]
+                  : [],
+              };
+            });
+          })()
+        : null;
+      const accordionNode =
+        faqChildren != null
+          ? ({ ...node, children: faqChildren } as typeof node)
+          : node;
       return (
         <div
           key={node.id}
           {...anchorIdAttrs(node)}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
+          {...(bindFaq ? { "data-faq-bind": "talent_faq_items" } : {})}
           {...builderNodeStyleAttrs(node.props.style)}
           className="site-builder-node site-builder-node--accordion"
           style={inlineNodeStyle(node.props.style, CONTAINER_STYLE, {
@@ -4626,12 +4673,13 @@ function renderBuilderNodeElement(
             gap: GAP_BY_SIZE.m,
           })}
         >
-          {renderChildren(node, {
+          {renderChildren(accordionNode, {
             ...options,
             accordionOpenIds: node.props.defaultOpenItemIds,
           })}
         </div>
       );
+    }
     case "accordion_item": {
       const titleResolved = resolveNodeLocalizedText(
         node,
