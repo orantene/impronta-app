@@ -40,4 +40,12 @@ describe("G3.1–G3.4 polish contracts", () => {
       assert.ok(src.includes("useAgendaCopy("), file);
     }
   });
+
+  it("BookingRecord wires respondToReschedule Accept/Decline", () => {
+    const src = readFileSync(path.join(AGENDA, "AgendaBookingRecord.tsx"), "utf8");
+    assert.ok(src.includes("respondToReschedule"));
+    assert.ok(src.includes("Accept new time"));
+    assert.ok(src.includes("Decline new time"));
+    assert.ok(src.includes("pendingReschedule"));
+  });
 });
