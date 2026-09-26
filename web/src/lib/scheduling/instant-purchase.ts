@@ -186,14 +186,15 @@ export async function placeInstantPurchase(
 
   // Prep from selling defaults (+ optional offering attr) pads the hold so
   // the calendar blocks preparation time when the client reserves.
-  const { data: talentDefaultsRow } = await admin
+  const { data: talentDefaultsRow, error: talentDefaultsErr } = await admin
     .from("talent_profiles")
     .select("selling_defaults")
     .eq("id", input.talentProfileId)
     .maybeSingle();
-  const selling = parseSellingBookingSettings(
-    isRecord(talentDefaultsRow) ? talentDefaultsRow.selling_defaults : null,
-  );
+  // Missing / failed defaults → zero buffers (same as unset). Purchase proceeds.
+  const defaultsRaw =
+    !talentDefaultsErr && isRecord(talentDefaultsRow) ? talentDefaultsRow.selling_defaults : null;
+  const selling = parseSellingBookingSettings(defaultsRaw);
   const attrPrep =
     isRecord(policy.attributes) && typeof policy.attributes.bufferBeforeMin === "number"
       ? Math.max(0, Math.trunc(policy.attributes.bufferBeforeMin))
@@ -205,10 +206,8 @@ export async function placeInstantPurchase(
   const prepMin = attrPrep ?? selling.bufferBeforeMin ?? 0;
   const afterMin =
     attrAfter ??
-    (isRecord(talentDefaultsRow) &&
-    isRecord(talentDefaultsRow.selling_defaults) &&
-    typeof talentDefaultsRow.selling_defaults.bufferAfterMin === "number"
-      ? Math.max(0, Math.trunc(talentDefaultsRow.selling_defaults.bufferAfterMin))
+    (isRecord(defaultsRaw) && typeof defaultsRaw.bufferAfterMin === "number"
+      ? Math.max(0, Math.trunc(defaultsRaw.bufferAfterMin))
       : 0);
   const bufferBeforeSeconds = prepMin * 60;
   const bufferAfterSeconds = afterMin * 60;
