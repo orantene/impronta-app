@@ -143,6 +143,7 @@ import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
+import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 
@@ -284,6 +285,12 @@ export interface BuilderNodeRenderDataSources {
    * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
+  /**
+   * When true, `services_catalog` paints the dedicated loading skeleton
+   * (BRIEF-03 / §14) instead of the empty message or interactive list.
+   * Callers that await offerings before render leave this unset.
+   */
+  talentOfferingsLoading?: boolean;
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
   /**
@@ -4450,6 +4457,18 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-stat strong{font-size:2rem;font-weight:500}
 .site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
+.site-builder-node--services-catalog-loading{margin:0}
+.site-builder-node--services-catalog-loading-label{margin:0 0 .85rem;font-size:.8125rem;font-weight:600;color:var(--token-color-muted)}
+.site-builder-node--services-catalog-skel{display:block;background:color-mix(in srgb,var(--token-color-ink) 8%,transparent);border-radius:8px;animation:svc-catalog-skel-pulse 1.2s ease-in-out infinite}
+.site-builder-node--services-catalog-skel-line{height:.75rem;margin:.2rem 0}
+.site-builder-node--services-catalog-skel-name{width:58%;height:.95rem}
+.site-builder-node--services-catalog-skel-desc{width:82%;height:.7rem}
+.site-builder-node--services-catalog-skel-meta{width:36%;height:.65rem}
+.site-builder-node--services-catalog-skel-price{width:4.5rem;height:.95rem}
+.site-builder-node--services-catalog-skel-cta{width:5.5rem;min-height:2rem;border-radius:10px;pointer-events:none}
+.site-builder-node--services-catalog-skel.site-builder-node--services-catalog-photo{background:color-mix(in srgb,var(--token-color-ink) 10%,transparent)}
+@keyframes svc-catalog-skel-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.site-builder-node--services-catalog-skel{animation:none}}
 .site-builder-node--services-catalog-nav{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.25rem}
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"]{gap:0;border-bottom:1px solid var(--token-color-line);padding-bottom:0}
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill{border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;padding:.55rem .9rem;margin-bottom:-1px}
@@ -5844,7 +5863,13 @@ function renderBuilderNodeElement(
             ) : null}
           </header>
 
-          {visible.length === 0 ? (
+          {options.dataSources.talentOfferingsLoading ? (
+            <ServicesCatalogLoadingSkeleton
+              locale={locale}
+              showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+              rows={Math.min(Math.max(visible.length, 4), 6)}
+            />
+          ) : visible.length === 0 ? (
             <p className="site-builder-node--services-catalog-empty">{emptyMessage}</p>
           ) : (
             <CatalogIslandBoundary
