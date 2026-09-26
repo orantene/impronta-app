@@ -30,7 +30,7 @@ import { PaymentDetailDrawer } from "./PaymentDetailDrawer";
 import { PayoutAccountStatesSheet } from "./PayoutAccountStatesSheet";
 import { PayoutDetailDrawer } from "./PayoutDetailDrawer";
 
-export function MoneySpine() {
+export function MoneySpine({ onViewBreakdown }: { onViewBreakdown?: () => void }) {
   const view = useMemo(() => buildMoneySpineView(), []);
   const [tab, setTab] = useState<MoneyTab>("payments");
   const [method, setMethod] = useState<MethodFilter>("all");
@@ -87,7 +87,7 @@ export function MoneySpine() {
   }
 
   return (
-    <div data-money-spine="m4" style={{ fontFamily: FONTS.body }}>
+    <div data-money-spine="m5" style={{ fontFamily: FONTS.body }}>
       <style>{`
         @media (max-width: 720px) {
           [data-money-spine] [data-money-desk-actions] { display: none !important; }
@@ -240,6 +240,7 @@ export function MoneySpine() {
           payouts={view.payouts}
           currency={view.currency}
           onOpen={(po) => openPayout(po)}
+          onViewBreakdown={onViewBreakdown}
         />
       ) : null}
 

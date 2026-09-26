@@ -29,7 +29,11 @@ import {
   initialsFromName,
   methodLabel,
 } from "./money-spine-format";
-import { LEDGER_CONTRACT_CLOCK } from "./september-ledger-contract";
+import {
+  LEDGER_CONTRACT_AGGREGATES,
+  LEDGER_CONTRACT_CLOCK,
+  LEDGER_CONTRACT_RECONCILIATION,
+} from "./september-ledger-contract";
 import { septemberLedgerFixture } from "./september-ledger-fixture";
 
 export type MoneyTab = "payments" | "outstanding" | "payouts";
@@ -373,6 +377,116 @@ export function buildPayoutDetail(
 
 export function payoutAccountStates(): readonly PayoutAccountStateCard[] {
   return PAYOUT_ACCOUNT_STATES;
+}
+
+/** One row on `mc_breakdown` cards. */
+export type BreakdownLine = {
+  label: string;
+  sub?: string;
+  amountLabel: string;
+  strong?: boolean;
+};
+
+/** View model for Money · View breakdown (reconciliation) — Part1 p19–p21. */
+export type BreakdownView = {
+  currency: string;
+  title: string;
+  processorTitle: string;
+  processorLines: readonly BreakdownLine[];
+  outsideTitle: string;
+  outsideLines: readonly BreakdownLine[];
+  outsideFoot: string;
+  collectedLines: readonly BreakdownLine[];
+  whyTitle: string;
+  whyBody: string;
+};
+
+/**
+ * M5 reconciliation (`mc_breakdown`) — opening balance + card − refund − fees −
+ * paid out = waiting for Fri 25. Cash/transfer kept apart. Numbers from
+ * LEDGER-CONTRACT only.
+ */
+export function buildBreakdownView(): BreakdownView {
+  const currency = LEDGER_CONTRACT_CLOCK.currency;
+  const r = LEDGER_CONTRACT_RECONCILIATION;
+  const a = LEDGER_CONTRACT_AGGREGATES;
+  const ledger = septemberLedgerFixture();
+  const refund = ledger.refunds[0];
+  const refundSub = refund
+    ? `${refund.clientName}, ${formatSeptemberDay(refund.day)}`
+    : undefined;
+
+  return {
+    currency,
+    title: "Breakdown · September",
+    processorTitle: "Card money held by the processor, September",
+    processorLines: [
+      {
+        label: "Waiting on 1 Sep (August card payments)",
+        sub: `${r.waiting_on_1_sep_payments} payments, paid out on Fri 4 Sep`,
+        amountLabel: formatMoneyMajor(r.waiting_on_1_sep, currency),
+      },
+      {
+        label: "+ Card payments received",
+        sub: `${r.card_payments} payments, 2–22 Sep`,
+        amountLabel: formatMoneyMajor(r.card, currency),
+      },
+      {
+        label: "– Refunds",
+        sub: refundSub,
+        amountLabel: formatMoneyMinus(r.refund, currency),
+      },
+      {
+        label: "– Processor fees taken from payouts",
+        sub: "Amounts come from the processor - fixture values",
+        amountLabel: formatMoneyMinus(r.fees_placeholder, currency),
+      },
+      {
+        label: `– Paid out to ${PAYOUT_ACCOUNT.bank}`,
+        sub: "Fri 4, 11 and 18 Sep",
+        amountLabel: formatMoneyMinus(r.paid_out, currency),
+      },
+      {
+        label: "= Waiting now, goes in the Fri 25 payout",
+        sub: `About ${formatMoneyShort(a.next_payout_estimated)} after an estimated ${formatMoneyShort(r.fri_25_fees_estimated)} in fees`,
+        amountLabel: formatMoneyMajor(r.waiting_for_fri_25, currency),
+        strong: true,
+      },
+    ],
+    outsideTitle: "Recorded outside Tulala",
+    outsideLines: [
+      {
+        label: "Cash",
+        sub: `${r.cash_payments} payments you recorded`,
+        amountLabel: formatMoneyMajor(a.by_method.cash, currency),
+      },
+      {
+        label: "Bank transfers to you",
+        sub: `${r.transfer_payments} payments you recorded`,
+        amountLabel: formatMoneyMajor(a.by_method.transfer, currency),
+      },
+    ],
+    outsideFoot: "Never part of a payout: this money is already with you.",
+    collectedLines: [
+      {
+        label: "Collected in September (gross)",
+        sub: "Card + cash + transfer",
+        amountLabel: formatMoneyMajor(a.collected_gross, currency),
+      },
+      {
+        label: "Refunded",
+        amountLabel: formatMoneyMinus(a.refunded, currency),
+      },
+      {
+        label: "Collected after refunds",
+        amountLabel: formatMoneyMajor(a.collected_after_refunds, currency),
+        strong: true,
+      },
+    ],
+    whyTitle: "Why the payout is not the same as collected",
+    whyBody:
+      "Cash and transfers never pass through Tulala. Card money arrives on Fridays, after refunds and fees, and can belong to the previous month.",
+  };
 }
 
 export {

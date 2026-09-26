@@ -13,10 +13,12 @@ export function MoneyPayoutsPanel({
   payouts,
   currency,
   onOpen,
+  onViewBreakdown,
 }: {
   payouts: readonly MoneyPayoutRow[];
   currency: string;
   onOpen: (payout: MoneyPayoutRow) => void;
+  onViewBreakdown?: () => void;
 }) {
   return (
     <div style={{ marginTop: 12 }}>
@@ -24,7 +26,23 @@ export function MoneyPayoutsPanel({
         Only card payments made through Tulala become payouts. Cash and transfers you record went
         straight to you. Each Friday payout carries the card payments made Thursday to Wednesday
         before it, less refunds and processor fees.{" "}
-        <span style={{ color: COLORS.indigoDeep, fontWeight: 600 }}>View breakdown</span>
+        <button
+          type="button"
+          data-money-view-breakdown
+          onClick={onViewBreakdown}
+          style={{
+            color: COLORS.indigoDeep,
+            fontWeight: 600,
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: onViewBreakdown ? "pointer" : "default",
+            fontSize: 13.5,
+            fontFamily: FONTS.body,
+          }}
+        >
+          View breakdown
+        </button>
       </p>
 
       <div data-money-desk-po>
