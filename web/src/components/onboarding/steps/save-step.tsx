@@ -32,7 +32,7 @@ export function SaveStep({
   const [email, setEmail] = useState("");
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
-  const next = path === "business" ? "/" : "/onboarding/talent-location";
+  const next = path === "business" ? "/" : "/talent/profile/fields";
   const google = useGooglePopup({ next, onSuccess: onGoogleSuccess });
   const googleError =
     google.error === "blocked" ? t("public.onboarding.save.popupBlocked")

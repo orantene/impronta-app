@@ -409,8 +409,11 @@ export async function signUpTalentInPlace(
     options: {
       // If email confirmation is on, the link lands on the app host and
       // resumes at the profile step.
+      // Was "/onboarding/talent-location" (legacy). Confirmation emails already
+      // in inboxes still point there, which is why that route stays as a
+      // redirect rather than being deleted.
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
-        "/onboarding/talent-location",
+        "/talent/profile/fields",
       )}`,
       data: { signup_intent: "talent" },
     },
