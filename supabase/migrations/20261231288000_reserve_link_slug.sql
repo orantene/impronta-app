@@ -12,3 +12,5 @@ VALUES
 ON CONFLICT (slug) DO NOTHING;
 
 COMMIT;
+
+-- Applied remotely 2026-09-26 (schema_migrations version aligned).
