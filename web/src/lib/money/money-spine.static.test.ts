@@ -33,6 +33,24 @@ describe("Money page M2 spine", () => {
     assert.match(spine, /consumeMoneyLanding/);
     assert.match(outstanding, /Due by today/);
   });
+
+  it("MoneySpine M4 wires payout detail, failed alternate, and account states", () => {
+    const spine = readFileSync(join(moneyDir, "MoneySpine.tsx"), "utf8");
+    const payouts = readFileSync(join(moneyDir, "MoneyPayoutsPanel.tsx"), "utf8");
+    const detail = readFileSync(join(moneyDir, "PayoutDetailDrawer.tsx"), "utf8");
+    const states = readFileSync(join(moneyDir, "PayoutAccountStatesSheet.tsx"), "utf8");
+    assert.match(spine, /PayoutDetailDrawer/);
+    assert.match(spine, /PayoutAccountStatesSheet/);
+    assert.match(spine, /buildPayoutDetail/);
+    assert.match(spine, /openAccountStates/);
+    assert.match(payouts, /onOpen/);
+    assert.match(detail, /data-money-payout-detail/);
+    assert.match(detail, /Update payout account/);
+    assert.match(detail, /Download statement/);
+    assert.match(states, /Payout account and payout states/);
+    assert.match(states, /Design reference/);
+    assert.match(states, /onViewFailedPayout/);
+  });
 });
 
 describe("Today money tiles M3", () => {

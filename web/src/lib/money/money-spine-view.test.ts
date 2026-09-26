@@ -10,8 +10,10 @@ import { LEDGER_CONTRACT_AGGREGATES } from "./september-ledger-contract";
 import {
   buildMoneySpineView,
   buildPaymentDetail,
+  buildPayoutDetail,
   filterOutstanding,
   outstandingFilterTotal,
+  payoutAccountStates,
 } from "./money-spine-view";
 
 describe("Money spine view (M2)", () => {
@@ -57,5 +59,63 @@ describe("Money spine view (M2)", () => {
     assert.equal(detail.agreed, 500);
     assert.equal(detail.stateChip, "Received · partly refunded");
     assert.ok(detail.payoutLine?.includes("paid"));
+  });
+
+  it("payout detail PO-0918 matches ledger net and included lines (mc_payout)", () => {
+    const view = buildMoneySpineView();
+    const po = view.payouts.find((p) => p.id === "PO-0918");
+    assert.ok(po);
+    const detail = buildPayoutDetail(po!, view.payments, view.refunds);
+    assert.equal(detail.failed, false);
+    assert.equal(detail.netLabel, "$1,928 MXN");
+    assert.equal(detail.stateChip, "Paid");
+    assert.equal(detail.toBank, "BBVA ···4471");
+    assert.equal(detail.arrivedLabel, "Fri 18 Sep");
+    assert.equal(detail.reference, "PO-0918");
+    assert.equal(detail.showDownloadStatement, true);
+    const payments = detail.lines.filter((l) => l.kind === "payment");
+    assert.equal(payments.length, 3);
+    assert.equal(payments[0]?.label, "Valeria Ruiz · Thu 10 Sep");
+    assert.equal(payments[0]?.amountLabel, "$550 MXN");
+    assert.equal(payments[1]?.label, "Mónica Ruiz · Sat 12 Sep");
+    assert.equal(payments[1]?.amountLabel, "$950 MXN");
+    assert.equal(payments[2]?.label, "Daniela Ortiz · Tue 15 Sep");
+    assert.equal(payments[2]?.amountLabel, "$620 MXN");
+    const refund = detail.lines.find((l) => l.kind === "refund");
+    assert.equal(refund?.label, "Refund · Daniela Ortiz");
+    assert.equal(refund?.amountLabel, "− $120 MXN");
+    const fees = detail.lines.find((l) => l.kind === "fees");
+    assert.equal(fees?.amountLabel, "− $72 MXN");
+    const total = detail.lines.find((l) => l.kind === "total");
+    assert.equal(total?.label, "Payout");
+    assert.equal(total?.amountLabel, "$1,928 MXN");
+  });
+
+  it("failed alternate for PO-0918 keeps net and names bank return (mc_payout_failed)", () => {
+    const view = buildMoneySpineView();
+    const po = view.payouts.find((p) => p.id === "PO-0918");
+    assert.ok(po);
+    const detail = buildPayoutDetail(po!, view.payments, view.refunds, { failed: true });
+    assert.equal(detail.failed, true);
+    assert.equal(detail.netLabel, "$1,928 MXN");
+    assert.equal(detail.stateChip, "Failed · returned by the bank");
+    assert.equal(detail.toBank, "BBVA ···0932");
+    assert.equal(detail.arrivedLabel, "Did not arrive");
+    assert.equal(detail.showDownloadStatement, false);
+    assert.ok(detail.alert?.title.includes("Mon 21 Sep"));
+    assert.ok(detail.alert?.body.includes("···0932"));
+  });
+
+  it("payout account states sheet lists nine visual-spec cards with fixture amounts", () => {
+    const states = payoutAccountStates();
+    assert.equal(states.length, 9);
+    assert.equal(states[0]?.chip, "Not connected");
+    assert.equal(states[5]?.chip, "Scheduled · estimated");
+    assert.ok(states[5]?.body.includes("$5,784"));
+    assert.equal(states[6]?.chip, "Paid");
+    assert.ok(states[6]?.body.includes("$1,928"));
+    assert.equal(states[7]?.chip, "Failed");
+    assert.equal(states[8]?.chip, "Could not load");
+    assert.ok(states[8]?.body.includes("hidden rather than shown as zero"));
   });
 });
