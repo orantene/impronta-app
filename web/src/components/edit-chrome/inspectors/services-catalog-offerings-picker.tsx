@@ -13,6 +13,7 @@ import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import {
   isPublicEligibleOffering,
 } from "@/lib/site-admin/builder-node/services-catalog-selection";
+import { ServicesCatalogLoadingSkeleton } from "@/lib/site-admin/builder-node/services-catalog-loading";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { KIT } from "./kit/tokens";
 
@@ -64,7 +65,7 @@ export function useServicesCatalogEligibleOfferings(): {
 
 export function ServicesCatalogOfferingsLoadNotice({ state }: { state: LoadState }) {
   if (state.status === "loading") {
-    return <p className="text-xs text-black/50">Loading your published offerings…</p>;
+    return <ServicesCatalogLoadingSkeleton locale="en" showPhoto={false} rows={3} />;
   }
   if (state.status === "no_talent") {
     return (
