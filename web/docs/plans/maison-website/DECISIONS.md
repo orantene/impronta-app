@@ -142,6 +142,14 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - **Use this design** is chrome-only here — apply / Undo / Review = PR 5.
 - Visual pixel match deferred until owner PDF/prototype.
 
+### PR 5 notes (W35–W43, W72, W76)
+
+- `applyMaisonDesignAction` / `undoMaisonDesignAction` — never-published path writes shell/home/tokens_draft; Undo snapshot in `pending_design.previous` (source `apply`). Live sites refuse (PR8).
+- `ReviewWebsiteScreen` — Ready / named blockers (`no_slug`, `no_design`) + Publish; W72 no trial/plan/price chrome.
+- `publishMaxSiteAction` — when Maison flag on, refuses with `readiness_blocked`; writes Maison design revision (W41); clears `pending_design` on success.
+- `MyWebsiteCard` — Live · address · View / Change / Design options (options body = PR8).
+- Visual pixel match deferred until owner PDF/prototype.
+
 ---
 
 ## File lock / coordination

@@ -38,6 +38,17 @@ describe("maison-choices", () => {
     assert.equal(parseMaisonChoices({ paletteKey: "neon" }).paletteKey, "pink");
   });
 
+  it("resumes review screen after apply (PR5)", () => {
+    const parsed = parseMaisonChoices({
+      screen: "review",
+      status: "Draft saved",
+      paletteKey: "lilac",
+      contentMode: "mine",
+    });
+    assert.equal(parsed.screen, "review");
+    assert.equal(parsed.status, "Draft saved");
+  });
+
   it("uses a stable storage prefix", () => {
     assert.equal(MAISON_CHOICES_STORAGE_PREFIX, "maison-setup-choices:");
   });

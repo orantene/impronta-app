@@ -54,6 +54,27 @@ const ES: Record<string, string> = {
   "Import opens in a later step.": "La importación llega en un paso posterior.",
   "Apply & review land in the next release. Your choices are saved.":
     "Aplicar y revisar llegan en la siguiente versión. Tus elecciones están guardadas.",
+  "Review your website": "Revisa tu sitio",
+  "Ready to publish": "Listo para publicar",
+  "1 thing before publishing": "1 cosa antes de publicar",
+  Publish: "Publicar",
+  "Publishing…": "Publicando…",
+  Undo: "Deshacer",
+  "Design applied to your draft": "Diseño aplicado a tu borrador",
+  "Nothing is public until you publish. After publishing you can change the design at any time.":
+    "Nada es público hasta que publiques. Después puedes cambiar el diseño cuando quieras.",
+  "My website": "Mi sitio web",
+  "View website": "Ver sitio",
+  "Change design": "Cambiar diseño",
+  "Design options": "Opciones de diseño",
+  "Design options open in a later step.":
+    "Las opciones de diseño llegan en un paso posterior.",
+  "Your website is live": "Tu sitio ya está en vivo",
+  "Could not publish. Try again.": "No se pudo publicar. Inténtalo de nuevo.",
+  "Try again": "Intentar de nuevo",
+  Address: "Dirección",
+  Design: "Diseño",
+  "No trial, plan, or price in this flow.": "Sin prueba, plan ni precio en este flujo.",
 };
 
 export function maisonSetupT(locale: MaisonSetupLocale, key: string): string {

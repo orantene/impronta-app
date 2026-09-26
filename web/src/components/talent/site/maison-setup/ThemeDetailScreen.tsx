@@ -2,9 +2,9 @@
 
 /**
  * cr_detail — Theme detail desktop + phone (W27–W34).
- * Use this design is chrome-only in PR4 (apply/review = PR5).
+ * Use this design → applyMaisonDesignAction → Review (W35).
  */
-import { useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   MAISON_BUILTIN_DEMO,
   MAISON_BUILTIN_DESIGN,
@@ -17,6 +17,7 @@ import {
   maisonPaletteLookTokens,
   type MaisonPaletteKey,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { MaisonTagChips } from "./MaisonTagChips";
@@ -30,6 +31,7 @@ type Props = {
   onChange: (next: Partial<MaisonSetupChoices>) => void;
   onBackToGallery: () => void;
   onClose: () => void;
+  onAppliedToReview: () => void;
 };
 
 export function ThemeDetailScreen({
@@ -39,8 +41,11 @@ export function ThemeDetailScreen({
   onChange,
   onBackToGallery,
   onClose,
+  onAppliedToReview,
 }: Props) {
   const preview = useThemePreview({ talentProfileId, locale });
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const lookSlug = `maison-${choices.paletteKey}`;
   const url = preview.src("maison", lookSlug);
   const demoTitle =
@@ -67,6 +72,23 @@ export function ThemeDetailScreen({
 
   const openSheet = (sheet: MaisonPhoneSheet) => {
     onChange({ phoneSheet: sheet });
+  };
+
+  const handleUseDesign = () => {
+    // W35 — apply draft immediately (no summary/confirm table).
+    startTransition(async () => {
+      setApplyError(null);
+      const res = await applyMaisonDesignAction({
+        paletteKey: choices.paletteKey,
+        contentMode: choices.contentMode,
+      });
+      if (!res.ok) {
+        setApplyError(res.error);
+        return;
+      }
+      onChange({ status: "Draft saved", phoneSheet: null, screen: "review" });
+      onAppliedToReview();
+    });
   };
 
   const previewFrame = (
@@ -353,19 +375,17 @@ export function ThemeDetailScreen({
             </div>
           </div>
           <div className="sticky bottom-0 border-t border-admin-border-soft bg-white px-4 py-3">
+            {applyError ? (
+              <p className="mb-2 text-[12px] text-red-800" data-testid="maison-apply-error">
+                {applyError}
+              </p>
+            ) : null}
             <button
               type="button"
               data-testid="maison-use-design"
-              onClick={() => {
-                onChange({ status: "Choices saved" });
-                window.alert(
-                  maisonSetupT(
-                    locale,
-                    "Apply & review land in the next release. Your choices are saved.",
-                  ),
-                );
-              }}
-              className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white"
+              onClick={handleUseDesign}
+              disabled={pending}
+              className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-50"
             >
               {maisonSetupT(locale, "Use this design")}
             </button>
@@ -400,16 +420,9 @@ export function ThemeDetailScreen({
         <button
           type="button"
           data-testid="maison-use-design-phone"
-          onClick={() => {
-            onChange({ status: "Choices saved" });
-            window.alert(
-              maisonSetupT(
-                locale,
-                "Apply & review land in the next release. Your choices are saved.",
-              ),
-            );
-          }}
-          className="min-h-12 min-w-0 flex-1 truncate rounded-xl bg-emerald-900 px-3 text-[14px] font-semibold text-white"
+          onClick={handleUseDesign}
+          disabled={pending}
+          className="min-h-12 min-w-0 flex-1 truncate rounded-xl bg-emerald-900 px-3 text-[14px] font-semibold text-white disabled:opacity-50"
         >
           {maisonSetupT(locale, "Use this design")}
         </button>
