@@ -1,16 +1,17 @@
 /**
- * Talent website E2E — fixture identities (Phase Q.3).
+ * Talent website E2E — fixture identities (Phase Q.3 + Maison PR9).
  *
- * Pure data (no I/O, no imports beyond types) so Playwright specs can import
- * it directly without pulling in `@supabase/supabase-js` or any server-only
- * module. `seed.ts` creates exactly these rows; keep the two files in sync —
- * if you rename or add a fixture here, update `seed.ts` to match (and vice
- * versa).
+ * Mostly pure data so Playwright specs can import it without pulling in
+ * `@supabase/supabase-js`. The only I/O is the lazy `talentProfileId` getter
+ * that reads `e2e/.auth/talent-website/ids.json` written by `seed.ts`.
  *
  * See `README.md` in this folder for what each fixture is for and how the
  * readiness/tier/site state maps onto
  * `web/docs/talent-website-execution-plan-2026-09-23.md` ("Phase Q.3").
  */
+
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Shared login password for every seeded talent auth user. Not a secret —
@@ -29,7 +30,9 @@ export interface TalentFixture {
     | "t_free_site"
     | "t_max"
     | "t_pro_legacy"
-    | "t_multi_roster";
+    | "t_multi_roster"
+    | "t_vale"
+    | "t_ivan";
   email: string;
   profileCode: string;
   displayName: string;
@@ -38,6 +41,11 @@ export interface TalentFixture {
   siteSlug?: string;
   /** Set only for fixtures with an ACTIVE custom domain row. */
   customDomain?: string;
+  /**
+   * Maison persona role (PR9). Drives seed shape — Vale starts at ~83%
+   * (intro missing); Iván is quotes/chef ready for custom colors.
+   */
+  maisonRole?: "vale" | "ivan";
 }
 
 export const TALENT_FIXTURES: readonly TalentFixture[] = [
@@ -86,6 +94,26 @@ export const TALENT_FIXTURES: readonly TalentFixture[] = [
     profileCode: "TAL-QA-MULTIROSTER",
     displayName: "Multi Roster Mona",
     talentPlanKey: "talent_basic",
+  },
+  // Maison journeys 1–2 / W77 — Vale Montes (nails, bookings, intro missing).
+  {
+    key: "t_vale",
+    email: "qa-t-vale@impronta.test",
+    profileCode: "TAL-QA-VALE",
+    displayName: "Vale Montes",
+    talentPlanKey: "talent_basic",
+    siteSlug: "valemontes",
+    maisonRole: "vale",
+  },
+  // Maison journeys 3–6 / W77 — Iván Lugo (private chef, quotes).
+  {
+    key: "t_ivan",
+    email: "qa-t-ivan@impronta.test",
+    profileCode: "TAL-QA-IVAN",
+    displayName: "Iván Lugo",
+    talentPlanKey: "talent_basic",
+    siteSlug: "ivanlugo",
+    maisonRole: "ivan",
   },
 ] as const;
 
@@ -244,6 +272,16 @@ export function selfPageUrlFor(fx: TalentFixture): string {
   return `${base.replace(/\/$/, "")}/t/${fx.profileCode}`;
 }
 
+/**
+ * Directory holding one signed-in Playwright storage state per fixture.
+ *
+ * Written by `auth.setup.ts` (the `talent-website-setup` project) and read by
+ * the journeys through `storageStateFor`. Gitignored: these hold real session
+ * cookies for the local fixture users, and they are cheap to regenerate.
+ * Also holds `ids.json` (talent_profile UUIDs) written by `seed.ts`.
+ */
+export const AUTH_STATE_DIR = "e2e/.auth/talent-website";
+
 export type TalentFixtureView = TalentFixture & {
   /**
    * Slug of the extra published page on this talent's site, for specs that
@@ -261,7 +299,27 @@ export type TalentFixtureView = TalentFixture & {
   notAMemberSlug: string;
   /** Absolute URL of this talent's own public page on the host under test. */
   selfPageUrl: string;
+  /**
+   * UUID of the seeded `talent_profiles` row. Loaded lazily from
+   * `e2e/.auth/talent-website/ids.json` (written by `seed.ts`). Specs that
+   * need it before seed has run will throw a clear error naming the file —
+   * never hang on `/undefined` query params (the pre-PR9 j0 failure mode).
+   */
+  talentProfileId: string;
 };
+
+function loadIdsFile(): Partial<Record<TalentFixture["key"], string>> {
+  try {
+    const path = join(process.cwd(), AUTH_STATE_DIR, "ids.json");
+    if (!existsSync(path)) return {};
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as {
+      profiles?: Partial<Record<TalentFixture["key"], string>>;
+    };
+    return parsed.profiles ?? {};
+  } catch {
+    return {};
+  }
+}
 
 export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixtureView>> =
   Object.freeze(
@@ -279,19 +337,37 @@ export const fixtures: Readonly<Record<TalentFixture["key"], TalentFixtureView>>
             // sets it later still gets the right host.
             return selfPageUrlFor(f);
           },
+          get talentProfileId() {
+            const id = loadIdsFile()[f.key];
+            if (!id) {
+              throw new Error(
+                `fixtures.${f.key}.talentProfileId missing — run e2e/talent-website/seed.ts ` +
+                  `(writes ${AUTH_STATE_DIR}/ids.json).`,
+              );
+            }
+            return id;
+          },
         },
       ]),
     ),
   ) as Readonly<Record<TalentFixture["key"], TalentFixtureView>>;
 
-/**
- * Directory holding one signed-in Playwright storage state per fixture.
- *
- * Written by `auth.setup.ts` (the `talent-website-setup` project) and read by
- * the journeys through `storageStateFor`. Gitignored: these hold real session
- * cookies for the local fixture users, and they are cheap to regenerate.
- */
-export const AUTH_STATE_DIR = "e2e/.auth/talent-website";
+/** Vale / Iván fixture identities from maison-seed-data.json (PR9). */
+export const MAISON_VALE_INTRO_AFTER_AI =
+  "Hago manicura en gel y nail art a mano alzada en mi estudio en García Ginerés. Trabajo con cita y con calma.";
+
+export const MAISON_VALE_SERVICES = [
+  { title: "Manicura en gel", category: "unas", amountCents: 42000, durationMin: 60 },
+  { title: "Nail art a mano alzada · por uña", category: "unas", amountCents: 4000, durationMin: 10 },
+  { title: "Retiro de gel", category: "unas", amountCents: 15000, durationMin: 30 },
+] as const;
+
+export const MAISON_IVAN_SERVICES = [
+  { title: "Cena privada en tu casa · 2 a 12 personas", category: "cenas-privadas" },
+  { title: "Menú de degustación mole y mezcal", category: "cenas-privadas" },
+  { title: "Clase de cocina oaxaqueña · 3 horas", category: "clases" },
+  { title: "Preparación semanal de comidas", category: "clases" },
+] as const;
 
 /**
  * Path to the signed-in storage state for one fixture.

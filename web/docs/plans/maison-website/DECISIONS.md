@@ -176,6 +176,14 @@ _None._ PR #2317 = PR 0 docs + PR 1 foundation (schema `20261231287000_maison_we
 - Preview fail copy: "Your choices are saved. Try again." (W71).
 - Visual pixel match deferred until owner PDF/prototype.
 
+### PR 9 notes (W77–W78)
+
+- Fixture repair: `talentProfileId` via seed `ids.json`; `signInTalentFixture` replaces wrong agency harness import in j4; Vale/Iván personas.
+- Journeys 1–6 EN+ES @ 1440/390 (+ 360/390/430/375) in `maison-journeys.spec.ts`.
+- Jor read-only live Unlock check in `jor-live-unlock.spec.ts` (W20).
+- CI lane sets `TALENT_MAISON_THEME_ENABLED` + `MAISON_JOURNEY_E2E=1` (hermetic only; prod flag-off unchanged).
+- Visual pixel match deferred until owner PDF/prototype.
+
 ---
 
 ## File lock / coordination
