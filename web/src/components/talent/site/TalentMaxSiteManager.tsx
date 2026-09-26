@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
+import { MaisonSetupHost } from "@/components/talent/site/maison-setup/MaisonSetupHost";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import {
@@ -207,6 +208,10 @@ function ManagerBody({
           <p style={{ margin: "10px 0 0", fontSize: 12, color: COLORS.criticalDeep }}>{actionError}</p>
         ) : null}
       </Card>
+
+      {/* Maison Choose-a-design / Theme detail (PR4). Flag-off → renders null;
+          existing theme gallery path below stays production-unchanged. */}
+      <MaisonSetupHost />
 
       {/* Starter template gallery; the theme gallery replaces it only when
           TALENT_THEME_GALLERY_ENABLED is on (read server-side). */}
