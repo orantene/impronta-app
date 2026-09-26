@@ -685,6 +685,7 @@ export function MiniChatPanel({
     onFirstNameChange: setFirstName,
     onLastNameChange: setLastName,
     onEmailChange: setEmail,
+    phone,
     onHoneypotChange: setHoneypot,
     onSubmit: submit,
     onFirstSend: () => void handleFirstSend(),

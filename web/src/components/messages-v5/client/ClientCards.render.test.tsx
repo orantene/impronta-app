@@ -85,6 +85,28 @@ test("times: sent lets the client pick; picked shows the hold countdown and bloc
   const refused = renderToStaticMarkup(<ClientTimesCard {...base} view={times} now={now} phase="refused" refusal="unavailable" onPick={() => {}} />);
   assert.match(refused, /data-refusal="unavailable"/);
   assert.match(refused, /That time was just taken\. Pick another, or write to Impronta\./);
+  assert.doesNotMatch(refused, /data-next-free=/);
+  const refusedWithFree = renderToStaticMarkup(
+    <ClientTimesCard
+      {...base}
+      view={times}
+      now={now}
+      phase="refused"
+      refusal="unavailable"
+      nextFreeTimes={["2026-09-20T16:30:00.000Z", "2026-09-20T18:00:00.000Z"]}
+      onPick={() => {}}
+    />,
+  );
+  assert.match(refusedWithFree, /data-slot-taken="1"/);
+  assert.match(refusedWithFree, /data-next-free-times=/);
+  assert.match(refusedWithFree, /data-next-free="2026-09-20T16:30:00.000Z"/);
+  assert.match(refusedWithFree, /data-next-free="2026-09-20T18:00:00.000Z"/);
+  assert.match(refusedWithFree, /Next free times/);
+  // Empty engine list must not invent a clock time button.
+  const refusedEmptyFree = renderToStaticMarkup(
+    <ClientTimesCard {...base} view={times} now={now} phase="refused" refusal="unavailable" nextFreeTimes={[]} onPick={() => {}} />,
+  );
+  assert.doesNotMatch(refusedEmptyFree, /data-next-free=/);
   const empty = renderToStaticMarkup(<ClientTimesCard {...base} view={{ ...times, slots: [] }} now={now} onPick={() => {}} />);
   assert.match(empty, /No times to pick yet\./);
 });

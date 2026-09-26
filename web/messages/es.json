@@ -1290,6 +1290,8 @@
       "detailsChipAdd": "Añadir detalles",
       "detailsChipProgress": "Detalles {filled}/{total}",
       "errTalentUnavailable": "Este talento no está recibiendo solicitudes aquí en este momento. Aún puedes escribir a la agencia.",
+      "errSlotTaken": "Ese horario se acaba de ocupar. Elige otro.",
+      "handoffContactLabel": "Tus datos",
       "accountSavedConfirm": "Tus conversaciones se guardan en tu cuenta de Tulala.",
       "accountSavedConfirmSolo": "Tus conversaciones se guardan en tu cuenta.",
       "accountInvalidEmail": "Introduce un correo electrónico válido.",
@@ -19020,6 +19022,7 @@
             "heldNoClock": "{slot} está reservado para ti",
             "holdEnded": "La reserva temporal terminó. Elige otro horario o escribe a {business}.",
             "taken": "Ese horario se acaba de ocupar. Elige otro o escribe a {business}.",
+            "nextFree": "Horarios libres",
             "noSlots": "Aún no hay horarios para elegir."
           },
           "offer": {

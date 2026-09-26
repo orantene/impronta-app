@@ -1290,6 +1290,8 @@
       "detailsChipAdd": "Add details",
       "detailsChipProgress": "Details {filled}/{total}",
       "errTalentUnavailable": "This talent is not taking inquiries here right now. You can still message the agency.",
+      "errSlotTaken": "That time was just taken. Pick another time.",
+      "handoffContactLabel": "Your details",
       "accountSavedConfirm": "Your conversations are saved to your Tulala account.",
       "accountSavedConfirmSolo": "Your conversations are saved to your account.",
       "accountInvalidEmail": "Enter a valid email address.",
@@ -19020,6 +19022,7 @@
             "heldNoClock": "{slot} is held for you",
             "holdEnded": "The hold ended. Pick another time, or write to {business}.",
             "taken": "That time was just taken. Pick another, or write to {business}.",
+            "nextFree": "Next free times",
             "noSlots": "No times to pick yet."
           },
           "offer": {
