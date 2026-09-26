@@ -23,6 +23,7 @@ import { useState } from "react";
 import { buildIcsEvent, downloadIcs } from "@/lib/ui/ics";
 import type { MessagingRefusal } from "@/lib/messaging/types";
 import type { GuestOutcomeKind } from "@/lib/messages-v5/guest-outcome";
+import { readGuestOutcome, readGuestOutcomeRefundAmount } from "@/lib/messages-v5/guest-outcome";
 import {
   formatClientDate,
   formatSlot,
@@ -30,6 +31,8 @@ import {
   money,
   offerCardState,
   offerDepositCents,
+  readPaidPayment,
+  readPayment,
   timesSlotOpen,
   timesState,
   type ChangeView,
@@ -452,6 +455,49 @@ export function ClientConfirmedCard({ view, kind, copy, business, locale, phase 
 }
 
 /* ---------- front-door outcome (declined / pay failed / refunded) ---------- */
+
+/**
+ * One canonical dispatch for Declined / Pay failed / Refunded: dock
+ * (`ClientCard`) and `/c/t/` (`ClientThreadView.renderCard`) both call this
+ * so a producer row never falls through to ClientChangeCard / ClientPaymentCard
+ * with raw engine English or `{amount}` placeholders.
+ */
+export function ClientOutcomeFromMessage({
+  kind,
+  payload,
+  body,
+  copy,
+  payCode = null,
+  onPay = null,
+}: {
+  readonly kind: string;
+  readonly payload: Record<string, unknown> | null;
+  readonly body?: string | null;
+  readonly copy: ClientCopy;
+  readonly payCode?: string | null;
+  readonly onPay?: ((code: string) => void) | null;
+}): React.ReactElement | null {
+  const outcome = readGuestOutcome({ kind, payload, body });
+  if (!outcome) return null;
+  const refund = readGuestOutcomeRefundAmount({ kind, payload, body });
+  const amountLabel = refund ? money(refund.cents, refund.currency) : null;
+  // Prefer the payment card's own amount when refund sync only flipped state.
+  const payAmount =
+    !amountLabel && (kind === "payment_request" || kind === "payment_paid")
+      ? (() => {
+          const view = kind === "payment_paid" ? readPaidPayment(payload) : readPayment(payload);
+          return view.amountCents != null ? money(view.amountCents, view.currency) : null;
+        })()
+      : null;
+  return (
+    <ClientOutcomeCard
+      outcome={outcome}
+      copy={copy}
+      amountLabel={amountLabel ?? payAmount}
+      onRetry={outcome === "pay_failed" && payCode && onPay ? () => onPay(payCode) : null}
+    />
+  );
+}
 
 export function ClientOutcomeCard({
   outcome,

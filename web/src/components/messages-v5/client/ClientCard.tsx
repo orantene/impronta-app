@@ -10,7 +10,6 @@
 import type { ThreadMessage } from "@/lib/messaging/types";
 import {
   clientOfferForMessage,
-  money,
   offerCardState,
   readChange,
   readChoices,
@@ -23,12 +22,11 @@ import {
   type ClientCardKind,
   type ClientOfferSummary,
 } from "@/lib/messages-v5/client-thread-view";
-import { readGuestOutcome, readGuestOutcomeRefundAmount } from "@/lib/messages-v5/guest-outcome";
 
 import { Card, CardLine } from "../kit/Card";
 import type { KitCopy } from "../kit/copy";
 import { SystemLine } from "../kit/MessageBubble";
-import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeCard, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
+import { ChoicesCard, ClientChangeCard, ClientConfirmedCard, ClientDraftCard, ClientOfferCard, ClientOutcomeCard, ClientOutcomeFromMessage, ClientPaymentCard, ClientTicketsCard, ClientTimesCard } from "./ClientCards";
 import type { CardActivity } from "./ClientThreadView";
 import type { ClientCopy } from "./copy";
 import type { ClientCardActions } from "./use-client-card-actions";
@@ -61,27 +59,15 @@ export function clientCardActivityKey(message: Pick<ThreadMessage, "id" | "paylo
 export function ClientCard({ message, kind, copy, kit, locale, business, now, offers, payCode, offerCards, actions, onAsk }: ClientCardProps) {
   const act = (key: string): CardActivity => actions.activity[key] ?? { phase: "idle" };
   const payload = message.payload;
-  const outcome = readGuestOutcome({ kind, payload, body: message.body });
-  if (outcome) {
-    const refund = readGuestOutcomeRefundAmount({ kind, payload, body: message.body });
-    const amountLabel = refund ? money(refund.cents, refund.currency) : null;
-    // Prefer the payment card's own amount when refund sync only flipped state.
-    const payAmount =
-      !amountLabel && (kind === "payment_request" || kind === "payment_paid")
-        ? (() => {
-            const view = kind === "payment_paid" ? readPaidPayment(payload) : readPayment(payload);
-            return view.amountCents != null ? money(view.amountCents, view.currency) : null;
-          })()
-        : null;
-    return (
-      <ClientOutcomeCard
-        outcome={outcome}
-        copy={copy}
-        amountLabel={amountLabel ?? payAmount}
-        onRetry={outcome === "pay_failed" && payCode ? () => actions.onPay(payCode) : null}
-      />
-    );
-  }
+  const outcome = ClientOutcomeFromMessage({
+    kind,
+    payload,
+    body: message.body,
+    copy,
+    payCode,
+    onPay: actions.onPay,
+  });
+  if (outcome) return outcome;
   switch (kind) {
     case "tickets_card": {
       const tickets = readTickets(payload);
