@@ -30,3 +30,9 @@ test("guest dock applyFailure reads slot_taken nextFreeTimes", () => {
   assert.match(src, /code === "slot_taken"/);
   assert.match(src, /nextFreeTimes/);
 });
+
+test("ClientThread /c/t link passes nextFreeTimes into refused activity (not only the guest dock)", () => {
+  const src = readFileSync(join(ROOT, "components/messages-v5/client/ClientThread.tsx"), "utf8");
+  assert.match(src, /refused\(messageId, result\.reason, result\.nextFreeTimes\)/);
+  assert.match(src, /nextFreeTimes && nextFreeTimes\.length > 0/);
+});
