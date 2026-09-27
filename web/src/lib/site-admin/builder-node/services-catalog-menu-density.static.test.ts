@@ -31,12 +31,16 @@ test("services_catalog CSS drops spreadsheet 1fr middle between copy and price",
   );
 });
 
-test("services_catalog paints soft blush ground from surface-raised token", () => {
+test("services_catalog root CSS does not force surface-raised page ground", () => {
   const css = read("lib/site-admin/builder-node/render.tsx");
-  assert.match(
-    css,
-    /\.site-builder-node--services-catalog\{[^}]*background:var\(--token-color-surface-raised/,
-    "Maison DoR idle catalog ground uses theme surface-raised (blush on pink)",
+  const root = css.match(
+    /\.site-builder-node--services-catalog\{[^}]+\}/,
+  )?.[0];
+  assert.ok(root, "services_catalog root rule must exist");
+  assert.doesNotMatch(
+    root,
+    /background:var\(--token-color-surface-raised/,
+    "shared catalog must not paint blush — Maison scopes it on the Design services container",
   );
 });
 
