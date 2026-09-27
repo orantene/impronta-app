@@ -59,6 +59,7 @@ import {
   readableOn,
   type SurfaceMode,
   GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX,
+  GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX,
 } from "./mini-chat-styles";
 
 // Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
@@ -540,7 +541,33 @@ export function TalentProfileChatLauncher({
    */
   const collapsedByScroll = narrowLauncher ? !open : collapsedByScrollDesktop;
 
+  // BJ-07 — lift Hablar when the services catalog sticky bar is showing so the
+  // Continuar float and the pill do not fight for the same bottom-right corner.
+  const [yieldBookingBar, setYieldBookingBar] = useState(false);
+  useEffect(() => {
+    if (!mounted) return;
+    const measure = () => {
+      const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
+      setYieldBookingBar(Boolean(bar));
+    };
+    measure();
+    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
+    mo?.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-show", "data-has-selection", "class"],
+    });
+    return () => mo?.disconnect();
+  }, [mounted]);
+
   if (!mounted) return null;
+
+  const launcherBottomPx =
+    (narrowLauncher
+      ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
+      : GUEST_CHAT_LAUNCHER_BOTTOM_PX) +
+    (yieldBookingBar ? GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX : 0);
 
   // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
   // -11px overlap, max 2, always-visible 18px X) on touch devices. Read once at
@@ -580,14 +607,11 @@ export function TalentProfileChatLauncher({
            over this pill -- hiding it is the only correct fix. See the nav CSS
            in builder-node/render.tsx. */
         data-guest-chat-launcher=""
+        data-yield-booking-bar={yieldBookingBar ? "1" : undefined}
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
-          bottom: `calc(${
-            narrowLauncher
-              ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
-              : GUEST_CHAT_LAUNCHER_BOTTOM_PX
-          }px + env(safe-area-inset-bottom))`,
+          bottom: `calc(${launcherBottomPx}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
           display: "flex",
           flexDirection: "column",
