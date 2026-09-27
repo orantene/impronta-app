@@ -52,7 +52,10 @@ export async function prepareMaisonSiteForPublish(
     }
 > {
   let pre = input.pre;
-  if (isTalentMaisonThemeEnabled() && isMaisonLivePending(pre.pending_design)) {
+  if (
+    isTalentMaisonThemeEnabled(input.talentProfileId) &&
+    isMaisonLivePending(pre.pending_design)
+  ) {
     const admin = createServiceRoleClient();
     if (!admin) {
       return { ok: false, code: "server_error", error: "Not configured." };
@@ -79,7 +82,7 @@ export async function prepareMaisonSiteForPublish(
     pre = refreshed as MaisonPublishPreSite;
   }
 
-  if (isTalentMaisonThemeEnabled()) {
+  if (isTalentMaisonThemeEnabled(input.talentProfileId)) {
     const readiness = evaluateMaisonPublishReadiness({
       siteSlug: pre.site_slug,
       themeDesignSlug: pre.theme_design_slug,

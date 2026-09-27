@@ -21,9 +21,10 @@ export type MaisonSetupBootstrap =
     };
 
 export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBootstrap> {
-  if (!isTalentMaisonThemeEnabled()) return { enabled: false };
   const g = await gate("personalSiteEdit");
   if (!g.ok) return { enabled: false };
+  // Per-talent allow-list: resolve id first, then decide (prod default off).
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) return { enabled: false };
 
   const admin = createServiceRoleClient();
   if (!admin) {

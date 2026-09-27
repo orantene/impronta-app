@@ -35,11 +35,11 @@ export type MaisonImportPreview = {
 export async function loadMaisonImportPreviewAction(): Promise<
   ThemeActionResult<MaisonImportPreview>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -56,11 +56,11 @@ export async function commitMaisonImportAction(input: {
   selection: ImportSelectionState;
   resolutions: Record<string, DuplicateResolution>;
 }): Promise<ThemeActionResult<MaisonImportCommitResult>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -96,11 +96,11 @@ export async function undoMaisonImportAction(input: {
   batchId: string;
   removeEdited?: boolean;
 }): Promise<ThemeActionResult<{ removed: number }>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   if (typeof input?.batchId !== "string" || !input.batchId) {
@@ -119,11 +119,11 @@ export async function retryMaisonImportItemAction(input: {
   batchId: string;
   starterKey: string;
 }): Promise<ThemeActionResult<{ offeringId: string }>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   const res = await retryFailedMaisonImportItem(admin, {
@@ -140,11 +140,11 @@ export async function retryMaisonImportItemAction(input: {
 export async function loadLatestMaisonImportBatchAction(): Promise<
   ThemeActionResult<{ batchId: string; status: string } | null>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
   const { data, error } = await sb

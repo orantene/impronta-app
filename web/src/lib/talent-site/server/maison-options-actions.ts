@@ -158,11 +158,11 @@ export type MaisonDesignOptionsState = {
 export async function loadMaisonDesignOptionsStateAction(): Promise<
   ThemeActionResult<MaisonDesignOptionsState>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -292,11 +292,11 @@ export async function loadMaisonDesignOptionsStateAction(): Promise<
 export async function discardMaisonLivePendingAction(): Promise<
   ThemeActionResult<{ discarded: true }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -350,11 +350,11 @@ export async function discardMaisonLivePendingAction(): Promise<
 export async function resetMaisonColorsAction(): Promise<
   ThemeActionResult<{ mode: "draft" | "live_pending" }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -480,11 +480,11 @@ export async function resetMaisonColorsAction(): Promise<
 export async function reapplyMaisonDemoLayoutAction(): Promise<
   ThemeActionResult<{ mode: "draft" | "live_pending" }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -651,11 +651,11 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
 export async function restoreMaisonDesignRevisionAction(input: {
   revisionId: string;
 }): Promise<ThemeActionResult<{ restored: true }>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   if (typeof input?.revisionId !== "string" || !input.revisionId) {

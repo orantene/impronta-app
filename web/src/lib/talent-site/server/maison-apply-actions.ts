@@ -60,11 +60,11 @@ export async function applyMaisonDesignAction(input: {
   contentMode?: string;
   customPalette?: MaisonCustomPaletteStored | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
 
   const contentMode: MaisonPreviewContentMode =
     input?.contentMode === "mine" ? "mine" : "demo";
@@ -289,11 +289,11 @@ export async function applyMaisonDesignAction(input: {
 export async function undoMaisonDesignAction(): Promise<
   ThemeActionResult<{ restored: true }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
@@ -355,11 +355,11 @@ export async function undoMaisonDesignAction(): Promise<
 export async function loadMaisonApplyUndoStateAction(): Promise<
   ThemeActionResult<{ canUndo: boolean; appliedAt: string | null }>
 > {
-  if (!isTalentMaisonThemeEnabled()) {
-    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
-  }
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
+  if (!isTalentMaisonThemeEnabled(g.talentProfileId)) {
+    return { ok: false, code: "feature_disabled", error: "Maison is not available yet." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
   const { data, error } = await admin
