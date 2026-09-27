@@ -38,7 +38,9 @@ export async function loadOfferingChildren(
         .order("sort_order", { ascending: true }),
       db
         .from("talent_offering_addons")
-        .select("id, offering_id, label, amount_cents, sort_order")
+        // BUF: duration_minutes must reach CatalogBookingSheet so extras
+        // lengthen the slots query (duration=) after Continuar.
+        .select("id, offering_id, label, amount_cents, duration_minutes, sort_order")
         .in("offering_id", offeringIds)
         .order("sort_order", { ascending: true }),
     ]);
@@ -59,7 +61,13 @@ export async function loadOfferingChildren(
       });
       variants.set(r.offering_id, list);
     }
-    for (const r of (aRows ?? []) as { id: string; offering_id: string; label: string; amount_cents: number | null }[]) {
+    for (const r of (aRows ?? []) as {
+      id: string;
+      offering_id: string;
+      label: string;
+      amount_cents: number | null;
+      duration_minutes: number | null;
+    }[]) {
       const label = cleanLabel(r.label);
       if (!label) continue;
       const cents =
@@ -67,8 +75,14 @@ export async function loadOfferingChildren(
           ? Math.round(r.amount_cents)
           : null;
       if (cents == null) continue; // add-ons always carry a concrete price
+      const durationMinutes =
+        typeof r.duration_minutes === "number" &&
+        Number.isFinite(r.duration_minutes) &&
+        r.duration_minutes > 0
+          ? Math.round(r.duration_minutes)
+          : null;
       const list = addOns.get(r.offering_id) ?? [];
-      list.push({ id: r.id, label, amountCents: cents });
+      list.push({ id: r.id, label, amountCents: cents, durationMinutes });
       addOns.set(r.offering_id, list);
     }
   } catch (err) {
