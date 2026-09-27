@@ -367,7 +367,12 @@ export async function loadBuilderNodeDataSources(
  * degrade to the safe default (confirm-by-hand; no USD line) on any failure,
  * never to a thrown error.
  */
-async function loadServicesCatalogSources(
+/**
+ * Public export for Max-site render when there is no managing agency tenant.
+ * Unrostered / free personal sites still need `services_catalog` rows; the
+ * builder-node data-source loader is otherwise gated on `tenantId`.
+ */
+export async function loadServicesCatalogSources(
   talentProfileId: string,
   locale: string,
 ): Promise<

@@ -25,7 +25,10 @@ import {
   type PublishedTalentPageRenderData,
 } from "@/lib/talent-site/published-talent-page-core";
 import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
-import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
+import {
+  loadBuilderNodeDataSources,
+  loadServicesCatalogSources,
+} from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
@@ -451,11 +454,27 @@ async function renderMaxSiteDocument(args: {
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
   // with no tenant-scoped bindings — so it renders without a data-source load.
+  //
+  // Exception: unrostered / free personal Max sites have `tenantId === null`,
+  // which used to skip data sources entirely. Hablar/dock still loaded
+  // offerings, but `services_catalog` rendered the empty state. Load catalog
+  // sources by talent profile whenever the page tree needs them.
+  const pageNeedsServicesCatalog = (function needsCatalog(nodes: unknown): boolean {
+    if (Array.isArray(nodes)) return nodes.some(needsCatalog);
+    if (!nodes || typeof nodes !== "object") return false;
+    const n = nodes as { kind?: unknown; children?: unknown };
+    return n.kind === "services_catalog" || needsCatalog(n.children);
+  })(blocks);
+
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : Promise.resolve({} as BuilderNodeRenderDataSources),
+        : pageNeedsServicesCatalog
+          ? loadServicesCatalogSources(talentProfileId, locale).then(
+              (catalog) => ({ ...catalog }) as BuilderNodeRenderDataSources,
+            )
+          : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)
         ? loadBuilderComponentsForTenant(tenantId)
         : Promise.resolve({}),
