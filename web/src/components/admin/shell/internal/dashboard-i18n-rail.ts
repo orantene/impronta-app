@@ -54,6 +54,21 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent Messages + Actions: shown when no thread is open (kept out of
   // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
   "Pick a conversation first": "Elige una conversación primero",
+  "Send a quote": "Enviar una cotización",
+  "Pick services from your catalogue. Prices stay in your currency. The quote holds 24 hours.":
+    "Elige servicios de tu catálogo. Los precios quedan en tu moneda. La cotización vale 24 horas.",
+  "Propose a time": "Proponer un horario",
+  "Checks your calendar first.": "Revisa tu calendario primero.",
+  "Request a deposit": "Pedir un anticipo",
+  "Secure link. Card or transfer.": "Enlace seguro. Tarjeta o transferencia.",
+  "Send a photo or file": "Enviar una foto o archivo",
+  "The client sees it.": "El cliente lo ve.",
+  "Add a private note": "Agregar una nota privada",
+  "Only you.": "Solo tú.",
+  "Save client details": "Guardar datos del cliente",
+  "Name, phone, preferences.": "Nombre, teléfono, preferencias.",
+  "Private notes never reach the client. Quotes, times and payment requests do.":
+    "Las notas privadas nunca llegan al cliente. Las cotizaciones, horarios y solicitudes de pago sí.",
   // Services Defaults — prep time + booking CTA modes (#2294). Same reason:
   // do not grow the grandfathered dashboard-i18n.ts map.
   "Preparation and gaps": "Preparación y márgenes",
