@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useFocusTrap } from "@/components/support/use-focus-trap";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
@@ -12,11 +12,13 @@ import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
 import {
+  catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogDetailIsPurchase,
   catalogNeedsOptions,
   submitCatalogBooking,
   catalogNextDays,
+  catalogSelectedStartStillOpen,
   catalogTotalCents,
   demoReservationIso,
   demoSlotsFor,
@@ -32,6 +34,11 @@ import {
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import {
+  fetchLiveSlots,
+  shouldSkipGuestCaptchaOnHost,
+  type CatalogSlotsFn,
+} from "./catalog-booking-live-slots";
+import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   type CatalogSheetBookingSettings,
 } from "@/lib/talent/selling-booking-settings";
@@ -44,38 +51,13 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 };
 
 export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
-export type CatalogSlotsFn = (offeringId: string) => Promise<{ slots: string[]; timezone: string }>;
+export type { CatalogSlotsFn };
 export type { CatalogSheetBookingSettings };
 
 const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function shouldSkipGuestCaptchaOnHost(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  if (host !== "localhost" && host !== "127.0.0.1") return false;
-  // Mirrors instant-book-guest: only with the same flag that unlocks /dev.
-  return (
-    process.env.NEXT_PUBLIC_TULALA_ALLOW_DEV_SURFACES === "1" ||
-    process.env.NODE_ENV === "development"
-  );
-}
-
-async function fetchLiveSlots(offeringId: string): Promise<{ slots: string[]; timezone: string }> {
-  const from = new Date().toISOString().slice(0, 10);
-  const res = await fetch(
-    `/api/public/booking/slots?offering=${encodeURIComponent(offeringId)}&from=${from}&days=14`,
-    { cache: "no-store" },
-  );
-  const body = (await res.json()) as { slots?: string[]; timezone?: string };
-  if (!res.ok) return { slots: [], timezone: "UTC" };
-  return {
-    slots: Array.isArray(body.slots) ? body.slots : [],
-    timezone: typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "UTC",
-  };
-}
 
 export function CatalogBookingSheet({
   locale = "es",
@@ -129,6 +111,7 @@ export function CatalogBookingSheet({
   const [wrote, setWrote] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
+  const liveStartsRef = useRef<string | null>(null);
 
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
@@ -188,11 +171,11 @@ export function CatalogBookingSheet({
 
   const variant = (detail?.variants ?? []).find((v) => v.id === variantId) ?? null;
   const extras = (detail?.addOns ?? []).filter((a) => addOnIds.includes(a.id));
-  const extrasMinutes = extras.reduce(
-    (sum, a) => sum + (typeof a.durationMinutes === "number" && a.durationMinutes > 0 ? a.durationMinutes : 0),
-    0,
+  const bookingDurationMinutes = catalogBookingDurationMinutes(
+    detail?.durationMinutes,
+    detail?.addOns ?? [],
+    addOnIds,
   );
-  const bookingDurationMinutes = (detail?.durationMinutes ?? 60) + extrasMinutes;
   const needsVariant = (detail?.variants ?? []).length > 0;
   const base = variant?.amountCents ?? detail?.amountCents ?? 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
@@ -215,22 +198,41 @@ export function CatalogBookingSheet({
   }, [detail, variant, needsVariant, extras, total]);
 
   useEffect(() => {
+    liveStartsRef.current = liveStarts;
+  }, [liveStarts]);
+
+  useEffect(() => {
     if (!detail || step !== "when" || mode !== "live") return;
     let cancelled = false;
     setSlotsReady(false);
     setSlotsLoading(true);
     const run = slotsFn ?? fetchLiveSlots;
-    run(detail.offeringId)
+    // BUF-5: project slots for base + extras so near-close / near-busy starts
+    // that only fit the shorter base duration never appear.
+    run(detail.offeringId, bookingDurationMinutes)
       .then((r) => {
         if (cancelled) return;
         setLiveTz(r.timezone);
-        setLiveDays(groupIsoSlotsByDay(r.slots, r.timezone));
+        const grouped = groupIsoSlotsByDay(r.slots, r.timezone);
+        setLiveDays(grouped);
+        // BUF-6: keep the pick only when that ISO is still offered; otherwise
+        // clear clock + ISO so confirm cannot send a start that no longer fits.
+        const prev = liveStartsRef.current;
+        if (catalogSelectedStartStillOpen(prev, r.slots)) {
+          const idx = grouped.findIndex((d) => d.starts.includes(prev!));
+          if (idx >= 0) setDayIndex(idx);
+          return;
+        }
         setDayIndex(0);
         setTime(null);
         setLiveStarts(null);
       })
       .catch(() => {
-        if (!cancelled) setLiveDays([]);
+        if (!cancelled) {
+          setLiveDays([]);
+          setTime(null);
+          setLiveStarts(null);
+        }
       })
       .finally(() => {
         if (!cancelled) {
@@ -241,12 +243,12 @@ export function CatalogBookingSheet({
     return () => {
       cancelled = true;
     };
-  }, [detail, step, mode, slotsFn]);
+  }, [detail, step, mode, slotsFn, bookingDurationMinutes]);
 
   if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
 
   const day = mode === "live" ? (liveDays[dayIndex]?.date ?? days[0]!) : (days[dayIndex] ?? days[0]!);
-  const demoTimes = demoSlotsFor(day, detail.durationMinutes);
+  const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const nameValid = name.trim().length >= 2;
   const emailValid = /.+@.+\..+/.test(email.trim());
@@ -415,10 +417,10 @@ export function CatalogBookingSheet({
                   <span>{es ? "Precio base" : "Base price"}</span>
                   <strong>{money(detail.amountCents ?? 0, detail.currency)}</strong>
                 </div>
-                {detail.durationMinutes ? (
+                {bookingDurationMinutes ? (
                   <p className="jb-fixture">
                     {es ? "Duración estimada" : "Estimated duration"}{" "}
-                    {durationLabel(detail.durationMinutes, locale)}
+                    {durationLabel(bookingDurationMinutes, locale)}
                     {mode === "demo"
                       ? es
                         ? " · dato de prueba, se confirma al agendar"

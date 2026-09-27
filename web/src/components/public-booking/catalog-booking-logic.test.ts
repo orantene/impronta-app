@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogDetailIsPurchase,
   catalogIsPurchaseEligible,
   catalogNeedsOptions,
   catalogRowCtaLabel,
+  catalogSelectedStartStillOpen,
   catalogTotalCents,
   catalogWillWriteBooking,
   demoSlotsFor,
@@ -162,4 +164,24 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
     }),
     false,
   );
+});
+
+test("extras with durationMinutes lengthen the booking window", () => {
+  const addOns = [
+    { id: "fr", durationMinutes: 15 },
+    { id: "art", durationMinutes: 20 },
+    { id: "free", durationMinutes: null },
+  ];
+  assert.equal(catalogBookingDurationMinutes(75, addOns, []), 75);
+  assert.equal(catalogBookingDurationMinutes(75, addOns, ["fr"]), 90);
+  assert.equal(catalogBookingDurationMinutes(75, addOns, ["fr", "art"]), 110);
+  assert.equal(catalogBookingDurationMinutes(75, addOns, ["free"]), 75);
+  assert.equal(catalogBookingDurationMinutes(null, addOns, ["fr"]), 75);
+});
+
+test("a selected start is dropped when the longer duration removes it", () => {
+  const open = ["2026-09-25T15:00:00.000Z", "2026-09-25T16:00:00.000Z"];
+  assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open), true);
+  assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open.slice(1)), false);
+  assert.equal(catalogSelectedStartStillOpen(null, open), false);
 });

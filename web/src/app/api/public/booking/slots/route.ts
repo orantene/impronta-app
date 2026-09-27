@@ -1,8 +1,9 @@
 /**
- * GET /api/public/booking/slots?offering&from&days
+ * GET /api/public/booking/slots?offering&from&days&duration
  *
  * Host-resolved, unauthenticated. Returns free slot starts only — never raw
  * holds, bookings, or blocks. Service-role internally. s-maxage=30.
+ * Optional `duration` (minutes) is base + selected extras; omitted → offering.
  *
  * Guards: published + public offering, host-tenant match, appointments
  * enabled, effective mode ≥ request (M1). Missing hours or a disabled
@@ -23,6 +24,7 @@ import {
   clampPublicSlotDays,
   computePublicSlots,
   type NoSlotsReason,
+  parsePublicSlotDuration,
   parsePublicSlotFrom,
 } from "@/lib/scheduling/public-slots";
 import { addUtcDays, utcToZonedYmd } from "@/lib/scheduling/tz";
@@ -238,12 +240,19 @@ export async function GET(request: Request) {
       attr && typeof attr === "object" && !Array.isArray(attr)
         ? (attr as { bufferAfterMin?: unknown; bufferBeforeMin?: unknown })
         : null;
+    const offeringDuration =
+      typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
+        ? offering.duration_minutes
+        : hours.slotMinutes;
+    // Catalog extras lengthen the hold; clients send the total so projection
+    // matches confirm. Garbage / omitted → offering duration alone.
+    const durationMinutes = parsePublicSlotDuration(
+      url.searchParams.get("duration"),
+      offeringDuration,
+    );
     const { starts: slots, reason } = computePublicSlots({
       hours,
-      durationMinutes:
-        typeof offering.duration_minutes === "number" && offering.duration_minutes > 0
-          ? offering.duration_minutes
-          : hours.slotMinutes,
+      durationMinutes,
       from,
       days: horizon,
       busy,

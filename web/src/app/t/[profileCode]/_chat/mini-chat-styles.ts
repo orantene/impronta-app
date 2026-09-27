@@ -46,8 +46,10 @@ export const C = {
   surfaceCool: "#eef1f5",
   border: "rgba(20,24,31,0.12)",
   borderSoft: "rgba(20,24,31,0.08)",
-  guestBubble: "#33507a",
-  guestBubbleInk: "#ffffff",
+  // Front-door brief visitor bubble (jorg `.you` → #f8eef1). Dark ink on a
+  // soft lavender ground — not an accent fill.
+  guestBubble: "#f8eef1",
+  guestBubbleInk: "#16181d",
   systemInk: "#6b7280",
   danger: "#a13a3a",
 } as const;

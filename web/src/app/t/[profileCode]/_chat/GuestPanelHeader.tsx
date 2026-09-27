@@ -62,6 +62,12 @@ export type GuestPanelHeaderProps = {
    * "sent" = it has reached the agency; "new" = nothing started yet.
    */
   threadState?: GuestHeaderThreadState;
+  /**
+   * Front-door brief journey label (e.g. "Oferta"). When set, rendered as the
+   * centered uppercase status (DoR OFERTA) and the "Nueva solicitud" / details
+   * chrome is hidden so the header matches the brief bar.
+   */
+  journeyLabel?: string | null;
   /** Panel-level sync state, folded into the status line's accessible name. */
   syncState?: UnifiedSyncState;
   /** Re-run the last failed patch (the status line's error retry). */
@@ -89,6 +95,7 @@ export function GuestPanelHeader({
   talentFirst,
   C,
   threadState = "new",
+  journeyLabel = null,
   syncState = "idle",
   onRetrySync,
   onToggleExpand,
@@ -101,16 +108,18 @@ export function GuestPanelHeader({
   t,
   onClose,
 }: GuestPanelHeaderProps) {
-  const showStatusLine = threadState !== "new" || Boolean(onOpenSwitcher);
+  const journeyMode = Boolean(journeyLabel?.trim());
+  const showStatusLine =
+    !journeyMode && (threadState !== "new" || Boolean(onOpenSwitcher));
 
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: journeyMode ? "center" : "flex-start",
         gap: 10,
         padding: "10px 12px 10px 14px",
-        borderBottom: `1px solid ${C.borderSoft}`,
+        borderBottom: journeyMode ? "none" : `1px solid ${C.borderSoft}`,
         background: C.surfaceFaint,
         flexShrink: 0,
       }}
@@ -135,11 +144,34 @@ export function GuestPanelHeader({
         )}
       </div>
 
-      {onOpenDetails && (
+      {journeyMode && (
+        <span
+          data-guest-journey-status
+          style={{
+            flexShrink: 0,
+            border: 0,
+            background: "transparent",
+            padding: "0 4px",
+            whiteSpace: "nowrap",
+            fontFamily: FONT,
+            fontWeight: 500,
+            fontSize: 10,
+            lineHeight: 1,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: C.ink,
+          }}
+        >
+          {journeyLabel}
+        </span>
+      )}
+
+      {!journeyMode && onOpenDetails && (
         // Event-details CTA. v2.1 shipped a bare sliders glyph with a "0/6"
         // badge; unlabelled progress toward an unnamed goal reads as a score,
         // not an invitation. It is a labelled chip now, and the count appears
-        // only once there is progress worth reporting.
+        // only once there is progress worth reporting. Hidden in journey mode
+        // (offer / booked): the progress rail under the header owns that job.
         <DetailsChip
           onOpenDetails={onOpenDetails}
           filled={detailsFilled}

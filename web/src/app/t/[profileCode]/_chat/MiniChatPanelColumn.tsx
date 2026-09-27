@@ -1,16 +1,6 @@
 "use client";
 
-/**
- * MiniChatPanelColumn — the full vertical thread column for MiniChatPanel (Lane C / F4).
- *
- * Extracted from MiniChatPanel.tsx to keep that file under the 800-line hard cap.
- * Renders the header, optional mini-mode thread switcher, scrollable body,
- * gate form, error line, chips, composer, and footer CTA — everything between
- * the outer container div and the ExpandedChatLayout 2-pane shell.
- *
- * In mini mode, MiniChatPanel wraps this in its own fixed-position div.
- * In expanded mode, ExpandedChatLayout passes this as the `right` pane.
- */
+/** MiniChatPanelColumn — vertical thread column for MiniChatPanel (Lane C / F4). */
 
 import { useState, type RefObject } from "react";
 
@@ -41,20 +31,21 @@ import { guestThreadBlocksSendBar } from "./guest-thread-blocks-send";
 import { ConversationStatusStrip } from "./ConversationStatusStrip";
 import { GuestConversationBody } from "./GuestConversationBody";
 import { countCoreDetails } from "./guest-detail-progress";
-import { resolveGuestRailLabel } from "./guest-intake-rail";
+import { GuestDockChrome } from "./GuestDockChrome";
 import { GuestDockHomeView } from "./GuestDockHomeView";
 import { GuestDockLineupView } from "./GuestDockLineupView";
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
-import { GuestDockNav } from "./GuestDockNav";
 import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
+import { GuestHablarOfferPreview } from "./GuestHablarOfferPreview";
 import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-state";
-import { GuestPanelHeader, type GuestHeaderThreadState } from "./GuestPanelHeader";
+import type { GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { GuestNextStep } from "./GuestNextStep";
 import { useGuestDockModel } from "./use-guest-dock-model";
+import { useGuestDockJourney } from "./use-guest-dock-journey";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { GuestHandoffContactStrip } from "./GuestHandoffContactStrip";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
@@ -65,10 +56,6 @@ import {
   paletteFor,
   type SurfaceMode,
 } from "./mini-chat-styles";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Props
-// ─────────────────────────────────────────────────────────────────────────────
 
 export type MiniChatPanelColumnProps = {
   // Brand + colors
@@ -90,13 +77,9 @@ export type MiniChatPanelColumnProps = {
   stage: "intro" | "gate" | "thread";
   threadStatus: GuestThreadStatus;
   typicalReply: string | null;
-  /**
-   * Jon 360 Phase 2 — the post-send SENT->RECEIVED receipt. Non-null only once
-   * the inquiry is genuinely sent; drives the pinned InquiryReceiptCard + the
-   * humanized coordinator header. Null pre-send.
-   */
+  /** Post-send receipt; null pre-send. */
   receipt?: InquiryReceiptData | null;
-  /** L13: v5 extras, the full-load bump after a card action, and the early-row ensure for catalog adds. */
+  /** L13: v5 extras + full-load bump + early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
   onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
@@ -273,10 +256,6 @@ export type MiniChatPanelColumnProps = {
   dashboardHref?: string | null;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function MiniChatPanelColumn({
   brand,
   accent,
@@ -428,11 +407,26 @@ export function MiniChatPanelColumn({
   // "Sent, awaiting reply" would be a flat lie about what the agency has.
   const headerThreadState: GuestHeaderThreadState = guestHeaderThreadState(threadStateInput);
   const detailsProgress = detailsEnabled && inquiryIntent ? countCoreDetails(inquiryIntent, capturedChipValues) : null;
-  const railLabel = resolveGuestRailLabel(brand.dockIntake, inquiryIntent, capturedChipValues, threadStatus === "booked", Boolean(inquiryId), t);
+  const { offerPreview, journeyLabel, railLabel, journeySegs } = useGuestDockJourney({
+    brand,
+    inquiryIntent,
+    capturedChipValues,
+    threadStatus,
+    inquiryId,
+    receipt: receipt != null,
+    contactPromoted,
+    cartTalentCount: cartTalentNames.length,
+    v5,
+    rows,
+    t,
+  });
+  const openDetails =
+    detailsEnabled && (activeDockView === "chat" || activeDockView === "home")
+      ? () => setDetailsOpen(true)
+      : null;
   return (
     <>
-      {/* ── DOCK v2 slim header (avatar + name + draft chip + overflow + X) ── */}
-      <GuestPanelHeader
+      <GuestDockChrome
         brand={brand}
         accent={accent}
         accentInk={accentInk}
@@ -440,40 +434,30 @@ export function MiniChatPanelColumn({
         C={C}
         surfaceMode={surfaceMode}
         threadState={headerThreadState}
+        journeyLabel={journeyLabel}
         syncState={syncState}
         onRetrySync={onRetrySync}
         onToggleExpand={onToggleExpand}
         expanded={expanded}
         onOpenSwitcher={
-          dockEnabled && activeDockView === "chat" ? () => setSwitcherOpen(true) : null
+          dockEnabled && activeDockView === "chat" && !journeyLabel
+            ? () => setSwitcherOpen(true)
+            : null
         }
-        onOpenDetails={
-          detailsEnabled && (activeDockView === "chat" || activeDockView === "home") ? () => setDetailsOpen(true) : null
-        }
+        onOpenDetails={openDetails}
         detailsFilled={detailsProgress?.filled ?? 0}
         detailsTotal={detailsProgress?.total ?? 0}
         railLabel={railLabel}
+        journeySegs={journeySegs}
+        dockEnabled={dockEnabled}
+        activeDockView={activeDockView}
+        onDockViewChange={onDockViewChange}
+        lineupCount={cartTalentNames.length}
+        projectsCount={inquiries.length}
         t={t}
         onClose={onClose}
       />
 
-      {dockEnabled && onDockViewChange && (
-        <GuestDockNav
-          active={activeDockView}
-          onChange={onDockViewChange}
-          accent={accent}
-          C={C}
-          t={t}
-          lineupCount={cartTalentNames.length}
-          projectsCount={inquiries.length}
-          itemsTab={brand.dockItemsTab !== false}
-          itemsLabel={brand.dockItemsLabel ?? null}
-          projectsLabel={brand.dockProjectsLabel ?? null}
-        />
-      )}
-
-      {/* ── In-chat thread switcher: slide-over drawer OVER the chat (one tap
-          on the header title). Extracted to GuestThreadSwitcherDrawer. ───── */}
       <GuestThreadSwitcherDrawer
         open={switcherOpen}
         onClose={() => setSwitcherOpen(false)}
@@ -496,7 +480,7 @@ export function MiniChatPanelColumn({
         }}
       />
 
-      {/* ── DOCK v2 Home hub (the landing view) ──────────────────────────── */}
+      {/* Home hub */}
       {activeDockView === "home" && (
         <GuestDockHomeView
           brand={brand}
@@ -524,8 +508,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Lineup view — cart + saved favorites, two shelves, two stores
-          (saved_talent vs client_favorites), unified VISUALLY only. ─────── */}
+      {/* Lineup */}
       {activeDockView === "lineup" && (
         <GuestDockLineupView
           accent={accent}
@@ -540,8 +523,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Projects view — the guest's inquiries as project cards. Selecting
-          one reuses the existing thread-switch path + hops back to Chat. ─── */}
+      {/* Projects */}
       {activeDockView === "projects" && (
         <GuestDockProjectsView
           inquiries={inquiries}
@@ -561,9 +543,16 @@ export function MiniChatPanelColumn({
 
       {activeDockView === "chat" && (
         <>
-      {/* ── Conversation area (the ONLY vertical grower). Details now live
-          behind the slim "Add details" button; the draft-privacy state is a
-          tiny lock chip in the header. ─────────────────────────────────── */}
+      {/* Conversation body — or dev `?hablar_preview=offer` DoR OFERTA fixture. */}
+      {offerPreview ? (
+        <GuestHablarOfferPreview
+          accent={accent}
+          C={C}
+          locale={brand.locale ?? "es"}
+          businessName={brand.agencyName}
+          presenceName={talentFirst}
+        />
+      ) : (
       <GuestConversationBody
         scrollRef={scrollRef}
         C={C}
@@ -591,6 +580,7 @@ export function MiniChatPanelColumn({
         now={dock.now}
         sendBarActive={sendBarActive}
       />
+      )}
 
       {showGate && (
         <MiniChatGateForm
@@ -764,7 +754,9 @@ export function MiniChatPanelColumn({
           placeholder={
             inquiryId
               ? t("public.guestChat.composerReply")
-              : t("public.guestChat.composerFirst")
+              : brand.omitPlatformBrand
+                ? t("public.guestChat.composerPhrase")
+                : t("public.guestChat.composerFirst")
           }
           sending={sending}
           inCooldown={inCooldown}

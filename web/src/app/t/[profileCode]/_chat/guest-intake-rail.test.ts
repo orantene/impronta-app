@@ -5,10 +5,23 @@ import { intakeTradeForPreset, nextIntakeFact } from "./guest-intake-rail";
 
 const empty = {};
 
-test("beauty asks for the day, then the hour", () => {
+test("beauty asks for day, hour, service, then message (brief 4 segs)", () => {
   assert.equal(nextIntakeFact("beauty", empty), "day");
   assert.equal(nextIntakeFact("beauty", { day: "2026-09-25" }), "hour");
-  assert.equal(nextIntakeFact("beauty", { day: "2026-09-25", hour: "18:00" }), "ready");
+  assert.equal(nextIntakeFact("beauty", { day: "2026-09-25", hour: "18:00" }), "service");
+  assert.equal(
+    nextIntakeFact("beauty", { day: "2026-09-25", hour: "18:00", service: true }),
+    "message",
+  );
+  assert.equal(
+    nextIntakeFact("beauty", {
+      day: "2026-09-25",
+      hour: "18:00",
+      service: true,
+      message: true,
+    }),
+    "ready",
+  );
 });
 
 test("a booked date is never the missing fact", () => {

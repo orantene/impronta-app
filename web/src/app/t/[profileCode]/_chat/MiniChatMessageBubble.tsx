@@ -131,17 +131,22 @@ export function MiniChatMessageBubble({
       <div
         style={{
           maxWidth: "82%",
-          padding: isCard ? "11px 13px" : "9px 13px",
-          borderRadius: mine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-          // The guest's own bubble follows the tenant accent (brand color), not
-          // a hard-coded near-black fill — house rule: no black on small
-          // components. `accent` already resolves to the cool DEFAULT_ACCENT
-          // when the tenant has no brand color.
-          background: isCard ? C.surfaceFaint : mine ? accent : C.surfaceCool,
-          color: mine && !isCard ? readableOn(accent) : C.ink,
-          border: isCard ? `1px solid ${C.borderSoft}` : "none",
+          padding: isCard ? "11px 13px" : "12px 14px",
+          borderRadius: mine ? "16px 16px 6px 16px" : "16px 16px 16px 5px",
+          // Front-door brief: visitor = soft lavender (guestBubble), talent =
+          // bordered surface. Accent fill is reserved for CTAs, not chat ink.
+          background: isCard
+            ? C.surfaceFaint
+            : mine
+              ? C.guestBubble
+              : C.surface,
+          color: C.ink,
+          border: isCard
+            ? `1px solid ${C.borderSoft}`
+            : `1px solid ${C.border}`,
           fontSize: 13.5,
-          lineHeight: 1.5,
+          lineHeight: 1.45,
+          fontWeight: 300,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
           opacity: m.pending ? 0.6 : 1,
