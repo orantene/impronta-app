@@ -539,9 +539,9 @@ export const JOR_MAISON_CONTENT: MaisonContent = {
     ],
   },
 
-  // NOT CONFIRMED by Jorgelina — shown so the contact row can be judged, with
-  // every link inert (`demo: true`). Swap in her real handles and drop the
-  // flag and they go live untouched.
+  // NOT CONFIRMED by Jorgelina — kept in the seed so an owner can swap in
+  // real handles later. Guest path hides the band while `demo: true`
+  // (MaisonContact returns null; talent_site also prunes matching CMS stubs).
   contact: {
     whatsapp: "5219841234567",
     instagram: "jorgbeauty",

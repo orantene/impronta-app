@@ -18,7 +18,9 @@
  *
  * Any channel that is absent simply does not render — a profile with no
  * socials shows fewer buttons, never an empty or dead one. That matters here:
- * Jorgelina has not confirmed a public handle, so the prototype marks them.
+ * Jorgelina has not confirmed a public handle, so the prototype marks them
+ * `demo: true` and this component returns null until real channels land
+ * (hide-until-confirmed — never invent handles or paint disabled stubs).
  *
  * Brand glyphs are inline paths because the icon set in use (lucide)
  * deliberately ships no brand marks.
@@ -35,9 +37,9 @@ export type MaisonContactChannels = {
   /** Shown under the row — e.g. that the handles are not confirmed yet. */
   note?: string | null;
   /**
-   * Prototype mode. The buttons render exactly as they will, but every href
-   * is inert: an unconfirmed handle must never link out, because
-   * instagram.com/<guess> may well be a stranger's account.
+   * Prototype / unconfirmed mode. Hide the whole band until real handles
+   * land — never paint disabled stub buttons or "falta confirmar" copy on
+   * the guest path.
    */
   demo?: boolean;
 };
@@ -127,7 +129,9 @@ export function MaisonContact({
     });
   }
 
-  if (links.length === 0) return null;
+  // Hide-until-confirmed: unconfirmed handles must never paint as disabled
+  // stub buttons or "Ejemplo: falta confirmar…" copy on the guest path.
+  if (channels.demo || links.length === 0) return null;
 
   return (
     <div className="mn-contact">
@@ -135,11 +139,9 @@ export function MaisonContact({
         {links.map((l) => (
           <li key={l.key}>
             <a
-              href={channels.demo ? "#" : l.href}
-              onClick={channels.demo ? (e) => e.preventDefault() : undefined}
-              aria-disabled={channels.demo ? true : undefined}
-              target={!channels.demo && l.href.startsWith("http") ? "_blank" : undefined}
-              rel={!channels.demo && l.href.startsWith("http") ? "noopener noreferrer" : undefined}
+              href={l.href}
+              target={l.href.startsWith("http") ? "_blank" : undefined}
+              rel={l.href.startsWith("http") ? "noopener noreferrer" : undefined}
               aria-label={`${l.label} — ${talentName}`}
               data-mn-channel={l.key}
             >
