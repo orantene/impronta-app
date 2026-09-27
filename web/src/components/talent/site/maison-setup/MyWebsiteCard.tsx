@@ -5,10 +5,12 @@
  * Design options body: DesignOptionsPanel (PR8 / W69).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MAISON_PALETTES, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
+import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
+import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
+import { liveCardPaletteName, lookToPalette } from "./maison-live-summary";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -22,12 +24,6 @@ type Props = {
   onRestoredToReview?: () => void;
 };
 
-function lookToPalette(lookSlug: string | null): MaisonPaletteKey | null {
-  if (!lookSlug?.startsWith("maison-")) return null;
-  const key = lookSlug.slice("maison-".length);
-  return key in MAISON_PALETTES ? (key as MaisonPaletteKey) : null;
-}
-
 export function MyWebsiteCard({
   locale,
   publicSiteUrl,
@@ -38,12 +34,19 @@ export function MyWebsiteCard({
   onRestoredToReview,
 }: Props) {
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const paletteKey = lookToPalette(themeLookSlug);
-  const paletteName = paletteKey
-    ? MAISON_PALETTES[paletteKey].name[locale === "es" ? "es" : "en"]
-    : locale === "es"
-      ? "Colores"
-      : "Colors";
+  const [customPalette, setCustomPalette] = useState<MaisonCustomPaletteStored | null>(null);
+  const hasNamedPalette = lookToPalette(themeLookSlug) !== null;
+  useEffect(() => {
+    if (hasNamedPalette) return;
+    let alive = true;
+    void loadMaisonSetupBootstrapAction().then((boot) => {
+      if (alive && boot.enabled) setCustomPalette(boot.customPalette);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [hasNamedPalette, themeLookSlug]);
+  const paletteName = liveCardPaletteName(locale, themeLookSlug, customPalette);
   const content =
     contentModeLabel === "mine"
       ? locale === "es"

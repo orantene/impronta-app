@@ -95,7 +95,7 @@ export async function ThemeCatalogPreview({
   };
 
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens}>
+    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale}>
       <TalentSiteRenderer snapshot={snapshot} locale={locale} />
     </ThemeTokenPreviewFrame>
   );

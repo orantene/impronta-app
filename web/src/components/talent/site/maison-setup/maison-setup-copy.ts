@@ -106,12 +106,12 @@ const ES: Record<string, string> = {
   Restore: "Restaurar",
   "Restoring puts that design in your draft. The live site changes only when you publish.":
     "Restaurar pone ese diseño en tu borrador. El sitio en vivo cambia solo cuando publiques.",
-  "Colors reset to draft · Undo": "Colores restablecidos en el borrador · Deshacer",
-  "Demo layout reapplied · Undo": "Diseño de la demo reaplicado · Deshacer",
+  "Colors reset to draft": "Colores restablecidos en el borrador",
+  "Demo layout reapplied": "Diseño de la demo reaplicado",
   "Unpublished design changes discarded": "Cambios de diseño sin publicar descartados",
   "Import undone": "Importación deshecha",
-  "Previous design restored to your draft · Undo":
-    "Diseño anterior restaurado en tu borrador · Deshacer",
+  "Previous design restored to your draft": "Diseño anterior restaurado en tu borrador",
+  "Demo only · nothing was booked": "Solo demo · no se reservó nada",
 };
 
 export function maisonSetupT(locale: MaisonSetupLocale, key: string): string {

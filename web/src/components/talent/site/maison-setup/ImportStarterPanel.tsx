@@ -61,6 +61,7 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [undoAsk, setUndoAsk] = useState(false);
 
   useEffect(() => {
     startTransition(async () => {
@@ -119,23 +120,20 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
     });
   }
 
-  function handleUndo() {
+  /** Inline undo choice (no browser dialog): keep edited drafts by default. */
+  function handleUndo(removeEdited: boolean) {
     if (!result) return;
-    const editedAsk = window.confirm(
-      locale === "es"
-        ? "Si editaste algún borrador, ¿también lo eliminamos? Aceptar = eliminar también editados. Cancelar = conservar editados."
-        : "If you edited any drafts, remove those too? OK = remove edited as well. Cancel = keep edited drafts.",
-    );
     startTransition(async () => {
       setActionError(null);
       const res = await undoMaisonImportAction({
         batchId: result.batchId,
-        removeEdited: editedAsk,
+        removeEdited,
       });
       if (!res.ok) {
         setActionError(res.error);
         return;
       }
+      setUndoAsk(false);
       setResult(null);
       setStep("choose");
       setSel(emptyImportSelection());
@@ -282,15 +280,59 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
                     </p>
                   ))
                 : null}
-              <button
-                type="button"
-                data-testid="maison-import-undo"
-                className="mt-2 font-semibold text-admin-ink underline"
-                disabled={pending}
-                onClick={handleUndo}
-              >
-                {locale === "es" ? "Deshacer importación" : "Undo import"}
-              </button>
+              {!undoAsk ? (
+                <button
+                  type="button"
+                  data-testid="maison-import-undo"
+                  className="mt-2 font-semibold text-admin-ink underline"
+                  disabled={pending}
+                  onClick={() => setUndoAsk(true)}
+                >
+                  {locale === "es" ? "Deshacer importación" : "Undo import"}
+                </button>
+              ) : (
+                <div
+                  data-testid="maison-import-undo-choice"
+                  role="group"
+                  className="mt-2 rounded-xl border border-admin-border-soft p-3"
+                >
+                  <p className="text-[13px] font-semibold text-admin-ink">
+                    {locale === "es"
+                      ? "¿Qué pasa con los borradores que editaste?"
+                      : "What about drafts you edited?"}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      data-testid="maison-import-undo-keep-edited"
+                      autoFocus
+                      disabled={pending}
+                      onClick={() => handleUndo(false)}
+                      className="inline-flex min-h-11 items-center rounded-xl bg-admin-ink px-3 text-[13px] font-semibold text-white disabled:opacity-50"
+                    >
+                      {locale === "es" ? "Conservar editados" : "Keep edited drafts"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="maison-import-undo-remove-all"
+                      disabled={pending}
+                      onClick={() => handleUndo(true)}
+                      className="inline-flex min-h-11 items-center rounded-xl border border-admin-border-soft px-3 text-[13px] font-semibold text-admin-ink disabled:opacity-50"
+                    >
+                      {locale === "es" ? "Eliminar también editados" : "Remove edited too"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="maison-import-undo-cancel"
+                      disabled={pending}
+                      onClick={() => setUndoAsk(false)}
+                      className="inline-flex min-h-11 items-center px-2 text-[13px] font-semibold text-admin-ink-muted"
+                    >
+                      {locale === "es" ? "Cancelar" : "Cancel"}
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className="text-[12px] text-admin-ink-dim">
                 {locale === "es"
                   ? `Elimina los ${result.serviceDraftIds.length + result.faqDraftIds.length} borradores que creó esta importación. Nada más cambia.`

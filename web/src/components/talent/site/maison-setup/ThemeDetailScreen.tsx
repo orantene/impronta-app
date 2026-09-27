@@ -358,7 +358,7 @@ export function ThemeDetailScreen({
         {fromLiveSite ? (
           <span
             data-testid="maison-live-stays-pill"
-            className="hidden max-w-[220px] shrink-0 text-[11.5px] text-admin-ink-dim lg:inline"
+            className="inline max-w-[220px] shrink-0 text-[11.5px] text-admin-ink-dim"
           >
             {maisonSetupT(
               locale,

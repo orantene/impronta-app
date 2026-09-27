@@ -281,16 +281,20 @@ function ManagerBody({
           void onReload();
         }}
         onCloseToSite={() => setMaisonForceScreen(null)}
+        siteLive={maisonLive}
       />
 
       {/* Starter template gallery; the theme gallery replaces it only when
           TALENT_THEME_GALLERY_ENABLED is on (read server-side). */}
-      <ManagerThemeGallery
-        locale={locale}
-        onApplied={onReload}
-        wrap={(gallery) => <Card>{gallery}</Card>}
-        fallback={<TemplateGallery talentProfileId={state.talentProfileId} onReload={onReload} />}
-      />
+      {/* Live Maison: My website card only, no gallery under it (audit P0). */}
+      {maisonLive ? null : (
+        <ManagerThemeGallery
+          locale={locale}
+          onApplied={onReload}
+          wrap={(gallery) => <Card>{gallery}</Card>}
+          fallback={<TemplateGallery talentProfileId={state.talentProfileId} onReload={onReload} />}
+        />
+      )}
 
       {/* Site address (slug) — hash target for Review blocker fix links */}
       <div id="maison-site-address">
