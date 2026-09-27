@@ -303,6 +303,69 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
   );
 });
 
+test("request / approval mode wins over CMS Seleccionar ctaLabel", () => {
+  const requestOffering = {
+    visibility: "public" as const,
+    variants: [],
+    addOns: [],
+    kind: "service" as const,
+    bookingMode: "request" as const,
+    priceType: "flat_package" as const,
+    priceDisplay: "exact" as const,
+    amountCents: 100,
+  };
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: requestOffering,
+      locale: "es",
+      inspectorLabel: "Seleccionar",
+    }),
+    "Solicitar cita",
+  );
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: requestOffering,
+      locale: "en",
+      inspectorLabel: "Select",
+    }),
+    "Request appointment",
+  );
+  // Instant + confirmsByHand (approval posture) also ignores Seleccionar.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: { ...requestOffering, bookingMode: "instant" },
+      locale: "es",
+      inspectorLabel: "Seleccionar",
+      confirmsByHand: true,
+    }),
+    "Solicitar cita",
+  );
+  // Instant + inquiry posture ignores Seleccionar.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: { ...requestOffering, bookingMode: "instant" },
+      locale: "es",
+      inspectorLabel: "Seleccionar",
+      bookingPosture: "inquiry",
+    }),
+    "Solicitar cita",
+  );
+  // Instant without force-request still allows inspector rename.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: { ...requestOffering, bookingMode: "instant" },
+      locale: "es",
+      inspectorLabel: "Reservar",
+    }),
+    "Reservar",
+  );
+});
+
 test("collect-now cents follow reserveMode (full / deposit / free)", () => {
   assert.equal(catalogCollectNowCents(10_000, "full", null), 10_000);
   assert.equal(catalogCollectNowCents(10_000, "deposit", 30), 3_000);
