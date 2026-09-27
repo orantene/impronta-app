@@ -350,7 +350,7 @@ export function AgendaCalendarPage({
             {delta < 0 ? "‹" : "›"}
           </button>
         ))}
-        <p className="flex-1 text-center text-[13px] text-[#5F6368]" aria-live="polite">
+        <p className="flex-1 text-center text-[13px] text-[var(--tc-primary)] opacity-70" aria-live="polite">
           {weekSubtitle(
             days[0],
             days.reduce((n, day) => n + itemsOnDay(allItems, day).filter((i) => i.kind !== "block").length, 0),
