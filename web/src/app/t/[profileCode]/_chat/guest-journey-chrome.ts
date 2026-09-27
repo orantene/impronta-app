@@ -31,8 +31,9 @@ export function resolveGuestJourneyChrome(input: {
   readonly rows: readonly StreamRow[];
   readonly t: Translator;
   /**
-   * Talent vanity sites (omitPlatformBrand): always paint brief journey
-   * labels (Nueva / Oferta / …). Platform hub keeps StatusLine until a thread.
+   * Front-door brief journey chrome (Nueva / Oferta / New / Offer / …).
+   * True for talent vanity sites and agency public docks (Impronta).
+   * Platform hub keeps StatusLine until a thread.
    */
   readonly talentSiteChrome?: boolean;
 }): {
@@ -121,4 +122,20 @@ export function resolveJourneyLabel(input: {
         ? input.t("public.guestChat.headerJourneyNew")
         : null;
   }
+}
+
+/**
+ * Front-door brief journey chrome applies on talent vanity sites and on
+ * agency public docks (Impronta Talk). Platform hub stays on StatusLine.
+ */
+export function usesFrontDoorJourneyChrome(
+  brand: {
+    readonly omitPlatformBrand?: boolean;
+    readonly dockIntake?: string | null;
+  },
+  opts?: { readonly isHub?: boolean },
+): boolean {
+  // Hub (tulala.digital) keeps StatusLine even when dockIntake is agency.
+  if (opts?.isHub) return false;
+  return Boolean(brand.omitPlatformBrand) || brand.dockIntake === "agency";
 }

@@ -39,11 +39,23 @@ test("dock nav active tab is accent outline, not white fill", () => {
   assert.doesNotMatch(nav, /background:\s*isActive\s*\?\s*"#fff"/);
 });
 
-test("composer send is circular; talent sites use composerPhrase", () => {
+test("composer send is circular; front-door sites use composerPhrase", () => {
   const composer = read("MiniChatComposer.tsx");
   assert.match(composer, /borderRadius:\s*"50%"/);
   const col = read("MiniChatPanelColumn.tsx");
   assert.match(col, /composerPhrase/);
+  assert.match(col, /composerPhraseAgency/);
+  assert.match(col, /frontDoorChrome/);
+  const hook = read("use-guest-dock-journey.ts");
+  assert.match(hook, /usesFrontDoorJourneyChrome/);
+  assert.match(hook, /frontDoorChrome/);
+  assert.match(hook, /isHub/);
+  const chromeHelpers = read("guest-journey-chrome.ts");
+  assert.match(chromeHelpers, /usesFrontDoorJourneyChrome/);
+  assert.match(chromeHelpers, /dockIntake === "agency"/);
+  assert.match(chromeHelpers, /opts\?\.isHub/);
+  const colHub = read("MiniChatPanelColumn.tsx");
+  assert.match(colHub, /isHub,/);
 });
 
 test("dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof", () => {

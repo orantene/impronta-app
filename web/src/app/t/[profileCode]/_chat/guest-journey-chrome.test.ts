@@ -1,9 +1,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { resolveGuestJourneyChrome, resolveJourneyLabel } from "./guest-journey-chrome";
+import {
+  resolveGuestJourneyChrome,
+  resolveJourneyLabel,
+  usesFrontDoorJourneyChrome,
+} from "./guest-journey-chrome";
 
 const t = (key: string) => key.split(".").pop() ?? key;
+
+test("agency dock uses front-door journey chrome (Impronta)", () => {
+  assert.equal(usesFrontDoorJourneyChrome({ dockIntake: "agency" }), true);
+  assert.equal(usesFrontDoorJourneyChrome({ omitPlatformBrand: true }), true);
+  assert.equal(usesFrontDoorJourneyChrome({ dockIntake: "beauty" }), false);
+  assert.equal(usesFrontDoorJourneyChrome({}), false);
+  // Platform hub stays on StatusLine even when dockIntake is agency.
+  assert.equal(
+    usesFrontDoorJourneyChrome({ dockIntake: "agency" }, { isHub: true }),
+    false,
+  );
+  assert.equal(
+    usesFrontDoorJourneyChrome({ omitPlatformBrand: true }, { isHub: true }),
+    false,
+  );
+});
 
 test("offer_pending paints headerJourneyOffer and keeps segs", () => {
   const chrome = resolveGuestJourneyChrome({
