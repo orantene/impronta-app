@@ -111,6 +111,82 @@ test("buffer after a busy block hides the next grid start", () => {
   assert.equal(slots[0]?.startsAt.toISOString(), "2026-03-09T11:00:00.000Z");
 });
 
+test("BUF-1: expanded hold is not double-padded — occupy exactly prep+service+cleanup", () => {
+  // Service 14:00–15:00 +15/+15 → hold stored as 13:45–15:15 (includesBuffers).
+  // Without double-pad: 12:45 (ends 13:45) and 15:15 stay free.
+  // Double-pad would expand to 13:30–15:30 and wrongly hide both.
+  const h = hours({
+    timezone: "UTC",
+    weekly: {
+      0: [],
+      1: [{ startMin: 12 * 60, endMin: 17 * 60 }],
+      2: [],
+      3: [],
+      4: [],
+      5: [],
+      6: [],
+    },
+    bufferBeforeMin: 15,
+    bufferAfterMin: 15,
+    horizonDays: 1,
+    slotMinutes: 15,
+  });
+  const from = new Date("2026-03-09T00:00:00.000Z");
+  const slots = generateSlots({
+    hours: h,
+    durationMinutes: 60,
+    from,
+    busy: [
+      {
+        startsAt: new Date("2026-03-09T13:45:00.000Z"),
+        endsAt: new Date("2026-03-09T15:15:00.000Z"),
+        includesBuffers: true,
+      },
+    ],
+  });
+  const isos = slots.map((s) => s.startsAt.toISOString());
+  assert.ok(isos.includes("2026-03-09T12:45:00.000Z"), "12:45 ends exactly at hold start");
+  assert.ok(!isos.includes("2026-03-09T13:00:00.000Z"), "13:00 overlaps prep window");
+  assert.ok(!isos.includes("2026-03-09T14:00:00.000Z"));
+  assert.ok(isos.includes("2026-03-09T15:15:00.000Z"), "15:15 starts when cleanup ends");
+});
+
+test("BUF-1: raw booking still gets buffer pad (service window only)", () => {
+  const h = hours({
+    timezone: "UTC",
+    weekly: {
+      0: [],
+      1: [{ startMin: 12 * 60, endMin: 17 * 60 }],
+      2: [],
+      3: [],
+      4: [],
+      5: [],
+      6: [],
+    },
+    bufferBeforeMin: 15,
+    bufferAfterMin: 15,
+    horizonDays: 1,
+    slotMinutes: 15,
+  });
+  const from = new Date("2026-03-09T00:00:00.000Z");
+  const slots = generateSlots({
+    hours: h,
+    durationMinutes: 60,
+    from,
+    busy: [
+      {
+        startsAt: new Date("2026-03-09T14:00:00.000Z"),
+        endsAt: new Date("2026-03-09T15:00:00.000Z"),
+      },
+    ],
+  });
+  const isos = slots.map((s) => s.startsAt.toISOString());
+  // Pad expands busy to 13:45–15:15 — same occupancy as expanded hold.
+  assert.ok(isos.includes("2026-03-09T12:45:00.000Z"));
+  assert.ok(!isos.includes("2026-03-09T13:00:00.000Z"));
+  assert.ok(isos.includes("2026-03-09T15:15:00.000Z"));
+});
+
 test("min-notice drops slots that start too soon", () => {
   const h = hours({
     timezone: "UTC",
