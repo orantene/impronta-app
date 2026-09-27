@@ -61,6 +61,7 @@ import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { pruneUnconfirmedGuestStubs } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
+import { publicPageBody } from "@/lib/talent-site/talent-page-publish-core";
 
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 
@@ -242,7 +243,9 @@ export async function renderTalentMaxSite(
 
     // Guest path: hide Oran-unconfirmed social stub buttons + prototype /
     // "falta confirmar" disclaimer paragraphs until channels / photos are real.
-    const blocks = pruneUnconfirmedGuestStubs(coerceTree(page.blocks));
+    // Visitors get the published body; only the owner's draft preview gets the draft.
+    const body = publicPageBody(page, { draftPreview: isOwnerDraftPreview });
+    const blocks = pruneUnconfirmedGuestStubs(coerceTree(body));
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;

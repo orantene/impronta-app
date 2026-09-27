@@ -48,7 +48,14 @@ export interface MaxSitePageRow {
   status: "draft" | "scheduled" | "published" | string;
   isHome: boolean;
   sortOrder: number;
+  /** Draft body (`talent_pages.blocks`). Only the owner's draft preview shows it. */
   blocks: unknown;
+  /**
+   * Live body (`talent_pages.blocks_published`) — what visitors see. `undefined`
+   * when not read (pre-migration database); `null` until the page is published.
+   * Pick between the two with `publicPageBody` (talent-page-publish-core).
+   */
+  blocksPublished?: unknown;
   theme: unknown;
   // SEO-2 — per-page SEO columns (SEO-1 migration; all nullable, degrade-safe).
   /** SEO-3 — SERP/tab title override. NULL -> fall back to `title`. */

@@ -21,6 +21,7 @@ import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { stripTalentSiteSeoPatch } from "@/lib/talent-site/free-site-seo";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
+import { publishTalentPageBodies } from "@/lib/talent-site/server/publish-talent-page-bodies";
 
 import type {
   TalentPageAdapterActions,
@@ -295,21 +296,17 @@ export async function publishTalentPageAction(
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
     const { talentProfileId, pageId } = input;
-    const now = new Date().toISOString();
-    const { data, error } = await sb
-      .from("talent_pages")
-      .update({ status: "published", published_at: now, updated_at: now })
-      .eq("id", pageId)
-      .eq("talent_profile_id", talentProfileId)
-      .select("published_at, updated_at")
-      .single();
-
-    if (error || !data)
-      return { ok: false as const, error: error?.message ?? "Talent page publish failed." };
+    // Publish copies the draft body (`blocks`) into the live body
+    // (`blocks_published`). Saving never touches the live body, so an edit to a
+    // published page stays private until this runs.
+    const result = await publishTalentPageBodies(sb, { talentProfileId, pageId });
+    if (!result.ok) return { ok: false as const, error: result.error };
+    const page = result.pages[0];
+    if (!page) return { ok: false as const, error: "Talent page publish failed." };
     return {
       ok: true as const,
-      publishedAt: data.published_at as string,
-      updatedAt: data.updated_at as string,
+      publishedAt: page.publishedAt,
+      updatedAt: page.updatedAt,
     };
   } catch (err) {
     logServerError("talentPageAdapter/publishPage", err);

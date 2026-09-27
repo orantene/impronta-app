@@ -63,6 +63,7 @@ import { publishSiteThemeForTalent } from "./theme-publish-hook";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
 import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
+import { publishTalentPageBodies } from "./publish-talent-page-bodies";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -638,17 +639,19 @@ export async function publishMaxSiteAction(): Promise<
 
   const now = new Date().toISOString();
 
-  // 1. Publish every page.
-  const { error: pagesErr } = await sb
-    .from("talent_pages")
-    .update({ status: "published", published_at: now, updated_at: now })
-    .eq("talent_profile_id", g.talentProfileId);
-  if (pagesErr) {
-    logServerError("maxSiteManager.publish.pages", pagesErr);
+  // 1. Publish every page: status → published AND the draft body (`blocks`)
+  //    is copied into the live body (`blocks_published`). Until this runs,
+  //    saved edits stay private, the same as the shell and the theme tokens.
+  const pagesPublished = await publishTalentPageBodies(sb, {
+    talentProfileId: g.talentProfileId,
+    now,
+  });
+  if (!pagesPublished.ok) {
+    logServerError("maxSiteManager.publish.pages", pagesPublished.error);
     return {
       ok: false,
       code: "server_error",
-      error: `Could not publish your pages. (${pagesErr.code ?? "pages"})`,
+      error: "Could not publish your pages. (pages)",
     };
   }
 

@@ -26,6 +26,7 @@ import {
   readTalentDesignSlice,
   readTalentStyleClasses,
 } from "@/lib/site-admin/edit-mode/talent-design-store";
+import { publicPageBody } from "./talent-page-publish-core";
 import {
   buildTalentPageSeo,
   type TalentPageSeoEnvelope,
@@ -38,7 +39,10 @@ export interface PublishedTalentPageRow {
   slug: string;
   title: string;
   status: "draft" | "scheduled" | "published";
+  /** Draft body. Never shown by this public loader when a live body exists. */
   blocks: unknown;
+  /** Live body — what visitors see. Absent on a pre-migration read. */
+  blocks_published?: unknown;
   theme: unknown;
   published_at: string | null;
   // SEO-1/SEO-3 `talent_pages` columns. All nullable + optional so a read from
@@ -170,7 +174,11 @@ export async function resolvePublishedTalentPage(
     talentProfileId: talent.id,
     tenantId: talent.managingTenantId,
     title: row.title,
-    blocks: coerceBuilderTree(row.blocks),
+    // Visitors see the published body; a later save stays private until the
+    // next publish. (`blocks` only where no published body exists yet.)
+    blocks: coerceBuilderTree(
+      publicPageBody({ blocks: row.blocks, blocksPublished: row.blocks_published }, { draftPreview: false }),
+    ),
     theme: coerceTheme(row.theme),
     designTokens: designSlice.tokens,
     componentStyleDefaults: designSlice.componentStyles,

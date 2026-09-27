@@ -183,3 +183,28 @@ test("malformed blocks/theme coerce to safe defaults", async () => {
   assert.deepEqual(out.blocks, []);
   assert.deepEqual(out.theme, {});
 });
+
+test("resolvePublishedTalentPage: visitors get the PUBLISHED body, never a later saved draft", async () => {
+  const live = [{ id: "live", kind: "heading", props: { text: "Published" } }];
+  const draft = [{ id: "draft", kind: "heading", props: { text: "Saved, not published" } }];
+  const out = await resolvePublishedTalentPage(
+    makeActions({ talent: TALENT, page: publishedRow({ blocks: draft, blocks_published: live }) }),
+    { profileCode: "ARIA", slug: "home" },
+  );
+  assert.ok(out);
+  assert.deepEqual(out.blocks, live);
+});
+
+test("resolvePublishedTalentPage: no published body yet (pre-migration read) → serves blocks as before", async () => {
+  const only = [{ id: "only", kind: "heading", props: { text: "Only body" } }];
+  const absent = await resolvePublishedTalentPage(
+    makeActions({ talent: TALENT, page: publishedRow({ blocks: only }) }),
+    { profileCode: "ARIA", slug: "home" },
+  );
+  assert.deepEqual(absent?.blocks, only);
+  const nulled = await resolvePublishedTalentPage(
+    makeActions({ talent: TALENT, page: publishedRow({ blocks: only, blocks_published: null }) }),
+    { profileCode: "ARIA", slug: "home" },
+  );
+  assert.deepEqual(nulled?.blocks, only);
+});
