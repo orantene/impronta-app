@@ -234,3 +234,48 @@ test("W66: Review summary uses My colors when custom_palette applied", () => {
   assert.match(review, /buildSummaryLine/);
   assert.match(review, /My colors|customPalette\.name/);
 });
+
+test("AUD-023: setup choices persist server-side + Today resume card", () => {
+  const host = read("MaisonSetupHost.tsx");
+  assert.match(host, /saveMaisonSetupChoicesAction/);
+  assert.match(host, /setupChoices/);
+  const actions = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-choices-actions.ts"),
+    "utf8",
+  );
+  assert.match(actions, /setup_choices/);
+  assert.match(actions, /loadMaisonResumeCardAction/);
+  const today = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/pages/TodayPage.tsx"),
+    "utf8",
+  );
+  assert.match(today, /MaisonWebsiteResumeCard/);
+  const card = readFileSync(
+    join(process.cwd(), "src/components/talent/website-reward/MaisonWebsiteResumeCard.tsx"),
+    "utf8",
+  );
+  assert.match(card, /maison-website-resume-card/);
+  assert.match(card, /Continue your website/);
+});
+
+test("AUD-024: publish readiness checks slug_taken + localises blockers", () => {
+  const readiness = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-publish-readiness.ts"),
+    "utf8",
+  );
+  assert.match(readiness, /slugTaken/);
+  assert.match(readiness, /slug_taken/);
+  assert.match(readiness, /Choose another/);
+  assert.match(readiness, /Elige otra/);
+  const review = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-review-actions.ts"),
+    "utf8",
+  );
+  assert.match(review, /isPlatformSubdomainLabelTaken/);
+  assert.match(review, /slugTaken/);
+  const prep = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-pending-apply.ts"),
+    "utf8",
+  );
+  assert.match(prep, /slugTaken/);
+});

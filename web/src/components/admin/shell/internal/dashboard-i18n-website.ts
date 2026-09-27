@@ -42,4 +42,5 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Intro saved": "Presentación guardada",
   "What unlocks your free website": "Qué desbloquea tu sitio gratis",
   "Same score as Today and Where I appear.": "La misma puntuación que Hoy y Dónde aparezco.",
+  "Continue your website": "Continúa tu sitio",
 };
