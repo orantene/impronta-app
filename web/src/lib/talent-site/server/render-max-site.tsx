@@ -32,6 +32,7 @@ import {
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -447,9 +448,6 @@ async function renderMaxSiteDocument(args: {
     const n = nodes as { kind?: unknown; children?: unknown };
     return n.kind === "form" || n.kind === "services_catalog" || needsCaptcha(n.children);
   })([shellTree, blocks]);
-  // Published vanity with a tenant always runs catalogBookingLive — resolve
-  // captcha even if the tree scan missed a nested catalog (defense in depth).
-  const resolveCaptcha = Boolean(tenantId) && (pageNeedsCaptcha || !draftPreview);
 
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
@@ -465,6 +463,19 @@ async function renderMaxSiteDocument(args: {
     const n = nodes as { kind?: unknown; children?: unknown };
     return n.kind === "services_catalog" || needsCatalog(n.children);
   })(blocks);
+
+  // Codex P2 / ACCEPTANCE: loading offerings with catalogBookingLive=false mounts
+  // demo booking ("Preview: no real bookings") on published free vanity. Own-work
+  // Path A / inquiry uses the platform hub when there is no managing agency
+  // tenant — same as Agenda `resolveTalentOwnWorkTenant` / Path B hub pick.
+  let bookingTenantId: string | null = tenantId;
+  if (!bookingTenantId && !draftPreview && pageNeedsServicesCatalog) {
+    bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
+  }
+  const catalogBookingLive = Boolean(bookingTenantId) && !draftPreview;
+  // Published vanity with a booking tenant always runs catalogBookingLive —
+  // resolve captcha even if the tree scan missed a nested catalog.
+  const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings] =
     await Promise.all([
@@ -482,8 +493,8 @@ async function renderMaxSiteDocument(args: {
       // ABTEST-1 — stable per-visitor seed for any A/B CTA/form nodes on the
       // talent's personal Max site.
       resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
-      resolveCaptcha
-        ? resolveTenantCaptcha(tenantId!)
+      resolveCaptcha && bookingTenantId
+        ? resolveTenantCaptcha(bookingTenantId)
         : Promise.resolve(null),
       // D-MSG-421 — vanity hosts never went through profile-storefront-payload,
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
@@ -505,8 +516,10 @@ async function renderMaxSiteDocument(args: {
         ? dataSources.talentOfferings
         : talentOfferings,
     usdRates,
-    tenantId: dataSources.tenantId ?? tenantId ?? undefined,
-    catalogBookingLive: Boolean(tenantId) && !draftPreview,
+    // Booking sheet / purchase mount need the hub (or agency) tenant id even
+    // when the Max site itself has no managing agency.
+    tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
+    catalogBookingLive,
   };
 
   const captchaConfig = pageCaptcha

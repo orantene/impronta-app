@@ -2,6 +2,9 @@
  * Lock: unrostered Max sites (tenantId null) must still load services_catalog
  * sources. Without this, free vanity fixtures render the empty catalog while
  * Hablar/dock shows the same offerings.
+ *
+ * Codex P2: published free sites must not mount demo booking once offerings
+ * load — resolve platform hub → catalogBookingLive + booking tenantId.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -29,5 +32,16 @@ describe("render-max-site catalog sources (null tenant)", () => {
       SRC,
       /pageNeedsServicesCatalog\s*\?\s*loadServicesCatalogSources/,
     );
+  });
+
+  it("resolves platform hub for free-site booking context (no demo on published)", () => {
+    assert.match(SRC, /getPlatformHubTenant/);
+    assert.match(SRC, /bookingTenantId/);
+    // Must not gate live booking solely on managing tenantId.
+    assert.doesNotMatch(
+      SRC,
+      /catalogBookingLive:\s*Boolean\(tenantId\)\s*&&\s*!draftPreview/,
+    );
+    assert.match(SRC, /catalogBookingLive\s*=\s*Boolean\(bookingTenantId\)\s*&&\s*!draftPreview/);
   });
 });
