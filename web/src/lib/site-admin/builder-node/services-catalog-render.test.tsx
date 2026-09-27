@@ -467,3 +467,40 @@ test("jump_strip categoryNav renders jump strip", () => {
   });
   assert.match(html, /data-category-nav="jump"/);
 });
+
+/** BLD five-settings — public SSR markers for change→publish verification. */
+test("five-settings: layout / categoryNav / showPhoto / search / stylePreset emit public attrs", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "cards",
+        categoryNav: "tabs",
+        showPhoto: false,
+        enableCatalogSearch: true,
+        stylePreset: "image_led",
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "a", category: "Uñas", imageUrls: ["https://example.test/a.jpg"] }),
+        offering({ id: "b", category: "Cejas", title: "Brow", imageUrls: ["https://example.test/b.jpg"] }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="cards"/);
+  assert.match(html, /data-category-nav="tabs"/);
+  assert.match(html, /data-show-photo="false"/);
+  assert.match(html, /data-enable-catalog-search="true"/);
+  assert.match(html, /data-style-preset="image_led"/);
+  assert.doesNotMatch(html, /example\.test\/a\.jpg/);
+});
+
+test("five-settings: showPhoto true keeps photos and search defaults off", () => {
+  const html = render([catalogNode({ layout: "rows", showPhoto: true })], {
+    talentOfferings: [offering({ imageUrls: ["https://example.test/gel-pedicure.jpg"] })],
+  });
+  assert.match(html, /data-show-photo="true"/);
+  assert.match(html, /data-enable-catalog-search="false"/);
+  assert.doesNotMatch(html, /data-style-preset=/);
+  assert.match(html, /gel-pedicure\.jpg/);
+});

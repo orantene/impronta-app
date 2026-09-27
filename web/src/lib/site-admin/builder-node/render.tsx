@@ -5870,6 +5870,11 @@ function renderBuilderNodeElement(
           data-cta-variant={p.rowCtaVariant ?? "outline"}
           data-density={p.density ?? "comfortable"}
           data-category-nav={categoryNav}
+          data-show-photo={
+            p.showPhoto !== false && layout !== "compact_list" ? "true" : "false"
+          }
+          data-enable-catalog-search={p.enableCatalogSearch === true ? "true" : "false"}
+          {...(p.stylePreset ? { "data-style-preset": p.stylePreset } : {})}
           {...(useWebsiteTheme ? {} : builderNodeStyleAttrs(p.style))}
           className="site-builder-node site-builder-node--services-catalog"
           style={{

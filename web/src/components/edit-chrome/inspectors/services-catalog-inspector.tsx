@@ -9,6 +9,11 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { BuilderServicesCatalogNode } from "@/lib/site-admin/builder-node";
 import { ineligibleSelectedOfferingIds } from "@/lib/site-admin/builder-node/services-catalog-selection";
+import {
+  SERVICES_CATALOG_STYLE_PRESETS,
+  servicesCatalogStylePresetCommit,
+  type ServicesCatalogStylePresetId,
+} from "@/lib/site-admin/builder-node/services-catalog-style-presets";
 import { KIT } from "./kit/tokens";
 import { InspectorLabelWithInfo } from "./kit";
 import {
@@ -37,59 +42,7 @@ function Section({
   );
 }
 
-const STYLE_PRESETS: Array<{
-  id: string;
-  label: string;
-  patch: Record<string, unknown>;
-}> = [
-  {
-    id: "clean",
-    label: "Clean",
-    patch: {
-      layout: "rows",
-      categoryNav: "pills",
-      density: "comfortable",
-      photoRadius: "soft",
-      rowCtaVariant: "outline",
-      useWebsiteTheme: true,
-    },
-  },
-  {
-    id: "editorial",
-    label: "Editorial",
-    patch: {
-      layout: "editorial",
-      categoryNav: "sections",
-      density: "comfortable",
-      photoRadius: "soft",
-      rowCtaVariant: "outline",
-      columns: 2,
-    },
-  },
-  {
-    id: "compact",
-    label: "Compact",
-    patch: {
-      layout: "compact_list",
-      categoryNav: "tabs",
-      density: "compact",
-      showPhoto: false,
-      rowCtaVariant: "outline",
-    },
-  },
-  {
-    id: "image_led",
-    label: "Image-led",
-    patch: {
-      layout: "cards",
-      categoryNav: "pills",
-      density: "comfortable",
-      photoRadius: "soft",
-      showPhoto: true,
-      columns: 2,
-    },
-  },
-];
+const STYLE_PRESETS = SERVICES_CATALOG_STYLE_PRESETS;
 
 export function ServicesCatalogContentInspector({
   node,
@@ -452,8 +405,13 @@ export function ServicesCatalogContentInspector({
               <button
                 key={preset.id}
                 type="button"
+                data-services-catalog-style-preset={preset.id}
                 className="rounded-md border border-black/15 bg-white px-2.5 py-1 text-xs font-semibold"
-                onClick={() => void commitPatch({ ...preset.patch, stylePreset: preset.id })}
+                onClick={() =>
+                  void commitPatch(
+                    servicesCatalogStylePresetCommit(preset.id as ServicesCatalogStylePresetId),
+                  )
+                }
               >
                 {preset.label}
               </button>

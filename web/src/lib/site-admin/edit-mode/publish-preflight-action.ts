@@ -154,6 +154,56 @@ type PreflightPageContext = {
   publishedCompositionSnapshot: HomepageSnapshot | null;
 };
 
+/**
+ * Canvas-only preflight for talent personal sites (no agency tenant scope).
+ * Mirrors the builderTree validation branch used for CMS surfaces.
+ */
+function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResult {
+  const issues: PreflightIssue[] = [];
+  const builderTree = Array.isArray(builderTreeInput) ? builderTreeInput : null;
+  if (!builderTree) {
+    return { ok: true, issues };
+  }
+  const validation = validateBuilderNodeTree(builderTree);
+  if (!validation.ok) {
+    issues.push({
+      severity: "error",
+      category: "builder_payload",
+      message: `Builder tree is invalid: ${validation.issues
+        .slice(0, 2)
+        .map((issue) => `${issue.path}: ${issue.message}`)
+        .join("; ")}`,
+    });
+    return { ok: true, issues };
+  }
+  for (const finding of collectBuilderPerformanceIssues(
+    collectBuilderPerformanceMetrics(validation.tree),
+  )) {
+    issues.push({
+      severity: finding.severity === "error" ? "error" : "warn",
+      category: "performance",
+      message: `Builder performance: ${finding.message}`,
+    });
+  }
+  for (const finding of collectBuilderTreeLayoutFindings(validation.tree)) {
+    const blocking = isBlockingLayoutFindingId(finding.id);
+    issues.push({
+      severity: blocking ? "error" : "warn",
+      category: "layout",
+      sectionId: finding.ownerSectionId ?? undefined,
+      nodeId: finding.nodeId ?? undefined,
+      autoFixable: blocking && finding.quickFixPatch != null,
+      message: blocking
+        ? `${finding.message} Resolve this layout issue before publish.`
+        : finding.message,
+    });
+  }
+  for (const issue of collectMobileOverflowPreflightIssues(validation.tree)) {
+    issues.push(issue);
+  }
+  return { ok: true, issues };
+}
+
 export async function runPublishPreflight(input?: {
   locale?: string;
   /**
@@ -173,7 +223,15 @@ export async function runPublishPreflight(input?: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
-  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  // Talent personal sites edit on `app.tulala.digital/talent/page-builder` with
+  // no agency tenant cookie. Preflight still runs for `talent_page` (see
+  // `isPublishPreflightSurface`) — do not demand an agency workspace.
+  if (!scope) {
+    if (input?.surfaceKind === "talent_page") {
+      return runTalentPagePublishPreflight(input?.builderTree);
+    }
+    return { ok: false, error: "Pick an agency workspace first." };
+  }
   const locale = input?.locale?.trim() || DEFAULT_PLATFORM_LOCALE;
   const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
     logTag: "publish-preflight",
