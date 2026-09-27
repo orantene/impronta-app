@@ -83,3 +83,17 @@ test("beauty intake has four brief segs including service + message", () => {
   const rail = read("guest-intake-rail.ts");
   assert.match(rail, /beauty:\s*\["day",\s*"hour",\s*"service",\s*"message"\]/);
 });
+
+test("agency dock Items label resolves to front-door Browse", () => {
+  const flags = readFileSync(
+    join(HERE, "../../../../lib/inquiry/guest-dock-flags.ts"),
+    "utf8",
+  );
+  assert.match(flags, /resolveGuestDockItemsLabel/);
+  const helper = readFileSync(
+    join(HERE, "../../../../lib/inquiry/guest-dock-items-label.ts"),
+    "utf8",
+  );
+  assert.match(helper, /dockIntake === "agency"/);
+  assert.match(helper, /Browse/);
+});

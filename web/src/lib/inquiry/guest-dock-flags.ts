@@ -16,6 +16,7 @@ import "server-only";
 
 import { loadGuestChatSettings } from "./guest-chat-settings";
 import { GUEST_CHAT_DEFAULTS } from "./guest-chat-settings-shape";
+import { resolveGuestDockItemsLabel } from "./guest-dock-items-label";
 import { intakeTradeForPreset, type IntakeTrade } from "@/app/t/[profileCode]/_chat/guest-intake-rail";
 import { chatBookingsLabel } from "@/lib/words/chat-bookings-label";
 import { chatItemsLabel } from "@/lib/words/chat-items-label";
@@ -66,12 +67,20 @@ export async function loadGuestDockFlags(
     word: (key: Parameters<typeof words.word>[0]) => words.word(key),
     sourceOf: (key: Parameters<typeof words.sourceOf>[0]) => words.sourceOf(key),
   };
+  const dockIntake = intakeTradeForPreset(words.preset.id);
+  const derivedItemsLabel = chatItemsLabel(wordsLookup);
   return {
     dockItemsTab: settings.itemsTab,
     dockCardsV5: settings.cardsV5,
-    dockItemsLabel: chatItemsLabel(wordsLookup),
+    // Agency front-door (Impronta): DoR middle tab is Browse, not Talent & services.
+    dockItemsLabel: resolveGuestDockItemsLabel({
+      dockIntake,
+      derivedLabel: derivedItemsLabel,
+      chatItemsCustomized: words.sourceOf("customers.chat_items") !== "default",
+      locale: words.locale,
+    }),
     dockProjectsLabel: chatBookingsLabel(wordsLookup),
     dockRepresentsPeople: representsPeople,
-    dockIntake: intakeTradeForPreset(words.preset.id),
+    dockIntake,
   };
 }
