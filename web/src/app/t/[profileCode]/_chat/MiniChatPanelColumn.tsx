@@ -547,6 +547,7 @@ export function MiniChatPanelColumn({
       {offerPreview ? (
         <GuestHablarOfferPreview
           accent={accent}
+          accentInk={accentInk}
           C={C}
           locale={brand.locale ?? "es"}
           businessName={brand.agencyName}

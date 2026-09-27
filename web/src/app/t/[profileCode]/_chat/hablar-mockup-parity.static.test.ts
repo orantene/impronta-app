@@ -13,9 +13,11 @@ const read = (name: string) => readFileSync(join(HERE, name), "utf8");
 
 test("panel wires journey chrome (header + progress + nav)", () => {
   const col = read("MiniChatPanelColumn.tsx");
-  assert.match(col, /resolveGuestJourneyChrome/);
+  assert.match(col, /useGuestDockJourney/);
   assert.match(col, /GuestDockChrome/);
   assert.match(col, /journeyLabel=\{journeyLabel\}/);
+  const journey = read("use-guest-dock-journey.ts");
+  assert.match(journey, /resolveGuestJourneyChrome/);
   const chrome = read("GuestDockChrome.tsx");
   const headerIdx = chrome.indexOf("<GuestPanelHeader");
   const progressIdx = chrome.indexOf("<GuestJourneyProgress");

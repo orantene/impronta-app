@@ -18,7 +18,7 @@ import { buildClientCopy } from "@/components/messages-v5/client/copy";
 import { buildKitCopy } from "@/components/messages-v5/kit/copy";
 import "@/components/messages-v5/kit/tokens.css";
 
-import { FONT, type Palette } from "./mini-chat-styles";
+import { FONT, readableOn, type Palette } from "./mini-chat-styles";
 
 const PREVIEW_OFFER: ClientOfferSummary = {
   id: "preview-offer",
@@ -52,12 +52,14 @@ export function useHablarOfferPreview(talentSite: boolean): boolean {
 
 export function GuestHablarOfferPreview({
   accent,
+  accentInk,
   C,
   locale,
   businessName,
   presenceName,
 }: {
   accent: string;
+  accentInk?: string;
   C: Palette;
   locale: string;
   businessName: string;
@@ -68,6 +70,7 @@ export function GuestHablarOfferPreview({
   const kit = buildKitCopy(t);
   const now = new Date("2026-09-27T12:00:00.000Z");
   const presence = interpolate(t("public.guestChat.presenceViewing"), { name: presenceName });
+  const offerInk = accentInk || readableOn(accent);
 
   return (
     <div
@@ -147,6 +150,7 @@ export function GuestHablarOfferPreview({
           {
             ["--msgv5-offer-border"]: accent,
             ["--msgv5-offer-chip"]: `${accent}14`,
+            ["--msgv5-offer-ink"]: offerInk,
           } as CSSProperties
         }
       >
