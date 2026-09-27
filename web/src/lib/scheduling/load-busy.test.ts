@@ -141,6 +141,21 @@ test("missing hours fail closed (no guessed slots)", () => {
   );
 });
 
+test("BUF-1: holds mark includesBuffers so slot pad does not double-expand", () => {
+  const busy = collectBusyIntervals({
+    now: NOW,
+    holds: [
+      {
+        starts_at: "2026-03-09T13:45:00.000Z",
+        ends_at: "2026-03-09T15:15:00.000Z",
+        expires_at: null,
+      },
+    ],
+  });
+  assert.equal(busy.length, 1);
+  assert.equal(busy[0]?.includesBuffers, true);
+});
+
 test("busy loader output is generateSlots-shaped and hides the occupied start", () => {
   const busy = collectBusyIntervals({
     now: NOW,

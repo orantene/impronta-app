@@ -197,7 +197,8 @@ export async function loadWalkInSlots(
 export type WalkInBookingRefusal =
   | PurchaseRefusalReason
   | "invalid"
-  | "not_found";
+  | "not_found"
+  | "too_soon";
 
 export type WalkInBookingResult =
   | {

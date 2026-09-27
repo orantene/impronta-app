@@ -475,8 +475,16 @@ async function renderMaxSiteDocument(args: {
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
   ]);
+  // D-MSG-421 loads offerings for the talent vanity even when there is no
+  // agency `tenantId` (so `loadBuilderNodeDataSources` is skipped). Merge them
+  // onto the render dataSources — otherwise `services_catalog` always renders
+  // the empty state on solo talent sites.
   const pricedDataSources = {
     ...dataSources,
+    talentOfferings:
+      Array.isArray(dataSources.talentOfferings) && dataSources.talentOfferings.length > 0
+        ? dataSources.talentOfferings
+        : talentOfferings,
     usdRates,
     tenantId: dataSources.tenantId ?? tenantId ?? undefined,
     catalogBookingLive: Boolean(tenantId) && !draftPreview,

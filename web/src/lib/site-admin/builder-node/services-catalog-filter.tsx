@@ -360,6 +360,7 @@ export function ServicesCatalogFilter({
                       showUsdEquivalent={showUsdEquivalent}
                       showBadges={showBadges}
                       confirmsByHand={confirmsByHand || forceRequestIntent(bookingPosture)}
+                      bookingPosture={bookingPosture}
                       usdRates={usdRates}
                       ctaLabel={ctaLabel}
                       durationFormat={durationFormat}
@@ -430,6 +431,7 @@ export function CatalogRow({
   showUsdEquivalent,
   showBadges = false,
   confirmsByHand,
+  bookingPosture = "on_demand",
   usdRates,
   ctaLabel,
   durationFormat = "auto",
@@ -448,6 +450,7 @@ export function CatalogRow({
   showUsdEquivalent: boolean;
   showBadges?: boolean;
   confirmsByHand: boolean;
+  bookingPosture?: TalentBookingPosture;
   usdRates: UsdRates | null;
   ctaLabel?: string;
   durationFormat?: "auto" | "minutes" | "hours_minutes";
@@ -470,6 +473,7 @@ export function CatalogRow({
     locale,
     inspectorLabel: selected ? undefined : ctaLabel,
     confirmsByHand,
+    bookingPosture,
   });
   const where = Array.isArray(item.attributes?.where)
     ? (item.attributes.where as string[])

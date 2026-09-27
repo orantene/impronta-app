@@ -406,6 +406,28 @@ test("outline CTA variant is the default data attribute", () => {
   assert.match(html, /data-cta-variant="outline"/);
 });
 
+test("solid CTA variant sets data-cta-variant solid", () => {
+  const html = render([catalogNode({ rowCtaVariant: "solid" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-cta-variant="solid"/);
+});
+
+test("solid CTA variant has dedicated CSS (not outline-only)", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode({ rowCtaVariant: "solid" })], {
+      mode: "freeform",
+      includeRendererStyles: true,
+      includeFontLinks: false,
+      dataSources: { talentOfferings: [offering({})] },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(
+    html,
+    /data-cta-variant="solid"]\s*\.site-builder-node--services-catalog-cta\{background:var\(--token-color-ink\)/,
+  );
+});
+
 test("each layout sets a distinct data-layout attribute", () => {
   for (const layout of ["rows", "cards", "grid", "compact_list", "editorial", "featured"] as const) {
     const html = render([catalogNode({ layout })], {
@@ -466,4 +488,41 @@ test("jump_strip categoryNav renders jump strip", () => {
     ],
   });
   assert.match(html, /data-category-nav="jump"/);
+});
+
+/** BLD five-settings — public SSR markers for change→publish verification. */
+test("five-settings: layout / categoryNav / showPhoto / search / stylePreset emit public attrs", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "cards",
+        categoryNav: "tabs",
+        showPhoto: false,
+        enableCatalogSearch: true,
+        stylePreset: "image_led",
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({ id: "a", category: "Uñas", imageUrls: ["https://example.test/a.jpg"] }),
+        offering({ id: "b", category: "Cejas", title: "Brow", imageUrls: ["https://example.test/b.jpg"] }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="cards"/);
+  assert.match(html, /data-category-nav="tabs"/);
+  assert.match(html, /data-show-photo="false"/);
+  assert.match(html, /data-enable-catalog-search="true"/);
+  assert.match(html, /data-style-preset="image_led"/);
+  assert.doesNotMatch(html, /example\.test\/a\.jpg/);
+});
+
+test("five-settings: showPhoto true keeps photos and search defaults off", () => {
+  const html = render([catalogNode({ layout: "rows", showPhoto: true })], {
+    talentOfferings: [offering({ imageUrls: ["https://example.test/gel-pedicure.jpg"] })],
+  });
+  assert.match(html, /data-show-photo="true"/);
+  assert.match(html, /data-enable-catalog-search="false"/);
+  assert.doesNotMatch(html, /data-style-preset=/);
+  assert.match(html, /gel-pedicure\.jpg/);
 });

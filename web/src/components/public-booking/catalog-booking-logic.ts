@@ -1,5 +1,9 @@
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
+import {
+  forceRequestIntent,
+  type TalentBookingPosture,
+} from "@/lib/talent/selling-booking-settings";
 
 export type CatalogBookingMode = "demo" | "live";
 
@@ -178,14 +182,16 @@ export function catalogRowCtaLabel(opts: {
    * data-offering-cta so the label never promises Buy on a request path.
    */
   confirmsByHand?: boolean;
+  /** Talent-wide inquiry posture — same force-request as confirmsByHand (MODE-6). */
+  bookingPosture?: TalentBookingPosture;
 }): string {
   if (opts.selected) return opts.locale.startsWith("es") ? "Seleccionado" : "Selected";
   const es = opts.locale.startsWith("es");
   const raw = resolveOfferingCta(opts.offering);
+  const forceRequest =
+    opts.confirmsByHand === true || forceRequestIntent(opts.bookingPosture ?? "on_demand");
   const cta =
-    opts.confirmsByHand && (raw === "book_now" || raw === "buy_now")
-      ? "request_to_book"
-      : raw;
+    forceRequest && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
   // Meaning-preserving labels (brief §10). Never say Book when the path is inquiry/quote.
   // Inspector ctaLabel must not clobber option / quote / consult CTAs — Jorg Beauty
   // CMS stored "Seleccionar" and wiped "Elegir opciones" on Soft Gel (vanity 1:1).

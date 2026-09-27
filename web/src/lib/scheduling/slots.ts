@@ -22,6 +22,12 @@ import {
 export type BusyInterval = {
   startsAt: Date;
   endsAt: Date;
+  /**
+   * When true, the interval already includes prep/cleanup (firm holds from
+   * `reserve_resource_set_v2`). `generateSlots` must not pad these again —
+   * double-padding expands 13:45–15:15 into 13:30–15:30 and over-blocks.
+   */
+  includesBuffers?: boolean;
 };
 
 export type GeneratedSlot = {
@@ -43,7 +49,13 @@ function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): b
 
 function paddedBusy(busy: readonly BusyInterval[], beforeMs: number, afterMs: number): Array<[number, number]> {
   return busy
-    .map((b) => [b.startsAt.getTime() - beforeMs, b.endsAt.getTime() + afterMs] as [number, number])
+    .map((b) => {
+      // Holds already store the expanded window — pad only raw bookings/blocks.
+      if (b.includesBuffers) {
+        return [b.startsAt.getTime(), b.endsAt.getTime()] as [number, number];
+      }
+      return [b.startsAt.getTime() - beforeMs, b.endsAt.getTime() + afterMs] as [number, number];
+    })
     .filter(([s, e]) => Number.isFinite(s) && Number.isFinite(e) && e > s);
 }
 
