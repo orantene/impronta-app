@@ -63,7 +63,6 @@ import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { pruneUnconfirmedGuestStubs } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 import { publicPageBody } from "@/lib/talent-site/talent-page-publish-core";
-
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 
 import {
@@ -242,11 +241,10 @@ export async function renderTalentMaxSite(
     });
     if (!page) return NOT_FOUND;
 
-    // Guest path: hide Oran-unconfirmed social stub buttons + prototype /
-    // "falta confirmar" disclaimer paragraphs until channels / photos are real.
-    // Visitors get the published body; only the owner's draft preview gets the draft.
-    const body = publicPageBody(page, { draftPreview: isOwnerDraftPreview });
-    const blocks = pruneUnconfirmedGuestStubs(coerceTree(body));
+    // Guest: published body for visitors; scrub unconfirmed social stubs.
+    const blocks = pruneUnconfirmedGuestStubs(
+      coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview })),
+    );
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
@@ -524,7 +522,6 @@ async function renderMaxSiteDocument(args: {
     // when the Max site itself has no managing agency.
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
-    // PAY-2 B: platform Checkout only (Connect ignored — payouts held separately).
     onlineCollectReady: isPlatformCheckoutReady(),
   };
 
