@@ -59,6 +59,7 @@ export function OfferingCta({
       title: offering.title,
       kind: offering.kind,
       priceType: offering.priceType,
+      priceDisplay: offering.priceDisplay,
       amountCents: offering.amountCents,
       currency: offering.currency,
       durationMinutes: offering.durationMinutes,

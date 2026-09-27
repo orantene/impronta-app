@@ -168,15 +168,23 @@ export function resolveWhoStepPaymentUi(input: {
           whoPrimaryCta: input.bookingSettings.whoPrimaryCta,
           locale: input.locale,
         });
+  // Inquiry / chat path: never promise studio pay or an exact hold — the
+  // talent replies to confirm the preferred time (AUD-004).
+  const paymentFixture =
+    whoAction === "chat" && !paymentSetupBlocksConfirm
+      ? es
+        ? "Te respondemos para confirmar el horario."
+        : "We'll reply to confirm the time."
+      : whoStepPaymentCopy({
+          reserveMode: input.reserveMode,
+          allowPayInPerson: input.allowPayInPerson,
+          depositPct: input.depositPct,
+          onlineCollectReady: input.onlineCollectReady,
+          locale: input.locale,
+        });
   return {
     whoAction,
     whoCtaText,
-    paymentFixture: whoStepPaymentCopy({
-      reserveMode: input.reserveMode,
-      allowPayInPerson: input.allowPayInPerson,
-      depositPct: input.depositPct,
-      onlineCollectReady: input.onlineCollectReady,
-      locale: input.locale,
-    }),
+    paymentFixture,
   };
 }

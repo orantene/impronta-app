@@ -122,3 +122,34 @@ export function whoStepPrimaryLabel(input: {
   const es = input.locale.toLowerCase().startsWith("es");
   return es ? "Chateá ahora" : "Chat now";
 }
+
+/**
+ * When-step time group label. Inquiry/chat paths ask for a preferred time
+ * (not an exact hold) — AUD-004.
+ */
+export function whenStepTimeGroupLabel(input: {
+  action: "confirm" | "chat";
+  locale: string;
+}): string {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (input.action === "chat") {
+    return es ? "Horario preferido" : "Preferred time";
+  }
+  return es ? "Elegí un horario" : "Pick a time";
+}
+
+/** Choose-step CTA when advancing to the when step. */
+export function chooseStepContinueLabel(input: {
+  action: "confirm" | "chat";
+  locale: string;
+  needsOption: boolean;
+}): string {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (input.needsOption) {
+    return es ? "Elegí una opción" : "Choose an option";
+  }
+  if (input.action === "chat") {
+    return es ? "Continuar: horario preferido" : "Continue: preferred time";
+  }
+  return es ? "Continuar: elegir horario" : "Continue: pick a time";
+}

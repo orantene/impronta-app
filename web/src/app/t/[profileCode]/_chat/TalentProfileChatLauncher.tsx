@@ -583,7 +583,12 @@ export function TalentProfileChatLauncher({
         data-yield-booking-bar={yieldBookingBar ? "1" : undefined}
         style={{
           position: "fixed",
-          right: "max(16px, env(safe-area-inset-right))",
+          /* AUD-025 — when Continuar is up on a phone, step left so the round
+             Hablar FAB does not sit on the row's right-edge Seleccionar. */
+          right:
+            yieldBookingBar && narrowLauncher
+              ? "max(72px, calc(16px + 56px + env(safe-area-inset-right)))"
+              : "max(16px, env(safe-area-inset-right))",
           bottom: `calc(${launcherBottomPx}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
           display: "flex",

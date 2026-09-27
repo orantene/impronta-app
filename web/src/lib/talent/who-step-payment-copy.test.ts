@@ -148,6 +148,34 @@ test("resolveWhoStepPaymentUi deposit confirm uses payment CTA", () => {
   assert.doesNotMatch(ui.whoCtaText, /Confirmar cita/);
 });
 
+test("AUD-004: chat/inquiry path uses reply-to-confirm copy, not studio pay", () => {
+  const ui = resolveWhoStepPaymentUi({
+    reserveMode: "free",
+    allowPayInPerson: true,
+    depositPct: null,
+    locale: "es",
+    offeringIntent: "request",
+    bookingSettings: DEFAULT_SHEET_BOOKING_SETTINGS,
+  });
+  assert.equal(ui.whoAction, "chat");
+  assert.match(ui.paymentFixture, /Te respondemos para confirmar el horario/);
+  assert.doesNotMatch(ui.paymentFixture, /estudio/);
+
+  const en = resolveWhoStepPaymentUi({
+    reserveMode: "free",
+    allowPayInPerson: true,
+    depositPct: null,
+    locale: "en",
+    offeringIntent: "request",
+    bookingSettings: {
+      bookingPosture: "inquiry",
+      whoPrimaryCta: "contact",
+    },
+  });
+  assert.equal(en.whoAction, "chat");
+  assert.match(en.paymentFixture, /reply to confirm the time/i);
+});
+
 test("done-step next action restates studio vs payment (never silent paid)", () => {
   assert.match(
     doneStepNextActionCopy({

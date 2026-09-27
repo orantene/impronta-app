@@ -11,10 +11,13 @@ import {
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogDetailIsPurchase,
+  catalogMonthShort,
   catalogNeedsOptions,
   catalogNextDays,
   catalogSelectedStartStillOpen,
+  catalogSlotDateLabel,
   catalogTotalCents,
+  catalogWeekdayShort,
   demoSlotsFor,
   formatClock,
   groupIsoSlotsByDay,
@@ -35,14 +38,16 @@ import {
   type CatalogSlotsFn,
 } from "./catalog-booking-live-slots";
 import {
+  chooseStepContinueLabel,
   DEFAULT_SHEET_BOOKING_SETTINGS,
+  whenStepTimeGroupLabel,
   type CatalogSheetBookingSettings,
 } from "@/lib/talent/selling-booking-settings";
 import {
   doneStepNextActionCopy,
-  offeringRequiresOnlineCollect,
   resolveWhoStepPaymentUi,
 } from "@/lib/talent/who-step-payment-copy";
+import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -53,11 +58,6 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
 export type { CatalogBookFn };
 export type { CatalogSlotsFn };
 export type { CatalogSheetBookingSettings };
-
-const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function CatalogBookingSheet({
   locale = "es",
@@ -89,8 +89,6 @@ export function CatalogBookingSheet({
   onlineCollectReady?: boolean;
 }) {
   const es = locale.startsWith("es");
-  const DAYS = es ? DAYS_ES : DAYS_EN;
-  const MONTHS = es ? MONTHS_ES : MONTHS_EN;
   const [detail, setDetail] = useState<CatalogBookingDetail | null>(null);
   const [step, setStep] = useState<Step>("choose");
   const [variantId, setVariantId] = useState<string | null>(null);
@@ -303,17 +301,13 @@ export function CatalogBookingSheet({
     offeringIntent: detail.intent,
     bookingSettings,
   });
+  const isQuote = catalogIsQuote(detail);
+  const timeGroupLabel = whenStepTimeGroupLabel({ action: whoAction, locale });
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
 
-  const slotLabel =
-    time != null
-      ? `${DAYS[day.getDay()]} ${day.getDate()} ${es ? "de" : ""} ${MONTHS[day.getMonth()]}, ${time}`.replace(
-          /\s+/g,
-          " ",
-        ).trim()
-      : null;
+  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
 
   const buildSelection = (): CatalogBookingSelection => ({
     variantId,
@@ -360,14 +354,8 @@ export function CatalogBookingSheet({
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
   };
-
   const emptyConsultButton = (
-    <button
-      type="button"
-      className="jb-ask"
-      data-catalog-empty-ask=""
-      onClick={() => askAvailability()}
-    >
+    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
       {es ? "Consultar disponibilidad" : "Check availability"}
     </button>
   );
@@ -413,8 +401,10 @@ export function CatalogBookingSheet({
             <>
               <div className="jb-summary">
                 <div>
-                  <span>{es ? "Precio base" : "Base price"}</span>
-                  <strong>{money(detail.amountCents ?? 0, detail.currency)}</strong>
+                  <span>{isQuote ? (es ? "Precio" : "Price") : es ? "Precio base" : "Base price"}</span>
+                  <strong data-catalog-price={isQuote ? "quote" : "money"}>
+                    {catalogPriceLabel(detail, detail.amountCents ?? 0, locale, money)}
+                  </strong>
                 </div>
                 {bookingDurationMinutes ? (
                   <p className="jb-fixture">
@@ -445,7 +435,14 @@ export function CatalogBookingSheet({
                         onChange={() => setVariantId(v.id)}
                       />
                       <span>{v.label}</span>
-                      <b>{money(v.amountCents ?? detail.amountCents ?? 0, detail.currency)}</b>
+                      <b>
+                        {catalogPriceLabel(
+                          detail,
+                          v.amountCents ?? detail.amountCents ?? 0,
+                          locale,
+                          money,
+                        )}
+                      </b>
                     </label>
                   ))}
                 </fieldset>
@@ -486,7 +483,7 @@ export function CatalogBookingSheet({
               <div className="jb-lines">
                 <div>
                   <span>{variant ? `${detail.title} · ${variant.label}` : detail.title}</span>
-                  <span>{money(base, detail.currency)}</span>
+                  <span>{catalogPriceLabel(detail, base, locale, money)}</span>
                 </div>
                 {extras.map((e) => (
                   <div key={e.id}>
@@ -523,9 +520,9 @@ export function CatalogBookingSheet({
                           setLiveStarts(null);
                         }}
                       >
-                        <span>{DAYS[d.date.getDay()]?.slice(0, 3)}</span>
+                        <span>{catalogWeekdayShort(d.date, es)}</span>
                         <b>{d.date.getDate()}</b>
-                        <small>{MONTHS[d.date.getMonth()]}</small>
+                        <small>{catalogMonthShort(d.date, es)}</small>
                       </button>
                     ))}
                   </div>
@@ -540,7 +537,7 @@ export function CatalogBookingSheet({
                       {emptyConsultButton}
                     </div>
                   ) : (
-                    <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
+                    <div className="jb-times" role="group" aria-label={timeGroupLabel}>
                       {liveTimes.map((iso) => {
                         const label = formatClock(iso, liveTz, locale);
                         return (
@@ -578,9 +575,9 @@ export function CatalogBookingSheet({
                             setTime(null);
                           }}
                         >
-                          <span>{DAYS[d.getDay()]?.slice(0, 3)}</span>
+                          <span>{catalogWeekdayShort(d, es)}</span>
                           <b>{d.getDate()}</b>
-                          <small>{MONTHS[d.getMonth()]}</small>
+                          <small>{catalogMonthShort(d, es)}</small>
                         </button>
                       );
                     })}
@@ -592,7 +589,7 @@ export function CatalogBookingSheet({
                       {emptyConsultButton}
                     </div>
                   ) : (
-                    <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
+                    <div className="jb-times" role="group" aria-label={timeGroupLabel}>
                       {demoTimes.map((t) => (
                         <button
                           key={t}
@@ -617,8 +614,9 @@ export function CatalogBookingSheet({
                 {es ? "← Cambiar horario" : "← Change time"}
               </button>
               <p className="jb-recap">
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time} ·{" "}
-                {money(total, detail.currency)}
+                {time ? catalogSlotDateLabel(day, time, es) : null}
+                {isQuote ? "" : ` · ${money(total, detail.currency)}`}
+                {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ""}
               </p>
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
@@ -701,14 +699,12 @@ export function CatalogBookingSheet({
               <div className="jb-check" aria-hidden="true">
                 ✓
               </div>
-              <h3>
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time}
-              </h3>
+              <h3>{time ? catalogSlotDateLabel(day, time, es) : null}</h3>
               <p>
                 {detail.title}
                 {variant ? ` · ${variant.label}` : ""}
-                {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""} ·{" "}
-                {money(total, detail.currency)}
+                {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""}
+                {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ` · ${money(total, detail.currency)}`}
               </p>
               <p className="jb-fixture" data-catalog-done-next="">
                 {doneStepNextActionCopy({
@@ -736,7 +732,9 @@ export function CatalogBookingSheet({
           {step !== "done" ? (
             <div className="jb-total">
               <span>Total</span>
-              <b>{money(total, detail.currency)}</b>
+              <b data-catalog-price={isQuote ? "quote" : "money"}>
+                {catalogPriceLabel(detail, total, locale, money)}
+              </b>
             </div>
           ) : (
             <span />
@@ -750,13 +748,11 @@ export function CatalogBookingSheet({
               disabled={needsVariant && !variant}
               onClick={() => setStep("when")}
             >
-              {needsVariant && !variant
-                ? es
-                  ? "Elegí una opción"
-                  : "Choose an option"
-                : es
-                  ? "Continuar: elegir horario"
-                  : "Continue: pick a time"}
+              {chooseStepContinueLabel({
+                action: whoAction,
+                locale,
+                needsOption: needsVariant && !variant,
+              })}
             </button>
           ) : null}
           {step === "when" ? (
