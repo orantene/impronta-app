@@ -111,7 +111,6 @@ const ES: Record<string, string> = {
   "Unpublished design changes discarded": "Cambios de diseño sin publicar descartados",
   "Import undone": "Importación deshecha",
   "Previous design restored to your draft": "Diseño anterior restaurado en tu borrador",
-  "Design applied to your draft": "Diseño aplicado a tu borrador",
   "Demo only · nothing was booked": "Solo demo · no se reservó nada",
 };
 
