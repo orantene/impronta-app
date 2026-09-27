@@ -69,19 +69,24 @@ export async function loadPublishedTalentPage(input: {
     },
 
     async loadTalentPage({ talentProfileId, slug }) {
-      const { data, error } = await pub
-        .from("talent_pages")
-        .select(
-          // SEO-1/SEO-3 columns are selected here so the Portfolio-gated
-          // `<head>` envelope can actually be built — before this they were
-          // written by the builder and read by nothing.
-          "id, talent_profile_id, slug, title, status, blocks, theme, published_at, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
-        )
-        .eq("talent_profile_id", talentProfileId)
-        .eq("slug", slug)
-        .maybeSingle();
+      // SEO-1/SEO-3 columns are selected here so the Portfolio-gated `<head>`
+      // envelope can actually be built — before this they were written by the
+      // builder and read by nothing.
+      const BASE_COLS =
+        "id, talent_profile_id, slug, title, status, blocks, theme, published_at, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
+      const selectPage = (cols: string) =>
+        pub
+          .from("talent_pages")
+          .select(cols)
+          .eq("talent_profile_id", talentProfileId)
+          .eq("slug", slug)
+          .maybeSingle();
+      // `blocks_published` is the live body (`blocks` is the draft). A database
+      // without the migration errors the query, so fall back to the base list.
+      let { data, error } = await selectPage(`${BASE_COLS}, blocks_published`);
+      if (error) ({ data, error } = await selectPage(BASE_COLS));
       if (error || !data) return null;
-      return data as PublishedTalentPageRow;
+      return data as unknown as PublishedTalentPageRow;
     },
   };
 

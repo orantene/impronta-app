@@ -189,16 +189,30 @@ export async function loadMaxSitePages(
 ): Promise<MaxSitePageRow[]> {
   const admin = createServiceRoleClient();
   if (!admin) return [];
-  const { data, error } = await admin
-    .from("talent_pages")
-    .select(
-      // SEO-2 — widened to carry the SEO-1 per-page SEO columns through the
-      // render path. All SEO fields are nullable so a not-yet-populated page
-      // degrades to undefined SEO and never throws.
-      "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
-    )
-    .eq("talent_profile_id", talentProfileId)
-    .order("sort_order", { ascending: true });
+  // SEO-2 — widened to carry the SEO-1 per-page SEO columns through the
+  // render path. All SEO fields are nullable so a not-yet-populated page
+  // degrades to undefined SEO and never throws.
+  const BASE_COLS =
+    "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
+  const selectPages = (cols: string) =>
+    admin
+      .from("talent_pages")
+      .select(cols)
+      .eq("talent_profile_id", talentProfileId)
+      .order("sort_order", { ascending: true });
+  // `blocks_published` is the live body visitors see (`blocks` is the draft).
+  // Selected on a graceful path: a database without the migration errors the
+  // whole query, so fall back to the base list, which renders `blocks` as before.
+  let { data, error } = await selectPages(`${BASE_COLS}, blocks_published`);
+  if (error) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console -- dev-only signal for a missing migration
+      console.warn(
+        `[talentMaxSite.load.pages] blocks_published unreadable (${error.message}); serving draft bodies. Apply 20261231289000_talent_pages_blocks_published.sql.`,
+      );
+    }
+    ({ data, error } = await selectPages(BASE_COLS));
+  }
   if (error) {
     logServerError("talentMaxSite.load.pages", error);
     return [];
@@ -212,6 +226,7 @@ export async function loadMaxSitePages(
     is_home: boolean;
     sort_order: number;
     blocks: unknown;
+    blocks_published?: unknown;
     theme: unknown;
     meta_title: string | null;
     meta_description: string | null;
@@ -222,7 +237,7 @@ export async function loadMaxSitePages(
     noindex: boolean | null;
     json_ld: unknown;
   };
-  return ((data ?? []) as PageDb[]).map((p) => ({
+  return ((data ?? []) as unknown as PageDb[]).map((p) => ({
     id: p.id,
     slug: p.slug,
     title: p.title,
@@ -231,6 +246,7 @@ export async function loadMaxSitePages(
     isHome: p.is_home,
     sortOrder: p.sort_order,
     blocks: p.blocks,
+    blocksPublished: p.blocks_published,
     theme: p.theme,
     metaTitle: p.meta_title ?? null,
     metaDescription: p.meta_description ?? null,

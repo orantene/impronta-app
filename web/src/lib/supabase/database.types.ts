@@ -15515,6 +15515,7 @@ export type Database = {
       talent_pages: {
         Row: {
           blocks: Json
+          blocks_published: Json | null
           canonical_url: string | null
           created_at: string
           created_by: string | null
@@ -15543,6 +15544,7 @@ export type Database = {
         }
         Insert: {
           blocks?: Json
+          blocks_published?: Json | null
           canonical_url?: string | null
           created_at?: string
           created_by?: string | null
@@ -15571,6 +15573,7 @@ export type Database = {
         }
         Update: {
           blocks?: Json
+          blocks_published?: Json | null
           canonical_url?: string | null
           created_at?: string
           created_by?: string | null
