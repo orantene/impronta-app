@@ -64,10 +64,12 @@ export type ThreadProps = {
   readonly mergeSlot?: ReactNode;
   /** The composer's engine binding; the Thread mounts the NextStep bar above it on desktop. */
   readonly composer: Omit<ComposerWireProps, "above" | "variant" | "copy">;
+  /** Optional chrome above the composer (e.g. talent "+ Actions"). */
+  readonly composerAccessory?: ReactNode;
 };
 
 export function Thread(props: ThreadProps) {
-  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer } = props;
+  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer, composerAccessory } = props;
   const kit = copy.kit;
   const shell = copy.shell;
   const mobile = variant === "mobile";
@@ -185,6 +187,12 @@ export function Thread(props: ThreadProps) {
   );
 
   const next = <NextStepWire tasks={tasks} state={state} copy={copy} variant={variant} loading={messages === null && !error} busy={nextBusy} onAction={(id) => onAction(id)} onMoreTasks={onMoreTasks} />;
+  const above = (
+    <>
+      {composerAccessory}
+      {mobile ? null : next}
+    </>
+  );
 
   return (
     <section className="pane thread" data-thread={row.id} aria-label={kit.thread.details}>
@@ -203,7 +211,7 @@ export function Thread(props: ThreadProps) {
       {renameSlot}
       {stream}
       {mobile ? next : null}
-      <ComposerWire {...composer} copy={copy} variant={variant} above={mobile ? undefined : next} />
+      <ComposerWire {...composer} copy={copy} variant={variant} above={above} />
     </section>
   );
 }
