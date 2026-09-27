@@ -79,6 +79,7 @@ export function useGuestDockJourney(input: {
             { id: "service", on: true, label: "service" },
             { id: "message", on: true, label: "message" },
           ],
+      frontDoorChrome,
     };
   }
   return {

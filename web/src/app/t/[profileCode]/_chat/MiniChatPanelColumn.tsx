@@ -50,6 +50,7 @@ import { MiniChatGateForm } from "./MiniChatGateForm";
 import { GuestHandoffContactStrip } from "./GuestHandoffContactStrip";
 import { type ChatOffering } from "./OfferingQuickPicker";
 import { GuestComposerOfferingStrip } from "./GuestComposerOfferingStrip";
+import { guestComposerPlaceholder } from "./guest-composer-placeholder";
 import { SendToAgencyBar } from "./SendToAgencyBar";
 import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
 import {
@@ -759,15 +760,13 @@ export function MiniChatPanelColumn({
           honeypot={honeypot}
           onHoneypotChange={onHoneypotChange}
           onSubmit={onSubmit}
-          placeholder={
-            inquiryId
-              ? t("public.guestChat.composerReply")
-              : frontDoorChrome
-                ? brand.agencyPublicSurface
-                  ? t("public.guestChat.composerPhraseAgency")
-                  : t("public.guestChat.composerPhrase")
-                : t("public.guestChat.composerFirst")
-          }
+          placeholder={guestComposerPlaceholder(t, {
+            frontDoorChrome,
+            agencyPublicSurface: Boolean(brand.agencyPublicSurface),
+            inquiryId,
+            offerPreview,
+            threadStatus,
+          })}
           sending={sending}
           inCooldown={inCooldown}
           sendDisabled={sendDisabled}
