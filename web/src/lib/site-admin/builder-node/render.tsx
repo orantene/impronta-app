@@ -4447,7 +4447,8 @@ function withExperimentAttrs(
 // the cascade hands it `--token-color-ink`. Do not remove this without first
 // confirming the button still has a visible fill and legible text.
 const SERVICES_CATALOG_CSS = `
-.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
+/* Maison DoR idle: soft blush page ground under EL MENÚ (token surface-raised = #FFF5F8 on pink). */
+.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;background:var(--token-color-surface-raised,var(--token-color-background,#fff));--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}

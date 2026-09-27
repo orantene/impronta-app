@@ -31,6 +31,15 @@ test("services_catalog CSS drops spreadsheet 1fr middle between copy and price",
   );
 });
 
+test("services_catalog paints soft blush ground from surface-raised token", () => {
+  const css = read("lib/site-admin/builder-node/render.tsx");
+  assert.match(
+    css,
+    /\.site-builder-node--services-catalog\{[^}]*background:var\(--token-color-surface-raised/,
+    "Maison DoR idle catalog ground uses theme surface-raised (blush on pink)",
+  );
+});
+
 test("catalog row chrome wraps price+CTA in buy cluster", () => {
   const filter = read("lib/site-admin/builder-node/services-catalog-filter.tsx");
   const fallback = read("lib/site-admin/builder-node/services-catalog-static-fallback.tsx");

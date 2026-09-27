@@ -72,6 +72,21 @@ test("Maison Design uses phone-responsive stacks on services + contact", () => {
   assert.ok(responsiveSlots.includes("contact"));
 });
 
+test("Maison Design services band uses surface-raised blush ground", () => {
+  const { homeTree } = buildMaisonDesignPayload();
+  const services = homeTree.find(
+    (n) => (n.props as { slotKey?: string } | undefined)?.slotKey === "services",
+  );
+  assert.ok(services, "expected services kit section");
+  const bg = (services?.props as { style?: { backgroundColor?: string } } | undefined)?.style
+    ?.backgroundColor;
+  assert.match(
+    String(bg ?? ""),
+    /token-color-surface-raised|token:color\.surface-raised/,
+    "Menu band must bind soft blush (surface-raised), not hard white",
+  );
+});
+
 test("Maison Looks declare Fraunces + Inter (W16 fonts)", () => {
   for (const look of MAISON_BUILTIN_LOOKS) {
     const tokens = look.buildPayload().tokens;
