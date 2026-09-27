@@ -205,12 +205,17 @@ export function StickyOfferingChip({
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 11,
-          fontWeight: 700,
-          color: accent,
+          flexShrink: 0,
         }}
       >
-        {short.slice(0, 1).toUpperCase()}
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: accent,
+          }}
+        />
       </span>
       <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{short}</span>
       {onClear ? (
