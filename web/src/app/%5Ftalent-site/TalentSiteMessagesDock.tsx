@@ -22,11 +22,12 @@ async function loadVanityChatAccent(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
 ): Promise<string | null> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_sites")
     .select("design_tokens")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
+  if (error) return null;
   const raw = (data as { design_tokens?: unknown } | null)?.design_tokens;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const tokens = raw as Record<string, unknown>;
