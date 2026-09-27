@@ -48,7 +48,8 @@ import { useGuestDockModel } from "./use-guest-dock-model";
 import { useGuestDockJourney } from "./use-guest-dock-journey";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { GuestHandoffContactStrip } from "./GuestHandoffContactStrip";
-import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
+import { type ChatOffering } from "./OfferingQuickPicker";
+import { GuestComposerOfferingStrip } from "./GuestComposerOfferingStrip";
 import { SendToAgencyBar } from "./SendToAgencyBar";
 import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
 import {
@@ -734,15 +735,19 @@ export function MiniChatPanelColumn({
       {!showGate && !inquiryId ? (
         <GuestHandoffContactStrip label={t("public.guestChat.handoffContactLabel")} name={`${firstName} ${lastName}`.trim()} email={email} phone={phone} surfaceMode={surfaceMode} />
       ) : null}
-      {!showGate && onPickOffering && offerings.length > 0 && (
-        <OfferingQuickPicker
-          offerings={offerings}
-          locale={brand.locale ?? "en"}
-          t={t}
-          surfaceMode={surfaceMode}
-          onPick={onPickOffering}
-        />
-      )}
+      <GuestComposerOfferingStrip
+        showGate={showGate}
+        offerPreview={offerPreview}
+        threadStatus={threadStatus}
+        offerings={offerings}
+        onPickOffering={onPickOffering}
+        onDraftChange={onDraftChange}
+        locale={brand.locale ?? "en"}
+        t={t}
+        accent={accent}
+        surfaceMode={surfaceMode}
+        v5={v5}
+      />
 
       {!showGate && (brand.dockCardsV5 === true || dock.nextStepProps.bookAgainNotice) && <GuestNextStep {...dock.nextStepProps} />}
 

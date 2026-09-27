@@ -66,6 +66,18 @@ test("composer send is circular; front-door sites use composerPhrase", () => {
   assert.match(agencyMount, /const agencyPublicSurface = !isHub/);
 });
 
+test("offer posture uses sticky service chip, not browse ask strip", () => {
+  const col = read("MiniChatPanelColumn.tsx");
+  assert.match(col, /GuestComposerOfferingStrip/);
+  const strip = read("GuestComposerOfferingStrip.tsx");
+  assert.match(strip, /StickyOfferingChip/);
+  assert.match(strip, /offerPosture/);
+  const picker = read("OfferingQuickPicker.tsx");
+  assert.match(picker, /data-hablar-sticky-offering/);
+  const journey = read("use-guest-dock-journey.ts");
+  assert.match(journey, /railReady/);
+});
+
 test("dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof", () => {
   const col = read("MiniChatPanelColumn.tsx");
   assert.match(col, /useGuestDockJourney/);
