@@ -13,7 +13,7 @@
  * has already filtered to what the guest may see (D-MSG-2).
  */
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 
 import { translatorFor } from "@/i18n/use-t";
 import type { GuestThreadMessage, GuestThreadV5Extras } from "@/lib/inquiry/guest-chat-contract";
@@ -75,11 +75,33 @@ export function useGuestClientCards(input: {
   return { kit, copy, messages, offerCards, actions, offers: v5?.offers ?? [], payCode: v5?.payCode ?? null, businessName, locale, onAsk };
 }
 
-export function GuestClientCardRow({ row, model, now }: { readonly row: GuestThreadMessage; readonly model: GuestClientCardsModel; readonly now: Date }) {
+export function GuestClientCardRow({
+  row,
+  model,
+  now,
+  accent,
+}: {
+  readonly row: GuestThreadMessage;
+  readonly model: GuestClientCardsModel;
+  readonly now: Date;
+  /** Tenant accent — paints the brief offer card border when present. */
+  readonly accent?: string;
+}) {
   const message = useMemo(() => toThreadMessage(row), [row]);
   if (!isClientCardKind(message.kind)) return null;
   return (
-    <div className="msgv5" data-guest-client-card={message.kind}>
+    <div
+      className="msgv5"
+      data-guest-client-card={message.kind}
+      style={
+        accent
+          ? ({
+              ["--msgv5-offer-border"]: accent,
+              ["--msgv5-offer-chip"]: `${accent}14`,
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <ClientCard
         message={message}
         kind={message.kind}

@@ -17,7 +17,9 @@ export type RailFactId =
   | "kitchen"
   | "duration"
   | "place"
-  | "people";
+  | "people"
+  | "service"
+  | "message";
 
 export type IntakeFacts = {
   day?: string | null;
@@ -29,12 +31,17 @@ export type IntakeFacts = {
   place?: string | null;
   people?: number | null;
   booked?: boolean;
+  /** Beauty brief: a service / lineup line is pinned. */
+  service?: boolean;
+  /** Beauty brief: a guest message exists (or the inquiry was sent). */
+  message?: boolean;
 };
 
 export type RailStep = { id: RailFactId; filled: boolean };
 
 const ORDER: Record<IntakeTrade, RailFactId[]> = {
-  beauty: ["day", "hour"],
+  // Front-door brief jorg: day · hour · service · message (4 segs).
+  beauty: ["day", "hour", "service", "message"],
   chef: ["date", "guests", "allergies", "kitchen"],
   massage: ["day", "hour", "duration", "place"],
   agency: ["date", "place", "people"],
@@ -60,6 +67,10 @@ function filled(id: RailFactId, facts: IntakeFacts): boolean {
       return Boolean(facts.place?.trim());
     case "duration":
       return facts.duration === "60" || facts.duration === "90";
+    case "service":
+      return Boolean(facts.service);
+    case "message":
+      return Boolean(facts.message);
     default:
       return false;
   }
@@ -108,6 +119,10 @@ function factLabel(id: RailFactId, t: (key: string) => string): string {
       return t("public.guestChat.railFactPlace");
     case "people":
       return t("public.guestChat.railFactPeople");
+    case "service":
+      return t("public.guestChat.railFactService");
+    case "message":
+      return t("public.guestChat.railFactMessage");
   }
 }
 
@@ -124,6 +139,19 @@ export function intakeRailLabel(
   return t("public.guestChat.railMissing").replace("{fact}", factLabel(next, t));
 }
 
+export type JourneySegInput = {
+  readonly trade: IntakeTrade | null | undefined;
+  readonly intent: InquiryIntent | null | undefined;
+  readonly captured: Partial<Record<string, GuestChipValue>> | null | undefined;
+  readonly booked: boolean;
+  readonly hasInquiry: boolean;
+  /** Beauty: lineup / offering pinned. */
+  readonly hasService?: boolean;
+  /** Beauty: a real guest message or sent inquiry. */
+  readonly hasMessage?: boolean;
+  readonly t: (key: string) => string;
+};
+
 /** Column helper: null trade → no rail. Keeps MiniChatPanelColumn under max-lines. */
 export function resolveGuestRailLabel(
   trade: IntakeTrade | null | undefined,
@@ -132,9 +160,33 @@ export function resolveGuestRailLabel(
   booked: boolean,
   hasInquiry: boolean,
   t: (key: string) => string,
+  extras?: { hasService?: boolean; hasMessage?: boolean },
 ): string | null {
   if (!trade) return null;
-  return intakeRailLabel(trade, intakeFactsFromInquiry(intent, captured, booked), hasInquiry, t);
+  return intakeRailLabel(
+    trade,
+    intakeFactsFromInquiry(intent, captured, booked, extras),
+    hasInquiry,
+    t,
+  );
+}
+
+/** Segment ticks for `GuestJourneyProgress` (brief `.segs` model). */
+export function resolveGuestJourneySegs(input: JourneySegInput): Array<{
+  id: string;
+  on: boolean;
+  label: string;
+}> {
+  if (!input.trade) return [];
+  const facts = intakeFactsFromInquiry(input.intent, input.captured, input.booked, {
+    hasService: input.hasService,
+    hasMessage: input.hasMessage,
+  });
+  return intakeSteps(input.trade, facts).map((step) => ({
+    id: step.id,
+    on: step.filled,
+    label: step.filled ? factLabel(step.id, input.t) : factLabel(step.id, input.t),
+  }));
 }
 
 /** The next missing fact, or "ready" when every fact this trade asks for is set. */
@@ -154,6 +206,7 @@ export function intakeFactsFromInquiry(
   intent: InquiryIntent | null | undefined,
   captured: Partial<Record<string, GuestChipValue>> | null | undefined,
   booked: boolean,
+  extras?: { hasService?: boolean; hasMessage?: boolean },
 ): IntakeFacts {
   const date = captured?.date;
   const location = captured?.location;
@@ -169,5 +222,7 @@ export function intakeFactsFromInquiry(
     kitchen: place,
     place,
     duration: durationToken(intent?.date?.duration),
+    service: Boolean(extras?.hasService),
+    message: Boolean(extras?.hasMessage),
   };
 }
