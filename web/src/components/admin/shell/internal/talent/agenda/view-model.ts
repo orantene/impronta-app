@@ -11,6 +11,58 @@ import type {
   AgendaRowVariant,
 } from "./types";
 
+/** Completed + still owed → Request payment (tc_detail_lm), not Finish. */
+export function isCompletedUnpaid(item: {
+  booking?: string | null;
+  payment?: string | null;
+  dueCents?: number | null;
+}): boolean {
+  if (item.booking !== "completed") return false;
+  if (item.payment === "paid" || item.payment === "agency" || item.payment === "refund_pending") {
+    return false;
+  }
+  if (item.payment === "overdue" || item.payment === "due" || item.payment === "awaiting") {
+    return true;
+  }
+  return (item.dueCents ?? 0) > 0;
+}
+
+/** Cancel dialog consequences (tc_cancel) — money, freed time, client message. */
+export function buildCancelConsequences(input: {
+  clientName?: string | null;
+  title: string;
+  whenLabel: string;
+  paidCents?: number | null;
+  currency?: string | null;
+  cancelledBy: "talent" | "client";
+}): {
+  paidCents: number;
+  moneyLabel: string | null;
+  currency: string;
+  who: string;
+  whenLabel: string;
+  title: string;
+  refundKind: "none" | "full_talent" | "rule_client";
+  confirmKind: "plain" | "refund";
+} {
+  const currency = (input.currency ?? "MXN").trim() || "MXN";
+  const paid = Math.max(0, Math.trunc(input.paidCents ?? 0));
+  const moneyLabel = paid > 0 ? `$${(paid / 100).toFixed(0)} ${currency}` : null;
+  const who = input.clientName?.trim() || "Client";
+  const refundKind =
+    paid <= 0 ? "none" : input.cancelledBy === "talent" ? "full_talent" : "rule_client";
+  return {
+    paidCents: paid,
+    moneyLabel,
+    currency,
+    who,
+    whenLabel: input.whenLabel,
+    title: input.title,
+    refundKind,
+    confirmKind: paid > 0 && input.cancelledBy === "talent" ? "refund" : "plain",
+  };
+}
+
 function sameLocalDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -169,6 +221,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
   let nowTitle: string | undefined;
   let nowBody: string | undefined;
   let nowTone: AgendaListItem["nowTone"] = "info";
+  let nowActionLabel: string | undefined;
   const pendingRescheduleId =
     typeof item.tradeSection?.payload?.rescheduleRequestId === "string"
       ? item.tradeSection.payload.rescheduleRequestId
@@ -176,6 +229,11 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
   const pendingRescheduleStatus = item.tradeSection?.payload?.rescheduleStatus;
   const hasPendingReschedule =
     Boolean(pendingRescheduleId) && pendingRescheduleStatus === "pending";
+  const completedUnpaid = isCompletedUnpaid({
+    booking: item.booking,
+    payment: item.payment,
+    dueCents: item.money.dueCents,
+  });
 
   if (hasPendingReschedule) {
     nowTitle = "Reschedule proposed";
@@ -183,8 +241,17 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     nowTone = "warn";
   } else if (item.booking === "hold") {
     nowTitle = "Calendar hold";
-    nowBody = "This slot is reserved while the client completes the booking.";
+    // Template key — AgendaBookingRecord fills {until}/{left} after copy.t.
+    nowBody = item.holdUntil
+      ? "Held until {until}, {left} left. If no deposit arrives by then, this time is released."
+      : "This slot is reserved while the client completes the booking.";
     nowTone = "warn";
+    nowActionLabel = "Request deposit";
+  } else if (completedUnpaid) {
+    nowTitle = "{amount} unpaid · completed";
+    nowBody = "No payment has been recorded. Request payment or record one you already received.";
+    nowTone = "risk";
+    nowActionLabel = "Request payment";
   } else if (item.booking === "confirmed") {
     nowTitle = "Confirmed";
     nowBody = "This booking is confirmed. Mark complete after the work is done.";
@@ -197,6 +264,10 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     nowTitle = "Request";
     nowBody = "Not blocking your time until you accept.";
     nowTone = "warn";
+  } else if (item.booking === "completed") {
+    nowTitle = "Completed";
+    nowBody = "This booking is complete and paid.";
+    nowTone = "ok";
   }
   return {
     id: item.id,
@@ -234,6 +305,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     nowTitle,
     nowBody,
     nowTone,
+    nowActionLabel,
     moneyLines: item.money.totalCents
       ? [
           {
@@ -244,11 +316,13 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
         ]
       : [],
     dueCents: item.money.dueCents,
+    paidCents: item.money.paidCents,
     currency: item.money.currency?.trim() || "MXN",
     orderId: item.orderId ?? null,
     paymentMethod: item.paymentMethod ?? null,
     startsAtIso: item.startsAt,
     endsAtIso: item.endsAt,
+    holdUntil: item.holdUntil ?? null,
     clientTz: item.clientTz,
     talentTz: item.tz,
     tradeSectionPayloads: (() => {
@@ -317,8 +391,13 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
 
   if (entry.kind === "hold") {
     nowTitle = "Calendar hold";
-    nowBody = "This slot is reserved while the client completes the booking. It expires if not converted.";
+    nowBody =
+      "This slot is reserved while the client completes the booking. It expires if not converted.";
     nowTone = "warn";
+  } else if (entry.status === "completed") {
+    nowTitle = "Completed";
+    nowBody = "This booking is complete.";
+    nowTone = "ok";
   } else if (entry.status === "confirmed") {
     nowTitle = "Confirmed";
     nowBody = "This booking is confirmed. Mark complete after the work is done.";

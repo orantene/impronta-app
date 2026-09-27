@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
 import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink, respondToReschedule } from "@/lib/talent-agenda";
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
+import { AgendaPayRequest } from "./AgendaPayRequest";
 import { TradeSections } from "./TradeSections";
 import { recordActionVisibility } from "./record-actions";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { useRouter } from "next/navigation";
+import { formatCountdown } from "@/lib/talent-agenda/derive";
+import { holdUntilWallClock } from "./present";
+import { buildCancelConsequences, isCompletedUnpaid } from "./view-model";
 
 // ─── More menu ────────────────────────────────────────────────────────────────
 
@@ -82,15 +86,19 @@ function MoreMenu({ actions }: { actions: MoreMenuAction[] }) {
 
 function ConfirmDialog({
   title,
+  subtitle,
   body,
   confirmLabel,
+  keepLabel,
   destructive,
   onConfirm,
   onCancel,
 }: {
   title: string;
-  body: string;
+  subtitle?: string;
+  body: ReactNode;
   confirmLabel: string;
+  keepLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -98,21 +106,24 @@ function ConfirmDialog({
   const copy = useAgendaCopy();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
-      <div className="w-full max-w-[360px] rounded-2xl bg-white p-5 shadow-xl">
+      <div className="w-full max-w-[420px] max-h-[min(90vh,640px)] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <h2 className="text-[16px] font-semibold text-[var(--tc-primary)]">{title}</h2>
-        <p className="mt-2 text-[13px] text-[#5F6368]">{body}</p>
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-3 space-y-2 text-[13px] text-[#5F6368]">
+          {subtitle ? <p className="-mt-2 text-[13px]">{subtitle}</p> : null}
+          {body}
+        </div>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-black/10 px-4 py-2 text-[13px]"
+            className="min-h-[44px] rounded-full border border-black/10 px-4 py-2 text-[13px]"
           >
-            {copy.t("Cancel")}
+            {keepLabel ?? copy.t("Keep booking")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`rounded-full px-4 py-2 text-[13px] text-white ${
+            className={`min-h-[44px] rounded-full px-4 py-2 text-[13px] text-white ${
               destructive ? "bg-[#B42318]" : "bg-[var(--tc-primary)]"
             }`}
           >
@@ -156,8 +167,10 @@ export function AgendaBookingRecord({
   const [, startTransition] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelBy, setCancelBy] = useState<"talent" | "client">("client");
   const [showReschedule, setShowReschedule] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
+  const [showPayRequest, setShowPayRequest] = useState(false);
   const [depositLink, setDepositLink] = useState<string | null>(null);
 
   const canAct = !!bookingId;
@@ -171,6 +184,32 @@ export function AgendaBookingRecord({
     bookingState: item.bookingState,
     paymentState: item.paymentState,
     started: noShowReady,
+  });
+  const completedUnpaid = isCompletedUnpaid({
+    booking: item.bookingState,
+    payment:
+      item.paymentState === "overdue"
+        ? "overdue"
+        : item.paymentState === "due_at_appointment"
+          ? "due"
+          : item.paymentState === "awaiting_deposit"
+            ? "awaiting"
+            : item.paymentState === "paid"
+              ? "paid"
+              : item.paymentState === "paid_by_agency"
+                ? "agency"
+                : item.paymentState === "refund_pending"
+                  ? "refund_pending"
+                  : "none",
+    dueCents: item.dueCents,
+  });
+  const cancelConsequences = buildCancelConsequences({
+    clientName: item.who?.name ?? item.subtitle,
+    title: item.title,
+    whenLabel: item.whenLabel,
+    paidCents: item.paidCents,
+    currency: bookingCurrency,
+    cancelledBy: cancelBy,
   });
 
   // ── No-show ──────────────────────────────────────────────────────
@@ -198,7 +237,7 @@ export function AgendaBookingRecord({
     setConfirmCancel(false);
     setStatus(copy.t("Cancelling…"));
     startTransition(async () => {
-      const res = await cancelBookingWithRefund({ bookingId, cancelledBy: "talent" });
+      const res = await cancelBookingWithRefund({ bookingId, cancelledBy: cancelBy });
       if (res.ok) {
         setStatus(
           res.refundableCents > 0
@@ -465,9 +504,39 @@ export function AgendaBookingRecord({
                     ? "danger"
                     : "info"
             }
-            title={copy.t(item.nowTitle)}
-            body={item.nowBody ? copy.t(item.nowBody) : ""}
-            primaryAction={show.talentOwnsActions ? item.primaryAction : undefined}
+            title={(() => {
+              const base = copy.t(item.nowTitle!);
+              if (!completedUnpaid || !item.nowTitle.includes("{amount}")) return base;
+              const due =
+                item.dueCents && item.dueCents > 0
+                  ? `$${(item.dueCents / 100).toFixed(0)} ${bookingCurrency}`
+                  : copy.t("Balance");
+              return base.replace("{amount}", due);
+            })()}
+            body={(() => {
+              if (!item.nowBody) return "";
+              const base = copy.t(item.nowBody);
+              if (!item.holdUntil || !item.nowBody.includes("{until}")) return base;
+              const untilClock = holdUntilWallClock(item.holdUntil).replace(/^until /, "");
+              const left = formatCountdown(item.holdUntil, now);
+              return base.replace("{until}", untilClock).replace("{left}", left);
+            })()}
+            primaryAction={
+              show.talentOwnsActions
+                ? item.primaryAction ??
+                  (completedUnpaid && canAct
+                    ? {
+                        label: copy.t(item.nowActionLabel ?? "Request payment"),
+                        onClick: () => setShowPayRequest(true),
+                      }
+                    : item.bookingState === "hold" && canAct && item.nowActionLabel
+                      ? {
+                          label: copy.t(item.nowActionLabel),
+                          onClick: () => setShowPayRequest(true),
+                        }
+                      : undefined)
+                : undefined
+            }
             secondaryAction={show.talentOwnsActions ? item.secondaryAction : undefined}
           />
         ) : null}
@@ -533,6 +602,20 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
+        {showPayRequest ? (
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
+            <AgendaPayRequest
+              orderId={item.orderId ?? undefined}
+              onClose={() => setShowPayRequest(false)}
+              onLinkCreated={() => {
+                setShowPayRequest(false);
+                setStatus(copy.t("Payment request created ✓"));
+                router.refresh();
+              }}
+            />
+          </div>
+        ) : null}
+
         {item.paymentState === "awaiting_deposit" &&
         item.bookingState === "completed" &&
         item.paymentMethod === "transfer" &&
@@ -592,12 +675,92 @@ export function AgendaBookingRecord({
         ) : null}
       </aside>
 
-      {/* Cancel confirm dialog */}
+      {/* Cancel confirm dialog — consequences first (tc_cancel) */}
       {confirmCancel && (
         <ConfirmDialog
           title={copy.t("Cancel this booking?")}
-          body={copy.t("This cannot be undone. Any refund due is calculated when you confirm.")}
-          confirmLabel={copy.t("Cancel booking")}
+          subtitle={`${item.whenLabel} · ${item.title}`}
+          body={(
+            <>
+              <p className="font-semibold text-[var(--tc-primary)]">{copy.t("Who is cancelling?")}</p>
+              <div className="space-y-2">
+                <label className="flex min-h-[44px] cursor-pointer items-start gap-2 rounded-xl border border-black/8 p-3">
+                  <input
+                    type="radio"
+                    name="cancel-by"
+                    checked={cancelBy === "client"}
+                    onChange={() => setCancelBy("client")}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-medium text-[var(--tc-primary)]">
+                      {cancelConsequences.who} {copy.t("asked to cancel")}
+                    </span>
+                    <span className="block text-[12px]">
+                      {copy.t("Your cancellation rule decides the deposit.")}
+                    </span>
+                  </span>
+                </label>
+                <label className="flex min-h-[44px] cursor-pointer items-start gap-2 rounded-xl border border-black/8 p-3">
+                  <input
+                    type="radio"
+                    name="cancel-by"
+                    checked={cancelBy === "talent"}
+                    onChange={() => setCancelBy("talent")}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block font-medium text-[var(--tc-primary)]">
+                      {copy.t("I am cancelling")}
+                    </span>
+                    <span className="block text-[12px]">
+                      {copy.t("When you cancel, the full deposit always goes back.")}
+                    </span>
+                  </span>
+                </label>
+              </div>
+              <div className="rounded-xl border border-black/8 bg-[rgba(11,11,13,0.03)] p-3 space-y-1">
+                {cancelConsequences.moneyLabel ? (
+                  <p>
+                    {copy.t("Deposit paid")}: {cancelConsequences.moneyLabel}
+                  </p>
+                ) : null}
+                <p className="font-medium text-[var(--tc-primary)]">
+                  {cancelConsequences.refundKind === "none"
+                    ? copy.t("No deposit to refund.")
+                    : cancelConsequences.refundKind === "full_talent"
+                      ? `${copy.t("Refund")}: ${cancelConsequences.moneyLabel} (${copy.t("full deposit when you cancel")})`
+                      : `${copy.t("Refund follows your cancellation rule.")} ${copy.t("Deposit at stake")}: ${cancelConsequences.moneyLabel}`}
+                </p>
+                <p>
+                  {cancelConsequences.whenLabel} {copy.t("becomes free.")}
+                </p>
+              </div>
+              <p>
+                {copy.t("The client gets this message:")}{" "}
+                <em>
+                  {`"${copy
+                    .t("Your {title} on {when} is cancelled.{refund}")
+                    .replace("{title}", cancelConsequences.title)
+                    .replace("{when}", cancelConsequences.whenLabel)
+                    .replace(
+                      "{refund}",
+                      cancelConsequences.moneyLabel
+                        ? copy
+                            .t(" Your {money} deposit is being refunded.")
+                            .replace("{money}", cancelConsequences.moneyLabel)
+                        : "",
+                    )}"`}
+                </em>
+              </p>
+            </>
+          )}
+          confirmLabel={
+            cancelConsequences.confirmKind === "refund" && cancelConsequences.moneyLabel
+              ? `${copy.t("Cancel and refund")} ${cancelConsequences.moneyLabel.replace(` ${cancelConsequences.currency}`, "")}`
+              : copy.t("Cancel booking")
+          }
+          keepLabel={copy.t("Keep booking")}
           destructive
           onConfirm={handleCancelConfirm}
           onCancel={() => setConfirmCancel(false)}

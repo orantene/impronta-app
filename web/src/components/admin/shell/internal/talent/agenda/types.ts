@@ -98,6 +98,8 @@ export type AgendaListItem = {
   startsAtIso?: string;
   /** ISO end — pre-fills the reschedule sheet. */
   endsAtIso?: string;
+  /** Hold expiry ISO (tc_detail_hold countdown). */
+  holdUntil?: string | null;
   clientTz?: string;
   talentTz?: string;
   bookingState?: AgendaBookingState;
@@ -105,12 +107,16 @@ export type AgendaListItem = {
   nowTitle?: string;
   nowBody?: string;
   nowTone?: "info" | "ok" | "warn" | "risk";
+  /** Label-only hint for the Now box primary CTA (onClick wired in AgendaBookingRecord). */
+  nowActionLabel?: string;
   primaryAction?: AgendaNowAction;
   secondaryAction?: AgendaNowAction;
   moneyLines?: AgendaMoneyItem[];
   /** ISO 4217; defaults to MXN in UI when absent. */
   currency?: string;
   dueCents?: number;
+  /** Paid so far — cancel consequences (deposit refund). */
+  paidCents?: number;
   orderId?: string | null;
   /** cash | transfer | other — gates Mark transfer received. */
   paymentMethod?: string | null;

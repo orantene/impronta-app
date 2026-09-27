@@ -96,9 +96,10 @@ export function AgendaCalendarPage({
     [onOpenRecord, onOpenMessages],
   );
   const { runPeekLabel, busyId, error: ctaError, setError: setCtaError } = useAgendaCta(ctaNav);
-  const days = weekDays(clock);
   const [view, setView] = useState<ViewMode>("week");
   const [selected, setSelected] = useState(clock);
+  // AUD-016: week (and list) follow the selected date — not a frozen "now" week.
+  const days = weekDays(selected);
   const [phone, setPhone] = useState(false);
   const [peekId, setPeekId] = useState<string | null>(null);
   const [peekAnchor, setPeekAnchor] = useState<{ top: number; left: number } | null>(null);
@@ -235,11 +236,53 @@ export function AgendaCalendarPage({
     router.refresh();
   }
 
+  function shiftSelected(delta: number) {
+    setSelected((prev) => {
+      const next = new Date(prev);
+      if (view === "month") {
+        next.setMonth(next.getMonth() + delta);
+        return next;
+      }
+      if (view === "day") {
+        next.setDate(next.getDate() + delta);
+        return next;
+      }
+      // week + list: step by one week
+      next.setDate(next.getDate() + delta * 7);
+      return next;
+    });
+  }
+
+  const rangeLabel = (() => {
+    if (view === "day") {
+      return selected.toLocaleDateString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+    if (view === "month") {
+      return selected.toLocaleDateString([], { month: "long", year: "numeric" });
+    }
+    const first = days[0];
+    const last = days[6];
+    if (!first || !last) return copy.t("This week");
+    const sameMonth = first.getMonth() === last.getMonth();
+    const left = first.toLocaleDateString([], { month: "short", day: "numeric" });
+    const right = last.toLocaleDateString([], {
+      month: sameMonth ? undefined : "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    return `${left} – ${right}`;
+  })();
+
   return (
     <div style={TALENT_AGENDA_VARS} className="space-y-4">
       <PageHeader
         title={copy.t("Calendar")}
-        subtitle={copy.t("This week")}
+        subtitle={rangeLabel}
         actions={(
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -335,23 +378,44 @@ export function AgendaCalendarPage({
         </div>
       ) : null}
 
-      <div
-        role="tablist"
-        aria-label={copy.t("Calendar view")}
-        className="flex flex-wrap gap-2"
-      >
-        {(["week", "day", "month", "list"] as const).map((id) => (
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          role="tablist"
+          aria-label={copy.t("Calendar view")}
+          className="flex flex-wrap gap-2"
+        >
+          {(["week", "day", "month", "list"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={view === id}
+              onClick={() => setView(id)}
+              className={`min-h-[44px] rounded-full px-3 text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-accent)] ${view === id ? "bg-[var(--tc-primary)] text-white" : "bg-white text-[var(--tc-primary)]"}`}
+            >
+              {copy.t(id === "week" ? "Week" : id === "day" ? "Day" : id === "month" ? "Month" : "List")}
+            </button>
+          ))}
+        </div>
+        <span className="inline-flex gap-0.5" role="group" aria-label={copy.t("Change period")}>
           <button
-            key={id}
             type="button"
-            role="tab"
-            aria-selected={view === id}
-            onClick={() => setView(id)}
-            className={`min-h-[44px] rounded-full px-3 text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-accent)] ${view === id ? "bg-[var(--tc-primary)] text-white" : "bg-white text-[var(--tc-primary)]"}`}
+            aria-label={copy.t("Previous")}
+            onClick={() => shiftSelected(-1)}
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-black/10 bg-white text-[17px] text-[var(--tc-primary)]"
           >
-            {copy.t(id === "week" ? "Week" : id === "day" ? "Day" : id === "month" ? "Month" : "List")}
+            ‹
           </button>
-        ))}
+          <button
+            type="button"
+            aria-label={copy.t("Next")}
+            onClick={() => shiftSelected(1)}
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-black/10 bg-white text-[17px] text-[var(--tc-primary)]"
+          >
+            ›
+          </button>
+        </span>
+        <span className="text-[14px] font-semibold text-[var(--tc-primary)]">{rangeLabel}</span>
       </div>
 
       {phone ? (

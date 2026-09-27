@@ -203,6 +203,9 @@ const ES: Record<string, string> = {
   Day: "Día",
   List: "Lista",
   "Calendar view": "Vista de calendario",
+  "Change period": "Cambiar periodo",
+  Previous: "Anterior",
+  Next: "Siguiente",
   "Add event or block": "Añadir evento o bloqueo",
   "Block time": "Bloquear tiempo",
   "Time blocked": "Tiempo bloqueado",
@@ -215,6 +218,37 @@ const ES: Record<string, string> = {
   This: "Esta",
   week: "semana",
   "This week": "Esta semana",
+  // AUD-017 booking record (Calendar hold / slot reserved / Deposit paid / Client already in catalog)
+  "Request deposit": "Pedir anticipo",
+  "Held until {until}, {left} left. If no deposit arrives by then, this time is released.":
+    "Apartada hasta las {until}, quedan {left}. Si no llega el anticipo, se libera la hora.",
+  "{amount} unpaid · completed": "{amount} sin pagar · completada",
+  "No payment has been recorded. Request payment or record one you already received.":
+    "No hay pago registrado. Solicita el pago o registra uno que ya hayas recibido.",
+  Balance: "Saldo",
+  "This booking is complete and paid.": "Esta reserva está completa y pagada.",
+  "Payment request created ✓": "Solicitud de pago creada ✓",
+  "Cancel this booking?": "¿Cancelar esta reserva?",
+  "Keep booking": "Mantener reserva",
+  "Who is cancelling?": "¿Quién cancela?",
+  "asked to cancel": "pidió cancelar",
+  "Your cancellation rule decides the deposit.":
+    "Tu regla de cancelación decide el anticipo.",
+  "I am cancelling": "Yo cancelo",
+  "When you cancel, the full deposit always goes back.":
+    "Cuando tú cancelas, el anticipo completo siempre se devuelve.",
+  "No deposit to refund.": "No hay anticipo que reembolsar.",
+  Refund: "Reembolso",
+  "full deposit when you cancel": "anticipo completo cuando tú cancelas",
+  "Refund follows your cancellation rule.": "El reembolso sigue tu regla de cancelación.",
+  "Deposit at stake": "Anticipo en juego",
+  "becomes free.": "queda libre.",
+  "The client gets this message:": "La clienta recibe este mensaje:",
+  "Your {title} on {when} is cancelled.{refund}":
+    "Tu cita de {title} del {when} fue cancelada.{refund}",
+  " Your {money} deposit is being refunded.":
+    " Tu anticipo de {money} se está reembolsando.",
+  "Cancel and refund": "Cancelar y reembolsar",
   appointments: "citas",
   "Nothing next": "Nada a continuación",
   "The rest of the day is open.": "El resto del día está libre.",
@@ -383,7 +417,6 @@ const ES: Record<string, string> = {
   "Transfer marked received ✓": "Transferencia marcada como recibida ✓",
   "Could not confirm transfer": "No se pudo confirmar la transferencia",
   Terms: "Términos",
-  "Cancel this booking?": "¿Cancelar esta reserva?",
   "This cannot be undone. Any refund due is calculated when you confirm.":
     "Esto no se puede deshacer. El reembolso pendiente se calcula al confirmar.",
   "Message client": "Mensaje al cliente",
