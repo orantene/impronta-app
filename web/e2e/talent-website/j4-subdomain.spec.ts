@@ -105,7 +105,8 @@ test("a published site renders on the host subdomain for t_max", async ({ page }
   const origin = subdomainOrigin(T_MAX_SLUG);
   await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
   await assertRealSitePage(page);
-  await expect(page.getByText(/subdomain routing fixture/i)).toBeVisible();
+  // Seed tagline from seed.ts publishSiteForTalent — keep in lockstep.
+  await expect(page.getByText(/Talent website e2e fixture/i)).toBeVisible();
 });
 
 test("a published site renders on the host subdomain for t_free_site", async ({ page }) => {
@@ -125,7 +126,7 @@ test("inner-page nav works on the subdomain", async ({ page }) => {
   await assertRealSitePage(page);
   await clickInnerNavAndAssertHostRoot(page, origin);
   await expect(
-    page.getByText(/the inner page the nav journey clicks through to/i),
+    page.getByText(/This is the extra published page seeded for the talent-website e2e suite/i),
   ).toBeVisible();
 });
 
@@ -135,7 +136,7 @@ test("inner-page nav works on a custom domain", async ({ page }) => {
   await assertRealSitePage(page);
   await clickInnerNavAndAssertHostRoot(page, origin);
   await expect(
-    page.getByText(/the inner page the nav journey clicks through to/i),
+    page.getByText(/This is the extra published page seeded for the talent-website e2e suite/i),
   ).toBeVisible();
 });
 
