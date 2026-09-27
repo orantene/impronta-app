@@ -31,11 +31,10 @@ import {
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import {
-  resolveWhoPrimaryAction,
-  whoStepPrimaryLabel,
   DEFAULT_SHEET_BOOKING_SETTINGS,
   type CatalogSheetBookingSettings,
 } from "@/lib/talent/selling-booking-settings";
+import { resolveWhoStepPaymentUi } from "@/lib/talent/who-step-payment-copy";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -87,6 +86,7 @@ export function CatalogBookingSheet({
   onAsk,
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
+  onlineCollectReady = true,
 }: {
   locale?: string;
   mode?: CatalogBookingMode;
@@ -99,6 +99,11 @@ export function CatalogBookingSheet({
   captcha?: GuestCaptchaConfig | null;
   /** Talent selling defaults: posture + who-step CTA vocabulary. */
   bookingSettings?: CatalogSheetBookingSettings;
+  /**
+   * When false and the offering requires online collect, force inquiry path
+   * and honest unavailable copy (platform checkout / setup incomplete).
+   */
+  onlineCollectReady?: boolean;
 }) {
   const es = locale.startsWith("es");
   const DAYS = es ? DAYS_ES : DAYS_EN;
@@ -244,15 +249,14 @@ export function CatalogBookingSheet({
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
   const isRequest = detail.intent === "request";
-  const whoAction = resolveWhoPrimaryAction({
-    bookingPosture: bookingSettings.bookingPosture,
-    whoPrimaryCta: bookingSettings.whoPrimaryCta,
-    offeringIntent: detail.intent,
-  });
-  const whoCtaText = whoStepPrimaryLabel({
-    action: whoAction,
-    whoPrimaryCta: bookingSettings.whoPrimaryCta,
+  const { whoAction, whoCtaText, paymentFixture } = resolveWhoStepPaymentUi({
+    reserveMode: detail.reserveMode,
+    allowPayInPerson: detail.allowPayInPerson,
+    depositPct: detail.depositPct,
+    onlineCollectReady,
     locale,
+    offeringIntent: detail.intent,
+    bookingSettings,
   });
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
@@ -660,10 +664,8 @@ export function CatalogBookingSheet({
                   <em>{es ? "Necesitamos un correo válido." : "We need a valid email."}</em>
                 ) : null}
               </label>
-              <p className="jb-fixture">
-                {es
-                  ? "No se cobra nada ahora. El pago se realiza en el estudio."
-                  : "Nothing is charged now. Pay at the studio."}
+              <p className="jb-fixture" data-catalog-who-pay="">
+                {paymentFixture}
               </p>
               {captchaRequired ? (
                 <GuestCaptchaField
