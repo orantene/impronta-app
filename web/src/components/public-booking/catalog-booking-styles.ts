@@ -3,8 +3,8 @@ export const CATALOG_BOOKING_CSS = `
 /* CTA fills use --token-color-primary (solid brand). Vanity trees often store a
    pale blush on --token-color-accent (e.g. #F4D7E2) for tints — using that for
    Continuar/Confirmar made white labels unreadable (BJ-01). Soft fills are a
-   mix of the solid primary, not the blush token. Ink sheet accent stays ink;
-   render.tsx remaps CMS bookingSheet.accent=ink → "primary" on vanity. */
+   mix of the solid primary, not the blush token. Ink sheet accent stays ink
+   when the operator picks it (data-sheet-accent); default is primary. */
 .jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
 .cb-island[data-sheet-accent="ink"]{--cb-primary:var(--token-color-ink,var(--plt-ink,#242126));--cb-blush:color-mix(in srgb,var(--cb-primary) 8%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface))}
 .cb-island[data-sheet-accent="primary"]{--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}

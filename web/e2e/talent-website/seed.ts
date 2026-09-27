@@ -802,7 +802,8 @@ async function ensureIvanServices(talentProfileId: string): Promise<void> {
         .update({
           status: "published",
           booking_mode: "request",
-          price_display: "hidden",
+          // CHECK talent_offerings_price_display_check: exact|from|quote only.
+          price_display: "quote",
           amount_cents: 0,
           updated_at: new Date().toISOString(),
         })
@@ -817,7 +818,8 @@ async function ensureIvanServices(talentProfileId: string): Promise<void> {
       title: svc.title,
       category: svc.category,
       price_type: "flat_package",
-      price_display: "hidden",
+      // Quote services (no prices) — "hidden" is not a legal price_display.
+      price_display: "quote",
       amount_cents: 0,
       currency: "MXN",
       booking_mode: "request",
