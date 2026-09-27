@@ -21,6 +21,7 @@ import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { applyDesign, applyLook } from "./theme-apply-core";
 import { restoreMaisonDraftSnapshot } from "./maison-design-snapshot";
 import { evaluateMaisonPublishReadiness } from "./maison-publish-readiness";
+import { isPlatformSubdomainLabelTaken } from "@/lib/saas/platform-subdomain-namespace.server";
 
 export type MaisonPublishPreSite = {
   id: string;
@@ -41,6 +42,8 @@ export async function prepareMaisonSiteForPublish(
     userId: string | null;
     displayName: string;
     pre: MaisonPublishPreSite;
+    /** Blocker copy locale (AUD-024). Defaults to English. */
+    locale?: "en" | "es";
   },
 ): Promise<
   | { ok: true; pre: MaisonPublishPreSite }
@@ -83,9 +86,16 @@ export async function prepareMaisonSiteForPublish(
   }
 
   if (isTalentMaisonThemeEnabled(input.talentProfileId)) {
+    const slugForCheck = (pre.site_slug ?? "").trim();
     const readiness = evaluateMaisonPublishReadiness({
       siteSlug: pre.site_slug,
       themeDesignSlug: pre.theme_design_slug,
+      slugTaken: slugForCheck
+        ? await isPlatformSubdomainLabelTaken(slugForCheck, {
+            excludeTalentProfileId: input.talentProfileId,
+          })
+        : null,
+      locale: input.locale,
     });
     if (!readiness.ready) {
       return {
