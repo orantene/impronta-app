@@ -33,7 +33,7 @@ export function ServicesCatalogLoadingSkeleton({
       <p className="site-builder-node--services-catalog-loading-label">{label}</p>
       <ul className="site-builder-node--services-catalog-list" aria-hidden="true">
         {Array.from({ length: count }, (_, i) => (
-          <li key={i} className="site-builder-node--services-catalog-row site-builder-node--services-catalog-skel-row">
+          <li key={i} className="site-builder-node--services-catalog-row site-builder-node--services-catalog-skel-row" data-has-photo={showPhoto ? "true" : "false"}>
             {showPhoto ? (
               <span className="site-builder-node--services-catalog-photo site-builder-node--services-catalog-skel" />
             ) : null}
@@ -42,10 +42,12 @@ export function ServicesCatalogLoadingSkeleton({
               <span className="site-builder-node--services-catalog-skel site-builder-node--services-catalog-skel-line site-builder-node--services-catalog-skel-desc" />
               <span className="site-builder-node--services-catalog-skel site-builder-node--services-catalog-skel-line site-builder-node--services-catalog-skel-meta" />
             </span>
-            <span className="site-builder-node--services-catalog-price">
-              <span className="site-builder-node--services-catalog-skel site-builder-node--services-catalog-skel-line site-builder-node--services-catalog-skel-price" />
+            <span className="site-builder-node--services-catalog-buy">
+              <span className="site-builder-node--services-catalog-price">
+                <span className="site-builder-node--services-catalog-skel site-builder-node--services-catalog-skel-line site-builder-node--services-catalog-skel-price" />
+              </span>
+              <span className="site-builder-node--services-catalog-cta site-builder-node--services-catalog-skel site-builder-node--services-catalog-skel-cta" />
             </span>
-            <span className="site-builder-node--services-catalog-cta site-builder-node--services-catalog-skel site-builder-node--services-catalog-skel-cta" />
           </li>
         ))}
       </ul>

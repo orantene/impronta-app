@@ -69,7 +69,7 @@ export function ServicesCatalogStaticFallback({
                 inspectorLabel: ctaLabel,
               });
               return (
-                <li key={item.id} className="site-builder-node--services-catalog-row">
+                <li key={item.id} className="site-builder-node--services-catalog-row" data-has-photo="true">
                   {cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
@@ -87,27 +87,29 @@ export function ServicesCatalogStaticFallback({
                       </span>
                     ) : null}
                   </span>
-                  <span className="site-builder-node--services-catalog-price">
-                    {onRequest || quote || minCents == null ? (
-                      <strong>
-                        {es
-                          ? onRequest
-                            ? "Bajo consulta"
-                            : "Cotización a pedido"
-                          : onRequest
-                            ? "On request"
-                            : "Quote on request"}
-                      </strong>
-                    ) : (
-                      <>
-                        {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-                        <strong>{formatMoney(minCents, item.currency, locale)}</strong>
-                      </>
-                    )}
-                    {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
-                  </span>
-                  <span className="site-builder-node--services-catalog-cta" aria-hidden>
-                    {label}
+                  <span className="site-builder-node--services-catalog-buy">
+                    <span className="site-builder-node--services-catalog-price">
+                      {onRequest || quote || minCents == null ? (
+                        <strong>
+                          {es
+                            ? onRequest
+                              ? "Bajo consulta"
+                              : "Cotización a pedido"
+                            : onRequest
+                              ? "On request"
+                              : "Quote on request"}
+                        </strong>
+                      ) : (
+                        <>
+                          {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                          <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+                        </>
+                      )}
+                      {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+                    </span>
+                    <span className="site-builder-node--services-catalog-cta" aria-hidden>
+                      {label}
+                    </span>
                   </span>
                 </li>
               );
