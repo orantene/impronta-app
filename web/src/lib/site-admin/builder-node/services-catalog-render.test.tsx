@@ -218,9 +218,20 @@ test("italic {i} markers render as em, never as raw braces", () => {
   assert.doesNotMatch(html, /\{i\}|\{\/i\}/);
 });
 
-test("ctaLabel overrides the OfferingCta text", () => {
+test("request / approval posture ignores CMS Seleccionar ctaLabel", () => {
+  // talentOfferingsConfirmsByHand defaults to true → force request_to_book.
+  // Mode wins over inspector ctaLabel (MODE-6 / #2357).
   const html = render([catalogNode({ ctaLabel: "Seleccionar" })], {
     talentOfferings: [offering({})],
+  });
+  assert.match(html, />Request appointment</);
+  assert.doesNotMatch(html, />Seleccionar</);
+});
+
+test("ctaLabel overrides the OfferingCta text on instant (no force-request)", () => {
+  const html = render([catalogNode({ ctaLabel: "Seleccionar" })], {
+    talentOfferings: [offering({})],
+    talentOfferingsConfirmsByHand: false,
   });
   assert.match(html, />Seleccionar</);
 });
