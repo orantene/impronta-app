@@ -337,3 +337,21 @@ export function rebookHint(
   if (!best?.client?.name) return null;
   return { clientName: best.client.name, lastService: best.title };
 }
+
+export function shiftDays(date: Date, delta: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + delta);
+  return next;
+}
+
+/** "Week of Mon 21 Sep · 3 bookings" / "Semana del lun 21 sep · 3 citas" (AUD-016). */
+export function weekSubtitle(monday: Date, count: number, locale: "en" | "es"): string {
+  const es = locale === "es";
+  const date = monday.toLocaleDateString(es ? "es-MX" : "en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const noun = es ? (count === 1 ? "cita" : "citas") : count === 1 ? "booking" : "bookings";
+  return `${es ? "Semana del" : "Week of"} ${date} · ${count} ${noun}`;
+}

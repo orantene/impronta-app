@@ -8,7 +8,8 @@ import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-ac
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
 import { TradeSections } from "./TradeSections";
-import { recordActionVisibility } from "./record-actions";
+import { holdEndsParts, recordActionVisibility } from "./record-actions";
+import { AgendaPayRequest } from "./AgendaPayRequest";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { useRouter } from "next/navigation";
@@ -159,6 +160,7 @@ export function AgendaBookingRecord({
   const [showReschedule, setShowReschedule] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
   const [depositLink, setDepositLink] = useState<string | null>(null);
+  const [showPayRequest, setShowPayRequest] = useState(false);
 
   const canAct = !!bookingId;
   const bookingCurrency = item.currency?.trim() || "MXN";
@@ -466,8 +468,22 @@ export function AgendaBookingRecord({
                     : "info"
             }
             title={copy.t(item.nowTitle)}
-            body={item.nowBody ? copy.t(item.nowBody) : ""}
-            primaryAction={show.talentOwnsActions ? item.primaryAction : undefined}
+            body={(() => {
+              const body = item.nowBody ? copy.t(item.nowBody) : "";
+              const hold = item.bookingState === "hold" ? holdEndsParts(item.holdUntilIso, now) : null;
+              if (!hold) return body;
+              const line = hold.left
+                ? `${copy.t("Hold ends")} ${hold.ends} · ${hold.left} ${copy.t("left")}`
+                : `${copy.t("Hold ended")} ${hold.ends}`;
+              return body ? `${line}. ${body}` : line;
+            })()}
+            primaryAction={
+              show.requestPayment && item.orderId
+                ? { label: copy.t("Request payment"), onClick: () => setShowPayRequest(true) }
+                : show.talentOwnsActions
+                  ? item.primaryAction
+                  : undefined
+            }
             secondaryAction={show.talentOwnsActions ? item.secondaryAction : undefined}
           />
         ) : null}
@@ -505,6 +521,16 @@ export function AgendaBookingRecord({
               </div>
             ) : null}
           </div>
+        ) : null}
+
+        {showPayRequest && item.orderId ? (
+          <AgendaPayRequest
+            orderId={item.orderId}
+            onClose={() => {
+              setShowPayRequest(false);
+              router.refresh();
+            }}
+          />
         ) : null}
 
         {/* Finish and collect */}
@@ -596,7 +622,14 @@ export function AgendaBookingRecord({
       {confirmCancel && (
         <ConfirmDialog
           title={copy.t("Cancel this booking?")}
-          body={copy.t("This cannot be undone. Any refund due is calculated when you confirm.")}
+          body={[
+            copy.t("This cannot be undone."),
+            copy.t("The time is freed on your calendar."),
+            copy.t("The client sees the cancellation in your conversation."),
+            item.paymentState && ["deposit_paid", "paid", "checking_payment"].includes(item.paymentState)
+              ? copy.t("What the client paid is refunded by your cancellation terms. The amount shows after you confirm.")
+              : copy.t("No payment was taken, so there is nothing to refund."),
+          ].join(" ")}
           confirmLabel={copy.t("Cancel booking")}
           destructive
           onConfirm={handleCancelConfirm}

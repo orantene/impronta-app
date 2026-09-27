@@ -17,7 +17,9 @@ import {
   agendaItemFromCalendarEntry,
   itemsOnDay,
   rowFromAgendaItem,
+  shiftDays,
   weekDays,
+  weekSubtitle,
 } from "./present";
 import { peekActionLabels, whoLabel } from "@/lib/talent-agenda/attention-cta";
 import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
@@ -96,9 +98,10 @@ export function AgendaCalendarPage({
     [onOpenRecord, onOpenMessages],
   );
   const { runPeekLabel, busyId, error: ctaError, setError: setCtaError } = useAgendaCta(ctaNav);
-  const days = weekDays(clock);
   const [view, setView] = useState<ViewMode>("week");
   const [selected, setSelected] = useState(clock);
+  // AUD-016: the visible week follows the selected date, not the clock.
+  const days = weekDays(selected);
   const [phone, setPhone] = useState(false);
   const [peekId, setPeekId] = useState<string | null>(null);
   const [peekAnchor, setPeekAnchor] = useState<{ top: number; left: number } | null>(null);
@@ -334,6 +337,27 @@ export function AgendaCalendarPage({
           </button>
         </div>
       ) : null}
+
+      <div className="flex items-center gap-2">
+        {([-7, 7] as const).map((delta) => (
+          <button
+            key={delta}
+            type="button"
+            aria-label={copy.t(delta < 0 ? "Previous week" : "Next week")}
+            onClick={() => setSelected(shiftDays(selected, delta))}
+            className={`min-h-[44px] min-w-[44px] rounded-full border border-black/10 bg-white text-[16px] ${delta > 0 ? "order-last" : ""}`}
+          >
+            {delta < 0 ? "‹" : "›"}
+          </button>
+        ))}
+        <p className="flex-1 text-center text-[13px] text-[var(--tc-primary)] opacity-70" aria-live="polite">
+          {weekSubtitle(
+            days[0],
+            days.reduce((n, day) => n + itemsOnDay(allItems, day).filter((i) => i.kind !== "block").length, 0),
+            copy.locale,
+          )}
+        </p>
+      </div>
 
       <div
         role="tablist"
