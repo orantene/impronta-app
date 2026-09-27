@@ -18,13 +18,17 @@ import {
   type MaisonSetupChoices,
 } from "./maison-choices";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
-import type { MaisonSetupLocale } from "./maison-setup-copy";
+import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+import { MaisonUndoToast } from "./MaisonUndoToast";
+
+type HostToast = null | "applied" | "restored";
 
 export function MaisonSetupHost({
   onCloseToSite,
   onPublished,
   forceScreen,
   onForceScreenConsumed,
+  siteLive = false,
 }: {
   /** Close detail → stay on /talent/site manager chrome below. */
   onCloseToSite?: () => void;
@@ -33,6 +37,12 @@ export function MaisonSetupHost({
   /** Optional override (e.g. Change design / restore from the live card). */
   forceScreen?: MaisonSetupChoices["screen"] | null;
   onForceScreenConsumed?: () => void;
+  /**
+   * Site is live with Maison (manager's `maisonLive`). While live, the host
+   * renders nothing until a screen is explicitly opened (Change design /
+   * restore), so "Choose a design" never sits under the My website card.
+   */
+  siteLive?: boolean;
 }) {
   const rawLocale = useDashboardLocale();
   const locale: MaisonSetupLocale = rawLocale === "es" ? "es" : "en";
@@ -43,7 +53,9 @@ export function MaisonSetupHost({
   const [liveCustomPalette, setLiveCustomPalette] =
     useState<MaisonCustomPaletteStored | null>(null);
   const [choices, setChoices] = useState<MaisonSetupChoices>(defaultMaisonChoices);
-  const [appliedToast, setAppliedToast] = useState(false);
+  const [toast, setToast] = useState<HostToast>(null);
+  /** True once Change design / restore opened a screen while the site is live. */
+  const [explicitOpen, setExplicitOpen] = useState(false);
   const consumeForceScreen = useEffectEvent(() => {
     onForceScreenConsumed?.();
   });
@@ -83,14 +95,18 @@ export function MaisonSetupHost({
       saveMaisonChoices(talentProfileId, merged);
       return merged;
     });
+    setExplicitOpen(true);
+    // Restore from Design options lands on Review; the panel unmounts, so the
+    // "restored · Undo" toast lives here.
+    if (forceScreen === "review") setToast("restored");
     consumeForceScreen();
   }, [forceScreen, talentProfileId, sitePublished]);
 
   useEffect(() => {
-    if (!appliedToast) return;
-    const t = window.setTimeout(() => setAppliedToast(false), 6000);
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 8000);
     return () => window.clearTimeout(t);
-  }, [appliedToast]);
+  }, [toast]);
 
   const patch = (next: Partial<MaisonSetupChoices>) => {
     setChoices((prev) => {
@@ -101,19 +117,37 @@ export function MaisonSetupHost({
   };
 
   if (enabled !== true || !talentProfileId) return null;
+  if (!shouldRenderMaisonSetup({ siteLive, explicitOpen })) return null;
+
+  const closeToSite = () => {
+    setExplicitOpen(false);
+    setToast(null);
+    onCloseToSite?.();
+  };
 
   return (
     <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host" className="mb-6">
-      {appliedToast && choices.screen === "review" ? (
-        <div
-          data-testid="maison-apply-toast"
-          className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] font-semibold text-emerald-900"
-        >
-          ✓ {locale === "es" ? "Diseño aplicado a tu borrador" : "Design applied to your draft"} ·{" "}
-          <span className="font-normal text-emerald-800/90">
-            {locale === "es" ? "Deshacer está arriba en Revisar" : "Use Undo on Review"}
-          </span>
-        </div>
+      {toast && choices.screen === "review" ? (
+        <MaisonUndoToast
+          locale={locale}
+          testId="maison-apply-toast"
+          message={maisonSetupT(
+            locale,
+            toast === "restored"
+              ? "Previous design restored to your draft"
+              : "Design applied to your draft",
+          )}
+          onUndone={() => {
+            setToast(null);
+            if (toast === "restored") {
+              patch({ screen: "gallery", phoneSheet: null });
+              closeToSite();
+              return;
+            }
+            // Same result as Review's Undo: back to Theme detail.
+            patch({ screen: "detail", status: "Choices saved", phoneSheet: null });
+          }}
+        />
       ) : null}
 
       {choices.screen === "gallery" ? (
@@ -121,8 +155,8 @@ export function MaisonSetupHost({
           locale={locale}
           talentProfileId={talentProfileId}
           onExplore={() => patch({ screen: "detail", status: "Preview" })}
-          onBack={onCloseToSite}
-          onClose={onCloseToSite}
+          onBack={closeToSite}
+          onClose={closeToSite}
         />
       ) : choices.screen === "review" ? (
         <ReviewWebsiteScreen
@@ -133,6 +167,8 @@ export function MaisonSetupHost({
           onBackToDetail={() => patch({ screen: "detail", phoneSheet: null })}
           onPublished={() => {
             patch({ status: "Live", screen: "gallery" });
+            setExplicitOpen(false);
+            setToast(null);
             onPublished?.();
           }}
         />
@@ -145,10 +181,10 @@ export function MaisonSetupHost({
           onBackToGallery={() => patch({ screen: "gallery", phoneSheet: null })}
           onClose={() => {
             patch({ screen: "gallery", phoneSheet: null });
-            onCloseToSite?.();
+            closeToSite();
           }}
           onAppliedToReview={() => {
-            setAppliedToast(true);
+            setToast("applied");
             patch({ screen: "review", status: "Draft saved", phoneSheet: null });
           }}
           onColorsPublished={() => {
@@ -161,4 +197,19 @@ export function MaisonSetupHost({
       )}
     </div>
   );
+}
+
+/**
+ * P0 (audit): once the site is live, the setup screens show only when the
+ * talent explicitly opened one (Change design / restore). Otherwise only the
+ * My website card renders.
+ */
+export function shouldRenderMaisonSetup({
+  siteLive,
+  explicitOpen,
+}: {
+  siteLive: boolean;
+  explicitOpen: boolean;
+}): boolean {
+  return !siteLive || explicitOpen;
 }
