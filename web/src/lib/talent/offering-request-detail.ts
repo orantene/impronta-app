@@ -9,6 +9,8 @@ export type OfferingRequestDetail = {
   title: string;
   kind: string;
   priceType: string;
+  /** exact | from | quote — quote must never paint as $0 in the sheet (AUD-006). */
+  priceDisplay?: "exact" | "from" | "quote";
   amountCents: number | null;
   currency: string;
   durationMinutes: number | null;

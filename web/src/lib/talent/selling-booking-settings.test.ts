@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  chooseStepContinueLabel,
   forceRequestIntent,
   parseSellingBookingSettings,
   resolveWhoPrimaryAction,
+  whenStepTimeGroupLabel,
   whoPrimaryCtaLabel,
   whoStepPrimaryLabel,
 } from "./selling-booking-settings";
@@ -106,5 +108,19 @@ test("who-step chat under confirm_now keeps Chat now label", () => {
   assert.equal(
     whoStepPrimaryLabel({ action: "confirm", whoPrimaryCta: "confirm_now", locale: "es" }),
     "Confirmar cita",
+  );
+});
+
+test("AUD-004: inquiry when-step uses preferred-time vocabulary", () => {
+  assert.equal(whenStepTimeGroupLabel({ action: "chat", locale: "es" }), "Horario preferido");
+  assert.equal(whenStepTimeGroupLabel({ action: "chat", locale: "en" }), "Preferred time");
+  assert.equal(whenStepTimeGroupLabel({ action: "confirm", locale: "es" }), "Elegí un horario");
+  assert.equal(
+    chooseStepContinueLabel({ action: "chat", locale: "es", needsOption: false }),
+    "Continuar: horario preferido",
+  );
+  assert.equal(
+    chooseStepContinueLabel({ action: "confirm", locale: "es", needsOption: false }),
+    "Continuar: elegir horario",
   );
 });

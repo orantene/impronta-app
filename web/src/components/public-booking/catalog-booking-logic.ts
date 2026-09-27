@@ -352,3 +352,25 @@ export function demoReservationIso(
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   };
 }
+
+const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Weekday short for day-chip UI (first 3 letters). */
+export function catalogWeekdayShort(date: Date, es: boolean): string {
+  return (es ? DAYS_ES : DAYS_EN)[date.getDay()]?.slice(0, 3) ?? "";
+}
+
+/** Month short for day-chip UI. */
+export function catalogMonthShort(date: Date, es: boolean): string {
+  return (es ? MONTHS_ES : MONTHS_EN)[date.getMonth()] ?? "";
+}
+
+/** Full slot label: "Lunes 12 de ene, 10:00" / "Monday 12 Jan, 10:00". */
+export function catalogSlotDateLabel(date: Date, time: string, es: boolean): string {
+  const day = (es ? DAYS_ES : DAYS_EN)[date.getDay()] ?? "";
+  const month = (es ? MONTHS_ES : MONTHS_EN)[date.getMonth()] ?? "";
+  return `${day} ${date.getDate()} ${es ? "de" : ""} ${month}, ${time}`.replace(/\s+/g, " ").trim();
+}

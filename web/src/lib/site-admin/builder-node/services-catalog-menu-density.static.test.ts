@@ -49,6 +49,15 @@ test("services_catalog root CSS does not force surface-raised page ground", () =
   );
 });
 
+test("AUD-026: bare top-level catalog gets side gutter via cms-block rule", () => {
+  const css = read("lib/site-admin/builder-node/render.tsx");
+  assert.match(
+    css,
+    /\[data-cms-block\]\s*>\s*\.site-builder-node--services-catalog\{[^}]*padding-inline/,
+    "top-level free-site catalog must pad horizontally like other sections",
+  );
+});
+
 test("catalog row chrome wraps price+CTA in buy cluster", () => {
   const filter = read("lib/site-admin/builder-node/services-catalog-filter.tsx");
   const fallback = read("lib/site-admin/builder-node/services-catalog-static-fallback.tsx");

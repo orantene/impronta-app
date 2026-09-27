@@ -139,10 +139,11 @@ export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
  */
 export const GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX = 24;
 /**
- * Extra lift when the catalog sticky Continuar / "Elige tu servicio" bar is
- * visible (BJ-07) so Hablar does not sit on top of booking chrome.
+ * Minimum extra lift when the catalog sticky Continuar bar is visible
+ * (BJ-07 / AUD-025). `useYieldBookingBar` raises further to clear the measured
+ * bar height so Hablar never covers Seleccionar on the last visible rows.
  */
-export const GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX = 64;
+export const GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX = 88;
 /** Mini / expanded panel offset — sits above the launcher pill. */
 export const GUEST_CHAT_PANEL_BOTTOM_PX = 194;
 
