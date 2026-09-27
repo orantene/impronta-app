@@ -70,6 +70,16 @@ export function catalogRowHasOptions(o: Pick<TalentOffering, "variants" | "addOn
 }
 
 /**
+ * Maison DoR: plain Seleccionar stays on the menu (Seleccionado + Continuar bar).
+ * Only option / on-request rows open the sheet immediately from the row CTA.
+ */
+export function catalogRowOpensSheetImmediately(
+  o: Pick<TalentOffering, "variants" | "addOns" | "visibility">,
+): boolean {
+  return catalogRowHasOptions(o) || o.visibility === "on_request";
+}
+
+/**
  * PKG-2 Option A — one-line purchase (product Buy or untimed package), not the
  * appointment spine. Timed packages/services stay on CatalogBookingSheet.
  */
@@ -140,7 +150,8 @@ export function catalogRowCtaLabel(opts: {
     return es ? "Comprar" : "Buy";
   }
   if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
-  // Instant appointment — menu-style "Select" matches mockups; sheet opens time picker.
+  // Instant appointment — menu-style "Select" matches Maison idle CTA.
+  // Sheet opens from Continuar (or from Elegir opciones), not from this label.
   // Inspector may rename the plain Select label only.
   return opts.inspectorLabel?.trim() || (es ? "Seleccionar" : "Select");
 }
