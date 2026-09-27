@@ -136,7 +136,7 @@ const ES: Record<string, string> = {
   "Add a service": "Añade un servicio",
   "Set your location": "Define tu ubicación",
   "Add where you work": "Añade dónde trabajas",
-  "Request deposit": "Pedir depósito",
+  "Request deposit": "Pedir anticipo",
   "Set availability": "Configura disponibilidad",
   "Preview your page": "Vista previa de tu página",
   "Create your website": "Crea tu sitio",
@@ -219,7 +219,6 @@ const ES: Record<string, string> = {
   week: "semana",
   "This week": "Esta semana",
   // AUD-017 booking record (Calendar hold / slot reserved / Deposit paid / Client already in catalog)
-  "Request deposit": "Pedir anticipo",
   "Held until {until}, {left} left. If no deposit arrives by then, this time is released.":
     "Apartada hasta las {until}, quedan {left}. Si no llega el anticipo, se libera la hora.",
   "{amount} unpaid · completed": "{amount} sin pagar · completada",

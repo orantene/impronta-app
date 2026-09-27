@@ -12,7 +12,7 @@
  * the engine does not already write.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/messages/draft-storage";
 import { useT } from "@/i18n/use-t";
@@ -49,6 +49,7 @@ import { Thread, ThreadEmpty, type ThreadMenuItem } from "../screens/Thread";
 import { liveShellEngine, type ShellEngine } from "./engine";
 import { contextPlacement, layoutForWidth, shellClassName, variantForLayout, type MobilePane, type ShellLayout } from "./layout";
 import { AssignSheet, LinkSheet, LostSheet, NewConversationSheet } from "./ShellSheets";
+import { useStaffInquiryPresence } from "./use-staff-inquiry-presence";
 
 const SEGMENT_FILTER: Record<InboxSegment, InboxFilter> = { needs: "needs_reply", wait: "awaiting_customer", all: "all" };
 
@@ -92,6 +93,10 @@ export type MessagesV5ShellProps = {
    * the same sheets as the thread toolbar (create_offer, send_times, …).
    */
   readonly onDispatchReady?: (dispatch: (id: ShellActionId) => void) => void;
+  /** Optional chrome above the composer (talent "+ Actions"). */
+  readonly composerAccessory?: ReactNode;
+  /** Presence display name when publishing staff "viewing" on the open thread. */
+  readonly currentUserDisplayName?: string | null;
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -145,6 +150,12 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const [dupeBusy, setDupeBusy] = useState(false);
   const [dupeRefusal, setDupeRefusal] = useState<MessagingRefusal | null>(null);
   const [dupeDismissed, setDupeDismissed] = useState<ReadonlySet<string>>(() => new Set());
+
+  useStaffInquiryPresence({
+    inquiryId: activeId,
+    userId: props.currentUserId,
+    displayName: props.currentUserDisplayName,
+  });
 
   /* ------------------------------------------------------------ layout */
   useEffect(() => {
@@ -609,6 +620,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       menuOpen={menuOpen}
       onMenu={setMenuOpen}
       menuItems={menuItems}
+      composerAccessory={props.composerAccessory}
       detailsAction={placement === "column" ? null : { label: copy.kit.thread.details, onClick: () => (placement === "drawer" ? setDrawerOpen(true) : setSheet("details")) }}
       notice={notice ? notice.kind === "refusal" ? <RefusalLine code={notice.code} copy={copy.kit} variant={variant} action={{ label: copy.kit.sheet.close, onClick: () => setNotice(null) }} /> : <OkLine text={notice.text} variant={variant} /> : null}
       renameSlot={

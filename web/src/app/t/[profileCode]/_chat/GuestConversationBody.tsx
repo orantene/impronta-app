@@ -27,6 +27,7 @@ import { GuestAccountToolkit } from "./GuestAccountToolkit";
 import { InquiryReceiptCard } from "./InquiryReceiptCard";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
 import { GuestClientCardRow, isGuestClientCardRow, type GuestClientCardsModel } from "./GuestClientCards";
+import { GuestStaffViewingLine } from "./GuestStaffViewingLine";
 import { SystemNoteCluster } from "./SystemNoteCluster";
 import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -225,6 +226,13 @@ export function GuestConversationBody({
           <SystemNoteCluster key={node.id} rows={node.rows} C={C} t={t} />
         ),
       )}
+
+      <GuestStaffViewingLine
+        inquiryId={inquiryId}
+        presenceName={brand.talentDisplayName.trim() || talentFirst}
+        C={C}
+        t={t}
+      />
 
       {limitNudge && limitNudge.tier !== "account" && (
         <TrustGateNudge
