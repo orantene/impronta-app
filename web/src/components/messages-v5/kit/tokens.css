@@ -54,6 +54,9 @@
   --msgv5-sky-soft: #eef3fb;
   --msgv5-sky-ink: #2a4f8f;
   --msgv5-sky-bar: #9db8e6;
+  /* Front-door offer card accent (article.offer) — declared so rules never invent vars. */
+  --msgv5-offer-border: var(--msgv5-sky-ink);
+  --msgv5-offer-chip: var(--msgv5-sky-soft);
   --msgv5-red: #b3261e;
   --msgv5-red-soft: rgba(179, 38, 30, 0.08);
   --msgv5-red-ink: #7a1d17;
@@ -713,8 +716,8 @@
 .msgv5 .cx-col .btn.xl.fill { justify-content: center; }
 /* Front-door brief article.offer — accent border + row actions (Aceptar · ask · decline). */
 .msgv5 .mx-card.k-offer {
-  border-color: var(--msgv5-offer-border, var(--msgv5-sky-ink));
-  background: var(--msgv5-offer-chip, var(--msgv5-sky-soft));
+  border-color: var(--msgv5-offer-border);
+  background: var(--msgv5-offer-chip);
 }
 .msgv5 .mx-card.k-offer .cf:has(.cx-offer-actions) {
   flex-direction: row;

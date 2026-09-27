@@ -88,9 +88,12 @@ test("stream: staff bubble, client bubble as me, day separator, one card per kin
   assert.doesNotMatch(html, /net|commission|payout/i);
 });
 
-test("offer card actions read the live offer: sent shows Accept and pay deposit; accepted shows the pay button when a code exists", () => {
+test("offer card actions read the live offer: sent shows Accept row; accepted shows the pay button when a code exists", () => {
   const sent = renderToStaticMarkup(<ClientThreadView {...base} />);
-  assert.match(sent, /data-client-action="accept_offer"[^>]*>Accept and pay deposit · \$1,140\.00/);
+  assert.match(sent, /data-client-action="accept_offer"[^>]*>Accept</);
+  assert.match(sent, /cx-offer-actions/);
+  assert.match(sent, /data-client-action="ask_change"/);
+  assert.match(sent, /data-client-action="decline_offer"/);
   const accepted = renderToStaticMarkup(<ClientThreadView {...base} offers={[{ ...offer, status: "accepted" }]} payCode="abc" />);
   assert.match(accepted, /Accepted\. Next: pay the deposit to confirm\./);
   assert.match(accepted, /data-client-action="pay"[^>]*>Pay \$1,140\.00/);
