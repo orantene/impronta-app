@@ -36,6 +36,31 @@ export function catalogTotalCents(
   return base + extras.reduce((sum, a) => sum + a.amountCents, 0);
 }
 
+/** Base offering minutes + selected extras that carry duration. */
+export function catalogBookingDurationMinutes(
+  baseMinutes: number | null | undefined,
+  addOns: readonly { id: string; durationMinutes?: number | null }[],
+  selectedIds: readonly string[],
+): number {
+  const base = typeof baseMinutes === "number" && baseMinutes > 0 ? baseMinutes : 60;
+  let extras = 0;
+  for (const a of addOns) {
+    if (!selectedIds.includes(a.id)) continue;
+    if (typeof a.durationMinutes === "number" && a.durationMinutes > 0) {
+      extras += a.durationMinutes;
+    }
+  }
+  return base + extras;
+}
+
+/** True when the guest's picked ISO is still in the freshly projected list. */
+export function catalogSelectedStartStillOpen(
+  selectedStartsAt: string | null | undefined,
+  openStarts: readonly string[],
+): boolean {
+  return Boolean(selectedStartsAt && openStarts.includes(selectedStartsAt));
+}
+
 export function catalogCanContinueWhen(time: string | null): boolean {
   return Boolean(time);
 }

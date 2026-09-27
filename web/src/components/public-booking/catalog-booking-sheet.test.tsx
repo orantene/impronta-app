@@ -375,3 +375,110 @@ test("onlineCollectReady false + deposit forces inquiry CTA and unavailable copy
   act(() => root.unmount());
   host.remove();
 });
+
+test("live slots fetch receives base + extras duration (BUF-5)", async () => {
+  const book = mockBook();
+  const durations: number[] = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={book}
+        slotsFn={async (_offeringId, durationMinutes) => {
+          durations.push(durationMinutes);
+          return {
+            slots: ["2026-09-25T15:00:00.000Z", "2026-09-25T17:00:00.000Z"],
+            timezone: "UTC",
+          };
+        }}
+      />,
+    );
+  });
+  // Has add-ons → opens on choose. Toggle a +15min extra, then continue to when.
+  open(
+    detail({
+      addOns: [{ id: "fr", label: "French", amountCents: 8000, durationMinutes: 15 }],
+    }),
+  );
+  const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]');
+  assert.ok(checkbox);
+  act(() => checkbox.click());
+  const cont = host.querySelector<HTMLButtonElement>('[data-catalog-continue="choose"]');
+  assert.ok(cont);
+  await act(async () => {
+    cont.click();
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  assert.ok(durations.length >= 1);
+  assert.equal(durations[durations.length - 1], 90);
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("longer extras clear a start that dropped out of the list (BUF-6)", async () => {
+  const book = mockBook();
+  let round = 0;
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={book}
+        slotsFn={async (_id, durationMinutes) => {
+          round += 1;
+          // Shorter duration offers 15:00; longer does not.
+          if (durationMinutes <= 75) {
+            return { slots: ["2026-09-25T15:00:00.000Z", "2026-09-25T17:00:00.000Z"], timezone: "UTC" };
+          }
+          return { slots: ["2026-09-25T17:00:00.000Z"], timezone: "UTC" };
+        }}
+      />,
+    );
+  });
+  open(
+    detail({
+      addOns: [{ id: "fr", label: "French", amountCents: 8000, durationMinutes: 30 }],
+    }),
+  );
+  // Continue without extras first.
+  const cont = host.querySelector<HTMLButtonElement>('[data-catalog-continue="choose"]');
+  assert.ok(cont);
+  await act(async () => {
+    cont.click();
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  const timeBtn = host.querySelector<HTMLButtonElement>(".jb-time");
+  assert.ok(timeBtn);
+  act(() => timeBtn.click());
+  assert.equal(host.querySelectorAll('.jb-time[data-on="true"]').length, 1);
+  // Back to choose, add the long extra, return to when → 15:00 must disappear / selection clear.
+  const back = host.querySelector<HTMLButtonElement>(".jb-back-link");
+  assert.ok(back);
+  act(() => back.click());
+  const checkbox = host.querySelector<HTMLInputElement>('input[type="checkbox"]');
+  assert.ok(checkbox);
+  act(() => checkbox.click());
+  const cont2 = host.querySelector<HTMLButtonElement>('[data-catalog-continue="choose"]');
+  assert.ok(cont2);
+  await act(async () => {
+    cont2.click();
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  assert.ok(round >= 2, `expected refetch after extras, got ${round}`);
+  // Only one time chip left (17:00); none should be selected.
+  const selected = host.querySelectorAll(".jb-time[data-on='true']");
+  assert.equal(selected.length, 0);
+  const times = host.querySelectorAll(".jb-time");
+  assert.equal(times.length, 1);
+  act(() => root.unmount());
+  host.remove();
+});
