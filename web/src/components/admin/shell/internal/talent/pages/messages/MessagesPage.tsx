@@ -48,25 +48,28 @@ function TalentMessagesV5() {
       data-talent-messages-v5
       className="-mx-[14px] -mt-[14px] -mb-[60px] flex h-[calc(100dvh-66px)] min-h-0 flex-col max-md:h-[calc(100dvh-115px-env(safe-area-inset-bottom,0px))]"
     >
-      <div className="flex items-center justify-end gap-2 px-3 py-2">
-        <TalentSellerActions
-          disabledReason={activeId ? null : "Pick a conversation first"}
-          onPick={(id) => {
-            dispatchRef.current(SELLER_TO_SHELL[id]);
-          }}
-        />
-      </div>
       <TalentDecisionBar inquiryId={activeId} />
       <MessagesV5Shell
         tenantId={tenantId || "talent"}
         tenantSlug={bridgeTenantIdentity?.slug || "talent"}
         currentUserId={bridgeSessionIdentity?.userId ?? null}
+        currentUserDisplayName={bridgeSessionIdentity?.displayName ?? null}
         workspaceType="talent"
         engine={talentShellEngine}
         live={Boolean(tenantId)}
         initialInquiryId={initialInquiryId}
         onActiveInquiry={setActiveId}
         onDispatchReady={onDispatchReady}
+        composerAccessory={
+          <div className="flex justify-end px-1 pb-1" data-talent-seller-actions>
+            <TalentSellerActions
+              disabledReason={activeId ? null : "Pick a conversation first"}
+              onPick={(id) => {
+                dispatchRef.current(SELLER_TO_SHELL[id]);
+              }}
+            />
+          </div>
+        }
       />
     </div>
   );

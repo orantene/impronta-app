@@ -89,8 +89,9 @@ function parseHex(hex: string): { r: number; g: number; b: number } | null {
  *     `service_category_slug`, which drives the catalog tab label and whether
  *     the dock talks about people at all.
  *   - `greeting` is that preset's chat voice, so the opener speaks her trade.
- * A talent whose trade the taxonomy does not know resolves to null and keeps the
- * tenant's preset, exactly as before.
+ * A talent whose trade the taxonomy does not know defaults to the solo salon
+ * voice ("Agenda una cita o pregúntame") — never the hub agency lineup voice
+ * (AUD-028).
  */
 export async function TalentSiteMessagesDock({
   talentProfileId,
@@ -133,18 +134,16 @@ export async function TalentSiteMessagesDock({
   const t = createTranslator(locale);
   const instant = talentOffersInstantBooking(profile?.talent_plan_key);
 
-  // Her trade, or null when the taxonomy does not know it (most profiles carry
-  // no category). A null leaves the tenant preset in place.
-  const tradePreset = await resolveTalentTradePreset(admin, profile?.service_category_slug);
-  // "custom" is the pre-preset default and is not a voice (the agency mount
-  // makes the same exclusion), so it must not become an opener.
-  const tradeVoice =
-    tradePreset && tradePreset !== "custom"
-      ? talentSiteChatVoice(
-          resolveIndustryPreset(tradePreset),
-          locale === "es" ? "es" : "en",
-        )
-      : null;
+  // Her trade, or the solo salon default when the taxonomy does not know it
+  // (most profiles carry no category). Never fall through to the hub "agency"
+  // voice — that asks about an event and a talent lineup on her own site.
+  const resolvedTrade = await resolveTalentTradePreset(admin, profile?.service_category_slug);
+  const tradePreset =
+    resolvedTrade && resolvedTrade !== "custom" ? resolvedTrade : "salon_barber";
+  const tradeVoice = talentSiteChatVoice(
+    resolveIndustryPreset(tradePreset),
+    locale === "es" ? "es" : "en",
+  );
 
   return (
     <>
