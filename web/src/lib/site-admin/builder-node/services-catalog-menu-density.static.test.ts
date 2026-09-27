@@ -31,6 +31,19 @@ test("services_catalog CSS drops spreadsheet 1fr middle between copy and price",
   );
 });
 
+test("services_catalog root CSS does not force surface-raised page ground", () => {
+  const css = read("lib/site-admin/builder-node/render.tsx");
+  const root = css.match(
+    /\.site-builder-node--services-catalog\{[^}]+\}/,
+  )?.[0];
+  assert.ok(root, "services_catalog root rule must exist");
+  assert.doesNotMatch(
+    root,
+    /background:var\(--token-color-surface-raised/,
+    "shared catalog must not paint blush — Maison scopes it on the Design services container",
+  );
+});
+
 test("catalog row chrome wraps price+CTA in buy cluster", () => {
   const filter = read("lib/site-admin/builder-node/services-catalog-filter.tsx");
   const fallback = read("lib/site-admin/builder-node/services-catalog-static-fallback.tsx");

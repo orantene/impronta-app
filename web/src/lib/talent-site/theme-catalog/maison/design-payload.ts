@@ -11,6 +11,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/services-catalog-defaults";
+import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { DesignPayload } from "../types";
 import {
@@ -52,7 +53,13 @@ function maisonServicesBlock(makeId: KitIdFactory): BuilderNode {
       gap: "m",
       align: "start",
       layerLabel: "Menu",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
+      // Soft blush band (Maison pink section = #FFF5F8) behind EL MENÚ.
+      style: {
+        maxWidth: "wide",
+        paddingY: "l",
+        paddingX: "m",
+        backgroundColor: styleTokenRef("color.surface-raised"),
+      },
       // Phone-first: stack padding already; catalog owns its own 390 layout.
       responsive: { mobile: { layout: "stack" } },
     }),
