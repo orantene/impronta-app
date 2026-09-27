@@ -57,6 +57,7 @@ import { MaisonHeader, MaisonMotion, MaisonWordmark } from "./MaisonChrome";
 import type { MaisonContent } from "./maison-content";
 import { MaisonAskButton } from "./MaisonAsk";
 import { MaisonContact } from "./MaisonContact";
+import { isUnconfirmedStubCopy } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 
 /**
  * The Maison template takes the SHARED profile props plus one optional
@@ -376,7 +377,9 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
           nextLabel={c.next}
           enlargeLabel={c.a11yEnlarge}
         />
-        {content.galleryNote ? <p className="mn-disclaimer">{content.galleryNote}</p> : null}
+        {content.galleryNote && !isUnconfirmedStubCopy(content.galleryNote) ? (
+          <p className="mn-disclaimer">{content.galleryNote}</p>
+        ) : null}
       </section>
 
       {/* ── 1. YOUR VISIT — the map and the practical facts, side by side.
