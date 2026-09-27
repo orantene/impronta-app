@@ -141,6 +141,7 @@ import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
@@ -4535,6 +4536,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-usd{display:block;font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.45rem 1rem;min-height:44px;font-size:.8125rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);flex:0 0 auto;white-space:nowrap}
 .site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-cta-variant="solid"] .site-builder-node--services-catalog-cta{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border:1px solid var(--token-color-ink)}
 .site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-primary,var(--token-color-accent,#A82458)) 14%,transparent);color:var(--token-color-ink);border:1px solid var(--token-color-primary,var(--token-color-accent,#A82458))}
 .site-builder-node--services-catalog[data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.55rem;padding-bottom:.55rem}
 @media (max-width:560px){
@@ -5948,11 +5950,9 @@ function renderBuilderNodeElement(
                 durationFormat={p.durationFormat ?? "auto"}
                 mobileBar={p.mobileBar ?? "float"}
                 showAskLink={p.showAskLink !== false}
-                // Maison 1:1: rose Continuar/check. CMS nodes that stored
-                // accent "ink" made booking chrome black on vanity — coerce.
-                sheetAccent={
-                  p.bookingSheet?.accent === "ink" ? "primary" : (p.bookingSheet?.accent ?? "primary")
-                }
+                // Both accents are live CSS (`data-sheet-accent`). Default is
+                // primary (Maison rose); ink is an explicit operator choice.
+                sheetAccent={resolveServicesCatalogSheetAccent(p.bookingSheet?.accent)}
                 categoryShowAll={p.categoryShowAll === true}
                 categoryShowCounts={p.categoryShowCounts === true}
                 enableCatalogSearch={p.enableCatalogSearch === true}

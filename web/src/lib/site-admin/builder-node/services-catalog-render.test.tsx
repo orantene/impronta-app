@@ -406,6 +406,28 @@ test("outline CTA variant is the default data attribute", () => {
   assert.match(html, /data-cta-variant="outline"/);
 });
 
+test("solid CTA variant sets data-cta-variant solid", () => {
+  const html = render([catalogNode({ rowCtaVariant: "solid" })], {
+    talentOfferings: [offering({})],
+  });
+  assert.match(html, /data-cta-variant="solid"/);
+});
+
+test("solid CTA variant has dedicated CSS (not outline-only)", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes([catalogNode({ rowCtaVariant: "solid" })], {
+      mode: "freeform",
+      includeRendererStyles: true,
+      includeFontLinks: false,
+      dataSources: { talentOfferings: [offering({})] },
+    }) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.match(
+    html,
+    /data-cta-variant="solid"]\s*\.site-builder-node--services-catalog-cta\{background:var\(--token-color-ink\)/,
+  );
+});
+
 test("each layout sets a distinct data-layout attribute", () => {
   for (const layout of ["rows", "cards", "grid", "compact_list", "editorial", "featured"] as const) {
     const html = render([catalogNode({ layout })], {

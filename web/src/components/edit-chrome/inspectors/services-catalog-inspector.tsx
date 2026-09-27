@@ -8,6 +8,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { BuilderServicesCatalogNode } from "@/lib/site-admin/builder-node";
+import { servicesCatalogVisibleFieldChecked } from "@/lib/site-admin/builder-node/services-catalog-defaults";
 import { ineligibleSelectedOfferingIds } from "@/lib/site-admin/builder-node/services-catalog-selection";
 import {
   SERVICES_CATALOG_STYLE_PRESETS,
@@ -307,7 +308,7 @@ export function ServicesCatalogContentInspector({
           <label key={key} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={catalog[key] !== false}
+              checked={servicesCatalogVisibleFieldChecked(catalog, key)}
               onChange={(e) => void commitPatch({ [key]: e.target.checked })}
             />
             {label}
@@ -349,15 +350,15 @@ export function ServicesCatalogContentInspector({
           <label className={KIT.label}>Sheet accent</label>
           <select
             className={KIT.input}
-            value={catalog.bookingSheet?.accent ?? "ink"}
+            value={catalog.bookingSheet?.accent ?? "primary"}
             onChange={(e) =>
               void commitPatch({
                 bookingSheet: { ...(catalog.bookingSheet ?? {}), accent: e.target.value },
               })
             }
           >
-            <option value="ink">Ink (mockup Continuar)</option>
             <option value="primary">Website primary</option>
+            <option value="ink">Ink (mockup Continuar)</option>
           </select>
         </div>
         <label className="flex items-center gap-2 text-sm">
