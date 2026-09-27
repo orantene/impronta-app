@@ -51,15 +51,13 @@ import { useLauncherSessionRestore } from "./use-launcher-session-restore";
 import { useLauncherScrollCollapse } from "./use-launcher-scroll-collapse";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
+import { useYieldBookingBar } from "./use-yield-booking-bar";
 import {
   DEFAULT_ACCENT,
   FONT,
-  GUEST_CHAT_LAUNCHER_BOTTOM_PX,
   firstNameOf,
   readableOn,
   type SurfaceMode,
-  GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX,
-  GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX,
 } from "./mini-chat-styles";
 
 // Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
@@ -540,34 +538,9 @@ export function TalentProfileChatLauncher({
    * to sit beside the content rather than on top of it.
    */
   const collapsedByScroll = narrowLauncher ? !open : collapsedByScrollDesktop;
-
-  // BJ-07 — lift Hablar when the services catalog sticky bar is showing so the
-  // Continuar float and the pill do not fight for the same bottom-right corner.
-  const [yieldBookingBar, setYieldBookingBar] = useState(false);
-  useEffect(() => {
-    if (!mounted) return;
-    const measure = () => {
-      const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
-      setYieldBookingBar(Boolean(bar));
-    };
-    measure();
-    const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
-    mo?.observe(document.body, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      attributeFilter: ["data-show", "data-has-selection", "class"],
-    });
-    return () => mo?.disconnect();
-  }, [mounted]);
+  const { yieldBookingBar, launcherBottomPx } = useYieldBookingBar(mounted, narrowLauncher);
 
   if (!mounted) return null;
-
-  const launcherBottomPx =
-    (narrowLauncher
-      ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
-      : GUEST_CHAT_LAUNCHER_BOTTOM_PX) +
-    (yieldBookingBar ? GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX : 0);
 
   // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
   // -11px overlap, max 2, always-visible 18px X) on touch devices. Read once at
