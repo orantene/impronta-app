@@ -742,6 +742,7 @@ export function MiniChatPanelColumn({
         offerings={offerings}
         onPickOffering={onPickOffering}
         onDraftChange={onDraftChange}
+        draft={draft}
         locale={brand.locale ?? "en"}
         t={t}
         accent={accent}

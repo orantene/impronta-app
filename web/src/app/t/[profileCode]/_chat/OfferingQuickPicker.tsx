@@ -65,7 +65,10 @@ export function offeringChipPriceLabel(o: ChatOffering, locale: string): string 
   return formatOfferingPrice(o.amountCents, o.currency, locale);
 }
 
-export function offeringDraftPrefix(o: ChatOffering, locale: string): string {
+export function offeringDraftPrefix(
+  o: Pick<ChatOffering, "title" | "amountCents" | "currency">,
+  locale: string,
+): string {
   const price = o.amountCents != null ? ` (${formatOfferingPrice(o.amountCents, o.currency, locale)})` : "";
   return pickLocale(locale, {
     en: `Requesting: ${o.title}${price} — `,
@@ -172,12 +175,15 @@ export function StickyOfferingChip({
   accent,
   surfaceMode = "light",
   onClear,
+  clearLabel,
 }: {
   title: string;
   accent: string;
   surfaceMode?: SurfaceMode;
   /** Optional dismiss — clears the pending offering / returns to browse. */
   onClear?: () => void;
+  /** Localized aria-label for the dismiss control (en + es required). */
+  clearLabel?: string;
 }) {
   const C = paletteFor(surfaceMode);
   const short = title.split(/[+·|,]/)[0]?.trim() || title;
@@ -222,7 +228,7 @@ export function StickyOfferingChip({
         <button
           type="button"
           onClick={onClear}
-          aria-label="Clear service"
+          aria-label={clearLabel || "Clear service"}
           style={{
             marginLeft: "auto",
             border: "none",

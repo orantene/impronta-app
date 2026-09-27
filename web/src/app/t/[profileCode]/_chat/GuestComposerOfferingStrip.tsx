@@ -12,10 +12,33 @@ import type { Translator } from "@/i18n/interpolate";
 import {
   OfferingQuickPicker,
   StickyOfferingChip,
+  offeringDraftPrefix,
   type ChatOffering,
 } from "./OfferingQuickPicker";
 import { clearPendingOffering, peekPendingOffering } from "./pending-offering-store";
 import type { SurfaceMode } from "./mini-chat-styles";
+
+const DECLINED = new Set(["rejected", "declined", "invalidated", "expired", "superseded"]);
+
+/** Prefer client-visible offer line labels; draft POS items are a fallback only. */
+export function stickyTitleFromThread(
+  v5: GuestThreadV5Extras | null | undefined,
+  pendingTitle: string | null,
+  offerPreview: boolean,
+): string | null {
+  if (offerPreview) return "Lifting";
+  if (pendingTitle) return pendingTitle;
+  const offers = v5?.offers ?? [];
+  for (let i = offers.length - 1; i >= 0; i--) {
+    const offer = offers[i];
+    if (DECLINED.has(offer.status)) continue;
+    const label = offer.lines?.[0]?.label?.trim();
+    if (label) return label;
+  }
+  return (
+    v5?.items?.lines?.find((l) => l.kind === "service" || Boolean(l.label))?.label ?? null
+  );
+}
 
 export function GuestComposerOfferingStrip({
   showGate,
@@ -24,6 +47,7 @@ export function GuestComposerOfferingStrip({
   offerings,
   onPickOffering,
   onDraftChange,
+  draft,
   locale,
   t,
   accent,
@@ -36,6 +60,8 @@ export function GuestComposerOfferingStrip({
   offerings: ChatOffering[];
   onPickOffering?: (o: ChatOffering) => void;
   onDraftChange: (value: string) => void;
+  /** Current composer draft — used so clear keeps guest-authored text. */
+  draft: string;
   locale: string;
   t: Translator;
   accent: string;
@@ -45,9 +71,7 @@ export function GuestComposerOfferingStrip({
   if (showGate) return null;
 
   const pending = peekPendingOffering();
-  const lineLabel =
-    v5?.items?.lines?.find((l) => l.kind === "service" || Boolean(l.label))?.label ?? null;
-  const stickyTitle = offerPreview ? "Lifting" : pending?.title || lineLabel;
+  const stickyTitle = stickyTitleFromThread(v5, pending?.title ?? null, offerPreview);
   const offerPosture =
     offerPreview ||
     threadStatus === "offer_pending" ||
@@ -60,11 +84,21 @@ export function GuestComposerOfferingStrip({
         title={stickyTitle}
         accent={accent}
         surfaceMode={surfaceMode}
+        clearLabel={t("public.guestChat.clearService")}
         onClear={
           pending && !offerPreview
             ? () => {
+                const prefix = offeringDraftPrefix(
+                  {
+                    title: pending.title,
+                    amountCents: pending.amountCents,
+                    currency: pending.currency,
+                  },
+                  locale,
+                );
                 clearPendingOffering();
-                onDraftChange("");
+                const rest = draft.startsWith(prefix) ? draft.slice(prefix.length) : draft;
+                onDraftChange(rest);
               }
             : undefined
         }
