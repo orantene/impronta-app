@@ -31,7 +31,32 @@ describe("Money page M2 spine", () => {
     assert.match(spine, /buildMoneySpineView/);
     assert.match(spine, /PaymentDetailDrawer/);
     assert.match(spine, /consumeMoneyLanding/);
+    assert.match(spine, /onOpenAction/);
+    assert.match(spine, /useDashboardText/);
     assert.match(outstanding, /Due by today/);
+    assert.match(outstanding, /onRequest/);
+    assert.match(outstanding, /onRecord/);
+  });
+
+  it("AUD-018 wires Request / Record / Refund / Correct sheets", () => {
+    const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
+    const detail = readFileSync(join(moneyDir, "PaymentDetailDrawer.tsx"), "utf8");
+    const request = readFileSync(join(moneyDir, "MoneyRequestPaymentSheet.tsx"), "utf8");
+    const record = readFileSync(join(moneyDir, "MoneyRecordPaymentSheet.tsx"), "utf8");
+    const refund = readFileSync(join(moneyDir, "MoneyRefundSheet.tsx"), "utf8");
+    const correct = readFileSync(join(moneyDir, "MoneyCorrectRecordSheet.tsx"), "utf8");
+    assert.match(page, /MoneyRequestPaymentSheet/);
+    assert.match(page, /MoneyRecordPaymentSheet/);
+    assert.match(page, /MoneyRefundSheet/);
+    assert.match(page, /MoneyCorrectRecordSheet/);
+    assert.match(detail, /onRefund/);
+    assert.match(detail, /onCorrect/);
+    assert.match(request, /mc_req_pick/);
+    assert.match(request, /mc_req_amount/);
+    assert.match(request, /mc_req_created/);
+    assert.match(record, /mc_record/);
+    assert.match(refund, /mc_refund/);
+    assert.match(correct, /mc_cash_correct/);
   });
 
   it("MoneySpine M4 wires payout detail, failed alternate, and account states", () => {
