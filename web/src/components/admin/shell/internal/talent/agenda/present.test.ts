@@ -8,6 +8,9 @@ import { todayMoneyTilesFromLedger } from "@/lib/money/today-money-tiles";
 
 import { formatDualTimezoneWhen, moneyFromEarnings, moneyFromLedger, todayFromAgenda } from "./present";
 
+// These tests exercise the September FIXTURE tiles, which are demo/QA-only.
+process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE = "1";
+
 describe("T4.1 Today V2 · Jor clock 09:50", () => {
   it("next up is Camila 10:00; rest is Ana then Lucía", () => {
     const { next, rest } = todayFromAgenda(JOR_WEEK, JOR_CLOCK);
