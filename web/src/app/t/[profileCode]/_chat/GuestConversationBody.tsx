@@ -212,7 +212,7 @@ export function GuestConversationBody({
           messages render as bubbles, in place. */}
       {clusterSystemRows(rows).map((node) =>
         node.kind === "message" && drawsV5Card(node.row) ? (
-          <GuestClientCardRow key={node.row.id} row={node.row} model={cardModel} now={now} accent={accent} />
+          <GuestClientCardRow key={node.row.id} row={node.row} model={cardModel} now={now} accent={accent} accentInk={accentInk} />
         ) : node.kind === "message" ? (
           <MiniChatMessageBubble
             key={node.row.id}

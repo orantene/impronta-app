@@ -57,6 +57,8 @@
   /* Front-door brief offer card — tenants override via --msgv5-offer-* on the guest wrap. */
   --msgv5-offer-border: var(--msgv5-sky-ink);
   --msgv5-offer-chip: var(--msgv5-sky-soft);
+  /* Ink on the solid Accept fill; guests override with readableOn(accent). */
+  --msgv5-offer-ink: var(--msgv5-white);
   --msgv5-red: #b3261e;
   --msgv5-red-soft: rgba(179, 38, 30, 0.08);
   --msgv5-red-ink: #7a1d17;
@@ -765,7 +767,7 @@
   padding: 7px 12px;
   background: var(--msgv5-offer-border);
   border-color: transparent;
-  color: var(--msgv5-white);
+  color: var(--msgv5-offer-ink);
 }
 .msgv5 .cx-offer-actions .btn.cx-offer-ask,
 .msgv5 .cx-offer-actions .btn.ghost.cx-offer-ask {
