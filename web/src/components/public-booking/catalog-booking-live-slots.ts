@@ -3,6 +3,8 @@
  * Duration is base offering + selected extras (BUF-5).
  */
 
+import { isDevGuestCaptchaSkipHostname } from "@/lib/scheduling/guest-captcha-dev-skip";
+
 export type CatalogSlotsFn = (
   offeringId: string,
   durationMinutes: number,
@@ -10,8 +12,7 @@ export type CatalogSlotsFn = (
 
 export function shouldSkipGuestCaptchaOnHost(): boolean {
   if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  if (host !== "localhost" && host !== "127.0.0.1") return false;
+  if (!isDevGuestCaptchaSkipHostname(window.location.hostname)) return false;
   // Mirrors instant-book-guest: only with the same flag that unlocks /dev.
   return (
     process.env.NEXT_PUBLIC_TULALA_ALLOW_DEV_SURFACES === "1" ||
