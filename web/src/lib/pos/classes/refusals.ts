@@ -157,6 +157,7 @@ export const WALKIN_REFUSALS: Readonly<Record<WalkInBookingRefusal, ClassesRefus
   ...PURCHASE_REFUSALS,
   invalid: "nameRequired",
   not_found: "serviceNotFound",
+  too_soon: "unavailable",
 };
 
 function lookup<K extends string>(

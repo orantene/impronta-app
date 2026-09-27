@@ -96,3 +96,68 @@ export function instantReservationConfirmedBody(
     ? `Tu ${noun} esta confirmada.`
     : `Your ${noun} is confirmed.`;
 }
+
+/**
+ * Effective min-notice minutes — same overlay order as `applySellingTimeToHours`
+ * (selling defaults win over the hours row when set).
+ */
+export function resolveEffectiveMinNoticeMin(input: {
+  hoursMinNoticeMin: number | null | undefined;
+  sellingDefaults: unknown;
+}): number {
+  const raw =
+    input.sellingDefaults &&
+    typeof input.sellingDefaults === "object" &&
+    !Array.isArray(input.sellingDefaults)
+      ? (input.sellingDefaults as Record<string, unknown>)
+      : null;
+  const fromDefaults =
+    raw && typeof raw.minNoticeMin === "number" && Number.isFinite(raw.minNoticeMin)
+      ? Math.max(0, Math.trunc(raw.minNoticeMin))
+      : null;
+  if (fromDefaults != null) return fromDefaults;
+  if (
+    typeof input.hoursMinNoticeMin === "number" &&
+    Number.isFinite(input.hoursMinNoticeMin)
+  ) {
+    return Math.max(0, Math.trunc(input.hoursMinNoticeMin));
+  }
+  return 0;
+}
+
+export type ReservationNoticeGate =
+  | { ok: true }
+  | { ok: false; reason: "too_soon"; error: string };
+
+/**
+ * BUF-2 — re-check advance notice on confirm. Slots already hide too-soon
+ * starts; a stale client POST must still be refused server-side.
+ */
+export function assertReservationMeetsNotice(input: {
+  startsAt: string;
+  minNoticeMin: number;
+  now?: Date;
+}): ReservationNoticeGate {
+  const startMs = Date.parse(input.startsAt);
+  if (!Number.isFinite(startMs)) {
+    return {
+      ok: false,
+      reason: "too_soon",
+      error: "That time is not available. Pick another start.",
+    };
+  }
+  const noticeMin =
+    typeof input.minNoticeMin === "number" && Number.isFinite(input.minNoticeMin)
+      ? Math.max(0, Math.trunc(input.minNoticeMin))
+      : 0;
+  const now = input.now ?? new Date();
+  const earliest = now.getTime() + noticeMin * 60_000;
+  if (startMs < earliest) {
+    return {
+      ok: false,
+      reason: "too_soon",
+      error: "That time is too soon. Pick a later start.",
+    };
+  }
+  return { ok: true };
+}

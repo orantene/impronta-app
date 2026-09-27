@@ -104,6 +104,7 @@ export async function createInstantBookingAction(
           // refusals are customer-facing states; everything else is ours.
           const customerFacing =
             booked.reason === "slot_taken"
+            || booked.reason === "too_soon"
             || booked.reason === "sold_out"
             || booked.reason === "account_required"
             || booked.reason === "pay_in_person_not_allowed"
@@ -116,7 +117,12 @@ export async function createInstantBookingAction(
           }
           return {
             ok: false as const,
-            reason: booked.reason === "slot_taken" ? ("slot_taken" as const) : ("engine_error" as const),
+            reason:
+              booked.reason === "slot_taken"
+                ? ("slot_taken" as const)
+                : booked.reason === "too_soon"
+                  ? ("too_soon" as const)
+                  : ("engine_error" as const),
             error: booked.error,
           };
         }

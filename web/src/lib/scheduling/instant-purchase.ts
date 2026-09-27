@@ -1,3 +1,4 @@
+/* eslint-disable ratchet/no-untenanted-from -- talent_booking_hours is one row per person; a tenant filter would hide hours and fork the calendar (same as instant-book-hours). */
 /**
  * instant-purchase.ts — how an instant booking becomes ONE `createPurchase`
  * call: the offering's stock pool, the treatment room, the companion
@@ -26,6 +27,10 @@ import type { PurchaseResult } from "@/lib/orders/purchase-types";
 import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
 import { spaceCapacityPool } from "@/lib/resources/reserve-set";
 import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
+import {
+  assertReservationMeetsNotice,
+  resolveEffectiveMinNoticeMin,
+} from "@/lib/scheduling/instant-book-gates";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -54,7 +59,7 @@ export type InstantPurchaseInput = {
 
 export type InstantPurchaseResult =
   | PurchaseResult
-  | { ok: false; reason: "engine_error"; error: string };
+  | { ok: false; reason: "engine_error" | "too_soon"; error: string };
 
 /**
  * `tenantScopedQuery` answers untyped rows. These read the two fields the
@@ -186,14 +191,25 @@ export async function placeInstantPurchase(
 
   // Prep from selling defaults (+ optional offering attr) pads the hold so
   // the calendar blocks preparation time when the client reserves.
-  const { data: talentDefaultsRow, error: talentDefaultsErr } = await admin
-    .from("talent_profiles")
-    .select("selling_defaults")
-    .eq("id", input.talentProfileId)
-    .maybeSingle();
+  // Hours notice is read in parallel so confirm can re-check min-notice (BUF-2).
+  const [talentDefaultsRes, hoursNoticeRes] = await Promise.all([
+    admin
+      .from("talent_profiles")
+      .select("selling_defaults")
+      .eq("id", input.talentProfileId)
+      .maybeSingle(),
+    // talent_booking_hours is one row per person (same as instant-book-hours).
+    admin
+      .from("talent_booking_hours")
+      .select("min_notice_min")
+      .eq("talent_profile_id", input.talentProfileId)
+      .maybeSingle(),
+  ]);
   // Missing / failed defaults → zero buffers (same as unset). Purchase proceeds.
   const defaultsRaw =
-    !talentDefaultsErr && isRecord(talentDefaultsRow) ? talentDefaultsRow.selling_defaults : null;
+    !talentDefaultsRes.error && isRecord(talentDefaultsRes.data)
+      ? talentDefaultsRes.data.selling_defaults
+      : null;
   const selling = parseSellingBookingSettings(defaultsRaw);
   const attrPrep =
     isRecord(policy.attributes) && typeof policy.attributes.bufferBeforeMin === "number"
@@ -211,6 +227,32 @@ export async function placeInstantPurchase(
       : 0);
   const bufferBeforeSeconds = prepMin * 60;
   const bufferAfterSeconds = afterMin * 60;
+
+  if (reservation) {
+    const hoursNoticeRaw =
+      !hoursNoticeRes.error && isRecord(hoursNoticeRes.data)
+        ? hoursNoticeRes.data.min_notice_min
+        : null;
+    const hoursMinNoticeMin =
+      typeof hoursNoticeRaw === "number" && Number.isFinite(hoursNoticeRaw)
+        ? Math.max(0, Math.trunc(hoursNoticeRaw))
+        : null;
+    const minNoticeMin = resolveEffectiveMinNoticeMin({
+      hoursMinNoticeMin,
+      sellingDefaults: defaultsRaw,
+    });
+    const noticeGate = assertReservationMeetsNotice({
+      startsAt: reservation.startsAt,
+      minNoticeMin,
+    });
+    if (!noticeGate.ok) {
+      return {
+        ok: false,
+        reason: "too_soon",
+        error: noticeGate.error,
+      };
+    }
+  }
 
   return createPurchase(admin, {
     tenantId,

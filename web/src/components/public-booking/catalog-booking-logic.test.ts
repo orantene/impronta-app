@@ -209,6 +209,50 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
     }),
     "Solicitar cita",
   );
+
+  // MODE-6: inquiry posture alone (no confirmsByHand) must not promise Buy.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: product,
+      locale: "en",
+      bookingPosture: "inquiry",
+    }),
+    "Request appointment",
+  );
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: {
+        ...product,
+        kind: "service" as const,
+        bookingMode: "instant" as const,
+        priceType: "flat_package" as const,
+        priceDisplay: "exact" as const,
+        amountCents: 5000,
+        durationMinutes: 60,
+      },
+      locale: "es",
+      bookingPosture: "inquiry",
+    }),
+    "Solicitar cita",
+  );
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: {
+        ...product,
+        kind: "service" as const,
+        bookingMode: "request" as const,
+        priceDisplay: "quote" as const,
+        priceType: "custom" as const,
+        amountCents: null,
+      },
+      locale: "en",
+      bookingPosture: "on_demand",
+    }),
+    "Request a quote",
+  );
 });
 
 test("collect-now cents follow reserveMode (full / deposit / free)", () => {
