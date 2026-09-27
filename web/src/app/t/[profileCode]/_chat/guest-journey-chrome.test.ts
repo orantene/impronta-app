@@ -1,9 +1,33 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { resolveGuestJourneyChrome, resolveJourneyLabel } from "./guest-journey-chrome";
+import {
+  resolveGuestJourneyChrome,
+  resolveJourneyLabel,
+  usesFrontDoorJourneyChrome,
+} from "./guest-journey-chrome";
 
 const t = (key: string) => key.split(".").pop() ?? key;
+
+test("agency public dock uses front-door journey chrome (Impronta)", () => {
+  assert.equal(usesFrontDoorJourneyChrome({ agencyPublicSurface: true }), true);
+  assert.equal(usesFrontDoorJourneyChrome({ omitPlatformBrand: true }), true);
+  // dockIntake alone is not an agency surface identity (custom/portfolio/act).
+  assert.equal(usesFrontDoorJourneyChrome({}), false);
+  assert.equal(
+    usesFrontDoorJourneyChrome({ agencyPublicSurface: false, omitPlatformBrand: false }),
+    false,
+  );
+  // Platform hub stays on StatusLine even when brand looks agency-shaped.
+  assert.equal(
+    usesFrontDoorJourneyChrome({ agencyPublicSurface: true }, { isHub: true }),
+    false,
+  );
+  assert.equal(
+    usesFrontDoorJourneyChrome({ omitPlatformBrand: true }, { isHub: true }),
+    false,
+  );
+});
 
 test("offer_pending paints headerJourneyOffer and keeps segs", () => {
   const chrome = resolveGuestJourneyChrome({

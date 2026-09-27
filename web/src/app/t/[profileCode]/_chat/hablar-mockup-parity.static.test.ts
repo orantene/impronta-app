@@ -39,11 +39,31 @@ test("dock nav active tab is accent outline, not white fill", () => {
   assert.doesNotMatch(nav, /background:\s*isActive\s*\?\s*"#fff"/);
 });
 
-test("composer send is circular; talent sites use composerPhrase", () => {
+test("composer send is circular; front-door sites use composerPhrase", () => {
   const composer = read("MiniChatComposer.tsx");
   assert.match(composer, /borderRadius:\s*"50%"/);
   const col = read("MiniChatPanelColumn.tsx");
   assert.match(col, /composerPhrase/);
+  assert.match(col, /composerPhraseAgency/);
+  assert.match(col, /frontDoorChrome/);
+  assert.match(col, /agencyPublicSurface/);
+  const hook = read("use-guest-dock-journey.ts");
+  assert.match(hook, /usesFrontDoorJourneyChrome/);
+  assert.match(hook, /frontDoorChrome/);
+  assert.match(hook, /isHub/);
+  const chromeHelpers = read("guest-journey-chrome.ts");
+  assert.match(chromeHelpers, /usesFrontDoorJourneyChrome/);
+  assert.match(chromeHelpers, /agencyPublicSurface/);
+  assert.match(chromeHelpers, /opts\?\.isHub/);
+  assert.doesNotMatch(chromeHelpers, /dockIntake === "agency"/);
+  const colHub = read("MiniChatPanelColumn.tsx");
+  assert.match(colHub, /isHub,/);
+  const agencyMount = readFileSync(
+    join(HERE, "../../../(public)/_chat/AgencyChatLauncherMount.tsx"),
+    "utf8",
+  );
+  assert.match(agencyMount, /agencyPublicSurface/);
+  assert.match(agencyMount, /const agencyPublicSurface = !isHub/);
 });
 
 test("dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof", () => {
@@ -70,4 +90,25 @@ test("guest bubbles use lavender palette token, not accent fill", () => {
 test("beauty intake has four brief segs including service + message", () => {
   const rail = read("guest-intake-rail.ts");
   assert.match(rail, /beauty:\s*\["day",\s*"hour",\s*"service",\s*"message"\]/);
+});
+
+test("agency public surface Items label resolves to front-door Browse", () => {
+  const flags = readFileSync(
+    join(HERE, "../../../../lib/inquiry/guest-dock-flags.ts"),
+    "utf8",
+  );
+  assert.match(flags, /resolveGuestDockItemsLabel/);
+  assert.match(flags, /agencyPublicSurface/);
+  // Request locale (not words.locale) so fr → Parcourir.
+  assert.match(flags, /Pass request locale so fr/);
+  assert.match(flags, /locale,/);
+  const helper = readFileSync(
+    join(HERE, "../../../../lib/inquiry/guest-dock-items-label.ts"),
+    "utf8",
+  );
+  assert.match(helper, /agencyPublicSurface/);
+  assert.match(helper, /Browse/);
+  assert.match(helper, /Parcourir/);
+  assert.match(helper, /requestBrowseLocale/);
+  assert.doesNotMatch(helper, /dockIntake === "agency"/);
 });

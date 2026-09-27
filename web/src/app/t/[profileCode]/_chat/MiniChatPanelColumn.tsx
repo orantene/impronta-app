@@ -407,7 +407,7 @@ export function MiniChatPanelColumn({
   // "Sent, awaiting reply" would be a flat lie about what the agency has.
   const headerThreadState: GuestHeaderThreadState = guestHeaderThreadState(threadStateInput);
   const detailsProgress = detailsEnabled && inquiryIntent ? countCoreDetails(inquiryIntent, capturedChipValues) : null;
-  const { offerPreview, journeyLabel, railLabel, journeySegs } = useGuestDockJourney({
+  const { offerPreview, journeyLabel, railLabel, journeySegs, frontDoorChrome } = useGuestDockJourney({
     brand,
     inquiryIntent,
     capturedChipValues,
@@ -419,6 +419,7 @@ export function MiniChatPanelColumn({
     v5,
     rows,
     t,
+    isHub,
   });
   const openDetails =
     detailsEnabled && (activeDockView === "chat" || activeDockView === "home")
@@ -755,8 +756,10 @@ export function MiniChatPanelColumn({
           placeholder={
             inquiryId
               ? t("public.guestChat.composerReply")
-              : brand.omitPlatformBrand
-                ? t("public.guestChat.composerPhrase")
+              : frontDoorChrome
+                ? brand.agencyPublicSurface
+                  ? t("public.guestChat.composerPhraseAgency")
+                  : t("public.guestChat.composerPhrase")
                 : t("public.guestChat.composerFirst")
           }
           sending={sending}
