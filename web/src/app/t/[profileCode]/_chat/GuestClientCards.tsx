@@ -71,9 +71,10 @@ export function useGuestClientCards(input: {
   const kit = useMemo(() => buildKitCopy(t), [t]);
   const copy = useMemo(() => buildClientCopy(t), [t]);
   const messages = useMemo(() => rows.map(toThreadMessage), [rows]);
-  const offerCards = useMemo(() => offerCardMessageIds(messages), [messages]);
+  const offers = v5?.offers;
+  const offerCards = useMemo(() => offerCardMessageIds(messages, offers), [messages, offers]);
   const actions = useClientCardActions({ token: v5?.threadToken ?? null, messages, refresh, onTick });
-  return { kit, copy, messages, offerCards, actions, offers: v5?.offers ?? [], payCode: v5?.payCode ?? null, businessName, locale, onAsk };
+  return { kit, copy, messages, offerCards, actions, offers: offers ?? [], payCode: v5?.payCode ?? null, businessName, locale, onAsk };
 }
 
 export function GuestClientCardRow({
