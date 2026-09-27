@@ -11,10 +11,13 @@ import {
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogDetailIsPurchase,
+  catalogMonthShort,
   catalogNeedsOptions,
   catalogNextDays,
   catalogSelectedStartStillOpen,
+  catalogSlotDateLabel,
   catalogTotalCents,
+  catalogWeekdayShort,
   demoSlotsFor,
   formatClock,
   groupIsoSlotsByDay,
@@ -56,11 +59,6 @@ export type { CatalogBookFn };
 export type { CatalogSlotsFn };
 export type { CatalogSheetBookingSettings };
 
-const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const DAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 export function CatalogBookingSheet({
   locale = "es",
   mode = "demo",
@@ -91,8 +89,6 @@ export function CatalogBookingSheet({
   onlineCollectReady?: boolean;
 }) {
   const es = locale.startsWith("es");
-  const DAYS = es ? DAYS_ES : DAYS_EN;
-  const MONTHS = es ? MONTHS_ES : MONTHS_EN;
   const [detail, setDetail] = useState<CatalogBookingDetail | null>(null);
   const [step, setStep] = useState<Step>("choose");
   const [variantId, setVariantId] = useState<string | null>(null);
@@ -311,13 +307,7 @@ export function CatalogBookingSheet({
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
 
-  const slotLabel =
-    time != null
-      ? `${DAYS[day.getDay()]} ${day.getDate()} ${es ? "de" : ""} ${MONTHS[day.getMonth()]}, ${time}`.replace(
-          /\s+/g,
-          " ",
-        ).trim()
-      : null;
+  const slotLabel = time != null ? catalogSlotDateLabel(day, time, es) : null;
 
   const buildSelection = (): CatalogBookingSelection => ({
     variantId,
@@ -364,14 +354,8 @@ export function CatalogBookingSheet({
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
   };
-
   const emptyConsultButton = (
-    <button
-      type="button"
-      className="jb-ask"
-      data-catalog-empty-ask=""
-      onClick={() => askAvailability()}
-    >
+    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
       {es ? "Consultar disponibilidad" : "Check availability"}
     </button>
   );
@@ -536,9 +520,9 @@ export function CatalogBookingSheet({
                           setLiveStarts(null);
                         }}
                       >
-                        <span>{DAYS[d.date.getDay()]?.slice(0, 3)}</span>
+                        <span>{catalogWeekdayShort(d.date, es)}</span>
                         <b>{d.date.getDate()}</b>
-                        <small>{MONTHS[d.date.getMonth()]}</small>
+                        <small>{catalogMonthShort(d.date, es)}</small>
                       </button>
                     ))}
                   </div>
@@ -591,9 +575,9 @@ export function CatalogBookingSheet({
                             setTime(null);
                           }}
                         >
-                          <span>{DAYS[d.getDay()]?.slice(0, 3)}</span>
+                          <span>{catalogWeekdayShort(d, es)}</span>
                           <b>{d.getDate()}</b>
-                          <small>{MONTHS[d.getMonth()]}</small>
+                          <small>{catalogMonthShort(d, es)}</small>
                         </button>
                       );
                     })}
@@ -630,7 +614,7 @@ export function CatalogBookingSheet({
                 {es ? "← Cambiar horario" : "← Change time"}
               </button>
               <p className="jb-recap">
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time}
+                {time ? catalogSlotDateLabel(day, time, es) : null}
                 {isQuote ? "" : ` · ${money(total, detail.currency)}`}
                 {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ""}
               </p>
@@ -715,9 +699,7 @@ export function CatalogBookingSheet({
               <div className="jb-check" aria-hidden="true">
                 ✓
               </div>
-              <h3>
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time}
-              </h3>
+              <h3>{time ? catalogSlotDateLabel(day, time, es) : null}</h3>
               <p>
                 {detail.title}
                 {variant ? ` · ${variant.label}` : ""}
