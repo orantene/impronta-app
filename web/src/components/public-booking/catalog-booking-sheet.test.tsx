@@ -319,3 +319,59 @@ test("settings Confirm now keeps Confirmar cita for instant Path A", () => {
   assert.match(cta.textContent ?? "", /Confirmar cita/);
   unmount();
 });
+
+function goToWho(host: Element, d: OfferingRequestDetail) {
+  open(d, "when");
+  const time = host.querySelector<HTMLButtonElement>(".jb-time");
+  if (time) act(() => time.click());
+  const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  if (when && !when.disabled) act(() => when.click());
+}
+
+test("who-step pay copy matches free studio vs deposit (no studio lie)", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  goToWho(host, detail({ addOns: [], reserveMode: "free", allowPayInPerson: true }));
+  const pay = host.querySelector("[data-catalog-who-pay]");
+  assert.ok(pay);
+  assert.match(pay.textContent ?? "", /estudio/);
+  unmount();
+
+  const book2 = mockBook();
+  const m2 = mount("demo", book2);
+  goToWho(m2.host, detail({ addOns: [], reserveMode: "deposit", depositPct: 40, allowPayInPerson: false }));
+  const pay2 = m2.host.querySelector("[data-catalog-who-pay]");
+  assert.ok(pay2);
+  assert.match(pay2.textContent ?? "", /40%/);
+  assert.doesNotMatch(pay2.textContent ?? "", /estudio/);
+  m2.unmount();
+});
+
+test("onlineCollectReady false + deposit forces inquiry CTA and unavailable copy", () => {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="demo"
+        onlineCollectReady={false}
+        slotsFn={async () => ({
+          slots: ["2026-09-25T15:00:00.000Z"],
+          timezone: "UTC",
+        })}
+      />,
+    );
+  });
+  goToWho(host, detail({ addOns: [], reserveMode: "deposit", depositPct: 25, allowPayInPerson: false }));
+  const pay = host.querySelector("[data-catalog-who-pay]");
+  assert.ok(pay);
+  assert.match(pay.textContent ?? "", /no está disponible/i);
+  const cta = host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]');
+  assert.ok(cta);
+  assert.equal(cta.getAttribute("data-catalog-chat"), "primary");
+  assert.match(cta.textContent ?? "", /Enviar consulta/);
+  act(() => root.unmount());
+  host.remove();
+});
