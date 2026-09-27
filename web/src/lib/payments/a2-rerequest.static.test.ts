@@ -37,6 +37,18 @@ test("Agenda pay request and finish-card keys with attempt helper", () => {
   assert.match(finish, /newPaymentRequestAttemptId/);
 });
 
+test("pos-engine createPaymentLink rewrites app host before mint (GAP-JOR-3)", () => {
+  const src = read(
+    "lib/server-actions/pos-engine.ts",
+  );
+  assert.match(src, /resolveAgendaPayPublicOrigin/);
+  assert.match(src, /requestedOrigin/);
+  assert.doesNotMatch(
+    src,
+    /mintPaymentLink\([\s\S]*publicOrigin:\s*host \?/,
+  );
+});
+
 test("createPaymentLink frees expired/cancelled operation keys instead of returning expired", () => {
   const src = read("lib/payments/links.ts");
   assert.match(src, /freeExpiredKey|was:\$\{row\.status\}/);

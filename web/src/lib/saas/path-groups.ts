@@ -423,15 +423,17 @@ export const CANONICAL_EVENTS_ES_PREFIX = "/eventos" as const;
 export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 
 /**
- * POS payment link (`/pay/<code>`). Agency and hub only, same as `/r/<code>`.
+ * POS payment link (`/pay/<code>`). Agency and hub via the surface gate; also
+ * passthrough on talent_site vanity hosts (free website branded checkout).
  * Possession of the code is the credential.
  */
 export const CANONICAL_PAY_PREFIX = "/pay" as const;
 
 /**
  * Platform payment-link fallback (`/link/<code>` on `pay.tulala.digital`).
- * Same engine as `/pay/<code>`; agency and hub only. Distinct from
- * `CANONICAL_LINK_PREFIX` (`/q`) which is QR tracked links.
+ * Same engine as `/pay/<code>`; agency and hub via the surface gate (and
+ * talent_site passthrough). Distinct from `CANONICAL_LINK_PREFIX` (`/q`)
+ * which is QR tracked links.
  */
 export const CANONICAL_PAY_LINK_PREFIX = "/link" as const;
 
