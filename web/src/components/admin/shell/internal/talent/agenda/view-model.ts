@@ -1,4 +1,5 @@
 import { formatDualTimezoneWhen } from "./present";
+import { isCompletedUnpaid } from "./record-actions";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { TalentCalendarEntry, TalentSelfProfile } from "../../data-bridge";
 import type {
@@ -158,6 +159,28 @@ export function buildTodaySections(
  * Builds an AgendaListItem from the Agenda V2 read model (preferred).
  * Includes T2.5 dual timezone when clientTz is set.
  */
+function paymentStateOf(item: TalentAgendaItem): AgendaPaymentState {
+  return (
+      item.payment === "awaiting"
+        ? "awaiting_deposit"
+        : item.payment === "checking"
+          ? "checking_payment"
+          : item.payment === "due"
+            ? "due_at_appointment"
+            : item.payment === "partial"
+              ? "deposit_paid"
+              : item.payment === "paid"
+                ? "paid"
+                : item.payment === "overdue"
+                  ? "overdue"
+                  : item.payment === "refund_pending"
+                    ? "refund_pending"
+                    : item.payment === "agency"
+                      ? "paid_by_agency"
+                      : "not_requested"
+  );
+}
+
 export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): AgendaListItem {
   const whenLabel = formatDualTimezoneWhen(
     item.startsAt,
@@ -189,6 +212,10 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     nowTitle = "Confirmed";
     nowBody = "This booking is confirmed. Mark complete after the work is done.";
     nowTone = "ok";
+  } else if (item.booking === "completed" && isCompletedUnpaid("completed", paymentStateOf(item))) {
+    nowTitle = "Completed, not paid";
+    nowBody = "The work is done. Send the client a payment link.";
+    nowTone = "warn";
   } else if (item.booking === "cancelled") {
     nowTitle = "Cancelled";
     nowBody = "This booking was cancelled.";
@@ -213,24 +240,8 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     whereLabel: item.where.label || (item.allDay ? "Flexible timing" : "As agreed"),
     sourceLabel: item.managedBy?.name ?? item.source,
     bookingState: item.booking,
-    paymentState:
-      item.payment === "awaiting"
-        ? "awaiting_deposit"
-        : item.payment === "checking"
-          ? "checking_payment"
-          : item.payment === "due"
-            ? "due_at_appointment"
-            : item.payment === "partial"
-              ? "deposit_paid"
-              : item.payment === "paid"
-                ? "paid"
-                : item.payment === "overdue"
-                  ? "overdue"
-                  : item.payment === "refund_pending"
-                    ? "refund_pending"
-                    : item.payment === "agency"
-                      ? "paid_by_agency"
-                      : "not_requested",
+    paymentState: paymentStateOf(item),
+    holdUntilIso: item.holdUntil,
     nowTitle,
     nowBody,
     nowTone,
