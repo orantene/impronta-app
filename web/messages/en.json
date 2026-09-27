@@ -1338,9 +1338,15 @@
       "railFactService": "a service",
       "railFactMessage": "a message",
       "composerPhrase": "A short sentence is enough. Friday, lifting, after work.",
+      "headerJourneyNew": "New",
       "headerJourneyOffer": "Offer",
       "headerJourneyTime": "Time held",
-      "headerJourneyBooked": "Booked"
+      "headerJourneyBooked": "Booked",
+      "headerJourneyDraft": "Draft",
+      "headerJourneySent": "Sent",
+      "headerJourneyThread": "In conversation",
+      "headerJourneyClosed": "Closed",
+      "presenceViewing": "{name} is looking"
     },
     "inquiryDrawer": {
       "dialogAria": "New inquiry",

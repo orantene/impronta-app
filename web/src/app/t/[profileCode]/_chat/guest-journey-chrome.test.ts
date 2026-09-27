@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { resolveGuestJourneyChrome } from "./guest-journey-chrome";
+import { resolveGuestJourneyChrome, resolveJourneyLabel } from "./guest-journey-chrome";
 
 const t = (key: string) => key.split(".").pop() ?? key;
 
@@ -60,7 +60,7 @@ test("offer_pending paints headerJourneyOffer and keeps segs", () => {
   assert.ok(chrome.railLabel);
 });
 
-test("new thread has no journey label", () => {
+test("platform hub empty thread keeps StatusLine (no journey label)", () => {
   const chrome = resolveGuestJourneyChrome({
     trade: "beauty",
     intent: null,
@@ -76,4 +76,65 @@ test("new thread has no journey label", () => {
   });
   assert.equal(chrome.journeyLabel, null);
   assert.equal(chrome.railLabel, "railNothing");
+});
+
+test("talent site first-visit paints Nueva (DoR NUEVA)", () => {
+  const chrome = resolveGuestJourneyChrome({
+    trade: "beauty",
+    intent: null,
+    captured: null,
+    threadStatus: "open",
+    inquiryId: null,
+    receipt: false,
+    contactPromoted: false,
+    cartTalentCount: 0,
+    v5: null,
+    rows: [],
+    talentSiteChrome: true,
+    t,
+  });
+  assert.equal(chrome.journeyLabel, "headerJourneyNew");
+});
+
+test("resolveJourneyLabel maps offer / draft / sent / thread", () => {
+  assert.equal(
+    resolveJourneyLabel({
+      threadStatus: "offer_pending",
+      hasInquiry: true,
+      receipt: true,
+      isDraft: false,
+      t,
+    }),
+    "headerJourneyOffer",
+  );
+  assert.equal(
+    resolveJourneyLabel({
+      threadStatus: "open",
+      hasInquiry: true,
+      receipt: false,
+      isDraft: true,
+      t,
+    }),
+    "headerJourneyDraft",
+  );
+  assert.equal(
+    resolveJourneyLabel({
+      threadStatus: "open",
+      hasInquiry: true,
+      receipt: false,
+      isDraft: false,
+      t,
+    }),
+    "headerJourneySent",
+  );
+  assert.equal(
+    resolveJourneyLabel({
+      threadStatus: "open",
+      hasInquiry: true,
+      receipt: true,
+      isDraft: false,
+      t,
+    }),
+    "headerJourneyThread",
+  );
 });

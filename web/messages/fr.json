@@ -601,9 +601,15 @@
       "railFactService": "un service",
       "railFactMessage": "un message",
       "composerPhrase": "Une phrase suffit. Vendredi, lifting, après le travail.",
+      "headerJourneyNew": "Nouvelle",
       "headerJourneyOffer": "Offre",
       "headerJourneyTime": "Horaire en attente",
-      "headerJourneyBooked": "Réservé"
+      "headerJourneyBooked": "Réservé",
+      "headerJourneyDraft": "Brouillon",
+      "headerJourneySent": "Envoyée",
+      "headerJourneyThread": "En conversation",
+      "headerJourneyClosed": "Fermée",
+      "presenceViewing": "{name} regarde"
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",

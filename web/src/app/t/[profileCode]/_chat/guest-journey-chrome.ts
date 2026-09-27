@@ -30,6 +30,11 @@ export function resolveGuestJourneyChrome(input: {
   readonly v5: GuestThreadV5Extras | null | undefined;
   readonly rows: readonly StreamRow[];
   readonly t: Translator;
+  /**
+   * Talent vanity sites (omitPlatformBrand): always paint brief journey
+   * labels (Nueva / Oferta / …). Platform hub keeps StatusLine until a thread.
+   */
+  readonly talentSiteChrome?: boolean;
 }): {
   journeyLabel: string | null;
   railLabel: string | null;
@@ -66,13 +71,54 @@ export function resolveGuestJourneyChrome(input: {
     hasMessage: railExtras.hasMessage,
     t: input.t,
   });
-  const journeyLabel =
-    input.threadStatus === "offer_pending"
-      ? input.t("public.guestChat.headerJourneyOffer")
-      : input.threadStatus === "approved"
-        ? input.t("public.guestChat.headerJourneyTime")
-        : input.threadStatus === "booked"
-          ? input.t("public.guestChat.headerJourneyBooked")
-          : null;
+  // Front-door brief center status (CSS uppercase → NUEVA / OFERTA / ENVIADA / …).
+  const journeyLabel = resolveJourneyLabel({
+    threadStatus: input.threadStatus,
+    hasInquiry: Boolean(input.inquiryId),
+    receipt: input.receipt,
+    isDraft: Boolean(input.inquiryId) && !input.receipt && !input.contactPromoted,
+    talentSiteChrome: Boolean(input.talentSiteChrome),
+    t: input.t,
+  });
   return { journeyLabel, railLabel, journeySegs };
+}
+
+/** Map thread status → brief header journey label (null = use StatusLine). */
+export function resolveJourneyLabel(input: {
+  readonly threadStatus: GuestThreadStatus;
+  readonly hasInquiry: boolean;
+  readonly receipt: boolean;
+  readonly isDraft: boolean;
+  /** When true, empty first-visit paints "Nueva" (DoR) instead of StatusLine. */
+  readonly talentSiteChrome?: boolean;
+  readonly t: Translator;
+}): string | null {
+  if (!input.hasInquiry) {
+    return input.talentSiteChrome
+      ? input.t("public.guestChat.headerJourneyNew")
+      : null;
+  }
+  switch (input.threadStatus) {
+    case "offer_pending":
+      return input.t("public.guestChat.headerJourneyOffer");
+    case "approved":
+      return input.t("public.guestChat.headerJourneyTime");
+    case "booked":
+      return input.t("public.guestChat.headerJourneyBooked");
+    case "closed":
+      return input.t("public.guestChat.headerJourneyClosed");
+    case "draft":
+      return input.t("public.guestChat.headerJourneyDraft");
+    case "open":
+      // Sent but no offer yet → Enviada / En conversación.
+      return input.receipt
+        ? input.t("public.guestChat.headerJourneyThread")
+        : input.isDraft
+          ? input.t("public.guestChat.headerJourneyDraft")
+          : input.t("public.guestChat.headerJourneySent");
+    default:
+      return input.talentSiteChrome
+        ? input.t("public.guestChat.headerJourneyNew")
+        : null;
+  }
 }

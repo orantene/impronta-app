@@ -38,13 +38,14 @@ import { GuestDockProjectsView } from "./GuestDockProjectsView";
 import type { GuestDockView } from "./guest-dock-view";
 import { GuestDetailChips } from "./GuestDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
-import { resolveGuestJourneyChrome } from "./guest-journey-chrome";
+import { GuestHablarOfferPreview } from "./GuestHablarOfferPreview";
 import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-state";
 import type { GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
 import { GuestNextStep } from "./GuestNextStep";
 import { useGuestDockModel } from "./use-guest-dock-model";
+import { useGuestDockJourney } from "./use-guest-dock-journey";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { GuestHandoffContactStrip } from "./GuestHandoffContactStrip";
 import { OfferingQuickPicker, type ChatOffering } from "./OfferingQuickPicker";
@@ -55,10 +56,6 @@ import {
   paletteFor,
   type SurfaceMode,
 } from "./mini-chat-styles";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Props
-// ─────────────────────────────────────────────────────────────────────────────
 
 export type MiniChatPanelColumnProps = {
   // Brand + colors
@@ -80,13 +77,9 @@ export type MiniChatPanelColumnProps = {
   stage: "intro" | "gate" | "thread";
   threadStatus: GuestThreadStatus;
   typicalReply: string | null;
-  /**
-   * Jon 360 Phase 2 — the post-send SENT->RECEIVED receipt. Non-null only once
-   * the inquiry is genuinely sent; drives the pinned InquiryReceiptCard + the
-   * humanized coordinator header. Null pre-send.
-   */
+  /** Post-send receipt; null pre-send. */
   receipt?: InquiryReceiptData | null;
-  /** L13: v5 extras, the full-load bump after a card action, and the early-row ensure for catalog adds. */
+  /** L13: v5 extras + full-load bump + early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
   onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
@@ -263,10 +256,6 @@ export type MiniChatPanelColumnProps = {
   dashboardHref?: string | null;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function MiniChatPanelColumn({
   brand,
   accent,
@@ -418,10 +407,10 @@ export function MiniChatPanelColumn({
   // "Sent, awaiting reply" would be a flat lie about what the agency has.
   const headerThreadState: GuestHeaderThreadState = guestHeaderThreadState(threadStateInput);
   const detailsProgress = detailsEnabled && inquiryIntent ? countCoreDetails(inquiryIntent, capturedChipValues) : null;
-  const { journeyLabel, railLabel, journeySegs } = resolveGuestJourneyChrome({
-    trade: brand.dockIntake,
-    intent: inquiryIntent,
-    captured: capturedChipValues,
+  const { offerPreview, journeyLabel, railLabel, journeySegs } = useGuestDockJourney({
+    brand,
+    inquiryIntent,
+    capturedChipValues,
     threadStatus,
     inquiryId,
     receipt: receipt != null,
@@ -491,7 +480,7 @@ export function MiniChatPanelColumn({
         }}
       />
 
-      {/* ── DOCK v2 Home hub (the landing view) ──────────────────────────── */}
+      {/* Home hub */}
       {activeDockView === "home" && (
         <GuestDockHomeView
           brand={brand}
@@ -519,8 +508,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Lineup view — cart + saved favorites, two shelves, two stores
-          (saved_talent vs client_favorites), unified VISUALLY only. ─────── */}
+      {/* Lineup */}
       {activeDockView === "lineup" && (
         <GuestDockLineupView
           accent={accent}
@@ -535,8 +523,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {/* ── Projects view — the guest's inquiries as project cards. Selecting
-          one reuses the existing thread-switch path + hops back to Chat. ─── */}
+      {/* Projects */}
       {activeDockView === "projects" && (
         <GuestDockProjectsView
           inquiries={inquiries}
@@ -556,9 +543,16 @@ export function MiniChatPanelColumn({
 
       {activeDockView === "chat" && (
         <>
-      {/* ── Conversation area (the ONLY vertical grower). Details now live
-          behind the slim "Add details" button; the draft-privacy state is a
-          tiny lock chip in the header. ─────────────────────────────────── */}
+      {/* Conversation body — or dev `?hablar_preview=offer` DoR OFERTA fixture. */}
+      {offerPreview ? (
+        <GuestHablarOfferPreview
+          accent={accent}
+          C={C}
+          locale={brand.locale ?? "es"}
+          businessName={brand.agencyName}
+          presenceName={talentFirst}
+        />
+      ) : (
       <GuestConversationBody
         scrollRef={scrollRef}
         C={C}
@@ -586,6 +580,7 @@ export function MiniChatPanelColumn({
         now={dock.now}
         sendBarActive={sendBarActive}
       />
+      )}
 
       {showGate && (
         <MiniChatGateForm

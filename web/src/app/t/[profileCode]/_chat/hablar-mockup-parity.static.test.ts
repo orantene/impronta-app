@@ -44,6 +44,19 @@ test("composer send is circular; talent sites use composerPhrase", () => {
   assert.match(col, /composerPhrase/);
 });
 
+test("dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof", () => {
+  const col = read("MiniChatPanelColumn.tsx");
+  assert.match(col, /useGuestDockJourney/);
+  assert.match(col, /GuestHablarOfferPreview/);
+  const journey = read("use-guest-dock-journey.ts");
+  assert.match(journey, /useHablarOfferPreview/);
+  assert.match(journey, /headerJourneyOffer/);
+  const preview = read("GuestHablarOfferPreview.tsx");
+  assert.match(preview, /hablar_preview/);
+  assert.match(preview, /ClientOfferCard/);
+  assert.match(preview, /NODE_ENV/);
+});
+
 test("guest bubbles use lavender palette token, not accent fill", () => {
   const bubble = read("MiniChatMessageBubble.tsx");
   assert.match(bubble, /C\.guestBubble/);

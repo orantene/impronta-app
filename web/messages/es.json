@@ -1338,9 +1338,15 @@
       "railFactService": "el servicio",
       "railFactMessage": "un mensaje",
       "composerPhrase": "Una frase alcanza. Viernes, lifting, después del trabajo.",
+      "headerJourneyNew": "Nueva",
       "headerJourneyOffer": "Oferta",
       "headerJourneyTime": "Horario en espera",
-      "headerJourneyBooked": "Cita confirmada"
+      "headerJourneyBooked": "Cita confirmada",
+      "headerJourneyDraft": "Borrador",
+      "headerJourneySent": "Enviada",
+      "headerJourneyThread": "En conversación",
+      "headerJourneyClosed": "Cerrada",
+      "presenceViewing": "{name} lo está viendo"
     },
     "inquiryDrawer": {
       "dialogAria": "Nueva solicitud",

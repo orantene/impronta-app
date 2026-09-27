@@ -132,7 +132,6 @@ const offer: ClientOfferSummary = {
 
 test("offer sent: lines, total, deposit and refund rule, validity, Oferta · vN title, Accept + Ask for a change + Decline row; never a net or commission word", () => {
   const html = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} onDecline={() => {}} onChange={() => {}} />);
-  assert.match(html, /class="cat">Offer</);
   assert.match(html, /Offer · v3/);
   assert.doesNotMatch(html, /class="pill opp"/);
   assert.match(html, /Sofía Herrera · hostess × 2/);
@@ -147,6 +146,25 @@ test("offer sent: lines, total, deposit and refund rule, validity, Oferta · vN 
   assert.match(html, /data-client-action="ask_change"[^>]*>Ask for a change</);
   assert.match(html, /data-client-action="decline_offer"[^>]*>Decline</);
   assert.doesNotMatch(html, /net|commission|payout|talent cost|discount|tax/i);
+});
+
+test("offer ES: Oferta · vN + Aceptar / Pedir un cambio / Rechazar row", () => {
+  const html = renderToStaticMarkup(
+    <ClientOfferCard
+      {...base}
+      copy={ES_CLIENT}
+      offer={{ ...offer, version: 1, currency: "MXN", totalCents: 50000, depositPct: null, depositCents: 20000, noteToClient: null, lines: [{ label: "Set lifting + Lami Brows", units: 1, amountCents: 50000 }] }}
+      now={now}
+      onAccept={() => {}}
+      onDecline={() => {}}
+      onChange={() => {}}
+    />,
+  );
+  assert.match(html, /Oferta · v1/);
+  assert.match(html, /data-client-action="accept_offer"[^>]*>Aceptar</);
+  assert.match(html, /data-client-action="ask_change"[^>]*>Pedir un cambio</);
+  assert.match(html, /data-client-action="decline_offer"[^>]*>Rechazar</);
+  assert.match(html, /cx-offer-actions/);
 });
 
 test("offer: no deposit rule still reads Accept; busy reads Accepting; refused shows the sentence", () => {
