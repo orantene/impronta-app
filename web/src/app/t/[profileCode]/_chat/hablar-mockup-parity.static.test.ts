@@ -46,16 +46,24 @@ test("composer send is circular; front-door sites use composerPhrase", () => {
   assert.match(col, /composerPhrase/);
   assert.match(col, /composerPhraseAgency/);
   assert.match(col, /frontDoorChrome/);
+  assert.match(col, /agencyPublicSurface/);
   const hook = read("use-guest-dock-journey.ts");
   assert.match(hook, /usesFrontDoorJourneyChrome/);
   assert.match(hook, /frontDoorChrome/);
   assert.match(hook, /isHub/);
   const chromeHelpers = read("guest-journey-chrome.ts");
   assert.match(chromeHelpers, /usesFrontDoorJourneyChrome/);
-  assert.match(chromeHelpers, /dockIntake === "agency"/);
+  assert.match(chromeHelpers, /agencyPublicSurface/);
   assert.match(chromeHelpers, /opts\?\.isHub/);
+  assert.doesNotMatch(chromeHelpers, /dockIntake === "agency"/);
   const colHub = read("MiniChatPanelColumn.tsx");
   assert.match(colHub, /isHub,/);
+  const agencyMount = readFileSync(
+    join(HERE, "../../../(public)/_chat/AgencyChatLauncherMount.tsx"),
+    "utf8",
+  );
+  assert.match(agencyMount, /agencyPublicSurface/);
+  assert.match(agencyMount, /const agencyPublicSurface = !isHub/);
 });
 
 test("dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof", () => {
@@ -84,16 +92,23 @@ test("beauty intake has four brief segs including service + message", () => {
   assert.match(rail, /beauty:\s*\["day",\s*"hour",\s*"service",\s*"message"\]/);
 });
 
-test("agency dock Items label resolves to front-door Browse", () => {
+test("agency public surface Items label resolves to front-door Browse", () => {
   const flags = readFileSync(
     join(HERE, "../../../../lib/inquiry/guest-dock-flags.ts"),
     "utf8",
   );
   assert.match(flags, /resolveGuestDockItemsLabel/);
+  assert.match(flags, /agencyPublicSurface/);
+  // Request locale (not words.locale) so fr → Parcourir.
+  assert.match(flags, /Pass request locale so fr/);
+  assert.match(flags, /locale,/);
   const helper = readFileSync(
     join(HERE, "../../../../lib/inquiry/guest-dock-items-label.ts"),
     "utf8",
   );
-  assert.match(helper, /dockIntake === "agency"/);
+  assert.match(helper, /agencyPublicSurface/);
   assert.match(helper, /Browse/);
+  assert.match(helper, /Parcourir/);
+  assert.match(helper, /requestBrowseLocale/);
+  assert.doesNotMatch(helper, /dockIntake === "agency"/);
 });

@@ -127,15 +127,18 @@ export function resolveJourneyLabel(input: {
 /**
  * Front-door brief journey chrome applies on talent vanity sites and on
  * agency public docks (Impronta Talk). Platform hub stays on StatusLine.
+ * Do not use dockIntake for surface identity — intakeTradeForPreset maps
+ * custom/portfolio/act onto the agency progress-rail trade, which is not
+ * the same as an agency public storefront.
  */
 export function usesFrontDoorJourneyChrome(
   brand: {
     readonly omitPlatformBrand?: boolean;
-    readonly dockIntake?: string | null;
+    readonly agencyPublicSurface?: boolean;
   },
   opts?: { readonly isHub?: boolean },
 ): boolean {
-  // Hub (tulala.digital) keeps StatusLine even when dockIntake is agency.
+  // Hub (tulala.digital) keeps StatusLine even on an agency-shaped brand.
   if (opts?.isHub) return false;
-  return Boolean(brand.omitPlatformBrand) || brand.dockIntake === "agency";
+  return Boolean(brand.omitPlatformBrand) || Boolean(brand.agencyPublicSurface);
 }

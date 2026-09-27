@@ -780,6 +780,12 @@ export type MiniChatBrand = {
    * When true, guest-account copy omits the platform brand name (Tulala).
    */
   omitPlatformBrand?: boolean;
+  /**
+   * Agency public storefront dock (Impronta Talk), not hub and not talent vanity.
+   * Set only by AgencyChatLauncherMount when host kind is agency. Do not infer
+   * from dockIntake — intakeTradeForPreset maps custom/portfolio/act → "agency".
+   */
+  agencyPublicSurface?: boolean;
 };
 
 export type MiniChatPanelProps = {

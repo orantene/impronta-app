@@ -757,7 +757,7 @@ export function MiniChatPanelColumn({
             inquiryId
               ? t("public.guestChat.composerReply")
               : frontDoorChrome
-                ? brand.dockIntake === "agency"
+                ? brand.agencyPublicSurface
                   ? t("public.guestChat.composerPhraseAgency")
                   : t("public.guestChat.composerPhrase")
                 : t("public.guestChat.composerFirst")

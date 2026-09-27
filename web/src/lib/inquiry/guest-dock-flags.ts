@@ -42,6 +42,11 @@ export async function loadGuestDockFlags(
    * (D-MSG-430). Null keeps the tenant's preset. See `resolveTalentTradePreset`.
    */
   presetOverride?: IndustryPresetId | null,
+  /**
+   * Agency public storefront (Impronta), not hub. Drives DoR Browse label.
+   * Talent vanity mounts omit this.
+   */
+  opts?: { readonly agencyPublicSurface?: boolean },
 ): Promise<GuestDockFlags> {
   if (!tenantId) {
     return {
@@ -72,12 +77,13 @@ export async function loadGuestDockFlags(
   return {
     dockItemsTab: settings.itemsTab,
     dockCardsV5: settings.cardsV5,
-    // Agency front-door (Impronta): DoR middle tab is Browse, not Talent & services.
+    // Agency public dock (Impronta): DoR middle tab is Browse, not Talent & services.
+    // Pass request locale so fr → Parcourir (words.locale collapses non-es to en).
     dockItemsLabel: resolveGuestDockItemsLabel({
-      dockIntake,
+      agencyPublicSurface: Boolean(opts?.agencyPublicSurface),
       derivedLabel: derivedItemsLabel,
       chatItemsCustomized: words.sourceOf("customers.chat_items") !== "default",
-      locale: words.locale,
+      locale,
     }),
     dockProjectsLabel: chatBookingsLabel(wordsLookup),
     dockRepresentsPeople: representsPeople,
