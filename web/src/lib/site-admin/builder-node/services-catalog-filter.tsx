@@ -477,7 +477,11 @@ export function CatalogRow({
     if (where.includes("remote")) badges.push(es ? "En línea" : "Online session");
   }
   return (
-    <li className="site-builder-node--services-catalog-row" data-selected={selected ? "true" : undefined}>
+    <li
+      className="site-builder-node--services-catalog-row"
+      data-selected={selected ? "true" : undefined}
+      data-has-photo={cover || showPhoto ? "true" : "false"}
+    >
       {cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
@@ -528,35 +532,37 @@ export function CatalogRow({
           </span>
         ) : null}
       </span>
-      {showPrice ? (
-        <span className="site-builder-node--services-catalog-price">
-          {onRequest || quote || minCents == null ? (
-            <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
-          ) : (
-            <>
-              {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
-              <strong>{formatMoney(minCents, item.currency, locale)}</strong>
-            </>
-          )}
-          {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
-        </span>
-      ) : (
-        <span className="site-builder-node--services-catalog-price" aria-hidden />
-      )}
-      <button
-        type="button"
-        onClick={() => {
-          if (onSelect) onSelect();
-          else dispatchOffering(item, confirmsByHand);
-        }}
-        data-offering-cta={cta}
-        data-offering-id={item.id}
-        data-selected={selected ? "true" : undefined}
-        className="site-builder-node--services-catalog-cta"
-        aria-pressed={selected}
-      >
-        {label}
-      </button>
+      <span className="site-builder-node--services-catalog-buy">
+        {showPrice ? (
+          <span className="site-builder-node--services-catalog-price">
+            {onRequest || quote || minCents == null ? (
+              <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+            ) : (
+              <>
+                {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
+                <strong>{formatMoney(minCents, item.currency, locale)}</strong>
+              </>
+            )}
+            {showUsdEquivalent && usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
+          </span>
+        ) : (
+          <span className="site-builder-node--services-catalog-price" aria-hidden />
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (onSelect) onSelect();
+            else dispatchOffering(item, confirmsByHand);
+          }}
+          data-offering-cta={cta}
+          data-offering-id={item.id}
+          data-selected={selected ? "true" : undefined}
+          className="site-builder-node--services-catalog-cta"
+          aria-pressed={selected}
+        >
+          {label}
+        </button>
+      </span>
     </li>
   );
 }
