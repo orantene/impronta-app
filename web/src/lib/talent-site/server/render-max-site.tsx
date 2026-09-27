@@ -17,6 +17,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
+import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
@@ -576,7 +577,7 @@ async function renderMaxSiteDocument(args: {
     ) {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
-      const parsed = schema?.safeParse(root.props.sectionProps ?? {});
+      const parsed = schema?.safeParse(localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (

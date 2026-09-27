@@ -121,7 +121,7 @@ export function ReviewWebsiteScreen({
       ? maisonSetupT(locale, "Ready to publish")
       : readiness.blockers.length === 1
         ? maisonSetupT(locale, "1 thing before publishing")
-        : maisonReadinessHeadline(readiness)
+        : maisonReadinessHeadline(readiness, locale)
     : "…";
 
   const addressLabel = state?.siteSlug

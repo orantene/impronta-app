@@ -12,6 +12,7 @@ import {
   talentSitePathUrl,
   talentSitePublicUrl,
 } from "@/lib/talent-site/site-public-url";
+import { isPlatformSubdomainLabelTaken } from "@/lib/saas/platform-subdomain-namespace.server";
 import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import {
@@ -124,9 +125,17 @@ export async function loadMaisonReviewStateAction(input?: {
         ? pending.applied.paletteKey
         : paletteKey;
 
+  const slugForCheck = (row?.site_slug ?? "").trim();
+  const slugTaken = slugForCheck
+    ? await isPlatformSubdomainLabelTaken(slugForCheck, {
+        excludeTalentProfileId: g.talentProfileId,
+      })
+    : null;
   const readiness = evaluateMaisonPublishReadiness({
     siteSlug: row?.site_slug ?? null,
     themeDesignSlug: row?.theme_design_slug ?? null,
+    slugTaken,
+    locale,
   });
 
   return {
