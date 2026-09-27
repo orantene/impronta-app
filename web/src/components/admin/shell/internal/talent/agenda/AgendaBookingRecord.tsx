@@ -8,6 +8,7 @@ import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-ac
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
 import { TradeSections } from "./TradeSections";
+import { recordActionVisibility } from "./record-actions";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { useRouter } from "next/navigation";
@@ -160,11 +161,17 @@ export function AgendaBookingRecord({
   const [depositLink, setDepositLink] = useState<string | null>(null);
 
   const canAct = !!bookingId;
-  const cancellable = canAct && !isAgency;
   const bookingCurrency = item.currency?.trim() || "MXN";
   const now = readAgendaNowClient(new Date());
   const startsMs = item.startsAtIso ? Date.parse(item.startsAtIso) : NaN;
   const noShowReady = Number.isFinite(startsMs) && startsMs < now.getTime();
+  const show = recordActionVisibility({
+    canAct,
+    isAgency,
+    bookingState: item.bookingState,
+    paymentState: item.paymentState,
+    started: noShowReady,
+  });
 
   // ── No-show ──────────────────────────────────────────────────────
   function handleNoShow() {
@@ -205,13 +212,7 @@ export function AgendaBookingRecord({
     });
   }
 
-  const needsDepositCollect =
-    canAct &&
-    item.bookingState === "confirmed" &&
-    item.paymentState !== "paid" &&
-    item.paymentState !== "paid_by_agency" &&
-    item.paymentState !== "deposit_paid" &&
-    item.paymentState !== "refund_pending";
+  const needsDepositCollect = show.collectDeposit;
 
   function handleCollectDeposit() {
     if (!bookingId) return;
@@ -234,7 +235,7 @@ export function AgendaBookingRecord({
   }
 
   const moreActions: MoreMenuAction[] = [
-    ...(canAct && (item.bookingState === "confirmed" || item.bookingState === "requested")
+    ...(show.reschedule
       ? [
           {
             label: copy.t("Reschedule"),
@@ -242,10 +243,10 @@ export function AgendaBookingRecord({
           },
         ]
       : []),
-    ...(cancellable
+    ...(show.cancel
       ? [{ label: copy.t("Cancel booking"), destructive: true, onClick: () => void handleCancelRequest() }]
       : []),
-    ...(canAct && item.bookingState === "confirmed"
+    ...(show.noShow
       ? [
           {
             label: copy.t("Mark no-show"),
@@ -317,7 +318,7 @@ export function AgendaBookingRecord({
           </div>
         </header>
 
-        {item.bookingState === "requested" ? (
+        {item.bookingState === "requested" && show.talentOwnsActions ? (
           <NowBox
             tone="attention"
             title={copy.t("Request")}
@@ -352,7 +353,7 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
-        {item.pendingReschedule?.requestId ? (
+        {item.pendingReschedule?.requestId && show.talentOwnsActions ? (
           <NowBox
             tone="attention"
             title={copy.t("Reschedule proposed")}
@@ -400,7 +401,7 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
-        {item.bookingState === "requested" && refTable === "inquiries" ? (
+        {item.bookingState === "requested" && refTable === "inquiries" && show.talentOwnsActions ? (
           <button
             type="button"
             className="min-h-[44px] text-[13px] text-[#B42318]"
@@ -466,8 +467,8 @@ export function AgendaBookingRecord({
             }
             title={copy.t(item.nowTitle)}
             body={item.nowBody ? copy.t(item.nowBody) : ""}
-            primaryAction={item.primaryAction}
-            secondaryAction={item.secondaryAction}
+            primaryAction={show.talentOwnsActions ? item.primaryAction : undefined}
+            secondaryAction={show.talentOwnsActions ? item.secondaryAction : undefined}
           />
         ) : null}
 
@@ -507,7 +508,7 @@ export function AgendaBookingRecord({
         ) : null}
 
         {/* Finish and collect */}
-        {item.bookingState === "confirmed" && canAct && !showFinish ? (
+        {show.finishCollect && !showFinish ? (
           <button
             type="button"
             onClick={() => setShowFinish(true)}
@@ -536,7 +537,7 @@ export function AgendaBookingRecord({
         item.bookingState === "completed" &&
         item.paymentMethod === "transfer" &&
         bookingId &&
-        canAct ? (
+        show.confirmTransfer ? (
           <button
             type="button"
             onClick={() =>

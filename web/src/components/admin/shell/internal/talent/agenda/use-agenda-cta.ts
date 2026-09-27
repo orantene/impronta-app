@@ -18,6 +18,8 @@ import { setAgendaAttentionConfirm } from "./attention-confirm";
 export type AgendaCtaNav = {
   onOpenBooking?: (id: string) => void;
   onOpenMessages?: () => void;
+  /** Opens the pay-request composer for a hold. Falls back to the record. */
+  onRequestDeposit?: (item: TalentAgendaItem) => void;
 };
 
 function targetId(item: TalentAgendaItem): string {
@@ -32,7 +34,7 @@ export function useAgendaCta(nav: AgendaCtaNav) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { onOpenBooking, onOpenMessages } = nav;
+  const { onOpenBooking, onOpenMessages, onRequestDeposit } = nav;
 
   const runCta = useCallback(
     async (item: TalentAgendaItem, cta?: AttentionCta) => {
@@ -42,6 +44,11 @@ export function useAgendaCta(nav: AgendaCtaNav) {
 
       if (resolved.kind === "reply") {
         onOpenMessages?.();
+        return;
+      }
+      if (resolved.kind === "request_deposit") {
+        if (onRequestDeposit) onRequestDeposit(item);
+        else onOpenBooking?.(item.id);
         return;
       }
       // Non-mutating collect (e.g. overdue) → open record to finish/pay.
@@ -88,7 +95,7 @@ export function useAgendaCta(nav: AgendaCtaNav) {
         setBusyId(null);
       }
     },
-    [onOpenBooking, onOpenMessages, router],
+    [onOpenBooking, onOpenMessages, onRequestDeposit, router],
   );
 
   /** Peek secondary buttons by label (EN). */
@@ -107,8 +114,8 @@ export function useAgendaCta(nav: AgendaCtaNav) {
         onOpenBooking?.(item.id);
         return;
       }
-      if (label === "Release hold") {
-        await runCta(item, { kind: "release_hold", label: "Release hold", mutates: true });
+      if (label === "Request deposit") {
+        await runCta(item, { kind: "request_deposit", label: "Request deposit", mutates: false });
         return;
       }
       if (label === "Mark finished" || label === "Mark complete") {

@@ -6,6 +6,7 @@ import {
   firstDayCompletedStepIds,
   hasBookingHoursWindows,
   isFirstDayEligible,
+  nextFirstDayStep,
 } from "./first-day";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 
@@ -96,5 +97,31 @@ describe("isFirstDayEligible", () => {
       }),
       false,
     );
+  });
+});
+
+describe("nextFirstDayStep (P0 audit)", () => {
+  it("names the first incomplete step's own action", () => {
+    assert.deepEqual(nextFirstDayStep([]), { id: "photo", label: "Add a photo" });
+    assert.deepEqual(nextFirstDayStep(["photo"]), { id: "services", label: "Add a service" });
+    assert.deepEqual(nextFirstDayStep(["photo", "services"]), {
+      id: "location",
+      label: "Add where you work",
+    });
+    assert.deepEqual(nextFirstDayStep(["photo", "services", "location"]), {
+      id: "availability",
+      label: "Set availability",
+    });
+  });
+  it("never uses booking-flow wording", () => {
+    for (const id of FIRST_DAY_STEPS) {
+      const next = nextFirstDayStep(FIRST_DAY_STEPS.filter((s) => s !== id));
+      assert.ok(next);
+      assert.notEqual(next.label, "Book a time");
+      assert.notEqual(next.label, "Request a booking");
+    }
+  });
+  it("is null when every step is done", () => {
+    assert.equal(nextFirstDayStep([...FIRST_DAY_STEPS]), null);
   });
 });

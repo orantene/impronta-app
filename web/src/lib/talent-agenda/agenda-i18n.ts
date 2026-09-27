@@ -135,6 +135,8 @@ const ES: Record<string, string> = {
   "Add a photo": "Añade una foto",
   "Add a service": "Añade un servicio",
   "Set your location": "Define tu ubicación",
+  "Add where you work": "Añade dónde trabajas",
+  "Request deposit": "Pedir depósito",
   "Set availability": "Configura disponibilidad",
   "Preview your page": "Vista previa de tu página",
   "Create your website": "Crea tu sitio",
