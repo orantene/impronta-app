@@ -12,9 +12,10 @@ import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
 import {
-    catalogCanContinueWhen,
-    catalogNeedsOptions,
-    submitCatalogBooking,
+  catalogCanContinueWhen,
+  catalogDetailIsPurchase,
+  catalogNeedsOptions,
+  submitCatalogBooking,
   catalogNextDays,
   catalogTotalCents,
   demoReservationIso,
@@ -144,6 +145,8 @@ export function CatalogBookingSheet({
     const open = (e: Event) => {
       const d = (e as CustomEvent).detail as CatalogBookingDetail | undefined;
       if (!d) return;
+      // PKG-2: products / untimed packages use OfferingInstantMount purchase rail.
+      if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       setDetail(d);
       setVariantId(null);
       setAddOnIds([]);

@@ -44,9 +44,45 @@ export function catalogRowHasOptions(o: Pick<TalentOffering, "variants" | "addOn
   return (o.variants ?? []).length > 0 || (o.addOns ?? []).length > 0;
 }
 
+/**
+ * PKG-2 Option A — one-line purchase (product Buy or untimed package), not the
+ * appointment spine. Timed packages/services stay on CatalogBookingSheet.
+ */
+export function catalogIsPurchaseEligible(
+  o: Pick<
+    TalentOffering,
+    "kind" | "bookingMode" | "priceType" | "priceDisplay" | "amountCents" | "visibility"
+  > & { durationMinutes?: number | null },
+): boolean {
+  const cta = resolveOfferingCta(o);
+  if (cta === "buy_now") return true;
+  if (o.kind === "package" && cta === "book_now" && (o.durationMinutes ?? 0) <= 0) return true;
+  return false;
+}
+
+/** Same gate from the CustomEvent detail shape (no bookingMode on the wire). */
+export function catalogDetailIsPurchase(
+  d: Pick<OfferingRequestDetail, "kind" | "intent" | "durationMinutes" | "amountCents">,
+): boolean {
+  if (d.intent !== "instant" || d.amountCents == null) return false;
+  if (d.kind === "product") return true;
+  if (d.kind === "package" && (d.durationMinutes ?? 0) <= 0) return true;
+  return false;
+}
+
 export function catalogRowCtaLabel(opts: {
   selected: boolean;
-  offering: Pick<TalentOffering, "visibility" | "variants" | "addOns" | "kind" | "bookingMode" | "priceType" | "priceDisplay" | "amountCents">;
+  offering: Pick<
+    TalentOffering,
+    | "visibility"
+    | "variants"
+    | "addOns"
+    | "kind"
+    | "bookingMode"
+    | "priceType"
+    | "priceDisplay"
+    | "amountCents"
+  > & { durationMinutes?: number | null };
   locale: string;
   inspectorLabel?: string;
 }): string {
@@ -64,10 +100,9 @@ export function catalogRowCtaLabel(opts: {
     if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
     return opts.inspectorLabel?.trim() || (es ? "Solicitar cita" : "Request appointment");
   }
-  if (cta === "buy_now") {
-    // Product purchase UI in this sheet is not a full cart — open options/detail only.
-    if (catalogRowHasOptions(opts.offering)) return es ? "Ver opciones" : "View options";
-    return opts.inspectorLabel?.trim() || (es ? "Ver" : "View");
+  if (catalogIsPurchaseEligible(opts.offering)) {
+    // Purchase rail is mounted — honest Buy (options picked inside the sheet).
+    return es ? "Comprar" : "Buy";
   }
   if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
   // Instant appointment — menu-style "Select" matches mockups; sheet opens time picker.
