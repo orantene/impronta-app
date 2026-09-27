@@ -227,6 +227,44 @@ test("the live path loads real slots instead of fixture hours", async () => {
   host.remove();
 });
 
+test("AUD-003 empty slots shows Consultar disponibilidad and opens ask chat", async () => {
+  const book = mockBook();
+  const handoffs: Array<{ detail: { offeringId: string }; visitor?: unknown }> = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={book}
+        onAsk={(h) => handoffs.push(h)}
+        slotsFn={async () => ({ slots: [], timezone: "UTC" })}
+      />,
+    );
+  });
+  open(detail({ addOns: [] }), "when");
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+  assert.ok(host.querySelector(".jb-empty"));
+  const continueWhen = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  assert.ok(continueWhen);
+  assert.equal(continueWhen.disabled, true);
+  const emptyAsk = host.querySelector<HTMLButtonElement>("[data-catalog-empty-ask]");
+  assert.ok(emptyAsk);
+  assert.match(emptyAsk.textContent ?? "", /Consultar disponibilidad/);
+  act(() => emptyAsk.click());
+  assert.equal(handoffs.length, 1);
+  assert.equal(handoffs[0]?.detail.offeringId, "off-1");
+  assert.equal(handoffs[0]?.visitor, undefined);
+  assert.equal(host.querySelector("[data-catalog-booking]"), null, "sheet closes on consult");
+  act(() => root.unmount());
+  host.remove();
+});
+
 test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
   const book = mockBook();
   const handoffs: unknown[] = [];

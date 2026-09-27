@@ -347,6 +347,31 @@ export function CatalogBookingSheet({
     else openCatalogBookingChat(handoff);
   };
 
+  /** Empty-slot escape hatch — open ask/chat without contact (launcher collects it). */
+  const askAvailability = () => {
+    const handoff: CatalogBookingChatHandoff = {
+      detail,
+      selection: buildSelection(),
+      from: "sheet",
+      sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
+      demo: mode === "demo",
+    };
+    setDetail(null);
+    if (onAsk) onAsk(handoff);
+    else openCatalogBookingChat(handoff);
+  };
+
+  const emptyConsultButton = (
+    <button
+      type="button"
+      className="jb-ask"
+      data-catalog-empty-ask=""
+      onClick={() => askAvailability()}
+    >
+      {es ? "Consultar disponibilidad" : "Check availability"}
+    </button>
+  );
+
   return (
     <div
       ref={trapRef}
@@ -512,6 +537,7 @@ export function CatalogBookingSheet({
                           ? "No hay huecos en las próximas dos semanas. Probá otra fecha o consultá."
                           : "Nothing is open in the next two weeks. Try another day or send a question."}
                       </p>
+                      {emptyConsultButton}
                     </div>
                   ) : (
                     <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
@@ -563,6 +589,7 @@ export function CatalogBookingSheet({
                     <div className="jb-empty">
                       <strong>{es ? "Sin horarios disponibles ese día." : "No times that day."}</strong>
                       <p>{es ? "Elegí otra fecha." : "Pick another date."}</p>
+                      {emptyConsultButton}
                     </div>
                   ) : (
                     <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
