@@ -200,8 +200,10 @@ export function catalogRowCtaLabel(opts: {
     return es ? "Consultar" : "Ask about this";
   }
   if (cta === "request_to_book") {
+    // Request / approval posture: mode wins over CMS ctaLabel. Jor stored
+    // inspector "Seleccionar" and wiped "Solicitar cita" on seeded request rows.
     if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
-    return opts.inspectorLabel?.trim() || (es ? "Solicitar cita" : "Request appointment");
+    return es ? "Solicitar cita" : "Request appointment";
   }
   if (catalogIsPurchaseEligible(opts.offering)) {
     // Purchase rail is mounted — honest Buy (options picked inside the sheet).
