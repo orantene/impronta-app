@@ -39,6 +39,10 @@ import {
   fetchNativeFeaturedTalentByNodeId,
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import {
+  isPlatformCheckoutReady,
+  resolveOnlineCollectReady,
+} from "@/lib/talent/online-collect-ready";
 
 export { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 
@@ -384,6 +388,7 @@ export async function loadServicesCatalogSources(
     | "talentOfferingsUsdRates"
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
+    | "onlineCollectReady"
   >
 > {
   const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
@@ -423,9 +428,14 @@ export async function loadServicesCatalogSources(
     }
   }
   const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  // PAY-2 Option B — platform Checkout only; Connect unfinished does not gate guests.
+  const onlineCollectReady = resolveOnlineCollectReady({
+    platformCheckoutReady: isPlatformCheckoutReady(),
+  });
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
+    onlineCollectReady,
     ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),

@@ -44,4 +44,12 @@ describe("render-max-site catalog sources (null tenant)", () => {
     );
     assert.match(SRC, /catalogBookingLive\s*=\s*Boolean\(bookingTenantId\)\s*&&\s*!draftPreview/);
   });
+
+  it("PAY-2 B: stamps onlineCollectReady from platform Checkout, not Connect", () => {
+    assert.match(SRC, /isPlatformCheckoutReady/);
+    assert.match(SRC, /onlineCollectReady:\s*isPlatformCheckoutReady\(\)/);
+    // Must not gate guests on talent Connect status.
+    assert.doesNotMatch(SRC, /stripe_account_status/);
+    assert.doesNotMatch(SRC, /stripeAccountStatus/);
+  });
 });

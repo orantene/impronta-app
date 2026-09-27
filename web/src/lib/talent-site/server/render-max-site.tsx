@@ -33,6 +33,7 @@ import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/build
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -523,6 +524,8 @@ async function renderMaxSiteDocument(args: {
     // when the Max site itself has no managing agency.
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
+    // PAY-2 B: platform Checkout only (Connect ignored — payouts held separately).
+    onlineCollectReady: isPlatformCheckoutReady(),
   };
 
   const captchaConfig = pageCaptcha

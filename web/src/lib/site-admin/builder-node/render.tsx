@@ -312,6 +312,12 @@ export interface BuilderNodeRenderDataSources {
   /** Published talent site: write bookings. Editor / draft: demo sheet. */
   catalogBookingLive?: boolean;
   /**
+   * PAY-2 Option B — platform Checkout can charge (`STRIPE_SECRET_KEY`).
+   * When false and the offering requires online collect, who-step forces
+   * inquiry. Talent Connect is NOT part of this signal.
+   */
+  onlineCollectReady?: boolean;
+  /**
    * Maison FAQ (W16) — published `talent_faq_items` for accordion
    * `bindSource: "talent_faq_items"`. Absent ⇒ bound accordion stays empty
    * (or falls back to authored children).
@@ -5970,6 +5976,7 @@ function renderBuilderNodeElement(
                 enableCatalogSearch={p.enableCatalogSearch === true}
                 captcha={options.captcha ?? null}
                 bookingSettings={options.dataSources.talentOfferingsBookingSettings}
+                onlineCollectReady={options.dataSources.onlineCollectReady}
               />
             </CatalogIslandBoundary>
           )}
