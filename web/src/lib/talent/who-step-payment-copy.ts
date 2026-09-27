@@ -78,6 +78,61 @@ export function whoStepPaymentCopy(input: WhoStepPaymentCopyInput): string {
     : "Nothing is charged now. Pay at the studio.";
 }
 
+/**
+ * Who-step primary label when the guest can still confirm.
+ * Online collect → "Continue to payment"; pay-at-studio → confirm vocabulary.
+ */
+export function whoStepConfirmCtaLabel(input: {
+  needsOnlineCollect: boolean;
+  locale: string;
+  whoPrimaryCta: CatalogSheetBookingSettings["whoPrimaryCta"];
+}): string {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (input.needsOnlineCollect) {
+    return es ? "Continuar al pago" : "Continue to payment";
+  }
+  return whoStepPrimaryLabel({
+    action: "confirm",
+    whoPrimaryCta: input.whoPrimaryCta,
+    locale: input.locale,
+  });
+}
+
+/**
+ * Done-step next-action line after a real write (or honest demo note elsewhere).
+ * Restates payment posture so "confirmed" never implies paid when it is not.
+ */
+export function doneStepNextActionCopy(input: WhoStepPaymentCopyInput & {
+  wrote: boolean;
+  isRequest: boolean;
+}): string {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (input.isRequest) {
+    return es
+      ? "Queda pendiente de confirmación."
+      : "This stays pending until it is confirmed.";
+  }
+  if (!input.wrote) {
+    return es
+      ? "Recibirás la confirmación por correo."
+      : "You will get the confirmation by email.";
+  }
+  const needsOnline = offeringRequiresOnlineCollect(input);
+  if (needsOnline && input.onlineCollectReady === false) {
+    return es
+      ? "El pago en línea no está disponible. Escribí para continuar."
+      : "Online payment is not available. Message to continue.";
+  }
+  if (needsOnline) {
+    return es
+      ? "Seguí al pago para terminar la reserva. El horario se libera si el pago no se completa."
+      : "Continue to payment to finish the booking. The time is released if payment is not completed.";
+  }
+  return es
+    ? "Recibirás la confirmación por correo. El pago se realiza en el estudio."
+    : "You will get the confirmation by email. Pay at the studio.";
+}
+
 /** Resolve who-step action, CTA label, and payment fixture together. */
 export function resolveWhoStepPaymentUi(input: {
   reserveMode: OfferingReserveMode;
@@ -102,11 +157,17 @@ export function resolveWhoStepPaymentUi(input: {
     ? es
       ? "Enviar consulta"
       : "Send inquiry"
-    : whoStepPrimaryLabel({
-        action: whoAction,
-        whoPrimaryCta: input.bookingSettings.whoPrimaryCta,
-        locale: input.locale,
-      });
+    : whoAction === "confirm"
+      ? whoStepConfirmCtaLabel({
+          needsOnlineCollect: needsOnline,
+          locale: input.locale,
+          whoPrimaryCta: input.bookingSettings.whoPrimaryCta,
+        })
+      : whoStepPrimaryLabel({
+          action: whoAction,
+          whoPrimaryCta: input.bookingSettings.whoPrimaryCta,
+          locale: input.locale,
+        });
   return {
     whoAction,
     whoCtaText,

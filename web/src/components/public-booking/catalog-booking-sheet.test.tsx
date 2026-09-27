@@ -8,6 +8,7 @@ g.window = dom.window;
 g.document = dom.window.document;
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
 g.HTMLElement = dom.window.HTMLElement;
+g.HTMLInputElement = dom.window.HTMLInputElement;
 g.Element = dom.window.Element;
 g.Node = dom.window.Node;
 g.Event = dom.window.Event;
@@ -19,6 +20,9 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { CatalogBookingSheet } from "./CatalogBookingSheet";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 /* eslint-enable import/first */
 
 function detail(partial: Partial<OfferingRequestDetail> = {}): OfferingRequestDetail {
@@ -344,7 +348,25 @@ test("who-step pay copy matches free studio vs deposit (no studio lie)", () => {
   assert.ok(pay2);
   assert.match(pay2.textContent ?? "", /40%/);
   assert.doesNotMatch(pay2.textContent ?? "", /estudio/);
+  const cta2 = m2.host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]');
+  assert.ok(cta2);
+  assert.match(cta2.textContent ?? "", /Continuar al pago/);
+  assert.doesNotMatch(cta2.textContent ?? "", /Confirmar cita/);
   m2.unmount();
+});
+
+test("Path A sheet wires retry + slotTaken + payment-missing honesty", () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const sheet = readFileSync(join(here, "CatalogBookingSheet.tsx"), "utf8");
+  const hook = readFileSync(join(here, "use-catalog-booking-confirm.ts"), "utf8");
+  const write = readFileSync(join(here, "catalog-booking-confirm.ts"), "utf8");
+  assert.match(sheet, /useCatalogBookingConfirm/);
+  assert.match(sheet, /doneStepNextActionCopy/);
+  assert.match(sheet, /slotsRefreshKey/);
+  assert.match(hook, /confirmInFlightRef/);
+  assert.match(hook, /recoverTakenSlot/);
+  assert.match(write, /runCatalogConfirmWrite/);
+  assert.match(write, /resolveCatalogConfirmOutcome/);
 });
 
 test("onlineCollectReady false + deposit forces inquiry CTA and unavailable copy", () => {
