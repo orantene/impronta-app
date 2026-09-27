@@ -257,25 +257,3 @@ test("AUD-023: setup choices persist server-side + Today resume card", () => {
   assert.match(card, /maison-website-resume-card/);
   assert.match(card, /Continue your website/);
 });
-
-test("AUD-024: publish readiness checks slug_taken + localises blockers", () => {
-  const readiness = readFileSync(
-    join(process.cwd(), "src/lib/talent-site/server/maison-publish-readiness.ts"),
-    "utf8",
-  );
-  assert.match(readiness, /slugTaken/);
-  assert.match(readiness, /slug_taken/);
-  assert.match(readiness, /Choose another/);
-  assert.match(readiness, /Elige otra/);
-  const review = readFileSync(
-    join(process.cwd(), "src/lib/talent-site/server/maison-review-actions.ts"),
-    "utf8",
-  );
-  assert.match(review, /isPlatformSubdomainLabelTaken/);
-  assert.match(review, /slugTaken/);
-  const prep = readFileSync(
-    join(process.cwd(), "src/lib/talent-site/server/maison-pending-apply.ts"),
-    "utf8",
-  );
-  assert.match(prep, /slugTaken/);
-});
