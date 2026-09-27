@@ -191,10 +191,11 @@ export async function proxy(request: NextRequest) {
   // ── Talent custom-domain host ────────────────────────────────────────────
   // A `kind: "talent_site"` host (resolved only AFTER agency_domains misses)
   // serves the talent's published Max site. Its surface is intentionally tiny:
-  // the site home (`/`) and inner page slugs (`/<slug>`), plus shared plumbing.
-  // Anything else 404s — a vanity domain never exposes the workspace, directory,
-  // or auth. The render path reads the talent_profile_id from a host header set
-  // here, so a client can never spoof it.
+  // the site home (`/`), inner page slugs (`/<slug>`), guest `/c/<id>`, public
+  // `/pay/<code>` checkout, plus shared plumbing. Anything else 404s — a vanity
+  // domain never exposes the workspace, directory, or auth. The render path
+  // reads the talent_profile_id from a host header set here, so a client can
+  // never spoof it.
   if (hostContext.kind === "talent_site") {
     // A talent's own preferred_locale as the fallback locale, see
     // boundTalentFallbackLocale (2026-09-24). Genuinely parallel.

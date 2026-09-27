@@ -709,6 +709,7 @@ export async function createAgendaBookingPayLink(input: {
     admin as any,
     String(row.tenant_id),
     input.publicOrigin,
+    { talentProfileId: own.talentId },
   );
 
   const { createPaymentLink } = await import("@/lib/payments/links");

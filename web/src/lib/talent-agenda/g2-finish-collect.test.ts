@@ -82,6 +82,7 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
     assert.match(src, /resolveAgendaPayPublicOrigin/);
     assert.match(src, /pay-public-origin/);
+    assert.match(src, /talentProfileId:\s*own\.talentId/);
     // Must not pass a raw window origin straight into createPaymentLink.
     assert.doesNotMatch(
       src,
