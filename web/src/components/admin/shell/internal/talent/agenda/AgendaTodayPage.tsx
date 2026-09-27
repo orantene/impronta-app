@@ -65,6 +65,7 @@ export function AgendaTodayPage({
   onOpenAvailability,
   onOpenServices,
   onOpenSite,
+  onOpenProfile,
   onOpenMoney,
   newLabel,
   now,
@@ -81,6 +82,7 @@ export function AgendaTodayPage({
   onOpenAvailability?: () => void;
   onOpenServices?: () => void;
   onOpenSite?: () => void;
+  onOpenProfile?: () => void;
   /** Open Money after pinning a landing (M3 Due by today → mc_out_today). */
   onOpenMoney?: (landing: MoneyLanding) => void;
   newLabel?: string;
@@ -124,7 +126,7 @@ export function AgendaTodayPage({
   }, [copy.isSpanish, ledgerTiles, onOpenMoney]);
   const firstName = profile?.displayName?.split(" ")[0] ?? "";
   const city = profile?.homeCity ?? "";
-  const rebook = rebookDismissed ? null : rebookHint(items, derived.next);
+  const rebook = rebookDismissed ? null : rebookHint(items, clock);
 
   const completedStepIds = firstDayCompletedStepIds({
     missingKeys: completionMissingKeys,
@@ -182,6 +184,7 @@ export function AgendaTodayPage({
           onOpenAvailability={onOpenAvailability ?? onOpenCalendar}
           onOpenServices={onOpenServices ?? (() => undefined)}
           onOpenSite={onOpenSite ?? (() => undefined)}
+          onOpenProfile={onOpenProfile}
           onEditSite={onOpenSite}
         />
       </div>

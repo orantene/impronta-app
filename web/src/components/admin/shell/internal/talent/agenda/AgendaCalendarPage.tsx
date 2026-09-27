@@ -85,7 +85,14 @@ export function AgendaCalendarPage({
     [items, entries],
   );
   const ctaNav = useMemo(
-    () => ({ onOpenBooking: onOpenRecord, onOpenMessages }),
+    () => ({
+      onOpenBooking: onOpenRecord,
+      onOpenMessages,
+      onRequestDeposit: (item: TalentAgendaItem) => {
+        setSheet({ kind: "deposit", item });
+        setPeekId(null);
+      },
+    }),
     [onOpenRecord, onOpenMessages],
   );
   const { runPeekLabel, busyId, error: ctaError, setError: setCtaError } = useAgendaCta(ctaNav);
@@ -98,6 +105,7 @@ export function AgendaCalendarPage({
   const [sheet, setSheet] = useState<
     | null
     | { kind: "reschedule"; item: TalentAgendaItem }
+    | { kind: "deposit"; item: TalentAgendaItem }
     | { kind: "collect"; item: TalentAgendaItem }
   >(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -513,6 +521,18 @@ export function AgendaCalendarPage({
             onClose={() => setSheet(null)}
             onProposed={() => {
               setAgendaAttentionConfirm(whoLabel(sheet.item));
+              setSheet(null);
+              router.refresh();
+            }}
+          />
+        </div>
+      ) : null}
+
+      {sheet?.kind === "deposit" ? (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
+          <AgendaPayRequest
+            orderId={sheet.item.orderId}
+            onClose={() => {
               setSheet(null);
               router.refresh();
             }}

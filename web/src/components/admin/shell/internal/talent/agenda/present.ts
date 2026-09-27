@@ -291,19 +291,49 @@ export function moneyFromLedger(input: {
   }));
 }
 
-/** One optional rebook hint from a prior completed visit for the same client. */
+function clientKey(item: TalentAgendaItem): string | null {
+  const c = item.client;
+  if (!c?.name) return null;
+  return c.id ? `id:${c.id}` : `name:${c.name.trim().toLowerCase()}`;
+}
+
+const ACTIVE_FUTURE: ReadonlySet<TalentAgendaItem["booking"]> = new Set([
+  "requested",
+  "hold",
+  "confirmed",
+]);
+
+/**
+ * One optional rebook hint (P0 audit): a client with a COMPLETED past visit
+ * and NO upcoming booking in the loaded agenda. Cancelled and no-show visits
+ * never count. Anyone already booked (including the next-up client) is
+ * skipped. Most recent completed visit wins.
+ */
 export function rebookHint(
   items: readonly TalentAgendaItem[],
-  next: TalentAgendaItem | null,
+  now: Date,
 ): { clientName: string; lastService: string } | null {
-  if (!next?.client?.name) return null;
-  const name = next.client.name;
-  const prior = items.find(
-    (item) =>
-      item.id !== next.id &&
-      item.client?.name === name &&
-      (item.booking === "completed" || item.booking === "cancelled"),
-  );
-  if (!prior) return null;
-  return { clientName: name, lastService: prior.title };
+  const nowMs = now.getTime();
+  const booked = new Set<string>();
+  for (const item of items) {
+    const key = clientKey(item);
+    if (!key || !ACTIVE_FUTURE.has(item.booking)) continue;
+    const ends = Date.parse(item.endsAt || item.startsAt);
+    if (!Number.isFinite(ends) || ends >= nowMs) booked.add(key);
+  }
+  let best: TalentAgendaItem | null = null;
+  let bestMs = -Infinity;
+  for (const item of items) {
+    if (item.booking !== "completed") continue;
+    const key = clientKey(item);
+    if (!key || booked.has(key)) continue;
+    const ms = Date.parse(item.startsAt);
+    if (!Number.isFinite(ms) || ms > nowMs) continue;
+    if (ms > bestMs) {
+      best = item;
+      bestMs = ms;
+    }
+  }
+  if (!best?.client?.name) return null;
+  return { clientName: best.client.name, lastService: best.title };
 }
