@@ -537,3 +537,36 @@ test("five-settings: showPhoto true keeps photos and search defaults off", () =>
   assert.doesNotMatch(html, /data-style-preset=/);
   assert.match(html, /gel-pedicure\.jpg/);
 });
+
+/** MENU-P1 — authored blush binding survives useWebsiteTheme (no shared CSS paint). */
+test("useWebsiteTheme still paints authored style.backgroundColor band ground", () => {
+  const html = render(
+    [
+      catalogNode({
+        useWebsiteTheme: true,
+        style: { backgroundColor: "token:color.surface-raised" },
+      }),
+    ],
+    { talentOfferings: [offering({})] },
+  );
+  assert.match(
+    html,
+    /data-builder-node-kind="services_catalog"[^>]*style="[^"]*background-color:var\(--token-color-surface-raised/,
+    "live-bound surface-raised must paint when useWebsiteTheme is on",
+  );
+});
+
+test("useWebsiteTheme without authored backgroundColor does not force blush", () => {
+  const html = render([catalogNode({ useWebsiteTheme: true })], {
+    talentOfferings: [offering({})],
+  });
+  const section = html.match(
+    /<section[^>]*data-builder-node-kind="services_catalog"[^>]*>/,
+  )?.[0];
+  assert.ok(section, "catalog section must render");
+  assert.doesNotMatch(
+    section,
+    /background-color:var\(--token-color-surface-raised/,
+    "shared path must not invent blush without an authored binding",
+  );
+});

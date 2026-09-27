@@ -4448,7 +4448,8 @@ function withExperimentAttrs(
 // confirming the button still has a visible fill and legible text.
 const SERVICES_CATALOG_CSS = `
 /* No page-ground paint here — non-Maison catalogs must keep authored/parent bg.
-   Maison soft blush lives on the Design services container (surface-raised). */
+   Maison soft blush: Design services container OR an authored style.backgroundColor
+   on the catalog node (live binding; see useWebsiteTheme band exception). */
 .site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
@@ -5812,6 +5813,15 @@ function renderBuilderNodeElement(
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
       const layout = p.layout ?? "rows";
       const useWebsiteTheme = p.useWebsiteTheme !== false;
+      // Live band ground: when useWebsiteTheme skips custom Style overrides,
+      // still honor an authored style.backgroundColor (token or raw). Jor's
+      // published catalog binds token:color.surface-raised here; Maison Design
+      // puts the same token on the parent services container. Shared CSS must
+      // not force surface-raised on every catalog.
+      const themedBandGround =
+        useWebsiteTheme && p.style?.backgroundColor
+          ? { backgroundColor: styleToken(p.style.backgroundColor) }
+          : undefined;
       const columns =
         p.columns ??
         (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
@@ -5882,7 +5892,7 @@ function renderBuilderNodeElement(
           {...(useWebsiteTheme ? {} : builderNodeStyleAttrs(p.style))}
           className="site-builder-node site-builder-node--services-catalog"
           style={{
-            ...(useWebsiteTheme ? undefined : inlineNodeStyle(p.style, undefined)),
+            ...(useWebsiteTheme ? themedBandGround : inlineNodeStyle(p.style, undefined)),
             ["--svc-columns" as string]: String(columns),
           }}
         >
