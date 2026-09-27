@@ -55,6 +55,32 @@ describe("agenda pay public origin", () => {
     assert.equal(origin, "https://pay.tulala.digital");
   });
 
+  it("uses a published talent free website when the tenant has no agency domain", async () => {
+    const admin = {
+      from: (table: string) => ({
+        select: () => ({
+          eq: async () => {
+            if (table === "agency_domains") return { data: [], error: null };
+            if (table === "talent_sites") {
+              return {
+                data: [{ site_slug: "book-jorgelina", status: "published" }],
+                error: null,
+              };
+            }
+            return { data: [], error: null };
+          },
+        }),
+      }),
+    };
+    const origin = await resolveAgendaPayPublicOrigin(
+      admin,
+      "40081ec3-5ca8-43a0-b50b-31c927b2716b",
+      "https://app.tulala.digital",
+      { talentProfileId: "f048e578-cbae-45db-9a3b-34239abea136" },
+    );
+    assert.equal(origin, "https://book-jorgelina.tulala.digital");
+  });
+
   it("ignores hub platform rows when choosing a branded website host", async () => {
     const admin = {
       from: () => ({

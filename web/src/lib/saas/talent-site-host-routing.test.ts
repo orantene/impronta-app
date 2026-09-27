@@ -32,6 +32,8 @@ test("shared plumbing + static assets pass through untouched", () => {
     "/_next/static/chunk.js",
     "/unsubscribe/tok",
     "/c/00000000-0000-4000-8000-000000000001",
+    "/pay/opaque-link-code",
+    "/link/opaque-link-code",
     "/sitemap.xml",
     "/robots.txt",
     "/favicon.ico",
@@ -52,6 +54,8 @@ test("workspace / auth / multi-segment / dotted paths are NOT allowed (→ 404)"
     "/talent/register",
     "/directory",
     "/c", // bare reserved slug — not a thread
+    "/pay", // bare reserved — checkout needs /pay/<code>
+    "/link",
     "/about/extra", // multi-segment
     "/foo.bar", // dotted
     "/Upper", // uppercase

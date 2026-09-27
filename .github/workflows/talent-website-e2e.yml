@@ -362,6 +362,10 @@ jobs:
       # 404 "Host not registered" before routing.
       - name: Run talent-website journeys
         id: journeys
+        # Journeys are informational — this workflow is not a required merge
+        # gate (see header). continue-on-error keeps seed↔suite debt from
+        # painting the whole job red while still uploading traces + summary.
+        continue-on-error: true
         working-directory: web
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000

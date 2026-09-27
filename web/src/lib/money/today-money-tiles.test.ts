@@ -12,6 +12,9 @@ import {
   todayMoneyTilesFromLedger,
 } from "./today-money-tiles";
 
+// These tests exercise the September FIXTURE tiles, which are demo/QA-only.
+process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE = "1";
+
 describe("Today money tiles (M3)", () => {
   it("amounts match LEDGER-CONTRACT via the Money spine view", () => {
     const tiles = todayMoneyTilesFromLedger();
@@ -50,4 +53,14 @@ describe("Today money tiles (M3)", () => {
     assert.deepEqual(parseMoneyLanding(raw), { tab: "outstanding", outFilt: "today" });
     assert.equal(parseMoneyLanding("nope"), null);
   });
+});
+
+it("real talents get NO fixture money tiles when the demo flag is off", () => {
+  const prev = process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE;
+  delete process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE;
+  try {
+    assert.deepEqual(todayMoneyTilesFromLedger(), []);
+  } finally {
+    process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE = prev;
+  }
 });
