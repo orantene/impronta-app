@@ -7,6 +7,9 @@
  * package purchases. Timed appointments stay on CatalogBookingSheet.
  * Lives under public-booking so the vanity catalog island never imports
  * `app/t/[profileCode]`.
+ *
+ * Demo/builder mode mounts a non-writing preview so Buy never dispatches to
+ * nowhere when CatalogBookingSheet skips purchase-eligible events.
  */
 
 import { useEffect, useState } from "react";
@@ -16,7 +19,11 @@ import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
-import { catalogDetailIsPurchase } from "@/components/public-booking/catalog-booking-logic";
+import {
+  catalogCollectNowCents,
+  catalogDetailIsPurchase,
+  type CatalogBookingMode,
+} from "@/components/public-booking/catalog-booking-logic";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -27,14 +34,17 @@ export function CatalogPurchaseMount({
   tenantId,
   locale,
   captcha = null,
+  mode = "live",
 }: {
   tenantId: string | null;
   locale: string;
   captcha?: GuestCaptchaConfig | null;
+  mode?: CatalogBookingMode;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewAck, setPreviewAck] = useState(false);
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
   const [qty, setQty] = useState(1);
@@ -44,16 +54,19 @@ export function CatalogPurchaseMount({
   const [honeypot, setHoneypot] = useState("");
   const [sourcePage, setSourcePage] = useState("/");
 
+  const armed = mode === "demo" || Boolean(tenantId);
+
   useEffect(() => {
     setSourcePage(window.location.pathname || "/");
   }, []);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!armed) return;
     const onInstant = (e: Event) => {
       const d = (e as CustomEvent).detail as OfferingRequestDetail | undefined;
       if (!d || !catalogDetailIsPurchase(d)) return;
       setError(null);
+      setPreviewAck(false);
       setVariantId(d.variants?.[0]?.id ?? null);
       setAddOnIds([]);
       setQty(1);
@@ -61,12 +74,13 @@ export function CatalogPurchaseMount({
     };
     window.addEventListener("tulala:offering-instant", onInstant);
     return () => window.removeEventListener("tulala:offering-instant", onInstant);
-  }, [tenantId]);
+  }, [armed]);
 
-  if (!tenantId || !sheet) {
+  if (!armed || !sheet) {
     return (
       <span
-        data-catalog-purchase-mount={tenantId ? "armed" : "no-tenant"}
+        data-catalog-purchase-mount={armed ? "armed" : "no-tenant"}
+        data-catalog-purchase-mode={mode}
         style={{ display: "none" }}
       />
     );
@@ -90,14 +104,74 @@ export function CatalogPurchaseMount({
     .filter((a) => addOnIds.includes(a.id))
     .reduce((s, a) => s + a.amountCents, 0);
   const totalCents = baseCents != null ? baseCents * effQty + addOnCents : null;
+  const collectCents = catalogCollectNowCents(totalCents, d.reserveMode, d.depositPct);
   const price =
     totalCents != null ? formatOfferingPrice(totalCents, d.currency, locale) : "";
+  const collectPrice =
+    collectCents != null && collectCents > 0
+      ? formatOfferingPrice(collectCents, d.currency, locale)
+      : null;
+
+  const payCopy = (() => {
+    if (d.reserveMode === "free") {
+      return pickLocale(locale, {
+        en: "Nothing is charged now. Pay later as agreed. No appointment time is booked.",
+        es: "No se cobra nada ahora. El pago se realiza después, según lo acordado. No se agenda una cita.",
+      });
+    }
+    if (d.reserveMode === "deposit") {
+      const pct =
+        typeof d.depositPct === "number" &&
+        Number.isFinite(d.depositPct) &&
+        d.depositPct > 0 &&
+        d.depositPct < 100
+          ? Math.round(d.depositPct)
+          : null;
+      if (pct != null && collectPrice) {
+        return pickLocale(locale, {
+          en: `A ${pct}% deposit (${collectPrice}) is charged now. The rest is paid as agreed. No appointment time is booked.`,
+          es: `Se cobra una seña del ${pct}% (${collectPrice}) ahora. El resto se paga según lo acordado. No se agenda una cita.`,
+        });
+      }
+      return pickLocale(locale, {
+        en: "A deposit is charged now. The rest is paid as agreed. No appointment time is booked.",
+        es: "Se cobra una seña ahora. El resto se paga según lo acordado. No se agenda una cita.",
+      });
+    }
+    return pickLocale(locale, {
+      en: "Pay by card to complete this purchase. No appointment time is booked.",
+      es: "Paga con tarjeta para completar la compra. No se agenda una cita.",
+    });
+  })();
+
+  const primaryLabel = (() => {
+    if (d.reserveMode === "free") {
+      return pickLocale(locale, {
+        en: "Reserve · nothing due now",
+        es: "Reservar · sin cargo ahora",
+      });
+    }
+    if (d.reserveMode === "deposit" && collectPrice) {
+      return pickLocale(locale, {
+        en: `Pay deposit · ${collectPrice}`,
+        es: `Pagar seña · ${collectPrice}`,
+      });
+    }
+    return pickLocale(locale, {
+      en: `Buy now · ${price}`,
+      es: `Comprar · ${price}`,
+    });
+  })();
 
   const buy = async (payInPerson: boolean) => {
     setBusy(true);
     setError(null);
     try {
-      if (!d.talentProfileId) {
+      if (mode === "demo") {
+        setPreviewAck(true);
+        return;
+      }
+      if (!tenantId || !d.talentProfileId) {
         setError(
           pickLocale(locale, {
             en: "This item cannot be purchased here yet.",
@@ -171,6 +245,8 @@ export function CatalogPurchaseMount({
       aria-modal="true"
       aria-label={d.title}
       data-catalog-purchase-sheet
+      data-catalog-purchase-mode={mode}
+      data-catalog-reserve-mode={d.reserveMode}
       style={{
         position: "fixed",
         inset: 0,
@@ -311,38 +387,50 @@ export function CatalogPurchaseMount({
         ) : null}
 
         <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.5, margin: "12px 0" }}>
-          {pickLocale(locale, {
-            en: "Pay by card to complete this purchase. No appointment time is booked.",
-            es: "Paga con tarjeta para completar la compra. No se agenda una cita.",
-          })}
+          {payCopy}
         </p>
 
-        <div style={{ margin: "8px 0 12px" }}>
-          <GuestInstantContact
-            name={guestName}
-            email={guestEmail}
-            captcha={captcha}
-            locale={locale}
-            onName={setGuestName}
-            onEmail={setGuestEmail}
-            onCaptchaToken={setCaptchaToken}
-          />
-          <input
-            type="text"
-            value={honeypot}
-            onChange={(e) => setHoneypot(e.target.value)}
-            tabIndex={-1}
-            autoComplete="off"
-            aria-hidden
-            style={{
-              position: "absolute",
-              left: -9999,
-              height: 1,
-              width: 1,
-              overflow: "hidden",
-            }}
-          />
-        </div>
+        {mode === "live" ? (
+          <div style={{ margin: "8px 0 12px" }}>
+            <GuestInstantContact
+              name={guestName}
+              email={guestEmail}
+              captcha={captcha}
+              locale={locale}
+              onName={setGuestName}
+              onEmail={setGuestEmail}
+              onCaptchaToken={setCaptchaToken}
+            />
+            <input
+              type="text"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: -9999,
+                height: 1,
+                width: 1,
+                overflow: "hidden",
+              }}
+            />
+          </div>
+        ) : null}
+
+        {previewAck ? (
+          <p
+            role="status"
+            data-catalog-purchase-preview-ack
+            style={{ fontSize: 13, color: INK, marginBottom: 8 }}
+          >
+            {pickLocale(locale, {
+              en: "Preview only. This purchase is not submitted.",
+              es: "Solo vista previa. Esta compra no se envía.",
+            })}
+          </p>
+        ) : null}
 
         {error ? (
           <p role="alert" style={{ fontSize: 13, color: "#b3261e", marginBottom: 8 }}>
@@ -357,11 +445,9 @@ export function CatalogPurchaseMount({
             onClick={() => void buy(false)}
             style={btn(true)}
             data-catalog-purchase-action="card"
+            data-catalog-collect-cents={collectCents ?? undefined}
           >
-            {pickLocale(locale, {
-              en: `Buy now · ${price}`,
-              es: `Comprar · ${price}`,
-            })}
+            {primaryLabel}
           </button>
           {d.allowPayInPerson ? (
             <button
@@ -372,8 +458,14 @@ export function CatalogPurchaseMount({
               data-catalog-purchase-action="cash"
             >
               {pickLocale(locale, {
-                en: "Buy — pay in person",
-                es: "Comprar — pagar en persona",
+                en:
+                  d.reserveMode === "free"
+                    ? "Reserve · pay in person"
+                    : "Buy · pay in person",
+                es:
+                  d.reserveMode === "free"
+                    ? "Reservar · pagar en persona"
+                    : "Comprar · pagar en persona",
               })}
             </button>
           ) : null}

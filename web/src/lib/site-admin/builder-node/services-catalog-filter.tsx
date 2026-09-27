@@ -407,10 +407,13 @@ export function ServicesCatalogFilter({
         captcha={captcha}
         bookingSettings={bookingSettings}
       />
-      {/* PKG-2 Option A: product / untimed-package purchase rail. */}
-      {bookingMode === "live" && tenantId ? (
-        <CatalogPurchaseMount tenantId={tenantId} locale={locale} captcha={captcha} />
-      ) : null}
+      {/* PKG-2 Option A: product / untimed-package purchase rail (demo = non-writing preview). */}
+      <CatalogPurchaseMount
+        tenantId={tenantId}
+        locale={locale}
+        captcha={captcha}
+        mode={bookingMode}
+      />
     </div>
   );
 }
@@ -467,6 +470,7 @@ export function CatalogRow({
     offering: item,
     locale,
     inspectorLabel: selected ? undefined : ctaLabel,
+    confirmsByHand,
   });
   const where = Array.isArray(item.attributes?.where)
     ? (item.attributes.where as string[])

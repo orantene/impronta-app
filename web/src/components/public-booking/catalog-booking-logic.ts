@@ -110,10 +110,20 @@ export function catalogRowCtaLabel(opts: {
   > & { durationMinutes?: number | null };
   locale: string;
   inspectorLabel?: string;
+  /**
+   * Manual-confirm / plan posture: effective CTA is request_to_book even when
+   * the offering itself is instant buy/book. Must match CatalogRow's
+   * data-offering-cta so the label never promises Buy on a request path.
+   */
+  confirmsByHand?: boolean;
 }): string {
   if (opts.selected) return opts.locale.startsWith("es") ? "Seleccionado" : "Selected";
   const es = opts.locale.startsWith("es");
-  const cta = resolveOfferingCta(opts.offering);
+  const raw = resolveOfferingCta(opts.offering);
+  const cta =
+    opts.confirmsByHand && (raw === "book_now" || raw === "buy_now")
+      ? "request_to_book"
+      : raw;
   // Meaning-preserving labels (brief §10). Never say Book when the path is inquiry/quote.
   // Inspector ctaLabel must not clobber option / quote / consult CTAs — Jorg Beauty
   // CMS stored "Seleccionar" and wiped "Elegir opciones" on Soft Gel (vanity 1:1).
@@ -133,6 +143,26 @@ export function catalogRowCtaLabel(opts: {
   // Instant appointment — menu-style "Select" matches mockups; sheet opens time picker.
   // Inspector may rename the plain Select label only.
   return opts.inspectorLabel?.trim() || (es ? "Seleccionar" : "Select");
+}
+
+/** Cents collected at confirm for the given reserve policy (full / deposit / free). */
+export function catalogCollectNowCents(
+  totalCents: number | null | undefined,
+  reserveMode: "full" | "deposit" | "free" | null | undefined,
+  depositPct: number | null | undefined,
+): number | null {
+  if (totalCents == null) return null;
+  if (reserveMode === "free") return 0;
+  if (
+    reserveMode === "deposit" &&
+    typeof depositPct === "number" &&
+    Number.isFinite(depositPct) &&
+    depositPct > 0 &&
+    depositPct < 100
+  ) {
+    return Math.round((totalCents * depositPct) / 100);
+  }
+  return totalCents;
 }
 
 /** Min bookable cents for a row — base amount or cheapest variant. */
