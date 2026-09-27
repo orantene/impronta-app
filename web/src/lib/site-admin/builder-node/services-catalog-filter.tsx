@@ -9,8 +9,8 @@ import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/compone
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
   catalogRowCtaLabel,
-  catalogRowHasOptions,
   catalogRowMinCents,
+  catalogRowOpensSheetImmediately,
   catalogRowShowsFrom,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
@@ -194,9 +194,9 @@ export function ServicesCatalogFilter({
   }, []);
 
   const onRowAction = (item: TalentOffering, inclusion?: string | null) => {
-    const hasOptions = catalogRowHasOptions(item);
-    const onRequest = item.visibility === "on_request";
-    if (hasOptions || onRequest) {
+    // Maison DoR: option / consult rows open the sheet; plain Seleccionar only
+    // paints Seleccionado + Continuar. continueFromBar opens the sheet.
+    if (catalogRowOpensSheetImmediately(item)) {
       dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
     }
@@ -205,7 +205,6 @@ export function ServicesCatalogFilter({
     setSelectedBits(null);
     setSelectedTotal(item.amountCents ?? 0);
     setSelectedCurrency(item.currency);
-    dispatchOffering(item, confirmsByHand, "when", inclusion, bookingPosture);
   };
 
   const continueFromBar = () => {

@@ -9,6 +9,7 @@ import {
   catalogIsPurchaseEligible,
   catalogNeedsOptions,
   catalogRowCtaLabel,
+  catalogRowOpensSheetImmediately,
   catalogSelectedStartStillOpen,
   catalogTotalCents,
   catalogWillWriteBooking,
@@ -111,6 +112,29 @@ test("row CTA follows Maison labels", () => {
       inspectorLabel: "Seleccionar",
     }),
     "Elegir opciones",
+  );
+});
+
+test("plain Seleccionar does not open the sheet; options and on-request do", () => {
+  const plain = { visibility: "public" as const, variants: [], addOns: [] };
+  assert.equal(catalogRowOpensSheetImmediately(plain), false);
+  assert.equal(
+    catalogRowOpensSheetImmediately({
+      ...plain,
+      addOns: [{ id: "a", label: "French", amountCents: 8000 }],
+    }),
+    true,
+  );
+  assert.equal(
+    catalogRowOpensSheetImmediately({
+      ...plain,
+      variants: [{ id: "v", label: "Largo #3", amountCents: 55000 }],
+    }),
+    true,
+  );
+  assert.equal(
+    catalogRowOpensSheetImmediately({ ...plain, visibility: "on_request" }),
+    true,
   );
 });
 
