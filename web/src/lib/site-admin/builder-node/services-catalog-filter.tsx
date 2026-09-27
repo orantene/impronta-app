@@ -14,6 +14,7 @@ import {
   catalogRowShowsFrom,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
+import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
@@ -406,6 +407,13 @@ export function ServicesCatalogFilter({
         captcha={captcha}
         bookingSettings={bookingSettings}
       />
+      {/* PKG-2 Option A: product / untimed-package purchase rail (demo = non-writing preview). */}
+      <CatalogPurchaseMount
+        tenantId={tenantId}
+        locale={locale}
+        captcha={captcha}
+        mode={bookingMode}
+      />
     </div>
   );
 }
@@ -462,6 +470,7 @@ export function CatalogRow({
     offering: item,
     locale,
     inspectorLabel: selected ? undefined : ctaLabel,
+    confirmsByHand,
   });
   const where = Array.isArray(item.attributes?.where)
     ? (item.attributes.where as string[])

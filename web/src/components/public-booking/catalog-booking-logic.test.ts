@@ -4,6 +4,9 @@ import { test } from "node:test";
 import {
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
+  catalogCollectNowCents,
+  catalogDetailIsPurchase,
+  catalogIsPurchaseEligible,
   catalogNeedsOptions,
   catalogRowCtaLabel,
   catalogSelectedStartStillOpen,
@@ -109,6 +112,88 @@ test("row CTA follows Maison labels", () => {
     }),
     "Elegir opciones",
   );
+});
+
+test("purchase-eligible products and untimed packages get Buy; timed packages stay Select", () => {
+  const product = {
+    visibility: "public" as const,
+    variants: [],
+    addOns: [],
+    kind: "product" as const,
+    bookingMode: "instant" as const,
+    priceType: "flat_package" as const,
+    priceDisplay: "exact" as const,
+    amountCents: 5000,
+    durationMinutes: null as number | null,
+  };
+  assert.equal(catalogIsPurchaseEligible(product), true);
+  assert.equal(catalogRowCtaLabel({ selected: false, offering: product, locale: "es" }), "Comprar");
+  assert.equal(catalogRowCtaLabel({ selected: false, offering: product, locale: "en" }), "Buy");
+
+  const untimedPkg = { ...product, kind: "package" as const, durationMinutes: 0 };
+  assert.equal(catalogIsPurchaseEligible(untimedPkg), true);
+  assert.equal(catalogRowCtaLabel({ selected: false, offering: untimedPkg, locale: "es" }), "Comprar");
+
+  const timedPkg = { ...product, kind: "package" as const, durationMinutes: 90 };
+  assert.equal(catalogIsPurchaseEligible(timedPkg), false);
+  assert.equal(catalogRowCtaLabel({ selected: false, offering: timedPkg, locale: "es" }), "Seleccionar");
+
+  assert.equal(
+    catalogDetailIsPurchase({
+      kind: "product",
+      intent: "instant",
+      durationMinutes: null,
+      amountCents: 5000,
+    }),
+    true,
+  );
+  assert.equal(
+    catalogDetailIsPurchase({
+      kind: "package",
+      intent: "instant",
+      durationMinutes: 60,
+      amountCents: 5000,
+    }),
+    false,
+  );
+  assert.equal(
+    catalogDetailIsPurchase({
+      kind: "product",
+      intent: "request",
+      durationMinutes: null,
+      amountCents: 5000,
+    }),
+    false,
+  );
+
+  // Manual confirm / effective request_to_book must not promise Buy.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: product,
+      locale: "en",
+      confirmsByHand: true,
+    }),
+    "Request appointment",
+  );
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: product,
+      locale: "es",
+      confirmsByHand: true,
+    }),
+    "Solicitar cita",
+  );
+});
+
+test("collect-now cents follow reserveMode (full / deposit / free)", () => {
+  assert.equal(catalogCollectNowCents(10_000, "full", null), 10_000);
+  assert.equal(catalogCollectNowCents(10_000, "deposit", 30), 3_000);
+  assert.equal(catalogCollectNowCents(10_000, "free", null), 0);
+  assert.equal(catalogCollectNowCents(null, "deposit", 30), null);
+  assert.equal(catalogCollectNowCents(10_000, "deposit", 0), 10_000);
+  assert.equal(catalogCollectNowCents(10_000, "deposit", 100), 10_000);
 });
 
 test("extras with durationMinutes lengthen the booking window", () => {
