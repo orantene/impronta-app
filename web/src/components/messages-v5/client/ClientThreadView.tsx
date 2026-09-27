@@ -84,8 +84,8 @@ export type ClientThreadViewProps = {
 export function ClientThreadView(p: ClientThreadViewProps) {
   const { copy, kit, locale, business, now } = p;
   const name = business.name;
-  const items = buildClientStream(p.messages);
-  const offerCards = offerCardMessageIds(p.messages);
+  const items = buildClientStream(p.messages, p.offers);
+  const offerCards = offerCardMessageIds(p.messages, p.offers);
   const act = (key: string): CardActivity => p.activity?.[key] ?? { phase: "idle" };
   const savePhase = p.saveEmail ?? "idle";
 
