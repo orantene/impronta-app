@@ -695,7 +695,7 @@ export async function publishMaxSiteAction(): Promise<
   }
 
   // 5. W41 — design version snapshot (Maison flag; best-effort, never fails publish).
-  if (isTalentMaisonThemeEnabled()) {
+  if (isTalentMaisonThemeEnabled(g.talentProfileId)) {
     const admin = createServiceRoleClient();
     if (admin) {
       await writeMaisonDesignPublishedRevision(admin, {
