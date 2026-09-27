@@ -43,10 +43,16 @@ test("composer send is circular; front-door sites use composerPhrase", () => {
   const composer = read("MiniChatComposer.tsx");
   assert.match(composer, /borderRadius:\s*"50%"/);
   const col = read("MiniChatPanelColumn.tsx");
-  assert.match(col, /composerPhrase/);
-  assert.match(col, /composerPhraseAgency/);
+  assert.match(col, /guestComposerPlaceholder/);
   assert.match(col, /frontDoorChrome/);
   assert.match(col, /agencyPublicSurface/);
+  // C13-1: offer posture (incl. preview inquiryId) keeps brief phrase, not reply.
+  const ph = read("guest-composer-placeholder.ts");
+  assert.match(ph, /composerPhrase/);
+  assert.match(ph, /composerPhraseAgency/);
+  assert.match(ph, /offerPreview/);
+  assert.match(ph, /offer_pending/);
+  assert.match(ph, /composerReply/);
   const hook = read("use-guest-dock-journey.ts");
   assert.match(hook, /usesFrontDoorJourneyChrome/);
   assert.match(hook, /frontDoorChrome/);
@@ -64,6 +70,23 @@ test("composer send is circular; front-door sites use composerPhrase", () => {
   );
   assert.match(agencyMount, /agencyPublicSurface/);
   assert.match(agencyMount, /const agencyPublicSurface = !isHub/);
+});
+
+test("offer posture uses sticky service chip, not browse ask strip", () => {
+  const col = read("MiniChatPanelColumn.tsx");
+  assert.match(col, /GuestComposerOfferingStrip/);
+  const strip = read("GuestComposerOfferingStrip.tsx");
+  assert.match(strip, /StickyOfferingChip/);
+  assert.match(strip, /offerPosture/);
+  assert.match(strip, /stickyTitleFromThread/);
+  assert.match(strip, /v5\?\.offers/);
+  assert.match(strip, /clearService/);
+  assert.match(strip, /offeringDraftPrefix/);
+  const picker = read("OfferingQuickPicker.tsx");
+  assert.match(picker, /data-hablar-sticky-offering/);
+  assert.match(picker, /clearLabel/);
+  const journey = read("use-guest-dock-journey.ts");
+  assert.match(journey, /railReady/);
 });
 
 test("dev offer preview mounts GuestHablarOfferPreview for OFERTA visual proof", () => {

@@ -63,11 +63,28 @@ export function useGuestDockJourney(input: {
     t: input.t,
     talentSiteChrome: frontDoorChrome,
   });
+  // Dev OFERTA fixture matches brief Offer screen: all 4 beauty segs on +
+  // "Lista para enviar" (railReady). Live offer_pending still uses real captured facts.
+  if (offerPreview) {
+    const segs = chrome.journeySegs.map((s) => ({ ...s, on: true }));
+    return {
+      offerPreview,
+      journeyLabel: input.t("public.guestChat.headerJourneyOffer"),
+      railLabel: input.t("public.guestChat.railReady"),
+      journeySegs: segs.length > 0
+        ? segs
+        : [
+            { id: "day", on: true, label: "day" },
+            { id: "hour", on: true, label: "hour" },
+            { id: "service", on: true, label: "service" },
+            { id: "message", on: true, label: "message" },
+          ],
+      frontDoorChrome,
+    };
+  }
   return {
     offerPreview,
-    journeyLabel: offerPreview
-      ? input.t("public.guestChat.headerJourneyOffer")
-      : chrome.journeyLabel,
+    journeyLabel: chrome.journeyLabel,
     railLabel: chrome.railLabel,
     journeySegs: chrome.journeySegs,
     frontDoorChrome,

@@ -65,7 +65,10 @@ export function offeringChipPriceLabel(o: ChatOffering, locale: string): string 
   return formatOfferingPrice(o.amountCents, o.currency, locale);
 }
 
-export function offeringDraftPrefix(o: ChatOffering, locale: string): string {
+export function offeringDraftPrefix(
+  o: Pick<ChatOffering, "title" | "amountCents" | "currency">,
+  locale: string,
+): string {
   const price = o.amountCents != null ? ` (${formatOfferingPrice(o.amountCents, o.currency, locale)})` : "";
   return pickLocale(locale, {
     en: `Requesting: ${o.title}${price} — `,
@@ -158,6 +161,88 @@ export function OfferingQuickPicker({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Front-door brief sticky service chip (Offer screen: circular glyph + short
+ * name above the composer). Replaces the browse strip once a service is pinned
+ * or the thread is in offer posture.
+ */
+export function StickyOfferingChip({
+  title,
+  accent,
+  surfaceMode = "light",
+  onClear,
+  clearLabel,
+}: {
+  title: string;
+  accent: string;
+  surfaceMode?: SurfaceMode;
+  /** Optional dismiss — clears the pending offering / returns to browse. */
+  onClear?: () => void;
+  /** Localized aria-label for the dismiss control (en + es required). */
+  clearLabel?: string;
+}) {
+  const C = paletteFor(surfaceMode);
+  const short = title.split(/[+·|,]/)[0]?.trim() || title;
+  return (
+    <div
+      data-hablar-sticky-offering
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 12px 0",
+        background: C.surface,
+        fontFamily: FONT,
+        flexShrink: 0,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          background: `${accent}18`,
+          border: `1px solid ${accent}55`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: accent,
+          }}
+        />
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{short}</span>
+      {onClear ? (
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label={clearLabel || "Clear service"}
+          style={{
+            marginLeft: "auto",
+            border: "none",
+            background: "transparent",
+            color: C.inkMuted,
+            cursor: "pointer",
+            fontSize: 14,
+            lineHeight: 1,
+            padding: 4,
+          }}
+        >
+          ×
+        </button>
+      ) : null}
     </div>
   );
 }
