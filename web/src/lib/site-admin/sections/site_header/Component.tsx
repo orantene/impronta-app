@@ -33,6 +33,9 @@ import {
   loadTenantLocaleSettings,
   type TenantLocaleSettings,
 } from "@/lib/site-admin/server/locale-resolver";
+import { localizeDefaultHeaderCtaLabel } from "./localize-header-cta";
+
+export { localizeDefaultHeaderCtaLabel } from "./localize-header-cta";
 
 /**
  * Phase 6B — the prototype `editorial-split` header has a bespoke right
@@ -405,7 +408,7 @@ export async function SiteHeaderComponent({
     ? (() => {
         const L = resolveLinkLike(primaryCta.href, linkCtx);
         return {
-          label: primaryCta.label,
+          label: localizeDefaultHeaderCtaLabel(primaryCta.label, locale),
           href: L.href,
           external: primaryCta.external || L.openInNew,
         };
@@ -508,7 +511,8 @@ export async function SiteHeaderComponent({
             </nav>
           ) : null;
         case "cta": {
-          const label = item.label ?? primaryCtaResolved?.label ?? "Inquire";
+          const rawLabel = item.label ?? primaryCtaResolved?.label ?? "Inquire";
+          const label = localizeDefaultHeaderCtaLabel(rawLabel, locale);
           const href = item.href ?? primaryCtaResolved?.href ?? "/directory";
           return (
             <a key={key} {...attrs} className="site-header__ritem site-header__cta site-btn site-btn--primary" href={href}>{label}</a>

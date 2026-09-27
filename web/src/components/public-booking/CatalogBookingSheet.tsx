@@ -35,14 +35,16 @@ import {
   type CatalogSlotsFn,
 } from "./catalog-booking-live-slots";
 import {
+  chooseStepContinueLabel,
   DEFAULT_SHEET_BOOKING_SETTINGS,
+  whenStepTimeGroupLabel,
   type CatalogSheetBookingSettings,
 } from "@/lib/talent/selling-booking-settings";
 import {
   doneStepNextActionCopy,
-  offeringRequiresOnlineCollect,
   resolveWhoStepPaymentUi,
 } from "@/lib/talent/who-step-payment-copy";
+import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -303,6 +305,8 @@ export function CatalogBookingSheet({
     offeringIntent: detail.intent,
     bookingSettings,
   });
+  const isQuote = catalogIsQuote(detail);
+  const timeGroupLabel = whenStepTimeGroupLabel({ action: whoAction, locale });
   const selectedTime = catalogCanContinueWhen(time);
   const chatNameValid = name.trim().length >= 2;
   const chatPhoneValid = phone.replace(/\D/g, "").length >= 8;
@@ -413,8 +417,10 @@ export function CatalogBookingSheet({
             <>
               <div className="jb-summary">
                 <div>
-                  <span>{es ? "Precio base" : "Base price"}</span>
-                  <strong>{money(detail.amountCents ?? 0, detail.currency)}</strong>
+                  <span>{isQuote ? (es ? "Precio" : "Price") : es ? "Precio base" : "Base price"}</span>
+                  <strong data-catalog-price={isQuote ? "quote" : "money"}>
+                    {catalogPriceLabel(detail, detail.amountCents ?? 0, locale, money)}
+                  </strong>
                 </div>
                 {bookingDurationMinutes ? (
                   <p className="jb-fixture">
@@ -445,7 +451,14 @@ export function CatalogBookingSheet({
                         onChange={() => setVariantId(v.id)}
                       />
                       <span>{v.label}</span>
-                      <b>{money(v.amountCents ?? detail.amountCents ?? 0, detail.currency)}</b>
+                      <b>
+                        {catalogPriceLabel(
+                          detail,
+                          v.amountCents ?? detail.amountCents ?? 0,
+                          locale,
+                          money,
+                        )}
+                      </b>
                     </label>
                   ))}
                 </fieldset>
@@ -486,7 +499,7 @@ export function CatalogBookingSheet({
               <div className="jb-lines">
                 <div>
                   <span>{variant ? `${detail.title} · ${variant.label}` : detail.title}</span>
-                  <span>{money(base, detail.currency)}</span>
+                  <span>{catalogPriceLabel(detail, base, locale, money)}</span>
                 </div>
                 {extras.map((e) => (
                   <div key={e.id}>
@@ -540,7 +553,7 @@ export function CatalogBookingSheet({
                       {emptyConsultButton}
                     </div>
                   ) : (
-                    <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
+                    <div className="jb-times" role="group" aria-label={timeGroupLabel}>
                       {liveTimes.map((iso) => {
                         const label = formatClock(iso, liveTz, locale);
                         return (
@@ -592,7 +605,7 @@ export function CatalogBookingSheet({
                       {emptyConsultButton}
                     </div>
                   ) : (
-                    <div className="jb-times" role="group" aria-label={es ? "Elegí un horario" : "Pick a time"}>
+                    <div className="jb-times" role="group" aria-label={timeGroupLabel}>
                       {demoTimes.map((t) => (
                         <button
                           key={t}
@@ -617,8 +630,9 @@ export function CatalogBookingSheet({
                 {es ? "← Cambiar horario" : "← Change time"}
               </button>
               <p className="jb-recap">
-                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time} ·{" "}
-                {money(total, detail.currency)}
+                {DAYS[day.getDay()]} {day.getDate()} {es ? "de" : ""} {MONTHS[day.getMonth()]}, {time}
+                {isQuote ? "" : ` · ${money(total, detail.currency)}`}
+                {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ""}
               </p>
               <label className="jb-field">
                 <span>{es ? "Nombre" : "Name"}</span>
@@ -707,8 +721,8 @@ export function CatalogBookingSheet({
               <p>
                 {detail.title}
                 {variant ? ` · ${variant.label}` : ""}
-                {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""} ·{" "}
-                {money(total, detail.currency)}
+                {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""}
+                {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ` · ${money(total, detail.currency)}`}
               </p>
               <p className="jb-fixture" data-catalog-done-next="">
                 {doneStepNextActionCopy({
@@ -736,7 +750,9 @@ export function CatalogBookingSheet({
           {step !== "done" ? (
             <div className="jb-total">
               <span>Total</span>
-              <b>{money(total, detail.currency)}</b>
+              <b data-catalog-price={isQuote ? "quote" : "money"}>
+                {catalogPriceLabel(detail, total, locale, money)}
+              </b>
             </div>
           ) : (
             <span />
@@ -750,13 +766,11 @@ export function CatalogBookingSheet({
               disabled={needsVariant && !variant}
               onClick={() => setStep("when")}
             >
-              {needsVariant && !variant
-                ? es
-                  ? "Elegí una opción"
-                  : "Choose an option"
-                : es
-                  ? "Continuar: elegir horario"
-                  : "Continue: pick a time"}
+              {chooseStepContinueLabel({
+                action: whoAction,
+                locale,
+                needsOption: needsVariant && !variant,
+              })}
             </button>
           ) : null}
           {step === "when" ? (
