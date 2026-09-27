@@ -71,10 +71,14 @@ function sameDay(a: Date, b: Date): boolean {
 
 const HIDDEN_CLIENT_SYSTEM_EVENTS = new Set(["offer_sent", "offer_accepted", "approvals_complete", "all_approvals_complete", "talent_approved"]);
 
-export function buildClientStream(messages: readonly ThreadMessage[]): ClientStreamItem[] {
+export function buildClientStream(
+  messages: readonly ThreadMessage[],
+  offers?: readonly Pick<ClientOfferSummary, "id" | "status">[],
+): ClientStreamItem[] {
   // One offer card per offer; the engine's own "Offer sent" / approvals
   // lines are the same fact as the card and stay out of the client's stream.
-  const offerCards = offerCardMessageIds(messages);
+  // Pass offers so a superseded revise does not keep its old card in the stream.
+  const offerCards = offerCardMessageIds(messages, offers);
   const live = messages.filter((m) => {
     if (m.internal || m.kind === "internal_note") return false;
     if (m.kind === "offer_event" || m.kind === "offer_review") return offerCards.has(m.id);
@@ -311,14 +315,24 @@ export function offerDepositCents(offer: Pick<ClientOfferSummary, "depositPct" |
   return null;
 }
 
-/** The message ids that draw an offer card: the LAST "sent" `offer_event` per offer id (a re-sent offer writes a second event; one card per offer). */
-export function offerCardMessageIds(messages: readonly Pick<ThreadMessage, "id" | "kind" | "payload">[]): Set<string> {
+/**
+ * The message ids that draw an offer card: the LAST "sent" `offer_event` per
+ * offer id (a re-sent offer writes a second event; one card per offer).
+ * Superseded offers never draw a card — a revise leaves the old `offer_event`
+ * in the thread, but the live offer summary says `superseded`, so skip it.
+ */
+export function offerCardMessageIds(
+  messages: readonly Pick<ThreadMessage, "id" | "kind" | "payload">[],
+  offers?: readonly Pick<ClientOfferSummary, "id" | "status">[],
+): Set<string> {
+  const superseded = new Set((offers ?? []).filter((o) => o.status === "superseded").map((o) => o.id));
   const last = new Map<string, string>();
   for (const m of messages) {
     if (m.kind !== "offer_event" && m.kind !== "offer_review") continue;
     const p = m.payload ?? {};
     const id = str(p.offer_id) ?? str(p.offerId);
     if (!id) continue;
+    if (superseded.has(id)) continue;
     if (m.kind === "offer_event" && str(p.status) !== "sent") continue;
     last.set(id, m.id);
   }
