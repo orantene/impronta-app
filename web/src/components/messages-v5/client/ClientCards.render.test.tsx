@@ -130,10 +130,11 @@ const offer: ClientOfferSummary = {
   ],
 };
 
-test("offer sent: lines, total, deposit and refund rule, validity, version pill, Accept and pay deposit · $1,140.00, Ask for a change, Decline; never a net or commission word", () => {
+test("offer sent: lines, total, deposit and refund rule, validity, Oferta · vN title, Accept + Ask for a change + Decline row; never a net or commission word", () => {
   const html = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} onDecline={() => {}} onChange={() => {}} />);
   assert.match(html, /class="cat">Offer</);
-  assert.match(html, />v3</);
+  assert.match(html, /Offer · v3/);
+  assert.doesNotMatch(html, /class="pill opp"/);
   assert.match(html, /Sofía Herrera · hostess × 2/);
   assert.match(html, /\$1,400\.00/);
   assert.match(html, /Total<\/span><span>\$3,800\.00/);
@@ -141,15 +142,16 @@ test("offer sent: lines, total, deposit and refund rule, validity, version pill,
   assert.match(html, /\$1,140\.00/);
   assert.match(html, /Valid until/);
   assert.match(html, /Note from Impronta: Travel included\./);
-  assert.match(html, /data-client-action="accept_offer"[^>]*>Accept and pay deposit · \$1,140\.00/);
-  assert.match(html, /data-client-action="ask_change"/);
-  assert.match(html, /data-client-action="decline_offer"/);
+  assert.match(html, /data-client-action="accept_offer"[^>]*>Accept</);
+  assert.match(html, /cx-offer-actions/);
+  assert.match(html, /data-client-action="ask_change"[^>]*>Ask for a change</);
+  assert.match(html, /data-client-action="decline_offer"[^>]*>Decline</);
   assert.doesNotMatch(html, /net|commission|payout|talent cost|discount|tax/i);
 });
 
-test("offer: no deposit rule reads Accept this offer; busy reads Accepting; refused shows the sentence", () => {
+test("offer: no deposit rule still reads Accept; busy reads Accepting; refused shows the sentence", () => {
   const plain = renderToStaticMarkup(<ClientOfferCard {...base} offer={{ ...offer, depositPct: null }} now={now} onAccept={() => {}} />);
-  assert.match(plain, />Accept this offer</);
+  assert.match(plain, />Accept</);
   assert.doesNotMatch(plain, /Deposit/);
   const busy = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} phase="busy" onAccept={() => {}} />);
   assert.match(busy, /aria-busy="true"/);

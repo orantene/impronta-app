@@ -597,7 +597,13 @@
       "homeItemsSub": "Vos choix et ce qui a été ajouté pour vous",
       "nextDeclinedButton": "Autre demande",
       "nextPayFailedButton": "Réessayer",
-      "nextRefundedButton": "Réserver à nouveau"
+      "nextRefundedButton": "Réserver à nouveau",
+      "railFactService": "un service",
+      "railFactMessage": "un message",
+      "composerPhrase": "Une phrase suffit. Vendredi, lifting, après le travail.",
+      "headerJourneyOffer": "Offre",
+      "headerJourneyTime": "Horaire en attente",
+      "headerJourneyBooked": "Réservé"
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",
@@ -7939,7 +7945,7 @@
             },
             "validUntil": "Valable jusqu'au {date}",
             "acceptPay": "Accepter et payer l'acompte · {amount}",
-            "accept": "Accepter cette offre",
+            "accept": "Accepter",
             "accepting": "Acceptation",
             "askChange": "Demander un changement",
             "decline": "Refuser",
@@ -7950,7 +7956,8 @@
             "expired": "Cette offre a expiré. Demandez-en une nouvelle à {business}.",
             "superseded": "Une version plus récente a remplacé cette offre.",
             "unitsSuffix": "× {units}",
-            "note": "Note de {business}"
+            "note": "Note de {business}",
+            "titleVersion": "Offre · v{version}"
           },
           "change": {
             "cat": "Demande de changement",

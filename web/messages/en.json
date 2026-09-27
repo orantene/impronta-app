@@ -1334,7 +1334,13 @@
       "emailTeamAccount": "That email is already tied to a team account. Try a personal email instead.",
       "emailRegisteredReplace": "This email is already registered. Sign in with that account, or use a different email.",
       "emailRegisteredGate": "This email already has a Tulala account. We'll send a sign-in link after you send your message.",
-      "emailSameAccount": "This is the email on your conversation. We'll send a sign-in link here."
+      "emailSameAccount": "This is the email on your conversation. We'll send a sign-in link here.",
+      "railFactService": "a service",
+      "railFactMessage": "a message",
+      "composerPhrase": "A short sentence is enough. Friday, lifting, after work.",
+      "headerJourneyOffer": "Offer",
+      "headerJourneyTime": "Time held",
+      "headerJourneyBooked": "Booked"
     },
     "inquiryDrawer": {
       "dialogAria": "New inquiry",
@@ -19048,7 +19054,7 @@
             },
             "validUntil": "Valid until {date}",
             "acceptPay": "Accept and pay deposit · {amount}",
-            "accept": "Accept this offer",
+            "accept": "Accept",
             "accepting": "Accepting",
             "askChange": "Ask for a change",
             "decline": "Decline",
@@ -19059,7 +19065,8 @@
             "expired": "This offer has expired. Ask {business} for a new one.",
             "superseded": "A newer version replaced this offer.",
             "unitsSuffix": "× {units}",
-            "note": "Note from {business}"
+            "note": "Note from {business}",
+            "titleVersion": "Offer · v{version}"
           },
           "change": {
             "cat": "Change request",

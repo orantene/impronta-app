@@ -1334,7 +1334,13 @@
       "emailTeamAccount": "Ese correo ya pertenece a una cuenta de equipo. Prueba con un correo personal.",
       "emailRegisteredReplace": "Este correo ya está registrado. Inicia sesión con esa cuenta o usa otro correo.",
       "emailRegisteredGate": "Este correo ya tiene una cuenta de Tulala. Te enviaremos un enlace de acceso después de que envíes tu mensaje.",
-      "emailSameAccount": "Este es el correo de tu conversación. Te enviaremos un enlace de acceso aquí."
+      "emailSameAccount": "Este es el correo de tu conversación. Te enviaremos un enlace de acceso aquí.",
+      "railFactService": "el servicio",
+      "railFactMessage": "un mensaje",
+      "composerPhrase": "Una frase alcanza. Viernes, lifting, después del trabajo.",
+      "headerJourneyOffer": "Oferta",
+      "headerJourneyTime": "Horario en espera",
+      "headerJourneyBooked": "Cita confirmada"
     },
     "inquiryDrawer": {
       "dialogAria": "Nueva solicitud",
@@ -19048,7 +19054,7 @@
             },
             "validUntil": "Válida hasta el {date}",
             "acceptPay": "Aceptar y pagar el depósito · {amount}",
-            "accept": "Aceptar esta oferta",
+            "accept": "Aceptar",
             "accepting": "Aceptando",
             "askChange": "Pedir un cambio",
             "decline": "Rechazar",
@@ -19059,7 +19065,8 @@
             "expired": "Esta oferta venció. Pide una nueva a {business}.",
             "superseded": "Una versión más reciente reemplazó esta oferta.",
             "unitsSuffix": "× {units}",
-            "note": "Nota de {business}"
+            "note": "Nota de {business}",
+            "titleVersion": "Oferta · v{version}"
           },
           "change": {
             "cat": "Solicitud de cambio",

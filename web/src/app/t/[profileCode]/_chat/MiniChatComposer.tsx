@@ -126,9 +126,11 @@ export function MiniChatComposer({
         aria-label="Send message"
         style={{
           ...primaryBtnStyle(accent, accentInk),
+          // Front-door brief `.send`: round control, not a rounded square.
           height: 40,
-          width: 46,
+          width: 40,
           padding: 0,
+          borderRadius: "50%",
           opacity: sendDisabled ? 0.45 : 1,
           cursor: sendDisabled ? "not-allowed" : "pointer",
         }}

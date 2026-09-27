@@ -234,10 +234,22 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
   const state = offerCardState(offer, now);
   const deposit = offerDepositCents(offer);
   const busy = phase === "busy";
+  // Front-door brief: terminal states keep a pill; the live "sent" offer folds
+  // the version into the title ("Oferta · v1") so the chrome matches article.offer.
   const pill =
-    state === "accepted" ? <Pill tone="won">{copy.offer.accepted}</Pill> : state === "declined" ? <Pill tone="lost">{copy.offer.declined}</Pill> : state === "expired" ? <Pill tone="lost">{kit.card.state.expired}</Pill> : <Pill tone="opp">{fill(copy.offer.version, { version: offer.version })}</Pill>;
+    state === "accepted" ? (
+      <Pill tone="won">{copy.offer.accepted}</Pill>
+    ) : state === "declined" ? (
+      <Pill tone="lost">{copy.offer.declined}</Pill>
+    ) : state === "expired" ? (
+      <Pill tone="lost">{kit.card.state.expired}</Pill>
+    ) : null;
   const refundLine = offer.refundPolicy && offer.refundPolicy in copy.offer.refund ? fill(copy.offer.refund[offer.refundPolicy as keyof typeof copy.offer.refund], { business }) : null;
   const depositLabel = [offer.depositPct != null && offer.depositPct > 0 ? fill(copy.offer.depositPct, { pct: offer.depositPct }) : copy.offer.depositLine, refundLine].filter(Boolean).join(" · ");
+  const offerTitle =
+    state === "sent"
+      ? fill(copy.offer.titleVersion, { version: offer.version })
+      : copy.offer.title;
 
   const foot =
     state === "accepted"
@@ -254,18 +266,21 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
 
   let actions: React.ReactNode = null;
   if (state === "sent" && mode === "view") {
+    // Brief row-actions: solid Aceptar + underlined Pedir un cambio / Rechazar.
     actions = (
-      <>
+      <div className="cx-row cx-offer-actions">
         {onAccept ? (
-          <Btn size="xl" variant="primary" fill busy={busy} onClick={() => onAccept(offer)} data-client-action="accept_offer">
-            {busy ? copy.offer.accepting : deposit != null ? fill(copy.offer.acceptPay, { amount: money(deposit, offer.currency) }) : copy.offer.accept}
+          <Btn size="sm" variant="primary" busy={busy} onClick={() => onAccept(offer)} data-client-action="accept_offer">
+            {busy ? copy.offer.accepting : copy.offer.accept}
           </Btn>
         ) : null}
-        <div className="cx-row">
-          <Btn size="sm" disabled={busy} onClick={() => setMode("change")} data-client-action="ask_change">{copy.offer.askChange}</Btn>
-          <Btn size="sm" disabled={busy} onClick={() => setMode("decline")} data-client-action="decline_offer">{copy.offer.decline}</Btn>
-        </div>
-      </>
+        <Btn size="sm" variant="ghost" className="cx-offer-ask" disabled={busy} onClick={() => setMode("change")} data-client-action="ask_change">
+          {copy.offer.askChange}
+        </Btn>
+        <Btn size="sm" variant="ghost" className="cx-offer-ask" disabled={busy} onClick={() => setMode("decline")} data-client-action="decline_offer">
+          {copy.offer.decline}
+        </Btn>
+      </div>
     );
   } else if (state === "sent" && mode === "change") {
     actions = (
@@ -298,7 +313,17 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
   }
 
   return (
-    <Card category="offer" label={copy.offer.cat} title={copy.offer.title} variant="mobile" testId="client-offer" busy={busy} pills={pill} foot={foot} actions={actions ? <div className="cx-stack">{actions}</div> : null}>
+    <Card
+      category="offer"
+      label={copy.offer.cat}
+      title={offerTitle}
+      variant="mobile"
+      testId="client-offer"
+      busy={busy}
+      pills={pill}
+      foot={foot}
+      actions={actions}
+    >
       {offer.lines.map((l, i) => (
         <CardLine key={i} label={l.units > 1 ? `${l.label} ${fill(copy.offer.unitsSuffix, { units: l.units })}` : l.label} amount={money(l.amountCents, offer.currency)} />
       ))}

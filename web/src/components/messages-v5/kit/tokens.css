@@ -711,6 +711,39 @@
 .msgv5 .cx-row { display: flex; gap: 8px; }
 .msgv5 .cx-row .btn { flex: 1; justify-content: center; }
 .msgv5 .cx-col .btn.xl.fill { justify-content: center; }
+/* Front-door brief article.offer — accent border + row actions (Aceptar · ask · decline). */
+.msgv5 .mx-card.k-offer {
+  border-color: var(--msgv5-offer-border, var(--msgv5-sky-ink));
+  background: var(--msgv5-offer-chip, var(--msgv5-sky-soft));
+}
+.msgv5 .mx-card.k-offer .cf:has(.cx-offer-actions) {
+  flex-direction: row;
+  align-items: center;
+  background: transparent;
+}
+.msgv5 .cx-offer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.msgv5 .cx-offer-actions .btn { flex: 0 0 auto; margin-left: 0; }
+.msgv5 .cx-offer-actions .btn.primary {
+  border-radius: 999px;
+  padding: 7px 12px;
+}
+.msgv5 .cx-offer-actions .btn.cx-offer-ask,
+.msgv5 .cx-offer-actions .btn.ghost.cx-offer-ask {
+  border: 0;
+  background: transparent;
+  color: var(--msgv5-ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 12px;
+  padding: 7px 4px;
+  box-shadow: none;
+}
 .msgv5 .cx-form { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 .msgv5 .cx-form textarea { min-height: 72px; border: 1.5px solid var(--msgv5-ink-24); border-radius: 12px; padding: 10px 12px; font-size: 15px; font-family: inherit; color: var(--msgv5-ink); background: var(--msgv5-white); resize: vertical; }
 .msgv5 .cx-form label { font-size: 13px; color: var(--msgv5-ink-2); }
