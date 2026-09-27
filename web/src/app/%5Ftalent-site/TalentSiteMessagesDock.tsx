@@ -14,6 +14,62 @@ import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 
 /**
+ * Solid CTA/brand fill for Hablar — prefer primary over pale accent blush.
+ * Reads `talent_sites.design_tokens` even when TALENT_THEME_GALLERY_ENABLED is
+ * off: the published CSS vars still carry color.primary (Jorg #A82458).
+ */
+async function loadVanityChatAccent(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+): Promise<string | null> {
+  const { data, error } = await admin
+    .from("talent_sites")
+    .select("design_tokens")
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) return null;
+  const raw = (data as { design_tokens?: unknown } | null)?.design_tokens;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const tokens = raw as Record<string, unknown>;
+  const primary = typeof tokens["color.primary"] === "string" ? tokens["color.primary"].trim() : "";
+  if (primary && !isNearInk(primary)) return primary;
+  const accent = typeof tokens["color.accent"] === "string" ? tokens["color.accent"].trim() : "";
+  if (accent && !isPaleTint(accent) && !isNearInk(accent)) return accent;
+  return primary || accent || null;
+}
+
+function isNearInk(hex: string): boolean {
+  const n = parseHex(hex);
+  if (!n) return false;
+  return (n.r + n.g + n.b) / 3 < 40;
+}
+
+/** Blush/tint accents fail white-on-fill contrast for the Hablar pill. */
+function isPaleTint(hex: string): boolean {
+  const n = parseHex(hex);
+  if (!n) return false;
+  const lum = (0.299 * n.r + 0.587 * n.g + 0.114 * n.b) / 255;
+  return lum > 0.72;
+}
+
+function parseHex(hex: string): { r: number; g: number; b: number } | null {
+  const m = hex.trim().replace(/^#/, "");
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+  return {
+    r: parseInt(full.slice(0, 2), 16),
+    g: parseInt(full.slice(2, 4), 16),
+    b: parseInt(full.slice(4, 6), 16),
+  };
+}
+
+/**
  * Guest Messages dock for a talent vanity host. The tenant is resolved on
  * the server from the talent profile id and passed into the mount for
  * server-side reads only. `exposeTenantToClient={false}` keeps that id out
@@ -45,7 +101,7 @@ export async function TalentSiteMessagesDock({
 }) {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const [resolved, profileRes] = await Promise.all([
+  const [resolved, profileRes, accentColor] = await Promise.all([
     loadTalentSiteInquiryTenant(admin, talentProfileId),
     admin
       .from("talent_profiles")
@@ -54,6 +110,7 @@ export async function TalentSiteMessagesDock({
       )
       .eq("id", talentProfileId)
       .maybeSingle(),
+    loadVanityChatAccent(admin, talentProfileId),
   ]);
   if (!resolved.ok) return null;
   const profile = profileRes.data as {
@@ -112,6 +169,7 @@ export async function TalentSiteMessagesDock({
         tenantId={resolved.tenant.tenantId}
         exposeTenantToClient={false}
         agencyName={displayName}
+        accentColor={accentColor}
         sourcePage="/"
         locale={locale}
         greeting={tradeVoice}

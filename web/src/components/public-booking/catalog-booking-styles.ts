@@ -1,11 +1,13 @@
 /** Token-first sheet chrome. Falls back to Jor blush when a site has no tokens. */
 export const CATALOG_BOOKING_CSS = `
-/* Prefer brand accent/rose over site --token-color-primary: vanity Max trees
-   often set primary to ink (#111), which made Continuar/check read black and
-   broke Maison 1:1 on book-jorgelina (CMS also stores bookingSheet.accent=ink). */
-.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-accent,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
+/* CTA fills use --token-color-primary (solid brand). Vanity trees often store a
+   pale blush on --token-color-accent (e.g. #F4D7E2) for tints — using that for
+   Continuar/Confirmar made white labels unreadable (BJ-01). Soft fills are a
+   mix of the solid primary, not the blush token. Ink sheet accent stays ink;
+   render.tsx remaps CMS bookingSheet.accent=ink → "primary" on vanity. */
+.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
 .cb-island[data-sheet-accent="ink"]{--cb-primary:var(--token-color-ink,var(--plt-ink,#242126));--cb-blush:color-mix(in srgb,var(--cb-primary) 8%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface))}
-.cb-island[data-sheet-accent="primary"]{--cb-primary:var(--token-color-accent,var(--plt-accent,#A82458));--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
+.cb-island[data-sheet-accent="primary"]{--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
 .jb-back{position:fixed;inset:0;z-index:120;background:rgba(36,33,38,.42);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:jb-fade 200ms cubic-bezier(.22,1,.36,1)}
 @keyframes jb-fade{from{opacity:0}to{opacity:1}}
 .jb-sheet{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:var(--cb-surface);color:var(--cb-ink);border-radius:22px 22px 0 0;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);box-shadow:0 -24px 60px -28px rgba(36,33,38,.45);animation:jb-rise 300ms cubic-bezier(.22,1,.36,1)}
@@ -86,6 +88,11 @@ export const CATALOG_BOOKING_CSS = `
 .site-builder-node--services-catalog-cta[data-selected="true"]{background:var(--cb-blush,color-mix(in srgb,var(--cb-primary,#A82458) 14%,transparent))!important;color:var(--cb-ink)!important;border:1px solid var(--cb-primary,#A82458)!important}
 @media (min-width:720px){
   .cb-bar:not([data-has-selection="true"]){display:none!important}
-  .cb-bar[data-show="true"][data-has-selection="true"]{left:auto;right:32px;bottom:32px;width:min(460px,calc(100vw - 64px));border:1px solid var(--cb-line);border-radius:18px;padding:16px 20px;box-shadow:0 24px 50px -30px rgba(36,33,38,.4)}
+  /* Leave a gutter for the Hablar FAB so Continuar and the pill do not stack
+     on the same bottom-right corner (BJ-07). */
+  .cb-bar[data-show="true"][data-has-selection="true"]{left:auto;right:max(32px,calc(16px + 56px + 16px));bottom:32px;width:min(420px,calc(100vw - 120px));border:1px solid var(--cb-line);border-radius:18px;padding:16px 20px;box-shadow:0 24px 50px -30px rgba(36,33,38,.4)}
 }
+/* Mobile: full-width idle/selected bar — Hablar FAB lifts via data-yield-booking-bar. */
+.cb-island{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+@media (min-width:720px){.cb-island{padding-bottom:0}}
 `;

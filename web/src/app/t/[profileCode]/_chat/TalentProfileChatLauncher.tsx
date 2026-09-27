@@ -51,14 +51,13 @@ import { useLauncherSessionRestore } from "./use-launcher-session-restore";
 import { useLauncherScrollCollapse } from "./use-launcher-scroll-collapse";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
+import { useYieldBookingBar } from "./use-yield-booking-bar";
 import {
   DEFAULT_ACCENT,
   FONT,
-  GUEST_CHAT_LAUNCHER_BOTTOM_PX,
   firstNameOf,
   readableOn,
   type SurfaceMode,
-  GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX,
 } from "./mini-chat-styles";
 
 // Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
@@ -539,6 +538,7 @@ export function TalentProfileChatLauncher({
    * to sit beside the content rather than on top of it.
    */
   const collapsedByScroll = narrowLauncher ? !open : collapsedByScrollDesktop;
+  const { yieldBookingBar, launcherBottomPx } = useYieldBookingBar(mounted, narrowLauncher);
 
   if (!mounted) return null;
 
@@ -580,14 +580,11 @@ export function TalentProfileChatLauncher({
            over this pill -- hiding it is the only correct fix. See the nav CSS
            in builder-node/render.tsx. */
         data-guest-chat-launcher=""
+        data-yield-booking-bar={yieldBookingBar ? "1" : undefined}
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
-          bottom: `calc(${
-            narrowLauncher
-              ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
-              : GUEST_CHAT_LAUNCHER_BOTTOM_PX
-          }px + env(safe-area-inset-bottom))`,
+          bottom: `calc(${launcherBottomPx}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
           display: "flex",
           flexDirection: "column",

@@ -136,6 +136,11 @@ export const GUEST_CHAT_LAUNCHER_BOTTOM_PX = 130;
  * on a 812px-tall viewport it puts the pill ~50px clear of that button.
  */
 export const GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX = 24;
+/**
+ * Extra lift when the catalog sticky Continuar / "Elige tu servicio" bar is
+ * visible (BJ-07) so Hablar does not sit on top of booking chrome.
+ */
+export const GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX = 64;
 /** Mini / expanded panel offset — sits above the launcher pill. */
 export const GUEST_CHAT_PANEL_BOTTOM_PX = 194;
 
