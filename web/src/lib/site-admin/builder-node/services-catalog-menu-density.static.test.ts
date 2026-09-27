@@ -40,7 +40,12 @@ test("services_catalog root CSS does not force surface-raised page ground", () =
   assert.doesNotMatch(
     root,
     /background:var\(--token-color-surface-raised/,
-    "shared catalog must not paint blush — Maison scopes it on the Design services container",
+    "shared catalog must not paint blush — Maison scopes via Design container or authored style.backgroundColor",
+  );
+  assert.match(
+    css,
+    /themedBandGround/,
+    "live-bound band ground must honor authored style.backgroundColor under useWebsiteTheme",
   );
 });
 
