@@ -4,10 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useFocusTrap } from "@/components/support/use-focus-trap";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
-import type {
-  InstantBookActionResult,
-  InstantBookFormPayload,
-} from "@/lib/server-actions/instant-book-types";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
 
@@ -16,16 +12,16 @@ import {
   catalogCanContinueWhen,
   catalogDetailIsPurchase,
   catalogNeedsOptions,
-  submitCatalogBooking,
   catalogNextDays,
   catalogSelectedStartStillOpen,
   catalogTotalCents,
-  demoReservationIso,
   demoSlotsFor,
   formatClock,
   groupIsoSlotsByDay,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
+import type { CatalogBookFn } from "./catalog-booking-confirm";
+import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import {
   openCatalogBookingChat,
   type CatalogBookingChatHandoff,
@@ -42,7 +38,11 @@ import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   type CatalogSheetBookingSettings,
 } from "@/lib/talent/selling-booking-settings";
-import { resolveWhoStepPaymentUi } from "@/lib/talent/who-step-payment-copy";
+import {
+  doneStepNextActionCopy,
+  offeringRequiresOnlineCollect,
+  resolveWhoStepPaymentUi,
+} from "@/lib/talent/who-step-payment-copy";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -50,7 +50,7 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
   inclusion?: string | null;
 };
 
-export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<InstantBookActionResult>;
+export type { CatalogBookFn };
 export type { CatalogSlotsFn };
 export type { CatalogSheetBookingSettings };
 
@@ -106,11 +106,11 @@ export function CatalogBookingSheet({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wrote, setWrote] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const liveStartsRef = useRef<string | null>(null);
 
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
@@ -142,7 +142,6 @@ export function CatalogBookingSheet({
       setEmail("");
       setTouched(false);
       setError(null);
-      setBusy(false);
       setWrote(false);
       setAskAttempted(false);
       const needsOption = catalogNeedsOptions(d);
@@ -244,16 +243,56 @@ export function CatalogBookingSheet({
     return () => {
       cancelled = true;
     };
-  }, [detail, step, mode, slotsFn, bookingDurationMinutes]);
-
-  if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
+  }, [detail, step, mode, slotsFn, bookingDurationMinutes, slotsRefreshKey]);
 
   const day = mode === "live" ? (liveDays[dayIndex]?.date ?? days[0]!) : (days[dayIndex] ?? days[0]!);
-  const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
-  const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const nameValid = name.trim().length >= 2;
   const emailValid = /.+@.+\..+/.test(email.trim());
   const phoneValid = phone.trim() === "" || phone.replace(/\D/g, "").length >= 8;
+  const { busy, confirm, resetConfirmGuards } = useCatalogBookingConfirm({
+    locale,
+    mode,
+    tenantId,
+    bookFn,
+    intent: detail?.intent ?? "instant",
+    talentProfileId: detail?.talentProfileId ?? null,
+    offeringId: detail?.offeringId ?? "",
+    reserveMode: detail?.reserveMode ?? "free",
+    allowPayInPerson: detail?.allowPayInPerson !== false,
+    variantId,
+    addOnIds,
+    liveStarts,
+    liveTz,
+    liveDays,
+    bookingDurationMinutes,
+    day,
+    time,
+    captchaRequired,
+    captchaToken,
+    nameValid,
+    emailValid,
+    phoneValid,
+    name,
+    email,
+    phone,
+    setTouched,
+    setError,
+    setTime,
+    setLiveStarts,
+    setStep,
+    setWrote,
+    setSlotsRefreshKey,
+  });
+
+  useEffect(() => {
+    if (detail) return;
+    resetConfirmGuards();
+  }, [detail, resetConfirmGuards]);
+
+  if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
+
+  const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
+  const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const isRequest = detail.intent === "request";
   const { whoAction, whoCtaText, paymentFixture } = resolveWhoStepPaymentUi({
     reserveMode: detail.reserveMode,
@@ -306,72 +345,6 @@ export function CatalogBookingSheet({
     setDetail(null);
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
-  };
-
-  const confirm = async () => {
-    setTouched(true);
-    if (!nameValid || !emailValid || !phoneValid) return;
-    if (captchaRequired && !captchaToken.trim()) {
-      setError(es ? "Completá la verificación." : "Complete the verification.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const submitted = await submitCatalogBooking(mode, detail.intent, async () => {
-      if (!tenantId || !detail.talentProfileId) {
-        return { ok: false as const, error: es ? "Falta el estudio para guardar la cita." : "This site is not ready to take bookings." };
-      }
-      const reservation = liveStarts
-        ? {
-            startsAt: liveStarts,
-            endsAt: new Date(
-              new Date(liveStarts).getTime() + bookingDurationMinutes * 60_000,
-            ).toISOString(),
-            timezone: liveTz,
-          }
-        : time
-          ? demoReservationIso(day, time, bookingDurationMinutes)
-          : null;
-      const run =
-        bookFn ??
-        (await import("@/lib/server-actions/instant-book-action")).createInstantBookingAction;
-      return run({
-        talentProfileId: detail.talentProfileId,
-        tenantId,
-        contactName: name.trim(),
-        contactEmail: email.trim(),
-        contactPhone: phone.trim() || null,
-        offeringId: detail.offeringId,
-        payInPerson:
-          detail.reserveMode === "free" && detail.allowPayInPerson !== false,
-        variantId,
-        addOnIds,
-        reservation,
-        captchaToken: captchaRequired ? captchaToken || null : null,
-        sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
-      });
-    });
-    if (!submitted.wrote) {
-      window.setTimeout(() => {
-        setBusy(false);
-        setWrote(false);
-        setStep("done");
-      }, mode === "demo" ? 400 : 200);
-      return;
-    }
-    setBusy(false);
-    const result = submitted.result;
-    if (!result || !result.ok) {
-      setError(result?.error ?? (es ? "No se pudo guardar." : "Could not save."));
-      return;
-    }
-    setWrote(true);
-    const redirect = result.redirectPath?.trim();
-    if (redirect) {
-      window.location.href = redirect;
-      return;
-    }
-    setStep("done");
   };
 
   return (
@@ -710,14 +683,16 @@ export function CatalogBookingSheet({
                 {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""} ·{" "}
                 {money(total, detail.currency)}
               </p>
-              <p className="jb-fixture">
-                {isRequest
-                  ? es
-                    ? "Queda pendiente de confirmación."
-                    : "This stays pending until it is confirmed."
-                  : es
-                    ? "Recibirás la confirmación por correo."
-                    : "You will get the confirmation by email."}
+              <p className="jb-fixture" data-catalog-done-next="">
+                {doneStepNextActionCopy({
+                  reserveMode: detail.reserveMode,
+                  allowPayInPerson: detail.allowPayInPerson,
+                  depositPct: detail.depositPct,
+                  onlineCollectReady,
+                  locale,
+                  wrote,
+                  isRequest,
+                })}
               </p>
               {mode === "demo" || !wrote ? (
                 <p className="jb-demo" data-catalog-demo-note="">

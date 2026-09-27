@@ -14,6 +14,7 @@ import {
   catalogTotalCents,
   catalogWillWriteBooking,
   demoSlotsFor,
+  resolveCatalogConfirmOutcome,
   submitCatalogBooking,
 } from "./catalog-booking-logic";
 
@@ -66,6 +67,53 @@ test("only the published instant path writes a booking", async () => {
   const live = await submitCatalogBooking("live", "instant", async () => "wrote");
   assert.equal(live.wrote, true);
   assert.equal(live.result, "wrote");
+});
+
+test("confirm outcome: slotTaken / payment missing / redirect / studio done", () => {
+  assert.equal(
+    resolveCatalogConfirmOutcome({
+      wrote: false,
+      result: null,
+      requiresOnlineCollect: false,
+      locale: "es",
+    }).kind,
+    "preview_done",
+  );
+  const taken = resolveCatalogConfirmOutcome({
+    wrote: true,
+    result: { ok: false, slotTaken: true, error: "taken" },
+    requiresOnlineCollect: false,
+    locale: "es",
+  });
+  assert.equal(taken.kind, "slot_taken");
+  if (taken.kind === "slot_taken") assert.equal(taken.message, "taken");
+
+  const payMissing = resolveCatalogConfirmOutcome({
+    wrote: true,
+    result: { ok: true, redirectPath: "" },
+    requiresOnlineCollect: true,
+    locale: "es",
+  });
+  assert.equal(payMissing.kind, "payment_missing");
+  if (payMissing.kind === "payment_missing") assert.match(payMissing.message, /pago/i);
+
+  const redirect = resolveCatalogConfirmOutcome({
+    wrote: true,
+    result: { ok: true, redirectPath: "https://checkout.example/c" },
+    requiresOnlineCollect: true,
+    locale: "en",
+  });
+  assert.deepEqual(redirect, { kind: "redirect", path: "https://checkout.example/c" });
+
+  assert.equal(
+    resolveCatalogConfirmOutcome({
+      wrote: true,
+      result: { ok: true, redirectPath: "" },
+      requiresOnlineCollect: false,
+      locale: "es",
+    }).kind,
+    "done",
+  );
 });
 
 test("Sunday has no demo hours", () => {

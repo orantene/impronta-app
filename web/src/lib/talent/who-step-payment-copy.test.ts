@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  doneStepNextActionCopy,
   offeringRequiresOnlineCollect,
+  resolveWhoStepPaymentUi,
+  whoStepConfirmCtaLabel,
   whoStepPaymentCopy,
 } from "./who-step-payment-copy";
+import { DEFAULT_SHEET_BOOKING_SETTINGS } from "./selling-booking-settings";
 
 test("free + in-person → studio pay copy (es/en)", () => {
   assert.match(
@@ -99,5 +103,83 @@ test("offeringRequiresOnlineCollect matrix", () => {
   assert.equal(
     offeringRequiresOnlineCollect({ reserveMode: "full", allowPayInPerson: true }),
     true,
+  );
+});
+
+test("confirm CTA: studio keeps Confirmar; deposit/full say Continuar al pago", () => {
+  assert.match(
+    whoStepConfirmCtaLabel({
+      needsOnlineCollect: false,
+      locale: "es",
+      whoPrimaryCta: "confirm_now",
+    }),
+    /Confirmar cita/,
+  );
+  assert.match(
+    whoStepConfirmCtaLabel({
+      needsOnlineCollect: true,
+      locale: "es",
+      whoPrimaryCta: "confirm_now",
+    }),
+    /Continuar al pago/,
+  );
+  assert.match(
+    whoStepConfirmCtaLabel({
+      needsOnlineCollect: true,
+      locale: "en",
+      whoPrimaryCta: "confirm_now",
+    }),
+    /Continue to payment/,
+  );
+});
+
+test("resolveWhoStepPaymentUi deposit confirm uses payment CTA", () => {
+  const ui = resolveWhoStepPaymentUi({
+    reserveMode: "deposit",
+    allowPayInPerson: false,
+    depositPct: 30,
+    onlineCollectReady: true,
+    locale: "es",
+    offeringIntent: "instant",
+    bookingSettings: DEFAULT_SHEET_BOOKING_SETTINGS,
+  });
+  assert.equal(ui.whoAction, "confirm");
+  assert.match(ui.whoCtaText, /Continuar al pago/);
+  assert.doesNotMatch(ui.whoCtaText, /Confirmar cita/);
+});
+
+test("done-step next action restates studio vs payment (never silent paid)", () => {
+  assert.match(
+    doneStepNextActionCopy({
+      reserveMode: "free",
+      allowPayInPerson: true,
+      depositPct: null,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /estudio/,
+  );
+  assert.match(
+    doneStepNextActionCopy({
+      reserveMode: "deposit",
+      allowPayInPerson: false,
+      depositPct: 40,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /pago/,
+  );
+  assert.doesNotMatch(
+    doneStepNextActionCopy({
+      reserveMode: "deposit",
+      allowPayInPerson: false,
+      depositPct: 40,
+      locale: "es",
+      wrote: true,
+      isRequest: false,
+    }),
+    /estudio/,
   );
 });

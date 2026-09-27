@@ -11,6 +11,7 @@ import {
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
 import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
+import { openPurchaseThread } from "@/lib/orders/purchase-thread";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
   resolvePurchasePolicy,
@@ -718,52 +719,21 @@ export async function createPurchase(
 
     // ── 10. The conversation, when the channel wants one.
     //
-    // AFTER the money leg and deliberately BEST-EFFORT: a thread that failed to
-    // open is a visibility problem, and cancelling a paid order to fix a
-    // visibility problem would be a far worse trade. The order is the record;
-    // the thread is where people talk about it.
+    // AFTER the money leg and deliberately BEST-EFFORT (see purchase-thread.ts).
+    // Calendar linkage (hold ↔ inquiry, agency source_inquiry_id, talent_bookings
+    // mirror) rides the same window so `/c/…` and the talent agenda agree.
     let inquiryId: string | null = null;
     if (input.openThread) {
-      const threadGuestSessionId =
-        input.guestSessionId ?? guestSessionId ?? null;
-      const { data: inqRow, error: inqErr } = await admin
-        .from("inquiries")
-        .insert({
-          tenant_id: input.tenantId,
-          source_workspace_id: input.tenantId,
-          contact_name: input.contact.displayName ?? input.contact.email ?? "Guest",
-          contact_email: input.contact.email ?? "",
-          contact_phone: input.contact.phone ?? null,
-          client_user_id: input.actorUserId,
-          // Guest confirmation at `/c/[id]` gates on this matching the cookie.
-          guest_session_id: input.actorUserId ? null : threadGuestSessionId,
-        })
-        .select("id")
-        .single();
-
-      if (inqErr || !inqRow) {
-        logServerError("orders.createPurchase/thread", inqErr);
-      } else {
-        inquiryId = (inqRow as { id: string }).id;
-
-        const { error: linkErr } = await admin
-          .from("orders")
-          .update({ inquiry_id: inquiryId })
-          .eq("id", createdOrderId);
-        if (linkErr) logServerError("orders.createPurchase/thread-link", linkErr);
-
-        // The card carries { order_id } ONLY. Every figure is read from the
-        // order at render time, so it cannot drift from what it describes.
-        const { error: cardErr } = await admin.from("inquiry_messages").insert({
-          inquiry_id: inquiryId,
-          tenant_id: input.tenantId,
-          thread_type: "private",
-          message_kind: "order",
-          body: "",
-          card_payload: { order_id: createdOrderId },
-        });
-        if (cardErr) logServerError("orders.createPurchase/thread-card", cardErr);
-      }
+      inquiryId = await openPurchaseThread(admin, {
+        tenantId: input.tenantId,
+        orderId: createdOrderId,
+        actorUserId: input.actorUserId,
+        guestSessionId: input.guestSessionId ?? guestSessionId ?? null,
+        contact: input.contact,
+        holdIds: placedHoldIds,
+        bookingId,
+        transactionId: createdTransactionId,
+      });
     }
 
     // Messages v5 / S2: the thread's record chips follow the order. Non-fatal.

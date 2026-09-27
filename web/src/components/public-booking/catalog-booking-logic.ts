@@ -23,6 +23,58 @@ export async function submitCatalogBooking<T>(
   return { wrote: true, result: await write() };
 }
 
+/** Client-side outcome after submitCatalogBooking — Path A honesty (pay / calendar / retry). */
+export type CatalogConfirmOutcome =
+  | { kind: "preview_done" }
+  | { kind: "slot_taken"; message: string }
+  | { kind: "error"; message: string }
+  | { kind: "redirect"; path: string }
+  | { kind: "payment_missing"; message: string }
+  | { kind: "done" };
+
+export function resolveCatalogConfirmOutcome(input: {
+  wrote: boolean;
+  result: {
+    ok: boolean;
+    error?: string;
+    slotTaken?: boolean;
+    redirectPath?: string;
+  } | null;
+  requiresOnlineCollect: boolean;
+  locale: string;
+}): CatalogConfirmOutcome {
+  const es = input.locale.toLowerCase().startsWith("es");
+  if (!input.wrote) return { kind: "preview_done" };
+  const result = input.result;
+  if (!result || !result.ok) {
+    if (result?.slotTaken) {
+      return {
+        kind: "slot_taken",
+        message:
+          result.error ??
+          (es
+            ? "Ese horario acaba de ocuparse. Elegí otro."
+            : "That time was just taken. Pick another."),
+      };
+    }
+    return {
+      kind: "error",
+      message: result?.error ?? (es ? "No se pudo guardar." : "Could not save."),
+    };
+  }
+  const redirect = result.redirectPath?.trim() ?? "";
+  if (redirect) return { kind: "redirect", path: redirect };
+  if (input.requiresOnlineCollect) {
+    return {
+      kind: "payment_missing",
+      message: es
+        ? "No se pudo abrir el pago. Probá de nuevo o enviá una consulta."
+        : "Could not open payment. Try again or send an inquiry.",
+    };
+  }
+  return { kind: "done" };
+}
+
 export function catalogNeedsOptions(
   detail: Pick<OfferingRequestDetail, "variants" | "addOns">,
 ): boolean {

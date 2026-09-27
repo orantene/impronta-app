@@ -26,6 +26,10 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
   "/api/",
   "/_next/",
   "/unsubscribe",
+  // Guest inquiry / instant-book result thread. Instant book redirects here
+  // (`/c/<inquiryId>?instant_booked=1`); without passthrough the vanity host
+  // 404s the booking result after a successful confirm (Path A).
+  "/c/",
 ] as const;
 
 const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico"] as const;
