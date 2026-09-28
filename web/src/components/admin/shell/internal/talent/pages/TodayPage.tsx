@@ -22,6 +22,7 @@ import { TalentServicesNudge } from "@/components/talent/services/TalentServices
 import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
 import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
@@ -50,6 +51,9 @@ export function TalentTodayPage() {
   // single source read by Today, the header reward control and the website
   // card. Called above the agenda early return (hooks rule).
   const websiteEligibility = useWebsiteEligibility();
+  // Live-site fact for Today's mode + live card (same source as the header
+  // reward control). Above the agenda early return (hooks rule).
+  const siteLoad = useTalentSiteDashboardInitialLoad();
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
@@ -124,6 +128,19 @@ export function TalentTodayPage() {
         loadError={bridgeTalentAgendaError}
         hours={bridgeTalentAgendaHours}
         completionMissingKeys={bridgeTalentCompletion?.missing.map((m) => m.key) ?? null}
+        eligibility={websiteEligibility}
+        bookableCount={websiteEligibility.bookableCount}
+        sitePublished={siteLoad?.ok ? siteLoad.state.site?.status === "published" : false}
+        siteUrl={siteLoad?.ok ? siteLoad.state.publicSiteUrl ?? null : null}
+        monthCollected={(() => {
+          if (bridgeTalentEarnings == null) return null;
+          const ptm = computePaidThisMonth(bridgeTalentEarnings);
+          return { cents: ptm.totalCents, count: ptm.count, currency: ptm.currency };
+        })()}
+        payoutsEnabled={
+          bridgeTalentPayoutSnapshot?.ok === true ? bridgeTalentPayoutSnapshot.data.payoutsEnabled : null
+        }
+        onSendQuote={() => setTalentPage("messages")}
         newLabel={resolveTradeProfile(bridgeTalentSelfProfile?.primaryTypeLabel).words.newLabel[copy.isSpanish ? 1 : 0]}
         onOpenAttention={() => setTalentPage("attention")}
         onOpenCalendar={() => setTalentPage("calendar")}

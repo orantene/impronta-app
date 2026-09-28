@@ -286,7 +286,6 @@
   "src/components/admin/shell/internal/talent/agenda/AgendaQuotes.tsx": 5,
   "src/components/admin/shell/internal/talent/agenda/AgendaRebookSuggestion.tsx": 1,
   "src/components/admin/shell/internal/talent/agenda/AgendaRescheduleSheet.tsx": 4,
-  "src/components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx": 1,
   "src/components/admin/shell/internal/talent/agenda/primitives/AgendaRow.tsx": 4,
   "src/components/admin/shell/internal/talent/agenda/primitives/BookingStateChip.tsx": 5,
   "src/components/admin/shell/internal/talent/agenda/primitives/EmptyDay.tsx": 1,
