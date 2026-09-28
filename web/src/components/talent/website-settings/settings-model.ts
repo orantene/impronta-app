@@ -38,6 +38,8 @@ export type SettingsService = {
    * so its deposit cannot fall back to the default here.
    */
   depositRequired: boolean;
+  /** priceDisplay "quote": shown as "Request a quote"; settings never changes it. */
+  quote?: boolean;
 };
 
 export type SettingsDraft = {
@@ -154,4 +156,14 @@ export function pendingChangeLabels(input: {
   if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
   if (s.acceptingInquiries !== n.acceptingInquiries || s.chatEnabled !== n.chatEnabled) out.push(input.labels.chat);
   return out;
+}
+
+/**
+ * WSF B2 impact preview for a default-mode change: services that follow the
+ * default (bookingMode null) move; services with their own setting stay.
+ */
+export function defaultModeImpact(services: Record<string, ServiceFields>): { follows: number; own: number } {
+  const all = Object.values(services);
+  const own = all.filter((f) => f.bookingMode != null).length;
+  return { follows: all.length - own, own };
 }

@@ -8,9 +8,11 @@
 import { useState, type ReactNode } from "react";
 import type { SellingDefaults } from "@/lib/talent/services-settings-actions";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
+import { BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { ChoiceCard, LiveOnSaveNote, SettingsCard, SourceBadge, Stepper } from "./primitives";
 import {
   countCustom,
+  defaultModeImpact,
   effectiveServiceMode,
   valueSource,
   withPosture,
@@ -38,7 +40,7 @@ function stepLabels(t: T) {
 }
 
 export function postureLabel(p: TalentBookingPosture, t: T): string {
-  return p === "instant" ? t("Instant booking") : p === "request" ? t("Booking request") : t("Inquiry only");
+  return t(BOOKING_MODE_LABELS[p].title);
 }
 
 const LIVE_NOTE = "Live on Save. Nothing changes for clients until you save.";
@@ -110,15 +112,20 @@ export function BookingGroup({
   setService,
   defaultInstantGap = null,
   before,
-}: GroupProps & ServiceProps & { defaultInstantGap?: string | null; before?: ReactNode }) {
+  savedPosture,
+}: GroupProps &
+  ServiceProps & { defaultInstantGap?: string | null; before?: ReactNode; savedPosture: TalentBookingPosture }) {
   const posture = draft.defaults.bookingPosture;
   const ownOf = (s: SettingsService) => draft.services[s.id]?.bookingMode ?? null;
   const own = services.filter((s) => ownOf(s) != null).length;
-  const modes: Array<{ mode: ServiceMode; title: string; detail: string }> = [
-    { mode: "instant", title: t("Instant booking"), detail: t("They pick a free time and confirm.") },
-    { mode: "request", title: t("Booking request"), detail: t("They send preferred times. You approve.") },
-    { mode: "inquiry", title: t("Inquiry only"), detail: t("You talk first, then arrange the work.") },
-  ];
+  const modes = (["instant", "request", "inquiry"] as const).map((mode: ServiceMode) => ({
+    mode,
+    title: t(BOOKING_MODE_LABELS[mode].title),
+    detail: t(BOOKING_MODE_LABELS[mode].sub),
+  }));
+  const quoteLabel = t(BOOKING_MODE_LABELS.quote.title);
+  const quoteReason = t("Quote services agree the price first. Change the price in Services to book instantly.");
+  const impact = defaultModeImpact(draft.services);
   return (
     <>
       <LiveOnSaveNote>{t(LIVE_NOTE)}</LiveOnSaveNote>
@@ -137,6 +144,13 @@ export function BookingGroup({
             />
           ))}
         </div>
+        {posture !== savedPosture ? (
+          <p role="status" className="mt-3 rounded-lg bg-black/[0.03] px-3 py-2.5 text-[12.5px] text-admin-ink">
+            {t("This changes {n} services. The {m} with their own setting stay unchanged.")
+              .replace("{n}", String(impact.follows))
+              .replace("{m}", String(impact.own))}
+          </p>
+        ) : null}
       </SettingsCard>
 
       <ServiceList
@@ -145,11 +159,20 @@ export function BookingGroup({
         aside={t("{n} of {total} with their own setting")
           .replace("{n}", String(own))
           .replace("{total}", String(services.length))}
-        describe={(s) => postureLabel(effectiveServiceMode(ownOf(s), posture), t)}
+        describe={(s) => (s.quote ? quoteLabel : postureLabel(effectiveServiceMode(ownOf(s), posture), t))}
         badge={(s) => <SourceBadge source={valueSource(ownOf(s))} t={t} />}
         editor={(s) => {
           const current = ownOf(s);
           const noPrice = s.canBookInstantly ? null : t("Needs a fixed price and its booking details first. Set them in Services.");
+          if (s.quote) {
+            // Quote is a price setting (Services owns it); settings only shows it.
+            return (
+              <div role="radiogroup" aria-label={`${t("Booking mode")}: ${s.title}`} className="grid gap-2">
+                <ChoiceCard checked title={quoteLabel} detail={t(BOOKING_MODE_LABELS.quote.sub)} onSelect={() => {}} />
+                <ChoiceCard checked={false} title={modes[0]!.title} disabledReason={quoteReason} onSelect={() => {}} />
+              </div>
+            );
+          }
           return (
             <div className="grid gap-2">
               <p className="text-[12.5px] text-admin-ink-muted">
