@@ -8,7 +8,7 @@ import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-ac
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
 import { TradeSections } from "./TradeSections";
-import { holdEndsParts, recordActionVisibility } from "./record-actions";
+import { holdEndsParts, nowBodyForRecord, recordActionVisibility } from "./record-actions";
 import { AgendaPayRequest } from "./AgendaPayRequest";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
@@ -445,10 +445,12 @@ export function AgendaBookingRecord({
               <dt className="text-[#5F6368]">{copy.t("When")}</dt>
               <dd>{item.whenLabel}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-[#5F6368]">{copy.t("Where")}</dt>
-              <dd>{item.whereLabel}</dd>
-            </div>
+            {item.whereLabel ? (
+              <div className="flex justify-between gap-3">
+                <dt className="text-[#5F6368]">{copy.t("Where")}</dt>
+                <dd>{copy.t(item.whereLabel)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-3">
               <dt className="text-[#5F6368]">{copy.t("Came from")}</dt>
               <dd>{item.sourceLabel}</dd>
@@ -469,7 +471,8 @@ export function AgendaBookingRecord({
             }
             title={copy.t(item.nowTitle)}
             body={(() => {
-              const body = item.nowBody ? copy.t(item.nowBody) : "";
+              const rawBody = nowBodyForRecord(item.nowBody, isAgency);
+              const body = rawBody ? copy.t(rawBody) : "";
               const hold = item.bookingState === "hold" ? holdEndsParts(item.holdUntilIso, now) : null;
               if (!hold) return body;
               const line = hold.left

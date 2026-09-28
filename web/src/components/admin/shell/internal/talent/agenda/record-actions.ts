@@ -86,3 +86,34 @@ export function holdEndsParts(
   const m = mins % 60;
   return { ends, left: h > 0 ? (m > 0 ? `${h} h ${m}` : `${h} h`) : `${m} min` };
 }
+
+export const CONFIRMED_NOW_BODY = "This booking is confirmed. Mark complete after the work is done.";
+export const CONFIRMED_AGENCY_NOW_BODY = "This booking is confirmed. The agency marks it complete.";
+
+/**
+ * AUD-032: agency jobs give the talent no complete action, so the confirmed
+ * NOW copy must not tell them to mark it complete.
+ */
+export function nowBodyForRecord(body: string | undefined, isAgency?: boolean): string | undefined {
+  if (isAgency && body === CONFIRMED_NOW_BODY) return CONFIRMED_AGENCY_NOW_BODY;
+  return body;
+}
+
+/** Labels that name a channel or row kind, never a place (AUD-030). */
+const NOT_A_PLACE = new Set(["booking", "hold", "open request", "deadline", "request"]);
+
+/**
+ * AUD-030: the record's "Where" value. Real place when known; "Online" for
+ * online work; "At your studio" when the talent has a studio; otherwise
+ * undefined so the row is hidden. Never a channel word like "Booking".
+ */
+export function placeLabelFor(
+  where: { mode?: string; label?: string | null } | undefined,
+  opts?: { hasStudio?: boolean },
+): string | undefined {
+  const label = where?.label?.trim() ?? "";
+  if (label && !NOT_A_PLACE.has(label.toLowerCase())) return label;
+  if (where?.mode === "online" && !label) return "Online";
+  if (opts?.hasStudio) return "At your studio";
+  return undefined;
+}

@@ -8,7 +8,7 @@ const PAYMENT_STATE_META: Record<
   { labelKey: string; className: string }
 > = {
   not_requested: {
-    labelKey: "Not requested",
+    labelKey: "Deposit not requested",
     className: "border border-[rgba(11,11,13,0.10)] bg-[rgba(11,11,13,0.05)] text-[#5F6368]",
   },
   awaiting_deposit: {

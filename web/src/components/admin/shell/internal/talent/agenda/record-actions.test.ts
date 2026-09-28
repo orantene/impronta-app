@@ -1,8 +1,58 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { holdEndsParts, isCompletedUnpaid, recordActionVisibility } from "./record-actions";
-import { shiftDays, weekDays, weekSubtitle } from "./present";
+import {
+  CONFIRMED_AGENCY_NOW_BODY,
+  CONFIRMED_NOW_BODY,
+  holdEndsParts,
+  isCompletedUnpaid,
+  nowBodyForRecord,
+  placeLabelFor,
+  recordActionVisibility,
+} from "./record-actions";
+import { agendaItemFromCalendarEntry, shiftDays, weekDays, weekSubtitle } from "./present";
+import { buildAgendaListItemFromAgendaItem } from "./view-model";
+import type { TalentCalendarEntry } from "../../data-bridge";
+
+function entry(over: Partial<TalentCalendarEntry>): TalentCalendarEntry {
+  return {
+    id: "b1",
+    kind: "booking",
+    title: "Session",
+    startsAt: "2026-09-27T15:00:00Z",
+    endsAt: "2026-09-27T16:00:00Z",
+    allDay: false,
+    status: "confirmed",
+    subLabel: "Ana",
+    tenantId: null,
+    ...over,
+  } as TalentCalendarEntry;
+}
+
+describe("AUD-030/032 agenda record copy", () => {
+  it("AUD-030: Where never prints a channel word as a place", () => {
+    assert.equal(placeLabelFor({ mode: "studio", label: "Booking" }), undefined);
+    assert.equal(placeLabelFor({ mode: "studio", label: "Booking" }, { hasStudio: true }), "At your studio");
+    assert.equal(placeLabelFor({ mode: "away", label: "Av. Reforma 10" }), "Av. Reforma 10");
+    assert.equal(placeLabelFor({ mode: "online", label: "" }), "Online");
+    assert.equal(placeLabelFor({ mode: "studio", label: "Hold" }), undefined);
+    const vm = buildAgendaListItemFromAgendaItem({
+      ...agendaItemFromCalendarEntry(entry({})),
+      where: { mode: "studio", label: "Booking" },
+    });
+    assert.equal(vm.whereLabel, "");
+  });
+
+  it("AUD-032: agency confirmed copy says the agency marks it complete", () => {
+    assert.equal(nowBodyForRecord(CONFIRMED_NOW_BODY, true), CONFIRMED_AGENCY_NOW_BODY);
+    assert.equal(nowBodyForRecord(CONFIRMED_NOW_BODY, false), CONFIRMED_NOW_BODY);
+    assert.equal(CONFIRMED_AGENCY_NOW_BODY, "This booking is confirmed. The agency marks it complete.");
+    const agency = buildAgendaListItemFromAgendaItem(agendaItemFromCalendarEntry(entry({ tenantId: "t1" })));
+    assert.equal(agency.nowBody, CONFIRMED_AGENCY_NOW_BODY);
+    const direct = buildAgendaListItemFromAgendaItem(agendaItemFromCalendarEntry(entry({})));
+    assert.equal(direct.nowBody, CONFIRMED_NOW_BODY);
+  });
+});
 
 describe("P1 audit record states", () => {
   it("AUD-017a: completed + unpaid offers Request payment", () => {

@@ -23,11 +23,13 @@ const ES: Record<string, string> = {
   "No show": "No presentó",
   "No-show": "No presentación",
   Requested: "Solicitado",
+  "Booking requested": "Reserva solicitada",
   "On hold": "En hold",
   "Hold expired": "Hold vencido",
 
   // Payment states
   "Not requested": "Sin solicitud",
+  "Deposit not requested": "Depósito sin solicitar",
   "Awaiting deposit": "Esperando depósito",
   "Checking payment": "Verificando pago",
   "Due at appointment": "Pago en cita",
@@ -290,6 +292,10 @@ const ES: Record<string, string> = {
     "Este horario está reservado mientras el cliente completa la reserva. Caduca si no se convierte.",
   "This booking is confirmed. Mark complete after the work is done.":
     "Esta reserva está confirmada. Márcala completa cuando termine el trabajo.",
+  "This booking is confirmed. The agency marks it complete.":
+    "Esta reserva está confirmada. La agencia la marca como completa.",
+  "At your studio": "En tu estudio",
+  Online: "En línea",
   "This booking was cancelled.": "Esta reserva fue cancelada.",
   Request: "Solicitud",
   "Not blocking your time until you accept.": "No bloquea tu tiempo hasta que aceptes.",
