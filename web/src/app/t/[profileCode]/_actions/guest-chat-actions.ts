@@ -888,6 +888,8 @@ export async function startGuestChatInquiry(
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
       ...(offering ? { offering } : {}),
+      ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
+      ...(input.lines && input.lines.length > 1 ? { lines: input.lines.slice(0, 12) } : {}),
     },
     requester: {
       name: contactName,

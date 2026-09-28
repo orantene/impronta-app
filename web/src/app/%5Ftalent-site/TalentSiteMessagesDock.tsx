@@ -13,6 +13,10 @@ import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridg
 import { resolveIndustryPreset, talentSiteChatVoice } from "@/lib/words/presets";
 import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 
+import { TalentInquiryFormSheet } from "@/app/t/[profileCode]/_chat/TalentInquiryFormSheet";
+import { resolveTalentAskEntry, resolveTalentChatGreeting } from "@/lib/talent/chat-entry";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
+
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 
 /**
@@ -110,7 +114,7 @@ export async function TalentSiteMessagesDock({
 }) {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const [resolved, profileRes, siteChrome, thumbs] = await Promise.all([
+  const [resolved, profileRes, siteChrome, thumbs, switches] = await Promise.all([
     loadTalentSiteInquiryTenant(admin, talentProfileId),
     admin
       .from("talent_profiles")
@@ -122,7 +126,10 @@ export async function TalentSiteMessagesDock({
     loadVanitySiteChrome(admin, talentProfileId),
     // AUD-039: the talent's profile photo, same rank as her directory card.
     loadTalentCardThumbs(admin, [talentProfileId]),
+    // WSF D: her chat switch (chat → dock, off → inquiry form, inquiries off → neither).
+    loadTalentSiteSwitches(admin, talentProfileId),
   ]);
+  const askEntry = resolveTalentAskEntry(switches);
   const { accentColor, logoUrl } = siteChrome;
   const photoUrl = thumbs.get(talentProfileId) ?? null;
   if (!resolved.ok) return null;
@@ -162,6 +169,7 @@ export async function TalentSiteMessagesDock({
       <TalentSiteContactBridge
         heading={t("public.talentSite.contact.heading")}
         askLabel={t("public.talentSite.contact.ask")}
+        showAsk={askEntry !== "hidden"}
         whatsappLabel={t("public.talentSite.contact.whatsapp")}
         emailLabel={t("public.talentSite.contact.email")}
         truth={t(
@@ -174,23 +182,35 @@ export async function TalentSiteMessagesDock({
       />
       {/* AUD-037: keep the last row CTA clear of the fixed launcher on phones. */}
       <style>{GUEST_CHAT_LAUNCHER_CLEARANCE_CSS}</style>
-      <TalentProfileChatLauncherMount
-        talentProfileId={talentProfileId}
-        talentProfileCode={code}
-        talentDisplayName={displayName}
-        tenantSlug={resolved.tenant.slug}
-        tenantId={resolved.tenant.tenantId}
-        exposeTenantToClient={false}
-        agencyName={displayName}
-        accentColor={accentColor}
-        logoUrl={logoUrl}
-        photoUrl={photoUrl}
-        sourcePage="/"
-        locale={locale}
-        greeting={tradeVoice}
-        wordsPresetOverride={tradePreset}
-        omitPlatformBrand
-      />
+      {askEntry === "chat" ? (
+        <TalentProfileChatLauncherMount
+          talentProfileId={talentProfileId}
+          talentProfileCode={code}
+          talentDisplayName={displayName}
+          tenantSlug={resolved.tenant.slug}
+          tenantId={resolved.tenant.tenantId}
+          exposeTenantToClient={false}
+          agencyName={displayName}
+          accentColor={accentColor}
+          logoUrl={logoUrl}
+          photoUrl={photoUrl}
+          sourcePage="/"
+          locale={locale}
+          greeting={resolveTalentChatGreeting(switches, tradeVoice)}
+          wordsPresetOverride={tradePreset}
+          omitPlatformBrand
+        />
+      ) : askEntry === "form" ? (
+        <TalentInquiryFormSheet
+          tenantSlug={resolved.tenant.slug}
+          talentProfileId={talentProfileId}
+          talentProfileCode={code}
+          talentName={displayName}
+          sourcePage="/"
+          locale={locale}
+          accentColor={accentColor}
+        />
+      ) : null}
     </>
   );
 }

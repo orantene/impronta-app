@@ -44,7 +44,8 @@ test("the launcher and header carry the TALENT's name, not the inquiry tenant's"
 test("the dock is given a voice, so it cannot reach the catalog fallback", () => {
   const dock = dockSource();
   // Both halves matter: the opener line AND the vocabulary the tabs derive from.
-  assert.match(dock, /greeting=\{tradeVoice\}/);
+  // WSF D: her own chat_config.greeting wins; the trade voice is the default.
+  assert.match(dock, /greeting=\{resolveTalentChatGreeting\(switches, tradeVoice\)\}/);
   assert.match(dock, /talentSiteChatVoice\(/);
   assert.match(dock, /wordsPresetOverride=\{tradePreset\}/);
   assert.match(dock, /resolveTalentTradePreset\(/);

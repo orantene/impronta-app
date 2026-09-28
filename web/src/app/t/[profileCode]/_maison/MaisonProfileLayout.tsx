@@ -78,6 +78,12 @@ export type MaisonProfileLayoutProps = LightProfileLayoutProps & {
    * lower degrades the booking promise everywhere at once.
    */
   surfaceBooking?: "inquire" | "request" | "instant";
+  /**
+   * WSF D — which ask entry the talent offers (resolveTalentAskEntry). Ask
+   * opens the chat or the inquiry form either way (same events); "hidden"
+   * (not taking inquiries) drops the Ask link. Defaults to "chat".
+   */
+  askEntry?: "chat" | "form" | "hidden";
 };
 
 /** The appointment rows read as facts, not as a spreadsheet, once each has a mark. */
@@ -506,14 +512,16 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             <div className="mn-slot">{inquireButtonFooter}</div>
           </div>
 
-          <div className="mn-closing-alt">
-            <span>{c.askLead}</span>
-            <MaisonAskButton
-              label={c.askCta}
-              variant="link"
-              context={{ talentName: name, sourcePage: profileSourcePage, from: "closing" }}
-            />
-          </div>
+          {props.askEntry !== "hidden" ? (
+            <div className="mn-closing-alt">
+              <span>{c.askLead}</span>
+              <MaisonAskButton
+                label={c.askCta}
+                variant="link"
+                context={{ talentName: name, sourcePage: profileSourcePage, from: "closing" }}
+              />
+            </div>
+          ) : null}
 
           {content.contact ? (
             <MaisonContact

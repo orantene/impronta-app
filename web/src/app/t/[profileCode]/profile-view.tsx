@@ -123,6 +123,10 @@ import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { pickHeadlinePrice } from "@/lib/directory/headline-price";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
+import { TalentInquiryFormSheet } from "./_chat/TalentInquiryFormSheet";
+import { resolveTalentAskEntry, resolveTalentChatGreeting } from "@/lib/talent/chat-entry";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
+import { parseTalentSiteSwitches } from "@/lib/talent/site-switches";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
@@ -1968,6 +1972,14 @@ export async function TalentProfileView({
   const guestChatSettings = chatTenantId
     ? await loadGuestChatSettings(chatTenantId)
     : GUEST_CHAT_DEFAULTS;
+  // WSF D — the talent's own chat switch covers her /t/ profile too (auditor
+  // ruling). The agency-level settings above still gate agency surfaces; the
+  // talent's switch narrows on top: chat → launcher, off → inquiry form sheet,
+  // inquiries off → neither.
+  const talentSwitches = bookingAdmin
+    ? await loadTalentSiteSwitches(bookingAdmin, profile.id)
+    : parseTalentSiteSwitches(null);
+  const talentAskEntry = resolveTalentAskEntry(talentSwitches);
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -2459,6 +2471,7 @@ export async function TalentProfileView({
         // its CTA, its event intent and the sheet's button down together below
         // "instant"; omitting it defaulted to "instant" and never degraded.
         surfaceBooking={booking.mode}
+        askEntry={talentAskEntry}
         hostCtxKind={hostCtx.kind as "agency" | "app" | "hub" | "platform"}
         tenantId={hostCtx.kind === "agency" ? hostCtx.tenantId : ""}
         tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
@@ -2555,7 +2568,25 @@ export async function TalentProfileView({
           locale={locale}
         />
       ) : null}
-      {!isModal && guestChatSettings.enabled && guestChatSettings.showOnTalent && (
+      {!isModal &&
+        guestChatSettings.enabled &&
+        guestChatSettings.showOnTalent &&
+        talentAskEntry === "form" &&
+        chatTenantSlug && (
+          <TalentInquiryFormSheet
+            tenantSlug={chatTenantSlug}
+            talentProfileId={profile.id}
+            talentProfileCode={profile.profile_code}
+            talentName={name}
+            sourcePage={profileSourcePage}
+            locale={locale}
+            accentColor={chatAccentColor}
+          />
+        )}
+      {!isModal &&
+        guestChatSettings.enabled &&
+        guestChatSettings.showOnTalent &&
+        talentAskEntry === "chat" && (
         <TalentProfileChatLauncherMount
           talentProfileId={profile.id}
           talentProfileCode={profile.profile_code}
@@ -2566,7 +2597,7 @@ export async function TalentProfileView({
           accentColor={chatAccentColor}
           logoUrl={watermarkLogoUrl}
           sourcePage={profileSourcePage}
-          greeting={guestChatSettings.greeting}
+          greeting={resolveTalentChatGreeting(talentSwitches, guestChatSettings.greeting)}
           locale={locale}
           backgroundMode={chatBackgroundMode}
         />
