@@ -270,6 +270,8 @@ export function ThemeDetailScreen({
           errorTitle={maisonSetupT(locale, "The preview didn't load")}
           errorBody={maisonSetupT(locale, "Your choices are saved. Try again.")}
           retryLabel={maisonSetupT(locale, "Try again")}
+          virtualWidth={choices.previewDevice === "phone" ? undefined : 1280}
+          aspectRatio={choices.previewDevice === "phone" ? undefined : "16 / 11"}
         />
         {showDemoContent ? (
           <span className="absolute bottom-3 left-3 rounded bg-admin-ink/85 px-2 py-1 text-[10px] font-bold tracking-wide text-white">
