@@ -63,7 +63,12 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
     "Todos los servicios reciben consultas. Primero hablan y luego acuerdan el trabajo.",
   "Needs a fixed price and its booking details first. Set them in Services.":
     "Primero necesita un precio fijo y sus datos de reserva. Ponlos en Servicios.",
-  "{mode} by default · {n} of {total} services set to instant": "{mode} por defecto · {n} de {total} servicios con reserva inmediata",
+  "{mode} by default · {n} of {total} services with their own setting": "{mode} por defecto · {n} de {total} servicios con ajuste propio",
+  "Booking request": "Solicitud de cita",
+  "They pick a free time and confirm.": "Eligen un horario libre y confirman.",
+  "They send preferred times. You approve.": "Te proponen horarios. Tú apruebas.",
+  "You talk first, then arrange the work.": "Primero conversan y luego acuerdan el trabajo.",
+  "Inherited from your default": "Sigue tu opción predeterminada",
   "{n} with their own setting": "{n} con su propio ajuste",
   "Default deposit": "Anticipo por defecto",
   "Uses your default": "Usa tu ajuste por defecto",

@@ -17487,7 +17487,10 @@
         "instantNeedsPrice": "La reserva directa necesita un precio fijo.",
         "booking": {
           "request": "Consulta para reservar · tú confirmas primero",
-          "instant": "Reserva directa · al instante"
+          "instant": "Reserva directa · al instante",
+          "inquiry": "Solo consulta · te escriben primero",
+          "inherit": "Usa el predeterminado ({mode})",
+          "inheritTalent": "Usa el predeterminado del talento"
         },
         "collectUpFront": "Para reservar, el cliente paga",
         "collectHint": "Solo una reserva directa cobra por adelantado.",

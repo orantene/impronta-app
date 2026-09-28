@@ -396,7 +396,7 @@ export async function loadServicesCatalogSources(
   let categoryOrder: string[] = [];
   let categoryNotes: Record<string, string> | undefined;
   let bookingSettings:
-    | { bookingPosture: "on_demand" | "inquiry"; whoPrimaryCta: "confirm_now" | "contact" | "check_availability" }
+    | { bookingPosture: "instant" | "request" | "inquiry"; whoPrimaryCta: "confirm_now" | "contact" | "check_availability" }
     | undefined;
   const admin = createServiceRoleClient();
   if (admin) {

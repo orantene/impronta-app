@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
+import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
@@ -26,7 +27,7 @@ import { openCatalogBookingChat } from "@/components/public-booking/catalog-book
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
-  forceRequestIntent,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 
@@ -34,15 +35,24 @@ export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?
 
 export type CatalogNavMode = "pills" | "tabs" | "jump" | "sections" | "accordion" | "flat";
 
+// F4 / WSF-B: one derivation (deriveOfferingCta) shared with OfferingCta and
+// catalogRowCtaLabel. The talent default applies only to services that
+// inherit; a service with its own instant mode books instantly, which the
+// server (assertInstantPosture) already accepts.
+function deriveFor(
+  offering: TalentOffering,
+  confirmsByHand: boolean,
+  bookingPosture: TalentBookingPosture,
+) {
+  return deriveOfferingCta({ offering, defaults: { bookingPosture }, confirmsByHand });
+}
+
 function detailFor(
   offering: TalentOffering,
   confirmsByHand: boolean,
-  bookingPosture: TalentBookingPosture = "on_demand",
+  bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
 ): OfferingRequestDetail {
-  const raw = resolveOfferingCta(offering);
-  const forceRequest = confirmsByHand || forceRequestIntent(bookingPosture);
-  const cta = forceRequest && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
-  const instant = !forceRequest && (cta === "book_now" || cta === "buy_now");
+  const { instant } = deriveFor(offering, confirmsByHand, bookingPosture);
   return {
     offeringId: offering.id,
     talentProfileId: offering.talentProfileId,
@@ -72,20 +82,9 @@ function dispatchOffering(
   confirmsByHand: boolean,
   startAt?: "when",
   inclusion?: string | null,
-  bookingPosture: TalentBookingPosture = "on_demand",
+  bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
 ) {
-  const raw = resolveOfferingCta(offering);
-  const forceRequest = confirmsByHand || forceRequestIntent(bookingPosture);
-  const cta = forceRequest && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
-  const instant = !forceRequest && (cta === "book_now" || cta === "buy_now");
-  const slotEligible =
-    cta === "request_to_book" && offering.kind !== "product" && (offering.durationMinutes ?? 0) > 0;
-  const eventName =
-    instant || (forceRequest && raw !== "ask_quote")
-      ? "tulala:offering-instant"
-      : slotEligible
-        ? "tulala:offering-slot"
-        : "tulala:offering-request";
+  const { eventName } = deriveFor(offering, confirmsByHand, bookingPosture);
   window.dispatchEvent(
     new CustomEvent(eventName, {
       detail: {
@@ -447,7 +446,7 @@ export function ServicesCatalogFilter({
                       showPrice={showPrice}
                       showUsdEquivalent={showUsdEquivalent}
                       showBadges={showBadges}
-                      confirmsByHand={confirmsByHand || forceRequestIntent(bookingPosture)}
+                      confirmsByHand={confirmsByHand}
                       bookingPosture={bookingPosture}
                       usdRates={usdRates}
                       ctaLabel={ctaLabel}
@@ -523,7 +522,7 @@ export function CatalogRow({
   showUsdEquivalent,
   showBadges = false,
   confirmsByHand,
-  bookingPosture = "on_demand",
+  bookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
   usdRates,
   ctaLabel,
   durationFormat = "auto",
@@ -557,8 +556,8 @@ export function CatalogRow({
   const minCents = catalogRowMinCents(item);
   const ladder = catalogRowShowsFrom(item);
   const usd = usdEquivalentLabel(minCents, item.currency, usdRates, locale);
-  const raw = resolveOfferingCta(item);
-  const cta = confirmsByHand && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
+  const derived = deriveFor(item, confirmsByHand, bookingPosture);
+  const cta = derived.cta;
   const label = catalogRowCtaLabel({
     selected,
     offering: item,
@@ -576,7 +575,7 @@ export function CatalogRow({
   const deliveryText = where.map((w) => whereLabels[w] ?? w).filter(Boolean).join(" · ");
   const badges: string[] = [];
   if (showBadges) {
-    if (item.bookingMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
+    if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
     if (item.reserveMode === "deposit") badges.push(es ? "Seña" : "Deposit required");
     if (where.includes("remote")) badges.push(es ? "En línea" : "Online session");
   }
@@ -617,7 +616,7 @@ export function CatalogRow({
         ) : null}
         {showAvailability ? (
           <span className="site-builder-node--services-catalog-meta">
-            {item.bookingMode === "instant"
+            {derived.effectiveMode === "instant"
               ? es
                 ? "Confirmación inmediata"
                 : "Instant confirmation"
@@ -656,7 +655,7 @@ export function CatalogRow({
           type="button"
           onClick={() => {
             if (onSelect) onSelect();
-            else dispatchOffering(item, confirmsByHand);
+            else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
           }}
           data-offering-cta={cta}
           data-offering-id={item.id}

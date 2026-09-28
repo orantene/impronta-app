@@ -38,7 +38,6 @@ test("MODE-1 instant: on-demand + confirm_now → Confirm now / Confirmar cita",
   );
   assert.equal(
     resolveWhoPrimaryAction({
-      bookingPosture: "on_demand",
       whoPrimaryCta: "confirm_now",
       offeringIntent: "instant",
     }),
@@ -81,7 +80,6 @@ test("MODE-2 approval/request: request_to_book → Solicitar cita; who stays cha
   );
   assert.equal(
     resolveWhoPrimaryAction({
-      bookingPosture: "on_demand",
       whoPrimaryCta: "confirm_now",
       offeringIntent: "request",
     }),
@@ -136,7 +134,6 @@ test("MODE-6 contact / check availability who-step labels (not Confirm)", () => 
   );
   assert.equal(
     resolveWhoPrimaryAction({
-      bookingPosture: "on_demand",
       whoPrimaryCta: "check_availability",
       offeringIntent: "instant",
     }),
@@ -144,7 +141,7 @@ test("MODE-6 contact / check availability who-step labels (not Confirm)", () => 
   );
 });
 
-test("MODE-6 inquiry posture never confirms even on instant offering", () => {
+test("MODE-6 / F4 (WSF-B): inquiry default does NOT override a service's own instant mode", () => {
   const offering = {
     ...base,
     kind: "service" as const,
@@ -159,11 +156,20 @@ test("MODE-6 inquiry posture never confirms even on instant offering", () => {
       locale: "en",
       bookingPosture: "inquiry",
     }),
-    "Request appointment",
+    "Select",
+  );
+  // The same service inheriting (null) follows the inquiry default.
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: { ...offering, bookingMode: null },
+      locale: "es",
+      bookingPosture: "inquiry",
+    }),
+    "Consultar",
   );
   assert.equal(
     resolveWhoPrimaryAction({
-      bookingPosture: "inquiry",
       whoPrimaryCta: "contact",
       offeringIntent: "instant",
     }),

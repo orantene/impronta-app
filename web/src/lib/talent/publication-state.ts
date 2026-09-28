@@ -34,7 +34,7 @@ export function publicationLabel(word: PublicationWord, locale: string): string 
 }
 
 export function bookingModeLabel(
-  input: { bookingMode: string; priceDisplay: string; priceType?: string; amountCents?: number | null },
+  input: { bookingMode: string | null; priceDisplay: string; priceType?: string; amountCents?: number | null },
   locale: string,
 ): string {
   const es = locale.toLowerCase().startsWith("es");
@@ -42,6 +42,8 @@ export function bookingModeLabel(
     return es ? "Pedir cotización" : "Request a quote";
   }
   if (input.bookingMode === "instant") return es ? "Reserva instantánea" : "Instant booking";
+  if (input.bookingMode === "inquiry") return es ? "Solo consulta" : "Inquiry only";
+  if (input.bookingMode == null) return es ? "Usa tu predeterminado" : "Uses your default";
   return es ? "Pedir reserva" : "Request to book";
 }
 

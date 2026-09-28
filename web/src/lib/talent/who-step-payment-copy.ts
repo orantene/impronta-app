@@ -177,7 +177,6 @@ export function resolveWhoStepPaymentUi(input: {
   const whoAction = paymentSetupBlocksConfirm
     ? "chat"
     : resolveWhoPrimaryAction({
-        bookingPosture: input.bookingSettings.bookingPosture,
         whoPrimaryCta: input.bookingSettings.whoPrimaryCta,
         offeringIntent: input.offeringIntent,
       });

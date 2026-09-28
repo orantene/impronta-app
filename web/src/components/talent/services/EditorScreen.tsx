@@ -14,6 +14,7 @@ import {
 } from "@/lib/talent/services-settings-actions";
 import { publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -169,9 +170,15 @@ export function EditorScreen({
   const modes = [
     { id: "instant", title: copy.t("Instant booking"), sub: copy.t("They pick a free time and it is booked") },
     { id: "request", title: copy.t("Request to book"), sub: copy.t("You approve before anything is held") },
+    { id: "inquiry", title: copy.t("Inquiry only"), sub: copy.t("They message you first, nothing is booked") },
     { id: "quote", title: copy.t("Request a quote"), sub: copy.t("You agree the amount with each client") },
   ] as const;
-  const activeMode = quote ? "quote" : item.bookingMode === "instant" ? "instant" : "request";
+  // WSF-B: null = inherits the talent default (Defaults > Default booking mode).
+  const modeInherited = item.bookingMode == null;
+  const defaultMode = defaults?.bookingPosture ?? PLATFORM_DEFAULT_BOOKING_POSTURE;
+  const effectiveMode = item.bookingMode ?? defaultMode;
+  const activeMode = quote ? "quote" : effectiveMode;
+  const modeTitle = (id: string) => modes.find((m) => m.id === id)?.title ?? id;
 
   const savedLine = isNew
     ? `${kindWord} · ${copy.t("not saved yet")}`
@@ -373,6 +380,21 @@ export function EditorScreen({
                 );
               })}
             </div>
+            {!quote ? (
+              <p className="text-[13px] text-admin-ink-dim">
+                {modeInherited ? copy.t("Uses your default:") : copy.t("Just for this item:")}{" "}
+                {modeTitle(effectiveMode)}
+                {!modeInherited ? (
+                  <button
+                    type="button"
+                    className="ml-2 text-[13px] text-admin-ink-muted underline"
+                    onClick={() => patch({ bookingMode: null })}
+                  >
+                    {copy.t("Reset to default")}
+                  </button>
+                ) : null}
+              </p>
+            ) : null}
 
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
@@ -521,7 +543,7 @@ export function EditorScreen({
               {isLive ? copy.t("Live") : word === "hidden" ? copy.t("Hidden") : copy.t("Draft")}
             </span>
           </div>
-          <ClientCard item={item} locale={locale} rates={rates} depositCents={depositCents} cancelHours={cancelHours} />
+          <ClientCard item={{ ...item, bookingMode: effectiveMode }} locale={locale} rates={rates} depositCents={depositCents} cancelHours={cancelHours} />
           <div className="rounded-2xl border border-admin-border-soft bg-white px-4 py-4">
             <div className="flex items-center justify-between">
               <p className={LABEL}>{copy.t("Ready to publish?")}</p>
@@ -543,7 +565,7 @@ export function EditorScreen({
             </div>
             <div className="px-5 py-4">
               <ClientCard
-                item={item}
+                item={{ ...item, bookingMode: effectiveMode }}
                 locale={locale}
                 rates={rates}
                 depositCents={depositCents}
@@ -634,6 +656,8 @@ function ClientCard({ item, locale, rates, depositCents, cancelHours, sellerName
     ? es ? "Pedir cotización" : "Ask for a quote"
     : item.kind === "product"
       ? es ? "Comprar" : "Buy"
+      : item.bookingMode === "inquiry"
+        ? es ? "Consultar" : "Ask about this"
       : item.bookingMode === "instant"
         ? depositCents ? `${es ? "Reservar" : "Book"} · ${money(depositCents, item.currency)} ${es ? "de depósito" : "deposit"}` : es ? "Reservar" : "Book"
         : es ? "Pedir reserva" : "Request to book";

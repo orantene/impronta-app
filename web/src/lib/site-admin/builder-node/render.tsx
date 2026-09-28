@@ -296,12 +296,12 @@ export interface BuilderNodeRenderDataSources {
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
   /**
-   * Talent selling defaults for sheet CTAs (on-demand vs inquiry + who-step
+   * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
    * in the slots route — not needed on the catalog island.
    */
   talentOfferingsBookingSettings?: {
-    bookingPosture: "on_demand" | "inquiry";
+    bookingPosture: "instant" | "request" | "inquiry";
     whoPrimaryCta: "confirm_now" | "contact" | "check_availability";
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */

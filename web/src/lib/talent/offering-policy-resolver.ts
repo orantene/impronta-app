@@ -29,8 +29,11 @@
  * choice to take no money at booking, so a default deposit never overrides it.
  */
 
-import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
-import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
+import {
+  resolveEffectiveBookingMode,
+  resolveEffectiveMinNoticeMin,
+} from "@/lib/scheduling/instant-book-gates";
+import type { OfferingBookingMode, OfferingReserveMode } from "@/lib/talent/offerings-types";
 
 /** What the platform applies when neither the offering nor the talent chose. */
 export const PLATFORM_POLICY_DEFAULTS = {
@@ -196,4 +199,20 @@ export function withEffectivePolicy<
     depositPct: effective.depositPct,
     cancellationHours: effective.cancellationHours,
   };
+}
+
+/**
+ * WSF-B: a public offering whose inherited (null) booking mode is replaced by
+ * its EFFECTIVE mode from resolveEffectiveBookingMode, so every downstream
+ * `bookingMode === "instant"` check on the public page reads the same answer
+ * the server enforces. PUBLIC LOADERS ONLY, same reason as withEffectivePolicy:
+ * the editor must keep null so "uses my default" survives a save.
+ */
+export function withEffectiveBookingMode<T extends { bookingMode: OfferingBookingMode | null }>(
+  offering: T,
+  sellingDefaults: unknown,
+): T {
+  const eff = resolveEffectiveBookingMode({ offering, defaults: sellingDefaults });
+  const mode: OfferingBookingMode = eff.mode === "closed" ? "request" : eff.mode;
+  return { ...offering, bookingMode: mode };
 }
