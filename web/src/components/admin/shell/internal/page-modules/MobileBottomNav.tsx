@@ -470,6 +470,9 @@ export function MobileBottomNav() {
             )}
           </div>
         </nav>
+        {/* BottomTab styles its tabs with the class sheet; the talent bar
+            rendered without it, so tabs collapsed and labels ran together. */}
+        <style>{MOBILE_NAV_CSS}</style>
         {moreOpen && studioV2 && <TalentMoreScreen onClose={() => setMoreOpen(false)} />}
         {moreOpen && !studioV2 && (
           <div
