@@ -253,6 +253,9 @@ export type GuestChatErrorCode =
   | "db_unavailable"      // service-role client missing
   | "limit_reached"       // active-conversation trust gate tripped (U3)
   | "slot_taken"          // the requested time is no longer free
+  // WSF-C: the talent paused new work on this direct channel (§7/§8).
+  | "not_accepting_bookings"
+  | "not_accepting_inquiries"
   | "engine_error";       // catch-all engine/insert failure
 
 export type GuestChatFailure = {

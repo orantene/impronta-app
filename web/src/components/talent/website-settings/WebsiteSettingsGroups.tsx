@@ -102,7 +102,15 @@ function ServiceList({
   );
 }
 
-export function BookingGroup({ t, draft, setDefaults, services, setService }: GroupProps & ServiceProps) {
+export function BookingGroup({
+  t,
+  draft,
+  setDefaults,
+  services,
+  setService,
+  defaultInstantGap = null,
+  before,
+}: GroupProps & ServiceProps & { defaultInstantGap?: string | null; before?: ReactNode }) {
   const posture = draft.defaults.bookingPosture;
   const ownOf = (s: SettingsService) => draft.services[s.id]?.bookingMode ?? null;
   const own = services.filter((s) => ownOf(s) != null).length;
@@ -114,6 +122,7 @@ export function BookingGroup({ t, draft, setDefaults, services, setService }: Gr
   return (
     <>
       <LiveOnSaveNote>{t(LIVE_NOTE)}</LiveOnSaveNote>
+      {before}
       <SettingsCard title={t("How clients book")} aside={t("Default")}>
         <p className="mb-3 text-[12.5px] text-admin-ink-muted">{t("Applies to your website and Tulala profile.")}</p>
         <div role="radiogroup" aria-label={t("Default booking mode")} className="grid gap-2">
@@ -123,6 +132,7 @@ export function BookingGroup({ t, draft, setDefaults, services, setService }: Gr
               checked={posture === m.mode}
               title={m.title}
               detail={m.detail}
+              disabledReason={m.mode === "instant" && posture !== "instant" ? defaultInstantGap : null}
               onSelect={() => setDefaults(withPosture(draft.defaults, m.mode))}
             />
           ))}
@@ -151,7 +161,7 @@ export function BookingGroup({ t, draft, setDefaults, services, setService }: Gr
                     key={m.mode}
                     checked={effectiveServiceMode(current, posture) === m.mode}
                     title={m.title}
-                    disabledReason={m.mode === "instant" ? noPrice : null}
+                    disabledReason={m.mode === "instant" ? (noPrice ?? s.instantGap ?? null) : null}
                     onSelect={() => setService(s.id, { bookingMode: m.mode })}
                   />
                 ))}

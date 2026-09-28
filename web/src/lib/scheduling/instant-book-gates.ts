@@ -19,14 +19,14 @@ import {
 } from "@/lib/talent/selling-booking-settings";
 
 /**
- * Master "is this person taking new bookings at all" switch.
- *
- * TODO(Phase 1): read `accepting_bookings` once that column exists. It is not
- * in the schema yet, so this always answers ok; it is the single hook the
- * column will plug into, evaluated BEFORE the per-offering mode.
+ * Master "is this person taking new bookings at all" switch
+ * (`talent_sites.accepting_bookings`, read through loadTalentSiteSwitches).
+ * Evaluated BEFORE the per-offering mode. Missing / null = accepting.
  */
-export function assertAcceptingNewBookings(accepting?: boolean | null): { ok: true } | { ok: false } {
-  return accepting === false ? { ok: false } : { ok: true };
+export function assertAcceptingNewBookings(
+  accepting?: boolean | null,
+): { ok: true } | { ok: false; reason: "not_accepting_bookings" } {
+  return accepting === false ? { ok: false, reason: "not_accepting_bookings" } : { ok: true };
 }
 
 export type EffectiveBookingMode = {
@@ -89,7 +89,7 @@ export function resolveEffectiveBookingMode(input: {
 
 export type InstantPostureGate =
   | { ok: true }
-  | { ok: false; reason: "inquiry_only" | "request_only"; error: string };
+  | { ok: false; reason: "inquiry_only" | "request_only" | "not_accepting_bookings"; error: string };
 
 /**
  * Server refusal of an instant booking whose EFFECTIVE mode is not instant,
@@ -100,15 +100,26 @@ export function assertInstantPosture(input: {
   sellingDefaults: unknown;
   bookingMode: string | null | undefined;
   staffDesk: boolean;
+  /** `talent_sites.accepting_bookings`; pass only on a direct channel (§7). */
   accepting?: boolean | null;
+  /** §1 row 4: not ready means instant falls back to request. */
+  readiness?: { instantReady: boolean } | null;
 }): InstantPostureGate {
   if (input.staffDesk) return { ok: true };
   const effective = resolveEffectiveBookingMode({
     offering: { bookingMode: input.bookingMode },
     defaults: input.sellingDefaults,
     accepting: input.accepting,
+    readiness: input.readiness,
   });
   if (effective.mode === "instant") return { ok: true };
+  if (effective.mode === "closed") {
+    return {
+      ok: false,
+      reason: "not_accepting_bookings",
+      error: "Not taking new bookings right now. Send an inquiry instead.",
+    };
+  }
   return {
     ok: false,
     reason: effective.mode === "inquiry" ? "inquiry_only" : "request_only",

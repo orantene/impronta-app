@@ -16,6 +16,7 @@ import { offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { OfferingCta } from "./OfferingCta";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
+import { pauseBannerCopy } from "@/lib/talent/accepting-readiness";
 
 const GROUP_ORDER: OfferingKind[] = ["service", "package", "product"];
 const GROUP_LABELS: Record<OfferingKind, { en: string; es: string }> = {
@@ -231,6 +232,8 @@ export function StorefrontBody({
   usdRates?: UsdRates | null;
 }) {
   if (visible.length === 0) return null;
+  // WSF-C §8: the loader stamps the talent's pause on every offering.
+  const pauseLine = visible[0]?.publicPause ? pauseBannerCopy(visible[0].publicPause, locale) : null;
 
   const featured = showFeatured ? visible.find((o) => o.isFeatured) ?? null : null;
   const rest = featured ? visible.filter((o) => o.id !== featured.id) : visible;
@@ -244,6 +247,15 @@ export function StorefrontBody({
 
   return (
     <>
+      {pauseLine ? (
+        <p
+          role="status"
+          className="mb-3 rounded-[var(--plt-radius-md)] border px-4 py-3 text-sm"
+          style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg-raised)" }}
+        >
+          {pauseLine}
+        </p>
+      ) : null}
       {confirmsByHand ? (
         <p className="mb-3 text-sm" data-talent-confirms-by-hand style={{ color: "var(--plt-muted-soft)" }}>
           {pickLocale(locale, { en: "She confirms by hand.", es: "Ella confirma a mano.", fr: "Elle confirme à la main." })}
