@@ -49,6 +49,8 @@ export type BuilderNodeKind =
   | "portfolio"
   /** W-14 — live-bound talent_reviews quote cards (trio / single / row). */
   | "reviews"
+  /** Visit facts — live service areas / languages / hours; hidden when empty. */
+  | "visit"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1341,6 +1343,30 @@ export interface BuilderReviewsNode extends BuilderNodeBase {
 }
 
 /**
+ * Visit — live service-area / language / booking-hours facts.
+ * Layouts: facts (list) · split (optional map beside facts).
+ * Hidden when there are no real facts; never invents visit details.
+ */
+export interface BuilderVisitNode extends BuilderNodeBase {
+  kind: "visit";
+  props: {
+    layout?: "facts" | "split";
+    eyebrow?: string;
+    title?: string;
+    /** Italic accent word inside the title (e.g. "visit" in "Your visit"). */
+    titleAccent?: string;
+    /** When layout is split, show the authored map image if a URL is set. */
+    showMap?: boolean;
+    mapImageUrl?: string;
+    mapCaption?: string;
+    /** Soft surface band behind the section. */
+    band?: boolean;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Next free time chip — fetches `/api/public/booking/slots` for a bookable
  * offering (authored id, or the first slot-eligible offering on the page).
  * Renders nothing when the list is empty.
@@ -2367,6 +2393,7 @@ export type BuilderNode =
   | BuilderServicesCatalogNode
   | BuilderPortfolioNode
   | BuilderReviewsNode
+  | BuilderVisitNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

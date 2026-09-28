@@ -73,6 +73,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "services_catalog",
   "portfolio",
   "reviews",
+  "visit",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1130,6 +1131,20 @@ export const reviewsPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Visit facts — live service areas / languages / hours. */
+export const visitPropsSchema = z.object({
+  layout: z.enum(["facts", "split"]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  titleAccent: z.string().max(80).optional(),
+  showMap: z.boolean().optional(),
+  mapImageUrl: z.string().max(2000).optional(),
+  mapCaption: z.string().max(160).optional(),
+  band: z.boolean().optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Next free time chip — live slots API; hidden when empty. */
 export const nextFreeChipPropsSchema = z.object({
   offeringId: z.string().max(80).optional(),
@@ -2123,6 +2138,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Live client reviews as quote cards. Trio, single, or row on the shared slider. Hidden when there are none.",
       children: { type: "none" },
       propsSchema: reviewsPropsSchema,
+    },
+    visit: {
+      kind: "visit",
+      label: "Visit",
+      description:
+        "Where you work, days, and languages from your profile. Optional map beside the facts. Hidden when empty.",
+      children: { type: "none" },
+      propsSchema: visitPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

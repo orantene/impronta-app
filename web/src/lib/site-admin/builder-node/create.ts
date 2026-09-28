@@ -8,6 +8,7 @@ import { makeId, randomUuid } from "./make-id";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "./services-catalog-defaults";
 import { PORTFOLIO_DEFAULT_PROPS } from "./portfolio-defaults";
 import { REVIEWS_DEFAULT_PROPS } from "./reviews-defaults";
+import { VISIT_DEFAULT_PROPS } from "./visit-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
@@ -249,6 +250,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return { id: makeId("portfolio"), kind: "portfolio", props: { ...PORTFOLIO_DEFAULT_PROPS } };
     case "reviews":
       return { id: makeId("reviews"), kind: "reviews", props: { ...REVIEWS_DEFAULT_PROPS } };
+    case "visit":
+      return { id: makeId("visit"), kind: "visit", props: { ...VISIT_DEFAULT_PROPS } };
     case "next_free_chip":
       return { id: makeId("next_free_chip"), kind: "next_free_chip", props: { ...NEXT_FREE_CHIP_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
