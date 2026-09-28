@@ -500,13 +500,15 @@ export function ServicesCatalogLayoutInspector({
         >
           <option value="pills">Filter chips</option>
           <option value="tabs">Tabs (filter)</option>
+          <option value="rail">Sticky rail (desktop) / chips (phone)</option>
           <option value="accordion">Accordions</option>
           <option value="jump_strip">Jump links + headings</option>
           <option value="sections">Section headings only</option>
           <option value="none">None</option>
         </select>
         <p className="text-xs text-black/50">
-          Chips and tabs filter the list. Jump links scroll. Section headings group without a top strip.
+          Chips, tabs, and rail filter the list. Rail sticks on the left from tablet up; phone keeps
+          chips. Jump links scroll. Section headings group without a top strip.
         </p>
       </div>
       {showColumns ? (

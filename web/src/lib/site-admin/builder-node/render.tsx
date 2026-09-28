@@ -4337,6 +4337,11 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"]{gap:0;border-bottom:1px solid var(--token-color-line);padding-bottom:0}
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill{border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;padding:.55rem .9rem;margin-bottom:-1px}
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill[data-active="true"]{background:transparent;color:var(--token-color-ink);border-bottom-color:var(--token-color-ink)}
+/* W-01 Maison v2: phone chips stay a horizontal strip; desktop becomes sticky rail. */
+.site-builder-node--services-catalog-body{display:block}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:.15rem;margin-bottom:1rem}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav::-webkit-scrollbar{display:none}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{flex:0 0 auto}
 .site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.4rem 1rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);background:transparent;text-decoration:none;cursor:pointer}
 .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-group{margin-bottom:0}
@@ -4456,6 +4461,11 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-desc{max-width:62ch}
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-buy{justify-self:end}
+/* W-01: sticky category rail beside the menu rows (filter chips stay phone-only). */
+.site-builder-node--services-catalog-body[data-category-nav="rail"]{display:grid;grid-template-columns:10.5rem minmax(0,1fr);gap:1.75rem;align-items:start}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{position:sticky;top:1rem;z-index:1;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:.35rem;margin:0;padding:0;overflow:visible}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{justify-content:flex-start;border-radius:10px;width:100%}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-groups{min-width:0}
 }
 .cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
@@ -5714,7 +5724,8 @@ function renderBuilderNodeElement(
       const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
       const categoryNav = p.categoryNav ?? "pills";
-      const filterNav = categoryNav === "tabs" || categoryNav === "pills";
+      const filterNav =
+        categoryNav === "tabs" || categoryNav === "pills" || categoryNav === "rail";
       const accordionNav = categoryNav === "accordion";
       const jumpNav = categoryNav === "jump_strip";
       const sectionsNav = categoryNav === "sections";
@@ -5743,7 +5754,9 @@ function renderBuilderNodeElement(
             : filterNav
               ? categoryNav === "tabs"
                 ? "tabs"
-                : "pills"
+                : categoryNav === "rail"
+                  ? "rail"
+                  : "pills"
               : accordionNav
                 ? "accordion"
                 : sectionsNav

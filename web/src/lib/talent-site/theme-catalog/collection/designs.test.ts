@@ -39,3 +39,24 @@ test("the five designs are structurally distinct (section order differs)", () =>
   );
   assert.equal(new Set(orders).size, orders.length);
 });
+
+/** W-01 — Maison v2 menu uses sticky category rail (chips on phone via CSS). */
+test("maison-v2 services_catalog uses categoryNav rail + rows", () => {
+  const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2");
+  assert.ok(maison);
+  const found: Array<Record<string, unknown>> = [];
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const node = n as { kind?: string; props?: Record<string, unknown>; children?: unknown };
+      if (node.kind === "services_catalog" && node.props) found.push(node.props);
+      walk(node.children);
+    }
+  };
+  walk(maison!.buildPayload().homeTree);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].categoryNav, "rail");
+  assert.equal(found[0].layout, "rows");
+  assert.equal(found[0].showPhoto, true);
+});

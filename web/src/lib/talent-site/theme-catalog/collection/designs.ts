@@ -64,7 +64,7 @@ type CatalogOpts = {
   eyebrow: string;
   title: string;
   layout: "rows" | "cards" | "grid" | "compact_list" | "editorial" | "featured";
-  categoryNav: "pills" | "tabs" | "jump_strip" | "sections" | "accordion" | "none";
+  categoryNav: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
   stylePreset: "clean" | "editorial" | "compact" | "image_led";
   photoRadius: "square" | "soft" | "round";
   density: "comfortable" | "compact";
@@ -209,7 +209,8 @@ function withChild(node: BuilderNode, child: BuilderNode): BuilderNode {
 
 // ── Maison v2 (Rosé proposal) ────────────────────────────────────────────────
 // Split hero (60-40, image right), recent work BEFORE the menu, the menu as
-// image-led rows with a jump strip, about, then visit + FAQ on a soft band.
+// image-led rows with a sticky category rail (chips on phone), about, then
+// visit + FAQ on a soft band.
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   const hero = tuneHeading(
@@ -226,7 +227,7 @@ export function buildMaisonV2Payload(): DesignPayload {
         eyebrow: "The menu",
         title: "Services {i}and prices{/i}",
         layout: "rows",
-        categoryNav: "jump_strip",
+        categoryNav: "rail",
         stylePreset: "image_led",
         photoRadius: "soft",
         density: "comfortable",

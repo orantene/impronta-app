@@ -1032,7 +1032,9 @@ const menuBoardPropsSchema = z.object({
 
 export const servicesCatalogPropsSchema = z.object({
   layout: z.enum(["rows", "cards", "grid", "compact_list", "editorial", "featured"]).optional(),
-  categoryNav: z.enum(["pills", "tabs", "jump_strip", "sections", "accordion", "none"]).optional(),
+  categoryNav: z
+    .enum(["pills", "tabs", "rail", "jump_strip", "sections", "accordion", "none"])
+    .optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
   subtitle: z.string().max(240).optional(),

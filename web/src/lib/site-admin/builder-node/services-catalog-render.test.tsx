@@ -501,6 +501,26 @@ test("jump_strip categoryNav renders jump strip", () => {
   assert.match(html, /data-category-nav="jump"/);
 });
 
+/** W-01 Maison v2 — sticky desktop rail + phone chips (filter nav). */
+test("rail categoryNav emits data-category-nav=rail and body wrapper", () => {
+  const html = render([catalogNode({ categoryNav: "rail", layout: "rows" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas", title: "Manicure", imageUrls: ["https://example.test/a.jpg"] }),
+      offering({ id: "b", category: "Cejas", title: "Brow", imageUrls: ["https://example.test/b.jpg"] }),
+    ],
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"[^>]*data-category-nav="rail"/);
+  assert.match(html, /data-layout="rows"/);
+  assert.match(html, /site-builder-node--services-catalog-body[^>]*data-category-nav="rail"/);
+  assert.match(html, /<nav[^>]*data-category-nav="rail"/);
+  assert.match(html, /data-catalog-tab="Uñas"/);
+  assert.match(html, /class="cb-island"/);
+  // Proposal row packing: photo + name + buy/CTA still present.
+  assert.match(html, /site-builder-node--services-catalog-photo/);
+  assert.match(html, /site-builder-node--services-catalog-name/);
+  assert.match(html, /site-builder-node--services-catalog-cta/);
+});
+
 /** BLD five-settings — public SSR markers for change→publish verification. */
 test("five-settings: layout / categoryNav / showPhoto / search / stylePreset emit public attrs", () => {
   const html = render(

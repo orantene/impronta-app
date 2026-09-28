@@ -1318,7 +1318,8 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   props: {
     /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; featured = one hero + rest */
     layout?: "rows" | "cards" | "grid" | "compact_list" | "editorial" | "featured";
-    categoryNav?: "pills" | "tabs" | "jump_strip" | "sections" | "accordion" | "none";
+    /** rail = sticky desktop side filter + phone chips (Maison v2 menu). */
+    categoryNav?: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
     eyebrow?: string;
     title?: string;
     subtitle?: string;
