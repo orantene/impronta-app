@@ -43,7 +43,7 @@ export function OfferingCta({
   sellingDefaults?: unknown;
 }) {
   // One derivation with the catalog widget and the server (WSF-B).
-  const { cta, instant, eventName } = deriveOfferingCta({
+  const { cta, instant, eventName, hidden } = deriveOfferingCta({
     offering,
     defaults: sellingDefaults,
     confirmsByHand,
@@ -78,6 +78,9 @@ export function OfferingCta({
     };
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
+
+  // WSF-C §8: the talent's switches leave this service no route.
+  if (hidden) return null;
 
   return (
     <button

@@ -30,7 +30,8 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Free cancelling until {c} h · rescheduling until {r} h": "Cancela gratis hasta {c} h · reprograma hasta {r} h",
   "Default": "Por defecto",
   "Default booking mode": "Modo de reserva por defecto",
-  "Instant booking": "Reserva inmediata",
+  // WSF B2: same wording as the Services editor (global map).
+  "Instant booking": "Reserva instantánea",
   "Inquiry only": "Solo consulta",
   "{n} of {total} with their own setting": "{n} de {total} con su propio ajuste",
   "Search services": "Buscar servicios",
@@ -64,10 +65,18 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Needs a fixed price and its booking details first. Set them in Services.":
     "Primero necesita un precio fijo y sus datos de reserva. Ponlos en Servicios.",
   "{mode} by default · {n} of {total} services with their own setting": "{mode} por defecto · {n} de {total} servicios con ajuste propio",
-  "Booking request": "Solicitud de cita",
-  "They pick a free time and confirm.": "Eligen un horario libre y confirman.",
-  "They send preferred times. You approve.": "Te proponen horarios. Tú apruebas.",
-  "You talk first, then arrange the work.": "Primero conversan y luego acuerdan el trabajo.",
+  "Request to book": "Pedir reserva",
+  "Request a quote": "Pedir cotización",
+  "They pick a free time and it is booked": "Eligen un horario libre y queda reservado",
+  "You approve before anything is held": "Tú apruebas antes de apartar nada",
+  "They message you first, nothing is booked": "Te escriben primero, no se reserva nada",
+  "You agree the amount with each client": "Acuerdas el monto con cada cliente",
+  "This changes {n} services. The {m} with their own setting stay unchanged.":
+    "Esto cambia {n} servicios. Los {m} con su propio ajuste no cambian.",
+  "{n} of them will take requests until they have a fixed price: {names}":
+    "{n} de ellos recibirán solicitudes hasta que tengan un precio fijo: {names}",
+  "Quote services agree the price first. Change the price in Services to book instantly.":
+    "En los servicios con cotización primero acuerdas el precio. Cambia el precio en Servicios para reservar al instante.",
   "Inherited from your default": "Sigue tu opción predeterminada",
   "{n} with their own setting": "{n} con su propio ajuste",
   "Default deposit": "Anticipo por defecto",
@@ -81,4 +90,37 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Nothing sooner than this can be booked. Editing it here comes later.":
     "No se puede reservar nada con menos aviso. Podrás editarlo aquí más adelante.",
   "No changes yet. Edit a setting to save.": "Aún no hay cambios. Edita un ajuste para guardar.",
+  // WSF-C: switches and readiness.
+  "Chat & inquiries": "Chat y consultas",
+  "Appearance & visibility": "Apariencia y visibilidad",
+  "Accept new bookings": "Aceptar nuevas reservas",
+  "Pause keeps your website, portfolio and chat visible. Existing clients keep their booking links and conversations.":
+    "Pausar mantiene visibles tu sitio, tu portafolio y el chat. Tus clientes actuales conservan sus enlaces de reserva y sus conversaciones.",
+  "Agency bookings are managed by each agency.": "Las reservas de agencia las gestiona cada agencia.",
+  "Website chat": "Chat del sitio",
+  "Off hides the chat button. Existing conversations stay and you can still reply.":
+    "Apagado oculta el botón de chat. Las conversaciones actuales se quedan y puedes seguir respondiendo.",
+  "'Consultar' will open an inquiry form so inquiry-only services still reach you.":
+    "'Consultar' abrirá un formulario de consulta para que los servicios solo por consulta te sigan llegando.",
+  "Accept new inquiries": "Aceptar nuevas consultas",
+  "Off hides Ask and Consultar. Clients with a booking can still message you.":
+    "Apagado oculta Preguntar y Consultar. Los clientes con una reserva aún pueden escribirte.",
+  "This service will show as unavailable: {services}": "Este servicio se mostrará como no disponible: {services}",
+  "These {n} services will show as unavailable: {services}":
+    "Estos {n} servicios se mostrarán como no disponibles: {services}",
+  "Some changes saved": "Algunos cambios se guardaron",
+  "Some changes saved. Still unsaved: {items}. Retry sends only these.":
+    "Algunos cambios se guardaron. Falta guardar: {items}. Reintentar envía solo esos.",
+  "Your defaults": "Tus ajustes por defecto",
+  "Chat on": "Chat activo",
+  "Chat off": "Chat apagado",
+  "Taking inquiries": "Recibiendo consultas",
+  "Inquiries paused": "Consultas en pausa",
+  "Taking new bookings": "Recibiendo nuevas reservas",
+  "New bookings paused": "Nuevas reservas en pausa",
+  "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",
+  "Add a duration to this service to turn on instant booking":
+    "Agrega una duración a este servicio para activar la reserva inmediata",
+  // PAY-2 Option B — platform Checkout readiness, not Connect.
+  "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
 };

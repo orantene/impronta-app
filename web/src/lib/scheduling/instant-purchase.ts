@@ -41,6 +41,9 @@ import {
 import { loadAddonGroupsForOfferings } from "@/lib/talent/merge-addon-groups";
 import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 import { logServerError } from "@/lib/server/safe-error";
+import { hoursRowHasWorkingHours, loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { instantReadiness, readinessGaps, takesMoneyOnline } from "@/lib/talent/accepting-readiness";
+import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 export type InstantPurchaseInput = {
@@ -69,13 +72,25 @@ export type InstantPurchaseInput = {
    * hours / horizon checks do not apply; duration and notice still do.
    */
   staffDesk?: boolean;
+  /**
+   * WSF-C §7: an agency storefront booking the talent. The agency owns that
+   * routing, so the talent's own "Accept new bookings" switch does not apply.
+   * Omitted = a direct channel (own website / Tulala profile): enforced.
+   */
+  agencyRouted?: boolean;
 };
 
 export type InstantPurchaseResult =
   | PurchaseResult
   | {
       ok: false;
-      reason: "engine_error" | "too_soon" | "inquiry_only" | "request_only" | ReservationWindowRefusal;
+      reason:
+        | "engine_error"
+        | "too_soon"
+        | "inquiry_only"
+        | "request_only"
+        | "not_accepting_bookings"
+        | ReservationWindowRefusal;
       error: string;
     };
 
@@ -98,6 +113,7 @@ type OfferingPolicyRow = {
   bookingMode: string | null;
   durationMinutes: number | null;
   attributes: unknown;
+  kind: string | null;
 };
 
 function policyOf(row: unknown): OfferingPolicyRow {
@@ -109,6 +125,7 @@ function policyOf(row: unknown): OfferingPolicyRow {
       bookingMode: null,
       durationMinutes: null,
       attributes: null,
+      kind: null,
     };
   }
   return {
@@ -118,6 +135,7 @@ function policyOf(row: unknown): OfferingPolicyRow {
     bookingMode: typeof row.booking_mode === "string" ? row.booking_mode : null,
     durationMinutes: numOrNull(row.duration_minutes),
     attributes: row.attributes ?? null,
+    kind: typeof row.kind === "string" ? row.kind : null,
   };
 }
 
@@ -155,7 +173,7 @@ export async function placeInstantPurchase(
     "talent_offerings",
     tenantId,
   )
-    .select("reserve_mode, deposit_pct, cancellation_hours, booking_mode, duration_minutes, attributes")
+    .select("reserve_mode, deposit_pct, cancellation_hours, booking_mode, duration_minutes, attributes, kind")
     .eq("id", offeringId)
     .maybeSingle();
   if (offeringPolicyErr) {
@@ -215,15 +233,6 @@ export async function placeInstantPurchase(
     : {};
   const hoursRow = isRecord(hoursRes.data) ? hoursRes.data : null;
 
-  // F4: refuse unless the EFFECTIVE mode is instant (master switch, then the
-  // offering's own mode, then the talent's default posture). The till books
-  // walk-ins at the desk and is exempt: staff are the confirmation.
-  const postureGate = assertInstantPosture({
-    sellingDefaults: defaultsRaw,
-    bookingMode: policy.bookingMode,
-    staffDesk: input.staffDesk === true,
-  });
-  if (!postureGate.ok) return postureGate;
 
   const effective = resolveOfferingPolicy(
     {
@@ -241,6 +250,39 @@ export async function placeInstantPurchase(
         }
       : null,
   );
+
+  // WSF-C: the talent's own "Accept new bookings" switch (direct channels
+  // only, §7) and instant readiness (§1 row 4: hours, duration, payouts when
+  // money is taken online). Not ready = instant falls back to request.
+  const staffDesk = input.staffDesk === true;
+  const switches =
+    staffDesk || input.agencyRouted === true
+      ? null
+      : await loadTalentSiteSwitches(admin, input.talentProfileId);
+  const readiness = staffDesk
+    ? null
+    : instantReadiness(
+        readinessGaps({
+          kind: policy.kind,
+          hasWorkingHours: hoursRowHasWorkingHours(hoursRow),
+          durationMinutes: policy.durationMinutes,
+          takesMoneyOnline: takesMoneyOnline(effective.reserveMode, input.payInPerson === true),
+          payoutsReady: isPlatformCheckoutReady(),
+        }),
+      );
+
+  // F4: refuse unless the EFFECTIVE mode is instant (master switch, then the
+  // offering's own mode, then the talent's default posture, then readiness).
+  // The till books walk-ins at the desk and is exempt: staff are the
+  // confirmation.
+  const postureGate = assertInstantPosture({
+    sellingDefaults: defaultsRaw,
+    bookingMode: policy.bookingMode,
+    staffDesk,
+    accepting: switches ? switches.acceptingBookings : null,
+    readiness,
+  });
+  if (!postureGate.ok) return postureGate;
 
   if (reservation) {
     const noticeGate = assertReservationMeetsNotice({

@@ -169,7 +169,7 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
 });
 
 /** Shared Header navChrome stamps (not Maison-only). */
-test("collection Designs stamp shared navChrome modes on kit nav", () => {
+test("collection Designs stamp shared navChrome modes on the standard header", () => {
   const expected: Record<string, string | undefined> = {
     "maison-v2": undefined,
     solace: "overlay",
@@ -190,6 +190,10 @@ test("collection Designs stamp shared navChrome modes on kit nav", () => {
         };
         if (node.kind === "nav" && node.props) {
           chrome = node.props.navChrome as string | undefined;
+        }
+        const sp = node.props?.sectionProps as Record<string, unknown> | undefined;
+        if (node.props?.sectionTypeKey === "site_header" && sp) {
+          chrome = sp.navChrome as string | undefined;
         }
         walk(node.children);
       }

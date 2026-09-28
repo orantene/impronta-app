@@ -6,10 +6,12 @@
  * fold into RAIL_ES_TEXT so the grandfathered map stays at one spread.
  */
 
-import { WEBSITE_SETTINGS_ES_TEXT } from "./dashboard-i18n-website-settings";
 
 export const WEBSITE_ES_TEXT: Record<string, string> = {
-  ...WEBSITE_SETTINGS_ES_TEXT,
+  // Website settings entry row only; the screen's own strings load with the
+  // lazy screen (WEBSITE_SETTINGS_ES_TEXT) to keep the admin bundle lean.
+  "Website settings": "Ajustes del sitio",
+  "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
   "Website reward": "Recompensa del sitio",
   "What is left": "Lo que falta",
   "Continue your profile": "Sigue tu perfil",

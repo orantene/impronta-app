@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { pauseBannerCopy, type PublicContactMode } from "@/lib/talent/accepting-readiness";
 import { Fragment, cloneElement, isValidElement, memo } from "react";
 
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
@@ -334,6 +335,8 @@ export interface BuilderNodeRenderDataSources {
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
    * in the slots route — not needed on the catalog island.
    */
+  /** WSF-C §8: the talent's public contact state on a direct channel. */
+  talentSitePause?: PublicContactMode;
   talentOfferingsBookingSettings?: {
     bookingPosture: "instant" | "request" | "inquiry";
     whoPrimaryCta: "confirm_now" | "contact" | "check_availability";
@@ -4349,6 +4352,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-stat strong{font-size:2rem;font-weight:500}
 .site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
+.site-builder-node--services-catalog-pause{margin:0 0 1rem;padding:.75rem 1rem;border:1px solid currentColor;border-radius:.75rem;font-size:.9rem;opacity:.85}
 .site-builder-node--services-catalog-loading{margin:0}
 .site-builder-node--services-catalog-loading-label{margin:0 0 .85rem;font-size:.8125rem;font-weight:600;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-skel{display:block;background:color-mix(in srgb,var(--token-color-ink) 8%,transparent);border-radius:8px;animation:svc-catalog-skel-pulse 1.2s ease-in-out infinite}
@@ -5722,6 +5726,9 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const ctaLabel = p.ctaLabel?.trim() || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
+      const pauseLine = options.dataSources.talentSitePause
+        ? pauseBannerCopy(options.dataSources.talentSitePause, locale)
+        : null;
       // Defensive re-filter + widget selection (references only).
       const visible = filterOfferingsForCatalog(options.dataSources.talentOfferings ?? [], {
         selectionMode: p.selectionMode,
@@ -5858,6 +5865,13 @@ function renderBuilderNodeElement(
               </p>
             ) : null}
           </header>
+
+          {/* WSF-C §8: the talent paused new bookings (or everything). */}
+          {pauseLine ? (
+            <p className="site-builder-node--services-catalog-pause" role="status">
+              {pauseLine}
+            </p>
+          ) : null}
 
           {options.dataSources.talentOfferingsLoading ? (
             <ServicesCatalogLoadingSkeleton
@@ -7492,6 +7506,9 @@ function renderBuilderNodeElement(
             Both link sets render in full markup (never visibility:hidden-into-
             nothing), so the links stay reachable at the mobile breakpoint.
           */}
+          {/* No menu button for an empty or Home-only nav (one-page talent
+              sites showed an empty hamburger box under the brand at 390). */}
+          {links.length > 1 || links.some((l) => (l.children?.length ?? 0) > 0) || navMenuFooter ? (
           <details className="site-builder-node--nav-disclosure">
             <summary
               className="site-builder-node--nav-toggle"
@@ -7514,6 +7531,7 @@ function renderBuilderNodeElement(
               {navMenuFooter}
             </ul>
           </details>
+          ) : null}
         </nav>
       );
     }

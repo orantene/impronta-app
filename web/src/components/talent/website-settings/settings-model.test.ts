@@ -6,6 +6,7 @@ import {
   canBookInstantly,
   changeCount,
   countCustom,
+  defaultModeImpact,
   diffDraft,
   effectiveServiceMode,
   needsOwnDeposit,
@@ -86,4 +87,31 @@ test("instant + deposit reserve keeps its own deposit", () => {
   assert.equal(needsOwnDeposit({ bookingMode: "instant", reserveMode: "deposit" }), true);
   assert.equal(needsOwnDeposit({ bookingMode: "request", reserveMode: "deposit" }), false);
   assert.equal(needsOwnDeposit({ bookingMode: "instant", reserveMode: "free" }), false);
+});
+
+test("pendingChangeLabels names only what is still unsaved (partial save)", async () => {
+  const { pendingChangeLabels } = await import("./settings-model");
+  const base = { defaults: {} as never, services: { a: { bookingMode: null, depositPct: null, cancellationHours: null } } };
+  const draft = { defaults: {} as never, services: { a: { bookingMode: "instant" as const, depositPct: null, cancellationHours: null } } };
+  const sw = { acceptingBookings: true, acceptingInquiries: true, chatEnabled: true };
+  const labels = { defaults: "Your defaults", bookings: "Accept new bookings", chat: "Chat & inquiries" };
+  assert.deepEqual(
+    pendingChangeLabels({ saved: base, draft, savedSwitches: sw, draftSwitches: { ...sw, acceptingBookings: false }, serviceTitle: () => "Manicure", labels }),
+    ["Manicure", "Accept new bookings"],
+  );
+  assert.deepEqual(
+    pendingChangeLabels({ saved: draft, draft, savedSwitches: sw, draftSwitches: sw, serviceTitle: () => "x", labels }),
+    [],
+  );
+});
+
+test("defaultModeImpact counts services that follow the default vs their own", () => {
+  assert.deepEqual(
+    defaultModeImpact({
+      a: { bookingMode: null, depositPct: null, cancellationHours: null },
+      b: { bookingMode: "request", depositPct: null, cancellationHours: null },
+      c: { bookingMode: null, depositPct: 10, cancellationHours: null },
+    }),
+    { follows: 2, own: 1 },
+  );
 });

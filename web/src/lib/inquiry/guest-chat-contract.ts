@@ -253,6 +253,9 @@ export type GuestChatErrorCode =
   | "db_unavailable"      // service-role client missing
   | "limit_reached"       // active-conversation trust gate tripped (U3)
   | "slot_taken"          // the requested time is no longer free
+  // WSF-C: the talent paused new work on this direct channel (§7/§8).
+  | "not_accepting_bookings"
+  | "not_accepting_inquiries"
   | "engine_error";       // catch-all engine/insert failure
 
 export type GuestChatFailure = {
@@ -361,6 +364,10 @@ export type StartGuestChatInput = {
   offeringIntent?: string | null;
   /** Guest locale for the hand-confirmation line. */
   locale?: string | null;
+  /** WSF D: "inquiry_form" when the chat-off form sheet sent it (→ source_context.entry_point). */
+  entryPoint?: "inquiry_form" | null;
+  /** WSF D: every service picked when more than one (→ source_context.lines). */
+  lines?: { offering_id: string; title: string; amount_cents: number | null; currency: string }[] | null;
 };
 
 export type StartGuestChatResult =

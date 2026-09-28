@@ -22,7 +22,7 @@ import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
-  buildKitShell,
+  buildKitStandardShell,
   faqBlock,
   portfolioBlock,
   portfolioChaptersBlock,
@@ -57,21 +57,21 @@ function deferYear(node: BuilderNode): BuilderNode {
   } as BuilderNode;
 }
 
+/**
+ * Every Design wears the standard talent header (`site_header`): logo when
+ * the site has one, nav, ES/EN switch and the primary CTA, with the platform's
+ * own mobile menu. The bare kit header dropped all of these.
+ */
 function shell(
   makeId: KitIdFactory,
   opts: {
-    align?: "space-between" | "center";
-    rule?: boolean;
     navChrome?: import("@/lib/site-admin/nav-chrome").NavChromeStyle;
     navLinks?: ReadonlyArray<{ label: string; href: string }>;
-  },
+  } = {},
 ) {
-  return buildKitShell(makeId, {
+  return buildKitStandardShell(makeId, {
     displayName: "{{displayName}}",
     year: "{{year}}",
-    headerAlign: opts.align ?? "space-between",
-    headerPaddingY: "m",
-    headerRule: opts.rule ?? false,
     ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
     ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
   }).map(deferYear);
@@ -234,7 +234,7 @@ export function buildMaisonV2Payload(): DesignPayload {
     { size: "display", letterSpacing: "-0.02em" },
   );
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id),
     homeTree: [
       withChild(hero, askButton(id, "Ask about a service")),
       portfolioBlock(id, { layout: "filmstrip", heading: "Recent work", showCaptions: true }),
@@ -289,7 +289,6 @@ export function buildSolacePayload(): DesignPayload {
   });
   return {
     shellTree: shell(id, {
-      align: "center",
       navChrome: "overlay",
       navLinks: [
         { label: "About", href: "#about" },
@@ -331,7 +330,7 @@ export function buildMonoPayload(): DesignPayload {
     letterSpacing: "-0.03em",
   });
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id),
     homeTree: [
       hero,
       servicesSection(id, {
@@ -364,7 +363,6 @@ export function buildFramePayload(): DesignPayload {
   );
   return {
     shellTree: shell(id, {
-      rule: true,
       navChrome: "filter_bar",
       navLinks: [
         { label: "Work", href: "#gallery" },
@@ -412,7 +410,6 @@ export function buildFolioPayload(): DesignPayload {
   });
   return {
     shellTree: shell(id, {
-      rule: true,
       navChrome: "chapter_dots",
       navLinks: [
         { label: "Book", href: "#gallery" },

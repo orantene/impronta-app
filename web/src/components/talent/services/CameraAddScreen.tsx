@@ -95,7 +95,8 @@ export function CameraAddScreen({
       amountCents: price ? Math.round(priceNum * 100) : null,
       durationMinutes: minutes ? Math.round(minutesNum) : null,
       status,
-      bookingMode: "instant",
+      // WSF B2: a new service follows the talent default booking mode.
+      bookingMode: null,
       priceDisplay: "exact",
       currency: editor.defaultCurrency,
       depositPct: defaults?.depositPct ?? null,

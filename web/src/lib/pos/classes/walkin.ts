@@ -217,6 +217,7 @@ export type WalkInBookingRefusal =
   | "too_soon"
   | "inquiry_only"
   | "request_only"
+  | "not_accepting_bookings"
   | "bad_duration"
   | "beyond_horizon"
   | "outside_hours";

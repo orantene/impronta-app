@@ -7,25 +7,47 @@
  *
  * Backed only by stores that exist and are read today:
  *  - `talent_profiles.selling_defaults` via load/saveSellingDefaults
- *  - `talent_offerings.booking_mode` via loadTalentOfferingsForEditor/upsertTalentOffering
+ *  - `talent_offerings.booking_mode` / deposit / cancelling via
+ *    loadTalentOfferingsForEditor/patchOfferingBookingRules (only those
+ *    columns, so a Services-editor edit made meanwhile survives; WSF B2)
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
 import {
   loadSellingDefaults,
   saveSellingDefaults,
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
-import { loadTalentOfferingsForEditor, upsertTalentOffering } from "@/lib/talent/offerings-actions";
+import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
+import { patchOfferingBookingRules } from "@/lib/talent/offering-booking-rules-action";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
 import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { settle } from "./settle";
 import { loadHoursMinNoticeAction } from "./website-settings-gate-action";
+import { loadSiteSwitchesAction, saveSiteSwitchesAction, type SiteSwitchesSnapshot } from "./website-settings-switches-action";
+import {
+  AcceptBookingsCard,
+  ChatInquiriesGroup,
+  VisibilityGroup,
+  chatSummary,
+  visibilitySummary,
+} from "./WebsiteSettingsSwitchGroups";
+import { DEFAULT_TALENT_SITE_SWITCHES, type TalentSiteSwitches } from "@/lib/talent/site-switches";
+import {
+  READINESS_GAP_COPY,
+  readinessGaps,
+  takesMoneyOnline,
+  switchSaveImpact,
+} from "@/lib/talent/accepting-readiness";
 import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "./primitives";
 import { BookingGroup, PaymentsGroup, SelfServiceGroup, TimingGroup, postureLabel } from "./WebsiteSettingsGroups";
 import {
+  switchChangeCount,
+  pendingChangeLabels,
+  effectiveServiceMode,
   canBookInstantly,
   changeCount,
   countCustom,
@@ -44,11 +66,13 @@ function fieldsOf(o: TalentOffering): ServiceFields {
   };
 }
 
-type View = "home" | "site" | "booking" | "timing" | "pay" | "self";
+type View = "home" | "site" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
 
 export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string; onClose: () => void }) {
   const copy = useDashboardText();
-  const t = copy.t;
+  // Screen strings live in the lazy chunk, not the global admin map.
+  const t = (value: string) =>
+    copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[value] ?? copy.t(value)) : copy.t(value);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [offerings, setOfferings] = useState<TalentOffering[] | null>(null);
   const [saved, setSaved] = useState<SettingsDraft | null>(null);
@@ -57,14 +81,21 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [confirmExit, setConfirmExit] = useState(false);
   const [hoursNoticeMin, setHoursNoticeMin] = useState<number | null>(null);
+  // WSF-C: talent_sites switches, in the same draft / Save flow.
+  const [savedSw, setSavedSw] = useState<TalentSiteSwitches>(DEFAULT_TALENT_SITE_SWITCHES);
+  const [draftSw, setDraftSw] = useState<TalentSiteSwitches>(DEFAULT_TALENT_SITE_SWITCHES);
+  const [swReadiness, setSwReadiness] = useState<SiteSwitchesSnapshot["readiness"] | null>(null);
+  /** A save that stored some parts and failed others. */
+  const [partial, setPartial] = useState(false);
 
   useEffect(() => {
     let live = true;
     void (async () => {
-      const [d, o, h] = await Promise.all([
+      const [d, o, h, sw] = await Promise.all([
         loadSellingDefaults(talentId),
         loadTalentOfferingsForEditor(talentId),
         loadHoursMinNoticeAction().catch(() => null),
+        loadSiteSwitchesAction().catch(() => null),
       ]);
       if (!live) return;
       if (!d.ok || !o.ok) {
@@ -78,6 +109,11 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       };
       setOfferings(services);
       setHoursNoticeMin(h);
+      if (sw) {
+        setSavedSw(sw.switches);
+        setDraftSw(sw.switches);
+        setSwReadiness(sw.readiness);
+      }
       setSaved(snapshot);
       setDraft(snapshot);
     })();
@@ -92,12 +128,33 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         id: o.id,
         title: o.title || t("Untitled service"),
         canBookInstantly: canBookInstantly(o) && !(needsOwnDeposit({ ...o, bookingMode: "instant" }) && !o.depositPct),
-        depositRequired: needsOwnDeposit(o),
+        // Effective mode: an inherited-instant service with a deposit reserve
+        // needs its own deposit too (WSF B2).
+        depositRequired: needsOwnDeposit({
+          ...o,
+          bookingMode: effectiveServiceMode(
+            draft?.services[o.id]?.bookingMode ?? null,
+            draft?.defaults.bookingPosture ?? "request",
+          ),
+        }),
+        quote: o.priceDisplay === "quote",
+        instantGap: swReadiness
+          ? (() => {
+              const gap = readinessGaps({
+                kind: o.kind,
+                hasWorkingHours: swReadiness.hasWorkingHours,
+                durationMinutes: o.durationMinutes ?? null,
+                takesMoneyOnline: takesMoneyOnline(o.reserveMode, o.allowPayInPerson === true),
+                payoutsReady: swReadiness.payoutsReady,
+              })[0];
+              return gap ? t(READINESS_GAP_COPY[gap]) : null;
+            })()
+          : null,
       })),
-    [offerings, t],
+    [offerings, t, swReadiness, draft],
   );
 
-  const unsaved = saved && draft ? changeCount(saved, draft) : 0;
+  const unsaved = saved && draft ? changeCount(saved, draft) + switchChangeCount(savedSw, draftSw) : 0;
   const dirty = unsaved > 0;
 
   const edit = (next: SettingsDraft) => {
@@ -126,8 +183,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       if (idx < 0) continue;
       const fields = draft.services[id];
       const r = await settle(() =>
-        upsertTalentOffering(talentId, {
-          ...nextOfferings[idx],
+        patchOfferingBookingRules(talentId, id, {
           bookingMode: fields.bookingMode,
           depositPct: fields.depositPct,
           cancellationHours: fields.cancellationHours,
@@ -135,19 +191,33 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       );
       const res = r.ok ? r.value : null;
       if (res?.ok) {
-        nextOfferings[idx] = res.item;
+        nextOfferings[idx] = { ...res.item, imageUrls: nextOfferings[idx].imageUrls };
         nextSaved = { ...nextSaved, services: { ...nextSaved.services, [id]: fields } };
       } else ok = false;
+    }
+    let swSaved = false;
+    if (switchChangeCount(savedSw, draftSw) > 0) {
+      const r = await settle(() => saveSiteSwitchesAction(draftSw));
+      const res = r.ok ? r.value : null;
+      if (res?.ok) {
+        setSavedSw(res.switches);
+        swSaved = true;
+      }
+      else ok = false;
     }
     // Keep whatever did save, so a retry only resends what is still different.
     setOfferings(nextOfferings);
     setSaved(nextSaved);
+    // Honest partial state: something landed, something did not.
+    setPartial(!ok && (nextSaved !== saved || swSaved));
     setStatus(ok ? "idle" : "failed");
     return ok;
-  }, [saved, draft, offerings, talentId]);
+  }, [saved, draft, offerings, talentId, draftSw, savedSw, t]);
 
   const discard = () => {
     if (saved) setDraft(saved);
+    setDraftSw(savedSw);
+    setPartial(false);
     setStatus("idle");
   };
 
@@ -170,6 +240,8 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
     timing: t("Availability & timing"),
     pay: t("Payments"),
     self: t("Client self-service"),
+    chat: t("Chat & inquiries"),
+    vis: t("Appearance & visibility"),
   };
 
   const header = (
@@ -187,7 +259,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       <StatusChip
         status={status}
         unsaved={unsaved}
-        labels={{ saved: t("Saved · live now"), unsaved: t("{n} unsaved"), saving: t("Saving…"), failed: t("Couldn’t save") }}
+        labels={{ saved: t("Saved · live now"), unsaved: t("{n} unsaved"), saving: t("Saving…"), failed: partial ? t("Some changes saved") : t("Couldn’t save") }}
       />
       ) : null}
     </div>
@@ -214,6 +286,22 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   // Display only: same overlay the booking path uses (defaults win, then hours row).
   const noticeMin = resolveEffectiveMinNoticeMin({ hoursMinNoticeMin: hoursNoticeMin, sellingDefaults: d });
   const groupProps = { t, draft, setDefaults, services, setService };
+  const setSwitches = (next: TalentSiteSwitches) => {
+    setDraftSw(next);
+    if (status === "failed") setStatus("idle");
+  };
+  const switchProps = { t, switches: draftSw, setSwitches };
+  // Q3 live warning: which services would lose their only route.
+  const strandedTitles =
+    draftSw.acceptingBookings && !draftSw.acceptingInquiries
+      ? services
+          .filter((s) => effectiveServiceMode(draft.services[s.id]?.bookingMode ?? null, d.bookingPosture) === "inquiry")
+          .map((s) => s.title)
+      : [];
+  const defaultGap = swReadiness
+    ? readinessGaps({ hasWorkingHours: swReadiness.hasWorkingHours, takesMoneyOnline: false, payoutsReady: swReadiness.payoutsReady })[0]
+    : undefined;
+  const defaultInstantGap = defaultGap ? t(READINESS_GAP_COPY[defaultGap]) : null;
   const instantCount = Object.values(draft.services).filter((f) => f.bookingMode != null).length;
 
   return (
@@ -256,11 +344,43 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
               .replace("{r}", String(d.rescheduleHours ?? 24))}
             onOpen={() => setView("self")}
           />
+          <NavRow title={titles.chat} summary={chatSummary(t, draftSw)} onOpen={() => setView("chat")} />
+          <NavRow title={titles.vis} summary={visibilitySummary(t, draftSw)} onOpen={() => setView("vis")} />
         </div>
       ) : null}
-      {view === "booking" ? <BookingGroup {...groupProps} /> : null}
+      {view === "booking" ? (
+        <BookingGroup
+          {...groupProps}
+          defaultInstantGap={defaultInstantGap}
+          savedPosture={saved.defaults.bookingPosture}
+          before={<AcceptBookingsCard {...switchProps} />}
+        />
+      ) : null}
+      {view === "chat" ? <ChatInquiriesGroup {...switchProps} strandedTitles={strandedTitles} /> : null}
+      {view === "vis" ? <VisibilityGroup {...switchProps} /> : null}
+      {status === "failed" && partial ? (
+        <p role="alert" className="mt-3 rounded-lg bg-amber-50 px-3.5 py-3 text-[13px] text-amber-900">
+          {t("Some changes saved. Still unsaved: {items}. Retry sends only these.").replace(
+            "{items}",
+            pendingChangeLabels({
+              saved,
+              draft,
+              savedSwitches: savedSw,
+              draftSwitches: draftSw,
+              serviceTitle: (id) => services.find((x) => x.id === id)?.title ?? t("Untitled service"),
+              labels: { defaults: t("Your defaults"), bookings: t("Accept new bookings"), chat: t("Chat & inquiries") },
+            }).join(", "),
+          )}
+        </p>
+      ) : null}
       {view === "timing" ? <TimingGroup {...groupProps} noticeMin={noticeMin} /> : null}
       {view === "pay" ? <PaymentsGroup {...groupProps} /> : null}
+      {view === "pay" && swReadiness && (!swReadiness.payoutsReady || !swReadiness.connectPayoutsEnabled) ? (
+        // Q2: advisory. The server gate reads platform checkout (PAY-2 Option B).
+        <p className="mt-3 rounded-lg bg-amber-50 px-3.5 py-3 text-[13px] text-amber-900">
+          {t(READINESS_GAP_COPY.payouts)}
+        </p>
+      ) : null}
       {view === "self" ? <SelfServiceGroup {...groupProps} /> : null}
       {view === "site" ? <MaxSiteSettingsPanels /> : null}
 

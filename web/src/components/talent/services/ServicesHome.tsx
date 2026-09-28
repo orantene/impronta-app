@@ -213,7 +213,9 @@ export function ServicesHome({
     const draft =
       item ??
       blankOffering({ kind: "talent", talentProfileId: talentId }, editor.defaultCurrency, items.length);
-    setEditing(item ? item : { ...draft, kind: nextKind ?? kind, status: "draft" });
+    const k = nextKind ?? kind;
+    // WSF B2: a new service follows the talent default booking mode (null).
+    setEditing(item ? item : { ...draft, kind: k, status: "draft", bookingMode: k === "product" ? draft.bookingMode : null });
     setPreviewFirst(false);
     setScreen("editor");
     setTypeOpen(false);

@@ -34,6 +34,13 @@ import {
   resolveEffectiveMinNoticeMin,
 } from "@/lib/scheduling/instant-book-gates";
 import type { OfferingBookingMode, OfferingReserveMode } from "@/lib/talent/offerings-types";
+import {
+  applySwitchesToMode,
+  instantReadiness,
+  readinessGaps,
+  takesMoneyOnline,
+  type AcceptingSwitches,
+} from "@/lib/talent/accepting-readiness";
 
 /** What the platform applies when neither the offering nor the talent chose. */
 export const PLATFORM_POLICY_DEFAULTS = {
@@ -214,5 +221,58 @@ export function withEffectiveBookingMode<T extends { bookingMode: OfferingBookin
 ): T {
   const eff = resolveEffectiveBookingMode({ offering, defaults: sellingDefaults });
   const mode: OfferingBookingMode = eff.mode === "closed" ? "request" : eff.mode;
+  return { ...offering, bookingMode: mode };
+}
+
+/**
+ * Readiness is kept on purpose (coordinator ruling 2026-09-28): in prod only
+ * one of the talents with instant offerings has a hours row, and the slots
+ * route already returns zero slots without hours, so those instant CTAs led
+ * nowhere; request is strictly better and matches §1. A talent with hours,
+ * durations and online collect ready (Jor's shape) stays instant.
+ *
+ * PAY-2: `payoutsReady` is platform Checkout (`isPlatformCheckoutReady`), not
+ * Connect. Missing hours still fall back to request and hide deposit who-step
+ * honesty (AUD-004 chat) — QA deposit fixtures must seed working hours.
+ *
+ * WSF-C: withEffectiveBookingMode plus readiness (§1 row 4) and, on a direct
+ * channel, the talent's switches (§8). PUBLIC LOADERS ONLY.
+ *  - `hasWorkingHours` null/undefined = unknown: readiness never downgrades;
+ *  - `switches` null = agency-routed (§7): switches do not apply;
+ *  - a service left with no route keeps an inquiry mode and gets
+ *    `publicCtaHidden`, so every surface hides its button.
+ */
+export function withPublicAvailability<
+  T extends {
+    bookingMode: OfferingBookingMode | null;
+    kind: string;
+    durationMinutes: number | null;
+    reserveMode: OfferingReserveMode;
+    allowPayInPerson?: boolean;
+    publicCtaHidden?: boolean;
+  },
+>(
+  offering: T,
+  sellingDefaults: unknown,
+  ctx: { switches?: AcceptingSwitches | null; hasWorkingHours?: boolean | null; payoutsReady: boolean },
+): T {
+  const readiness =
+    ctx.hasWorkingHours == null
+      ? null
+      : instantReadiness(
+          readinessGaps({
+            kind: offering.kind,
+            hasWorkingHours: ctx.hasWorkingHours,
+            durationMinutes: offering.durationMinutes ?? null,
+            takesMoneyOnline: takesMoneyOnline(offering.reserveMode, offering.allowPayInPerson === true),
+            payoutsReady: ctx.payoutsReady,
+          }),
+        );
+  const eff = resolveEffectiveBookingMode({ offering, defaults: sellingDefaults, readiness });
+  if (!ctx.switches) {
+    return { ...offering, bookingMode: eff.mode === "closed" ? "request" : eff.mode };
+  }
+  const mode = applySwitchesToMode(eff.mode, ctx.switches);
+  if (mode === "none") return { ...offering, bookingMode: "inquiry", publicCtaHidden: true };
   return { ...offering, bookingMode: mode };
 }
