@@ -196,6 +196,7 @@ function ManagerBody({
           setSetupOpen(false);
         }}
         siteLive={hostHidden}
+        liveAddress={liveHost(state.publicSiteUrl)}
         onEnabledChange={setMaisonSetupEnabled}
       />
 
@@ -281,3 +282,12 @@ const linkButton: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: FONTS.body,
 };
+
+function liveHost(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).host;
+  } catch {
+    return undefined;
+  }
+}

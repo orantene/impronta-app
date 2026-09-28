@@ -33,8 +33,11 @@ export function MaisonSetupHost({
   forceScreen,
   onForceScreenConsumed,
   siteLive = false,
+  liveAddress,
   onEnabledChange,
 }: {
+  /** Live site address (host only), shown in the gallery's change-design banner. */
+  liveAddress?: string;
   /** Close detail → stay on /talent/site manager chrome below. */
   onCloseToSite?: () => void;
   /** After successful publish — manager reloads + shows My website card. */
@@ -206,6 +209,7 @@ export function MaisonSetupHost({
           }
           onBack={closeToSite}
           onClose={closeToSite}
+          liveAddress={siteLive ? liveAddress : undefined}
         />
       ) : choices.screen === "review" ? (
         <ReviewWebsiteScreen
