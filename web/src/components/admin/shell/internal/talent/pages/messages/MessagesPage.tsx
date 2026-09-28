@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { consumePendingConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import type { SellerChrome } from "@/components/messages-v5/shell/seller";
 import { MessagesV5Shell } from "@/components/messages-v5/shell/MessagesV5Shell";
 import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine";
 import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
@@ -39,6 +41,18 @@ function TalentMessagesV5() {
   const initialInquiryId = fromQuery ?? fromPin;
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
   const dispatchRef = useRef<(id: ShellActionId) => void>(() => undefined);
+  const copy = useDashboardText();
+  // Seller mode: a solo talent sees client, state and her own verbs, not staff chrome.
+  const seller = useMemo<SellerChrome>(
+    () => ({
+      quoteSubtitle: copy.t("The client sees the services, the total and one Accept button."),
+      summaryTitle: copy.t("What the client pays"),
+      summaryTotal: copy.t("Services total"),
+      summaryDeposit: copy.t("Deposit to hold the time"),
+      summaryBalance: copy.t("Paid at the appointment"),
+    }),
+    [copy],
+  );
   const onDispatchReady = useCallback((dispatch: (id: ShellActionId) => void) => {
     dispatchRef.current = dispatch;
   }, []);
@@ -60,10 +74,11 @@ function TalentMessagesV5() {
         initialInquiryId={initialInquiryId}
         onActiveInquiry={setActiveId}
         onDispatchReady={onDispatchReady}
+        seller={seller}
         composerAccessory={
-          <div className="flex justify-end px-1 pb-1" data-talent-seller-actions>
+          <div className="flex justify-start px-3 pb-1 pt-2" data-talent-seller-actions>
             <TalentSellerActions
-              disabledReason={activeId ? null : "Pick a conversation first"}
+              hasThread={Boolean(activeId)}
               onPick={(id) => {
                 dispatchRef.current(SELLER_TO_SHELL[id]);
               }}

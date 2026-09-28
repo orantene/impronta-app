@@ -28,15 +28,21 @@ export type ThreadHeaderProps = {
   readonly onResolve?: () => void;
   readonly onReopen?: () => void;
   readonly onMore?: () => void;
+  /**
+   * Talent seller mode (mockup "Messages · direct client"): a solo talent has
+   * no owner, no Resolve and no channel routing, so the header is client +
+   * conversation state + the linked booking / quote chip, then More.
+   */
+  readonly seller?: boolean;
 };
 
-export function ThreadHeader({ essentials, state, chips, channel, subject, when, owner, copy, variant = "desktop", busy, onBack, onAssign, onResolve, onReopen, onMore }: ThreadHeaderProps) {
+export function ThreadHeader({ essentials, state, chips, channel, subject, when, owner, copy, variant = "desktop", busy, onBack, onAssign, onResolve, onReopen, onMore, seller }: ThreadHeaderProps) {
   const isVisitor = essentials.customer.identityLevel === "none" && !essentials.customer.name.trim();
   const name = essentials.name.trim() || (isVisitor ? copy.inbox.visitor : essentials.customer.name);
   const resolved = state.conversation === "resolved";
 
   if (variant === "mobile") {
-    const meta = [copy.channel[channel], owner ? owner.label : copy.inbox.unassigned, essentials.customer.identityLevel === "none" ? copy.state.noIdentity : null]
+    const meta = [copy.channel[channel], seller ? null : owner ? owner.label : copy.inbox.unassigned, essentials.customer.identityLevel === "none" ? copy.state.noIdentity : null]
       .filter(Boolean)
       .join(" · ");
     return (
@@ -56,6 +62,37 @@ export function ThreadHeader({ essentials, state, chips, channel, subject, when,
         </div>
         <div className="st">
           <StateTags state={state} chips={chips} copy={copy} maxRecords={1} />
+        </div>
+      </header>
+    );
+  }
+
+  if (seller) {
+    return (
+      <header className="th-head" data-thread-header="desktop" data-thread-header-seller>
+        <div className="r1">
+          {onBack ? (
+            <Btn size="round" variant="ghost" onClick={onBack} aria-label={copy.thread.back}>
+              <Icon name="back" size={16} />
+            </Btn>
+          ) : null}
+          <Avatar name={isVisitor ? null : name} size="lg" />
+          <div className="who">
+            <b>{name}</b>
+            <span>
+              <IdentityPill level={essentials.customer.identityLevel} copy={copy} />
+              <span className="subj">
+                {subject}
+                {when ? ` · ${when}` : ""}
+              </span>
+            </span>
+          </div>
+          <div className="acts">
+            <StateTags state={state} chips={chips} copy={copy} maxRecords={2} />
+            <Btn size="round" variant="ghost" onClick={onMore} aria-label={copy.thread.more}>
+              <Icon name="more" size={16} />
+            </Btn>
+          </div>
         </div>
       </header>
     );

@@ -20,9 +20,11 @@ export type InboxRowV5Props = {
   readonly now?: Date;
   readonly locale?: string;
   readonly onOpen?: (id: string) => void;
+  /** Talent seller mode: hide owner avatar / Unassigned (a solo talent has no team). */
+  readonly seller?: boolean;
 };
 
-export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUserId, now = new Date(), locale, onOpen }: InboxRowV5Props) {
+export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUserId, now = new Date(), locale, onOpen, seller }: InboxRowV5Props) {
   const name = row.contactName.trim() || copy.inbox.visitor;
   const isVisitor = !row.contactName.trim();
   const state = { conversation: row.conversationState, opportunity: row.opportunityState, records: [] };
@@ -81,7 +83,7 @@ export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUs
           {when}
         </span>
         {unread ? <span className="cnt">{row.unreadCount}</span> : null}
-        {row.ownerLabel ? (
+        {seller ? null : row.ownerLabel ? (
           <Avatar name={row.ownerLabel} size="sm" me={!!currentUserId && row.ownerUserId === currentUserId} />
         ) : (
           <Pill tone="off">{copy.inbox.unassigned}</Pill>

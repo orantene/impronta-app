@@ -4,6 +4,7 @@ import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, Messagin
 
 import type { ScreenVariant, ShellActionId } from "./contracts";
 import type { ScreenCopy } from "./copy";
+import type { SellerChrome } from "../shell/seller";
 import { registeredActionSheet, type ShellSheetContext } from "./sheet-registry";
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
   readonly reloadThread: () => Promise<void>;
   readonly notify: (n: { kind: "refusal"; code: MessagingRefusal } | { kind: "ok"; text: string } | null) => void;
   readonly dispatch: (id: ShellActionId) => void;
+  readonly seller?: SellerChrome | null;
 };
 
 /** Mounts the sheet a lane registered for `id`, handing it the shell context. */
@@ -44,6 +46,7 @@ export function ActionSheetHost(p: Props) {
     reloadThread: p.reloadThread,
     notify: (n) => p.notify(n),
     dispatch: p.dispatch,
+    seller: p.seller ?? null,
   };
   return <Entry open onClose={p.onClose} ctx={ctx} copy={p.copy} variant={p.variant} />;
 }

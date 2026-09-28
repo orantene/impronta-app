@@ -11,7 +11,6 @@
  * sheet). Front door to the POS engine: nothing is written from here that
  * the engine does not already write.
  */
-
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/messages/draft-storage";
@@ -31,7 +30,7 @@ import type { ConversationHistoryEntry, CustomerMatch, Essentials, InboxFilter, 
 
 import "../kit/tokens.css";
 import "./shell.css";
-
+import { sellerMenuItems, type SellerChrome } from "./seller";
 import { type InboxFilterKey, type InboxSegment } from "../kit/InboxSegments";
 import { Avatar, Btn } from "../kit/primitives";
 import { OkLine, RefusalLine } from "../kit/RefusalLine";
@@ -97,6 +96,7 @@ export type MessagesV5ShellProps = {
   readonly composerAccessory?: ReactNode;
   /** Presence display name when publishing staff "viewing" on the open thread. */
   readonly currentUserDisplayName?: string | null;
+  readonly seller?: SellerChrome | null; // talent seller mode: hides staff chrome, carries translated quote-builder copy
 };
 
 type SheetName = "assign" | "handover" | "lost" | "link" | "history" | "tasks" | "client" | "details" | "new" | null;
@@ -586,7 +586,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onNew={() => dispatch("new_conversation")}
       currentUserId={props.currentUserId}
       copy={copy.kit}
-      variant={variant}
+      variant={variant} seller={Boolean(props.seller)}
     />
   );
 
@@ -619,8 +619,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onMoreTasks={() => setSheet("tasks")}
       menuOpen={menuOpen}
       onMenu={setMenuOpen}
-      menuItems={menuItems}
-      composerAccessory={props.composerAccessory}
+      menuItems={sellerMenuItems(menuItems, Boolean(props.seller))}
+      composerAccessory={props.composerAccessory} seller={Boolean(props.seller)}
       detailsAction={placement === "column" ? null : { label: copy.kit.thread.details, onClick: () => (placement === "drawer" ? setDrawerOpen(true) : setSheet("details")) }}
       notice={notice ? notice.kind === "refusal" ? <RefusalLine code={notice.code} copy={copy.kit} variant={variant} action={{ label: copy.kit.sheet.close, onClick: () => setNotice(null) }} /> : <OkLine text={notice.text} variant={variant} /> : null}
       renameSlot={
@@ -778,7 +778,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
           reloadInbox={reloadInbox}
           reloadThread={reloadActiveThread}
           notify={setNotice}
-          dispatch={dispatch}
+          dispatch={dispatch} seller={props.seller ?? null}
         />
       ) : null}
       {toast ? (
