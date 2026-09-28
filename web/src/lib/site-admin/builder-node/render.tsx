@@ -150,6 +150,7 @@ import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallbac
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
 import { renderReviewsBlock } from "./reviews-block";
+import { renderVisitBlock } from "./visit-block";
 import { renderNextFreeChip } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -300,6 +301,11 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents quotes.
    */
   talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
+  /**
+   * Visit facts — service areas / languages / hours for `visit` nodes.
+   * Resolved by the SERVER caller; the renderer never invents facts.
+   */
+  talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
   /**
    * When true, `services_catalog` paints the dedicated loading skeleton
    * (BRIEF-03 / §14) instead of the empty message or interactive list.
@@ -5893,6 +5899,13 @@ function renderBuilderNodeElement(
       return renderReviewsBlock({
         node,
         reviews: options.dataSources?.talentReviews ?? [],
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "visit": {
+      return renderVisitBlock({
+        node,
+        facts: options.dataSources?.talentVisitFacts ?? [],
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

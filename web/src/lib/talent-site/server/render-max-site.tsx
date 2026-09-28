@@ -32,10 +32,8 @@ import {
 import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
 import {
   loadBuilderNodeDataSources,
-  loadServicesCatalogSources,
+  loadPersonalMaxNativeSources,
 } from "@/components/home/homepage-cms-data-sources";
-import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
-import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
@@ -474,6 +472,7 @@ async function renderMaxSiteDocument(args: {
   const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
   const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
+  const pageNeedsVisit = builderTreeHasKind(blocks, "visit");
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
@@ -495,21 +494,16 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsTalentOfferings || pageNeedsReviews
-          ? Promise.all([
-              pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip
-                ? loadServicesCatalogSources(talentProfileId, locale)
-                : Promise.resolve({}),
-              pageNeedsPortfolio
-                ? loadPortfolioSources(talentProfileId)
-                : Promise.resolve({}),
-              pageNeedsReviews
-                ? loadReviewsSources(talentProfileId)
-                : Promise.resolve({}),
-            ]).then(
-              ([catalog, portfolio, reviews]) =>
-                ({ ...catalog, ...portfolio, ...reviews }) as BuilderNodeRenderDataSources,
-            )
+        : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit
+          ? loadPersonalMaxNativeSources({
+              talentProfileId,
+              locale,
+              servicesCatalog: pageNeedsServicesCatalog,
+              portfolio: pageNeedsPortfolio,
+              nextFreeChip: pageNeedsNextFreeChip,
+              reviews: pageNeedsReviews,
+              visit: pageNeedsVisit,
+            })
           : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)
         ? loadBuilderComponentsForTenant(tenantId)
@@ -794,6 +788,4 @@ async function renderMaxSiteDocument(args: {
   );
 }
 
-// Re-export the published-page render data type for any caller that wants the
-// shared shape (avoids a separate import path).
 export type { PublishedTalentPageRenderData };

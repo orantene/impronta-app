@@ -17,14 +17,16 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/services-catalog-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
-import { CONTACT_LAYER, TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
+import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
   buildKitShell,
+  faqBlock,
   portfolioBlock,
   reviewsBlock,
+  visitBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -128,51 +130,32 @@ function contactSection(
   makeId: KitIdFactory,
   o: { heading: string; faqHeading: string; center?: boolean; band?: boolean },
 ): BuilderNode {
-  const align = o.center ? ({ align: "center" } as const) : {};
+  // Shared FAQ preset stamps contact; keep a short lead heading for Designs
+  // that still want an Ask + FAQ band in one slot.
+  const base = faqBlock(makeId, {
+    heading: o.faqHeading,
+    center: o.center,
+    band: o.band,
+    ask: true,
+  });
+  const kids = "children" in base && Array.isArray(base.children) ? base.children : [];
   return {
-    id: makeId(),
-    kind: "container",
-    props: stampKitSection("contact", {
-      layout: "stack",
-      gap: "l",
-      align: o.center ? "center" : "stretch",
+    ...base,
+    props: {
+      ...(base.props as Record<string, unknown>),
       layerLabel: "Contact & FAQ",
-      style: {
-        maxWidth: o.center ? "reading" : "wide",
-        paddingY: "l",
-        paddingX: "m",
-        marginBottom: "l",
-        ...(o.band ? { backgroundColor: styleTokenRef("color.surface-raised") } : {}),
-      },
-      responsive: { mobile: { layout: "stack" } },
-    }),
+    },
     children: [
       {
         id: makeId(),
         kind: "heading",
-        props: { text: o.heading, level: 2, style: { size: "xl", ...align } },
-      },
-      {
-        id: makeId(),
-        kind: "button",
         props: {
-          label: CONTACT_LAYER.ask,
-          href: TALENT_ASK_HREF,
-          tone: "primary",
-          layerLabel: CONTACT_LAYER.ask,
+          text: o.heading,
+          level: 2,
+          style: { size: "xl", ...(o.center ? { align: "center" } : {}) },
         },
       },
-      {
-        id: makeId(),
-        kind: "heading",
-        props: { text: o.faqHeading, level: 3, style: { size: "lg", marginTop: "m", ...align }, layerLabel: "FAQ heading" },
-      },
-      {
-        id: makeId(),
-        kind: "accordion",
-        props: { allowMultiple: true, layerLabel: "FAQ", bindSource: "talent_faq_items" },
-        children: [],
-      } as BuilderNode,
+      ...kids,
     ],
   } as BuilderNode;
 }
@@ -214,8 +197,8 @@ function withChild(node: BuilderNode, child: BuilderNode): BuilderNode {
 // ── Maison v2 (Rosé proposal) ────────────────────────────────────────────────
 // Split hero with desktop inset photo, Bodoni italic name (typography token),
 // next-free chip (slots API), recent work BEFORE the menu, the menu as
-// image-led rows with a sticky category rail (chips on phone), about, then
-// visit + FAQ on a soft band, then live-bound reviews quote cards.
+// image-led rows with a sticky category rail (chips on phone), split about,
+// visit facts band, FAQ, then live-bound reviews quote cards.
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   const hero = tuneHeading(
@@ -248,8 +231,24 @@ export function buildMaisonV2Payload(): DesignPayload {
         rowCtaVariant: "outline",
         showPhoto: true,
       }),
-      aboutBlock(id, { align: "start", accent: true }),
-      contactSection(id, { heading: "Before your visit", faqHeading: "Questions", band: true }),
+      aboutBlock(id, {
+        align: "start",
+        accent: true,
+        layout: "split",
+        greeting: "Hello, I'm {{displayName}}",
+        showFacts: false,
+      }),
+      visitBlock(id, {
+        layout: "split",
+        heading: "Your visit",
+        titleAccent: "visit",
+        band: true,
+      }),
+      faqBlock(id, {
+        heading: "Before your appointment",
+        center: true,
+        ask: true,
+      }),
       reviewsBlock(id, {
         layout: "row",
         heading: "What clients say",

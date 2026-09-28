@@ -21,8 +21,6 @@
  * the template registry, the built-in designs and the apply core.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio-defaults";
-import { REVIEWS_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/reviews-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next-free-chip-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
@@ -42,6 +40,7 @@ export const TALENT_KIT_SECTIONS = {
   about: { slotKey: "about", originRole: "talent.about" },
   services: { slotKey: "services", originRole: "talent.services" },
   gallery: { slotKey: "gallery", originRole: "talent.gallery" },
+  visit: { slotKey: "visit", originRole: "talent.visit" },
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
 } as const;
@@ -474,13 +473,111 @@ export function heroCover(
 
 // ── ABOUT ────────────────────────────────────────────────────────────────────
 
-/** The About block: eyebrow + full bio + location + languages lines. */
+/**
+ * About presets any theme can use.
+ * - `stack` — eyebrow + bio (+ optional location/languages lines)
+ * - `split` — portrait beside greeting + bio (Maison Experience / artist)
+ */
 export function aboutBlock(
   makeId: KitIdFactory,
-  opts: { align?: "start" | "center"; accent?: boolean } = {},
+  opts: {
+    align?: "start" | "center";
+    accent?: boolean;
+    layout?: "stack" | "split";
+    /** Greeting heading; default "Hello, I'm {{displayName}}". */
+    greeting?: string;
+    /** Include {{locationLine}} / {{languagesLine}} (default true for stack). */
+    showFacts?: boolean;
+  } = {},
 ): BuilderNode {
   const center = opts.align === "center";
   const alignStyle = center ? { align: "center" as const } : {};
+  const layout = opts.layout ?? "stack";
+  const showFacts = opts.showFacts ?? layout === "stack";
+  const greeting = opts.greeting ?? "Hello, I'm {{displayName}}";
+
+  const copyChildren: BuilderNode[] = [
+    eyebrow(makeId, "About", {
+      letterSpacing: "0.18em",
+      accent: opts.accent === true,
+      ...(center ? { align: "center" as const } : {}),
+    }),
+    {
+      id: makeId(),
+      kind: "heading",
+      props: {
+        text: greeting,
+        level: 2,
+        style: {
+          size: "xl",
+          fontFamily: "token:typography.heading-font-family",
+          ...alignStyle,
+        },
+        layerLabel: "About greeting",
+      },
+    } as BuilderNode,
+    {
+      id: makeId(),
+      kind: "paragraph",
+      props: {
+        text: "{{richBio}}",
+        style: { size: "lg", maxWidth: "reading", ...alignStyle },
+      },
+    } as BuilderNode,
+  ];
+
+  if (showFacts) {
+    copyChildren.push(
+      {
+        id: makeId(),
+        kind: "paragraph",
+        props: { text: "{{locationLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
+      } as BuilderNode,
+      {
+        id: makeId(),
+        kind: "paragraph",
+        props: { text: "{{languagesLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
+      } as BuilderNode,
+    );
+  }
+
+  if (layout === "split") {
+    const portrait: BuilderNode = {
+      id: makeId(),
+      kind: "image",
+      props: {
+        src: "{{headshotUrl}}",
+        alt: "{{displayName}}",
+        style: { radius: "lg", objectFit: "cover", width: "100%", aspectRatio: "3:4" },
+        layerLabel: "About portrait",
+      },
+    } as BuilderNode;
+    const copyCol: BuilderNode = {
+      id: makeId(),
+      kind: "container",
+      props: {
+        layout: "stack",
+        gap: "m",
+        align: opts.align ?? "start",
+        layerLabel: "About copy",
+      },
+      children: copyChildren,
+    } as BuilderNode;
+    return {
+      id: makeId(),
+      kind: "split",
+      props: stampKitSection("about", {
+        ratio: "40-60",
+        gap: "l",
+        align: "center",
+        layerLabel: "About",
+        style: { maxWidth: "wide", paddingY: "l", paddingX: "m", marginTop: "m" },
+        responsive: { mobile: { layout: "stack" } },
+      }),
+      children: [portrait, copyCol],
+    } as BuilderNode;
+  }
+
   return {
     id: makeId(),
     kind: "container",
@@ -491,31 +588,7 @@ export function aboutBlock(
       layerLabel: "About",
       style: { maxWidth: "reading", paddingY: "l", paddingX: "m", marginTop: "m" },
     }),
-    children: [
-      eyebrow(makeId, "About", {
-        letterSpacing: "0.18em",
-        accent: opts.accent === true,
-        ...(center ? { align: "center" as const } : {}),
-      }),
-      {
-        id: makeId(),
-        kind: "paragraph",
-        props: {
-          text: "{{richBio}}",
-          style: { size: "lg", maxWidth: "reading", ...alignStyle },
-        },
-      },
-      {
-        id: makeId(),
-        kind: "paragraph",
-        props: { text: "{{locationLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
-      },
-      {
-        id: makeId(),
-        kind: "paragraph",
-        props: { text: "{{languagesLine}}", style: { tone: "muted", size: "md", ...alignStyle } },
-      },
-    ],
+    children: copyChildren,
   } as BuilderNode;
 }
 
@@ -623,82 +696,14 @@ export function galleryBlock(
 }
 
 /**
- * W-12 Portfolio — live-bound media (replaces copied-at-apply `galleryBlock`
- * for Designs that should stay in sync with talent media).
+ * W-12 / W-14 / Visit / FAQ live-bound bands live in `section-kit-bands.ts`.
  */
-export function portfolioBlock(
-  makeId: KitIdFactory,
-  opts: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet";
-    columns?: 2 | 3 | 4;
-    heading?: string;
-    showCaptions?: boolean;
-  } = {},
-): BuilderNode {
-  return {
-    id: makeId(),
-    kind: "container",
-    props: stampKitSection("gallery", {
-      layout: "stack",
-      gap: "m",
-      align: "start",
-      layerLabel: "Gallery",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
-    }),
-    children: [
-      {
-        id: makeId(),
-        kind: "portfolio",
-        props: {
-          ...PORTFOLIO_DEFAULT_PROPS,
-          layout: opts.layout ?? "grid",
-          columns: opts.columns ?? (opts.layout === "contact_sheet" ? 4 : opts.layout === "masonry" ? 2 : 3),
-          title: opts.heading ?? "Recent work",
-          showCaptions: opts.showCaptions === true,
-        },
-      },
-    ],
-  } as BuilderNode;
-}
-
-/**
- * W-14 Reviews — live-bound talent_reviews quote cards on the shared slider.
- * Hidden on the published site when there are no quotes.
- */
-export function reviewsBlock(
-  makeId: KitIdFactory,
-  opts: {
-    layout?: "trio" | "single" | "row";
-    heading?: string;
-    eyebrow?: string;
-    autoplayMs?: number;
-  } = {},
-): BuilderNode {
-  return {
-    id: makeId(),
-    kind: "container",
-    props: stampKitSection("reviews", {
-      layout: "stack",
-      gap: "m",
-      align: "start",
-      layerLabel: "Reviews",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
-    }),
-    children: [
-      {
-        id: makeId(),
-        kind: "reviews",
-        props: {
-          ...REVIEWS_DEFAULT_PROPS,
-          layout: opts.layout ?? "row",
-          title: opts.heading ?? "What clients say",
-          eyebrow: opts.eyebrow ?? "",
-          autoplayMs: opts.autoplayMs ?? REVIEWS_DEFAULT_PROPS.autoplayMs,
-        },
-      },
-    ],
-  } as BuilderNode;
-}
+export {
+  portfolioBlock,
+  reviewsBlock,
+  visitBlock,
+  faqBlock,
+} from "./section-kit-bands";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

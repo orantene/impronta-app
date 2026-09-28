@@ -16,9 +16,11 @@ import {
   buildKitShell,
   buildKitStandardShell,
   contactBlock,
+  faqBlock,
   galleryBlock,
   portfolioBlock,
   reviewsBlock,
+  visitBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -52,6 +54,7 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["heroCover no accent", heroCover(ids(), { accent: false })],
   ["aboutBlock", aboutBlock(ids())],
   ["aboutBlock centered accent", aboutBlock(ids(), { align: "center", accent: true })],
+  ["aboutBlock split", aboutBlock(ids(), { layout: "split", accent: true, showFacts: false })],
   ["servicesBlock", servicesBlock(ids(), { columns: 2, heading: "What I do" })],
   ["galleryBlock masonry", galleryBlock(ids())],
   ["galleryBlock grid", galleryBlock(ids(), { mode: "grid", columns: 2 })],
@@ -59,6 +62,9 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["portfolioBlock contact_sheet", portfolioBlock(ids(), { layout: "contact_sheet", columns: 4 })],
   ["reviewsBlock row", reviewsBlock(ids(), { layout: "row" })],
   ["reviewsBlock trio", reviewsBlock(ids(), { layout: "trio", heading: "Client words" })],
+  ["visitBlock facts", visitBlock(ids(), { layout: "facts" })],
+  ["visitBlock split", visitBlock(ids(), { layout: "split", band: true })],
+  ["faqBlock centered", faqBlock(ids(), { heading: "Before your appointment", center: true })],
   ["contactBlock", contactBlock(ids(), { heading: "Get in touch" })],
 ];
 
@@ -136,7 +142,12 @@ test("the kit source files carry no hex literal at all", async () => {
   const { join, dirname } = await import("node:path");
   const { fileURLToPath } = await import("node:url");
   const here = dirname(fileURLToPath(import.meta.url));
-  for (const file of ["section-kit.ts", "section-kit-shell.ts", "../max-site-templates/registry.ts"]) {
+  for (const file of [
+    "section-kit.ts",
+    "section-kit-shell.ts",
+    "section-kit-bands.ts",
+    "../max-site-templates/registry.ts",
+  ]) {
     const src = readFileSync(join(here, file), "utf8");
     assert.doesNotMatch(src, /["'`][^"'`]*#[0-9a-f]{3,8}\b/i, `${file} contains a quoted hex literal`);
   }

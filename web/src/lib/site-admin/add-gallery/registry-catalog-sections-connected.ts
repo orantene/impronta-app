@@ -541,6 +541,28 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
   connected({
+    id: "conn-visit-native",
+    label: "Visit",
+    description:
+      "Where you work, days, and languages from your profile. Optional map beside the facts. Hidden when empty.",
+    category: "dynamic",
+    icon: "about",
+    insertMethod: "nativeNode",
+    nativeKind: "visit",
+    sourceType: "native-freeform",
+    connectedSource: "Your profile",
+    searchTerms: [
+      "visit",
+      "your visit",
+      "service areas",
+      "hours",
+      "languages",
+      "map",
+      "where",
+      "travels",
+    ],
+  }),
+  connected({
     id: "conn-next-free-chip-native",
     label: "Next free time",
     description:

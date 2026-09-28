@@ -65,6 +65,8 @@ export type NativeDataBlockNeeds = {
   portfolio: boolean;
   /** W-14 live talent_reviews quote cards. */
   reviews: boolean;
+  /** Visit facts from service areas / languages / hours. */
+  visit: boolean;
   /** Maison FAQ accordion with `bindSource: "talent_faq_items"`. */
   talentFaq: boolean;
   /** Every native `featured_talent` node in the tree, in document order. */
@@ -149,6 +151,7 @@ export function collectNativeDataBlockNeeds(
   let servicesCatalog = false;
   let portfolio = false;
   let reviews = false;
+  let needsVisit = false;
   let talentFaq = false;
   let needsTalentLocations = false;
   const featuredTalent: NativeFeaturedTalentNeed[] = [];
@@ -160,7 +163,7 @@ export function collectNativeDataBlockNeeds(
   const directories: NativeDirectoryNeed[] = [];
   const headerWidgets = { account: false, inquiry: false };
 
-  const visit = (node: BuilderNode) => {
+  const walk = (node: BuilderNode) => {
     if (
       node.kind === "hero_search" &&
       node.props.statSource === "tenant_talent_count"
@@ -178,6 +181,9 @@ export function collectNativeDataBlockNeeds(
     }
     if (node.kind === "reviews") {
       reviews = true;
+    }
+    if (node.kind === "visit") {
+      needsVisit = true;
     }
     if (
       node.kind === "accordion" &&
@@ -253,16 +259,17 @@ export function collectNativeDataBlockNeeds(
       }
     }
     if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
+      for (const child of node.children) walk(child);
     }
   };
-  for (const node of nodes) visit(node);
+  for (const node of nodes) walk(node);
   return {
     needsTalentCount,
     menuBoard,
     servicesCatalog,
     portfolio,
     reviews,
+    visit: needsVisit,
     talentFaq,
     featuredTalent,
     needsTalentLocations,

@@ -126,3 +126,44 @@ test("maison-v2 includes reviews block on shared slider and clears W-14 gap", ()
   assert.equal(found[0].title, "What clients say");
   assert.ok(!COLLECTION_DESIGN_GAPS["maison-v2"]?.includes("W-14 bound reviews"));
 });
+
+/** Visit / about / FAQ presets — Maison v2 Experience band. */
+test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
+  const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2");
+  assert.ok(maison);
+  const payload = maison!.buildPayload();
+  const slots = payload.homeTree.map((n) => String((n.props as { slotKey?: string }).slotKey));
+  assert.ok(slots.includes("about"));
+  assert.ok(slots.includes("visit"));
+  assert.ok(slots.includes("contact"));
+  assert.ok(slots.includes("reviews"));
+
+  let aboutIsSplit = false;
+  let visitLayout: string | undefined;
+  let faqBound = false;
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const node = n as {
+        kind?: string;
+        props?: Record<string, unknown>;
+        children?: unknown;
+      };
+      if (node.kind === "split" && node.props?.slotKey === "about") aboutIsSplit = true;
+      if (node.kind === "visit") visitLayout = String(node.props?.layout ?? "");
+      if (
+        node.kind === "accordion" &&
+        node.props?.bindSource === "talent_faq_items"
+      ) {
+        faqBound = true;
+      }
+      walk(node.children);
+    }
+  };
+  walk(payload.homeTree);
+  assert.equal(aboutIsSplit, true);
+  assert.equal(visitLayout, "split");
+  assert.equal(faqBound, true);
+  assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
+});

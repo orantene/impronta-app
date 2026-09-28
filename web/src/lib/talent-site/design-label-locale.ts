@@ -24,6 +24,9 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "No services are published yet.": "Aún no hay servicios publicados.",
   // Theme collection v1 designs (Maison v2, Solace, Mono, Frame, Folio).
   "Before your visit": "Antes de tu visita",
+  "Your visit": "Tu visita",
+  "Before your appointment": "Antes de tu cita",
+  "Hello, I'm {{displayName}}": "Hola, soy {{displayName}}",
   Sessions: "Sesiones",
   "Take your time": "Tómate tu tiempo",
   "The space": "El espacio",
