@@ -31,6 +31,10 @@ import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  draftFirstSendAllowed,
+  talentAcceptsNewThreads,
+} from "@/lib/talent/existing-client.server";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
@@ -620,6 +624,18 @@ async function readGuestVisibleMessages(
 // 3a. startGuestChatInquiry
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** WSF C+D (§7): talent switches gate only the talent's own channels, never agency-routed chats. */
+async function onDirectTalentChannel(tenantId: string | null): Promise<boolean> {
+  const hostCtx = await getPublicHostContext();
+  return isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId });
+}
+
+function notAcceptingMessage(locale: string | null | undefined): string {
+  return locale === "es"
+    ? "Ahora no recibe mensajes nuevos. Si tienes una reserva, usa el enlace de tu email de confirmación."
+    : "This talent isn't taking new messages. If you have a booking, use the link in your confirmation email.";
+}
+
 export async function startGuestChatInquiry(
   input: StartGuestChatInput,
 ): Promise<StartGuestChatResult> {
@@ -748,7 +764,7 @@ export async function startGuestChatInquiry(
           accepting.reason,
           accepting.reason === "not_accepting_bookings"
             ? "Not taking new bookings right now. You can still send an inquiry."
-            : "Not taking new inquiries right now.",
+            : notAcceptingMessage(input.locale),
         );
       }
     }
@@ -888,6 +904,8 @@ export async function startGuestChatInquiry(
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
       ...(offering ? { offering } : {}),
+      ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
+      ...(input.lines && input.lines.length > 1 ? { lines: input.lines.slice(0, 12) } : {}),
     },
     requester: {
       name: contactName,
@@ -1306,6 +1324,17 @@ export async function sendGuestMessageAction(
       return fail("forbidden", "You don't have access to this conversation.");
     }
     isRealContact = !isSeedContact(contactName, contactEmail);
+  }
+
+  // WSF D §8: an early draft becomes a real thread on its first send, so the
+  // not-taking-inquiries switch gates it too.
+  if (
+    owned.inquiry.status === "draft" &&
+    isRealContact &&
+    (await onDirectTalentChannel(owned.inquiry.tenantId)) &&
+    !(await draftFirstSendAllowed(admin, owned.inquiry.id))
+  ) {
+    return fail("not_accepting_inquiries", notAcceptingMessage(null));
   }
 
   // ── W2-I auto-scan: on the FIRST real send (still a draft, contact already
@@ -1996,6 +2025,16 @@ export async function ensureGuestChatInquiry(
           picked.row.contact_email as string | null,
         ),
       };
+    }
+
+    // WSF D §8: minting a new early row IS starting a new thread. Reuse of the
+    // guest's own existing draft above stays allowed.
+    if (
+      talentProfileId &&
+      (await onDirectTalentChannel(tenantId)) &&
+      !(await talentAcceptsNewThreads(admin, talentProfileId))
+    ) {
+      return fail("not_accepting_inquiries", notAcceptingMessage(null));
     }
 
     // No reusable partial — create the minimal early row. Placeholder contact
