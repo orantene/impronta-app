@@ -1,6 +1,7 @@
 import "server-only";
 
 import { TalentProfileChatLauncherMount } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount";
+import { GUEST_CHAT_LAUNCHER_CLEARANCE_CSS } from "@/app/t/[profileCode]/_chat/launcher-clearance";
 import { createTranslator } from "@/i18n/messages";
 import { loadTalentSiteInquiryTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import {
@@ -160,6 +161,8 @@ export async function TalentSiteMessagesDock({
         whatsappHref={hrefs.whatsappHref}
         emailHref={hrefs.emailHref}
       />
+      {/* AUD-037: keep the last row CTA clear of the fixed launcher on phones. */}
+      <style>{GUEST_CHAT_LAUNCHER_CLEARANCE_CSS}</style>
       <TalentProfileChatLauncherMount
         talentProfileId={talentProfileId}
         talentProfileCode={code}

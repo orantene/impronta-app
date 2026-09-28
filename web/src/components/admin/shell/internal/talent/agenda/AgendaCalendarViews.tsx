@@ -12,12 +12,22 @@ import { windowsForDate } from "@/lib/scheduling/hours-types";
 import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import { overnightLabel } from "@/lib/talent-agenda/overnight";
 import { AgendaRow, EmptyDay } from "./primitives";
-import { holdUntilWallClock, itemsOnDay, rowFromAgendaItem } from "./present";
+import { holdUntilWallClock, itemsOnDay, rowFromAgendaItem, weekChipKind } from "./present";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 const PX_PER_MIN = 1.1;
 const DEFAULT_OPEN = 10 * 60;
 const DEFAULT_CLOSE = 19 * 60;
+
+/**
+ * AUD-037: the shell's BottomActionFab (admin-shell-client.tsx) is fixed at
+ * right:16 and 52px wide. The week grid reserves that width plus a gap on its
+ * right edge so the FAB never covers the last day column's event text.
+ */
+export const SHELL_FAB_RIGHT_PX = 16;
+export const SHELL_FAB_SIZE_PX = 52;
+export const SHELL_FAB_GAP_PX = 12;
+export const SHELL_FAB_CLEARANCE_PX = SHELL_FAB_RIGHT_PX + SHELL_FAB_SIZE_PX + SHELL_FAB_GAP_PX;
 
 export function localYmd(date: Date): string {
   const y = date.getFullYear();
@@ -75,7 +85,11 @@ export function WeekGrid({
   const copy = useAgendaCopy();
   const height = (bounds.endMin - bounds.startMin) * PX_PER_MIN;
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="overflow-x-auto pr-[var(--agenda-fab-clear)]"
+      data-agenda-fab-clearance
+      style={{ "--agenda-fab-clear": `${SHELL_FAB_CLEARANCE_PX}px` }}
+    >
       <div className="grid min-w-[900px] grid-cols-[56px_repeat(7,1fr)] gap-1">
         <div />
         {days.map((day) => (
@@ -88,6 +102,43 @@ export function WeekGrid({
             {day.toLocaleDateString([], { weekday: "short", day: "numeric" })}
           </button>
         ))}
+        {/* AUD-036: dedicated all-day row, below the headers, never overlapping them. */}
+        <div className="self-center text-[10px] text-[rgba(11,11,13,0.62)]" data-agenda-allday-label>
+          {copy.t("All day")}
+        </div>
+        {days.map((day) => {
+          const allDayItems = itemsOnDay(items, day).filter(
+            (item) => weekChipKind(item, tradeRules) === "allDay",
+          );
+          return (
+            <div
+              key={`allday-${localYmd(day)}`}
+              data-agenda-allday-row
+              className="flex min-h-[28px] flex-col gap-0.5 rounded-md border border-[rgba(11,11,13,0.06)] p-0.5"
+            >
+              {allDayItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={(event) => onOpen(item, event)}
+                  className={`truncate rounded border px-1 py-0.5 text-left text-[11px] ${
+                    blocksTime(item)
+                      ? "border-[rgba(59,76,202,0.25)] bg-[rgba(59,76,202,0.08)]"
+                      : "border-dashed border-[rgba(59,76,202,0.4)] bg-white"
+                  }`}
+                >
+                  <span className="font-semibold">{item.title}</span>
+                  {!blocksTime(item) ? (
+                    <span className="text-[rgba(11,11,13,0.62)]">{` · ${copy.t("Not blocking")}`}</span>
+                  ) : null}
+                  {item.kind === "deadline" && !tradeRules?.deadlinesBlock ? (
+                    <span className="text-[rgba(11,11,13,0.62)]">{` · ${copy.t("Deadline")}`}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          );
+        })}
         <div
           className="relative h-[var(--agenda-h)]"
           style={{ "--agenda-h": `${height}px` }}
@@ -136,37 +187,28 @@ export function WeekGrid({
                 </div>
               ) : null}
               {dayItems.map((item) => {
+                const kind = weekChipKind(item, tradeRules);
+                if (kind === "allDay") return null;
                 const dayKey = localYmd(day);
                 const overnight = overnightLabel(item.startsAt, item.endsAt, dayKey);
-                const isDeadline =
-                  item.kind === "deadline" ||
-                  item.kind === "project" ||
-                  (Boolean(tradeRules?.deadlinesAllDay) && item.allDay);
                 const occ = occupiedInterval(item);
-                const top = isDeadline
-                  ? 2
-                  : (minutesOf(occ.startsAt) - bounds.startMin) * PX_PER_MIN;
-                const h = isDeadline
-                  ? 28
-                  : Math.max(24, (minutesOf(occ.endsAt) - minutesOf(occ.startsAt)) * PX_PER_MIN);
-                const request =
-                  !blocksTime(item) ||
-                  (Boolean(tradeRules?.onlyCallsBlock) &&
-                    item.tradeSection?.kind !== "estimate" &&
-                    item.kind !== "hold" &&
-                    item.kind !== "block");
-                const hatch = (item.where.travelMin ?? 0) > 0 || item.bufferAfterMin > 0;
+                const top = Math.max(0, (minutesOf(occ.startsAt) - bounds.startMin) * PX_PER_MIN);
+                const h = Math.max(24, (minutesOf(occ.endsAt) - minutesOf(occ.startsAt)) * PX_PER_MIN);
+                const hatch =
+                  kind === "request" ||
+                  (kind !== "done" && ((item.where.travelMin ?? 0) > 0 || item.bufferAfterMin > 0));
                 return (
                   <button
                     key={item.id}
                     type="button"
+                    data-week-chip={kind}
                     onClick={(event) => onOpen(item, event)}
                     className={`absolute inset-x-1 top-[var(--agenda-top)] z-10 h-[var(--agenda-span)] overflow-hidden rounded-md border px-1 py-0.5 text-left text-[11px] ${
-                      isDeadline
-                        ? "border-[rgba(59,76,202,0.25)] bg-[rgba(59,76,202,0.08)]"
-                        : request
+                      kind === "done"
+                        ? "border-[rgba(11,11,13,0.08)] bg-[rgba(11,11,13,0.06)] text-[rgba(11,11,13,0.62)]"
+                        : kind === "request"
                           ? "border-dashed border-[rgba(59,76,202,0.4)] bg-white"
-                          : item.booking === "hold"
+                          : kind === "hold"
                             ? "border-[rgba(138,90,17,0.3)] bg-[rgba(138,90,17,0.12)]"
                             : "border-[rgba(11,11,13,0.12)] bg-white"
                     } ${hatch ? "bg-[repeating-linear-gradient(135deg,rgba(11,11,13,0.08)_0_3px,transparent_3px_6px)]" : ""}`}
@@ -181,9 +223,9 @@ export function WeekGrid({
                       <div className="text-[#5F6368]">{holdUntilWallClock(item.holdUntil)}</div>
                     ) : null}
                     {overnight ? <div className="text-[#5F6368]">{overnight}</div> : null}
-                    {request ? <div className="text-[#5F6368]">{copy.t("Not blocking")}</div> : null}
-                    {isDeadline && !tradeRules?.deadlinesBlock ? (
-                      <div className="text-[#5F6368]">{copy.t("Deadline")}</div>
+                    {kind === "done" ? <div>{copy.t("Done")}</div> : null}
+                    {kind === "request" ? (
+                      <div className="text-[#5F6368]">{copy.t("Request · not blocking")}</div>
                     ) : null}
                   </button>
                 );
