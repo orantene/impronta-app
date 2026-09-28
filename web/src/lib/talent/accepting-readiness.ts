@@ -63,7 +63,9 @@ export function takesMoneyOnline(reserveMode: string | null | undefined, payInPe
 export const READINESS_GAP_COPY: Record<ReadinessGap, string> = {
   working_hours: "Add working hours to turn on instant booking",
   duration: "Add a duration to this service to turn on instant booking",
-  payouts: "Connect payouts to take deposits",
+  // PAY-2 Option B — platform Checkout, not Connect. Connect unfinished
+  // must not invent this gap when STRIPE_SECRET_KEY is present.
+  payouts: "Turn on online payments to take deposits",
 };
 
 // ── Public effect of the switches (§8) ──────────────────────────────────────
