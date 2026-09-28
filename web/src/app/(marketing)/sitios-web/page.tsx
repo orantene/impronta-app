@@ -42,8 +42,8 @@ export async function generateMetadata(): Promise<Metadata> {
     es: "Páginas web para restaurantes, cafés y estudios",
   });
   const description = pickLocale(locale, {
-    en: `A website on your own domain for $12 a month, in English and Spanish, with reservation requests in your inbox, deposits taken online, and the ability to book talent from the same ${PLATFORM_BRAND.name} account.`,
-    es: `Una página web en tu propio dominio por 12 USD al mes, en español e inglés, con solicitudes de reserva en tu bandeja, anticipos cobrados en línea y la posibilidad de contratar talento desde la misma cuenta de ${PLATFORM_BRAND.name}.`,
+    en: `A booking website on your own domain for $12 a month, in English and Spanish, with deposits online and talent you can book from the same account.`,
+    es: `Página web con reservas en tu propio dominio por 12 USD al mes, en español e inglés, con anticipos en línea y talento para contratar desde la misma cuenta.`,
   });
   return {
     title,

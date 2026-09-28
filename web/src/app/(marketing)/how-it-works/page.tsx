@@ -18,12 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
   return {
     title: pickLocale(locale, {
-      en: "How it works",
-      es: "C\u00f3mo funciona",
+      en: "How it works: website, bookings and payments",
+      es: "C\u00f3mo funciona: sitio web, reservas y pagos",
     }),
     description: pickLocale(locale, {
       en: `Three surfaces, one platform: a branded roster site, structured people profiles, and a real inquiry \u2192 offer \u2192 booking pipeline. Here\u2019s the full walkthrough.`,
-      es: `Tres superficies, una plataforma: un sitio de roster con tu marca, perfiles estructurados de personas y un pipeline real de consulta \u2192 oferta \u2192 reserva. Aqu\u00ed est\u00e1 el recorrido completo.`,
+      es: `Tres piezas, una plataforma: un sitio con tu marca, perfiles ordenados de tu gente y un pipeline real de consulta \u2192 oferta \u2192 reserva. El recorrido completo.`,
     }),
     ...buildMarketingLocaleAlternates(locale, "/how-it-works"),
   };

@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
   const description = pickLocale(locale, {
     en: `Find models in the ${PLATFORM_BRAND.name} directory, send a structured request with your date and image usage, and pay inside the booking chat once you have a priced offer.`,
-    es: `Encuentra modelos en el directorio de ${PLATFORM_BRAND.name}, envía una solicitud estructurada con tu fecha y uso de imágenes, y paga dentro del chat de la reserva una vez que tengas una oferta con precio.`,
+    es: `Contrata modelos en ${PLATFORM_BRAND.name}: envía tu fecha y uso de imágenes en una solicitud, recibe una cotización y paga dentro del chat de la reserva.`,
   });
   return {
     title,

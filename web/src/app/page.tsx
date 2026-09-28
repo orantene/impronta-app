@@ -195,10 +195,19 @@ export async function generateMetadata(): Promise<Metadata> {
     // The descriptor comes from the marketing copy module so the tagline has a
     // single source per locale; `/es` gets the Spanish line, which is the one
     // meta tag a Spanish searcher reads before deciding to click.
-    const title = getMarketingCopy(locale).brand.descriptor;
+    //
+    // The SERP title leads with the tagline's opening and then names the
+    // category, because the full tagline carries no word anyone searches for
+    // ("booking website", "página web con reservas"). Social cards keep the
+    // whole tagline via `tagline` below, where brand recall is the job.
+    const tagline = getMarketingCopy(locale).brand.descriptor;
+    const title = pickLocale(locale, {
+      en: "Sell what you do: booking website and payments",
+      es: "Vende lo que haces: página web con reservas y pagos",
+    });
     const description = pickLocale(locale, {
       en: PLATFORM_BRAND.description,
-      es: "Tulala es la plataforma de comercio para el talento: una tienda con tu marca, un pipeline de reservas estructurado y la red de descubrimiento compartida que te trae trabajo nuevo.",
+      es: "Tulala es la plataforma de comercio para el talento: una tienda con tu marca, reservas ordenadas y una red compartida que te trae trabajo nuevo.",
     });
     const marketingAlt = buildMarketingLocaleAlternates(locale, "/");
     return {
@@ -208,7 +217,7 @@ export async function generateMetadata(): Promise<Metadata> {
       openGraph: {
         // Social cards do not go through the title template, so the brand has
         // to be present here or the card reads as an unattributed slogan.
-        title: `${PLATFORM_BRAND.name} · ${title}`,
+        title: `${PLATFORM_BRAND.name} · ${tagline}`,
         description,
         siteName: PLATFORM_BRAND.name,
         url: `https://${PLATFORM_BRAND.domain}/`,
@@ -216,7 +225,7 @@ export async function generateMetadata(): Promise<Metadata> {
       twitter: {
         card: "summary_large_image",
         // Same reason as openGraph: no template runs on a social card.
-        title: `${PLATFORM_BRAND.name} · ${title}`,
+        title: `${PLATFORM_BRAND.name} · ${tagline}`,
         description,
       },
     };

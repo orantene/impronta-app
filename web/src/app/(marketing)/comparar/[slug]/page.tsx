@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ComparisonPage } from "@/components/marketing/comparison-page";
 import {
   comparisonContent,
+  comparisonSeoTitle,
   comparisonPaths,
   getComparisonBySlugEs,
 } from "@/lib/marketing/compare";
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!comparison) return {};
   const c = comparisonContent(comparison, "es");
   return {
-    title: c.title,
+    title: comparisonSeoTitle(comparison, "es"),
     description: c.subtitle,
     ...buildCrossSlugMarketingAlternates("es", comparisonPaths(comparison)),
   };

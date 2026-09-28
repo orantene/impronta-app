@@ -5,6 +5,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocalePath } from "@/i18n/pathnames";
 import {
   comparisonContent,
+  comparisonSeoTitle,
   comparisonPaths,
   getComparisonBySlugEn,
   getComparisonBySlugEs,
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await getRequestLocale();
   const c = comparisonContent(comparison, locale);
   return {
-    title: c.title,
+    title: comparisonSeoTitle(comparison, locale),
     description: c.subtitle,
     ...buildCrossSlugMarketingAlternates(locale, comparisonPaths(comparison)),
   };

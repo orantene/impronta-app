@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: pickLocale(locale, { en: "About", es: "Nosotros" }),
     description: pickLocale(locale, {
       en: "Tulala is the commerce platform for talent: a branded storefront, structured bookings, and payment in the chat. What we believe, what we build, and who it\u2019s for.",
-      es: "Tulala es la plataforma de comercio para el talento: una tienda con tu marca, reservas estructuradas y pago dentro del chat. En qué creemos, qué construimos y para quién es.",
+      es: "Tulala es la plataforma de comercio para el talento: tienda con tu marca, reservas ordenadas y pago en el chat. En qué creemos, qué construimos y para quién.",
     }),
     ...buildMarketingLocaleAlternates(locale, "/about"),
   };

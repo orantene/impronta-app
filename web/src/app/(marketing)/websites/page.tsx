@@ -54,8 +54,8 @@ export async function generateMetadata(): Promise<Metadata> {
     es: "Una página web para el lugar que atiendes",
   });
   const description = pickLocale(locale, {
-    en: `The website that fills tables, not just clicks. ${PLATFORM_BRAND.name} gives your restaurant, cafe, beach club, salon, or studio a real site on your own domain for $12 a month, in English and Spanish, with reservation requests, deposits, and the ability to book talent from the same account.`,
-    es: `La página que llena mesas, no solo clics. ${PLATFORM_BRAND.name} le da a tu restaurante, café, beach club, salón o estudio un sitio real en tu propio dominio por 12 USD al mes, en español e inglés, con solicitudes de reserva, anticipos y la posibilidad de contratar talento desde la misma cuenta.`,
+    en: `A website for your restaurant, cafe, beach club, salon or studio on your own domain for $12 a month, in English and Spanish, with reservations and deposits.`,
+    es: `Página web para tu restaurante, café, beach club, salón o estudio en tu propio dominio por 12 USD al mes, en español e inglés, con reservas y anticipos.`,
   });
   return {
     title,

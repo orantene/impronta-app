@@ -25,8 +25,8 @@ export async function generateMetadata(): Promise<Metadata> {
       es: "Integraciones: un roster, renderizado donde sea",
     }),
     description: pickLocale(locale, {
-      en: `${PLATFORM_BRAND.name} is the source of truth for your roster. Render it on a platform-hosted site, as embeddable widgets on WordPress / Webflow / Shopify, or through a public read API for bespoke frontends.`,
-      es: `${PLATFORM_BRAND.name} es la fuente de verdad de tu roster. Renderízalo en un sitio hospedado por la plataforma, como widgets para embeber en WordPress / Webflow / Shopify, o vía una API pública de lectura para frontends a la medida.`,
+      en: `Keep your roster in ${PLATFORM_BRAND.name} and show it anywhere: a hosted site, embeddable widgets for WordPress, Webflow or Shopify, or a public read API.`,
+      es: `Lleva tu roster en ${PLATFORM_BRAND.name} y muéstralo donde quieras: un sitio hospedado, widgets para WordPress, Webflow o Shopify, o una API pública de lectura.`,
     }),
     ...buildMarketingLocaleAlternates(locale, "/integrations"),
   };

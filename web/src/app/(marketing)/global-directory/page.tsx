@@ -59,8 +59,8 @@ export async function generateMetadata(): Promise<Metadata> {
       es: "Agencia de talento: contrata modelos, chefs y fotógrafos",
     }),
     description: pickLocale(locale, {
-      en: `Browse and hire talent from across the ${PLATFORM_BRAND.name} network, independents and agency rosters alike. Search by craft, location, and availability, then send a structured inquiry.`,
-      es: `Explora y contrata talento de toda la red de ${PLATFORM_BRAND.name}, independientes y rosters de agencia por igual. Busca por oficio, ubicación y disponibilidad, y envía una consulta estructurada.`,
+      en: `Hire models, hosts, DJs, chefs and more from the ${PLATFORM_BRAND.name} network. Search by craft, city and availability, then send one clear booking request.`,
+      es: `Contrata modelos, edecanes, DJs, chefs y más en la red de ${PLATFORM_BRAND.name}. Busca por oficio, ciudad y disponibilidad, y envía una sola solicitud clara.`,
     }),
     ...buildMarketingLocaleAlternates(locale, "/directory"),
   };
