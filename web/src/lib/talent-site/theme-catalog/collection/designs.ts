@@ -28,6 +28,7 @@ import {
   portfolioChaptersBlock,
   reviewsBlock,
   visitBlock,
+  contentsBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -388,9 +389,9 @@ export function buildFramePayload(): DesignPayload {
 }
 
 // ── Folio ────────────────────────────────────────────────────────────────────
-// Magazine cover (full-bleed, uppercase masthead name), the book as shared
-// W-12 chapter blocks (sticky numeral + title + credit, 1 large + 2 smaller),
-// a rate card of rows grouped by section.
+// Magazine cover (full-bleed, uppercase masthead name), Contents index,
+// the book as shared W-12 chapter blocks (sticky numeral + title + credit,
+// 1 large + 2 smaller), a rate card of rows grouped by section.
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
   const hero = tuneHeading(heroCover(id, { accent: false }), {
@@ -411,6 +412,19 @@ export function buildFolioPayload(): DesignPayload {
     }),
     homeTree: [
       hero,
+      contentsBlock(id, {
+        heading: "Contents",
+        showNumbers: true,
+        numberStyle: "roman",
+        items: [
+          { label: "Editorial", anchor: "chapter-1" },
+          { label: "Lookbook", anchor: "chapter-2" },
+          { label: "Portraits", anchor: "chapter-3" },
+          { label: "About", anchor: "about" },
+          { label: "Rates", anchor: "services" },
+          { label: "Contact", anchor: "contact" },
+        ],
+      }),
       portfolioChaptersBlock(id, [
         {
           chapterNumber: 1,
@@ -418,6 +432,7 @@ export function buildFolioPayload(): DesignPayload {
           creditLine: "Studio session",
           showCaptions: true,
           limit: 6,
+          anchorId: "chapter-1",
         },
         {
           chapterNumber: 2,
@@ -425,6 +440,7 @@ export function buildFolioPayload(): DesignPayload {
           creditLine: "Seasonal story",
           showCaptions: true,
           limit: 6,
+          anchorId: "chapter-2",
         },
         {
           chapterNumber: 3,
@@ -432,6 +448,7 @@ export function buildFolioPayload(): DesignPayload {
           creditLine: "Natural light",
           showCaptions: true,
           limit: 6,
+          anchorId: "chapter-3",
         },
       ]),
       aboutBlock(id, { align: "start", accent: false }),
@@ -548,5 +565,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   solace: ["W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe"],
-  folio: ["W-11 C2 contents page", "W-10 W3 stacked masthead"],
+  folio: ["W-10 W3 stacked masthead"],
 };

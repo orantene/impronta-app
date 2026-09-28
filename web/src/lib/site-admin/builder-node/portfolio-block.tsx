@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
+import { anchorIdAttrs } from "./anchor-id";
 import {
   PORTFOLIO_DEFAULT_PROPS,
   portfolioChapterRoman,
@@ -186,6 +187,7 @@ export function renderPortfolioBlock(args: {
         ...args.styleAttr,
         ["--sb-portfolio-cols" as string]: String(cols),
       }}
+      {...anchorIdAttrs(args.node)}
     >
       <style>{PORTFOLIO_CSS}</style>
       {isChapter ? (

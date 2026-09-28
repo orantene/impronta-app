@@ -22,6 +22,7 @@ import {
   portfolioChaptersBlock,
   reviewsBlock,
   visitBlock,
+  contentsBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -82,6 +83,17 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["reviewsBlock trio", reviewsBlock(ids(), { layout: "trio", heading: "Client words" })],
   ["visitBlock facts", visitBlock(ids(), { layout: "facts" })],
   ["visitBlock split", visitBlock(ids(), { layout: "split", band: true })],
+  [
+    "contentsBlock index",
+    contentsBlock(ids(), {
+      heading: "Contents",
+      showNumbers: true,
+      items: [
+        { label: "Editorial", anchor: "chapter-1" },
+        { label: "Lookbook", anchor: "chapter-2" },
+      ],
+    }),
+  ],
   ["faqBlock centered", faqBlock(ids(), { heading: "Before your appointment", center: true })],
   ["contactBlock", contactBlock(ids(), { heading: "Get in touch" })],
 ];

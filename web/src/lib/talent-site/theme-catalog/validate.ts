@@ -73,6 +73,7 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "portfolio",
   "reviews",
   "visit",
+  "contents",
   "next_free_chip",
 ]);
 

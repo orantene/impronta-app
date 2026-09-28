@@ -38,6 +38,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "reveal",
   "stats",
   "before_after",
+  "contents",
 ];
 
 /**
@@ -110,6 +111,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     portfolio: "media",
     reviews: "media",
     visit: "media",
+    contents: "structure",
     reserve_table: "actions",
     next_free_chip: "actions",
     session_picker: "actions",
@@ -206,6 +208,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   portfolio: "portfolio gallery filmstrip masonry contact sheet chapter album credit recent work photos media",
   reviews: "reviews testimonials quotes clients feedback stars rating standing",
   visit: "visit your visit area map service areas hours languages where travels booking",
+  contents: "contents table of contents chapter index anchors toc contents page",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   next_free_chip: "next free time slot availability booking chip calendar open",
   session_picker: "session class book seat booking schedule sign up capacity workshop course",
@@ -294,6 +297,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "portfolio",
     "reviews",
     "visit",
+    "contents",
     "next_free_chip",
     "reserve_table",
     "session_picker",

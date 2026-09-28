@@ -51,6 +51,8 @@ export type BuilderNodeKind =
   | "reviews"
   /** Visit facts — live service areas / languages / hours; hidden when empty. */
   | "visit"
+  /** Contents — authored chapter index / TOC with anchor links. */
+  | "contents"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1379,6 +1381,26 @@ export interface BuilderVisitNode extends BuilderNodeBase {
 }
 
 /**
+ * Contents — authored chapter index / table of contents.
+ * Each item is a label + fragment anchor (no "#"); pairs with portfolio
+ * chapter `anchorId`s and header chapter_dots / side_rail scroll-spy.
+ */
+export interface BuilderContentsNode extends BuilderNodeBase {
+  kind: "contents";
+  props: {
+    layout?: "index" | "compact";
+    eyebrow?: string;
+    title?: string;
+    /** Show roman / decimal indices beside each link. */
+    showNumbers?: boolean;
+    numberStyle?: "roman" | "decimal";
+    items?: Array<{ label: string; anchor: string }>;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Next free time chip — fetches `/api/public/booking/slots` for a bookable
  * offering (authored id, or the first slot-eligible offering on the page).
  * Renders nothing when the list is empty.
@@ -2418,6 +2440,7 @@ export type BuilderNode =
   | BuilderPortfolioNode
   | BuilderReviewsNode
   | BuilderVisitNode
+  | BuilderContentsNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

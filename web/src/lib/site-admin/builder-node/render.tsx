@@ -157,6 +157,7 @@ import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-
 import { renderPortfolioBlock } from "./portfolio-block";
 import { renderReviewsBlock } from "./reviews-block";
 import { renderVisitBlock } from "./visit-block";
+import { renderContentsBlock } from "./contents-block";
 import { renderNextFreeChip } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -5912,6 +5913,12 @@ function renderBuilderNodeElement(
       return renderVisitBlock({
         node,
         facts: options.dataSources?.talentVisitFacts ?? [],
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "contents": {
+      return renderContentsBlock({
+        node,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

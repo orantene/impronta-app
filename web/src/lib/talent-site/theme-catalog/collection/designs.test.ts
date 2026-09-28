@@ -206,13 +206,23 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
   const folio = COLLECTION_DESIGNS.find((d) => d.slug === "folio");
   assert.ok(folio);
   const payload = folio!.buildPayload();
-  const chapters: Array<{ layout?: string; chapterNumber?: number; title?: string }> = [];
+  const chapters: Array<{
+    layout?: string;
+    chapterNumber?: number;
+    title?: string;
+    anchorId?: string;
+  }> = [];
+  const contentsFound: Array<{
+    kind?: string;
+    props?: Record<string, unknown>;
+  }> = [];
   const walk = (nodes: unknown) => {
     if (!Array.isArray(nodes)) return;
     for (const n of nodes) {
       if (!n || typeof n !== "object") continue;
       const node = n as {
         kind?: string;
+        anchorId?: string;
         props?: Record<string, unknown>;
         children?: unknown;
       };
@@ -221,7 +231,11 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
           layout: node.props?.layout as string | undefined,
           chapterNumber: node.props?.chapterNumber as number | undefined,
           title: node.props?.title as string | undefined,
+          anchorId: node.anchorId,
         });
+      }
+      if (node.kind === "contents") {
+        contentsFound.push({ kind: node.kind, props: node.props });
       }
       walk(node.children);
     }
@@ -236,7 +250,21 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     chapters.map((c) => c.chapterNumber),
     [1, 2, 3],
   );
+  assert.deepEqual(
+    chapters.map((c) => c.anchorId),
+    ["chapter-1", "chapter-2", "chapter-3"],
+  );
+  assert.equal(contentsFound.length, 1, "folio stamps shared contents block");
+  const items =
+    (contentsFound[0]!.props?.items as Array<{ label: string; anchor: string }>) ??
+    [];
+  assert.ok(items.length >= 3);
+  assert.deepEqual(
+    items.slice(0, 3).map((it) => it.anchor),
+    ["chapter-1", "chapter-2", "chapter-3"],
+  );
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-12 project-story chapters"));
+  assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-11 C2 contents page"));
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
   assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
 });

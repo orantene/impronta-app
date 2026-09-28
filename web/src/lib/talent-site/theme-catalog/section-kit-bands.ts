@@ -1,5 +1,5 @@
 /**
- * Live-bound kit band factories (portfolio / reviews / visit / FAQ).
+ * Live-bound kit band factories (portfolio / reviews / visit / FAQ / contents).
  * Kept out of `section-kit.ts` so the core kit stays under the 800-line budget.
  * Provenance stamps mirror `TALENT_KIT_SECTIONS` in `section-kit.ts`.
  */
@@ -7,6 +7,8 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio-defaults";
 import { REVIEWS_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/reviews-defaults";
 import { VISIT_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/visit-defaults";
+import { CONTENTS_DEFAULT_PROPS, cloneContentsDefaultProps } from "@/lib/site-admin/builder-node/contents-defaults";
+import type { ContentsItem } from "@/lib/site-admin/builder-node/contents-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
@@ -17,6 +19,7 @@ const BAND_SLOTS = {
   gallery: { slotKey: "gallery", originRole: "talent.gallery" },
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   visit: { slotKey: "visit", originRole: "talent.visit" },
+  contents: { slotKey: "contents", originRole: "talent.contents" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
 } as const;
 
@@ -96,6 +99,8 @@ export function portfolioChaptersBlock(
     showCaptions?: boolean;
     albumId?: string;
     limit?: number;
+    /** DOM fragment id for Contents / nav links; defaults to `chapter-N`. */
+    anchorId?: string;
   }>,
 ): BuilderNode {
   return {
@@ -108,21 +113,26 @@ export function portfolioChaptersBlock(
       layerLabel: "The book",
       style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
     }),
-    children: chapters.map((ch, i) => ({
-      id: makeId(),
-      kind: "portfolio" as const,
-      props: {
-        ...PORTFOLIO_DEFAULT_PROPS,
-        layout: "chapter" as const,
-        columns: 2 as const,
-        title: ch.heading ?? "Editorial",
-        showCaptions: ch.showCaptions === true,
-        chapterNumber: ch.chapterNumber ?? i + 1,
-        creditLine: ch.creditLine ?? "",
-        albumId: ch.albumId ?? "",
-        limit: ch.limit ?? 6,
-      },
-    })),
+    children: chapters.map((ch, i) => {
+      const chapterNumber = ch.chapterNumber ?? i + 1;
+      const anchorId = ch.anchorId?.trim() || `chapter-${chapterNumber}`;
+      return {
+        id: makeId(),
+        kind: "portfolio" as const,
+        anchorId,
+        props: {
+          ...PORTFOLIO_DEFAULT_PROPS,
+          layout: "chapter" as const,
+          columns: 2 as const,
+          title: ch.heading ?? "Editorial",
+          showCaptions: ch.showCaptions === true,
+          chapterNumber,
+          creditLine: ch.creditLine ?? "",
+          albumId: ch.albumId ?? "",
+          limit: ch.limit ?? 6,
+        },
+      };
+    }),
   } as BuilderNode;
 }
 
@@ -278,5 +288,51 @@ export function faqBlock(
       responsive: { mobile: { layout: "stack" } },
     }),
     children: kids,
+  } as BuilderNode;
+}
+
+/**
+ * Contents — authored chapter index / TOC with anchor links.
+ * Shared widget; pairs with portfolio chapter `anchorId`s and header chrome.
+ */
+export function contentsBlock(
+  makeId: KitIdFactory,
+  opts: {
+    heading?: string;
+    eyebrow?: string;
+    showNumbers?: boolean;
+    numberStyle?: "roman" | "decimal";
+    items?: ReadonlyArray<ContentsItem>;
+  } = {},
+): BuilderNode {
+  const defaults = cloneContentsDefaultProps();
+  const items = (opts.items ?? defaults.items ?? []).map((it) => ({
+    label: it.label,
+    anchor: it.anchor,
+  }));
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampBand("contents", {
+      layout: "stack",
+      gap: "m",
+      align: "stretch",
+      layerLabel: "Contents",
+      style: { maxWidth: "reading", paddingY: "none", paddingX: "none" },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "contents",
+        props: {
+          ...defaults,
+          title: opts.heading ?? CONTENTS_DEFAULT_PROPS.title,
+          eyebrow: opts.eyebrow ?? "",
+          showNumbers: opts.showNumbers !== false,
+          numberStyle: opts.numberStyle ?? "roman",
+          items,
+        },
+      },
+    ],
   } as BuilderNode;
 }
