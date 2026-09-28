@@ -166,6 +166,63 @@ function servicesMenu(d: DemoTalent) {
   });
 }
 
+// Public site services come from talent_offerings (not services_menu). Demo
+// offerings reserve for free: no deposit, no card, never a real charge.
+async function writeOfferings(d: DemoTalent, profileId: string) {
+  const { error: delErr } = await admin.from("talent_offerings").delete().eq("talent_profile_id", profileId);
+  if (delErr) throw delErr;
+  const now = new Date().toISOString();
+  const rows = d.services.map((s, i) => ({
+    talent_profile_id: profileId,
+    tenant_id: HUB_TENANT_ID,
+    kind: "service",
+    title: s.name,
+    description: s.description,
+    title_i18n: { es: s.name },
+    description_i18n: { es: s.description },
+    price_type: s.booking === "quote" ? "custom" : s.pricingType,
+    price_display: s.booking === "quote" || s.amountMxn == null ? "quote" : "exact",
+    amount_cents: s.booking === "quote" || s.amountMxn == null ? null : s.amountMxn * 100,
+    currency: "MXN",
+    booking_mode: s.booking === "instant" ? "instant" : "request",
+    reserve_mode: "free",
+    allow_pay_in_person: true,
+    duration_minutes: s.durationMin,
+    status: "published",
+    visibility: "public",
+    moderation_state: "approved",
+    is_featured: i < 2,
+    sort_order: i,
+    owner_kind: "talent",
+    first_published_at: now,
+    attributes: { demo_batch: DEMO_BATCH },
+  }));
+  const { error } = await admin.from("talent_offerings").insert(rows);
+  if (error) throw error;
+}
+
+// One of the demo's own gallery photos per service card (by order).
+async function linkOfferingPhotos(profileId: string) {
+  const { data: offers, error: oErr } = await admin
+    .from("talent_offerings")
+    .select("id")
+    .eq("talent_profile_id", profileId)
+    .order("sort_order");
+  if (oErr) throw oErr;
+  const { data: photos, error: pErr } = await admin
+    .from("media_assets")
+    .select("id")
+    .eq("owner_talent_profile_id", profileId)
+    .eq("variant_kind", "gallery")
+    .is("deleted_at", null)
+    .order("sort_order");
+  if (pErr) throw pErr;
+  if (!offers?.length || !photos?.length) return;
+  const rows = offers.map((o, i) => ({ offering_id: o.id, media_asset_id: photos[i % photos.length].id, sort_order: 0 }));
+  const { error } = await admin.from("talent_offering_media").insert(rows);
+  if (error) throw error;
+}
+
 async function termId(slug: string) {
   const { data, error } = await admin.from("taxonomy_terms").select("id")
     .eq("slug", slug)
@@ -303,6 +360,8 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
   manifest.entries[d.profileCode] = entry;
   saveManifest(manifest);
 
+  await writeOfferings(d, profileId);
+
   const tid = await termId(d.talentTypeSlug);
   const { error: txErr } = await admin
     .from("talent_profile_taxonomy")
@@ -313,6 +372,8 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry, manifest);
     saveManifest(manifest);
   }
+
+  await linkOfferingPhotos(profileId);
 
   const shell = buildDefaultShellTree({ displayName: d.displayName });
   const home = buildStarterHomePageTree({ displayName: d.displayName, tagline: d.tagline });
@@ -371,6 +432,7 @@ async function removeBatch(manifest: Manifest) {
     if (e.storagePaths.length) await admin.storage.from(BUCKET).remove(e.storagePaths);
     const steps: [string, PromiseLike<{ error: unknown }>][] = [
       ["media_assets", admin.from("media_assets").delete().eq("owner_talent_profile_id", e.talentProfileId)],
+      ["talent_offerings", admin.from("talent_offerings").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_pages", admin.from("talent_pages").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_site_revisions", admin.from("talent_site_revisions").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_sites", admin.from("talent_sites").delete().eq("talent_profile_id", e.talentProfileId)],

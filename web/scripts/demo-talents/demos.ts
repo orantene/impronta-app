@@ -13,6 +13,8 @@ export type DemoService = {
   description: string;
   pricingType: "hour" | "event" | "per_person" | "per_contact" | "flat_package" | "custom";
   amountMxn: number | null;
+  /** Typical length in minutes (shown on the offering). */
+  durationMin: number;
   booking: "instant" | "request" | "quote";
 };
 
@@ -48,9 +50,9 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Salsa y bachata · clases y shows en CDMX",
     bio: "Bailo salsa y bachata y doy clases privadas y para parejas. Preparo coreografías de primer baile y hago shows para eventos.",
     services: [
-      { name: "Clase privada de salsa o bachata", description: "Una hora, para una persona o pareja, en tu casa o en estudio.", pricingType: "per_contact", amountMxn: 700, booking: "instant" },
-      { name: "Coreografía de primer baile", description: "Tres ensayos para crear y practicar su baile de boda.", pricingType: "flat_package", amountMxn: 4500, booking: "request" },
-      { name: "Show para eventos", description: "Presentación de salsa y bachata para bodas y fiestas.", pricingType: "custom", amountMxn: null, booking: "quote" },
+      { name: "Clase privada de salsa o bachata", description: "Una hora, para una persona o pareja, en tu casa o en estudio.", pricingType: "per_contact", amountMxn: 700, durationMin: 60, booking: "instant" },
+      { name: "Coreografía de primer baile", description: "Tres ensayos para crear y practicar su baile de boda.", pricingType: "flat_package", amountMxn: 4500, durationMin: 180, booking: "request" },
+      { name: "Show para eventos", description: "Presentación de salsa y bachata para bodas y fiestas.", pricingType: "custom", amountMxn: null, durationMin: 45, booking: "quote" },
     ],
   },
   {
@@ -65,9 +67,9 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Extensiones y lifting de pestañas en Playa del Carmen",
     bio: "Trabajo pestañas clásicas, volumen y lifting en mi estudio. Cada set lo diseño según la forma de tus ojos.",
     services: [
-      { name: "Pestañas clásicas", description: "Set completo, una extensión por pestaña natural.", pricingType: "per_contact", amountMxn: 900, booking: "instant" },
-      { name: "Volumen ruso", description: "Set completo con abanicos hechos a mano.", pricingType: "per_contact", amountMxn: 1200, booking: "request" },
-      { name: "Lifting y tinte", description: "Curvatura natural que dura de 6 a 8 semanas.", pricingType: "per_contact", amountMxn: 650, booking: "request" },
+      { name: "Pestañas clásicas", description: "Set completo, una extensión por pestaña natural.", pricingType: "per_contact", amountMxn: 900, durationMin: 120, booking: "instant" },
+      { name: "Volumen ruso", description: "Set completo con abanicos hechos a mano.", pricingType: "per_contact", amountMxn: 1200, durationMin: 150, booking: "request" },
+      { name: "Lifting y tinte", description: "Curvatura natural que dura de 6 a 8 semanas.", pricingType: "per_contact", amountMxn: 650, durationMin: 60, booking: "request" },
     ],
   },
   {
@@ -82,9 +84,9 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Uñas acrílicas, gel y nail art en Guadalajara",
     bio: "Hago uñas acrílicas, gel y diseños a mano. Tú eliges el largo y la forma; yo te propongo el diseño.",
     services: [
-      { name: "Manicure en gel", description: "Color liso con preparación completa.", pricingType: "per_contact", amountMxn: 350, booking: "instant" },
-      { name: "Set acrílico", description: "Largo corto, medio o largo; el precio sube con el largo.", pricingType: "per_contact", amountMxn: 550, booking: "request" },
-      { name: "Nail art por uña", description: "Diseño a mano sobre cualquier set.", pricingType: "per_contact", amountMxn: 40, booking: "request" },
+      { name: "Manicure en gel", description: "Color liso con preparación completa.", pricingType: "per_contact", amountMxn: 350, durationMin: 60, booking: "instant" },
+      { name: "Set acrílico", description: "Largo corto, medio o largo; el precio sube con el largo.", pricingType: "per_contact", amountMxn: 550, durationMin: 120, booking: "request" },
+      { name: "Nail art por uña", description: "Diseño a mano sobre cualquier set.", pricingType: "per_contact", amountMxn: 40, durationMin: 10, booking: "request" },
     ],
   },
   {
@@ -99,8 +101,8 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Modelo de moda y comercial en CDMX",
     bio: "Modelo para catálogo, campañas y contenido de marca. Trabajo en estudio y en locación.",
     services: [
-      { name: "Sesión de catálogo", description: "Medio día en estudio o locación.", pricingType: "event", amountMxn: 6000, booking: "request" },
-      { name: "Campaña o contenido de marca", description: "Tarifa según uso, medios y duración.", pricingType: "custom", amountMxn: null, booking: "quote" },
+      { name: "Sesión de catálogo", description: "Medio día en estudio o locación.", pricingType: "event", amountMxn: 6000, durationMin: 240, booking: "request" },
+      { name: "Campaña o contenido de marca", description: "Tarifa según uso, medios y duración.", pricingType: "custom", amountMxn: null, durationMin: 480, booking: "quote" },
     ],
   },
   {
@@ -115,9 +117,9 @@ export const DEMOS: DemoTalent[] = [
     tagline: "DJ para bodas, fiestas y eventos en Monterrey",
     bio: "Soy DJ open format: latino, pop, house y clásicos. Llevo mi equipo de sonido y armo la música contigo antes del evento.",
     services: [
-      { name: "DJ para boda", description: "Cinco horas con equipo de sonido e iluminación básica.", pricingType: "event", amountMxn: 12000, booking: "request" },
-      { name: "DJ para fiesta privada", description: "Cuatro horas con equipo.", pricingType: "event", amountMxn: 7000, booking: "request" },
-      { name: "Hora extra", description: "Se agrega el mismo día del evento.", pricingType: "hour", amountMxn: 1500, booking: "request" },
+      { name: "DJ para boda", description: "Cinco horas con equipo de sonido e iluminación básica.", pricingType: "event", amountMxn: 12000, durationMin: 300, booking: "request" },
+      { name: "DJ para fiesta privada", description: "Cuatro horas con equipo.", pricingType: "event", amountMxn: 7000, durationMin: 240, booking: "request" },
+      { name: "Hora extra", description: "Se agrega el mismo día del evento.", pricingType: "hour", amountMxn: 1500, durationMin: 60, booking: "request" },
     ],
   },
   {
@@ -132,9 +134,9 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Chef privado · cenas en tu casa o villa en Tulum",
     bio: "Cocino cenas de varios tiempos con producto local de la península. Hago las compras, cocino en tu cocina y dejo todo limpio.",
     services: [
-      { name: "Cena privada de 4 tiempos", description: "Precio por persona, mínimo 4 personas. Incluye compras y limpieza.", pricingType: "per_person", amountMxn: 1400, booking: "request" },
-      { name: "Desayuno en villa", description: "Desayuno servido para tu grupo.", pricingType: "per_person", amountMxn: 450, booking: "request" },
-      { name: "Evento o estancia completa", description: "Menú y precio según días y número de personas.", pricingType: "custom", amountMxn: null, booking: "quote" },
+      { name: "Cena privada de 4 tiempos", description: "Precio por persona, mínimo 4 personas. Incluye compras y limpieza.", pricingType: "per_person", amountMxn: 1400, durationMin: 240, booking: "request" },
+      { name: "Desayuno en villa", description: "Desayuno servido para tu grupo.", pricingType: "per_person", amountMxn: 450, durationMin: 120, booking: "request" },
+      { name: "Evento o estancia completa", description: "Menú y precio según días y número de personas.", pricingType: "custom", amountMxn: null, durationMin: 480, booking: "quote" },
     ],
   },
   {
@@ -149,8 +151,8 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Bartender y mixóloga para eventos en Cancún",
     bio: "Diseño una carta de cócteles para tu evento y atiendo la barra toda la noche. Tú compras el alcohol con mi lista; yo llevo herramientas y cristalería.",
     services: [
-      { name: "Barra para evento", description: "Cinco horas, hasta 60 invitados.", pricingType: "event", amountMxn: 6500, booking: "request" },
-      { name: "Taller de coctelería", description: "Dos horas para grupos pequeños.", pricingType: "per_person", amountMxn: 600, booking: "request" },
+      { name: "Barra para evento", description: "Cinco horas, hasta 60 invitados.", pricingType: "event", amountMxn: 6500, durationMin: 300, booking: "request" },
+      { name: "Taller de coctelería", description: "Dos horas para grupos pequeños.", pricingType: "per_person", amountMxn: 600, durationMin: 120, booking: "request" },
     ],
   },
   {
@@ -165,9 +167,9 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Acompañamiento turístico y social en Mérida",
     bio: "Te muestro Mérida como local: centro, mercados, museos, comida y vida nocturna. Ayudo con traducción y compras. Acompañamiento turístico y social. No ofrezco servicios románticos ni íntimos. Nos vemos siempre en lugares públicos.",
     services: [
-      { name: "Un día conmigo en Mérida", description: "Seis horas recorriendo el centro, mercados y museos.", pricingType: "event", amountMxn: 2800, booking: "request" },
-      { name: "Cena y ciudad de noche", description: "Cena en un lugar local y paseo por el centro.", pricingType: "event", amountMxn: 1800, booking: "request" },
-      { name: "Ayuda con compras y traducción", description: "Por hora, en español, inglés o maya básico.", pricingType: "hour", amountMxn: 450, booking: "request" },
+      { name: "Un día conmigo en Mérida", description: "Seis horas recorriendo el centro, mercados y museos.", pricingType: "event", amountMxn: 2800, durationMin: 360, booking: "request" },
+      { name: "Cena y ciudad de noche", description: "Cena en un lugar local y paseo por el centro.", pricingType: "event", amountMxn: 1800, durationMin: 240, booking: "request" },
+      { name: "Ayuda con compras y traducción", description: "Por hora, en español, inglés o maya básico.", pricingType: "hour", amountMxn: 450, durationMin: 60, booking: "request" },
     ],
   },
   {
@@ -182,8 +184,8 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Fotografía de retrato en Oaxaca",
     bio: "Hago retratos con luz natural en la calle y en estudio: personales, de pareja y para marca personal.",
     services: [
-      { name: "Sesión de retrato", description: "Una hora, 20 fotos editadas.", pricingType: "per_contact", amountMxn: 2200, booking: "instant" },
-      { name: "Retrato para marca personal", description: "Dos locaciones, 40 fotos editadas.", pricingType: "flat_package", amountMxn: 4200, booking: "request" },
+      { name: "Sesión de retrato", description: "Una hora, 20 fotos editadas.", pricingType: "per_contact", amountMxn: 2200, durationMin: 60, booking: "instant" },
+      { name: "Retrato para marca personal", description: "Dos locaciones, 40 fotos editadas.", pricingType: "flat_package", amountMxn: 4200, durationMin: 180, booking: "request" },
     ],
   },
   {
@@ -198,8 +200,8 @@ export const DEMOS: DemoTalent[] = [
     tagline: "Entrenador personal en Puerto Vallarta",
     bio: "Entreno fuerza y acondicionamiento en tu casa, en el parque o en la playa. Armamos un plan según tu nivel.",
     services: [
-      { name: "Sesión de entrenamiento", description: "Una hora, a domicilio o al aire libre.", pricingType: "per_contact", amountMxn: 500, booking: "instant" },
-      { name: "Paquete de 10 sesiones", description: "Diez sesiones con plan de entrenamiento.", pricingType: "flat_package", amountMxn: 4500, booking: "request" },
+      { name: "Sesión de entrenamiento", description: "Una hora, a domicilio o al aire libre.", pricingType: "per_contact", amountMxn: 500, durationMin: 60, booking: "instant" },
+      { name: "Paquete de 10 sesiones", description: "Diez sesiones con plan de entrenamiento.", pricingType: "flat_package", amountMxn: 4500, durationMin: 600, booking: "request" },
     ],
   },
 ];
