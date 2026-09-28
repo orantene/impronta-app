@@ -36,6 +36,7 @@ import { interpolate } from "@/i18n/interpolate";
 import type { MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import { FONT, FONT_DISPLAY, type Palette, type SurfaceMode } from "./mini-chat-styles";
+import { resolveGuestHeaderAvatar } from "./guest-header-avatar";
 
 /**
  * The three honest states of the header's status line. "not a draft" does NOT
@@ -244,6 +245,72 @@ function BrandIdentity({
   talentFirst: string;
   C: Palette;
 }) {
+  // AUD-039: a talent vanity site shows avatar + name (DoR F02/F04/F08). The
+  // avatar is her site logo (contain on a white circle), else her profile photo
+  // (cover), else the monogram. Agency docks keep the wordmark path below.
+  if (brand.omitPlatformBrand) {
+    const avatar = resolveGuestHeaderAvatar({
+      logoUrl: brand.logoUrl,
+      photoUrl: brand.photoUrl,
+      name: talentFirst || brand.agencyName,
+    });
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+        <span
+          aria-hidden
+          data-guest-header-avatar={avatar.kind}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            flexShrink: 0,
+            overflow: "hidden",
+            background: avatar.kind === "monogram" ? accent : C.surface,
+            color: accentInk,
+            border: avatar.kind === "logo" ? `1px solid ${C.borderSoft}` : "none",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: FONT,
+            boxSizing: "border-box",
+          }}
+        >
+          {avatar.kind === "monogram" ? (
+            avatar.letter
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatar.src}
+              alt=""
+              style={
+                avatar.kind === "logo"
+                  ? { width: "78%", height: "78%", objectFit: "contain", display: "block" }
+                  : { width: "100%", height: "100%", objectFit: "cover", display: "block" }
+              }
+            />
+          )}
+        </span>
+        <span
+          style={{
+            minWidth: 0,
+            fontFamily: FONT_DISPLAY,
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: 0.1,
+            color: C.ink,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {brand.agencyName}
+        </span>
+      </div>
+    );
+  }
+
   if (brand.logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

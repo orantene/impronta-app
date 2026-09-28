@@ -47,7 +47,26 @@ export type InquiryReceiptCardProps = {
   locale: string;
   /** Jon 360 Phase 7 — dark surface variant for noir tenants. Default "light". */
   surfaceMode?: SurfaceMode;
+  /**
+   * AUD-041: talent vanity site. The receipt names HER business ("Jorg Beauty
+   * te responderá a …"), never the inquiry tenant (the platform hub, "Tulala").
+   */
+  omitPlatformBrand?: boolean;
 };
+
+/**
+ * AUD-041: who the receipt says will reply. On a talent vanity site the inquiry
+ * tenant is the platform hub, so `receipt.agencyName` ("Tulala") must not leak;
+ * the brand name (her business) is used instead.
+ */
+export function resolveReceiptAgencyName(
+  receipt: Pick<InquiryReceiptData, "agencyName">,
+  brandName: string,
+  omitPlatformBrand: boolean,
+): string {
+  if (omitPlatformBrand) return brandName.trim() || receipt.agencyName?.trim() || "";
+  return receipt.agencyName?.trim() || brandName;
+}
 
 /** Locale-aware "Jun 26, 3:42 PM" style stamp. Empty string on a bad date. */
 function formatReceivedAt(iso: string | null, locale: string): string {
@@ -69,17 +88,22 @@ function formatReceivedAt(iso: string | null, locale: string): string {
  * a trailing period; the caller appends the optional reply-time fragment and
  * closes the sentence.
  */
-function bodySentence(
+export function bodySentence(
   receipt: InquiryReceiptData,
   agencyName: string,
   t: Translator,
+  omitPlatformBrand = false,
 ): string {
   if (receipt.owningPartyCount > 1) {
     return interpolate(t("public.guestChat.receiptLineCross"), {
       count: receipt.owningPartyCount,
     });
   }
-  const coordinator = receipt.coordinator?.displayName?.trim() || null;
+  // Solo site: the coordinator row is the talent's own login handle and the
+  // agency is the platform hub, so the talent/business name speaks instead.
+  const coordinator = omitPlatformBrand
+    ? null
+    : receipt.coordinator?.displayName?.trim() || null;
   const email = receipt.contactEmail?.trim() || null;
   if (coordinator && email) {
     return interpolate(t("public.guestChat.receiptLineCoordinatorEmail"), {
@@ -109,12 +133,13 @@ export function InquiryReceiptCard({
   t,
   locale,
   surfaceMode = "light",
+  omitPlatformBrand = false,
 }: InquiryReceiptCardProps) {
   const P = paletteFor(surfaceMode);
   const stamp = formatReceivedAt(receipt.receivedAt, locale);
-  const resolvedAgency = receipt.agencyName?.trim() || agencyName;
+  const resolvedAgency = resolveReceiptAgencyName(receipt, agencyName, omitPlatformBrand);
 
-  let body = bodySentence(receipt, resolvedAgency, t);
+  let body = bodySentence(receipt, resolvedAgency, t, omitPlatformBrand);
   // Honest reply time only (never fabricated): "…, usually within a day."
   if (receipt.owningPartyCount <= 1 && receipt.typicalReplyLabel) {
     body = `${body}, ${interpolate(t("public.guestChat.receiptLineUsually"), {

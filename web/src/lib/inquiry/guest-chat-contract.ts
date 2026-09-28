@@ -741,6 +741,11 @@ export type MiniChatBrand = {
   /** Optional agency logo URL for the panel header. */
   logoUrl?: string | null;
   /**
+   * Talent profile photo (talent vanity sites). The header avatar falls back to
+   * it when there is no logo, before the letter monogram (AUD-039).
+   */
+  photoUrl?: string | null;
+  /**
    * Optional custom opener line (tenant_guest_chat_settings.greeting). When set,
    * replaces the default "Hi — I'm {talent}'s booking assistant…" opener.
    */

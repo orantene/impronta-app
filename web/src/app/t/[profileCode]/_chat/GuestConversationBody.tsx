@@ -156,6 +156,7 @@ export function GuestConversationBody({
           t={t}
           locale={brand.locale ?? "en"}
           surfaceMode={surfaceMode}
+          omitPlatformBrand={Boolean(brand.omitPlatformBrand)}
         />
       ) : rows.every((m) => m.authorRole === "system") ? (
         // P1-15 (revised in W1 live-QA): the static greeting is a pre-send

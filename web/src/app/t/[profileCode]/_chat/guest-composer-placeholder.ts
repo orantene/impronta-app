@@ -2,7 +2,7 @@
  * Guest Hablar composer placeholder — front-door brief phrase vs reply.
  *
  * Talent-site / agency front-door offer posture (incl. `hablar_preview=offer`)
- * keeps `composerPhrase` ("Una frase alcanza…") even when an inquiryId exists
+ * keeps `composerPhrase` ("Escribe tu mensaje…", AUD-040b) even when an inquiryId exists
  * (preview invents one; live OFERTA has a real id). C13-1 / WO-C13-HABLAR-2.
  */
 
