@@ -66,10 +66,12 @@ export type ThreadProps = {
   readonly composer: Omit<ComposerWireProps, "above" | "variant" | "copy">;
   /** Optional chrome above the composer (e.g. talent "+ Actions"). */
   readonly composerAccessory?: ReactNode;
+  /** Talent seller mode: header drops owner / Resolve (her engine refuses them) and leads with the linked record. */
+  readonly seller?: boolean;
 };
 
 export function Thread(props: ThreadProps) {
-  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer, composerAccessory } = props;
+  const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer, composerAccessory, seller } = props;
   const kit = copy.kit;
   const shell = copy.shell;
   const mobile = variant === "mobile";
@@ -107,6 +109,7 @@ export function Thread(props: ThreadProps) {
       onResolve={() => onAction("resolve")}
       onReopen={() => onAction("reopen")}
       onMore={() => onMenu(!menuOpen)}
+      seller={seller}
     />
   );
 
