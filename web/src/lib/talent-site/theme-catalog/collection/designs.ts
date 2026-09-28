@@ -153,11 +153,6 @@ function contactSection(
       },
       {
         id: makeId(),
-        kind: "paragraph",
-        props: { text: "{{contactCopy}}", style: { tone: "muted", size: "md", ...align } },
-      },
-      {
-        id: makeId(),
         kind: "button",
         props: {
           label: CONTACT_LAYER.ask,
@@ -316,7 +311,7 @@ export function buildMonoPayload(): DesignPayload {
 export function buildFramePayload(): DesignPayload {
   const id = seqIds("frame");
   const hero = tuneHeading(
-    heroSplit(id, { ratio: "40-60", chips: true, accent: false, eyebrow: true, minHeight: "56vh" }),
+    heroSplit(id, { ratio: "40-60", chips: false, accent: false, eyebrow: true, minHeight: "56vh" }),
     { textTransform: "uppercase", letterSpacing: "0.02em" },
   );
   return {
