@@ -54,7 +54,6 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Rate card": "Tarifas",
   "Next issue": "Próxima edición",
   "The book": "El book",
-  "Ask about a service": "Pregunta por un servicio",
   "What clients say": "Lo que dicen mis clientes",
   Reviews: "Opiniones",
 };
