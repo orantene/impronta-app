@@ -1,4 +1,5 @@
-import { formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/derive";
+import { blocksTime, formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/derive";
+import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { MoneyLanding, TodayMoneyTile } from "@/lib/money/today-money-tiles";
 import type { TalentCalendarEntry } from "../../data-bridge";
@@ -355,4 +356,30 @@ export function weekSubtitle(monday: Date, count: number, locale: "en" | "es"): 
   });
   const noun = es ? (count === 1 ? "cita" : "citas") : count === 1 ? "booking" : "bookings";
   return `${es ? "Semana del" : "Week of"} ${date} · ${count} ${noun}`;
+}
+
+/**
+ * AUD-036 / AUD-038: how a week-grid chip is placed and styled.
+ * - allDay: rendered in the dedicated all-day row under the day headers,
+ *   never positioned inside (or above) the timed grid.
+ * - done: completed bookings, solid muted card labeled "Done".
+ * - request: open, non-blocking requests, dashed card "Request · not blocking".
+ */
+export type WeekChipKind = "allDay" | "done" | "request" | "hold" | "booking";
+
+export function weekChipKind(
+  item: Pick<TalentAgendaItem, "kind" | "booking" | "blocksTime" | "allDay" | "tradeSection">,
+  tradeRules?: Pick<TradeCalendarRule, "onlyCallsBlock"> | null,
+): WeekChipKind {
+  if (item.allDay || item.kind === "deadline" || item.kind === "project") return "allDay";
+  if (item.booking === "completed") return "done";
+  const request =
+    !blocksTime(item) ||
+    (Boolean(tradeRules?.onlyCallsBlock) &&
+      item.tradeSection?.kind !== "estimate" &&
+      item.kind !== "hold" &&
+      item.kind !== "block");
+  if (request) return "request";
+  if (item.booking === "hold") return "hold";
+  return "booking";
 }
