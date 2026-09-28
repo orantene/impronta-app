@@ -83,6 +83,7 @@ type ManifestEntry = {
   mediaAssetIds: string[];
   storagePaths: string[];
   photoSources: string[];
+  bookingHours?: boolean;
   createdAt: string;
 };
 type PackPhoto = { file: string; variant: string; source: string; photographer?: string; alt?: string };
@@ -201,6 +202,35 @@ async function writeOfferings(d: DemoTalent, profileId: string) {
   if (error) throw error;
 }
 
+// Working hours so instant services show real time slots. Bookings are still
+// refused server-side by the is_demo guard: the visitor can pick a time, the
+// submit shows the demo message.
+async function writeBookingHours(d: DemoTalent, profileId: string, entry: ManifestEntry) {
+  if (!d.hours) return;
+  const weekly: Record<string, { startMin: number; endMin: number }[]> = {};
+  for (let day = 0; day < 7; day += 1) {
+    weekly[String(day)] = d.hours.days.includes(day) ? [{ startMin: d.hours.startMin, endMin: d.hours.endMin }] : [];
+  }
+  const { error } = await admin.from("talent_booking_hours").upsert(
+    {
+      talent_profile_id: profileId,
+      tenant_id: HUB_TENANT_ID,
+      timezone: d.hours.timezone,
+      weekly,
+      exceptions: [],
+      slot_minutes: d.hours.slotMinutes,
+      buffer_before_min: 0,
+      buffer_after_min: 15,
+      min_notice_min: 120,
+      horizon_days: 60,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "talent_profile_id" },
+  );
+  if (error) throw error;
+  entry.bookingHours = true;
+}
+
 // One of the demo's own gallery photos per service card (by order).
 async function linkOfferingPhotos(profileId: string) {
   const { data: offers, error: oErr } = await admin
@@ -314,6 +344,10 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     first_name: d.displayName.split(" ")[0],
     last_name: d.displayName.split(" ").slice(1).join(" ") || null,
     profile_kind: "person",
+    is_demo: true,
+    // Instant services need the talent-level direct-booking opt-in, as a real
+    // talent sets it in Settings; without it the slots API answers inquiry_only.
+    booking_terms: d.hours ? { directBookingOptIn: true } : null,
     short_bio: d.tagline,
     bio_i18n: { es: d.bio },
     home_city_text: d.city,
@@ -374,6 +408,8 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
   }
 
   await linkOfferingPhotos(profileId);
+  await writeBookingHours(d, profileId, entry);
+  saveManifest(manifest);
 
   const shell = buildDefaultShellTree({ displayName: d.displayName });
   const home = buildStarterHomePageTree({ displayName: d.displayName, tagline: d.tagline });
@@ -432,6 +468,7 @@ async function removeBatch(manifest: Manifest) {
     if (e.storagePaths.length) await admin.storage.from(BUCKET).remove(e.storagePaths);
     const steps: [string, PromiseLike<{ error: unknown }>][] = [
       ["media_assets", admin.from("media_assets").delete().eq("owner_talent_profile_id", e.talentProfileId)],
+      ["talent_booking_hours", admin.from("talent_booking_hours").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_offerings", admin.from("talent_offerings").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_pages", admin.from("talent_pages").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_site_revisions", admin.from("talent_site_revisions").delete().eq("talent_profile_id", e.talentProfileId)],
