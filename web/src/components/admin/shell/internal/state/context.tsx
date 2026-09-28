@@ -2484,6 +2484,11 @@ export function AdminShellProvider({
   );
 }
 
+/** Same as useAdminShell, but null outside the provider (dev harnesses). */
+export function useAdminShellOptional(): Ctx | null {
+  return useContext(AdminShellContext);
+}
+
 export function useAdminShell(): Ctx {
   const v = useContext(AdminShellContext);
   if (!v) throw new Error("useAdminShell outside AdminShellProvider");
