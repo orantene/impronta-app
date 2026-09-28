@@ -108,6 +108,14 @@ export function MaisonSetupHost({
       } else {
         setChoices(local);
       }
+    }).catch((cause: unknown) => {
+      // A thrown bootstrap must not leave the tab waiting: fall back to the
+      // flag-off path and report it.
+      if (!alive) return;
+      // eslint-disable-next-line no-console -- report a failed bootstrap (no client logger here)
+      console.error("[maison-setup] bootstrap failed", cause);
+      setEnabled(false);
+      reportEnabled(false);
     });
     return () => {
       alive = false;
