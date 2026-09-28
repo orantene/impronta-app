@@ -42,6 +42,7 @@ import { BuilderNodeCarouselTrack } from "./carousel";
 import { BuilderNodeTabsView } from "./tabs";
 import { carouselSlideVars } from "./carousel-slides-per-view";
 import { SocialFeedWidget } from "./social-feed";
+import { buildRevealArmingScript, buildScrollLaneRuntimeScript } from "./reveal-runtime";
 import { BuilderNodeCodeFrame } from "./code-frame";
 import { BuilderNodeLayoutMotion } from "./layout-motion";
 import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
@@ -1170,36 +1171,6 @@ function HeaderWidgetGlyph({
 }
 
 /**
- * The `reveal` arming script.
- *
- * WHY IT IS INLINE AND SELF-CONTAINED: the previous `revealOnView` shipped dead
- * on every published page because the markup relied on a runtime the published
- * page never injected. This script travels WITH the node it animates, so the
- * two can never be separated. It also only ever ARMS — it adds the class that
- * turns on the hidden start state — so if it never runs (no JavaScript, a CSP
- * that blocks it, React's `dangerouslySetInnerHTML` on the client canvas, which
- * does not execute scripts) the content stays exactly as the server rendered
- * it: visible.
- *
- * `prefers-reduced-motion` is honoured by bailing out before arming, which
- * again leaves the content visible rather than animating it into place.
- */
-function buildRevealArmingScript(config: {
-  threshold: number;
-  staggerMs: number;
-  once: boolean;
-}): string {
-  const threshold = Number.isFinite(config.threshold)
-    ? Math.min(1, Math.max(0, config.threshold))
-    : 0.2;
-  const stagger = Number.isFinite(config.staggerMs)
-    ? Math.min(1000, Math.max(0, Math.round(config.staggerMs)))
-    : 80;
-  const once = config.once ? "1" : "0";
-  return `(function(){var s=document.currentScript;if(!s)return;var r=s.parentElement;if(!r)return;if(!('IntersectionObserver' in window))return;try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){return;}var kids=[];for(var i=0;i<r.children.length;i++){var c=r.children[i];if(c!==s)kids.push(c);}if(!kids.length)return;for(var j=0;j<kids.length;j++){kids[j].style.setProperty('--bn-reveal-stagger',(j*${stagger})+'ms');}r.setAttribute('data-bn-reveal-armed','1');var once=${once}===1;var io=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){var e=es[k];if(e.isIntersecting){r.setAttribute('data-bn-reveal-in','1');if(once){io.disconnect();return;}}else if(!once){r.removeAttribute('data-bn-reveal-in');}}},{threshold:${threshold}});io.observe(r);})();`;
-}
-
-/**
  * The `stats` count-up script.
  *
  * The server already rendered the FINAL number, so this only animates DOWN to
@@ -1448,8 +1419,10 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="blur"]>:not(script){filter:blur(10px)}
 .site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="mask-up"]>:not(script){opacity:1;clip-path:inset(100% 0 0 0)}
 .site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-effect="none"]>:not(script){opacity:1}
-.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-in="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}
-@media (prefers-reduced-motion:reduce){.site-builder-node--reveal[data-bn-reveal-armed="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:none;transition:none}}
+.site-builder-node--reveal[data-bn-reveal-armed="1"][data-bn-reveal-in="1"][data-bn-reveal-effect][data-bn-reveal-direction]>:not(script){opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}
+@keyframes bn-reveal-backstop{to{opacity:1;transform:none;filter:none;clip-path:inset(0 0 0 0)}}
+.site-builder-node--reveal[data-bn-reveal-armed="1"]:not([data-bn-reveal-in="1"])>:not(script){animation:bn-reveal-backstop 400ms ease-out 1500ms both}
+@media (prefers-reduced-motion:reduce){.site-builder-node--reveal[data-bn-reveal-armed="1"]>:not(script){opacity:1;transform:none;filter:none;clip-path:none;transition:none;animation:none}}
 .site-builder-node--stats[data-bn-stats-align="center"]{text-align:center}
 .site-builder-node--stats-grid{display:grid;grid-template-columns:repeat(var(--bn-stats-columns,3),minmax(0,1fr));gap:clamp(1.25rem,3vw,2.5rem);margin:0;width:100%}
 .site-builder-node--stats[data-bn-stats-variant="split"] .site-builder-node--stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1794,142 +1767,7 @@ ${BACKGROUND_MEDIA_CSS}
 ${HOVER_V2_CSS}
 `;
 
-/**
- * Reveal-on-view runtime (2026-06-04). A tiny inline IntersectionObserver the
- * published page injects ONCE when any node opts into `revealOnView`. It:
- *   1. ARMS every `[data-bn-reveal]` node (`data-bn-reveal-armed`) — only after
- *      arming does the sheet apply the hidden/offset pose, so a no-JS / no-IO
- *      render shows the node at rest (no flash of hidden content, SEO-safe).
- *   2. Observes each node and sets `data-bn-revealed` the first time ≥12% of it
- *      enters the viewport, then unobserves it (reveal once, never replays).
- * Skips entirely when IntersectionObserver is unavailable (leaves nodes at rest)
- * and respects prefers-reduced-motion (reveals immediately, no transition — the
- * sheet's reduced-motion guard forces the rest pose). Self-contained, no deps.
- */
-/**
- * Entrance-animation "play once on scroll in" runtime.
- *
- * A DELIBERATE second observer rather than a widened `BUILDER_NODE_REVEAL_SCRIPT`.
- * That script is gated on `hasRevealOnViewNode` inside `renderBuilderNodes`, and
- * every real published route hoists the renderer sheet to page level with
- * `includeRendererStyles: false` per block -- so the gate never runs and the
- * reveal runtime is injected on NO production page today (only the dev QA
- * route mounts it by hand). Reusing that script would have meant either
- * inheriting a runtime that never ships, or reviving `revealOnView` on every
- * live page as a side effect of an unrelated feature. Neither belongs in this
- * change, so the Animation tab brings its own observer and leaves the reveal
- * lane exactly as it found it. The dead reveal runtime is a separate,
- * pre-existing bug and is written up as one.
- *
- * It ships alongside the sheet (`BuilderNodeRendererStyles`), which IS mounted
- * once on every page, so a route added later cannot forget it. That costs every
- * page a few hundred bytes of script it may not use; the script early-returns
- * on the first line when no node opts in, and a control that silently does
- * nothing is a worse trade.
- *
- *   1. ARMS the lane by APPENDING A STYLESHEET, not by writing an attribute
- *      onto each node. That distinction is load-bearing: this script runs at
- *      DOMContentLoaded, which fires BEFORE React hydrates, so an attribute
- *      written here is an attribute the server never rendered -- React reports
- *      a hydration mismatch ("this won't be patched up") on every node in the
- *      lane. Appending a fresh <style> to <head> touches nothing React owns.
- *      Until it lands the nodes render at rest, so no JS, no
- *      IntersectionObserver or reduced motion all mean the content is simply
- *      visible. Never a flash of hidden content, never text a crawler or a
- *      reader cannot see.
- *   2. Marks it `data-bn-revealed` the first time >= 12% of it is on screen,
- *      which is when the sheet applies the `--bn-anim` shorthand, then
- *      unobserves it. Plays once, exactly as the panel promises.
- */
-/**
- * Both scroll lanes (play-once and reveal) are the same machine with different
- * names: guard flag, armed sheet, IntersectionObserver. One builder, so a fix
- * to one lane cannot skip the other.
- *
- * The observer binds to EVERY node in the lane, present or future. The first
- * version only bound to the nodes it found at DOMContentLoaded, and that was
- * enough to hide a whole homepage: entering the builder swaps the canvas in
- * place, so every section became a new DOM node the observer had never seen,
- * while the armed sheet was still in <head> holding its replacement at
- * opacity 0. Guard flag set, sheet armed, zero nodes revealed, forever. The
- * same hole opens on any client-side route change or block re-render. So the
- * runtime also watches the body for added nodes and observes those too; a
- * node that already carries `data-bn-revealed` is left alone (moved, not new).
- */
-function buildScrollLaneRuntimeScript(lane: {
-  /** window flag so the second/third sheet mount on a page does not re-bind. */
-  flag: string;
-  /** attribute that opts a node into the lane. */
-  attr: string;
-  /** attribute on the injected <style> that holds the hidden pose. */
-  sheetAttr: string;
-  /** the hidden pose, applied only to un-revealed nodes. */
-  armedCss: string;
-}): string {
-  const sel = JSON.stringify(`[${lane.attr}]`);
-  return `(function(){
-  if(window.${lane.flag})return;
-  window.${lane.flag}=1;
-  var SEL=${sel};
-  function run(){
-    try{
-      var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // Reduced motion / no IntersectionObserver: never arm. The poses live in
-      // the injected sheet, so skipping injection leaves every node at rest --
-      // no attribute writes, nothing for React to disagree with.
-      if(reduce||typeof IntersectionObserver==='undefined')return;
-      var io=new IntersectionObserver(function(entries){
-        for(var k=0;k<entries.length;k++){
-          var e=entries[k];
-          if(e.isIntersecting){
-            e.target.setAttribute('data-bn-revealed','');
-            io.unobserve(e.target);
-          }
-        }
-      },{threshold:0.12,rootMargin:'0px 0px -8% 0px'});
-      var armed=null;
-      function arm(){
-        if(armed)return;
-        armed=document.createElement('style');
-        armed.setAttribute(${JSON.stringify(lane.sheetAttr)},'');
-        armed.textContent=${JSON.stringify(lane.armedCss)};
-        document.head.appendChild(armed);
-      }
-      function watch(root){
-        if(!root||root.nodeType!==1)return;
-        var list=root.querySelectorAll(SEL);
-        var own=root.matches&&root.matches(SEL);
-        if(!own&&!list.length)return;
-        arm();
-        if(own&&!root.hasAttribute('data-bn-revealed'))io.observe(root);
-        for(var m=0;m<list.length;m++)if(!list[m].hasAttribute('data-bn-revealed'))io.observe(list[m]);
-      }
-      watch(document.body);
-      if(typeof MutationObserver!=='undefined'){
-        new MutationObserver(function(recs){
-          for(var r=0;r<recs.length;r++){
-            var added=recs[r].addedNodes;
-            for(var a=0;a<added.length;a++)watch(added[a]);
-          }
-        }).observe(document.body,{childList:true,subtree:true});
-      }
-    }catch(err){
-      // Anything went wrong: drop the poses so the content is visible.
-      var s2=document.querySelector('style['+${JSON.stringify(lane.sheetAttr)}+']');
-      if(s2&&s2.parentNode)s2.parentNode.removeChild(s2);
-    }
-  }
-  // The runtime ships with the SHEET, which is emitted in head order -- so at
-  // execution time the body it needs to query does not exist yet and a bare
-  // call would find zero nodes and quietly do nothing. Wait for the DOM.
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',run);
-  }else{
-    run();
-  }
-})();`;
-}
-
+// Scroll-lane runtimes: builder + AUD-045 safety rules live in ./reveal-runtime.
 const BUILDER_NODE_ANIM_ONCE_SCRIPT = buildScrollLaneRuntimeScript({
   flag: "__bnAnimOnceRuntime",
   attr: "data-bn-anim-once",
