@@ -11,8 +11,8 @@ const ES: Record<string, string> = {
   "Featured demo:": "Demo destacada:",
   "1 demo": "1 demo",
   "Explore theme →": "Explorar tema →",
-  "Maison is the first Tulala design. It works for any profession: you will see it with your own photos and services before choosing.":
-    "Maison es el primer diseño de Tulala. Sirve para cualquier oficio: lo verás con tus fotos y servicios antes de elegir.",
+  "Every design works for any profession: you will see it with your own photos and services before choosing.":
+    "Cada diseño sirve para cualquier oficio: lo verás con tus fotos y servicios antes de elegir.",
   "Designs": "Diseños",
   "Demos · 1": "Demos · 1",
   "THEME": "TEMA",

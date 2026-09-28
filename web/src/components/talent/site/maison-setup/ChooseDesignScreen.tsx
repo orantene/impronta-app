@@ -2,7 +2,8 @@
 
 /**
  * cr_gallery — Choose a design (W24–W26, W75).
- * One Maison card, live preview, no search/filters.
+ * Maison plus the flag-gated collection designs, each with a live preview
+ * of the talent's own content. No search/filters.
  * Chrome matches Theme Gallery PDF: Today · Choose a design · X, then hero.
  */
 import {
@@ -10,6 +11,10 @@ import {
   MAISON_BUILTIN_DESIGN,
 } from "@/lib/talent-site/theme-catalog/maison/builtins";
 import { MAISON_SEED } from "@/lib/talent-site/theme-catalog/maison/seed";
+import {
+  COLLECTION_DESIGNS,
+  COLLECTION_DESIGN_SUMMARY_ES,
+} from "@/lib/talent-site/theme-catalog/collection/designs";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { MaisonTagChips } from "./MaisonTagChips";
@@ -18,7 +23,7 @@ import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 type Props = {
   locale: MaisonSetupLocale;
   talentProfileId: string;
-  onExplore: () => void;
+  onExplore: (designSlug: string) => void;
   /** PDF: ‹ Today — leave setup toward Today / presence. */
   onBack?: () => void;
   /** PDF: chrome close X. */
@@ -34,13 +39,26 @@ export function ChooseDesignScreen({
 }: Props) {
   const preview = useThemePreview({ talentProfileId, locale });
   const lookSlug = MAISON_BUILTIN_DEMO.buildPayload().default_look;
-  const url = preview.src("maison", lookSlug);
   const demoTitle =
     locale === "es" ? MAISON_BUILTIN_DEMO.summary : MAISON_BUILTIN_DEMO.title;
-  const description =
-    locale === "es"
-      ? MAISON_SEED.theme.description.es
-      : MAISON_SEED.theme.description.en;
+  const cards = [
+    {
+      slug: "maison",
+      title: MAISON_BUILTIN_DESIGN.title,
+      description:
+        locale === "es"
+          ? MAISON_SEED.theme.description.es
+          : MAISON_SEED.theme.description.en,
+    },
+    ...COLLECTION_DESIGNS.map((d) => ({
+      slug: d.slug,
+      title: d.title,
+      description:
+        locale === "es"
+          ? (COLLECTION_DESIGN_SUMMARY_ES[d.slug] ?? d.summary)
+          : d.summary,
+    })),
+  ];
 
   return (
     <section
@@ -97,31 +115,35 @@ export function ChooseDesignScreen({
       </header>
 
       {/* W75: deliberately no search input and no filter chips. */}
+      <div className="space-y-5">
+      {cards.map((card) => (
       <article
+        key={card.slug}
+        data-design-slug={card.slug}
         data-maison-theme-card=""
-        data-testid="maison-theme-card"
+        data-testid={card.slug === "maison" ? "maison-theme-card" : `design-card-${card.slug}`}
         className="w-full max-w-[820px] overflow-hidden rounded-2xl border border-admin-border-soft bg-white"
       >
         <button
           type="button"
-          onClick={onExplore}
+          onClick={() => onExplore(card.slug)}
           className="block w-full text-left"
-          aria-label={`${MAISON_BUILTIN_DESIGN.title} — ${maisonSetupT(locale, "Explore theme →")}`}
+          aria-label={`${card.title} — ${maisonSetupT(locale, "Explore theme →")}`}
         >
           <ThemeGalleryPreviewFrame
             preview={preview}
-            url={url}
+            url={preview.src(card.slug, lookSlug)}
             locale={locale}
-            title={MAISON_BUILTIN_DESIGN.title}
+            title={card.title}
           />
         </button>
         <div className="space-y-3 px-4 py-4 md:px-5">
           <div>
             <h2 className="text-[18px] font-semibold text-admin-ink">
-              {MAISON_BUILTIN_DESIGN.title}
+              {card.title}
             </h2>
             <p className="mt-1 text-[13.5px] leading-snug text-admin-ink-muted">
-              {description}
+              {card.description}
             </p>
           </div>
           <MaisonTagChips locale={locale} />
@@ -135,8 +157,8 @@ export function ChooseDesignScreen({
             </span>
             <button
               type="button"
-              onClick={onExplore}
-              data-testid="maison-explore-theme"
+              onClick={() => onExplore(card.slug)}
+              data-testid={card.slug === "maison" ? "maison-explore-theme" : `design-explore-${card.slug}`}
               className="min-h-11 text-[13.5px] font-semibold text-admin-ink underline-offset-2 hover:underline"
             >
               {maisonSetupT(locale, "Explore theme →")}
@@ -144,11 +166,13 @@ export function ChooseDesignScreen({
           </div>
         </div>
       </article>
+      ))}
+      </div>
 
       <p className="mt-4 max-w-[820px] text-[12.5px] leading-snug text-admin-ink-dim">
         {maisonSetupT(
           locale,
-          "Maison is the first Tulala design. It works for any profession: you will see it with your own photos and services before choosing.",
+          "Every design works for any profession: you will see it with your own photos and services before choosing.",
         )}
       </p>
     </section>

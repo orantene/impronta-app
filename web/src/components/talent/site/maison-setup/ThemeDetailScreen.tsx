@@ -17,6 +17,7 @@ import {
   maisonPaletteLookTokens,
   type MaisonPaletteKey,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import {
@@ -85,11 +86,16 @@ export function ThemeDetailScreen({
     return key in MAISON_PALETTES ? (key as MaisonPaletteKey) : null;
   })();
   const lookSlug = `maison-${choices.paletteKey}`;
-  const url = preview.src("maison", lookSlug);
+  const collectionDesign = COLLECTION_DESIGNS.find((d) => d.slug === choices.designSlug) ?? null;
+  const designTitle = collectionDesign ? collectionDesign.title : MAISON_BUILTIN_DESIGN.title;
+  const url = preview.src(collectionDesign ? collectionDesign.slug : "maison", lookSlug);
   const demoTitle =
     locale === "es" ? MAISON_BUILTIN_DEMO.summary : MAISON_BUILTIN_DEMO.title;
-  const description =
-    locale === "es"
+  const description = collectionDesign
+    ? locale === "es"
+      ? (COLLECTION_DESIGN_SUMMARY_ES[collectionDesign.slug] ?? collectionDesign.summary)
+      : collectionDesign.summary
+    : locale === "es"
       ? MAISON_SEED.theme.description.es
       : MAISON_SEED.theme.description.en;
   const namedPalette = MAISON_PALETTES[choices.paletteKey];
@@ -160,6 +166,7 @@ export function ThemeDetailScreen({
       setApplyError(null);
       const res = await applyMaisonDesignAction({
         paletteKey: choices.paletteKey,
+        designSlug: collectionDesign ? collectionDesign.slug : "maison",
         contentMode: choices.contentMode,
         customPalette:
           choices.useCustomPalette && choices.customPalette
@@ -221,7 +228,7 @@ export function ThemeDetailScreen({
           preview={preview}
           url={url}
           locale={locale}
-          title={MAISON_BUILTIN_DESIGN.title}
+          title={designTitle}
           errorTitle={maisonSetupT(locale, "The preview didn't load")}
           errorBody={maisonSetupT(locale, "Your choices are saved. Try again.")}
           retryLabel={maisonSetupT(locale, "Try again")}
@@ -351,7 +358,7 @@ export function ThemeDetailScreen({
         <span aria-hidden className="h-6 w-px bg-admin-border-soft" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-admin-ink">
-            {MAISON_BUILTIN_DESIGN.title}
+            {designTitle}
           </p>
           <p className="truncate text-[12px] text-admin-ink-muted">{description}</p>
         </div>
@@ -412,7 +419,7 @@ export function ThemeDetailScreen({
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[14px] font-semibold text-admin-ink">
-            {MAISON_BUILTIN_DESIGN.title}
+            {designTitle}
           </p>
           <p className="truncate text-[11.5px] text-admin-ink-muted">
             {demoTitle} · {paletteName}
@@ -466,7 +473,7 @@ export function ThemeDetailScreen({
                 {maisonSetupT(locale, "THEME")}
               </p>
               <p className="mt-1 text-[16px] font-semibold text-admin-ink">
-                {MAISON_BUILTIN_DESIGN.title}
+                {designTitle}
               </p>
               <p className="mt-0.5 text-[13px] text-admin-ink-muted">
                 {maisonSetupT(locale, "Demo:")}{" "}

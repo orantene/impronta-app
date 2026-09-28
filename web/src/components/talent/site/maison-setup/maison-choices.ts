@@ -11,6 +11,7 @@ import {
   MAISON_PALETTE_ORDER,
   MAISON_PALETTES,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
 import {
   parseMaisonCustomPaletteStored,
@@ -32,6 +33,8 @@ export type MaisonSetupChoices = {
   /** When set and `useCustomPalette`, preview/apply use these colors (W64). */
   customPalette: MaisonCustomPaletteStored | null;
   useCustomPalette: boolean;
+  /** Design being previewed / applied: `maison` or a collection slug. */
+  designSlug: string;
 };
 
 export const MAISON_CHOICES_STORAGE_PREFIX = "maison-setup-choices:";
@@ -46,6 +49,7 @@ export function defaultMaisonChoices(): MaisonSetupChoices {
     phoneSheet: null,
     customPalette: null,
     useCustomPalette: false,
+    designSlug: "maison",
   };
 }
 
@@ -84,6 +88,10 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
     phoneSheet: null, // sheets never persist across reopen
     customPalette,
     useCustomPalette,
+    designSlug:
+      typeof o.designSlug === "string" && isCollectionDesignSlug(o.designSlug)
+        ? o.designSlug
+        : "maison",
   };
 }
 

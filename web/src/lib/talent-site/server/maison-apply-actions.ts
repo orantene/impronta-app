@@ -26,6 +26,7 @@ import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
+import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
 import {
   captureMaisonDraftSnapshot,
   isMaisonPendingUndo,
@@ -57,6 +58,8 @@ export type MaisonApplyResult = {
 
 export async function applyMaisonDesignAction(input: {
   paletteKey: string;
+  /** Collection design to apply; defaults to Maison. Only Maison + collection slugs. */
+  designSlug?: string;
   contentMode?: string;
   customPalette?: MaisonCustomPaletteStored | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
@@ -68,6 +71,11 @@ export async function applyMaisonDesignAction(input: {
 
   const contentMode: MaisonPreviewContentMode =
     input?.contentMode === "mine" ? "mine" : "demo";
+  const requestedSlug = (input?.designSlug ?? DESIGN_SLUG).trim().toLowerCase();
+  if (requestedSlug !== DESIGN_SLUG && !isCollectionDesignSlug(requestedSlug)) {
+    return { ok: false, code: "invalid_input", error: "Unknown design." };
+  }
+  const designSlug = requestedSlug;
 
   const customParsed = input?.customPalette
     ? parseMaisonCustomPaletteStored(input.customPalette) ??
@@ -121,10 +129,13 @@ export async function applyMaisonDesignAction(input: {
     const demoPayload = MAISON_BUILTIN_DEMO.buildPayload();
     const pending: MaisonLivePending = {
       kind: "live_pending",
-      source: "colors_only",
+      source:
+        designSlug !== ((liveSite.theme_design_slug as string | null) ?? DESIGN_SLUG)
+          ? "live_change"
+          : "colors_only",
       created_at: new Date().toISOString(),
       proposed: {
-        designSlug: DESIGN_SLUG,
+        designSlug,
         lookSlug: useCustom ? null : lookSlug,
         paletteKey: useCustom ? null : paletteKey,
         contentMode,
@@ -160,18 +171,18 @@ export async function applyMaisonDesignAction(input: {
     return {
       ok: true,
       data: {
-        designSlug: DESIGN_SLUG,
+        designSlug,
         lookSlug: useCustom ? null : lookSlug,
         paletteKey: useCustom ? null : paletteKey,
         contentMode,
         customPalette: useCustom ? customParsed : null,
         livePending: true,
-        colorsOnly: true,
+        colorsOnly: designSlug === ((liveSite.theme_design_slug as string | null) ?? DESIGN_SLUG),
       },
     };
   }
 
-  const design = await loadMaisonCatalogRow(admin, "design", DESIGN_SLUG);
+  const design = await loadMaisonCatalogRow(admin, "design", designSlug);
   if (!design) {
     return { ok: false, code: "theme_not_found", error: "Maison design not found." };
   }
@@ -248,7 +259,7 @@ export async function applyMaisonDesignAction(input: {
     source: "apply",
     created_at: new Date().toISOString(),
     applied: {
-      designSlug: DESIGN_SLUG,
+      designSlug,
       lookSlug: useCustom ? null : lookSlug,
       paletteKey: useCustom ? null : paletteKey,
       contentMode,
@@ -277,7 +288,7 @@ export async function applyMaisonDesignAction(input: {
   return {
     ok: true,
     data: {
-      designSlug: DESIGN_SLUG,
+      designSlug,
       lookSlug: useCustom ? null : lookSlug,
       paletteKey: useCustom ? null : paletteKey,
       contentMode,
