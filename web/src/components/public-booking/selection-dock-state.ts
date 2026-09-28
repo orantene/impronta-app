@@ -25,6 +25,11 @@ export type DockPick = {
   /** Total in cents for this pick (base or sheet total). */
   totalCents: number;
   currency: string;
+  /**
+   * Catalog-row price label (#2388 catalogBarPriceLabel: "A cotizar" / "Desde $X").
+   * Set for a straight catalog pick; null when the sheet supplied a real total.
+   */
+  priceLabel?: string | null;
 };
 
 export type DockState = {
@@ -152,7 +157,7 @@ export function selectionDockCopy(locale: string): DockCopy {
  * when none). Multi: "N servicios" / "A + B · $total".
  */
 export function dockSummary(
-  items: Array<{ title: string; bits: string | null; totalCents: number }>,
+  items: Array<{ title: string; bits: string | null; totalCents: number; priceLabel?: string | null }>,
   locale: string,
   formatPrice: (cents: number) => string,
 ): { name: string; line: string } {
@@ -162,7 +167,10 @@ export function dockSummary(
     const one = items[0];
     return {
       name: one.title,
-      line: one.bits ? `${one.bits} · ${formatPrice(one.totalCents)}` : formatPrice(one.totalCents),
+      line: (() => {
+        const price = one.priceLabel ?? formatPrice(one.totalCents);
+        return one.bits ? `${one.bits} · ${price}` : price;
+      })(),
     };
   }
   const total = items.reduce((s, i) => s + i.totalCents, 0);

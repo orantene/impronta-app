@@ -221,7 +221,13 @@ export function ServicesCatalogFilter({
     const switching = dockPickSwitches(dock, item.id);
     dispatchDock({
       type: "toggle",
-      pick: { id: item.id, bits: null, totalCents: item.amountCents ?? 0, currency: item.currency },
+      pick: {
+        id: item.id,
+        bits: null,
+        totalCents: item.amountCents ?? 0,
+        currency: item.currency,
+        priceLabel: catalogBarPriceLabel(item, locale),
+      },
     });
     if (switching) showToast({ kind: "switched", name: item.title });
     else clearToast();
@@ -248,6 +254,7 @@ export function ServicesCatalogFilter({
         imageUrl: found.imageUrls[0] ?? null,
         bits: p.bits,
         totalCents: p.totalCents,
+        priceLabel: p.priceLabel ?? null,
       },
     ];
   });

@@ -121,6 +121,15 @@ test("undo does not duplicate an item re-selected before Undo", () => {
   assert.deepEqual(ids(s), ["a"]);
 });
 
+test("summary: catalog priceLabel (#2388) replaces $0 for quote / from rows", () => {
+  const quote = dockSummary([{ title: "Evento", bits: null, totalCents: 0, priceLabel: "A cotizar" }], "es", fmt);
+  assert.equal(quote.line, "A cotizar");
+  const from = dockSummary([{ title: "Soft Gel", bits: null, totalCents: 0, priceLabel: "Desde $650" }], "es", fmt);
+  assert.equal(from.line, "Desde $650");
+  const sheet = dockSummary([{ title: "Soft Gel", bits: "Largo #3", totalCents: 65000, priceLabel: null }], "es", fmt);
+  assert.equal(sheet.line, "Largo #3 · $650");
+});
+
 test("summary: single = name + options · price; multi = N services + A + B · total", () => {
   const one = dockSummary([{ title: "Soft Gel", bits: "Largo #3", totalCents: 65000 }], "es", fmt);
   assert.deepEqual(one, { name: "Soft Gel", line: "Largo #3 · $650" });

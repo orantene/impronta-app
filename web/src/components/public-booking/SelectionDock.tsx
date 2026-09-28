@@ -18,6 +18,7 @@ export type SelectionDockItem = {
   imageUrl: string | null;
   bits: string | null;
   totalCents: number;
+  priceLabel?: string | null;
 };
 
 function ChatIcon({ size }: { size: number }) {
