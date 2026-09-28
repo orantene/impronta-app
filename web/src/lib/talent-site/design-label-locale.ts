@@ -18,6 +18,15 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "How booking works": "Cómo reservar",
   Questions: "Preguntas",
   "Ask a question": "Hacer una pregunta",
+  "Ask about a service": "Pregunta por un servicio",
+  "Book a time": "Reserva una hora",
+  "See services": "Ver servicios",
+  "See prices": "Ver precios",
+  "Book now": "Reservar",
+  Inquire: "Escríbeme",
+  Home: "Inicio",
+  Menu: "Menú",
+  "Price list": "Lista de precios",
   "Let's work together": "Trabajemos juntos",
   "She confirms by hand.": "Confirmo cada cita personalmente.",
   "You can book a time on this page.": "Puedes reservar tu hora en esta página.",
@@ -57,22 +66,28 @@ export function localiseSeededDesignLabel(value: string, locale: string | null |
 }
 
 /**
- * Returns a copy of `tree` with seeded design labels localised. Returns the
- * input unchanged for English (or any locale without a table).
+ * Returns a copy of `tree` with seeded design labels localised, plus the
+ * optional per-talent `swaps` (seeded English profile copy -> site locale,
+ * from `talent-locale-swaps.ts`). Returns the input unchanged when there is
+ * nothing to do.
  */
 export function localiseSeededDesignLabels(
   tree: BuilderNode[],
   locale: string | null | undefined,
+  swaps: Readonly<Record<string, string>> = {},
 ): BuilderNode[] {
-  if (localeKey(locale) !== "es") return tree;
+  const es = localeKey(locale) === "es";
+  if (!es && Object.keys(swaps).length === 0) return tree;
+  const lookup = (v: string): string | undefined =>
+    swaps[v.trim()] ?? (es ? SEEDED_LABELS_ES[v.trim()] : undefined);
   const visit = (node: BuilderNode): BuilderNode => {
     const props = (node.props ?? {}) as Record<string, unknown>;
     let next: Record<string, unknown> | null = null;
     for (const key of LABEL_PROPS) {
       const v = props[key];
       if (typeof v !== "string") continue;
-      const es = SEEDED_LABELS_ES[v.trim()];
-      if (es) (next ??= { ...props })[key] = es;
+      const to = lookup(v);
+      if (to) (next ??= { ...props })[key] = to;
     }
     const children =
       "children" in node && Array.isArray(node.children) ? node.children.map(visit) : null;

@@ -9,6 +9,7 @@
  * — safe on the edge and unit-testable.
  */
 import { contactCopyForPlan, talentContactHrefs } from "./contact-channels";
+import { clampWords } from "./talent-locale-swaps";
 import {
   selectServiceFocusLabels,
   type TalentProfileTokens,
@@ -33,7 +34,7 @@ export function talentProfileTokens(
   const displayName = profile.displayName.trim() || "Talent";
   const profilePath = `/t/${profile.profileCode}`;
   const tagline =
-    profile.publicBio?.trim().slice(0, 160) ||
+    (profile.publicBio?.trim() ? clampWords(profile.publicBio) : "") ||
     [profile.primaryTypeLabel, profile.homeCity].filter(Boolean).join(" · ") ||
     "";
   // FIX B — the "Services & focus" cards come from the talent's ACTUAL services

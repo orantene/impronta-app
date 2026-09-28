@@ -7357,6 +7357,9 @@ function renderBuilderNodeElement(
             Both link sets render in full markup (never visibility:hidden-into-
             nothing), so the links stay reachable at the mobile breakpoint.
           */}
+          {/* No menu button for an empty or Home-only nav (one-page talent
+              sites showed an empty hamburger box under the brand at 390). */}
+          {links.length > 1 || links.some((l) => (l.children?.length ?? 0) > 0) || navMenuFooter ? (
           <details className="site-builder-node--nav-disclosure">
             <summary
               className="site-builder-node--nav-toggle"
@@ -7379,6 +7382,7 @@ function renderBuilderNodeElement(
               {navMenuFooter}
             </ul>
           </details>
+          ) : null}
         </nav>
       );
     }

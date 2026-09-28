@@ -22,7 +22,7 @@ import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
-  buildKitShell,
+  buildKitStandardShell,
   galleryBlock,
   heroCentered,
   heroCover,
@@ -49,14 +49,13 @@ function deferYear(node: BuilderNode): BuilderNode {
   } as BuilderNode;
 }
 
-function shell(makeId: KitIdFactory, opts: { align?: "space-between" | "center"; rule?: boolean }) {
-  return buildKitShell(makeId, {
-    displayName: "{{displayName}}",
-    year: "{{year}}",
-    headerAlign: opts.align ?? "space-between",
-    headerPaddingY: "m",
-    headerRule: opts.rule ?? false,
-  }).map(deferYear);
+/**
+ * Every Design wears the standard talent header (`site_header`): logo when
+ * the site has one, nav, ES/EN switch and the primary CTA, with the platform's
+ * own mobile menu. The bare kit header dropped all of these.
+ */
+function shell(makeId: KitIdFactory) {
+  return buildKitStandardShell(makeId, { displayName: "{{displayName}}", year: "{{year}}" }).map(deferYear);
 }
 
 type CatalogOpts = {
@@ -217,7 +216,7 @@ export function buildMaisonV2Payload(): DesignPayload {
     { size: "display", letterSpacing: "-0.02em" },
   );
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id),
     homeTree: [
       withChild(hero, askButton(id, "Ask about a service")),
       galleryBlock(id, { mode: "grid", columns: 3, heading: "Recent work" }),
@@ -249,7 +248,7 @@ export function buildSolacePayload(): DesignPayload {
     letterSpacing: "-0.01em",
   });
   return {
-    shellTree: shell(id, { align: "center" }),
+    shellTree: shell(id),
     homeTree: [
       hero,
       aboutBlock(id, { align: "center", accent: false }),
@@ -283,7 +282,7 @@ export function buildMonoPayload(): DesignPayload {
     letterSpacing: "-0.03em",
   });
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id),
     homeTree: [
       hero,
       servicesSection(id, {
@@ -315,7 +314,7 @@ export function buildFramePayload(): DesignPayload {
     { textTransform: "uppercase", letterSpacing: "0.02em" },
   );
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id),
     homeTree: [
       hero,
       galleryBlock(id, { mode: "grid", columns: 3, heading: "Work" }),
@@ -349,7 +348,7 @@ export function buildFolioPayload(): DesignPayload {
     letterSpacing: "-0.04em",
   });
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id),
     homeTree: [
       hero,
       galleryBlock(id, { mode: "masonry", columns: 2, heading: "The book" }),

@@ -88,6 +88,8 @@ export function buildKitShell(
 
   const headerStyle: Record<string, unknown> = {
     justifyContent: headerJustify,
+    // 1.5rem gutter so the brand never sits flush at the 390 edge.
+    paddingX: "m",
     ...(opts.headerPaddingY ? { paddingY: opts.headerPaddingY } : {}),
     ...(opts.headerRule
       ? { borderColor: "token:color.accent", borderWidth: "0 0 1px 0", borderStyle: "solid" }

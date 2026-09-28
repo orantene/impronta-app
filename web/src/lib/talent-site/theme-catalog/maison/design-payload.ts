@@ -16,7 +16,7 @@ import { CONTACT_LAYER, TALENT_ASK_HREF } from "@/lib/talent-site/contact-channe
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
-  buildKitShell,
+  buildKitStandardShell,
   defaultIdFactory,
   galleryBlock,
   heroSplit,
@@ -171,12 +171,10 @@ function maisonAboutBlock(makeId: KitIdFactory): BuilderNode {
  */
 export function buildMaisonDesignPayload(): DesignPayload {
   const makeId = makeSeqIdFactory("maison-design");
-  const shellTree = buildKitShell(makeId, {
+  // Standard talent header (logo, nav, ES/EN switch, primary CTA).
+  const shellTree = buildKitStandardShell(makeId, {
     displayName: "{{displayName}}",
     year: "{{year}}",
-    headerAlign: "space-between",
-    headerPaddingY: "m",
-    headerRule: true,
   }).map(deferCopyrightYear);
 
   const homeTree: BuilderNode[] = [
