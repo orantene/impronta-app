@@ -78,3 +78,22 @@ test("agency roster sitemap reads public roster rows with service role filters",
   assert.ok(publicVisibility > rosterQuery);
   assert.ok(deletedFilter > rosterQuery);
 });
+
+test("platform talent URLs are limited to what the directory shows", () => {
+  // 2026-09-27: 83 profiles passed the column gate, the directory rendered 54
+  // (the `talent_discover_index` set), and the 29-row gap was seeded fixtures
+  // (three names x9 profiles, plus two QA fixtures). The sitemap must intersect with the index.
+  const talentBranch = SITEMAP_SRC.slice(
+    SITEMAP_SRC.indexOf("loadPlatformTalentSitemapEntries"),
+    SITEMAP_SRC.indexOf("export default async function sitemap"),
+  );
+  assert.match(talentBranch, /from\("talent_discover_index"\)/);
+  assert.match(talentBranch, /discoverable\.has\(/);
+});
+
+test("the sitemap never lists /get-started while it only redirects", () => {
+  // With the onboarding module on, /get-started 307s into the front door. A
+  // redirecting URL in sitemap.xml is a Search Console error.
+  assert.match(SITEMAP_SRC, /getOnboardingFlags\(\)\)\.onboarding_module_enabled/);
+  assert.match(SITEMAP_SRC, /getStartedIsRedirect \? \[\] : \["\/get-started"\]/);
+});

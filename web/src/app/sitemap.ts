@@ -39,6 +39,7 @@ import {
   scopeMaxSitePagesToPlan,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSiteSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
+import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -120,7 +121,34 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
     .order("updated_at", { ascending: false })
     .limit(5000);
 
-  const rows = (rowsRaw ?? []) as unknown as PlatformTalentSitemapRow[];
+  const listedRows = (rowsRaw ?? []) as unknown as PlatformTalentSitemapRow[];
+
+  // ─── AND THE DIRECTORY MUST ACTUALLY SHOW IT ──────────────────────────────
+  //
+  // The column gate above is necessary but not sufficient. Measured on
+  // production 2026-09-27: 83 profiles passed it, but the public /directory
+  // rendered 54, exactly the `talent_discover_index` set. The 29-row gap was
+  // seeded fixtures (Luna Alvarez / Mateo Rossi / Sofia Bennett x9 each, two
+  // "QA Fixture" profiles), so the sitemap was feeding Google 54 URLs with
+  // duplicate titles and descriptions plus test pages. Intersect with the index so the
+  // sitemap advertises what the directory shows. If the index read fails, keep
+  // the column-gated list: an index outage must not wipe every profile from
+  // the sitemap.
+  const { data: indexRows, error: indexError } = await admin
+    .from("talent_discover_index")
+    .select("profile_code")
+    .limit(5000);
+  const discoverable = indexError
+    ? null
+    : new Set(
+        ((indexRows ?? []) as { profile_code: string | null }[])
+          .map((r) => r.profile_code?.trim())
+          .filter((c): c is string => Boolean(c)),
+      );
+  const rows = discoverable
+    ? listedRows.filter((row) => discoverable.has(row.profile_code?.trim() ?? ""))
+    : listedRows;
+
   // Each talent's OWN languages (primary + secondary, PR 5), bounded to the
   // platform public set, in the platform URL grammar (default unprefixed).
   const platform = await getLanguageSettingsPublicCached().catch(() => FALLBACK_LANGUAGE_SETTINGS);
@@ -240,9 +268,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     : [];
 
   if (hostContext.kind === "marketing") {
+    // With the onboarding module on, /get-started only redirects into the
+    // front door (`/?start=...`). A sitemap must list final URLs, never a
+    // redirect: Search Console reports those as "Page with redirect" and
+    // discounts the whole file. Advertise it only while it renders a page.
+    const getStartedIsRedirect = (await getOnboardingFlags()).onboarding_module_enabled;
     const marketingPaths = [
       "/",
-      "/get-started",
+      ...(getStartedIsRedirect ? [] : ["/get-started"]),
       "/operators",
       "/agencies",
       "/organizations",
