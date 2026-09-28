@@ -19,6 +19,8 @@ import {
 } from "@/lib/talent/services-settings-actions";
 import { loadTalentOfferingsForEditor, upsertTalentOffering } from "@/lib/talent/offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
+import { loadHoursMinNoticeAction } from "./website-settings-gate-action";
 import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "./primitives";
 import { BookingGroup, PaymentsGroup, SelfServiceGroup, TimingGroup, postureLabel } from "./WebsiteSettingsGroups";
 import {
@@ -52,11 +54,16 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   const [view, setView] = useState<View>("home");
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [confirmExit, setConfirmExit] = useState(false);
+  const [hoursNoticeMin, setHoursNoticeMin] = useState<number | null>(null);
 
   useEffect(() => {
     let live = true;
     void (async () => {
-      const [d, o] = await Promise.all([loadSellingDefaults(talentId), loadTalentOfferingsForEditor(talentId)]);
+      const [d, o, h] = await Promise.all([
+        loadSellingDefaults(talentId),
+        loadTalentOfferingsForEditor(talentId),
+        loadHoursMinNoticeAction().catch(() => null),
+      ]);
       if (!live) return;
       if (!d.ok || !o.ok) {
         setLoadError(t("Your settings could not load. Try again in a moment."));
@@ -68,6 +75,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         services: Object.fromEntries(services.map((i) => [i.id, fieldsOf(i)])),
       };
       setOfferings(services);
+      setHoursNoticeMin(h);
       setSaved(snapshot);
       setDraft(snapshot);
     })();
@@ -167,11 +175,14 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         ‹ {view === "home" ? t("My website") : t("Settings")}
       </button>
       <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold text-admin-ink">{titles[view]}</h1>
+      {/* No chip until settings load: "Saved" would be a claim about nothing. */}
+      {draft && saved ? (
       <StatusChip
         status={status}
         unsaved={unsaved}
         labels={{ saved: t("Saved · live now"), unsaved: t("{n} unsaved"), saving: t("Saving…"), failed: t("Couldn’t save") }}
       />
+      ) : null}
     </div>
   );
 
@@ -193,6 +204,8 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   }
 
   const d = draft.defaults;
+  // Display only: same overlay the booking path uses (defaults win, then hours row).
+  const noticeMin = resolveEffectiveMinNoticeMin({ hoursMinNoticeMin: hoursNoticeMin, sellingDefaults: d });
   const groupProps = { t, draft, setDefaults, services, setService };
   const instantCount = Object.values(draft.services).filter((f) => f.bookingMode === "instant").length;
 
@@ -214,7 +227,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
             summary={t("{before} min before · {after} min after · {notice} h notice")
               .replace("{before}", String(d.bufferBeforeMin ?? 0))
               .replace("{after}", String(d.bufferAfterMin ?? 0))
-              .replace("{notice}", String(Math.round((d.minNoticeMin ?? 0) / 60)))}
+              .replace("{notice}", String(Math.round(noticeMin / 60)))}
             onOpen={() => setView("timing")}
           />
           <NavRow
@@ -234,7 +247,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         </div>
       ) : null}
       {view === "booking" ? <BookingGroup {...groupProps} /> : null}
-      {view === "timing" ? <TimingGroup {...groupProps} /> : null}
+      {view === "timing" ? <TimingGroup {...groupProps} noticeMin={noticeMin} /> : null}
       {view === "pay" ? <PaymentsGroup {...groupProps} /> : null}
       {view === "self" ? <SelfServiceGroup {...groupProps} /> : null}
 

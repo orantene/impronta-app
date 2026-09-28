@@ -160,10 +160,10 @@ export function BookingGroup({ t, draft, setDefaults, services, setService }: Gr
   );
 }
 
-export function TimingGroup({ t, draft, setDefaults }: GroupProps) {
+export function TimingGroup({ t, draft, setDefaults, noticeMin }: GroupProps & { noticeMin: number }) {
   const d = draft.defaults;
   const s = stepLabels(t);
-  const noticeH = Math.round((d.minNoticeMin ?? 0) / 60);
+  const noticeH = Math.round(noticeMin / 60);
   return (
     <>
       <LiveOnSaveNote>{t(LIVE_NOTE)}</LiveOnSaveNote>
