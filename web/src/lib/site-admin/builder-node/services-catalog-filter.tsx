@@ -17,7 +17,11 @@ import {
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel } from "./services-catalog-bar-price";
 import { SelectionDock } from "@/components/public-booking/SelectionDock";
-import { EMPTY_DOCK, dockReducer } from "@/components/public-booking/selection-dock-state";
+import {
+  EMPTY_DOCK,
+  dockPickSwitches,
+  dockReducer,
+} from "@/components/public-booking/selection-dock-state";
 import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
@@ -162,7 +166,7 @@ export function ServicesCatalogFilter({
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
   // AUD-044 — multi-select dock state (front = first picked).
   const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK);
-  const [toastName, setToastName] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ kind: "removed" | "switched"; name: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -212,10 +216,15 @@ export function ServicesCatalogFilter({
       dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
     }
+    // Single-select (MULTI_SERVICE_ENABLED=false): a second pick REPLACES the
+    // first, announced with an Undo toast so nothing is dropped silently.
+    const switching = dockPickSwitches(dock, item.id);
     dispatchDock({
       type: "toggle",
       pick: { id: item.id, bits: null, totalCents: item.amountCents ?? 0, currency: item.currency },
     });
+    if (switching) showToast({ kind: "switched", name: item.title });
+    else clearToast();
   };
 
   const findOffering = (id: string | null) => {
@@ -247,17 +256,20 @@ export function ServicesCatalogFilter({
   const clearToast = useCallback(() => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = null;
-    setToastName(null);
+    setToast(null);
   }, []);
+  const showToast = (next: { kind: "removed" | "switched"; name: string }) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(next);
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  };
   useEffect(() => clearToast, [clearToast]);
 
   const removeFront = () => {
     const front = dockItems[0];
     if (!front) return;
     dispatchDock({ type: "remove_front" });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToastName(front.title);
-    toastTimer.current = setTimeout(() => setToastName(null), 5000);
+    showToast({ kind: "removed", name: front.title });
   };
 
   const undoRemove = () => {
@@ -465,7 +477,7 @@ export function ServicesCatalogFilter({
         onRemoveFront={removeFront}
         onAsk={askFromDock}
         onContinue={continueFromBar}
-        toast={toastName}
+        toast={toast}
         onUndo={undoRemove}
       />
 

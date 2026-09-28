@@ -56,8 +56,8 @@ export function SelectionDock({
   onRemoveFront: () => void;
   onAsk: () => void;
   onContinue: () => void;
-  /** Removed item name while the 5s Undo toast is up, else null. */
-  toast: string | null;
+  /** The 5s Undo toast: a ✕-remove or a single-select switch, else null. */
+  toast: { kind: "removed" | "switched"; name: string } | null;
   onUndo: () => void;
 }) {
   const copy = selectionDockCopy(locale);
@@ -124,7 +124,9 @@ export function SelectionDock({
       <div className="cb-dock-toast" role="status" data-show={toast ? "true" : "false"}>
         {toast ? (
           <>
-            <span>{copy.removed(toast)}</span>
+            <span>
+              {toast.kind === "switched" ? copy.switched(toast.name) : copy.removed(toast.name)}
+            </span>
             <button type="button" onClick={onUndo}>
               {copy.undo}
             </button>

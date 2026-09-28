@@ -9,8 +9,11 @@ import { fileURLToPath } from "node:url";
 
 import {
   EMPTY_DOCK,
+  MULTI_SERVICE_ENABLED,
+  dockPickSwitches,
   dockReducer,
   dockSummary,
+  makeDockReducer,
   selectionDockCopy,
   type DockPick,
 } from "./selection-dock-state";
@@ -24,6 +27,36 @@ const pick = (id: string, totalCents = 30000, bits: string | null = null): DockP
 });
 const ids = (s: { picked: DockPick[] }) => s.picked.map((p) => p.id);
 const fmt = (c: number) => `$${c / 100}`;
+/** Dormant multi-service paths (combined-appointment program), tested directly. */
+const multiReducer = makeDockReducer(true);
+
+test("multi-service booking is OFF until the combined-appointment engine ships", () => {
+  assert.equal(MULTI_SERVICE_ENABLED, false);
+});
+
+test("single-select: a second pick REPLACES the first and can be undone", () => {
+  let s = dockReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a", 30000, "x") });
+  assert.equal(dockPickSwitches(s, "b"), true);
+  assert.equal(dockPickSwitches(s, "a"), false);
+  s = dockReducer(s, { type: "toggle", pick: pick("b") });
+  assert.deepEqual(ids(s), ["b"]);
+  assert.equal(s.lastRemoved?.pick.id, "a");
+  assert.equal(s.lastRemoved?.replacedBy, "b");
+  s = dockReducer(s, { type: "undo" });
+  assert.deepEqual(ids(s), ["a"]);
+  assert.equal(s.picked[0].bits, "x");
+});
+
+test("single-select: never holds two services (toggle or sheet upsert)", () => {
+  let s = dockReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a") });
+  s = dockReducer(s, { type: "toggle", pick: pick("b") });
+  s = dockReducer(s, { type: "toggle", pick: pick("c") });
+  assert.deepEqual(ids(s), ["c"]);
+  s = dockReducer(s, { type: "upsert", pick: pick("d") });
+  assert.deepEqual(ids(s), ["d"]);
+  // Re-tapping the selected row still deselects it.
+  assert.deepEqual(ids(dockReducer(s, { type: "toggle", pick: pick("d") })), []);
+});
 
 test("toggle selects, a second toggle deselects", () => {
   let s = dockReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a") });
@@ -32,9 +65,9 @@ test("toggle selects, a second toggle deselects", () => {
   assert.deepEqual(ids(s), []);
 });
 
-test("multi-select keeps pick order; front is the first picked", () => {
-  let s = dockReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a") });
-  s = dockReducer(s, { type: "toggle", pick: pick("b") });
+test("(dormant multi) multi-select keeps pick order; front is the first picked", () => {
+  let s = multiReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a") });
+  s = multiReducer(s, { type: "toggle", pick: pick("b") });
   assert.deepEqual(ids(s), ["a", "b"]);
 });
 
@@ -46,10 +79,10 @@ test("upsert (sheet select) updates bits in place and never toggles off", () => 
   assert.equal(s.picked[0].totalCents, 65000);
 });
 
-test("remove_front drops only the front item and remembers it", () => {
-  let s = dockReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a") });
-  s = dockReducer(s, { type: "toggle", pick: pick("b") });
-  s = dockReducer(s, { type: "remove_front" });
+test("(dormant multi) remove_front drops only the front item and remembers it", () => {
+  let s = multiReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a") });
+  s = multiReducer(s, { type: "toggle", pick: pick("b") });
+  s = multiReducer(s, { type: "remove_front" });
   assert.deepEqual(ids(s), ["b"]);
   assert.equal(s.lastRemoved?.pick.id, "a");
 });
@@ -61,16 +94,23 @@ test("remove on a single pick empties the dock", () => {
   assert.equal(dockReducer(s, { type: "remove_front" }).picked.length, 0);
 });
 
-test("undo restores the removed item to the front", () => {
+test("undo after ✕ restores the removed item", () => {
   let s = dockReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a", 30000, "x") });
-  s = dockReducer(s, { type: "toggle", pick: pick("b") });
   s = dockReducer(s, { type: "remove_front" });
   s = dockReducer(s, { type: "undo" });
-  assert.deepEqual(ids(s), ["a", "b"]);
+  assert.deepEqual(ids(s), ["a"]);
   assert.equal(s.picked[0].bits, "x");
   assert.equal(s.lastRemoved, null);
   // A second undo is a no-op.
-  assert.deepEqual(ids(dockReducer(s, { type: "undo" })), ["a", "b"]);
+  assert.deepEqual(ids(dockReducer(s, { type: "undo" })), ["a"]);
+});
+
+test("(dormant multi) undo restores the removed item to the front", () => {
+  let s = multiReducer(EMPTY_DOCK, { type: "toggle", pick: pick("a", 30000, "x") });
+  s = multiReducer(s, { type: "toggle", pick: pick("b") });
+  s = multiReducer(s, { type: "remove_front" });
+  s = multiReducer(s, { type: "undo" });
+  assert.deepEqual(ids(s), ["a", "b"]);
 });
 
 test("undo does not duplicate an item re-selected before Undo", () => {
@@ -101,6 +141,8 @@ test("dock copy is localized (ES tú) and has no em dashes", () => {
   const es = selectionDockCopy("es");
   const en = selectionDockCopy("en-US");
   assert.equal(es.removed("Soft Gel"), "Quitaste Soft Gel");
+  assert.equal(es.switched("Rubber Gel"), "Cambiaste a Rubber Gel");
+  assert.equal(en.switched("Rubber Gel"), "Switched to Rubber Gel");
   assert.equal(es.undo, "Deshacer");
   assert.equal(es.continueLabel, "Continuar");
   assert.equal(es.remove("Soft Gel"), "Quitar Soft Gel");
@@ -108,7 +150,7 @@ test("dock copy is localized (ES tú) and has no em dashes", () => {
   assert.equal(en.undo, "Undo");
   assert.equal(en.continueLabel, "Continue");
   for (const c of [es, en]) {
-    const strings = [c.region, c.ask, c.askMany, c.undo, c.continueLabel, c.services(2), c.removed("x")];
+    const strings = [c.region, c.ask, c.askMany, c.undo, c.continueLabel, c.services(2), c.removed("x"), c.switched("x")];
     for (const str of strings) assert.doesNotMatch(str, /—/);
   }
 });
@@ -168,4 +210,6 @@ test("the old selection card copy is gone; the dock replaces it", () => {
   assert.match(src, /<SelectionDock/);
   assert.doesNotMatch(src, /selectedTitle \?\?/);
   assert.match(src, /askAbout: dockItems\.map/);
+  // Single-select switch is announced with Undo, never silent.
+  assert.match(src, /showToast\(\{ kind: "switched", name: item\.title \}\)/);
 });

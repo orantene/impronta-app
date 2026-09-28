@@ -7,6 +7,17 @@
  * No React, no DOM — unit-tested in selection-dock-state.test.ts.
  */
 
+/**
+ * Multi-service booking is OFF until the combined-appointment engine ships
+ * (Website Settings Foundation rule: multi-service ships only with the
+ * combined-appointment program). Booking takes ONE offering, so letting a
+ * client pick two and then book only the first would silently drop a service.
+ * With this false, picking a second service REPLACES the first (with Undo).
+ * The stacked-thumbs / count / "N servicios" paths stay in the code, reachable
+ * only when this flips to true alongside the combined-appointment engine.
+ */
+export const MULTI_SERVICE_ENABLED = false;
+
 export type DockPick = {
   id: string;
   /** Options line from the sheet (variant / extras), when the sheet set it. */
@@ -18,8 +29,12 @@ export type DockPick = {
 
 export type DockState = {
   picked: DockPick[];
-  /** Last ✕-removed pick + where it sat, for Undo. Cleared by any other action. */
-  lastRemoved: { pick: DockPick; index: number } | null;
+  /**
+   * Last pick taken out (✕-removed, or replaced by a switch) + where it sat,
+   * for Undo. `replacedBy` is the id that took its place on a switch.
+   * Cleared by any other action.
+   */
+  lastRemoved: { pick: DockPick; index: number; replacedBy?: string } | null;
 };
 
 export type DockAction =
@@ -32,10 +47,28 @@ export type DockAction =
 
 export const EMPTY_DOCK: DockState = { picked: [], lastRemoved: null };
 
-export function dockReducer(state: DockState, action: DockAction): DockState {
+/** Reducer factory; `multi` is MULTI_SERVICE_ENABLED in the product. */
+export function makeDockReducer(multi: boolean) {
+  return function reduce(state: DockState, action: DockAction): DockState {
+    return dockReduce(state, action, multi);
+  };
+}
+
+/** True when picking `id` would REPLACE the current selection (single mode). */
+export function dockPickSwitches(state: DockState, id: string, multi = MULTI_SERVICE_ENABLED): boolean {
+  return !multi && state.picked.length > 0 && !state.picked.some((p) => p.id === id);
+}
+
+function dockReduce(state: DockState, action: DockAction, multi: boolean): DockState {
   switch (action.type) {
     case "toggle": {
       const on = state.picked.some((p) => p.id === action.pick.id);
+      if (!on && dockPickSwitches(state, action.pick.id, multi)) {
+        return {
+          picked: [action.pick],
+          lastRemoved: { pick: state.picked[0], index: 0, replacedBy: action.pick.id },
+        };
+      }
       return {
         picked: on
           ? state.picked.filter((p) => p.id !== action.pick.id)
@@ -45,6 +78,7 @@ export function dockReducer(state: DockState, action: DockAction): DockState {
     }
     case "upsert": {
       const i = state.picked.findIndex((p) => p.id === action.pick.id);
+      if (i === -1 && !multi) return { picked: [action.pick], lastRemoved: null };
       if (i === -1) return { picked: [...state.picked, action.pick], lastRemoved: null };
       const next = state.picked.slice();
       next[i] = action.pick;
@@ -60,7 +94,9 @@ export function dockReducer(state: DockState, action: DockAction): DockState {
       if (!r || state.picked.some((p) => p.id === r.pick.id)) {
         return { ...state, lastRemoved: null };
       }
-      const next = state.picked.slice();
+      const next = r.replacedBy
+        ? state.picked.filter((p) => p.id !== r.replacedBy)
+        : state.picked.slice();
       next.splice(Math.min(r.index, next.length), 0, r.pick);
       return { picked: next, lastRemoved: null };
     }
@@ -69,11 +105,14 @@ export function dockReducer(state: DockState, action: DockAction): DockState {
   }
 }
 
+export const dockReducer = makeDockReducer(MULTI_SERVICE_ENABLED);
+
 export type DockCopy = {
   region: string;
   services: (n: number) => string;
   remove: (name: string) => string;
   removed: (name: string) => string;
+  switched: (name: string) => string;
   undo: string;
   ask: string;
   askMany: string;
@@ -85,6 +124,7 @@ const EN: DockCopy = {
   services: (n) => `${n} services`,
   remove: (name) => `Remove ${name}`,
   removed: (name) => `Removed ${name}`,
+  switched: (name) => `Switched to ${name}`,
   undo: "Undo",
   ask: "Ask about this service",
   askMany: "Ask about these services",
@@ -96,6 +136,7 @@ const ES: DockCopy = {
   services: (n) => `${n} servicios`,
   remove: (name) => `Quitar ${name}`,
   removed: (name) => `Quitaste ${name}`,
+  switched: (name) => `Cambiaste a ${name}`,
   undo: "Deshacer",
   ask: "Preguntar por este servicio",
   askMany: "Preguntar por estos servicios",
