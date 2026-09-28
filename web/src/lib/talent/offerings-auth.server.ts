@@ -12,6 +12,11 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
+import {
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
+  parseSellingBookingSettings,
+  type TalentBookingPosture,
+} from "@/lib/talent/selling-booking-settings";
 
 export type AuthResult =
   | {
@@ -92,4 +97,23 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
     defaultCurrency: resolveDefaultCurrencyForUI(tp.default_currency),
     tenantId,
   };
+}
+
+/**
+ * The talent's default booking posture, read server-side (never trusted from
+ * the client). Used to validate services that inherit it (WSF B2).
+ */
+export async function loadTalentDefaultPosture(talentProfileId: string): Promise<TalentBookingPosture> {
+  const admin = createServiceRoleClient();
+  if (!admin) return PLATFORM_DEFAULT_BOOKING_POSTURE;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("selling_defaults")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talent.offerings.defaultPosture", error);
+    return PLATFORM_DEFAULT_BOOKING_POSTURE;
+  }
+  return parseSellingBookingSettings((data as { selling_defaults?: unknown } | null)?.selling_defaults ?? {}).bookingPosture;
 }

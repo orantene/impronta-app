@@ -73,6 +73,8 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "You agree the amount with each client": "Acuerdas el monto con cada cliente",
   "This changes {n} services. The {m} with their own setting stay unchanged.":
     "Esto cambia {n} servicios. Los {m} con su propio ajuste no cambian.",
+  "{n} of them will take requests until they have a fixed price: {names}":
+    "{n} de ellos recibirán solicitudes hasta que tengan un precio fijo: {names}",
   "Quote services agree the price first. Change the price in Services to book instantly.":
     "En los servicios con cotización primero acuerdas el precio. Cambia el precio en Servicios para reservar al instante.",
   "Inherited from your default": "Sigue tu opción predeterminada",

@@ -17,7 +17,7 @@ import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
-import { authorizeForTalent } from "@/lib/talent/offerings-auth.server";
+import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   rowToOffering,
@@ -164,7 +164,7 @@ export async function upsertTalentOffering(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
-    const errors = validateOffering(offering);
+    const errors = validateOffering(offering, await loadTalentDefaultPosture(talentProfileId));
     if (errors.length > 0) return { ok: false, error: errors[0] };
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it

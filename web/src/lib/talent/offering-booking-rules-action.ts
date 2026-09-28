@@ -2,7 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
-import { authorizeForTalent } from "@/lib/talent/offerings-auth.server";
+import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -42,7 +42,7 @@ export async function patchOfferingBookingRules(
     }
     if (!row) return { ok: false, error: "That service no longer exists." };
     const current = rowToOffering(row as TalentOfferingRow);
-    const errors = bookingRulesPatchErrors(current, patch);
+    const errors = bookingRulesPatchErrors(current, patch, await loadTalentDefaultPosture(talentProfileId));
     if (errors.length > 0) return { ok: false, error: errors[0]! };
     const { data, error } = await offeringsTable(admin)
       .update({ ...bookingRulesRowPatch(current, patch), updated_at: new Date().toISOString() })

@@ -126,6 +126,10 @@ export function BookingGroup({
   const quoteLabel = t(BOOKING_MODE_LABELS.quote.title);
   const quoteReason = t("Quote services agree the price first. Change the price in Services to book instantly.");
   const impact = defaultModeImpact(draft.services);
+  // Services that follow the default but cannot book instantly (no exact
+  // price, quote, or missing deposit). Saving is still allowed: at runtime
+  // they fall back to requests.
+  const notInstant = services.filter((x) => ownOf(x) == null && !x.canBookInstantly);
   return (
     <>
       <LiveOnSaveNote>{t(LIVE_NOTE)}</LiveOnSaveNote>
@@ -149,6 +153,11 @@ export function BookingGroup({
             {t("This changes {n} services. The {m} with their own setting stay unchanged.")
               .replace("{n}", String(impact.follows))
               .replace("{m}", String(impact.own))}
+            {posture === "instant" && notInstant.length > 0
+              ? ` ${t("{n} of them will take requests until they have a fixed price: {names}")
+                  .replace("{n}", String(notInstant.length))
+                  .replace("{names}", notInstant.map((x) => x.title).join(", "))}`
+              : null}
           </p>
         ) : null}
       </SettingsCard>
@@ -165,11 +174,26 @@ export function BookingGroup({
           const current = ownOf(s);
           const noPrice = s.canBookInstantly ? null : t("Needs a fixed price and its booking details first. Set them in Services.");
           if (s.quote) {
-            // Quote is a price setting (Services owns it); settings only shows it.
+            // Quote is a price setting (Services owns it). Here the talent can
+            // only pick request or inquiry; priceDisplay is never written.
+            const eff = effectiveServiceMode(current, posture) === "inquiry" ? "inquiry" : "request";
             return (
-              <div role="radiogroup" aria-label={`${t("Booking mode")}: ${s.title}`} className="grid gap-2">
-                <ChoiceCard checked title={quoteLabel} detail={t(BOOKING_MODE_LABELS.quote.sub)} onSelect={() => {}} />
-                <ChoiceCard checked={false} title={modes[0]!.title} disabledReason={quoteReason} onSelect={() => {}} />
+              <div className="grid gap-2">
+                <p className="text-[12.5px] text-admin-ink-muted">
+                  {quoteLabel}. {t(BOOKING_MODE_LABELS.quote.sub)}
+                </p>
+                <div role="radiogroup" aria-label={`${t("Booking mode")}: ${s.title}`} className="grid gap-2">
+                  <ChoiceCard checked={false} title={modes[0]!.title} disabledReason={quoteReason} onSelect={() => {}} />
+                  {modes.slice(1).map((m) => (
+                    <ChoiceCard
+                      key={m.mode}
+                      checked={eff === m.mode}
+                      title={m.title}
+                      detail={m.detail}
+                      onSelect={() => setService(s.id, { bookingMode: m.mode })}
+                    />
+                  ))}
+                </div>
               </div>
             );
           }

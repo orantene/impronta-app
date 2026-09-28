@@ -155,3 +155,16 @@ describe("offeringToOfferLineSeed", () => {
     assert.equal(offeringIsOfferPriceable(o), false);
   });
 });
+
+it("WSF B2: validateOffering holds an inherited Instant default to instant rules", async () => {
+  const { blankOffering, validateOffering } = await import("./offerings-types");
+  const base = { ...blankOffering("t1", "USD", 0), title: "Cut", bookingMode: null, status: "published" as const };
+  const priced = { ...base, amountCents: 5000 };
+  assert.deepEqual(validateOffering(priced, "instant"), []);
+  const quote = { ...base, priceDisplay: "quote" as const };
+  assert.ok(validateOffering(quote, "instant").some((e) => e.includes("follows your Instant default")));
+  assert.deepEqual(validateOffering(quote, "request"), []);
+  const dep = { ...priced, reserveMode: "deposit" as const };
+  assert.ok(validateOffering(dep, "instant").some((e) => e.includes("deposit percent")));
+  assert.deepEqual(validateOffering({ ...dep, depositPct: 30 }, "instant"), []);
+});
