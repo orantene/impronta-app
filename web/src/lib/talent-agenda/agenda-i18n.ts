@@ -573,6 +573,34 @@ const ES: Record<string, string> = {
   bookings: "reservas",
   "On hold until": "Apartada hasta",
   "Free today": "Libre hoy",
+  // Calendar sync
+  "Calendar sync": "Sincronizar calendario",
+  "Google, Apple, Outlook, import and download": "Google, Apple, Outlook, importar y descargar",
+  "Connect a calendar": "Conectar un calendario",
+  "Not connected": "Sin conectar",
+  "Checking…": "Revisando…",
+  Connected: "Conectado",
+  "last synced": "última sincronización",
+  Disconnect: "Desconectar",
+  Connect: "Conectar",
+  "Coming soon": "Próximamente",
+  "Show busy times from this calendar": "Mostrar horas ocupadas de este calendario",
+  "Add my Tulala bookings to it": "Agregar mis reservas de Tulala",
+  "Calendar connections are on the way. Nothing is connected until you see Connected here.":
+    "Las conexiones de calendario vienen en camino. Nada está conectado hasta que veas Conectado aquí.",
+  "Subscribe (export)": "Suscribirse (exportar)",
+  "A private link your calendar app can follow to show your Tulala bookings.":
+    "Un enlace privado que tu app de calendario sigue para mostrar tus reservas de Tulala.",
+  "Copy link": "Copiar enlace",
+  "Reset link": "Restablecer enlace",
+  Import: "Importar",
+  "Bring events in from an .ics file. Not available yet.": "Trae eventos desde un archivo .ics. Aún no disponible.",
+  "Import an .ics file": "Importar un archivo .ics",
+  Download: "Descargar",
+  "Save your bookings and blocked time as an .ics file for any calendar app.":
+    "Guarda tus reservas y tiempo bloqueado como archivo .ics para cualquier app de calendario.",
+  "This month": "Este mes",
+  "Nothing to download in this range.": "No hay nada que descargar en este rango.",
 };
 
 export function agendaI18n(locale: AgendaLocale = "en") {

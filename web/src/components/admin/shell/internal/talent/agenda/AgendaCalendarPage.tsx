@@ -25,6 +25,7 @@ import { useAgendaCta } from "./use-agenda-cta";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaPayRequest } from "./AgendaPayRequest";
+import { AgendaCalendarSync } from "./AgendaCalendarSync";
 import { setAgendaAttentionConfirm } from "./attention-confirm";
 import { AddMenu, BlockTimeForm, CalendarList, EventPeek, Overlay, Segmented } from "./AgendaCalendarParts";
 import {
@@ -133,7 +134,7 @@ export function AgendaCalendarPage({
     | { kind: "collect"; item: TalentAgendaItem }
   >(null);
   // One overlay at a time: the + menu, the block form or the date picker.
-  const [overlay, setOverlay] = useState<null | "add" | "block" | "picker">(null);
+  const [overlay, setOverlay] = useState<null | "add" | "block" | "picker" | "sync">(null);
   const [pickerMonth, setPickerMonth] = useState(clock);
   const [listFilter, setListFilter] = useState<ListFilter>("all");
   const [blockDate, setBlockDate] = useState(localYmd(clock));
@@ -497,6 +498,9 @@ export function AgendaCalendarPage({
           {onOpenAvailability ? (
             <SecondaryButton onClick={onOpenAvailability}>{copy.t("Availability")}</SecondaryButton>
           ) : null}
+          <SecondaryButton onClick={() => setOverlay("sync")}>
+            <span aria-hidden>⟳</span> {copy.t("Calendar sync")}
+          </SecondaryButton>
         </div>
       )}
 
@@ -612,6 +616,13 @@ export function AgendaCalendarPage({
                 // Replace the + menu with the block form: never a sheet on a sheet.
                 run: () => openBlock(selected),
               },
+              {
+                id: "sync",
+                title: copy.t("Calendar sync"),
+                body: copy.t("Google, Apple, Outlook, import and download"),
+                // Replaces the + menu: never a sheet on a sheet.
+                run: () => setOverlay("sync"),
+              },
             ]}
           />
         </Overlay>
@@ -652,6 +663,12 @@ export function AgendaCalendarPage({
             label={blockLabel}
             onSubmit={() => void saveBlock()}
           />
+        </Overlay>
+      ) : null}
+
+      {overlay === "sync" ? (
+        <Overlay phone={phone} closeLabel={copy.t("Close")} title={copy.t("Calendar sync")} onClose={() => setOverlay(null)}>
+          <AgendaCalendarSync copy={copy} items={allItems} anchor={selected} weekStart={days[0]} />
         </Overlay>
       ) : null}
 
