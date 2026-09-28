@@ -468,7 +468,8 @@ export function ServicesCatalogLayoutInspector({
   const catalog = node.props;
   const layout = catalog.layout ?? "rows";
   const showColumns = layout === "cards" || layout === "grid" || layout === "editorial";
-  const showPhotoCorners = layout !== "compact_list" && catalog.showPhoto !== false;
+  const showPhotoCorners =
+    layout !== "compact_list" && layout !== "rate_card" && catalog.showPhoto !== false;
   return (
     <div className="flex flex-col gap-3" data-builder-node-layout-panel="services_catalog">
       <div className={KIT.field}>
@@ -482,13 +483,14 @@ export function ServicesCatalogLayoutInspector({
           <option value="cards">Image cards</option>
           <option value="grid">Image grid</option>
           <option value="compact_list">Compact price menu</option>
+          <option value="rate_card">Rate card (hairline)</option>
           <option value="editorial">Editorial cards</option>
           <option value="featured">Featured offering</option>
         </select>
         <p className="text-xs text-black/50">
           Suggested from your catalog: photo-led → cards; many items without photos → compact list;
-          beauty menu → service list. Always changeable. Featured puts the first featured offering in a
-          hero row.
+          beauty menu → service list; folio rates → rate card. Always changeable. Featured puts the
+          first featured offering in a hero row.
         </p>
       </div>
       <div className={KIT.field}>

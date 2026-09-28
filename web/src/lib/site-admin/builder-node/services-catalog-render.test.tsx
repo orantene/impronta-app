@@ -303,6 +303,46 @@ test("compact_list omits photos even when showPhoto is true", () => {
   assert.doesNotMatch(html, /gel-pedicure\.jpg/);
 });
 
+test("rate_card omits photos and emits hairline layout attrs", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "rate_card",
+        showPhoto: true,
+        density: "compact",
+        categoryNav: "sections",
+        showDuration: true,
+        showPrice: true,
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({
+          id: "a",
+          title: "Editorial day",
+          category: "Studio",
+          durationMinutes: 480,
+          imageUrls: ["https://example.test/gel-pedicure.jpg"],
+        }),
+        offering({
+          id: "b",
+          title: "Half day",
+          category: "Studio",
+          durationMinutes: 240,
+          imageUrls: ["https://example.test/other.jpg"],
+        }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="rate_card"/);
+  assert.match(html, /data-density="compact"/);
+  assert.match(html, /data-show-photo="false"/);
+  assert.doesNotMatch(html, /gel-pedicure\.jpg/);
+  assert.match(html, /Editorial day/);
+  assert.match(html, /site-builder-node--services-catalog-duration/);
+  assert.match(html, /site-builder-node--services-catalog-price/);
+});
+
 test("tabs categoryNav uses distinct data-category-nav=tabs", () => {
   const html = render([catalogNode({ categoryNav: "tabs" })], {
     talentOfferings: [
@@ -440,7 +480,15 @@ test("solid CTA variant has dedicated CSS (not outline-only)", () => {
 });
 
 test("each layout sets a distinct data-layout attribute", () => {
-  for (const layout of ["rows", "cards", "grid", "compact_list", "editorial", "featured"] as const) {
+  for (const layout of [
+    "rows",
+    "cards",
+    "grid",
+    "compact_list",
+    "rate_card",
+    "editorial",
+    "featured",
+  ] as const) {
     const html = render([catalogNode({ layout })], {
       talentOfferings: [offering({ id: "a" }), offering({ id: "b", title: "Other" })],
     });

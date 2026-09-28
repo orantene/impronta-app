@@ -80,13 +80,14 @@ type CatalogOpts = {
   label: string;
   eyebrow: string;
   title: string;
-  layout: "rows" | "cards" | "grid" | "compact_list" | "editorial" | "featured";
+  layout: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured";
   categoryNav: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
   stylePreset: "clean" | "editorial" | "compact" | "image_led";
   photoRadius: "square" | "soft" | "round";
   density: "comfortable" | "compact";
   rowCtaVariant: "outline" | "solid";
   showPhoto: boolean;
+  showDescription?: boolean;
   columns?: 1 | 2 | 3;
   search?: boolean;
   band?: boolean;
@@ -127,6 +128,7 @@ function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNode {
           showDuration: true,
           showPhoto: o.showPhoto,
           showStats: false,
+          ...(o.showDescription !== undefined ? { showDescription: o.showDescription } : {}),
           ...(o.columns ? { columns: o.columns } : {}),
           ...(o.search ? { enableCatalogSearch: true } : {}),
           mobileBar: "float",
@@ -467,13 +469,14 @@ export function buildFolioPayload(): DesignPayload {
         label: "Rate card",
         eyebrow: "Booking",
         title: "Rate card",
-        layout: "rows",
+        layout: "rate_card",
         categoryNav: "sections",
         stylePreset: "editorial",
         photoRadius: "square",
-        density: "comfortable",
+        density: "compact",
         rowCtaVariant: "outline",
         showPhoto: false,
+        showDescription: false,
       }),
       contactSection(id, { heading: "Next issue", faqHeading: "Questions" }),
     ],
