@@ -122,19 +122,8 @@ import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { pickHeadlinePrice } from "@/lib/directory/headline-price";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
-import { TalentInquiryFormSheet } from "./_chat/TalentInquiryFormSheet";
-import {
-  dockMounted,
-  intakeNoticeCopy,
-  intakeNoticeKind,
-  resolveTalentAskEntry,
-  resolveTalentChatGreeting,
-} from "@/lib/talent/chat-entry";
-import { TalentIntakeNotice } from "./_chat/TalentIntakeNotice";
-import { getActiveGuestInquiry } from "./_actions/guest-chat-actions";
-import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
-import { parseTalentSiteSwitches } from "@/lib/talent/site-switches";
+import { TalentIntakeSurfaces } from "./_chat/TalentIntakeSurfaces";
+import { loadTalentIntake } from "./_chat/talent-intake.server";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
@@ -1980,20 +1969,11 @@ export async function TalentProfileView({
   const guestChatSettings = chatTenantId
     ? await loadGuestChatSettings(chatTenantId)
     : GUEST_CHAT_DEFAULTS;
-  // WSF D — the talent's own chat switch covers her /t/ profile too (auditor
-  // ruling). The agency-level settings above still gate agency surfaces; the
-  // talent's switch narrows on top: chat → launcher, off → inquiry form sheet,
-  // inquiries off → neither.
-  const talentSwitches = bookingAdmin
-    ? await loadTalentSiteSwitches(bookingAdmin, profile.id)
-    : parseTalentSiteSwitches(null);
-  // §8 "Existing clients": a visitor with a live thread keeps the dock.
-  const talentResume =
-    chatTenantSlug && !(talentSwitches.chatEnabled && talentSwitches.acceptingInquiries)
-      ? await getActiveGuestInquiry({ tenantSlug: chatTenantSlug, talentProfileId: profile.id })
-      : null;
-  const talentAskEntry = resolveTalentAskEntry(talentSwitches, {
-    hasActiveThread: Boolean(talentResume?.ok && talentResume.active),
+  // WSF D: the talent's chat/inquiry switches narrow the agency settings above.
+  const { switches: talentSwitches, askEntry: talentAskEntry } = await loadTalentIntake({
+    admin: bookingAdmin,
+    talentProfileId: profile.id,
+    chatTenantSlug,
   });
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
@@ -2583,46 +2563,7 @@ export async function TalentProfileView({
           locale={locale}
         />
       ) : null}
-      {!isModal && intakeNoticeKind(talentAskEntry) ? (
-        <TalentIntakeNotice
-          text={intakeNoticeCopy(intakeNoticeKind(talentAskEntry) ?? "closed", locale)}
-          closeLabel={locale === "es" ? "Cerrar" : "Close"}
-        />
-      ) : null}
-      {!isModal &&
-        guestChatSettings.enabled &&
-        guestChatSettings.showOnTalent &&
-        talentAskEntry === "form" &&
-        chatTenantSlug && (
-          <TalentInquiryFormSheet
-            tenantSlug={chatTenantSlug}
-            talentProfileId={profile.id}
-            talentProfileCode={profile.profile_code}
-            talentName={name}
-            sourcePage={profileSourcePage}
-            locale={locale}
-            accentColor={chatAccentColor}
-          />
-        )}
-      {!isModal &&
-        guestChatSettings.enabled &&
-        guestChatSettings.showOnTalent &&
-        dockMounted(talentAskEntry) && (
-        <TalentProfileChatLauncherMount
-          talentProfileId={profile.id}
-          talentProfileCode={profile.profile_code}
-          talentDisplayName={name}
-          tenantSlug={chatTenantSlug}
-          tenantId={chatTenantId}
-          agencyName={chatBrandName}
-          accentColor={chatAccentColor}
-          logoUrl={watermarkLogoUrl}
-          sourcePage={profileSourcePage}
-          greeting={resolveTalentChatGreeting(talentSwitches, guestChatSettings.greeting)}
-          locale={locale}
-          backgroundMode={chatBackgroundMode}
-        />
-      )}
+      {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode }} /> : null}
     </>
   );
 
