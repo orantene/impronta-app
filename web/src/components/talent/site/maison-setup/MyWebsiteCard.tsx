@@ -66,6 +66,8 @@ export function MyWebsiteCard({
   /** null = unknown (options state unavailable) → the line is not shown. */
   const [hasPending, setHasPending] = useState<boolean | null>(null);
   const hasNamedPalette = lookToPalette(themeLookSlug) !== null;
+  // Same-origin path: the vanity domain refuses to be framed from the app host.
+  const thumbSrc = siteSlug ? `/t/site/${encodeURIComponent(siteSlug)}` : publicSiteUrl;
 
   useEffect(() => {
     if (hasNamedPalette) return;
@@ -124,12 +126,11 @@ export function MyWebsiteCard({
           className="relative shrink-0 overflow-hidden rounded-xl border border-admin-border-soft bg-white"
           style={{ width: THUMB_W, height: PREVIEW_H * SCALE, maxWidth: "100%" }}
         >
-          {publicSiteUrl ? (
+          {thumbSrc ? (
             <iframe
-              src={publicSiteUrl}
+              src={thumbSrc}
               title={t("Website preview")}
               tabIndex={-1}
-              loading="lazy"
               className="pointer-events-none absolute left-0 top-0 border-0"
               style={{
                 width: PREVIEW_W,
