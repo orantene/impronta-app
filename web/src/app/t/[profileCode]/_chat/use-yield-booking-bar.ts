@@ -20,13 +20,17 @@ const BOOKING_BAR_CLEARANCE_PX = 16;
 export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   yieldBookingBar: boolean;
   launcherBottomPx: number;
+  /** AUD-044 — the catalog selection dock is up; the FAB tucks into it. */
+  selectionDockUp: boolean;
 } {
   const [yieldBookingBar, setYieldBookingBar] = useState(false);
+  const [selectionDockUp, setSelectionDockUp] = useState(false);
   const [barLiftPx, setBarLiftPx] = useState(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX);
 
   useEffect(() => {
     if (!mounted) return;
     const measure = () => {
+      setSelectionDockUp(Boolean(document.querySelector(".cb-dock[data-show='true']")));
       const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
       if (!bar) {
         setYieldBookingBar(false);
@@ -62,5 +66,5 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
       : GUEST_CHAT_LAUNCHER_BOTTOM_PX) + (yieldBookingBar ? barLiftPx : 0);
 
-  return { yieldBookingBar, launcherBottomPx };
+  return { yieldBookingBar, launcherBottomPx, selectionDockUp };
 }

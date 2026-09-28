@@ -38,10 +38,13 @@ export type CatalogBookingChatHandoff = {
    * harness panel — do not stash pending stores that a live dock would send.
    */
   demo?: boolean;
+  /** AUD-044 — selection dock Ask: titles of all selected offerings. */
+  askAbout?: string[];
 };
 
 export type OfferingWithSelection = OfferingRequestDetail & {
   selection?: CatalogBookingSelection;
+  askAbout?: string[];
 };
 
 /** Visible composer / first-message prefix carrying options + slot + total. */
@@ -74,6 +77,7 @@ export function openCatalogBookingChat(handoff: CatalogBookingChatHandoff): void
   const enriched: OfferingWithSelection = {
     ...handoff.detail,
     ...(handoff.selection ? { selection: handoff.selection } : {}),
+    ...(handoff.askAbout && handoff.askAbout.length > 0 ? { askAbout: handoff.askAbout } : {}),
   };
 
   if (!handoff.demo) {
@@ -103,6 +107,7 @@ export function openCatalogBookingChat(handoff: CatalogBookingChatHandoff): void
               email: handoff.visitor.email?.trim() || null,
             }
           : null,
+        askAbout: handoff.askAbout ?? null,
         demo: handoff.demo === true,
       },
     }),
