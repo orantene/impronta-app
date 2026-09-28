@@ -133,7 +133,7 @@ import {
 } from "@/lib/talent/chat-entry";
 import { TalentIntakeNotice } from "./_chat/TalentIntakeNotice";
 import { getActiveGuestInquiry } from "./_actions/guest-chat-actions";
-import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { parseTalentSiteSwitches } from "@/lib/talent/site-switches";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";

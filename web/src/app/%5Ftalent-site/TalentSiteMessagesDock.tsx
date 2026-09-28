@@ -24,7 +24,7 @@ import {
 } from "@/lib/talent/chat-entry";
 import { TalentIntakeNotice } from "@/app/t/[profileCode]/_chat/TalentIntakeNotice";
 import { getActiveGuestInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
-import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 

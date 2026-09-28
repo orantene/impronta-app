@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import { loadTalentSiteSwitches } from "./site-switches.server";
+import { loadTalentSiteSwitches } from "./site-switches-server";
 
 /**
  * WSF D, report §8: when a talent is not taking inquiries, NO new guest
