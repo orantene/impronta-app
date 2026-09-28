@@ -75,6 +75,7 @@ import { ReviewsContentInspector } from "./reviews-inspector";
 import { VisitContentInspector } from "./visit-inspector";
 import { ContentsContentInspector } from "./contents-inspector";
 import { MastheadContentInspector } from "./masthead-inspector";
+import { StatementFooterContentInspector } from "./statement-footer-inspector";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
@@ -1580,6 +1581,11 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "masthead") {
     return <MastheadContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "statement_footer") {
+    return (
+      <StatementFooterContentInspector node={node} commitPatch={commitPatch} />
+    );
   }
   if (node.kind === "comp_card") {
     return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
@@ -5201,6 +5207,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Contents · chapter index";
     case "masthead":
       return "Masthead · stacked words";
+    case "statement_footer":
+      return "Statement footer · credit and contact";
     case "comp_card":
       return "Comp card · measure strip";
     case "next_free_chip":

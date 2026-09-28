@@ -30,6 +30,7 @@ import {
   visitBlock,
   contentsBlock,
   compCardBlock,
+  statementFooterBlock,
   heroCentered,
   heroCover,
   heroMasthead,
@@ -397,7 +398,8 @@ export function buildFramePayload(): DesignPayload {
 // ── Folio ────────────────────────────────────────────────────────────────────
 // Magazine masthead (giant stacked words + B&W cover), Contents index,
 // the book as shared W-12 chapter blocks (sticky numeral + title + credit,
-// 1 large + 2 smaller), shared comp-card measure strip, a rate card of rows.
+// 1 large + 2 smaller), shared comp-card measure strip, a rate card of rows,
+// and a shared statement footer (statement / credit / contact).
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
   const hero = heroMasthead(id, {
@@ -482,6 +484,14 @@ export function buildFolioPayload(): DesignPayload {
         showDelivery: true,
       }),
       contactSection(id, { heading: "Next issue", faqHeading: "Questions" }),
+      statementFooterBlock(id, {
+        statement:
+          "Available for editorial, campaign, and portrait commissions.",
+        creditLine: "{{displayName}}",
+        contactLine: "Inquire for bookings",
+        align: "center",
+        showRule: true,
+      }),
     ],
   };
 }

@@ -55,6 +55,8 @@ export type BuilderNodeKind =
   | "contents"
   /** Masthead — giant stacked words + optional B&W cover (W-10 hero variant). */
   | "masthead"
+  /** Statement footer — short editorial statement + optional credit / contact. */
+  | "statement_footer"
   /** Comp card — live measure strip from public profile fields + visibility. */
   | "comp_card"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
@@ -1434,6 +1436,28 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
 }
 
 /**
+ * Statement footer — short editorial closing statement with optional credit
+ * and contact lines. Shared widget; Designs stamp via `statementFooterBlock`.
+ */
+export interface BuilderStatementFooterNode extends BuilderNodeBase {
+  kind: "statement_footer";
+  props: {
+    /** Main closing statement (one or two sentences). */
+    statement?: string;
+    /** Optional credit under the statement (often the name). */
+    creditLine?: string;
+    /** Optional contact / inquire line. */
+    contactLine?: string;
+    /** Horizontal alignment of the band. */
+    align?: "start" | "center";
+    /** Hairline rule above the statement (default true). */
+    showRule?: boolean;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Comp card — live measure strip bound to public profile field values.
  * Inspector controls which measures show, labels, and full-details disclosure.
  * Hidden when empty; never invents measurements. Designs stamp via `compCardBlock`.
@@ -2509,6 +2533,7 @@ export type BuilderNode =
   | BuilderVisitNode
   | BuilderContentsNode
   | BuilderMastheadNode
+  | BuilderStatementFooterNode
   | BuilderCompCardNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode

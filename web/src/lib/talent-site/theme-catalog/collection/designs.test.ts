@@ -228,6 +228,12 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     slotKey?: string;
     originRole?: string;
   }> = [];
+  const statementFooters: Array<{
+    kind?: string;
+    props?: Record<string, unknown>;
+    slotKey?: string;
+    originRole?: string;
+  }> = [];
   const walk = (nodes: unknown) => {
     if (!Array.isArray(nodes)) return;
     for (const n of nodes) {
@@ -255,6 +261,9 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
       if (node.kind === "comp_card") {
         compCards.push({ kind: node.kind, props: node.props });
       }
+      if (node.kind === "statement_footer") {
+        statementFooters.push({ kind: node.kind, props: node.props });
+      }
       if (
         node.kind === "container" &&
         node.props?.slotKey === "hero" &&
@@ -273,6 +282,18 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
         node.props?.originRole === "talent.comp_card"
       ) {
         compCards.push({
+          kind: node.kind,
+          props: node.props,
+          slotKey: node.props.slotKey as string,
+          originRole: node.props.originRole as string,
+        });
+      }
+      if (
+        node.kind === "container" &&
+        node.props?.slotKey === "statement_footer" &&
+        node.props?.originRole === "talent.statement_footer"
+      ) {
+        statementFooters.push({
           kind: node.kind,
           props: node.props,
           slotKey: node.props.slotKey as string,
@@ -324,6 +345,19 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-12 project-story chapters"));
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-11 C2 contents page"));
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-10 W3 stacked masthead"));
+  const statementNodes = statementFooters.filter((s) => s.kind === "statement_footer");
+  assert.equal(statementNodes.length, 1, "folio stamps shared statement_footer kind");
+  assert.match(
+    String(statementNodes[0]!.props?.statement ?? ""),
+    /editorial, campaign, and portrait/,
+  );
+  assert.equal(statementNodes[0]!.props?.creditLine, "{{displayName}}");
+  assert.equal(statementNodes[0]!.props?.contactLine, "Inquire for bookings");
+  assert.ok(
+    statementFooters.some(
+      (s) => s.slotKey === "statement_footer" && s.originRole === "talent.statement_footer",
+    ),
+  );
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
   assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
 });
