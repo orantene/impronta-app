@@ -3,7 +3,6 @@
  * Reads `gallery-meta` only; no React, no DOM beyond guarded sessionStorage.
  */
 import {
-  GALLERY_DESIGNS,
   GALLERY_EMPTY_SUGGESTIONS,
   GALLERY_PROFESSIONS,
   GALLERY_STYLE_TAGS,
@@ -12,6 +11,7 @@ import {
   searchGallery,
   splitQuery,
   tagCounts,
+  visibleGalleryDesigns,
   type GalleryCategoryChip,
   type GalleryFeatureTag,
   type GalleryProfession,
@@ -103,7 +103,7 @@ export function deriveGalleryView(s: GalleryBrowseState): GalleryBrowseView {
 }
 
 function emptySuggestions() {
-  const present = new Set(GALLERY_DESIGNS.flatMap((d) => d.professions));
+  const present = new Set(visibleGalleryDesigns().flatMap((d) => d.professions));
   return GALLERY_EMPTY_SUGGESTIONS.filter((x) => present.has(x.profession));
 }
 
@@ -147,7 +147,7 @@ export function gallerySearchSuggestions(input: string, locale: "en" | "es", max
     }
   }
   // Theme names match too.
-  for (const d of GALLERY_DESIGNS) {
+  for (const d of visibleGalleryDesigns()) {
     if (normalizeSearchText(d.name).startsWith(normalizeSearchText(last))) {
       out.push({ kind: "profession", label: d.name, query: d.name, demos: d.demos.length, themes: 1 });
     }

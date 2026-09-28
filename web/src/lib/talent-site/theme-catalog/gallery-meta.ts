@@ -335,6 +335,29 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
   }),
 ];
 
+// ── Visibility: finished designs only ───────────────────────────────────────
+
+/**
+ * Designs that are finished (10/10) and offered in the gallery by default.
+ * Solace, Mono and Frame stay in code (previews, saved sites keep working)
+ * but are hidden until they reach the bar. Set
+ * `TALENT_GALLERY_EXTRA_DESIGNS=1` (server) or
+ * `NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS=1` (client bundle) to show them.
+ */
+export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio"];
+
+export function galleryExtraDesignsEnabled(): boolean {
+  return (
+    process.env.NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS === "1" ||
+    (typeof process !== "undefined" && process.env?.TALENT_GALLERY_EXTRA_DESIGNS === "1")
+  );
+}
+
+/** Designs the gallery shows: the finished three, or all with the flag on. */
+export function visibleGalleryDesigns(showExtra: boolean = galleryExtraDesignsEnabled()): readonly GalleryDesign[] {
+  return showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
+}
+
 export function getGalleryDesign(slug: string): GalleryDesign | undefined {
   const s = slug.trim().toLowerCase();
   return GALLERY_DESIGNS.find((d) => d.slug === s);
@@ -390,6 +413,8 @@ export type GallerySearchInput = {
   featureTags?: GalleryFeatureTag[];
   /** Combined talents: only reorders (designs with a demo covering 2+ searched professions first). */
   combined?: boolean;
+  /** Override the extra-designs flag (tests); defaults to the env flag. */
+  showExtra?: boolean;
 };
 
 export type GallerySearchResult = {
@@ -428,7 +453,8 @@ export function searchGallery(input: GallerySearchInput = {}): GallerySearchOutp
   const features = input.featureTags ?? [];
 
   const results: GallerySearchResult[] = [];
-  for (const d of GALLERY_DESIGNS) {
+  const designs = visibleGalleryDesigns(input.showExtra);
+  for (const d of designs) {
     // Filters: any selected chip, any selected style, every selected feature.
     if (chips.length && !chips.some((c) => d.categoryChips.includes(c))) continue;
     if (styles.length && !styles.some((s) => d.styleTags.includes(s))) continue;
@@ -460,7 +486,7 @@ export function searchGallery(input: GallerySearchInput = {}): GallerySearchOutp
     results.sort((a, b) => Number(b.combinesBoth) - Number(a.combinesBoth));
   }
 
-  const present = new Set(GALLERY_DESIGNS.flatMap((d) => d.professions));
+  const present = new Set(designs.flatMap((d) => d.professions));
   return {
     results,
     demoCount: results.reduce((n, r) => n + r.matchingDemos.length, 0),
@@ -499,20 +525,31 @@ const CHIP_SUGGESTIONS: Record<GalleryCategoryChip, string[]> = {
 };
 
 /** Up to 2 design slugs for a primary trade label (EN or ES, free text). */
-export function suggestedDesignsForTrade(primaryTypeLabel: string | null | undefined): string[] {
+export function suggestedDesignsForTrade(
+  primaryTypeLabel: string | null | undefined,
+  showExtra: boolean = galleryExtraDesignsEnabled(),
+): string[] {
+  const visible = new Set(visibleGalleryDesigns(showExtra).map((d) => d.slug));
+  // Hidden designs drop out; the finished ones fill in so a trade still gets two.
+  const pick = (slugs: string[]) => [...new Set([...slugs, ...FINISHED_GALLERY_SLUGS])].filter((s) => visible.has(s)).slice(0, 2);
+  const raw = suggestedDesignsForTradeAll(primaryTypeLabel);
+  return raw.length ? pick(raw) : [];
+}
+
+function suggestedDesignsForTradeAll(primaryTypeLabel: string | null | undefined): string[] {
   const label = normalizeSearchText(primaryTypeLabel ?? "");
   if (!label) return [];
   const direct = (GALLERY_CATEGORY_CHIPS as readonly string[]).find((c) => c === label.replace(/[\s-]+/g, "_"));
-  if (direct) return CHIP_SUGGESTIONS[direct as GalleryCategoryChip].slice(0, 2);
+  if (direct) return CHIP_SUGGESTIONS[direct as GalleryCategoryChip];
   const chipWords: Record<string, GalleryCategoryChip> = { belleza: "beauty", modelos: "models", musica: "music", comida: "food", bienestar: "wellness", creativo: "creative", eventos: "events" };
-  for (const [w, chip] of Object.entries(chipWords)) if (label.includes(w)) return CHIP_SUGGESTIONS[chip].slice(0, 2);
+  for (const [w, chip] of Object.entries(chipWords)) if (label.includes(w)) return CHIP_SUGGESTIONS[chip];
   for (const word of [label, ...label.split(/[\s,&/-]+/)]) {
     const profs = professionsForTerm(word);
     if (profs.length) {
       // Designs whose demos cover that profession first, then the chip default.
       const own = GALLERY_DESIGNS.filter((d) => d.demos.some((x) => x.status === "built" && x.professions.includes(profs[0]!))).map((d) => d.slug);
       const chip = CHIP_SUGGESTIONS[GALLERY_PROFESSIONS[profs[0]!].chip];
-      return [...new Set([...(GALLERY_PROFESSIONS[profs[0]!].chip === "beauty" ? chip : own), ...chip])].slice(0, 2);
+      return [...new Set([...(GALLERY_PROFESSIONS[profs[0]!].chip === "beauty" ? chip : own), ...chip])];
     }
   }
   return [];

@@ -4,6 +4,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+// These suites cover the full catalog; the default three-design view is
+// covered in gallery-visibility.test.ts.
+process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
+
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { MAISON_PALETTES, MAISON_PALETTE_ORDER, maisonPaletteLookTokens } from "./maison/seed";
 import { DEMOS } from "../../../../scripts/demo-talents/demos";
