@@ -112,7 +112,10 @@ test("W40: My website card has Live + View / Change / Design options", () => {
   assert.match(card, /maison-view-website/);
   assert.match(card, /maison-change-design/);
   assert.match(card, /maison-design-options/);
-  assert.match(card, /● Live/);
+  assert.match(card, /data-testid="maison-live-pill"/);
+  assert.match(card, /maison-edit-site/);
+  assert.match(card, /maison-restore-previous/);
+  assert.match(card, /liveDesignName/);
   assert.match(card, /DesignOptionsPanel/);
   assert.equal(/Design options open in a later step/.test(card), false);
 });

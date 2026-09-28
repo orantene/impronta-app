@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -10,12 +9,12 @@ export function WebOfficeReturnBanner() {
   const studio = useTalentStudioV2();
   const copy = useDashboardText();
   const params = useSearchParams();
-  const { bridgeTalentPlanTrial, bridgeTalentSelfProfile } = useAdminShell();
+  const { bridgeTalentPlanTrial } = useAdminShell();
   if (!studio) return null;
   const checkout = params.get("checkout");
   const trial = bridgeTalentPlanTrial;
-  const plan = (bridgeTalentSelfProfile as { plan?: string } | null)?.plan;
-  const isFree = !plan || plan === "talent_basic" || plan === "free";
+  // No stray spacer: render only when there is a note to show.
+  if (!checkout && !trial) return null;
 
   return (
     <div className="mb-4 space-y-3 font-admin-body text-[13px]">
@@ -25,16 +24,6 @@ export function WebOfficeReturnBanner() {
       {checkout === "done" && <Note>{copy.t("Web Office is on.")}</Note>}
       {trial?.active && <Note>{copy.t("Trial is active. No custom domain during the trial.")}</Note>}
       {trial && !trial.active && <Note>{copy.t("The trial has ended.")}</Note>}
-      {isFree && (
-        <p className="text-admin-ink-muted">
-          {copy.t("Edit site")} · {copy.t("Hidden on Free")}
-        </p>
-      )}
-      {!isFree && (
-        <Link href="/talent/page-builder" className="font-semibold text-admin-brand">
-          {copy.t("Edit site")}
-        </Link>
-      )}
     </div>
   );
 }

@@ -19,7 +19,7 @@ test("AUD-034: Maison flag on hides the legacy starter-template gallery", () => 
   assert.match(mgr, /onEnabledChange=\{setMaisonSetupEnabled\}/);
   assert.match(
     mgr,
-    /\{maisonLive \|\| maisonSetupEnabled \? null : \(\s*<ManagerThemeGallery/,
+    /\{hostHidden \|\| maisonSetupEnabled \? null : \(\s*<>\s*<ManagerThemeGallery/,
   );
   // Flag off: default false keeps the legacy gallery unchanged.
   assert.match(mgr, /const \[maisonSetupEnabled, setMaisonSetupEnabled\] = useState\(false\)/);
