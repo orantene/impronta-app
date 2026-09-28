@@ -243,7 +243,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         dirty={dirty}
         onDiscard={discard}
         onSave={() => void save()}
-        labels={{ discard: t("Discard"), save: t("Save"), saving: t("Saving…"), retry: t("Retry save") }}
+        labels={{ discard: t("Discard"), save: t("Save"), saving: t("Saving…"), retry: t("Retry save"), nothing: t("No changes yet. Edit a setting to save.") }}
       />
 
       {confirmExit ? (

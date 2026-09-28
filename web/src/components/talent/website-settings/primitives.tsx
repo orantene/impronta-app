@@ -48,16 +48,21 @@ export function SaveBar({
   dirty: boolean;
   onDiscard: () => void;
   onSave: () => void;
-  labels: { discard: string; save: string; saving: string; retry: string };
+  labels: { discard: string; save: string; saving: string; retry: string; nothing: string };
 }) {
   const failed = status === "failed";
   const saving = status === "saving";
+  const idle = !dirty && !failed && !saving;
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 mt-6 flex gap-2.5 border-t border-admin-border-soft bg-white px-4 py-3">
+    <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-admin-border-soft bg-white px-4 py-3">
+      {/* Disabled buttons always say why. */}
+      {idle ? <p id="ws-savebar-why" className="mb-2 text-[12.5px] text-admin-ink-muted">{labels.nothing}</p> : null}
+      <div className="flex gap-2.5">
       <button
         type="button"
         onClick={onDiscard}
         disabled={(!dirty && !failed) || saving}
+        aria-describedby={idle ? "ws-savebar-why" : undefined}
         className={`${TARGET} flex-1 rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] font-semibold text-admin-ink disabled:opacity-40`}
       >
         {labels.discard}
@@ -66,10 +71,12 @@ export function SaveBar({
         type="button"
         onClick={onSave}
         disabled={(!dirty && !failed) || saving}
+        aria-describedby={idle ? "ws-savebar-why" : undefined}
         className={`${TARGET} flex-[2] rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-40`}
       >
         {saving ? labels.saving : failed ? labels.retry : labels.save}
       </button>
+      </div>
     </div>
   );
 }
@@ -250,7 +257,7 @@ export function Stepper({
   lessLabel: string;
   moreLabel: string;
 }) {
-  const btn = "flex size-[44px] items-center justify-center rounded-lg border border-admin-border-soft bg-white text-[18px] text-admin-ink disabled:opacity-40";
+  const btn = "flex size-[44px] items-center justify-center rounded-lg border border-admin-border-soft bg-white text-[18px] text-admin-ink";
   return (
     <div className="flex items-center justify-between gap-3 border-b border-admin-border-soft py-3 last:border-b-0">
       <span className="min-w-0">
@@ -258,11 +265,11 @@ export function Stepper({
         {detail ? <span className="mt-0.5 block text-[12.5px] text-admin-ink-muted">{detail}</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-2">
-        <button type="button" aria-label={`${lessLabel}: ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))} className={btn}>
+        <button type="button" aria-label={`${lessLabel}: ${label}`} onClick={() => onChange(Math.max(min, value - step))} className={btn}>
           −
         </button>
         <output className="min-w-[64px] text-center text-[14px] font-semibold text-admin-ink">{display}</output>
-        <button type="button" aria-label={`${moreLabel}: ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))} className={btn}>
+        <button type="button" aria-label={`${moreLabel}: ${label}`} onClick={() => onChange(Math.min(max, value + step))} className={btn}>
           +
         </button>
       </span>

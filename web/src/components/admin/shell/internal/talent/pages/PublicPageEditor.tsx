@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
@@ -10,6 +10,7 @@ import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeState
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { WebsiteSettingsScreen } from "@/components/talent/website-settings/WebsiteSettingsScreen";
 import { NavRow } from "@/components/talent/website-settings/primitives";
+import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
 import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
 import { useAdminShell } from "../../state";
 import { useDashboardText } from "../../dashboard-i18n";
@@ -34,7 +35,20 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const talentId = bridgeTalentSelfProfile?.id ?? null;
+  // Dark launch (TALENT_WEBSITE_SETTINGS_ENABLED): flag off → no entry row, no screen.
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void loadWebsiteSettingsEnabledAction()
+      .then((on) => {
+        if (live) setSettingsEnabled(on);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const talentId = settingsEnabled ? (bridgeTalentSelfProfile?.id ?? null) : null;
   if (settingsOpen && talentId) {
     return <WebsiteSettingsScreen talentId={talentId} onClose={() => setSettingsOpen(false)} />;
   }

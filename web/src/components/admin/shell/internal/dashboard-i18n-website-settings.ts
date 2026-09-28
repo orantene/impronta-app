@@ -39,8 +39,8 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Custom": "Propio",
   "Inherited": "Heredado",
   "Custom for this service": "Propio de este servicio",
-  "Your default is Inquiry only. Switch it to Instant booking to let a service book instantly.":
-    "Tu ajuste por defecto es Solo consulta. Cámbialo a Reserva inmediata para que un servicio se reserve al instante.",
+  "Services follow 'Inquiry only' right now. Switch your default to change a service.":
+    "Tus servicios siguen 'Solo consulta' por ahora. Cambia tu opción predeterminada para modificar un servicio.",
   "Untitled service": "Servicio sin nombre",
   "Preparation before": "Preparación antes",
   "Blocked before the appointment. Clients don't see it.": "Se bloquea antes de la cita. Tus clientes no lo ven.",
@@ -75,4 +75,5 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Free cancelling until {c} h": "Cancela gratis hasta {c} h",
   "Nothing sooner than this can be booked. Editing it here comes later.":
     "No se puede reservar nada con menos aviso. Podrás editarlo aquí más adelante.",
+  "No changes yet. Edit a setting to save.": "Aún no hay cambios. Edita un ajuste para guardar.",
 };

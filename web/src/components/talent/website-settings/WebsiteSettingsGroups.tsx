@@ -134,7 +134,7 @@ export function BookingGroup({ t, draft, setDefaults, services, setService }: Gr
         editor={(s) => {
           const lockedByDefault =
             posture === "inquiry"
-              ? t("Your default is Inquiry only. Switch it to Instant booking to let a service book instantly.")
+              ? t("Services follow 'Inquiry only' right now. Switch your default to change a service.")
               : null;
           const noPrice = s.canBookInstantly ? null : t("Needs a fixed price and its booking details first. Set them in Services.");
           const mode = modeOf(s);
