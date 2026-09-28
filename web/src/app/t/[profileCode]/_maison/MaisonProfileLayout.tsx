@@ -182,16 +182,20 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
         localeSwitch={localeSwitch}
       />
 
-      {/* ── HERO ─────────────────────────────────────────────────────── */}
+      {/* ── HERO ───────────────────────────────────────────────────────
+          AUD-045: hero is never data-mn-reveal. Scroll-reveal would blank
+          first paint (opacity 0 while .mn-armed waits for the stagger). The
+          hero must be visible at rest with no animation wait — same contract
+          as NoirReveal (hero not marked reveal). Below-fold keeps reveal. */}
       <section className="mn-hero mn-shell" id="mn-hero">
         <div className="mn-hero-grid">
           <div className="mn-hero-copy">
             {content.heroKicker ? (
-              <p className="mn-kicker" data-mn-reveal>
+              <p className="mn-kicker">
                 {content.heroKicker}
               </p>
             ) : null}
-            <h1 className="mn-display" data-mn-reveal style={{ "--mn-delay": "70ms" } as React.CSSProperties}>
+            <h1 className="mn-display">
               {content.heroTitle}
               {content.heroTitleAccent ? (
                 <>
@@ -201,11 +205,11 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
               ) : null}
             </h1>
             {content.heroLead ? (
-              <p className="mn-lead" data-mn-reveal style={{ "--mn-delay": "150ms" } as React.CSSProperties}>
+              <p className="mn-lead">
                 {content.heroLead}
               </p>
             ) : null}
-            <div className="mn-hero-actions" data-mn-reveal style={{ "--mn-delay": "230ms" } as React.CSSProperties}>
+            <div className="mn-hero-actions">
               <a className="mn-btn mn-btn-primary" href="#servicios">
                 {c.heroPrimary}
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -217,7 +221,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
               </a>
             </div>
             {content.heroFacts?.length ? (
-              <ul className="mn-hero-facts" data-mn-reveal style={{ "--mn-delay": "300ms" } as React.CSSProperties}>
+              <ul className="mn-hero-facts">
                 {content.heroFacts.map((f) => (
                   <li key={f}>{f}</li>
                 ))}
@@ -226,7 +230,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
           </div>
 
           <div className="mn-hero-media">
-            <div className="mn-hero-main" data-mn-reveal="media">
+            <div className="mn-hero-main">
               {content.heroImageUrl ? (
                 <Image
                   src={content.heroImageUrl}
@@ -239,7 +243,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
               ) : null}
             </div>
             {content.heroInsetUrl ? (
-              <div className="mn-hero-inset" data-mn-reveal="media" style={{ "--mn-delay": "260ms" } as React.CSSProperties}>
+              <div className="mn-hero-inset">
                 <Image src={content.heroInsetUrl} alt="" fill sizes="240px" className="object-cover" />
               </div>
             ) : null}

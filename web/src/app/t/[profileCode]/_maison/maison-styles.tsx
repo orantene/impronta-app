@@ -11,9 +11,10 @@
  *   - Two radii: 10px (controls) and 18px (surfaces/media). Nothing else.
  *   - Hierarchy from type size, italic accents and whitespace — not from
  *     borders, cards and shadows. One shadow in the sheet (the booking sheet).
- *   - Motion is part of the design, not decoration: a staggered hero reveal,
- *     a service marquee, scroll-in sections, image scale on hover. EVERY rule
- *     collapses under prefers-reduced-motion, and nothing is hidden by
+ *   - Motion is part of the design, not decoration: a service marquee,
+ *     scroll-in sections below the hero, image scale on hover. The hero is
+ *     never reveal-gated (AUD-045: visible at rest, no animation wait). EVERY
+ *     rule collapses under prefers-reduced-motion, and nothing is hidden by
  *     JavaScript that JavaScript cannot restore (reveal targets start visible
  *     and are only armed once the runtime mounts).
  *
@@ -356,7 +357,7 @@ h3.mn-display { font-size: 1.625rem; line-height: 1.15; letter-spacing: -0.02em;
 .mn-empty p { margin: 0 auto; max-width: 42ch; color: var(--mn-ink-2); font-size: 0.9375rem; }
 .mn-disclaimer { margin: 28px 0 0; font-size: 0.8125rem; color: var(--mn-ink-2); }
 
-/* ── Motion: scroll reveal + hero stagger ─────────────────────────────── */
+/* ── Motion: scroll reveal (below-fold only; hero is never data-mn-reveal) ─ */
 @keyframes mn-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 [data-mn-reveal] { opacity: 1; }
 .mn-armed [data-mn-reveal] { opacity: 0; transform: translateY(26px); transition: opacity 760ms var(--mn-ease), transform 760ms var(--mn-ease); transition-delay: var(--mn-delay, 0ms); }

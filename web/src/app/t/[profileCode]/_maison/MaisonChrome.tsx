@@ -15,6 +15,9 @@
  * never be blanked by its own animation. Reduced-motion users get the same
  * arming with the transitions collapsed by the stylesheet, plus this component
  * shows everything immediately rather than waiting on the observer.
+ *
+ * AUD-045: the hero is NOT marked `[data-mn-reveal]` (see MaisonProfileLayout).
+ * Arming must never blank first paint of the above-the-fold hero.
  */
 
 import Image from "next/image";
@@ -174,8 +177,9 @@ export function MaisonMotion() {
     );
     targets.forEach((el) => io.observe(el));
 
-    // Anything already on screen at mount (the hero) reveals on the next frame
-    // so its transition still plays instead of snapping.
+    // Anything already on screen at mount (below-fold sections that still
+    // peek into the viewport) reveals on the next frame so the transition
+    // plays instead of snapping. The hero is excluded from reveal targets.
     const raf = window.requestAnimationFrame(() => {
       targets.forEach((el) => {
         if (el.getBoundingClientRect().top < window.innerHeight * 0.9) {
