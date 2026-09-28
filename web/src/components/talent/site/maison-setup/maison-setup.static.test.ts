@@ -14,26 +14,28 @@ function read(name: string): string {
   return readFileSync(join(ROOT, name), "utf8");
 }
 
-test("W75: Choose a design has no search or filter controls", () => {
+test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /data-maison-choose-design/);
-  assert.match(src, /no search input and no filter chips/);
   assert.match(src, /maison-gallery-back/);
-  assert.match(src, /Find your website style/);
-  assert.equal(/type=["']search["']/.test(src), false);
-  assert.equal(/placeholder=\{?["'].*Search/.test(src), false);
-  assert.equal(/filter/i.test(src) && /<input/.test(src), false);
+  assert.match(src, /<GalleryBrowseScreen/);
+  const gallery = read("GalleryBrowseScreen.tsx");
+  assert.match(gallery, /t\("Find your website style"\)/);
+  assert.match(gallery, /t\("Search a profession or theme"\)/);
+  assert.match(gallery, /t\("Reset filters"\)/);
+  assert.match(gallery, /t\("Last viewed"\)/);
+  assert.match(gallery, /GALLERY_DESIGNS/);
+  assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
+  assert.equal(gallery.includes("—"), false, "no em dashes");
 });
 
-test("cr_gallery chrome: Today back + close + hero hierarchy", () => {
+test("cr_gallery chrome: Today back + close above the gallery hero", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /maisonSetupT\(locale, "Today"\)/);
   assert.match(src, /maison-gallery-close/);
-  assert.match(src, /Find your website style/);
-  // Hero is the large heading; chrome title is Choose a design
-  const heroIdx = src.indexOf('maisonSetupT(locale, "Find your website style")');
   const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
-  assert.ok(chooseIdx > 0 && heroIdx > chooseIdx);
+  const galleryIdx = src.indexOf("<GalleryBrowseScreen");
+  assert.ok(chooseIdx > 0 && galleryIdx > chooseIdx);
 });
 
 test("PDF primary CTAs use admin-ink (black), not emerald", () => {
