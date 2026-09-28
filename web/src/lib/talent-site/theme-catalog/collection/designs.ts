@@ -8,8 +8,8 @@
  *
  * Mockup sources (Theme Review artifacts): Maison v2 = the Rosé proposal,
  * Solace, Mono, Frame, Folio. Gaps vs the mockups are listed per design in
- * `COLLECTION_DESIGN_GAPS` (missing shared widgets: W-12 portfolio, W-14
- * reviews, W-10 words, marquee/filmstrip, header nav styles).
+ * `COLLECTION_DESIGN_GAPS` (missing shared widgets / header nav styles /
+ * Folio chapters as listed per design).
  *
  * Gated with Maison: `isMaisonCatalogSlug` treats every collection slug as
  * flag-owned, so only `TALENT_MAISON_THEME_ENABLED` talents see them.
@@ -24,6 +24,7 @@ import {
   aboutBlock,
   buildKitShell,
   portfolioBlock,
+  reviewsBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -214,7 +215,7 @@ function withChild(node: BuilderNode, child: BuilderNode): BuilderNode {
 // Split hero with desktop inset photo, Bodoni italic name (typography token),
 // next-free chip (slots API), recent work BEFORE the menu, the menu as
 // image-led rows with a sticky category rail (chips on phone), about, then
-// visit + FAQ on a soft band.
+// visit + FAQ on a soft band, then live-bound reviews quote cards.
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   const hero = tuneHeading(
@@ -249,6 +250,12 @@ export function buildMaisonV2Payload(): DesignPayload {
       }),
       aboutBlock(id, { align: "start", accent: true }),
       contactSection(id, { heading: "Before your visit", faqHeading: "Questions", band: true }),
+      reviewsBlock(id, {
+        layout: "row",
+        heading: "What clients say",
+        eyebrow: "Reviews",
+        autoplayMs: 5500,
+      }),
     ],
   };
 }
@@ -477,7 +484,7 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
 
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
-  "maison-v2": ["W-14 bound reviews"],
+  "maison-v2": [],
   solace: ["overlay menu nav style", "W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe", "filter-bar header style"],

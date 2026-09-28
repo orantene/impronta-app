@@ -72,6 +72,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "menu_board",
   "services_catalog",
   "portfolio",
+  "reviews",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1114,6 +1115,21 @@ export const portfolioPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** W-14 Reviews — live talent_reviews quote cards on the shared slider. */
+export const reviewsPropsSchema = z.object({
+  layout: z.enum(["trio", "single", "row"]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  limit: z.number().int().min(1).max(24).optional(),
+  showRating: z.boolean().optional(),
+  autoplayMs: z.number().int().min(0).max(60000).optional(),
+  loop: z.boolean().optional(),
+  showArrows: z.boolean().optional(),
+  showDots: z.boolean().optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Next free time chip — live slots API; hidden when empty. */
 export const nextFreeChipPropsSchema = z.object({
   offeringId: z.string().max(80).optional(),
@@ -2099,6 +2115,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Live photos from the talent's media library. Filmstrip, grid, masonry or contact sheet; each shot can open a service.",
       children: { type: "none" },
       propsSchema: portfolioPropsSchema,
+    },
+    reviews: {
+      kind: "reviews",
+      label: "Reviews",
+      description:
+        "Live client reviews as quote cards. Trio, single, or row on the shared slider. Hidden when there are none.",
+      children: { type: "none" },
+      propsSchema: reviewsPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

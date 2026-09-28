@@ -22,6 +22,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio-defaults";
+import { REVIEWS_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/reviews-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next-free-chip-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
@@ -41,6 +42,7 @@ export const TALENT_KIT_SECTIONS = {
   about: { slotKey: "about", originRole: "talent.about" },
   services: { slotKey: "services", originRole: "talent.services" },
   gallery: { slotKey: "gallery", originRole: "talent.gallery" },
+  reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
 } as const;
 
@@ -653,6 +655,45 @@ export function portfolioBlock(
           columns: opts.columns ?? (opts.layout === "contact_sheet" ? 4 : opts.layout === "masonry" ? 2 : 3),
           title: opts.heading ?? "Recent work",
           showCaptions: opts.showCaptions === true,
+        },
+      },
+    ],
+  } as BuilderNode;
+}
+
+/**
+ * W-14 Reviews — live-bound talent_reviews quote cards on the shared slider.
+ * Hidden on the published site when there are no quotes.
+ */
+export function reviewsBlock(
+  makeId: KitIdFactory,
+  opts: {
+    layout?: "trio" | "single" | "row";
+    heading?: string;
+    eyebrow?: string;
+    autoplayMs?: number;
+  } = {},
+): BuilderNode {
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampKitSection("reviews", {
+      layout: "stack",
+      gap: "m",
+      align: "start",
+      layerLabel: "Reviews",
+      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "reviews",
+        props: {
+          ...REVIEWS_DEFAULT_PROPS,
+          layout: opts.layout ?? "row",
+          title: opts.heading ?? "What clients say",
+          eyebrow: opts.eyebrow ?? "",
+          autoplayMs: opts.autoplayMs ?? REVIEWS_DEFAULT_PROPS.autoplayMs,
         },
       },
     ],

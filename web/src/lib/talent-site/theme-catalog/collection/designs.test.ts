@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 import { validateDesign } from "../validate";
 import { isMaisonCatalogSlug } from "../maison/catalog-visibility";
-import { COLLECTION_DESIGNS, isCollectionDesignSlug } from "./designs";
+import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS, isCollectionDesignSlug } from "./designs";
 
 for (const d of COLLECTION_DESIGNS) {
   test(`${d.slug} validates as a Design`, () => {
@@ -103,4 +103,26 @@ test("maison-v2 hero has inset, italic accent name, next_free_chip, and no revea
   assert.match(json, /gallery1/);
   assert.match(json, /token:typography\.heading-font-family/);
   assert.doesNotMatch(json, /#[0-9a-fA-F]{3,8}/);
+});
+
+/** W-14 — Maison v2 binds live reviews quote cards after visit/FAQ. */
+test("maison-v2 includes reviews block on shared slider and clears W-14 gap", () => {
+  const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2");
+  assert.ok(maison);
+  const payload = maison!.buildPayload();
+  const found: Array<Record<string, unknown>> = [];
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const node = n as { kind?: string; props?: Record<string, unknown>; children?: unknown };
+      if (node.kind === "reviews" && node.props) found.push(node.props);
+      walk(node.children);
+    }
+  };
+  walk(payload.homeTree);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].layout, "row");
+  assert.equal(found[0].title, "What clients say");
+  assert.ok(!COLLECTION_DESIGN_GAPS["maison-v2"]?.includes("W-14 bound reviews"));
 });

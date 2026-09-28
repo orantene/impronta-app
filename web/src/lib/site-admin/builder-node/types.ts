@@ -47,6 +47,8 @@ export type BuilderNodeKind =
   | "services_catalog"
   /** W-12 — live-bound talent media (filmstrip / grid / masonry / contact sheet). */
   | "portfolio"
+  /** W-14 — live-bound talent_reviews quote cards (trio / single / row). */
+  | "reviews"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1316,6 +1318,29 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
 }
 
 /**
+ * W-14 Reviews — live talent_reviews quote cards on the shared carousel rail.
+ * Layouts: trio (3-up), single (one hero quote), row (peeking rail).
+ * Hidden when there are no published quotes; never invents reviews.
+ */
+export interface BuilderReviewsNode extends BuilderNodeBase {
+  kind: "reviews";
+  props: {
+    layout?: "trio" | "single" | "row";
+    eyebrow?: string;
+    title?: string;
+    limit?: number;
+    showRating?: boolean;
+    /** Rail autoplay interval in ms; 0 / omit with falsey disables. */
+    autoplayMs?: number;
+    loop?: boolean;
+    showArrows?: boolean;
+    showDots?: boolean;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Next free time chip — fetches `/api/public/booking/slots` for a bookable
  * offering (authored id, or the first slot-eligible offering on the page).
  * Renders nothing when the list is empty.
@@ -2341,6 +2366,7 @@ export type BuilderNode =
   | BuilderMenuBoardNode
   | BuilderServicesCatalogNode
   | BuilderPortfolioNode
+  | BuilderReviewsNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

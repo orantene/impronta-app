@@ -63,6 +63,8 @@ export type NativeDataBlockNeeds = {
   servicesCatalog: boolean;
   /** W-12 live portfolio media. */
   portfolio: boolean;
+  /** W-14 live talent_reviews quote cards. */
+  reviews: boolean;
   /** Maison FAQ accordion with `bindSource: "talent_faq_items"`. */
   talentFaq: boolean;
   /** Every native `featured_talent` node in the tree, in document order. */
@@ -146,6 +148,7 @@ export function collectNativeDataBlockNeeds(
   let menuBoard = false;
   let servicesCatalog = false;
   let portfolio = false;
+  let reviews = false;
   let talentFaq = false;
   let needsTalentLocations = false;
   const featuredTalent: NativeFeaturedTalentNeed[] = [];
@@ -172,6 +175,9 @@ export function collectNativeDataBlockNeeds(
     }
     if (node.kind === "portfolio") {
       portfolio = true;
+    }
+    if (node.kind === "reviews") {
+      reviews = true;
     }
     if (
       node.kind === "accordion" &&
@@ -256,6 +262,7 @@ export function collectNativeDataBlockNeeds(
     menuBoard,
     servicesCatalog,
     portfolio,
+    reviews,
     talentFaq,
     featuredTalent,
     needsTalentLocations,

@@ -18,6 +18,7 @@ import {
   contactBlock,
   galleryBlock,
   portfolioBlock,
+  reviewsBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -56,6 +57,8 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["galleryBlock grid", galleryBlock(ids(), { mode: "grid", columns: 2 })],
   ["portfolioBlock filmstrip", portfolioBlock(ids(), { layout: "filmstrip" })],
   ["portfolioBlock contact_sheet", portfolioBlock(ids(), { layout: "contact_sheet", columns: 4 })],
+  ["reviewsBlock row", reviewsBlock(ids(), { layout: "row" })],
+  ["reviewsBlock trio", reviewsBlock(ids(), { layout: "trio", heading: "Client words" })],
   ["contactBlock", contactBlock(ids(), { heading: "Get in touch" })],
 ];
 
