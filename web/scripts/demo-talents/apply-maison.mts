@@ -20,7 +20,7 @@ import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-s
 import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
 import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
-import { DEMO_BATCH } from "./demos";
+import { DEMO_BATCH, DEMOS } from "./demos";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -47,14 +47,16 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
 };
 if (manifest.targetRef !== targetRef) throw new Error(`manifest is for ${manifest.targetRef}`);
 
-const design = await loadMaisonCatalogRow(admin, "design", "maison");
-if (!design) throw new Error("Maison design row not found");
+// Each demo's own Design (demos.ts `theme`); --design overrides for all.
+const designOverride = opt("--design");
+const designFor = (code: string) =>
+  designOverride ?? DEMOS.find((d) => d.profileCode === code)?.theme ?? "maison";
 
 const entries = Object.values(manifest.entries)
   .filter((e) => !only || only.includes(e.profileCode))
   .sort((a, b) => a.profileCode.localeCompare(b.profileCode));
 
-for (const [i, e] of entries.entries()) {
+for (const e of entries) {
   if (!/^TAL-93\d{3}$/.test(e.profileCode) || !e.email.endsWith("@impronta.test")) {
     throw new Error(`REFUSE: not a demo entry ${e.profileCode}`);
   }
@@ -79,10 +81,13 @@ for (const [i, e] of entries.entries()) {
   // others so the ten sites don't all look the same.
   const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
     ? MAISON_PALETTE_ORDER[0]
-    : MAISON_PALETTE_ORDER[(i % (MAISON_PALETTE_ORDER.length - 1)) + 1];
+    : MAISON_PALETTE_ORDER[((Number(e.profileCode.slice(-3)) - 1) % (MAISON_PALETTE_ORDER.length - 1)) + 1];
   const look = await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
   if (!look) throw new Error(`look maison-${paletteKey} not found`);
 
+  const designSlug = designFor(e.profileCode);
+  const design = await loadMaisonCatalogRow(admin, "design", designSlug);
+  if (!design) throw new Error(`design ${designSlug} not found`);
   const d = await applyDesign(admin, {
     talentProfileId: e.talentProfileId,
     siteId: site.id,
@@ -124,6 +129,6 @@ for (const [i, e] of entries.entries()) {
   if (pubErr) throw pubErr;
   const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: e.profileCode });
   if (!t.ok) throw new Error(`${e.profileCode} publishSiteTheme: ${t.error}`);
-  console.log("maison", e.profileCode, tp.display_name, `palette ${paletteKey}`, "published");
+  console.log("design", designSlug, e.profileCode, tp.display_name, `palette ${paletteKey}`, "published");
 }
 console.log("done");
