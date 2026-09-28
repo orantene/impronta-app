@@ -17088,6 +17088,10 @@ export type Database = {
       }
       talent_sites: {
         Row: {
+          accepting_bookings: boolean
+          accepting_inquiries: boolean
+          chat_config: Json
+          chat_enabled: boolean
           created_at: string
           created_by: string | null
           draft_snapshot: Json
@@ -17113,6 +17117,10 @@ export type Database = {
           version: number
         }
         Insert: {
+          accepting_bookings?: boolean
+          accepting_inquiries?: boolean
+          chat_config?: Json
+          chat_enabled?: boolean
           created_at?: string
           created_by?: string | null
           draft_snapshot?: Json
@@ -17138,6 +17146,10 @@ export type Database = {
           version?: number
         }
         Update: {
+          accepting_bookings?: boolean
+          accepting_inquiries?: boolean
+          chat_config?: Json
+          chat_enabled?: boolean
           created_at?: string
           created_by?: string | null
           draft_snapshot?: Json
