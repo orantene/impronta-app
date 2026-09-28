@@ -14,7 +14,13 @@ import { resolveIndustryPreset, talentSiteChatVoice } from "@/lib/words/presets"
 import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 
 import { TalentInquiryFormSheet } from "@/app/t/[profileCode]/_chat/TalentInquiryFormSheet";
-import { resolveTalentAskEntry, resolveTalentChatGreeting } from "@/lib/talent/chat-entry";
+import {
+  askEntryPointsVisible,
+  dockMounted,
+  resolveTalentAskEntry,
+  resolveTalentChatGreeting,
+} from "@/lib/talent/chat-entry";
+import { getActiveGuestInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
 
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
@@ -129,7 +135,14 @@ export async function TalentSiteMessagesDock({
     // WSF D: her chat switch (chat → dock, off → inquiry form, inquiries off → neither).
     loadTalentSiteSwitches(admin, talentProfileId),
   ]);
-  const askEntry = resolveTalentAskEntry(switches);
+  // §8 "Existing clients": a visitor with a live thread keeps the dock.
+  const resume =
+    resolved.ok && !(switches.chatEnabled && switches.acceptingInquiries)
+      ? await getActiveGuestInquiry({ tenantSlug: resolved.tenant.slug, talentProfileId })
+      : null;
+  const askEntry = resolveTalentAskEntry(switches, {
+    hasActiveThread: Boolean(resume?.ok && resume.active),
+  });
   const { accentColor, logoUrl } = siteChrome;
   const photoUrl = thumbs.get(talentProfileId) ?? null;
   if (!resolved.ok) return null;
@@ -169,7 +182,7 @@ export async function TalentSiteMessagesDock({
       <TalentSiteContactBridge
         heading={t("public.talentSite.contact.heading")}
         askLabel={t("public.talentSite.contact.ask")}
-        showAsk={askEntry !== "hidden"}
+        showAsk={askEntryPointsVisible(askEntry)}
         whatsappLabel={t("public.talentSite.contact.whatsapp")}
         emailLabel={t("public.talentSite.contact.email")}
         truth={t(
@@ -182,7 +195,7 @@ export async function TalentSiteMessagesDock({
       />
       {/* AUD-037: keep the last row CTA clear of the fixed launcher on phones. */}
       <style>{GUEST_CHAT_LAUNCHER_CLEARANCE_CSS}</style>
-      {askEntry === "chat" ? (
+      {dockMounted(askEntry) ? (
         <TalentProfileChatLauncherMount
           talentProfileId={talentProfileId}
           talentProfileCode={code}
@@ -196,7 +209,7 @@ export async function TalentSiteMessagesDock({
           photoUrl={photoUrl}
           sourcePage="/"
           locale={locale}
-          greeting={resolveTalentChatGreeting(switches, tradeVoice)}
+          greeting={resolveTalentChatGreeting(switches, tradeVoice, { entry: askEntry, locale })}
           wordsPresetOverride={tradePreset}
           omitPlatformBrand
         />

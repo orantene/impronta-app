@@ -81,9 +81,10 @@ export type MaisonProfileLayoutProps = LightProfileLayoutProps & {
   /**
    * WSF D — which ask entry the talent offers (resolveTalentAskEntry). Ask
    * opens the chat or the inquiry form either way (same events); "hidden"
-   * (not taking inquiries) drops the Ask link. Defaults to "chat".
+   * / "existing_client" (not taking new inquiries) drop the Ask link.
+   * Defaults to "chat".
    */
-  askEntry?: "chat" | "form" | "hidden";
+  askEntry?: "chat" | "existing_client" | "form" | "hidden";
 };
 
 /** The appointment rows read as facts, not as a spreadsheet, once each has a mark. */
@@ -512,7 +513,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             <div className="mn-slot">{inquireButtonFooter}</div>
           </div>
 
-          {props.askEntry !== "hidden" ? (
+          {props.askEntry !== "hidden" && props.askEntry !== "existing_client" ? (
             <div className="mn-closing-alt">
               <span>{c.askLead}</span>
               <MaisonAskButton

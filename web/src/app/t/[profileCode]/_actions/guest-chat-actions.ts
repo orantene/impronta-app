@@ -31,6 +31,10 @@ import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  draftFirstSendAllowed,
+  talentAllowsNewGuestThread,
+} from "@/lib/talent/existing-client.server";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
@@ -1277,6 +1281,7 @@ export async function sendGuestMessageAction(
   // isRealContact reused below so the post-send promotion doesn't re-query.
   // See guest-send-gate.ts for the decision logic + its unit tests.
   let isRealContact = true;
+  let contactEmailForGate: string | null = null;
   if (owned.inquiry.status === "draft") {
     const { data: contactRow, error: contactErr } = await admin
       .from("inquiries")
@@ -1308,6 +1313,20 @@ export async function sendGuestMessageAction(
       return fail("forbidden", "You don't have access to this conversation.");
     }
     isRealContact = !isSeedContact(contactName, contactEmail);
+    contactEmailForGate = contactEmail;
+  }
+
+  // WSF D §8: an early draft becomes a real thread on its first send, so the
+  // existing-client gate runs here too (the draft had no email when created).
+  if (
+    owned.inquiry.status === "draft" &&
+    isRealContact &&
+    !(await draftFirstSendAllowed(admin, owned.inquiry.id, contactEmailForGate ?? ""))
+  ) {
+    return fail(
+      "talent_unavailable",
+      "Right now this talent only takes messages about an existing booking. Use the email you booked with.",
+    );
   }
 
   // ── W2-I auto-scan: on the FIRST real send (still a draft, contact already

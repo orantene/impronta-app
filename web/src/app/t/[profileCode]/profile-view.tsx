@@ -124,7 +124,12 @@ import { pickHeadlinePrice } from "@/lib/directory/headline-price";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { TalentInquiryFormSheet } from "./_chat/TalentInquiryFormSheet";
-import { resolveTalentAskEntry, resolveTalentChatGreeting } from "@/lib/talent/chat-entry";
+import {
+  dockMounted,
+  resolveTalentAskEntry,
+  resolveTalentChatGreeting,
+} from "@/lib/talent/chat-entry";
+import { getActiveGuestInquiry } from "./_actions/guest-chat-actions";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
 import { parseTalentSiteSwitches } from "@/lib/talent/site-switches";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
@@ -1979,7 +1984,14 @@ export async function TalentProfileView({
   const talentSwitches = bookingAdmin
     ? await loadTalentSiteSwitches(bookingAdmin, profile.id)
     : parseTalentSiteSwitches(null);
-  const talentAskEntry = resolveTalentAskEntry(talentSwitches);
+  // §8 "Existing clients": a visitor with a live thread keeps the dock.
+  const talentResume =
+    chatTenantSlug && !(talentSwitches.chatEnabled && talentSwitches.acceptingInquiries)
+      ? await getActiveGuestInquiry({ tenantSlug: chatTenantSlug, talentProfileId: profile.id })
+      : null;
+  const talentAskEntry = resolveTalentAskEntry(talentSwitches, {
+    hasActiveThread: Boolean(talentResume?.ok && talentResume.active),
+  });
   const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
 
@@ -2586,7 +2598,7 @@ export async function TalentProfileView({
       {!isModal &&
         guestChatSettings.enabled &&
         guestChatSettings.showOnTalent &&
-        talentAskEntry === "chat" && (
+        dockMounted(talentAskEntry) && (
         <TalentProfileChatLauncherMount
           talentProfileId={profile.id}
           talentProfileCode={profile.profile_code}
@@ -2597,7 +2609,10 @@ export async function TalentProfileView({
           accentColor={chatAccentColor}
           logoUrl={watermarkLogoUrl}
           sourcePage={profileSourcePage}
-          greeting={resolveTalentChatGreeting(talentSwitches, guestChatSettings.greeting)}
+          greeting={resolveTalentChatGreeting(talentSwitches, guestChatSettings.greeting, {
+            entry: talentAskEntry,
+            locale,
+          })}
           locale={locale}
           backgroundMode={chatBackgroundMode}
         />
