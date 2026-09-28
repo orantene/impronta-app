@@ -100,15 +100,11 @@ export function RowMenu({
   );
 }
 
-export function listPrice(item: TalentOffering, quoted: string): string {
-  if (item.amountCents == null || item.priceDisplay === "quote") return quoted;
-  const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(item.amountCents / 100);
-  return `$${amount} ${item.currency}`;
-}
+export { listPrice, listPriceState } from "@/lib/talent/services-list-price";
 
 function MenuBtn({ children, onClick }: { children: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="block w-full px-3 py-2 text-left text-[13px] hover:bg-[rgba(11,11,13,0.04)]">
+    <button type="button" onClick={onClick} className="block min-h-[44px] w-full px-3 py-2 text-left text-[13px] hover:bg-[rgba(11,11,13,0.04)] sm:min-h-0">
       {children}
     </button>
   );
