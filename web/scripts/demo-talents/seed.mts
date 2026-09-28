@@ -58,7 +58,20 @@ const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const HUB_TENANT_ID = "00000000-0000-0000-0000-000000000002";
+// The platform hub differs per project; resolve it the way the hub
+// auto-enroll trigger does instead of hardcoding the QA project's id.
+async function resolveHubTenantId(): Promise<string> {
+  const { data, error } = await admin
+    .from("agencies")
+    .select("id")
+    .eq("kind", "hub")
+    .eq("plan_tier", "network")
+    .eq("status", "active");
+  if (error) throw error;
+  if (data?.length !== 1) throw new Error(`expected exactly one active hub, found ${data?.length ?? 0}`);
+  return data[0].id as string;
+}
+let HUB_TENANT_ID = "";
 const BUCKET = "media-public";
 
 type ManifestEntry = {
@@ -154,7 +167,14 @@ function servicesMenu(d: DemoTalent) {
 }
 
 async function termId(slug: string) {
-  const { data, error } = await admin.from("taxonomy_terms").select("id").eq("slug", slug).maybeSingle();
+  const { data, error } = await admin.from("taxonomy_terms").select("id")
+    .eq("slug", slug)
+    .eq("kind", "talent_type")
+    .eq("is_active", true)
+    .is("archived_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error(`taxonomy term not found: ${slug}`);
   return data.id as string;
@@ -166,8 +186,9 @@ async function uploadPhotos(
   userId: string,
   photos: PackPhoto[],
   entry: ManifestEntry,
+  manifest: Manifest,
 ) {
-  if (entry.mediaAssetIds.length) {
+  if (entry.mediaAssetIds.length === photos.length) {
     console.log("  photos already uploaded, skipping", d.profileCode);
     return;
   }
@@ -181,6 +202,7 @@ async function uploadPhotos(
     const { error: upErr } = await admin.storage.from(BUCKET).upload(storagePath, body, { contentType: mime });
     if (upErr) throw upErr;
     entry.storagePaths.push(storagePath);
+    saveManifest(manifest);
     const sortOrder = (order[p.variant] = (order[p.variant] ?? -1) + 1);
     const { data, error } = await admin
       .from("media_assets")
@@ -288,7 +310,7 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
   if (txErr) throw txErr;
 
   if (pack?.[d.profileCode]?.length) {
-    await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry);
+    await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry, manifest);
     saveManifest(manifest);
   }
 
@@ -373,6 +395,7 @@ async function removeBatch(manifest: Manifest) {
 }
 
 const manifest = loadManifest();
+HUB_TENANT_ID = await resolveHubTenantId();
 if (flag("--links")) {
   await printLinks(manifest);
 } else if (flag("--remove")) {
