@@ -8,6 +8,8 @@ import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetwor
 import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
 import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeStates";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { WebsiteSettingsScreen } from "@/components/talent/website-settings/WebsiteSettingsScreen";
+import { NavRow } from "@/components/talent/website-settings/primitives";
 import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
 import { useAdminShell } from "../../state";
 import { useDashboardText } from "../../dashboard-i18n";
@@ -31,6 +33,20 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const copy = useDashboardText();
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const talentId = bridgeTalentSelfProfile?.id ?? null;
+  if (settingsOpen && talentId) {
+    return <WebsiteSettingsScreen talentId={talentId} onClose={() => setSettingsOpen(false)} />;
+  }
+  const settingsEntry = talentId ? (
+    <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
+      <NavRow
+        title={copy.t("Website settings")}
+        summary={copy.t("How clients book, timing, payments and cancelling")}
+        onOpen={() => setSettingsOpen(true)}
+      />
+    </div>
+  ) : null;
   if (!studio) {
     return (
       <>
@@ -38,6 +54,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           title={talentSiteCopy(locale, "pageTitle")}
           subtitle={talentSiteCopy(locale, "pageSubtitle")}
         />
+        {settingsEntry}
         <LegacyPresence locale={locale} />
       </>
     );
@@ -69,6 +86,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           <Suspense fallback={null}>
             <WebOfficeReturnBanner />
           </Suspense>
+          {settingsEntry}
           <WebsiteEligibilityPanel />
           <TalentMaxSiteManager locale={locale} />
           <div className="mt-8" />

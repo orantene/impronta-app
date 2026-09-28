@@ -1,0 +1,78 @@
+/**
+ * Spanish (tú) for Website settings (WSF F1). Kept out of dashboard-i18n.ts,
+ * which sits at its size-ratchet budget; folded into WEBSITE_ES_TEXT so the
+ * grandfathered map keeps one spread.
+ */
+
+export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
+  "Website settings": "Ajustes del sitio",
+  "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
+  "Services & booking": "Servicios y reservas",
+  "Availability & timing": "Disponibilidad y horarios",
+  "Client self-service": "Autogestión del cliente",
+  "Saved · live now": "Guardado · ya en vivo",
+  "{n} unsaved": "{n} sin guardar",
+  "Couldn’t save": "No se pudo guardar",
+  "Retry save": "Reintentar guardar",
+  "Leave without saving?": "¿Salir sin guardar?",
+  "You have 1 unsaved change.": "Tienes 1 cambio sin guardar.",
+  "You have {n} unsaved changes.": "Tienes {n} cambios sin guardar.",
+  "Save and leave": "Guardar y salir",
+  "Discard changes": "Descartar cambios",
+  "Keep editing": "Seguir editando",
+  "Live on Save. Nothing changes for clients until you save.":
+    "En vivo al guardar. Nada cambia para tus clientes hasta que guardes.",
+  "Your settings could not load. Try again in a moment.": "Tus ajustes no se pudieron cargar. Inténtalo de nuevo en un momento.",
+  "{before} min before · {after} min after · {notice} h notice":
+    "{before} min antes · {after} min después · {notice} h de aviso",
+  "Deposit {pct}% when they book": "Anticipo del {pct}% al reservar",
+  "No deposit": "Sin anticipo",
+  "Free cancelling until {c} h · rescheduling until {r} h": "Cancela gratis hasta {c} h · reprograma hasta {r} h",
+  "Default": "Por defecto",
+  "Default booking mode": "Modo de reserva por defecto",
+  "Instant booking": "Reserva inmediata",
+  "Inquiry only": "Solo consulta",
+  "{n} of {total} with their own setting": "{n} de {total} con su propio ajuste",
+  "Search services": "Buscar servicios",
+  "You have no services yet.": "Aún no tienes servicios.",
+  "No service matches.": "Ningún servicio coincide.",
+  "Custom": "Propio",
+  "Inherited": "Heredado",
+  "Custom for this service": "Propio de este servicio",
+  "Your default is Inquiry only. Switch it to Instant booking to let a service book instantly.":
+    "Tu ajuste por defecto es Solo consulta. Cámbialo a Reserva inmediata para que un servicio se reserve al instante.",
+  "Untitled service": "Servicio sin nombre",
+  "Preparation before": "Preparación antes",
+  "Blocked before the appointment. Clients don't see it.": "Se bloquea antes de la cita. Tus clientes no lo ven.",
+  "Cleanup after": "Limpieza después",
+  "Blocked after the appointment.": "Se bloquea después de la cita.",
+  "Minimum notice": "Aviso mínimo",
+  "Less": "Menos",
+  "More": "Más",
+  "The balance is paid at the visit.": "El resto se paga en la visita.",
+  "Every service starts with this. A service with its own deposit keeps it.":
+    "Cada servicio empieza con esto. Un servicio con su propio anticipo lo mantiene.",
+  "Inside {hours} hours the deposit is kept. The client is refunded in full before that.":
+    "Dentro de las {hours} horas se retiene el anticipo. Antes de eso se reembolsa todo al cliente.",
+  "The deposit moves to the new date. Inside {hours} hours it is kept and a new one is asked for.":
+    "El anticipo pasa a la nueva fecha. Dentro de las {hours} horas se retiene y se pide uno nuevo.",
+  "Applies to your website and Tulala profile.": "Aplica a tu sitio y a tu perfil de Tulala.",
+  "Services set to instant booking can be booked on the spot. The rest take inquiries.":
+    "Los servicios con reserva inmediata se reservan al momento. Los demás reciben consultas.",
+  "Every service takes an inquiry. You talk first, then arrange the work.":
+    "Todos los servicios reciben consultas. Primero hablan y luego acuerdan el trabajo.",
+  "Needs a fixed price and its booking details first. Set them in Services.":
+    "Primero necesita un precio fijo y sus datos de reserva. Ponlos en Servicios.",
+  "{mode} by default · {n} of {total} services set to instant": "{mode} por defecto · {n} de {total} servicios con reserva inmediata",
+  "{n} with their own setting": "{n} con su propio ajuste",
+  "Default deposit": "Anticipo por defecto",
+  "Uses your default": "Usa tu ajuste por defecto",
+  "Reset to default": "Volver al ajuste por defecto",
+  "Inherited from your default. Give it its own value in Services.":
+    "Heredado de tu ajuste por defecto. Dale su propio valor en Servicios.",
+  "Custom for this service. It takes a deposit to book instantly, so it keeps its own. Change it in Services.":
+    "Propio de este servicio. Pide anticipo para reservar al momento, así que mantiene el suyo. Cámbialo en Servicios.",
+  "Free cancelling until {c} h": "Cancela gratis hasta {c} h",
+  "Nothing sooner than this can be booked. Editing it here comes later.":
+    "No se puede reservar nada con menos aviso. Podrás editarlo aquí más adelante.",
+};
