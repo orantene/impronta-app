@@ -412,7 +412,7 @@ export function buildFolioPayload(): DesignPayload {
     shellTree: shell(id, {
       navChrome: "chapter_dots",
       navLinks: [
-        { label: "Book", href: "#gallery" },
+        { label: "Work", href: "#gallery" },
         { label: "About", href: "#about" },
         { label: "Rates", href: "#services" },
         { label: "Contact", href: "#contact" },
@@ -485,6 +485,7 @@ export function buildFolioPayload(): DesignPayload {
         statement:
           "Available for editorial, campaign, and portrait commissions.",
         creditLine: "{{displayName}}",
+        // Seed key: rendered per booking mode + locale by design-label-locale.
         contactLine: "Inquire for bookings",
         align: "center",
         showRule: true,

@@ -9,8 +9,11 @@
  *   talent           → Add to lineup   (the inquiry cart, existing writer)
  *   priced item      → Add to inquiry  (shared POS draft via messagingClientAddItem,
  *                                       the client's own line until staff confirm)
- *   bookable kinds   → Buy now         (the storefront's own self-serve page)
+ *   bookable kinds   → Select          (service / class storefront page;
+ *                                       tickets keep the i18n buy label)
  *   anything         → Ask             (prefills the composer, no write)
+ *   talent service   → mode label      (dockServiceCtaLabel: Select / Request /
+ *                                       Request a quote / Ask, EN + ES)
  *
  * A visitor with no inquiry yet gets one on the first add (the panel's
  * ensure path), then the add runs once the thread token arrives.
@@ -26,6 +29,9 @@ import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { ItemCategory } from "@/lib/messages-v5/items-picker";
 import { messagingClientAddItem } from "@/lib/server-actions/messaging-client";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
+
+import { dockServiceCtaLabel, dockStorefrontCtaLabel } from "./dock-cta-label";
 
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
@@ -69,6 +75,8 @@ export type GuestDockCatalogProps = {
     amountCents?: number | null;
     currency?: string | null;
     priceLabel?: string | null;
+    /** Derived CTA (deriveOfferingCta). Absent reads as an inquiry: "Ask". */
+    cta?: OfferingCtaKind | null;
   }[];
 };
 
@@ -121,7 +129,7 @@ function SmallButton({ label, onClick, primary, disabled, C, accent, accentInk, 
 }
 
 export function GuestDockCatalog(p: GuestDockCatalogProps) {
-  const { tenantSlug, businessName, t, C, accent, accentInk, inquiryId, threadToken, sourcePage, onEnsureInquiry, onRefresh, onAsk, serviceMenu = [] } = p;
+  const { tenantSlug, businessName, locale, t, C, accent, accentInk, inquiryId, threadToken, sourcePage, onEnsureInquiry, onRefresh, onAsk, serviceMenu = [] } = p;
   const serviceChips = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -245,7 +253,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                   </div>
                 ) : null}
               </div>
-              <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: item.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
+              <SmallButton label={dockServiceCtaLabel(item.cta, locale)} primary={item.cta === "book_now" || item.cta === "request_to_book"} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: item.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
             </div>
           ))
         : null}
@@ -285,7 +293,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : null}
-            {buyHref && row.available ? <SmallButton label={t("public.guestChat.catalogBuyNow")} href={buyHref} C={C} accent={accent} accentInk={accentInk} /> : null}
+            {buyHref && row.available ? <SmallButton label={dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))} href={buyHref} C={C} accent={accent} accentInk={accentInk} /> : null}
             <SmallButton label={t("public.guestChat.catalogAsk")} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: row.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
           </div>
         );

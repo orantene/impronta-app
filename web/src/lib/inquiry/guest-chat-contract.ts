@@ -23,6 +23,7 @@
 
 import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestInquiriesCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
 import type { InquiryReceiptData } from "./inquiry-receipt-contract";
+import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view"; // pure module (no server import); L13 v5 extras below // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -786,6 +787,8 @@ export type MiniChatBrand = {
     amountCents?: number | null;
     currency?: string | null;
     priceLabel?: string | null;
+    /** Derived CTA (deriveOfferingCta); drives the row button label. */
+    cta?: OfferingCtaKind | null;
   }[];
   /**
    * Talent vanity / solo hosts: the panel speaks as the trade, not the platform.

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
-import { localiseSeededDesignLabels } from "../design-label-locale";
+import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 
 /**
@@ -18,12 +18,13 @@ export async function prepareTalentSiteTrees(input: {
   logoUrl: string | null | undefined;
   shellTree: BuilderNode[];
   body: BuilderNode[];
+  ctaMode?: SiteCtaMode | null;
 }): Promise<{ shellTree: BuilderNode[]; body: BuilderNode[] }> {
   const swaps = await loadTalentLocaleSwaps(input.talentProfileId, input.locale);
-  const shell = localiseSeededDesignLabels(input.shellTree, input.locale, swaps);
+  const shell = localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps);
   return {
     shellTree: input.logoUrl ? shell.map((n) => withHeaderLogo(n, input.logoUrl!)) : shell,
-    body: localiseSeededDesignLabels(input.body, input.locale, swaps),
+    body: localiseSeededDesignLabels(input.body, input.locale, input.ctaMode ?? null, swaps),
   };
 }
 

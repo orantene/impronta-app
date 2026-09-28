@@ -3,6 +3,8 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import type {
   MaxSitePageRow,
   MaxSiteRow,
@@ -128,6 +130,39 @@ export async function loadMaxSiteThemeTokens(
  * an exact Max match), so a transient hiccup degrades to a 404 rather than
  * leaking a premium site to a possibly-lapsed talent.
  */
+/**
+ * The talent's raw `selling_defaults` (booking posture for seeded site CTAs).
+ * A failed read returns null; the caller then renders the legacy instant copy.
+ */
+export async function loadTalentSellingDefaults(talentProfileId: string): Promise<unknown> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("selling_defaults")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talentSite.loadSellingDefaults", error);
+    return null;
+  }
+  return (data as { selling_defaults?: unknown } | null)?.selling_defaults ?? null;
+}
+
+/**
+ * Site-wide CTA mode for seeded action copy (Folio footer line, Frame
+ * "Book a session", ...): booking posture with the plan ceiling applied.
+ */
+export async function loadTalentSiteCtaMode(
+  talentProfileId: string,
+  planKey: string | null,
+): Promise<SiteCtaMode> {
+  return resolveSiteCtaMode({
+    sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
+    confirmsByHand: !talentOffersInstantBooking(planKey),
+  });
+}
+
 export async function loadTalentPlanKey(
   talentProfileId: string,
 ): Promise<string | null> {
