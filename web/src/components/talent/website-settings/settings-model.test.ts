@@ -24,7 +24,7 @@ const defaults: SellingDefaults = {
   bufferBeforeMin: 10,
   bufferAfterMin: 15,
   minNoticeMin: 120,
-  bookingPosture: "on_demand",
+  bookingPosture: "instant",
   whoPrimaryCta: "confirm_now",
 };
 
@@ -45,10 +45,11 @@ test("null means inherited; any number, zero included, is the service's own", ()
   assert.equal(countCustom(saved.services, "cancellationHours"), 1);
 });
 
-test("inquiry posture answers every service as an inquiry", () => {
-  assert.equal(effectiveServiceMode("instant", "on_demand"), "instant");
-  assert.equal(effectiveServiceMode("request", "on_demand"), "inquiry");
-  assert.equal(effectiveServiceMode("instant", "inquiry"), "inquiry");
+test("a service's own mode wins; null inherits the default (report §1)", () => {
+  assert.equal(effectiveServiceMode("instant", "inquiry"), "instant");
+  assert.equal(effectiveServiceMode("request", "instant"), "request");
+  assert.equal(effectiveServiceMode(null, "inquiry"), "inquiry");
+  assert.equal(effectiveServiceMode(null, "instant"), "instant");
 });
 
 test("instant needs one exact price", () => {

@@ -7,20 +7,19 @@
  * `talent_offerings`.
  *
  * INHERITED vs CUSTOM is shown only where null genuinely means "use my
- * default" today: `deposit_pct` and `cancellation_hours` (EditorScreen reads
- * `item.x ?? defaults.x`). `booking_mode` is NOT NULL DEFAULT 'request', so an
- * inherited mode cannot be told apart from an explicit one; F1 shows and
- * writes each service's mode explicitly (inheritance arrives with a nullable
- * column in a later PR).
+ * default": `deposit_pct`, `cancellation_hours` (EditorScreen reads
+ * `item.x ?? defaults.x`) and, since WSF-B, `booking_mode` (NULL = inherit the
+ * talent default; Reset writes NULL).
  */
 
 import type { SellingDefaults } from "@/lib/talent/services-settings-actions";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 
-export type ServiceMode = "instant" | "request";
+export type ServiceMode = "instant" | "request" | "inquiry";
 
 export type ServiceFields = {
-  bookingMode: ServiceMode;
+  /** null = inherit the talent default booking mode */
+  bookingMode: ServiceMode | null;
   /** null = use the talent default */
   depositPct: number | null;
   /** null = use the talent default */
@@ -47,13 +46,17 @@ export type SettingsDraft = {
 export type ValueSource = "inherited" | "custom";
 
 /** Null-means-inherit fields only (deposit, cancellation). */
-export function valueSource(value: number | null | undefined): ValueSource {
+export function valueSource(value: unknown): ValueSource {
   return value == null ? "inherited" : "custom";
 }
 
-/** What a client actually gets for this service on the live sheet. */
-export function effectiveServiceMode(mode: ServiceMode, posture: TalentBookingPosture): "instant" | "inquiry" {
-  return posture === "on_demand" && mode === "instant" ? "instant" : "inquiry";
+/**
+ * What a client gets for this service (report §1): the service's own mode when
+ * set, else the talent default. Master switches and readiness are applied by
+ * resolveEffectiveBookingMode on the server; this is the settings display.
+ */
+export function effectiveServiceMode(mode: ServiceMode | null, posture: TalentBookingPosture): ServiceMode {
+  return mode ?? posture;
 }
 
 export function canBookInstantly(o: {
@@ -65,7 +68,7 @@ export function canBookInstantly(o: {
 }
 
 /** validateOffering: instant + deposit reserve needs a 1 to 99 service deposit. */
-export function needsOwnDeposit(o: { bookingMode: string; reserveMode?: string | null }): boolean {
+export function needsOwnDeposit(o: { bookingMode: string | null; reserveMode?: string | null }): boolean {
   return o.bookingMode === "instant" && o.reserveMode === "deposit";
 }
 

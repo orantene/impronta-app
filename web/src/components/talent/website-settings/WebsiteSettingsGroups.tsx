@@ -16,6 +16,7 @@ import {
   withPosture,
   type ServiceFields,
   type SettingsDraft,
+  type ServiceMode,
   type SettingsService,
 } from "./settings-model";
 
@@ -37,7 +38,7 @@ function stepLabels(t: T) {
 }
 
 export function postureLabel(p: TalentBookingPosture, t: T): string {
-  return p === "on_demand" ? t("Instant booking") : t("Inquiry only");
+  return p === "instant" ? t("Instant booking") : p === "request" ? t("Booking request") : t("Inquiry only");
 }
 
 const LIVE_NOTE = "Live on Save. Nothing changes for clients until you save.";
@@ -103,55 +104,67 @@ function ServiceList({
 
 export function BookingGroup({ t, draft, setDefaults, services, setService }: GroupProps & ServiceProps) {
   const posture = draft.defaults.bookingPosture;
-  const modeOf = (s: SettingsService) => draft.services[s.id]?.bookingMode ?? "request";
+  const ownOf = (s: SettingsService) => draft.services[s.id]?.bookingMode ?? null;
+  const own = services.filter((s) => ownOf(s) != null).length;
+  const modes: Array<{ mode: ServiceMode; title: string; detail: string }> = [
+    { mode: "instant", title: t("Instant booking"), detail: t("They pick a free time and confirm.") },
+    { mode: "request", title: t("Booking request"), detail: t("They send preferred times. You approve.") },
+    { mode: "inquiry", title: t("Inquiry only"), detail: t("You talk first, then arrange the work.") },
+  ];
   return (
     <>
       <LiveOnSaveNote>{t(LIVE_NOTE)}</LiveOnSaveNote>
       <SettingsCard title={t("How clients book")} aside={t("Default")}>
         <p className="mb-3 text-[12.5px] text-admin-ink-muted">{t("Applies to your website and Tulala profile.")}</p>
         <div role="radiogroup" aria-label={t("Default booking mode")} className="grid gap-2">
-          <ChoiceCard
-            checked={posture === "on_demand"}
-            title={t("Instant booking")}
-            detail={t("Services set to instant booking can be booked on the spot. The rest take inquiries.")}
-            onSelect={() => setDefaults(withPosture(draft.defaults, "on_demand"))}
-          />
-          <ChoiceCard
-            checked={posture === "inquiry"}
-            title={t("Inquiry only")}
-            detail={t("Every service takes an inquiry. You talk first, then arrange the work.")}
-            onSelect={() => setDefaults(withPosture(draft.defaults, "inquiry"))}
-          />
+          {modes.map((m) => (
+            <ChoiceCard
+              key={m.mode}
+              checked={posture === m.mode}
+              title={m.title}
+              detail={m.detail}
+              onSelect={() => setDefaults(withPosture(draft.defaults, m.mode))}
+            />
+          ))}
         </div>
       </SettingsCard>
 
       <ServiceList
         t={t}
         services={services}
-        describe={(s) =>
-          effectiveServiceMode(modeOf(s), posture) === "instant" ? t("Instant booking") : t("Inquiry only")
-        }
+        aside={t("{n} of {total} with their own setting")
+          .replace("{n}", String(own))
+          .replace("{total}", String(services.length))}
+        describe={(s) => postureLabel(effectiveServiceMode(ownOf(s), posture), t)}
+        badge={(s) => <SourceBadge source={valueSource(ownOf(s))} t={t} />}
         editor={(s) => {
-          const lockedByDefault =
-            posture === "inquiry"
-              ? t("Services follow 'Inquiry only' right now. Switch your default to change a service.")
-              : null;
+          const current = ownOf(s);
           const noPrice = s.canBookInstantly ? null : t("Needs a fixed price and its booking details first. Set them in Services.");
-          const mode = modeOf(s);
           return (
-            <div role="radiogroup" aria-label={`${t("Booking mode")}: ${s.title}`} className="grid gap-2">
-              <ChoiceCard
-                checked={posture === "on_demand" && mode === "instant"}
-                title={t("Instant booking")}
-                disabledReason={lockedByDefault ?? noPrice}
-                onSelect={() => setService(s.id, { bookingMode: "instant" })}
-              />
-              <ChoiceCard
-                checked={posture === "inquiry" || mode === "request"}
-                title={t("Inquiry only")}
-                disabledReason={lockedByDefault}
-                onSelect={() => setService(s.id, { bookingMode: "request" })}
-              />
+            <div className="grid gap-2">
+              <p className="text-[12.5px] text-admin-ink-muted">
+                {current == null ? t("Inherited from your default") : t("Custom for this service")}
+              </p>
+              <div role="radiogroup" aria-label={`${t("Booking mode")}: ${s.title}`} className="grid gap-2">
+                {modes.map((m) => (
+                  <ChoiceCard
+                    key={m.mode}
+                    checked={effectiveServiceMode(current, posture) === m.mode}
+                    title={m.title}
+                    disabledReason={m.mode === "instant" ? noPrice : null}
+                    onSelect={() => setService(s.id, { bookingMode: m.mode })}
+                  />
+                ))}
+              </div>
+              {current != null ? (
+                <button
+                  type="button"
+                  onClick={() => setService(s.id, { bookingMode: null })}
+                  className="min-h-[44px] w-full rounded-lg border border-admin-border-soft bg-white text-[14px] font-semibold text-admin-ink"
+                >
+                  {t("Reset to default")} ({postureLabel(posture, t)})
+                </button>
+              ) : null}
             </div>
           );
         }}
