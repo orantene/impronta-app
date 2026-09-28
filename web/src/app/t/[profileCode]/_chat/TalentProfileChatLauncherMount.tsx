@@ -33,6 +33,9 @@ import { categoryChipLabel } from "./category-chip-label";
 import { guestDockServicePriceLabel } from "./guest-dock-service-price";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadUsdRatesForSitePrices } from "@/lib/talent-site/server/vanity-usd-rates";
+import { loadTalentPlanKey, loadTalentSellingDefaults } from "@/lib/talent-site/server/load-max-site";
+import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
+import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import { createTranslator } from "@/i18n/messages";
@@ -174,7 +177,12 @@ export async function TalentProfileChatLauncherMount({
   // with none get a single "Custom quote" default so EVERY talent is
   // requestable from the chat.
   const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
-  const usdRates = await loadUsdRatesForSitePrices(publicOfferings);
+  const [usdRates, sellingDefaults, planKey] = await Promise.all([
+    loadUsdRatesForSitePrices(publicOfferings),
+    loadTalentSellingDefaults(talentProfileId),
+    loadTalentPlanKey(talentProfileId),
+  ]);
+  const confirmsByHand = !talentOffersInstantBooking(planKey);
   const chatOfferings: GuestChatOffering[] =
     publicOfferings.length > 0
       ? publicOfferings.slice(0, 8).map((o) => ({
@@ -237,6 +245,7 @@ export async function TalentProfileChatLauncherMount({
                 usdRates,
                 locale ?? "en",
               ),
+              cta: deriveOfferingCta({ offering: o, defaults: sellingDefaults ?? {}, confirmsByHand }).cta,
             };
           })
           .filter((o): o is NonNullable<typeof o> => o != null),

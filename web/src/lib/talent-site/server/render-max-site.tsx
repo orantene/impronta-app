@@ -78,6 +78,7 @@ import {
   loadTalentManagingTenantId,
   loadTalentOwnerUserId,
   loadTalentPlanKey,
+  loadTalentSiteCtaMode,
   loadTalentSiteIdentity,
   type TalentSiteIdentity,
 } from "./load-max-site";
@@ -218,6 +219,7 @@ export async function renderTalentMaxSite(
     // unpublished draft — but the plan is still READ there, because read-time
     // SEO scoping below needs it on both paths.
     const planKey = await loadTalentPlanKey(talentProfileId);
+    const ctaMode = await loadTalentSiteCtaMode(talentProfileId, planKey); // seeded CTA copy follows booking mode
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -248,7 +250,7 @@ export async function renderTalentMaxSite(
 
     // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
     const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const blocks = localiseSeededDesignLabels(pruneUnconfirmedGuestStubs(body), input.locale);
+    const blocks = localiseSeededDesignLabels(pruneUnconfirmedGuestStubs(body), input.locale, ctaMode);
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
@@ -261,7 +263,7 @@ export async function renderTalentMaxSite(
     const nav = buildMaxSiteNav(navSource);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
-      localiseSeededDesignLabels(shellTree, input.locale),
+      localiseSeededDesignLabels(shellTree, input.locale, ctaMode),
       nav,
       site.siteSlug,
       publicPathPrefix,
