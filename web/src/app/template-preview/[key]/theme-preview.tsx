@@ -16,7 +16,7 @@
 import { notFound } from "next/navigation";
 
 import { TalentSiteRenderer } from "@/components/talent/site/TalentSiteRenderer";
-import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
+import { isThemePreviewAllowed } from "./theme-preview-gate";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
 import { validateDesign, validateLook } from "@/lib/talent-site/theme-catalog/validate";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
@@ -24,6 +24,8 @@ import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildDesignTrees } from "@/lib/talent-site/server/theme-apply-core";
 import { loadPublishedCatalogRow } from "@/lib/talent-site/server/theme-catalog-row";
+import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
+import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/catalog-visibility";
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
@@ -41,22 +43,29 @@ export async function ThemeCatalogPreview({
   talentProfileId?: string | null;
   locale?: "en" | "es";
 }) {
-  // Dark launch: with TALENT_THEME_GALLERY_ENABLED off this family does not
-  // exist (flags-off parity), exactly like an unknown slug.
-  if (!isTalentThemeGalleryEnabled()) notFound();
+  // Dark launch: the flag that shows the picker card opens its preview
+  // (Maison flag for Maison slugs, gallery flag otherwise). Flag off: this
+  // family does not exist, exactly like an unknown slug. AUD-033.
+  if (!isThemePreviewAllowed(designSlug, talentProfileId)) notFound();
   if (!SLUG_RE.test(designSlug)) notFound();
 
   const admin = createServiceRoleClient();
   if (!admin) notFound();
 
-  const design = await loadPublishedCatalogRow(admin, "design", designSlug);
+  // Maison slugs are not in the generic built-in list, so they resolve
+  // through the Maison loader (DB row, else the Maison built-in). AUD-033.
+  const loadRow = <K extends "design" | "look">(kind: K, slug: string) =>
+    isMaisonCatalogSlug(slug)
+      ? loadMaisonCatalogRow(admin, kind, slug)
+      : loadPublishedCatalogRow(admin, kind, slug);
+  const design = await loadRow("design", designSlug);
   // Same publish-time validation the apply action runs: a malformed row is a
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
 
   const lookRow =
     lookSlug && SLUG_RE.test(lookSlug)
-      ? await loadPublishedCatalogRow(admin, "look", lookSlug)
+      ? await loadRow("look", lookSlug)
       : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
 
