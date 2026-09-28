@@ -24,6 +24,7 @@ import {
   catalogDetailIsPurchase,
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
+import { offeringRequiresOnlineCollect } from "@/lib/talent/who-step-payment-copy";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -35,11 +36,14 @@ export function CatalogPurchaseMount({
   locale,
   captcha = null,
   mode = "live",
+  onlineCollectReady,
 }: {
   tenantId: string | null;
   locale: string;
   captcha?: GuestCaptchaConfig | null;
   mode?: CatalogBookingMode;
+  /** PAY-2 B — platform Checkout ready; omit → assume ready (legacy). */
+  onlineCollectReady?: boolean;
 }) {
   const [sheet, setSheet] = useState<OfferingRequestDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -112,7 +116,20 @@ export function CatalogPurchaseMount({
       ? formatOfferingPrice(collectCents, d.currency, locale)
       : null;
 
+  const paymentSetupBlocksBuy =
+    onlineCollectReady === false &&
+    offeringRequiresOnlineCollect({
+      reserveMode: d.reserveMode,
+      allowPayInPerson: d.allowPayInPerson,
+    });
+
   const payCopy = (() => {
+    if (paymentSetupBlocksBuy) {
+      return pickLocale(locale, {
+        en: "Online payment is not available right now. Send an inquiry to continue.",
+        es: "El pago en línea no está disponible por ahora. Enviá una consulta para continuar.",
+      });
+    }
     if (d.reserveMode === "free") {
       return pickLocale(locale, {
         en: "Nothing is charged now. Pay later as agreed. No appointment time is booked.",
@@ -145,6 +162,12 @@ export function CatalogPurchaseMount({
   })();
 
   const primaryLabel = (() => {
+    if (paymentSetupBlocksBuy) {
+      return pickLocale(locale, {
+        en: "Send inquiry",
+        es: "Enviar consulta",
+      });
+    }
     if (d.reserveMode === "free") {
       return pickLocale(locale, {
         en: "Reserve · nothing due now",
@@ -442,14 +465,28 @@ export function CatalogPurchaseMount({
           <button
             type="button"
             disabled={busy}
-            onClick={() => void buy(false)}
+            onClick={() => {
+              if (paymentSetupBlocksBuy) {
+                // Honesty path — no fake Buy / Confirm when Checkout cannot run.
+                window.dispatchEvent(
+                  new CustomEvent("tulala:offering-request", {
+                    detail: { ...d, intent: "request" as const },
+                  }),
+                );
+                setSheet(null);
+                return;
+              }
+              void buy(false);
+            }}
             style={btn(true)}
-            data-catalog-purchase-action="card"
-            data-catalog-collect-cents={collectCents ?? undefined}
+            data-catalog-purchase-action={paymentSetupBlocksBuy ? "inquiry" : "card"}
+            data-catalog-collect-cents={
+              paymentSetupBlocksBuy ? undefined : (collectCents ?? undefined)
+            }
           >
             {primaryLabel}
           </button>
-          {d.allowPayInPerson ? (
+          {!paymentSetupBlocksBuy && d.allowPayInPerson ? (
             <button
               type="button"
               disabled={busy}

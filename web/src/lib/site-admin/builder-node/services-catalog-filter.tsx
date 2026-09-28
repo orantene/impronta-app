@@ -117,6 +117,7 @@ export function ServicesCatalogFilter({
   enableCatalogSearch = false,
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
+  onlineCollectReady,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -148,6 +149,8 @@ export function ServicesCatalogFilter({
   /** Tenant captcha — required when createInstantBookingAction enforces it. */
   captcha?: GuestCaptchaConfig | null;
   bookingSettings?: CatalogSheetBookingSettings;
+  /** PAY-2 B — platform Checkout ready; omit → sheet default true. */
+  onlineCollectReady?: boolean;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -407,6 +410,7 @@ export function ServicesCatalogFilter({
         showAsk={showAskLink}
         captcha={captcha}
         bookingSettings={bookingSettings}
+        onlineCollectReady={onlineCollectReady}
       />
       {/* PKG-2 Option A: product / untimed-package purchase rail (demo = non-writing preview). */}
       <CatalogPurchaseMount
@@ -414,6 +418,7 @@ export function ServicesCatalogFilter({
         locale={locale}
         captcha={captcha}
         mode={bookingMode}
+        onlineCollectReady={onlineCollectReady}
       />
     </div>
   );
