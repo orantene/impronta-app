@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
 import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink, respondToReschedule } from "@/lib/talent-agenda";
@@ -8,7 +8,17 @@ import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-ac
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
 import { TradeSections } from "./TradeSections";
-import { holdEndsParts, nowBodyForRecord, recordActionVisibility } from "./record-actions";
+import {
+  cancelConsequenceKeys,
+  holdEndsParts,
+  noShowMoneyKey,
+  nowBodyForRecord,
+  recordActionVisibility,
+  showMoreMenu,
+  type CancelledBy,
+} from "./record-actions";
+import { encodeQr } from "@/lib/links/qr";
+import { toSvg } from "@/lib/links/qr/render";
 import { AgendaPayRequest } from "./AgendaPayRequest";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
@@ -21,6 +31,8 @@ type MoreMenuAction = {
   destructive?: boolean;
   disabled?: boolean;
   disabledReason?: string;
+  /** Always-visible helper line (mockup: Cancel says what it shows first). */
+  hint?: string;
   onClick: () => void;
 };
 
@@ -35,7 +47,7 @@ function MoreMenu({ actions }: { actions: MoreMenuAction[] }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-black/10 bg-white text-[20px] leading-none text-[#5F6368]"
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-black/10 bg-white text-[20px] leading-none text-[var(--tc-muted)]"
       >
         ···
       </button>
@@ -63,12 +75,15 @@ function MoreMenu({ actions }: { actions: MoreMenuAction[] }) {
                   a.onClick();
                 }}
                 className={`flex w-full flex-col items-start px-4 py-3 text-left text-[13px] font-medium transition-colors hover:bg-[rgba(11,11,13,0.04)] disabled:cursor-not-allowed disabled:opacity-50 ${
-                  a.destructive ? "text-[#B42318]" : "text-[var(--tc-primary)]"
+                  a.destructive ? "text-[var(--tc-risk)]" : "text-[var(--tc-primary)]"
                 }`}
               >
                 <span>{a.label}</span>
+                {a.hint && !a.disabled ? (
+                  <span className="mt-0.5 text-[11px] font-normal text-[var(--tc-muted)]">{a.hint}</span>
+                ) : null}
                 {a.disabled && a.disabledReason ? (
-                  <span className="mt-0.5 text-[11px] font-normal text-[#5F6368]">{a.disabledReason}</span>
+                  <span className="mt-0.5 text-[11px] font-normal text-[var(--tc-muted)]">{a.disabledReason}</span>
                 ) : null}
               </button>
             ))}
@@ -85,36 +100,41 @@ function ConfirmDialog({
   title,
   body,
   confirmLabel,
+  cancelLabel,
   destructive,
   onConfirm,
   onCancel,
+  children,
 }: {
   title: string;
-  body: string;
+  body?: string;
   confirmLabel: string;
+  cancelLabel?: string;
+  children?: ReactNode;
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   const copy = useAgendaCopy();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
-      <div className="w-full max-w-[360px] rounded-2xl bg-white p-5 shadow-xl">
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
+      <div className="max-h-[90vh] w-full max-w-[420px] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
         <h2 className="text-[16px] font-semibold text-[var(--tc-primary)]">{title}</h2>
-        <p className="mt-2 text-[13px] text-[#5F6368]">{body}</p>
-        <div className="mt-4 flex justify-end gap-2">
+        {body ? <p className="mt-2 text-[13px] text-[var(--tc-muted)]">{body}</p> : null}
+        {children ? <div className="mt-3 space-y-3 text-[13px]">{children}</div> : null}
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-black/10 px-4 py-2 text-[13px]"
+            className="min-h-[44px] rounded-full border border-black/10 px-4 py-2 text-[13px]"
           >
-            {copy.t("Cancel")}
+            {cancelLabel ?? copy.t("Cancel")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`rounded-full px-4 py-2 text-[13px] text-white ${
-              destructive ? "bg-[#B42318]" : "bg-[var(--tc-primary)]"
+            className={`min-h-[44px] rounded-full px-4 py-2 text-[13px] text-white ${
+              destructive ? "bg-[var(--tc-risk)]" : "bg-[var(--tc-primary)]"
             }`}
           >
             {confirmLabel}
@@ -161,6 +181,17 @@ export function AgendaBookingRecord({
   const [showFinish, setShowFinish] = useState(false);
   const [depositLink, setDepositLink] = useState<string | null>(null);
   const [showPayRequest, setShowPayRequest] = useState(false);
+  const [confirmNoShow, setConfirmNoShow] = useState(false);
+  const [cancelledBy, setCancelledBy] = useState<CancelledBy>("talent");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const depositQrSvg = useMemo(() => {
+    if (!depositLink) return null;
+    try {
+      return toSvg(encodeQr(depositLink).matrix, { size: 160 });
+    } catch {
+      return null;
+    }
+  }, [depositLink]);
 
   const canAct = !!bookingId;
   const bookingCurrency = item.currency?.trim() || "MXN";
@@ -178,6 +209,7 @@ export function AgendaBookingRecord({
   // ── No-show ──────────────────────────────────────────────────────
   function handleNoShow() {
     if (!bookingId || !noShowReady) return;
+    setConfirmNoShow(false);
     setStatus(copy.t("Marking no-show…"));
     startTransition(async () => {
       const res = await markBookingNoShow({ bookingId });
@@ -200,7 +232,7 @@ export function AgendaBookingRecord({
     setConfirmCancel(false);
     setStatus(copy.t("Cancelling…"));
     startTransition(async () => {
-      const res = await cancelBookingWithRefund({ bookingId, cancelledBy: "talent" });
+      const res = await cancelBookingWithRefund({ bookingId, cancelledBy });
       if (res.ok) {
         setStatus(
           res.refundableCents > 0
@@ -236,30 +268,43 @@ export function AgendaBookingRecord({
     });
   }
 
+  // Mockup tc_more order: edit items, private note, no-show, cancel.
+  // Edit items and private note have no server action yet: shown off, with why.
   const moreActions: MoreMenuAction[] = [
-    ...(show.reschedule
-      ? [
-          {
-            label: copy.t("Reschedule"),
-            onClick: () => setShowReschedule(true),
-          },
-        ]
-      : []),
-    ...(show.cancel
-      ? [{ label: copy.t("Cancel booking"), destructive: true, onClick: () => void handleCancelRequest() }]
-      : []),
+    {
+      label: copy.t("Change items or price"),
+      disabled: true,
+      disabledReason: copy.t("Not available yet. Message the client to agree a change."),
+      onClick: () => undefined,
+    },
+    {
+      label: copy.t("Add a private note"),
+      disabled: true,
+      disabledReason: copy.t("Not available yet."),
+      onClick: () => undefined,
+    },
     ...(show.noShow
       ? [
           {
             label: copy.t("Mark no-show"),
-            destructive: true,
             disabled: !noShowReady,
             disabledReason: copy.t("Available after the start time"),
-            onClick: handleNoShow,
+            onClick: () => setConfirmNoShow(true),
+          },
+        ]
+      : []),
+    ...(show.cancel
+      ? [
+          {
+            label: copy.t("Cancel booking"),
+            destructive: true,
+            hint: copy.t("Shows what happens to the payment first"),
+            onClick: () => void handleCancelRequest(),
           },
         ]
       : []),
   ];
+  const moreVisible = show.talentOwnsActions && showMoreMenu({ isAgency, bookingState: item.bookingState });
 
   const sections =
     item.tradeSectionPayloads ??
@@ -298,7 +343,7 @@ export function AgendaBookingRecord({
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[24px] font-semibold text-[var(--tc-primary)]">{item.title}</h1>
-            <p className="mt-1 text-[14px] text-[#5F6368]">{item.subtitle}</p>
+            <p className="mt-1 text-[14px] text-[var(--tc-muted)]">{item.subtitle}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {item.bookingState ? <BookingStateChip state={item.bookingState} /> : null}
               {item.paymentState ? <PaymentStateChip state={item.paymentState} /> : null}
@@ -310,13 +355,22 @@ export function AgendaBookingRecord({
               <button
                 type="button"
                 onClick={onMessage}
-                aria-label={copy.t("Message client")}
+                aria-label={isAgency ? copy.t("Message the agency") : copy.t("Message client")}
                 className="min-h-[44px] rounded-full border border-black/10 bg-white px-4 py-2 text-[13px]"
               >
-                {copy.t("Message")}
+                {isAgency ? copy.t("Message the agency") : copy.t("Message")}
               </button>
             ) : null}
-            {moreActions.length > 0 && <MoreMenu actions={moreActions} />}
+            {show.reschedule ? (
+              <button
+                type="button"
+                onClick={() => setShowReschedule(true)}
+                className="min-h-[44px] rounded-full border border-black/10 bg-white px-4 py-2 text-[13px]"
+              >
+                {copy.t("Reschedule")}
+              </button>
+            ) : null}
+            {moreVisible ? <MoreMenu actions={moreActions} /> : null}
           </div>
         </header>
 
@@ -406,7 +460,7 @@ export function AgendaBookingRecord({
         {item.bookingState === "requested" && refTable === "inquiries" && show.talentOwnsActions ? (
           <button
             type="button"
-            className="min-h-[44px] text-[13px] text-[#B42318]"
+            className="min-h-[44px] text-[13px] text-[var(--tc-risk)]"
             onClick={() => {
               const inquiryId = refId || bookingId;
               if (!inquiryId) return;
@@ -442,19 +496,27 @@ export function AgendaBookingRecord({
         <section className="rounded-2xl border border-black/8 bg-white p-4 text-[14px]">
           <dl className="space-y-2">
             <div className="flex justify-between gap-3">
-              <dt className="text-[#5F6368]">{copy.t("When")}</dt>
+              <dt className="text-[var(--tc-muted)]">{copy.t("When")}</dt>
               <dd>{item.whenLabel}</dd>
             </div>
             {item.whereLabel ? (
               <div className="flex justify-between gap-3">
-                <dt className="text-[#5F6368]">{copy.t("Where")}</dt>
+                <dt className="text-[var(--tc-muted)]">{copy.t("Where")}</dt>
                 <dd>{copy.t(item.whereLabel)}</dd>
               </div>
             ) : null}
             <div className="flex justify-between gap-3">
-              <dt className="text-[#5F6368]">{copy.t("Came from")}</dt>
+              <dt className="text-[var(--tc-muted)]">{copy.t("Came from")}</dt>
               <dd>{item.sourceLabel}</dd>
             </div>
+            {isAgency ? (
+              <div className="flex justify-between gap-3">
+                <dt className="text-[var(--tc-muted)]">{copy.t("Managed by")}</dt>
+                <dd className="text-right">
+                  {copy.t("The agency. Changes to time, place or fee go through them.")}
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </section>
 
@@ -491,6 +553,16 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
+        {isAgency && onMessage ? (
+          <button
+            type="button"
+            onClick={onMessage}
+            className="w-full min-h-[44px] rounded-xl border border-black/10 bg-white py-3 text-[14px] font-semibold text-[var(--tc-primary)]"
+          >
+            {copy.t("Request a change")}
+          </button>
+        ) : null}
+
         {/* Collect deposit — mint pay link + WhatsApp share (criterion 3) */}
         {needsDepositCollect && !showFinish ? (
           <div className="space-y-2">
@@ -512,6 +584,26 @@ export function AgendaBookingRecord({
                 >
                   {depositLink}
                 </a>
+                {depositQrSvg ? (
+                  <div
+                    role="img"
+                    aria-label={copy.t("QR code for the payment link")}
+                    className="h-[160px] w-[160px] rounded-lg bg-white p-1"
+                    dangerouslySetInnerHTML={{ __html: depositQrSvg }}
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(depositLink).then(
+                      () => setLinkCopied(true),
+                      () => setLinkCopied(false),
+                    );
+                  }}
+                  className="mr-2 inline-flex min-h-[44px] items-center rounded-full border border-black/10 bg-white px-4 text-[13px] font-semibold text-[var(--tc-primary)]"
+                >
+                  {linkCopied ? copy.t("Link copied") : copy.t("Copy link")}
+                </button>
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(depositLink)}`}
                   target="_blank"
@@ -589,7 +681,7 @@ export function AgendaBookingRecord({
 
         {/* Status feedback */}
         {status ? (
-          <p className="text-center text-[13px] text-[#5F6368]" aria-live="polite">{status}</p>
+          <p className="text-center text-[13px] text-[var(--tc-muted)]" aria-live="polite">{status}</p>
         ) : null}
 
         {/* Trade section */}
@@ -597,18 +689,18 @@ export function AgendaBookingRecord({
       </div>
 
       <aside className="space-y-4">
-        <MoneyBlock items={item.moneyLines ?? []} />
-        {item.terms ? (
-          <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-[#5F6368]">
-            <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Terms")}</h2>
-            <p>{item.terms}</p>
-          </section>
-        ) : null}
-        {item.history && item.history.length > 0 ? (
-          <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-admin-ink-muted">
-            <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("History")}</h2>
-            <ul className="space-y-2">
-              {item.history.map((line) => (
+        <MoneyBlock title={copy.t("Agreed")} items={item.moneyLines ?? []} />
+        {item.terms || (item.history && item.history.length > 0) ? (
+          <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-[var(--tc-muted)]">
+            <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Terms and history")}</h2>
+            {item.terms ? <p className="border-b border-black/8 pb-2">{item.terms}</p> : null}
+            {isAgency ? (
+              <p className="border-b border-black/8 py-2">
+                {copy.t("Agency job: you cannot cancel or move it here. Ask the agency.")}
+              </p>
+            ) : null}
+            <ul className="mt-2 space-y-2">
+              {(item.history ?? []).map((line) => (
                 <li key={`${line.at}-${line.label}`}>
                   <time dateTime={line.at} className="block text-[11px] text-admin-ink-dim">
                     {new Date(line.at).toLocaleString()}
@@ -625,19 +717,51 @@ export function AgendaBookingRecord({
       {confirmCancel && (
         <ConfirmDialog
           title={copy.t("Cancel this booking?")}
-          body={[
-            copy.t("This cannot be undone."),
-            copy.t("The time is freed on your calendar."),
-            copy.t("The client sees the cancellation in your conversation."),
-            item.paymentState && ["deposit_paid", "paid", "checking_payment"].includes(item.paymentState)
-              ? copy.t("What the client paid is refunded by your cancellation terms. The amount shows after you confirm.")
-              : copy.t("No payment was taken, so there is nothing to refund."),
-          ].join(" ")}
+          body={`${item.whenLabel} · ${item.title}`}
           confirmLabel={copy.t("Cancel booking")}
+          cancelLabel={copy.t("Keep booking")}
           destructive
           onConfirm={handleCancelConfirm}
           onCancel={() => setConfirmCancel(false)}
-        />
+        >
+          <fieldset className="space-y-2">
+            <legend className="mb-1 font-semibold text-[var(--tc-primary)]">{copy.t("Who is cancelling?")}</legend>
+            {(["client", "talent"] as const).map((who) => (
+              <label key={who} className="flex min-h-[44px] items-center gap-3 rounded-xl border border-black/10 px-3">
+                <input
+                  type="radio"
+                  name="cancelled-by"
+                  checked={cancelledBy === who}
+                  onChange={() => setCancelledBy(who)}
+                />
+                <span>{who === "client" ? copy.t("The client asked to cancel") : copy.t("I am cancelling")}</span>
+              </label>
+            ))}
+          </fieldset>
+          <ul className="list-disc space-y-1 pl-5 text-[var(--tc-muted)]">
+            {cancelConsequenceKeys(item.paymentState, cancelledBy).map((k) => (
+              <li key={k}>{copy.t(k)}</li>
+            ))}
+            <li>{copy.t("This cannot be undone.")}</li>
+          </ul>
+        </ConfirmDialog>
+      )}
+
+      {confirmNoShow && (
+        <ConfirmDialog
+          title={copy.t("Mark as no-show?")}
+          body={`${item.whenLabel} · ${item.title}`}
+          confirmLabel={copy.t("Mark no-show")}
+          cancelLabel={copy.t("Back")}
+          destructive
+          onConfirm={handleNoShow}
+          onCancel={() => setConfirmNoShow(false)}
+        >
+          <p className="rounded-xl bg-black/[0.03] p-3">{copy.t(noShowMoneyKey(item.paymentState))}</p>
+          <p className="text-[var(--tc-muted)]">
+            {copy.t("The booking stays in your history as No-show. No message is sent unless you write one.")}
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   );
