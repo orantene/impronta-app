@@ -17,6 +17,7 @@ import {
   buildKitStandardShell,
   contactBlock,
   galleryBlock,
+  portfolioBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -43,6 +44,8 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["servicesBlock", servicesBlock(ids(), { columns: 2, heading: "What I do" })],
   ["galleryBlock masonry", galleryBlock(ids())],
   ["galleryBlock grid", galleryBlock(ids(), { mode: "grid", columns: 2 })],
+  ["portfolioBlock filmstrip", portfolioBlock(ids(), { layout: "filmstrip" })],
+  ["portfolioBlock contact_sheet", portfolioBlock(ids(), { layout: "contact_sheet", columns: 4 })],
   ["contactBlock", contactBlock(ids(), { heading: "Get in touch" })],
 ];
 

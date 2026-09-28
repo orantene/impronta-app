@@ -3,6 +3,7 @@ import "server-only";
 import type { ReactNode } from "react";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
+import { builderTreeHasKind } from "./builder-tree-has-kind";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -33,6 +34,7 @@ import {
   loadBuilderNodeDataSources,
   loadServicesCatalogSources,
 } from "@/components/home/homepage-cms-data-sources";
+import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
@@ -468,19 +470,15 @@ async function renderMaxSiteDocument(args: {
   // which used to skip data sources entirely. Hablar/dock still loaded
   // offerings, but `services_catalog` rendered the empty state. Load catalog
   // sources by talent profile whenever the page tree needs them.
-  const pageNeedsServicesCatalog = (function needsCatalog(nodes: unknown): boolean {
-    if (Array.isArray(nodes)) return nodes.some(needsCatalog);
-    if (!nodes || typeof nodes !== "object") return false;
-    const n = nodes as { kind?: unknown; children?: unknown };
-    return n.kind === "services_catalog" || needsCatalog(n.children);
-  })(blocks);
+  const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
+  const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
 
   // Codex P2 / ACCEPTANCE: loading offerings with catalogBookingLive=false mounts
   // demo booking ("Preview: no real bookings") on published free vanity. Own-work
   // Path A / inquiry uses the platform hub when there is no managing agency
   // tenant — same as Agenda `resolveTalentOwnWorkTenant` / Path B hub pick.
   let bookingTenantId: string | null = tenantId;
-  if (!bookingTenantId && !draftPreview && pageNeedsServicesCatalog) {
+  if (!bookingTenantId && !draftPreview && (pageNeedsServicesCatalog || pageNeedsPortfolio)) {
     bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
   }
   const catalogBookingLive = Boolean(bookingTenantId) && !draftPreview;
@@ -492,9 +490,17 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsServicesCatalog
-          ? loadServicesCatalogSources(talentProfileId, locale).then(
-              (catalog) => ({ ...catalog }) as BuilderNodeRenderDataSources,
+        : pageNeedsServicesCatalog || pageNeedsPortfolio
+          ? Promise.all([
+              pageNeedsServicesCatalog || pageNeedsPortfolio
+                ? loadServicesCatalogSources(talentProfileId, locale)
+                : Promise.resolve({}),
+              pageNeedsPortfolio
+                ? loadPortfolioSources(talentProfileId)
+                : Promise.resolve({}),
+            ]).then(
+              ([catalog, portfolio]) =>
+                ({ ...catalog, ...portfolio }) as BuilderNodeRenderDataSources,
             )
           : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)

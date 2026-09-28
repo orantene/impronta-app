@@ -6,6 +6,7 @@ import type {
 import { createBuilderSectionEmbed } from "./section-embed-presets";
 import { makeId, randomUuid } from "./make-id";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "./services-catalog-defaults";
+import { PORTFOLIO_DEFAULT_PROPS } from "./portfolio-defaults";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
@@ -242,6 +243,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       };
     case "services_catalog":
       return { id: makeId("services_catalog"), kind: "services_catalog", props: { ...SERVICES_CATALOG_DEFAULT_PROPS } };
+    case "portfolio":
+      return { id: makeId("portfolio"), kind: "portfolio", props: { ...PORTFOLIO_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
     case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
@@ -776,9 +779,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
   }
 }
 
-// Composition presets live in ./composition-presets (kept out of this file
-// to satisfy max-lines). Re-exported here so existing import sites that pull
-// them from "./create" keep working.
+// Composition presets + section-embed factories live in sibling modules
+// (max-lines). Re-exported so existing "./create" import sites keep working.
 export {
   BUILDER_NODE_COMPOSITION_PRESETS,
   createBuilderNodeCompositionPreset,
@@ -787,10 +789,6 @@ export type {
   BuilderNodeCompositionPresetId,
   BuilderNodeCompositionPreset,
 } from "./composition-presets";
-
-// Curated Tulala-component embeds (Directory / Featured talent / Booking / CTA)
-// — presets + factory live in ./section-embed-presets; re-exported here so the
-// element-library picker and insert plumbing import them from one place.
 export {
   SECTION_EMBED_PRESETS,
   getSectionEmbedPreset,

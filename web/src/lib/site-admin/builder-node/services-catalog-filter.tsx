@@ -33,7 +33,7 @@ import {
 
 export type CatalogGroup = { name: string | null; items: TalentOffering[]; note?: string | null };
 
-export type CatalogNavMode = "pills" | "tabs" | "jump" | "sections" | "accordion" | "flat";
+export type CatalogNavMode = "pills" | "tabs" | "rail" | "jump" | "sections" | "accordion" | "flat";
 
 // F4 / WSF-B: one derivation (deriveOfferingCta) shared with OfferingCta and
 // catalogRowCtaLabel. The talent default applies only to services that
@@ -171,7 +171,7 @@ export function ServicesCatalogFilter({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const es = locale.startsWith("es");
-  const filterNav = nav === "pills" || nav === "tabs";
+  const filterNav = nav === "pills" || nav === "tabs" || nav === "rail";
   const bookingPosture = bookingSettings.bookingPosture;
   const q = searchQuery.trim().toLowerCase();
 
@@ -332,6 +332,10 @@ export function ServicesCatalogFilter({
           ) : null}
         </div>
       ) : null}
+      <div
+        className="site-builder-node--services-catalog-body"
+        data-category-nav={filterNav || nav === "jump" ? nav : undefined}
+      >
       {filterNav ? (
         <nav
           aria-label={es ? "Categorías" : "Categories"}
@@ -390,6 +394,7 @@ export function ServicesCatalogFilter({
         </nav>
       ) : null}
 
+      <div className="site-builder-node--services-catalog-groups">
       {groups.map((g) => {
         // Changing filter must not clear selectedId / booking sheet state (brief §7).
         const hidden =
@@ -461,6 +466,8 @@ export function ServicesCatalogFilter({
           </div>
         );
       })}
+      </div>
+      </div>
 
       {/* Idle prompt only; once something is picked the AUD-044 dock takes over. */}
       <div
