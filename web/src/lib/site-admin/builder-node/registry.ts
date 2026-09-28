@@ -76,6 +76,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "visit",
   "contents",
   "masthead",
+  "statement_footer",
   "comp_card",
   "next_free_chip",
   "reserve_table",
@@ -1188,6 +1189,17 @@ export const mastheadPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Statement footer — short editorial statement + optional credit / contact. */
+export const statementFooterPropsSchema = z.object({
+  statement: z.string().max(280).optional(),
+  creditLine: z.string().max(160).optional(),
+  contactLine: z.string().max(160).optional(),
+  align: z.enum(["start", "center"]).optional(),
+  showRule: z.boolean().optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Comp card — live measure strip + profile field visibility. */
 export const compCardPropsSchema = z.object({
   layout: z.enum(["strip", "strip_with_details"]).optional(),
@@ -2245,6 +2257,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Giant stacked words over an optional black-and-white cover. Magazine hero.",
       children: { type: "none" },
       propsSchema: mastheadPropsSchema,
+    },
+    statement_footer: {
+      kind: "statement_footer",
+      label: "Statement footer",
+      description:
+        "Short editorial closing statement with optional credit and contact lines.",
+      children: { type: "none" },
+      propsSchema: statementFooterPropsSchema,
     },
     comp_card: {
       kind: "comp_card",

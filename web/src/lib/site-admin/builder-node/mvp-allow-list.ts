@@ -40,6 +40,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "before_after",
   "contents",
   "masthead",
+  "statement_footer",
 ];
 
 /**
@@ -114,6 +115,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     visit: "media",
     contents: "structure",
     masthead: "structure",
+    statement_footer: "structure",
     comp_card: "media",
     reserve_table: "actions",
     next_free_chip: "actions",
@@ -213,6 +215,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   visit: "visit your visit area map service areas hours languages where travels booking",
   contents: "contents table of contents chapter index anchors toc contents page",
   masthead: "masthead stacked words giant name cover magazine hero editorial bw black white",
+  statement_footer: "statement footer credit contact colophon closing editorial magazine inquire",
   comp_card: "comp card measure strip measurements height bust waist hips vitals details ficha profile fields",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   next_free_chip: "next free time slot availability booking chip calendar open",
@@ -304,6 +307,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "visit",
     "contents",
     "masthead",
+    "statement_footer",
     "comp_card",
     "next_free_chip",
     "reserve_table",

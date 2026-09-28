@@ -15,6 +15,11 @@ import {
 } from "@/lib/site-admin/builder-node/masthead-defaults";
 import type { MastheadCoverFilter } from "@/lib/site-admin/builder-node/masthead-defaults";
 import {
+  STATEMENT_FOOTER_DEFAULT_PROPS,
+  cloneStatementFooterDefaultProps,
+} from "@/lib/site-admin/builder-node/statement-footer-defaults";
+import type { StatementFooterAlign } from "@/lib/site-admin/builder-node/statement-footer-defaults";
+import {
   COMP_CARD_DEFAULT_PROPS,
   cloneCompCardDefaultProps,
 } from "@/lib/site-admin/builder-node/comp-card-defaults";
@@ -32,6 +37,10 @@ const BAND_SLOTS = {
   contents: { slotKey: "contents", originRole: "talent.contents" },
   compCard: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
+  statementFooter: {
+    slotKey: "statement_footer",
+    originRole: "talent.statement_footer",
+  },
 } as const;
 
 /** Hero slot stamp (mirrors `stampKitSection("hero", …)` without circular import). */
@@ -408,6 +417,49 @@ export function heroMasthead(
           showCover: opts.showCover ?? defaults.showCover !== false,
           coverFilter: opts.coverFilter ?? defaults.coverFilter ?? "bw",
           coverSrc: opts.coverSrc ?? defaults.coverSrc ?? MASTHEAD_DEFAULT_PROPS.coverSrc,
+        },
+      },
+    ],
+  } as BuilderNode;
+}
+
+/**
+ * Statement footer — short editorial closing statement + optional credit /
+ * contact. Shared widget; Designs stamp after contact. Never Folio-only CSS.
+ */
+export function statementFooterBlock(
+  makeId: KitIdFactory,
+  opts: {
+    statement?: string;
+    creditLine?: string;
+    contactLine?: string;
+    align?: StatementFooterAlign;
+    showRule?: boolean;
+  } = {},
+): BuilderNode {
+  const defaults = cloneStatementFooterDefaultProps();
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampBand("statementFooter", {
+      layout: "stack",
+      gap: "m",
+      align: "stretch",
+      layerLabel: "Statement footer",
+      style: { maxWidth: "reading", paddingY: "none", paddingX: "none" },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "statement_footer",
+        props: {
+          ...defaults,
+          statement: opts.statement ?? STATEMENT_FOOTER_DEFAULT_PROPS.statement,
+          creditLine: opts.creditLine ?? STATEMENT_FOOTER_DEFAULT_PROPS.creditLine,
+          contactLine:
+            opts.contactLine ?? STATEMENT_FOOTER_DEFAULT_PROPS.contactLine,
+          align: opts.align ?? STATEMENT_FOOTER_DEFAULT_PROPS.align ?? "center",
+          showRule: opts.showRule ?? STATEMENT_FOOTER_DEFAULT_PROPS.showRule !== false,
         },
       },
     ],

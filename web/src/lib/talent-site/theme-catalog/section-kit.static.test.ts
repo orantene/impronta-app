@@ -23,6 +23,7 @@ import {
   reviewsBlock,
   visitBlock,
   contentsBlock,
+  statementFooterBlock,
   compCardBlock,
   heroCentered,
   heroCover,
@@ -112,6 +113,15 @@ const SECTIONS: Array<[string, BuilderNode]> = [
       layout: "strip_with_details",
       showFullDetails: true,
       minMeasures: 4,
+    }),
+  ],
+  [
+    "statementFooterBlock",
+    statementFooterBlock(ids(), {
+      statement: "Available for editorial and campaign work.",
+      creditLine: "{{displayName}}",
+      contactLine: "Inquire for bookings",
+      align: "center",
     }),
   ],
   ["faqBlock centered", faqBlock(ids(), { heading: "Before your appointment", center: true })],

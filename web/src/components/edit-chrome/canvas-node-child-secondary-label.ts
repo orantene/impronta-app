@@ -97,6 +97,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Contents · chapter index";
     case "masthead":
       return "Masthead · stacked words";
+    case "statement_footer":
+      return "Statement footer · credit and contact";
     case "comp_card":
       return "Comp card · measure strip";
     case "next_free_chip":

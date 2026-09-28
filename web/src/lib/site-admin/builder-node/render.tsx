@@ -159,6 +159,7 @@ import { renderReviewsBlock } from "./reviews-block";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
+import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
 import { renderNextFreeChip } from "./next-free-chip";
 
@@ -5953,6 +5954,12 @@ function renderBuilderNodeElement(
     }
     case "masthead": {
       return renderMastheadBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "statement_footer": {
+      return renderStatementFooterBlock({
         node,
         styleAttr: sharedNodeStyle(node.props.style),
       });

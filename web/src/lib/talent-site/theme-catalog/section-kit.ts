@@ -45,6 +45,10 @@ export const TALENT_KIT_SECTIONS = {
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   comp_card: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
+  statement_footer: {
+    slotKey: "statement_footer",
+    originRole: "talent.statement_footer",
+  },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -719,6 +723,7 @@ export {
   faqBlock,
   contentsBlock,
   heroMasthead,
+  statementFooterBlock,
   compCardBlock,
   measureStripBlock,
 } from "./section-kit-bands";
