@@ -76,6 +76,12 @@ export function mapEngineFail(res: Extract<InstantEngineResult, { ok: false }>):
                 ? res.error ?? "Pick a time to book this service."
                 : res.reason === "too_soon"
                   ? res.error ?? "That time is too soon. Pick a later start."
+                  : res.reason === "inquiry_only" || res.reason === "request_only"
+                    ? res.error ?? "This one is booked by request. Send a message to ask for a time."
+                    : res.reason === "bad_duration"
+                      || res.reason === "beyond_horizon"
+                      || res.reason === "outside_hours"
+                      ? res.error ?? "That time is not available. Pick another time."
                   : res.error?.trim()
                     ? res.error
                     : "We couldn't complete the booking. Please try the inquiry option instead.";

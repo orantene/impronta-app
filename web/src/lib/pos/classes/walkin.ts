@@ -198,7 +198,12 @@ export type WalkInBookingRefusal =
   | PurchaseRefusalReason
   | "invalid"
   | "not_found"
-  | "too_soon";
+  | "too_soon"
+  | "inquiry_only"
+  | "request_only"
+  | "bad_duration"
+  | "beyond_horizon"
+  | "outside_hours";
 
 export type WalkInBookingResult =
   | {
@@ -273,6 +278,7 @@ export async function bookWalkInAppointment(
     sourcePage: "pos-classes",
     clientOrderKey: input.clientOrderKey,
     openThread: false,
+    staffDesk: true,
   });
   if (!placed.ok) return { ok: false, reason: placed.reason };
   return {

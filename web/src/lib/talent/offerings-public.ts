@@ -21,6 +21,8 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { withEffectivePolicy } from "@/lib/talent/offering-policy-resolver";
+import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -90,8 +92,12 @@ export async function loadPublicOfferingsForProfile(
       rows.map((r) => r.id),
     );
     const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
+    // The talent's Defaults (deposit, cancellation) apply where the offering
+    // left them unset, so the sheet says what checkout will charge.
+    const defaults = await loadSellingDefaultsByTalent(db, [talentProfileId]);
+    const sellingDefaults = defaults.ok ? (defaults.defaults.get(talentProfileId) ?? {}) : {};
     return rows.map((r) => ({
-      ...rowToOffering(r, locale, images.get(r.id) ?? []),
+      ...withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? []), sellingDefaults),
       variants: children.variants.get(r.id) ?? [],
       addOns: addOnsByOffering.get(r.id) ?? [],
     }));

@@ -1,6 +1,8 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { loadEffectiveCancellationHours } from "@/lib/talent/offering-policy-server";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { planRefund, type PaidTransaction, type RefundableLine } from "@/lib/orders/refund-plan";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
@@ -126,13 +128,14 @@ async function cancellationWindowForLines(
   if (!first?.starts_at) return { cancellationHours: null, startsAt: null };
   const line = lines.find((l) => l.id === first.order_line_id);
   if (!line?.offering_id) return { cancellationHours: null, startsAt: first.starts_at };
-  const { data: offRow, error: offErr } = await admin
-    .from("talent_offerings")
-    .select("cancellation_hours")
-    .eq("id", line.offering_id)
-    .maybeSingle();
-  if (offErr) return { cancellationHours: null, startsAt: first.starts_at };
-  const hours = (offRow as { cancellation_hours: number | null } | null)?.cancellation_hours ?? null;
+  // Offering value, then the talent's default, then the platform 24 h: the
+  // window the guest was sold under (resolveOfferingPolicy).
+  // `Admin` is this file's structural slice of the client; the loader only
+  // calls `.from(...)` on it.
+  const hours = await loadEffectiveCancellationHours(
+    admin as unknown as SupabaseClient,
+    line.offering_id,
+  );
   return { cancellationHours: hours, startsAt: first.starts_at };
 }
 
