@@ -45,7 +45,7 @@ export function ReviewWebsiteScreen({
   const [toast, setToast] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const preview = useThemePreview({ talentProfileId, locale });
-  const previewUrl = preview.src("maison", `maison-${choices.paletteKey}`);
+  const previewUrl = preview.src(choices.designSlug, `maison-${choices.paletteKey}`);
 
   useEffect(() => {
     if (choices.useCustomPalette && choices.customPalette) {
