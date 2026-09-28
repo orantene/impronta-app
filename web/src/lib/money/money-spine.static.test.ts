@@ -121,8 +121,8 @@ describe("Money page never shows fixture figures to real talents", () => {
   it("MoneyPage renders real earnings unless the demo fixture flag is set", () => {
     const src = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
     assert.match(src, /NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE === "1"/);
-    assert.match(src, /if \(!SPINE_FIXTURE_ENABLED\) return <MoneyEarningsPage \/>/);
-    const earnings = readFileSync(join(moneyDir, "MoneyEarningsPage.tsx"), "utf8");
+    assert.match(src, /if \(!SPINE_FIXTURE_ENABLED\) return <MoneyHomePage \/>/);
+    const earnings = readFileSync(join(moneyDir, "MoneyHomePage.tsx"), "utf8");
     assert.match(earnings, /useResolvedTalentEarningsByCurrency/);
     assert.equal(/septemberLedgerFixture|LEDGER_CONTRACT_CLOCK/.test(earnings), false);
   });

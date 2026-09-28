@@ -35,6 +35,14 @@ function formatMoney(cents: number, currency: string | null): string {
   return code ? `$${formatted} ${code}` : `$${formatted}`;
 }
 
+function formatMonthYear(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  } catch {
+    return "";
+  }
+}
+
 function formatDay(iso: string | null): string {
   if (!iso) return "";
   try {
@@ -161,6 +169,7 @@ function ClientRecord(props: {
             {[row.phone, row.email].filter(Boolean).join(" · ") || t("Client")}
           </p>
           <p className="mt-1 font-admin-body text-[13px] text-admin-ink-muted">
+            {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt)} · ` : ""}
             {row.source === "booking" ? t("From a booking") : t("From a message")}
             {row.completedCount > 0
               ? ` · ${row.completedCount} ${t("completed")}`
@@ -241,6 +250,51 @@ function ClientRecord(props: {
               }`
             : t("No work yet")}
         </p>
+        {row.history && row.history.length > 0 ? (
+          <div className="mt-2 overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
+            {row.history.map((h, i) => (
+              <button
+                key={h.bookingId}
+                type="button"
+                onClick={() => router.push(h.href)}
+                className={`flex min-h-[44px] w-full items-start gap-3 px-4 py-3 text-left ${
+                  i ? "border-t border-admin-border-soft" : ""
+                }`}
+              >
+                <span className="w-[96px] shrink-0 font-admin-body text-[13.5px] text-admin-ink">
+                  {formatDay(h.startsAt)}
+                </span>
+                <span className="min-w-0 flex-1 font-admin-body text-[13px]">
+                  <span className="block text-admin-ink">
+                    {h.past ? t("Completed") : t("Upcoming")}
+                  </span>
+                  {h.paymentStatus ? (
+                    <span
+                      className={`block font-semibold ${
+                        h.paymentStatus === "paid"
+                          ? "text-admin-success-deep"
+                          : h.past
+                            ? "text-admin-critical"
+                            : "text-admin-ink-muted"
+                      }`}
+                    >
+                      {h.paymentStatus === "paid"
+                        ? t("Paid")
+                        : h.paymentStatus === "partial"
+                          ? t("Part paid")
+                          : t("Not paid yet")}
+                    </span>
+                  ) : null}
+                </span>
+                {h.amountCents != null ? (
+                  <span className="whitespace-nowrap font-admin-body text-[14px] font-semibold text-admin-ink">
+                    {formatMoney(h.amountCents, h.currency)}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );

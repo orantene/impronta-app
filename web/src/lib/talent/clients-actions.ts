@@ -130,6 +130,25 @@ export async function loadTalentClients(
           nextStatus: isFuture ? nextStatus : null,
           nextBookingHref: isFuture ? `/talent/bookings/${booking.id}` : null,
           overdue,
+          firstSeenAt: start,
+          history: start
+            ? [
+                {
+                  bookingId: booking.id as string,
+                  startsAt: start,
+                  amountCents: basis > 0 ? basis : null,
+                  currency: (booking.currency_code as string | null) ?? null,
+                  paymentStatus:
+                    booking.payment_status === "paid"
+                      ? "paid"
+                      : booking.payment_status === "partial"
+                        ? "partial"
+                        : "unpaid",
+                  past: isPast,
+                  href: `/talent/bookings/${booking.id}`,
+                },
+              ]
+            : [],
         }),
         { inquiryId, accumulateVisit: true, countCompleted: isPast },
       );
@@ -172,6 +191,21 @@ export async function loadTalentClients(
           nextStartsAt: isFuture ? start : null,
           nextStatus: isFuture ? nextStatus : null,
           nextBookingHref: isFuture ? `/talent/bookings/${row.id}` : null,
+          firstSeenAt: start,
+          history:
+            start && row.status !== "cancelled"
+              ? [
+                  {
+                    bookingId: row.id as string,
+                    startsAt: start,
+                    amountCents: null,
+                    currency: null,
+                    paymentStatus: null,
+                    past: start < nowIso,
+                    href: `/talent/bookings/${row.id}`,
+                  },
+                ]
+              : [],
         }),
         { inquiryId, accumulateVisit: false },
       );
@@ -213,6 +247,7 @@ export async function loadTalentClients(
           source: "inquiry",
           phone: (inquiry.contact_phone as string | null)?.trim() || null,
           email: (inquiry.contact_email as string | null)?.trim() || null,
+          firstSeenAt: created,
         }),
         { inquiryId: inquiry.id as string, accumulateVisit: false },
       );
