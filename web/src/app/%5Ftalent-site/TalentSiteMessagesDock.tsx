@@ -13,6 +13,19 @@ import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridg
 import { resolveIndustryPreset, talentSiteChatVoice } from "@/lib/words/presets";
 import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 
+import { TalentInquiryFormSheet } from "@/app/t/[profileCode]/_chat/TalentInquiryFormSheet";
+import {
+  askEntryPointsVisible,
+  dockMounted,
+  intakeNoticeCopy,
+  intakeNoticeKind,
+  resolveTalentAskEntry,
+  resolveTalentChatGreeting,
+} from "@/lib/talent/chat-entry";
+import { TalentIntakeNotice } from "@/app/t/[profileCode]/_chat/TalentIntakeNotice";
+import { getActiveGuestInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 
 /**
@@ -110,7 +123,7 @@ export async function TalentSiteMessagesDock({
 }) {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const [resolved, profileRes, siteChrome, thumbs] = await Promise.all([
+  const [resolved, profileRes, siteChrome, thumbs, switches] = await Promise.all([
     loadTalentSiteInquiryTenant(admin, talentProfileId),
     admin
       .from("talent_profiles")
@@ -122,7 +135,18 @@ export async function TalentSiteMessagesDock({
     loadVanitySiteChrome(admin, talentProfileId),
     // AUD-039: the talent's profile photo, same rank as her directory card.
     loadTalentCardThumbs(admin, [talentProfileId]),
+    // WSF D: her chat switch (chat → dock, off → inquiry form, inquiries off → neither).
+    loadTalentSiteSwitches(admin, talentProfileId),
   ]);
+  // §8 "Existing clients": a visitor with a live thread keeps the dock.
+  const resume =
+    resolved.ok && !(switches.chatEnabled && switches.acceptingInquiries)
+      ? await getActiveGuestInquiry({ tenantSlug: resolved.tenant.slug, talentProfileId })
+      : null;
+  const askEntry = resolveTalentAskEntry(switches, {
+    hasActiveThread: Boolean(resume?.ok && resume.active),
+  });
+  const noticeKind = intakeNoticeKind(askEntry);
   const { accentColor, logoUrl } = siteChrome;
   const photoUrl = thumbs.get(talentProfileId) ?? null;
   if (!resolved.ok) return null;
@@ -162,6 +186,7 @@ export async function TalentSiteMessagesDock({
       <TalentSiteContactBridge
         heading={t("public.talentSite.contact.heading")}
         askLabel={t("public.talentSite.contact.ask")}
+        showAsk={askEntryPointsVisible(askEntry)}
         whatsappLabel={t("public.talentSite.contact.whatsapp")}
         emailLabel={t("public.talentSite.contact.email")}
         truth={t(
@@ -174,23 +199,41 @@ export async function TalentSiteMessagesDock({
       />
       {/* AUD-037: keep the last row CTA clear of the fixed launcher on phones. */}
       <style>{GUEST_CHAT_LAUNCHER_CLEARANCE_CSS}</style>
-      <TalentProfileChatLauncherMount
-        talentProfileId={talentProfileId}
-        talentProfileCode={code}
-        talentDisplayName={displayName}
-        tenantSlug={resolved.tenant.slug}
-        tenantId={resolved.tenant.tenantId}
-        exposeTenantToClient={false}
-        agencyName={displayName}
-        accentColor={accentColor}
-        logoUrl={logoUrl}
-        photoUrl={photoUrl}
-        sourcePage="/"
-        locale={locale}
-        greeting={tradeVoice}
-        wordsPresetOverride={tradePreset}
-        omitPlatformBrand
-      />
+      {dockMounted(askEntry) ? (
+        <TalentProfileChatLauncherMount
+          talentProfileId={talentProfileId}
+          talentProfileCode={code}
+          talentDisplayName={displayName}
+          tenantSlug={resolved.tenant.slug}
+          tenantId={resolved.tenant.tenantId}
+          exposeTenantToClient={false}
+          agencyName={displayName}
+          accentColor={accentColor}
+          logoUrl={logoUrl}
+          photoUrl={photoUrl}
+          sourcePage="/"
+          locale={locale}
+          greeting={resolveTalentChatGreeting(switches, tradeVoice)}
+          wordsPresetOverride={tradePreset}
+          omitPlatformBrand
+        />
+      ) : askEntry === "form" ? (
+        <TalentInquiryFormSheet
+          tenantSlug={resolved.tenant.slug}
+          talentProfileId={talentProfileId}
+          talentProfileCode={code}
+          talentName={displayName}
+          sourcePage="/"
+          locale={locale}
+          accentColor={accentColor}
+        />
+      ) : null}
+      {noticeKind ? (
+        <TalentIntakeNotice
+          text={intakeNoticeCopy(noticeKind, locale)}
+          closeLabel={locale === "es" ? "Cerrar" : "Close"}
+        />
+      ) : null}
     </>
   );
 }

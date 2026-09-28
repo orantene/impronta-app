@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 export function TalentSiteContactBridge({
   heading,
   askLabel,
+  showAsk = true,
   whatsappLabel,
   emailLabel,
   truth,
@@ -22,6 +23,8 @@ export function TalentSiteContactBridge({
 }: {
   heading: string;
   askLabel: string;
+  /** False when the talent is not taking inquiries (WSF D): no Ask button. */
+  showAsk?: boolean;
   whatsappLabel: string;
   emailLabel: string;
   truth: string;
@@ -54,13 +57,15 @@ export function TalentSiteContactBridge({
       <p className="talent-contact-fallback__heading">{heading}</p>
       <p className="talent-contact-fallback__truth">{truth}</p>
       <div className="talent-contact-fallback__actions">
-        <button
-          type="button"
-          data-talent-ask=""
-          onClick={() => window.dispatchEvent(new Event("tulala:open-guest-chat"))}
-        >
-          {askLabel}
-        </button>
+        {showAsk ? (
+          <button
+            type="button"
+            data-talent-ask=""
+            onClick={() => window.dispatchEvent(new Event("tulala:open-guest-chat"))}
+          >
+            {askLabel}
+          </button>
+        ) : null}
         {whatsappHref ? <a href={whatsappHref}>{whatsappLabel}</a> : null}
         {emailHref ? <a href={emailHref}>{emailLabel}</a> : null}
       </div>

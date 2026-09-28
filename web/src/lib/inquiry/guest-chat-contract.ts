@@ -364,6 +364,10 @@ export type StartGuestChatInput = {
   offeringIntent?: string | null;
   /** Guest locale for the hand-confirmation line. */
   locale?: string | null;
+  /** WSF D: "inquiry_form" when the chat-off form sheet sent it (→ source_context.entry_point). */
+  entryPoint?: "inquiry_form" | null;
+  /** WSF D: every service picked when more than one (→ source_context.lines). */
+  lines?: { offering_id: string; title: string; amount_cents: number | null; currency: string }[] | null;
 };
 
 export type StartGuestChatResult =

@@ -231,6 +231,10 @@ export function withEffectiveBookingMode<T extends { bookingMode: OfferingBookin
  * nowhere; request is strictly better and matches §1. A talent with hours,
  * durations and online collect ready (Jor's shape) stays instant.
  *
+ * PAY-2: `payoutsReady` is platform Checkout (`isPlatformCheckoutReady`), not
+ * Connect. Missing hours still fall back to request and hide deposit who-step
+ * honesty (AUD-004 chat) — QA deposit fixtures must seed working hours.
+ *
  * WSF-C: withEffectiveBookingMode plus readiness (§1 row 4) and, on a direct
  * channel, the talent's switches (§8). PUBLIC LOADERS ONLY.
  *  - `hasWorkingHours` null/undefined = unknown: readiness never downgrades;

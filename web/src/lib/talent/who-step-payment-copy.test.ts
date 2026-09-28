@@ -146,6 +146,24 @@ test("resolveWhoStepPaymentUi deposit confirm uses payment CTA", () => {
   assert.equal(ui.whoAction, "confirm");
   assert.match(ui.whoCtaText, /Continuar al pago/);
   assert.doesNotMatch(ui.whoCtaText, /Confirmar cita/);
+  assert.match(ui.paymentFixture, /seña del 30%/);
+});
+
+test("PAY-2: readiness request intent (no hours) hides deposit honesty on chat path", () => {
+  // WSF-C hours gap → request intent. AUD-004 chat copy wins until hours exist.
+  const ui = resolveWhoStepPaymentUi({
+    reserveMode: "deposit",
+    allowPayInPerson: false,
+    depositPct: 30,
+    onlineCollectReady: true,
+    locale: "es",
+    offeringIntent: "request",
+    bookingSettings: DEFAULT_SHEET_BOOKING_SETTINGS,
+  });
+  assert.equal(ui.whoAction, "chat");
+  assert.match(ui.whoCtaText, /Chateá ahora/);
+  assert.match(ui.paymentFixture, /Te respondemos para confirmar el horario/);
+  assert.doesNotMatch(ui.paymentFixture, /seña/);
 });
 
 test("AUD-004: chat/inquiry path uses reply-to-confirm copy, not studio pay", () => {

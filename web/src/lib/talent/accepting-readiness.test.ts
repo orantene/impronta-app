@@ -190,6 +190,38 @@ test("Q1: Jor's shape (hours + duration + online collect ready, deposit) stays i
   );
 });
 
+test("PAY-2: deposit + online collect ready + hours keeps book_now (not request_to_book chat)", () => {
+  // Tip FAIL on 255ecfd7: SSR onlineCollectReady:true / confirmsByHand:false but
+  // missing fixture hours → readiness request → Solicitar cita / Chateá ahora.
+  const deposit = {
+    ...offering,
+    reserveMode: "deposit" as const,
+    depositPct: 30,
+    allowPayInPerson: false,
+  };
+  const ready = withPublicAvailability(deposit, {}, {
+    payoutsReady: true,
+    hasWorkingHours: true,
+    switches: ON,
+  });
+  assert.equal(ready.bookingMode, "instant");
+  const ctaReady = deriveOfferingCta({ offering: ready as never, confirmsByHand: false });
+  assert.equal(ctaReady.cta, "book_now");
+  assert.equal(ctaReady.intent, "instant");
+
+  const noHours = withPublicAvailability(deposit, {}, {
+    payoutsReady: true,
+    hasWorkingHours: false,
+    switches: ON,
+  });
+  assert.equal(noHours.bookingMode, "request");
+  assert.equal(noHours.reserveMode, "deposit");
+  assert.equal(
+    deriveOfferingCta({ offering: noHours as never, confirmsByHand: false }).cta,
+    "request_to_book",
+  );
+});
+
 test("Q3/§7: an agency homepage catalog never applies the talent's switches", () => {
   assert.equal(servicesCatalogChannel({ explicitTalentProfileId: null }), "agency");
   assert.equal(servicesCatalogChannel({ explicitTalentProfileId: "tal-1" }), "direct");
