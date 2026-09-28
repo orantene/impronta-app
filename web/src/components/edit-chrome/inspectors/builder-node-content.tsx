@@ -5136,6 +5136,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Services menu · your catalogue";
     case "portfolio":
       return "Portfolio · your live media";
+    case "next_free_chip":
+      return "Next free · live slot chip";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":

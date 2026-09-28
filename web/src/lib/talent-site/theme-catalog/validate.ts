@@ -71,6 +71,7 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "reveal",
   "services_catalog",
   "portfolio",
+  "next_free_chip",
 ]);
 
 /** Kinds rejected with a specific message (raw markup / third-party / agency data). */

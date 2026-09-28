@@ -47,6 +47,8 @@ export type BuilderNodeKind =
   | "services_catalog"
   /** W-12 — live-bound talent media (filmstrip / grid / masonry / contact sheet). */
   | "portfolio"
+  /** Next free slot chip — bound to public booking slots; hidden when empty. */
+  | "next_free_chip"
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
@@ -1313,6 +1315,25 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * Next free time chip — fetches `/api/public/booking/slots` for a bookable
+ * offering (authored id, or the first slot-eligible offering on the page).
+ * Renders nothing when the list is empty.
+ */
+export interface BuilderNextFreeChipNode extends BuilderNodeBase {
+  kind: "next_free_chip";
+  props: {
+    /** Optional pinned offering; otherwise first bookable offering wins. */
+    offeringId?: string;
+    labelEn?: string;
+    labelEs?: string;
+    /** Horizon in days for the slots probe (API clamps). */
+    days?: number;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
@@ -2320,6 +2341,7 @@ export type BuilderNode =
   | BuilderMenuBoardNode
   | BuilderServicesCatalogNode
   | BuilderPortfolioNode
+  | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode

@@ -180,7 +180,10 @@ function contactSection(
 function tuneHeading(node: BuilderNode, style: Record<string, unknown>): BuilderNode {
   const children = "children" in node && Array.isArray(node.children) ? node.children : null;
   const props = (node.props ?? {}) as Record<string, unknown>;
-  const isName = node.kind === "heading" && props.text === "{{displayName}}";
+  const text = typeof props.text === "string" ? props.text : "";
+  const isName =
+    node.kind === "heading" &&
+    (text === "{{displayName}}" || text.includes("{{displayName}}"));
   return {
     ...node,
     props: isName ? { ...props, style: { ...((props.style as object) ?? {}), ...style } } : props,
@@ -208,13 +211,23 @@ function withChild(node: BuilderNode, child: BuilderNode): BuilderNode {
 }
 
 // ── Maison v2 (Rosé proposal) ────────────────────────────────────────────────
-// Split hero (60-40, image right), recent work BEFORE the menu, the menu as
+// Split hero with desktop inset photo, Bodoni italic name (typography token),
+// next-free chip (slots API), recent work BEFORE the menu, the menu as
 // image-led rows with a sticky category rail (chips on phone), about, then
 // visit + FAQ on a soft band.
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   const hero = tuneHeading(
-    heroSplit(id, { ratio: "50-50", chips: false, accent: true, eyebrow: true, minHeight: "64vh" }),
+    heroSplit(id, {
+      ratio: "50-50",
+      chips: false,
+      accent: true,
+      eyebrow: true,
+      minHeight: "64vh",
+      inset: true,
+      italicAccent: true,
+      nextFreeChip: true,
+    }),
     { size: "display", letterSpacing: "-0.02em" },
   );
   return {
@@ -464,7 +477,7 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
 
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
-  "maison-v2": ["W-14 bound reviews", "next-free-time chip (app)"],
+  "maison-v2": ["W-14 bound reviews"],
   solace: ["overlay menu nav style", "W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe", "filter-bar header style"],
