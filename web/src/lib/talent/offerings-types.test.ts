@@ -62,7 +62,10 @@ describe("rowToOffering", () => {
     const junk = rowToOffering(row({ kind: "nonsense", price_type: "??", booking_mode: "x", price_display: "y" }));
     assert.equal(junk.kind, "service");
     assert.equal(junk.priceType, "flat_package");
-    assert.equal(junk.bookingMode, "request");
+    // WSF-B: an unknown mode reads as null = inherit the talent default (not a hard request).
+    assert.equal(junk.bookingMode, null);
+    assert.equal(rowToOffering(row({ booking_mode: null })).bookingMode, null);
+    assert.equal(rowToOffering(row({ booking_mode: "inquiry" })).bookingMode, "inquiry");
     assert.equal(junk.priceDisplay, "exact");
   });
   it("prefers the locale i18n title", () => {

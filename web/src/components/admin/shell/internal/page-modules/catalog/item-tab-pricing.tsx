@@ -174,7 +174,7 @@ function DepositFields({ item, patch, saving }: Pick<TabProps, "item" | "patch" 
         hint={instantAllowed ? t("dashboard.catalog.pricing.howBookedHint") : t("dashboard.catalog.pricing.instantNeedsPrice")}
       >
         <SelectShell><select
-          value={item.bookingMode}
+          value={item.bookingMode ?? "request"}
           disabled={saving}
           data-testid="catalog-field-booking-mode"
           onChange={(e) => patch({ bookingMode: e.target.value === "instant" ? "instant" : "request" })}

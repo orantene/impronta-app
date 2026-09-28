@@ -32,9 +32,14 @@ export const OFFERING_PRICE_DISPLAYS: readonly OfferingPriceDisplay[] = ["exact"
  *  - request: inquiry → chat → offer → booking (human-confirmed; default)
  *  - instant: direct booking / reserve right away (one exact price required,
  *    including $0 — complimentary class, table hold, free GA)
+ *  - inquiry: answered by conversation first ("Consultar")
+ * On a TalentOffering, `bookingMode: null` means the service INHERITS the
+ * talent default (`talent_offerings.booking_mode` is nullable since WSF-B).
+ * Resolve it with resolveEffectiveBookingMode / deriveOfferingCta; never
+ * read a null as request.
  */
-export type OfferingBookingMode = "request" | "instant";
-export const OFFERING_BOOKING_MODES: readonly OfferingBookingMode[] = ["request", "instant"];
+export type OfferingBookingMode = "request" | "instant" | "inquiry";
+export const OFFERING_BOOKING_MODES: readonly OfferingBookingMode[] = ["request", "instant", "inquiry"];
 
 /**
  * What a DIRECT booking collects up front (the talent's choice):
@@ -93,7 +98,8 @@ export type TalentOffering = {
   /** Major-unit price stored as cents. null only when quote/custom. */
   amountCents: number | null;
   currency: string;
-  bookingMode: OfferingBookingMode;
+  /** Explicit mode, or null = inherit the talent default. */
+  bookingMode: OfferingBookingMode | null;
   reserveMode: OfferingReserveMode;
   /** Percent of the total collected up front when reserveMode === 'deposit'. */
   depositPct: number | null;
@@ -168,7 +174,7 @@ export type TalentOfferingRow = {
   price_display: string;
   amount_cents: number | null;
   currency: string;
-  booking_mode: string;
+  booking_mode: string | null;
   reserve_mode: string;
   deposit_pct: number | null;
   allow_pay_in_person: boolean;
@@ -239,7 +245,7 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
     priceDisplay,
     amountCents: clampCents(row.amount_cents),
     currency: (row.currency || "USD").toUpperCase().slice(0, 8),
-    bookingMode: isOneOf(row.booking_mode, OFFERING_BOOKING_MODES) ? row.booking_mode : "request",
+    bookingMode: isOneOf(row.booking_mode, OFFERING_BOOKING_MODES) ? row.booking_mode : null,
     reserveMode: isOneOf(row.reserve_mode, OFFERING_RESERVE_MODES) ? row.reserve_mode : "full",
     depositPct:
       typeof row.deposit_pct === "number" && Number.isFinite(row.deposit_pct) && row.deposit_pct > 0 && row.deposit_pct < 100
@@ -390,6 +396,7 @@ export function resolveOfferingCta(
 ): OfferingCtaKind {
   if (o.visibility === "on_request") return "request";
   if (o.priceDisplay === "quote" || o.priceType === "custom" || o.amountCents == null) return "ask_quote";
+  if (o.bookingMode === "inquiry") return "request";
   if (o.bookingMode === "instant") return o.kind === "product" ? "buy_now" : "book_now";
   return "request_to_book";
 }

@@ -326,7 +326,7 @@ test("settings Contact CTA opens chat even for instant intent", () => {
       <CatalogBookingSheet
         locale="es"
         mode="demo"
-        bookingSettings={{ bookingPosture: "on_demand", whoPrimaryCta: "contact" }}
+        bookingSettings={{ bookingPosture: "request", whoPrimaryCta: "contact" }}
         slotsFn={async () => ({
           slots: ["2026-09-25T15:00:00.000Z"],
           timezone: "UTC",

@@ -3,8 +3,29 @@
  * Stored in `talent_profiles.selling_defaults` (JSON). Pure parse/resolve.
  */
 
-export const TALENT_BOOKING_POSTURES = ["on_demand", "inquiry"] as const;
+/**
+ * Talent default booking mode (the mode a service INHERITS when its own
+ * `talent_offerings.booking_mode` is null). Three values, same as a service.
+ *
+ * LEGACY `on_demand` (the only value besides `inquiry` before WSF-B) meant
+ * "each service's own mode applies". Every service row carried an explicit
+ * mode then (the column was NOT NULL DEFAULT 'request'), so the default was
+ * never consulted except by the inquiry override. A service that inherits
+ * under `on_demand` must therefore behave like the old column default:
+ * `request`. The parser maps `on_demand` to `request`; nothing writes it any
+ * more. `inquiry` keeps its meaning.
+ */
+export const TALENT_BOOKING_POSTURES = ["instant", "request", "inquiry"] as const;
 export type TalentBookingPosture = (typeof TALENT_BOOKING_POSTURES)[number];
+
+/** Platform default when the talent never chose (= the old column default). */
+export const PLATFORM_DEFAULT_BOOKING_POSTURE: TalentBookingPosture = "request";
+
+/** Read one stored posture value, mapping legacy values. Null = not set / unknown. */
+export function parseBookingPosture(raw: unknown): TalentBookingPosture | null {
+  if (raw === "on_demand") return "request";
+  return isOneOf(raw, TALENT_BOOKING_POSTURES) ? raw : null;
+}
 
 export const WHO_PRIMARY_CTAS = ["confirm_now", "contact", "check_availability"] as const;
 export type WhoPrimaryCta = (typeof WHO_PRIMARY_CTAS)[number];
@@ -20,7 +41,7 @@ export type SellingBookingSettings = {
 
 const DEFAULTS: SellingBookingSettings = {
   bufferBeforeMin: null,
-  bookingPosture: "on_demand",
+  bookingPosture: PLATFORM_DEFAULT_BOOKING_POSTURE,
   whoPrimaryCta: "confirm_now",
 };
 
@@ -41,43 +62,33 @@ export function parseSellingBookingSettings(raw: unknown): SellingBookingSetting
       ? Math.max(0, Math.trunc(obj.bufferBeforeMin))
       : null;
 
-  const bookingPosture = isOneOf(obj.bookingPosture, TALENT_BOOKING_POSTURES)
-    ? obj.bookingPosture
-    : DEFAULTS.bookingPosture;
+  const bookingPosture = parseBookingPosture(obj.bookingPosture) ?? DEFAULTS.bookingPosture;
 
-  let whoPrimaryCta = isOneOf(obj.whoPrimaryCta, WHO_PRIMARY_CTAS)
+  // No inquiry coercion any more: the default only governs services that
+  // inherit. A service with its own instant mode books instantly (§1), and
+  // resolveWhoPrimaryAction already sends every non-instant service to chat.
+  const whoPrimaryCta = isOneOf(obj.whoPrimaryCta, WHO_PRIMARY_CTAS)
     ? obj.whoPrimaryCta
     : DEFAULTS.whoPrimaryCta;
-
-  // Inquiry posture never confirms silently — coerce confirm_now → contact.
-  if (bookingPosture === "inquiry" && whoPrimaryCta === "confirm_now") {
-    whoPrimaryCta = "contact";
-  }
 
   return { bufferBeforeMin, bookingPosture, whoPrimaryCta };
 }
 
 /**
  * Who-step primary action.
- * Path A (confirm) only when on-demand + Confirm now + offering can write.
+ * Path A (confirm) only when the offering's EFFECTIVE intent is instant
+ * (resolved by deriveOfferingCta / resolveEffectiveBookingMode, which already
+ * applied the talent default) and the talent kept Confirm now.
  * Everything else opens the front-door chat (Path B).
  */
 export function resolveWhoPrimaryAction(input: {
-  bookingPosture: TalentBookingPosture;
   whoPrimaryCta: WhoPrimaryCta;
   offeringIntent: "instant" | "request";
 }): "confirm" | "chat" {
-  if (input.bookingPosture === "inquiry") return "chat";
   if (input.whoPrimaryCta === "contact" || input.whoPrimaryCta === "check_availability") {
     return "chat";
   }
-  // confirm_now + on_demand
   return input.offeringIntent === "instant" ? "confirm" : "chat";
-}
-
-/** Force request-style sheet intent when talent posture is inquiry. */
-export function forceRequestIntent(bookingPosture: TalentBookingPosture): boolean {
-  return bookingPosture === "inquiry";
 }
 
 export function whoPrimaryCtaLabel(kind: WhoPrimaryCta, locale: string): string {
@@ -99,7 +110,7 @@ export type CatalogSheetBookingSettings = {
 };
 
 export const DEFAULT_SHEET_BOOKING_SETTINGS: CatalogSheetBookingSettings = {
-  bookingPosture: "on_demand",
+  bookingPosture: PLATFORM_DEFAULT_BOOKING_POSTURE,
   whoPrimaryCta: "confirm_now",
 };
 

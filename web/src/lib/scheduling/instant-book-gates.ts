@@ -13,7 +13,10 @@ import {
   type ReservationStamp,
 } from "./reservation-intent";
 import type { WeekdayIndex, WeeklyHours } from "./hours-types";
-import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import {
+  parseBookingPosture,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
+} from "@/lib/talent/selling-booking-settings";
 
 /**
  * Master "is this person taking new bookings at all" switch.
@@ -28,36 +31,60 @@ export function assertAcceptingNewBookings(accepting?: boolean | null): { ok: tr
 
 export type EffectiveBookingMode = {
   mode: "instant" | "request" | "inquiry" | "closed";
-  /** Where the mode came from. */
-  source: "master" | "offering" | "default";
+  /** Where the mode came from. `readiness` = instant fell back to request. */
+  source: "master" | "offering" | "default" | "platform" | "readiness";
 };
 
+/** A service's own stored mode: explicit value, or null = inherit the default. */
+export function parseOfferingBookingMode(raw: unknown): "instant" | "request" | "inquiry" | null {
+  return raw === "instant" || raw === "request" || raw === "inquiry" ? raw : null;
+}
+
 /**
- * F4 — the effective booking mode of one offering.
+ * F4 / WSF-B — THE effective booking mode of one offering. Every reader (the
+ * CTA derivation, the slots route, booking surface, instant-purchase) goes
+ * through this; there is no second resolver.
  *
- * Precedence: master restriction → offering's own explicit mode → talent
- * default posture (`selling_defaults.bookingPosture`).
+ * Precedence (product rules §1):
+ *   1. master restriction (`accepting === false`) → closed
+ *   2. the service's own mode, when set (`talent_offerings.booking_mode`
+ *      non-null: instant | request | inquiry)
+ *   3. the talent default (`selling_defaults.bookingPosture`; legacy
+ *      `on_demand` reads as request, see parseBookingPosture)
+ *   4. the platform default (request, the old column default)
+ * Then readiness: an effective instant needs working hours, a duration, a
+ * delivery method and, for money at booking, payouts. When the caller says
+ * it is not ready, instant falls back to request (`source: "readiness"`).
+ * Callers that do not pass `readiness` get the mode unchanged.
  *
- * EXPLICIT VS INHERITED, as the schema allows today:
- * `talent_offerings.booking_mode` is `NOT NULL DEFAULT 'request'`, so there is
- * no stored "inherit" state. `instant` can only exist because someone chose it,
- * so it is treated as an explicit override and beats an inquiry posture (a
- * photographer who defaults to inquiries can keep an instantly bookable
- * consultation). `request` is ambiguous (chosen, or the column default); it
- * resolves to request, the mode the row states and the public CTA already
- * uses. Distinguishing an inherited `request` needs a nullable column or an
- * explicit-override marker: a schema change, not made here.
+ * `defaults` is the raw selling_defaults blob or an already-parsed
+ * `{ bookingPosture }`; both go through the same parser.
  */
 export function resolveEffectiveBookingMode(input: {
   offering: { bookingMode: string | null | undefined };
   defaults: unknown;
   accepting?: boolean | null;
+  readiness?: { instantReady: boolean } | null;
 }): EffectiveBookingMode {
   if (!assertAcceptingNewBookings(input.accepting).ok) return { mode: "closed", source: "master" };
-  if (input.offering.bookingMode === "instant") return { mode: "instant", source: "offering" };
-  const posture = parseSellingBookingSettings(input.defaults).bookingPosture;
-  if (posture === "inquiry") return { mode: "inquiry", source: "default" };
-  return { mode: "request", source: "offering" };
+  let resolved: EffectiveBookingMode;
+  const own = parseOfferingBookingMode(input.offering.bookingMode);
+  if (own) {
+    resolved = { mode: own, source: "offering" };
+  } else {
+    const raw =
+      input.defaults && typeof input.defaults === "object" && !Array.isArray(input.defaults)
+        ? (input.defaults as Record<string, unknown>).bookingPosture
+        : undefined;
+    const posture = parseBookingPosture(raw);
+    resolved = posture
+      ? { mode: posture, source: "default" }
+      : { mode: PLATFORM_DEFAULT_BOOKING_POSTURE, source: "platform" };
+  }
+  if (resolved.mode === "instant" && input.readiness && input.readiness.instantReady === false) {
+    return { mode: "request", source: "readiness" };
+  }
+  return resolved;
 }
 
 export type InstantPostureGate =

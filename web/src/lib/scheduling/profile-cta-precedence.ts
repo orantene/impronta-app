@@ -66,7 +66,8 @@ const BOOKING_OFFERING_CTAS = new Set(["book_now", "request_to_book", "buy_now"]
 function isSlotEligibleOffering(o: TalentOffering): boolean {
   if (o.kind === "product") return false;
   if ((o.durationMinutes ?? 0) <= 0) return false;
-  return o.bookingMode === "request" || o.bookingMode === "instant";
+  // null = inherits the talent default (WSF-B); only inquiry has no slots.
+  return o.bookingMode !== "inquiry";
 }
 
 /** Profile-view adapter — keeps the 2.6k-line page from owning offering CTA math. */

@@ -258,7 +258,9 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
     "Solicitar cita",
   );
 
-  // MODE-6: inquiry posture alone (no confirmsByHand) must not promise Buy.
+  // F4 (WSF-B): the inquiry DEFAULT applies only to services that inherit.
+  // An explicit instant product keeps Buy (the server accepts it); the same
+  // product inheriting (null) asks first.
   assert.equal(
     catalogRowCtaLabel({
       selected: false,
@@ -266,7 +268,16 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
       locale: "en",
       bookingPosture: "inquiry",
     }),
-    "Request appointment",
+    "Buy",
+  );
+  assert.equal(
+    catalogRowCtaLabel({
+      selected: false,
+      offering: { ...product, bookingMode: null },
+      locale: "en",
+      bookingPosture: "inquiry",
+    }),
+    "Ask about this",
   );
   assert.equal(
     catalogRowCtaLabel({
@@ -283,7 +294,7 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
       locale: "es",
       bookingPosture: "inquiry",
     }),
-    "Solicitar cita",
+    "Seleccionar",
   );
   assert.equal(
     catalogRowCtaLabel({
@@ -297,7 +308,7 @@ test("purchase-eligible products and untimed packages get Buy; timed packages st
         amountCents: null,
       },
       locale: "en",
-      bookingPosture: "on_demand",
+      bookingPosture: "request",
     }),
     "Request a quote",
   );
@@ -343,16 +354,16 @@ test("request / approval mode wins over CMS Seleccionar ctaLabel", () => {
     }),
     "Solicitar cita",
   );
-  // Instant + inquiry posture ignores Seleccionar.
+  // Inherited service under an inquiry default ignores Seleccionar: Consultar.
   assert.equal(
     catalogRowCtaLabel({
       selected: false,
-      offering: { ...requestOffering, bookingMode: "instant" },
+      offering: { ...requestOffering, bookingMode: null },
       locale: "es",
       inspectorLabel: "Seleccionar",
       bookingPosture: "inquiry",
     }),
-    "Solicitar cita",
+    "Consultar",
   );
   // Instant without force-request still allows inspector rename.
   assert.equal(
