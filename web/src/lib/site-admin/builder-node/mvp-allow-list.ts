@@ -39,6 +39,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "stats",
   "before_after",
   "contents",
+  "masthead",
 ];
 
 /**
@@ -112,6 +113,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     reviews: "media",
     visit: "media",
     contents: "structure",
+    masthead: "structure",
     reserve_table: "actions",
     next_free_chip: "actions",
     session_picker: "actions",
@@ -209,6 +211,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   reviews: "reviews testimonials quotes clients feedback stars rating standing",
   visit: "visit your visit area map service areas hours languages where travels booking",
   contents: "contents table of contents chapter index anchors toc contents page",
+  masthead: "masthead stacked words giant name cover magazine hero editorial bw black white",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   next_free_chip: "next free time slot availability booking chip calendar open",
   session_picker: "session class book seat booking schedule sign up capacity workshop course",
@@ -298,6 +301,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "reviews",
     "visit",
     "contents",
+    "masthead",
     "next_free_chip",
     "reserve_table",
     "session_picker",

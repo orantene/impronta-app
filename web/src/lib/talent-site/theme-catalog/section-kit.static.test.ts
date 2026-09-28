@@ -25,6 +25,7 @@ import {
   contentsBlock,
   heroCentered,
   heroCover,
+  heroMasthead,
   heroSplit,
   servicesBlock,
 } from "./section-kit";
@@ -54,6 +55,16 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["heroCentered accent", heroCentered(ids(), { accent: true })],
   ["heroCover", heroCover(ids())],
   ["heroCover no accent", heroCover(ids(), { accent: false })],
+  [
+    "heroMasthead stacked bw",
+    heroMasthead(ids(), {
+      lines: ["{{displayName}}"],
+      splitWords: true,
+      subline: "{{primaryTypeLabel}}",
+      showCover: true,
+      coverFilter: "bw",
+    }),
+  ],
   ["aboutBlock", aboutBlock(ids())],
   ["aboutBlock centered accent", aboutBlock(ids(), { align: "center", accent: true })],
   ["aboutBlock split", aboutBlock(ids(), { layout: "split", accent: true, showFacts: false })],

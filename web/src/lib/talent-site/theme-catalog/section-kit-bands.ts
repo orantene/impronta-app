@@ -9,6 +9,11 @@ import { REVIEWS_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/reviews-def
 import { VISIT_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/visit-defaults";
 import { CONTENTS_DEFAULT_PROPS, cloneContentsDefaultProps } from "@/lib/site-admin/builder-node/contents-defaults";
 import type { ContentsItem } from "@/lib/site-admin/builder-node/contents-defaults";
+import {
+  MASTHEAD_DEFAULT_PROPS,
+  cloneMastheadDefaultProps,
+} from "@/lib/site-admin/builder-node/masthead-defaults";
+import type { MastheadCoverFilter } from "@/lib/site-admin/builder-node/masthead-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
@@ -22,6 +27,19 @@ const BAND_SLOTS = {
   contents: { slotKey: "contents", originRole: "talent.contents" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
 } as const;
+
+/** Hero slot stamp (mirrors `stampKitSection("hero", …)` without circular import). */
+function stampHero(props: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...props,
+    slotKey: "hero",
+    originRole: "talent.hero",
+    anchorId:
+      typeof props.anchorId === "string" && props.anchorId.length > 0
+        ? props.anchorId
+        : "hero",
+  };
+}
 
 function stampBand(
   slot: keyof typeof BAND_SLOTS,
@@ -331,6 +349,59 @@ export function contentsBlock(
           showNumbers: opts.showNumbers !== false,
           numberStyle: opts.numberStyle ?? "roman",
           items,
+        },
+      },
+    ],
+  } as BuilderNode;
+}
+
+/**
+ * Masthead hero — giant stacked words over an optional B&W cover.
+ * Shared W-10 variant on the hero slot (not a Folio-only renderer).
+ * Lives here so `section-kit.ts` stays under the 800-line eslint cap.
+ */
+export function heroMasthead(
+  makeId: KitIdFactory,
+  opts: {
+    lines?: ReadonlyArray<string>;
+    splitWords?: boolean;
+    subline?: string;
+    creditLine?: string;
+    showCover?: boolean;
+    coverFilter?: MastheadCoverFilter;
+    coverSrc?: string;
+  } = {},
+): BuilderNode {
+  const defaults = cloneMastheadDefaultProps();
+  const lines = (opts.lines ?? defaults.lines ?? []).map((line) => line);
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampHero({
+      layout: "stack",
+      gap: "m",
+      align: "stretch",
+      layerLabel: "Hero",
+      style: {
+        maxWidth: "full",
+        paddingY: "none",
+        paddingX: "none",
+        minHeight: "82vh",
+      },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "masthead",
+        props: {
+          ...defaults,
+          lines,
+          splitWords: opts.splitWords ?? defaults.splitWords !== false,
+          subline: opts.subline ?? defaults.subline ?? "",
+          creditLine: opts.creditLine ?? defaults.creditLine ?? "",
+          showCover: opts.showCover ?? defaults.showCover !== false,
+          coverFilter: opts.coverFilter ?? defaults.coverFilter ?? "bw",
+          coverSrc: opts.coverSrc ?? defaults.coverSrc ?? MASTHEAD_DEFAULT_PROPS.coverSrc,
         },
       },
     ],
