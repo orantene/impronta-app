@@ -10,7 +10,7 @@ import { LEDGER_CONTRACT_CLOCK } from "@/lib/money/september-ledger-contract";
 
 import { MoneyBreakdownPanel } from "./MoneyBreakdownPanel";
 import { MoneyCorrectRecordSheet } from "./MoneyCorrectRecordSheet";
-import { MoneyEarningsPage } from "./MoneyEarningsPage";
+import { MoneyHomePage } from "./MoneyHomePage";
 import { MoneyRecordPaymentSheet } from "./MoneyRecordPaymentSheet";
 import { MoneyRefundSheet } from "./MoneyRefundSheet";
 import { MoneyRequestPaymentSheet } from "./MoneyRequestPaymentSheet";
@@ -19,7 +19,7 @@ import { MoneySpine, MoneySpineHeaderActions } from "./MoneySpine";
 /**
  * The spine below still reads the September ledger FIXTURE (one demo business's
  * figures). Until it reads each talent's own ledger it is opt-in for demo/QA
- * builds only; real talents get MoneyEarningsPage (their actual earnings).
+ * builds only; real talents get MoneyHomePage (mockup layout on their own data).
  */
 const SPINE_FIXTURE_ENABLED = process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE === "1";
 
@@ -29,7 +29,7 @@ const SPINE_FIXTURE_ENABLED = process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE
  * is on; otherwise the real per-talent earnings page.
  */
 export function MoneyPage() {
-  if (!SPINE_FIXTURE_ENABLED) return <MoneyEarningsPage />;
+  if (!SPINE_FIXTURE_ENABLED) return <MoneyHomePage />;
   return <MoneySpineFixturePage />;
 }
 
