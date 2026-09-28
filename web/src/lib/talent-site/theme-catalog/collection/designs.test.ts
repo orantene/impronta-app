@@ -200,3 +200,43 @@ test("collection Designs stamp shared navChrome modes on kit nav", () => {
   assert.ok(!COLLECTION_DESIGN_GAPS.solace.includes("overlay menu nav style"));
   assert.ok(!COLLECTION_DESIGN_GAPS.frame.includes("filter-bar header style"));
 });
+
+/** Folio stamps shared W-12 chapter layout (not Folio-only renderer). */
+test("folio uses portfolio chapter layout and clears project-story gap", () => {
+  const folio = COLLECTION_DESIGNS.find((d) => d.slug === "folio");
+  assert.ok(folio);
+  const payload = folio!.buildPayload();
+  const chapters: Array<{ layout?: string; chapterNumber?: number; title?: string }> = [];
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const node = n as {
+        kind?: string;
+        props?: Record<string, unknown>;
+        children?: unknown;
+      };
+      if (node.kind === "portfolio") {
+        chapters.push({
+          layout: node.props?.layout as string | undefined,
+          chapterNumber: node.props?.chapterNumber as number | undefined,
+          title: node.props?.title as string | undefined,
+        });
+      }
+      walk(node.children);
+    }
+  };
+  walk(payload.homeTree);
+  assert.equal(chapters.length, 3);
+  assert.deepEqual(
+    chapters.map((c) => c.layout),
+    ["chapter", "chapter", "chapter"],
+  );
+  assert.deepEqual(
+    chapters.map((c) => c.chapterNumber),
+    [1, 2, 3],
+  );
+  assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-12 project-story chapters"));
+  assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
+  assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
+});

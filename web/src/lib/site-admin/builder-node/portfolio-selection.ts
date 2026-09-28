@@ -9,6 +9,7 @@ export type PortfolioSelectionInput = {
   selectedMediaIds?: string[];
   autoIncludeNew?: boolean;
   limit?: number;
+  albumId?: string;
   shotBindings?: ReadonlyArray<{
     mediaId: string;
     offeringId?: string;
@@ -35,6 +36,11 @@ export function filterShotsForPortfolio(
       caption: bind.caption ?? shot.caption,
     };
   });
+
+  const albumId = opts.albumId?.trim();
+  if (albumId) {
+    list = list.filter((s) => (s.albumId ?? "").trim() === albumId);
+  }
 
   if (opts.selectionMode === "ids") {
     const ids = new Set(opts.selectedMediaIds ?? []);

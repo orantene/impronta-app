@@ -38,16 +38,22 @@ function stampBand(
 /**
  * W-12 Portfolio: live-bound media (replaces copied-at-apply `galleryBlock`
  * for Designs that should stay in sync with talent media).
+ * Shared layouts include `chapter` (sticky numeral + title + credit).
  */
 export function portfolioBlock(
   makeId: KitIdFactory,
   opts: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet";
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter";
     columns?: 2 | 3 | 4;
     heading?: string;
     showCaptions?: boolean;
+    chapterNumber?: number;
+    creditLine?: string;
+    albumId?: string;
+    limit?: number;
   } = {},
 ): BuilderNode {
+  const layout = opts.layout ?? "grid";
   return {
     id: makeId(),
     kind: "container",
@@ -55,7 +61,7 @@ export function portfolioBlock(
       layout: "stack",
       gap: "m",
       align: "start",
-      layerLabel: "Gallery",
+      layerLabel: layout === "chapter" ? "Chapter" : "Gallery",
       style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
     }),
     children: [
@@ -64,15 +70,59 @@ export function portfolioBlock(
         kind: "portfolio",
         props: {
           ...PORTFOLIO_DEFAULT_PROPS,
-          layout: opts.layout ?? "grid",
+          layout,
           columns:
             opts.columns ??
-            (opts.layout === "contact_sheet" ? 4 : opts.layout === "masonry" ? 2 : 3),
-          title: opts.heading ?? "Recent work",
+            (layout === "contact_sheet" ? 4 : layout === "masonry" || layout === "chapter" ? 2 : 3),
+          title: opts.heading ?? (layout === "chapter" ? "Editorial" : "Recent work"),
           showCaptions: opts.showCaptions === true,
+          chapterNumber: opts.chapterNumber ?? 1,
+          creditLine: opts.creditLine ?? "",
+          albumId: opts.albumId ?? "",
+          limit: opts.limit ?? (layout === "chapter" ? 6 : PORTFOLIO_DEFAULT_PROPS.limit),
         },
       },
     ],
+  } as BuilderNode;
+}
+
+/** Several chapter portfolio nodes under one gallery slot (unique slotKey). */
+export function portfolioChaptersBlock(
+  makeId: KitIdFactory,
+  chapters: ReadonlyArray<{
+    heading?: string;
+    chapterNumber?: number;
+    creditLine?: string;
+    showCaptions?: boolean;
+    albumId?: string;
+    limit?: number;
+  }>,
+): BuilderNode {
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampBand("gallery", {
+      layout: "stack",
+      gap: "l",
+      align: "start",
+      layerLabel: "The book",
+      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
+    }),
+    children: chapters.map((ch, i) => ({
+      id: makeId(),
+      kind: "portfolio" as const,
+      props: {
+        ...PORTFOLIO_DEFAULT_PROPS,
+        layout: "chapter" as const,
+        columns: 2 as const,
+        title: ch.heading ?? "Editorial",
+        showCaptions: ch.showCaptions === true,
+        chapterNumber: ch.chapterNumber ?? i + 1,
+        creditLine: ch.creditLine ?? "",
+        albumId: ch.albumId ?? "",
+        limit: ch.limit ?? 6,
+      },
+    })),
   } as BuilderNode;
 }
 

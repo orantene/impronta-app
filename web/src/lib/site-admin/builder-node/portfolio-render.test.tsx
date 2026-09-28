@@ -34,6 +34,7 @@ function shot(partial: Partial<TalentPortfolioShot> & { id: string }): TalentPor
     caption: null,
     offeringId: null,
     offeringTitle: null,
+    albumId: null,
     ...partial,
   };
 }
@@ -121,6 +122,71 @@ test("portfolio grid / masonry / contact_sheet layouts", () => {
     assert.match(html, new RegExp(`sb-portfolio--${layout}`));
     assert.match(html, /data-portfolio-media="a"/);
   }
+});
+
+test("portfolio chapter layout sticks numeral title credit and 1+2 rhythm", () => {
+  const shots = [
+    shot({ id: "a", caption: "Lead" }),
+    shot({ id: "b", caption: "Left" }),
+    shot({ id: "c", caption: "Right" }),
+    shot({ id: "d", albumId: "alb-other" }),
+  ];
+  const html = render(
+    [
+      portfolioNode({
+        layout: "chapter",
+        chapterNumber: 2,
+        title: "Lookbook",
+        creditLine: "Seasonal story",
+        showCaptions: true,
+        albumId: "",
+        limit: 3,
+      }),
+    ],
+    { talentPortfolioShots: shots },
+  );
+  assert.match(html, /data-portfolio-layout="chapter"/);
+  assert.match(html, /data-portfolio-chapter="II"/);
+  assert.match(html, /sb-portfolio-chapter-num/);
+  assert.match(html, />II</);
+  assert.match(html, /Lookbook/);
+  assert.match(html, /Seasonal story/);
+  assert.match(html, /sb-portfolio-item--hero/);
+  assert.match(html, /sb-portfolio-item--pair/);
+  assert.match(html, /sb-portfolio--chapter/);
+  assert.doesNotMatch(html, /\u2014/);
+});
+
+test("portfolio chapter filters by albumId collection", () => {
+  const html = render(
+    [
+      portfolioNode({
+        layout: "chapter",
+        chapterNumber: 1,
+        title: "Editorial",
+        albumId: "alb-1",
+        limit: 6,
+      }),
+    ],
+    {
+      talentPortfolioShots: [
+        shot({ id: "keep", albumId: "alb-1" }),
+        shot({ id: "skip", albumId: "alb-2" }),
+        shot({ id: "none" }),
+      ],
+    },
+  );
+  assert.match(html, /data-portfolio-media="keep"/);
+  assert.doesNotMatch(html, /data-portfolio-media="skip"/);
+  assert.doesNotMatch(html, /data-portfolio-media="none"/);
+});
+
+test("portfolioChapterRoman maps 1..3", async () => {
+  const { portfolioChapterRoman } = await import("./portfolio-defaults");
+  assert.equal(portfolioChapterRoman(1), "I");
+  assert.equal(portfolioChapterRoman(2), "II");
+  assert.equal(portfolioChapterRoman(3), "III");
+  assert.equal(portfolioChapterRoman(0), "I");
 });
 
 test("portfolio linkMode none does not emit offering CTA", () => {

@@ -12,6 +12,8 @@ export type TalentPortfolioShot = {
   /** Service this photo shows, when known. */
   offeringId?: string | null;
   offeringTitle?: string | null;
+  /** Talent media album id from `media_assets.metadata.albumId`. */
+  albumId?: string | null;
   width?: number | null;
   height?: number | null;
   sortOrder?: number;

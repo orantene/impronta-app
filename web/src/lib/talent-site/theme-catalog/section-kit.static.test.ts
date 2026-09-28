@@ -19,6 +19,7 @@ import {
   faqBlock,
   galleryBlock,
   portfolioBlock,
+  portfolioChaptersBlock,
   reviewsBlock,
   visitBlock,
   heroCentered,
@@ -60,6 +61,23 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["galleryBlock grid", galleryBlock(ids(), { mode: "grid", columns: 2 })],
   ["portfolioBlock filmstrip", portfolioBlock(ids(), { layout: "filmstrip" })],
   ["portfolioBlock contact_sheet", portfolioBlock(ids(), { layout: "contact_sheet", columns: 4 })],
+  [
+    "portfolioBlock chapter",
+    portfolioBlock(ids(), {
+      layout: "chapter",
+      chapterNumber: 2,
+      heading: "Lookbook",
+      creditLine: "Seasonal story",
+      showCaptions: true,
+    }),
+  ],
+  [
+    "portfolioChaptersBlock book",
+    portfolioChaptersBlock(ids(), [
+      { chapterNumber: 1, heading: "Editorial", creditLine: "Studio session", showCaptions: true },
+      { chapterNumber: 2, heading: "Lookbook", creditLine: "Seasonal story", showCaptions: true },
+    ]),
+  ],
   ["reviewsBlock row", reviewsBlock(ids(), { layout: "row" })],
   ["reviewsBlock trio", reviewsBlock(ids(), { layout: "trio", heading: "Client words" })],
   ["visitBlock facts", visitBlock(ids(), { layout: "facts" })],

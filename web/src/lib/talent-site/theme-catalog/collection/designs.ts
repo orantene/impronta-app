@@ -8,8 +8,8 @@
  *
  * Mockup sources (Theme Review artifacts): Maison v2 = the Rosé proposal,
  * Solace, Mono, Frame, Folio. Gaps vs the mockups are listed per design in
- * `COLLECTION_DESIGN_GAPS` (missing shared widgets / header nav styles /
- * Folio chapters as listed per design).
+ * `COLLECTION_DESIGN_GAPS` (missing shared widgets / header nav styles as
+ * listed per design).
  *
  * Gated with Maison: `isMaisonCatalogSlug` treats every collection slug as
  * flag-owned, so only `TALENT_MAISON_THEME_ENABLED` talents see them.
@@ -25,6 +25,7 @@ import {
   buildKitShell,
   faqBlock,
   portfolioBlock,
+  portfolioChaptersBlock,
   reviewsBlock,
   visitBlock,
   heroCentered,
@@ -387,8 +388,9 @@ export function buildFramePayload(): DesignPayload {
 }
 
 // ── Folio ────────────────────────────────────────────────────────────────────
-// Magazine cover (full-bleed, uppercase masthead name), the book as a
-// staggered two-column masonry, a rate card of rows grouped by section.
+// Magazine cover (full-bleed, uppercase masthead name), the book as shared
+// W-12 chapter blocks (sticky numeral + title + credit, 1 large + 2 smaller),
+// a rate card of rows grouped by section.
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
   const hero = tuneHeading(heroCover(id, { accent: false }), {
@@ -409,7 +411,29 @@ export function buildFolioPayload(): DesignPayload {
     }),
     homeTree: [
       hero,
-      portfolioBlock(id, { layout: "masonry", columns: 2, heading: "The book" }),
+      portfolioChaptersBlock(id, [
+        {
+          chapterNumber: 1,
+          heading: "Editorial",
+          creditLine: "Studio session",
+          showCaptions: true,
+          limit: 6,
+        },
+        {
+          chapterNumber: 2,
+          heading: "Lookbook",
+          creditLine: "Seasonal story",
+          showCaptions: true,
+          limit: 6,
+        },
+        {
+          chapterNumber: 3,
+          heading: "Portraits",
+          creditLine: "Natural light",
+          showCaptions: true,
+          limit: 6,
+        },
+      ]),
       aboutBlock(id, { align: "start", accent: false }),
       servicesSection(id, {
         label: "Rate card",
@@ -524,5 +548,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   solace: ["W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe"],
-  folio: ["W-12 project-story chapters", "W-11 C2 contents page", "W-10 W3 stacked masthead"],
+  folio: ["W-11 C2 contents page", "W-10 W3 stacked masthead"],
 };

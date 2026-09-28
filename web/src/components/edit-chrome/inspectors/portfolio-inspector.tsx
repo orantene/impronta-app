@@ -2,14 +2,21 @@
 
 /**
  * Content inspector for the W-12 `portfolio` native block.
+ * Chapter layout adds collection (album), chapter number, credit, captions.
  */
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { useBuilderMediaScope } from "@/components/edit-chrome/builder-media-scope";
 import {
   PORTFOLIO_DEFAULT_PROPS,
   PORTFOLIO_LAYOUTS,
+  portfolioChapterRoman,
   type PortfolioLayout,
 } from "@/lib/site-admin/builder-node/portfolio-defaults";
+import {
+  loadTalentMediaAlbumsForEditor,
+  type TalentMediaAlbumOption,
+} from "@/lib/site-admin/builder-node/portfolio-albums-actions";
 import type { BuilderPortfolioNode } from "@/lib/site-admin/builder-node/types";
 
 import { KIT } from "./kit/tokens";
@@ -22,6 +29,7 @@ const LAYOUT_LABELS: Record<PortfolioLayout, string> = {
   grid: "Grid",
   masonry: "Masonry",
   contact_sheet: "Contact sheet",
+  chapter: "Chapter",
 };
 
 function Section({
@@ -43,6 +51,46 @@ function Section({
   );
 }
 
+function useTalentMediaAlbums(): {
+  status: "idle" | "loading" | "ready" | "error" | "no_talent";
+  albums: TalentMediaAlbumOption[];
+  message?: string;
+} {
+  const { talentProfileId } = useBuilderMediaScope();
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "ready" | "error" | "no_talent"
+  >(talentProfileId ? "loading" : "no_talent");
+  const [albums, setAlbums] = useState<TalentMediaAlbumOption[]>([]);
+  const [message, setMessage] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!talentProfileId) {
+      setStatus("no_talent");
+      setAlbums([]);
+      return;
+    }
+    let alive = true;
+    setStatus("loading");
+    void loadTalentMediaAlbumsForEditor(talentProfileId).then((result) => {
+      if (!alive) return;
+      if (!result.ok) {
+        setStatus("error");
+        setMessage(result.error);
+        setAlbums([]);
+        return;
+      }
+      setStatus("ready");
+      setAlbums(result.albums);
+      setMessage(undefined);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [talentProfileId]);
+
+  return { status, albums, message };
+}
+
 export function PortfolioContentInspector({
   node,
   commitPatch,
@@ -56,6 +104,10 @@ export function PortfolioContentInspector({
   const linkMode = p.linkMode ?? PORTFOLIO_DEFAULT_PROPS.linkMode;
   const columns =
     p.columns ?? (layout === "contact_sheet" ? 4 : layout === "masonry" ? 2 : 3);
+  const isChapter = layout === "chapter";
+  const chapterNumber = Math.min(Math.max(p.chapterNumber ?? 1, 1), 20);
+  const albumId = p.albumId?.trim() || "";
+  const albumsState = useTalentMediaAlbums();
 
   return (
     <div
@@ -65,26 +117,112 @@ export function PortfolioContentInspector({
     >
       <Section
         title="Content"
-        info="Live photos from your media library. Captions are optional; linking opens the tagged service."
+        info={
+          isChapter
+            ? "One chapter binds to a media album. Number, title, and credit stick on desktop while photos scroll."
+            : "Live photos from your media library. Captions are optional; linking opens the tagged service."
+        }
       >
-        <div className={KIT.field}>
-          <label className={KIT.label}>Eyebrow</label>
-          <input
-            className={KIT.input}
-            value={p.eyebrow ?? ""}
-            placeholder="Optional"
-            onChange={(e) => commitPatch({ eyebrow: e.target.value })}
-          />
-        </div>
-        <div className={KIT.field}>
-          <label className={KIT.label}>Heading</label>
-          <input
-            className={KIT.input}
-            value={p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? ""}
-            placeholder="Recent work"
-            onChange={(e) => commitPatch({ title: e.target.value })}
-          />
-        </div>
+        {isChapter ? (
+          <>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Collection</label>
+              <select
+                className={KIT.input}
+                value={albumId}
+                onChange={(e) => commitPatch({ albumId: e.target.value })}
+                data-portfolio-album-select
+              >
+                <option value="">All photos</option>
+                {albumsState.albums.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              {albumsState.status === "loading" ? (
+                <p className="text-[12px] text-stone-500">Loading albums…</p>
+              ) : null}
+              {albumsState.status === "no_talent" ? (
+                <p className="text-[12px] text-stone-500">
+                  Open a talent website editor to pick an album. The id still saves.
+                </p>
+              ) : null}
+              {albumsState.status === "error" ? (
+                <p className="text-[12px] text-stone-500">
+                  Could not load albums ({albumsState.message}). Manage albums in Media.
+                </p>
+              ) : null}
+              {albumsState.status === "ready" && albumsState.albums.length === 0 ? (
+                <p className="text-[12px] text-stone-500">
+                  No albums yet. Create albums in the talent Media drawer, then pick one here.
+                </p>
+              ) : null}
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>
+                Chapter number{" "}
+                <span className="font-normal text-stone-500">
+                  ({portfolioChapterRoman(chapterNumber)})
+                </span>
+              </label>
+              <input
+                className={KIT.input}
+                type="number"
+                min={1}
+                max={20}
+                value={chapterNumber}
+                onChange={(e) =>
+                  commitPatch({
+                    chapterNumber: Math.min(
+                      Math.max(Number.parseInt(e.target.value, 10) || 1, 1),
+                      20,
+                    ),
+                  })
+                }
+              />
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Title</label>
+              <input
+                className={KIT.input}
+                value={p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? ""}
+                placeholder="Editorial"
+                onChange={(e) => commitPatch({ title: e.target.value })}
+              />
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Credit line</label>
+              <input
+                className={KIT.input}
+                value={p.creditLine ?? ""}
+                placeholder="Photographer, client, year"
+                onChange={(e) => commitPatch({ creditLine: e.target.value })}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Eyebrow</label>
+              <input
+                className={KIT.input}
+                value={p.eyebrow ?? ""}
+                placeholder="Optional"
+                onChange={(e) => commitPatch({ eyebrow: e.target.value })}
+              />
+            </div>
+            <div className={KIT.field}>
+              <label className={KIT.label}>Heading</label>
+              <input
+                className={KIT.input}
+                value={p.title ?? PORTFOLIO_DEFAULT_PROPS.title ?? ""}
+                placeholder="Recent work"
+                onChange={(e) => commitPatch({ title: e.target.value })}
+              />
+            </div>
+          </>
+        )}
         <label className="flex items-start gap-2 text-[13px] text-stone-800">
           <input
             type="checkbox"
@@ -137,14 +275,20 @@ export function PortfolioContentInspector({
                     ? "rounded-full bg-stone-900 px-3 py-1.5 text-[12px] font-semibold text-white"
                     : "rounded-full border border-stone-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-stone-800"
                 }
-                onClick={() => commitPatch({ layout: l })}
+                onClick={() =>
+                  commitPatch(
+                    l === "chapter"
+                      ? { layout: l, limit: p.limit ?? 6 }
+                      : { layout: l },
+                  )
+                }
               >
                 {LAYOUT_LABELS[l]}
               </button>
             );
           })}
         </div>
-        {layout !== "filmstrip" ? (
+        {layout !== "filmstrip" && layout !== "chapter" ? (
           <div className="flex flex-wrap gap-1.5">
             {([2, 3, 4] as const).map((n) => {
               const active = columns === n;

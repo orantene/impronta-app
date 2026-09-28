@@ -203,7 +203,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
     talent_type_grid: "talent disciplines categories roster taxonomy grid cards by discipline",
   menu_board: "menu orderable items quantities checkout restaurant catering workspace menu",
   services_catalog: "services menu catalog prices booking talent offerings packages products",
-  portfolio: "portfolio gallery filmstrip masonry contact sheet recent work photos media",
+  portfolio: "portfolio gallery filmstrip masonry contact sheet chapter album credit recent work photos media",
   reviews: "reviews testimonials quotes clients feedback stars rating standing",
   visit: "visit your visit area map service areas hours languages where travels booking",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
