@@ -298,7 +298,7 @@ export function DesignOptionsPanel({
                   <div>
                     <p className="text-[14px] font-semibold text-admin-ink">{rev.summary}</p>
                     {rev.isLive ? (
-                      <p className="text-[12px] font-semibold text-emerald-800">● Live now</p>
+                      <p className="text-[12px] font-semibold text-emerald-800">● {locale === "es" ? "En vivo ahora" : "Live now"}</p>
                     ) : null}
                   </div>
                   {!rev.isLive ? (

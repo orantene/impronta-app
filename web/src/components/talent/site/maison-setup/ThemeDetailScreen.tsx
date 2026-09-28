@@ -26,6 +26,12 @@ import { useThemePreview } from "@/components/talent/site/theme-gallery/useTheme
 import { ImportStarterPanel } from "./ImportStarterPanel";
 import { CustomColorsPanel } from "./CustomColorsPanel";
 import { PublishColorsDialog, type MaisonColorSwatchRef } from "./PublishColorsDialog";
+import { PublishDesignDialog } from "./PublishDesignDialog";
+import {
+  buildLiveDesignChangeSummary,
+  paletteDisplayName,
+  type LiveDesignChangeSummary,
+} from "./live-design-change";
 import { DemoStrip } from "./DemoStrip";
 import { DemosSheet } from "./DemosSheet";
 import { ColorSwatches, ColorsSheet, swatchStyle, type ColorsProps } from "./ColorsSheet";
@@ -57,6 +63,10 @@ type Props = {
   onAppliedToReview: () => void;
   /** After colors-only publish on a live site (W68). */
   onColorsPublished?: () => void;
+  /** P5: after a live design switch is published; toast "✓ <Design> is live". */
+  onDesignPublished?: (toast: string, designSlug: string) => void;
+  /** Design currently live (for "Layout: <Old> → <New>"). */
+  liveDesignSlug?: string | null;
   /** Current live look — used for before swatch in Publish new colors (W68). */
   liveLookSlug?: string | null;
   liveCustomPalette?: MaisonCustomPaletteStored | null;
@@ -72,6 +82,8 @@ export function ThemeDetailScreen({
   onClose,
   onAppliedToReview,
   onColorsPublished,
+  onDesignPublished,
+  liveDesignSlug = null,
   liveLookSlug = null,
   liveCustomPalette = null,
   fromLiveSite = false,
@@ -86,6 +98,8 @@ export function ThemeDetailScreen({
     after: MaisonColorSwatchRef;
   } | null>(null);
   const [publishColorsError, setPublishColorsError] = useState<string | null>(null);
+  const [designDialog, setDesignDialog] = useState<LiveDesignChangeSummary | null>(null);
+  const [publishDesignError, setPublishDesignError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const design = detailDesign(choices.designSlug);
@@ -215,6 +229,25 @@ export function ThemeDetailScreen({
         onChange({ status: "Choices saved", phoneSheet: null });
         return;
       }
+      if (res.data.livePending) {
+        // P5 — live design switch: one "Publish <Design>?" review + publish.
+        setPublishDesignError(null);
+        setDesignDialog(
+          buildLiveDesignChangeSummary({
+            locale,
+            fromSlug: liveDesignSlug,
+            toSlug: design.slug,
+            paletteName: paletteDisplayName({
+              locale,
+              designSlug: design.slug,
+              lookSlug: res.data.lookSlug,
+              customPalette: res.data.customPalette,
+            }),
+          }),
+        );
+        onChange({ status: "Choices saved", phoneSheet: null });
+        return;
+      }
       onChange({ status: "Draft saved", phoneSheet: null, screen: "review" });
       onAppliedToReview();
     });
@@ -231,6 +264,23 @@ export function ThemeDetailScreen({
       setColorsDialog(null);
       onChange({ status: "Live", phoneSheet: null, screen: "gallery" });
       onColorsPublished?.();
+    });
+  };
+
+  const handlePublishDesign = () => {
+    const summary = designDialog;
+    if (!summary) return;
+    startTransition(async () => {
+      setPublishDesignError(null);
+      // Materializes pending_design and writes the design revision (Restore).
+      const res = await publishMaxSiteAction();
+      if (!res.ok) {
+        setPublishDesignError(res.error);
+        return;
+      }
+      setDesignDialog(null);
+      onChange({ status: "Live", phoneSheet: null, screen: "gallery" });
+      onDesignPublished?.(summary.toast, design.slug);
     });
   };
 
@@ -638,6 +688,19 @@ export function ThemeDetailScreen({
           onKeepEditing={() => {
             setColorsDialog(null);
             setPublishColorsError(null);
+          }}
+        />
+      ) : null}
+      {designDialog ? (
+        <PublishDesignDialog
+          locale={locale}
+          summary={designDialog}
+          pending={pending}
+          error={publishDesignError}
+          onPublish={handlePublishDesign}
+          onKeepEditing={() => {
+            setDesignDialog(null);
+            setPublishDesignError(null);
           }}
         />
       ) : null}

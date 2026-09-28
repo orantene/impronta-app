@@ -5,6 +5,7 @@
  * Reset / reapply / discard / restore. Behind TALENT_MAISON_THEME_ENABLED.
  */
 
+import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -270,7 +271,7 @@ export async function loadMaisonDesignOptionsStateAction(): Promise<
       id: row.id,
       version: row.version,
       publishedAt: snap.published_at || row.created_at,
-      summary: `Maison · ${colorLabel} · ${whenLabel}`,
+      summary: `${revisionDesignName(snap.design_slug)} · ${colorLabel} · ${whenLabel}`,
       isLive: i === 0,
     });
   }
@@ -736,4 +737,11 @@ export async function restoreMaisonDesignRevisionAction(input: {
   });
   if (!written.ok) return { ok: false, code: "server_error", error: written.error };
   return { ok: true, data: { restored: true } };
+}
+
+/** P5: revision rows name the design that was live (Folio, Mono, ...), not always Maison. */
+function revisionDesignName(slug: string | null): string {
+  const s = slug?.trim().toLowerCase() ?? "";
+  const hit = COLLECTION_DESIGNS.find((d) => d.slug === s);
+  return hit ? hit.title : "Maison";
 }

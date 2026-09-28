@@ -94,7 +94,7 @@ test("P1: live card shows saved custom palette name, default My colors / Mis col
   assert.equal(liveCardPaletteName("es", null, custom), "Noche chef");
   assert.notEqual(liveCardPaletteName("en", null, null), "Colors");
   const card = read("MyWebsiteCard.tsx");
-  assert.match(card, /liveCardPaletteName\(locale, themeLookSlug, customPalette\)/);
+  assert.match(card, /paletteDisplayName\(\{/);
 });
 
 // ── P1 #5: live-stays line at all widths ─────────────────────────────────
