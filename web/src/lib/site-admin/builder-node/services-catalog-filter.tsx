@@ -15,6 +15,7 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
+import { catalogBarPriceLabel } from "./services-catalog-bar-price";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
@@ -160,6 +161,7 @@ export function ServicesCatalogFilter({
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [selectedBits, setSelectedBits] = useState<string | null>(null);
   const [selectedTotal, setSelectedTotal] = useState(0);
+  const [selectedPriceLabel, setSelectedPriceLabel] = useState<string | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState("MXN");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -183,6 +185,7 @@ export function ServicesCatalogFilter({
       setSelectedTitle(d.title ?? null);
       setSelectedBits(d.detail ?? null);
       setSelectedTotal(d.totalCents ?? 0);
+      setSelectedPriceLabel(null);
       setSelectedCurrency(d.currency ?? "MXN");
     };
     const onSheet = (e: Event) => {
@@ -208,6 +211,7 @@ export function ServicesCatalogFilter({
     setSelectedTitle(item.title);
     setSelectedBits(null);
     setSelectedTotal(item.amountCents ?? 0);
+    setSelectedPriceLabel(catalogBarPriceLabel(item, locale));
     setSelectedCurrency(item.currency);
   };
 
@@ -389,7 +393,7 @@ export function ServicesCatalogFilter({
           <strong>{selectedTitle ?? (es ? "Elige tu servicio" : "Choose a service")}</strong>
           <span>
             {selectedId
-              ? `${selectedBits ? `${selectedBits} · ` : ""}${formatMoney(selectedTotal, selectedCurrency, locale)}`
+              ? `${selectedBits ? `${selectedBits} · ` : ""}${selectedPriceLabel ?? formatMoney(selectedTotal, selectedCurrency, locale)}`
               : es
                 ? "Del menú completo, con sus opciones"
                 : "From the full menu, with its options"}

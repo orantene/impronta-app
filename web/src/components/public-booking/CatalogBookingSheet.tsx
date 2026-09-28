@@ -48,6 +48,7 @@ import {
   resolveWhoStepPaymentUi,
 } from "@/lib/talent/who-step-payment-copy";
 import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
+import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -292,6 +293,12 @@ export function CatalogBookingSheet({
   const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
   const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const isRequest = detail.intent === "request";
+  // Just written, no order state yet: online-collect reads HELD, never confirmed.
+  const doneStatus = deriveGuestBookingPresentation({
+    bookingMode: isRequest ? "request" : "instant", reserveMode: detail.reserveMode,
+    payAtVisit: detail.reserveMode === "free", orderStatus: null, transactionStatus: null,
+    holdExpiresAt: null, now: new Date(), locale,
+  });
   const { whoAction, whoCtaText, paymentFixture } = resolveWhoStepPaymentUi({
     reserveMode: detail.reserveMode,
     allowPayInPerson: detail.allowPayInPerson,
@@ -378,13 +385,7 @@ export function CatalogBookingSheet({
           <div>
             <p className="jb-kicker">
               {step === "done"
-                ? isRequest
-                  ? es
-                    ? "Solicitud enviada"
-                    : "Request sent"
-                  : es
-                    ? "Cita confirmada"
-                    : "Appointment confirmed"
+                ? doneStatus.headline
                 : es
                   ? "Tu reserva"
                   : "Your booking"}
@@ -706,6 +707,7 @@ export function CatalogBookingSheet({
                 {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""}
                 {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ` · ${money(total, detail.currency)}`}
               </p>
+              {doneStatus.detail ? <p className="jb-fixture" data-catalog-done-state={doneStatus.bookingState}>{doneStatus.detail}</p> : null}
               <p className="jb-fixture" data-catalog-done-next="">
                 {doneStepNextActionCopy({
                   reserveMode: detail.reserveMode,
