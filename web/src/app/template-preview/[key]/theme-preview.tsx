@@ -23,6 +23,7 @@ import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens"
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildDesignTrees } from "@/lib/talent-site/server/theme-apply-core";
+import { splitShell } from "@/lib/talent-site/server/render-max-site-shell";
 import { loadPublishedCatalogRow } from "@/lib/talent-site/server/theme-catalog-row";
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/catalog-visibility";
@@ -95,6 +96,7 @@ export async function ThemeCatalogPreview({
       )
     : platformDefault.tokens;
 
+  const [shellHeader, shellFooter] = splitShell(built.shellTree);
   const snapshot: TalentSiteSnapshot = {
     version: 1,
     siteKind: "talent_personal",
@@ -110,7 +112,9 @@ export async function ThemeCatalogPreview({
     },
     templateSchemaVersion: 1,
     slots: [],
-    builderTree: [...built.shellTree, ...built.homeTree],
+    // Header, page, footer: the same order the live site renders. Spreading
+    // the whole shell first put the footer under the header in every preview.
+    builderTree: [...shellHeader, ...built.homeTree, ...shellFooter],
   };
 
   return (
