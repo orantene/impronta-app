@@ -167,3 +167,36 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
   assert.equal(faqBound, true);
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
 });
+
+/** Shared Header navChrome stamps (not Maison-only). */
+test("collection Designs stamp shared navChrome modes on kit nav", () => {
+  const expected: Record<string, string | undefined> = {
+    "maison-v2": undefined,
+    solace: "overlay",
+    mono: undefined,
+    frame: "filter_bar",
+    folio: "chapter_dots",
+  };
+  for (const d of COLLECTION_DESIGNS) {
+    let chrome: string | undefined;
+    const walk = (nodes: unknown) => {
+      if (!Array.isArray(nodes)) return;
+      for (const n of nodes) {
+        if (!n || typeof n !== "object") continue;
+        const node = n as {
+          kind?: string;
+          props?: Record<string, unknown>;
+          children?: unknown;
+        };
+        if (node.kind === "nav" && node.props) {
+          chrome = node.props.navChrome as string | undefined;
+        }
+        walk(node.children);
+      }
+    };
+    walk(d.buildPayload().shellTree);
+    assert.equal(chrome, expected[d.slug], `${d.slug} navChrome`);
+  }
+  assert.ok(!COLLECTION_DESIGN_GAPS.solace.includes("overlay menu nav style"));
+  assert.ok(!COLLECTION_DESIGN_GAPS.frame.includes("filter-bar header style"));
+});

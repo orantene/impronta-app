@@ -52,13 +52,23 @@ function deferYear(node: BuilderNode): BuilderNode {
   } as BuilderNode;
 }
 
-function shell(makeId: KitIdFactory, opts: { align?: "space-between" | "center"; rule?: boolean }) {
+function shell(
+  makeId: KitIdFactory,
+  opts: {
+    align?: "space-between" | "center";
+    rule?: boolean;
+    navChrome?: import("@/lib/site-admin/nav-chrome").NavChromeStyle;
+    navLinks?: ReadonlyArray<{ label: string; href: string }>;
+  },
+) {
   return buildKitShell(makeId, {
     displayName: "{{displayName}}",
     year: "{{year}}",
     headerAlign: opts.align ?? "space-between",
     headerPaddingY: "m",
     headerRule: opts.rule ?? false,
+    ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
+    ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
   }).map(deferYear);
 }
 
@@ -269,7 +279,16 @@ export function buildSolacePayload(): DesignPayload {
     letterSpacing: "-0.01em",
   });
   return {
-    shellTree: shell(id, { align: "center" }),
+    shellTree: shell(id, {
+      align: "center",
+      navChrome: "overlay",
+      navLinks: [
+        { label: "About", href: "#about" },
+        { label: "Sessions", href: "#services" },
+        { label: "Space", href: "#gallery" },
+        { label: "Contact", href: "#contact" },
+      ],
+    }),
     homeTree: [
       hero,
       aboutBlock(id, { align: "center", accent: false }),
@@ -335,7 +354,16 @@ export function buildFramePayload(): DesignPayload {
     { textTransform: "uppercase", letterSpacing: "0.02em" },
   );
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id, {
+      rule: true,
+      navChrome: "filter_bar",
+      navLinks: [
+        { label: "Work", href: "#gallery" },
+        { label: "Book", href: "#services" },
+        { label: "Contact", href: "#contact" },
+        { label: "About", href: "#about" },
+      ],
+    }),
     homeTree: [
       hero,
       portfolioBlock(id, { layout: "contact_sheet", columns: 4, heading: "Work", showCaptions: true }),
@@ -369,7 +397,16 @@ export function buildFolioPayload(): DesignPayload {
     letterSpacing: "-0.04em",
   });
   return {
-    shellTree: shell(id, { rule: true }),
+    shellTree: shell(id, {
+      rule: true,
+      navChrome: "chapter_dots",
+      navLinks: [
+        { label: "Book", href: "#gallery" },
+        { label: "About", href: "#about" },
+        { label: "Rates", href: "#services" },
+        { label: "Contact", href: "#contact" },
+      ],
+    }),
     homeTree: [
       hero,
       portfolioBlock(id, { layout: "masonry", columns: 2, heading: "The book" }),
@@ -484,8 +521,8 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
   "maison-v2": [],
-  solace: ["overlay menu nav style", "W-10 rotating word", "studio/villa hero toggle (app)"],
+  solace: ["W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
-  frame: ["W-12 contact sheet tag filter and loupe", "filter-bar header style"],
+  frame: ["W-12 contact sheet tag filter and loupe"],
   folio: ["W-12 project-story chapters", "W-11 C2 contents page", "W-10 W3 stacked masthead"],
 };

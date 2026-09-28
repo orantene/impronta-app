@@ -125,6 +125,11 @@ for (const [label, section] of SECTIONS) {
     const props = section.props as { slotKey?: string; originRole?: string };
     assert.ok(props.slotKey, `${label} needs props.slotKey`);
     assert.ok(props.originRole && TALENT_KIT_SECTION_ROLES.has(props.originRole), `${label} originRole`);
+    assert.equal(
+      (props as { anchorId?: string }).anchorId,
+      props.slotKey,
+      `${label} should stamp anchorId from slot for header nav hashes`,
+    );
   });
 }
 

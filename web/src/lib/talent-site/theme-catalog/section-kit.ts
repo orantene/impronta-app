@@ -69,13 +69,24 @@ export const KIT_COLOR = {
   line: "token:color.line",
 } as const;
 
-/** Stamp the kit provenance onto a top-level section's props. */
+/** Stamp the kit provenance onto a top-level section's props.
+ *  Also stamps `anchorId` from the slot so Header nav hash links
+ *  (`#services`, `#gallery`, …) resolve for scroll-spy chrome modes.
+ */
 export function stampKitSection(
   slot: TalentKitSectionSlot,
   props: Record<string, unknown>,
 ): Record<string, unknown> {
   const { slotKey, originRole } = TALENT_KIT_SECTIONS[slot];
-  return { ...props, slotKey, originRole };
+  return {
+    ...props,
+    slotKey,
+    originRole,
+    anchorId:
+      typeof props.anchorId === "string" && props.anchorId.length > 0
+        ? props.anchorId
+        : slotKey,
+  };
 }
 
 /** A pill chip whose only content is a `{{token}}` label (pruned when empty). */
