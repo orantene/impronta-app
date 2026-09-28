@@ -591,7 +591,6 @@ const ES: Record<string, string> = {
   "Subscribe (export)": "Suscribirse (exportar)",
   "A private link your calendar app can follow to show your Tulala bookings.":
     "Un enlace privado que tu app de calendario sigue para mostrar tus reservas de Tulala.",
-  "Copy link": "Copiar enlace",
   "Reset link": "Restablecer enlace",
   Import: "Importar",
   "Bring events in from an .ics file. Not available yet.": "Trae eventos desde un archivo .ics. Aún no disponible.",
