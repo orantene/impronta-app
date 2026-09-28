@@ -26,6 +26,8 @@ type Props = {
    *  restored toast with Undo because this panel unmounts on restore. */
   onRestoredToReview: () => void;
   onChanged?: () => void;
+  /** Open straight on the restore list ("Restore previous design" link). */
+  startWithRestore?: boolean;
 };
 
 export function DesignOptionsPanel({
@@ -34,6 +36,7 @@ export function DesignOptionsPanel({
   onClose,
   onRestoredToReview,
   onChanged,
+  startWithRestore = false,
 }: Props) {
   const [state, setState] = useState<MaisonDesignOptionsState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +58,9 @@ export function DesignOptionsPanel({
 
   useEffect(() => {
     if (!open) return;
-    setShowRestore(false);
+    setShowRestore(startWithRestore);
     reload();
-  }, [open, reload]);
+  }, [open, reload, startWithRestore]);
 
   useEffect(() => {
     if (!toast) return;
