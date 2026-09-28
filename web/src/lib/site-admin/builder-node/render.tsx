@@ -4594,6 +4594,25 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-copy{max-width:46ch}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-buy{flex:0 0 auto;margin-inline-start:.75rem}
 }
+/* AUD-042: desktop menu reads as one centered column (same 1120px as
+   container/split/nav), not edge to edge. The section keeps painting the
+   full-bleed band; only its content is constrained. Author widths on the
+   section itself (inline style) are untouched. */
+.site-builder-node--services-catalog>:not(style){max-width:1120px;margin-inline:auto}
+@media (min-width:768px){
+/* List layout: [thumb 92px] [text 1fr] [price + CTA] so price/CTA pin to the
+   container's right edge and the text column fills. */
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="true"],
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"]{grid-template-columns:92px minmax(0,1fr) auto}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-copy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-copy{max-width:none}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-desc,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-desc{max-width:62ch}
+.site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy,
+.site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-buy{justify-self:end}
+}
 .cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
 `;
