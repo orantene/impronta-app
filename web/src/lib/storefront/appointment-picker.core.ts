@@ -406,7 +406,7 @@ async function book(deps: AppointmentPickerDeps, input: AppointmentPickerInput):
       inquiryId: placed.inquiryId,
       bookingId: placed.bookingId,
       // The same return pages the instant-book action uses.
-      successUrl: `${deps.origin}/checkout/success`,
+      successUrl: `${deps.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${deps.origin}/checkout/cancel`,
       description: service.title,
       locale: deps.locale,

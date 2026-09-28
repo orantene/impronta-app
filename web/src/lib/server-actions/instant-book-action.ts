@@ -23,6 +23,8 @@ import {
 import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { unwindFailedCheckout } from "@/lib/orders/unwind-failed-checkout";
 
 export type {
   InstantBookActionResult,
@@ -144,7 +146,9 @@ export async function createInstantBookingAction(
             payerEmail: engineInput.contactEmail,
             inquiryId: booked.inquiryId ?? null,
             bookingId: booked.bookingId,
-            successUrl: `${origin}/checkout/success`,
+            // Stripe fills the session id; /checkout/success reads the
+            // transaction it paid and only says paid once it is settled.
+            successUrl: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancelUrl: `${origin}/checkout/cancel`,
             description: "Booking deposit",
             locale: await getRequestLocale(),
@@ -154,6 +158,22 @@ export async function createInstantBookingAction(
               "instantBookAction.checkout",
               new Error(session.error ?? "checkout session failed"),
             );
+            // F5: a DEFINITE failure (Stripe refused, nothing created) means
+            // nobody can pay this order: free the slot and cancel the draft
+            // now, keeping the rows as the audit trail. An UNCERTAIN failure
+            // (timeout, 5xx) may have created a session, so the hold stays
+            // until its TTL and a retry reuses the same order (clientOrderKey)
+            // and the same session (idempotency key `cs_txn_<id>`).
+            const admin = session.uncertain ? null : createServiceRoleClient();
+            if (admin) {
+              await unwindFailedCheckout(admin, {
+                orderId: booked.orderId,
+                transactionId: booked.transactionId,
+                allocationIds: booked.allocationIds,
+                reservationHoldId: booked.reservationHoldId,
+                why: "checkout_session_refused",
+              });
+            }
             return {
               ok: false as const,
               reason: "engine_error" as const,

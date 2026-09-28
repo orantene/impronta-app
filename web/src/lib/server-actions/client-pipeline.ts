@@ -239,7 +239,7 @@ export async function startInquiryCheckout(
     const host = hdrs.get("host") ?? "localhost";
     const proto = hdrs.get("x-forwarded-proto") ?? "https";
     const origin = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
-    const successUrl = `${origin}/checkout/success`;
+    const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/checkout/cancel`;
 
     // The charge ALWAYS lands on the platform account — there is no

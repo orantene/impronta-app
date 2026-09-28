@@ -120,7 +120,32 @@ export type CheckoutSessionInput = {
 
 export type CheckoutSessionResult =
   | { ok: true; url: string; sessionId: string; mock?: boolean }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      /**
+       * True when a session MAY exist (network drop, Stripe 5xx, no URL on
+       * the response). The caller must not release the hold on that: a retry
+       * with the same `cs_txn_<id>` idempotency key returns the same session.
+       * False only when Stripe definitely created nothing.
+       */
+      uncertain?: boolean;
+    };
+
+/** Stripe error types that mean the request was refused and nothing was created. */
+const DEFINITE_STRIPE_ERRORS = new Set([
+  "StripeCardError",
+  "StripeInvalidRequestError",
+  "StripeAuthenticationError",
+  "StripePermissionError",
+  "StripeRateLimitError",
+  "StripeIdempotencyError",
+]);
+
+export function checkoutFailureIsUncertain(err: unknown): boolean {
+  const type = typeof err === "object" && err !== null ? (err as { type?: unknown }).type : undefined;
+  return !(typeof type === "string" && DEFINITE_STRIPE_ERRORS.has(type));
+}
 
 /**
  * Create a Stripe Checkout Session in payment mode for a single line
@@ -148,7 +173,7 @@ export async function createCheckoutSessionForTransaction(
       // the admin manually marks it paid.
       return {
         ok: true,
-        url: `${input.successUrl}?mock=1&tx=${encodeURIComponent(input.transactionId)}`,
+        url: `${input.successUrl}${input.successUrl.includes("?") ? "&" : "?"}mock=1&tx=${encodeURIComponent(input.transactionId)}`,
         sessionId: `mock_${input.transactionId}`,
         mock: true,
       };
@@ -234,13 +259,13 @@ export async function createCheckoutSessionForTransaction(
     });
 
     if (!session.url) {
-      return { ok: false, error: "Stripe returned no checkout URL." };
+      return { ok: false, error: "Stripe returned no checkout URL.", uncertain: true };
     }
 
     return { ok: true, url: session.url, sessionId: session.id };
   } catch (err) {
     logServerError("payments.stripe.createCheckoutSessionForTransaction", err);
-    return { ok: false, error: "Failed to create payment session." };
+    return { ok: false, error: "Failed to create payment session.", uncertain: checkoutFailureIsUncertain(err) };
   }
 }
 

@@ -124,7 +124,7 @@ export async function actPackageSelectorCore(deps: PackageSelectorDeps, input: P
           payerEmail: email || null,
           inquiryId: purchase.inquiryId,
           bookingId: purchase.bookingId,
-          successUrl: receiptUrl ? `${receiptUrl}?paid=1` : `${deps.origin}/checkout/success`,
+          successUrl: receiptUrl ? `${receiptUrl}?paid=1` : `${deps.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${deps.origin}${input.sourcePage ?? "/"}`,
           description: String(row.title ?? "Package"),
           locale: deps.locale,
