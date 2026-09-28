@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -16,6 +16,9 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel } from "./services-catalog-bar-price";
+import { SelectionDock } from "@/components/public-booking/SelectionDock";
+import { EMPTY_DOCK, dockReducer } from "@/components/public-booking/selection-dock-state";
+import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
@@ -157,12 +160,11 @@ export function ServicesCatalogFilter({
   const first = named[0]?.name ?? null;
   const [active, setActive] = useState<string | null>(categoryShowAll ? null : first);
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
-  const [selectedBits, setSelectedBits] = useState<string | null>(null);
-  const [selectedTotal, setSelectedTotal] = useState(0);
-  const [selectedPriceLabel, setSelectedPriceLabel] = useState<string | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState("MXN");
+  // AUD-044 — multi-select dock state (front = first picked).
+  const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK);
+  const [toastName, setToastName] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const es = locale.startsWith("es");
@@ -181,12 +183,15 @@ export function ServicesCatalogFilter({
         currency?: string;
       } | null;
       if (!d?.offeringId) return;
-      setSelectedId(d.offeringId);
-      setSelectedTitle(d.title ?? null);
-      setSelectedBits(d.detail ?? null);
-      setSelectedTotal(d.totalCents ?? 0);
-      setSelectedPriceLabel(null);
-      setSelectedCurrency(d.currency ?? "MXN");
+      dispatchDock({
+        type: "upsert",
+        pick: {
+          id: d.offeringId,
+          bits: d.detail ?? null,
+          totalCents: d.totalCents ?? 0,
+          currency: d.currency ?? "MXN",
+        },
+      });
     };
     const onSheet = (e: Event) => {
       const d = (e as CustomEvent).detail as { open?: boolean } | undefined;
@@ -207,19 +212,75 @@ export function ServicesCatalogFilter({
       dispatchOffering(item, confirmsByHand, undefined, inclusion, bookingPosture);
       return;
     }
-    setSelectedId(item.id);
-    setSelectedTitle(item.title);
-    setSelectedBits(null);
-    setSelectedTotal(item.amountCents ?? 0);
-    setSelectedPriceLabel(catalogBarPriceLabel(item, locale));
-    setSelectedCurrency(item.currency);
+    dispatchDock({
+      type: "toggle",
+      pick: { id: item.id, bits: null, totalCents: item.amountCents ?? 0, currency: item.currency },
+    });
+  };
+
+  const findOffering = (id: string | null) => {
+    const group = groups.find((g) => g.items.some((o) => o.id === id));
+    return { group, found: group?.items.find((o) => o.id === id) ?? null };
   };
 
   const continueFromBar = () => {
-    const group = groups.find((g) => g.items.some((o) => o.id === selectedId));
-    const found = group?.items.find((o) => o.id === selectedId);
+    const { group, found } = findOffering(selectedId);
     if (!found) return;
     dispatchOffering(found, confirmsByHand, "when", group?.note, bookingPosture);
+  };
+
+  const dockItems = dock.picked.flatMap((p) => {
+    const { found } = findOffering(p.id);
+    if (!found) return [];
+    return [
+      {
+        id: p.id,
+        title: found.title,
+        imageUrl: found.imageUrls[0] ?? null,
+        bits: p.bits,
+        totalCents: p.totalCents,
+      },
+    ];
+  });
+  const dockCurrency = dock.picked[0]?.currency ?? "MXN";
+
+  const clearToast = useCallback(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = null;
+    setToastName(null);
+  }, []);
+  useEffect(() => clearToast, [clearToast]);
+
+  const removeFront = () => {
+    const front = dockItems[0];
+    if (!front) return;
+    dispatchDock({ type: "remove_front" });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastName(front.title);
+    toastTimer.current = setTimeout(() => setToastName(null), 5000);
+  };
+
+  const undoRemove = () => {
+    dispatchDock({ type: "undo" });
+    clearToast();
+  };
+
+  const askFromDock = () => {
+    const { found } = findOffering(selectedId);
+    if (!found) return;
+    const front = dock.picked[0];
+    openCatalogBookingChat({
+      detail: detailFor(found, confirmsByHand, bookingPosture),
+      selection: front
+        ? {
+            variantLabel: front.bits,
+            totalCents: dock.picked.reduce((s, p) => s + p.totalCents, 0),
+          }
+        : undefined,
+      from: "dock",
+      askAbout: dockItems.map((i) => i.title),
+      demo: bookingMode === "demo",
+    });
   };
 
   const matchesSearch = (item: TalentOffering) => {
@@ -372,7 +433,7 @@ export function ServicesCatalogFilter({
                       usdRates={usdRates}
                       ctaLabel={ctaLabel}
                       durationFormat={durationFormat}
-                      selected={selectedId === item.id}
+                      selected={dock.picked.some((p) => p.id === item.id)}
                       onSelect={() => onRowAction(item, g.note)}
                     />
                   ))}
@@ -383,28 +444,30 @@ export function ServicesCatalogFilter({
         );
       })}
 
+      {/* Idle prompt only; once something is picked the AUD-044 dock takes over. */}
       <div
         className="cb-bar"
-        data-show={!sheetOpen && (selectedId !== null || mobileBar !== "hidden")}
-        data-has-selection={selectedId !== null}
+        data-show={!sheetOpen && selectedId === null && mobileBar !== "hidden"}
+        data-has-selection="false"
         data-bar-style={mobileBar}
       >
         <div className="cb-bar-text">
-          <strong>{selectedTitle ?? (es ? "Elige tu servicio" : "Choose a service")}</strong>
-          <span>
-            {selectedId
-              ? `${selectedBits ? `${selectedBits} · ` : ""}${selectedPriceLabel ?? formatMoney(selectedTotal, selectedCurrency, locale)}`
-              : es
-                ? "Del menú completo, con sus opciones"
-                : "From the full menu, with its options"}
-          </span>
+          <strong>{es ? "Elige tu servicio" : "Choose a service"}</strong>
+          <span>{es ? "Del menú completo, con sus opciones" : "From the full menu, with its options"}</span>
         </div>
-        {selectedId ? (
-          <button type="button" onClick={continueFromBar}>
-            {es ? "Continuar" : "Continue"}
-          </button>
-        ) : null}
       </div>
+
+      <SelectionDock
+        items={dockItems}
+        show={!sheetOpen}
+        locale={locale}
+        formatPrice={(c) => formatMoney(c, dockCurrency, locale)}
+        onRemoveFront={removeFront}
+        onAsk={askFromDock}
+        onContinue={continueFromBar}
+        toast={toastName}
+        onUndo={undoRemove}
+      />
 
       {/* showAsk flag only — chat handoff serialization owned by sibling sheet/chat PR */}
       <CatalogBookingSheet

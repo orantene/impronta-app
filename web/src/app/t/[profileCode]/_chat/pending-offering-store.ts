@@ -30,6 +30,12 @@ export type PendingOfferingSelection = {
 
 export type PendingOfferingDetail = OfferingRequestDetail & {
   selection?: PendingOfferingSelection;
+  /**
+   * AUD-044 — set by the catalog selection dock's Ask button: the titles of
+   * every selected offering. The composer strip shows an "Asking about" card
+   * plus quick-question chips. The structured payload stays the FRONT offering.
+   */
+  askAbout?: string[];
 };
 
 let pending: PendingOfferingDetail | null = null;

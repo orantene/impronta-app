@@ -17,6 +17,8 @@ import {
 } from "./OfferingQuickPicker";
 import { clearPendingOffering, peekPendingOffering } from "./pending-offering-store";
 import type { SurfaceMode } from "./mini-chat-styles";
+import { GuestAskAboutCard } from "./GuestAskAboutCard";
+import { catalogBookingDraftPrefix } from "@/components/public-booking/catalog-booking-chat";
 
 const DECLINED = new Set(["rejected", "declined", "invalidated", "expired", "superseded"]);
 
@@ -77,6 +79,25 @@ export function GuestComposerOfferingStrip({
     threadStatus === "offer_pending" ||
     threadStatus === "approved" ||
     threadStatus === "booked";
+
+  // AUD-044 — Ask from the catalog selection dock: context card + quick chips.
+  if (pending?.askAbout && pending.askAbout.length > 0 && !offerPosture) {
+    const prefix = catalogBookingDraftPrefix(pending, pending.selection, locale);
+    return (
+      <GuestAskAboutCard
+        titles={pending.askAbout}
+        imageUrl={pending.imageUrl ?? null}
+        t={t}
+        accent={accent}
+        surfaceMode={surfaceMode}
+        onPick={(q) => onDraftChange(draft.startsWith(prefix) ? `${prefix}${q}` : q)}
+        onClear={() => {
+          clearPendingOffering();
+          onDraftChange(draft.startsWith(prefix) ? draft.slice(prefix.length) : draft);
+        }}
+      />
+    );
+  }
 
   if (stickyTitle && (offerPosture || pending)) {
     return (

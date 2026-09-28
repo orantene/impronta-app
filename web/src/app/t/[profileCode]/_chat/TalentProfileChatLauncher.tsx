@@ -18,6 +18,7 @@
 
 import { setPendingOffering } from "./pending-offering-store";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { CSSProperties } from "react";
 
 import type {
   ScanGuestConversationCallback,
@@ -48,7 +49,6 @@ import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import { useNarrowLauncherViewport } from "./use-compact-viewport";
 import { ChatGlyph } from "./chat-launcher-glyphs";
 import { useLauncherSessionRestore } from "./use-launcher-session-restore";
-import { useLauncherScrollCollapse } from "./use-launcher-scroll-collapse";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import { useYieldBookingBar } from "./use-yield-booking-bar";
@@ -197,15 +197,6 @@ export function TalentProfileChatLauncher({
       window.removeEventListener("tulala:ask-question", onAskQuestion);
     };
   }, []);
-  // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a
-  // real hover/active lift. Reduced-motion-safe: the transitions/transforms are
-  // suppressed under prefers-reduced-motion below.
-  const [pillHover, setPillHover] = useState(false);
-  const [pillActive, setPillActive] = useState(false);
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // F4: expanded state — grows the panel into a 2-pane layout in-place.
   const [expanded, setExpanded] = useState(false);
   // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
@@ -513,32 +504,18 @@ export function TalentProfileChatLauncher({
   // "Finish your inquiry (N)" (the resume_draft state carries no count itself).
   const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice, cart.cartCount);
 
-  // Audit finding: on a 375px viewport this pill is ~full width and parked
-  // permanently over the bottom of the talent grid, covering a whole card row.
-  // Collapse it to an icon while the visitor scrolls DOWN; it re-expands on
-  // scroll up or near the top, so the action is never more than a flick away.
-  // Narrow viewports only, never while the panel is open, and never for
-  // reduced-motion visitors (for them the pill simply stays put).
-  // MUST sit above the `!mounted` guard — hooks run in the same order every
-  // render (react-hooks/rules-of-hooks).
-  const collapsedByScrollDesktop = useLauncherScrollCollapse(
-    narrowLauncher && !open && !reduceMotion,
+  // AUD-044 — the launcher is ALWAYS an icon-only 54px circle (no long
+  // "Enviar mensaje a …" pill on desktop). On a fine pointer, hover widens it to
+  // show a short label; the accessible name stays the lifecycle label.
+  const plainMessageLabel = withInterpolation(t)("public.guestChat.ctaMessage", {
+    agency: brandVoice,
+  });
+  const fabHoverLabel =
+    launcherLabel === plainMessageLabel ? t("public.guestChat.fabHoverLabel") : launcherLabel;
+  const { yieldBookingBar, launcherBottomPx, selectionDockUp } = useYieldBookingBar(
+    mounted,
+    narrowLauncher,
   );
-  /**
-   * On a phone the launcher is a CIRCLE, not a pill that expands and contracts.
-   *
-   * The expanded pill is 193px - half a 390px screen - floating over the page,
-   * and it covered 54% of the homepage hero's footnote at first paint. Moving
-   * it vertically only changes which line it sits on, so the fix is its SHAPE.
-   * A floating action button is a circle on every phone for this reason.
-   *
-   * Nothing is lost: the glyph is a chat bubble, the accessible name is
-   * unchanged (aria-label, set above), and tapping it opens the same panel.
-   * The scroll-collapse dance stays for wider viewports, where a pill has room
-   * to sit beside the content rather than on top of it.
-   */
-  const collapsedByScroll = narrowLauncher ? !open : collapsedByScrollDesktop;
-  const { yieldBookingBar, launcherBottomPx } = useYieldBookingBar(mounted, narrowLauncher);
 
   if (!mounted) return null;
 
@@ -558,6 +535,7 @@ export function TalentProfileChatLauncher({
 
   return (
     <>
+      <style>{GUEST_CHAT_FAB_CSS}</style>
       {/* Card → pill fly clone (body portal, very high z). Idle/reduced-motion → null. */}
       <FlyingAvatar flight={flight} onDone={onFlightDone} />
 
@@ -659,71 +637,30 @@ export function TalentProfileChatLauncher({
           ref={pillRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
-          onMouseEnter={() => setPillHover(true)}
-          onMouseLeave={() => {
-            setPillHover(false);
-            setPillActive(false);
-          }}
-          onMouseDown={() => setPillActive(true)}
-          onMouseUp={() => setPillActive(false)}
           aria-label={launcherLabel}
           aria-expanded={open}
-          className={className}
-          style={{
-            position: "relative",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: collapsedByScroll ? 0 : 9,
-            height: 52,
-            // Collapsed → a 52px circle carrying just the glyph. The accessible
-            // name never changes (aria-label above), so the control keeps its
-            // identity for screen readers even when the visible label is gone.
-            width: collapsedByScroll ? 52 : undefined,
-            justifyContent: collapsedByScroll ? "center" : undefined,
-            padding: collapsedByScroll ? 0 : "0 20px 0 18px",
-            borderRadius: 26,
-            border: "none",
-            background: accent,
-            color: accentInk,
-            fontFamily: FONT,
-            fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: 0.1,
-            cursor: "pointer",
-            // Lift on hover, press in on active. Reduced-motion → no transition +
-            // no transform (the box is static for motion-sensitive visitors).
-            boxShadow: pillHover
-              ? "0 20px 44px -10px rgba(16,18,29,0.55), 0 6px 16px -4px rgba(16,18,29,0.35)"
-              : "0 14px 34px -10px rgba(16,18,29,0.5), 0 4px 12px -4px rgba(16,18,29,0.3)",
-            transform: reduceMotion
-              ? "none"
-              : pillActive
-                ? "translateY(0) scale(0.98)"
-                : pillHover
-                  ? "translateY(-2px)"
-                  : "none",
-            transition: reduceMotion
-              ? "none"
-              : "transform 140ms ease, box-shadow 140ms ease, width 180ms ease, padding 180ms ease",
-          }}
+          aria-hidden={selectionDockUp ? true : undefined}
+          tabIndex={selectionDockUp ? -1 : undefined}
+          data-guest-chat-fab=""
+          data-gone={selectionDockUp ? "true" : undefined}
+          className={className ? `tl-fab ${className}` : "tl-fab"}
+          style={
+            {
+              "--tl-fab-accent": accent,
+              background: accent,
+              color: accentInk,
+              fontFamily: FONT,
+            } as CSSProperties
+          }
         >
-          {/* Phase 8 — REPLIED pulse. Reuses NewMessagePulse, mounted inside the
-              pill so the accent ring traces the pill's rounded rect (borderRadius
-              inherits). Only meaningful on the closed launcher with an unread
-              coordinator reply; the component self-fires one ring per false->true
-              edge and is reduced-motion-safe (degrades to a static highlight). */}
+          {/* Phase 8 — REPLIED pulse (one ring per false->true edge). */}
           {!open && unseenAgencyReply && (
             <NewMessagePulse active={repliedPulse} accent={accent} />
           )}
           <ChatGlyph color={accentInk} />
-          {collapsedByScroll ? null : (
-            <span>{launcherLabel}</span>
-          )}
-          {/* W1-D — the separate cart count chip (the "9" bubble) was REMOVED. It
-              double-counted against the avatar stack (faces + a single "+N" chip
-              ARE the count) and, in states like `sent_awaiting`, `labelShowsCount`
-              left BOTH visible. The count is now carried by the faces, or — when
-              there are no faces — by the label's own "(N)" in the lineup states. */}
+          <span className="tl-fab-lbl" aria-hidden>
+            {fabHoverLabel}
+          </span>
         </button>}
       </div>
 
@@ -794,3 +731,20 @@ export function TalentProfileChatLauncher({
     </>
   );
 }
+
+/**
+ * AUD-044 — icon-only FAB (prototype: selection-dock.html). Hover label only on
+ * a fine pointer; ring pulses twice on first paint; `data-gone` tucks it into
+ * the catalog selection dock. Every animation is off under reduced motion.
+ */
+export const GUEST_CHAT_FAB_CSS = `
+.tl-fab{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:0;height:54px;min-width:54px;padding:0 15px;border-radius:27px;border:0;font-size:13.5px;font-weight:600;letter-spacing:.1px;cursor:pointer;box-shadow:0 18px 50px -12px rgba(16,18,29,.45),0 2px 6px rgba(16,18,29,.12);transition:transform .5s cubic-bezier(.2,.9,.25,1.15),opacity .3s,gap .35s cubic-bezier(.16,1,.3,1),padding .35s cubic-bezier(.16,1,.3,1)}
+.tl-fab svg{flex:0 0 auto}
+.tl-fab-lbl{max-width:0;overflow:hidden;white-space:nowrap;transition:max-width .4s cubic-bezier(.16,1,.3,1)}
+@media (hover:hover) and (pointer:fine){.tl-fab:hover{gap:8px;padding:0 18px}.tl-fab:hover .tl-fab-lbl{max-width:160px}}
+.tl-fab::before{content:"";position:absolute;inset:-6px;border-radius:inherit;border:2px solid var(--tl-fab-accent);opacity:0;pointer-events:none;animation:tl-fab-ring 2.8s 1s 2 cubic-bezier(.16,1,.3,1)}
+@keyframes tl-fab-ring{0%{opacity:.5;transform:scale(.9)}100%{opacity:0;transform:scale(1.25)}}
+.tl-fab:focus-visible{outline:2px solid var(--tl-fab-accent);outline-offset:3px}
+.tl-fab[data-gone="true"]{transform:translate(-40px,-6px) scale(.4);opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.tl-fab,.tl-fab-lbl,.tl-fab::before{transition:none!important;animation:none!important}}
+`;
