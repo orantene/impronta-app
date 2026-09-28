@@ -190,6 +190,16 @@ export function OfflineBanner() {
             max-width: none !important;
           }
         }
+        /* AUD-046: yield to sheet / sticky save chrome. Fixed z-350 sat on
+           top of TalentEditPanel, UnsavedExitSheet, drawer footers, and
+           sticky Save bars (e.g. Website settings at 390). Hide while those
+           are present; connectivity still self-heals on the re-probe timer. */
+        html:has([data-tulala-sticky-save-bar]) [data-tulala-offline-banner],
+        html:has([data-tulala-drawer-footer]) [data-tulala-offline-banner],
+        html:has([role="dialog"][data-state="open"]) [data-tulala-offline-banner],
+        html:has(.sticky.bottom-0) [data-tulala-offline-banner] {
+          display: none !important;
+        }
       `}</style>
       <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
       <span>{copy.t("Connection lost · retrying…")}</span>
