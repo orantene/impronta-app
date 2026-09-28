@@ -7,9 +7,11 @@
 -- resolver is resolveEffectiveBookingMode (web/src/lib/scheduling/instant-book-gates.ts).
 --
 -- ADDITIVE / WIDENING ONLY:
---   * drop NOT NULL and DEFAULT 'request' (a writer that omits the column now
---     stores NULL = inherit the talent default; legacy 'on_demand' and an
---     unset default read as 'instant', subject to readiness);
+--   * drop NOT NULL only. DEFAULT 'request' is KEPT: this migration is applied
+--     before WSF-B's readers ship, so live writers that omit the column must
+--     keep storing 'request', never NULL. NULL is written only by an explicit
+--     "Reset to default" (WSF-B code). Dropping the default is a later,
+--     code-first change once every reader resolves NULL;
 --   * widen the value CHECK to add 'inquiry' (service answered by conversation).
 --   Existing rows are NOT touched: they keep their value and become explicit.
 --
@@ -26,9 +28,6 @@
 -- whose talent default is instant is still only bookable instantly with an
 -- exact price, because the app derives quote/custom/from rows to
 -- "ask for a quote" and offeringIsDirectlyBookable requires an exact price.
-
-ALTER TABLE public.talent_offerings
-  ALTER COLUMN booking_mode DROP DEFAULT;
 
 ALTER TABLE public.talent_offerings
   ALTER COLUMN booking_mode DROP NOT NULL;
