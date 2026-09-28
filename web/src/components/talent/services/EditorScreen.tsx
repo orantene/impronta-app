@@ -1,5 +1,6 @@
 "use client";
 
+import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   listTalentPortfolioPhotos,
@@ -167,12 +168,12 @@ export function EditorScreen({
     agreed: copy.t("Agreed after enquiry"),
   };
 
-  const modes = [
-    { id: "instant", title: copy.t("Instant booking"), sub: copy.t("They pick a free time and it is booked") },
-    { id: "request", title: copy.t("Request to book"), sub: copy.t("You approve before anything is held") },
-    { id: "inquiry", title: copy.t("Inquiry only"), sub: copy.t("They message you first, nothing is booked") },
-    { id: "quote", title: copy.t("Request a quote"), sub: copy.t("You agree the amount with each client") },
-  ] as const;
+  // WSF B2: the same label set Website settings uses.
+  const modes = BOOKING_MODE_CHOICES.map((id) => ({
+    id,
+    title: copy.t(BOOKING_MODE_LABELS[id].title),
+    sub: copy.t(BOOKING_MODE_LABELS[id].sub),
+  }));
   // WSF-B: null = inherits the talent default (Defaults > Default booking mode).
   const modeInherited = item.bookingMode == null;
   const defaultMode = defaults?.bookingPosture ?? PLATFORM_DEFAULT_BOOKING_POSTURE;

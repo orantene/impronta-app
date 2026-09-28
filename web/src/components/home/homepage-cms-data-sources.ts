@@ -7,6 +7,8 @@
  * locations, directory shortcuts, media assets, collections), and fetches them
  * in one parallel batch — returning `{}` (no round-trips) when nothing is bound.
  */
+import { publicContactMode, servicesCatalogChannel } from "@/lib/talent/accepting-readiness";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { headers } from "next/headers";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
@@ -361,11 +363,19 @@ export async function loadBuilderNodeDataSources(
       ? {}
       : { featuredTalentProfilesByNodeId }),
     ...(nativeNeeds.servicesCatalog && catalogTalentId
-      ? await loadServicesCatalogSources(catalogTalentId, locale)
+      ? await loadServicesCatalogSources(
+          catalogTalentId,
+          locale,
+          servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+        )
       : nativeNeeds.portfolio && catalogTalentId
         ? // Portfolio service links need OfferingCta payloads even without a
           // services_catalog on the page.
-          await loadServicesCatalogSources(catalogTalentId, locale)
+          await loadServicesCatalogSources(
+            catalogTalentId,
+            locale,
+            servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+          )
         : {}),
     ...(nativeNeeds.portfolio && catalogTalentId
       ? await loadPortfolioSources(catalogTalentId)
@@ -402,6 +412,8 @@ export async function loadBuilderNodeDataSources(
 export async function loadServicesCatalogSources(
   talentProfileId: string,
   locale: string,
+  /** WSF-C §7: "agency" never applies the talent's switches or banner. */
+  channel: "direct" | "agency" = "direct",
 ): Promise<
   Pick<
     BuilderNodeRenderDataSources,
@@ -412,9 +424,10 @@ export async function loadServicesCatalogSources(
     | "talentOfferingsCategoryOrder"
     | "talentOfferingsCategoryNotes"
     | "onlineCollectReady"
+    | "talentSitePause"
   >
 > {
-  const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale);
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale, null, { channel });
   let confirmsByHand = true;
   let categoryOrder: string[] = [];
   let categoryNotes: Record<string, string> | undefined;
@@ -451,6 +464,10 @@ export async function loadServicesCatalogSources(
     }
   }
   const usdRates = needsUsdRates(offerings) ? await loadUsdRates() : null;
+  // WSF-C §8: the same switches the offerings loader applied, for the banner.
+  const talentSitePause = admin && channel === "direct"
+    ? publicContactMode(await loadTalentSiteSwitches(admin, talentProfileId))
+    : "open";
   // PAY-2 Option B — platform Checkout only; Connect unfinished does not gate guests.
   const onlineCollectReady = resolveOnlineCollectReady({
     platformCheckoutReady: isPlatformCheckoutReady(),
@@ -463,6 +480,7 @@ export async function loadServicesCatalogSources(
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
     ...(categoryOrder.length ? { talentOfferingsCategoryOrder: categoryOrder } : {}),
     ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),
+    ...(talentSitePause !== "open" ? { talentSitePause } : {}),
   };
 }
 

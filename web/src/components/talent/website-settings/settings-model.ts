@@ -27,6 +27,8 @@ export type ServiceFields = {
 };
 
 export type SettingsService = {
+  /** WSF-C §1 row 4: why instant cannot work yet (first gap), or null. */
+  instantGap?: string | null;
   id: string;
   title: string;
   /** Instant booking needs one exact price (DB constraint + validateOffering). */
@@ -36,6 +38,8 @@ export type SettingsService = {
    * so its deposit cannot fall back to the default here.
    */
   depositRequired: boolean;
+  /** priceDisplay "quote": shown as "Request a quote"; settings never changes it. */
+  quote?: boolean;
 };
 
 export type SettingsDraft = {
@@ -120,4 +124,46 @@ export function withPosture(defaults: SellingDefaults, posture: TalentBookingPos
     whoPrimaryCta:
       posture === "inquiry" && defaults.whoPrimaryCta === "confirm_now" ? "contact" : defaults.whoPrimaryCta,
   };
+}
+
+/** WSF-C: changed talent_sites switches (chat greeting not edited here). */
+export function switchChangeCount(
+  saved: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean },
+  draft: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean },
+): number {
+  return (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter((k) => saved[k] !== draft[k]).length;
+}
+
+/**
+ * WSF-C partial-save honesty: what is still unsaved, named by group or
+ * service, so a failed save can say "Some changes saved" and list the rest.
+ * Retry resends exactly these (the saved snapshot already holds the rest).
+ */
+export function pendingChangeLabels(input: {
+  saved: SettingsDraft;
+  draft: SettingsDraft;
+  savedSwitches: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean };
+  draftSwitches: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean };
+  serviceTitle: (id: string) => string;
+  labels: { defaults: string; bookings: string; chat: string };
+}): string[] {
+  const d = diffDraft(input.saved, input.draft);
+  const out: string[] = [];
+  if (d.defaults.length > 0) out.push(input.labels.defaults);
+  for (const id of d.services) out.push(input.serviceTitle(id));
+  const s = input.savedSwitches;
+  const n = input.draftSwitches;
+  if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
+  if (s.acceptingInquiries !== n.acceptingInquiries || s.chatEnabled !== n.chatEnabled) out.push(input.labels.chat);
+  return out;
+}
+
+/**
+ * WSF B2 impact preview for a default-mode change: services that follow the
+ * default (bookingMode null) move; services with their own setting stay.
+ */
+export function defaultModeImpact(services: Record<string, ServiceFields>): { follows: number; own: number } {
+  const all = Object.values(services);
+  const own = all.filter((f) => f.bookingMode != null).length;
+  return { follows: all.length - own, own };
 }

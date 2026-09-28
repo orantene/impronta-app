@@ -21,7 +21,10 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
-import { withEffectiveBookingMode, withEffectivePolicy } from "@/lib/talent/offering-policy-resolver";
+import { withEffectivePolicy, withPublicAvailability } from "@/lib/talent/offering-policy-resolver";
+import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
+import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
+import { publicContactMode } from "@/lib/talent/accepting-readiness";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 
 export async function loadPublicOfferingsForProfile(
@@ -40,6 +43,8 @@ export async function loadPublicOfferingsForProfile(
    * platform host), where showing everything they offer is correct.
    */
   tenantId?: string | null,
+  /** WSF-C §7: "agency" skips the talent's switches (default: direct unless tenantId). */
+  opts?: { channel?: "direct" | "agency" },
 ): Promise<TalentOffering[]> {
   try {
     const admin = createServiceRoleClient();
@@ -96,10 +101,24 @@ export async function loadPublicOfferingsForProfile(
     // left them unset, so the sheet says what checkout will charge.
     const defaults = await loadSellingDefaultsByTalent(db, [talentProfileId]);
     const sellingDefaults = defaults.ok ? (defaults.defaults.get(talentProfileId) ?? {}) : {};
+    // WSF-C: readiness everywhere; the talent's switches only on a direct
+    // channel (no agency context, §7).
+    const [switches, hours] = await Promise.all([
+      tenantId || opts?.channel === "agency" ? Promise.resolve(null) : loadTalentSiteSwitches(db, talentProfileId),
+      loadWorkingHoursPresence(db, [talentProfileId]),
+    ]);
+    const availability = {
+      switches,
+      hasWorkingHours: hours.get(talentProfileId) ?? null,
+      payoutsReady: isPlatformCheckoutReady(),
+    };
+    const pause = switches ? publicContactMode(switches) : "open";
     return rows.map((r) => ({
-      ...withEffectiveBookingMode(
+      ...(pause !== "open" ? { publicPause: pause } : {}),
+      ...withPublicAvailability(
         withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? []), sellingDefaults),
         sellingDefaults,
+        availability,
       ),
       variants: children.variants.get(r.id) ?? [],
       addOns: addOnsByOffering.get(r.id) ?? [],

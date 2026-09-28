@@ -36,6 +36,9 @@ import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { assertAcceptingNewContact, isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { verifyTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
 import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -723,6 +726,31 @@ export async function startGuestChatInquiry(
         "talent_unavailable",
         "This talent is not taking inquiries here right now.",
       );
+    }
+  }
+
+  // ── WSF-C (§7/§8): a NEW conversation to the talent on a direct channel
+  // (their own site or the Tulala profile) respects their switches. A
+  // conversation carrying a time or a reserve intent is a new booking; any
+  // other is a new inquiry. Agency-routed conversations, and replies to
+  // existing threads (sendGuestMessageAction), are never gated here.
+  if (talentProfileId) {
+    const hostCtx = await getPublicHostContext();
+    if (isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId })) {
+      const switches = await loadTalentSiteSwitches(admin, talentProfileId);
+      const verifiedIntent = input.offeringIntent ? verifyTalentOfferingIntent(input.offeringIntent) : null;
+      const isBookingRequest =
+        Boolean(input.offering?.starts_at || input.offering?.slot_label) ||
+        (verifiedIntent?.ok === true && verifiedIntent.payload.intent === "reserve");
+      const accepting = assertAcceptingNewContact(switches, isBookingRequest ? "booking_request" : "inquiry");
+      if (!accepting.ok) {
+        return fail(
+          accepting.reason,
+          accepting.reason === "not_accepting_bookings"
+            ? "Not taking new bookings right now. You can still send an inquiry."
+            : "Not taking new inquiries right now.",
+        );
+      }
     }
   }
 

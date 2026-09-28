@@ -107,9 +107,11 @@ export function ServicesCatalogStaticFallback({
                       )}
                       {usd ? <span className="site-builder-node--services-catalog-usd">{usd}</span> : null}
                     </span>
-                    <span className="site-builder-node--services-catalog-cta" aria-hidden>
-                      {label}
-                    </span>
+                    {item.publicCtaHidden ? null : (
+                      <span className="site-builder-node--services-catalog-cta" aria-hidden>
+                        {label}
+                      </span>
+                    )}
                   </span>
                 </li>
               );

@@ -13,6 +13,7 @@
  * the `inquiry_offer_line_items.pricing_unit` Postgres enum.
  */
 
+import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
   SERVICE_PRICING_SUFFIX,
@@ -100,6 +101,17 @@ export type TalentOffering = {
   currency: string;
   /** Explicit mode, or null = inherit the talent default. */
   bookingMode: OfferingBookingMode | null;
+  /**
+   * WSF-C, public loaders only: the talent's switches leave this service no
+   * route (bookings and inquiries off, or an inquiry service with inquiries
+   * off). The storefront hides its button. Absent = shown.
+   */
+  publicCtaHidden?: boolean;
+  /**
+   * WSF-C, public loaders only: set when the talent paused new work on this
+   * direct channel, so any storefront can show the §8 banner.
+   */
+  publicPause?: "bookings_paused" | "inquiries_paused" | "portfolio_only";
   reserveMode: OfferingReserveMode;
   /** Percent of the total collected up front when reserveMode === 'deposit'. */
   depositPct: number | null;
@@ -361,7 +373,7 @@ export { IDENTITY_REASONS };
 export type { IdentityReason };
 
 /** Validation errors for a save. [] = persistable. Mirrors the DB CHECKs. */
-export function validateOffering(o: TalentOffering): string[] {
+export function validateOffering(o: TalentOffering, defaultPosture?: string | null): string[] {
   const errors: string[] = [];
   if (!str(o.title, MAX_TITLE)) errors.push("Give it a name (e.g. “60-min massage”).");
   const quoteOnly = o.priceDisplay === "quote" || o.priceType === "custom";
@@ -382,6 +394,8 @@ export function validateOffering(o: TalentOffering): string[] {
   if (o.bookingMode === "instant" && o.reserveMode === "deposit" && (o.depositPct == null || o.depositPct <= 0 || o.depositPct >= 100)) {
     errors.push(`Set the deposit percent (1–99) for “${o.title}” — or switch it to full payment / free reserve.`);
   }
+  // WSF B2: an inherited Instant default is held to the same rules.
+  errors.push(...inheritedInstantErrors(o, o.bookingMode, defaultPosture));
   if (o.requiresIdentity && !isIdentityReason(o.identityReason)) {
     errors.push(`Say why “${o.title || "this item"}” needs the buyer's name.`);
   }

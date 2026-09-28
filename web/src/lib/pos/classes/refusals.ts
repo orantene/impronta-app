@@ -162,6 +162,7 @@ export const WALKIN_REFUSALS: Readonly<Record<WalkInBookingRefusal, ClassesRefus
   // arrive only if that changes; each is still a plain "not available".
   inquiry_only: "unavailable",
   request_only: "unavailable",
+  not_accepting_bookings: "unavailable",
   bad_duration: "unavailable",
   beyond_horizon: "unavailable",
   outside_hours: "unavailable",

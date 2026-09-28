@@ -102,7 +102,8 @@ export function AddManyScreen({
         amountCents: Math.round(Number(r.price) * 100),
         durationMinutes: r.kind === "service" ? Math.round(Number(r.minutes)) : null,
         status: "published",
-        bookingMode: "instant",
+        // WSF B2: services follow the talent default; products sell instantly.
+        bookingMode: r.kind === "product" ? "instant" : null,
         priceDisplay: "exact",
       });
       if (res.ok) {

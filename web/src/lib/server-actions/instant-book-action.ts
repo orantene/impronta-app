@@ -21,6 +21,8 @@ import {
   resolveInstantBookActor,
 } from "@/lib/scheduling/instant-book-guest";
 import { placeInstantPurchase } from "@/lib/scheduling/instant-purchase";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { runResolvedInstantBook } from "@/lib/scheduling/instant-book-run";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -74,7 +76,16 @@ export async function createInstantBookingAction(
           return { ok: false, reason: "no_fixed_rate" as const, error: "No offering to book." };
         }
 
+        // WSF-C §7: the talent's pause applies on their own site and Tulala
+        // profile; an agency storefront owns its own routing.
+        const host = await getPublicHostContext();
+        const agencyRouted = !isDirectTalentChannel({
+          hostKind: host.kind,
+          hostTenantId: host.tenantId,
+          tenantId: engineInput.tenantId,
+        });
         const booked = await placeInstantPurchase(convertClient, {
+          agencyRouted,
           tenantId: engineInput.tenantId,
           offeringId,
           talentProfileId: engineInput.talentProfileId,
@@ -109,6 +120,7 @@ export async function createInstantBookingAction(
             || booked.reason === "too_soon"
             || booked.reason === "inquiry_only"
             || booked.reason === "request_only"
+            || booked.reason === "not_accepting_bookings"
             || booked.reason === "bad_duration"
             || booked.reason === "beyond_horizon"
             || booked.reason === "outside_hours"
@@ -130,6 +142,7 @@ export async function createInstantBookingAction(
                 : booked.reason === "too_soon"
                     || booked.reason === "inquiry_only"
                     || booked.reason === "request_only"
+                    || booked.reason === "not_accepting_bookings"
                     || booked.reason === "bad_duration"
                     || booked.reason === "beyond_horizon"
                     || booked.reason === "outside_hours"
