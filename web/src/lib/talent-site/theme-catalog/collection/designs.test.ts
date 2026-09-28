@@ -349,6 +349,7 @@ test("folio stamps shared rate_card services_catalog layout", () => {
   assert.equal(catalogs[0]!.density, "compact");
   assert.equal(catalogs[0]!.showPhoto, false);
   assert.equal(catalogs[0]!.showDescription, false);
+  assert.equal(catalogs[0]!.showDelivery, true);
   assert.equal(catalogs[0]!.showPrice, true);
   assert.equal(catalogs[0]!.showDuration, true);
 });

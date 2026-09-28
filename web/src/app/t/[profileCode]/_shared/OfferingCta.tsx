@@ -16,7 +16,10 @@
 
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
-import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import {
+  offeringWhereFromAttributes,
+  type OfferingRequestDetail,
+} from "@/lib/talent/offering-request-detail";
 
 export type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
@@ -53,6 +56,7 @@ export function OfferingCta({
   const label = labelOverride?.trim() || pickLocale(locale, CTA_COPY[cta]);
 
   const onClick = () => {
+    const where = offeringWhereFromAttributes(offering.attributes);
     const detail: OfferingRequestDetail = {
       offeringId: offering.id,
       talentProfileId: offering.talentProfileId,
@@ -74,6 +78,8 @@ export function OfferingCta({
       inventoryQty: offering.inventoryQty,
       capacityPoolId: offering.capacityPoolId,
       intent: instant ? "instant" : "request",
+      description: offering.description,
+      where: where.length ? where : undefined,
     };
     const eventName = instant || (confirmsByHand && raw !== "ask_quote")
       ? "tulala:offering-instant"

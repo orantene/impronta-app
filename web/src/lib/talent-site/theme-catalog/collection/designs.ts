@@ -88,6 +88,7 @@ type CatalogOpts = {
   rowCtaVariant: "outline" | "solid";
   showPhoto: boolean;
   showDescription?: boolean;
+  showDelivery?: boolean;
   columns?: 1 | 2 | 3;
   search?: boolean;
   band?: boolean;
@@ -129,6 +130,7 @@ function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNode {
           showPhoto: o.showPhoto,
           showStats: false,
           ...(o.showDescription !== undefined ? { showDescription: o.showDescription } : {}),
+          ...(o.showDelivery !== undefined ? { showDelivery: o.showDelivery } : {}),
           ...(o.columns ? { columns: o.columns } : {}),
           ...(o.search ? { enableCatalogSearch: true } : {}),
           mobileBar: "float",
@@ -477,6 +479,7 @@ export function buildFolioPayload(): DesignPayload {
         rowCtaVariant: "outline",
         showPhoto: false,
         showDescription: false,
+        showDelivery: true,
       }),
       contactSection(id, { heading: "Next issue", faqHeading: "Questions" }),
     ],

@@ -99,6 +99,26 @@ test("an offering event opens the catalog sheet", () => {
   unmount();
 });
 
+test("choose step surfaces description and delivery as inquiry brief", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(
+    detail({
+      description: "Includes prep and look notes for the shoot.",
+      where: ["studio", "remote"],
+      addOns: [],
+    }),
+  );
+  const brief = host.querySelector('[data-inquiry-brief="description"]');
+  const delivery = host.querySelector('[data-inquiry-brief="delivery"]');
+  assert.ok(brief);
+  assert.match(brief?.textContent ?? "", /Includes prep and look notes/);
+  assert.ok(delivery);
+  assert.match(delivery?.textContent ?? "", /Lugar/);
+  assert.match(delivery?.textContent ?? "", /estudio|Remoto/i);
+  unmount();
+});
+
 test("W15 demo mode never writes a booking even after confirm", async () => {
   const book = mockBook();
   const { host, unmount } = mount("demo", book);

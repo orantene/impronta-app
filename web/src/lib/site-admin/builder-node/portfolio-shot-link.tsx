@@ -11,7 +11,10 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import {
+  offeringWhereFromAttributes,
+  type OfferingRequestDetail,
+} from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta } from "@/lib/talent/offerings-types";
 
 export function PortfolioShotLink({
@@ -63,6 +66,7 @@ export function PortfolioShotLink({
     (offering.durationMinutes ?? 0) > 0;
 
   const onClick = () => {
+    const where = offeringWhereFromAttributes(offering.attributes);
     const detail: OfferingRequestDetail = {
       offeringId: offering.id,
       talentProfileId: offering.talentProfileId,
@@ -84,6 +88,8 @@ export function PortfolioShotLink({
       inventoryQty: offering.inventoryQty,
       capacityPoolId: offering.capacityPoolId,
       intent: instant ? "instant" : "request",
+      description: offering.description,
+      where: where.length ? where : undefined,
     };
     const eventName =
       instant || (confirmsByHand && raw !== "ask_quote")
