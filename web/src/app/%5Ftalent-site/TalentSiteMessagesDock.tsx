@@ -17,9 +17,12 @@ import { TalentInquiryFormSheet } from "@/app/t/[profileCode]/_chat/TalentInquir
 import {
   askEntryPointsVisible,
   dockMounted,
+  intakeNoticeCopy,
+  intakeNoticeKind,
   resolveTalentAskEntry,
   resolveTalentChatGreeting,
 } from "@/lib/talent/chat-entry";
+import { TalentIntakeNotice } from "@/app/t/[profileCode]/_chat/TalentIntakeNotice";
 import { getActiveGuestInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
 
@@ -143,6 +146,7 @@ export async function TalentSiteMessagesDock({
   const askEntry = resolveTalentAskEntry(switches, {
     hasActiveThread: Boolean(resume?.ok && resume.active),
   });
+  const noticeKind = intakeNoticeKind(askEntry);
   const { accentColor, logoUrl } = siteChrome;
   const photoUrl = thumbs.get(talentProfileId) ?? null;
   if (!resolved.ok) return null;
@@ -209,7 +213,7 @@ export async function TalentSiteMessagesDock({
           photoUrl={photoUrl}
           sourcePage="/"
           locale={locale}
-          greeting={resolveTalentChatGreeting(switches, tradeVoice, { entry: askEntry, locale })}
+          greeting={resolveTalentChatGreeting(switches, tradeVoice)}
           wordsPresetOverride={tradePreset}
           omitPlatformBrand
         />
@@ -222,6 +226,12 @@ export async function TalentSiteMessagesDock({
           sourcePage="/"
           locale={locale}
           accentColor={accentColor}
+        />
+      ) : null}
+      {noticeKind ? (
+        <TalentIntakeNotice
+          text={intakeNoticeCopy(noticeKind, locale)}
+          closeLabel={locale === "es" ? "Cerrar" : "Close"}
         />
       ) : null}
     </>

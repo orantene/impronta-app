@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import type { TalentAskEntry } from "@/lib/talent/chat-entry";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
@@ -81,10 +82,10 @@ export type MaisonProfileLayoutProps = LightProfileLayoutProps & {
   /**
    * WSF D — which ask entry the talent offers (resolveTalentAskEntry). Ask
    * opens the chat or the inquiry form either way (same events); "hidden"
-   * / "existing_client" (not taking new inquiries) drop the Ask link.
+   * Only "chat" and "form" keep the Ask link (§8: no Consultar otherwise).
    * Defaults to "chat".
    */
-  askEntry?: "chat" | "existing_client" | "form" | "hidden";
+  askEntry?: TalentAskEntry;
 };
 
 /** The appointment rows read as facts, not as a spreadsheet, once each has a mark. */
@@ -513,7 +514,9 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             <div className="mn-slot">{inquireButtonFooter}</div>
           </div>
 
-          {props.askEntry !== "hidden" && props.askEntry !== "existing_client" ? (
+          {props.askEntry === undefined ||
+          props.askEntry === "chat" ||
+          props.askEntry === "form" ? (
             <div className="mn-closing-alt">
               <span>{c.askLead}</span>
               <MaisonAskButton

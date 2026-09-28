@@ -126,9 +126,12 @@ import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLaunche
 import { TalentInquiryFormSheet } from "./_chat/TalentInquiryFormSheet";
 import {
   dockMounted,
+  intakeNoticeCopy,
+  intakeNoticeKind,
   resolveTalentAskEntry,
   resolveTalentChatGreeting,
 } from "@/lib/talent/chat-entry";
+import { TalentIntakeNotice } from "./_chat/TalentIntakeNotice";
 import { getActiveGuestInquiry } from "./_actions/guest-chat-actions";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches.server";
 import { parseTalentSiteSwitches } from "@/lib/talent/site-switches";
@@ -2580,6 +2583,12 @@ export async function TalentProfileView({
           locale={locale}
         />
       ) : null}
+      {!isModal && intakeNoticeKind(talentAskEntry) ? (
+        <TalentIntakeNotice
+          text={intakeNoticeCopy(intakeNoticeKind(talentAskEntry) ?? "closed", locale)}
+          closeLabel={locale === "es" ? "Cerrar" : "Close"}
+        />
+      ) : null}
       {!isModal &&
         guestChatSettings.enabled &&
         guestChatSettings.showOnTalent &&
@@ -2609,10 +2618,7 @@ export async function TalentProfileView({
           accentColor={chatAccentColor}
           logoUrl={watermarkLogoUrl}
           sourcePage={profileSourcePage}
-          greeting={resolveTalentChatGreeting(talentSwitches, guestChatSettings.greeting, {
-            entry: talentAskEntry,
-            locale,
-          })}
+          greeting={resolveTalentChatGreeting(talentSwitches, guestChatSettings.greeting)}
           locale={locale}
           backgroundMode={chatBackgroundMode}
         />

@@ -33,7 +33,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   draftFirstSendAllowed,
-  talentAllowsNewGuestThread,
+  talentAcceptsNewThreads,
 } from "@/lib/talent/existing-client.server";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
@@ -624,6 +624,18 @@ async function readGuestVisibleMessages(
 // 3a. startGuestChatInquiry
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** WSF C+D (§7): talent switches gate only the talent's own channels, never agency-routed chats. */
+async function onDirectTalentChannel(tenantId: string | null): Promise<boolean> {
+  const hostCtx = await getPublicHostContext();
+  return isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId });
+}
+
+function notAcceptingMessage(locale: string | null | undefined): string {
+  return locale === "es"
+    ? "Ahora no recibe mensajes nuevos. Si tienes una reserva, usa el enlace de tu email de confirmación."
+    : "This talent isn't taking new messages. If you have a booking, use the link in your confirmation email.";
+}
+
 export async function startGuestChatInquiry(
   input: StartGuestChatInput,
 ): Promise<StartGuestChatResult> {
@@ -752,7 +764,7 @@ export async function startGuestChatInquiry(
           accepting.reason,
           accepting.reason === "not_accepting_bookings"
             ? "Not taking new bookings right now. You can still send an inquiry."
-            : "Not taking new inquiries right now.",
+            : notAcceptingMessage(input.locale),
         );
       }
     }
@@ -1281,7 +1293,6 @@ export async function sendGuestMessageAction(
   // isRealContact reused below so the post-send promotion doesn't re-query.
   // See guest-send-gate.ts for the decision logic + its unit tests.
   let isRealContact = true;
-  let contactEmailForGate: string | null = null;
   if (owned.inquiry.status === "draft") {
     const { data: contactRow, error: contactErr } = await admin
       .from("inquiries")
@@ -1313,20 +1324,17 @@ export async function sendGuestMessageAction(
       return fail("forbidden", "You don't have access to this conversation.");
     }
     isRealContact = !isSeedContact(contactName, contactEmail);
-    contactEmailForGate = contactEmail;
   }
 
   // WSF D §8: an early draft becomes a real thread on its first send, so the
-  // existing-client gate runs here too (the draft had no email when created).
+  // not-taking-inquiries switch gates it too.
   if (
     owned.inquiry.status === "draft" &&
     isRealContact &&
-    !(await draftFirstSendAllowed(admin, owned.inquiry.id, contactEmailForGate ?? ""))
+    (await onDirectTalentChannel(owned.inquiry.tenantId)) &&
+    !(await draftFirstSendAllowed(admin, owned.inquiry.id))
   ) {
-    return fail(
-      "talent_unavailable",
-      "Right now this talent only takes messages about an existing booking. Use the email you booked with.",
-    );
+    return fail("not_accepting_inquiries", notAcceptingMessage(null));
   }
 
   // ── W2-I auto-scan: on the FIRST real send (still a draft, contact already
@@ -2017,6 +2025,16 @@ export async function ensureGuestChatInquiry(
           picked.row.contact_email as string | null,
         ),
       };
+    }
+
+    // WSF D §8: minting a new early row IS starting a new thread. Reuse of the
+    // guest's own existing draft above stays allowed.
+    if (
+      talentProfileId &&
+      (await onDirectTalentChannel(tenantId)) &&
+      !(await talentAcceptsNewThreads(admin, talentProfileId))
+    ) {
+      return fail("not_accepting_inquiries", notAcceptingMessage(null));
     }
 
     // No reusable partial — create the minimal early row. Placeholder contact

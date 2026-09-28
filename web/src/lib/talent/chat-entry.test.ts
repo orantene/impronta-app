@@ -4,54 +4,70 @@ import test from "node:test";
 import {
   askEntryPointsVisible,
   dockMounted,
+  intakeNoticeCopy,
+  intakeNoticeKind,
   resolveTalentAskEntry,
   resolveTalentChatGreeting,
+  type TalentAskEntry,
 } from "./chat-entry";
 import { parseTalentSiteSwitches } from "./site-switches";
 
-test("ask entry across chat x inquiries, no thread (report §8)", () => {
-  const cases: [boolean, boolean, string][] = [
-    [true, true, "chat"],
-    [false, true, "form"],
-    [true, false, "existing_client"], // §8 On/Off/On: chat stays, existing clients only
-    [false, false, "hidden"],
+const sw = (chatEnabled: boolean, acceptingInquiries: boolean, acceptingBookings: boolean) => ({
+  chatEnabled,
+  acceptingInquiries,
+  acceptingBookings,
+});
+
+test("full matrix, no verified thread (report §8)", () => {
+  // [chat, inquiries, bookings] -> entry
+  const cases: [boolean, boolean, boolean, TalentAskEntry][] = [
+    [true, true, true, "chat"],
+    [true, true, false, "chat"],
+    [false, true, true, "form"],
+    [false, true, false, "form"],
+    [true, false, true, "closed_notice"], // no composer, confirmation-email link
+    [false, false, true, "hidden"],
+    [true, false, false, "unavailable"], // both off: honest, never Consultar
+    [false, false, false, "unavailable"],
   ];
-  for (const [chatEnabled, acceptingInquiries, want] of cases) {
-    assert.equal(
-      resolveTalentAskEntry({ chatEnabled, acceptingInquiries }),
-      want,
-      `chat=${chatEnabled} inquiries=${acceptingInquiries}`,
-    );
+  for (const [c, i, b, want] of cases) {
+    assert.equal(resolveTalentAskEntry(sw(c, i, b)), want, `chat=${c} inq=${i} book=${b}`);
   }
 });
 
-test("a visitor with an active thread always keeps the dock", () => {
-  for (const chatEnabled of [true, false]) {
-    for (const acceptingInquiries of [true, false]) {
-      const entry = resolveTalentAskEntry(
-        { chatEnabled, acceptingInquiries },
-        { hasActiveThread: true },
-      );
-      assert.ok(dockMounted(entry), `chat=${chatEnabled} inquiries=${acceptingInquiries}`);
-      // Only the fully-open talent shows new-conversation entry points.
-      assert.equal(askEntryPointsVisible(entry), chatEnabled && acceptingInquiries);
-    }
-  }
+test("a verified active thread keeps a reply dock under every switch", () => {
+  for (const c of [true, false])
+    for (const i of [true, false])
+      for (const b of [true, false]) {
+        const entry = resolveTalentAskEntry(sw(c, i, b), { hasActiveThread: true });
+        assert.ok(dockMounted(entry), `chat=${c} inq=${i} book=${b}`);
+        assert.equal(intakeNoticeKind(entry), null);
+        // Only a fully open talent shows new-conversation entry points.
+        assert.equal(askEntryPointsVisible(entry), c && i);
+      }
 });
 
-test("entry points and dock per entry", () => {
-  assert.deepEqual(
-    (["chat", "existing_client", "form", "hidden"] as const).map((e) => [
-      askEntryPointsVisible(e),
-      dockMounted(e),
-    ]),
-    [
-      [true, true],
-      [false, true],
-      [true, false],
-      [false, false],
-    ],
+test("closed/unavailable never mount the dock nor show Ask", () => {
+  for (const e of ["closed_notice", "unavailable", "hidden"] as const) {
+    assert.equal(dockMounted(e), false);
+    assert.equal(askEntryPointsVisible(e), false);
+  }
+  assert.equal(intakeNoticeKind("closed_notice"), "closed");
+  assert.equal(intakeNoticeKind("unavailable"), "unavailable");
+  assert.equal(intakeNoticeKind("hidden"), null);
+  assert.equal(askEntryPointsVisible("form"), true);
+  assert.equal(dockMounted("form"), false);
+});
+
+test("notice copy, EN + ES tú, no em dash", () => {
+  assert.equal(
+    intakeNoticeCopy("closed", "en"),
+    "This talent isn't taking new messages. If you have a booking, use the link in your confirmation email.",
   );
+  assert.match(intakeNoticeCopy("closed", "es"), /Si tienes una reserva, usa el enlace/);
+  assert.match(intakeNoticeCopy("unavailable", "es"), /no está disponible/);
+  for (const k of ["closed", "unavailable"] as const)
+    for (const l of ["en", "es"]) assert.doesNotMatch(intakeNoticeCopy(k, l), /—/);
 });
 
 test("a talent with no talent_sites row gets the chat", () => {
@@ -64,13 +80,4 @@ test("greeting: her own greeting wins, else the default", () => {
   const none = parseTalentSiteSwitches({ chat_config: { greeting: "   " } });
   assert.equal(resolveTalentChatGreeting(none, "Trade voice"), "Trade voice");
   assert.equal(resolveTalentChatGreeting(parseTalentSiteSwitches(null), null), null);
-});
-
-test("existing-client mode explains itself (EN + ES tú), over her own greeting", () => {
-  const own = parseTalentSiteSwitches({ chat_config: { greeting: "Hola" } });
-  const es = resolveTalentChatGreeting(own, "x", { entry: "existing_client", locale: "es" });
-  const en = resolveTalentChatGreeting(own, "x", { entry: "existing_client", locale: "en" });
-  assert.match(es ?? "", /reserva que ya tienes/);
-  assert.match(en ?? "", /Message only about an existing booking/);
-  assert.doesNotMatch(`${es}${en}`, /—/);
 });
