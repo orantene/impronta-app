@@ -1057,7 +1057,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 19
+      "count": 8
     }
   },
   "src/components/admin/shell/internal/talent/pages/ReviewsPage.tsx": {
