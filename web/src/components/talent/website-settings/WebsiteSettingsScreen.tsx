@@ -20,6 +20,7 @@ import {
 import { loadTalentOfferingsForEditor, upsertTalentOffering } from "@/lib/talent/offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
+import { settle } from "./settle";
 import { loadHoursMinNoticeAction } from "./website-settings-gate-action";
 import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "./primitives";
 import { BookingGroup, PaymentsGroup, SelfServiceGroup, TimingGroup, postureLabel } from "./WebsiteSettingsGroups";
@@ -113,7 +114,8 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
     let nextSaved = saved;
     let ok = true;
     if (diff.defaults.length > 0) {
-      const res = await saveSellingDefaults(talentId, draft.defaults);
+      const r = await settle(() => saveSellingDefaults(talentId, draft.defaults));
+      const res = r.ok ? r.value : { ok: false as const };
       if (res.ok) nextSaved = { ...nextSaved, defaults: draft.defaults };
       else ok = false;
     }
@@ -122,13 +124,16 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       const idx = nextOfferings.findIndex((o) => o.id === id);
       if (idx < 0) continue;
       const fields = draft.services[id];
-      const res = await upsertTalentOffering(talentId, {
-        ...nextOfferings[idx],
-        bookingMode: fields.bookingMode,
-        depositPct: fields.depositPct,
-        cancellationHours: fields.cancellationHours,
-      });
-      if (res.ok) {
+      const r = await settle(() =>
+        upsertTalentOffering(talentId, {
+          ...nextOfferings[idx],
+          bookingMode: fields.bookingMode,
+          depositPct: fields.depositPct,
+          cancellationHours: fields.cancellationHours,
+        }),
+      );
+      const res = r.ok ? r.value : null;
+      if (res?.ok) {
         nextOfferings[idx] = res.item;
         nextSaved = { ...nextSaved, services: { ...nextSaved.services, [id]: fields } };
       } else ok = false;
