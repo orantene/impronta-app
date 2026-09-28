@@ -31,6 +31,7 @@ import {
   contentsBlock,
   heroCentered,
   heroCover,
+  heroMasthead,
   heroSplit,
   stampKitSection,
   type KitIdFactory,
@@ -389,15 +390,18 @@ export function buildFramePayload(): DesignPayload {
 }
 
 // ── Folio ────────────────────────────────────────────────────────────────────
-// Magazine cover (full-bleed, uppercase masthead name), Contents index,
+// Magazine masthead (giant stacked words + B&W cover), Contents index,
 // the book as shared W-12 chapter blocks (sticky numeral + title + credit,
 // 1 large + 2 smaller), a rate card of rows grouped by section.
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
-  const hero = tuneHeading(heroCover(id, { accent: false }), {
-    size: "display",
-    textTransform: "uppercase",
-    letterSpacing: "-0.04em",
+  const hero = heroMasthead(id, {
+    lines: ["{{displayName}}"],
+    splitWords: true,
+    subline: "{{primaryTypeLabel}}",
+    showCover: true,
+    coverFilter: "bw",
+    coverSrc: "{{headshotUrl}}",
   });
   return {
     shellTree: shell(id, {
@@ -565,5 +569,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   solace: ["W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe"],
-  folio: ["W-10 W3 stacked masthead"],
+  folio: [],
 };

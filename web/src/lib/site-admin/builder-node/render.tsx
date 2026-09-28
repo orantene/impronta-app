@@ -158,6 +158,7 @@ import { renderPortfolioBlock } from "./portfolio-block";
 import { renderReviewsBlock } from "./reviews-block";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
+import { renderMastheadBlock } from "./masthead-block";
 import { renderNextFreeChip } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -5918,6 +5919,12 @@ function renderBuilderNodeElement(
     }
     case "contents": {
       return renderContentsBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "masthead": {
+      return renderMastheadBlock({
         node,
         styleAttr: sharedNodeStyle(node.props.style),
       });

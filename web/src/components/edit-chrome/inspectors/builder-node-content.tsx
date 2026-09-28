@@ -74,6 +74,7 @@ import { PortfolioContentInspector } from "./portfolio-inspector";
 import { ReviewsContentInspector } from "./reviews-inspector";
 import { VisitContentInspector } from "./visit-inspector";
 import { ContentsContentInspector } from "./contents-inspector";
+import { MastheadContentInspector } from "./masthead-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1575,6 +1576,9 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "contents") {
     return <ContentsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "masthead") {
+    return <MastheadContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
@@ -5191,6 +5195,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Visit · areas, days, languages";
     case "contents":
       return "Contents · chapter index";
+    case "masthead":
+      return "Masthead · stacked words";
     case "next_free_chip":
       return "Next free · live slot chip";
     case "reserve_table":

@@ -216,6 +216,12 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     kind?: string;
     props?: Record<string, unknown>;
   }> = [];
+  const mastheads: Array<{
+    kind?: string;
+    props?: Record<string, unknown>;
+    slotKey?: string;
+    originRole?: string;
+  }> = [];
   const walk = (nodes: unknown) => {
     if (!Array.isArray(nodes)) return;
     for (const n of nodes) {
@@ -236,6 +242,21 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
       }
       if (node.kind === "contents") {
         contentsFound.push({ kind: node.kind, props: node.props });
+      }
+      if (node.kind === "masthead") {
+        mastheads.push({ kind: node.kind, props: node.props });
+      }
+      if (
+        node.kind === "container" &&
+        node.props?.slotKey === "hero" &&
+        node.props?.originRole === "talent.hero"
+      ) {
+        mastheads.push({
+          kind: node.kind,
+          props: node.props,
+          slotKey: node.props.slotKey as string,
+          originRole: node.props.originRole as string,
+        });
       }
       walk(node.children);
     }
@@ -263,8 +284,15 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     items.slice(0, 3).map((it) => it.anchor),
     ["chapter-1", "chapter-2", "chapter-3"],
   );
+  const mastheadNodes = mastheads.filter((m) => m.kind === "masthead");
+  assert.equal(mastheadNodes.length, 1, "folio stamps shared masthead kind");
+  assert.deepEqual(mastheadNodes[0]!.props?.lines, ["{{displayName}}"]);
+  assert.equal(mastheadNodes[0]!.props?.coverFilter, "bw");
+  assert.equal(mastheadNodes[0]!.props?.splitWords, true);
+  assert.ok(mastheads.some((m) => m.slotKey === "hero" && m.originRole === "talent.hero"));
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-12 project-story chapters"));
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-11 C2 contents page"));
+  assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-10 W3 stacked masthead"));
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
   assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
 });

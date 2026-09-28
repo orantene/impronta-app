@@ -53,6 +53,8 @@ export type BuilderNodeKind =
   | "visit"
   /** Contents — authored chapter index / TOC with anchor links. */
   | "contents"
+  /** Masthead — giant stacked words + optional B&W cover (W-10 hero variant). */
+  | "masthead"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1401,6 +1403,35 @@ export interface BuilderContentsNode extends BuilderNodeBase {
 }
 
 /**
+ * Masthead — giant stacked words over an optional cover (B&W magazine default).
+ * Shared W-10 hero variant; Designs stamp via `heroMasthead`.
+ */
+export interface BuilderMastheadNode extends BuilderNodeBase {
+  kind: "masthead";
+  props: {
+    /** Authored stack rows (words or phrases). */
+    lines?: string[];
+    /**
+     * When true and there is a single space-separated line, render splits it
+     * into stacked rows (e.g. "{{displayName}}" → first / last).
+     */
+    splitWords?: boolean;
+    /** Small uppercase line under the stack (role, issue, etc.). */
+    subline?: string;
+    /** Optional credit under the subline. */
+    creditLine?: string;
+    /** Full-bleed cover behind the words (default true). */
+    showCover?: boolean;
+    /** Cover treatment: black-and-white (default) or full color. */
+    coverFilter?: "bw" | "none";
+    /** Cover image URL; Design stamps use {{headshotUrl}}. */
+    coverSrc?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Next free time chip — fetches `/api/public/booking/slots` for a bookable
  * offering (authored id, or the first slot-eligible offering on the page).
  * Renders nothing when the list is empty.
@@ -2441,6 +2472,7 @@ export type BuilderNode =
   | BuilderReviewsNode
   | BuilderVisitNode
   | BuilderContentsNode
+  | BuilderMastheadNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

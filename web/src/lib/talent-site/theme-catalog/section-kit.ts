@@ -717,6 +717,7 @@ export {
   visitBlock,
   faqBlock,
   contentsBlock,
+  heroMasthead,
 } from "./section-kit-bands";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────

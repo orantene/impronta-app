@@ -75,6 +75,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "reviews",
   "visit",
   "contents",
+  "masthead",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1171,6 +1172,19 @@ export const contentsPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Masthead — giant stacked words + optional B&W cover. */
+export const mastheadPropsSchema = z.object({
+  lines: z.array(z.string().max(80)).max(8).optional(),
+  splitWords: z.boolean().optional(),
+  subline: z.string().max(120).optional(),
+  creditLine: z.string().max(160).optional(),
+  showCover: z.boolean().optional(),
+  coverFilter: z.enum(["bw", "none"]).optional(),
+  coverSrc: z.string().max(2000).optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Next free time chip — live slots API; hidden when empty. */
 export const nextFreeChipPropsSchema = z.object({
   offeringId: z.string().max(80).optional(),
@@ -2195,6 +2209,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Chapter index with links to sections on this page. Editable labels and anchors.",
       children: { type: "none" },
       propsSchema: contentsPropsSchema,
+    },
+    masthead: {
+      kind: "masthead",
+      label: "Masthead",
+      description:
+        "Giant stacked words over an optional black-and-white cover. Magazine hero.",
+      children: { type: "none" },
+      propsSchema: mastheadPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",
