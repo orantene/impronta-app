@@ -545,7 +545,7 @@ const ES_TEXT: Record<string, string> = {
   "Open checks on the floor": "Cuentas abiertas en el salón",
   "Tickets the kitchen and pickup station see": "Tickets que ven cocina y recolección",
   "Financials": "Finanzas",
-  "Payouts": "Pagos",
+  "Payouts": "Depósitos",
   "Revenue, payouts, commissions, and payment status": "Ingresos, pagos, comisiones y estado de pago",
   "Stripe Connect payout onboarding and base reservation fee": "Alta de pagos con Stripe Connect y tarifa base de reserva",
   // Messages inbox chrome — filter chips, bulk bar, search, empty state.
@@ -2795,6 +2795,8 @@ const ES_TEXT: Record<string, string> = {
   "Message…": "Mensaje…",
   "Mo": "Mes",
   "Money": "Dinero",
+  // AUD-018 Money ES lives in dashboard-i18n-money.ts (spread via RAIL_ES_TEXT)
+  // so this file stays at the 3968 size-ratchet budget — do not re-inline here.
   "My pages": "Mis páginas",
   "Need more info": "Necesito más información",
   "Needs your reply": "Esperan tu respuesta",

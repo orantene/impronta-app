@@ -448,6 +448,8 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 jor-day: ES for Messages seller Actions disabledReason
   // "Pick a conversation first" lives in dashboard-i18n-rail.ts (spread into
   // ES_TEXT) so this file stays at the 3968 budget — do not re-raise here.
+  // 2026-09-27 AUD-018: Money request/record/refund/correct ES lives in
+  // dashboard-i18n-money.ts (folded into RAIL_ES_TEXT) — same reason; keep 3968.
   "src/components/admin/shell/internal/dashboard-i18n.ts": 3968,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
