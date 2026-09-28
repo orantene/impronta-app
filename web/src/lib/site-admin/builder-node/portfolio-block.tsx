@@ -1,13 +1,20 @@
 /**
  * Portfolio block renderer (W-12) — live-bound talent media.
- * Layouts: filmstrip · grid · masonry · contact_sheet.
+ * Layouts: filmstrip · grid · masonry · contact_sheet · chapter.
  * Kept out of render.tsx to avoid growing the god file.
+ *
+ * Budget note: chapter layout adds ~1.4 KB of token-only CSS (sticky head,
+ * 1+2 shot rhythm) plus thin chapter props. No app-bundle raise needed.
  */
 import type { CSSProperties, ReactNode } from "react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
-import { PORTFOLIO_DEFAULT_PROPS, type PortfolioLayout } from "./portfolio-defaults";
+import {
+  PORTFOLIO_DEFAULT_PROPS,
+  portfolioChapterRoman,
+  type PortfolioLayout,
+} from "./portfolio-defaults";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import type { TalentPortfolioShot } from "./portfolio-types";
@@ -36,6 +43,19 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--contact_sheet{display:grid;gap:0.4rem;grid-template-columns:repeat(var(--sb-portfolio-cols,4),minmax(0,1fr))}
 .sb-portfolio--contact_sheet .sb-portfolio-frame{aspect-ratio:1/1}
 .sb-portfolio--contact_sheet .sb-portfolio-cap{font-size:0.7rem;margin-top:0.25rem}
+.sb-portfolio-chapter{display:grid;gap:1.25rem}
+.sb-portfolio-chapter-head{display:flex;flex-direction:column;gap:0.45rem;min-width:0}
+.sb-portfolio-chapter-num{margin:0;font-size:clamp(2rem,4vw,3rem);font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--token-color-ink)}
+.sb-portfolio-chapter-title{margin:0;font-size:clamp(1.25rem,2.2vw,1.65rem);font-weight:600;letter-spacing:-0.02em;line-height:1.15}
+.sb-portfolio-credit{margin:0;font-size:0.8125rem;line-height:1.4;color:var(--token-color-muted)}
+.sb-portfolio--chapter{display:grid;gap:0.75rem;grid-template-columns:1fr 1fr}
+.sb-portfolio--chapter .sb-portfolio-item--hero{grid-column:1/-1}
+.sb-portfolio--chapter .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:3/4}
+.sb-portfolio--chapter .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:4/5}
+@media (min-width:901px){
+  .sb-portfolio-chapter{grid-template-columns:minmax(11rem,24%) minmax(0,1fr);align-items:start;gap:2.25rem}
+  .sb-portfolio-chapter-head{position:sticky;top:1.5rem}
+}
 @media (max-width:720px){
   .sb-portfolio--grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sb-portfolio--masonry{column-count:2}
@@ -52,7 +72,14 @@ function defaultColumns(layout: PortfolioLayout, authored?: 2 | 3 | 4): number {
   if (layout === "contact_sheet") return 4;
   if (layout === "filmstrip") return 3;
   if (layout === "masonry") return 2;
+  if (layout === "chapter") return 2;
   return 3;
+}
+
+function defaultLimit(layout: PortfolioLayout, authored?: number): number {
+  if (typeof authored === "number") return authored;
+  if (layout === "chapter") return 6;
+  return PORTFOLIO_DEFAULT_PROPS.limit ?? 12;
 }
 
 function ShotFigure({
@@ -60,11 +87,13 @@ function ShotFigure({
   offering,
   showCaptions,
   confirmsByHand,
+  itemClass,
 }: {
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
   showCaptions: boolean;
   confirmsByHand: boolean;
+  itemClass?: string;
 }) {
   const label =
     shot.caption?.trim() ||
@@ -74,7 +103,10 @@ function ShotFigure({
   const serviceLine = shot.offeringTitle?.trim() || null;
 
   return (
-    <figure className="sb-portfolio-item" data-portfolio-media={shot.id}>
+    <figure
+      className={itemClass ? `sb-portfolio-item ${itemClass}` : "sb-portfolio-item"}
+      data-portfolio-media={shot.id}
+    >
       <PortfolioShotLink
         offering={offering}
         offeringId={shot.offeringId}
@@ -99,6 +131,10 @@ function ShotFigure({
   );
 }
 
+function chapterItemClass(index: number): string {
+  return index % 3 === 0 ? "sb-portfolio-item--hero" : "sb-portfolio-item--pair";
+}
+
 export function renderPortfolioBlock(args: {
   node: BuilderPortfolioNode;
   shots: ReadonlyArray<TalentPortfolioShot>;
@@ -115,8 +151,9 @@ export function renderPortfolioBlock(args: {
     selectionMode: p.selectionMode,
     selectedMediaIds: p.selectedMediaIds,
     autoIncludeNew: p.autoIncludeNew,
-    limit: p.limit,
+    limit: defaultLimit(layout, p.limit),
     shotBindings: p.shotBindings,
+    albumId: p.albumId,
   }).map((shot) =>
     linkMode === "none" ? { ...shot, offeringId: null, offeringTitle: shot.offeringTitle } : shot,
   );
@@ -124,11 +161,26 @@ export function renderPortfolioBlock(args: {
   const title = (p.title ?? PORTFOLIO_DEFAULT_PROPS.title)?.trim() || "Recent work";
   const eyebrow = p.eyebrow?.trim() || "";
   const empty = (p.emptyMessage ?? PORTFOLIO_DEFAULT_PROPS.emptyMessage) as string;
+  const credit = p.creditLine?.trim() || "";
+  const roman = portfolioChapterRoman(p.chapterNumber);
+  const isChapter = layout === "chapter";
+
+  const shotNodes = visible.map((shot, index) => (
+    <ShotFigure
+      key={shot.id}
+      shot={shot}
+      offering={shot.offeringId ? byOffering.get(shot.offeringId) ?? null : null}
+      showCaptions={showCaptions}
+      confirmsByHand={args.confirmsByHand ?? true}
+      itemClass={isChapter ? chapterItemClass(index) : undefined}
+    />
+  ));
 
   return (
     <section
       data-builder-node-kind="portfolio"
       data-portfolio-layout={layout}
+      data-portfolio-chapter={isChapter ? roman : undefined}
       className="sb-portfolio"
       style={{
         ...args.styleAttr,
@@ -136,24 +188,33 @@ export function renderPortfolioBlock(args: {
       }}
     >
       <style>{PORTFOLIO_CSS}</style>
-      <header className="sb-portfolio-header">
-        {eyebrow ? <p className="sb-portfolio-eyebrow">{eyebrow}</p> : null}
-        <h2 className="sb-portfolio-title">{title}</h2>
-      </header>
-      {visible.length === 0 ? (
-        <p className="sb-portfolio-empty">{empty}</p>
-      ) : (
-        <div className={`sb-portfolio--${layout}`}>
-          {visible.map((shot) => (
-            <ShotFigure
-              key={shot.id}
-              shot={shot}
-              offering={shot.offeringId ? byOffering.get(shot.offeringId) ?? null : null}
-              showCaptions={showCaptions}
-              confirmsByHand={args.confirmsByHand ?? true}
-            />
-          ))}
+      {isChapter ? (
+        <div className="sb-portfolio-chapter">
+          <header className="sb-portfolio-chapter-head">
+            <p className="sb-portfolio-chapter-num" aria-hidden="true">
+              {roman}
+            </p>
+            <h2 className="sb-portfolio-chapter-title">{title}</h2>
+            {credit ? <p className="sb-portfolio-credit">{credit}</p> : null}
+          </header>
+          {visible.length === 0 ? (
+            <p className="sb-portfolio-empty">{empty}</p>
+          ) : (
+            <div className="sb-portfolio--chapter">{shotNodes}</div>
+          )}
         </div>
+      ) : (
+        <>
+          <header className="sb-portfolio-header">
+            {eyebrow ? <p className="sb-portfolio-eyebrow">{eyebrow}</p> : null}
+            <h2 className="sb-portfolio-title">{title}</h2>
+          </header>
+          {visible.length === 0 ? (
+            <p className="sb-portfolio-empty">{empty}</p>
+          ) : (
+            <div className={`sb-portfolio--${layout}`}>{shotNodes}</div>
+          )}
+        </>
       )}
     </section>
   );

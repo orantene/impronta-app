@@ -711,6 +711,7 @@ export function galleryBlock(
  */
 export {
   portfolioBlock,
+  portfolioChaptersBlock,
   reviewsBlock,
   visitBlock,
   faqBlock,

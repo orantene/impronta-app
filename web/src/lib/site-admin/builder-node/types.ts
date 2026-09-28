@@ -45,7 +45,7 @@ export type BuilderNodeKind =
   | "hero_search"
   | "menu_board"
   | "services_catalog"
-  /** W-12 — live-bound talent media (filmstrip / grid / masonry / contact sheet). */
+  /** W-12 — live-bound talent media (filmstrip / grid / masonry / contact sheet / chapter). */
   | "portfolio"
   /** W-14 — live-bound talent_reviews quote cards (trio / single / row). */
   | "reviews"
@@ -1290,13 +1290,13 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
 
 /**
  * W-12 Portfolio — live talent media (not copied-at-apply gallery tiles).
- * Layouts: filmstrip (Maison v2 Recent work), grid, masonry, contact_sheet.
- * Each shot may link to a service via offering media or editor bindings.
+ * Layouts: filmstrip · grid · masonry · contact_sheet · chapter
+ * (chapter = one album/collection with sticky number + title + credit).
  */
 export interface BuilderPortfolioNode extends BuilderNodeBase {
   kind: "portfolio";
   props: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet";
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter";
     eyebrow?: string;
     title?: string;
     columns?: 2 | 3 | 4;
@@ -1315,6 +1315,18 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
     linkMode?: "offering" | "none";
     emptyMessage?: string;
     useWebsiteTheme?: boolean;
+    /**
+     * Chapter layout: 1-based index rendered as a roman numeral (I, II, III…).
+     * Ignored by other layouts.
+     */
+    chapterNumber?: number;
+    /** Chapter layout credit line under the title (photographer, client, year). */
+    creditLine?: string;
+    /**
+     * Bind this block to one talent media album (`media_assets.metadata.albumId`).
+     * Empty / omitted = all live portfolio shots (subject to selectionMode).
+     */
+    albumId?: string;
     style?: BuilderNodeStyle;
   };
 }

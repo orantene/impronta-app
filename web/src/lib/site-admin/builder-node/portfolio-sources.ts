@@ -26,7 +26,7 @@ export async function loadPortfolioSources(
 
   const { data: mediaRows, error } = await trusted
     .from("media_assets")
-    .select("id, storage_path, alt, width, height, sort_order, variant_kind")
+    .select("id, storage_path, alt, width, height, sort_order, variant_kind, metadata")
     .eq("owner_talent_profile_id", talentProfileId)
     .in("variant_kind", ["gallery", "public_watermarked", "hero"])
     .eq("approval_state", "approved")
@@ -47,6 +47,7 @@ export async function loadPortfolioSources(
     height: number | null;
     sort_order: number | null;
     variant_kind: string;
+    metadata: Record<string, unknown> | null;
   }>;
 
   // Prefer gallery variants; keep hero only as filler when gallery is thin.
@@ -109,6 +110,8 @@ export async function loadPortfolioSources(
 
   const shots: TalentPortfolioShot[] = deduped.map((r) => {
     const linked = offeringByMedia.get(r.id);
+    const metaAlbum =
+      typeof r.metadata?.albumId === "string" ? r.metadata.albumId.trim() : "";
     return {
       id: r.id,
       url: trusted.storage.from(BUCKET).getPublicUrl(r.storage_path).data.publicUrl,
@@ -116,6 +119,7 @@ export async function loadPortfolioSources(
       caption: null,
       offeringId: linked?.id ?? null,
       offeringTitle: linked?.title ?? null,
+      albumId: metaAlbum || null,
       width: r.width,
       height: r.height,
       sortOrder: r.sort_order ?? 0,

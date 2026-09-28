@@ -1089,9 +1089,11 @@ export const servicesCatalogPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
-/** W-12 Portfolio — live talent media layouts. */
+/** W-12 Portfolio — live talent media layouts (incl. shared chapter). */
 export const portfolioPropsSchema = z.object({
-  layout: z.enum(["filmstrip", "grid", "masonry", "contact_sheet"]).optional(),
+  layout: z
+    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter"])
+    .optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
   columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
@@ -1113,6 +1115,9 @@ export const portfolioPropsSchema = z.object({
   linkMode: z.enum(["offering", "none"]).optional(),
   emptyMessage: z.string().max(240).optional(),
   useWebsiteTheme: z.boolean().optional(),
+  chapterNumber: z.number().int().min(1).max(20).optional(),
+  creditLine: z.string().max(200).optional(),
+  albumId: z.string().max(80).optional(),
   style: builderNodeStyleSchema,
 });
 
