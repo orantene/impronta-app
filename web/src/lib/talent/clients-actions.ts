@@ -3,6 +3,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { mapBookingStatusToNext } from "@/lib/talent/clients-directory";
 import {
   upsertClient,
   type TalentClientRow,
@@ -27,6 +28,26 @@ async function assertTalentOwner(talentProfileId: string): Promise<boolean> {
   return data?.user_id === session.user.id;
 }
 
+function emptyRow(
+  partial: Pick<TalentClientRow, "id" | "name" | "source"> & Partial<TalentClientRow>,
+): TalentClientRow {
+  return {
+    lastVisit: null,
+    completedCount: 0,
+    visitCount: 0,
+    amountOwedCents: null,
+    currency: null,
+    conversationHref: null,
+    phone: null,
+    email: null,
+    nextStartsAt: null,
+    nextStatus: null,
+    nextBookingHref: null,
+    overdue: false,
+    ...partial,
+  };
+}
+
 /**
  * Clients list for the talent studio.
  * `talent_bookings` columns are `client_label` / no money fields (see
@@ -47,12 +68,13 @@ export async function loadTalentClients(
     if (!admin) return { ok: false, error: "Server configuration error." };
 
     const byKey = new Map<string, TalentClientRow>();
+    const nowIso = new Date().toISOString();
 
     // Agenda / commercial bookings (agency_bookings) linked through booking_talent.
     const { data: legs, error: legsError } = await admin
       .from("booking_talent")
       .select(
-        "booking_id, client_charge_total, agency_bookings!inner ( id, contact_name, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
+        "booking_id, client_charge_total, agency_bookings!inner ( id, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
       )
       .eq("talent_profile_id", talentProfileId)
       .limit(200);
@@ -81,23 +103,35 @@ export async function loadTalentClients(
       );
       const basis = chargeCents > 0 ? chargeCents : totalCents;
       let owed: number | null = null;
+      let overdue = false;
       if (booking.payment_status === "paid") owed = 0;
       else if (booking.payment_status === "partial") owed = Math.max(0, basis - deposit);
       else if (basis > 0) owed = basis;
+      if (owed && owed > 0 && start && start < nowIso) overdue = true;
       const inquiryId = booking.source_inquiry_id as string | null;
+      const nextStatus = mapBookingStatusToNext(booking.status as string | null);
+      const isFuture = !!start && start >= nowIso && nextStatus != null;
+      const isPast = !!start && start < nowIso;
       upsertClient(
         byKey,
-        {
+        emptyRow({
           id: `agency:${booking.id}`,
           name,
-          lastVisit: start,
-          visitCount: 1,
+          lastVisit: isPast ? start : null,
+          completedCount: isPast ? 1 : 0,
+          visitCount: isPast ? 1 : 0,
           amountOwedCents: owed,
           currency: (booking.currency_code as string | null) ?? null,
           conversationHref: inquiryId ? `/talent/inbox/${inquiryId}` : null,
           source: "booking",
-        },
-        { inquiryId, accumulateVisit: true },
+          phone: (booking.contact_phone as string | null)?.trim() || null,
+          email: (booking.contact_email as string | null)?.trim() || null,
+          nextStartsAt: isFuture ? start : null,
+          nextStatus: isFuture ? nextStatus : null,
+          nextBookingHref: isFuture ? `/talent/bookings/${booking.id}` : null,
+          overdue,
+        }),
+        { inquiryId, accumulateVisit: true, countCompleted: isPast },
       );
     }
 
@@ -119,27 +153,35 @@ export async function loadTalentClients(
         "Client";
       const start = (row.starts_at as string | null) ?? null;
       const inquiryId = (row.inquiry_id as string | null) ?? null;
+      const nextStatus = mapBookingStatusToNext(row.status as string | null);
+      const isFuture = !!start && start >= nowIso && nextStatus != null;
       // Do not accumulate visits — agency already counted commercial appointments;
       // shared-PK mirrors would otherwise double every create-slot booking.
       upsertClient(
         byKey,
-        {
+        emptyRow({
           id: `booking:${row.id}`,
           name,
-          lastVisit: start,
-          visitCount: 1,
+          lastVisit: start && start < nowIso ? start : null,
+          completedCount: 0,
+          visitCount: 0,
           amountOwedCents: null,
           currency: null,
           conversationHref: inquiryId ? `/talent/inbox/${inquiryId}` : null,
           source: "booking",
-        },
+          nextStartsAt: isFuture ? start : null,
+          nextStatus: isFuture ? nextStatus : null,
+          nextBookingHref: isFuture ? `/talent/bookings/${row.id}` : null,
+        }),
         { inquiryId, accumulateVisit: false },
       );
     }
 
     const { data: participants, error: participantsError } = await admin
       .from("inquiry_participants")
-      .select("inquiry_id, inquiries!inner ( id, contact_name, company, created_at, status )")
+      .select(
+        "inquiry_id, inquiries!inner ( id, contact_name, contact_email, contact_phone, company, created_at, status )",
+      )
       .eq("talent_profile_id", talentProfileId)
       .eq("role", "talent")
       .neq("status", "removed")
@@ -159,23 +201,26 @@ export async function loadTalentClients(
       const created = (inquiry.created_at as string | null) ?? null;
       upsertClient(
         byKey,
-        {
+        emptyRow({
           id: `inquiry:${inquiry.id}`,
           name,
           lastVisit: created,
+          completedCount: 0,
           visitCount: 0,
           amountOwedCents: null,
           currency: null,
           conversationHref: `/talent/inbox/${inquiry.id}`,
           source: "inquiry",
-        },
+          phone: (inquiry.contact_phone as string | null)?.trim() || null,
+          email: (inquiry.contact_email as string | null)?.trim() || null,
+        }),
         { inquiryId: inquiry.id as string, accumulateVisit: false },
       );
     }
 
     const items = Array.from(byKey.values()).sort((a, b) => {
-      const left = a.lastVisit ?? "";
-      const right = b.lastVisit ?? "";
+      const left = a.lastVisit ?? a.nextStartsAt ?? "";
+      const right = b.lastVisit ?? b.nextStartsAt ?? "";
       return right.localeCompare(left);
     });
     return { ok: true, items };
