@@ -33,6 +33,7 @@ import {
   isFirstDayEligible,
 } from "@/lib/talent-agenda/first-day";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
+import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 function withOpen(item: AgendaRowItem, onOpenRecord?: (id: string) => void): AgendaRowItem {
@@ -148,6 +149,13 @@ export function AgendaTodayPage({
       ? `https://tulala.digital/t/${encodeURIComponent(profile.profileCode)}`
       : null;
 
+  // W75 / AUD-023 — Continue your website when Maison setup is mid-flow.
+  // Must mount on Agenda V2 Today (incl. first-day); classic Today alone is not enough.
+  const resumeCard =
+    profile && onOpenSite ? (
+      <MaisonWebsiteResumeCard onContinue={onOpenSite} />
+    ) : null;
+
   if (loadError) {
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4">
@@ -155,6 +163,7 @@ export function AgendaTodayPage({
           title={firstName ? `${copy.t("Hi")}, ${firstName}` : copy.t("Today")}
           subtitle={[formatAgendaDate(clock), city].filter(Boolean).join(" · ")}
         />
+        {resumeCard}
         <NowBox
           tone="danger"
           title={copy.t("Could not load your agenda")}
@@ -177,6 +186,7 @@ export function AgendaTodayPage({
           title={firstName ? `${copy.t("Hi")}, ${firstName}` : copy.t("Today")}
           subtitle={[formatAgendaDate(clock), city].filter(Boolean).join(" · ")}
         />
+        {resumeCard}
         <AgendaFirstDay
           completedStepIds={completedStepIds}
           hasAvailability={hasAvailability}
@@ -207,6 +217,8 @@ export function AgendaTodayPage({
           </div>
         )}
       />
+
+      {resumeCard}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">

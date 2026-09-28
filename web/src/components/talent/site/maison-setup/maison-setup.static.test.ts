@@ -250,6 +250,13 @@ test("AUD-023: setup choices persist server-side + Today resume card", () => {
     "utf8",
   );
   assert.match(today, /MaisonWebsiteResumeCard/);
+  // Agenda V2 early-returns before classic Today mounts — card must also
+  // live on AgendaTodayPage (first-day + populated), or tip fixtures never see it.
+  const agendaToday = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx"),
+    "utf8",
+  );
+  assert.match(agendaToday, /MaisonWebsiteResumeCard/);
   const card = readFileSync(
     join(process.cwd(), "src/components/talent/website-reward/MaisonWebsiteResumeCard.tsx"),
     "utf8",
