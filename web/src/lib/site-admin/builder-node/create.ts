@@ -9,6 +9,7 @@ import { SERVICES_CATALOG_DEFAULT_PROPS } from "./services-catalog-defaults";
 import { PORTFOLIO_DEFAULT_PROPS } from "./portfolio-defaults";
 import { REVIEWS_DEFAULT_PROPS } from "./reviews-defaults";
 import { VISIT_DEFAULT_PROPS } from "./visit-defaults";
+import { cloneContentsDefaultProps } from "./contents-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
@@ -252,6 +253,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return { id: makeId("reviews"), kind: "reviews", props: { ...REVIEWS_DEFAULT_PROPS } };
     case "visit":
       return { id: makeId("visit"), kind: "visit", props: { ...VISIT_DEFAULT_PROPS } };
+    case "contents":
+      return { id: makeId("contents"), kind: "contents", props: cloneContentsDefaultProps() };
     case "next_free_chip":
       return { id: makeId("next_free_chip"), kind: "next_free_chip", props: { ...NEXT_FREE_CHIP_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
@@ -781,20 +784,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
   }
 }
 
-// Composition presets + section-embed factories live in sibling modules
-// (max-lines). Re-exported so existing "./create" import sites keep working.
-export {
-  BUILDER_NODE_COMPOSITION_PRESETS,
-  createBuilderNodeCompositionPreset,
-} from "./composition-presets";
-export type {
-  BuilderNodeCompositionPresetId,
-  BuilderNodeCompositionPreset,
-} from "./composition-presets";
-export {
-  SECTION_EMBED_PRESETS,
-  getSectionEmbedPreset,
-  sectionEmbedTypeLabel,
-  createBuilderSectionEmbed,
-} from "./section-embed-presets";
+// Presets live in siblings (max-lines); re-export for "./create" import sites.
+export { BUILDER_NODE_COMPOSITION_PRESETS, createBuilderNodeCompositionPreset } from "./composition-presets";
+export type { BuilderNodeCompositionPresetId, BuilderNodeCompositionPreset } from "./composition-presets";
+export { SECTION_EMBED_PRESETS, getSectionEmbedPreset, sectionEmbedTypeLabel, createBuilderSectionEmbed } from "./section-embed-presets";
 export type { SectionEmbedPreset } from "./section-embed-presets";

@@ -93,6 +93,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Reviews · your client quotes";
     case "visit":
       return "Visit · areas, days, languages";
+    case "contents":
+      return "Contents · chapter index";
     case "next_free_chip":
       return "Next free · live slot chip";
     case "session_picker":

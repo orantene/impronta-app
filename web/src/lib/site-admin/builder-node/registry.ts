@@ -74,6 +74,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "portfolio",
   "reviews",
   "visit",
+  "contents",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1150,6 +1151,26 @@ export const visitPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Contents — authored chapter index / TOC with anchor links. */
+export const contentsPropsSchema = z.object({
+  layout: z.enum(["index", "compact"]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  showNumbers: z.boolean().optional(),
+  numberStyle: z.enum(["roman", "decimal"]).optional(),
+  items: z
+    .array(
+      z.object({
+        label: z.string().max(80),
+        anchor: z.string().max(64),
+      }),
+    )
+    .max(24)
+    .optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Next free time chip — live slots API; hidden when empty. */
 export const nextFreeChipPropsSchema = z.object({
   offeringId: z.string().max(80).optional(),
@@ -2166,6 +2187,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Where you work, days, and languages from your profile. Optional map beside the facts. Hidden when empty.",
       children: { type: "none" },
       propsSchema: visitPropsSchema,
+    },
+    contents: {
+      kind: "contents",
+      label: "Contents",
+      description:
+        "Chapter index with links to sections on this page. Editable labels and anchors.",
+      children: { type: "none" },
+      propsSchema: contentsPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",
