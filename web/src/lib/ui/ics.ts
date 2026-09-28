@@ -101,6 +101,38 @@ export function buildIcsEvent(input: IcsEventInput): string {
 }
 
 /**
+ * Many VEVENTs in one VCALENDAR, for "Download this week / month" in the talent
+ * Calendar. Same stamp, escape and fold rules as `buildIcsEvent`.
+ */
+export function buildIcsCalendar(events: readonly IcsEventInput[], now: Date = new Date()): string {
+  const lines: string[] = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Tulala//Calendar//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+  ];
+  for (const input of events) {
+    const start = typeof input.startsAt === "string" ? new Date(input.startsAt) : input.startsAt;
+    const end = typeof input.endsAt === "string" ? new Date(input.endsAt) : input.endsAt;
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${escapeIcs(input.uid)}@tulala.digital`,
+      `DTSTAMP:${toUtcStamp(now)}`,
+      `DTSTART:${toUtcStamp(start)}`,
+      `DTEND:${toUtcStamp(end)}`,
+      fold(`SUMMARY:${escapeIcs(input.summary)}`),
+    );
+    if (input.description) lines.push(fold(`DESCRIPTION:${escapeIcs(input.description)}`));
+    if (input.location) lines.push(fold(`LOCATION:${escapeIcs(input.location)}`));
+    if (input.url) lines.push(fold(`URL:${escapeIcs(input.url)}`));
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n") + "\r\n";
+}
+
+/**
  * Trigger a client-side download of an .ics file. Browser-only.
  */
 export function downloadIcs(filename: string, payload: string): void {
