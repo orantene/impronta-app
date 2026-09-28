@@ -27,6 +27,8 @@ export type ServiceFields = {
 };
 
 export type SettingsService = {
+  /** WSF-C §1 row 4: why instant cannot work yet (first gap), or null. */
+  instantGap?: string | null;
   id: string;
   title: string;
   /** Instant booking needs one exact price (DB constraint + validateOffering). */
@@ -120,4 +122,36 @@ export function withPosture(defaults: SellingDefaults, posture: TalentBookingPos
     whoPrimaryCta:
       posture === "inquiry" && defaults.whoPrimaryCta === "confirm_now" ? "contact" : defaults.whoPrimaryCta,
   };
+}
+
+/** WSF-C: changed talent_sites switches (chat greeting not edited here). */
+export function switchChangeCount(
+  saved: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean },
+  draft: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean },
+): number {
+  return (["acceptingBookings", "acceptingInquiries", "chatEnabled"] as const).filter((k) => saved[k] !== draft[k]).length;
+}
+
+/**
+ * WSF-C partial-save honesty: what is still unsaved, named by group or
+ * service, so a failed save can say "Some changes saved" and list the rest.
+ * Retry resends exactly these (the saved snapshot already holds the rest).
+ */
+export function pendingChangeLabels(input: {
+  saved: SettingsDraft;
+  draft: SettingsDraft;
+  savedSwitches: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean };
+  draftSwitches: { acceptingBookings: boolean; acceptingInquiries: boolean; chatEnabled: boolean };
+  serviceTitle: (id: string) => string;
+  labels: { defaults: string; bookings: string; chat: string };
+}): string[] {
+  const d = diffDraft(input.saved, input.draft);
+  const out: string[] = [];
+  if (d.defaults.length > 0) out.push(input.labels.defaults);
+  for (const id of d.services) out.push(input.serviceTitle(id));
+  const s = input.savedSwitches;
+  const n = input.draftSwitches;
+  if (s.acceptingBookings !== n.acceptingBookings) out.push(input.labels.bookings);
+  if (s.acceptingInquiries !== n.acceptingInquiries || s.chatEnabled !== n.chatEnabled) out.push(input.labels.chat);
+  return out;
 }

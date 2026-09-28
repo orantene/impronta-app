@@ -651,20 +651,23 @@ export function CatalogRow({
         ) : (
           <span className="site-builder-node--services-catalog-price" aria-hidden />
         )}
-        <button
-          type="button"
-          onClick={() => {
-            if (onSelect) onSelect();
-            else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
-          }}
-          data-offering-cta={cta}
-          data-offering-id={item.id}
-          data-selected={selected ? "true" : undefined}
-          className="site-builder-node--services-catalog-cta"
-          aria-pressed={selected}
-        >
-          {label}
-        </button>
+        {/* WSF-C §8: no route left for this service, no button. */}
+        {derived.hidden ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              if (onSelect) onSelect();
+              else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
+            }}
+            data-offering-cta={cta}
+            data-offering-id={item.id}
+            data-selected={selected ? "true" : undefined}
+            className="site-builder-node--services-catalog-cta"
+            aria-pressed={selected}
+          >
+            {label}
+          </button>
+        )}
       </span>
     </li>
   );

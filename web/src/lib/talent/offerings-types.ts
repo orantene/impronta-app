@@ -100,6 +100,17 @@ export type TalentOffering = {
   currency: string;
   /** Explicit mode, or null = inherit the talent default. */
   bookingMode: OfferingBookingMode | null;
+  /**
+   * WSF-C, public loaders only: the talent's switches leave this service no
+   * route (bookings and inquiries off, or an inquiry service with inquiries
+   * off). The storefront hides its button. Absent = shown.
+   */
+  publicCtaHidden?: boolean;
+  /**
+   * WSF-C, public loaders only: set when the talent paused new work on this
+   * direct channel, so any storefront can show the §8 banner.
+   */
+  publicPause?: "bookings_paused" | "inquiries_paused" | "portfolio_only";
   reserveMode: OfferingReserveMode;
   /** Percent of the total collected up front when reserveMode === 'deposit'. */
   depositPct: number | null;

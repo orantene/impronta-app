@@ -31,12 +31,17 @@ export type DerivedOfferingCta = {
   intent: "instant" | "request";
   instant: boolean;
   eventName: "tulala:offering-instant" | "tulala:offering-slot" | "tulala:offering-request";
+  /**
+   * WSF-C §8: the talent's switches leave this service no route (set by the
+   * public loader, withPublicAvailability). Surfaces render no button.
+   */
+  hidden: boolean;
 };
 
 type CtaOffering = Pick<
   TalentOffering,
   "kind" | "bookingMode" | "priceType" | "priceDisplay" | "amountCents" | "visibility"
-> & { durationMinutes?: number | null };
+> & { durationMinutes?: number | null; publicCtaHidden?: boolean };
 
 export function deriveOfferingCta(input: {
   offering: CtaOffering;
@@ -63,7 +68,15 @@ export function deriveOfferingCta(input: {
   }
   else if (slotEligible) eventName = "tulala:offering-slot";
   else eventName = "tulala:offering-request";
-  return { raw, cta, effectiveMode, intent: instant ? "instant" : "request", instant, eventName };
+  return {
+    raw,
+    cta,
+    effectiveMode,
+    intent: instant ? "instant" : "request",
+    instant,
+    eventName,
+    hidden: offering.publicCtaHidden === true,
+  };
 }
 
 /**

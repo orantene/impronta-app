@@ -10,6 +10,8 @@
  * policy yield an empty list, not a guessed calendar.
  */
 
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { NOT_ACCEPTING_BOOKINGS } from "@/lib/talent/accepting-readiness";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
@@ -51,7 +53,8 @@ type SlotsReason =
   | NoSlotsReason
   | "not_bookable_here"
   | "inquiry_only"
-  | "hours_unreadable";
+  | "hours_unreadable"
+  | "not_accepting_bookings";
 
 function slotsJson(
   slots: string[],
@@ -199,6 +202,15 @@ export async function GET(request: Request) {
       },
     });
     if (mode === "inquire") return slotsJson([], 200, { reason: "inquiry_only" });
+
+    // WSF-C §7: the talent's pause applies on their own site and the Tulala
+    // profile (hub). An agency host owns its routing and is never paused here.
+    if (host.kind !== "agency") {
+      const switches = await loadTalentSiteSwitches(admin, talent.id);
+      if (!switches.acceptingBookings) {
+        return slotsJson([], 200, { reason: NOT_ACCEPTING_BOOKINGS });
+      }
+    }
 
     const { data: hoursRow } = await admin
       .from("talent_booking_hours")
