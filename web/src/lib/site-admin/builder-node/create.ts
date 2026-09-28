@@ -11,6 +11,7 @@ import { REVIEWS_DEFAULT_PROPS } from "./reviews-defaults";
 import { VISIT_DEFAULT_PROPS } from "./visit-defaults";
 import { cloneContentsDefaultProps } from "./contents-defaults";
 import { cloneMastheadDefaultProps } from "./masthead-defaults";
+import { cloneCompCardDefaultProps } from "./comp-card-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
@@ -258,6 +259,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return { id: makeId("contents"), kind: "contents", props: cloneContentsDefaultProps() };
     case "masthead":
       return { id: makeId("masthead"), kind: "masthead", props: cloneMastheadDefaultProps() };
+    case "comp_card":
+      return { id: makeId("comp_card"), kind: "comp_card", props: cloneCompCardDefaultProps() };
     case "next_free_chip":
       return { id: makeId("next_free_chip"), kind: "next_free_chip", props: { ...NEXT_FREE_CHIP_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.

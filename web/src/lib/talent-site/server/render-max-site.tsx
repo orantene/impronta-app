@@ -473,6 +473,7 @@ async function renderMaxSiteDocument(args: {
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
   const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
   const pageNeedsVisit = builderTreeHasKind(blocks, "visit");
+  const pageNeedsCompCard = builderTreeHasKind(blocks, "comp_card");
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
@@ -494,7 +495,10 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit
+        : pageNeedsTalentOfferings ||
+            pageNeedsReviews ||
+            pageNeedsVisit ||
+            pageNeedsCompCard
           ? loadPersonalMaxNativeSources({
               talentProfileId,
               locale,
@@ -503,6 +507,7 @@ async function renderMaxSiteDocument(args: {
               nextFreeChip: pageNeedsNextFreeChip,
               reviews: pageNeedsReviews,
               visit: pageNeedsVisit,
+              compCard: pageNeedsCompCard,
             })
           : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)

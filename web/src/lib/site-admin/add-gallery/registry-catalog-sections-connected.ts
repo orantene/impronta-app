@@ -563,6 +563,30 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
   connected({
+    id: "conn-comp-card-native",
+    label: "Comp card",
+    description:
+      "Measure strip from your public profile fields (height, bust, and more). Choose which measures show. Hidden when empty.",
+    category: "dynamic",
+    icon: "about",
+    insertMethod: "nativeNode",
+    nativeKind: "comp_card",
+    sourceType: "native-freeform",
+    connectedSource: "Your profile",
+    searchTerms: [
+      "comp card",
+      "measure strip",
+      "measurements",
+      "height",
+      "bust",
+      "waist",
+      "hips",
+      "vitals",
+      "ficha",
+      "details",
+    ],
+  }),
+  connected({
     id: "conn-next-free-chip-native",
     label: "Next free time",
     description:

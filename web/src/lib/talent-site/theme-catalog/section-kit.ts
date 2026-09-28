@@ -43,6 +43,7 @@ export const TALENT_KIT_SECTIONS = {
   contents: { slotKey: "contents", originRole: "talent.contents" },
   visit: { slotKey: "visit", originRole: "talent.visit" },
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
+  comp_card: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
 } as const;
 
@@ -718,6 +719,8 @@ export {
   faqBlock,
   contentsBlock,
   heroMasthead,
+  compCardBlock,
+  measureStripBlock,
 } from "./section-kit-bands";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────

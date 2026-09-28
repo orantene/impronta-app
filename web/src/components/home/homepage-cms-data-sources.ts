@@ -42,6 +42,7 @@ import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/nativ
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
+import { loadCompCardSources } from "@/lib/site-admin/builder-node/comp-card-sources";
 import {
   isPlatformCheckoutReady,
   resolveOnlineCollectReady,
@@ -375,6 +376,9 @@ export async function loadBuilderNodeDataSources(
     ...(nativeNeeds.visit && catalogTalentId
       ? await loadVisitSources(catalogTalentId, locale)
       : {}),
+    ...(nativeNeeds.compCard && catalogTalentId
+      ? await loadCompCardSources(catalogTalentId, locale)
+      : {}),
     ...(nativeNeeds.talentFaq && catalogTalentId
       ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }
       : {}),
@@ -474,14 +478,24 @@ export async function loadPersonalMaxNativeSources(args: {
   nextFreeChip: boolean;
   reviews: boolean;
   visit: boolean;
+  compCard?: boolean;
 }): Promise<BuilderNodeRenderDataSources> {
   const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
-  if (!needCatalog && !args.portfolio && !args.reviews && !args.visit) return {};
-  const [catalog, portfolio, reviews, visit] = await Promise.all([
+  if (
+    !needCatalog &&
+    !args.portfolio &&
+    !args.reviews &&
+    !args.visit &&
+    !args.compCard
+  ) {
+    return {};
+  }
+  const [catalog, portfolio, reviews, visit, compCard] = await Promise.all([
     needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
     args.portfolio ? loadPortfolioSources(args.talentProfileId) : {},
     args.reviews ? loadReviewsSources(args.talentProfileId) : {},
     args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
+    args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
   ]);
-  return { ...catalog, ...portfolio, ...reviews, ...visit };
+  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard };
 }
