@@ -66,18 +66,18 @@ export function SupportLauncher({
   useLayoutEffect(() => {
     // A rail slot (talent sidebar footer) wins over the identity-bar slot.
     const find = () =>
-      document.querySelector<HTMLElement>('[data-tulala-support-slot="rail"]') ??
-      document.querySelector<HTMLElement>("[data-tulala-support-slot]");
+      document.querySelector<HTMLElement>('[data-tulala-support-slot="rail"][data-ready]') ??
+      document.querySelector<HTMLElement>('[data-tulala-support-slot]:not([data-tulala-support-slot="rail"])');
     // Keep watching: a sidebar re-render can replace the slot node, and a
     // portal into a detached node renders nothing.
     let current = find();
     setSlot(current);
     const observer = new MutationObserver(() => {
-      if (current?.isConnected) return;
+      if (current?.isConnected && current.dataset.tulalaSupportSlot === "rail") return;
       current = find();
       setSlot(current);
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-ready"] });
     return () => observer.disconnect();
   }, []);
   const inRail = slot !== null && !compact && slot.dataset.tulalaSupportSlot === "rail";

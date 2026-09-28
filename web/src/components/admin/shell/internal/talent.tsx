@@ -138,6 +138,10 @@ function TalentSidebarNavButton({
 }
 
 function TalentSidebar() {
+  // The Support launcher portals into the rail slot only after this sidebar
+  // has hydrated; a portal child present during hydration is a mismatch.
+  const [supportSlotReady, setSupportSlotReady] = useState(false);
+  useEffect(() => setSupportSlotReady(true), []);
   const copy = useDashboardText();
   const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread, bridgeTalentPlanTrial } = useAdminShell();
   const studioV2 = useTalentStudioV2();
@@ -250,7 +254,11 @@ function TalentSidebar() {
           </a>
         )}
         {/* Support Center launcher portals in here instead of floating. */}
-        <div data-tulala-support-slot="rail" className="contents" />
+        <div
+          data-tulala-support-slot="rail"
+          data-ready={supportSlotReady ? "" : undefined}
+          className="contents"
+        />
         {renderItem("settings")}
       </div>
     </aside>
