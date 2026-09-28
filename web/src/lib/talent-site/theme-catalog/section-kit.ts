@@ -21,6 +21,7 @@
  * the template registry, the built-in designs and the apply core.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio-defaults";
 import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
@@ -537,6 +538,45 @@ export function galleryBlock(
         props: { text: opts.heading ?? "Selected work", level: 2, style: { size: "lg" } },
       },
       grid,
+    ],
+  } as BuilderNode;
+}
+
+/**
+ * W-12 Portfolio — live-bound media (replaces copied-at-apply `galleryBlock`
+ * for Designs that should stay in sync with talent media).
+ */
+export function portfolioBlock(
+  makeId: KitIdFactory,
+  opts: {
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet";
+    columns?: 2 | 3 | 4;
+    heading?: string;
+    showCaptions?: boolean;
+  } = {},
+): BuilderNode {
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampKitSection("gallery", {
+      layout: "stack",
+      gap: "m",
+      align: "start",
+      layerLabel: "Gallery",
+      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "portfolio",
+        props: {
+          ...PORTFOLIO_DEFAULT_PROPS,
+          layout: opts.layout ?? "grid",
+          columns: opts.columns ?? (opts.layout === "contact_sheet" ? 4 : opts.layout === "masonry" ? 2 : 3),
+          title: opts.heading ?? "Recent work",
+          showCaptions: opts.showCaptions === true,
+        },
+      },
     ],
   } as BuilderNode;
 }

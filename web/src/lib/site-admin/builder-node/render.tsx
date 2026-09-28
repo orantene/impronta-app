@@ -148,6 +148,7 @@ import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
+import { renderPortfolioBlock } from "./portfolio-block";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -287,6 +288,11 @@ export interface BuilderNodeRenderDataSources {
    * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
+  /**
+   * W-12 Portfolio — live approved media shots for `portfolio` nodes.
+   * Resolved by the SERVER caller; the renderer never queries.
+   */
+  talentPortfolioShots?: ReadonlyArray<import("./portfolio-types").TalentPortfolioShot>;
   /**
    * When true, `services_catalog` paints the dedicated loading skeleton
    * (BRIEF-03 / §14) instead of the empty message or interactive list.
@@ -5849,6 +5855,15 @@ function renderBuilderNodeElement(
           )}
         </section>
       );
+    }
+    case "portfolio": {
+      return renderPortfolioBlock({
+        node,
+        shots: options.dataSources?.talentPortfolioShots ?? [],
+        offerings: options.dataSources?.talentOfferings,
+        confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
     }
     case "menu_board": {
       const p = node.props;

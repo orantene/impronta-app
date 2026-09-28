@@ -18,7 +18,7 @@ import {
   aboutBlock,
   buildKitShell,
   defaultIdFactory,
-  galleryBlock,
+  portfolioBlock,
   heroSplit,
   stampKitSection,
   type KitIdFactory,
@@ -190,8 +190,8 @@ export function buildMaisonDesignPayload(): DesignPayload {
     }),
     maisonAboutBlock(makeId),
     maisonServicesBlock(makeId),
-    galleryBlock(makeId, {
-      mode: "grid",
+    portfolioBlock(makeId, {
+      layout: "grid",
       columns: 3,
       heading: "Recent work",
     }),

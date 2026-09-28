@@ -499,6 +499,27 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     searchTerms: ["services", "menu", "prices", "catalog", "offerings"],
   }),
   connected({
+    id: "conn-portfolio-native",
+    label: "Portfolio",
+    description:
+      "Live photos from your media library. Filmstrip, grid, masonry or contact sheet; each shot can open a service.",
+    category: "dynamic",
+    icon: "gallery",
+    insertMethod: "nativeNode",
+    nativeKind: "portfolio",
+    sourceType: "native-freeform",
+    connectedSource: "Your media",
+    searchTerms: [
+      "portfolio",
+      "gallery",
+      "filmstrip",
+      "masonry",
+      "contact sheet",
+      "recent work",
+      "photos",
+    ],
+  }),
+  connected({
     id: "conn-reserve-table-native",
     label: "Reserve a table",
     description:

@@ -71,6 +71,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // rendered NOTHING.
   "menu_board",
   "services_catalog",
+  "portfolio",
   "reserve_table",
   "session_picker",
   "ticket_picker",
@@ -1083,6 +1084,33 @@ export const servicesCatalogPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** W-12 Portfolio — live talent media layouts. */
+export const portfolioPropsSchema = z.object({
+  layout: z.enum(["filmstrip", "grid", "masonry", "contact_sheet"]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  showCaptions: z.boolean().optional(),
+  selectionMode: z.enum(["all", "ids"]).optional(),
+  selectedMediaIds: z.array(z.string().max(80)).max(48).optional(),
+  autoIncludeNew: z.boolean().optional(),
+  limit: z.number().int().min(1).max(24).optional(),
+  shotBindings: z
+    .array(
+      z.object({
+        mediaId: z.string().max(80),
+        offeringId: z.string().max(80).optional(),
+        caption: z.string().max(240).optional(),
+      }),
+    )
+    .max(48)
+    .optional(),
+  linkMode: z.enum(["offering", "none"]).optional(),
+  emptyMessage: z.string().max(240).optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /**
  * RESERVATIONS — `reserve_table`. Props ONLY: the island dynamically imports
  * its own server action and loads availability client-side, so there is no data
@@ -2050,6 +2078,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "The talent's live catalogue: services, packages and products, with the same card the public profile uses.",
       children: { type: "none" },
       propsSchema: servicesCatalogPropsSchema,
+    },
+    portfolio: {
+      kind: "portfolio",
+      label: "Portfolio",
+      description:
+        "Live photos from the talent's media library. Filmstrip, grid, masonry or contact sheet; each shot can open a service.",
+      children: { type: "none" },
+      propsSchema: portfolioPropsSchema,
     },
     reserve_table: {
       kind: "reserve_table",

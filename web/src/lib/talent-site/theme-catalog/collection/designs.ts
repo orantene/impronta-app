@@ -23,7 +23,7 @@ import type { DesignPayload } from "../types";
 import {
   aboutBlock,
   buildKitShell,
-  galleryBlock,
+  portfolioBlock,
   heroCentered,
   heroCover,
   heroSplit,
@@ -220,7 +220,7 @@ export function buildMaisonV2Payload(): DesignPayload {
     shellTree: shell(id, { rule: true }),
     homeTree: [
       withChild(hero, askButton(id, "Ask about a service")),
-      galleryBlock(id, { mode: "grid", columns: 3, heading: "Recent work" }),
+      portfolioBlock(id, { layout: "filmstrip", heading: "Recent work", showCaptions: true }),
       servicesSection(id, {
         label: "Menu",
         eyebrow: "The menu",
@@ -266,7 +266,7 @@ export function buildSolacePayload(): DesignPayload {
         showPhoto: true,
         columns: 1,
       }),
-      galleryBlock(id, { mode: "grid", columns: 2, heading: "The space" }),
+      portfolioBlock(id, { layout: "grid", columns: 2, heading: "The space" }),
       contactSection(id, { heading: "When you are ready", faqHeading: "Before your session", center: true }),
     ],
   };
@@ -307,7 +307,7 @@ export function buildMonoPayload(): DesignPayload {
 
 // ── Frame ────────────────────────────────────────────────────────────────────
 // Identity first (split hero, image-heavy 30-70), then the work as a dense
-// grid (grid stand-in for the W-12 contact sheet), services as cards.
+// contact sheet (W-12), services as cards.
 export function buildFramePayload(): DesignPayload {
   const id = seqIds("frame");
   const hero = tuneHeading(
@@ -318,7 +318,7 @@ export function buildFramePayload(): DesignPayload {
     shellTree: shell(id, { rule: true }),
     homeTree: [
       hero,
-      galleryBlock(id, { mode: "grid", columns: 3, heading: "Work" }),
+      portfolioBlock(id, { layout: "contact_sheet", columns: 4, heading: "Work", showCaptions: true }),
       servicesSection(id, {
         label: "Sessions and prices",
         eyebrow: "Book",
@@ -352,7 +352,7 @@ export function buildFolioPayload(): DesignPayload {
     shellTree: shell(id, { rule: true }),
     homeTree: [
       hero,
-      galleryBlock(id, { mode: "masonry", columns: 2, heading: "The book" }),
+      portfolioBlock(id, { layout: "masonry", columns: 2, heading: "The book" }),
       aboutBlock(id, { align: "start", accent: false }),
       servicesSection(id, {
         label: "Rate card",
@@ -463,9 +463,9 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
 
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
-  "maison-v2": ["W-12 filmstrip with service link", "W-14 bound reviews", "next-free-time chip (app)"],
+  "maison-v2": ["W-14 bound reviews", "next-free-time chip (app)"],
   solace: ["overlay menu nav style", "W-10 rotating word", "studio/villa hero toggle (app)"],
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
-  frame: ["W-12 contact sheet with tag filter and loupe", "filter-bar header style"],
+  frame: ["W-12 contact sheet tag filter and loupe", "filter-bar header style"],
   folio: ["W-12 project-story chapters", "W-11 C2 contents page", "W-10 W3 stacked masthead"],
 };

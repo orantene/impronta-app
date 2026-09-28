@@ -45,6 +45,8 @@ export type BuilderNodeKind =
   | "hero_search"
   | "menu_board"
   | "services_catalog"
+  /** W-12 — live-bound talent media (filmstrip / grid / masonry / contact sheet). */
+  | "portfolio"
   | "reserve_table"
   | "session_picker"
   | "ticket_picker"
@@ -1280,6 +1282,37 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
   };
 }
 
+/**
+ * W-12 Portfolio — live talent media (not copied-at-apply gallery tiles).
+ * Layouts: filmstrip (Maison v2 Recent work), grid, masonry, contact_sheet.
+ * Each shot may link to a service via offering media or editor bindings.
+ */
+export interface BuilderPortfolioNode extends BuilderNodeBase {
+  kind: "portfolio";
+  props: {
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet";
+    eyebrow?: string;
+    title?: string;
+    columns?: 2 | 3 | 4;
+    /** When true, show caption and/or linked service name under each shot. */
+    showCaptions?: boolean;
+    selectionMode?: "all" | "ids";
+    selectedMediaIds?: string[];
+    autoIncludeNew?: boolean;
+    limit?: number;
+    shotBindings?: Array<{
+      mediaId: string;
+      offeringId?: string;
+      caption?: string;
+    }>;
+    /** offering = photo opens that service; none = display only. */
+    linkMode?: "offering" | "none";
+    emptyMessage?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
@@ -2285,6 +2318,7 @@ export type BuilderNode =
   | BuilderHeroSearchNode
   | BuilderMenuBoardNode
   | BuilderServicesCatalogNode
+  | BuilderPortfolioNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
   | BuilderTicketPickerNode

@@ -70,6 +70,7 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "accordion_item",
   "reveal",
   "services_catalog",
+  "portfolio",
 ]);
 
 /** Kinds rejected with a specific message (raw markup / third-party / agency data). */

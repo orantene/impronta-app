@@ -70,6 +70,7 @@ import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
 import { ServicesCatalogContentInspector } from "./services-catalog-inspector";
+import { PortfolioContentInspector } from "./portfolio-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1559,6 +1560,9 @@ function BuilderNodeContentInspectorBody({
 
   if (node.kind === "services_catalog") {
     return <ServicesCatalogContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "portfolio") {
+    return <PortfolioContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
@@ -5130,6 +5134,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Menu · orderable items";
     case "services_catalog":
       return "Services menu · your catalogue";
+    case "portfolio":
+      return "Portfolio · your live media";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":
