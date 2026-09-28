@@ -5,7 +5,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  parseBookingPosture,
   parseSellingBookingSettings,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
   type TalentBookingPosture,
   type WhoPrimaryCta,
 } from "@/lib/talent/selling-booking-settings";
@@ -21,7 +23,7 @@ export type SellingDefaults = {
   bufferBeforeMin: number | null;
   bufferAfterMin: number | null;
   minNoticeMin: number | null;
-  /** Talent-wide on-demand vs contact/inquiry. */
+  /** Default booking mode for services that inherit: instant / request / inquiry. */
   bookingPosture: TalentBookingPosture;
   /** Who-step primary CTA vocabulary. */
   whoPrimaryCta: WhoPrimaryCta;
@@ -99,7 +101,12 @@ export async function saveSellingDefaults(
       ? (auth.profile.selling_defaults as Record<string, unknown>)
       : {};
   // Merge so non-form keys (e.g. categoryNotes) survive a Defaults save.
-  const selling_defaults = { ...prev, ...defaults };
+  // Writers write the new three values only (legacy on_demand reads as request).
+  const selling_defaults = {
+    ...prev,
+    ...defaults,
+    bookingPosture: parseBookingPosture(defaults.bookingPosture) ?? PLATFORM_DEFAULT_BOOKING_POSTURE,
+  };
   const { error } = await auth.admin
     .from("talent_profiles")
     .update({ selling_defaults, updated_at: new Date().toISOString() })

@@ -17488,7 +17488,10 @@
         "instantNeedsPrice": "Direct booking needs one fixed price.",
         "booking": {
           "request": "Inquiry to book · you confirm first",
-          "instant": "Direct booking · reserved instantly"
+          "instant": "Direct booking · reserved instantly",
+          "inquiry": "Inquiry only · they message you first",
+          "inherit": "Uses default ({mode})",
+          "inheritTalent": "Uses the talent's default"
         },
         "collectUpFront": "To reserve, clients pay",
         "collectHint": "Only a direct booking collects up front.",

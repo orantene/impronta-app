@@ -15338,7 +15338,7 @@ export type Database = {
           allow_pay_in_person: boolean
           amount_cents: number | null
           attributes: Json
-          booking_mode: string
+          booking_mode: string | null
           cancellation_hours: number | null
           capacity_pool_id: string | null
           category: string | null
@@ -15373,7 +15373,7 @@ export type Database = {
           allow_pay_in_person?: boolean
           amount_cents?: number | null
           attributes?: Json
-          booking_mode?: string
+          booking_mode?: string | null
           cancellation_hours?: number | null
           capacity_pool_id?: string | null
           category?: string | null
@@ -15408,7 +15408,7 @@ export type Database = {
           allow_pay_in_person?: boolean
           amount_cents?: number | null
           attributes?: Json
-          booking_mode?: string
+          booking_mode?: string | null
           cancellation_hours?: number | null
           capacity_pool_id?: string | null
           category?: string | null

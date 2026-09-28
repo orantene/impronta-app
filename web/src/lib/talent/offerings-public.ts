@@ -21,7 +21,7 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
-import { withEffectivePolicy } from "@/lib/talent/offering-policy-resolver";
+import { withEffectiveBookingMode, withEffectivePolicy } from "@/lib/talent/offering-policy-resolver";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 
 export async function loadPublicOfferingsForProfile(
@@ -97,7 +97,10 @@ export async function loadPublicOfferingsForProfile(
     const defaults = await loadSellingDefaultsByTalent(db, [talentProfileId]);
     const sellingDefaults = defaults.ok ? (defaults.defaults.get(talentProfileId) ?? {}) : {};
     return rows.map((r) => ({
-      ...withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? []), sellingDefaults),
+      ...withEffectiveBookingMode(
+        withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? []), sellingDefaults),
+        sellingDefaults,
+      ),
       variants: children.variants.get(r.id) ?? [],
       addOns: addOnsByOffering.get(r.id) ?? [],
     }));

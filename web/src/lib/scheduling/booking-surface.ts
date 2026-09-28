@@ -9,6 +9,7 @@
  * so display and action cannot disagree.
  */
 
+import { resolveEffectiveBookingMode } from "@/lib/scheduling/instant-book-gates";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rowIsExclusive } from "@/lib/inquiry/owning-party-resolver";
 import {
@@ -130,7 +131,7 @@ export async function resolveTalentBooking(
 
   const { data: talent, error: talentErr } = await admin
     .from("talent_profiles")
-    .select("id, profile_kind, booking_terms, created_by_agency_id")
+    .select("id, profile_kind, booking_terms, created_by_agency_id, selling_defaults")
     .eq("id", input.talentProfileId)
     .maybeSingle();
 
@@ -333,7 +334,14 @@ export async function resolveTalentBooking(
     hours: hoursRow,
     offering: offering
       ? {
-          bookingMode: offering.booking_mode === "instant" ? "instant" : "request",
+          // WSF-B: null inherits the talent default; one resolver.
+          bookingMode:
+            resolveEffectiveBookingMode({
+              offering: { bookingMode: offering.booking_mode },
+              defaults: talent.selling_defaults,
+            }).mode === "instant"
+              ? "instant"
+              : "request",
           reserveMode:
             offering.reserve_mode === "deposit" ||
             offering.reserve_mode === "full" ||

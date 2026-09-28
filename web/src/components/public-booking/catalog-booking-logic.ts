@@ -2,9 +2,10 @@ import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
-  forceRequestIntent,
+  PLATFORM_DEFAULT_BOOKING_POSTURE,
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
+import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 
 export type CatalogBookingMode = "demo" | "live";
 
@@ -179,28 +180,30 @@ export function catalogRowCtaLabel(opts: {
    * data-offering-cta so the label never promises Buy on a request path.
    */
   confirmsByHand?: boolean;
-  /** Talent-wide inquiry posture — same force-request as confirmsByHand (MODE-6). */
+  /**
+   * Talent default booking mode. Applies ONLY to services that inherit
+   * (bookingMode null); a service's own mode wins (§1, deriveOfferingCta).
+   */
   bookingPosture?: TalentBookingPosture;
 }): string {
   if (opts.selected) return opts.locale.startsWith("es") ? "Seleccionado" : "Selected";
   const es = opts.locale.startsWith("es");
-  const raw = resolveOfferingCta(opts.offering);
-  const forceRequest =
-    opts.confirmsByHand === true || forceRequestIntent(opts.bookingPosture ?? "on_demand");
-  const cta =
-    forceRequest && (raw === "book_now" || raw === "buy_now") ? "request_to_book" : raw;
+  const { cta } = deriveOfferingCta({
+    offering: opts.offering,
+    defaults: { bookingPosture: opts.bookingPosture ?? PLATFORM_DEFAULT_BOOKING_POSTURE },
+    confirmsByHand: opts.confirmsByHand === true,
+  });
   // Meaning-preserving labels (brief §10). Never say Book when the path is inquiry/quote.
   // Inspector ctaLabel must not clobber option / quote / consult CTAs — Jorg Beauty
   // CMS stored "Seleccionar" and wiped "Elegir opciones" on Soft Gel (vanity 1:1).
-  if (cta === "ask_quote") return es ? "Pedir cotización" : "Request a quote";
-  if (cta === "request" || opts.offering.visibility === "on_request") {
-    return es ? "Consultar" : "Ask about this";
+  if (cta === "ask_quote" || cta === "request" || opts.offering.visibility === "on_request") {
+    return offeringCtaLabel(cta === "ask_quote" ? "ask_quote" : "request", opts.locale, "catalog");
   }
   if (cta === "request_to_book") {
     // Request / approval posture: mode wins over CMS ctaLabel. Jor stored
     // inspector "Seleccionar" and wiped "Solicitar cita" on seeded request rows.
     if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
-    return es ? "Solicitar cita" : "Request appointment";
+    return offeringCtaLabel("request_to_book", opts.locale, "catalog");
   }
   if (catalogIsPurchaseEligible(opts.offering)) {
     // Purchase rail is mounted — honest Buy (options picked inside the sheet).
@@ -210,7 +213,7 @@ export function catalogRowCtaLabel(opts: {
   // Instant appointment — menu-style "Select" matches Maison idle CTA.
   // Sheet opens from Continuar (or from Elegir opciones), not from this label.
   // Inspector may rename the plain Select label only.
-  return opts.inspectorLabel?.trim() || (es ? "Seleccionar" : "Select");
+  return opts.inspectorLabel?.trim() || offeringCtaLabel("book_now", opts.locale, "catalog");
 }
 
 /** Cents collected at confirm for the given reserve policy (full / deposit / free). */

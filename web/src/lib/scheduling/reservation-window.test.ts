@@ -139,11 +139,13 @@ test("effective mode: default instant (on_demand) + offering request is refused 
   assert.equal(!g.ok && g.reason, "request_only");
 });
 
-test("effective mode: inherited (column default request) + default inquiry is refused inquiry_only", () => {
+test("effective mode (WSF-B): explicit request wins over default inquiry; inherited (null) follows it", () => {
   const m = resolveEffectiveBookingMode({ offering: { bookingMode: "request" }, defaults: { bookingPosture: "inquiry" } });
-  assert.deepEqual(m, { mode: "inquiry", source: "default" });
+  assert.deepEqual(m, { mode: "request", source: "offering" });
   const g = assertInstantPosture({ sellingDefaults: { bookingPosture: "inquiry" }, bookingMode: "request", staffDesk: false });
-  assert.equal(!g.ok && g.reason, "inquiry_only");
+  assert.equal(!g.ok && g.reason, "request_only");
+  const inh = assertInstantPosture({ sellingDefaults: { bookingPosture: "inquiry" }, bookingMode: null, staffDesk: false });
+  assert.equal(!inh.ok && inh.reason, "inquiry_only");
 });
 
 test("effective mode: master restriction closes everything; hook is open today; till exempt", () => {

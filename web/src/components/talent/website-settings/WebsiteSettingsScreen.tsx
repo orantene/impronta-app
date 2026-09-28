@@ -37,7 +37,7 @@ import {
 
 function fieldsOf(o: TalentOffering): ServiceFields {
   return {
-    bookingMode: o.bookingMode === "instant" ? "instant" : "request",
+    bookingMode: o.bookingMode ?? null,
     depositPct: o.depositPct ?? null,
     cancellationHours: o.cancellationHours ?? null,
   };
@@ -212,7 +212,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   // Display only: same overlay the booking path uses (defaults win, then hours row).
   const noticeMin = resolveEffectiveMinNoticeMin({ hoursMinNoticeMin: hoursNoticeMin, sellingDefaults: d });
   const groupProps = { t, draft, setDefaults, services, setService };
-  const instantCount = Object.values(draft.services).filter((f) => f.bookingMode === "instant").length;
+  const instantCount = Object.values(draft.services).filter((f) => f.bookingMode != null).length;
 
   return (
     <div className="mx-auto max-w-xl px-4 font-admin-body">
@@ -221,7 +221,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         <div className="overflow-hidden rounded-xl border border-admin-border-soft bg-white">
           <NavRow
             title={titles.booking}
-            summary={t("{mode} by default · {n} of {total} services set to instant")
+            summary={t("{mode} by default · {n} of {total} services with their own setting")
               .replace("{mode}", postureLabel(d.bookingPosture, t))
               .replace("{n}", String(instantCount))
               .replace("{total}", String(services.length))}

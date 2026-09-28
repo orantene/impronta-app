@@ -84,6 +84,11 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "How clients book": "Cómo reservan los clientes",
   "Sheet button and path": "Botón y camino de la hoja",
   "Booking mode": "Modo de reserva",
+  "Default booking mode": "Modo de reserva predeterminado",
+  "Services that use your default follow this. A service with its own mode keeps it.":
+    "Los servicios que usan tu predeterminado siguen esto. Un servicio con su propio modo lo mantiene.",
+  "Inquiry only": "Solo consulta",
+  "They message you first, nothing is booked": "Te escriben primero, no se reserva nada",
   "On-demand reservation": "Reserva al momento",
   "Contact / inquiry": "Contacto / consulta",
   "Who-step button": "Botón del paso de datos",

@@ -351,12 +351,16 @@ export function DefaultsScreen({
         {/* How clients finish the booking sheet */}
         <Card title={copy.t("How clients book")} hint={copy.t("Sheet button and path")}>
           <div>
-            <span className={fieldLabel}>{copy.t("Booking mode")}</span>
+            <span className={fieldLabel}>{copy.t("Default booking mode")}</span>
+            <p className="mt-0.5 text-[13px] text-admin-ink-dim">
+              {copy.t("Services that use your default follow this. A service with its own mode keeps it.")}
+            </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {(
                 [
-                  { id: "on_demand" as const, label: copy.t("On-demand reservation") },
-                  { id: "inquiry" as const, label: copy.t("Contact / inquiry") },
+                  { id: "instant" as const, label: copy.t("Instant booking") },
+                  { id: "request" as const, label: copy.t("Request to book") },
+                  { id: "inquiry" as const, label: copy.t("Inquiry only") },
                 ] as const
               ).map((m) => {
                 const on = defaults.bookingPosture === m.id;
@@ -364,15 +368,7 @@ export function DefaultsScreen({
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() =>
-                      patch({
-                        bookingPosture: m.id,
-                        whoPrimaryCta:
-                          m.id === "inquiry" && defaults.whoPrimaryCta === "confirm_now"
-                            ? "contact"
-                            : defaults.whoPrimaryCta,
-                      })
-                    }
+                    onClick={() => patch({ bookingPosture: m.id })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
                       on
                         ? "border-emerald-900 bg-emerald-900 text-white"
@@ -395,14 +391,11 @@ export function DefaultsScreen({
                   { id: "check_availability" as const },
                 ] as const
               ).map((c) => {
-                const disabled =
-                  defaults.bookingPosture === "inquiry" && c.id === "confirm_now";
                 const on = defaults.whoPrimaryCta === c.id;
                 return (
                   <button
                     key={c.id}
                     type="button"
-                    disabled={disabled}
                     onClick={() => patch({ whoPrimaryCta: c.id })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
                       on
@@ -417,7 +410,7 @@ export function DefaultsScreen({
             </div>
           </div>
           <p className={noteBox}>
-            {defaults.bookingPosture === "inquiry" || defaults.whoPrimaryCta !== "confirm_now"
+            {defaults.whoPrimaryCta !== "confirm_now"
               ? copy.t(
                   "After the client fills name and contact, this button opens chat with those details already filled in. It does not create a confirmed booking.",
                 )

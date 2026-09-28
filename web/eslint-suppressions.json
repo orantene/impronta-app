@@ -1077,7 +1077,7 @@
   },
   "src/components/admin/shell/internal/talent/pages/TodayPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 16
+      "count": 10
     }
   },
   "src/components/admin/shell/internal/talent/pages/messages/Bubbles.tsx": {

@@ -253,7 +253,7 @@ export function EarningsTile({
             ))
           ) : (
             <p className="text-admin-ink-muted text-admin-12 py-2.5 px-0.5">
-              {copy.t("No paid bookings yet — your earnings will appear here once a client pays.")}
+              {copy.t("No paid bookings yet. Your earnings will appear here once a client pays.")}
             </p>
           )
         ) : (
