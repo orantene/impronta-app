@@ -60,3 +60,47 @@ test("maison-v2 services_catalog uses categoryNav rail + rows", () => {
   assert.equal(found[0].layout, "rows");
   assert.equal(found[0].showPhoto, true);
 });
+
+/** Maison v2 hero — inset photo, italic name token, next-free chip; no reveal wrapper. */
+test("maison-v2 hero has inset, italic accent name, next_free_chip, and no reveal", () => {
+  const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2");
+  assert.ok(maison);
+  const payload = maison!.buildPayload();
+  const hero = payload.homeTree[0];
+  assert.ok(hero);
+  assert.equal(hero.kind, "split");
+  assert.equal((hero.props as { slotKey?: string }).slotKey, "hero");
+
+  const kinds: string[] = [];
+  const texts: string[] = [];
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const node = n as {
+        kind?: string;
+        props?: { text?: string; src?: string; style?: { position?: string; fontFamily?: string } };
+        children?: unknown;
+      };
+      if (node.kind) kinds.push(node.kind);
+      if (typeof node.props?.text === "string") texts.push(node.props.text);
+      walk(node.children);
+    }
+  };
+  walk([hero]);
+
+  assert.ok(!kinds.includes("reveal"), "hero must stay visible at rest (no reveal wrapper)");
+  assert.ok(kinds.includes("next_free_chip"), "next free chip in hero copy");
+  assert.ok(
+    texts.some((t) => t.includes("{i}") && t.includes("{{displayName}}")),
+    "display name uses italic marker",
+  );
+  assert.ok(
+    kinds.filter((k) => k === "image").length >= 2,
+    "main headshot + inset gallery1",
+  );
+  const json = JSON.stringify(hero);
+  assert.match(json, /gallery1/);
+  assert.match(json, /token:typography\.heading-font-family/);
+  assert.doesNotMatch(json, /#[0-9a-fA-F]{3,8}/);
+});

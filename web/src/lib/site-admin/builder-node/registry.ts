@@ -72,6 +72,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "menu_board",
   "services_catalog",
   "portfolio",
+  "next_free_chip",
   "reserve_table",
   "session_picker",
   "ticket_picker",
@@ -1113,6 +1114,16 @@ export const portfolioPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Next free time chip — live slots API; hidden when empty. */
+export const nextFreeChipPropsSchema = z.object({
+  offeringId: z.string().max(80).optional(),
+  labelEn: z.string().max(80).optional(),
+  labelEs: z.string().max(80).optional(),
+  days: z.number().int().min(1).max(30).optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /**
  * RESERVATIONS — `reserve_table`. Props ONLY: the island dynamically imports
  * its own server action and loads availability client-side, so there is no data
@@ -2088,6 +2099,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Live photos from the talent's media library. Filmstrip, grid, masonry or contact sheet; each shot can open a service.",
       children: { type: "none" },
       propsSchema: portfolioPropsSchema,
+    },
+    next_free_chip: {
+      kind: "next_free_chip",
+      label: "Next free time",
+      description:
+        "Shows the next open booking slot from the live calendar. Hidden when nothing is free.",
+      children: { type: "none" },
+      propsSchema: nextFreeChipPropsSchema,
     },
     reserve_table: {
       kind: "reserve_table",

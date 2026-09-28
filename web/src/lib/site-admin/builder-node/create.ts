@@ -7,6 +7,7 @@ import { createBuilderSectionEmbed } from "./section-embed-presets";
 import { makeId, randomUuid } from "./make-id";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "./services-catalog-defaults";
 import { PORTFOLIO_DEFAULT_PROPS } from "./portfolio-defaults";
+import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
 
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
@@ -245,20 +246,15 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return { id: makeId("services_catalog"), kind: "services_catalog", props: { ...SERVICES_CATALOG_DEFAULT_PROPS } };
     case "portfolio":
       return { id: makeId("portfolio"), kind: "portfolio", props: { ...PORTFOLIO_DEFAULT_PROPS } };
+    case "next_free_chip":
+      return { id: makeId("next_free_chip"), kind: "next_free_chip", props: { ...NEXT_FREE_CHIP_DEFAULT_PROPS } };
     // cornerStyle/showShortLink omitted: render reads undefined as square/shown.
     case "qr_code": return { id: makeId("qr_code"), kind: "qr_code", props: { linkCode: "" } };
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
     // No eventId on purpose: a linked page binds itself (dataSources.linkedEventId).
     case "event_program": return { id: makeId("event_program"), kind: "event_program", props: { layout: "timeline", groupBy: "auto" } };
     case "session_picker":
-      return {
-        id: makeId("session_picker"),
-        kind: "session_picker",
-        props: {
-          offeringId: "",
-          title: "",
-        },
-      };
+      return { id: makeId("session_picker"), kind: "session_picker", props: { offeringId: "", title: "" } };
     case "reserve_table":
       return {
         id: makeId("reserve_table"),

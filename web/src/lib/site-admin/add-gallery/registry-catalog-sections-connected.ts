@@ -520,6 +520,27 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
   connected({
+    id: "conn-next-free-chip-native",
+    label: "Next free time",
+    description:
+      "Shows the next open booking slot from your live calendar. Hidden when nothing is free.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "next_free_chip",
+    sourceType: "native-freeform",
+    connectedSource: "Your calendar",
+    searchTerms: [
+      "next free",
+      "next free time",
+      "availability",
+      "slot",
+      "chip",
+      "calendar",
+      "open",
+    ],
+  }),
+  connected({
     id: "conn-reserve-table-native",
     label: "Reserve a table",
     description:

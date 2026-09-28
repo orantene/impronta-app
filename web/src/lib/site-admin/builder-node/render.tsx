@@ -149,6 +149,7 @@ import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
+import { renderNextFreeChip } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -5875,6 +5876,14 @@ function renderBuilderNodeElement(
         shots: options.dataSources?.talentPortfolioShots ?? [],
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "next_free_chip": {
+      return renderNextFreeChip({
+        node,
+        offerings: options.dataSources?.talentOfferings ?? [],
+        locale: options.contentLocale?.locale,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

@@ -22,6 +22,8 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { PORTFOLIO_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/portfolio-defaults";
+import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next-free-chip-defaults";
+import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
@@ -193,6 +195,18 @@ export interface HeroSplitOptions {
   /** Bind the eyebrow + chip borders to the Look's accent colour. */
   accent?: boolean;
   minHeight?: string;
+  /**
+   * Desktop overlapping inset photo (`{{gallery1}}`) on the headshot.
+   * Hidden on phone (visibility) so the stack stays one portrait.
+   */
+  inset?: boolean;
+  /**
+   * Bodoni italic accent: name uses heading typography token + italic
+   * (`{i}…{/i}`), never a hex or raw font stack.
+   */
+  italicAccent?: boolean;
+  /** Live next-free-time chip (hidden when the slots API returns nothing). */
+  nextFreeChip?: boolean;
 }
 
 /** SPLIT hero: copy on the left, headshot on the right. */
@@ -201,6 +215,7 @@ export function heroSplit(
   opts: HeroSplitOptions = {},
 ): BuilderNode {
   const accent = opts.accent === true;
+  const italicAccent = opts.italicAccent === true;
   const copy: BuilderNode = {
     id: makeId(),
     kind: "container",
@@ -213,9 +228,15 @@ export function heroSplit(
         id: makeId(),
         kind: "heading",
         props: {
-          text: "{{displayName}}",
+          // Italic accent runs through `{i}` → `<em>`; font is the Look token.
+          text: italicAccent ? "{i}{{displayName}}{/i}" : "{{displayName}}",
           level: 1,
-          style: { size: "xl", textWrap: "balance" },
+          style: {
+            size: "xl",
+            textWrap: "balance",
+            fontFamily: styleTokenRef("typography.heading-font-family"),
+            ...(italicAccent ? { fontWeight: 400 } : {}),
+          },
         },
       },
       {
@@ -227,20 +248,77 @@ export function heroSplit(
         },
       },
       ...(opts.chips !== false ? [disciplineChips(makeId, { accent })] : []),
+      ...(opts.nextFreeChip
+        ? [
+            {
+              id: makeId(),
+              kind: "next_free_chip",
+              props: { ...NEXT_FREE_CHIP_DEFAULT_PROPS },
+            } as BuilderNode,
+          ]
+        : []),
       inquiryCta(makeId),
     ],
   } as BuilderNode;
 
-  const image: BuilderNode = {
+  const mainImage: BuilderNode = {
     id: makeId(),
     kind: "image",
     props: {
       src: "{{headshotUrl}}",
       alt: "{{displayName}}",
       priority: true,
-      style: { radius: "lg", aspectRatio: "4:3", objectFit: "cover", width: "100%" },
+      style: {
+        radius: "lg",
+        aspectRatio: opts.inset ? "3:4" : "4:3",
+        objectFit: "cover",
+        width: "100%",
+      },
     },
   } as BuilderNode;
+
+  const image: BuilderNode = opts.inset
+    ? ({
+        id: makeId(),
+        kind: "container",
+        props: {
+          layout: "stack",
+          layerLabel: "Hero media",
+          style: {
+            position: "relative",
+            width: "100%",
+            overflow: "visible",
+          },
+        },
+        children: [
+          mainImage,
+          {
+            id: makeId(),
+            kind: "image",
+            props: {
+              src: "{{gallery1}}",
+              alt: "",
+              style: {
+                position: "absolute",
+                right: "-6px",
+                bottom: "-28px",
+                width: "42%",
+                maxWidthFree: "200px",
+                aspectRatio: "1:1",
+                objectFit: "cover",
+                radius: "lg",
+                borderWidth: "6px",
+                borderStyle: "solid",
+                borderColor: styleTokenRef("color.background"),
+                zIndex: 2,
+                // Phone: keep a single portrait (inset off).
+                responsive: { mobile: { visibility: "hidden" } },
+              },
+            },
+          } as BuilderNode,
+        ],
+      } as BuilderNode)
+    : mainImage;
 
   return {
     id: makeId(),

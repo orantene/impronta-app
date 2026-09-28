@@ -472,13 +472,16 @@ async function renderMaxSiteDocument(args: {
   // sources by talent profile whenever the page tree needs them.
   const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
+  const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
+  const pageNeedsTalentOfferings =
+    pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
 
   // Codex P2 / ACCEPTANCE: loading offerings with catalogBookingLive=false mounts
   // demo booking ("Preview: no real bookings") on published free vanity. Own-work
   // Path A / inquiry uses the platform hub when there is no managing agency
   // tenant — same as Agenda `resolveTalentOwnWorkTenant` / Path B hub pick.
   let bookingTenantId: string | null = tenantId;
-  if (!bookingTenantId && !draftPreview && (pageNeedsServicesCatalog || pageNeedsPortfolio)) {
+  if (!bookingTenantId && !draftPreview && pageNeedsTalentOfferings) {
     bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
   }
   const catalogBookingLive = Boolean(bookingTenantId) && !draftPreview;
@@ -490,9 +493,9 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsServicesCatalog || pageNeedsPortfolio
+        : pageNeedsTalentOfferings
           ? Promise.all([
-              pageNeedsServicesCatalog || pageNeedsPortfolio
+              pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip
                 ? loadServicesCatalogSources(talentProfileId, locale)
                 : Promise.resolve({}),
               pageNeedsPortfolio

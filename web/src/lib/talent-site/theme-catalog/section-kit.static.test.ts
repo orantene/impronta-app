@@ -35,6 +35,16 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ["heroSplit", heroSplit(ids())],
   ["heroSplit accent 40-60", heroSplit(ids(), { ratio: "40-60", accent: true, chips: true })],
   ["heroSplit no eyebrow/chips", heroSplit(ids(), { eyebrow: false, chips: false })],
+  [
+    "heroSplit inset italic next-free",
+    heroSplit(ids(), {
+      inset: true,
+      italicAccent: true,
+      nextFreeChip: true,
+      chips: false,
+      accent: true,
+    }),
+  ],
   ["heroCentered", heroCentered(ids())],
   ["heroCentered accent", heroCentered(ids(), { accent: true })],
   ["heroCover", heroCover(ids())],
