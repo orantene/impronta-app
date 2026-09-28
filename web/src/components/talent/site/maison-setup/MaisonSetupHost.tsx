@@ -14,6 +14,8 @@ import { ThemeDetailScreen } from "./ThemeDetailScreen";
 import { ReviewWebsiteScreen } from "./ReviewWebsiteScreen";
 import {
   defaultMaisonChoices,
+  exploreDesignPatch,
+  type MaisonExploreOptions,
   isMaisonSetupResumable,
   loadMaisonChoices,
   saveMaisonChoices,
@@ -199,7 +201,9 @@ export function MaisonSetupHost({
         <ChooseDesignScreen
           locale={locale}
           talentProfileId={talentProfileId}
-          onExplore={(designSlug) => patch({ screen: "detail", status: "Preview", designSlug })}
+          onExplore={(designSlug: string, opts?: MaisonExploreOptions) =>
+            patch(exploreDesignPatch(designSlug, opts))
+          }
           onBack={closeToSite}
           onClose={closeToSite}
         />

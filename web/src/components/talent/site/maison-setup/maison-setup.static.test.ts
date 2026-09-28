@@ -37,7 +37,7 @@ test("cr_gallery chrome: Today back + close + hero hierarchy", () => {
 });
 
 test("PDF primary CTAs use admin-ink (black), not emerald", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /maison-use-design[\s\S]*?bg-admin-ink/);
   assert.match(detail, /maison-use-design-phone[\s\S]*?bg-admin-ink/);
   assert.match(detail, /maison-phone-colors-close/);
@@ -71,7 +71,7 @@ test("host renders nothing when flag/bootstrap is off", () => {
 });
 
 test("W34: phone sheets are mutually exclusive state", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /phoneSheet/);
   assert.match(detail, /data-maison-phone-sheet/);
   assert.match(detail, /openSheet\("demos"\)/);
@@ -79,11 +79,12 @@ test("W34: phone sheets are mutually exclusive state", () => {
 });
 
 test("W30–W32: Demo|My content, status words, five palettes", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /maison-mode-\$\{mode\}/);
   assert.match(detail, /\(\["demo", "mine"\]/);
   assert.match(detail, /maison-status-word/);
-  assert.match(detail, /MAISON_PALETTE_ORDER/);
+  // P4: palettes come from gallery-meta for every design (Maison included).
+  assert.match(detail, /design\.palettes\.map/);
   assert.match(detail, /Choices saved/);
 });
 

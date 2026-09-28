@@ -27,6 +27,8 @@ export function buildThemePreviewUrl(input: {
   lookSlug?: string | null;
   talentProfileId?: string | null;
   locale?: string | null;
+  /** P4: `<designSlug>:<demoKey>` to render a gallery-meta demo talent. */
+  demo?: string | null;
 }): string {
   const params = new URLSearchParams();
   params.set("kind", "talent-theme");
@@ -38,6 +40,8 @@ export function buildThemePreviewUrl(input: {
     params.set("talentProfileId", talentProfileId);
   }
   if (input.locale === "es") params.set("locale", "es");
+  const demo = input.demo?.trim();
+  if (demo) params.set("demo", demo);
   return `/template-preview/${encodeURIComponent(input.designSlug)}?${params.toString()}`;
 }
 
@@ -48,8 +52,8 @@ export function useThemePreview(opts: { talentProfileId?: string | null; locale?
   const [attempt, setAttempt] = useState(0);
 
   const src = useCallback(
-    (designSlug: string, lookSlug?: string | null) =>
-      buildThemePreviewUrl({ designSlug, lookSlug, talentProfileId, locale }),
+    (designSlug: string, lookSlug?: string | null, demo?: string | null) =>
+      buildThemePreviewUrl({ designSlug, lookSlug, talentProfileId, locale, demo }),
     [talentProfileId, locale],
   );
 
