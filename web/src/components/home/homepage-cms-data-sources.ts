@@ -40,6 +40,7 @@ import {
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import {
   isPlatformCheckoutReady,
   resolveOnlineCollectReady,
@@ -172,6 +173,7 @@ export async function loadBuilderNodeDataSources(
     !nativeNeeds.menuBoard &&
     !nativeNeeds.servicesCatalog &&
     !nativeNeeds.portfolio &&
+    !nativeNeeds.reviews &&
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
@@ -364,6 +366,9 @@ export async function loadBuilderNodeDataSources(
         : {}),
     ...(nativeNeeds.portfolio && catalogTalentId
       ? await loadPortfolioSources(catalogTalentId)
+      : {}),
+    ...(nativeNeeds.reviews && catalogTalentId
+      ? await loadReviewsSources(catalogTalentId)
       : {}),
     ...(nativeNeeds.talentFaq && catalogTalentId
       ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }

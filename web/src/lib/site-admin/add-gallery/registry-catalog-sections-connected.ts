@@ -520,6 +520,27 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
   connected({
+    id: "conn-reviews-native",
+    label: "Reviews",
+    description:
+      "Live client reviews as quote cards. Trio, single, or row on the shared slider. Hidden when there are none.",
+    category: "dynamic",
+    icon: "testimonials",
+    insertMethod: "nativeNode",
+    nativeKind: "reviews",
+    sourceType: "native-freeform",
+    connectedSource: "Your reviews",
+    searchTerms: [
+      "reviews",
+      "testimonials",
+      "quotes",
+      "clients",
+      "feedback",
+      "stars",
+      "rating",
+    ],
+  }),
+  connected({
     id: "conn-next-free-chip-native",
     label: "Next free time",
     description:

@@ -35,6 +35,7 @@ import {
   loadServicesCatalogSources,
 } from "@/components/home/homepage-cms-data-sources";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
@@ -472,6 +473,7 @@ async function renderMaxSiteDocument(args: {
   // sources by talent profile whenever the page tree needs them.
   const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
+  const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
@@ -493,7 +495,7 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsTalentOfferings
+        : pageNeedsTalentOfferings || pageNeedsReviews
           ? Promise.all([
               pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip
                 ? loadServicesCatalogSources(talentProfileId, locale)
@@ -501,9 +503,12 @@ async function renderMaxSiteDocument(args: {
               pageNeedsPortfolio
                 ? loadPortfolioSources(talentProfileId)
                 : Promise.resolve({}),
+              pageNeedsReviews
+                ? loadReviewsSources(talentProfileId)
+                : Promise.resolve({}),
             ]).then(
-              ([catalog, portfolio]) =>
-                ({ ...catalog, ...portfolio }) as BuilderNodeRenderDataSources,
+              ([catalog, portfolio, reviews]) =>
+                ({ ...catalog, ...portfolio, ...reviews }) as BuilderNodeRenderDataSources,
             )
           : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)

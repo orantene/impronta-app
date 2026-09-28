@@ -248,43 +248,100 @@ function RailCarousel({
   nodeId,
   showArrows,
   showDots,
+  autoplayMs,
+  loop,
+  pauseOnHover,
   children,
 }: BuilderNodeCarouselTrackProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const items = Children.toArray(children);
+  const count = items.length;
   // Editor-only: the inspector's slide list drives this rail too, so "click
   // slide 3" scrolls the rail to slide 3 instead of leaving the operator to
   // hunt for it in an overflow scroller. Null on the published site.
   const pinned = useCarouselPinnedSlide(nodeId);
+  const editing = useCarouselEditing();
+  const [paused, setPaused] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  const [index, setIndex] = useState(0);
+
+  // F-05 — live prefers-reduced-motion (same contract as HeroCarousel).
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(mq.matches);
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq.removeEventListener?.("change", sync);
+  }, []);
+
+  function scrollToSlide(target: number, behavior: ScrollBehavior = "smooth") {
+    const track = trackRef.current;
+    const slide = track?.children.item(target);
+    if (!track || !(slide instanceof HTMLElement)) return;
+    const motionSafe =
+      behavior === "auto" ||
+      (typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    track.scrollTo({
+      left: Math.max(0, slide.offsetLeft - track.offsetLeft),
+      behavior: motionSafe ? "auto" : behavior,
+    });
+  }
 
   useEffect(() => {
     if (pinned === null) return;
-    const track = trackRef.current;
-    const slide = track?.children.item(pinned);
-    if (!track || !(slide instanceof HTMLElement)) return;
-    track.scrollTo({
-      left: Math.max(0, slide.offsetLeft - track.offsetLeft),
-      behavior: "smooth",
-    });
-  }, [pinned]);
+    const clamped = count > 0 ? Math.min(pinned, count - 1) : 0;
+    setIndex(clamped);
+    scrollToSlide(clamped);
+  }, [pinned, count]);
+
+  // F-05 — rail autoplay + loop (were inert data-attrs before).
+  // Edit mode and reduced-motion both kill autoplay, matching hero.
+  useEffect(() => {
+    if (editing || reduced || paused || !autoplayMs || count <= 1) return;
+    const id = window.setInterval(() => {
+      setIndex((cur) => {
+        const next = cur + 1;
+        const target =
+          loop === false ? (next >= count ? cur : next) : next % count;
+        scrollToSlide(target);
+        return target;
+      });
+    }, autoplayMs);
+    return () => window.clearInterval(id);
+  }, [editing, reduced, paused, autoplayMs, count, loop]);
 
   function scrollByPage(direction: -1 | 1) {
     const track = trackRef.current;
-    if (!track) return;
-    const delta = direction * Math.max(track.clientWidth * 0.85, 240);
-    track.scrollLeft = Math.max(0, track.scrollLeft + delta);
+    if (!track || count <= 0) return;
+    const next =
+      loop === false
+        ? Math.max(0, Math.min(index + direction, count - 1))
+        : (((index + direction) % count) + count) % count;
+    setIndex(next);
+    if (editing) setCarouselSlide(nodeId, next);
+    scrollToSlide(next);
   }
 
-  function scrollToSlide(index: number) {
-    const track = trackRef.current;
-    const slide = track?.children.item(index);
-    if (!track) return;
-    if (!(slide instanceof HTMLElement)) return;
-    track.scrollLeft = Math.max(0, slide.offsetLeft - track.offsetLeft);
+  function goTo(target: number) {
+    const clamped =
+      count <= 1
+        ? 0
+        : loop === false
+          ? Math.max(0, Math.min(target, count - 1))
+          : ((target % count) + count) % count;
+    setIndex(clamped);
+    if (editing) setCarouselSlide(nodeId, clamped);
+    scrollToSlide(clamped);
   }
 
   return (
-    <>
+    <div
+      style={{ display: "contents" }}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
       {showArrows ? (
         <div className="site-builder-node--carousel-controls">
           <a
@@ -313,26 +370,35 @@ function RailCarousel({
           </a>
         </div>
       ) : null}
-      <div ref={trackRef} className="site-builder-node--carousel-track">
+      <div
+        ref={trackRef}
+        className="site-builder-node--carousel-track"
+        role="group"
+        aria-roledescription="carousel"
+        aria-label="Reviews"
+        onMouseEnter={pauseOnHover ? () => setPaused(true) : undefined}
+        onMouseLeave={pauseOnHover ? () => setPaused(false) : undefined}
+      >
         {items}
       </div>
       {showDots && items.length > 1 ? (
         <div className="site-builder-node--carousel-dots">
-          {items.map((_, index) => (
+          {items.map((_, slideIndex) => (
             <a
-              key={`${nodeId}:dot:${index}`}
-              href={`#${nodeId}-slide-${index + 1}`}
+              key={`${nodeId}:dot:${slideIndex}`}
+              href={`#${nodeId}-slide-${slideIndex + 1}`}
               className="site-builder-node--carousel-dot"
-              aria-label={`Go to slide ${index + 1}`}
+              aria-label={`Go to slide ${slideIndex + 1}`}
+              aria-current={slideIndex === index ? "true" : undefined}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                scrollToSlide(index);
+                goTo(slideIndex);
               }}
             />
           ))}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

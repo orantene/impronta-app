@@ -149,6 +149,7 @@ import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
+import { renderReviewsBlock } from "./reviews-block";
 import { renderNextFreeChip } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -294,6 +295,11 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never queries.
    */
   talentPortfolioShots?: ReadonlyArray<import("./portfolio-types").TalentPortfolioShot>;
+  /**
+   * W-14 Reviews — published talent_reviews quote cards for `reviews` nodes.
+   * Resolved by the SERVER caller; the renderer never invents quotes.
+   */
+  talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
   /**
    * When true, `services_catalog` paints the dedicated loading skeleton
    * (BRIEF-03 / §14) instead of the empty message or interactive list.
@@ -5080,8 +5086,12 @@ function renderBuilderNodeElement(
         >
           <BuilderNodeCarouselTrack
             nodeId={node.id}
+            variant="rail"
             showArrows={node.props.showArrows}
             showDots={node.props.showDots}
+            autoplayMs={node.props.autoplayMs}
+            loop={node.props.loop}
+            pauseOnHover={node.props.pauseOnHover !== false}
           >
             {carouselItems}
           </BuilderNodeCarouselTrack>
@@ -5876,6 +5886,13 @@ function renderBuilderNodeElement(
         shots: options.dataSources?.talentPortfolioShots ?? [],
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "reviews": {
+      return renderReviewsBlock({
+        node,
+        reviews: options.dataSources?.talentReviews ?? [],
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
