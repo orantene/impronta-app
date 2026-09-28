@@ -1,37 +1,45 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
-import { CalendarPage } from "./talent/pages/CalendarPage";
-import { MyProfilePage } from "./talent/pages/MyProfilePage";
-import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
-import { ReviewsPage } from "./talent/pages/ReviewsPage";
-import { ServicesPage } from "./talent/pages/ServicesPage";
-import { SettingsPage } from "./talent/pages/SettingsPage";
-import { TalentPayoutsPage } from "./page-modules/TalentPayoutsPage";
-import { TalentTodayPage } from "./talent/pages/TodayPage";
-import { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
-import { MoneyPage } from "@/components/talent/money/MoneyPage";
-import { TalentClientsPage } from "./talent/pages/ClientsPage";
-import { AgendaAttentionPage } from "./talent/agenda/AgendaAttentionPage";
-import { AgendaCalendarPage } from "./talent/agenda/AgendaCalendarPage";
-import { AgendaAvailabilityPage } from "./talent/agenda/AgendaAvailabilityPage";
-import { AgendaBookingRecord } from "./talent/agenda/AgendaBookingRecord";
-import { AgendaNewBooking } from "./talent/agenda/AgendaNewBooking";
 import { buildAgendaListItemFromAgendaItem } from "./talent/agenda/view-model";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
 
+// ── Page bodies load ON DEMAND (perf/talent-dev-bundle) ──
+// Every talent page body used to be a static import here, so /talent/today
+// downloaded the site builder + edit-chrome (PublicPageEditor), the messages
+// v5 shell, Money, Agenda, etc. before it could hydrate (~30 MB of dev JS,
+// measured with curl on 2026-09-28). Each body is now its own chunk group,
+// fetched only when that page renders. `ssr` stays ON, so a hard load of any
+// route still paints the page on the server; `loading` renders nothing, the
+// same shape as `pages-dynamic.tsx` and `drawers.tsx`.
+const CalendarPage = dynamic(() => import("./talent/pages/CalendarPage").then((m) => ({ default: m.CalendarPage })), { loading: () => null });
+const MyProfilePage = dynamic(() => import("./talent/pages/MyProfilePage").then((m) => ({ default: m.MyProfilePage })), { loading: () => null });
+const PublicPageEditor = dynamic(() => import("./talent/pages/PublicPageEditor").then((m) => ({ default: m.PublicPageEditor })), { loading: () => null });
+const ReviewsPage = dynamic(() => import("./talent/pages/ReviewsPage").then((m) => ({ default: m.ReviewsPage })), { loading: () => null });
+const ServicesPage = dynamic(() => import("./talent/pages/ServicesPage").then((m) => ({ default: m.ServicesPage })), { loading: () => null });
+const SettingsPage = dynamic(() => import("./talent/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })), { loading: () => null });
+const TalentPayoutsPage = dynamic(() => import("./page-modules/TalentPayoutsPage").then((m) => ({ default: m.TalentPayoutsPage })), { loading: () => null });
+const TalentTodayPage = dynamic(() => import("./talent/pages/TodayPage").then((m) => ({ default: m.TalentTodayPage })), { loading: () => null });
+const TalentMessagesPage = dynamic(() => import("./talent/pages/messages/MessagesPage").then((m) => ({ default: m.TalentMessagesPage })), { loading: () => null });
+const MoneyPage = dynamic(() => import("@/components/talent/money/MoneyPage").then((m) => ({ default: m.MoneyPage })), { loading: () => null });
+const TalentClientsPage = dynamic(() => import("./talent/pages/ClientsPage").then((m) => ({ default: m.TalentClientsPage })), { loading: () => null });
+const AgendaAttentionPage = dynamic(() => import("./talent/agenda/AgendaAttentionPage").then((m) => ({ default: m.AgendaAttentionPage })), { loading: () => null });
+const AgendaCalendarPage = dynamic(() => import("./talent/agenda/AgendaCalendarPage").then((m) => ({ default: m.AgendaCalendarPage })), { loading: () => null });
+const AgendaAvailabilityPage = dynamic(() => import("./talent/agenda/AgendaAvailabilityPage").then((m) => ({ default: m.AgendaAvailabilityPage })), { loading: () => null });
+const AgendaBookingRecord = dynamic(() => import("./talent/agenda/AgendaBookingRecord").then((m) => ({ default: m.AgendaBookingRecord })), { loading: () => null });
+const AgendaNewBooking = dynamic(() => import("./talent/agenda/AgendaNewBooking").then((m) => ({ default: m.AgendaNewBooking })), { loading: () => null });
+
 // ── Re-export barrel: public API preserved for external importers ──
-export { TalentMessagesPage } from "./talent/pages/messages/MessagesPage";
 export { CLIENT_MOCK_CONVERSATIONS_BY_PROFILE } from "./talent/shared/client-conversations-1";
 export type { Msg } from "./talent/shared/client-conversations-1";
 export { MOCK_THREAD } from "./talent/shared/client-conversations-2";
-export { ConversationThread, ParticipantsStack } from "./talent/shared/client-threads-1";
 export { useTalentConversations } from "./talent/shared/conversation-adapter-1";
 export { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
 export type { ConvOutcome, ConvSource, Conversation, Participant } from "./talent/shared/conversations-1";
