@@ -6,6 +6,31 @@
 export type AgendaLocale = "en" | "es";
 
 const ES: Record<string, string> = {
+  // Booking record mockup (tc_record / tc_more / tc_cancel / tc_noshow)
+  "Change items or price": "Cambiar conceptos o precio",
+  "Not available yet. Message the client to agree a change.": "Aún no disponible. Escríbele a la clienta para acordar un cambio.",
+  "Add a private note": "Agregar nota privada",
+  "Not available yet.": "Aún no disponible.",
+  "Shows what happens to the payment first": "Primero muestra qué pasa con el pago",
+  "Message the agency": "Mensaje a la agencia",
+  "Managed by": "La gestiona",
+  "The agency. Changes to time, place or fee go through them.": "La agencia. Los cambios de hora, lugar o tarifa pasan por ellos.",
+  "Request a change": "Pedir un cambio",
+  "QR code for the payment link": "Código QR del enlace de pago",
+  "Copy link": "Copiar enlace",
+  "Link copied": "Enlace copiado",
+  "Terms and history": "Condiciones e historial",
+  "Agency job: you cannot cancel or move it here. Ask the agency.": "Trabajo de agencia: no puedes cancelarlo ni moverlo aquí. Pídelo a la agencia.",
+  "Keep booking": "Mantener reserva",
+  "Who is cancelling?": "¿Quién cancela?",
+  "The client asked to cancel": "La clienta pidió cancelar",
+  "I am cancelling": "Yo cancelo",
+  "When you cancel, what the client paid always goes back.": "Cuando tú cancelas, lo que pagó la clienta siempre se devuelve.",
+  "Your cancellation terms decide what goes back. The amount shows after you confirm.": "Tus condiciones de cancelación deciden qué se devuelve. El monto aparece al confirmar.",
+  "Mark as no-show?": "¿Marcar como no asistió?",
+  "What the client paid stays as paid. Nothing is refunded automatically.": "Lo que pagó la clienta queda pagado. No se reembolsa nada automáticamente.",
+  "Nothing was paid, so there is nothing to keep or refund.": "No se pagó nada, así que no hay nada que retener ni reembolsar.",
+  "The booking stays in your history as No-show. No message is sent unless you write one.": "La reserva queda en tu historial como No asistió. No se envía mensaje a menos que lo escribas.",
   // Navigation
   Today: "Hoy",
   Calendar: "Calendario",
