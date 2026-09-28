@@ -9,6 +9,7 @@ import {
   talentOffersInstantBooking,
 } from "@/lib/talent-site/contact-channels";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 import { resolveIndustryPreset, talentSiteChatVoice } from "@/lib/words/presets";
 import { resolveTalentTradePreset } from "@/lib/words/talent-trade-preset";
 
@@ -19,17 +20,23 @@ import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
  * Reads `talent_sites.design_tokens` even when TALENT_THEME_GALLERY_ENABLED is
  * off: the published CSS vars still carry color.primary (Jorg #A82458).
  */
-async function loadVanityChatAccent(
+async function loadVanitySiteChrome(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
-): Promise<string | null> {
+): Promise<{ accentColor: string | null; logoUrl: string | null }> {
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens")
+    .select("design_tokens, logo_url")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
-  if (error) return null;
-  const raw = (data as { design_tokens?: unknown } | null)?.design_tokens;
+  if (error) return { accentColor: null, logoUrl: null };
+  const row = data as { design_tokens?: unknown; logo_url?: string | null } | null;
+  // AUD-039: the same `talent_sites.logo_url` the Max-site shell header paints.
+  const logoUrl = row?.logo_url?.trim() || null;
+  return { accentColor: accentFromDesignTokens(row?.design_tokens), logoUrl };
+}
+
+function accentFromDesignTokens(raw: unknown): string | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const tokens = raw as Record<string, unknown>;
   const primary = typeof tokens["color.primary"] === "string" ? tokens["color.primary"].trim() : "";
@@ -103,7 +110,7 @@ export async function TalentSiteMessagesDock({
 }) {
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const [resolved, profileRes, accentColor] = await Promise.all([
+  const [resolved, profileRes, siteChrome, thumbs] = await Promise.all([
     loadTalentSiteInquiryTenant(admin, talentProfileId),
     admin
       .from("talent_profiles")
@@ -112,8 +119,12 @@ export async function TalentSiteMessagesDock({
       )
       .eq("id", talentProfileId)
       .maybeSingle(),
-    loadVanityChatAccent(admin, talentProfileId),
+    loadVanitySiteChrome(admin, talentProfileId),
+    // AUD-039: the talent's profile photo, same rank as her directory card.
+    loadTalentCardThumbs(admin, [talentProfileId]),
   ]);
+  const { accentColor, logoUrl } = siteChrome;
+  const photoUrl = thumbs.get(talentProfileId) ?? null;
   if (!resolved.ok) return null;
   const profile = profileRes.data as {
     profile_code: string | null;
@@ -172,6 +183,8 @@ export async function TalentSiteMessagesDock({
         exposeTenantToClient={false}
         agencyName={displayName}
         accentColor={accentColor}
+        logoUrl={logoUrl}
+        photoUrl={photoUrl}
         sourcePage="/"
         locale={locale}
         greeting={tradeVoice}

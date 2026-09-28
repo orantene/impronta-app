@@ -17,6 +17,7 @@ import type { Translator } from "@/i18n/interpolate";
 import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
+import composerCss from "./guest-composer.module.css";
 
 export type ChatOffering = GuestChatOffering;
 
@@ -102,7 +103,8 @@ export function OfferingQuickPicker({
       style={{
         padding: "8px 12px 10px",
         borderTop: `1px solid ${C.borderSoft}`,
-        background: C.surfaceFaint,
+        // AUD-040: same white surface as the composer, not a grey sunken band.
+        background: C.surface,
         fontFamily: FONT,
         flexShrink: 0,
       }}
@@ -120,10 +122,14 @@ export function OfferingQuickPicker({
         {label}
       </div>
       <div
+        className={composerCss.offeringRail}
+        data-offering-rail
         style={{
           display: "flex",
           gap: 6,
           overflowX: "auto",
+          // Room past the last chip so it can scroll clear of the edge fade.
+          paddingRight: 28,
           paddingBottom: 2,
           overscrollBehavior: "contain",
         }}
@@ -136,6 +142,7 @@ export function OfferingQuickPicker({
               type="button"
               onClick={() => onPick(o)}
               data-chat-offering={o.offeringId}
+              className={composerCss.offeringChip}
               style={{
                 display: "inline-flex",
                 alignItems: "center",

@@ -1,0 +1,38 @@
+/*
+ * guest-composer.module.css — the few Hablar composer rules inline styles cannot
+ * express (pseudo-elements / scrollbar parts).
+ *
+ * AUD-040: the "Ask about a service" chip rail keeps horizontal scroll +
+ * scroll-snap but hides its scrollbar, and fades out at the right edge so the
+ * cut-off chip reads as "there is more".
+ * AUD-040b: the composer placeholder stays on one line with an ellipsis instead
+ * of wrapping and clipping inside the pill.
+ */
+
+.offeringRail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+}
+
+.offeringRail::-webkit-scrollbar {
+  display: none;
+}
+
+.offeringChip {
+  scroll-snap-align: start;
+}
+
+.composerInput::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composerInput:placeholder-shown {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

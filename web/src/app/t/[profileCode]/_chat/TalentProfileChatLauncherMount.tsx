@@ -90,6 +90,8 @@ type TalentProfileChatLauncherMountProps = {
   accentColor?: string | null;
   /** Optional agency logo URL for the panel header. */
   logoUrl?: string | null;
+  /** Talent profile photo; the header avatar fallback when there is no logo (AUD-039). */
+  photoUrl?: string | null;
   /** Source page for attribution (e.g. /t/TA-12345). */
   sourcePage: string;
   /** "Open full conversation ↗" target (inert/link-only for MVP). Null hides it. */
@@ -131,6 +133,7 @@ export async function TalentProfileChatLauncherMount({
   agencyName,
   accentColor = null,
   logoUrl = null,
+  photoUrl = null,
   sourcePage,
   openFullHref = null,
   greeting = null,
@@ -241,6 +244,7 @@ export async function TalentProfileChatLauncherMount({
         talentDisplayName,
         accentColor,
         logoUrl,
+        photoUrl,
         greeting,
         locale,
         omitPlatformBrand,
