@@ -147,6 +147,8 @@ function ManagerBody({
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
+  /** P5: "✓ <Design> is live" after a live design switch. */
+  const [liveToast, setLiveToast] = useState<string | null>(null);
 
   // Live card for ANY published design slug (maison, maison-v2, solace, …).
   const maisonLive = Boolean(state.sitePublishedAt);
@@ -177,6 +179,8 @@ function ManagerBody({
           contentModeLabel="mine"
           onChangeDesign={() => setMaisonForceScreen("gallery")}
           onRestoredToReview={() => setMaisonForceScreen("review")}
+          liveToast={liveToast}
+          onLiveToastDone={() => setLiveToast(null)}
         />
       ) : setupOpen ? null : (
         <WebsiteEligibilityPanel onActivate={() => setSetupOpen(true)} />
@@ -186,7 +190,8 @@ function ManagerBody({
       <MaisonSetupHost
         forceScreen={maisonForceScreen}
         onForceScreenConsumed={() => setMaisonForceScreen(null)}
-        onPublished={() => {
+        onPublished={(toast) => {
+          setLiveToast(toast ?? null);
           setMaisonForceScreen(null);
           setSetupOpen(false);
           void onReload();

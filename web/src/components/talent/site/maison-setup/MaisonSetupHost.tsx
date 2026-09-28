@@ -40,8 +40,11 @@ export function MaisonSetupHost({
   liveAddress?: string;
   /** Close detail → stay on /talent/site manager chrome below. */
   onCloseToSite?: () => void;
-  /** After successful publish — manager reloads + shows My website card. */
-  onPublished?: () => void;
+  /**
+   * After successful publish — manager reloads + shows My website card.
+   * P5: a live design switch passes its "✓ <Design> is live" toast.
+   */
+  onPublished?: (toast?: string) => void;
   /** Optional override (e.g. Change design / restore from the live card). */
   forceScreen?: MaisonSetupChoices["screen"] | null;
   onForceScreenConsumed?: () => void;
@@ -63,6 +66,7 @@ export function MaisonSetupHost({
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [sitePublished, setSitePublished] = useState(false);
   const [liveLookSlug, setLiveLookSlug] = useState<string | null>(null);
+  const [liveDesignSlug, setLiveDesignSlug] = useState<string | null>(null);
   const [liveCustomPalette, setLiveCustomPalette] =
     useState<MaisonCustomPaletteStored | null>(null);
   const [choices, setChoices] = useState<MaisonSetupChoices>(defaultMaisonChoices);
@@ -101,6 +105,7 @@ export function MaisonSetupHost({
       setTalentProfileId(boot.talentProfileId);
       setSitePublished(boot.sitePublished);
       setLiveLookSlug(boot.themeLookSlug);
+      setLiveDesignSlug(boot.themeDesignSlug ?? null);
       setLiveCustomPalette(boot.customPalette);
       const local = loadMaisonChoices(boot.talentProfileId);
       // Server wins; migrate resumable local-only choices up once.
@@ -243,6 +248,13 @@ export function MaisonSetupHost({
           onColorsPublished={() => {
             onPublished?.();
           }}
+          onDesignPublished={(message, slug) => {
+            setLiveDesignSlug(slug);
+            setExplicitOpen(false);
+            setToast(null);
+            onPublished?.(message);
+          }}
+          liveDesignSlug={liveDesignSlug}
           fromLiveSite={sitePublished}
           liveLookSlug={liveLookSlug}
           liveCustomPalette={liveCustomPalette}

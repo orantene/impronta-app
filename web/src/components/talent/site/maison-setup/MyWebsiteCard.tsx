@@ -15,7 +15,8 @@ import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/
 import { loadMaisonDesignOptionsStateAction } from "@/lib/talent-site/server/maison-options-actions";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
-import { liveCardPaletteName, liveDesignName, lookToPalette } from "./maison-live-summary";
+import { liveDesignName, lookToPalette } from "./maison-live-summary";
+import { paletteDisplayName } from "./live-design-change";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -31,6 +32,9 @@ type Props = {
   onChangeDesign: () => void;
   /** After restore → open Review (W70). */
   onRestoredToReview?: () => void;
+  /** P5: toast after a live design switch ("✓ <Design> is live"). */
+  liveToast?: string | null;
+  onLiveToastDone?: () => void;
 };
 
 const PREVIEW_W = 1280;
@@ -59,6 +63,8 @@ export function MyWebsiteCard({
   contentModeLabel = "mine",
   onChangeDesign,
   onRestoredToReview,
+  liveToast = null,
+  onLiveToastDone,
 }: Props) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -97,8 +103,19 @@ export function MyWebsiteCard({
     };
   }, [optionsOpen]);
 
+  useEffect(() => {
+    if (!liveToast) return;
+    const timer = window.setTimeout(() => onLiveToastDone?.(), 6000);
+    return () => window.clearTimeout(timer);
+  }, [liveToast, onLiveToastDone]);
+
   const t = (key: string) => maisonSetupT(locale, key);
-  const paletteName = liveCardPaletteName(locale, themeLookSlug, customPalette);
+  const paletteName = paletteDisplayName({
+    locale,
+    designSlug: themeDesignSlug,
+    lookSlug: themeLookSlug,
+    customPalette,
+  });
   const designName = liveDesignName(locale, themeDesignSlug);
   const content = contentModeLabel === "mine" ? t("Your content") : t("Demo content");
   const summary = `${t("Design:")} ${designName} · ${paletteName} · ${content}`;
@@ -119,6 +136,15 @@ export function MyWebsiteCard({
       data-design-slug={themeDesignSlug ?? undefined}
       className="overflow-hidden rounded-2xl border border-admin-border-soft bg-white font-admin-body"
     >
+      {liveToast ? (
+        <div
+          role="status"
+          data-testid="maison-design-live-toast"
+          className="border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] font-semibold text-emerald-900"
+        >
+          {liveToast}
+        </div>
+      ) : null}
       <div className="flex flex-col gap-4 p-4 sm:flex-row">
         <div
           aria-hidden
