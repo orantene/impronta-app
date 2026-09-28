@@ -22,12 +22,10 @@ let cache: Cache | null = null;
 export function useWebsiteEligibility() {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
-  const [bookableCount, setBookableCount] = useState<number | null>(
-    cache && cache.talentId === talentId ? cache.bookableCount : null,
-  );
-  const [hasAvailability, setHasAvailability] = useState<boolean | null>(
-    cache && cache.talentId === talentId ? cache.hasAvailability : null,
-  );
+  // Start empty on every mount so server HTML and the hydrating client agree;
+  // the module cache is applied in the effect below.
+  const [bookableCount, setBookableCount] = useState<number | null>(null);
+  const [hasAvailability, setHasAvailability] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!talentId) return;
