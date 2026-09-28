@@ -27,4 +27,15 @@ describe("T9.4 agenda i18n", () => {
     assert.equal(t("Week"), "Week");
     assert.equal(t("Confirm transfer"), "Confirm transfer");
   });
+
+  it("AUD-031/032: chip nouns and agency complete copy have ES", () => {
+    const t = agendaI18n("es");
+    assert.equal(t("Booking requested"), "Reserva solicitada");
+    assert.equal(t("Deposit not requested"), "Depósito sin solicitar");
+    assert.equal(
+      t("This booking is confirmed. The agency marks it complete."),
+      "Esta reserva está confirmada. La agencia la marca como completa.",
+    );
+    assert.equal(t("At your studio"), "En tu estudio");
+  });
 });

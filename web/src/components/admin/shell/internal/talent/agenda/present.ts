@@ -2,6 +2,7 @@ import { formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/d
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { MoneyLanding, TodayMoneyTile } from "@/lib/money/today-money-tiles";
 import type { TalentCalendarEntry } from "../../data-bridge";
+import { placeLabelFor } from "./record-actions";
 import type { AgendaMoneyItem, AgendaPaymentState, AgendaRowItem } from "./types";
 
 /** Hold tiles show wall-clock expiry (tc_cal), not a relative countdown. */
@@ -75,7 +76,7 @@ export function rowFromAgendaItem(
     durationLabel: durationLabel(item),
     title: item.title,
     person: item.client?.name,
-    whereLabel: item.where.label,
+    whereLabel: placeLabelFor(item.where),
     sourceLabel: item.managedBy?.name ?? item.source,
     note: request
       ? "Not blocking your time until you accept."

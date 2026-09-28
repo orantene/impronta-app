@@ -1,5 +1,5 @@
 import { formatDualTimezoneWhen } from "./present";
-import { isCompletedUnpaid } from "./record-actions";
+import { CONFIRMED_AGENCY_NOW_BODY, CONFIRMED_NOW_BODY, isCompletedUnpaid, placeLabelFor } from "./record-actions";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { TalentCalendarEntry, TalentSelfProfile } from "../../data-bridge";
 import type {
@@ -210,7 +210,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     nowTone = "warn";
   } else if (item.booking === "confirmed") {
     nowTitle = "Confirmed";
-    nowBody = "This booking is confirmed. Mark complete after the work is done.";
+    nowBody = item.managedBy ? CONFIRMED_AGENCY_NOW_BODY : CONFIRMED_NOW_BODY;
     nowTone = "ok";
   } else if (item.booking === "completed" && isCompletedUnpaid("completed", paymentStateOf(item))) {
     nowTitle = "Completed, not paid";
@@ -237,7 +237,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
         }
       : undefined,
     whenLabel,
-    whereLabel: item.where.label || (item.allDay ? "Flexible timing" : "As agreed"),
+    whereLabel: placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : ""),
     sourceLabel: item.managedBy?.name ?? item.source,
     bookingState: item.booking,
     paymentState: paymentStateOf(item),
@@ -332,7 +332,7 @@ export function buildAgendaListItem(entry: TalentCalendarEntry): AgendaListItem 
     nowTone = "warn";
   } else if (entry.status === "confirmed") {
     nowTitle = "Confirmed";
-    nowBody = "This booking is confirmed. Mark complete after the work is done.";
+    nowBody = entry.tenantId ? CONFIRMED_AGENCY_NOW_BODY : CONFIRMED_NOW_BODY;
     nowTone = "ok";
   } else if (entry.status === "cancelled") {
     nowTitle = "Cancelled";

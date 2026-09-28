@@ -8,7 +8,7 @@ const BOOKING_STATE_META: Record<
   { labelKey: string; className: string }
 > = {
   requested: {
-    labelKey: "Requested",
+    labelKey: "Booking requested",
     className: "border border-[rgba(59,76,202,0.16)] bg-[rgba(59,76,202,0.08)] text-[var(--tc-accent)]",
   },
   hold: {
