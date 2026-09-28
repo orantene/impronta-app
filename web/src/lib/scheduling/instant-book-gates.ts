@@ -50,8 +50,8 @@ export function parseOfferingBookingMode(raw: unknown): "instant" | "request" | 
  *   2. the service's own mode, when set (`talent_offerings.booking_mode`
  *      non-null: instant | request | inquiry)
  *   3. the talent default (`selling_defaults.bookingPosture`; legacy
- *      `on_demand` reads as request, see parseBookingPosture)
- *   4. the platform default (request, the old column default)
+ *      `on_demand` reads as instant, see parseBookingPosture)
+ *   4. the platform default (instant, the old on_demand fallback)
  * Then readiness: an effective instant needs working hours, a duration, a
  * delivery method and, for money at booking, payouts. When the caller says
  * it is not ready, instant falls back to request (`source: "readiness"`).

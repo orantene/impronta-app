@@ -37,8 +37,16 @@ test("inherited service under an instant default books instantly", () => {
   assert.equal(d.instant, true);
 });
 
-test("inherited service under legacy on_demand / no default = request (unchanged)", () => {
+test("inherited service under legacy on_demand / no default = instant", () => {
   for (const defaults of [{ bookingPosture: "on_demand" }, {}, undefined]) {
+    const d = deriveOfferingCta({ offering: svc(null), defaults });
+    assert.equal(d.cta, "book_now");
+    assert.equal(d.eventName, "tulala:offering-instant");
+  }
+});
+
+test("inherited service under a request default = request, slot picker", () => {
+  for (const defaults of [{ bookingPosture: "request" }]) {
     const d = deriveOfferingCta({ offering: svc(null), defaults });
     assert.equal(d.cta, "request_to_book");
     assert.equal(d.eventName, "tulala:offering-slot");
@@ -71,6 +79,6 @@ test("unified labels: request Solicitar cita, inquiry Consultar, instant Reserva
 
 test("public loaders resolve an inherited mode; explicit modes untouched", () => {
   assert.equal(withEffectiveBookingMode(svc(null), { bookingPosture: "instant" }).bookingMode, "instant");
-  assert.equal(withEffectiveBookingMode(svc(null), { bookingPosture: "on_demand" }).bookingMode, "request");
+  assert.equal(withEffectiveBookingMode(svc(null), { bookingPosture: "on_demand" }).bookingMode, "instant");
   assert.equal(withEffectiveBookingMode(svc("request"), { bookingPosture: "instant" }).bookingMode, "request");
 });

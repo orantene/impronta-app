@@ -30,17 +30,24 @@ test("null / undefined / junk service mode inherits the talent default", () => {
   assert.deepEqual(r("bogus", { bookingPosture: "inquiry" }), { mode: "inquiry", source: "default" });
 });
 
-test("legacy on_demand default reads as request (the old column default): no live behaviour change", () => {
-  assert.deepEqual(r(null, { bookingPosture: "on_demand" }), { mode: "request", source: "default" });
+test("legacy on_demand default reads as instant (auditor ruling 0)", () => {
+  assert.deepEqual(r(null, { bookingPosture: "on_demand" }), { mode: "instant", source: "default" });
   // Existing rows are explicit, so on_demand never changed them and still does not.
   assert.equal(r("instant", { bookingPosture: "on_demand" }).mode, "instant");
   assert.equal(r("request", { bookingPosture: "on_demand" }).mode, "request");
 });
 
-test("no default set falls to the platform default (request)", () => {
-  assert.deepEqual(r(null, {}), { mode: "request", source: "platform" });
-  assert.deepEqual(r(null, null), { mode: "request", source: "platform" });
-  assert.deepEqual(r(null, { bookingPosture: 3 }), { mode: "request", source: "platform" });
+test("no default set falls to the platform default (instant, the old on_demand fallback)", () => {
+  assert.deepEqual(r(null, {}), { mode: "instant", source: "platform" });
+  assert.deepEqual(r(null, null), { mode: "instant", source: "platform" });
+  assert.deepEqual(r(null, { bookingPosture: 3 }), { mode: "instant", source: "platform" });
+});
+
+test("Jor's case: on_demand default, service reset to null -> effective instant (readiness may still fall back)", () => {
+  const jor = { bookingPosture: "on_demand", whoPrimaryCta: "confirm_now" };
+  assert.deepEqual(r(null, jor), { mode: "instant", source: "default" });
+  assert.equal(assertInstantPosture({ sellingDefaults: jor, bookingMode: null, staffDesk: false }).ok, true);
+  assert.deepEqual(r(null, jor, { readiness: { instantReady: false } }), { mode: "request", source: "readiness" });
 });
 
 test("master restriction closes everything, before the service mode", () => {
@@ -64,8 +71,8 @@ test("server posture gate follows the same resolver (inherit + inquiry)", () => 
   assert.equal(assertInstantPosture({ sellingDefaults: { bookingPosture: "instant" }, bookingMode: null, staffDesk: false }).ok, true);
   const inq = assertInstantPosture({ sellingDefaults: {}, bookingMode: "inquiry", staffDesk: false });
   assert.equal(!inq.ok && inq.reason, "inquiry_only");
-  const plat = assertInstantPosture({ sellingDefaults: {}, bookingMode: null, staffDesk: false });
-  assert.equal(!plat.ok && plat.reason, "request_only");
+  const req = assertInstantPosture({ sellingDefaults: { bookingPosture: "request" }, bookingMode: null, staffDesk: false });
+  assert.equal(!req.ok && req.reason, "request_only");
 });
 
 test("parseOfferingBookingMode accepts the three modes, null otherwise", () => {

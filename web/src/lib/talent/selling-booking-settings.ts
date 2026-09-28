@@ -7,23 +7,22 @@
  * Talent default booking mode (the mode a service INHERITS when its own
  * `talent_offerings.booking_mode` is null). Three values, same as a service.
  *
- * LEGACY `on_demand` (the only value besides `inquiry` before WSF-B) meant
- * "each service's own mode applies". Every service row carried an explicit
- * mode then (the column was NOT NULL DEFAULT 'request'), so the default was
- * never consulted except by the inquiry override. A service that inherits
- * under `on_demand` must therefore behave like the old column default:
- * `request`. The parser maps `on_demand` to `request`; nothing writes it any
- * more. `inquiry` keeps its meaning.
+ * LEGACY `on_demand` (the default before WSF-B, and the parser's fallback
+ * when nothing was stored) meant INSTANT: only `inquiry` forced request.
+ * The parser maps `on_demand` to `instant` (auditor ruling 2026-09-28), and
+ * an unset default also reads as instant, as it did. Readiness (PR C) may
+ * still fall an effective instant back to request. Nothing writes
+ * `on_demand` any more.
  */
 export const TALENT_BOOKING_POSTURES = ["instant", "request", "inquiry"] as const;
 export type TalentBookingPosture = (typeof TALENT_BOOKING_POSTURES)[number];
 
-/** Platform default when the talent never chose (= the old column default). */
-export const PLATFORM_DEFAULT_BOOKING_POSTURE: TalentBookingPosture = "request";
+/** Platform default when the talent never chose (= the old on_demand fallback). */
+export const PLATFORM_DEFAULT_BOOKING_POSTURE: TalentBookingPosture = "instant";
 
 /** Read one stored posture value, mapping legacy values. Null = not set / unknown. */
 export function parseBookingPosture(raw: unknown): TalentBookingPosture | null {
-  if (raw === "on_demand") return "request";
+  if (raw === "on_demand") return "instant";
   return isOneOf(raw, TALENT_BOOKING_POSTURES) ? raw : null;
 }
 

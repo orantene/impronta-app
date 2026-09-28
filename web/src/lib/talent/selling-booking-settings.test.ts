@@ -14,7 +14,7 @@ import {
 test("parse defaults when selling_defaults is empty", () => {
   assert.deepEqual(parseSellingBookingSettings(null), {
     bufferBeforeMin: null,
-    bookingPosture: "request",
+    bookingPosture: "instant",
     whoPrimaryCta: "confirm_now",
   });
 });
@@ -40,15 +40,15 @@ test("WSF-B: inquiry default no longer coerces confirm_now (an explicit instant 
   assert.equal(resolveWhoPrimaryAction({ whoPrimaryCta: s.whoPrimaryCta, offeringIntent: "request" }), "chat");
 });
 
-test("WSF-B: three default postures; legacy on_demand reads as request; junk falls to platform request", () => {
+test("WSF-B: three default postures; legacy on_demand reads as instant; junk falls to platform instant", () => {
   assert.equal(parseBookingPosture("instant"), "instant");
   assert.equal(parseBookingPosture("request"), "request");
   assert.equal(parseBookingPosture("inquiry"), "inquiry");
-  assert.equal(parseBookingPosture("on_demand"), "request");
+  assert.equal(parseBookingPosture("on_demand"), "instant");
   assert.equal(parseBookingPosture("nope"), null);
-  assert.equal(parseSellingBookingSettings({ bookingPosture: "on_demand" }).bookingPosture, "request");
+  assert.equal(parseSellingBookingSettings({ bookingPosture: "on_demand" }).bookingPosture, "instant");
   assert.equal(parseSellingBookingSettings({ bookingPosture: "instant" }).bookingPosture, "instant");
-  assert.equal(parseSellingBookingSettings({ bookingPosture: 7 }).bookingPosture, "request");
+  assert.equal(parseSellingBookingSettings({ bookingPosture: 7 }).bookingPosture, "instant");
 });
 
 test("Path A: on-demand + confirm_now + instant → confirm", () => {

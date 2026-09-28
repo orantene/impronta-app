@@ -8,8 +8,8 @@
 --
 -- ADDITIVE / WIDENING ONLY:
 --   * drop NOT NULL and DEFAULT 'request' (a writer that omits the column now
---     stores NULL = inherit; the app maps legacy default 'on_demand' to
---     'request', so an inherited row behaves exactly as the old default did);
+--     stores NULL = inherit the talent default; legacy 'on_demand' and an
+--     unset default read as 'instant', subject to readiness);
 --   * widen the value CHECK to add 'inquiry' (service answered by conversation).
 --   Existing rows are NOT touched: they keep their value and become explicit.
 --
