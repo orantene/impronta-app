@@ -10,6 +10,7 @@
  * so the stored tree stays talent-agnostic; the apply core resolves both.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import type { NavChromeStyle } from "@/lib/site-admin/nav-chrome";
 import { buildDefaultShellTree } from "../default-max-site-trees";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
@@ -41,6 +42,11 @@ function copyrightLine(displayName: string, year: string | number | undefined): 
   return `© ${year ?? new Date().getFullYear()} ${displayName}`;
 }
 
+export interface KitShellNavLink {
+  label: string;
+  href: string;
+}
+
 export interface KitShellOptions {
   displayName: string;
   logoUrl?: string | null;
@@ -54,6 +60,17 @@ export interface KitShellOptions {
   headerPaddingY?: "s" | "m";
   /** Dark chrome: header + footer paint the Look's ink (`background: "contrast"`). */
   contrastChrome?: boolean;
+  /**
+   * Shared Header navigation style. Stamped on the kit `nav` node.
+   * Absent → `top_bar` (classic inline bar).
+   */
+  navChrome?: NavChromeStyle;
+  /**
+   * Primary nav links. Absent → a single Home link (byte-identical to the
+   * pre-navChrome shell). Designs that use scroll-spy chrome stamp section
+   * hashes that match kit `anchorId` slots (`#services`, `#gallery`, …).
+   */
+  navLinks?: ReadonlyArray<KitShellNavLink>;
 }
 
 /**
@@ -95,6 +112,15 @@ export function buildKitShell(
     ...(opts.contrastChrome ? { paddingX: "l", paddingY: "m", background: "contrast" } : {}),
   };
 
+  const links =
+    opts.navLinks && opts.navLinks.length > 0
+      ? opts.navLinks.map((link) => ({
+          id: makeId(),
+          label: link.label,
+          href: link.href,
+        }))
+      : [{ id: makeId(), label: "Home", href: homeHref }];
+
   const header: BuilderNode = {
     id: makeId(),
     kind: "container",
@@ -110,7 +136,13 @@ export function buildKitShell(
       {
         id: makeId(),
         kind: "nav",
-        props: { ariaLabel: "Primary", links: [{ id: makeId(), label: "Home", href: homeHref }] },
+        props: {
+          ariaLabel: "Primary",
+          links,
+          ...(opts.navChrome && opts.navChrome !== "top_bar"
+            ? { navChrome: opts.navChrome }
+            : {}),
+        },
       },
     ],
   } as BuilderNode;

@@ -1782,6 +1782,21 @@ const navPropsSchema = z.object({
   mobileMenuVariant: z
     .enum(["dropdown", "drawer-right", "sheet-bottom", "full-screen-fade"])
     .optional(),
+  /**
+   * Shared Header navigation style (geometry). Absent / `top_bar` = today's
+   * sticky inline bar. Same enum as `site_header.navChrome`.
+   */
+  navChrome: z
+    .enum([
+      "top_bar",
+      "overlay",
+      "side_rail",
+      "bottom_tab",
+      "filter_bar",
+      "chapter_dots",
+    ])
+    .optional(),
+
   menuLabel: z.string().max(80).optional(),
   // Mobile-menu palette. The panel's colours were always overridable by CSS
   // custom property; these are the authoring path for them, so a dark site

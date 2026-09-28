@@ -24,7 +24,15 @@ function stampBand(
   slot: keyof typeof BAND_SLOTS,
   props: Record<string, unknown>,
 ): Record<string, unknown> {
-  return { ...props, ...BAND_SLOTS[slot] };
+  const mark = BAND_SLOTS[slot];
+  return {
+    ...props,
+    ...mark,
+    anchorId:
+      typeof props.anchorId === "string" && props.anchorId.length > 0
+        ? props.anchorId
+        : mark.slotKey,
+  };
 }
 
 /**

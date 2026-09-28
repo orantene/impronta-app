@@ -2852,6 +2852,43 @@ function BuilderNodeContentInspectorBody({
                 />
               </Field>
               <Field flush>
+                <FieldLabel info="Where the section links live on the page. Top bar is the classic sticky row. Overlay, side rail, bottom tabs, filter bar, and chapter dots are shared chrome modes any Design can use.">
+                  Navigation style
+                </FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["top_bar", "Top bar"],
+                      ["overlay", "Overlay"],
+                      ["side_rail", "Side rail"],
+                      ["bottom_tab", "Bottom tabs"],
+                      ["filter_bar", "Filter bar"],
+                      ["chapter_dots", "Chapter dots"],
+                    ] as const
+                  ).map(([value, label]) => {
+                    const active = (node.props.navChrome ?? "top_bar") === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          void commitPatch({ navChrome: value });
+                        }}
+                        className="rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors"
+                        style={{
+                          borderColor: active ? CHROME.accent : CHROME.line,
+                          background: active ? CHROME.paper2 : "transparent",
+                          color: CHROME.ink,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+              <Field flush>
                 <FieldLabel info="How a link’s submenu opens on desktop. “Mega” uses a wider multi-column panel. Only affects links with child links.">Submenu style</FieldLabel>
                 <Segmented
                   fullWidth

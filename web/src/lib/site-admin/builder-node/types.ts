@@ -2263,6 +2263,18 @@ export interface BuilderNavNode extends BuilderNodeBase {
       | "drawer-right"
       | "sheet-bottom"
       | "full-screen-fade";
+    /**
+     * Shared Header navigation style (geometry / placement). Absent or
+     * `top_bar` keeps the classic sticky inline bar. Same vocabulary as
+     * `site_header.navChrome` so Designs and Max shells share one setting.
+     */
+    navChrome?:
+      | "top_bar"
+      | "overlay"
+      | "side_rail"
+      | "bottom_tab"
+      | "filter_bar"
+      | "chapter_dots";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
     // Mobile-menu palette — the authoring path to the --bn-nav-menu-* custom

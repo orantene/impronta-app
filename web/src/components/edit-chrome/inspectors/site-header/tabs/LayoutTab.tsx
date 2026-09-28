@@ -272,6 +272,27 @@ export function LayoutTab({ config, patch }: Props) {
                 <option value="image">Logo image only</option>
               </select>
             </div>
+            <div className={KIT.field}>
+              <InspectorLabelWithInfo
+                label="Navigation style"
+                info="Where the section links live: classic top bar, overlay on the hero, side rail with scroll-spy, phone bottom tabs, filter chip bar, or chapter dots with labels."
+                className={KIT.label}
+              />
+              <select
+                className={KIT.select}
+                value={config.section.navChrome ?? "top_bar"}
+                onChange={(e) =>
+                  patch.patchSection({ navChrome: e.target.value })
+                }
+              >
+                <option value="top_bar">Top bar</option>
+                <option value="overlay">Overlay</option>
+                <option value="side_rail">Side rail</option>
+                <option value="bottom_tab">Bottom tabs</option>
+                <option value="filter_bar">Filter bar</option>
+                <option value="chapter_dots">Chapter dots</option>
+              </select>
+            </div>
           </InspectorGroup>
 
           <InspectorGroup

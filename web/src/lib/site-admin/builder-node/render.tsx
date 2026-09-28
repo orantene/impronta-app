@@ -9,6 +9,12 @@ import {
   hoverV2ViewportRules,
 } from "./hover-style-css";
 import { BUILDER_NODE_NAV_CSS } from "./nav-css";
+import { NavChromeScrollSpy } from "./NavChromeScrollSpy";
+import {
+  DEFAULT_NAV_CHROME,
+  navChromeNeedsScrollSpy,
+  normalizeNavChrome,
+} from "@/lib/site-admin/nav-chrome";
 import { BuilderIconSvg } from "./builder-icon-svg";
 import type { BuilderIconName } from "./icon-registry";
 import { socialPlatformIconName } from "./social-platform-icons";
@@ -7129,6 +7135,9 @@ function renderBuilderNodeElement(
       const collapseAt = navProps.collapseAt ?? "mobile";
       const submenuVariant = navProps.submenuVariant ?? "dropdown";
       const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
+      const navChrome = normalizeNavChrome(
+        navProps.navChrome ?? DEFAULT_NAV_CHROME,
+      );
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
       const menuId = `${node.id}-menu`;
@@ -7373,6 +7382,7 @@ function renderBuilderNodeElement(
           data-bn-submenu={submenuVariant}
           data-bn-mobile-menu={mobileMenuVariant}
           data-bn-link-hover={navProps.linkHover ?? "underline"}
+          data-nav-chrome={navChrome}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
           // The menu's colours were documented as "overridable via the
@@ -7404,6 +7414,7 @@ function renderBuilderNodeElement(
               : {}),
           } as React.CSSProperties}
         >
+          {navChromeNeedsScrollSpy(navChrome) ? <NavChromeScrollSpy /> : null}
           {navBrand.value ? (
             <a
               className="site-builder-node--nav-brand"

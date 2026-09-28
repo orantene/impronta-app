@@ -187,6 +187,23 @@ export const siteHeaderSchemaV1 = z.object({
   /** Header pinned to top of viewport on scroll. */
   sticky: z.boolean().default(true),
   /**
+   * Shared Header navigation style (geometry / placement). Distinct from
+   * `variant` (visual layout of a top bar). Absent / omitted keeps every
+   * existing tenant on the classic top bar (normalized at render). Same enum
+   * as builder `nav.navChrome`.
+   */
+  navChrome: z
+    .enum([
+      "top_bar",
+      "overlay",
+      "side_rail",
+      "bottom_tab",
+      "filter_bar",
+      "chapter_dots",
+    ])
+    .optional(),
+
+  /**
    * Visual tone. `transparent` overlays the page (good when the hero is
    * full-bleed); `surface` paints a token-tinted band; `solid` paints the
    * tenant's surface-raised colour explicitly.
