@@ -62,8 +62,12 @@ export function askOfferingDetail(
 
 export function askQuestion(ctx: MaisonAskContext) {
   if (ctx.offering) {
+    const detail = askOfferingDetail(ctx.offering);
+    // Same "Asking about" draft card as the selection dock's Ask (#2385):
+    // pre-filled, never auto-sent.
     openCatalogBookingChat({
-      detail: askOfferingDetail(ctx.offering),
+      detail,
+      askAbout: [detail.title],
       from: ctx.from,
       sourcePage: ctx.sourcePage,
       talentName: ctx.talentName,

@@ -22,6 +22,8 @@ export type InquiryFormLine = {
   addOnLabels?: string[];
   slotLabel?: string | null;
   totalCents?: number | null;
+  /** Display only: the selection dock's "Asking about" names (#2385). */
+  label?: string | null;
 };
 
 export type InquiryFormFields = {

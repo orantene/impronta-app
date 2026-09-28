@@ -56,12 +56,15 @@ function lineFromDetail(d: PendingOfferingDetail): InquiryFormLine {
 
 /**
  * Lines from the pending store (the one the dock and catalog sheet share).
- * The store carries one offering today; `lines` is an array so a multi-pick
- * hand-off can extend it without changing the form.
+ * Same contract as the dock's "Asking about" card (#2385): the structured
+ * payload is the FRONT offering; `askAbout` names every selected service and
+ * is what the visitor sees.
  */
 function linesFromPending(): InquiryFormLine[] {
   const p = peekPendingOffering();
-  return p ? [lineFromDetail(p)] : [];
+  if (!p) return [];
+  const names = (p.askAbout ?? []).filter((t) => t && t.trim());
+  return [{ ...lineFromDetail(p), label: names.length > 1 ? names.join(" + ") : null }];
 }
 
 export function TalentInquiryFormSheet({
@@ -315,10 +318,10 @@ export function TalentInquiryFormSheet({
                         fontSize: 14,
                       }}
                     >
-                      <span>{l.title}</span>
+                      <span>{l.label || l.title}</span>
                       <button
                         type="button"
-                        aria-label={tx("removeService", { title: l.title })}
+                        aria-label={tx("removeService", { title: l.label || l.title })}
                         onClick={() => setLines((ls) => ls.filter((x) => x.offeringId !== l.offeringId))}
                         style={{
                           width: 44,
