@@ -18,6 +18,7 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
@@ -242,10 +243,9 @@ export async function renderTalentMaxSite(
     });
     if (!page) return NOT_FOUND;
 
-    // Guest: published body for visitors; scrub unconfirmed social stubs.
-    const blocks = pruneUnconfirmedGuestStubs(
-      coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview })),
-    );
+    // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
+    const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
+    const blocks = localiseSeededDesignLabels(pruneUnconfirmedGuestStubs(body), input.locale);
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
@@ -258,7 +258,7 @@ export async function renderTalentMaxSite(
     const nav = buildMaxSiteNav(navSource);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
-      shellTree,
+      localiseSeededDesignLabels(shellTree, input.locale),
       nav,
       site.siteSlug,
       publicPathPrefix,

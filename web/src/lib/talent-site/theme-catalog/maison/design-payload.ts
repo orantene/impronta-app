@@ -88,8 +88,10 @@ function maisonServicesBlock(makeId: KitIdFactory): BuilderNode {
 }
 
 /**
- * Contact band: how-to-book copy + FAQ accordion bound to `talent_faq_items`
- * + inquire CTA. Phone stacks via responsive.
+ * Contact band: FAQ accordion bound to `talent_faq_items` + inquire CTA.
+ * The generic "How booking works" line was dropped: it rendered as a faint,
+ * near-empty band. Real booking terms live in the services catalog sheet.
+ * Phone stacks via responsive.
  */
 function maisonContactBlock(makeId: KitIdFactory): BuilderNode {
   return {
@@ -110,30 +112,6 @@ function maisonContactBlock(makeId: KitIdFactory): BuilderNode {
       responsive: { mobile: { layout: "stack" } },
     }),
     children: [
-      {
-        id: makeId(),
-        kind: "reveal",
-        props: { effect: "rise", once: true, layerLabel: "How to book" },
-        children: [
-          {
-            id: makeId(),
-            kind: "heading",
-            props: {
-              text: "How booking works",
-              level: 2,
-              style: { size: "lg" },
-            },
-          },
-          {
-            id: makeId(),
-            kind: "paragraph",
-            props: {
-              text: "{{contactCopy}}",
-              style: { tone: "muted", size: "md" },
-            },
-          },
-        ],
-      } as BuilderNode,
       {
         id: makeId(),
         kind: "heading",
@@ -204,7 +182,8 @@ export function buildMaisonDesignPayload(): DesignPayload {
   const homeTree: BuilderNode[] = [
     heroSplit(makeId, {
       ratio: "40-60",
-      chips: true,
+      // The eyebrow already names the trade; a matching chip repeated it.
+      chips: false,
       accent: true,
       eyebrow: true,
       minHeight: "72vh",
