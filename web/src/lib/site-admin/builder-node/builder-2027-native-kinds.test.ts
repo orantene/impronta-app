@@ -439,6 +439,19 @@ test("reveal keeps its children visible and ships its own arming script", () => 
     ),
     "the reveal hidden state is not gated on the armed attribute",
   );
+  // AUD-045: above-fold must mark data-bn-reveal-in before arming, otherwise
+  // hero content blanks for the entrance transition on first paint.
+  assert.ok(
+    html.includes("getBoundingClientRect"),
+    "reveal arming script must measure on-screen before arming",
+  );
+  const inIdx = html.indexOf("setAttribute('data-bn-reveal-in'");
+  const armedIdx = html.indexOf("setAttribute('data-bn-reveal-armed'");
+  assert.ok(inIdx > 0 && armedIdx > 0, "arming script must set both attributes");
+  assert.ok(
+    inIdx < armedIdx,
+    "AUD-045: data-bn-reveal-in must be set before data-bn-reveal-armed for above-fold",
+  );
 });
 
 test("stats renders the FINAL number server-side and only then animates to it", () => {

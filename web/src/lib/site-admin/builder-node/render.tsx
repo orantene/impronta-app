@@ -1183,6 +1183,10 @@ function HeaderWidgetGlyph({
  *
  * `prefers-reduced-motion` is honoured by bailing out before arming, which
  * again leaves the content visible rather than animating it into place.
+ *
+ * AUD-045: nodes already on screen at mount (hero / first viewport) get
+ * `data-bn-reveal-in` before `data-bn-reveal-armed`, so first paint never
+ * blanks while waiting for IntersectionObserver or the entrance transition.
  */
 function buildRevealArmingScript(config: {
   threshold: number;
@@ -1196,7 +1200,11 @@ function buildRevealArmingScript(config: {
     ? Math.min(1000, Math.max(0, Math.round(config.staggerMs)))
     : 80;
   const once = config.once ? "1" : "0";
-  return `(function(){var s=document.currentScript;if(!s)return;var r=s.parentElement;if(!r)return;if(!('IntersectionObserver' in window))return;try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){return;}var kids=[];for(var i=0;i<r.children.length;i++){var c=r.children[i];if(c!==s)kids.push(c);}if(!kids.length)return;for(var j=0;j<kids.length;j++){kids[j].style.setProperty('--bn-reveal-stagger',(j*${stagger})+'ms');}r.setAttribute('data-bn-reveal-armed','1');var once=${once}===1;var io=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){var e=es[k];if(e.isIntersecting){r.setAttribute('data-bn-reveal-in','1');if(once){io.disconnect();return;}}else if(!once){r.removeAttribute('data-bn-reveal-in');}}},{threshold:${threshold}});io.observe(r);})();`;
+  // AUD-045: if the reveal is already on screen at mount (hero / first paint),
+  // set data-bn-reveal-in BEFORE data-bn-reveal-armed so children never drop to
+  // opacity 0 while waiting for IntersectionObserver + the entrance transition.
+  // Below-fold keeps the arm-then-observe path.
+  return `(function(){var s=document.currentScript;if(!s)return;var r=s.parentElement;if(!r)return;if(!('IntersectionObserver' in window))return;try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){return;}var kids=[];for(var i=0;i<r.children.length;i++){var c=r.children[i];if(c!==s)kids.push(c);}if(!kids.length)return;for(var j=0;j<kids.length;j++){kids[j].style.setProperty('--bn-reveal-stagger',(j*${stagger})+'ms');}var once=${once}===1;var rect=r.getBoundingClientRect();var vh=window.innerHeight||0;var shown=rect.bottom>0&&rect.top<vh*0.92;if(shown)r.setAttribute('data-bn-reveal-in','1');r.setAttribute('data-bn-reveal-armed','1');if(shown&&once)return;var io=new IntersectionObserver(function(es){for(var k=0;k<es.length;k++){var e=es[k];if(e.isIntersecting){r.setAttribute('data-bn-reveal-in','1');if(once){io.disconnect();return;}}else if(!once){r.removeAttribute('data-bn-reveal-in');}}},{threshold:${threshold}});io.observe(r);})();`;
 }
 
 /**
