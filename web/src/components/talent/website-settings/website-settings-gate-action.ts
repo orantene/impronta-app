@@ -1,11 +1,15 @@
 "use server";
 
 import { isTalentWebsiteSettingsEnabled } from "@/lib/access/talent-website-settings";
-import { gate } from "@/lib/talent-site/server/site-action-gate";
+import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 
-/** Server-side flag check for the signed-in talent. Flag off → false. */
+/**
+ * Server-side flag check for the signed-in talent. Flag off → false.
+ * Booking settings apply to every talent (website and Tulala profile), so this
+ * checks the talent only, never a website plan capability.
+ */
 export async function loadWebsiteSettingsEnabledAction(): Promise<boolean> {
-  const g = await gate("personalSiteEdit");
-  if (!g.ok) return false;
-  return isTalentWebsiteSettingsEnabled(g.talentProfileId);
+  const scope = await requireTalentSelf();
+  if (!scope.ok) return false;
+  return isTalentWebsiteSettingsEnabled(scope.talentProfile.id);
 }
