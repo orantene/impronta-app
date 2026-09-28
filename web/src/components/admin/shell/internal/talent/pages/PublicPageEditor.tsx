@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
@@ -8,10 +9,21 @@ import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetwor
 import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
 import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeStates";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { NavRow } from "@/components/talent/website-settings/primitives";
+import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
 import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
 import { useAdminShell } from "../../state";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PageHeader } from "../shared/page-chrome-1";
+
+// Loaded on tap only: keeps the settings screen out of the admin workspace bundle.
+const WebsiteSettingsScreen = dynamic(
+  () =>
+    import("@/components/talent/website-settings/WebsiteSettingsScreen").then(
+      (m) => m.WebsiteSettingsScreen,
+    ),
+  { ssr: false },
+);
 
 type Props = {
   locale?: "en" | "es";
@@ -31,6 +43,33 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const copy = useDashboardText();
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Dark launch (TALENT_WEBSITE_SETTINGS_ENABLED): flag off → no entry row, no screen.
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void loadWebsiteSettingsEnabledAction()
+      .then((on) => {
+        if (live) setSettingsEnabled(on);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const talentId = settingsEnabled ? (bridgeTalentSelfProfile?.id ?? null) : null;
+  if (settingsOpen && talentId) {
+    return <WebsiteSettingsScreen talentId={talentId} onClose={() => setSettingsOpen(false)} />;
+  }
+  const settingsEntry = talentId ? (
+    <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
+      <NavRow
+        title={copy.t("Website settings")}
+        summary={copy.t("How clients book, timing, payments and cancelling")}
+        onOpen={() => setSettingsOpen(true)}
+      />
+    </div>
+  ) : null;
   if (!studio) {
     return (
       <>
@@ -38,6 +77,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           title={talentSiteCopy(locale, "pageTitle")}
           subtitle={talentSiteCopy(locale, "pageSubtitle")}
         />
+        {settingsEntry}
         <LegacyPresence locale={locale} />
       </>
     );
@@ -69,6 +109,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           <Suspense fallback={null}>
             <WebOfficeReturnBanner />
           </Suspense>
+          {settingsEntry}
           <WebsiteEligibilityPanel />
           <TalentMaxSiteManager locale={locale} />
           <div className="mt-8" />

@@ -6,7 +6,10 @@
  * fold into RAIL_ES_TEXT so the grandfathered map stays at one spread.
  */
 
+import { WEBSITE_SETTINGS_ES_TEXT } from "./dashboard-i18n-website-settings";
+
 export const WEBSITE_ES_TEXT: Record<string, string> = {
+  ...WEBSITE_SETTINGS_ES_TEXT,
   "Website reward": "Recompensa del sitio",
   "What is left": "Lo que falta",
   "Continue your profile": "Sigue tu perfil",
