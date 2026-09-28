@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
 import {
   loadSellingDefaults,
   saveSellingDefaults,
@@ -65,7 +66,9 @@ type View = "home" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
 
 export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string; onClose: () => void }) {
   const copy = useDashboardText();
-  const t = copy.t;
+  // Screen strings live in the lazy chunk, not the global admin map.
+  const t = (value: string) =>
+    copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[value] ?? copy.t(value)) : copy.t(value);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [offerings, setOfferings] = useState<TalentOffering[] | null>(null);
   const [saved, setSaved] = useState<SettingsDraft | null>(null);
