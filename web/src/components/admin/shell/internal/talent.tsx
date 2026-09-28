@@ -236,6 +236,7 @@ function TalentSidebar() {
             {tierLabel}
           </span>
         </button>
+        <div aria-hidden className="mx-[10px] border-t border-admin-border" />
         {previewUrl && (
           <a
             data-tulala-talent-preview-link
@@ -248,6 +249,8 @@ function TalentSidebar() {
             {copy.t("Preview profile")}
           </a>
         )}
+        {/* Support Center launcher portals in here instead of floating. */}
+        <div data-tulala-support-slot="rail" className="contents" />
         {renderItem("settings")}
       </div>
     </aside>

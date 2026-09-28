@@ -937,6 +937,7 @@
     },
     "adminSupport": {
       "launcherAria": "Ouvrir le support",
+      "railLabel": "Support",
       "panelAria": "Conversation de support",
       "title": "Support",
       "close": "Fermer",
