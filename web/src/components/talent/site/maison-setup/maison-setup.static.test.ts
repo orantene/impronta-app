@@ -24,7 +24,7 @@ test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   assert.match(gallery, /t\("Search a profession or theme"\)/);
   assert.match(gallery, /t\("Reset filters"\)/);
   assert.match(gallery, /t\("Last viewed"\)/);
-  assert.match(gallery, /GALLERY_DESIGNS/);
+  assert.match(gallery, /visibleGalleryDesigns/);
   assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
   assert.equal(gallery.includes("—"), false, "no em dashes");
 });

@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+
+// These suites cover the full catalog; the default three-design view is
+// covered in gallery-visibility.test.ts.
+process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
 import { GALLERY_DESIGNS } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import {
   DEFAULT_GALLERY_BROWSE_STATE as D,

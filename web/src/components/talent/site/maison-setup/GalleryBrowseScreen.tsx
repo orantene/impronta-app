@@ -5,18 +5,19 @@
  * fg_gallery_tag, fg_search_kbd, fg_search_model, fg_search_empty, fg_multi,
  * fg_multi_combined, fg_search_back, fg_live_explore).
  *
- * Only designs in GALLERY_DESIGNS appear. Query, filters, scroll and the
+ * Only visibleGalleryDesigns() appear (the finished three unless the
+ * extra-designs flag is on). Query, filters, scroll and the
  * last opened card live in sessionStorage so Back restores them.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   GALLERY_CATEGORY_CHIPS,
-  GALLERY_DESIGNS,
   GALLERY_FEATURE_TAGS,
   GALLERY_PROFESSIONS,
   GALLERY_STYLE_TAGS,
   getGalleryDesign,
   suggestedDesignsForTrade,
+  visibleGalleryDesigns,
   type GalleryCategoryChip,
   type GallerySearchResult,
   type GalleryStyleTag,
@@ -562,7 +563,7 @@ export function GalleryBrowseScreen({
           </h3>
           <p className="max-w-[46ch] text-[14.5px] text-admin-ink-muted">
             {t("Every theme works for any profession. Try a nearby word, or reset the filters to see all {n} themes.", {
-              n: GALLERY_DESIGNS.length,
+              n: visibleGalleryDesigns().length,
             })}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
