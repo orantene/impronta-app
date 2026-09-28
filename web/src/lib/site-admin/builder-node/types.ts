@@ -1489,8 +1489,8 @@ export interface BuilderNextFreeChipNode extends BuilderNodeBase {
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
-    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; featured = one hero + rest */
-    layout?: "rows" | "cards" | "grid" | "compact_list" | "editorial" | "featured";
+    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; rate_card = hairline name/duration/price; featured = one hero + rest */
+    layout?: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured";
     /** rail = sticky desktop side filter + phone chips (Maison v2 menu). */
     categoryNav?: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
     eyebrow?: string;

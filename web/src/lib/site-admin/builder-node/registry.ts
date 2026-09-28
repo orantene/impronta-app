@@ -1037,7 +1037,9 @@ const menuBoardPropsSchema = z.object({
 });
 
 export const servicesCatalogPropsSchema = z.object({
-  layout: z.enum(["rows", "cards", "grid", "compact_list", "editorial", "featured"]).optional(),
+  layout: z
+    .enum(["rows", "cards", "grid", "compact_list", "rate_card", "editorial", "featured"])
+    .optional(),
   categoryNav: z
     .enum(["pills", "tabs", "rail", "jump_strip", "sections", "accordion", "none"])
     .optional(),

@@ -327,3 +327,28 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
   assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
 });
+
+test("folio stamps shared rate_card services_catalog layout", () => {
+  const folio = COLLECTION_DESIGNS.find((d) => d.slug === "folio");
+  assert.ok(folio);
+  const payload = folio!.buildPayload();
+  const catalogs: Array<Record<string, unknown>> = [];
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      if (!n || typeof n !== "object") continue;
+      const node = n as { kind?: string; props?: Record<string, unknown>; children?: unknown };
+      if (node.kind === "services_catalog" && node.props) catalogs.push(node.props);
+      walk(node.children);
+    }
+  };
+  walk(payload.homeTree);
+  assert.equal(catalogs.length, 1);
+  assert.equal(catalogs[0]!.layout, "rate_card");
+  assert.equal(catalogs[0]!.categoryNav, "sections");
+  assert.equal(catalogs[0]!.density, "compact");
+  assert.equal(catalogs[0]!.showPhoto, false);
+  assert.equal(catalogs[0]!.showDescription, false);
+  assert.equal(catalogs[0]!.showPrice, true);
+  assert.equal(catalogs[0]!.showDuration, true);
+});

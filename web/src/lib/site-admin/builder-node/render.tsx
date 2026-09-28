@@ -4381,6 +4381,17 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 12px;padding:.85rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.45rem .65rem;padding:.45rem 0;border-bottom:1px solid var(--token-color-line)}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-photo{display:none}
+/* W-01 Folio rate card: hairline name · duration · price rows (no photo). */
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:1rem;row-gap:.2rem;padding:.5rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-photo{display:none}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:.75rem;gap:.15rem .75rem;flex:none;min-width:0}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-weight:500;font-size:.875rem;letter-spacing:.01em}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{justify-self:end;white-space:nowrap;font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-desc,.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-meta,.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-badges{grid-column:1/-1}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{flex:none;width:auto;min-width:0;justify-content:flex-end;gap:.65rem;align-items:baseline}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{align-items:flex-end;text-align:right;font-size:.875rem;font-weight:500}
+.site-builder-node--services-catalog[data-layout="rate_card"][data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.4rem;padding-bottom:.4rem}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{margin:0 0 .35rem;font-size:.8125rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.5rem}
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
@@ -4469,6 +4480,9 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{flex-wrap:nowrap}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-copy{max-width:46ch}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-buy{flex:0 0 auto;margin-inline-start:.75rem}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{max-width:none}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{margin-inline-start:0}
 }
 /* AUD-042: desktop menu reads as one centered column (same 1120px as
    container/split/nav), not edge to edge. The section keeps painting the
@@ -5808,7 +5822,9 @@ function renderBuilderNodeElement(
           data-density={p.density ?? "comfortable"}
           data-category-nav={categoryNav}
           data-show-photo={
-            p.showPhoto !== false && layout !== "compact_list" ? "true" : "false"
+            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+              ? "true"
+              : "false"
           }
           data-enable-catalog-search={p.enableCatalogSearch === true ? "true" : "false"}
           {...(p.stylePreset ? { "data-style-preset": p.stylePreset } : {})}
@@ -5845,7 +5861,9 @@ function renderBuilderNodeElement(
           {options.dataSources.talentOfferingsLoading ? (
             <ServicesCatalogLoadingSkeleton
               locale={locale}
-              showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+              showPhoto={
+                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+              }
               rows={Math.min(Math.max(visible.length, 4), 6)}
             />
           ) : visible.length === 0 ? (
@@ -5856,7 +5874,9 @@ function renderBuilderNodeElement(
                 <ServicesCatalogStaticFallback
                   groups={groups}
                   locale={locale}
-                  showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+                  showPhoto={
+                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                  }
                   showDuration={p.showDuration !== false}
                   showUsdEquivalent={p.showUsdEquivalent !== false}
                   ctaLabel={ctaLabel}
@@ -5867,7 +5887,9 @@ function renderBuilderNodeElement(
                 groups={groups}
                 locale={locale}
                 nav={navMode}
-                showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+                showPhoto={
+                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                }
                 showDescription={p.showDescription !== false}
                 showCategory={p.showCategory === true}
                 showDuration={p.showDuration !== false}
