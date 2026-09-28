@@ -14,6 +14,11 @@ import {
   cloneMastheadDefaultProps,
 } from "@/lib/site-admin/builder-node/masthead-defaults";
 import type { MastheadCoverFilter } from "@/lib/site-admin/builder-node/masthead-defaults";
+import {
+  COMP_CARD_DEFAULT_PROPS,
+  cloneCompCardDefaultProps,
+} from "@/lib/site-admin/builder-node/comp-card-defaults";
+import type { BuilderCompCardNode } from "@/lib/site-admin/builder-node/types";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
@@ -25,6 +30,7 @@ const BAND_SLOTS = {
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   visit: { slotKey: "visit", originRole: "talent.visit" },
   contents: { slotKey: "contents", originRole: "talent.contents" },
+  compCard: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
 } as const;
 
@@ -407,3 +413,50 @@ export function heroMasthead(
     ],
   } as BuilderNode;
 }
+
+/**
+ * Comp card — live measure strip from public profile fields.
+ * Shared widget; Folio stamps it after About. Never Folio-only CSS.
+ */
+export function compCardBlock(
+  makeId: KitIdFactory,
+  opts: {
+    layout?: "strip" | "strip_with_details";
+    heading?: string;
+    eyebrow?: string;
+    measures?: BuilderCompCardNode["props"]["measures"];
+    minMeasures?: number;
+    showFullDetails?: boolean;
+  } = {},
+): BuilderNode {
+  const defaults = cloneCompCardDefaultProps();
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampBand("compCard", {
+      layout: "stack",
+      gap: "m",
+      align: "stretch",
+      layerLabel: "Comp card",
+      style: { maxWidth: "wide", paddingY: "none", paddingX: "none" },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "comp_card",
+        props: {
+          ...defaults,
+          layout: opts.layout ?? "strip_with_details",
+          title: opts.heading ?? COMP_CARD_DEFAULT_PROPS.title ?? "",
+          eyebrow: opts.eyebrow ?? "",
+          measures: opts.measures ?? defaults.measures,
+          minMeasures: opts.minMeasures ?? defaults.minMeasures ?? 4,
+          showFullDetails: opts.showFullDetails !== false,
+        },
+      },
+    ],
+  } as BuilderNode;
+}
+
+/** Alias used by some Designs / docs for the measure-strip band. */
+export const measureStripBlock = compCardBlock;

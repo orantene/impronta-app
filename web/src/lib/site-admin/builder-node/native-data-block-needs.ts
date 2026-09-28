@@ -67,6 +67,8 @@ export type NativeDataBlockNeeds = {
   reviews: boolean;
   /** Visit facts from service areas / languages / hours. */
   visit: boolean;
+  /** Comp card measure strip from public profile field values. */
+  compCard: boolean;
   /** Maison FAQ accordion with `bindSource: "talent_faq_items"`. */
   talentFaq: boolean;
   /** Every native `featured_talent` node in the tree, in document order. */
@@ -152,6 +154,7 @@ export function collectNativeDataBlockNeeds(
   let portfolio = false;
   let reviews = false;
   let needsVisit = false;
+  let needsCompCard = false;
   let talentFaq = false;
   let needsTalentLocations = false;
   const featuredTalent: NativeFeaturedTalentNeed[] = [];
@@ -184,6 +187,9 @@ export function collectNativeDataBlockNeeds(
     }
     if (node.kind === "visit") {
       needsVisit = true;
+    }
+    if (node.kind === "comp_card") {
+      needsCompCard = true;
     }
     if (
       node.kind === "accordion" &&
@@ -270,6 +276,7 @@ export function collectNativeDataBlockNeeds(
     portfolio,
     reviews,
     visit: needsVisit,
+    compCard: needsCompCard,
     talentFaq,
     featuredTalent,
     needsTalentLocations,

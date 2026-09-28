@@ -222,6 +222,12 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     slotKey?: string;
     originRole?: string;
   }> = [];
+  const compCards: Array<{
+    kind?: string;
+    props?: Record<string, unknown>;
+    slotKey?: string;
+    originRole?: string;
+  }> = [];
   const walk = (nodes: unknown) => {
     if (!Array.isArray(nodes)) return;
     for (const n of nodes) {
@@ -246,12 +252,27 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
       if (node.kind === "masthead") {
         mastheads.push({ kind: node.kind, props: node.props });
       }
+      if (node.kind === "comp_card") {
+        compCards.push({ kind: node.kind, props: node.props });
+      }
       if (
         node.kind === "container" &&
         node.props?.slotKey === "hero" &&
         node.props?.originRole === "talent.hero"
       ) {
         mastheads.push({
+          kind: node.kind,
+          props: node.props,
+          slotKey: node.props.slotKey as string,
+          originRole: node.props.originRole as string,
+        });
+      }
+      if (
+        node.kind === "container" &&
+        node.props?.slotKey === "comp_card" &&
+        node.props?.originRole === "talent.comp_card"
+      ) {
+        compCards.push({
           kind: node.kind,
           props: node.props,
           slotKey: node.props.slotKey as string,
@@ -284,12 +305,22 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     items.slice(0, 3).map((it) => it.anchor),
     ["chapter-1", "chapter-2", "chapter-3"],
   );
+  assert.ok(
+    items.some((it) => it.anchor === "comp_card"),
+    "folio contents links to comp card",
+  );
   const mastheadNodes = mastheads.filter((m) => m.kind === "masthead");
   assert.equal(mastheadNodes.length, 1, "folio stamps shared masthead kind");
   assert.deepEqual(mastheadNodes[0]!.props?.lines, ["{{displayName}}"]);
   assert.equal(mastheadNodes[0]!.props?.coverFilter, "bw");
   assert.equal(mastheadNodes[0]!.props?.splitWords, true);
   assert.ok(mastheads.some((m) => m.slotKey === "hero" && m.originRole === "talent.hero"));
+  const compNodes = compCards.filter((c) => c.kind === "comp_card");
+  assert.equal(compNodes.length, 1, "folio stamps shared comp_card kind");
+  assert.equal(compNodes[0]!.props?.layout, "strip_with_details");
+  assert.ok(
+    compCards.some((c) => c.slotKey === "comp_card" && c.originRole === "talent.comp_card"),
+  );
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-12 project-story chapters"));
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-11 C2 contents page"));
   assert.ok(!COLLECTION_DESIGN_GAPS.folio.includes("W-10 W3 stacked masthead"));

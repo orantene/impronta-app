@@ -159,6 +159,7 @@ import { renderReviewsBlock } from "./reviews-block";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
+import { renderCompCardBlock } from "./comp-card-block";
 import { renderNextFreeChip } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -314,6 +315,11 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /**
+   * Comp card — public profile field rows for the measure strip.
+   * Resolved by the SERVER caller; the renderer never invents measures.
+   */
+  talentCompCard?: import("./comp-card-types").TalentCompCardSource;
   /**
    * When true, `services_catalog` paints the dedicated loading skeleton
    * (BRIEF-03 / §14) instead of the empty message or interactive list.
@@ -5926,6 +5932,14 @@ function renderBuilderNodeElement(
     case "masthead": {
       return renderMastheadBlock({
         node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "comp_card": {
+      return renderCompCardBlock({
+        node,
+        rows: options.dataSources?.talentCompCard?.rows ?? [],
+        locale: options.contentLocale?.locale,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

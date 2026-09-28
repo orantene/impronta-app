@@ -76,6 +76,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "visit",
   "contents",
   "masthead",
+  "comp_card",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1185,6 +1186,31 @@ export const mastheadPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Comp card — live measure strip + profile field visibility. */
+export const compCardPropsSchema = z.object({
+  layout: z.enum(["strip", "strip_with_details"]).optional(),
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  measures: z
+    .array(
+      z.object({
+        fieldKey: z.string().max(80),
+        enabled: z.boolean().optional(),
+        labelEn: z.string().max(40).optional(),
+        labelEs: z.string().max(40).optional(),
+        unit: z.string().max(8).optional(),
+      }),
+    )
+    .max(16)
+    .optional(),
+  minMeasures: z.number().int().min(0).max(12).optional(),
+  showFullDetails: z.boolean().optional(),
+  detailsSummaryEn: z.string().max(80).optional(),
+  detailsSummaryEs: z.string().max(80).optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Next free time chip — live slots API; hidden when empty. */
 export const nextFreeChipPropsSchema = z.object({
   offeringId: z.string().max(80).optional(),
@@ -2217,6 +2243,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Giant stacked words over an optional black-and-white cover. Magazine hero.",
       children: { type: "none" },
       propsSchema: mastheadPropsSchema,
+    },
+    comp_card: {
+      kind: "comp_card",
+      label: "Comp card",
+      description:
+        "Measure strip from your public profile fields (height, bust, and more). Choose which measures show. Hidden when empty.",
+      children: { type: "none" },
+      propsSchema: compCardPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

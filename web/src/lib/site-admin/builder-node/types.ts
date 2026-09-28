@@ -55,6 +55,8 @@ export type BuilderNodeKind =
   | "contents"
   /** Masthead — giant stacked words + optional B&W cover (W-10 hero variant). */
   | "masthead"
+  /** Comp card — live measure strip from public profile fields + visibility. */
+  | "comp_card"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1432,6 +1434,40 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
 }
 
 /**
+ * Comp card — live measure strip bound to public profile field values.
+ * Inspector controls which measures show, labels, and full-details disclosure.
+ * Hidden when empty; never invents measurements. Designs stamp via `compCardBlock`.
+ */
+export interface BuilderCompCardNode extends BuilderNodeBase {
+  kind: "comp_card";
+  props: {
+    /** strip = rail only; strip_with_details adds Full comp card disclosure. */
+    layout?: "strip" | "strip_with_details";
+    eyebrow?: string;
+    title?: string;
+    /**
+     * Ordered measures for the strip. `fieldKey` is a catalog key
+     * (e.g. physical.height_cm). `enabled` ANDs with profile public visibility.
+     */
+    measures?: Array<{
+      fieldKey: string;
+      enabled?: boolean;
+      labelEn?: string;
+      labelEs?: string;
+      unit?: string;
+    }>;
+    /** Hide strip when fewer than N resolved public measures (default 4). */
+    minMeasures?: number;
+    /** Show disclosure for remaining public fields not in the strip. */
+    showFullDetails?: boolean;
+    detailsSummaryEn?: string;
+    detailsSummaryEs?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Next free time chip — fetches `/api/public/booking/slots` for a bookable
  * offering (authored id, or the first slot-eligible offering on the page).
  * Renders nothing when the list is empty.
@@ -2473,6 +2509,7 @@ export type BuilderNode =
   | BuilderVisitNode
   | BuilderContentsNode
   | BuilderMastheadNode
+  | BuilderCompCardNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

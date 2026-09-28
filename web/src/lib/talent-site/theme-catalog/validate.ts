@@ -75,6 +75,7 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "visit",
   "contents",
   "masthead",
+  "comp_card",
   "next_free_chip",
 ]);
 

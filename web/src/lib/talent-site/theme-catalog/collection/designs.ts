@@ -29,6 +29,7 @@ import {
   reviewsBlock,
   visitBlock,
   contentsBlock,
+  compCardBlock,
   heroCentered,
   heroCover,
   heroMasthead,
@@ -392,7 +393,7 @@ export function buildFramePayload(): DesignPayload {
 // ── Folio ────────────────────────────────────────────────────────────────────
 // Magazine masthead (giant stacked words + B&W cover), Contents index,
 // the book as shared W-12 chapter blocks (sticky numeral + title + credit,
-// 1 large + 2 smaller), a rate card of rows grouped by section.
+// 1 large + 2 smaller), shared comp-card measure strip, a rate card of rows.
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
   const hero = heroMasthead(id, {
@@ -425,6 +426,7 @@ export function buildFolioPayload(): DesignPayload {
           { label: "Lookbook", anchor: "chapter-2" },
           { label: "Portraits", anchor: "chapter-3" },
           { label: "About", anchor: "about" },
+          { label: "Measures", anchor: "comp_card" },
           { label: "Rates", anchor: "services" },
           { label: "Contact", anchor: "contact" },
         ],
@@ -456,6 +458,11 @@ export function buildFolioPayload(): DesignPayload {
         },
       ]),
       aboutBlock(id, { align: "start", accent: false }),
+      compCardBlock(id, {
+        layout: "strip_with_details",
+        showFullDetails: true,
+        minMeasures: 4,
+      }),
       servicesSection(id, {
         label: "Rate card",
         eyebrow: "Booking",

@@ -23,6 +23,7 @@ import {
   reviewsBlock,
   visitBlock,
   contentsBlock,
+  compCardBlock,
   heroCentered,
   heroCover,
   heroMasthead,
@@ -103,6 +104,14 @@ const SECTIONS: Array<[string, BuilderNode]> = [
         { label: "Editorial", anchor: "chapter-1" },
         { label: "Lookbook", anchor: "chapter-2" },
       ],
+    }),
+  ],
+  [
+    "compCardBlock strip",
+    compCardBlock(ids(), {
+      layout: "strip_with_details",
+      showFullDetails: true,
+      minMeasures: 4,
     }),
   ],
   ["faqBlock centered", faqBlock(ids(), { heading: "Before your appointment", center: true })],
