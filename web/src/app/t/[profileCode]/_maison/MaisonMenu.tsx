@@ -34,6 +34,7 @@ import { formatMoney } from "@/lib/talent/offerings-money";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import type { OfferingRequestDetail } from "../_shared/OfferingCta";
+import { offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 
 export type MaisonMenuCategory = { id: string; label: string; note?: string | null };
 
@@ -51,6 +52,7 @@ export { durationLabel };
 function detailFor(o: TalentOffering): OfferingRequestDetail {
   const cta = resolveOfferingCta(o);
   const instant = cta === "book_now" || cta === "buy_now";
+  const where = offeringWhereFromAttributes(o.attributes);
   return {
     offeringId: o.id,
     talentProfileId: o.talentProfileId,
@@ -73,6 +75,8 @@ function detailFor(o: TalentOffering): OfferingRequestDetail {
     // the shared sheet, so the seat cap silently stops applying.
     capacityPoolId: o.capacityPoolId,
     intent: instant ? "instant" : "request",
+    description: o.description,
+    where: where.length ? where : undefined,
   };
 }
 

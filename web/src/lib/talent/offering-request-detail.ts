@@ -3,6 +3,11 @@
  * Max/vanity catalog islands never type- or value-import the hub route folder.
  */
 
+/** Delivery / location values stored on `talent_offerings.attributes.where`. */
+export type OfferingDeliveryWhere = "studio" | "client" | "remote" | "agreed";
+
+const WHERE_KEYS = new Set<string>(["studio", "client", "remote", "agreed"]);
+
 export type OfferingRequestDetail = {
   offeringId: string;
   talentProfileId: string | null;
@@ -30,4 +35,54 @@ export type OfferingRequestDetail = {
   capacityPoolId?: string | null;
   /** 'request' → inquiry/chat · 'instant' → direct booking */
   intent: "request" | "instant";
+  /**
+   * Per-service inquiry brief body — existing `talent_offerings.description`.
+   * Surfaced in the shared booking/inquiry sheet when present.
+   */
+  description?: string | null;
+  /**
+   * Delivery / location from existing `attributes.where` jsonb.
+   * No new columns — read-only projection of the offering attribute.
+   */
+  where?: OfferingDeliveryWhere[];
 };
+
+/** Read `attributes.where` without inventing schema. Unknown entries are dropped. */
+export function offeringWhereFromAttributes(
+  attributes: Record<string, unknown> | null | undefined,
+): OfferingDeliveryWhere[] {
+  const raw = attributes?.where;
+  if (!Array.isArray(raw)) return [];
+  const out: OfferingDeliveryWhere[] = [];
+  for (const item of raw) {
+    if (typeof item === "string" && WHERE_KEYS.has(item)) {
+      out.push(item as OfferingDeliveryWhere);
+    }
+  }
+  return out;
+}
+
+const WHERE_LABELS_EN: Record<OfferingDeliveryWhere, string> = {
+  studio: "At studio",
+  client: "At client",
+  remote: "Remote",
+  agreed: "By agreement",
+};
+
+const WHERE_LABELS_ES: Record<OfferingDeliveryWhere, string> = {
+  studio: "En el estudio",
+  client: "A domicilio",
+  remote: "Remoto",
+  agreed: "A convenir",
+};
+
+/** Localized delivery line for catalog rows and the inquiry brief sheet. */
+export function formatOfferingWhereLabel(
+  where: readonly OfferingDeliveryWhere[],
+  locale?: string | null,
+): string {
+  if (!where.length) return "";
+  const es = (locale ?? "es").toLowerCase().startsWith("es");
+  const labels = es ? WHERE_LABELS_ES : WHERE_LABELS_EN;
+  return where.map((w) => labels[w]).filter(Boolean).join(" · ");
+}

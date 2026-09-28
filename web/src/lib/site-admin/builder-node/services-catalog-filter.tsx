@@ -5,7 +5,11 @@ import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
-import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import {
+  formatOfferingWhereLabel,
+  offeringWhereFromAttributes,
+  type OfferingRequestDetail,
+} from "@/lib/talent/offering-request-detail";
 import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/components/public-booking/CatalogBookingSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
@@ -53,6 +57,7 @@ function detailFor(
   bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
 ): OfferingRequestDetail {
   const { instant } = deriveFor(offering, confirmsByHand, bookingPosture);
+  const where = offeringWhereFromAttributes(offering.attributes);
   return {
     offeringId: offering.id,
     talentProfileId: offering.talentProfileId,
@@ -74,6 +79,8 @@ function detailFor(
     inventoryQty: offering.inventoryQty,
     capacityPoolId: offering.capacityPoolId,
     intent: instant ? "instant" : "request",
+    description: offering.description,
+    where: where.length ? where : undefined,
   };
 }
 
@@ -573,13 +580,8 @@ export function CatalogRow({
     confirmsByHand,
     bookingPosture,
   });
-  const where = Array.isArray(item.attributes?.where)
-    ? (item.attributes.where as string[])
-    : [];
-  const whereLabels: Record<string, string> = es
-    ? { studio: "En el estudio", client: "A domicilio", remote: "Remoto", agreed: "A convenir" }
-    : { studio: "At studio", client: "At client", remote: "Remote", agreed: "By agreement" };
-  const deliveryText = where.map((w) => whereLabels[w] ?? w).filter(Boolean).join(" · ");
+  const where = offeringWhereFromAttributes(item.attributes);
+  const deliveryText = formatOfferingWhereLabel(where, locale);
   const badges: string[] = [];
   if (showBadges) {
     if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");

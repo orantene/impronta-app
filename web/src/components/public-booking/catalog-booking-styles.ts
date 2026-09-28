@@ -24,6 +24,8 @@ export const CATALOG_BOOKING_CSS = `
 .jb-summary strong{font-size:1.25rem;font-variant-numeric:tabular-nums}
 .jb-incl{margin:10px 0 0;font-size:.875rem;color:var(--cb-primary)}
 .jb-fixture{margin:10px 0 0;font-size:.8125rem;line-height:1.5;color:var(--cb-muted)}
+.jb-brief{margin:12px 0 0;font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
+.jb-delivery{margin:8px 0 0;font-size:.8125rem;line-height:1.45;color:var(--cb-muted)}
 .jb-group{border:0;margin:0 0 22px;padding:0;display:grid;gap:8px}
 .jb-group legend{padding:0 0 10px;font-size:.9375rem;font-weight:600;display:flex;align-items:center;gap:8px}
 .jb-req,.jb-opt-tag{font-size:.6875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:99px}
