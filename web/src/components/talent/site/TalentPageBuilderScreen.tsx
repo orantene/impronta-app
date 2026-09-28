@@ -21,6 +21,7 @@ import { useCallback } from "react";
 
 import { TalentMaxBuilderMount } from "./TalentMaxBuilderMount";
 import { TalentSiteShellBuilderMount } from "./TalentSiteShellBuilderMount";
+import { EDITOR_CANVAS_REVEAL_CSS } from "./editor-canvas-reveal-css";
 import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { siteCapabilityDeniedMessageClient } from "@/lib/talent-site/free-site-capability-denied-copy";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
@@ -203,6 +204,8 @@ export function TalentPageBuilderScreen({
       // gap / behind the chrome. Was the legacy dark #0E0E11.
       style={{ minHeight: "100vh", background: CHROME.canvasWorkspace }}
     >
+      {/* AUD-035: canvas shows reveal-lane nodes at final state (editor only). */}
+      <style>{EDITOR_CANVAS_REVEAL_CSS}</style>
       {shellMode ? (
         <TalentSiteShellBuilderMount
           talentProfileId={talentProfileId}

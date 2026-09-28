@@ -31,6 +31,7 @@ export function MaisonSetupHost({
   forceScreen,
   onForceScreenConsumed,
   siteLive = false,
+  onEnabledChange,
 }: {
   /** Close detail → stay on /talent/site manager chrome below. */
   onCloseToSite?: () => void;
@@ -45,6 +46,11 @@ export function MaisonSetupHost({
    * restore), so "Choose a design" never sits under the My website card.
    */
   siteLive?: boolean;
+  /**
+   * AUD-034: reports the Maison setup flag once the bootstrap resolves so the
+   * manager can hide the legacy starter-template gallery (one design gallery).
+   */
+  onEnabledChange?: (enabled: boolean) => void;
 }) {
   const rawLocale = useDashboardLocale();
   const locale: MaisonSetupLocale = rawLocale === "es" ? "es" : "en";
@@ -59,6 +65,9 @@ export function MaisonSetupHost({
   /** True once Change design / restore opened a screen while the site is live. */
   const [explicitOpen, setExplicitOpen] = useState(false);
   const serverPersistTimer = useRef<number | null>(null);
+  const reportEnabled = useEffectEvent((value: boolean) => {
+    onEnabledChange?.(value);
+  });
   const consumeForceScreen = useEffectEvent(() => {
     onForceScreenConsumed?.();
   });
@@ -79,9 +88,11 @@ export function MaisonSetupHost({
       if (!alive) return;
       if (!boot.enabled) {
         setEnabled(false);
+        reportEnabled(false);
         return;
       }
       setEnabled(true);
+      reportEnabled(true);
       setTalentProfileId(boot.talentProfileId);
       setSitePublished(boot.sitePublished);
       setLiveLookSlug(boot.themeLookSlug);

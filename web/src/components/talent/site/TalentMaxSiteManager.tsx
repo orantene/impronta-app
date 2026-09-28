@@ -141,6 +141,7 @@ function ManagerBody({
   const [publishErrorCode, setPublishErrorCode] = useState<string | null>(null);
   const [publishedJustNow, setPublishedJustNow] = useState(false);
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
+  const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
 
   const maisonLive =
     Boolean(state.sitePublishedAt) && state.themeDesignSlug === "maison";
@@ -282,12 +283,11 @@ function ManagerBody({
         }}
         onCloseToSite={() => setMaisonForceScreen(null)}
         siteLive={maisonLive}
+        onEnabledChange={setMaisonSetupEnabled}
       />
 
-      {/* Starter template gallery; the theme gallery replaces it only when
-          TALENT_THEME_GALLERY_ENABLED is on (read server-side). */}
-      {/* Live Maison: My website card only, no gallery under it (audit P0). */}
-      {maisonLive ? null : (
+      {/* Starter gallery hidden when live Maison (P0) or Maison flag on (AUD-034). */}
+      {maisonLive || maisonSetupEnabled ? null : (
         <ManagerThemeGallery
           locale={locale}
           onApplied={onReload}
