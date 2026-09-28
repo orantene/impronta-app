@@ -21,7 +21,7 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
-import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
@@ -248,7 +248,8 @@ export async function renderTalentMaxSite(
 
     // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
     const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const blocks = localiseSeededDesignLabels(pruneUnconfirmedGuestStubs(body), input.locale);
+    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale: input.locale, logoUrl: site.logoUrl, shellTree, body });
+    const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
@@ -261,7 +262,7 @@ export async function renderTalentMaxSite(
     const nav = buildMaxSiteNav(navSource);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
-      localiseSeededDesignLabels(shellTree, input.locale),
+      fixed.shellTree,
       nav,
       site.siteSlug,
       publicPathPrefix,
@@ -749,7 +750,7 @@ async function renderMaxSiteDocument(args: {
           styleClasses,
           dataSources: pricedDataSources,
           components,
-          componentStyleDefaults,
+          componentStyleDefaults: readableButtonDefaults(componentStyleDefaults, effectiveTokens),
           captcha: captchaConfig,
           visitorLocale: locale,
           ...experimentContext,

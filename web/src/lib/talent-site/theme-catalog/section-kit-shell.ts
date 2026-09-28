@@ -105,6 +105,8 @@ export function buildKitShell(
 
   const headerStyle: Record<string, unknown> = {
     justifyContent: headerJustify,
+    // 1.5rem gutter so the brand never sits flush at the 390 edge.
+    paddingX: "m",
     ...(opts.headerPaddingY ? { paddingY: opts.headerPaddingY } : {}),
     ...(opts.headerRule
       ? { borderColor: "token:color.accent", borderWidth: "0 0 1px 0", borderStyle: "solid" }
@@ -180,12 +182,40 @@ export function buildKitShell(
  */
 export function buildKitStandardShell(
   makeId: KitIdFactory,
-  opts: Pick<KitShellOptions, "displayName" | "logoUrl" | "homeHref" | "year">,
+  opts: Pick<
+    KitShellOptions,
+    "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks"
+  >,
 ): BuilderNode[] {
-  const [header, footer, ...rest] = buildDefaultShellTree(
+  const [rawHeader, footer, ...rest] = buildDefaultShellTree(
     { displayName: opts.displayName, logoUrl: opts.logoUrl, homeHref: opts.homeHref },
     makeId,
   );
+  // Per-design nav style + links ride on the standard `site_header` config
+  // (`navChrome` / `navItems` share the builder `nav` enum), so a Design keeps
+  // its own navigation while wearing the platform header (logo, ES/EN, CTA,
+  // mobile menu).
+  const header = ((): BuilderNode | undefined => {
+    if (!rawHeader) return rawHeader;
+    const hasLinks = !!opts.navLinks && opts.navLinks.length > 0;
+    const hasChrome = !!opts.navChrome && opts.navChrome !== "top_bar";
+    if (!hasLinks && !hasChrome) return rawHeader;
+    const props = (rawHeader.props ?? {}) as Record<string, unknown>;
+    const sectionProps = (props.sectionProps ?? {}) as Record<string, unknown>;
+    return {
+      ...rawHeader,
+      props: {
+        ...props,
+        sectionProps: {
+          ...sectionProps,
+          ...(hasLinks
+            ? { navItems: opts.navLinks!.map((l) => ({ label: l.label, href: l.href })) }
+            : {}),
+          ...(hasChrome ? { navChrome: opts.navChrome } : {}),
+        },
+      },
+    } as BuilderNode;
+  })();
   const withYear = (node: BuilderNode): BuilderNode => {
     if (opts.year === undefined || !("children" in node) || !Array.isArray(node.children)) {
       return node;
