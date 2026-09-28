@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAdminShellOptional } from "@/components/admin/shell/internal/state/context";
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { loadMaisonDesignOptionsStateAction } from "@/lib/talent-site/server/maison-options-actions";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
@@ -66,8 +67,16 @@ export function MyWebsiteCard({
   /** null = unknown (options state unavailable) → the line is not shown. */
   const [hasPending, setHasPending] = useState<boolean | null>(null);
   const hasNamedPalette = lookToPalette(themeLookSlug) !== null;
-  // Same-origin path: the vanity domain refuses to be framed from the app host.
-  const thumbSrc = siteSlug ? `/t/site/${encodeURIComponent(siteSlug)}` : publicSiteUrl;
+  // The live vanity domain refuses to be framed from the app host (and
+  // /t/site 308s to it), so the thumbnail renders the applied design with the
+  // talent's own content through the same-origin design preview.
+  const talentId = useAdminShellOptional()?.bridgeTalentSelfProfile?.id ?? null;
+  const thumbSrc =
+    talentId && themeDesignSlug
+      ? `/template-preview/${encodeURIComponent(themeDesignSlug)}?kind=talent-theme${
+          themeLookSlug ? `&look=${encodeURIComponent(themeLookSlug)}` : ""
+        }&talent=${talentId}&talentProfileId=${talentId}`
+      : null;
 
   useEffect(() => {
     if (hasNamedPalette) return;

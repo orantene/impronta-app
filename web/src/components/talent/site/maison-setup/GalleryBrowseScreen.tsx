@@ -205,7 +205,7 @@ export function GalleryBrowseScreen({
           className="relative block w-full text-left"
           aria-label={`${t("Explore")} ${d.name}`}
         >
-          <ThemeGalleryPreviewFrame preview={preview} url={preview.src(d.slug, lookSlug)} locale={locale} title={d.name} />
+          <ThemeGalleryPreviewFrame preview={preview} url={preview.src(d.slug, lookSlug)} locale={locale} title={d.name} virtualWidth={1280} aspectRatio="4 / 3" />
           {badge ? (
             <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-admin-ink shadow-sm">
               {badge}
@@ -540,7 +540,7 @@ export function GalleryBrowseScreen({
         </div>
       </div>
 
-      {suggestedNames.length && !liveAddress ? (
+      {suggestedNames.length ? (
         <p className="text-[13.5px] text-admin-ink-muted">
           {suggestedNames.length >= 2
             ? t("Suggested from your profile: {a} and {b}. Every theme stays open to you.", {
