@@ -134,4 +134,25 @@ describe("OfflineBanner", () => {
       expect(container.querySelector(BANNER)).toBeNull();
     });
   });
+
+  it("yields to sticky save bars and open dialog sheets (AUD-046)", async () => {
+    // At 390 the banner (z-350) covered Website settings Save and sheet
+    // footers. The injected CSS must hide it while those chrome pieces exist.
+    setBrowserOnline(false);
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    const { container } = testRender(<OfflineBanner />);
+    await waitFor(() => {
+      expect(container.querySelector(BANNER)).not.toBeNull();
+    });
+
+    const css = Array.from(container.querySelectorAll("style"))
+      .map((el) => el.textContent ?? "")
+      .join("\n");
+    expect(css).toMatch(/data-tulala-sticky-save-bar/);
+    expect(css).toMatch(/data-tulala-drawer-footer/);
+    expect(css).toMatch(/role="dialog"\]\[data-state="open"\]/);
+    expect(css).toMatch(/\.sticky\.bottom-0/);
+    expect(css).toMatch(/display:\s*none\s*!important/);
+  });
 });
