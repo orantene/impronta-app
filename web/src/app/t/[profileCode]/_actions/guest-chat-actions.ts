@@ -27,6 +27,7 @@
  */
 
 import { loadGuestThreadV5Extras } from "./guest-thread-v5";
+import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -691,6 +692,10 @@ export async function startGuestChatInquiry(
   const tenantId = await resolveTenantIdBySlug(admin, input.tenantSlug);
   if (!tenantId) {
     return fail("tenant_unavailable", "We couldn't find this workspace.");
+  }
+
+  if (talentProfileId && (await anyDemoTalent(admin, [talentProfileId]))) {
+    return fail("talent_unavailable", DEMO_SUBMIT_REFUSAL);
   }
 
   // SECURITY (L1-F1): the targeted talent id is client-supplied and the insert
@@ -1888,6 +1893,10 @@ export async function ensureGuestChatInquiry(
     }
 
     const talentProfileId = input.talentProfileId?.trim() || null;
+
+    if (talentProfileId && (await anyDemoTalent(admin, [talentProfileId]))) {
+      return fail("talent_unavailable", DEMO_SUBMIT_REFUSAL);
+    }
 
     // SECURITY (mirrors startGuestChatInquiry): the talent id is client-supplied
     // and the insert runs under the service-role client, so verify the talent is

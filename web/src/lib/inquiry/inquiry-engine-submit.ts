@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveNextActionBy } from "./inquiry-lifecycle";
+import { anyDemoTalent } from "@/lib/talent/demo-talent";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
@@ -144,6 +145,10 @@ export async function submitInquiry(
     }
     // Phase A (channel invariant): no lead without a known channel.
     if (!input.source_channel) return { success: false, error: "source_channel_required" };
+    // Demo talents are fictional: never create a real inquiry for them.
+    if (await anyDemoTalent(createServiceRoleClient() ?? supabase, input.talent_profile_ids)) {
+      return { success: false, error: "demo_talent" };
+    }
 
     // Universal-connector P0 — rate-limit per actor identity.
     //   • authenticated user: 5/hour per user (existing)

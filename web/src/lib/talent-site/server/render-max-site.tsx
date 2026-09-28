@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { ReactNode } from "react";
+import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill } from "./render-max-site-demo";
+import { splitShell } from "./render-max-site-shell";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -271,6 +273,9 @@ export async function renderTalentMaxSite(
     // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
     const identity = await loadTalentSiteIdentity(talentProfileId);
 
+    // ── Demo talent (fictional theme example): Demo pill + footer line ──────
+    const isDemo = await loadMaxSiteIsDemo(talentProfileId);
+
     // ── Site-level theme tokens (theme gallery). `{}` while the switch is off
     //    or nothing is applied → the cascade below is exactly today's. ────────
     const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, {
@@ -291,6 +296,7 @@ export async function renderTalentMaxSite(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan
       // removes it (same predicate as the /t/[code] profile footer).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
+      isDemo,
     });
 
     const seo = buildMaxSiteSeo({
@@ -417,6 +423,8 @@ async function renderMaxSiteDocument(args: {
   draftPreview: boolean;
   /** PHASE 1 — render the "Made with Tulala" footer mark (free sites only). */
   showPlatformBadge: boolean;
+  /** Fictional demo talent: a Demo pill above the header + a footer line. */
+  isDemo?: boolean;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -688,6 +696,8 @@ async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
+      {args.isDemo ? <MaxSiteDemoPill /> : null}
+
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (
           // The landmark's bespoke component renders its own <header.site-header>,
@@ -748,6 +758,8 @@ async function renderMaxSiteDocument(args: {
         </footer>
       ) : null}
 
+      {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
+
       {/* PHASE 1 — the free site's platform mark. Paid plans remove it. */}
       {showPlatformBadge ? (
         <div
@@ -766,33 +778,6 @@ async function renderMaxSiteDocument(args: {
       ) : null}
     </div>
   );
-}
-
-/**
- * Split the shell tree into HEADER and FOOTER node sets. The default shell
- * (`buildDefaultShellTree`) emits exactly two roots — a header container then a
- * footer container, distinguished by `props.layerLabel`. We honor that label
- * when present; otherwise the FIRST root is the header and the LAST is the
- * footer (any middle roots ride with the header). A single-root shell renders
- * entirely as the header (no footer), which is harmless. Pure + degrade-safe.
- */
-function splitShell(shellTree: BuilderNode[]): [BuilderNode[], BuilderNode[]] {
-  if (shellTree.length === 0) return [[], []];
-
-  const labelOf = (n: BuilderNode): string =>
-    String((n.props as { layerLabel?: unknown })?.layerLabel ?? "").toLowerCase();
-
-  const footerByLabel = shellTree.filter((n) => labelOf(n).includes("footer"));
-  if (footerByLabel.length > 0) {
-    const footerSet = new Set(footerByLabel);
-    const header = shellTree.filter((n) => !footerSet.has(n));
-    return [header, footerByLabel];
-  }
-
-  if (shellTree.length === 1) return [shellTree, []];
-  const header = shellTree.slice(0, shellTree.length - 1);
-  const footer = shellTree.slice(shellTree.length - 1);
-  return [header, footer];
 }
 
 // Re-export the published-page render data type for any caller that wants the
