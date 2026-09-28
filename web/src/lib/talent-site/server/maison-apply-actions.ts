@@ -27,6 +27,7 @@ import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import {
   captureMaisonDraftSnapshot,
   isMaisonPendingUndo,
@@ -62,6 +63,11 @@ export async function applyMaisonDesignAction(input: {
   designSlug?: string;
   contentMode?: string;
   customPalette?: MaisonCustomPaletteStored | null;
+  /**
+   * P4: gallery-meta palette key for a non-Maison design. Applied through
+   * the custom-colors path (same token writer) with the palette's own name.
+   */
+  galleryPaletteKey?: string | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
@@ -77,7 +83,21 @@ export async function applyMaisonDesignAction(input: {
   }
   const designSlug = requestedSlug;
 
-  const customParsed = input?.customPalette
+  const galleryPalette =
+    designSlug !== DESIGN_SLUG && input?.galleryPaletteKey && !input?.customPalette
+      ? getGalleryDesign(designSlug)?.palettes.find((p) => p.key === input.galleryPaletteKey) ?? null
+      : null;
+  const customParsed = galleryPalette
+    ? buildMaisonCustomPalette(
+        {
+          page: galleryPalette.page,
+          text: galleryPalette.text,
+          accent: galleryPalette.accent,
+          section: galleryPalette.section,
+        },
+        galleryPalette.name,
+      )
+    : input?.customPalette
     ? parseMaisonCustomPaletteStored(input.customPalette) ??
       (isCompleteCustomFields(input.customPalette.fields)
         ? buildMaisonCustomPalette(

@@ -29,6 +29,8 @@ import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/cata
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
+import { resolveDemoPreviewSource } from "./demo-preview-source";
+import { resolveDemoPreviewHydration } from "./demo-preview-hydration";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -37,7 +39,10 @@ export async function ThemeCatalogPreview({
   lookSlug,
   talentProfileId,
   locale = "en",
+  demo = null,
 }: {
+  /** P4: `<designSlug>:<demoKey>`; only gallery-meta demo sources resolve. */
+  demo?: string | null;
   designSlug: string;
   lookSlug?: string | null;
   talentProfileId?: string | null;
@@ -69,7 +74,12 @@ export async function ThemeCatalogPreview({
       : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
 
-  const hydration = await resolvePreviewHydration(talentProfileId);
+  // P4: a gallery-meta demo talent's content (allow-listed), else the
+  // owner-gated hydration exactly as before.
+  const demoSource = resolveDemoPreviewSource(designSlug, demo);
+  const hydration =
+    (demoSource ? await resolveDemoPreviewHydration(demoSource) : null) ??
+    (await resolvePreviewHydration(talentProfileId));
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
