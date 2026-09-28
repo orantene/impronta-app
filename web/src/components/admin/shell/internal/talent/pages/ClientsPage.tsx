@@ -1,20 +1,261 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { loadTalentClients } from "@/lib/talent/clients-actions";
+import {
+  clientInitials,
+  clientsRowAction,
+  countClientsByFilter,
+  filterClientsDirectory,
+  type ClientsFilter,
+  type ClientsRowAction,
+} from "@/lib/talent/clients-directory";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
 
+const FILTERS: { id: ClientsFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "upcoming", label: "Upcoming" },
+  { id: "outstanding", label: "Outstanding" },
+  { id: "follow", label: "Follow-up" },
+  { id: "fresh", label: "New" },
+];
+
+function formatMoney(cents: number, currency: string | null): string {
+  const amount = Math.round(cents) / 100;
+  const code = (currency ?? "").trim().toUpperCase();
+  const formatted = amount.toLocaleString(undefined, {
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+  return code ? `$${formatted} ${code}` : `$${formatted}`;
+}
+
+function formatDay(iso: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function actionLabel(action: ClientsRowAction, t: (s: string) => string): string {
+  switch (action.kind) {
+    case "review_request":
+      return t("Review request");
+    case "view_hold":
+      return t("View hold");
+    case "view_appointment":
+      return t("View appointment");
+    case "request_payment":
+      return t("Request payment");
+    case "book_appointment":
+      return t("Book appointment");
+  }
+}
+
+function nextStatusLabel(
+  status: TalentClientRow["nextStatus"],
+  t: (s: string) => string,
+): string {
+  if (status === "hold") return t("On hold");
+  if (status === "requested") return t("Requested");
+  if (status === "confirmed") return t("Confirmed");
+  return "";
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <span
+      aria-hidden
+      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--admin-ink)_8%,transparent)] font-admin-body text-[13px] font-semibold text-admin-ink"
+    >
+      {clientInitials(name)}
+    </span>
+  );
+}
+
+function FilterChips(props: {
+  filter: ClientsFilter;
+  counts: Record<ClientsFilter, number>;
+  onChange: (f: ClientsFilter) => void;
+  t: (s: string) => string;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={props.t("Clients")}
+      className="flex gap-2 overflow-x-auto pb-1"
+      data-clients-filters
+    >
+      {FILTERS.map((f) => {
+        const selected = props.filter === f.id;
+        return (
+          <button
+            key={f.id}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => props.onChange(f.id)}
+            className={
+              selected
+                ? "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-admin-ink px-3.5 font-admin-body text-[14px] font-semibold text-white"
+                : "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-admin-border-soft bg-white px-3.5 font-admin-body text-[14px] text-admin-ink"
+            }
+          >
+            {props.t(f.label)}
+            <span className="opacity-75 tabular-nums">{props.counts[f.id]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function OutstandingCell({ row, t }: { row: TalentClientRow; t: (s: string) => string }) {
+  if (row.amountOwedCents == null || row.amountOwedCents <= 0) {
+    return <span className="text-admin-ink-muted">{t("None")}</span>;
+  }
+  const risk = row.overdue;
+  return (
+    <span className={risk ? "text-destructive" : "text-admin-ink"}>
+      <span className="font-semibold">{formatMoney(row.amountOwedCents, row.currency)}</span>
+      <span className="mt-0.5 block text-[12px]">
+        {risk ? t("overdue") : t("at the appointment")}
+      </span>
+    </span>
+  );
+}
+
+function ClientRecord(props: {
+  row: TalentClientRow;
+  onBack: () => void;
+  t: (s: string) => string;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const { row, t, router } = props;
+  const action = clientsRowAction(row);
+  return (
+    <div data-clients-record>
+      <button
+        type="button"
+        onClick={props.onBack}
+        className="mb-3 font-admin-body text-[13.5px] text-admin-ink-muted"
+      >
+        ‹ {t("Back to Clients")}
+      </button>
+      <div className="flex items-start gap-3.5">
+        <Avatar name={row.name} />
+        <div className="min-w-0 flex-1">
+          <h2 className="font-admin-display text-[22px] font-semibold text-admin-ink">{row.name}</h2>
+          <p className="mt-0.5 font-admin-body text-[14px] text-admin-ink-muted">
+            {[row.phone, row.email].filter(Boolean).join(" · ") || t("Client")}
+          </p>
+          <p className="mt-1 font-admin-body text-[13px] text-admin-ink-muted">
+            {row.source === "booking" ? t("From a booking") : t("From a message")}
+            {row.completedCount > 0
+              ? ` · ${row.completedCount} ${t("completed")}`
+              : ` · ${t("No work yet")}`}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[12px] border-[1.5px] border-admin-ink bg-white p-4">
+        <div className="text-[12px] font-bold uppercase tracking-wide text-admin-ink-muted">
+          {t("Next")}
+        </div>
+        {row.nextStartsAt ? (
+          <>
+            <div className="mt-1 font-admin-body text-[17px] font-bold text-admin-ink">
+              {formatDay(row.nextStartsAt)}
+            </div>
+            <div className="mt-1 text-[13px] font-semibold text-admin-ink-muted">
+              {nextStatusLabel(row.nextStatus, t)}
+            </div>
+          </>
+        ) : (
+          <div className="mt-1 font-admin-body text-[15px] text-admin-ink-muted">
+            {t("Nothing booked")}
+          </div>
+        )}
+        {row.amountOwedCents != null && row.amountOwedCents > 0 ? (
+          <div className="mt-2.5 border-t border-admin-border-soft pt-2.5">
+            <div className="flex items-baseline gap-2">
+              <span className="flex-1 text-[14.5px]">{t("Outstanding")}</span>
+              <span className="font-semibold">
+                {formatMoney(row.amountOwedCents, row.currency)}
+              </span>
+            </div>
+            <p className="mt-1 text-[13px] text-admin-ink-muted">
+              {t("Due at the appointment · the same amount shows in Money and on the booking")}
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {row.conversationHref ? (
+          <button
+            type="button"
+            className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] font-semibold text-admin-ink"
+            onClick={() => router.push(row.conversationHref!)}
+          >
+            {t("Message")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] font-semibold text-admin-ink"
+          onClick={() => router.push(action.href || "/talent/calendar")}
+        >
+          {actionLabel(action, t)}
+        </button>
+        {row.completedCount > 0 || !row.nextStartsAt ? (
+          <button
+            type="button"
+            className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-admin-ink px-4 font-admin-body text-[14px] font-semibold text-white"
+            onClick={() => router.push("/talent/calendar")}
+          >
+            {t("Book appointment")}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-5">
+        <h3 className="font-admin-body text-[14px] font-semibold text-admin-ink">
+          {t("Work and payments")}
+        </h3>
+        <p className="mt-1 text-[13px] text-admin-ink-muted">
+          {row.completedCount > 0
+            ? `${row.completedCount} ${t("completed")}${
+                row.lastVisit ? ` · ${formatDay(row.lastVisit)}` : ""
+              }`
+            : t("No work yet")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function TalentClientsPage() {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const copy = useDashboardText();
+  const t = copy.t;
   const router = useRouter();
   const [items, setItems] = useState<TalentClientRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ClientsFilter>("all");
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   useEffect(() => {
@@ -34,80 +275,261 @@ export function TalentClientsPage() {
     };
   }, [talentId]);
 
+  const counts = useMemo(
+    () => countClientsByFilter(items ?? []),
+    [items],
+  );
+  const visible = useMemo(
+    () =>
+      filterClientsDirectory({
+        items: items ?? [],
+        filter,
+        query,
+      }),
+    [items, filter, query],
+  );
+  const selected = items?.find((r) => r.id === selectedId) ?? null;
+
+  if (selected) {
+    return (
+      <div>
+        <PageHeader title={selected.name} subtitle={t("Client")} />
+        <ClientRecord
+          row={selected}
+          onBack={() => setSelectedId(null)}
+          t={t}
+          router={router}
+        />
+      </div>
+    );
+  }
+
+  const total = items?.length ?? 0;
+  const subtitle =
+    items == null
+      ? t("People who booked or messaged you")
+      : `${total} ${t("people you have worked with or talked to")}`;
+
   return (
-    <div>
+    <div data-clients-directory>
       <PageHeader
-        title={copy.t("Clients")}
-        subtitle={copy.t("People who booked or messaged you")}
+        title={t("Clients")}
+        subtitle={subtitle}
+        actions={
+          <button
+            type="button"
+            className="inline-flex h-9 items-center rounded-full bg-admin-ink px-3.5 font-admin-body text-[13px] font-semibold text-white"
+            onClick={() => {
+              /* Add client sheet is K3+ — keep CTA visible, honest no-op path via calendar for now */
+              router.push("/talent/calendar");
+            }}
+          >
+            {t("Add client")}
+          </button>
+        }
       />
+
       {!talentId && (
         <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">
-          {copy.t("Your clients will appear here once your talent profile is set up.")}
+          {t("Your clients will appear here once your talent profile is set up.")}
         </p>
       )}
       {talentId && items === null && (
-        <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{copy.t("Loading")}</p>
+        <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{t("Loading")}</p>
       )}
       {error && (
         <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink">
-          {error} {copy.t("Refresh the page and try again.")}
+          {error} {t("Refresh the page and try again.")}
         </p>
       )}
-      {items && items.length === 0 && !error && (
-        <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">
-          {copy.t("No one has booked or messaged you yet.")}
-        </p>
-      )}
-      {items && items.length > 0 && (
-        <ul className="divide-y divide-admin-border-soft rounded-[12px] border border-admin-border-soft bg-white">
-          {items.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                onClick={() => setOpenId(openId === row.id ? null : row.id)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-admin-body"
-              >
-                <span>
-                  <span className="block text-[14px] font-semibold text-admin-ink">{row.name}</span>
-                  <span className="block text-[12px] text-admin-ink-muted">
-                    {row.visitCount > 0
-                      ? copy.t("Visits") + ` · ${row.visitCount}`
-                      : copy.t("Messaged you")}
-                    {row.lastVisit
-                      ? ` · ${new Date(row.lastVisit).toLocaleDateString()}`
-                      : ""}
-                  </span>
-                </span>
-                <span className="text-[12px] text-admin-ink-muted">
-                  {row.amountOwedCents == null
-                    ? copy.t("Nothing owed on file")
-                    : `${row.currency ?? ""} ${Math.round(row.amountOwedCents / 100)}`}
-                </span>
-              </button>
-              {openId === row.id && (
-                <div className="border-t border-admin-border-soft bg-[rgba(11,11,13,0.03)] px-4 py-3 text-[13px] text-admin-ink">
-                  <p className="font-semibold">{copy.t("Client record")}</p>
-                  <p className="mt-1 text-admin-ink-muted">
-                    {row.source === "booking" ? copy.t("From a booking") : copy.t("From a message")}
-                    {row.visitCount > 0 ? ` · ${row.visitCount} ${copy.t("visits")}` : ""}
-                  </p>
-                  <p className="mt-1 text-admin-ink-muted">
-                    {row.amountOwedCents == null ? copy.t("Nothing owed on file") : copy.t("Balance on file")}
-                  </p>
-                  {row.conversationHref && (
-                    <button
-                      type="button"
-                      className="mt-2 font-semibold text-admin-brand"
-                      onClick={() => router.push(row.conversationHref!)}
-                    >
-                      {copy.t("Open conversation")}
-                    </button>
-                  )}
+
+      {items && (
+        <div className="flex flex-col gap-3">
+          <label className="relative block">
+            <span className="sr-only">{t("Search name, phone or email")}</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("Search name, phone or email")}
+              className="h-11 w-full rounded-[12px] border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] text-admin-ink outline-none placeholder:text-admin-ink-muted focus:border-admin-ink"
+              data-clients-search
+            />
+          </label>
+
+          <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} />
+
+          <p className="px-0.5 font-admin-body text-[13.5px] text-admin-ink-muted">
+            {visible.length} {t("of")} {total} {t("clients")}
+            {filter === "follow"
+              ? ` · ${t("Follow-up suggestions need a rebooking interval on each service. None are ready yet.")}`
+              : ""}
+          </p>
+
+          {visible.length === 0 ? (
+            <p className="rounded-[12px] border border-dashed border-admin-border-soft px-4 py-6 text-center font-admin-body text-[14px] text-admin-ink-muted">
+              {query.trim()
+                ? t("No matching clients")
+                : t("No one has booked or messaged you yet.")}
+            </p>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-hidden rounded-[12px] border border-admin-border-soft bg-white md:block">
+                <div className="grid grid-cols-[1.5fr_1.4fr_1.1fr_0.8fr_190px] gap-3.5 bg-[color-mix(in_srgb,var(--admin-ink)_4%,transparent)] px-4 py-2.5 font-admin-body text-[12.5px] font-semibold text-admin-ink-muted">
+                  <span>{t("Client")}</span>
+                  <span>{t("Last completed")}</span>
+                  <span>{t("Next")}</span>
+                  <span className="text-right">{t("Outstanding")}</span>
+                  <span />
                 </div>
-              )}
-            </li>
-          ))}
-        </ul>
+                {visible.map((row) => {
+                  const action = clientsRowAction(row);
+                  return (
+                    <div
+                      key={row.id}
+                      className="grid grid-cols-[1.5fr_1.4fr_1.1fr_0.8fr_190px] items-center gap-3.5 border-t border-admin-border-soft px-4 py-3"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(row.id)}
+                        className="flex min-w-0 items-center gap-2.5 text-left"
+                      >
+                        <Avatar name={row.name} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[14.5px] font-bold text-admin-ink">
+                            {row.name}
+                          </span>
+                          {row.phone ? (
+                            <span className="block truncate text-[13px] text-admin-ink-muted">
+                              {row.phone}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                      <div className="text-[13.5px] text-admin-ink">
+                        {row.completedCount > 0 ? (
+                          <>
+                            {formatDay(row.lastVisit)}
+                            <div className="text-[12.5px] text-admin-ink-muted">
+                              {row.completedCount} {t("completed")}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-admin-ink-muted">{t("No work yet")}</span>
+                        )}
+                      </div>
+                      <div className="text-[13.5px] text-admin-ink">
+                        {row.nextStartsAt ? (
+                          <>
+                            {formatDay(row.nextStartsAt)}
+                            <div className="mt-0.5 text-[12px] font-semibold text-admin-ink-muted">
+                              {nextStatusLabel(row.nextStatus, t)}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-admin-ink-muted">{t("Nothing booked")}</span>
+                        )}
+                      </div>
+                      <div className="text-right text-[13.5px]">
+                        <OutstandingCell row={row} t={t} />
+                      </div>
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center rounded-full border border-admin-border-soft px-3 font-admin-body text-[13px] font-semibold text-admin-ink"
+                          onClick={() => {
+                            if (action.href) router.push(action.href);
+                          }}
+                        >
+                          {actionLabel(action, t)}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Phone cards */}
+              <ul className="overflow-hidden rounded-[12px] border border-admin-border-soft bg-white md:hidden">
+                {visible.map((row, i) => {
+                  const action = clientsRowAction(row);
+                  return (
+                    <li
+                      key={row.id}
+                      className={i ? "border-t border-admin-border-soft" : undefined}
+                    >
+                      <div className="p-3.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(row.id)}
+                          className="flex w-full items-start gap-3 text-left"
+                        >
+                          <Avatar name={row.name} />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline gap-2">
+                              <span className="flex-1 truncate text-[16px] font-bold text-admin-ink">
+                                {row.name}
+                              </span>
+                              {row.amountOwedCents != null && row.amountOwedCents > 0 ? (
+                                <span
+                                  className={
+                                    row.overdue
+                                      ? "text-[15px] font-semibold text-destructive"
+                                      : "text-[15px] font-semibold text-admin-ink"
+                                  }
+                                >
+                                  {formatMoney(row.amountOwedCents, row.currency)}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 block text-[14px] text-admin-ink-muted">
+                              {row.nextStartsAt
+                                ? `${t("Next")}: ${formatDay(row.nextStartsAt)} · ${nextStatusLabel(row.nextStatus, t)}`
+                                : row.completedCount > 0
+                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit)}` : ""}`
+                                  : t("No work yet")}
+                            </span>
+                          </span>
+                        </button>
+                        {filter === "follow" ? (
+                          <div className="mt-2.5 flex gap-2">
+                            {row.conversationHref ? (
+                              <button
+                                type="button"
+                                className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-admin-border-soft font-admin-body text-[14px] font-semibold"
+                                onClick={() => router.push(row.conversationHref!)}
+                              >
+                                {t("Message")}
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-admin-border-soft font-admin-body text-[14px] font-semibold"
+                              onClick={() => router.push("/talent/calendar")}
+                            >
+                              {t("Book")}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="mt-2.5 inline-flex h-11 w-full items-center justify-center rounded-full border border-admin-border-soft font-admin-body text-[14px] font-semibold text-admin-ink"
+                            onClick={() => {
+                              if (action.href) router.push(action.href);
+                            }}
+                          >
+                            {actionLabel(action, t)}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
