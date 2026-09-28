@@ -152,7 +152,8 @@ export function applySellingTimeToHours(
   };
 }
 
-function hasAnyOpenWindow(hours: BookingHours): boolean {
+/** True when any weekly day or exception opens a window. Shared with the confirm re-check. */
+export function hoursHaveOpenWindow(hours: BookingHours): boolean {
   const weeklyOpen = Object.values(hours.weekly).some((windows) => windows.length > 0);
   if (weeklyOpen) return true;
   // A week closed every day can still be opened by an exception, which is how
@@ -166,7 +167,7 @@ export function computePublicSlots(input: PublicSlotsInput): PublicSlots {
   const timed = input.hours
     ? applySellingTimeToHours(input.hours, input.sellingDefaults, input.offeringBufferAfterMin, input.offeringBufferBeforeMin)
     : null;
-  if (!timed || !hasAnyOpenWindow(timed)) {
+  if (!timed || !hoursHaveOpenWindow(timed)) {
     return { starts: [], reason: "no_booking_hours" };
   }
   const days = clampPublicSlotDays(input.days);

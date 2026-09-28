@@ -1,7 +1,14 @@
 /**
  * Who-step payment honesty copy for CatalogBookingSheet.
  * Display-only — mirrors reserveMode / allowPayInPerson; never a security gate.
+ *
+ * `reserveMode` / `depositPct` must be the EFFECTIVE values from
+ * `resolveOfferingPolicy` (the public loader applies it via
+ * `withEffectivePolicy`), so a talent-default deposit is stated here exactly
+ * as checkout charges it. `whoStepPaymentCopyFor` does that for a raw row.
  */
+
+import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 
 import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
 import {
@@ -76,6 +83,27 @@ export function whoStepPaymentCopy(input: WhoStepPaymentCopyInput): string {
   return es
     ? "No se cobra nada ahora. El pago se realiza en el estudio."
     : "Nothing is charged now. Pay at the studio.";
+}
+
+/**
+ * The payment line for a RAW offering row plus the talent's selling defaults:
+ * resolves the effective deposit first, so the copy and the charge agree.
+ */
+export function whoStepPaymentCopyFor(input: {
+  offering: { reserveMode: OfferingReserveMode; depositPct: number | null; cancellationHours: number | null };
+  sellingDefaults: unknown;
+  allowPayInPerson: boolean;
+  onlineCollectReady?: boolean;
+  locale: string;
+}): string {
+  const effective = resolveOfferingPolicy(input.offering, input.sellingDefaults);
+  return whoStepPaymentCopy({
+    reserveMode: effective.reserveMode,
+    depositPct: effective.depositPct,
+    allowPayInPerson: input.allowPayInPerson,
+    onlineCollectReady: input.onlineCollectReady,
+    locale: input.locale,
+  });
 }
 
 /**

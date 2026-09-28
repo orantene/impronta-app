@@ -11,6 +11,12 @@
  * falling back to event_date (a bare DATE — treated as start-of-day UTC, the
  * conservative reading: the window closes at the earliest plausible moment).
  * No schedule at all ⇒ unenforceable (verdict false, flagged as such).
+ *
+ * `cancellationHours` must be the EFFECTIVE window (offering value, then the
+ * talent's default, then the platform 24 h): callers read it through
+ * `loadEffectiveCancellationHours` / `resolveOfferingPolicy`, never the raw
+ * `talent_offerings.cancellation_hours` column, which is null whenever the
+ * talent chose "Use my default".
  */
 
 export type CancellationWindowVerdict = {

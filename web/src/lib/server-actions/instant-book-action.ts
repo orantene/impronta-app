@@ -107,6 +107,11 @@ export async function createInstantBookingAction(
           const customerFacing =
             booked.reason === "slot_taken"
             || booked.reason === "too_soon"
+            || booked.reason === "inquiry_only"
+            || booked.reason === "request_only"
+            || booked.reason === "bad_duration"
+            || booked.reason === "beyond_horizon"
+            || booked.reason === "outside_hours"
             || booked.reason === "sold_out"
             || booked.reason === "account_required"
             || booked.reason === "pay_in_person_not_allowed"
@@ -123,7 +128,12 @@ export async function createInstantBookingAction(
               booked.reason === "slot_taken"
                 ? ("slot_taken" as const)
                 : booked.reason === "too_soon"
-                  ? ("too_soon" as const)
+                    || booked.reason === "inquiry_only"
+                    || booked.reason === "request_only"
+                    || booked.reason === "bad_duration"
+                    || booked.reason === "beyond_horizon"
+                    || booked.reason === "outside_hours"
+                  ? booked.reason
                   : ("engine_error" as const),
             error: booked.error,
           };

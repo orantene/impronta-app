@@ -1,3 +1,4 @@
+import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
@@ -92,21 +93,17 @@ export function catalogTotalCents(
   return base + extras.reduce((sum, a) => sum + a.amountCents, 0);
 }
 
-/** Base offering minutes + selected extras that carry duration. */
+/**
+ * Base offering minutes + selected extras that carry duration. Delegates to
+ * the server's own rule so the window the sheet sends is the window the
+ * server re-checks (`validateReservationWindow`).
+ */
 export function catalogBookingDurationMinutes(
   baseMinutes: number | null | undefined,
   addOns: readonly { id: string; durationMinutes?: number | null }[],
   selectedIds: readonly string[],
 ): number {
-  const base = typeof baseMinutes === "number" && baseMinutes > 0 ? baseMinutes : 60;
-  let extras = 0;
-  for (const a of addOns) {
-    if (!selectedIds.includes(a.id)) continue;
-    if (typeof a.durationMinutes === "number" && a.durationMinutes > 0) {
-      extras += a.durationMinutes;
-    }
-  }
-  return base + extras;
+  return bookingDurationMinutes(baseMinutes, addOns, selectedIds);
 }
 
 /** True when the guest's picked ISO is still in the freshly projected list. */

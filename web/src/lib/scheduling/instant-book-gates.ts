@@ -13,6 +13,81 @@ import {
   type ReservationStamp,
 } from "./reservation-intent";
 import type { WeekdayIndex, WeeklyHours } from "./hours-types";
+import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+
+/**
+ * Master "is this person taking new bookings at all" switch.
+ *
+ * TODO(Phase 1): read `accepting_bookings` once that column exists. It is not
+ * in the schema yet, so this always answers ok; it is the single hook the
+ * column will plug into, evaluated BEFORE the per-offering mode.
+ */
+export function assertAcceptingNewBookings(accepting?: boolean | null): { ok: true } | { ok: false } {
+  return accepting === false ? { ok: false } : { ok: true };
+}
+
+export type EffectiveBookingMode = {
+  mode: "instant" | "request" | "inquiry" | "closed";
+  /** Where the mode came from. */
+  source: "master" | "offering" | "default";
+};
+
+/**
+ * F4 — the effective booking mode of one offering.
+ *
+ * Precedence: master restriction → offering's own explicit mode → talent
+ * default posture (`selling_defaults.bookingPosture`).
+ *
+ * EXPLICIT VS INHERITED, as the schema allows today:
+ * `talent_offerings.booking_mode` is `NOT NULL DEFAULT 'request'`, so there is
+ * no stored "inherit" state. `instant` can only exist because someone chose it,
+ * so it is treated as an explicit override and beats an inquiry posture (a
+ * photographer who defaults to inquiries can keep an instantly bookable
+ * consultation). `request` is ambiguous (chosen, or the column default); it
+ * resolves to request, the mode the row states and the public CTA already
+ * uses. Distinguishing an inherited `request` needs a nullable column or an
+ * explicit-override marker: a schema change, not made here.
+ */
+export function resolveEffectiveBookingMode(input: {
+  offering: { bookingMode: string | null | undefined };
+  defaults: unknown;
+  accepting?: boolean | null;
+}): EffectiveBookingMode {
+  if (!assertAcceptingNewBookings(input.accepting).ok) return { mode: "closed", source: "master" };
+  if (input.offering.bookingMode === "instant") return { mode: "instant", source: "offering" };
+  const posture = parseSellingBookingSettings(input.defaults).bookingPosture;
+  if (posture === "inquiry") return { mode: "inquiry", source: "default" };
+  return { mode: "request", source: "offering" };
+}
+
+export type InstantPostureGate =
+  | { ok: true }
+  | { ok: false; reason: "inquiry_only" | "request_only"; error: string };
+
+/**
+ * Server refusal of an instant booking whose EFFECTIVE mode is not instant,
+ * whatever the page sent. The till (`staffDesk`) is exempt: staff are the
+ * confirmation for a walk-in.
+ */
+export function assertInstantPosture(input: {
+  sellingDefaults: unknown;
+  bookingMode: string | null | undefined;
+  staffDesk: boolean;
+  accepting?: boolean | null;
+}): InstantPostureGate {
+  if (input.staffDesk) return { ok: true };
+  const effective = resolveEffectiveBookingMode({
+    offering: { bookingMode: input.bookingMode },
+    defaults: input.sellingDefaults,
+    accepting: input.accepting,
+  });
+  if (effective.mode === "instant") return { ok: true };
+  return {
+    ok: false,
+    reason: effective.mode === "inquiry" ? "inquiry_only" : "request_only",
+    error: "This one is booked by request. Send a message to ask for a time.",
+  };
+}
 
 export type InstantPlanGate =
   | { ok: true }

@@ -95,6 +95,12 @@ const TABLE: Readonly<Record<string, Entry>> = {
   tier_not_on_sale: { reason: "past", key: "public.storefront.refusal.notOnSale" },
   scheduled: { reason: "past", key: "public.storefront.refusal.notOnSale" },
   time_not_offered: { reason: "past", key: "public.storefront.refusal.timeNotOffered" },
+  // Confirm-time re-checks of the sent window (instant-purchase F3). The
+  // picker re-derives its slot first, so these mean the offer moved.
+  request_only: { reason: "refused", key: "public.storefront.refusal.notOfferedHere" },
+  bad_duration: { reason: "past", key: "public.storefront.refusal.timeNotOffered" },
+  beyond_horizon: { reason: "past", key: "public.storefront.refusal.timeNotOffered" },
+  outside_hours: { reason: "past", key: "public.storefront.refusal.timeNotOffered" },
   inside_minimum_notice: { reason: "past", key: "public.storefront.refusal.tooLate" },
   closed: { reason: "past", key: "public.storefront.refusal.closed" },
   closed_in_window: { reason: "past", key: "public.storefront.refusal.closed" },
