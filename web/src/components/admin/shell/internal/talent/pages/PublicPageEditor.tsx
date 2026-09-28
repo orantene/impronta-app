@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
@@ -8,13 +9,21 @@ import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetwor
 import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
 import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeStates";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
-import { WebsiteSettingsScreen } from "@/components/talent/website-settings/WebsiteSettingsScreen";
 import { NavRow } from "@/components/talent/website-settings/primitives";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
 import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
 import { useAdminShell } from "../../state";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PageHeader } from "../shared/page-chrome-1";
+
+// Loaded on tap only: keeps the settings screen out of the admin workspace bundle.
+const WebsiteSettingsScreen = dynamic(
+  () =>
+    import("@/components/talent/website-settings/WebsiteSettingsScreen").then(
+      (m) => m.WebsiteSettingsScreen,
+    ),
+  { ssr: false },
+);
 
 type Props = {
   locale?: "en" | "es";
