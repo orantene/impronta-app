@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { ReactNode } from "react";
+import { anyDemoTalent, DEMO_SITE_FOOTER } from "@/lib/talent/demo-talent";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -271,6 +273,10 @@ export async function renderTalentMaxSite(
     // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
     const identity = await loadTalentSiteIdentity(talentProfileId);
 
+    // ── Demo talent (fictional theme example): Demo pill + footer line ──────
+    const demoDb = createServiceRoleClient();
+    const isDemo = demoDb ? await anyDemoTalent(demoDb, [talentProfileId]) : false;
+
     // ── Site-level theme tokens (theme gallery). `{}` while the switch is off
     //    or nothing is applied → the cascade below is exactly today's. ────────
     const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, {
@@ -291,6 +297,7 @@ export async function renderTalentMaxSite(
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan
       // removes it (same predicate as the /t/[code] profile footer).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
+      isDemo,
     });
 
     const seo = buildMaxSiteSeo({
@@ -417,6 +424,8 @@ async function renderMaxSiteDocument(args: {
   draftPreview: boolean;
   /** PHASE 1 — render the "Made with Tulala" footer mark (free sites only). */
   showPlatformBadge: boolean;
+  /** Fictional demo talent: a Demo pill above the header + a footer line. */
+  isDemo?: boolean;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -688,6 +697,28 @@ async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
+      {args.isDemo ? (
+        <div
+          data-talent-max-site-demo-pill=""
+          style={{ display: "flex", justifyContent: "center", padding: "6px 16px 0" }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: "2px 10px",
+              borderRadius: 999,
+              border: "1px solid currentColor",
+              color: "var(--token-color-ink-muted, rgba(11,11,13,0.55))",
+            }}
+          >
+            Demo
+          </span>
+        </div>
+      ) : null}
+
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (
           // The landmark's bespoke component renders its own <header.site-header>,
@@ -746,6 +777,21 @@ async function renderMaxSiteDocument(args: {
             renderSectionEmbed,
           })}
         </footer>
+      ) : null}
+
+      {args.isDemo ? (
+        <p
+          data-talent-max-site-demo-footer=""
+          style={{
+            margin: 0,
+            padding: "12px 16px 0",
+            textAlign: "center",
+            fontSize: 12,
+            color: "var(--token-color-ink-muted, rgba(11,11,13,0.55))",
+          }}
+        >
+          {locale.toLowerCase().startsWith("es") ? DEMO_SITE_FOOTER.es : DEMO_SITE_FOOTER.en}
+        </p>
       ) : null}
 
       {/* PHASE 1 — the free site's platform mark. Paid plans remove it. */}
