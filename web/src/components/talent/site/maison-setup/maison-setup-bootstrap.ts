@@ -8,6 +8,10 @@ import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { parseMaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import {
+  parseMaisonChoices,
+  type MaisonSetupChoices,
+} from "@/components/talent/site/maison-setup/maison-choices";
 import { gate } from "@/lib/talent-site/server/site-action-gate";
 
 export type MaisonSetupBootstrap =
@@ -18,6 +22,8 @@ export type MaisonSetupBootstrap =
       sitePublished: boolean;
       themeLookSlug: string | null;
       customPalette: ReturnType<typeof parseMaisonCustomPaletteStored>;
+      /** Server-persisted setup choices; null when never saved. */
+      setupChoices: MaisonSetupChoices | null;
     };
 
 export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBootstrap> {
@@ -34,11 +40,12 @@ export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBoots
       sitePublished: false,
       themeLookSlug: null,
       customPalette: null,
+      setupChoices: null,
     };
   }
   const { data, error } = await admin
     .from("talent_sites")
-    .select("site_published_at, theme_look_slug, custom_palette")
+    .select("site_published_at, theme_look_slug, custom_palette, setup_choices")
     .eq("talent_profile_id", g.talentProfileId)
     .maybeSingle();
   if (error) {
@@ -50,13 +57,18 @@ export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBoots
       sitePublished: false,
       themeLookSlug: null,
       customPalette: null,
+      setupChoices: null,
     };
   }
   const row = data as {
     site_published_at?: string | null;
     theme_look_slug?: string | null;
     custom_palette?: unknown;
+    setup_choices?: unknown;
   } | null;
+
+  const setupChoices =
+    row?.setup_choices != null ? parseMaisonChoices(row.setup_choices) : null;
 
   return {
     enabled: true,
@@ -64,5 +76,6 @@ export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBoots
     sitePublished: Boolean(row?.site_published_at),
     themeLookSlug: typeof row?.theme_look_slug === "string" ? row.theme_look_slug : null,
     customPalette: parseMaisonCustomPaletteStored(row?.custom_palette),
+    setupChoices,
   };
 }

@@ -5,14 +5,16 @@
  * Flag-off / gate fail → renders nothing so TalentMaxSiteManager keeps today's path.
  * Screens: gallery → detail → review; live card mounts from the manager.
  */
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import { saveMaisonSetupChoicesAction } from "@/lib/talent-site/server/maison-choices-actions";
 import { ChooseDesignScreen } from "./ChooseDesignScreen";
 import { ThemeDetailScreen } from "./ThemeDetailScreen";
 import { ReviewWebsiteScreen } from "./ReviewWebsiteScreen";
 import {
   defaultMaisonChoices,
+  isMaisonSetupResumable,
   loadMaisonChoices,
   saveMaisonChoices,
   type MaisonSetupChoices,
@@ -62,12 +64,23 @@ export function MaisonSetupHost({
   const [toast, setToast] = useState<HostToast>(null);
   /** True once Change design / restore opened a screen while the site is live. */
   const [explicitOpen, setExplicitOpen] = useState(false);
+  const serverPersistTimer = useRef<number | null>(null);
   const reportEnabled = useEffectEvent((value: boolean) => {
     onEnabledChange?.(value);
   });
   const consumeForceScreen = useEffectEvent(() => {
     onForceScreenConsumed?.();
   });
+
+  function persistChoices(id: string, next: MaisonSetupChoices) {
+    saveMaisonChoices(id, next);
+    if (serverPersistTimer.current != null) {
+      window.clearTimeout(serverPersistTimer.current);
+    }
+    serverPersistTimer.current = window.setTimeout(() => {
+      void saveMaisonSetupChoicesAction(next);
+    }, 250);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -84,10 +97,23 @@ export function MaisonSetupHost({
       setSitePublished(boot.sitePublished);
       setLiveLookSlug(boot.themeLookSlug);
       setLiveCustomPalette(boot.customPalette);
-      setChoices(loadMaisonChoices(boot.talentProfileId));
+      const local = loadMaisonChoices(boot.talentProfileId);
+      // Server wins; migrate resumable local-only choices up once.
+      if (boot.setupChoices) {
+        setChoices(boot.setupChoices);
+        saveMaisonChoices(boot.talentProfileId, boot.setupChoices);
+      } else if (isMaisonSetupResumable(local)) {
+        setChoices(local);
+        void saveMaisonSetupChoicesAction(local);
+      } else {
+        setChoices(local);
+      }
     });
     return () => {
       alive = false;
+      if (serverPersistTimer.current != null) {
+        window.clearTimeout(serverPersistTimer.current);
+      }
     };
   }, []);
 
@@ -103,7 +129,7 @@ export function MaisonSetupHost({
           ? { contentMode: "mine" as const }
           : {}),
       };
-      saveMaisonChoices(talentProfileId, merged);
+      persistChoices(talentProfileId, merged);
       return merged;
     });
     setExplicitOpen(true);
@@ -122,7 +148,7 @@ export function MaisonSetupHost({
   const patch = (next: Partial<MaisonSetupChoices>) => {
     setChoices((prev) => {
       const merged = { ...prev, ...next };
-      if (talentProfileId) saveMaisonChoices(talentProfileId, merged);
+      if (talentProfileId) persistChoices(talentProfileId, merged);
       return merged;
     });
   };

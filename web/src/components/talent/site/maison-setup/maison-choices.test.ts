@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   defaultMaisonChoices,
+  isMaisonSetupResumable,
+  maisonResumeSummaryLine,
   parseMaisonChoices,
   MAISON_CHOICES_STORAGE_PREFIX,
 } from "./maison-choices";
@@ -72,5 +74,32 @@ describe("maison-choices", () => {
     assert.equal(parsed.useCustomPalette, true);
     assert.equal(parsed.customPalette?.name.en, "My colors");
     assert.equal(parsed.customPalette?.fields.accent, "#A34E2C");
+  });
+
+  it("AUD-023: gallery + Preview is not resumable; detail is", () => {
+    assert.equal(isMaisonSetupResumable(defaultMaisonChoices()), false);
+    assert.equal(
+      isMaisonSetupResumable(
+        parseMaisonChoices({ screen: "detail", status: "Choices saved", paletteKey: "lilac" }),
+      ),
+      true,
+    );
+    assert.equal(
+      isMaisonSetupResumable(parseMaisonChoices({ screen: "review", status: "Draft saved" })),
+      true,
+    );
+  });
+
+  it("AUD-023: resume summary matches Maison · palette · status", () => {
+    const choices = parseMaisonChoices({
+      screen: "detail",
+      paletteKey: "lilac",
+      status: "Choices saved",
+    });
+    assert.equal(
+      maisonResumeSummaryLine(choices, "en"),
+      "Maison · Lilac & Plum · Choices saved",
+    );
+    assert.match(maisonResumeSummaryLine(choices, "es"), /Elecciones guardadas/);
   });
 });

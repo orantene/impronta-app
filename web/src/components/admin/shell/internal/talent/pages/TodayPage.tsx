@@ -20,6 +20,7 @@ import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
+import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
 import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
@@ -486,6 +487,11 @@ export function TalentTodayPage() {
       {/* PR3 W21–W22 — Finish with AI / unlocked card. Hides when live (W23). */}
       {bridgeTalentSelfProfile && (
         <WebsiteTodayUnlockCard onActivate={() => setTalentPage("public-page")} />
+      )}
+
+      {/* W75 / AUD-023 — Continue your website when Maison setup is mid-flow. */}
+      {bridgeTalentSelfProfile && (
+        <MaisonWebsiteResumeCard onContinue={() => setTalentPage("public-page")} />
       )}
 
       <TalentTodayHero

@@ -1,12 +1,15 @@
 /**
- * Maison setup choices (W32–W33) — persist palette / content mode / screen so
- * close → reopen resumes. Apply writes live in maison-apply-actions (PR5).
+ * Maison setup choices (W32–W33, W75 / AUD-023) — persist palette / content
+ * mode / screen so close → reopen resumes. Server column
+ * `talent_sites.setup_choices` is the source of truth; localStorage is a
+ * same-device cache. Apply writes live in maison-apply-actions (PR5).
  * Custom colors (W60–W64) persist as `customPalette` when saved.
  */
 import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import {
   MAISON_DEFAULT_PALETTE_KEY,
   MAISON_PALETTE_ORDER,
+  MAISON_PALETTES,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
 import {
@@ -105,12 +108,51 @@ export function saveMaisonChoices(
 ): void {
   if (typeof window === "undefined") return;
   try {
-    const { phoneSheet: _sheet, ...persistable } = choices;
     window.localStorage.setItem(
       choicesStorageKey(talentProfileId),
-      JSON.stringify(persistable),
+      JSON.stringify(persistableMaisonChoices(choices)),
     );
   } catch {
     // quota / private mode — choices stay in-memory for the session
   }
+}
+
+/** Strip ephemeral UI (phone sheets) before writing storage / server. */
+export function persistableMaisonChoices(
+  choices: MaisonSetupChoices,
+): Omit<MaisonSetupChoices, "phoneSheet"> & { phoneSheet?: never } {
+  const { phoneSheet: _sheet, ...persistable } = choices;
+  return persistable;
+}
+
+/**
+ * Mid-setup resume (cr_resume / W75): detail or review, or an explicit
+ * Choices/Draft saved status. Gallery + Preview alone is not resumable.
+ */
+export function isMaisonSetupResumable(choices: MaisonSetupChoices): boolean {
+  if (choices.status === "Live") return false;
+  if (choices.screen === "detail" || choices.screen === "review") return true;
+  return choices.status === "Choices saved" || choices.status === "Draft saved";
+}
+
+/** Today card subtitle: "Maison · Lilac & Plum · Choices saved". */
+export function maisonResumeSummaryLine(
+  choices: MaisonSetupChoices,
+  locale: "en" | "es",
+): string {
+  const paletteName =
+    choices.useCustomPalette && choices.customPalette
+      ? choices.customPalette.name[locale]
+      : MAISON_PALETTES[choices.paletteKey].name[locale];
+  const statusLabel =
+    locale === "es"
+      ? choices.status === "Choices saved"
+        ? "Elecciones guardadas"
+        : choices.status === "Draft saved"
+          ? "Borrador guardado"
+          : choices.status === "Live"
+            ? "En vivo"
+            : "Vista previa"
+      : choices.status;
+  return `Maison · ${paletteName} · ${statusLabel}`;
 }
