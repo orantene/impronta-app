@@ -1128,6 +1128,8 @@ export const portfolioPropsSchema = z.object({
   chapterNumber: z.number().int().min(1).max(20).optional(),
   creditLine: z.string().max(200).optional(),
   albumId: z.string().max(80).optional(),
+  /** Folio magazine chapter sequence. */
+  edition: z.literal("magazine").optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -1182,10 +1184,13 @@ export const contentsPropsSchema = z.object({
       z.object({
         label: z.string().max(80),
         anchor: z.string().max(64),
+        credit: z.string().max(120).optional(),
       }),
     )
     .max(24)
     .optional(),
+  /** Folio magazine index (ink rules, italic numerals, credits). */
+  edition: z.literal("magazine").optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -1199,6 +1204,25 @@ export const mastheadPropsSchema = z.object({
   showCover: z.boolean().optional(),
   coverFilter: z.enum(["bw", "none"]).optional(),
   coverSrc: z.string().max(2000).optional(),
+  edition: z.enum(["cover", "magazine"]).optional(),
+  mastRight: z.string().max(160).optional(),
+  coverLine: z.string().max(160).optional(),
+  bio: z.string().max(600).optional(),
+  ctaLabel: z.string().max(60).optional(),
+  ctaHref: z.string().max(500).optional(),
+  bookLabel: z.string().max(60).optional(),
+  bookHref: z.string().max(500).optional(),
+  contentsTitle: z.string().max(80).optional(),
+  contents: z
+    .array(
+      z.object({
+        label: z.string().max(80),
+        anchor: z.string().max(64),
+        credit: z.string().max(120).optional(),
+      }),
+    )
+    .max(24)
+    .optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -1210,6 +1234,9 @@ export const statementFooterPropsSchema = z.object({
   contactLine: z.string().max(160).optional(),
   align: z.enum(["start", "center"]).optional(),
   showRule: z.boolean().optional(),
+  edition: z.literal("magazine").optional(),
+  ctaLabel: z.string().max(60).optional(),
+  ctaHref: z.string().max(500).optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -1235,6 +1262,8 @@ export const compCardPropsSchema = z.object({
   showFullDetails: z.boolean().optional(),
   detailsSummaryEn: z.string().max(80).optional(),
   detailsSummaryEs: z.string().max(80).optional(),
+  /** Folio magazine inverted measure strip. */
+  edition: z.literal("magazine").optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });

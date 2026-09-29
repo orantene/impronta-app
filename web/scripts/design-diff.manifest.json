@@ -134,25 +134,28 @@
           "id": "masthead",
           "label": "Header masthead bar",
           "artifactSelector": [
-            "[data-w^='site_header']",
-            "#site header"
+            ".fo-hdr",
+            "header.fo-hdr",
+            "#site .fo-hdr"
           ],
           "localSelector": [
             "[data-talent-shell-landmark='site_header']",
-            "[data-section-type-key='site_header']",
-            ".site-header"
+            ".site-header",
+            "header.site-header"
           ]
         },
         {
           "id": "cover",
           "label": "Cover",
           "artifactSelector": [
-            "[data-w^='hero']",
-            "#site .cover"
+            ".fo-spread",
+            ".fo-cover",
+            "[data-w^='hero']"
           ],
           "localSelector": [
+            ".sb-mag-spread",
+            "[data-edition='magazine'][data-builder-kind='masthead']",
             "[data-builder-node-kind='masthead']",
-            "[data-section-type-key^='hero']",
             "#hero"
           ]
         },
@@ -160,11 +163,12 @@
           "id": "contents",
           "label": "Contents",
           "artifactSelector": [
-            "[data-w^='contents']",
-            "#site .contents"
+            ".fo-toc",
+            "nav.fo-toc"
           ],
           "localSelector": [
-            "[data-section-type-key='contents']",
+            ".sb-mag-toc",
+            "#contents",
             "[data-builder-node-kind='contents']"
           ]
         },
@@ -172,51 +176,55 @@
           "id": "chapters",
           "label": "Chapters",
           "artifactSelector": [
-            "[data-w^='chapter']",
-            "#site .chapters"
+            ".fo-ch",
+            "[data-w^='portfolio']",
+            "#ch1"
           ],
           "localSelector": [
-            "[data-builder-node-kind='portfolio'][data-layout='chapter']",
-            "[data-builder-node-kind='portfolio']",
+            "[data-edition='magazine'][data-builder-node-kind='portfolio']",
             "#chapter-1",
-            "#gallery"
+            "[data-builder-node-kind='portfolio']"
           ]
         },
         {
           "id": "comp-card",
           "label": "Comp card",
           "artifactSelector": [
-            "[data-w^='comp']",
-            "#site .comp"
+            ".fo-comp",
+            "[data-w^='stats']",
+            "#site .fo-comp"
           ],
           "localSelector": [
-            "[data-builder-node-kind='comp_card']",
-            "#comp_card"
+            "[data-edition='magazine'].sb-comp",
+            "#comp-card",
+            "[data-builder-node-kind='comp_card']"
           ]
         },
         {
           "id": "rate-card",
           "label": "Rate card",
           "artifactSelector": [
-            "[data-w^='rate']",
-            "#site .bigrate"
+            ".fo-rates",
+            "[data-w^='services_catalog']",
+            "#rates"
           ],
           "localSelector": [
-            "[data-builder-node-kind='services_catalog']",
-            "#services"
+            "#services",
+            "[data-builder-node-kind='services_catalog']"
           ]
         },
         {
           "id": "statement-footer",
           "label": "Statement footer",
           "artifactSelector": [
-            "[data-w^='footer']",
-            "#site footer"
+            ".fo-end",
+            "footer.fo-end",
+            "#site .fo-end"
           ],
           "localSelector": [
-            "[data-builder-node-kind='statement_footer']",
-            "#site-footer",
-            "#contact"
+            "[data-edition='magazine'].sb-statement-footer",
+            ".sb-statement-footer",
+            "[data-builder-node-kind='statement_footer']"
           ]
         }
       ]

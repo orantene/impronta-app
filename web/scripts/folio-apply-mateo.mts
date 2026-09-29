@@ -11,8 +11,8 @@ const { folioLookTokensFromCode } = await import("../src/lib/talent-site/theme-c
 const folioDefaults = await import("../src/lib/talent-site/theme-catalog/collection/folio-defaults");
 const { mergeLookIntoTokens } = await import("../src/lib/talent-site/theme-catalog/look-layer");
 
-const FOLIO_DESIGN_TOKEN_DEFAULTS =
-  folioDefaults.FOLIO_DESIGN_TOKEN_DEFAULTS ?? folioDefaults.default?.FOLIO_DESIGN_TOKEN_DEFAULTS;
+const FOLIO_STYLE_TOKEN_DEFAULTS =
+  folioDefaults.FOLIO_STYLE_TOKEN_DEFAULTS;
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -60,13 +60,13 @@ if (!d.ok) throw new Error(`applyDesign: ${d.error}`);
 
 const lookTokens = folioLookTokensFromCode("folio-stone");
 if (!lookTokens) throw new Error("folio-stone look missing");
-if (!FOLIO_DESIGN_TOKEN_DEFAULTS) throw new Error("FOLIO_DESIGN_TOKEN_DEFAULTS missing");
+if (!FOLIO_STYLE_TOKEN_DEFAULTS) throw new Error("FOLIO_STYLE_TOKEN_DEFAULTS missing");
 
 const { data: cur } = await admin.from("talent_sites").select("design_tokens_draft").eq("id", site.id).single();
 const draft = mergeLookIntoTokens(
   {
     ...((cur?.design_tokens_draft as Record<string, string> | null) ?? {}),
-    ...FOLIO_DESIGN_TOKEN_DEFAULTS,
+    ...FOLIO_STYLE_TOKEN_DEFAULTS,
   },
   lookTokens,
 );

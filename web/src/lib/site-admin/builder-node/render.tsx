@@ -6019,6 +6019,7 @@ function renderBuilderNodeElement(
       return renderMastheadBlock({
         node,
         styleAttr: sharedNodeStyle(node.props.style),
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
       });
     }
     case "statement_footer": {

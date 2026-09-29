@@ -167,9 +167,16 @@ export function buildFramePayload(): DesignPayload {
 // Folio magazine edition: cover masthead + contents + chapters + measures +
 // rate card + statement footer. Every block is a shared widget in its magazine edition.
 export const FOLIO_CHAPTER_SEEDS = [
-  { heading: "Selected work", creditLine: "From the studio" },
-  { heading: "Details", creditLine: "Up close" },
-  { heading: "Portraits", creditLine: "Natural light" },
+  {
+    heading: "Editorial",
+    creditLine: "Demo studio credit · CDMX",
+    tocCredit: "Studio, hard light",
+  },
+  {
+    heading: "Runway",
+    creditLine: "Demo show credit · 3 exits",
+    tocCredit: "Exits and details",
+  },
 ] as const;
 
 function magazine(node: BuilderNode): BuilderNode {
@@ -217,8 +224,8 @@ export function buildFolioPayload(): DesignPayload {
               coverLine: "{{primaryTypeLabel}}",
               mastRight: "{{locationLine}}",
               bio: "{{bio}}",
-              // Seed key: rendered per booking mode + locale by design-label-locale.
-              ctaLabel: "Book a session",
+              // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
+              ctaLabel: "Consultar",
               ctaHref: TALENT_ASK_HREF,
               bookLabel: "See the book",
               bookHref: "#chapter-1",
@@ -227,7 +234,7 @@ export function buildFolioPayload(): DesignPayload {
                 ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
                   label: c.heading,
                   anchor: `chapter-${i + 1}`,
-                  credit: c.creditLine,
+                  credit: c.tocCredit,
                 })),
                 { label: "Rates", anchor: "services", credit: "Rates and dates" },
               ],
@@ -237,16 +244,17 @@ export function buildFolioPayload(): DesignPayload {
     ),
   } as BuilderNode;
   return {
-    tokenDefaults: { ...FOLIO_STYLE_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navChrome: "top_bar",
       navLinks: [
-        { label: "Work", href: "#gallery" },
-        { label: "About", href: "#about" },
+        { label: "Editorial", href: "#chapter-1" },
+        { label: "Runway", href: "#chapter-2" },
         { label: "Rates", href: "#services" },
-        { label: "Contact", href: "#contact" },
       ],
+      // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
+      primaryCtaLabel: "Consultar",
     }),
+    tokenDefaults: { ...FOLIO_STYLE_TOKEN_DEFAULTS },
     homeTree: [
       magazine(fullBleed(heroWithSpread)),
       magazine(
@@ -259,11 +267,9 @@ export function buildFolioPayload(): DesignPayload {
               ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
                 label: c.heading,
                 anchor: `chapter-${i + 1}`,
+                credit: c.tocCredit,
               })),
-              { label: "About", anchor: "about" },
-              { label: "Measures", anchor: "comp_card" },
-              { label: "Rates", anchor: "services" },
-              { label: "Contact", anchor: "contact" },
+              { label: "Rates", anchor: "services", credit: "Rates and dates" },
             ],
           }),
         ),
@@ -292,42 +298,48 @@ export function buildFolioPayload(): DesignPayload {
             minMeasures: 4,
             // Mateo Ferrer / model strip: height · suit · shoe · languages.
             measures: [
-              { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height", labelEs: "Estatura" },
+              { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height cm", labelEs: "Estatura cm" },
               { fieldKey: "physical.suit_size", enabled: true, labelEn: "Suit", labelEs: "Saco" },
               {
                 fieldKey: "physical.shoe_size_eu",
                 enabled: true,
-                labelEn: "Shoe",
-                labelEs: "Calzado",
-                unit: "MX",
+                labelEn: "Shoe MX",
+                labelEs: "Calzado MX",
               },
               { fieldKey: "languages", enabled: true, labelEn: "Languages", labelEs: "Idiomas" },
             ],
           }),
         ),
       ),
-      servicesSection(id, {
-        label: "Rate card",
-        eyebrow: "Booking",
-        title: "Rate card",
-        layout: "rate_card",
-        categoryNav: "sections",
-        stylePreset: "editorial",
-        photoRadius: "square",
-        density: "compact",
-        rowCtaVariant: "outline",
-        showPhoto: false,
-        showDescription: false,
-        showDelivery: true,
-      }),
+      magazine(
+        fullBleed(
+          servicesSection(id, {
+            label: "Booking",
+            eyebrow: "",
+            title: "Rates",
+            subtitle: "Base rates in MXN. Ad use and travel are quoted separately.",
+            layout: "rate_card",
+            categoryNav: "none",
+            stylePreset: "editorial",
+            photoRadius: "square",
+            density: "compact",
+            rowCtaVariant: "outline",
+            showPhoto: false,
+            showDescription: false,
+            showDelivery: false,
+            showCategory: true,
+          }),
+        ),
+      ),
       aboutBlock(id, { align: "start", accent: false }),
       faqBlock(id, { heading: "Questions", ask: true }),
       magazine(
         fullBleed(
           statementFooterBlock(id, {
-            statement: "Available for editorial, campaign, and portrait commissions.",
-            creditLine: "{{displayName}}",
-            contactLine: "Inquire for bookings",
+            statement: "Next issue.",
+            // Fine-print host; gallery demo is Mateo. Talents edit after apply.
+            creditLine: "mateoferrer.tulala.digital",
+            contactLine: "For editorials, runway and campaigns. I reply the same day.",
             align: "start",
             showRule: true,
           }),
@@ -353,7 +365,7 @@ function withFooterCta(node: BuilderNode): BuilderNode {
             ...k,
             props: {
               ...(k.props as Record<string, unknown>),
-              ctaLabel: "Book a session",
+              ctaLabel: "Consultar",
               ctaHref: TALENT_ASK_HREF,
             },
           } as BuilderNode)

@@ -250,8 +250,12 @@ async function main(): Promise<void> {
     const ap = await actx.newPage();
     await ap.goto(`${stat.origin}/index.html`, { waitUntil: "load" });
     await ap.locator("[data-v='exp']").first().click().catch(() => {});
-    await ap.locator(`#devseg button[data-d="${viewport}"]`).click().catch(() => {});
-    await ap.waitForTimeout(800);
+    // Maison fixtures use #devseg; Folio kit uses #rv-dev.
+    const deviceBtn = ap.locator(
+      `#devseg button[data-d="${viewport}"], #rv-dev button[data-d="${viewport}"]`,
+    );
+    await deviceBtn.first().click().catch(() => {});
+    await ap.waitForTimeout(1000);
     await markHarness(ap);
 
     // Local side.
