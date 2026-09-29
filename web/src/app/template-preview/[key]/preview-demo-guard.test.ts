@@ -70,9 +70,16 @@ test("note copy EN/ES", () => {
 
 test("theme preview renders with no tenant, so services_catalog booking is demo", () => {
   const preview = readFileSync(join(process.cwd(), "src/app/template-preview/[key]/theme-preview.tsx"), "utf8");
-  // No freeformContext → tenantId null → dataSources {} → catalogBookingLive undefined.
-  assert.match(preview, /<TalentSiteRenderer snapshot=\{snapshot\} locale=\{locale\} \/>/);
-  assert.match(preview, /locale=\{locale\}>/);
+  // No freeformContext → no tenant. My content binds preset sources, and
+  // those always carry catalogBookingLive: false.
+  assert.doesNotMatch(preview, /freeformContext=/);
+  assert.match(preview, /freeformDataSources=\{mine\?\.dataSources\}/);
+  const mine = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/preview-my-content.server.ts"),
+    "utf8",
+  );
+  assert.match(mine, /catalogBookingLive: false/);
+  assert.match(preview, /<ThemeTokenPreviewFrame initialTokens=\{effectiveTokens\} locale=/);
   const render = readFileSync(
     join(process.cwd(), "src/lib/site-admin/builder-node/render.tsx"),
     "utf8",

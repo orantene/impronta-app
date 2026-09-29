@@ -15,6 +15,7 @@ import {
 } from "@/lib/site-admin/sections/shared/presentation";
 import { SectionVideoBackground } from "@/components/site/section-video-background";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
+import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node/render";
 import { TalentSiteFreeformRenderer } from "./TalentSiteFreeformRenderer";
 
 type Props = {
@@ -33,13 +34,23 @@ type Props = {
     talentProfileId: string;
     publicPathPrefix?: string;
   };
+  /**
+   * Pre-resolved data sources (theme gallery My content preview). When set the
+   * freeform renderer binds these instead of loading tenant-scoped sources.
+   */
+  freeformDataSources?: BuilderNodeRenderDataSources;
 };
 
 /**
  * Public renderer for talent Max personal site snapshots on Tulala hosts.
  * No tenant edit-mode, preview, or agency business identity.
  */
-export function TalentSiteRenderer({ snapshot, locale = "en", freeformContext }: Props) {
+export function TalentSiteRenderer({
+  snapshot,
+  locale = "en",
+  freeformContext,
+  freeformDataSources,
+}: Props) {
   if (snapshot.siteKind !== "talent_personal") {
     return null;
   }
@@ -59,6 +70,7 @@ export function TalentSiteRenderer({ snapshot, locale = "en", freeformContext }:
         tree={snapshot.builderTree}
         locale={locale}
         context={freeformContext}
+        dataSources={freeformDataSources}
       />
     );
   }
