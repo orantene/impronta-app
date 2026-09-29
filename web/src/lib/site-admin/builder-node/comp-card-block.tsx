@@ -8,6 +8,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { anchorIdAttrs } from "./anchor-id";
+import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import {
   COMP_CARD_DEFAULT_PROPS,
   catalogSpecForKey,
@@ -21,6 +22,27 @@ import type {
 import type { BuilderCompCardNode } from "./types";
 
 /** ~1.6 KB token-only CSS (budget note: +1–2 KB headroom vs prior Folio PRs). */
+export const COMP_CARD_MAGAZINE_CSS = `
+.sb-comp[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};margin:52px 16px 0;width:auto;padding:18px;background:var(--sb-mag-ink);color:var(--sb-mag-bg)}
+.sb-comp[data-edition="magazine"] .sb-comp-inner{max-width:none;display:grid;gap:14px}
+.sb-comp[data-edition="magazine"] .sb-comp-header{margin:0}
+.sb-comp[data-edition="magazine"] .sb-comp-eyebrow,.sb-comp[data-edition="magazine"] .sb-comp-title{margin:0;font:600 11px/1.2 var(--sb-mag-label);letter-spacing:.24em;text-transform:uppercase;color:inherit;opacity:.7}
+.sb-comp[data-edition="magazine"] .sb-comp-rail{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;border:0;padding:0}
+.sb-comp[data-edition="magazine"] .sb-comp-cell{display:flex;flex-direction:column-reverse;justify-content:flex-end;border-top:1px solid color-mix(in srgb,var(--sb-mag-bg) 35%,transparent);padding-top:8px}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dt{font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:inherit;opacity:.7;margin-top:4px}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dd{margin:0;font:400 30px/1 var(--sb-mag-serif);letter-spacing:0;color:inherit}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dd small{font-family:var(--sb-mag-label);opacity:.7}
+.sb-comp[data-edition="magazine"] .sb-comp-details{display:none!important}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dd small{font-family:var(--sb-mag-label);font-size:0.35em;opacity:.7;margin-left:0.15em}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dd{margin:0;font:400 30px/1 var(--sb-mag-serif);letter-spacing:0;color:inherit;display:flex;align-items:baseline;gap:0.15em;flex-wrap:wrap}
+@media (min-width:900px){
+  .sb-comp[data-edition="magazine"]{margin:90px 40px 0;padding:32px}
+  .sb-comp[data-edition="magazine"] .sb-comp-inner{grid-template-columns:260px minmax(0,1fr);align-items:end}
+  .sb-comp[data-edition="magazine"] .sb-comp-cell dd{font-size:54px}
+}
+@media (max-width:540px){.sb-comp[data-edition="magazine"] .sb-comp-rail{grid-template-columns:repeat(4,minmax(0,1fr))}}
+`;
+
 export const COMP_CARD_CSS = `
 .sb-comp{color:var(--token-color-ink);font:inherit;width:100%;min-width:0;box-sizing:border-box;padding:clamp(1.75rem,4vw,3rem) clamp(1.1rem,3vw,2rem)}
 .sb-comp[data-comp-empty="1"]{display:none!important}
@@ -175,8 +197,11 @@ export function renderCompCardBlock(args: {
     <section
       className="sb-comp"
       data-builder-kind="comp_card"
+      data-builder-node-kind="comp_card"
+      data-builder-node-id={node.id}
       data-comp-empty={empty ? "1" : "0"}
       data-comp-strip={showStrip ? "1" : "0"}
+      data-edition={p.edition === "magazine" ? "magazine" : undefined}
       style={styleAttr}
       hidden={empty || undefined}
       aria-hidden={empty || undefined}
@@ -184,6 +209,7 @@ export function renderCompCardBlock(args: {
       {...anchorIdAttrs(node)}
     >
       <style>{COMP_CARD_CSS}</style>
+      {p.edition === "magazine" ? <style>{COMP_CARD_MAGAZINE_CSS}</style> : null}
       <div className="sb-comp-inner">
         {eyebrow || title ? (
           <header className="sb-comp-header">

@@ -51,7 +51,6 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Sessions and prices": "Sesiones y precios",
   "Book a session": "Reserva una sesión",
   Booking: "Reservas",
-  "Rate card": "Tarifas",
   "Next issue": "Próxima edición",
   "The book": "El book",
   "What clients say": "Lo que dicen mis clientes",
@@ -69,6 +68,37 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
   "See you soon.": "Nos vemos pronto.",
   "Made with Tulala": "Hecho con Tulala",
+  // Folio (magazine edition).
+  Contents: "En este número",
+  "In this issue": "En este número",
+  "See the book": "Ver el libro",
+  "Selected work": "Trabajos elegidos",
+  "From the studio": "Desde el estudio",
+  Details: "Detalles",
+  "Up close": "De cerca",
+  Portraits: "Retratos",
+  "Natural light": "Luz natural",
+  Editorial: "Editorial",
+  Lookbook: "Lookbook",
+  "Studio session": "Sesión de estudio",
+  "Seasonal story": "Historia de temporada",
+  Measures: "Medidas",
+  "Measures · Comp card": "Medidas · Comp card",
+  Rates: "Contratación",
+  "Base rates in MXN. Ad use and travel are quoted separately.": "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
+
+  "Rate card": "Contratación",
+  Tarifas: "Contratación",
+  "Rates and dates": "Tarifas y fechas",
+  Contact: "Contacto",
+  "Next issue.": "Siguiente número.",
+  "Studio, hard light": "Estudio, luz dura",
+  "Exits and details": "Salidas y detalles",
+  "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
+  "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
+  "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
+  Consultar: "Consultar",
+
 };
 
 /**
@@ -170,13 +200,25 @@ const LABEL_PROPS = [
   "title",
   "titleAccent",
   "emptyMessage",
+  "bio",
+  "mastRight",
+  "subline",
+  "coverLine",
+  "contentsTitle",
+  "bookLabel",
+  "ctaLabel",
+  "statement",
+  "creditLine",
   "contactLine",
+  "subtitle",
 ] as const;
 
 /**
  * The talent header (`site_header` section) carries its nav and CTA labels in
  * `sectionProps`, not on node props: localise those seeded labels too.
  */
+const ROW_ARRAY_PROPS = ["links", "items", "contents"] as const;
+
 function localiseHeaderProps(
   sectionProps: unknown,
   one: (v: string, href?: unknown) => string | null,
@@ -306,6 +348,29 @@ export function localiseSeededDesignLabels(
         return { ...l, label: out };
       });
       if (changed) (next ??= { ...props }).links = mapped;
+    }
+    // Contents index + magazine masthead index: label + optional credit.
+    for (const key of ROW_ARRAY_PROPS) {
+      if (key === "links") continue;
+      const rows = props[key];
+      if (!Array.isArray(rows)) continue;
+      let changed = false;
+      const mapped = rows.map((row: unknown) => {
+        if (!row || typeof row !== "object") return row;
+        const o = row as Record<string, unknown>;
+        let nextRow: Record<string, unknown> | null = null;
+        if (typeof o.label === "string") {
+          const out = one(o.label, o.href ?? o.anchor);
+          if (out !== null) (nextRow ??= { ...o }).label = out;
+        }
+        if (typeof o.credit === "string") {
+          const out = one(o.credit);
+          if (out !== null) (nextRow ??= { ...(nextRow ?? o) }).credit = out;
+        }
+        if (nextRow) changed = true;
+        return nextRow ?? row;
+      });
+      if (changed) (next ??= { ...props })[key] = mapped;
     }
     const children =
       "children" in node && Array.isArray(node.children) ? node.children.map(visit) : null;

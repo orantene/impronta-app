@@ -16,11 +16,41 @@ import {
   portfolioChapterRoman,
   type PortfolioLayout,
 } from "./portfolio-defaults";
+import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
 import type { BuilderPortfolioNode } from "./types";
+
+export const PORTFOLIO_MAGAZINE_CSS = `
+.sb-portfolio[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};padding:52px 16px 0;color:var(--sb-mag-ink);width:100%;box-sizing:border-box}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:block}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-head{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:end;border-bottom:1px solid var(--sb-mag-ink);padding-bottom:10px;margin-bottom:12px}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-num{font:italic 400 64px/.8 var(--sb-mag-serif);letter-spacing:0}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-title{font:400 38px/.95 var(--sb-mag-serif);letter-spacing:0}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-credit{grid-column:1/-1;margin:0;font:600 10.5px/1.3 var(--sb-mag-label);letter-spacing:.18em;text-transform:uppercase;color:var(--sb-mag-mute)}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item{margin:0;position:relative;overflow:hidden;background:var(--sb-mag-tint)}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-shot,.sb-portfolio[data-edition="magazine"] .sb-portfolio-frame{height:100%}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero{grid-column:1/-1}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:4/5}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:3/4}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-cap{position:absolute;left:8px;bottom:8px;margin:0;padding:3px 6px;font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:white;background:color-mix(in srgb,black 35%,transparent)}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-service{display:none}
+@media (min-width:900px){
+  .sb-portfolio[data-edition="magazine"]{padding:90px 40px 0}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-head{display:block;border:0;padding:0;margin:0;position:sticky;top:80px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-num{display:block;font-size:120px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-title{margin-top:6px;font-size:56px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-credit{margin-top:12px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter{grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero{grid-column:auto;grid-row:span 2}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:auto}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:4/5}
+}
+`;
 
 export const PORTFOLIO_CSS = `
 .sb-portfolio{color:var(--token-color-ink);font:inherit}
@@ -106,6 +136,7 @@ function ShotFigure({
   confirmsByHand,
   itemClass,
   wantLabel,
+  magazineIndex,
 }: {
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
@@ -114,6 +145,8 @@ function ShotFigure({
   itemClass?: string;
   /** Staggered strip: a linked shot reads "I want this" instead of the service name. */
   wantLabel?: string;
+  /** Magazine: 1-based plate number shown as "01 · caption". */
+  magazineIndex?: number;
 }) {
   const label =
     shot.caption?.trim() ||
@@ -143,7 +176,13 @@ function ShotFigure({
           {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URLs; sizes vary by layout */}
           <img src={shot.url} alt={shot.alt || label} loading="lazy" decoding="async" />
         </span>
-        {showCaptions && (shot.caption?.trim() || serviceLine) ? (
+        {showCaptions && magazineIndex ? (
+          <figcaption className="sb-portfolio-cap">
+            {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
+              .filter(Boolean)
+              .join(" · ")}
+          </figcaption>
+        ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
           <figcaption className="sb-portfolio-cap">
             {shot.caption?.trim() || null}
             {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
@@ -196,6 +235,7 @@ export function renderPortfolioBlock(args: {
   const credit = p.creditLine?.trim() || "";
   const roman = portfolioChapterRoman(p.chapterNumber);
   const isChapter = layout === "chapter";
+  const magazine = isChapter && p.edition === "magazine";
 
   const shotNodes = visible.map((shot, index) => (
     <ShotFigure
@@ -206,14 +246,17 @@ export function renderPortfolioBlock(args: {
       confirmsByHand={args.confirmsByHand ?? true}
       itemClass={isChapter ? chapterItemClass(index) : undefined}
       wantLabel={wantLabel}
+      magazineIndex={magazine ? index + 1 : undefined}
     />
   ));
 
   return (
     <section
       data-builder-node-kind="portfolio"
+      data-builder-node-id={args.node.id}
       data-portfolio-layout={layout}
       data-portfolio-chapter={isChapter ? roman : undefined}
+      data-edition={magazine ? "magazine" : undefined}
       {...(args.styleDataAttrs ?? {})}
       className={args.styleDataAttrs ? "site-builder-node sb-portfolio" : "sb-portfolio"}
       style={{
@@ -223,6 +266,7 @@ export function renderPortfolioBlock(args: {
       {...anchorIdAttrs(args.node)}
     >
       <style>{PORTFOLIO_CSS}</style>
+      {magazine ? <style>{PORTFOLIO_MAGAZINE_CSS}</style> : null}
       {isChapter ? (
         <div className="sb-portfolio-chapter">
           <header className="sb-portfolio-chapter-head">

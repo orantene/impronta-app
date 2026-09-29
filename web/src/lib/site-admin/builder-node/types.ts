@@ -1324,6 +1324,8 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
     /** offering = photo opens that service; none = display only. */
     linkMode?: "offering" | "none";
     emptyMessage?: string;
+    /** Folio magazine edition. */
+    edition?: "magazine";
     useWebsiteTheme?: boolean;
     /**
      * Chapter layout: 1-based index rendered as a roman numeral (I, II, III…).
@@ -1405,6 +1407,8 @@ export interface BuilderContentsNode extends BuilderNodeBase {
     showNumbers?: boolean;
     numberStyle?: "roman" | "decimal";
     items?: Array<{ label: string; anchor: string }>;
+    /** Folio magazine edition. */
+    edition?: "magazine";
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1434,6 +1438,27 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     coverFilter?: "bw" | "none";
     /** Cover image URL; Design stamps use {{headshotUrl}}. */
     coverSrc?: string;
+    /**
+     * `magazine`: printed-issue spread (mast line, full-width name, cover
+     * beside bio + CTAs + an "In this issue" index). Default: cover.
+     */
+    edition?: "cover" | "magazine";
+    /** Magazine: right side of the mast line (e.g. the city line). */
+    mastRight?: string;
+    /** Magazine: small caps line on the cover (trade). */
+    coverLine?: string;
+    /** Magazine: serif bio beside the cover. */
+    bio?: string;
+    /** Magazine: primary CTA. */
+    ctaLabel?: string;
+    ctaHref?: string;
+    /** Magazine: ghost CTA to the book (default "See the book"). */
+    bookLabel?: string;
+    bookHref?: string;
+    /** Magazine: index heading (default "In this issue"). */
+    contentsTitle?: string;
+    /** Magazine: index rows (anchor = section id). */
+    contents?: Array<{ label: string; anchor: string; credit?: string }>;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1456,6 +1481,11 @@ export interface BuilderStatementFooterNode extends BuilderNodeBase {
     align?: "start" | "center";
     /** Hairline rule above the statement (default true). */
     showRule?: boolean;
+    /** Folio magazine edition. */
+    edition?: "magazine";
+    /** Magazine: primary CTA under the statement. */
+    ctaLabel?: string;
+    ctaHref?: string;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1490,6 +1520,8 @@ export interface BuilderCompCardNode extends BuilderNodeBase {
     showFullDetails?: boolean;
     detailsSummaryEn?: string;
     detailsSummaryEs?: string;
+    /** Folio magazine edition. */
+    edition?: "magazine";
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };

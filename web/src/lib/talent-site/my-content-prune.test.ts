@@ -44,13 +44,14 @@ const offering = (amountCents: number | null, priceDisplay = "exact") =>
 
 test("chapters with no album split the photos instead of repeating or emptying", () => {
   const chapters = find(buildFolioPayload().homeTree, "portfolio");
-  assert.equal(chapters.length, 3);
+  assert.equal(chapters.length, 2);
   const shots = Array.from({ length: 7 }, (_, i) => shot(i));
   const map = distributeChapterShots(chapters, shots);
   const all = chapters.flatMap((c) => map.get(c.id) ?? []);
   assert.deepEqual(map.get(chapters[0]!.id), ["m0", "m1", "m2"]);
   assert.equal(new Set(all).size, all.length, "no photo repeats across chapters");
-  assert.equal(all.length, 7);
+  // Each chapter limit is 3 → 6 of 7 photos placed.
+  assert.equal(all.length, 6);
 });
 
 test("a chapter keyed to an album she has keeps it; missing albums fall back", () => {
@@ -60,8 +61,7 @@ test("a chapter keyed to an album she has keeps it; missing albums fall back", (
   const shots = [shot(0, "brides"), shot(1), shot(2)];
   const map = distributeChapterShots(chapters, shots);
   assert.deepEqual(map.get(chapters[0]!.id), ["m0"]);
-  assert.deepEqual(map.get(chapters[1]!.id), ["m1"]);
-  assert.deepEqual(map.get(chapters[2]!.id), ["m2"]);
+  assert.deepEqual(map.get(chapters[1]!.id), ["m1", "m2"]);
 });
 
 test("Folio My content hides empty measures, rates and chapters and their Contents entries", () => {
@@ -75,7 +75,7 @@ test("Folio My content hides empty measures, rates and chapters and their Conten
   assert.ok(!k.includes("comp_card"), "comp card with no rows is hidden");
   assert.ok(!k.includes("services_catalog"), "rate card with no priced service is hidden");
   const chapters = find(out, "portfolio");
-  assert.equal(chapters.length, 2, "third chapter has no photos and is hidden");
+  assert.equal(chapters.length, 2, "both chapters keep a photo");
   for (const ch of chapters) {
     const p = ch.props as { selectionMode?: string; selectedMediaIds?: string[] };
     assert.equal(p.selectionMode, "ids");
@@ -83,7 +83,8 @@ test("Folio My content hides empty measures, rates and chapters and their Conten
   }
   const contents = find(out, "contents")[0]!;
   const anchors = (contents.props as { items: Array<{ anchor: string }> }).items.map((i) => i.anchor);
-  assert.deepEqual(anchors, ["chapter-1", "chapter-2", "about", "contact"]);
+  // Rates dropped with the empty catalog; chapters remain.
+  assert.deepEqual(anchors, ["chapter-1", "chapter-2"]);
 });
 
 test("real content is kept", () => {
@@ -103,7 +104,7 @@ test("real content is kept", () => {
   const k = kinds(out);
   assert.ok(k.includes("comp_card"));
   assert.ok(k.includes("services_catalog"));
-  assert.equal(find(out, "portfolio").length, 3);
+  assert.equal(find(out, "portfolio").length, 2);
   const items = (find(out, "contents")[0]!.props as { items: unknown[] }).items;
-  assert.equal(items.length, 7);
+  assert.equal(items.length, 3);
 });

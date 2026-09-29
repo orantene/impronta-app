@@ -15,6 +15,7 @@ import { validateDesign } from "../validate";
 import { designComponentStyleDefaults, designTokenDefaults } from "./design-token-defaults";
 import { EDITORIAL_TYPE_SYSTEM_CSS, typeSystemComponentStyleDefaults } from "./design-type-system";
 import { buildMaisonV2Payload, MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2";
+import { FOLIO_DESIGN_TOKEN_DEFAULTS } from "./folio-defaults";
 
 const PLATFORM = { "color.primary": "#111111", "radius.base": "md" };
 
@@ -26,7 +27,7 @@ test("maison-v2 sets a valid default for every site style token, on its payload 
   }
   assert.deepEqual(designTokenDefaults("maison-v2"), MAISON_V2_TOKEN_DEFAULTS);
   assert.deepEqual(designTokenDefaults(" Maison-V2 "), MAISON_V2_TOKEN_DEFAULTS);
-  assert.deepEqual(designTokenDefaults("folio"), {});
+  assert.deepEqual(designTokenDefaults("folio"), FOLIO_DESIGN_TOKEN_DEFAULTS);
   assert.deepEqual(designTokenDefaults(null), {});
   const payload = buildMaisonV2Payload();
   assert.deepEqual(payload.tokenDefaults, MAISON_V2_TOKEN_DEFAULTS);

@@ -51,6 +51,7 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
     control: "enum",
     options: [
       { value: "editorial", en: "Editorial", es: "Editorial" },
+      { value: "magazine", en: "Magazine", es: "Revista" },
       { value: "off", en: "Plain", es: "Simple" },
     ],
     fallback: "",

@@ -12,6 +12,7 @@ import {
   type ContentsLayout,
   type ContentsNumberStyle,
 } from "./contents-defaults";
+import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { portfolioChapterRoman } from "./portfolio-defaults";
 import type { BuilderContentsNode } from "./types";
 
@@ -33,6 +34,45 @@ export const CONTENTS_CSS = `
 .sb-contents[data-contents-layout="compact"] .sb-contents-title{font-size:clamp(1.35rem,3vw,1.85rem)}
 `;
 
+/** Magazine index ("In this issue"): ink rule, italic numeral, serif title, small caps credit. */
+export const MAGAZINE_INDEX_CSS = `
+.sb-mag-toc{${MAGAZINE_ROOT_VARS};border-top:1px solid var(--sb-mag-ink);color:var(--sb-mag-ink);width:100%;min-width:0}
+.sb-mag-toc>h2{margin:10px 0 6px;font:600 11px/1.2 var(--sb-mag-label);letter-spacing:.24em;text-transform:uppercase;color:var(--sb-mag-ink)}
+.sb-mag-toc ol{list-style:none;margin:0;padding:0}
+.sb-mag-toc a{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--sb-mag-line);color:var(--sb-mag-ink);text-decoration:none}
+.sb-mag-toc i{font:italic 400 22px/1 var(--sb-mag-serif)}
+.sb-mag-toc b{font:400 26px/1 var(--sb-mag-serif);min-width:0}
+.sb-mag-toc small{font:600 10.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute);text-align:right}
+.sb-contents[data-edition="magazine"]{padding:0 16px}
+@media (min-width:900px){.sb-contents[data-edition="magazine"]{padding:0 40px}}
+`;
+
+/** Shared index rows (standalone Contents and the magazine masthead spread). */
+export function renderMagazineIndex(args: {
+  title: string;
+  items: ReadonlyArray<{ label: string; anchor: string; credit?: string }>;
+  showNumbers?: boolean;
+}): ReactNode {
+  const items = normalizeItems(args.items);
+  if (items.length === 0) return null;
+  return (
+    <nav className="sb-mag-toc" aria-label={args.title}>
+      <h2>{args.title}</h2>
+      <ol>
+        {items.map((item, i) => (
+          <li key={`${item.anchor}:${i}`}>
+            <a href={`#${item.anchor}`}>
+              <i aria-hidden>{args.showNumbers === false ? "" : portfolioChapterRoman(i + 1)}</i>
+              <b>{item.label}</b>
+              {item.credit ? <small>{item.credit}</small> : <small />}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 function itemNumber(
   index: number,
   style: ContentsNumberStyle,
@@ -44,13 +84,13 @@ function itemNumber(
 
 function normalizeItems(
   raw: ReadonlyArray<ContentsItem> | undefined,
-): Array<{ label: string; anchor: string }> {
-  const out: Array<{ label: string; anchor: string }> = [];
+): Array<{ label: string; anchor: string; credit: string }> {
+  const out: Array<{ label: string; anchor: string; credit: string }> = [];
   for (const row of raw ?? []) {
     const label = (row.label ?? "").trim();
     const anchor = normalizeAnchorId(row.anchor);
     if (!label || !anchor) continue;
-    out.push({ label, anchor });
+    out.push({ label, anchor, credit: (row.credit ?? "").trim() });
   }
   return out;
 }
@@ -70,10 +110,30 @@ export function renderContentsBlock(args: {
   const title = (p.title ?? CONTENTS_DEFAULT_PROPS.title ?? "Contents").trim() || "Contents";
   const eyebrow = (p.eyebrow ?? "").trim();
 
+  if (p.edition === "magazine") {
+    if (items.length === 0) return null;
+    return (
+      <div
+        className="sb-contents"
+        data-builder-kind="contents"
+        data-builder-node-kind="contents"
+        data-builder-node-id={node.id}
+        data-edition="magazine"
+        style={styleAttr}
+        {...anchorIdAttrs(node)}
+      >
+        <style>{MAGAZINE_INDEX_CSS}</style>
+        {renderMagazineIndex({ title, items, showNumbers })}
+      </div>
+    );
+  }
+
   return (
     <nav
       className="sb-contents"
       data-builder-kind="contents"
+      data-builder-node-kind="contents"
+      data-builder-node-id={node.id}
       data-contents-layout={layout}
       data-contents-band="1"
       aria-label={title}

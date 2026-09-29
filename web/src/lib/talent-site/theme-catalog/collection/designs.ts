@@ -14,14 +14,18 @@
  * Gated with Maison: `isMaisonCatalogSlug` treats every collection slug as
  * flag-owned, so only `TALENT_MAISON_THEME_ENABLED` talents see them.
  */
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
+import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import {
   aboutBlock,
   portfolioBlock,
   portfolioChaptersBlock,
   contentsBlock,
   compCardBlock,
+  faqBlock,
   statementFooterBlock,
   heroCentered,
   heroCover,
@@ -156,10 +160,48 @@ export function buildFramePayload(): DesignPayload {
 }
 
 // ── Folio ────────────────────────────────────────────────────────────────────
-// Magazine masthead (giant stacked words + B&W cover), Contents index,
-// the book as shared W-12 chapter blocks (sticky numeral + title + credit,
-// 1 large + 2 smaller), shared comp-card measure strip, a rate card of rows,
-// and a shared statement footer (statement / credit / contact).
+// A printed issue (Folio proposal): mast line, the name across the full width,
+// a B&W cover beside the bio, square CTAs and the "In this issue" index; then
+// chapters (sticky italic numeral, 1 large + 2 captioned plates), the inverted
+// comp card strip, a rate card of ruled rows, About, and the closing
+// Folio magazine edition: cover masthead + contents + chapters + measures +
+// rate card + statement footer. Every block is a shared widget in its magazine edition.
+export const FOLIO_CHAPTER_SEEDS = [
+  {
+    heading: "Editorial",
+    creditLine: "Demo studio credit · CDMX",
+    tocCredit: "Studio, hard light",
+  },
+  {
+    heading: "Runway",
+    creditLine: "Demo show credit · 3 exits",
+    tocCredit: "Exits and details",
+  },
+] as const;
+
+function magazine(node: BuilderNode): BuilderNode {
+  const children = "children" in node && Array.isArray(node.children) ? node.children : null;
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const leafKinds = new Set(["masthead", "contents", "portfolio", "comp_card", "statement_footer"]);
+  return {
+    ...node,
+    props: leafKinds.has(node.kind) ? { ...props, edition: "magazine" } : props,
+    ...(children ? { children: children.map(magazine) } : {}),
+  } as BuilderNode;
+}
+
+/** Edge-to-edge band: the magazine blocks own their gutters. */
+function fullBleed(node: BuilderNode): BuilderNode {
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const style = (props.style ?? {}) as Record<string, unknown>;
+  const rest = { ...style };
+  delete rest.minHeight;
+  return {
+    ...node,
+    props: { ...props, gap: "s", style: { ...rest, maxWidth: "full", paddingY: "none", paddingX: "none" } },
+  } as BuilderNode;
+}
+
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
   const hero = heroMasthead(id, {
@@ -170,90 +212,166 @@ export function buildFolioPayload(): DesignPayload {
     coverFilter: "bw",
     coverSrc: "{{headshotUrl}}",
   });
+  const heroKids = "children" in hero && Array.isArray(hero.children) ? hero.children : [];
+  const heroWithSpread = {
+    ...hero,
+    children: heroKids.map((k) =>
+      k.kind === "masthead"
+        ? ({
+            ...k,
+            props: {
+              ...(k.props as Record<string, unknown>),
+              coverLine: "{{primaryTypeLabel}}",
+              mastRight: "{{locationLine}}",
+              bio: "{{bio}}",
+              // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
+              ctaLabel: "Consultar",
+              ctaHref: TALENT_ASK_HREF,
+              bookLabel: "See the book",
+              bookHref: "#chapter-1",
+              contentsTitle: "In this issue",
+              contents: [
+                ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+                  label: c.heading,
+                  anchor: `chapter-${i + 1}`,
+                  credit: c.tocCredit,
+                })),
+                { label: "Rates", anchor: "services", credit: "Rates and dates" },
+              ],
+            },
+          } as BuilderNode)
+        : k,
+    ),
+  } as BuilderNode;
   return {
     shellTree: shell(id, {
-      navChrome: "chapter_dots",
+      navChrome: "top_bar",
       navLinks: [
-        { label: "Work", href: "#gallery" },
-        { label: "About", href: "#about" },
+        { label: "Editorial", href: "#chapter-1" },
+        { label: "Runway", href: "#chapter-2" },
         { label: "Rates", href: "#services" },
-        { label: "Contact", href: "#contact" },
       ],
+      // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
+      primaryCtaLabel: "Consultar",
     }),
+    tokenDefaults: { ...FOLIO_STYLE_TOKEN_DEFAULTS },
     homeTree: [
-      hero,
-      contentsBlock(id, {
-        heading: "Contents",
-        showNumbers: true,
-        numberStyle: "roman",
-        items: [
-          { label: "Editorial", anchor: "chapter-1" },
-          { label: "Lookbook", anchor: "chapter-2" },
-          { label: "Portraits", anchor: "chapter-3" },
-          { label: "About", anchor: "about" },
-          { label: "Measures", anchor: "comp_card" },
-          { label: "Rates", anchor: "services" },
-          { label: "Contact", anchor: "contact" },
-        ],
-      }),
-      portfolioChaptersBlock(id, [
-        {
-          chapterNumber: 1,
-          heading: "Editorial",
-          creditLine: "Studio session",
-          showCaptions: true,
-          limit: 6,
-          anchorId: "chapter-1",
-        },
-        {
-          chapterNumber: 2,
-          heading: "Lookbook",
-          creditLine: "Seasonal story",
-          showCaptions: true,
-          limit: 6,
-          anchorId: "chapter-2",
-        },
-        {
-          chapterNumber: 3,
-          heading: "Portraits",
-          creditLine: "Natural light",
-          showCaptions: true,
-          limit: 6,
-          anchorId: "chapter-3",
-        },
-      ]),
+      magazine(fullBleed(heroWithSpread)),
+      magazine(
+        fullBleed(
+          contentsBlock(id, {
+            heading: "Contents",
+            showNumbers: true,
+            numberStyle: "roman",
+            items: [
+              ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+                label: c.heading,
+                anchor: `chapter-${i + 1}`,
+                credit: c.tocCredit,
+              })),
+              { label: "Rates", anchor: "services", credit: "Rates and dates" },
+            ],
+          }),
+        ),
+      ),
+      magazine(
+        fullBleed(
+          portfolioChaptersBlock(
+            id,
+            FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+              chapterNumber: i + 1,
+              heading: c.heading,
+              creditLine: c.creditLine,
+              showCaptions: true,
+              limit: 3,
+              anchorId: `chapter-${i + 1}`,
+            })),
+          ),
+        ),
+      ),
+      magazine(
+        fullBleed(
+          compCardBlock(id, {
+            layout: "strip_with_details",
+            heading: "Measures · Comp card",
+            showFullDetails: true,
+            minMeasures: 4,
+            // Mateo Ferrer / model strip: height · suit · shoe · languages.
+            measures: [
+              { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height cm", labelEs: "Estatura cm" },
+              { fieldKey: "physical.suit_size", enabled: true, labelEn: "Suit", labelEs: "Saco" },
+              {
+                fieldKey: "physical.shoe_size_eu",
+                enabled: true,
+                labelEn: "Shoe MX",
+                labelEs: "Calzado MX",
+              },
+              { fieldKey: "languages", enabled: true, labelEn: "Languages", labelEs: "Idiomas" },
+            ],
+          }),
+        ),
+      ),
+      magazine(
+        fullBleed(
+          servicesSection(id, {
+            label: "Booking",
+            eyebrow: "",
+            title: "Rates",
+            subtitle: "Base rates in MXN. Ad use and travel are quoted separately.",
+            layout: "rate_card",
+            categoryNav: "none",
+            stylePreset: "editorial",
+            photoRadius: "square",
+            density: "compact",
+            rowCtaVariant: "outline",
+            showPhoto: false,
+            showDescription: false,
+            showDelivery: false,
+            showCategory: true,
+          }),
+        ),
+      ),
       aboutBlock(id, { align: "start", accent: false }),
-      compCardBlock(id, {
-        layout: "strip_with_details",
-        showFullDetails: true,
-        minMeasures: 4,
-      }),
-      servicesSection(id, {
-        label: "Rate card",
-        eyebrow: "Booking",
-        title: "Rate card",
-        layout: "rate_card",
-        categoryNav: "sections",
-        stylePreset: "editorial",
-        photoRadius: "square",
-        density: "compact",
-        rowCtaVariant: "outline",
-        showPhoto: false,
-        showDescription: false,
-        showDelivery: true,
-      }),
-      contactSection(id, { heading: "Next issue", faqHeading: "Questions" }),
-      statementFooterBlock(id, {
-        statement:
-          "Available for editorial, campaign, and portrait commissions.",
-        creditLine: "{{displayName}}",
-        // Seed key: rendered per booking mode + locale by design-label-locale.
-        contactLine: "Inquire for bookings",
-        align: "center",
-        showRule: true,
-      }),
-    ],
+      faqBlock(id, { heading: "Questions", ask: true }),
+      magazine(
+        fullBleed(
+          statementFooterBlock(id, {
+            statement: "Next issue.",
+            // Fine-print host; gallery demo is Mateo. Talents edit after apply.
+            creditLine: "mateoferrer.tulala.digital",
+            contactLine: "For editorials, runway and campaigns. I reply the same day.",
+            align: "start",
+            showRule: true,
+          }),
+        ),
+      ),
+    ].map((n) =>
+      n.kind === "container" && Array.isArray((n as { children?: unknown }).children)
+        ? withFooterCta(n)
+        : n,
+    ),
   };
+}
+
+/** The closing page carries the same primary CTA as the cover. */
+function withFooterCta(node: BuilderNode): BuilderNode {
+  const kids = "children" in node && Array.isArray(node.children) ? node.children : null;
+  if (!kids) return node;
+  return {
+    ...node,
+    children: kids.map((k) =>
+      k.kind === "statement_footer"
+        ? ({
+            ...k,
+            props: {
+              ...(k.props as Record<string, unknown>),
+              ctaLabel: "Consultar",
+              ctaHref: TALENT_ASK_HREF,
+            },
+          } as BuilderNode)
+        : k,
+    ),
+  } as BuilderNode;
 }
 
 function entry(

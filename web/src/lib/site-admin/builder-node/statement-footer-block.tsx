@@ -5,6 +5,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { anchorIdAttrs } from "./anchor-id";
+import { MAGAZINE_BUTTON_CSS, MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import {
   STATEMENT_FOOTER_DEFAULT_PROPS,
   type StatementFooterAlign,
@@ -24,6 +25,38 @@ export const STATEMENT_FOOTER_CSS = `
 .sb-statement-footer-contact{margin:0;font-size:0.95rem;letter-spacing:0.01em;line-height:1.45;color:var(--token-color-ink);font-family:var(--token-typography-body-font-family,var(--site-body-font,system-ui,sans-serif));opacity:0.88}
 `;
 
+/** Magazine closing page: ink rule, giant serif line (last word italic), CTA. */
+export const STATEMENT_FOOTER_MAGAZINE_CSS = `
+.sb-statement-footer[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};margin-top:52px;padding:30px 16px 120px;border-top:1px solid var(--sb-mag-ink);color:var(--sb-mag-ink)}
+.sb-statement-footer[data-edition="magazine"] h2{margin:0;font:400 64px/.9 var(--sb-mag-serif);letter-spacing:-.01em;color:var(--sb-mag-ink);text-wrap:balance}
+.sb-statement-footer[data-edition="magazine"] h2 em{font-style:italic}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-copy{margin:12px 0 16px;color:var(--sb-mag-mute);font:400 15px/1.5 var(--sb-mag-sans)}
+.sb-statement-footer[data-edition="magazine"] .sb-mag-fine{margin-top:24px;display:flex;justify-content:space-between;gap:12px;font:600 10px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute)}
+${MAGAZINE_BUTTON_CSS}
+@media (min-width:900px){
+  .sb-statement-footer[data-edition="magazine"]{margin:90px 40px 0;padding:40px 0 120px}
+  .sb-statement-footer[data-edition="magazine"] h2{font-size:140px}
+}
+`;
+
+/** Split "Next issue." so its last word renders italic, like a cover line. */
+function splitLastWord(text: string): [string, string, string] {
+  const m = text.match(/^(.*\s)(\S+?)([.!?]*)$/);
+  return m ? [m[1]!, m[2]!, m[3]!] : ["", text, ""];
+}
+
+/** Fine-print host from a max-site URL or plain credit line. */
+function formatMagazineCredit(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  try {
+    const host = t.includes("://") ? new URL(t).hostname : t.replace(/^https?:\/\//, "").split("/")[0]!;
+    return host.replace(/^www\./, "");
+  } catch {
+    return t;
+  }
+}
+
 export function renderStatementFooterBlock(args: {
   node: BuilderStatementFooterNode;
   styleAttr?: CSSProperties;
@@ -40,10 +73,49 @@ export function renderStatementFooterBlock(args: {
 
   if (!statement && !creditLine && !contactLine) return null;
 
+  if (p.edition === "magazine") {
+    const [head, last, tail] = splitLastWord(statement);
+    const ctaLabel = (p.ctaLabel ?? "").trim();
+    const ctaHref = (p.ctaHref ?? "").trim();
+    return (
+      <footer
+        className="sb-statement-footer"
+        data-builder-kind="statement_footer"
+        data-builder-node-kind="statement_footer"
+        data-builder-node-id={node.id}
+        data-edition="magazine"
+        aria-label={statement || "Statement"}
+        style={styleAttr}
+        {...anchorIdAttrs(node)}
+      >
+        <style>{STATEMENT_FOOTER_MAGAZINE_CSS}</style>
+        {statement ? (
+          <h2>
+            {head}
+            <em>{last}</em>
+            {tail}
+          </h2>
+        ) : null}
+        {contactLine ? <p className="sb-mag-copy">{contactLine}</p> : null}
+        {ctaLabel && ctaHref ? (
+          <a className="sb-mag-btn" href={ctaHref}>
+            {ctaLabel}
+          </a>
+        ) : null}
+        <div className="sb-mag-fine">
+          <span>{formatMagazineCredit(creditLine)}</span>
+          <span>Hecho con Tulala</span>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer
       className="sb-statement-footer"
       data-builder-kind="statement_footer"
+      data-builder-node-kind="statement_footer"
+      data-builder-node-id={node.id}
       data-sf-align={align}
       data-sf-band="1"
       aria-label={statement || "Statement"}

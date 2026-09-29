@@ -36,6 +36,8 @@ export function shell(
   opts: {
     navChrome?: import("@/lib/site-admin/nav-chrome").NavChromeStyle;
     navLinks?: ReadonlyArray<{ label: string; href: string }>;
+    /** Override the standard shell primary CTA label (seed English or locale-stable). */
+    primaryCtaLabel?: string;
   } = {},
 ) {
   return buildKitStandardShell(makeId, {
@@ -43,6 +45,7 @@ export function shell(
     year: "{{year}}",
     ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
     ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
+    ...(opts.primaryCtaLabel ? { primaryCtaLabel: opts.primaryCtaLabel } : {}),
   }).map(deferYear);
 }
 
@@ -59,6 +62,8 @@ export type CatalogOpts = {
   showPhoto: boolean;
   showDescription?: boolean;
   showDelivery?: boolean;
+  showCategory?: boolean;
+  subtitle?: string;
   columns?: 1 | 2 | 3;
   search?: boolean;
   band?: boolean;
@@ -91,6 +96,7 @@ export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNo
           categoryNav: o.categoryNav,
           eyebrow: o.eyebrow,
           title: o.title,
+          ...(o.subtitle ? { subtitle: o.subtitle } : {}),
           stylePreset: o.stylePreset,
           photoRadius: o.photoRadius,
           density: o.density,
@@ -101,6 +107,7 @@ export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNo
           showStats: false,
           ...(o.showDescription !== undefined ? { showDescription: o.showDescription } : {}),
           ...(o.showDelivery !== undefined ? { showDelivery: o.showDelivery } : {}),
+          ...(o.showCategory !== undefined ? { showCategory: o.showCategory } : {}),
           ...(o.columns ? { columns: o.columns } : {}),
           ...(o.search ? { enableCatalogSearch: true } : {}),
           mobileBar: "float",

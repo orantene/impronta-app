@@ -38,6 +38,10 @@ import {
   galleryPaletteLookTokens,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import {
+  COLLECTION_DEFAULT_LOOK,
+  folioLookTokensFromCode,
+} from "@/lib/talent-site/theme-catalog/collection/folio-looks";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
@@ -52,6 +56,44 @@ import {
 /** Maison renders in its own default Look when the gallery picks none. */
 const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+/** Folio magazine leaf kinds — Design defaults stamp `edition: "magazine"`. */
+const FOLIO_MAGAZINE_KINDS = new Set([
+  "masthead",
+  "contents",
+  "portfolio",
+  "comp_card",
+  "statement_footer",
+]);
+
+/** Ensure Folio magazine blocks keep `edition: "magazine"` after saved-tree bind. */
+function stampFolioMagazineEdition(tree: BuilderNode[]): BuilderNode[] {
+  const visit = (node: BuilderNode): BuilderNode => {
+    const kids = "children" in node && Array.isArray(node.children) ? node.children : null;
+    const props = (node.props ?? {}) as Record<string, unknown>;
+    const nextProps = FOLIO_MAGAZINE_KINDS.has(node.kind)
+      ? { ...props, edition: "magazine" }
+      : props;
+    return {
+      ...node,
+      props: nextProps,
+      ...(kids ? { children: kids.map(visit) } : {}),
+    } as BuilderNode;
+  };
+  return tree.map(visit);
+}
+
+
+
+
+/** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
+function resolveFolioLookSlug(designSlug: string, lookSlug: string | null | undefined): string | null {
+  const fallback = COLLECTION_DEFAULT_LOOK[designSlug] ?? null;
+  const raw = (lookSlug || fallback || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith("folio-")) return raw;
+  if (designSlug === "folio" && ["stone", "light", "dark"].includes(raw)) return `folio-${raw}`;
+  return raw || fallback;
+}
 
 export async function ThemeCatalogPreview({
   designSlug,
@@ -97,13 +139,19 @@ export async function ThemeCatalogPreview({
   //  3. no / unknown look: the design's OWN default (Maison: maison-pink,
   //     collection designs: first gallery palette + fonts). The platform's
   //     generic default is never the whole answer for a catalog design.
+  const effectiveLookSlug = resolveFolioLookSlug(design.slug, lookSlug);
+  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
   const cleanLook = lookSlug && SLUG_RE.test(lookSlug) ? lookSlug : null;
-  const paletteTokens = cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
+  const paletteTokens =
+    folioTokens ? null : cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
   const rowSlug =
-    paletteTokens ? null : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
+    folioTokens || paletteTokens
+      ? null
+      : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
   const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
   const lookTokens: Record<string, string> | null =
+    folioTokens ??
     paletteTokens ??
     (look
       ? getGalleryDesign(design.slug) && design.slug !== "maison"
@@ -134,15 +182,24 @@ export async function ThemeCatalogPreview({
   const saved = demoHydration
     ? await loadDemoSavedTrees(demoHydration.demoTalentProfileId, design.slug)
     : null;
+  const folioDesign = design.slug === "folio";
+  const shellForBind = folioDesign ? built.shellTree : (saved?.shellTree ?? built.shellTree);
+  const homeForBind = folioDesign
+    ? stampFolioMagazineEdition(built.homeTree)
+    : (saved?.homeTree ?? built.homeTree);
   const mine = contentId
     ? await prepareMyContentPreview({
         talentProfileId: contentId,
         locale,
-        shellTree: saved?.shellTree ?? built.shellTree,
-        homeTree: saved?.homeTree ?? built.homeTree,
+        shellTree: shellForBind,
+        homeTree: homeForBind,
       })
     : null;
-  const homeTree = mine ? mine.homeTree : built.homeTree;
+  const homeTree = mine
+    ? folioDesign
+      ? stampFolioMagazineEdition(mine.homeTree)
+      : mine.homeTree
+    : homeForBind;
 
   const platformDefault = await loadPlatformDefaultTheme("talent");
   // Same layering as the live render: Design defaults sit between platform and Look.
