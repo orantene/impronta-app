@@ -14,31 +14,269 @@
  * Gated with Maison: `isMaisonCatalogSlug` treats every collection slug as
  * flag-owned, so only `TALENT_MAISON_THEME_ENABLED` talents see them.
  */
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { SERVICES_CATALOG_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/services-catalog-defaults";
+import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
+import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
+  buildKitStandardShell,
+  faqBlock,
   portfolioBlock,
   portfolioChaptersBlock,
-  contentsBlock,
+  reviewsBlock,
+  visitBlock,
   compCardBlock,
+  contentsBlock,
   statementFooterBlock,
   heroCentered,
   heroCover,
   heroMasthead,
   heroSplit,
+  stampKitSection,
+  type KitIdFactory,
 } from "../section-kit";
 
-import {
-  contactSection,
-  seqIds,
-  servicesSection,
-  shell,
-  tuneHeading,
-} from "./design-parts";
-import { buildMaisonV2Payload } from "./maison-v2";
+function seqIds(prefix: string): KitIdFactory {
+  let n = 0;
+  return () => `${prefix}-${(n += 1)}`;
+}
 
-export { buildMaisonV2Payload };
+function deferYear(node: BuilderNode): BuilderNode {
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const children = "children" in node && Array.isArray(node.children) ? node.children : null;
+  const isCopyright = props.layerLabel === "Copyright" && typeof props.text === "string";
+  return {
+    ...node,
+    props: isCopyright
+      ? { ...props, text: (props.text as string).replace(/©\s*\d{4}\b/, "© {{year}}") }
+      : props,
+    ...(children ? { children: children.map(deferYear) } : {}),
+  } as BuilderNode;
+}
+
+/**
+ * Every Design wears the standard talent header (`site_header`): logo when
+ * the site has one, nav, ES/EN switch and the primary CTA, with the platform's
+ * own mobile menu. The bare kit header dropped all of these.
+ */
+function shell(
+  makeId: KitIdFactory,
+  opts: {
+    navChrome?: import("@/lib/site-admin/nav-chrome").NavChromeStyle;
+    navLinks?: ReadonlyArray<{ label: string; href: string }>;
+  } = {},
+) {
+  return buildKitStandardShell(makeId, {
+    displayName: "{{displayName}}",
+    year: "{{year}}",
+    ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
+    ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
+  }).map(deferYear);
+}
+
+type CatalogOpts = {
+  label: string;
+  eyebrow: string;
+  title: string;
+  layout: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured";
+  categoryNav: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
+  stylePreset: "clean" | "editorial" | "compact" | "image_led";
+  photoRadius: "square" | "soft" | "round";
+  density: "comfortable" | "compact";
+  rowCtaVariant: "outline" | "solid";
+  showPhoto: boolean;
+  showDescription?: boolean;
+  showDelivery?: boolean;
+  columns?: 1 | 2 | 3;
+  search?: boolean;
+  band?: boolean;
+};
+
+function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNode {
+  return {
+    id: makeId(),
+    kind: "container",
+    props: stampKitSection("services", {
+      layout: "stack",
+      gap: "m",
+      align: "start",
+      layerLabel: o.label,
+      style: {
+        maxWidth: "wide",
+        paddingY: "l",
+        paddingX: "m",
+        ...(o.band ? { backgroundColor: styleTokenRef("color.surface-raised") } : {}),
+      },
+      responsive: { mobile: { layout: "stack" } },
+    }),
+    children: [
+      {
+        id: makeId(),
+        kind: "services_catalog",
+        props: {
+          ...SERVICES_CATALOG_DEFAULT_PROPS,
+          layout: o.layout,
+          categoryNav: o.categoryNav,
+          eyebrow: o.eyebrow,
+          title: o.title,
+          stylePreset: o.stylePreset,
+          photoRadius: o.photoRadius,
+          density: o.density,
+          rowCtaVariant: o.rowCtaVariant,
+          showPrice: true,
+          showDuration: true,
+          showPhoto: o.showPhoto,
+          showStats: false,
+          ...(o.showDescription !== undefined ? { showDescription: o.showDescription } : {}),
+          ...(o.showDelivery !== undefined ? { showDelivery: o.showDelivery } : {}),
+          ...(o.columns ? { columns: o.columns } : {}),
+          ...(o.search ? { enableCatalogSearch: true } : {}),
+          mobileBar: "float",
+          useWebsiteTheme: true,
+          showAskLink: true,
+          emptyMessage: "No services are published yet.",
+        },
+      } as BuilderNode,
+    ],
+  } as BuilderNode;
+}
+
+/** Contact + FAQ bound to `talent_faq_items`, like Maison, with per-design copy. */
+function contactSection(
+  makeId: KitIdFactory,
+  o: { heading: string; faqHeading: string; center?: boolean; band?: boolean },
+): BuilderNode {
+  // Shared FAQ preset stamps contact; keep a short lead heading for Designs
+  // that still want an Ask + FAQ band in one slot.
+  const base = faqBlock(makeId, {
+    heading: o.faqHeading,
+    center: o.center,
+    band: o.band,
+    ask: true,
+  });
+  const kids = "children" in base && Array.isArray(base.children) ? base.children : [];
+  return {
+    ...base,
+    props: {
+      ...(base.props as Record<string, unknown>),
+      layerLabel: "Contact & FAQ",
+    },
+    children: [
+      {
+        id: makeId(),
+        kind: "heading",
+        props: {
+          text: o.heading,
+          level: 2,
+          style: { size: "xl", ...(o.center ? { align: "center" } : {}) },
+        },
+      },
+      ...kids,
+    ],
+  } as BuilderNode;
+}
+
+/** Retune the kit hero's name heading (size / spacing / case) without a new node kind. */
+function tuneHeading(node: BuilderNode, style: Record<string, unknown>): BuilderNode {
+  const children = "children" in node && Array.isArray(node.children) ? node.children : null;
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const text = typeof props.text === "string" ? props.text : "";
+  const isName =
+    node.kind === "heading" &&
+    (text === "{{displayName}}" || text.includes("{{displayName}}"));
+  return {
+    ...node,
+    props: isName ? { ...props, style: { ...((props.style as object) ?? {}), ...style } } : props,
+    ...(children ? { children: children.map((c) => tuneHeading(c, style)) } : {}),
+  } as BuilderNode;
+}
+
+function askButton(makeId: KitIdFactory, label: string): BuilderNode {
+  return {
+    id: makeId(),
+    kind: "button",
+    props: { label, href: TALENT_ASK_HREF, tone: "secondary", layerLabel: label },
+  } as BuilderNode;
+}
+
+function withChild(node: BuilderNode, child: BuilderNode): BuilderNode {
+  // Append into the hero's text column (first container child) when present.
+  const kids = "children" in node && Array.isArray(node.children) ? node.children : [];
+  const idx = kids.findIndex((k) => k.kind === "container" || k.kind === "reveal");
+  if (idx < 0) return { ...node, children: [...kids, child] } as BuilderNode;
+  const col = kids[idx] as BuilderNode & { children?: BuilderNode[] };
+  const next = [...kids];
+  next[idx] = { ...col, children: [...(col.children ?? []), child] } as BuilderNode;
+  return { ...node, children: next } as BuilderNode;
+}
+
+// ── Maison v2 (Rosé proposal) ────────────────────────────────────────────────
+// Split hero with desktop inset photo, Bodoni italic name (typography token),
+// next-free chip (slots API), recent work BEFORE the menu, the menu as
+// image-led rows with a sticky category rail (chips on phone), split about,
+// visit facts band, FAQ, then live-bound reviews quote cards.
+export function buildMaisonV2Payload(): DesignPayload {
+  const id = seqIds("maison-v2");
+  const hero = tuneHeading(
+    heroSplit(id, {
+      ratio: "50-50",
+      chips: false,
+      accent: true,
+      eyebrow: true,
+      minHeight: "64vh",
+      inset: true,
+      italicAccent: true,
+      nextFreeChip: true,
+    }),
+    { size: "display", letterSpacing: "-0.02em" },
+  );
+  return {
+    shellTree: shell(id),
+    homeTree: [
+      withChild(hero, askButton(id, "Ask about a service")),
+      portfolioBlock(id, { layout: "filmstrip", heading: "Recent work", showCaptions: true }),
+      servicesSection(id, {
+        label: "Menu",
+        eyebrow: "The menu",
+        title: "Services {i}and prices{/i}",
+        layout: "rows",
+        categoryNav: "rail",
+        stylePreset: "image_led",
+        photoRadius: "soft",
+        density: "comfortable",
+        rowCtaVariant: "outline",
+        showPhoto: true,
+      }),
+      aboutBlock(id, {
+        align: "start",
+        accent: true,
+        layout: "split",
+        greeting: "Hello, I'm {{displayName}}",
+        showFacts: false,
+      }),
+      visitBlock(id, {
+        layout: "split",
+        heading: "Your visit",
+        titleAccent: "visit",
+        band: true,
+      }),
+      faqBlock(id, {
+        heading: "Before your appointment",
+        center: true,
+        ask: true,
+      }),
+      reviewsBlock(id, {
+        layout: "row",
+        heading: "What clients say",
+        eyebrow: "Reviews",
+        autoplayMs: 5500,
+      }),
+    ],
+  };
+}
 
 // ── Solace ───────────────────────────────────────────────────────────────────
 // Calm full-bleed cover, a centered short intro, services as an unhurried
@@ -156,10 +394,41 @@ export function buildFramePayload(): DesignPayload {
 }
 
 // ── Folio ────────────────────────────────────────────────────────────────────
-// Magazine masthead (giant stacked words + B&W cover), Contents index,
-// the book as shared W-12 chapter blocks (sticky numeral + title + credit,
-// 1 large + 2 smaller), shared comp-card measure strip, a rate card of rows,
-// and a shared statement footer (statement / credit / contact).
+// A printed issue (Folio proposal): mast line, the name across the full width,
+// a B&W cover beside the bio, square CTAs and the "In this issue" index; then
+// chapters (sticky italic numeral, 1 large + 2 captioned plates), the inverted
+// comp card strip, a rate card of ruled rows, About, and the closing
+// Folio magazine edition: cover masthead + contents + chapters + measures +
+// rate card + statement footer. Every block is a shared widget in its magazine edition.
+export const FOLIO_CHAPTER_SEEDS = [
+  { heading: "Selected work", creditLine: "From the studio" },
+  { heading: "Details", creditLine: "Up close" },
+  { heading: "Portraits", creditLine: "Natural light" },
+] as const;
+
+function magazine(node: BuilderNode): BuilderNode {
+  const children = "children" in node && Array.isArray(node.children) ? node.children : null;
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const leafKinds = new Set(["masthead", "contents", "portfolio", "comp_card", "statement_footer"]);
+  return {
+    ...node,
+    props: leafKinds.has(node.kind) ? { ...props, edition: "magazine" } : props,
+    ...(children ? { children: children.map(magazine) } : {}),
+  } as BuilderNode;
+}
+
+/** Edge-to-edge band: the magazine blocks own their gutters. */
+function fullBleed(node: BuilderNode): BuilderNode {
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const style = (props.style ?? {}) as Record<string, unknown>;
+  const rest = { ...style };
+  delete rest.minHeight;
+  return {
+    ...node,
+    props: { ...props, gap: "s", style: { ...rest, maxWidth: "full", paddingY: "none", paddingX: "none" } },
+  } as BuilderNode;
+}
+
 export function buildFolioPayload(): DesignPayload {
   const id = seqIds("folio");
   const hero = heroMasthead(id, {
@@ -170,9 +439,40 @@ export function buildFolioPayload(): DesignPayload {
     coverFilter: "bw",
     coverSrc: "{{headshotUrl}}",
   });
+  const heroKids = "children" in hero && Array.isArray(hero.children) ? hero.children : [];
+  const heroWithSpread = {
+    ...hero,
+    children: heroKids.map((k) =>
+      k.kind === "masthead"
+        ? ({
+            ...k,
+            props: {
+              ...(k.props as Record<string, unknown>),
+              coverLine: "{{primaryTypeLabel}}",
+              mastRight: "{{locationLine}}",
+              bio: "{{bio}}",
+              // Seed key: rendered per booking mode + locale by design-label-locale.
+              ctaLabel: "Book a session",
+              ctaHref: TALENT_ASK_HREF,
+              bookLabel: "See the book",
+              bookHref: "#chapter-1",
+              contentsTitle: "In this issue",
+              contents: [
+                ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+                  label: c.heading,
+                  anchor: `chapter-${i + 1}`,
+                  credit: c.creditLine,
+                })),
+                { label: "Rates", anchor: "services", credit: "Rates and dates" },
+              ],
+            },
+          } as BuilderNode)
+        : k,
+    ),
+  } as BuilderNode;
   return {
     shellTree: shell(id, {
-      navChrome: "chapter_dots",
+      navChrome: "top_bar",
       navLinks: [
         { label: "Work", href: "#gallery" },
         { label: "About", href: "#about" },
@@ -181,53 +481,64 @@ export function buildFolioPayload(): DesignPayload {
       ],
     }),
     homeTree: [
-      hero,
-      contentsBlock(id, {
-        heading: "Contents",
-        showNumbers: true,
-        numberStyle: "roman",
-        items: [
-          { label: "Editorial", anchor: "chapter-1" },
-          { label: "Lookbook", anchor: "chapter-2" },
-          { label: "Portraits", anchor: "chapter-3" },
-          { label: "About", anchor: "about" },
-          { label: "Measures", anchor: "comp_card" },
-          { label: "Rates", anchor: "services" },
-          { label: "Contact", anchor: "contact" },
-        ],
-      }),
-      portfolioChaptersBlock(id, [
-        {
-          chapterNumber: 1,
-          heading: "Editorial",
-          creditLine: "Studio session",
-          showCaptions: true,
-          limit: 6,
-          anchorId: "chapter-1",
-        },
-        {
-          chapterNumber: 2,
-          heading: "Lookbook",
-          creditLine: "Seasonal story",
-          showCaptions: true,
-          limit: 6,
-          anchorId: "chapter-2",
-        },
-        {
-          chapterNumber: 3,
-          heading: "Portraits",
-          creditLine: "Natural light",
-          showCaptions: true,
-          limit: 6,
-          anchorId: "chapter-3",
-        },
-      ]),
-      aboutBlock(id, { align: "start", accent: false }),
-      compCardBlock(id, {
-        layout: "strip_with_details",
-        showFullDetails: true,
-        minMeasures: 4,
-      }),
+      magazine(fullBleed(heroWithSpread)),
+      magazine(
+        fullBleed(
+          contentsBlock(id, {
+            heading: "Contents",
+            showNumbers: true,
+            numberStyle: "roman",
+            items: [
+              ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+                label: c.heading,
+                anchor: `chapter-${i + 1}`,
+              })),
+              { label: "About", anchor: "about" },
+              { label: "Measures", anchor: "comp_card" },
+              { label: "Rates", anchor: "services" },
+              { label: "Contact", anchor: "contact" },
+            ],
+          }),
+        ),
+      ),
+      magazine(
+        fullBleed(
+          portfolioChaptersBlock(
+            id,
+            FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+              chapterNumber: i + 1,
+              heading: c.heading,
+              creditLine: c.creditLine,
+              showCaptions: true,
+              limit: 3,
+              anchorId: `chapter-${i + 1}`,
+            })),
+          ),
+        ),
+      ),
+      magazine(
+        fullBleed(
+          compCardBlock(id, {
+            layout: "strip_with_details",
+            heading: "Measures · Comp card",
+            showFullDetails: true,
+            minMeasures: 4,
+            // Mateo Ferrer / model strip: height · suit · shoe · languages.
+            measures: [
+              { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height", labelEs: "Estatura" },
+              { fieldKey: "physical.suit_size", enabled: true, labelEn: "Suit", labelEs: "Saco" },
+              {
+                fieldKey: "physical.shoe_size_eu",
+                enabled: true,
+                labelEn: "Shoe",
+                labelEs: "Calzado",
+                unit: "MX",
+              },
+              { fieldKey: "languages", enabled: true, labelEn: "Languages", labelEs: "Idiomas" },
+            ],
+          }),
+        ),
+      ),
       servicesSection(id, {
         label: "Rate card",
         eyebrow: "Booking",
@@ -242,18 +553,46 @@ export function buildFolioPayload(): DesignPayload {
         showDescription: false,
         showDelivery: true,
       }),
-      contactSection(id, { heading: "Next issue", faqHeading: "Questions" }),
-      statementFooterBlock(id, {
-        statement:
-          "Available for editorial, campaign, and portrait commissions.",
-        creditLine: "{{displayName}}",
-        // Seed key: rendered per booking mode + locale by design-label-locale.
-        contactLine: "Inquire for bookings",
-        align: "center",
-        showRule: true,
-      }),
-    ],
+      aboutBlock(id, { align: "start", accent: false }),
+      faqBlock(id, { heading: "Questions", ask: true }),
+      magazine(
+        fullBleed(
+          statementFooterBlock(id, {
+            statement: "Available for editorial, campaign, and portrait commissions.",
+            creditLine: "{{displayName}}",
+            contactLine: "Inquire for bookings",
+            align: "start",
+            showRule: true,
+          }),
+        ),
+      ),
+    ].map((n) =>
+      n.kind === "container" && Array.isArray((n as { children?: unknown }).children)
+        ? withFooterCta(n)
+        : n,
+    ),
   };
+}
+
+/** The closing page carries the same primary CTA as the cover. */
+function withFooterCta(node: BuilderNode): BuilderNode {
+  const kids = "children" in node && Array.isArray(node.children) ? node.children : null;
+  if (!kids) return node;
+  return {
+    ...node,
+    children: kids.map((k) =>
+      k.kind === "statement_footer"
+        ? ({
+            ...k,
+            props: {
+              ...(k.props as Record<string, unknown>),
+              ctaLabel: "Book a session",
+              ctaHref: TALENT_ASK_HREF,
+            },
+          } as BuilderNode)
+        : k,
+    ),
+  } as BuilderNode;
 }
 
 function entry(

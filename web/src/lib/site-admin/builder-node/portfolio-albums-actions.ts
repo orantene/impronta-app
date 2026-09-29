@@ -11,13 +11,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
-import type { MediaAlbumEntry } from "@/lib/server-actions/admin-talent-profile-sections";
-
-export type TalentMediaAlbumOption = {
-  id: string;
-  name: string;
-  sortOrder: number;
-};
+import {
+  normalizeTalentMediaAlbums,
+  type TalentMediaAlbumOption,
+} from "./portfolio-albums";
 
 type LoadResult =
   | { ok: true; albums: TalentMediaAlbumOption[] }
@@ -51,24 +48,6 @@ async function canEditTalent(talentProfileId: string): Promise<boolean> {
   return Boolean(roster);
 }
 
-function normalizeAlbums(raw: unknown): TalentMediaAlbumOption[] {
-  if (!Array.isArray(raw)) return [];
-  const out: TalentMediaAlbumOption[] = [];
-  for (const [i, row] of raw.entries()) {
-    if (!row || typeof row !== "object") continue;
-    const r = row as MediaAlbumEntry;
-    const id = typeof r.id === "string" ? r.id.trim() : "";
-    const name = typeof r.name === "string" ? r.name.trim() : "";
-    if (!id || !name) continue;
-    out.push({
-      id,
-      name,
-      sortOrder: typeof r.sortOrder === "number" ? r.sortOrder : i,
-    });
-  }
-  return out.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
-}
-
 /** Editor: albums for the chapter collection picker. Never invents albums. */
 export async function loadTalentMediaAlbumsForEditor(
   talentProfileId: string,
@@ -84,7 +63,7 @@ export async function loadTalentMediaAlbumsForEditor(
     if (!admin) return { ok: false, error: "Server configuration error." };
 
     const blobs = await readBlobFieldValuesFromCatalog(admin, talentProfileId);
-    return { ok: true, albums: normalizeAlbums(blobs.media_albums_data) };
+    return { ok: true, albums: normalizeTalentMediaAlbums(blobs.media_albums_data) };
   } catch (err) {
     logServerError("portfolio.loadAlbums", err);
     return { ok: false, error: "Could not load albums." };

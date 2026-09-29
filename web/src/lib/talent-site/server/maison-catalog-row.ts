@@ -16,6 +16,7 @@ import {
   type TalentThemeKind,
 } from "@/lib/talent-site/theme-catalog/types";
 import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { FOLIO_BUILTIN_LOOKS } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
 import type { BuiltinDesignEntry, BuiltinLookEntry } from "@/lib/talent-site/theme-catalog/builtins/types";
 import { coerceCatalogRow, CATALOG_ROW_COLUMNS } from "./theme-catalog-row";
 import { logServerError } from "@/lib/server/safe-error";
@@ -59,7 +60,9 @@ function maisonBuiltinRow<K extends TalentThemeKind>(
     if (collection) return asPublishedRow(collection) as Extract<TalentThemeCatalogRow, { kind: K }>;
   }
   if (kind === "look") {
-    const look = MAISON_BUILTIN_LOOKS.find((l) => l.slug === slug);
+    const look =
+      MAISON_BUILTIN_LOOKS.find((l) => l.slug === slug) ??
+      FOLIO_BUILTIN_LOOKS.find((l) => l.slug === slug);
     if (look) return asPublishedRow(look) as Extract<TalentThemeCatalogRow, { kind: K }>;
   }
   return null;
@@ -70,6 +73,10 @@ export async function loadMaisonCatalogRow<K extends Exclude<TalentThemeKind, "d
   kind: K,
   slug: string,
 ): Promise<Extract<TalentThemeCatalogRow, { kind: K }> | null> {
+  // Folio Design + Looks are code-owned (same as theme-preview); skip stale DB rows.
+  if ((kind === "look" && slug.startsWith("folio-")) || (kind === "design" && slug === "folio")) {
+    return maisonBuiltinRow(kind, slug);
+  }
   const { data, error } = await admin
     .from("talent_theme_catalog")
     .select(CATALOG_ROW_COLUMNS)

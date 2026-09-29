@@ -15,6 +15,7 @@
  */
 import { notFound } from "next/navigation";
 
+import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { TalentSiteRenderer } from "@/components/talent/site/TalentSiteRenderer";
 import { isThemePreviewAllowed } from "./theme-preview-gate";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
@@ -30,27 +31,30 @@ import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/cata
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
-import { GoogleFontsLink } from "@/app/google-fonts-link";
-import {
-  designTypographyTokens,
-  galleryDefaultLookTokens,
-  getGalleryDesign,
-  galleryPaletteLookTokens,
-} from "@/lib/talent-site/theme-catalog/gallery-meta";
-import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
-import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
-import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
-import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { resolveDemoPreviewSource } from "./demo-preview-source";
 import { resolveDemoPreviewHydration } from "./demo-preview-hydration";
 import {
   prepareMyContentPreview,
   resolveMyContentPreviewLocale,
 } from "@/lib/talent-site/server/preview-my-content.server";
+import {
+  COLLECTION_DEFAULT_LOOK,
+  folioLookTokensFromCode,
+} from "@/lib/talent-site/theme-catalog/collection/folio-looks";
+import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { MAGAZINE_LABEL_FAMILY } from "@/lib/site-admin/builder-node/magazine-edition";
 
-/** Maison renders in its own default Look when the gallery picks none. */
-const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+/** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
+function resolveFolioLookSlug(designSlug: string, lookSlug: string | null | undefined): string | null {
+  const fallback = COLLECTION_DEFAULT_LOOK[designSlug] ?? null;
+  const raw = (lookSlug || fallback || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith("folio-")) return raw;
+  if (designSlug === "folio" && ["stone", "light", "dark"].includes(raw)) return `folio-${raw}`;
+  return raw || fallback;
+}
 
 export async function ThemeCatalogPreview({
   designSlug,
@@ -89,32 +93,24 @@ export async function ThemeCatalogPreview({
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
 
-  // Look resolution, most specific first:
-  //  1. `?look=` names one of THIS design's gallery palettes (its own colours
-  //     and fonts, e.g. maison-v2 + "rose");
-  //  2. `?look=` names a published Look row (Maison palettes);
-  //  3. no / unknown look: the design's OWN default (Maison: maison-pink,
-  //     collection designs: first gallery palette + fonts). The platform's
-  //     generic default is never the whole answer for a catalog design.
-  const cleanLook = lookSlug && SLUG_RE.test(lookSlug) ? lookSlug : null;
-  const paletteTokens = cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
-  const rowSlug =
-    paletteTokens ? null : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
-  const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
+  // Folio Looks always come from code (`folio-looks.ts`), never the DB, so
+  // stone applies before sync and cannot drift. Other Designs keep the row path.
+  const effectiveLookSlug = resolveFolioLookSlug(designSlug, lookSlug);
+  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
+  const lookRow =
+    !folioTokens && effectiveLookSlug && SLUG_RE.test(effectiveLookSlug)
+      ? await loadRow("look", effectiveLookSlug)
+      : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
   const lookTokens: Record<string, string> | null =
-    paletteTokens ??
-    (look
-      ? getGalleryDesign(design.slug) && design.slug !== "maison"
-        ? { ...look.payload.tokens, ...designTypographyTokens(design.slug) }
-        : look.payload.tokens
-      : galleryDefaultLookTokens(design.slug));
+    folioTokens ?? (look ? look.payload.tokens : null);
 
   // P4: a gallery-meta demo talent's content (allow-listed), else the
   // owner-gated hydration exactly as before.
   const demoSource = resolveDemoPreviewSource(designSlug, demo);
-  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource) : null;
-  const hydration = demoHydration ?? (await resolvePreviewHydration(talentProfileId));
+  const hydration =
+    (demoSource ? await resolveDemoPreviewHydration(demoSource) : null) ??
+    (await resolvePreviewHydration(talentProfileId));
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
@@ -122,15 +118,12 @@ export async function ThemeCatalogPreview({
   // render's locale swaps, the live data sources, and hide-empty. Demo
   // content keeps the requested locale and the untouched design.
   const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
-  // A demo talent's own live widgets (services, photos, reviews, visit) bind
-  // too, read-only, in the requested locale.
-  const contentId = ownerId ?? demoHydration?.demoTalentProfileId ?? null;
   const locale = ownerId
     ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
     : requestedLocale;
-  const mine = contentId
+  const mine = ownerId
     ? await prepareMyContentPreview({
-        talentProfileId: contentId,
+        talentProfileId: ownerId,
         locale,
         shellTree: built.shellTree,
         homeTree: built.homeTree,
@@ -150,13 +143,6 @@ export async function ThemeCatalogPreview({
       )
     : platformDefault.tokens;
 
-  // Seeded labels follow the locale and (for the owner) the booking mode,
-  // exactly as the live site renders them.
-  const ctaMode = contentId
-    ? await loadTalentSiteCtaMode(contentId, await loadTalentPlanKey(contentId))
-    : null;
-  const localise = (tree: BuilderNode[]) => localiseSeededDesignLabels(tree, locale, ctaMode);
-
   const [shellHeader, shellFooter] = splitShell(mine ? mine.shellTree : built.shellTree);
   const snapshot: TalentSiteSnapshot = {
     version: 1,
@@ -175,18 +161,28 @@ export async function ThemeCatalogPreview({
     slots: [],
     // Header, page, footer: the same order the live site renders. Spreading
     // the whole shell first put the footer under the header in every preview.
-    builderTree: localise([...shellHeader, ...homeTree, ...shellFooter]),
+    builderTree: [...shellHeader, ...homeTree, ...shellFooter],
   };
 
+  const localeNorm = locale === "es" ? "es" : "en";
+  // Instrument Serif + Archivo from Look tokens; Archivo Narrow for magazine labels / nav.
+  const extraFonts =
+    designSlug === "folio"
+      ? [MAGAZINE_LABEL_FAMILY, "Archivo Narrow", "Instrument Serif", "Archivo"]
+      : [];
+
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"} designSlug={design.slug}>
-      <GoogleFontsLink tokens={effectiveTokens} />
+    <ThemeTokenPreviewFrame
+      initialTokens={effectiveTokens}
+      locale={localeNorm}
+      designSlug={design.slug}
+    >
+      <GoogleFontsLink tokens={effectiveTokens} fontFamilies={extraFonts} />
       <DesignSkinStyle slug={design.slug} />
       <TalentSiteRenderer
         snapshot={snapshot}
         locale={locale}
         freeformDataSources={mine?.dataSources}
-        designSlug={design.slug}
       />
     </ThemeTokenPreviewFrame>
   );

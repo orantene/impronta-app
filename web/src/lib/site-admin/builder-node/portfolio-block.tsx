@@ -17,8 +17,8 @@ import {
   type PortfolioLayout,
 } from "./portfolio-defaults";
 import { filterShotsForPortfolio } from "./portfolio-selection";
+import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { PortfolioShotLink } from "./portfolio-shot-link";
-import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
 import type { BuilderPortfolioNode } from "./types";
 
@@ -36,17 +36,6 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--filmstrip{display:flex;gap:0.75rem;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem}
 .sb-portfolio--filmstrip .sb-portfolio-item{flex:0 0 auto;width:min(72vw,280px);scroll-snap-align:start}
 .sb-portfolio--filmstrip .sb-portfolio-frame{aspect-ratio:4/5}
-.sb-portfolio--staggered{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:6px}
-.sb-portfolio--staggered::-webkit-scrollbar{display:none}
-.sb-portfolio--staggered .sb-portfolio-item{flex:0 0 62%;margin:0;scroll-snap-align:start}
-.sb-portfolio--staggered .sb-portfolio-frame{aspect-ratio:3/4;border-radius:20px}
-.sb-portfolio--staggered .sb-portfolio-shot img{transition:transform .5s ease}
-.sb-portfolio--staggered .sb-portfolio-shot:hover img{transform:scale(1.04)}
-@media (min-width:900px){
-  .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0}
-  .sb-portfolio--staggered .sb-portfolio-item:nth-child(n+6){display:none}
-  .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
-}
 .sb-portfolio--grid{display:grid;gap:0.75rem;grid-template-columns:repeat(var(--sb-portfolio-cols,3),minmax(0,1fr))}
 .sb-portfolio--grid .sb-portfolio-frame{aspect-ratio:4/5}
 .sb-portfolio--masonry{column-count:var(--sb-portfolio-cols,3);column-gap:0.75rem}
@@ -80,11 +69,40 @@ export const PORTFOLIO_CSS = `
 }
 `;
 
+/** Magazine chapter: rule-set head, italic numeral, captioned 1 + 2 sequence. */
+export const PORTFOLIO_MAGAZINE_CSS = `
+.sb-portfolio[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};padding:52px 16px 0;color:var(--sb-mag-ink);width:100%;box-sizing:border-box}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:block}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-head{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:end;border-bottom:1px solid var(--sb-mag-ink);padding-bottom:10px;margin-bottom:12px}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-num{font:italic 400 64px/.8 var(--sb-mag-serif);letter-spacing:0}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-title{font:400 38px/.95 var(--sb-mag-serif);letter-spacing:0}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-credit{grid-column:1/-1;margin:0;font:600 10.5px/1.3 var(--sb-mag-label);letter-spacing:.18em;text-transform:uppercase;color:var(--sb-mag-mute)}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item{margin:0;position:relative;overflow:hidden;background:var(--sb-mag-tint)}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-shot,.sb-portfolio[data-edition="magazine"] .sb-portfolio-frame{height:100%}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero{grid-column:1/-1}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:4/5}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:3/4}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-cap{position:absolute;left:8px;bottom:8px;margin:0;padding:3px 6px;font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:white;background:color-mix(in srgb,black 35%,transparent)}
+.sb-portfolio[data-edition="magazine"] .sb-portfolio-service{display:none}
+@media (min-width:900px){
+  .sb-portfolio[data-edition="magazine"]{padding:90px 40px 0}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-head{display:block;border:0;padding:0;margin:0;position:sticky;top:80px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-num{display:block;font-size:120px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-chapter-title{margin-top:6px;font-size:56px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-credit{margin-top:12px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio--chapter{grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero{grid-column:auto;grid-row:span 2}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--hero .sb-portfolio-frame{aspect-ratio:auto}
+  .sb-portfolio[data-edition="magazine"] .sb-portfolio-item--pair .sb-portfolio-frame{aspect-ratio:4/5}
+}
+`;
+
 function defaultColumns(layout: PortfolioLayout, authored?: 2 | 3 | 4): number {
   if (authored) return authored;
   if (layout === "contact_sheet") return 4;
   if (layout === "filmstrip") return 3;
-  if (layout === "staggered") return 5;
   if (layout === "masonry") return 2;
   if (layout === "chapter") return 2;
   return 3;
@@ -102,25 +120,22 @@ function ShotFigure({
   showCaptions,
   confirmsByHand,
   itemClass,
-  wantLabel,
+  magazineIndex,
 }: {
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
   showCaptions: boolean;
   confirmsByHand: boolean;
   itemClass?: string;
-  /** Staggered strip: a linked shot reads "I want this" instead of the service name. */
-  wantLabel?: string;
+  /** Magazine: 1-based plate number shown as "01 · caption". */
+  magazineIndex?: number;
 }) {
   const label =
     shot.caption?.trim() ||
     shot.offeringTitle?.trim() ||
     shot.alt ||
     "Portfolio photo";
-  const serviceLine =
-    wantLabel && shot.offeringId && shot.caption?.trim()
-      ? wantLabel
-      : shot.offeringTitle?.trim() || null;
+  const serviceLine = shot.offeringTitle?.trim() || null;
 
   return (
     <figure
@@ -140,7 +155,13 @@ function ShotFigure({
           {/* eslint-disable-next-line @next/next/no-img-element -- public CDN URLs; sizes vary by layout */}
           <img src={shot.url} alt={shot.alt || label} loading="lazy" decoding="async" />
         </span>
-        {showCaptions && (shot.caption?.trim() || serviceLine) ? (
+        {showCaptions && magazineIndex ? (
+          <figcaption className="sb-portfolio-cap">
+            {[String(magazineIndex).padStart(2, "0"), shot.caption?.trim() || serviceLine]
+              .filter(Boolean)
+              .join(" · ")}
+          </figcaption>
+        ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
           <figcaption className="sb-portfolio-cap">
             {shot.caption?.trim() || null}
             {serviceLine ? <span className="sb-portfolio-service">{serviceLine}</span> : null}
@@ -161,12 +182,9 @@ export function renderPortfolioBlock(args: {
   offerings?: ReadonlyArray<TalentOffering>;
   confirmsByHand?: boolean;
   styleAttr?: CSSProperties;
-  locale?: string;
 }): ReactNode {
   const p = args.node.props;
   const layout = (p.layout ?? PORTFOLIO_DEFAULT_PROPS.layout) as PortfolioLayout;
-  const es = (args.locale ?? "").toLowerCase().startsWith("es");
-  const wantLabel = layout === "staggered" ? (es ? "Quiero esto" : "I want this") : undefined;
   const showCaptions = p.showCaptions === true;
   const linkMode = p.linkMode ?? PORTFOLIO_DEFAULT_PROPS.linkMode;
   const cols = defaultColumns(layout, p.columns);
@@ -187,6 +205,7 @@ export function renderPortfolioBlock(args: {
   const credit = p.creditLine?.trim() || "";
   const roman = portfolioChapterRoman(p.chapterNumber);
   const isChapter = layout === "chapter";
+  const magazine = isChapter && p.edition === "magazine";
 
   const shotNodes = visible.map((shot, index) => (
     <ShotFigure
@@ -196,7 +215,7 @@ export function renderPortfolioBlock(args: {
       showCaptions={showCaptions}
       confirmsByHand={args.confirmsByHand ?? true}
       itemClass={isChapter ? chapterItemClass(index) : undefined}
-      wantLabel={wantLabel}
+      magazineIndex={magazine ? index + 1 : undefined}
     />
   ));
 
@@ -205,6 +224,7 @@ export function renderPortfolioBlock(args: {
       data-builder-node-kind="portfolio"
       data-portfolio-layout={layout}
       data-portfolio-chapter={isChapter ? roman : undefined}
+      data-edition={magazine ? "magazine" : undefined}
       className="sb-portfolio"
       style={{
         ...args.styleAttr,
@@ -213,6 +233,7 @@ export function renderPortfolioBlock(args: {
       {...anchorIdAttrs(args.node)}
     >
       <style>{PORTFOLIO_CSS}</style>
+      {magazine ? <style>{PORTFOLIO_MAGAZINE_CSS}</style> : null}
       {isChapter ? (
         <div className="sb-portfolio-chapter">
           <header className="sb-portfolio-chapter-head">
@@ -232,7 +253,7 @@ export function renderPortfolioBlock(args: {
         <>
           <header className="sb-portfolio-header">
             {eyebrow ? <p className="sb-portfolio-eyebrow">{eyebrow}</p> : null}
-            <h2 className="sb-portfolio-title">{renderItalicMarkedTitle(title)}</h2>
+            <h2 className="sb-portfolio-title">{title}</h2>
           </header>
           {visible.length === 0 ? (
             <p className="sb-portfolio-empty">{empty}</p>

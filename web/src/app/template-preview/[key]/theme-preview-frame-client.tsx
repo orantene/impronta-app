@@ -88,7 +88,7 @@ export function ThemeTokenPreviewFrame({
     <div
       data-theme-canvas-root=""
       data-talent-theme-preview=""
-      {...(designSlug ? { "data-talent-design": designSlug } : {})}
+      data-talent-design={designSlug || undefined}
       {...dataAttrs}
       style={{
         ...(cssVars as React.CSSProperties),

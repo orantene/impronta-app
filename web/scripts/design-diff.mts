@@ -23,20 +23,37 @@ import { fileURLToPath } from "node:url";
 
 type Sel = string | string[];
 type Row = { id: string; label: string; artifactSelector: Sel; localSelector: Sel };
-type Design = { artifactPath: string | null; artifactTodo?: string; templateSlug: string; rows: Row[] };
+type Design = {
+  artifactPath: string | null;
+  artifactTodo?: string;
+  templateSlug: string;
+  /** Override manifest.localTalentId for this design (Folio = Mateo). */
+  localTalentId?: string;
+  rows: Row[];
+};
 type Manifest = { localTalentId: string; designs: Record<string, Design> };
 
-const LOCAL_ORIGIN = "http://localhost:3001";
-const ENV_FILE = "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/pm-apply/web/.env.local";
-const OUT_ROOT = path.join(os.homedir(), ".claude", "design-diff");
-const AUTH_FILE = path.join(OUT_ROOT, ".auth.json");
-const SERVE_ROOT = path.join(os.homedir(), ".claude", "mockup-serve");
+function expandHome(p: string): string {
+  return p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p;
+}
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 function arg(name: string, fallback?: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 }
+
+/** Prefer --base-url / DESIGN_DIFF_BASE_URL / QA_PORT; default Folio QA :3003 (never Claude :3001). */
+const LOCAL_ORIGIN =
+  arg("base-url") ??
+  process.env.DESIGN_DIFF_BASE_URL ??
+  (process.env.QA_PORT ? `http://localhost:${process.env.QA_PORT}` : undefined) ??
+  "http://localhost:3003";
+const ENV_FILE = process.env.DESIGN_DIFF_ENV ?? path.join(here, "../.env.local");
+const OUT_ROOT = path.join(os.homedir(), ".claude", "design-diff");
+const AUTH_FILE = path.join(OUT_ROOT, ".auth.json");
+const SERVE_ROOT = path.join(os.homedir(), ".claude", "mockup-serve");
 
 function assertLocal(url: string): void {
   const h = new URL(url).hostname;
@@ -82,10 +99,10 @@ async function waitForLocal(tries = 10, delayMs = 30_000): Promise<void> {
     } catch {
       /* restarting */
     }
-    console.log(`localhost:3001 not ready (attempt ${i + 1}/${tries})`);
+    console.log(`${LOCAL_ORIGIN} not ready (attempt ${i + 1}/${tries})`);
     await new Promise((r) => setTimeout(r, delayMs));
   }
-  throw new Error("localhost:3001 did not answer 200");
+  throw new Error(`${LOCAL_ORIGIN} did not answer 200`);
 }
 
 async function ensureAuth(browser: Browser): Promise<void> {
@@ -194,14 +211,21 @@ async function main(): Promise<void> {
   const design = designKey ? manifest.designs[designKey] : undefined;
   if (!designKey || !design) throw new Error(`--design must be one of: ${Object.keys(manifest.designs).join(", ")}`);
   if (![1440, 390].includes(viewport)) throw new Error("--viewport must be 1440 or 390");
-  if (!design.artifactPath || !fs.existsSync(design.artifactPath)) {
+  const artifactPath = design.artifactPath ? expandHome(design.artifactPath) : null;
+  if (!artifactPath || !fs.existsSync(artifactPath)) {
     throw new Error(design.artifactTodo ?? `artifact HTML not found: ${design.artifactPath}`);
   }
 
-  // Artifact served from ~/.claude/mockup-serve/<design>/index.html (relative img/*.jpg, kit.js are absent locally).
-  const serveDir = path.join(SERVE_ROOT, designKey);
-  fs.mkdirSync(serveDir, { recursive: true });
-  fs.copyFileSync(design.artifactPath, path.join(serveDir, "index.html"));
+  // Artifact: a folder (index.html + kit.js + img/) or a single HTML file.
+  // Prefer serving the folder in place so relative img/ + kit.js resolve.
+  let serveDir: string;
+  if (fs.statSync(artifactPath).isDirectory()) {
+    serveDir = artifactPath;
+  } else {
+    serveDir = path.join(SERVE_ROOT, designKey);
+    fs.mkdirSync(serveDir, { recursive: true });
+    fs.copyFileSync(artifactPath, path.join(serveDir, "index.html"));
+  }
   const stat = await startStatic(serveDir);
 
   const outDir = path.join(OUT_ROOT, designKey, String(viewport));
@@ -222,12 +246,10 @@ async function main(): Promise<void> {
     // Local side.
     const lctx = await browser.newContext({ storageState: AUTH_FILE, viewport: { width: viewport, height: 900 } });
     const lp = await lctx.newPage();
-    const t = manifest.localTalentId;
-    // --demo <key>: a gallery demo talent's content (e.g. alba-nail-artist) instead of the signed-in talent's.
-    const demoKey = arg("demo");
-    const localUrl =
-      `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}` +
-      (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}&locale=es` : "");
+    const t = design.localTalentId ?? manifest.localTalentId;
+    const demo = arg("demo");
+    const demoQ = demo ? `&demo=${encodeURIComponent(demo)}` : "";
+    const localUrl = `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}${demoQ}`;
     assertLocal(localUrl);
     await lp.goto(localUrl, { waitUntil: "networkidle", timeout: 120_000 });
 

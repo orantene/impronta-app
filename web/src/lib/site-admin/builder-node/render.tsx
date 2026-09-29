@@ -5979,6 +5979,7 @@ function renderBuilderNodeElement(
     case "masthead": {
       return renderMastheadBlock({
         node,
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

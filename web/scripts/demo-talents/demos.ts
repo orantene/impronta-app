@@ -8,8 +8,6 @@
  * via --photos <pack.json> (see seed.mts), with Unsplash sources recorded.
  */
 
-import { ALBA } from "./alba";
-
 export type DemoService = {
   name: string;
   description: string;
@@ -18,42 +16,13 @@ export type DemoService = {
   /** Typical length in minutes (shown on the offering). */
   durationMin: number;
   booking: "instant" | "request" | "quote";
-  /** Menu category (the category rail). */
+  /** Offering category (rate-card section). */
   category?: string;
-  /** Free change / cancel window in hours (the visit "Changes" fact). */
-  cancellationHours?: number;
-  /** Options, one picked (absolute MXN price each). */
-  variants?: { label: string; priceMxn: number }[];
-  /** Stackable extras (MXN on top). */
-  extras?: { label: string; priceMxn: number }[];
-  /** Pack photo key used as this service's thumbnail. */
-  photo?: string;
+  /** exact = fixed price; from = "desde"; free = sin costo; quote = cotización. */
+  priceDisplay?: "exact" | "from" | "free" | "quote";
 };
 
-/** A photo key from the demo's photo folder (`<key>.jpg`). */
-export type DemoPhotoPlan = {
-  /** The headshot / hero photo (media variant `card`, first). */
-  headshot: string;
-  /** Recent work, in order, with caption + the service it links to (index in `services`). */
-  work: { key: string; caption: string; service?: number }[];
-  /** Everything else the site uses (inset, portrait, service thumbnails). */
-  more: string[];
-  alt?: Record<string, string>;
-};
-
-/** Page copy a demo sets in the builder after the design is applied. */
-export type DemoSiteCopy = {
-  heroHeading?: string;
-  heroEyebrow?: string;
-  heroLede?: string;
-  ticker?: string[];
-  heroInset?: string;
-  aboutPhoto?: string;
-  menuSubtitle?: string;
-  visitExtraFacts?: { label: string; value: string; note?: string }[];
-  footerLine?: string;
-  brandTagline?: string;
-};
+export type DemoHoursWindow = { startMin: number; endMin: number };
 
 export type DemoTalent = {
   /** TAL-93xxx is reserved for this batch (TAL-91xxx / 92xxx are older demos). */
@@ -67,31 +36,35 @@ export type DemoTalent = {
   talentTypeSlug: string;
   /** Live Design slug applied by apply-maison.mts ("maison", "maison-v2", "solace", "mono", "frame", "folio"). */
   theme: string;
+  /** Look slug for Folio / Maison apply (`folio-stone`, `maison-pink`, …). */
+  look?: string;
   tagline: string;
   bio: string;
   services: DemoService[];
   /** Working hours for instant services (talent_booking_hours). Days: 0=Sun. */
-  hours?: { timezone: string; days: number[]; startMin: number; endMin: number; slotMinutes: number };
-  /** Gallery palette key of `theme` (collection designs), e.g. "rose". */
-  palette?: string;
-  /** Photos from a local folder (`--photo-dir`), instead of a --photos pack. */
-  photos?: DemoPhotoPlan;
-  /** Published FAQ items (talent_faq_items). */
-  faq?: { q: string; a: string }[];
-  /** Demo reviews: labelled "Demo review" on the site (the talent is_demo). */
-  reviews?: { name: string; body: string }[];
-  siteCopy?: DemoSiteCopy;
-  /**
-   * Private profile fields so the checklist reads 100% (never shown on the
-   * site). Fictional; the phone is an all-zero placeholder, not a real line.
-   */
-  profile?: { lastName: string; phone: string; gender: "female" | "male"; dateOfBirth: string };
+  hours?: {
+    timezone: string;
+    days: number[];
+    startMin: number;
+    endMin: number;
+    slotMinutes: number;
+    /** Optional multi-window day (overrides startMin/endMin when set). */
+    windows?: DemoHoursWindow[];
+  };
+  /** Comp-card / profile facts written into System-B field values. */
+  compCard?: {
+    heightCm: number;
+    suitSize: string;
+    shoeMx: string;
+    languages: string;
+  };
+  /** Portfolio albums (= Folio chapters), in order. Photos carry matching albumId. */
+  albums?: ReadonlyArray<{ id: string; name: string }>;
 };
 
 export const DEMO_BATCH = "demo-2026-09-28";
 
 export const DEMOS: DemoTalent[] = [
-  ALBA,
   {
     profileCode: "TAL-93001",
     email: "demo-valeria-baile@impronta.test",
@@ -264,6 +237,84 @@ export const DEMOS: DemoTalent[] = [
     services: [
       { name: "Sesión de entrenamiento", description: "Una hora, a domicilio o al aire libre.", pricingType: "per_contact", amountMxn: 500, durationMin: 60, booking: "instant" },
       { name: "Paquete de 10 sesiones", description: "Diez sesiones con plan de entrenamiento.", pricingType: "flat_package", amountMxn: 4500, durationMin: 600, booking: "request" },
+    ],
+  },
+  {
+    // Folio featured demo (artifact Mateo Ferrer). Password only in seed/.env.local.
+    profileCode: "TAL-93011",
+    email: "demo-mateo-ferrer@impronta.test",
+    displayName: "Mateo Ferrer",
+    siteSlug: "mateo-ferrer",
+    city: "Ciudad de México",
+    serviceCategorySlug: "fashion-models",
+    talentTypeSlug: "fashion-model",
+    theme: "folio",
+    look: "folio-stone",
+    hours: {
+      timezone: "America/Mexico_City",
+      days: [1, 2, 3, 4, 5],
+      startMin: 10 * 60,
+      endMin: 19 * 60,
+      slotMinutes: 90,
+      // Casting slots: 10:00, 11:30, 13:00, 16:00, 17:30 CDMX.
+      windows: [
+        { startMin: 10 * 60, endMin: 14 * 60 + 30 },
+        { startMin: 16 * 60, endMin: 19 * 60 },
+      ],
+    },
+    tagline: "Editorial, runway y campañas. 1.88 m, CDMX.",
+    bio: "Modelo con siete años entre pasarela y editorial. Llego puntual, con el cabello y la piel listos para cámara.",
+    compCard: {
+      heightCm: 188,
+      suitSize: "40L",
+      shoeMx: "28.5",
+      languages: "ES/EN",
+    },
+    albums: [
+      { id: "album-mateo-editorial", name: "Editorial" },
+      { id: "album-mateo-runway", name: "Runway" },
+    ],
+    services: [
+      {
+        name: "Editorial shoot, half day",
+        description: "Half-day editorial session.",
+        category: "Editorial",
+        pricingType: "event",
+        amountMxn: 9500,
+        durationMin: 240,
+        booking: "request",
+        priceDisplay: "exact",
+      },
+      {
+        name: "Runway show booking",
+        description: "Booking for a runway show.",
+        category: "Runway",
+        pricingType: "event",
+        amountMxn: 7000,
+        durationMin: 180,
+        booking: "request",
+        priceDisplay: "from",
+      },
+      {
+        name: "Lookbook / e-commerce day",
+        description: "Full e-commerce or lookbook day.",
+        category: "E-commerce",
+        pricingType: "event",
+        amountMxn: 16000,
+        durationMin: 480,
+        booking: "request",
+        priceDisplay: "exact",
+      },
+      {
+        name: "Casting en persona",
+        description: "In-person casting. Free.",
+        category: "Casting",
+        pricingType: "per_contact",
+        amountMxn: null,
+        durationMin: 30,
+        booking: "instant",
+        priceDisplay: "free",
+      },
     ],
   },
 ];

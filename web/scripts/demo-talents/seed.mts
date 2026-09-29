@@ -6,7 +6,8 @@
  * Safety:
  *  - Refuses unless DEMO_SEED_TARGET_REF matches the project ref in
  *    NEXT_PUBLIC_SUPABASE_URL, so the target is always named explicitly.
- *  - No passwords. Sign in with a one-time magic link (--links).
+ *  - Optional password via DEMO_TALENT_PASSWORD (written only to
+ *    seed/.env.local — never logged). Else magic link (--links).
  *  - Only touches rows it can prove are demo rows: profile codes TAL-93xxx
  *    whose auth user carries app_metadata.demo_batch = DEMO_BATCH and an
  *    @impronta.test email. Anything else aborts.
@@ -24,26 +25,32 @@
  *
  * Photo pack JSON: { "TAL-93001": [ { "file": "/abs/path.jpg", "variant": "card"|"gallery"|"banner",
  *   "source": "https://unsplash.com/photos/..." , "alt": "..." } ] }
- *
- * A demo with a `photos` plan (Alba) reads `<key>.jpg` from --photo-dir instead
- * and also gets: service categories, options and extras, captions + service
- * links on its work photos, FAQ, demo reviews (from demo client users, shown
- * with a "Demo review" label), a home-base city and a change window.
- *   ... seed.mts --manifest <m.json> --only TAL-93020 --photo-dir <dir> \
- *       --password-env <path/.env.local>   # QA sign-in, written there, never printed
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  buildDefaultShellTree,
-  buildStarterHomePageTree,
-} from "../../src/lib/talent-site/default-max-site-trees";
-import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-preset";
-import { randomBytes } from "node:crypto";
-import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
-import { ALBA_PHOTO_SOURCES } from "./alba";
+import * as defaultMaxSiteTreesMod from "../../src/lib/talent-site/default-max-site-trees";
+import * as talentTradePresetMod from "../../src/lib/words/talent-trade-preset";
+import * as demosMod from "./demos";
+import type { DemoTalent } from "./demos";
+
+/** tsx loads .ts from .mts as CJS — named exports sit on `default`. */
+function namedFromCjs<T extends object>(mod: T | { default: T }): T {
+  if (mod && typeof mod === "object" && "default" in mod) {
+    const d = (mod as { default: unknown }).default;
+    if (d && typeof d === "object") return d as T;
+  }
+  return mod as T;
+}
+
+const { buildDefaultShellTree, buildStarterHomePageTree } = namedFromCjs(
+  defaultMaxSiteTreesMod as typeof import("../../src/lib/talent-site/default-max-site-trees"),
+);
+const { resolveTalentTradePreset } = namedFromCjs(
+  talentTradePresetMod as typeof import("../../src/lib/words/talent-trade-preset"),
+);
+const { DEMOS, DEMO_BATCH } = namedFromCjs(demosMod as typeof import("./demos"));
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -58,8 +65,6 @@ const opt = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const manifestPath = opt("--manifest");
-const photoDir = opt("--photo-dir");
-const passwordEnv = opt("--password-env");
 if (!manifestPath) throw new Error("--manifest <path.json> is required");
 if (path.resolve(manifestPath).startsWith(path.resolve(process.cwd(), ".."))) {
   throw new Error("REFUSE: keep the manifest outside the repo (the repo is public)");
@@ -95,15 +100,42 @@ type ManifestEntry = {
   storagePaths: string[];
   photoSources: string[];
   bookingHours?: boolean;
-  /** Photo plan key -> media asset id (plan-based demos). */
-  photoKeys?: Record<string, string>;
-  /** Demo client users that wrote the demo reviews (removed with the batch). */
-  reviewerUserIds?: string[];
   createdAt: string;
 };
-type PackPhoto = { file: string; variant: string; source: string; photographer?: string; alt?: string };
+type PackPhoto = {
+  file: string;
+  variant: string;
+  source: string;
+  photographer?: string;
+  alt?: string;
+  /** Folio chapter album id (`media_assets.metadata.albumId`). */
+  albumId?: string;
+  chapter?: string;
+};
 type Pack = Record<string, PackPhoto[]>;
 type Manifest = { batch: string; targetRef: string; entries: Record<string, ManifestEntry> };
+
+const DEMO_PASSWORD = process.env.DEMO_TALENT_PASSWORD?.trim() || "";
+
+/** Persist password only under project seed/.env.local (never stdout / PR). */
+function persistPasswordLocal(email: string, password: string) {
+  if (!password) return;
+  const seedDir = path.resolve(process.cwd(), "..", "seed");
+  fs.mkdirSync(seedDir, { recursive: true });
+  const envPath = path.join(seedDir, ".env.local");
+  const key = `DEMO_PASSWORD_${email.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`;
+  let body = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf8") : "";
+  const line = `${key}=${password}`;
+  if (body.includes(`${key}=`)) {
+    body = body.replace(new RegExp(`^${key}=.*$`, "m"), line);
+  } else {
+    body = `${body.trimEnd()}\n${line}\n`;
+  }
+  if (!body.includes("DEMO_TALENT_PASSWORD=")) {
+    body = `DEMO_TALENT_PASSWORD=${password}\n${body}`;
+  }
+  fs.writeFileSync(envPath, body.startsWith("\n") ? body.slice(1) : body, { mode: 0o600 });
+}
 
 function loadManifest(): Manifest {
   if (fs.existsSync(manifestPath!)) {
@@ -140,20 +172,41 @@ async function ensureUser(d: DemoTalent) {
     if (existing.app_metadata?.demo_batch !== DEMO_BATCH) {
       throw new Error(`REFUSE: ${d.email} exists and is not a ${DEMO_BATCH} demo user`);
     }
-    const { error } = await admin.auth.admin.updateUserById(existing.id, {
+    const patch: {
+      email_confirm: true;
+      user_metadata: { full_name: string };
+      app_metadata: typeof appMeta;
+      password?: string;
+    } = {
       email_confirm: true,
       user_metadata: { full_name: d.displayName },
       app_metadata: appMeta,
-    });
+    };
+    if (DEMO_PASSWORD) {
+      patch.password = DEMO_PASSWORD;
+      persistPasswordLocal(d.email, DEMO_PASSWORD);
+    }
+    const { error } = await admin.auth.admin.updateUserById(existing.id, patch);
     if (error) throw error;
     return existing.id;
   }
-  const { data, error } = await admin.auth.admin.createUser({
+  const create: {
+    email: string;
+    email_confirm: true;
+    user_metadata: { full_name: string };
+    app_metadata: typeof appMeta;
+    password?: string;
+  } = {
     email: d.email,
     email_confirm: true,
     user_metadata: { full_name: d.displayName },
     app_metadata: appMeta,
-  });
+  };
+  if (DEMO_PASSWORD) {
+    create.password = DEMO_PASSWORD;
+    persistPasswordLocal(d.email, DEMO_PASSWORD);
+  }
+  const { data, error } = await admin.auth.admin.createUser(create);
   if (error) throw error;
   return data.user!.id;
 }
@@ -188,243 +241,52 @@ async function writeOfferings(d: DemoTalent, profileId: string) {
   const { error: delErr } = await admin.from("talent_offerings").delete().eq("talent_profile_id", profileId);
   if (delErr) throw delErr;
   const now = new Date().toISOString();
-  const rows = d.services.map((s, i) => ({
-    talent_profile_id: profileId,
-    tenant_id: HUB_TENANT_ID,
-    kind: "service",
-    title: s.name,
-    description: s.description,
-    title_i18n: { es: s.name },
-    description_i18n: { es: s.description },
-    price_type: s.booking === "quote" ? "custom" : s.pricingType,
-    price_display: s.booking === "quote" || s.amountMxn == null ? "quote" : "exact",
-    amount_cents: s.booking === "quote" || s.amountMxn == null ? null : s.amountMxn * 100,
-    currency: "MXN",
-    booking_mode: s.booking === "instant" ? "instant" : "request",
-    reserve_mode: "free",
-    allow_pay_in_person: true,
-    duration_minutes: s.durationMin,
-    ...(s.category ? { category: s.category } : {}),
-    ...(s.cancellationHours != null ? { cancellation_hours: s.cancellationHours } : {}),
-    status: "published",
-    visibility: "public",
-    moderation_state: "approved",
-    is_featured: i < 2,
-    sort_order: i,
-    owner_kind: "talent",
-    first_published_at: now,
-    attributes: { demo_batch: DEMO_BATCH },
-  }));
-  const { data: inserted, error } = await admin.from("talent_offerings").insert(rows).select("id, sort_order");
-  if (error) throw error;
-  const idBySort = new Map((inserted ?? []).map((r) => [r.sort_order as number, r.id as string]));
-  const variants = d.services.flatMap((s, i) =>
-    (s.variants ?? []).map((v, j) => ({ offering_id: idBySort.get(i), label: v.label, amount_cents: v.priceMxn * 100, sort_order: j })),
-  );
-  const addons = d.services.flatMap((s, i) =>
-    (s.extras ?? []).map((x, j) => ({ offering_id: idBySort.get(i), label: x.label, amount_cents: x.priceMxn * 100, sort_order: j })),
-  );
-  if (variants.length) {
-    const { error: vErr } = await admin.from("talent_offering_variants").insert(variants);
-    if (vErr) throw vErr;
-  }
-  if (addons.length) {
-    const { error: aErr } = await admin.from("talent_offering_addons").insert(addons);
-    if (aErr) throw aErr;
-  }
-}
-
-// Plan-based photos (Alba): headshot as `card` first, then the work strip in
-// order (caption in metadata), then the rest. Sources are the proposal's
-// Unsplash picks.
-async function uploadPlanPhotos(d: DemoTalent, profileId: string, userId: string, dir: string, entry: ManifestEntry, manifest: Manifest) {
-  const plan = d.photos!;
-  if (entry.photoKeys && Object.keys(entry.photoKeys).length) {
-    console.log("  plan photos already uploaded, skipping", d.profileCode);
-    return;
-  }
-  entry.photoKeys = {};
-  const list: { key: string; variant: string; caption?: string }[] = [
-    { key: plan.headshot, variant: "card" },
-    ...plan.work.map((w) => ({ key: w.key, variant: "gallery", caption: w.caption })),
-    ...plan.more.filter((k) => !plan.work.some((w) => w.key === k)).map((k) => ({ key: k, variant: "gallery" })),
-  ];
-  for (const [i, p] of list.entries()) {
-    const file = path.join(dir, `${p.key}.jpg`);
-    const source = ALBA_PHOTO_SOURCES[p.key];
-    if (!source) throw new Error(`no source recorded for photo ${p.key}`);
-    const body = fs.readFileSync(file);
-    const storagePath = `tenant/${HUB_TENANT_ID}/talent/${profileId}/${randomUUID()}.jpg`;
-    const { error: upErr } = await admin.storage.from(BUCKET).upload(storagePath, body, { contentType: "image/jpeg" });
-    if (upErr) throw upErr;
-    entry.storagePaths.push(storagePath);
-    saveManifest(manifest);
-    const { data, error } = await admin
-      .from("media_assets")
-      .insert({
-        tenant_id: HUB_TENANT_ID,
-        owner_talent_profile_id: profileId,
-        bucket_id: BUCKET,
-        storage_path: storagePath,
-        variant_kind: p.variant,
-        approval_state: "approved",
-        purpose: "talent",
-        sort_order: i,
-        file_size: body.length,
-        mime_type: "image/jpeg",
-        alt: plan.alt?.[p.key] ?? p.caption ?? d.displayName,
-        attribution_note: `Unsplash · ${source}`,
-        metadata: { source, demo_batch: DEMO_BATCH, ...(p.caption ? { caption: p.caption } : {}) },
-        ownership_kind: "talent",
-        owner_tenant_id: null,
-        uploaded_by_user_id: userId,
-        created_by: userId,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    entry.mediaAssetIds.push(data.id);
-    entry.photoSources.push(source);
-    entry.photoKeys[p.key] = data.id;
-    saveManifest(manifest);
-  }
-}
-
-// Each service's own thumbnail first, then the work shots that link to it
-// ("Quiero esto" on the strip opens that service).
-async function linkPlanPhotos(d: DemoTalent, profileId: string, entry: ManifestEntry) {
-  const keys = entry.photoKeys ?? {};
-  const { data: offers, error } = await admin
-    .from("talent_offerings")
-    .select("id, sort_order")
-    .eq("talent_profile_id", profileId)
-    .order("sort_order");
-  if (error) throw error;
-  const byIndex = new Map((offers ?? []).map((o) => [o.sort_order as number, o.id as string]));
-  const rows: { offering_id: string; media_asset_id: string; sort_order: number }[] = [];
-  d.services.forEach((s, i) => {
-    const oid = byIndex.get(i);
-    const mid = s.photo ? keys[s.photo] : undefined;
-    if (oid && mid) rows.push({ offering_id: oid, media_asset_id: mid, sort_order: 0 });
-  });
-  for (const w of d.photos?.work ?? []) {
-    const oid = w.service != null ? byIndex.get(w.service) : undefined;
-    const mid = keys[w.key];
-    if (oid && mid && !rows.some((r) => r.offering_id === oid && r.media_asset_id === mid)) {
-      rows.push({ offering_id: oid, media_asset_id: mid, sort_order: 1 });
-    }
-  }
-  if (rows.length) {
-    const { error: lErr } = await admin.from("talent_offering_media").insert(rows);
-    if (lErr) throw lErr;
-  }
-}
-
-// Private checklist fields (last name, phone, gender, birth date, where she
-// lives and is from) so the profile reads 100% complete.
-async function completeProfile(d: DemoTalent, profileId: string) {
-  if (!d.profile) return;
-  const slug = d.city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const [{ data: loc }, { data: mx }] = await Promise.all([
-    admin.from("locations").select("id").eq("country_code", "MX").eq("city_slug", slug).is("archived_at", null).maybeSingle(),
-    admin.from("countries").select("id").eq("iso2", "MX").maybeSingle(),
-  ]);
-  const { error } = await admin
-    .from("talent_profiles")
-    .update({
-      last_name: d.profile.lastName,
-      phone: d.profile.phone,
-      gender: d.profile.gender,
-      date_of_birth: d.profile.dateOfBirth,
-      ...(loc?.id ? { location_id: loc.id, residence_city_id: loc.id, origin_city_id: loc.id } : {}),
-      ...(mx?.id ? { origin_country_id: mx.id } : {}),
-    })
-    .eq("id", profileId);
-  if (error) throw error;
-  if (!loc?.id) console.warn("  no location row for", d.city, "(lives in / from left empty)");
-}
-
-async function writeFaq(d: DemoTalent, profileId: string) {
-  if (!d.faq?.length) return;
-  const { error: delErr } = await admin.from("talent_faq_items").delete().eq("talent_profile_id", profileId);
-  if (delErr) throw delErr;
-  const { error } = await admin.from("talent_faq_items").insert(
-    d.faq.map((f, i) => ({ talent_profile_id: profileId, question: f.q, answer: f.a, status: "published", sort_order: i })),
-  );
-  if (error) throw error;
-}
-
-// Demo reviews come from demo client users (@impronta.test, demo_batch). The
-// site labels every card "Demo review" because the talent is_demo.
-async function writeReviews(d: DemoTalent, profileId: string, entry: ManifestEntry) {
-  if (!d.reviews?.length) return;
-  const { error: delErr } = await admin.from("talent_reviews").delete().eq("talent_profile_id", profileId);
-  if (delErr) throw delErr;
-  entry.reviewerUserIds = entry.reviewerUserIds ?? [];
-  const base = Date.now();
-  for (const [i, r] of d.reviews.entries()) {
-    const reviewer: DemoTalent = { ...d, email: d.email.replace("@", `-cliente-${i + 1}@`), displayName: r.name };
-    assertDemoIdentity(reviewer);
-    const uid = await ensureUser(reviewer);
-    if (!entry.reviewerUserIds.includes(uid)) entry.reviewerUserIds.push(uid);
-    await admin.from("profiles").update({ display_name: r.name }).eq("id", uid);
-    const { error } = await admin.from("talent_reviews").insert({
-      tenant_id: HUB_TENANT_ID,
+  const rows = d.services.map((s, i) => {
+    const free = s.priceDisplay === "free" || s.amountMxn == null;
+    const priceDisplay =
+      s.priceDisplay === "from"
+        ? "from"
+        : s.booking === "quote" || free
+          ? s.priceDisplay === "free"
+            ? "exact"
+            : "quote"
+          : "exact";
+    return {
       talent_profile_id: profileId,
-      client_user_id: uid,
-      rating: 5,
-      body: r.body,
+      tenant_id: HUB_TENANT_ID,
+      kind: "service",
+      title: s.name,
+      description: s.description,
+      title_i18n: { es: s.name },
+      description_i18n: { es: s.description },
+      category: s.category ?? null,
+      // Instant needs exact + non-custom (talent_offerings_instant_needs_price);
+      // free instant is amount_cents=0 with the service's normal price_type.
+      price_type:
+        s.booking === "quote"
+          ? "custom"
+          : free && s.priceDisplay !== "free"
+            ? "custom"
+            : s.pricingType,
+      price_display: free && s.priceDisplay === "free" ? "exact" : priceDisplay,
+      amount_cents: free ? 0 : s.booking === "quote" ? null : s.amountMxn! * 100,
+      currency: "MXN",
+      booking_mode: s.booking === "instant" ? "instant" : "request",
+      reserve_mode: "free",
+      allow_pay_in_person: true,
+      duration_minutes: s.durationMin,
       status: "published",
-      // First review in the list is the newest.
-      created_at: new Date(base - i * 86_400_000).toISOString(),
-    });
-    if (error) throw error;
-  }
-}
-
-async function writeHomeBase(d: DemoTalent, profileId: string) {
-  if (!d.photos) return;
-  const slug = d.city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const { data: loc } = await admin
-    .from("locations")
-    .select("id")
-    .eq("country_code", "MX")
-    .eq("city_slug", slug)
-    .is("archived_at", null)
-    .maybeSingle();
-  if (!loc?.id) {
-    console.warn("  no location row for", d.city, "(home base skipped)");
-    return;
-  }
-  const { error: delErr } = await admin
-    .from("talent_service_areas")
-    .delete()
-    .eq("talent_profile_id", profileId)
-    .eq("service_kind", "home_base");
-  if (delErr) throw delErr;
-  const { error } = await admin.from("talent_service_areas").insert({
-    tenant_id: HUB_TENANT_ID,
-    talent_profile_id: profileId,
-    location_id: loc.id,
-    service_kind: "home_base",
-    display_order: 0,
+      visibility: "public",
+      moderation_state: "approved",
+      is_featured: i < 2,
+      sort_order: i,
+      owner_kind: "talent",
+      first_published_at: now,
+      attributes: { demo_batch: DEMO_BATCH, price_display: s.priceDisplay ?? priceDisplay },
+    };
   });
+  const { error } = await admin.from("talent_offerings").insert(rows);
   if (error) throw error;
-}
-
-// QA sign-in for ONE demo: a random password set on the demo user and written
-// to the given env file as QA_<NAME>_PASSWORD. Never printed.
-async function setQaPassword(d: DemoTalent, userId: string, envFile: string) {
-  const password = randomBytes(18).toString("base64url");
-  const { error } = await admin.auth.admin.updateUserById(userId, { password });
-  if (error) throw error;
-  const key = `QA_${d.displayName.split(" ")[0]!.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()}_PASSWORD`;
-  const text = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
-  const lines = text.split("\n").filter((l) => !l.startsWith(`${key}=`));
-  while (lines.length && lines[lines.length - 1] === "") lines.pop();
-  lines.push(`${key}=${password}`, "");
-  fs.writeFileSync(envFile, lines.join("\n"), { mode: 0o600 });
-  console.log("  QA password set; written to", envFile, "as", key);
 }
 
 // Working hours so instant services show real time slots. Bookings are still
@@ -432,9 +294,13 @@ async function setQaPassword(d: DemoTalent, userId: string, envFile: string) {
 // submit shows the demo message.
 async function writeBookingHours(d: DemoTalent, profileId: string, entry: ManifestEntry) {
   if (!d.hours) return;
+  const dayWindows =
+    d.hours.windows && d.hours.windows.length > 0
+      ? d.hours.windows
+      : [{ startMin: d.hours.startMin, endMin: d.hours.endMin }];
   const weekly: Record<string, { startMin: number; endMin: number }[]> = {};
   for (let day = 0; day < 7; day += 1) {
-    weekly[String(day)] = d.hours.days.includes(day) ? [{ startMin: d.hours.startMin, endMin: d.hours.endMin }] : [];
+    weekly[String(day)] = d.hours.days.includes(day) ? dayWindows.map((w) => ({ ...w })) : [];
   }
   const { error } = await admin.from("talent_booking_hours").upsert(
     {
@@ -476,6 +342,54 @@ async function linkOfferingPhotos(profileId: string) {
   const rows = offers.map((o, i) => ({ offering_id: o.id, media_asset_id: photos[i % photos.length].id, sort_order: 0 }));
   const { error } = await admin.from("talent_offering_media").insert(rows);
   if (error) throw error;
+}
+
+/** System-B field values: Folio measures + portfolio albums (`albums.list`). */
+async function writeCompCardFields(d: DemoTalent, profileId: string) {
+  const keys: Array<{ fieldKey: string; value: unknown }> = [];
+  if (d.compCard) {
+    keys.push(
+      { fieldKey: "physical.height_cm", value: d.compCard.heightCm },
+      { fieldKey: "physical.suit_size", value: d.compCard.suitSize },
+      { fieldKey: "physical.shoe_size_eu", value: `MX ${d.compCard.shoeMx}` },
+      { fieldKey: "languages", value: d.compCard.languages },
+    );
+  }
+  if (d.albums?.length) {
+    keys.push({
+      fieldKey: "albums.list",
+      value: d.albums.map((a, i) => ({ id: a.id, name: a.name, sortOrder: i })),
+    });
+  }
+  if (keys.length === 0) return;
+  const { data: defs, error: dErr } = await admin
+    .from("profile_field_definitions")
+    .select("id, field_key")
+    .in(
+      "field_key",
+      keys.map((k) => k.fieldKey),
+    );
+  if (dErr) throw dErr;
+  const byKey = new Map((defs ?? []).map((r) => [r.field_key as string, r.id as string]));
+  for (const row of keys) {
+    const defId = byKey.get(row.fieldKey);
+    if (!defId) continue;
+    const { error } = await admin.from("talent_profile_field_values").upsert(
+      {
+        talent_profile_id: profileId,
+        field_definition_id: defId,
+        tenant_id: HUB_TENANT_ID,
+        value: row.value,
+        workflow_state: "live",
+        // null = inherit field default (public for these measures).
+        visibility_override: null,
+        last_edited_role: "platform",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "talent_profile_id,field_definition_id" },
+    );
+    if (error) throw error;
+  }
 }
 
 async function termId(slug: string) {
@@ -530,8 +444,15 @@ async function uploadPhotos(
         file_size: body.length,
         mime_type: mime,
         alt: p.alt ?? d.displayName,
+        tags: p.chapter ? [p.chapter] : p.albumId ? [p.albumId] : [],
         attribution_note: p.photographer ? `${p.photographer} · ${p.source}` : p.source,
-        metadata: { source: p.source, photographer: p.photographer ?? null, demo_batch: DEMO_BATCH },
+        metadata: {
+          source: p.source,
+          photographer: p.photographer ?? null,
+          demo_batch: DEMO_BATCH,
+          ...(p.albumId ? { albumId: p.albumId } : {}),
+          ...(p.chapter ? { chapter: p.chapter } : {}),
+        },
         ownership_kind: "talent",
         owner_tenant_id: null,
         uploaded_by_user_id: userId,
@@ -564,6 +485,9 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     .maybeSingle();
   if (existing?.user_id && existing.user_id !== userId) throw new Error(`${d.profileCode} linked to another user`);
 
+  const facts = d.compCard
+    ? `Estatura ${d.compCard.heightCm} cm · Saco ${d.compCard.suitSize} · Calzado MX ${d.compCard.shoeMx} · Idiomas ${d.compCard.languages}`
+    : d.tagline;
   const patch = {
     display_name: d.displayName,
     first_name: d.displayName.split(" ")[0],
@@ -573,8 +497,8 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     // Instant services need the talent-level direct-booking opt-in, as a real
     // talent sets it in Settings; without it the slots API answers inquiry_only.
     booking_terms: d.hours ? { directBookingOptIn: true } : null,
-    short_bio: d.tagline,
-    bio_i18n: { es: d.bio },
+    short_bio: facts,
+    bio_i18n: { es: d.bio, en: d.bio },
     home_city_text: d.city,
     home_country_text: "México",
     preferred_locale: "es",
@@ -587,6 +511,7 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     is_publicly_hidden: false,
     service_category_slug: d.serviceCategorySlug,
     services_menu: servicesMenu(d),
+    ...(d.compCard ? { height_cm: d.compCard.heightCm, languages: ["es", "en"] } : {}),
     user_id: userId,
     deleted_at: null,
     updated_at: now,
@@ -627,23 +552,14 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     .upsert({ talent_profile_id: profileId, taxonomy_term_id: tid, is_primary: true, relationship_type: "primary_role", display_order: 0, updated_at: now }, { onConflict: "talent_profile_id,taxonomy_term_id" });
   if (txErr) throw txErr;
 
-  if (d.photos) {
-    if (!photoDir) throw new Error(`${d.profileCode} has a photo plan: --photo-dir <dir> is required`);
-    await uploadPlanPhotos(d, profileId, userId, photoDir, entry, manifest);
-    await linkPlanPhotos(d, profileId, entry);
-  } else {
-    if (pack?.[d.profileCode]?.length) {
-      await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry, manifest);
-      saveManifest(manifest);
-    }
-    await linkOfferingPhotos(profileId);
+  if (pack?.[d.profileCode]?.length) {
+    await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry, manifest);
+    saveManifest(manifest);
   }
-  await completeProfile(d, profileId);
-  await writeFaq(d, profileId);
-  await writeReviews(d, profileId, entry);
-  await writeHomeBase(d, profileId);
-  if (passwordEnv) await setQaPassword(d, userId, passwordEnv);
+
+  await linkOfferingPhotos(profileId);
   await writeBookingHours(d, profileId, entry);
+  await writeCompCardFields(d, profileId);
   saveManifest(manifest);
 
   const shell = buildDefaultShellTree({ displayName: d.displayName });
@@ -705,9 +621,6 @@ async function removeBatch(manifest: Manifest) {
       ["media_assets", admin.from("media_assets").delete().eq("owner_talent_profile_id", e.talentProfileId)],
       ["talent_booking_hours", admin.from("talent_booking_hours").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_offerings", admin.from("talent_offerings").delete().eq("talent_profile_id", e.talentProfileId)],
-      ["talent_reviews", admin.from("talent_reviews").delete().eq("talent_profile_id", e.talentProfileId)],
-      ["talent_faq_items", admin.from("talent_faq_items").delete().eq("talent_profile_id", e.talentProfileId)],
-      ["talent_service_areas", admin.from("talent_service_areas").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_pages", admin.from("talent_pages").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_site_revisions", admin.from("talent_site_revisions").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_sites", admin.from("talent_sites").delete().eq("talent_profile_id", e.talentProfileId)],
@@ -725,12 +638,6 @@ async function removeBatch(manifest: Manifest) {
     }
     const { error: uErr } = await admin.auth.admin.deleteUser(e.userId);
     if (uErr) console.warn("  auth delete failed", e.email, uErr.message);
-    for (const rid of e.reviewerUserIds ?? []) {
-      const { data: ru } = await admin.auth.admin.getUserById(rid);
-      if (ru.user && ru.user.app_metadata?.demo_batch !== DEMO_BATCH) continue;
-      const { error: rErr } = await admin.auth.admin.deleteUser(rid);
-      if (rErr) console.warn("  reviewer delete failed", rid, rErr.message);
-    }
     delete manifest.entries[e.profileCode];
     saveManifest(manifest);
     console.log("removed", e.profileCode, e.email);
@@ -745,7 +652,6 @@ if (flag("--links")) {
   await removeBatch(manifest);
 } else {
   const only = opt("--only")?.split(",");
-  if (passwordEnv && only?.length !== 1) throw new Error("--password-env needs exactly one --only demo");
   const packPath = opt("--photos");
   const pack = packPath ? (JSON.parse(fs.readFileSync(packPath, "utf8")) as Pack) : null;
   for (const d of DEMOS.filter((x) => !only || only.includes(x.profileCode))) {
