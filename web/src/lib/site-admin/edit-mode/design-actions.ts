@@ -73,6 +73,12 @@ export interface DesignSnapshot {
    * the tenant has never set component defaults. */
   componentStylesDraft: ComponentStyleDefaults;
   componentStylesLive: ComponentStyleDefaults;
+  /**
+   * Talent site gallery: display names for the theme drawer head
+   * ("Maison v2 · Rosé"). Agency path leaves these null.
+   */
+  designDisplayName?: string | null;
+  paletteDisplayName?: string | null;
 }
 
 export type DesignLoadResult =

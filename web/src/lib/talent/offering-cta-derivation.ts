@@ -104,3 +104,25 @@ export function offeringCtaLabel(
       return es ? "Reservar" : "Book";
   }
 }
+
+/**
+ * Chat dock row button (guest dock catalog). Short labels from the same
+ * derived CTA: instant selects, request asks for an appointment, quote asks
+ * for a price, inquiry asks. Never "Buy now" for a service.
+ */
+export function offeringDockCtaLabel(cta: OfferingCtaKind, locale: string): string {
+  const es = locale.toLowerCase().startsWith("es");
+  switch (cta) {
+    case "ask_quote":
+      return es ? "Pedir cotización" : "Request a quote";
+    case "request":
+      return es ? "Consultar" : "Ask";
+    case "request_to_book":
+      return es ? "Solicitar cita" : "Request";
+    case "buy_now":
+      return es ? "Comprar" : "Buy";
+    case "book_now":
+    default:
+      return es ? "Seleccionar" : "Select";
+  }
+}

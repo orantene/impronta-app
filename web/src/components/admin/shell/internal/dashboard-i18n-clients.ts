@@ -52,4 +52,21 @@ export const CLIENTS_ES_TEXT: Record<string, string> = {
   "Work and payments": "Trabajos y pagos",
   "Nothing owed on file": "Nada pendiente en archivo",
   "Balance on file": "Saldo en archivo",
+  // Dashboard diff 2026-09-28: client record
+  Returning: "Recurrente",
+  "Edit details": "Editar datos",
+  "Editing client details is not available yet.": "Editar los datos de la clienta aún no está disponible.",
+  "No phone or email on file": "Sin teléfono ni correo registrado",
+  "No completed work yet": "Aún sin trabajos completados",
+  "No appointments yet.": "Aún no hay citas.",
+  "No service set": "Sin servicio",
+  "Not marked complete": "Sin marcar como completada",
+  "Private notes are not available yet.": "Las notas privadas aún no están disponibles.",
+  "Private notes are not available yet. When they are, only you will see them: never in checkout, receipts, your public pages or message previews.":
+    "Las notas privadas aún no están disponibles. Cuando lo estén, solo tú las verás: nunca en el pago, recibos, tus páginas públicas ni vistas previas de mensajes.",
+  "History in numbers": "Historial en números",
+  "Paid to you": "Te pagó",
+  "None yet": "Aún nada",
+  "First visit": "Primera visita",
+  "Last visit": "Última visita",
 };

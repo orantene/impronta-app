@@ -81,6 +81,11 @@ export interface SiteHeaderConfig {
      * so an operator can switch to the prototype's Cinzel text wordmark.
      */
     brandDisplay: string;
+    /**
+     * Shared Header navigation style (geometry). Default `top_bar`.
+     * Same enum as builder `nav.navChrome`.
+     */
+    navChrome: string;
     density: {
       logoScale?: string | null;
       navDensity?: string | null;

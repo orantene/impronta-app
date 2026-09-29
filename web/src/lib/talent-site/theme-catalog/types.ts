@@ -34,6 +34,13 @@ export const TALENT_THEME_SCHEMA_VERSION = 1;
 export interface DesignPayload {
   shellTree: BuilderNode[];
   homeTree: BuilderNode[];
+  /**
+   * The Design's DEFAULT site style tokens (type roles, buttons, shape,
+   * spacing; keys from `style-tokens.ts`). Defaults only: the talent's site
+   * and per-block values always win. A template a user saves carries the same
+   * map.
+   */
+  tokenDefaults?: Record<string, string>;
 }
 
 /**

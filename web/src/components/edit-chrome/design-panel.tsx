@@ -22,6 +22,7 @@
 import { useEffect, useState } from "react";
 
 import { BrandQuickPanelBody } from "./brand-quick-panel";
+import { TalentSiteBrandBody } from "./talent-site-brand-body";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { useEditContext } from "./edit-context";
 import { CHROME, Segmented } from "./kit";
@@ -35,7 +36,7 @@ interface DesignPanelProps {
 type DesignTab = "brand" | "theme";
 
 export function DesignPanel({ open, onClose }: DesignPanelProps) {
-  const { canEditTheme, openTheme } = useEditContext();
+  const { canEditTheme, openTheme, surfaceKind } = useEditContext();
   const { t } = useEditorLocale();
   const [tab, setTab] = useState<DesignTab>("brand");
 
@@ -75,7 +76,12 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
       }
     >
       {activeTab === "brand" ? (
-        <BrandQuickPanelBody active={open && activeTab === "brand"} />
+        // A talent's brand is her SITE theme, not a workspace's branding rows.
+        surfaceKind === "talent_page" ? (
+          <TalentSiteBrandBody active={open && activeTab === "brand"} />
+        ) : (
+          <BrandQuickPanelBody active={open && activeTab === "brand"} />
+        )
       ) : (
         <div className="flex min-h-0 flex-1 flex-col gap-[12px] px-[14px] py-[14px]">
           <p

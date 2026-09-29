@@ -28,6 +28,11 @@ import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
 import {
+  designTypographyTokens,
+  galleryPaletteLookTokens,
+  getGalleryDesign,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
+import {
   captureMaisonDraftSnapshot,
   isMaisonPendingUndo,
   restoreMaisonDraftSnapshot,
@@ -62,6 +67,11 @@ export async function applyMaisonDesignAction(input: {
   designSlug?: string;
   contentMode?: string;
   customPalette?: MaisonCustomPaletteStored | null;
+  /**
+   * P4: gallery-meta palette key for a non-Maison design. Applied through
+   * the custom-colors path (same token writer) with the palette's own name.
+   */
+  galleryPaletteKey?: string | null;
 }): Promise<ThemeActionResult<MaisonApplyResult>> {
   const g = await gate("personalSiteEdit");
   if (!g.ok) return g;
@@ -77,7 +87,21 @@ export async function applyMaisonDesignAction(input: {
   }
   const designSlug = requestedSlug;
 
-  const customParsed = input?.customPalette
+  const galleryPalette =
+    designSlug !== DESIGN_SLUG && input?.galleryPaletteKey && !input?.customPalette
+      ? getGalleryDesign(designSlug)?.palettes.find((p) => p.key === input.galleryPaletteKey) ?? null
+      : null;
+  const customParsed = galleryPalette
+    ? buildMaisonCustomPalette(
+        {
+          page: galleryPalette.page,
+          text: galleryPalette.text,
+          accent: galleryPalette.accent,
+          section: galleryPalette.section,
+        },
+        galleryPalette.name,
+      )
+    : input?.customPalette
     ? parseMaisonCustomPaletteStored(input.customPalette) ??
       (isCompleteCustomFields(input.customPalette.fields)
         ? buildMaisonCustomPalette(
@@ -141,6 +165,9 @@ export async function applyMaisonDesignAction(input: {
         contentMode,
         demoSlug: MAISON_BUILTIN_DEMO.slug,
         customPalette: useCustom ? customParsed : null,
+        // Carry the gallery Look key so Publish materializes fonts + tint
+        // the same way the never-published draft path does.
+        galleryPaletteKey: galleryPalette?.key ?? null,
         menuStyle: demoPayload.menu_style ?? "tabs",
       },
       liveBaseline: {
@@ -218,7 +245,13 @@ export async function applyMaisonDesignAction(input: {
       coerceTokenMap(
         (draftRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
       ),
-      maisonCustomLookTokens(customParsed),
+      {
+        ...maisonCustomLookTokens(customParsed),
+        // A gallery palette carries its full Look (muted, on-accent, fonts);
+        // custom colours on a collection design keep that design's fonts.
+        ...(galleryPalette ? galleryPaletteLookTokens(designSlug, galleryPalette.key) ?? {} : {}),
+        ...designTypographyTokens(designSlug),
+      },
     );
     const nowTokens = new Date().toISOString();
     const { error: customErr } = await admin

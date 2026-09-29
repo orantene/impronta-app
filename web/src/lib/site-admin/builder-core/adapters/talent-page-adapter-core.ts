@@ -81,6 +81,10 @@ export interface TalentPageRow {
   title: string;
   status: "draft" | "scheduled" | "published";
   blocks: unknown;
+  /** Live body visitors see (`talent_pages.blocks_published`). Optional: a
+   *  pre-migration DB or a partial select leaves it undefined. The editor only
+   *  reads it as a fallback when the draft `blocks` is empty. */
+  blocks_published?: unknown;
   theme: unknown;
   required_talent_tier: string | null;
   published_at: string | null;
@@ -189,6 +193,30 @@ export interface TalentPageAdapterActions {
   }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
 }
 
+// ── resolveTalentPageEditorTree ─────────────────────────────────────────────
+
+/**
+ * The tree the builder opens for a talent page: the DRAFT (`blocks`) when it
+ * has nodes, else the LIVE body (`blocks_published`), else empty.
+ *
+ * A talent must always be able to edit exactly what visitors see. A page whose
+ * draft is empty but whose live body is not (a live body written by an older
+ * publish path, or a draft blanked by a failed save) would otherwise open as an
+ * empty "Describe your page" canvas while the public site shows the full page.
+ * Opening on the live body means the first save writes it back to the draft.
+ */
+export function resolveTalentPageEditorTree(
+  row: Pick<TalentPageRow, "blocks" | "blocks_published">,
+): CompositionData["builderTree"] {
+  if (Array.isArray(row.blocks) && row.blocks.length > 0) {
+    return row.blocks as CompositionData["builderTree"];
+  }
+  if (Array.isArray(row.blocks_published) && row.blocks_published.length > 0) {
+    return row.blocks_published as CompositionData["builderTree"];
+  }
+  return [];
+}
+
 // ── buildEmptyTalentPageComposition ─────────────────────────────────────────
 
 /**
@@ -224,7 +252,7 @@ export function buildEmptyTalentPageComposition(
       jsonLd: row.json_ld ?? null,
     },
     slots: {},
-    builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
+    builderTree: resolveTalentPageEditorTree(row),
     slotDefs: [],
     library: [],
     // STYLE-1 — prefer the dedicated `style_classes` column; fall back to the

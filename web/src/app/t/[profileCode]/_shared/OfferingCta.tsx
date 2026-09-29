@@ -17,6 +17,7 @@
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
+import { offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
 
 export type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
@@ -50,6 +51,7 @@ export function OfferingCta({
   const label = labelOverride?.trim() || offeringCtaLabel(cta, locale, "card");
 
   const onClick = () => {
+    const where = offeringWhereFromAttributes(offering.attributes);
     const detail: OfferingRequestDetail = {
       offeringId: offering.id,
       talentProfileId: offering.talentProfileId,
@@ -71,6 +73,8 @@ export function OfferingCta({
       inventoryQty: offering.inventoryQty,
       capacityPoolId: offering.capacityPoolId,
       intent: instant ? "instant" : "request",
+      description: offering.description,
+      where: where.length ? where : undefined,
     };
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };

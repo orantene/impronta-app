@@ -15,6 +15,10 @@ import {
   parseMaisonCustomPaletteStored,
 } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
+import {
+  designTypographyTokens,
+  galleryPaletteLookTokens,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { isMaisonLivePending } from "./maison-pending-design";
 import { coerceTokenMap } from "./theme-apply-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
@@ -174,11 +178,23 @@ export async function materializeMaisonLivePendingIfAny(
       logServerError("maison.pending.custom.read", draftErr);
       return { ok: false, error: "Could not apply custom colors." };
     }
+    const galleryKey =
+      typeof proposed.galleryPaletteKey === "string" && proposed.galleryPaletteKey.trim()
+        ? proposed.galleryPaletteKey.trim()
+        : null;
+    const designSlug = proposed.designSlug || "maison";
     const draftTokens = mergeLookIntoTokens(
       coerceTokenMap(
         (draftRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
       ),
-      maisonCustomLookTokens(custom),
+      {
+        ...maisonCustomLookTokens(custom),
+        // Match never-published apply: gallery Look carries muted / on-accent /
+        // tint / fonts; custom four-swatch alone would leave the prior design's
+        // typography and omit soft tokens on live design switches.
+        ...(galleryKey ? galleryPaletteLookTokens(designSlug, galleryKey) ?? {} : {}),
+        ...designTypographyTokens(designSlug),
+      },
     );
     const now = new Date().toISOString();
     const { error } = await admin

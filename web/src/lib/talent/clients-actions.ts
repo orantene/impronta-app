@@ -3,7 +3,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
-import { mapBookingStatusToNext } from "@/lib/talent/clients-directory";
+import { clientVisit } from "@/lib/talent/clients-directory";
 import {
   upsertClient,
   type TalentClientRow,
@@ -74,7 +74,7 @@ export async function loadTalentClients(
     const { data: legs, error: legsError } = await admin
       .from("booking_talent")
       .select(
-        "booking_id, client_charge_total, agency_bookings!inner ( id, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
+        "booking_id, client_charge_total, agency_bookings!inner ( id, title, contact_name, contact_phone, contact_email, starts_at, ends_at, currency_code, payment_status, total_client_revenue, deposit_amount_cents, source_inquiry_id, status )",
       )
       .eq("talent_profile_id", talentProfileId)
       .limit(200);
@@ -109,9 +109,15 @@ export async function loadTalentClients(
       else if (basis > 0) owed = basis;
       if (owed && owed > 0 && start && start < nowIso) overdue = true;
       const inquiryId = booking.source_inquiry_id as string | null;
-      const nextStatus = mapBookingStatusToNext(booking.status as string | null);
-      const isFuture = !!start && start >= nowIso && nextStatus != null;
-      const isPast = !!start && start < nowIso;
+      const visit = clientVisit({
+        status: booking.status as string | null,
+        startsAt: start,
+        endsAt: (booking.ends_at as string | null) ?? null,
+        nowIso,
+      });
+      const nextStatus = visit.state === "completed" ? null : visit.state;
+      const isFuture = visit.upcoming && nextStatus != null;
+      const isPast = visit.done;
       upsertClient(
         byKey,
         emptyRow({
@@ -130,6 +136,27 @@ export async function loadTalentClients(
           nextStatus: isFuture ? nextStatus : null,
           nextBookingHref: isFuture ? `/talent/bookings/${booking.id}` : null,
           overdue,
+          firstSeenAt: start,
+          history: start
+            ? [
+                {
+                  bookingId: booking.id as string,
+                  startsAt: start,
+                  amountCents: basis > 0 ? basis : null,
+                  currency: (booking.currency_code as string | null) ?? null,
+                  paymentStatus:
+                    booking.payment_status === "paid"
+                      ? "paid"
+                      : booking.payment_status === "partial"
+                        ? "partial"
+                        : "unpaid",
+                  past: isPast,
+                  href: `/talent/bookings/${booking.id}`,
+                  state: visit.state,
+                  title: (booking.title as string | null)?.trim() || null,
+                },
+              ]
+            : [],
         }),
         { inquiryId, accumulateVisit: true, countCompleted: isPast },
       );
@@ -137,7 +164,7 @@ export async function loadTalentClients(
 
     const { data: bookings, error: bookingsError } = await admin
       .from("talent_bookings")
-      .select("id, client_label, title, starts_at, inquiry_id, status")
+      .select("id, client_label, title, starts_at, ends_at, inquiry_id, status")
       .eq("talent_profile_id", talentProfileId)
       .order("starts_at", { ascending: false })
       .limit(200);
@@ -153,8 +180,15 @@ export async function loadTalentClients(
         "Client";
       const start = (row.starts_at as string | null) ?? null;
       const inquiryId = (row.inquiry_id as string | null) ?? null;
-      const nextStatus = mapBookingStatusToNext(row.status as string | null);
-      const isFuture = !!start && start >= nowIso && nextStatus != null;
+      const visit = clientVisit({
+        status: row.status as string | null,
+        startsAt: start,
+        endsAt: (row.ends_at as string | null) ?? null,
+        nowIso,
+      });
+      const nextStatus = visit.state === "completed" ? null : visit.state;
+      const isFuture = visit.upcoming && nextStatus != null;
+      const title = (row.title as string | null)?.trim() || null;
       // Do not accumulate visits — agency already counted commercial appointments;
       // shared-PK mirrors would otherwise double every create-slot booking.
       upsertClient(
@@ -162,7 +196,7 @@ export async function loadTalentClients(
         emptyRow({
           id: `booking:${row.id}`,
           name,
-          lastVisit: start && start < nowIso ? start : null,
+          lastVisit: visit.done ? start : null,
           completedCount: 0,
           visitCount: 0,
           amountOwedCents: null,
@@ -172,6 +206,23 @@ export async function loadTalentClients(
           nextStartsAt: isFuture ? start : null,
           nextStatus: isFuture ? nextStatus : null,
           nextBookingHref: isFuture ? `/talent/bookings/${row.id}` : null,
+          firstSeenAt: start,
+          history:
+            start && row.status !== "cancelled"
+              ? [
+                  {
+                    bookingId: row.id as string,
+                    startsAt: start,
+                    amountCents: null,
+                    currency: null,
+                    paymentStatus: null,
+                    past: visit.done,
+                    href: `/talent/bookings/${row.id}`,
+                    state: visit.state,
+                    title: title && title !== name ? title : null,
+                  },
+                ]
+              : [],
         }),
         { inquiryId, accumulateVisit: false },
       );
@@ -213,6 +264,7 @@ export async function loadTalentClients(
           source: "inquiry",
           phone: (inquiry.contact_phone as string | null)?.trim() || null,
           email: (inquiry.contact_email as string | null)?.trim() || null,
+          firstSeenAt: created,
         }),
         { inquiryId: inquiry.id as string, accumulateVisit: false },
       );
