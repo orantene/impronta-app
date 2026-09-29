@@ -1,6 +1,7 @@
 "use client";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { isStaleDeploymentError, notifyStaleDeployment } from "@/lib/client/stale-deployment";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -574,6 +575,10 @@ export function TalentProfileShellDrawer() {
   // masquerade as real saved values.
   const [editorHydration, setEditorHydration] =
     useState<"idle" | "loading" | "loaded" | "error">("idle");
+  // Real reason behind the "error" state above, shown in the P2 overlay
+  // instead of always-the-same generic copy. Null on stale-deployment
+  // (the reload banner covers that case instead).
+  const [hydrationErrorDetail, setHydrationErrorDetail] = useState<string | null>(null);
   const [hydrationNonce, setHydrationNonce] = useState(0);
   /** Server-computed publish blockers (the gate's own list). The client model
    *  gives instant feedback while editing; this is the authority — anything
@@ -732,6 +737,7 @@ export function TalentProfileShellDrawer() {
 
         if (!edRes.ok) {
           allowMarkDirtyRef.current = true;
+          setHydrationErrorDetail(edRes.error ?? null);
           setEditorHydration("error");
           return;
         }
@@ -914,11 +920,18 @@ export function TalentProfileShellDrawer() {
         allowMarkDirtyRef.current = true;
         setEditorHydration("loaded");
       })
-      .catch(() => {
-        if (!cancelled) {
-          allowMarkDirtyRef.current = true;
-          setEditorHydration("error");
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        allowMarkDirtyRef.current = true;
+        // A thrown (not `{ok:false}`) failure here is almost always a stale
+        // bundle — the reload banner is the real fix, not "Retry".
+        if (isStaleDeploymentError(err)) {
+          notifyStaleDeployment();
+          setHydrationErrorDetail(null);
+        } else {
+          setHydrationErrorDetail(err instanceof Error ? err.message : null);
         }
+        setEditorHydration("error");
       });
     return () => {
       cancelled = true;
@@ -1529,6 +1542,15 @@ export function TalentProfileShellDrawer() {
     });
     return true;
     } catch (e) {
+      // Stale bundle: the raw Next.js message meant nothing to an admin
+      // and gave no path to recovery. Reload banner + plain copy instead.
+      if (isStaleDeploymentError(e)) {
+        notifyStaleDeployment();
+        setSaveStatus("error");
+        setSaveError(copy.t("A newer version was published while this was open. Reload and try again."));
+        logServerError("saveall.stale-deployment", e);
+        return false;
+      }
       const msg = e instanceof Error ? e.message : copy.t("Save failed");
       setSaveStatus("error");
       setSaveError(msg);
@@ -3355,6 +3377,11 @@ export function TalentProfileShellDrawer() {
                 <div style={{ fontSize: 12, maxWidth: 320 }} className="text-admin-ink-muted">
                   {copy.t("Editing is paused so you don't overwrite real data with blanks. Retry to load it.")}
                 </div>
+                {hydrationErrorDetail && (
+                  <div className="max-w-[360px] rounded-lg bg-admin-border-soft px-2.5 py-1.5 font-mono text-[11.5px] text-admin-ink-muted break-words">
+                    {hydrationErrorDetail}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={retryHydration}
