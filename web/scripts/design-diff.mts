@@ -198,10 +198,11 @@ async function main(): Promise<void> {
     throw new Error(design.artifactTodo ?? `artifact HTML not found: ${design.artifactPath}`);
   }
 
-  // Artifact served from ~/.claude/mockup-serve/<design>/index.html (relative img/*.jpg, kit.js are absent locally).
-  const serveDir = path.join(SERVE_ROOT, designKey);
-  fs.mkdirSync(serveDir, { recursive: true });
-  fs.copyFileSync(design.artifactPath, path.join(serveDir, "index.html"));
+  // Serve the artifact's own folder (index.html + kit.js + img/) so photos load.
+  // Fixtures live in the repo (scripts/design-diff-fixtures/<design>/) so
+  // cloud agents can run this too.
+  const serveDir = path.dirname(path.resolve(design.artifactPath));
+  void SERVE_ROOT;
   const stat = await startStatic(serveDir);
 
   const outDir = path.join(OUT_ROOT, designKey, String(viewport));
