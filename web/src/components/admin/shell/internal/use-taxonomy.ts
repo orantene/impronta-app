@@ -94,6 +94,13 @@ const PARENT_DISPLAY_HINT: Record<string, { emoji: string; helper: string }> = {
   "photo-creative": { emoji: "📷", helper: "Photographers, videographers, drone." },
   "event-staff":    { emoji: "✦", helper: "Setup, runners, coordinators, assistants." },
   security:         { emoji: "🛡", helper: "Bodyguards, event security, door staff." },
+  // Taxonomy expansion (2026-09-29)
+  "professional-services": { emoji: "💼", helper: "Lawyers, accountants, translators, agents, consultants." },
+  "health-therapy":        { emoji: "🩺", helper: "Dentists, therapists, psychologists, nurses, doulas." },
+  "education-tutoring":    { emoji: "📚", helper: "Tutors, music teachers, coding and driving instructors." },
+  "design-digital":        { emoji: "🎨", helper: "Designers, illustrators, developers, architects." },
+  "crafts-makers":         { emoji: "🧵", helper: "Jewelers, ceramists, seamstresses, restorers." },
+  "pets-animal-care":      { emoji: "🐕", helper: "Dog walkers, pet sitters, groomers, trainers, vets." },
 };
 
 function rowToTerm(row: {

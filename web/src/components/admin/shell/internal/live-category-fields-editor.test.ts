@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
-import { filterLiveCategoryFieldsForScope } from "./live-category-fields-editor";
+import {
+  NAMESPACE_LABEL,
+  NAMESPACE_LABEL_KEY,
+  filterLiveCategoryFieldsForScope,
+} from "./live-category-fields-editor";
 
 type MiniField = {
   field_key: string;
@@ -109,4 +115,51 @@ test("section gate also applies to the General (About) mount: dedicated-section 
   ];
   const result = filterLiveCategoryFieldsForScope(input, "general");
   assert.deepEqual(result.map((f) => f.section), ["type-specific"]);
+});
+
+// Taxonomy expansion: every field_key namespace the two field migrations
+// introduce must have a proper label, or the specialty card falls back to a
+// title-cased prefix ("Svc", "Biz", "Realestate").
+const EXPANSION_MIGRATIONS = [
+  "20261231298200_taxonomy_expansion_fields.sql",
+  "20261231298300_taxonomy_expansion_regulated_fields.sql",
+];
+
+function expansionNamespaces(): string[] {
+  const dir = join(__dirname, "..", "..", "..", "..", "..", "..", "supabase", "migrations");
+  const found = new Set<string>();
+  for (const file of EXPANSION_MIGRATIONS) {
+    const sql = readFileSync(join(dir, file), "utf8");
+    // A field_key literal is a single-quoted `namespace.name` token.
+    for (const m of sql.matchAll(/'([a-z][a-z0-9]*)\.[a-z][a-z0-9_]*'/g)) found.add(m[1]!);
+  }
+  return [...found].sort();
+}
+
+test("every namespace introduced by the taxonomy expansion migrations has a label", () => {
+  const namespaces = expansionNamespaces();
+  assert.ok(namespaces.length >= 29, `expected the 29 expansion namespaces, found ${namespaces.length}`);
+  for (const ns of namespaces) {
+    assert.ok(NAMESPACE_LABEL[ns], `NAMESPACE_LABEL has no label for "${ns}"`);
+    assert.ok(NAMESPACE_LABEL_KEY[ns], `NAMESPACE_LABEL_KEY has no catalog key for "${ns}"`);
+  }
+});
+
+test("namespace labels exist in the EN and ES catalogs, with no dash characters", () => {
+  const load = (locale: string) =>
+    JSON.parse(readFileSync(join(__dirname, "..", "..", "..", "..", "..", "messages", `${locale}.json`), "utf8")) as {
+      dashboard: { adminFieldsEditor: { ns: Record<string, string> } };
+    };
+  const catalogs = { en: load("en").dashboard.adminFieldsEditor.ns, es: load("es").dashboard.adminFieldsEditor.ns };
+  for (const ns of expansionNamespaces()) {
+    const key = NAMESPACE_LABEL_KEY[ns]!;
+    assert.equal(key, `dashboard.adminFieldsEditor.ns.${ns}`, `${ns}: unexpected catalog key`);
+    for (const [locale, table] of Object.entries(catalogs)) {
+      const label = table[ns];
+      assert.ok(label && label.trim(), `${locale} catalog has no label for "${ns}"`);
+      assert.ok(!/[\u2013\u2014]/.test(label), `${locale} label for "${ns}" must not contain a dash character`);
+    }
+    // The English catalog string is the same words as the in-code fallback.
+    assert.equal(catalogs.en[ns], NAMESPACE_LABEL[ns], `${ns}: EN catalog and NAMESPACE_LABEL disagree`);
+  }
 });
