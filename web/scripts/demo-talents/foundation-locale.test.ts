@@ -428,15 +428,15 @@ test("seeding writes preferred_locale = default_locale, default-language text fi
   assert.ok(h.db.ops.every((o) => !JSON.stringify(o.patch ?? o.rows ?? "").includes("supported_locales")));
 });
 
-test("applySupportedLocales: a documented no-op today, and one place to map it once a column exists", async () => {
+test("applySupportedLocales writes secondary languages only (primary excluded) to talent_profiles.secondary_locales", async () => {
   const h = await harness();
-  h.db.table("talent_profiles").push({ id: "tp-x" });
-  assert.equal(SUPPORTED_LOCALES_TARGET, null, "no per-talent column exists yet");
-  assert.deepEqual(await applySupportedLocales(h.admin, { profileId: "tp-x", supportedLocales: ["en", "es"] }), { applied: false });
-  assert.equal(h.db.ops.length, 0);
-  const r = await applySupportedLocales(h.admin, { profileId: "tp-x", supportedLocales: ["en", "es"] }, { table: "talent_profiles", key: "id", column: "supported_locales" });
-  assert.deepEqual(r, { applied: true });
-  assert.deepEqual(h.db.table("talent_profiles")[0].supported_locales, ["en", "es"]);
+  h.db.table("talent_profiles").push({ id: "tp-x" }, { id: "tp-y" });
+  assert.deepEqual(SUPPORTED_LOCALES_TARGET, { table: "talent_profiles", key: "id", column: "secondary_locales" });
+  assert.deepEqual(await applySupportedLocales(h.admin, { profileId: "tp-x", supportedLocales: ["en", "es"] }), { applied: true });
+  assert.deepEqual(h.db.table("talent_profiles")[0].secondary_locales, ["es"]);
+  await applySupportedLocales(h.admin, { profileId: "tp-y", supportedLocales: ["es"] });
+  assert.deepEqual(h.db.table("talent_profiles")[1].secondary_locales, [], "single-language demos get an empty list");
+  assert.deepEqual(await applySupportedLocales(h.admin, { profileId: "tp-x", supportedLocales: ["en", "es"] }, null), { applied: false });
 });
 
 test("a demo who does not speak English can still list en as a supported site language", async () => {

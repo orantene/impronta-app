@@ -406,7 +406,13 @@ export function mergeStatus(file: string, entry: StatusEntry) {
  * ONE PLACE TO CHANGE once a column exists, e.g.
  *   { table: "talent_profiles", key: "id", column: "supported_locales" }
  */
-export const SUPPORTED_LOCALES_TARGET: { table: string; key: string; column: string } | null = null;
+export const SUPPORTED_LOCALES_TARGET: { table: string; key: string; column: string } | null = {
+  // Migration 20261231299510 (PR 1, multi-language): secondary languages only,
+  // ordered; the primary stays in preferred_locale.
+  table: "talent_profiles",
+  key: "id",
+  column: "secondary_locales",
+};
 
 /**
  * Write a talent's supported languages, if the product has somewhere to put
@@ -419,8 +425,10 @@ export async function applySupportedLocales(
   target: typeof SUPPORTED_LOCALES_TARGET = SUPPORTED_LOCALES_TARGET,
 ): Promise<{ applied: boolean }> {
   if (!target) return { applied: false };
+  // secondary_locales excludes the primary (supportedLocales[0] = default_locale).
+  const secondary = a.supportedLocales.slice(1);
   must(
-    await admin.from(target.table).update({ [target.column]: [...a.supportedLocales] }).eq(target.key, a.profileId),
+    await admin.from(target.table).update({ [target.column]: secondary }).eq(target.key, a.profileId),
     `${target.table}.${target.column}`,
   );
   return { applied: true };
