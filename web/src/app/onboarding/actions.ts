@@ -40,8 +40,8 @@ function onboardingLoginPath(nextPath: string | undefined): string {
 }
 
 function talentLocationPath(nextPath: string | undefined): string {
-  if (!nextPath) return "/onboarding/talent-location";
-  return `/onboarding/talent-location?next=${encodeURIComponent(nextPath)}`;
+  if (!nextPath) return "/talent/profile/fields";
+  return `/talent/profile/fields?next=${encodeURIComponent(nextPath)}`;
 }
 
 function parsePortalNext(
