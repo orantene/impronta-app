@@ -8,6 +8,7 @@
 
 import type { TalentEarnings, TalentEarningsRow } from "./earnings-types";
 import type { TalentClientRow } from "./clients-merge";
+import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 
 export type MoneyMethodBucket = "card" | "cash" | "transfer" | "other";
 
@@ -168,4 +169,81 @@ export function moneyMonths(earnings: TalentEarnings, current: string): string[]
     if (b) set.add(b);
   }
   return [...set].sort().reverse();
+}
+
+/** One line of money still to come, read from the agenda (holds and booked work). */
+export type MoneyAgendaRow = {
+  id: string;
+  name: string;
+  service: string;
+  startsAt: string;
+  /** null when no price is agreed yet: the page says so instead of printing $0. */
+  amountCents: number | null;
+  currency: string;
+  kind: "deposit" | "balance";
+  overdue: boolean;
+  /** Overdue, or the appointment is today or earlier. */
+  dueByToday: boolean;
+  orderId: string | null;
+  bookingHref: string;
+};
+
+type AgendaMoneyInput = Pick<
+  TalentAgendaItem,
+  "id" | "kind" | "title" | "client" | "startsAt" | "booking" | "payment" | "money" | "orderId"
+>;
+
+/**
+ * Money the agenda already knows about but the earnings ledger does not:
+ *   - owed: balances due on booked work (due, part paid, overdue, or finished unpaid),
+ *   - waiting: deposits and payments requested on holds and bookings that are
+ *     not owed yet ("Payment requests waiting" in mockup mc_outstanding).
+ */
+export function agendaMoneyRows(
+  items: readonly AgendaMoneyInput[],
+  now: Date,
+): { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[] } {
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+  const owed: MoneyAgendaRow[] = [];
+  const waiting: MoneyAgendaRow[] = [];
+  for (const item of items) {
+    if (item.kind !== "booking" && item.kind !== "hold") continue;
+    if (
+      item.booking === "cancelled" ||
+      item.booking === "hold_expired" ||
+      item.booking === "no_show" ||
+      item.booking === "requested"
+    ) {
+      continue;
+    }
+    const name = item.client?.name ?? item.title;
+    const base = {
+      id: item.id,
+      name,
+      service: item.title && item.title.trim().toLowerCase() !== name.trim().toLowerCase() ? item.title : "",
+      startsAt: item.startsAt,
+      currency: (item.money.currency || "MXN").toUpperCase(),
+      overdue: item.payment === "overdue",
+      dueByToday: item.payment === "overdue" || Date.parse(item.startsAt) <= endOfToday.getTime(),
+      orderId: item.orderId ?? null,
+      bookingHref: `/talent/bookings/${item.id}`,
+    };
+    const unpaid = (item.money.paidCents ?? 0) === 0;
+    const finishedUnpaid =
+      item.booking === "completed" &&
+      (item.payment === "none" || item.payment === "awaiting") &&
+      item.money.dueCents > 0;
+    if (item.payment === "due" || item.payment === "partial" || item.payment === "overdue" || finishedUnpaid) {
+      if (item.money.dueCents <= 0) continue;
+      owed.push({ ...base, kind: "balance", amountCents: item.money.dueCents });
+      continue;
+    }
+    if ((item.payment === "awaiting" || item.payment === "none") && unpaid && item.booking !== "completed") {
+      const amount = item.money.depositCents || item.money.dueCents || item.money.totalCents || 0;
+      waiting.push({ ...base, kind: "deposit", amountCents: amount > 0 ? amount : null });
+    }
+  }
+  const byDate = (a: MoneyAgendaRow, b: MoneyAgendaRow) => a.startsAt.localeCompare(b.startsAt);
+  return { owed: owed.sort(byDate), waiting: waiting.sort(byDate) };
 }

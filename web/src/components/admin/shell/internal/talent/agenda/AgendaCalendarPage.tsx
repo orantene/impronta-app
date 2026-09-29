@@ -166,7 +166,7 @@ export function AgendaCalendarPage({
   const weekItems = days.flatMap((day) => itemsOnDay(allItems, day));
   const counts = filterCounts(weekItems);
   const bounds = (() => {
-    const base = gridBounds(hours, days);
+    const base = gridBounds(hours, days, clock);
     if (overnightToHour != null && overnightToHour > 24) {
       return { ...base, endMin: Math.max(base.endMin, overnightToHour * 60) };
     }

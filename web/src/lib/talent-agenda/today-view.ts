@@ -71,7 +71,7 @@ export function todayAttentionAction(item: TalentAgendaItem): TodayAttentionActi
   return { label: cta.label, tone: "warn", chip: cta.kind === "collect" ? "Due" : "Open" };
 }
 
-export type AppointmentActionKind = "check_in" | "collect" | "request_deposit";
+export type AppointmentActionKind = "check_in" | "collect" | "request_deposit" | "payment_link";
 
 /** Row action for today's appointments (mockup: Check in / Collect / Request deposit). */
 export function todayAppointmentAction(
@@ -86,12 +86,9 @@ export function todayAppointmentAction(
   if (item.payment === "due" || item.payment === "partial" || item.payment === "overdue") {
     return item.money.dueCents > 0 ? { kind: "collect", cents: item.money.dueCents } : null;
   }
-  if (
-    (item.payment === "none" || item.payment === "awaiting") &&
-    item.money.totalCents > 0 &&
-    (item.money.paidCents ?? 0) === 0
-  ) {
-    return { kind: "request_deposit" };
+  if ((item.payment === "none" || item.payment === "awaiting") && (item.money.paidCents ?? 0) === 0) {
+    // No agreed price yet: the talent types the amount into a payment link.
+    return item.money.totalCents > 0 ? { kind: "request_deposit" } : { kind: "payment_link" };
   }
   const ends = Date.parse(item.endsAt);
   if ((item.payment === "paid" || item.payment === "agency") && Number.isFinite(ends) && ends >= now.getTime()) {

@@ -7,7 +7,7 @@ import { PrimaryButton, SecondaryButton } from "../../primitives";
 import { AgendaRow, BookingStateChip, PaymentStateChip } from "./primitives";
 import { itemsOnDay, rowFromAgendaItem } from "./present";
 import { placeLabelFor } from "./record-actions";
-import { LIST_FILTERS, matchesFilter, timeRange, type ListFilter } from "./calendar-view";
+import { LIST_FILTERS, matchesFilter, serviceLabel, timeRange, type ListFilter } from "./calendar-view";
 import { localYmd, sameDay } from "./AgendaCalendarViews";
 import { useAgendaCopy } from "./use-agenda-copy";
 
@@ -380,7 +380,7 @@ export function CalendarList({
                 >
                   <span className="tabular-nums">{timeRange(item.startsAt, item.endsAt)}</span>
                   <span className="truncate font-semibold">{item.client?.name ?? item.title}</span>
-                  <span className={`truncate ${MUTED}`}>{item.title}</span>
+                  <span className={`truncate ${MUTED}`}>{serviceLabel(item) ?? copy.t("No service set")}</span>
                   <span>{r.bookingState ? <BookingStateChip state={r.bookingState} /> : null}</span>
                   <span>{r.paymentState ? <PaymentStateChip state={r.paymentState} /> : null}</span>
                   <span className={`truncate ${MUTED}`}>{source}</span>

@@ -190,3 +190,60 @@ export function stripDots(items: readonly TalentAgendaItem[]): { solid: number; 
   }
   return { solid: Math.min(solid, 3), hollow };
 }
+
+/**
+ * Side-by-side lanes for overlapping chips in one day column. Input spans are
+ * the drawn pixel ranges (after min-height), so two short events that only
+ * collide visually still get their own lane. Every chip in a cluster shares the
+ * cluster's lane count, so widths line up.
+ */
+export function layoutLanes(
+  spans: readonly { id: string; top: number; bottom: number }[],
+): Map<string, { lane: number; lanes: number }> {
+  const sorted = [...spans].sort((a, b) => a.top - b.top || b.bottom - a.bottom);
+  const out = new Map<string, { lane: number; lanes: number }>();
+  let cluster: { id: string; lane: number }[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = -Infinity;
+  const flush = () => {
+    for (const c of cluster) out.set(c.id, { lane: c.lane, lanes: laneEnds.length });
+    cluster = [];
+    laneEnds = [];
+  };
+  for (const span of sorted) {
+    if (span.top >= clusterEnd) {
+      flush();
+      clusterEnd = -Infinity;
+    }
+    let lane = laneEnds.findIndex((end) => end <= span.top);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(span.bottom);
+    } else {
+      laneEnds[lane] = span.bottom;
+    }
+    cluster.push({ id: span.id, lane });
+    clusterEnd = Math.max(clusterEnd, span.bottom);
+  }
+  flush();
+  return out;
+}
+
+/**
+ * The service a record is for. Bookings made without a catalog item carry the
+ * client's name as their title; that is not a service, so it returns null and
+ * the caller shows an honest "No service set".
+ */
+export function serviceLabel(
+  item: Pick<TalentAgendaItem, "title" | "lines" | "client" | "kind">,
+): string | null {
+  const client = item.client?.name?.trim().toLowerCase() ?? "";
+  const candidates = [...item.lines.map((line) => line.label), item.title];
+  for (const raw of candidates) {
+    const label = raw?.trim();
+    if (!label) continue;
+    if (client && label.toLowerCase() === client) continue;
+    return label;
+  }
+  return null;
+}

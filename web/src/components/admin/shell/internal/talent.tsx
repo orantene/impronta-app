@@ -390,8 +390,11 @@ function TalentRouter() {
           <AgendaNewBooking
             talentTypeSlug={bridgeTalentSelfProfile?.primaryTypeLabel}
             talentProfileId={bridgeTalentSelfProfile?.id}
+            agendaItems={bridgeTalentAgendaItems ?? []}
+            hours={bridgeTalentAgendaHours}
             onCancel={() => setTalentPage("calendar")}
             onSaved={() => { toast("Booking saved"); setTalentPage("calendar"); }}
+            onOpenRecord={(id) => { toast("Booking saved"); openAgendaPath(`/talent/bookings/${id}`, "booking-record"); }}
           />
         )
         : <TalentTodayPage />;
