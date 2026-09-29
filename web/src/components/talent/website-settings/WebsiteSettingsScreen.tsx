@@ -24,6 +24,7 @@ import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { patchOfferingBookingRules } from "@/lib/talent/offering-booking-rules-action";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
+import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { settle } from "./settle";
 import { loadHoursMinNoticeAction } from "./website-settings-gate-action";
 import { loadSiteSwitchesAction, saveSiteSwitchesAction, type SiteSwitchesSnapshot } from "./website-settings-switches-action";
@@ -65,7 +66,7 @@ function fieldsOf(o: TalentOffering): ServiceFields {
   };
 }
 
-type View = "home" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
+type View = "home" | "site" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
 
 export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string; onClose: () => void }) {
   const copy = useDashboardText();
@@ -234,6 +235,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
 
   const titles: Record<View, string> = {
     home: t("Website settings"),
+    site: t("Address, logo and pages"),
     booking: t("Services & booking"),
     timing: t("Availability & timing"),
     pay: t("Payments"),
@@ -308,6 +310,11 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       {view === "home" ? (
         <div className="overflow-hidden rounded-xl border border-admin-border-soft bg-white">
           <NavRow
+            title={titles.site}
+            summary={t("Site address, logo, pages and custom domain")}
+            onOpen={() => setView("site")}
+          />
+          <NavRow
             title={titles.booking}
             summary={t("{mode} by default · {n} of {total} services with their own setting")
               .replace("{mode}", postureLabel(d.bookingPosture, t))
@@ -375,7 +382,9 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         </p>
       ) : null}
       {view === "self" ? <SelfServiceGroup {...groupProps} /> : null}
+      {view === "site" ? <MaxSiteSettingsPanels /> : null}
 
+      {view === "site" ? null : (
       <SaveBar
         status={status}
         dirty={dirty}
@@ -383,6 +392,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         onSave={() => void save()}
         labels={{ discard: t("Discard"), save: t("Save"), saving: t("Saving…"), retry: t("Retry save"), nothing: t("No changes yet. Edit a setting to save.") }}
       />
+      )}
 
       {confirmExit ? (
         <UnsavedExitSheet

@@ -36,6 +36,7 @@ import { interpolate } from "@/i18n/interpolate";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
+import { CardChatPanel } from "./CardChatColumn";
 import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
@@ -146,6 +147,7 @@ export function MiniChatPanel({
   soundOnReply = true,
   identity = "guest",
   surfaceMode = "light",
+  chatCard = null,
   isHub = false,
   expanded = false,
   onToggleExpand,
@@ -763,6 +765,8 @@ export function MiniChatPanel({
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
+  // `chat.variant = card`: same engine + props, the one-to-one card chrome.
+  if (chatCard) return <CardChatPanel {...columnProps} card={chatCard} compact={compactSheet} keyboardInsetPx={keyboardInsetPx} />;
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
   if (expanded) {
     return (

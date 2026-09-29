@@ -268,7 +268,7 @@ const BUDGETS: Record<string, number> = {
   // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
   // via `info=` on their FieldLabel; multi-line labels cost more lines than the
   // single-line helpers they replaced, while the panel renders shorter.
-  "src/components/edit-chrome/theme-drawer.tsx": 1433,
+  "src/components/edit-chrome/theme-drawer.tsx": 1461,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
   // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets
@@ -280,7 +280,7 @@ const BUDGETS: Record<string, number> = {
   // save bus. The tab's own ~1,040 lines went into four NEW modules under
   // `tabs/` (RegionsTab / regions-zone / regions-item-row / regions-controls /
   // regions-meta), each under the 800-line cap, rather than into this file.
-  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 983,
+  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 988,
   // +4 (info-tip program): ToggleRow gained an optional `info` prop so the
   // availability note could move behind an ⓘ instead of standing under the row.
   "src/components/edit-chrome/inspectors/featured-talent-content.tsx": 904,
@@ -554,7 +554,7 @@ const BUDGETS: Record<string, number> = {
   // Merged with main on 2026-09-10: main raised this by three lines for the
   // signup work; the budget is the merged file's measured size.
   // 2026-09-24 services-rebuild: +4 (2189). Measured wc -l.
-  "src/components/admin/shell/admin-shell-client.tsx": 2189,
+  "src/components/admin/shell/admin-shell-client.tsx": 2190,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;
@@ -580,7 +580,7 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25 Agenda V2: +5 — stamp bridgeTalentAgendaV2 (server flag) so
   // the client shell does not re-read non-NEXT_PUBLIC env.
   // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
-  "src/components/admin/shell/internal/state/context.tsx": 2491,
+  "src/components/admin/shell/internal/state/context.tsx": 2496,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,

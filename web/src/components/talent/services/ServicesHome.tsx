@@ -50,7 +50,7 @@ import {
   useHasBookableHours,
   useNeedsWorkingHoursBanner,
 } from "./ServicesHoursNeeded";
-import { HideOutcome, RowMenu, listPrice } from "./ServicesHomeRowChrome";
+import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
 import { useSearchParams } from "next/navigation";
 
@@ -78,6 +78,7 @@ export function ServicesHome({
   const [typeOpen, setTypeOpen] = useState(false);
   const [kind, setKind] = useState<OfferingKind>("service");
   const [editing, setEditing] = useState<TalentOffering | null>(null);
+  const [previewFirst, setPreviewFirst] = useState(false);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [bannerId, setBannerId] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
@@ -215,6 +216,7 @@ export function ServicesHome({
     const k = nextKind ?? kind;
     // WSF B2: a new service follows the talent default booking mode (null).
     setEditing(item ? item : { ...draft, kind: k, status: "draft", bookingMode: k === "product" ? draft.bookingMode : null });
+    setPreviewFirst(false);
     setScreen("editor");
     setTypeOpen(false);
   };
@@ -249,6 +251,7 @@ export function ServicesHome({
         currency={items.find((i) => i.currency)?.currency ?? "MXN"}
         onChange={setDefaults}
         onBack={() => setScreen("list")}
+        onOpenWebsiteSettings={() => setTalentPage("public-page")}
         onSave={async () => {
           const res = await saveSellingDefaults(talentId, defaults);
           setToast(res.ok ? copy.t("Saved") : res.error ?? copy.t("Could not save"));
@@ -367,6 +370,7 @@ export function ServicesHome({
       <EditorScreen
         item={editing}
         setItem={setEditing}
+        initialPreview={previewFirst}
         locale={locale}
         defaults={defaults}
         destinations={destinations}
@@ -408,7 +412,7 @@ export function ServicesHome({
       <ServicesWebsiteSetupBanner />
       <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
-          <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>
+          <h1 className="font-admin-display text-[20px] font-semibold tracking-[-0.3px] text-admin-ink">{copy.t("Services")}</h1>
           <p className="text-[13px] text-admin-ink-muted">
             {hideTarget
               ? `${copy.t("Hiding")} "${hideTarget.title}"`
@@ -581,8 +585,16 @@ export function ServicesHome({
                 </span>
               </span>
               <span className="shrink-0 text-right">
-                <span className="block text-[13px] font-semibold">
-                  {listPrice(item, copy.t("Quoted"))}
+                <span
+                  className={`block text-[13px] ${
+                    listPriceState(item) === "amount"
+                      ? "font-semibold text-admin-ink"
+                      : listPriceState(item) === "unset"
+                        ? "text-admin-amber-deep"
+                        : "text-admin-ink-muted"
+                  }`}
+                >
+                  {listPrice(item, copy.t("Quoted"), copy.t("No price yet"))}
                 </span>
                 <span className="block text-[11px] text-admin-ink-muted">
                   {usdEquivalentLabel(item.amountCents, item.currency, editor.usdRates, locale)}
@@ -602,6 +614,7 @@ export function ServicesHome({
                 onPreview={async () => {
                   await refreshExtras();
                   openEditor(item);
+                  setPreviewFirst(true);
                 }}
                 onShare={async () => {
                   const dest = destinations[0]?.href;
@@ -671,6 +684,16 @@ export function ServicesHome({
           </li>
         ))}
       </ul>
+
+      <div className="sticky bottom-3 z-10 mt-4 sm:hidden">
+        <button
+          type="button"
+          className="h-11 w-full rounded-full bg-admin-brand text-[14px] font-semibold text-white shadow-admin-rest"
+          onClick={() => setTypeOpen(true)}
+        >
+          + {copy.t("Add item")}
+        </button>
+      </div>
 
       {typeOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setTypeOpen(false)}>

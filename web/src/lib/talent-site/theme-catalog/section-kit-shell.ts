@@ -10,6 +10,7 @@
  * so the stored tree stays talent-agnostic; the apply core resolves both.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import type { NavChromeStyle } from "@/lib/site-admin/nav-chrome";
 import { buildDefaultShellTree } from "../default-max-site-trees";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
@@ -41,6 +42,11 @@ function copyrightLine(displayName: string, year: string | number | undefined): 
   return `© ${year ?? new Date().getFullYear()} ${displayName}`;
 }
 
+export interface KitShellNavLink {
+  label: string;
+  href: string;
+}
+
 export interface KitShellOptions {
   displayName: string;
   logoUrl?: string | null;
@@ -54,6 +60,19 @@ export interface KitShellOptions {
   headerPaddingY?: "s" | "m";
   /** Dark chrome: header + footer paint the Look's ink (`background: "contrast"`). */
   contrastChrome?: boolean;
+  /**
+   * Shared Header navigation style. Stamped on the kit `nav` node.
+   * Absent → `top_bar` (classic inline bar).
+   */
+  navChrome?: NavChromeStyle;
+  /**
+   * Primary nav links. Absent → a single Home link (byte-identical to the
+   * pre-navChrome shell). Designs that use scroll-spy chrome stamp section
+   * hashes that match kit `anchorId` slots (`#services`, `#gallery`, …).
+   */
+  navLinks?: ReadonlyArray<KitShellNavLink>;
+  /** Override `site_header` primary CTA + freeform region CTA label. */
+  primaryCtaLabel?: string;
 }
 
 /**
@@ -88,12 +107,23 @@ export function buildKitShell(
 
   const headerStyle: Record<string, unknown> = {
     justifyContent: headerJustify,
+    // 1.5rem gutter so the brand never sits flush at the 390 edge.
+    paddingX: "m",
     ...(opts.headerPaddingY ? { paddingY: opts.headerPaddingY } : {}),
     ...(opts.headerRule
       ? { borderColor: "token:color.accent", borderWidth: "0 0 1px 0", borderStyle: "solid" }
       : {}),
     ...(opts.contrastChrome ? { paddingX: "l", paddingY: "m", background: "contrast" } : {}),
   };
+
+  const links =
+    opts.navLinks && opts.navLinks.length > 0
+      ? opts.navLinks.map((link) => ({
+          id: makeId(),
+          label: link.label,
+          href: link.href,
+        }))
+      : [{ id: makeId(), label: "Home", href: homeHref }];
 
   const header: BuilderNode = {
     id: makeId(),
@@ -110,7 +140,13 @@ export function buildKitShell(
       {
         id: makeId(),
         kind: "nav",
-        props: { ariaLabel: "Primary", links: [{ id: makeId(), label: "Home", href: homeHref }] },
+        props: {
+          ariaLabel: "Primary",
+          links,
+          ...(opts.navChrome && opts.navChrome !== "top_bar"
+            ? { navChrome: opts.navChrome }
+            : {}),
+        },
       },
     ],
   } as BuilderNode;
@@ -148,12 +184,65 @@ export function buildKitShell(
  */
 export function buildKitStandardShell(
   makeId: KitIdFactory,
-  opts: Pick<KitShellOptions, "displayName" | "logoUrl" | "homeHref" | "year">,
+  opts: Pick<
+    KitShellOptions,
+    "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks" | "primaryCtaLabel"
+  >,
 ): BuilderNode[] {
-  const [header, footer, ...rest] = buildDefaultShellTree(
+  const [rawHeader, footer, ...rest] = buildDefaultShellTree(
     { displayName: opts.displayName, logoUrl: opts.logoUrl, homeHref: opts.homeHref },
     makeId,
   );
+  // Per-design nav style + links ride on the standard `site_header` config
+  // (`navChrome` / `navItems` share the builder `nav` enum), so a Design keeps
+  // its own navigation while wearing the platform header (logo, ES/EN, CTA,
+  // mobile menu).
+  const header = ((): BuilderNode | undefined => {
+    if (!rawHeader) return rawHeader;
+    const hasLinks = !!opts.navLinks && opts.navLinks.length > 0;
+    const hasChrome = !!opts.navChrome && opts.navChrome !== "top_bar";
+    const hasCta = !!opts.primaryCtaLabel?.trim();
+    if (!hasLinks && !hasChrome && !hasCta) return rawHeader;
+    const props = (rawHeader.props ?? {}) as Record<string, unknown>;
+    const sectionProps = (props.sectionProps ?? {}) as Record<string, unknown>;
+    const ctaLabel = opts.primaryCtaLabel?.trim();
+    const primaryCta = sectionProps.primaryCta;
+    const nextPrimaryCta =
+      hasCta && primaryCta && typeof primaryCta === "object"
+        ? { ...(primaryCta as Record<string, unknown>), label: ctaLabel }
+        : hasCta
+          ? { label: ctaLabel, href: "/contact" }
+          : primaryCta;
+    const regions = sectionProps.regions;
+    let nextRegions = regions;
+    if (hasCta && regions && typeof regions === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [slot, items] of Object.entries(regions as Record<string, unknown>)) {
+        out[slot] = Array.isArray(items)
+          ? items.map((it) => {
+              if (!it || typeof it !== "object") return it;
+              const row = it as Record<string, unknown>;
+              return row.type === "cta" ? { ...row, label: ctaLabel } : it;
+            })
+          : items;
+      }
+      nextRegions = out;
+    }
+    return {
+      ...rawHeader,
+      props: {
+        ...props,
+        sectionProps: {
+          ...sectionProps,
+          ...(hasLinks
+            ? { navItems: opts.navLinks!.map((l) => ({ label: l.label, href: l.href })) }
+            : {}),
+          ...(hasChrome ? { navChrome: opts.navChrome } : {}),
+          ...(hasCta ? { primaryCta: nextPrimaryCta, ...(nextRegions ? { regions: nextRegions } : {}) } : {}),
+        },
+      },
+    } as BuilderNode;
+  })();
   const withYear = (node: BuilderNode): BuilderNode => {
     if (opts.year === undefined || !("children" in node) || !Array.isArray(node.children)) {
       return node;

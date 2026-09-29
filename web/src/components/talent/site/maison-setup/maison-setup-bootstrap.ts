@@ -21,6 +21,8 @@ export type MaisonSetupBootstrap =
       talentProfileId: string;
       sitePublished: boolean;
       themeLookSlug: string | null;
+      /** Live/applied design slug (P5: "Layout: <Old> → <New>"). */
+      themeDesignSlug?: string | null;
       customPalette: ReturnType<typeof parseMaisonCustomPaletteStored>;
       /** Server-persisted setup choices; null when never saved. */
       setupChoices: MaisonSetupChoices | null;
@@ -45,7 +47,7 @@ export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBoots
   }
   const { data, error } = await admin
     .from("talent_sites")
-    .select("site_published_at, theme_look_slug, custom_palette, setup_choices")
+    .select("site_published_at, theme_look_slug, theme_design_slug, custom_palette, setup_choices")
     .eq("talent_profile_id", g.talentProfileId)
     .maybeSingle();
   if (error) {
@@ -63,6 +65,7 @@ export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBoots
   const row = data as {
     site_published_at?: string | null;
     theme_look_slug?: string | null;
+    theme_design_slug?: string | null;
     custom_palette?: unknown;
     setup_choices?: unknown;
   } | null;
@@ -75,6 +78,7 @@ export async function loadMaisonSetupBootstrapAction(): Promise<MaisonSetupBoots
     talentProfileId: g.talentProfileId,
     sitePublished: Boolean(row?.site_published_at),
     themeLookSlug: typeof row?.theme_look_slug === "string" ? row.theme_look_slug : null,
+    themeDesignSlug: typeof row?.theme_design_slug === "string" ? row.theme_design_slug : null,
     customPalette: parseMaisonCustomPaletteStored(row?.custom_palette),
     setupChoices,
   };

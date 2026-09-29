@@ -7,6 +7,14 @@ export type LocalNetwork = {
   access: "open" | "apply" | "invite";
   fee: string;
   summary: string;
+  /** Who operates it, in plain words. */
+  operator: string;
+  /** Who it is for. */
+  forWho: string;
+  /** Who receives client enquiries. */
+  enquiries: string;
+  /** Who decides what is published. */
+  publishing: string;
 };
 
 export const LOCAL_NETWORKS: LocalNetwork[] = [
@@ -17,6 +25,10 @@ export const LOCAL_NETWORKS: LocalNetwork[] = [
     access: "open",
     fee: "No membership fee",
     summary: "Nails, lashes, brows, hair, make-up",
+    operator: "A directory run by local beauty professionals",
+    forWho: "Beauty professionals working in Cancún",
+    enquiries: "Come straight to you, in your Tulala messages",
+    publishing: "You decide. Your listing uses your public profile",
   },
   {
     id: "local-riviera-makers",
@@ -25,6 +37,10 @@ export const LOCAL_NETWORKS: LocalNetwork[] = [
     access: "apply",
     fee: "Review only",
     summary: "Independent makers who take bookings in person",
+    operator: "A selective network with its own review",
+    forWho: "Independent makers who take bookings in person",
+    enquiries: "Come straight to you, in your Tulala messages",
+    publishing: "They publish your listing after they accept you",
   },
 ];
 

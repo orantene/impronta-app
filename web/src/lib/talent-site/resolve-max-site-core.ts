@@ -346,6 +346,19 @@ export function hydrateShellNav(
     // back to the slug, so this only guards a hand-edited row.
     .filter((item) => item.label.length > 0);
 
+  // A one-page Design (Maison v2) seeds in-page anchor links ("#services").
+  // Those stay, ahead of the site's OTHER pages; the home page is the brand, so
+  // it is not repeated as "Home" next to its own sections.
+  const otherPages = nav.filter((n) => !n.isHome && n !== home);
+  const withAnchors = <T extends { href: string }>(seeded: unknown, pageLinks: T[], cap: number) => {
+    const anchors = (Array.isArray(seeded) ? seeded : []).filter(
+      (l): l is T => !!l && typeof (l as { href?: unknown }).href === "string" && (l as T).href.startsWith("#"),
+    );
+    if (anchors.length === 0) return null;
+    const others = new Set(otherPages.map((p) => maxSitePageHref(siteSlug, p, publicPathPrefix, hrefMode)));
+    return [...anchors, ...pageLinks.filter((l) => others.has(l.href))].slice(0, cap);
+  };
+
   const visit = (node: BuilderNode): BuilderNode => {
     // Shape 2 — the `site_header` SECTION landmark (config inline, no nav child).
     if (node.kind === "section" && node.props.sectionTypeKey === "site_header") {
@@ -354,6 +367,7 @@ export function hydrateShellNav(
       if (navItems.length === 0) return node;
       const cfg = node.props.sectionProps ?? {};
       const brand = (cfg.brand ?? {}) as Record<string, unknown>;
+      const anchored = withAnchors(cfg.navItems, navItems, SITE_HEADER_MAX_NAV_ITEMS);
       // Spread `node.props` (not a widened Record) so `sectionTypeKey` and the
       // rest of the section envelope survive — the compiler enforces it.
       return {
@@ -362,7 +376,7 @@ export function hydrateShellNav(
           ...node.props,
           sectionProps: {
             ...cfg,
-            navItems,
+            navItems: anchored ?? navItems,
             // The brand always links to the SITE home, never the seeded "/".
             brand: { ...brand, href: brandHref },
           },
@@ -379,7 +393,7 @@ export function hydrateShellNav(
         props: {
           ...node.props,
           brandHref,
-          links,
+          links: withAnchors((node.props as { links?: unknown }).links, links, Number.MAX_SAFE_INTEGER) ?? links,
         },
       } as BuilderNode;
     }

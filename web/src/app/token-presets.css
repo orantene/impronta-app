@@ -38,6 +38,8 @@ html {
   --token-color-neutral: #737373;
   --token-color-blush: #d8b7b0;
   --token-color-sage: #a8b1a0;
+  /* Availability signal (next-free chip dot). No token emits it yet. */
+  --token-color-success: #2f9e62;
   --token-color-ink: #111111;
   --token-color-muted: #737373;
   --token-color-line: #e5e5e5;
@@ -5818,10 +5820,16 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
 .site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; }
 .site-header[data-variant="freeform"] .site-header__spacer { flex: 1 1 auto; }
-.site-header[data-variant="freeform"] .site-header__lang { gap: 8px; }
+/* The " / " separator carries the spacing; a flex gap only lands before it (asymmetric "ES  / EN"). */
+.site-header[data-variant="freeform"] .site-header__lang { gap: 0; }
 .site-header[data-variant="freeform"] .site-header__lang-code { font-size: 0.76rem; letter-spacing: 0.12em; opacity: 0.55; }
 .site-header[data-variant="freeform"] .site-header__lang-code[data-active] { opacity: 1; color: var(--token-color-primary, #c6a14e); }
 .site-header[data-variant="freeform"] .site-header__inquiry, .site-header[data-variant="freeform"] .site-header__saved { position: relative; }
+.site-header[data-variant="freeform"] .site-header__lang-item { display: inline-flex; align-items: center; }
+.site-header[data-variant="freeform"] a.site-header__lang-code { color: inherit; text-decoration: none; }
+.site-header[data-variant="freeform"] .site-header__lang-sep { opacity: 0.55; white-space: pre; }
+/* Demo talent marker: one small pill in the header (all designs). */
+.site-header__demo { display: inline-flex; align-items: center; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.2; padding: 3px 7px; border-radius: 99px; border: 1px solid var(--token-color-line, currentColor); color: var(--token-color-muted, currentColor); background: var(--token-color-surface-raised, transparent); white-space: nowrap; }
 /* Desktop (>=1024) */
 @media (min-width: 1024px) {
   .site-header[data-variant="freeform"] .site-header__region [data-bp-desktop="hide"],

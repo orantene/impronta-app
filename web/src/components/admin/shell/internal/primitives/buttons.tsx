@@ -34,7 +34,8 @@ export function PrimaryButton({
         ...sizes[size],
         fontFamily: FONTS.body,
         fontWeight: 500,
-        background: COLORS.fill,
+        // A surface can re-point its primary (the Talent Studio uses brand).
+        background: `var(--tulala-primary-fill, ${COLORS.fill})`,
         color: "#fff",
         border: "1px solid transparent",
         borderRadius: 8,
@@ -46,13 +47,13 @@ export function PrimaryButton({
       onMouseEnter={(e) => {
         // Hover deepens the slate. Was "#1d1d20" (near-black) — flagged
         // repeatedly in feedback_admin_aesthetics as too-aggressive.
-        if (!disabled) e.currentTarget.style.background = COLORS.fillDeep;
+        if (!disabled) e.currentTarget.style.background = `var(--tulala-primary-fill-deep, ${COLORS.fillDeep})`;
       }}
       onMouseLeave={(e) => {
         // Reset to the slate fill, NOT to COLORS.ink. Earlier this
         // reset to ink (#0B0B0D — pure black) which meant any hover
         // permanently turned the button black across the app.
-        e.currentTarget.style.background = COLORS.fill;
+        e.currentTarget.style.background = `var(--tulala-primary-fill, ${COLORS.fill})`;
         e.currentTarget.style.transform = "scale(1)";
       }}
       onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(0.98)"; }}

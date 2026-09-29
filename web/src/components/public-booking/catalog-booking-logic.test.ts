@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  offeringPriceUnit,
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
   catalogCollectNowCents,
@@ -140,7 +141,9 @@ test("row CTA follows Maison labels", () => {
       offering: { ...offering, addOns: [{ id: "1", label: "x", amountCents: 1 }] },
       locale: "es",
     }),
-    "Elegir opciones",
+    // Instant rows with options say Seleccionar (Maison v2 proposal) and the
+    // tap opens the option picker (catalogRowOpensSheetImmediately below).
+    "Seleccionar",
   );
   assert.equal(
     catalogRowCtaLabel({ selected: false, offering: { ...offering, visibility: "on_request" }, locale: "es" }),
@@ -151,15 +154,16 @@ test("row CTA follows Maison labels", () => {
     catalogRowCtaLabel({ selected: false, offering, locale: "es", inspectorLabel: "Reservar" }),
     "Reservar",
   );
-  // CMS "Seleccionar" must not wipe Elegir opciones on Soft Gel-style rows.
+  // Options rows ignore an inspector rename: the label stays the plain Select
+  // (a stored "Reservar" must not promise a direct booking on an options row).
   assert.equal(
     catalogRowCtaLabel({
       selected: false,
       offering: { ...offering, variants: [{ id: "v1", label: "Largo #3", amountCents: 55000 }] },
       locale: "es",
-      inspectorLabel: "Seleccionar",
+      inspectorLabel: "Reservar",
     }),
-    "Elegir opciones",
+    "Seleccionar",
   );
 });
 
@@ -404,4 +408,13 @@ test("a selected start is dropped when the longer duration removes it", () => {
   assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open), true);
   assert.equal(catalogSelectedStartStillOpen("2026-09-25T15:00:00.000Z", open.slice(1)), false);
   assert.equal(catalogSelectedStartStillOpen(null, open), false);
+});
+
+test("price unit reads a string or a per-locale map from attributes", () => {
+  assert.equal(offeringPriceUnit({ price_unit: "uña" }, "es"), "uña");
+  assert.equal(offeringPriceUnit({ price_unit: { es: "uña", en: "nail" } }, "en-US"), "nail");
+  assert.equal(offeringPriceUnit({ price_unit: { es: "uña", en: "nail" } }, "es"), "uña");
+  assert.equal(offeringPriceUnit({ price_unit: "  " }, "es"), null);
+  assert.equal(offeringPriceUnit({}, "es"), null);
+  assert.equal(offeringPriceUnit(null, "es"), null);
 });

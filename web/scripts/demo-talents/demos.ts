@@ -8,38 +8,20 @@
  * via --photos <pack.json> (see seed.mts), with Unsplash sources recorded.
  */
 
-export type DemoService = {
-  name: string;
-  description: string;
-  pricingType: "hour" | "event" | "per_person" | "per_contact" | "flat_package" | "custom";
-  amountMxn: number | null;
-  /** Typical length in minutes (shown on the offering). */
-  durationMin: number;
-  booking: "instant" | "request" | "quote";
-};
+import { ALBA } from "./alba";
+import type { DemoTalent } from "./demo-types";
 
-export type DemoTalent = {
-  /** TAL-93xxx is reserved for this batch (TAL-91xxx / 92xxx are older demos). */
-  profileCode: string;
-  email: string;
-  displayName: string;
-  siteSlug: string;
-  city: string;
-  serviceCategorySlug: string;
-  /** L3 talent_type slug, written as the primary talent_profile_taxonomy row. */
-  talentTypeSlug: string;
-  /** Live Design slug applied by apply-maison.mts ("maison", "maison-v2", "solace", "mono", "frame", "folio"). */
-  theme: string;
-  tagline: string;
-  bio: string;
-  services: DemoService[];
-  /** Working hours for instant services (talent_booking_hours). Days: 0=Sun. */
-  hours?: { timezone: string; days: number[]; startMin: number; endMin: number; slotMinutes: number };
-};
+export type {
+  DemoPhotoPlan,
+  DemoService,
+  DemoSiteCopy,
+  DemoTalent,
+} from "./demo-types";
 
 export const DEMO_BATCH = "demo-2026-09-28";
 
 export const DEMOS: DemoTalent[] = [
+  ALBA,
   {
     profileCode: "TAL-93001",
     email: "demo-valeria-baile@impronta.test",
@@ -110,6 +92,22 @@ export const DEMOS: DemoTalent[] = [
     services: [
       { name: "Sesión de catálogo", description: "Medio día en estudio o locación.", pricingType: "event", amountMxn: 6000, durationMin: 240, booking: "request" },
       { name: "Campaña o contenido de marca", description: "Tarifa según uso, medios y duración.", pricingType: "custom", amountMxn: null, durationMin: 480, booking: "quote" },
+    ],
+  },
+  {
+    profileCode: "TAL-93011",
+    email: "demo-mateo-ferrer@impronta.test",
+    displayName: "Mateo Ferrer",
+    siteSlug: "mateo-ferrer",
+    city: "Ciudad de México",
+    serviceCategorySlug: "fashion-models",
+    talentTypeSlug: "fashion-model",
+    theme: "folio",
+    tagline: "Modelo de moda editorial y pasarela en CDMX",
+    bio: "Modelo para editorial, pasarela y campañas. Trabajo en estudio y en locación en Ciudad de México.",
+    services: [
+      { name: "Día de editorial", description: "Jornada completa en estudio o locación.", pricingType: "event", amountMxn: 8000, durationMin: 480, booking: "request" },
+      { name: "Campaña o pasarela", description: "Tarifa según uso, medios y duración.", pricingType: "custom", amountMxn: null, durationMin: 480, booking: "quote" },
     ],
   },
   {

@@ -121,5 +121,6 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",
   "Add a duration to this service to turn on instant booking":
     "Agrega una duración a este servicio para activar la reserva inmediata",
-  "Connect payouts to take deposits": "Conecta tus cobros para recibir anticipos",
+  // PAY-2 Option B — platform Checkout readiness, not Connect.
+  "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
 };

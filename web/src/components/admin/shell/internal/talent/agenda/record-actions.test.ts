@@ -9,6 +9,9 @@ import {
   nowBodyForRecord,
   placeLabelFor,
   recordActionVisibility,
+  showMoreMenu,
+  cancelConsequenceKeys,
+  noShowMoneyKey,
 } from "./record-actions";
 import { agendaItemFromCalendarEntry, shiftDays, weekDays, weekSubtitle } from "./present";
 import { buildAgendaListItemFromAgendaItem } from "./view-model";
@@ -133,5 +136,30 @@ describe("recordActionVisibility (P0 audit)", () => {
     });
     assert.equal(v.reschedule, true);
     assert.equal(v.collectDeposit, true);
+  });
+});
+
+describe("booking record mockup helpers", () => {
+  it("cancel only on confirmed or held bookings", () => {
+    const base = { canAct: true, started: false };
+    assert.equal(recordActionVisibility({ ...base, bookingState: "confirmed" }).cancel, true);
+    assert.equal(recordActionVisibility({ ...base, bookingState: "hold" }).cancel, true);
+    assert.equal(recordActionVisibility({ ...base, bookingState: "cancelled" }).cancel, false);
+    assert.equal(recordActionVisibility({ ...base, bookingState: "requested" }).cancel, false);
+  });
+  it("More is hidden for agency, requests and closed records", () => {
+    assert.equal(showMoreMenu({ bookingState: "confirmed" }), true);
+    assert.equal(showMoreMenu({ bookingState: "confirmed", isAgency: true }), false);
+    assert.equal(showMoreMenu({ bookingState: "requested" }), false);
+    assert.equal(showMoreMenu({ bookingState: "no_show" }), false);
+  });
+  it("cancel consequences lead with money", () => {
+    assert.match(cancelConsequenceKeys("not_requested", "talent")[0]!, /No payment/);
+    assert.match(cancelConsequenceKeys("deposit_paid", "talent")[0]!, /always goes back/);
+    assert.match(cancelConsequenceKeys("deposit_paid", "client")[0]!, /terms decide/);
+  });
+  it("no-show money line is honest", () => {
+    assert.match(noShowMoneyKey("paid"), /stays as paid/);
+    assert.match(noShowMoneyKey(undefined), /Nothing was paid/);
   });
 });

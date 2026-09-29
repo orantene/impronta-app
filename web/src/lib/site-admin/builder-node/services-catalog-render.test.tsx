@@ -303,6 +303,46 @@ test("compact_list omits photos even when showPhoto is true", () => {
   assert.doesNotMatch(html, /gel-pedicure\.jpg/);
 });
 
+test("rate_card omits photos and emits hairline layout attrs", () => {
+  const html = render(
+    [
+      catalogNode({
+        layout: "rate_card",
+        showPhoto: true,
+        density: "compact",
+        categoryNav: "sections",
+        showDuration: true,
+        showPrice: true,
+      }),
+    ],
+    {
+      talentOfferings: [
+        offering({
+          id: "a",
+          title: "Editorial day",
+          category: "Studio",
+          durationMinutes: 480,
+          imageUrls: ["https://example.test/gel-pedicure.jpg"],
+        }),
+        offering({
+          id: "b",
+          title: "Half day",
+          category: "Studio",
+          durationMinutes: 240,
+          imageUrls: ["https://example.test/other.jpg"],
+        }),
+      ],
+    },
+  );
+  assert.match(html, /data-layout="rate_card"/);
+  assert.match(html, /data-density="compact"/);
+  assert.match(html, /data-show-photo="false"/);
+  assert.doesNotMatch(html, /gel-pedicure\.jpg/);
+  assert.match(html, /Editorial day/);
+  assert.match(html, /site-builder-node--services-catalog-duration/);
+  assert.match(html, /site-builder-node--services-catalog-price/);
+});
+
 test("tabs categoryNav uses distinct data-category-nav=tabs", () => {
   const html = render([catalogNode({ categoryNav: "tabs" })], {
     talentOfferings: [
@@ -440,7 +480,15 @@ test("solid CTA variant has dedicated CSS (not outline-only)", () => {
 });
 
 test("each layout sets a distinct data-layout attribute", () => {
-  for (const layout of ["rows", "cards", "grid", "compact_list", "editorial", "featured"] as const) {
+  for (const layout of [
+    "rows",
+    "cards",
+    "grid",
+    "compact_list",
+    "rate_card",
+    "editorial",
+    "featured",
+  ] as const) {
     const html = render([catalogNode({ layout })], {
       talentOfferings: [offering({ id: "a" }), offering({ id: "b", title: "Other" })],
     });
@@ -499,6 +547,44 @@ test("jump_strip categoryNav renders jump strip", () => {
     ],
   });
   assert.match(html, /data-category-nav="jump"/);
+});
+
+/** W-01 Maison v2 — sticky desktop rail + phone chips (filter nav). */
+test("rail categoryNav emits data-category-nav=rail and body wrapper", () => {
+  const html = render([catalogNode({ categoryNav: "rail", layout: "rows" })], {
+    talentOfferings: [
+      offering({ id: "a", category: "Uñas", title: "Manicure", imageUrls: ["https://example.test/a.jpg"] }),
+      offering({ id: "b", category: "Cejas", title: "Brow", imageUrls: ["https://example.test/b.jpg"] }),
+    ],
+  });
+  assert.match(html, /data-builder-node-kind="services_catalog"[^>]*data-category-nav="rail"/);
+  assert.match(html, /data-layout="rows"/);
+  assert.match(html, /site-builder-node--services-catalog-body[^>]*data-category-nav="rail"/);
+  assert.match(html, /<nav[^>]*data-category-nav="rail"/);
+  assert.match(html, /data-catalog-tab="Uñas"/);
+  assert.match(html, /class="cb-island"/);
+  // Proposal row packing: photo + name + buy/CTA still present.
+  assert.match(html, /site-builder-node--services-catalog-photo/);
+  assert.match(html, /site-builder-node--services-catalog-name/);
+  assert.match(html, /site-builder-node--services-catalog-cta/);
+});
+
+/** Maison v2 rows: price inline after the duration, group heads with counts, pill dock. */
+test("pricePlacement meta + rail group heads + pill bar", () => {
+  const html = render(
+    [catalogNode({ categoryNav: "rail", layout: "rows", pricePlacement: "meta", mobileBar: "pill", categoryShowCounts: true, categoryShowAll: true })],
+    {
+      talentOfferings: [
+        offering({ id: "a", category: "Uñas", title: "Manicure", durationMinutes: 90, imageUrls: ["https://example.test/a.jpg"] }),
+        offering({ id: "b", category: "Cejas", title: "Brow", durationMinutes: 50, imageUrls: ["https://example.test/b.jpg"] }),
+      ],
+    },
+  );
+  assert.match(html, /data-price-in-meta="true"[\s\S]*?1 h 30 min/);
+  assert.doesNotMatch(html, /estimated duration/);
+  assert.match(html, /site-builder-node--services-catalog-group-count">1 service</);
+  assert.match(html, /site-builder-node--services-catalog-pill-count">1</);
+  assert.match(html, /data-bar-style="pill"[\s\S]*?cb-bar-chat[\s\S]*?See services/);
 });
 
 /** BLD five-settings — public SSR markers for change→publish verification. */
@@ -569,4 +655,20 @@ test("useWebsiteTheme without authored backgroundColor does not force blush", ()
     /background-color:var\(--token-color-surface-raised/,
     "shared path must not invent blush without an authored binding",
   );
+});
+
+// Maison v2 proposal: an INSTANT row with options reads "Select" (the tap opens
+// the option picker); an inspector rename never applies to an options row.
+test("instant row with extras says Select and ignores the inspector ctaLabel", () => {
+  const html = render([catalogNode({ ctaLabel: "Book it" })], {
+    talentOfferings: [
+      offering({
+        bookingMode: "instant",
+        addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
+      }),
+    ],
+    talentOfferingsConfirmsByHand: false,
+  });
+  assert.match(html, />Select</);
+  assert.doesNotMatch(html, />Book it</);
 });

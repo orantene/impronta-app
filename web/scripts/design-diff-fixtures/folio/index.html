@@ -1,0 +1,206 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Folio · Mateo Ferrer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo+Narrow:wght@400;500;600;700&family=Archivo:wght@400;500;600&family=Geist:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+.site{--k-fd:'Instrument Serif',Didot,Georgia,serif;--k-fb:'Archivo',system-ui,sans-serif;--k-fdw:400;--k-fdls:-.01em;--k-rad:4px;--k-btnrad:0px;--k-dockrad:6px}
+.fo-hdr{position:sticky;top:44px;z-index:6;display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--k-bg);border-bottom:1px solid var(--k-ink)}
+.fo-hdr b{font:700 12px 'Archivo Narrow';letter-spacing:.24em;text-transform:uppercase}
+.fo-hdr nav{display:none;gap:22px;font:600 11.5px 'Archivo Narrow';letter-spacing:.18em;text-transform:uppercase}
+.fo-hdr nav a{cursor:pointer;color:var(--k-ink);text-decoration:none}
+.fo-hdr .sp{flex:1}
+.fo-hdr .k-btn{height:34px;padding:0 14px;font:600 11.5px 'Archivo Narrow';letter-spacing:.18em;text-transform:uppercase;display:none}
+.fo-mast{padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;font:600 10.5px 'Archivo Narrow';letter-spacing:.2em;text-transform:uppercase;color:var(--k-mute)}
+.fo-name{margin:0;padding:0 12px;font:400 27vw/0.8 var(--k-fd);font-size:clamp(84px,27cqi,330px);letter-spacing:-.045em;text-transform:uppercase;white-space:nowrap}
+.fo-name span{display:block}
+.fo-cover{position:relative;margin:12px 16px 0;aspect-ratio:3/4;overflow:hidden;background:var(--k-tint)}
+.fo-cover img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.05);display:block}
+.fo-lines{position:absolute;left:14px;right:14px;bottom:14px;display:grid;gap:8px;color:#fff}
+.fo-lines p{margin:0;font:italic 400 30px/1 var(--k-fd);text-shadow:0 2px 20px rgba(0,0,0,.35);max-width:12ch}
+.fo-lines small{font:600 10.5px 'Archivo Narrow';letter-spacing:.2em;text-transform:uppercase}
+.fo-tag{padding:16px 16px 0;display:grid;gap:14px}
+.fo-tag p{margin:0;font:400 21px/1.3 var(--k-fd)}
+.fo-tag .row{display:flex;gap:8px;flex-wrap:wrap}
+.fo-tag .k-btn{height:46px;font:600 12px 'Archivo Narrow';letter-spacing:.2em;text-transform:uppercase}
+.fo-cap{font:600 10.5px 'Archivo Narrow';letter-spacing:.2em;text-transform:uppercase;color:var(--k-mute)}
+.fo-toc{margin:36px 16px 0;border-top:1px solid var(--k-ink)}
+.fo-toc h2{margin:10px 0 6px;font:600 11px 'Archivo Narrow';letter-spacing:.24em;text-transform:uppercase}
+.fo-toc button{display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:baseline;width:100%;padding:12px 0;border:0;border-bottom:1px solid var(--k-line);background:none;color:var(--k-ink);text-align:left}
+.fo-toc i{font:italic 400 22px var(--k-fd)}
+.fo-toc b{font:400 26px/1 var(--k-fd)}
+.fo-toc small{font:600 10.5px 'Archivo Narrow';letter-spacing:.16em;color:var(--k-mute);text-transform:uppercase}
+.fo-ch{padding:52px 16px 0}
+.fo-chh{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:end;border-bottom:1px solid var(--k-ink);padding-bottom:10px;margin-bottom:12px}
+.fo-chh i{font:italic 400 64px/0.8 var(--k-fd)}
+.fo-chh h3{margin:0;font:400 38px/0.95 var(--k-fd)}
+.fo-chh p{grid-column:1/-1;margin:0;font:600 10.5px 'Archivo Narrow';letter-spacing:.18em;text-transform:uppercase;color:var(--k-mute)}
+.fo-seq{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fo-seq figure{margin:0;position:relative;overflow:hidden;background:var(--k-tint)}
+.fo-seq img{width:100%;height:100%;object-fit:cover;display:block}
+.fo-seq .a{grid-column:1/-1;aspect-ratio:4/5}
+.fo-seq .b{aspect-ratio:3/4}
+.fo-seq figcaption{position:absolute;left:8px;bottom:8px;font:600 9.5px 'Archivo Narrow';letter-spacing:.16em;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.35);padding:3px 6px}
+.fo-pull{margin:14px 0 0;font:italic 400 24px/1.2 var(--k-fd)}
+.fo-comp{margin:52px 16px 0;background:var(--k-ink);color:var(--k-bg);padding:18px;display:grid;gap:14px}
+.fo-comp h3{margin:0;font:600 11px 'Archivo Narrow';letter-spacing:.24em;text-transform:uppercase;opacity:.7}
+.fo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.fo-stats div{border-top:1px solid color-mix(in srgb,var(--k-bg) 35%,transparent);padding-top:8px}
+.fo-stats b{display:block;font:400 30px/1 var(--k-fd)}
+.fo-stats small{font:600 9.5px 'Archivo Narrow';letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+.fo-rates{padding:52px 16px 0}
+.fo-rates h2{margin:0 0 4px;font:400 44px/0.95 var(--k-fd)}
+.fo-rates>p{margin:0 0 14px;color:var(--k-mute);font-size:14px}
+.fo-rate{display:grid;grid-template-columns:1fr;gap:10px;padding:16px 0;border-top:1px solid var(--k-ink);cursor:pointer}
+.fo-rate:last-child{border-bottom:1px solid var(--k-ink)}
+.fo-rate .h{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fo-rate b{font:400 25px/1.05 var(--k-fd)}
+.fo-rate .p{font:600 14px 'Archivo Narrow';letter-spacing:.06em;white-space:nowrap}
+.fo-rate small{font:600 10.5px 'Archivo Narrow';letter-spacing:.16em;text-transform:uppercase;color:var(--k-mute)}
+.fo-rate .f{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.fo-rate .k-btn{height:38px;padding:0 14px;font:600 11px 'Archivo Narrow';letter-spacing:.18em;text-transform:uppercase}
+.fo-rate .k-btn.ghost{border-color:var(--k-ink)}
+.fo-about{padding:52px 16px 0;display:grid;gap:14px}
+.fo-about img{width:100%;aspect-ratio:1/1;object-fit:cover;filter:grayscale(1)}
+.fo-about p{margin:0;font:400 22px/1.3 var(--k-fd)}
+.fo-about .cl{display:flex;flex-wrap:wrap;gap:6px 18px;font:600 10.5px 'Archivo Narrow';letter-spacing:.16em;text-transform:uppercase;color:var(--k-mute)}
+.fo-end{margin-top:52px;padding:30px 16px 120px;border-top:1px solid var(--k-ink)}
+.fo-end h2{margin:0;font:400 64px/0.9 var(--k-fd)}
+.fo-end h2 em{font-style:italic}
+.fo-end p{color:var(--k-mute);margin:12px 0 16px}
+.fo-end .k-btn{font:600 12px 'Archivo Narrow';letter-spacing:.2em;text-transform:uppercase}
+.fo-end .fine{margin-top:24px;display:flex;justify-content:space-between;font:600 10px 'Archivo Narrow';letter-spacing:.16em;text-transform:uppercase;color:var(--k-mute)}
+.site .k-sheet .k-btn,.site .k-dock .k-btn{font:600 12px 'Archivo Narrow';letter-spacing:.18em;text-transform:uppercase}
+@container site (min-width:900px){
+  .fo-hdr{top:0;padding:14px 40px}
+  .fo-hdr nav,.fo-hdr .k-btn{display:flex}
+  .fo-mast{padding:16px 40px 8px}
+  .fo-name{padding:0 32px;font-size:clamp(84px,19cqi,300px)}
+  .fo-name span{display:inline}
+  .fo-spread{display:grid;grid-template-columns:1.25fr 1fr;gap:32px;padding:18px 40px 0;align-items:end}
+  .fo-cover{margin:0;aspect-ratio:4/3.4}
+  .fo-tag{padding:0 0 6px}
+  .fo-tag p{font-size:34px}
+  .fo-toc{margin:0}
+  .fo-ch{padding:90px 40px 0;display:grid;grid-template-columns:320px 1fr;gap:40px}
+  .fo-chh{display:block;border:0;position:sticky;top:80px;align-self:start}
+  .fo-chh i{font-size:120px;display:block}
+  .fo-chh h3{font-size:56px;margin-top:6px}
+  .fo-chh p{margin-top:12px}
+  .fo-seq{grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  .fo-seq .a{grid-column:auto;grid-row:span 2;aspect-ratio:auto}
+  .fo-seq .b{aspect-ratio:4/5}
+  .fo-comp{margin:90px 40px 0;grid-template-columns:260px 1fr;align-items:end;padding:32px}
+  .fo-stats b{font-size:54px}
+  .fo-rates{padding:90px 40px 0;display:grid;grid-template-columns:320px 1fr;gap:40px}
+  .fo-rates h2{font-size:64px}
+  .fo-rate{grid-template-columns:1fr auto;align-items:center}
+  .fo-rate b{font-size:32px}
+  .fo-about{padding:90px 40px 0;grid-template-columns:420px 1fr;gap:48px;align-items:center}
+  .fo-about p{font-size:32px}
+  .fo-end{margin:90px 40px 0;padding:40px 0 120px}
+  .fo-end h2{font-size:140px}
+}
+</style>
+<script src="kit.js"></script>
+<script>
+const IMGS={cover:'f-hero'};
+const T={
+  id:'TH02', theme:'Folio', lang:'es', domain:'mateoferrer.tulala.digital', galleryUrl:'',
+  brief:'Magazine-like project chapters and deliberate image sequences. Demo talent DEMO008, fashion model, inquiry recipe.',
+  talent:{name:'Mateo Ferrer', first:'Mateo', role:'fashion model', avatar:'f-hero', tagline:'Editorial, runway y campañas. 1.88 m, CDMX.', bio:'Modelo con siete años entre pasarela y editorial. Llego puntual, con el cabello y la piel listos para cámara.'},
+  mine:{name:'Tu Nombre', count:3},
+  palettes:{
+    def:{n:'Default', bg:'#ECEAE5', surface:'#F7F6F3', ink:'#111111', mute:'#6A6760', line:'#D3D0C8', accent:'#111111', on:'#F7F6F3', tint:'#E0DDD6', at:'#111111'},
+    light:{n:'Light neutral', bg:'#FFFFFF', surface:'#FFFFFF', ink:'#1A1A1A', mute:'#77746E', line:'#E6E4DF', accent:'#1A1A1A', on:'#FFFFFF', tint:'#F1F0ED', at:'#1A1A1A'},
+    dark:{n:'Dark contrast', bg:'#0E0E0E', surface:'#171717', ink:'#F1EFEA', mute:'#9C9890', line:'#2C2B29', accent:'#F1EFEA', on:'#0E0E0E', tint:'#262523', at:'#F1EFEA'}
+  },
+  customStart:'#7A1E2C',
+  hero_service:'ed',
+  surface:'sheet',
+  dock:[{label:'Consultar', flow:'ed'}],
+  starter:{services:4, faqs:4, texts:5},
+  reply:'Gracias. ¿Me compartes el moodboard y el uso de las imágenes? Con eso te paso fecha y tarifa hoy.',
+  suggestions:['¿Tienes disponible en octubre?','¿Incluye derechos de uso?','¿Viajas fuera de CDMX?'],
+  services:[
+    {id:'ed', cat:'Editorial', name:'Editorial shoot, half day', dur:'4 h', price:'$9,500', mode:'inquiry', cta:'Consultar', img:'f-d-knit',
+      desc:'Media jornada para revista o editorial de marca. Llego con cabello y piel listos para cámara y trabajo con tu estilista.',
+      includes:['Hasta 4 h en set, incluido el fitting','Uso editorial por 12 meses','Uso en pauta: se cotiza aparte'],
+      flowTitle:'Consultar editorial', flowIntro:'Cuéntame del proyecto. Te respondo con disponibilidad y tarifa final.', submit:'Enviar consulta',
+      brief:[{k:'brand',l:'Marca o revista',p:'Ej. Revista Código',demo:'Revista Código'},{k:'date',l:'Fecha o fechas',p:'Ej. 14 o 15 de octubre',demo:'14 o 15 de octubre'},{k:'use',l:'Uso de las imágenes',type:'chips',opts:['Editorial','Redes','Pauta digital','Impreso'],demo:['Editorial','Redes']},{k:'msg',l:'Mensaje',type:'area',p:'Concepto, fotógrafo, locación…'}]},
+    {id:'run', cat:'Runway', name:'Runway show booking', dur:'Por show', price:'Desde $7,000', mode:'request', cta:'Solicitar fecha', img:'f-d-stride',
+      desc:'Pasarela para semanas de moda, presentaciones de marca o showrooms. Incluye fitting el día anterior.',
+      includes:['Fitting el día previo','Hasta 3 salidas por show','Viáticos fuera de CDMX aparte'],
+      flowTitle:'Solicitar fecha', flowIntro:'Esto es una solicitud: Mateo confirma la fecha antes de que quede apartada.',
+      brief:[{k:'event',l:'Show o evento',p:'Ej. Fashion Week México',demo:'Fashion Week México'},{k:'date',l:'Fecha',p:'Ej. 22 de octubre',demo:'22 de octubre'},{k:'looks',l:'Salidas',type:'chips',opts:['1','2','3','Más de 3'],demo:['2']}]},
+    {id:'look', cat:'E-commerce', name:'Lookbook / e-commerce day', dur:'8 h', price:'$16,000', mode:'request', cta:'Solicitar fecha', img:'f-d-quilt',
+      desc:'Jornada completa de catálogo o lookbook. Ritmo rápido y cambios de look sin perder consistencia.',
+      includes:['Hasta 8 h, con una hora de comida','Hasta 40 looks','Uso en tienda en línea por 12 meses'],
+      flowTitle:'Solicitar fecha', flowIntro:'Esto es una solicitud: Mateo confirma la fecha antes de que quede apartada.',
+      brief:[{k:'brand',l:'Marca',p:'Ej. Casa Norte',demo:'Casa Norte'},{k:'date',l:'Fecha',p:'Ej. 3 de noviembre',demo:'3 de noviembre'},{k:'n',l:'Número de looks',p:'Ej. 30',im:'numeric',demo:'30'}]},
+    {id:'cast', cat:'Casting', name:'Casting en persona', dur:'30 min', price:'$0', priceLabel:'Sin costo', free:true, mode:'instant', cta:'Ver horarios', img:'f-hero',
+      desc:'Mis horarios libres para castings y go-sees en CDMX. Eliges la hora, llego con book, polaroids y medidas al día.',
+      includes:['Book impreso y polaroids sin retoque','Medidas actualizadas','Prueba de vestuario si la necesitas'], slots:['10:00','11:30','13:00','16:00','17:30'],
+      slotNote:'Horarios en CDMX. Para castings fuera de la ciudad, usa Consultar.', policy:'Si cambia el casting, avísame 12 h antes.',
+      whoFields:[{k:'where',l:'Dirección del casting',p:'Estudio o agencia'}]}
+  ],
+  renderSite(K,S){
+    const D=K.D, ed=D.services.find(s=>s.id==='ed')||D.services[0];
+    return `${K.status()}
+    <header class="fo-hdr"><b>${K.esc(D.talent.name)}</b><nav><a data-k-go="ch1">Editorial</a><a data-k-go="ch2">Runway</a><a data-k-go="rates">Contratación</a></nav><span class="sp"></span>${K.demo()}${K.act(ed,'k-btn')}</header>
+    <div class="fo-mast"><span>Vol. 07 · Otoño 2026</span><span>CDMX · ES / EN</span></div>
+    <h1 class="fo-name" data-w="hero · magazine-cover">${D.talent.name.split(" ").map(w=>`<span>${K.esc(w)}</span>`).join(" ")}</h1>
+    <div class="fo-spread">
+      <div class="fo-cover"><img src="${K.img('f-hero')}" alt="${K.esc(D.talent.name)}, retrato de estudio"><div class="fo-lines"><small>Modelo · CDMX</small><p>Editorial, runway y campañas.</p></div></div>
+      <div>
+        <div class="fo-tag"><p>${K.esc(D.talent.bio)}</p>
+          <div class="row">${K.act(ed,'k-btn')}<button class="k-btn ghost" data-k-go="ch1">Ver el libro</button></div></div>
+        <nav class="fo-toc" aria-label="Contenido"><h2>En este número</h2>
+          ${[['I','Editorial','Estudio, luz dura','ch1'],['II','Runway','Salidas y detalles','ch2'],['III','Contratación','Tarifas y fechas','rates']].map(r=>`<button data-k-go="${r[3]}"><i>${r[0]}</i><b>${r[1]}</b><small>${r[2]}</small></button>`).join('')}
+        </nav>
+      </div>
+    </div>
+    ${K.mine?'<section class="fo-ch" id="ch1"><div class="fo-chh"><i>I</i><h3>Tu libro</h3><p>Aquí van tus secuencias de fotos</p></div></section><section id="ch2"></section>':`<section class="fo-ch" id="ch1" data-w="portfolio · chapter-sequence"><div class="fo-chh"><i>I</i><h3>Editorial</h3><p>Créditos ficticios de demo · Estudio en CDMX</p></div>
+      <div class="fo-seq"><figure class="a"><img src="${K.img('f-hero')}" alt="" loading="lazy"><figcaption>01 · Luz dura</figcaption></figure><figure class="b"><img src="${K.img('f-d-knit')}" alt="" loading="lazy"><figcaption>02 · Punto</figcaption></figure><figure class="b"><img src="${K.img('f-d-quilt')}" alt="" loading="lazy"><figcaption>03 · Textura</figcaption></figure></div></section>
+    <section class="fo-ch" id="ch2"><div class="fo-chh"><i>II</i><h3>Runway</h3><p>Show ficticio de demo · 3 salidas</p></div>
+      <div class="fo-seq"><figure class="a"><img src="${K.img('f-d-stride')}" alt="" loading="lazy"><figcaption>Salida 1</figcaption></figure><figure class="b"><img src="${K.img('f-d-feet')}" alt="" loading="lazy"><figcaption>Fitting</figcaption></figure><figure class="b"><img src="${K.img('f-d-shirt')}" alt="" loading="lazy"><figcaption>Salida 3</figcaption></figure></div></section>`}
+    <section class="fo-comp" data-w="stats · measure-strip" aria-label="Medidas"><h3>Medidas · Comp card</h3><div class="fo-stats"><div><b>188</b><small>Estatura cm</small></div><div><b>40L</b><small>Saco</small></div><div><b>28.5</b><small>Calzado MX</small></div><div><b>ES/EN</b><small>Idiomas</small></div></div></section>
+    <section class="fo-rates" id="rates" data-w="services_catalog · rate-card"><div><h2>Contrata&shy;ción</h2><p>Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.</p></div>
+      <div>${D.services.map(s=>`<div class="fo-rate" data-k-open="${s.id}"><div><div class="h"><b>${K.esc(s.name)}</b></div><small>${K.esc(s.cat)} · ${K.esc(s.dur)}</small></div><div class="f"><span class="p">${K.esc(s.priceLabel||s.price)}</span>${K.act(s, s.mode==='instant'?'k-btn':'k-btn ghost')}</div></div>`).join('')}</div></section>
+    <footer class="fo-end"><h2>Siguiente <em>número</em>.</h2><p>Para editoriales, runway y campañas. Respondo en el día.</p>${K.act(ed,'k-btn')}<div class="fine"><span>${K.esc(T.domain)}</span><span>Hecho con Tulala</span></div></footer>`;
+  },
+  notes:{
+    summary:'Folio reads like a magazine issue: a cover with a full-width masthead, a contents page that is real navigation, and numbered chapters that each hold a deliberate image sequence with credits. Booking lives in a rate card at the back, the way a comp card sits at the end of a book.',
+    distinct:['The masthead name spans the full width; no other theme uses type this large.','Chapters (I, II, III) are real content groups with sticky chapter heads on desktop.','One model: Mateo is the only face; the rest of the book is looks, textures and details without faces.','Square buttons, hairline rules and no rounded cards anywhere.'],
+    neighbours:[['Lumen','Lumen is dark and cinematic, led by a playable reel and scenes. Folio is a still, printed page led by type and sequences.'],['Frame','Frame is a dense contact sheet with filters for a photographer. Folio shows few images, large, in an order the model chose.']],
+    type:['Instrument Serif for the masthead, chapters and prices.','Archivo Narrow uppercase for credits and labels; Archivo for body text.'],
+    colour:['Default (stone), Light neutral, Dark contrast.','The accent stays ink-black by default so photography carries the colour; a custom accent colours buttons and chat.'],
+    shape:['Square corners, 1 px rules, no shadows except the floating dock.','No motion beyond sheet transitions.'],
+    map:[['Header','Header/footer shell','masthead bar','Name, nav links, CTA','Existing widget',''],
+      ['Cover','W-10 Words · W3 stacked giant words + split hero preset','masthead cover','Name lines, cover image, cover lines, CTAs','New variant','Stacked giant words bound to the talent name, over an image'],
+      ['Contents','Section preset','contents page (anchor index)','Chapter titles, credit lines','Section preset','Built from portfolio collections; anchor navigation'],
+      ['Chapters','W-12 Portfolio · project story','chapter sequence (1 large + 2)','Collection, number, title, credits, captions','New widget','Chapter section preset wraps each collection; sticky head on desktop'],
+      ['Comp card','Profile stats (details fields)','measure strip','Which profile fields show','Existing widget','Proposed control: per-field public/after-inquiry visibility'],
+      ['Rate card','W-01 Services catalog · rows','rate-card (rules, no cards)','Order, price display, CTA per mode','New variant','Rows with hairline rules and no photos; CTA wording from booking mode'],
+            ['Contact CTA','Section preset · statement footer','statement','Line, CTA','Existing widget',''],
+      ['Booking surface','Booking sheet','bottom sheet / side panel','Brief questions per service','Existing widget','Instant casting slot (free) · request (runway, lookbook) · inquiry (editorial)'],
+      ['Chat','Guest chat dock','panel + service browser','Greeting, browse on/off','Existing widget','Service attached as an unsent draft'],
+      ['Dock','Selection dock (AUD-044)','chat + one action','Action label','Existing widget','']],
+    images:[['f-hero','Mateo, cover (the only face)','Studio B&W, 4:3 desktop / 3:4 phone','1732464517792-7385024242a6','Cover, Chapter I lead, casting service, chat avatar'],
+      ['f-d-feet','Mateo, legs and bare feet (crop of the cover shoot)','Crop, no face','1732464517792-7385024242a6','Chapter II'],
+      ['f-d-knit','Striped knit, hands on hips','Crop below the chin','1517336985-b7c900b80702','Chapter I, editorial service'],
+      ['f-d-quilt','Quilted jacket','Crop, no face','1788909176149-3c31e90e0923','Chapter I, lookbook service'],
+      ['f-d-stride','Wide jeans, street stride','Crop below the chest','1682045060389-06026da6ecd7','Chapter II lead, runway service'],
+      ['f-d-shirt','Shirt and tie','Crop below the chin','1680120666633-203356e281f1','Chapter II']],
+    imgNote:'Round 2: no consistent set of one male model exists in the pool, so Mateo appears once (the cover) and everything else is cropped to looks, fabric and details with no faces. The detail crops come from other shoots; hands and skin tone differ between them, which a real shoot would fix.',
+    needed:[['One model, 3 editorial sequences','3:4 and 4:5','9 to 12','Same person throughout; one sequence in colour'],['Runway full length','2:3','3','Catwalk with lights'],['Comp card headshot + full length','3:4','2','Plain background']],
+    suits:['Commercial model (DEMO009): colour chapters, lighter palette, e-commerce first','Model and singer (DEMO014): a chapter per discipline, audio widget in one chapter','Runway model (DEMO011): runway chapter first, show list in the contents page'],
+    sameContent:'Mateo in Frame would open straight into a dense filterable contact sheet with no cover or chapters; in Lumen he would open on a dark 16:9 reel with scenes. Folio is the only one where type (the masthead) leads and images come in curated sequences of three.',
+    matrix:['Nav: masthead bar + contents page','Hero: stacked giant name over a B&W cover','Services: rate card rows with rules','Portfolio: chapters (project story)','Booking surface: bottom sheet','Type/grid: Instrument Serif + Archivo Narrow, 12-col with sticky chapter heads','Motion: none, print-still'],
+    deviation:'Talent file lists "Casting self-tape" (a videographer-style service). Rewritten as the model\'s own casting availability: a free, instant slot a casting director books. Campaigns chapter, pull quote, client list and "campañas en Europa" removed; credits labelled ficticio de demo.',
+    questions:['Should the comp card be downloadable as a PDF for casting directors?','Show measurements publicly, or only after an inquiry is accepted?']
+  }
+};
+KIT(T);
+</script>
+
+</body></html>

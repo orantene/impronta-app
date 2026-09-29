@@ -14,6 +14,8 @@ import { ThemeDetailScreen } from "./ThemeDetailScreen";
 import { ReviewWebsiteScreen } from "./ReviewWebsiteScreen";
 import {
   defaultMaisonChoices,
+  exploreDesignPatch,
+  type MaisonExploreOptions,
   isMaisonSetupResumable,
   loadMaisonChoices,
   saveMaisonChoices,
@@ -31,12 +33,18 @@ export function MaisonSetupHost({
   forceScreen,
   onForceScreenConsumed,
   siteLive = false,
+  liveAddress,
   onEnabledChange,
 }: {
+  /** Live site address (host only), shown in the gallery's change-design banner. */
+  liveAddress?: string;
   /** Close detail → stay on /talent/site manager chrome below. */
   onCloseToSite?: () => void;
-  /** After successful publish — manager reloads + shows My website card. */
-  onPublished?: () => void;
+  /**
+   * After successful publish — manager reloads + shows My website card.
+   * P5: a live design switch passes its "✓ <Design> is live" toast.
+   */
+  onPublished?: (toast?: string) => void;
   /** Optional override (e.g. Change design / restore from the live card). */
   forceScreen?: MaisonSetupChoices["screen"] | null;
   onForceScreenConsumed?: () => void;
@@ -58,6 +66,7 @@ export function MaisonSetupHost({
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [sitePublished, setSitePublished] = useState(false);
   const [liveLookSlug, setLiveLookSlug] = useState<string | null>(null);
+  const [liveDesignSlug, setLiveDesignSlug] = useState<string | null>(null);
   const [liveCustomPalette, setLiveCustomPalette] =
     useState<MaisonCustomPaletteStored | null>(null);
   const [choices, setChoices] = useState<MaisonSetupChoices>(defaultMaisonChoices);
@@ -96,6 +105,7 @@ export function MaisonSetupHost({
       setTalentProfileId(boot.talentProfileId);
       setSitePublished(boot.sitePublished);
       setLiveLookSlug(boot.themeLookSlug);
+      setLiveDesignSlug(boot.themeDesignSlug ?? null);
       setLiveCustomPalette(boot.customPalette);
       const local = loadMaisonChoices(boot.talentProfileId);
       // Server wins; migrate resumable local-only choices up once.
@@ -108,6 +118,14 @@ export function MaisonSetupHost({
       } else {
         setChoices(local);
       }
+    }).catch((cause: unknown) => {
+      // A thrown bootstrap must not leave the tab waiting: fall back to the
+      // flag-off path and report it.
+      if (!alive) return;
+      // eslint-disable-next-line no-console -- report a failed bootstrap (no client logger here)
+      console.error("[maison-setup] bootstrap failed", cause);
+      setEnabled(false);
+      reportEnabled(false);
     });
     return () => {
       alive = false;
@@ -191,9 +209,12 @@ export function MaisonSetupHost({
         <ChooseDesignScreen
           locale={locale}
           talentProfileId={talentProfileId}
-          onExplore={(designSlug) => patch({ screen: "detail", status: "Preview", designSlug })}
+          onExplore={(designSlug: string, opts?: MaisonExploreOptions) =>
+            patch(exploreDesignPatch(designSlug, opts))
+          }
           onBack={closeToSite}
           onClose={closeToSite}
+          liveAddress={siteLive ? liveAddress : undefined}
         />
       ) : choices.screen === "review" ? (
         <ReviewWebsiteScreen
@@ -227,6 +248,13 @@ export function MaisonSetupHost({
           onColorsPublished={() => {
             onPublished?.();
           }}
+          onDesignPublished={(message, slug) => {
+            setLiveDesignSlug(slug);
+            setExplicitOpen(false);
+            setToast(null);
+            onPublished?.(message);
+          }}
+          liveDesignSlug={liveDesignSlug}
           fromLiveSite={sitePublished}
           liveLookSlug={liveLookSlug}
           liveCustomPalette={liveCustomPalette}

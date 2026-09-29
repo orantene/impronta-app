@@ -1,26 +1,23 @@
-/**
- * Apply the Maison design to every demo talent in a seed manifest and publish
- * it. Uses the app's own apply + publish cores (theme-apply-core,
- * publishTalentPageBodies, publishSiteTheme) with the design hydrated from
- * each talent's real profile, services and photos; no hand-written trees.
- *
- * Demo sites only: every entry is re-checked as a demo (TAL-93xxx, demo_batch
- * user, matching profile) before anything is written.
- *
- * Run (from web/). The stubs let server-only modules load outside Next and
- * stand in for the cookie session client, which scripts don't have:
- *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
- *     npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=<env> \
- *     scripts/demo-talents/apply-maison.mts --manifest <path.json> [--only TAL-93001]
- */
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
-import { loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
-import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
-import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
-import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
-import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
-import { DEMO_BATCH, DEMOS } from "./demos";
+import { randomUUID } from "node:crypto";
+
+const { loadMaisonCatalogRow } = await import("../../src/lib/talent-site/server/maison-catalog-row");
+const { applyDesign, applyLook, publishSiteTheme } = await import(
+  "../../src/lib/talent-site/server/theme-apply-core"
+);
+const { publishTalentPageBodies } = await import(
+  "../../src/lib/talent-site/server/publish-talent-page-bodies"
+);
+const { MAISON_BUILTIN_DEMO } = await import("../../src/lib/talent-site/theme-catalog/maison/builtins");
+const { MAISON_PALETTE_ORDER } = await import("../../src/lib/talent-site/theme-catalog/maison/seed");
+const { galleryPaletteLookTokens, getGalleryDesign } = await import(
+  "../../src/lib/talent-site/theme-catalog/gallery-meta"
+);
+const { mergeLookIntoTokens } = await import("../../src/lib/talent-site/theme-catalog/look-layer");
+const { DEMO_BATCH, DEMOS } = await import("./demos");
+const { applyDemoSiteCopy } = await import("./site-copy");
+const { ALBA_PHOTO_SOURCES } = await import("./alba-photos");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -47,7 +44,6 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
 };
 if (manifest.targetRef !== targetRef) throw new Error(`manifest is for ${manifest.targetRef}`);
 
-// Each demo's own Design (demos.ts `theme`); --design overrides for all.
 const designOverride = opt("--design");
 const designFor = (code: string) =>
   designOverride ?? DEMOS.find((d) => d.profileCode === code)?.theme ?? "maison";
@@ -77,15 +73,26 @@ for (const e of entries) {
     .maybeSingle();
   if (!site) throw new Error(`no site for ${e.profileCode}`);
 
-  // Beauty demos keep Maison's default palette; the rest rotate through the
-  // others so the ten sites don't all look the same.
+  const demo = DEMOS.find((x) => x.profileCode === e.profileCode);
+
+  if (demo?.socialLinks?.length) {
+    const { error: socErr } = await admin
+      .from("talent_profiles")
+      .update({ social_links: demo.socialLinks, updated_at: new Date().toISOString() })
+      .eq("id", e.talentProfileId);
+    if (socErr) throw socErr;
+  }
+
   const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
     ? MAISON_PALETTE_ORDER[0]
     : MAISON_PALETTE_ORDER[((Number(e.profileCode.slice(-3)) - 1) % (MAISON_PALETTE_ORDER.length - 1)) + 1];
-  const look = await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
-  if (!look) throw new Error(`look maison-${paletteKey} not found`);
-
   const designSlug = designFor(e.profileCode);
+  const gallery = designSlug !== "maison" ? getGalleryDesign(designSlug) : undefined;
+  const galleryKey = gallery ? (demo?.palette ?? gallery.palettes[0]?.key ?? null) : null;
+  const galleryTokens = gallery && galleryKey ? galleryPaletteLookTokens(designSlug, galleryKey) : null;
+  const look = galleryTokens ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
+  if (!galleryTokens && !look) throw new Error(`look maison-${paletteKey} not found`);
+
   const design = await loadMaisonCatalogRow(admin, "design", designSlug);
   if (!design) throw new Error(`design ${designSlug} not found`);
   const d = await applyDesign(admin, {
@@ -96,16 +103,73 @@ for (const e of entries) {
     userId: e.userId,
   });
   if (!d.ok) throw new Error(`${e.profileCode} applyDesign: ${d.error}`);
-  const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId });
-  if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`);
+  if (look) {
+    const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId });
+    if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`);
+  } else if (galleryTokens) {
+    const { data: cur } = await admin.from("talent_sites").select("design_tokens_draft").eq("id", site.id).single();
+    const draft = mergeLookIntoTokens(
+      (cur?.design_tokens_draft as Record<string, string> | null) ?? {},
+      galleryTokens,
+    );
+    const { error: tokErr } = await admin
+      .from("talent_sites")
+      .update({
+        design_tokens_draft: draft,
+        theme_look_slug: galleryKey,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", site.id);
+    if (tokErr) throw tokErr;
+  }
+
+  if (demo?.siteCopy) {
+    const { data: s2 } = await admin.from("talent_sites").select("shell_tree").eq("id", site.id).single();
+    const { data: home } = await admin
+      .from("talent_pages")
+      .select("id, blocks")
+      .eq("talent_profile_id", e.talentProfileId)
+      .eq("is_home", true)
+      .single();
+    const { data: media } = await admin
+      .from("media_assets")
+      .select("storage_path, metadata")
+      .eq("owner_talent_profile_id", e.talentProfileId)
+      .is("deleted_at", null);
+    const byKey = new Map<string, string>();
+    const sources = ALBA_PHOTO_SOURCES;
+    for (const m of media ?? []) {
+      const src = (m.metadata as { source?: string } | null)?.source;
+      const key = Object.entries(sources).find(([, v]) => v === src)?.[0];
+      if (key) byKey.set(key, admin.storage.from("media-public").getPublicUrl(m.storage_path as string).data.publicUrl);
+    }
+    const out = applyDemoSiteCopy(
+      (s2?.shell_tree ?? []) as never,
+      (home?.blocks ?? []) as never,
+      demo.siteCopy,
+      (k) => byKey.get(k) ?? null,
+      () => `demo-${randomUUID().slice(0, 8)}`,
+    );
+    const { error: shErr } = await admin.from("talent_sites").update({ shell_tree: out.shell }).eq("id", site.id);
+    if (shErr) throw shErr;
+    const { error: hoErr } = await admin
+      .from("talent_pages")
+      .update({ blocks: out.home, updated_at: new Date().toISOString() })
+      .eq("id", home!.id);
+    if (hoErr) throw hoErr;
+  }
 
   const now = new Date().toISOString();
   const { error: metaErr } = await admin
     .from("talent_sites")
     .update({
       custom_palette: null,
-      theme_demo_slug: MAISON_BUILTIN_DEMO.slug,
-      menu_style: MAISON_BUILTIN_DEMO.buildPayload().menu_style ?? "tabs",
+      ...(designSlug === "maison"
+        ? {
+            theme_demo_slug: MAISON_BUILTIN_DEMO.slug,
+            menu_style: MAISON_BUILTIN_DEMO.buildPayload().menu_style ?? "tabs",
+          }
+        : {}),
       pending_design: null,
       updated_at: now,
     })
@@ -129,6 +193,6 @@ for (const e of entries) {
   if (pubErr) throw pubErr;
   const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: e.profileCode });
   if (!t.ok) throw new Error(`${e.profileCode} publishSiteTheme: ${t.error}`);
-  console.log("design", designSlug, e.profileCode, tp.display_name, `palette ${paletteKey}`, "published");
+  console.log("design", designSlug, e.profileCode, tp.display_name, `palette ${galleryKey ?? paletteKey}`, "published");
 }
 console.log("done");

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import type { TalentClientRow } from "./clients-merge";
 import {
+  clientVisit,
   clientsRowAction,
   countClientsByFilter,
   filterClientsDirectory,
@@ -152,6 +153,28 @@ describe("clients-directory", () => {
         now,
       ),
       true,
+    );
+  });
+});
+
+describe("clientVisit", () => {
+  const nowIso = "2026-09-28T21:00:00.000Z";
+  it("a past hold is not completed work", () => {
+    assert.deepEqual(
+      clientVisit({ status: "hold", startsAt: "2026-09-28T15:00:00.000Z", endsAt: "2026-09-28T15:15:00.000Z", nowIso }),
+      { state: "hold", done: false, upcoming: false },
+    );
+  });
+  it("a finished confirmed appointment counts as completed", () => {
+    assert.deepEqual(
+      clientVisit({ status: "confirmed", startsAt: "2026-09-20T15:00:00.000Z", endsAt: "2026-09-20T16:00:00.000Z", nowIso }),
+      { state: "completed", done: true, upcoming: false },
+    );
+  });
+  it("an appointment still running is upcoming", () => {
+    assert.deepEqual(
+      clientVisit({ status: "confirmed", startsAt: "2026-09-28T20:30:00.000Z", endsAt: "2026-09-28T21:30:00.000Z", nowIso }),
+      { state: "confirmed", done: false, upcoming: true },
     );
   });
 });

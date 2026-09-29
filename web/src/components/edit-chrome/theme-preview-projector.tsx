@@ -50,6 +50,13 @@ export function ThemePreviewProjector(): ReactElement | null {
   const tokens = useThemePreview();
   // Canvas-root CSS vars we last set (so we can remove stale ones on clear).
   const appliedVarsRef = useRef<Set<string>>(new Set());
+  // Per-root baseline: values that were ALREADY on the canvas (React inline
+  // effective site tokens) before we overwrote them. Clear must restore these
+  // — bare removeProperty drops React's paint and the canvas falls through to
+  // <html> platform defaults until remount (handover pending #1).
+  const varBaselineRef = useRef<WeakMap<HTMLElement, Map<string, string>>>(
+    new WeakMap(),
+  );
   // <html> data-attrs we last set + a snapshot of their ORIGINAL values, so a
   // clear restores the live theme (set back the original, or remove if the
   // attribute didn't exist before we touched it).
@@ -72,14 +79,35 @@ export function ThemePreviewProjector(): ReactElement | null {
     }
     const nextVarKeys = new Set(Object.keys(nextVars));
     for (const root of roots) {
-      for (const varName of appliedVarsRef.current) {
-        if (!nextVarKeys.has(varName)) root.style.removeProperty(varName);
+      let baseline = varBaselineRef.current.get(root);
+      if (!baseline) {
+        baseline = new Map();
+        varBaselineRef.current.set(root, baseline);
       }
-      for (const [varName, value] of Object.entries(nextVars)) {
-        root.style.setProperty(varName, value);
+      if (tokens) {
+        // First touch of each var: remember what React (or a prior paint) had.
+        for (const varName of nextVarKeys) {
+          if (!baseline.has(varName)) {
+            baseline.set(varName, root.style.getPropertyValue(varName));
+          }
+        }
+        for (const varName of appliedVarsRef.current) {
+          if (!nextVarKeys.has(varName)) {
+            restoreCanvasVar(root, varName, baseline);
+          }
+        }
+        for (const [varName, value] of Object.entries(nextVars)) {
+          root.style.setProperty(varName, value);
+        }
+      } else {
+        // Clear → restore every var we touched to the pre-preview baseline.
+        for (const varName of appliedVarsRef.current) {
+          restoreCanvasVar(root, varName, baseline);
+        }
+        baseline.clear();
       }
     }
-    appliedVarsRef.current = nextVarKeys;
+    appliedVarsRef.current = tokens ? nextVarKeys : new Set();
 
     // ── Channel 2: <html> enum data-attrs ────────────────────────────────
     const html = document.documentElement;
@@ -109,16 +137,19 @@ export function ThemePreviewProjector(): ReactElement | null {
     }
   }, [tokens]);
 
-  // Cleanup on unmount: strip canvas vars + restore <html> attrs so a teardown
+  // Cleanup on unmount: restore canvas vars + restore <html> attrs so a teardown
   // (e.g. leaving edit mode) never leaves the editor frozen on a draft value.
   useEffect(() => {
     return () => {
       document
         .querySelectorAll<HTMLElement>(CANVAS_ROOT_SELECTOR)
         .forEach((root) => {
+          const baseline = varBaselineRef.current.get(root);
           for (const varName of appliedVarsRef.current) {
-            root.style.removeProperty(varName);
+            if (baseline) restoreCanvasVar(root, varName, baseline);
+            else root.style.removeProperty(varName);
           }
+          baseline?.clear();
         });
       appliedVarsRef.current = new Set();
       const html = document.documentElement;
@@ -132,6 +163,21 @@ export function ThemePreviewProjector(): ReactElement | null {
   }, []);
 
   return null;
+}
+
+/** Restore a canvas CSS var to its pre-preview baseline (or remove if empty). */
+function restoreCanvasVar(
+  root: HTMLElement,
+  varName: string,
+  baseline: Map<string, string>,
+): void {
+  const original = baseline.get(varName);
+  if (original === undefined || original === "") {
+    root.style.removeProperty(varName);
+  } else {
+    root.style.setProperty(varName, original);
+  }
+  baseline.delete(varName);
 }
 
 /** Restore a single data-attr from the snapshot, then forget it. */

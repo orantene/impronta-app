@@ -304,6 +304,7 @@ export async function fetchTalentSnapshotAggregateRows(
       status: mapBookingPayoutStatus(booking),
       source: mapBookingSource(booking.source_type_snapshot),
       paymentMethod: snapshot.payment_method ?? booking.payment_method,
+      paymentStatus: booking.payment_status ?? null,
       currencyCode: snapshot.currency_code,
     });
   }
