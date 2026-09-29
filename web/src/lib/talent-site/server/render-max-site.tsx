@@ -44,7 +44,9 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
-import { DesignSkinStyle, designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
+import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import {
@@ -281,7 +283,7 @@ export async function renderTalentMaxSite(
     // ── Demo talent (fictional theme example): Demo pill + footer line ──────
     const isDemo = await loadMaxSiteIsDemo(talentProfileId);
 
-    // Site theme tokens (`{}` = today's cascade) + the Design slug (its skin).
+    // Site theme tokens + Design slug (token defaults).
     const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview });
     const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
 
@@ -416,7 +418,7 @@ function buildMaxSiteSeo(args: {
 async function renderMaxSiteDocument(args: {
   /** Site-level theme tokens (theme gallery); `{}` = today's cascade. */
   siteTokens: Readonly<Record<string, string>>;
-  designSlug?: string | null; // scopes the Design skin (design-skins.ts)
+  designSlug?: string | null;
   shellTree: BuilderNode[];
   logoUrl: string | null;
   page: MaxSitePageRow;
@@ -564,18 +566,16 @@ async function renderMaxSiteDocument(args: {
       })
     : null;
 
-  // Unthemed talent → the PLATFORM DEFAULT (Modern light), so the page renders
-  // at parity with the editor and never inherits a host tenant's dark bg.
-  const componentStyleDefaults =
-    talentComponentStyleDefaults &&
-    Object.keys(talentComponentStyleDefaults).length > 0
-      ? talentComponentStyleDefaults
-      : designComponentStyleDefaults(args.designSlug, platformDefault.componentStyles);
   const effectiveTokens = resolveEffectiveSiteTokens(
     designTokens,
     siteTokens,
     platformDefault.tokens,
+    designTokenDefaults(args.designSlug),
   );
+  const componentStyleDefaults =
+    talentComponentStyleDefaults && Object.keys(talentComponentStyleDefaults).length > 0
+      ? talentComponentStyleDefaults
+      : typeSystemComponentStyleDefaults(effectiveTokens, platformDefault.componentStyles);
   const hasTokens = Object.keys(effectiveTokens).length > 0;
   const cssVars = hasTokens ? designTokensToCssVars(effectiveTokens) : {};
   const headingFamily = effectiveTokens["typography.heading-font-family"]?.trim();
@@ -694,7 +694,7 @@ async function renderMaxSiteDocument(args: {
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
-      <DesignSkinStyle slug={args.designSlug} />
+      <TypeSystemStyle />
 
       {draftPreview ? (
         <div

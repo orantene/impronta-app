@@ -2,7 +2,9 @@
  * Maison v2: the Rosé proposal (Theme Review artifact, Experience + Builder
  * map tabs) composed from shared widgets only. Every row is an editable
  * builder node or variant; the look comes from the Rosé Look (gallery-meta)
- * plus the design skin (`design-skins.ts`), never from hex values here.
+ * plus this Design's token defaults (`MAISON_V2_TOKEN_DEFAULTS`: type roles,
+ * buttons, shape, spacing), which the talent edits in the theme drawer. No hex
+ * values here.
  *
  * Builder map rows, in order:
  *   header    site_header, section links, ES/EN, booking-mode CTA pill
@@ -31,6 +33,9 @@ import {
   type KitIdFactory,
 } from "../section-kit";
 import { seqIds, servicesSection, shell, tuneHeading } from "./design-parts";
+import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
+
+export { MAISON_V2_TOKEN_DEFAULTS };
 
 type Props = Record<string, unknown>;
 
@@ -315,6 +320,7 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
               // `.pick`: 34px ink-outline pill; `.menu-wrap` spans the container.
               rowCtaVariant: "pill",
               contentWidth: "full",
+              nameLineClamp: 3,
               style: { ...styleOf(n), maxWidth: "full" },
             })
           : n,
@@ -476,7 +482,7 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           style: { marginTopFree: "18px" },
         },
       } as BuilderNode,
-      // Fine print (`.fine`): the copyright left, "Made with Tulala" right.
+      // Fine print (`.fine`): social names left, "Hecho con Tulala" right.
       {
         id: makeId(),
         kind: "container",
@@ -512,7 +518,7 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           {
             id: makeId(),
             kind: "paragraph",
-            props: { text: "Made with Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
+            props: { text: "Hecho con Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
           } as BuilderNode,
         ],
       } as BuilderNode,
@@ -578,6 +584,7 @@ function maisonV2Reviews(makeId: KitIdFactory): BuilderNode {
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   return {
+    tokenDefaults: { ...MAISON_V2_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navLinks: [
         { label: "Work", href: "#gallery" },

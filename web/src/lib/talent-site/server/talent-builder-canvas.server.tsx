@@ -24,10 +24,9 @@ import {
   hydrateShellNav,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
-import {
-  DesignSkinStyle,
-  designComponentStyleDefaults,
-} from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
+import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { loadMaxSiteIsDemo, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import {
@@ -49,7 +48,7 @@ import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-re
  *
  *  - effective tokens: platform < site (`talent_sites.design_tokens_draft`,
  *    the Design + Look the talent is editing) < page `__design` draft;
- *  - the Design skin (`data-talent-design` + DesignSkinStyle) and its fonts;
+ *  - the Design type system (`TypeSystemStyle` + token defaults) and its fonts;
  *  - the Design's component-style defaults (accent pill buttons) unless the
  *    talent saved her own;
  *  - seeded labels in the SITE locale and booking mode (applied client-side
@@ -97,6 +96,7 @@ export async function buildTalentBuilderCanvasData(input: {
     pageTokens,
     siteTokens,
     platformDefault.tokens,
+    designTokenDefaults(designSlug),
   );
 
   const ownStyles: ComponentStyleDefaults =
@@ -106,7 +106,7 @@ export async function buildTalentBuilderCanvasData(input: {
   const componentStyleDefaults = readableButtonDefaults(
     Object.keys(ownStyles).length > 0
       ? ownStyles
-      : designComponentStyleDefaults(designSlug, platformDefault.componentStyles),
+      : typeSystemComponentStyleDefaults(effectiveTokens, platformDefault.componentStyles),
     effectiveTokens,
   );
 
@@ -159,7 +159,7 @@ export async function buildTalentBuilderCanvasData(input: {
     headNodes: (
       <>
         <GoogleFontsLink tokens={effectiveTokens} />
-        <DesignSkinStyle slug={designSlug} />
+        <TypeSystemStyle />
       </>
     ),
     shellHeader: renderShell(headerTree),

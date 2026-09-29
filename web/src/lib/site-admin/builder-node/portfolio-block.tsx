@@ -43,8 +43,10 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--staggered .sb-portfolio-shot{background:none}
 .sb-portfolio--staggered .sb-portfolio-shot img{transition:transform .5s ease}
 .sb-portfolio--staggered .sb-portfolio-shot:hover img{transform:scale(1.04)}
+/* Phone filmstrip bleeds to the screen edge (Maison staggered default). */
+@media (max-width:899px){.sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px}}
 @media (min-width:900px){
-  .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;align-items:center}
+  .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;margin:0;align-items:center}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(n+6){display:none}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
 }

@@ -27,7 +27,7 @@ export function ThemeTokenPreviewFrame({
 }: {
   initialTokens: Record<string, string>;
   locale?: "en" | "es";
-  /** Scopes the design skin (`design-skins.ts`). */
+  /** The Design slug (a marker; its token defaults come from `design-type-system.ts`). */
   designSlug?: string;
   children: React.ReactNode;
 }) {

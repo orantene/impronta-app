@@ -37,7 +37,8 @@ import {
   getGalleryDesign,
   galleryPaletteLookTokens,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
-import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -144,16 +145,14 @@ export async function ThemeCatalogPreview({
   const homeTree = mine ? mine.homeTree : built.homeTree;
 
   const platformDefault = await loadPlatformDefaultTheme("talent");
-  // Same layering as the live render: the Look lands in the (empty) site
-  // draft layer, then platform < site. A key the Look omits keeps the
-  // platform default, exactly as on the published site.
-  const effectiveTokens = lookTokens
-    ? resolveEffectiveSiteTokens(
-        {},
-        mergeLookIntoTokens({}, lookTokens),
-        platformDefault.tokens,
-      )
-    : platformDefault.tokens;
+  // Same layering as the live render: Design defaults sit between platform and Look.
+  const designDefaults = designTokenDefaults(design.slug);
+  const effectiveTokens = resolveEffectiveSiteTokens(
+    {},
+    lookTokens ? mergeLookIntoTokens({}, lookTokens) : {},
+    platformDefault.tokens,
+    designDefaults,
+  );
 
   // Seeded labels follow the locale and (for the owner) the booking mode,
   // exactly as the live site renders them.
@@ -186,7 +185,7 @@ export async function ThemeCatalogPreview({
   return (
     <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"} designSlug={design.slug}>
       <GoogleFontsLink tokens={effectiveTokens} />
-      <DesignSkinStyle slug={design.slug} />
+      <TypeSystemStyle />
       <TalentSiteRenderer
         snapshot={snapshot}
         locale={locale}

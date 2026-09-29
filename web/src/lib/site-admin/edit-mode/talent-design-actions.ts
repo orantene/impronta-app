@@ -57,6 +57,9 @@ import {
   type TalentSiteThemeState,
 } from "@/lib/talent-site/server/talent-site-theme-tokens.server";
 import { publishSiteThemeForTalent } from "@/lib/talent-site/server/theme-publish-hook";
+import { liveDesignName } from "@/components/talent/site/maison-setup/maison-live-summary";
+import { paletteDisplayName } from "@/components/talent/site/maison-setup/live-design-change";
+import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -177,6 +180,17 @@ function snapshotFromSlice(
     const designStyles = siteDesignComponentStyles(site.designSlug, platformComponentStyles);
     const pick = (own: ComponentStyleDefaults) =>
       normalizeComponentStyleDefaults(Object.keys(own).length > 0 ? own : designStyles);
+    const locale = "es";
+    const designDisplayName = liveDesignName(locale, site.designSlug);
+    const lookSlug =
+      site.lookSlug ??
+      matchLookSlugFromTokens(site.designSlug, { ...site.live, ...slice.tokens });
+    const paletteLabel = paletteDisplayName({
+      locale,
+      designSlug: site.designSlug,
+      lookSlug,
+      customPalette: null,
+    });
     return {
       ok: true,
       snapshot: {
@@ -187,6 +201,8 @@ function snapshotFromSlice(
         version: slice.version,
         componentStylesDraft: pick(slice.componentStylesDraft),
         componentStylesLive: pick(slice.componentStyles),
+        designDisplayName,
+        paletteDisplayName: paletteLabel,
       },
     };
   }
@@ -200,8 +216,30 @@ function snapshotFromSlice(
       version: slice.version,
       componentStylesDraft: normalizeComponentStyleDefaults(slice.componentStylesDraft),
       componentStylesLive: normalizeComponentStyleDefaults(slice.componentStyles),
+      designDisplayName: null,
+      paletteDisplayName: null,
     },
   };
+}
+
+/** When look slug is null, recover the gallery palette key from token colours. */
+function matchLookSlugFromTokens(
+  designSlug: string | null,
+  tokens: Record<string, string>,
+): string | null {
+  const design = getGalleryDesign(designSlug ?? "");
+  if (!design) return null;
+  const bg = tokens["color.background"]?.trim().toLowerCase();
+  const ink = tokens["color.ink"]?.trim().toLowerCase() ?? tokens["color.text"]?.trim().toLowerCase();
+  const accent = tokens["color.primary"]?.trim().toLowerCase() ?? tokens["color.accent"]?.trim().toLowerCase();
+  if (!bg || !accent) return null;
+  const hit = design.palettes.find((p) => {
+    const page = p.page?.trim().toLowerCase();
+    const text = p.text?.trim().toLowerCase();
+    const acc = p.accent?.trim().toLowerCase();
+    return page === bg && (!ink || text === ink) && acc === accent;
+  });
+  return hit?.key ?? null;
 }
 
 // ── load ──────────────────────────────────────────────────────────────────

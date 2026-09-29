@@ -44,7 +44,7 @@ test("the Maison v2 variants already offered stay offered", () => {
   );
   assert.ok(fields.includes('{ value: "serif", label: "Serif italic" }'), "marquee Serif italic");
   const services = read("services-catalog-inspector.tsx");
-  for (const v of ['"rail"', '"rows"', '"pill"', 'pricePlacement: e.target.checked ? "meta"']) {
+  for (const v of ['"rail"', '"rows"', '"pill"', 'pricePlacement: e.target.checked ? "meta"', "nameLineClamp"]) {
     assert.ok(services.includes(v), `services_catalog ${v}`);
   }
   assert.ok(read("builder-node-content.tsx").includes("startClosed: next"), "accordion start closed");

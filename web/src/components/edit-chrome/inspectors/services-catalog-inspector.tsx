@@ -618,6 +618,21 @@ export function ServicesCatalogLayoutInspector({
           <option value="hidden">Hidden</option>
         </select>
       </div>
+      <div className={KIT.field}>
+        <label className={KIT.label}>Service name lines</label>
+        <select
+          className={KIT.input}
+          value={String(catalog.nameLineClamp ?? 2)}
+          onChange={(e) => onPatch({ nameLineClamp: Number(e.target.value) })}
+        >
+          <option value="2">2 lines</option>
+          <option value="3">3 lines</option>
+          <option value="4">4 lines</option>
+        </select>
+        <p className="text-xs text-black/50">
+          How many lines of the service name show before an ellipsis. Maison menus use 3.
+        </p>
+      </div>
     </div>
   );
 }

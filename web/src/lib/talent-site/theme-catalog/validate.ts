@@ -28,6 +28,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
+import { STYLE_TOKEN_BY_KEY, styleTokenValidator } from "@/lib/site-admin/tokens/style-tokens";
 import {
   firstFontFamily,
   resolveBuilderFont,
@@ -287,7 +288,31 @@ export function validateDesign(payload: unknown): ThemeValidationResult {
     }
   }
 
+  checkDesignTokenDefaults(record?.tokenDefaults, errors);
+
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * `tokenDefaults` (optional): site style token keys only, each value valid for
+ * its token. A Design's defaults never carry colours (the Look owns those).
+ */
+function checkDesignTokenDefaults(value: unknown, errors: string[]): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push("tokenDefaults: must be an object of style token values.");
+    return;
+  }
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const def = STYLE_TOKEN_BY_KEY.get(key);
+    if (!def) {
+      errors.push(`tokenDefaults.${key}: not a site style token.`);
+      continue;
+    }
+    if (typeof raw !== "string" || !styleTokenValidator(def).safeParse(raw).success) {
+      errors.push(`tokenDefaults.${key}: invalid value.`);
+    }
+  }
 }
 
 // ── Look ─────────────────────────────────────────────────────────────────────
