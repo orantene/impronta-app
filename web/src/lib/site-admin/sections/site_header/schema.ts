@@ -317,6 +317,18 @@ export const siteHeaderSchemaV1 = z.object({
     })
     .optional(),
   presentation: sectionPresentationSchema,
+  /**
+   * Render-time site chrome, injected by the talent site renderer (never
+   * saved): `demo` paints the small Demo pill in the header (the only demo
+   * marker), `locales` feeds the language switch ("ES / EN") on a talent site
+   * whose languages are not the tenant's.
+   */
+  siteChrome: z
+    .object({
+      demo: z.boolean().optional(),
+      locales: z.array(z.string().min(2).max(8)).max(4).optional(),
+    })
+    .optional(),
 });
 
 export type SiteHeaderV1 = z.infer<typeof siteHeaderSchemaV1>;

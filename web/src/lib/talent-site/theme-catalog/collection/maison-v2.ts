@@ -518,9 +518,12 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
   const brand = (sp.brand ?? {}) as Props;
   const regions = (sp.regions ?? {}) as Record<string, unknown>;
   const cta = { label: "Menu and prices", href: "#services" };
-  const right = Array.isArray(regions.right)
-    ? (regions.right as Props[]).map((it) => (it?.type === "cta" ? { ...it, ...cta, responsive: { mobile: "hide" } } : it))
-    : regions.right;
+  // `.m-hdr` right side: (Demo pill, painted by the site), ES / EN, the CTA pill.
+  // No saved / inquiry icons in the proposal.
+  const right = [
+    { type: "language", responsive: { mobile: "show" } },
+    { type: "cta", ...cta, responsive: { mobile: "hide" } },
+  ];
   return withProps(node, {
     sectionProps: {
       ...sp,

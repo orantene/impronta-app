@@ -1,3 +1,4 @@
+import { HeaderDemoPill, HeaderSiteLocales } from "./header-site-chrome";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import {
@@ -467,6 +468,8 @@ export async function SiteHeaderComponent({
   // the existing resolved config (brand / navLinks / social / contacts /
   // primaryCta), so there is no duplicate content store.
   const regions = props.regions;
+  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} />; // demo talents' only marker
+  const siteLocales = props.siteChrome?.locales ?? []; // talent site ES / EN, `?locale=` links
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
       const bp = item.responsive ?? {};
@@ -486,6 +489,7 @@ export async function SiteHeaderComponent({
           return brand.label ? (
             <a key={key} {...attrs} className="site-header__ritem site-header__brand" href={brandHref}>
               <span className="site-header__brand-label">{brand.label}</span>
+              {brandTagline ? <span className="site-header__brand-tagline">{brandTagline}</span> : null}
             </a>
           ) : null;
         case "logo":
@@ -562,6 +566,7 @@ export async function SiteHeaderComponent({
           );
         }
         case "language":
+          if (siteLocales.length > 1) return <HeaderSiteLocales key={key} locales={siteLocales} locale={locale} attrs={attrs} />;
           return tenantLocaleSettings.supportedLocales.length > 1 ? (
             <div key={key} {...attrs} className="site-header__ritem site-header__lang">
               {tenantLocaleSettings.supportedLocales.map((code) => (
@@ -598,7 +603,7 @@ export async function SiteHeaderComponent({
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
-          <div className="site-header__region" data-region="right">{regions.right.map(renderItem)}</div>
+          <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
           <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} />
           <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu">
             <span /><span /><span />
@@ -755,7 +760,7 @@ export async function SiteHeaderComponent({
             standard / minimal / split / editorial keep their exact prior
             flat layout; editorial-split promotes it to a real flex zone
             so the brand stays optically centred. */}
-        <div className="site-header__actions">
+        <div className="site-header__actions">{demoPill}
           {/* The v11 prototype's top bar has NO inline CTA — "Start an
               Inquiry" lives in the hero + the ☰ drawer, keeping the
               wordmark dead-centre with air around it. So for

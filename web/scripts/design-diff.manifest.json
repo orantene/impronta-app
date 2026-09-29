@@ -110,6 +110,19 @@
             ".cb-dock",
             "[data-builder-node-kind='selection_dock']"
           ]
+        },
+        {
+          "id": "chat",
+          "label": "Chat (open)",
+          "artifactSelector": "#site .chat",
+          "localSelector": [
+            "[role='dialog'][aria-modal='false']",
+            "[role='dialog']"
+          ],
+          "open": {
+            "artifact": ".dock .chatb",
+            "local": ".cb-bar-chat"
+          }
         }
       ]
     },
@@ -201,6 +214,13 @@
           ]
         }
       ]
+    }
+  },
+  "liveTalents": {
+    "alba-nail-artist": {
+      "profileId": "8a59afc1-6e2e-49cd-b78d-27f689cc80f5",
+      "email": "demo-alba-unas@impronta.test",
+      "passwordEnv": "QA_ALBA_PASSWORD"
     }
   }
 }
