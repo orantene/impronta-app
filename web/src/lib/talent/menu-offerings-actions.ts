@@ -156,7 +156,7 @@ export async function upsertWorkspaceMenuItem(
         ownerKind: "workspace",
         talentProfileId: null,
         tenantId,
-      }),
+      }, "en"), // workspace menus have no per-owner primary yet: English, as before
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,

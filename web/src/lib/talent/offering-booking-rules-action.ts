@@ -55,7 +55,7 @@ export async function patchOfferingBookingRules(
       return { ok: false, error: "Failed to save." };
     }
     revalidatePath("/talent/services");
-    return { ok: true, item: rowToOffering(data as TalentOfferingRow) };
+    return { ok: true, item: rowToOffering(data as TalentOfferingRow, auth.primaryLocale, [], [auth.primaryLocale]) };
   } catch (e) {
     logServerError("talent.offerings.rules", e);
     return { ok: false, error: "Failed to save." };
