@@ -50,7 +50,8 @@ test("chapters with no album split the photos instead of repeating or emptying",
   const all = chapters.flatMap((c) => map.get(c.id) ?? []);
   assert.deepEqual(map.get(chapters[0]!.id), ["m0", "m1", "m2"]);
   assert.equal(new Set(all).size, all.length, "no photo repeats across chapters");
-  assert.equal(all.length, 7);
+  // Each chapter limit is 3 → 6 of 7 photos placed.
+  assert.equal(all.length, 6);
 });
 
 test("a chapter keyed to an album she has keeps it; missing albums fall back", () => {
