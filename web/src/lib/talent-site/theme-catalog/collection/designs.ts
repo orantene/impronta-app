@@ -168,9 +168,8 @@ export function buildFramePayload(): DesignPayload {
 // Folio magazine edition: cover masthead + contents + chapters + measures +
 // rate card + statement footer. Every block is a shared widget in its magazine edition.
 export const FOLIO_CHAPTER_SEEDS = [
-  { heading: "Selected work", creditLine: "From the studio" },
-  { heading: "Details", creditLine: "Up close" },
-  { heading: "Portraits", creditLine: "Natural light" },
+  { heading: "Editorial", creditLine: "Demo studio credit · CDMX" },
+  { heading: "Runway", creditLine: "Demo show credit · 3 exits" },
 ] as const;
 
 function magazine(node: BuilderNode): BuilderNode {
@@ -241,10 +240,9 @@ export function buildFolioPayload(): DesignPayload {
     shellTree: shell(id, {
       navChrome: "top_bar",
       navLinks: [
-        { label: "Work", href: "#gallery" },
-        { label: "About", href: "#about" },
+        { label: "Editorial", href: "#chapter-1" },
+        { label: "Runway", href: "#chapter-2" },
         { label: "Rates", href: "#services" },
-        { label: "Contact", href: "#contact" },
       ],
     }),
     tokenDefaults: { ...FOLIO_TOKEN_DEFAULTS },

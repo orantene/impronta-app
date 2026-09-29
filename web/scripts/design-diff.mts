@@ -254,12 +254,20 @@ async function main(): Promise<void> {
     await ensureAuth(browser);
 
     // Artifact side: reviewer page; pick Experience view + device width.
+    // Folio kit uses #rv-dev; Maison kit uses #devseg. Quote data-d values.
     const actx = await browser.newContext({ viewport: { width: 1800, height: 1200 } });
     const ap = await actx.newPage();
     await ap.goto(`${stat.origin}/index.html`, { waitUntil: "load" });
     await ap.locator("[data-v='exp']").first().click().catch(() => {});
-    await ap.locator(`#devseg button[data-d="${viewport}"]`).click().catch(() => {});
-    await ap.waitForTimeout(800);
+    const deviceBtn = ap
+      .locator(`#rv-dev button[data-d="${viewport}"], #devseg button[data-d="${viewport}"]`)
+      .first();
+    if ((await deviceBtn.count()) > 0) {
+      await deviceBtn.click();
+      await ap.waitForTimeout(1000);
+    } else {
+      console.warn(`device button ${viewport} not found (#rv-dev / #devseg)`);
+    }
 
     // Local side.
     const lctx = await browser.newContext({ storageState: AUTH_FILE, viewport: { width: viewport, height: 900 } });

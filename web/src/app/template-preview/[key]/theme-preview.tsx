@@ -58,6 +58,32 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
+/** Folio magazine leaf kinds — Design defaults stamp `edition: "magazine"`. */
+const FOLIO_MAGAZINE_KINDS = new Set([
+  "masthead",
+  "contents",
+  "portfolio",
+  "comp_card",
+  "statement_footer",
+]);
+
+/** Ensure Folio magazine blocks keep `edition: "magazine"` after saved-tree bind. */
+function stampFolioMagazineEdition(tree: BuilderNode[]): BuilderNode[] {
+  const visit = (node: BuilderNode): BuilderNode => {
+    const kids = "children" in node && Array.isArray(node.children) ? node.children : null;
+    const props = (node.props ?? {}) as Record<string, unknown>;
+    const nextProps = FOLIO_MAGAZINE_KINDS.has(node.kind)
+      ? { ...props, edition: "magazine" }
+      : props;
+    return {
+      ...node,
+      props: nextProps,
+      ...(kids ? { children: kids.map(visit) } : {}),
+    } as BuilderNode;
+  };
+  return tree.map(visit);
+}
+
 /** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
 function resolveFolioLookSlug(designSlug: string, lookSlug: string | null | undefined): string | null {
   const fallback = COLLECTION_DEFAULT_LOOK[designSlug] ?? null;
@@ -151,18 +177,29 @@ export async function ThemeCatalogPreview({
     : requestedLocale;
   // A demo shows its SAVED page (her own headline, eyebrow, lede, photos);
   // My content keeps the design tree bound to the owner's data.
+  // Folio 1:1: prefer the Design tree so magazine `edition` props survive;
+  // prepareMyContentPreview still binds Mateo's live chapters / rates.
   const saved = demoHydration
     ? await loadDemoSavedTrees(demoHydration.demoTalentProfileId, design.slug)
     : null;
+  const folioDesign = design.slug === "folio";
+  const shellForBind = folioDesign ? built.shellTree : (saved?.shellTree ?? built.shellTree);
+  const homeForBind = folioDesign
+    ? stampFolioMagazineEdition(built.homeTree)
+    : (saved?.homeTree ?? built.homeTree);
   const mine = contentId
     ? await prepareMyContentPreview({
         talentProfileId: contentId,
         locale,
-        shellTree: saved?.shellTree ?? built.shellTree,
-        homeTree: saved?.homeTree ?? built.homeTree,
+        shellTree: shellForBind,
+        homeTree: homeForBind,
       })
     : null;
-  const homeTree = mine ? mine.homeTree : built.homeTree;
+  const homeTree = mine
+    ? folioDesign
+      ? stampFolioMagazineEdition(mine.homeTree)
+      : mine.homeTree
+    : homeForBind;
 
   const platformDefault = await loadPlatformDefaultTheme("talent");
   // Same layering as the live render: the Look lands in the (empty) site

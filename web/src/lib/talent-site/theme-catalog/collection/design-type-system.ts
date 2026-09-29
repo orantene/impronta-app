@@ -219,12 +219,15 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   `${M} h2{font-size:${v("type.section-title-size")}}`,
 
   // Masthead bar: solid stone, ink rule, tracked caps nav, square CTA.
+  // Brand matches Folio artifact: Archivo Narrow uppercase (not serif title case).
   `${M} .site-header{position:sticky;top:0;z-index:40;background:var(--token-color-background);border-bottom:${RULE} solid var(--token-color-ink);box-shadow:none}`,
   `${M} .site-header__inner{min-height:52px;padding:0 ${v("layout.gutter-phone")}}`,
-  `${M} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-weight:${v("type.display-weight")};font-size:${v("type.logo-size")};letter-spacing:${v("type.display-tracking")};text-transform:none;font-style:normal}`,
+  `${M} .site-header__brand-label{font-family:${LABEL_FACE};font-weight:700;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;font-style:normal}`,
+  `${M} .site-header__brand-tagline{display:none}`,
   `${M} .site-header__nav-link{${labelTypeM};color:var(--token-color-ink);text-decoration:none}`,
   `${M} .site-header__nav-link:hover{color:var(--token-color-muted)}`,
-  `${M} .site-header__cta.site-btn,${M} .site-header__ritem.site-header__cta{height:${v("button.compact-height")};min-height:${v("button.compact-height")};padding:0 ${v("button.compact-padding-x")};border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);${labelTypeM};box-shadow:none}`,
+  `${M} .site-header__cta.site-btn,${M} .site-header__ritem.site-header__cta{height:34px;min-height:34px;padding:0 14px;border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);${labelTypeM};font-size:11.5px;box-shadow:none}`,
+  `${M} .site-header__actions :is(button,a):not(.site-header__cta):not([data-demo-badge]){display:none}`,
   `${M}[data-talent-theme-preview] .site-header__actions::before,${M}[data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;margin-right:10px;padding:0 8px;border:${RULE} solid var(--token-color-line);${labelTypeM};font-size:10px;letter-spacing:0.2em;color:var(--token-color-muted)}`,
   `@media (max-width:767px){${M} .site-header__nav{display:none}${M} .site-header__cta.site-btn{display:inline-flex;min-height:44px;height:44px}}`,
   `${MQ_DESK}{${M} .site-header__inner{padding:0 ${v("layout.gutter")}}}`,

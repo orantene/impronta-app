@@ -143,10 +143,11 @@
             "#site .fo-cover"
           ],
           "localSelector": [
+            ".sb-mag-name",
+            ".sb-masthead[data-edition='magazine'] .sb-mag-name",
+            ".sb-masthead",
             "[data-builder-node-kind='masthead']",
-            "[data-builder-kind='masthead']",
-            "[data-section-type-key^='hero']",
-            "[data-builder-node-kind^='hero']"
+            "[data-builder-kind='masthead']"
           ]
         },
         {
@@ -158,6 +159,7 @@
             "#site .fo-toc"
           ],
           "localSelector": [
+            ".sb-contents",
             "[data-builder-node-kind='contents']",
             "[data-builder-kind='contents']",
             "[data-section-type-key='contents']"
@@ -172,6 +174,7 @@
             "#site .fo-ch"
           ],
           "localSelector": [
+            ".sb-portfolio[data-edition='magazine']",
             "[data-builder-node-kind='portfolio'][data-layout='chapter']",
             "[data-builder-node-kind='portfolio']",
             "#gallery"
@@ -186,6 +189,7 @@
             "#site .fo-comp"
           ],
           "localSelector": [
+            ".sb-comp",
             "[data-builder-node-kind='comp_card']",
             "[data-builder-kind='comp_card']",
             "[data-section-type-key^='comp']"
@@ -215,6 +219,7 @@
             "#site footer"
           ],
           "localSelector": [
+            ".sb-statement-footer",
             "[data-builder-node-kind='statement_footer']",
             "[data-builder-kind='statement_footer']",
             "[data-section-type-key='footer']"
