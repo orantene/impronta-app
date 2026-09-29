@@ -35,7 +35,7 @@ export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | 
   const tenantId = self.tenantId;
   const gate = tenantId ? await assertAiInvocationAllowed(tenantId) : await assertAiInvocationAllowed();
   if (!gate.ok) return { ok: false, code: "ai_off" };
-  if (tenantId && !(await underDailyCap(tenantId))) return { ok: false, code: "cap" };
+  if (tenantId && !(await underDailyCap(tenantId, { scope: "writing_helper", talentProfileId: self.id }))) return { ok: false, code: "cap" };
 
   const { adapter, model } = await resolveRoutedChat(input.op === "write" ? "copy" : "helper");
   const prompt = buildWritingPrompt({ surface: "bio", op: input.op, tone: input.tone ?? null, text: input.text.slice(0, 1200), locale: input.locale, facts: self.facts });
