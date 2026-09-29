@@ -18,7 +18,16 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { DEMO_BATCH } from "./demos";
+import * as demosMod from "./demos";
+
+function namedFromCjs<T extends object>(mod: T | { default: T }): T {
+  if (mod && typeof mod === "object" && "default" in mod) {
+    const d = (mod as { default: unknown }).default;
+    if (d && typeof d === "object") return d as T;
+  }
+  return mod as T;
+}
+const { DEMO_BATCH } = namedFromCjs(demosMod as typeof import("./demos"));
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();

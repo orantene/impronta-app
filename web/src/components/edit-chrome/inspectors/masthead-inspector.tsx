@@ -120,6 +120,32 @@ export function MastheadContentInspector({
         </label>
       </Section>
 
+      <Section
+        title="Layout"
+        info="Cover puts the words over a full-bleed photo. Magazine spread sets the name across the page, then the cover beside your bio, buttons and an index."
+      >
+        <div className="flex flex-wrap gap-2">
+          {(["cover", "magazine"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={
+                (p.edition ?? "cover") === id
+                  ? "rounded-md border border-stone-800 bg-stone-800 px-2.5 py-1.5 text-[12px] text-white"
+                  : "rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-[12px] text-stone-700"
+              }
+              onClick={() => commitPatch({ edition: id })}
+            >
+              {id === "cover" ? "Cover" : "Magazine spread"}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {p.edition === "magazine" ? (
+        <MagazineSpreadFields node={node} commitPatch={commitPatch} />
+      ) : null}
+
       <Section title="Credit">
         <div className={KIT.field}>
           <label className={KIT.label}>Subline</label>
@@ -185,6 +211,71 @@ export function MastheadContentInspector({
         ) : null}
       </Section>
     </div>
+  );
+}
+
+function MagazineSpreadFields({
+  node,
+  commitPatch,
+}: {
+  node: BuilderMastheadNode;
+  commitPatch: CommitPatch;
+}) {
+  const p = node.props;
+  const rows = p.contents ?? [];
+  const text = (key: keyof BuilderMastheadNode["props"], label: string, placeholder: string) => (
+    <div className={KIT.field}>
+      <label className={KIT.label}>{label}</label>
+      <input
+        className={KIT.input}
+        value={(p[key] as string | undefined) ?? ""}
+        placeholder={placeholder}
+        onChange={(e) => commitPatch({ [key]: e.target.value })}
+      />
+    </div>
+  );
+  return (
+    <Section title="Magazine spread">
+      {text("mastRight", "Mast line (right)", "{{locationLine}}")}
+      {text("coverLine", "Cover line", "{{primaryTypeLabel}}")}
+      <div className={KIT.field}>
+        <label className={KIT.label}>Bio</label>
+        <textarea
+          className={KIT.input}
+          rows={3}
+          value={p.bio ?? ""}
+          placeholder="{{bio}}"
+          onChange={(e) => commitPatch({ bio: e.target.value })}
+        />
+      </div>
+      {text("ctaLabel", "Button", "Book a session")}
+      {text("ctaHref", "Button link", "#talent-ask")}
+      {text("bookLabel", "Second button", "See the book")}
+      {text("bookHref", "Second button link", "#chapter-1")}
+      {text("contentsTitle", "Index title", "In this issue")}
+      {rows.map((row, i) => (
+        <div key={`${row.anchor}-${i}`} className="flex gap-2">
+          <input
+            className={KIT.input}
+            value={row.label}
+            aria-label={`Index row ${i + 1} title`}
+            onChange={(e) => {
+              const next = rows.map((r, j) => (j === i ? { ...r, label: e.target.value } : r));
+              commitPatch({ contents: next });
+            }}
+          />
+          <input
+            className={KIT.input}
+            value={row.credit ?? ""}
+            aria-label={`Index row ${i + 1} credit`}
+            onChange={(e) => {
+              const next = rows.map((r, j) => (j === i ? { ...r, credit: e.target.value } : r));
+              commitPatch({ contents: next });
+            }}
+          />
+        </div>
+      ))}
+    </Section>
   );
 }
 

@@ -338,20 +338,22 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ...collection("folio"),
     styleTags: ["Editorial", "Image-led"],
     featureTags: ["Portfolio", "Project stories", "Quote requests", "Chapters"],
+    // Hex only here / in folio-looks.ts. Stone is the Folio default Look.
     palettes: [
-      pal("newsprint", "Newsprint", "Papel prensa", ["#FFFFFF", "#F4F1EA", "#E2DDD1", "#1B1A17", "#1B1A17", "#FFFFFF"], { highContrast: true }),
-      pal("vogue", "Crimson Cover", "Portada carmesí", ["#FFFFFF", "#F8F1F0", "#EADCDA", "#1E1515", "#A3182B", "#FFFFFF"]),
-      pal("ochre", "Ochre & Ink", "Ocre y tinta", ["#FFFFFF", "#F7F2E6", "#E7DEC8", "#1F1B12", "#7A5A12", "#FFFFFF"]),
-      pal("noir", "Noir", "Noir", ["#121212", "#1C1C1C", "#333333", "#F3F1EC", "#E8E2D4", "#121212"], { dark: true }),
+      pal("stone", "Default stone", "Piedra", ["#ECEAE5", "#F7F6F3", "#D3D0C8", "#111111", "#111111", "#F7F6F3"], { highContrast: true }),
+      pal("light", "Light neutral", "Claro neutro", ["#FFFFFF", "#F1F0ED", "#E6E4DF", "#1A1A1A", "#1A1A1A", "#F1F0ED"]),
+      pal("dark", "Dark contrast", "Contraste oscuro", ["#0E0E0E", "#171717", "#2C2B29", "#F1EFEA", "#F1EFEA", "#0E0E0E"], { dark: true }),
     ],
     demos: [
-      talentDemo("fashion-model", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "newsprint", "TAL-93004", "lucia-herrera", "Lucía Herrera"),
-      talentDemo("bartender", { en: "Bartender", es: "Bartender" }, ["bartender"], "ochre", "TAL-93007", "sofia-barra", "Sofía Campos"),
-      planned("portrait-photographer", { en: "Portrait Photographer", es: "Fotógrafo de retrato" }, ["photographer"], "newsprint"),
-      planned("graphic-designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "vogue"),
-      planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "ochre"),
-      planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "newsprint"),
-      planned("model-singer", { en: "Model & Singer", es: "Modelo y cantante" }, ["model", "singer"], "noir"),
+      // Featured Folio demo = Mateo Ferrer (artifact). Lucía stays as second built demo.
+      talentDemo("fashion-model", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93011", "mateo-ferrer", "Mateo Ferrer"),
+      talentDemo("fashion-model-lucia", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93004", "lucia-herrera", "Lucía Herrera"),
+      talentDemo("bartender", { en: "Bartender", es: "Bartender" }, ["bartender"], "stone", "TAL-93007", "sofia-barra", "Sofía Campos"),
+      planned("portrait-photographer", { en: "Portrait Photographer", es: "Fotógrafo de retrato" }, ["photographer"], "stone"),
+      planned("graphic-designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "light"),
+      planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "stone"),
+      planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "light"),
+      planned("model-singer", { en: "Model & Singer", es: "Modelo y cantante" }, ["model", "singer"], "dark"),
     ],
   }),
 ];
