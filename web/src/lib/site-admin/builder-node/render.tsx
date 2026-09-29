@@ -155,13 +155,13 @@ import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
-import { renderReviewsBlock } from "./reviews-block";
+import { ReviewsBlockView } from "./reviews-block";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
-import { renderNextFreeChip } from "./next-free-chip";
+import { NextFreeChipView } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -5933,11 +5933,13 @@ function renderBuilderNodeElement(
       });
     }
     case "reviews": {
-      return renderReviewsBlock({
-        node,
-        reviews: options.dataSources?.talentReviews ?? [],
-        styleAttr: sharedNodeStyle(node.props.style),
-      });
+      return (
+        <ReviewsBlockView
+          node={node}
+          reviews={options.dataSources?.talentReviews ?? []}
+          styleAttr={sharedNodeStyle(node.props.style)}
+        />
+      );
     }
     case "visit": {
       return renderVisitBlock({
@@ -5973,12 +5975,14 @@ function renderBuilderNodeElement(
       });
     }
     case "next_free_chip": {
-      return renderNextFreeChip({
-        node,
-        offerings: options.dataSources?.talentOfferings ?? [],
-        locale: options.contentLocale?.locale,
-        styleAttr: sharedNodeStyle(node.props.style),
-      });
+      return (
+        <NextFreeChipView
+          node={node}
+          offerings={options.dataSources?.talentOfferings ?? []}
+          locale={options.contentLocale?.locale}
+          styleAttr={sharedNodeStyle(node.props.style)}
+        />
+      );
     }
     case "menu_board": {
       const p = node.props;
