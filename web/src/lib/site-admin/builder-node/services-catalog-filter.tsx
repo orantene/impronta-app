@@ -120,6 +120,15 @@ function catalogDurationShort(minutes: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
+/** Folio magazine rate card: runway is billed per show, not clock time. */
+function magazineRateDurationLabel(
+  category: string | null | undefined,
+  minutes: number,
+): string {
+  if ((category ?? "").trim().toLowerCase() === "runway") return "Por show";
+  return catalogDurationShort(minutes);
+}
+
 export function ServicesCatalogFilter({
   groups,
   locale,
@@ -721,7 +730,11 @@ export function CatalogRow({
         ) : showDuration && item.durationMinutes && item.kind !== "product" ? (
           <span className="site-builder-node--services-catalog-duration">
             {showCategory && item.category
-              ? `${item.category} · ${catalogDurationShort(item.durationMinutes)}`
+              ? `${item.category} · ${
+                  ctaSurface === "magazine_rate"
+                    ? magazineRateDurationLabel(item.category, item.durationMinutes)
+                    : catalogDurationShort(item.durationMinutes)
+                }`
               : catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
           </span>
         ) : null}
