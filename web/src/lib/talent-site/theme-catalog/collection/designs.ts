@@ -24,6 +24,7 @@ import {
   contentsBlock,
   reviewsBlock,
   visitBlock,
+  faqBlock,
   compCardBlock,
   statementFooterBlock,
   heroCentered,
