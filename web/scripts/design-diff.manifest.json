@@ -116,26 +116,35 @@
     "folio": {
       "artifactPath": "scripts/design-diff-fixtures/folio/index.html",
       "templateSlug": "folio",
+      "localTalentId": "30f45c0f-6c40-44d4-bfb7-f04bfd0a6adc",
+      "$comment": "Folio judged on Mateo Ferrer (TAL-93011), not Jorgelina. Artifact folder has index.html + kit.js + img/; sections use data-w anchors.",
       "rows": [
         {
           "id": "masthead",
           "label": "Header masthead bar",
           "artifactSelector": [
+            "[data-w='site_header']",
             "[data-w^='site_header']",
             "#site header"
           ],
           "localSelector": [
-            "[data-section-type-key='site_header']"
+            "[data-section-type-key='site_header']",
+            "[data-builder-node-kind='site_header']",
+            ".site-header"
           ]
         },
         {
           "id": "cover",
           "label": "Cover",
           "artifactSelector": [
+            "[data-w='masthead']",
+            "[data-w^='masthead']",
             "[data-w^='hero']",
             "#site .cover"
           ],
           "localSelector": [
+            "[data-builder-kind='masthead']",
+            "[data-builder-node-kind='masthead']",
             "[data-section-type-key^='hero']",
             "[data-builder-node-kind^='hero']"
           ]
@@ -144,58 +153,73 @@
           "id": "contents",
           "label": "Contents",
           "artifactSelector": [
+            "[data-w='contents']",
             "[data-w^='contents']",
             "#site .contents"
           ],
           "localSelector": [
-            "[data-section-type-key='contents']",
-            "[data-builder-node-kind='contents']"
+            "[data-builder-kind='contents']",
+            "[data-builder-node-kind='contents']",
+            "[data-section-type-key='contents']"
           ]
         },
         {
           "id": "chapters",
           "label": "Chapters",
           "artifactSelector": [
+            "[data-w='portfolio']",
+            "[data-w^='portfolio']",
             "[data-w^='chapter']",
             "#site .chapters"
           ],
           "localSelector": [
-            "[data-section-type-key^='chapter']",
-            "[data-builder-node-kind^='chapter']"
+            "[data-builder-node-kind='portfolio'][data-layout='chapter']",
+            "[data-builder-node-kind='portfolio']",
+            "#gallery"
           ]
         },
         {
           "id": "comp-card",
           "label": "Comp card",
           "artifactSelector": [
+            "[data-w='comp_card']",
             "[data-w^='comp']",
             "#site .comp"
           ],
           "localSelector": [
-            "[data-section-type-key^='comp']",
-            "[data-builder-node-kind^='comp']"
+            "[data-builder-kind='comp_card']",
+            "[data-builder-node-kind='comp_card']",
+            "[data-section-type-key^='comp']"
           ]
         },
         {
           "id": "rate-card",
           "label": "Rate card",
           "artifactSelector": [
+            "[data-w='services_catalog']",
+            "[data-w^='services']",
             "[data-w^='rate']",
             "#site .bigrate"
           ],
           "localSelector": [
-            "[data-section-type-key^='rate']",
-            "[data-section-type-key='services_catalog']"
+            "[data-builder-node-kind='services_catalog'][data-layout='rate_card']",
+            "[data-builder-node-kind='services_catalog']",
+            "[data-section-type-key='services_catalog']",
+            "#services"
           ]
         },
         {
           "id": "statement-footer",
           "label": "Statement footer",
           "artifactSelector": [
+            "[data-w='statement_footer']",
+            "[data-w^='statement']",
             "[data-w^='footer']",
             "#site footer"
           ],
           "localSelector": [
+            "[data-builder-kind='statement_footer']",
+            "[data-builder-node-kind='statement_footer']",
             "[data-section-type-key='footer']"
           ]
         }

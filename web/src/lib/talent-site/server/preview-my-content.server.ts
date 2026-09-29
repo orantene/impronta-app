@@ -9,7 +9,15 @@ import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
-import { pruneEmptyMyContentBlocks } from "@/lib/talent-site/my-content-prune";
+import {
+  pruneDeadAnchorLinks,
+  pruneEmptyMyContentBlocks,
+  type MyContentAlbum,
+} from "@/lib/talent-site/my-content-prune";
+import { normalizeTalentMediaAlbums } from "@/lib/site-admin/builder-node/portfolio-albums";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import {
   loadTalentManagingTenantId,
@@ -80,6 +88,19 @@ async function loadPreviewDataSources(
   return { ...dataSources, talentOfferings, usdRates, catalogBookingLive: false };
 }
 
+/** The talent's media albums, in her order (chapter titles). Never throws. */
+async function loadPreviewAlbums(talentProfileId: string): Promise<MyContentAlbum[]> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return [];
+    const blobs = await readBlobFieldValuesFromCatalog(admin, talentProfileId);
+    return normalizeTalentMediaAlbums(blobs.media_albums_data);
+  } catch (err) {
+    logServerError("themePreview.loadAlbums", err);
+    return [];
+  }
+}
+
 /**
  * My content: localise the trees like the live render, bind the live data
  * sources, then hide every block with no real content (and its Contents
@@ -105,14 +126,14 @@ export async function prepareMyContentPreview(input: {
     body: input.homeTree,
     ctaMode,
   });
-  const dataSources = await loadPreviewDataSources(
-    input.talentProfileId,
-    fixed.body,
-    input.locale,
-  );
+  const [dataSources, albums] = await Promise.all([
+    loadPreviewDataSources(input.talentProfileId, fixed.body, input.locale),
+    loadPreviewAlbums(input.talentProfileId),
+  ]);
+  const homeTree = pruneEmptyMyContentBlocks(fixed.body, dataSources, input.locale, albums);
   return {
-    shellTree: fixed.shellTree,
-    homeTree: pruneEmptyMyContentBlocks(fixed.body, dataSources, input.locale),
+    shellTree: pruneDeadAnchorLinks(fixed.shellTree, fixed.body, homeTree),
+    homeTree,
     dataSources,
   };
 }

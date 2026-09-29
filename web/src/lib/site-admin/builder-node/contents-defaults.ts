@@ -6,6 +6,8 @@ export type ContentsItem = {
   label: string;
   /** Target fragment id WITHOUT "#"; normalized on save/render. */
   anchor: string;
+  /** Optional small caps credit beside the label (magazine index). */
+  credit?: string;
 };
 
 /** Default props for a freshly inserted `contents` block. */

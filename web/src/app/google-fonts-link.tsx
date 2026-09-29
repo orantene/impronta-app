@@ -39,8 +39,8 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
     // capability wired at three layers out of four.
     "shell.header-nav-font",
   ] as const) {
-    // Display headings use genuine italics for accents (`{i}`); request
-    // them only for the heading face (the builder skips families without).
+    // Display headings use genuine italics for accents / prices; request them
+    // only for the heading face (the builder skips families without italics).
     if (tokens[key]) {
       wanted.push({ value: tokens[key], italic: key === "typography.heading-font-family" });
     }

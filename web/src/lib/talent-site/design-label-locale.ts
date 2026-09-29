@@ -69,6 +69,27 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
   "See you soon.": "Nos vemos pronto.",
   "Made with Tulala": "Hecho con Tulala",
+  // Folio (magazine edition).
+  Contents: "En este número",
+  "In this issue": "En este número",
+  "See the book": "Ver el libro",
+  "Selected work": "Trabajos elegidos",
+  "From the studio": "Desde el estudio",
+  Details: "Detalles",
+  "Up close": "De cerca",
+  Portraits: "Retratos",
+  "Natural light": "Luz natural",
+  Editorial: "Editorial",
+  Lookbook: "Lookbook",
+  "Studio session": "Sesión de estudio",
+  "Seasonal story": "Historia de temporada",
+  Measures: "Medidas",
+  "Measures · Comp card": "Medidas · Comp card",
+  Rates: "Tarifas",
+  "Rates and dates": "Tarifas y fechas",
+  Contact: "Contacto",
+  "Next issue.": "Siguiente número.",
+
 };
 
 /**
@@ -170,6 +191,15 @@ const LABEL_PROPS = [
   "title",
   "titleAccent",
   "emptyMessage",
+  "bio",
+  "mastRight",
+  "subline",
+  "coverLine",
+  "contentsTitle",
+  "bookLabel",
+  "ctaLabel",
+  "statement",
+  "creditLine",
   "contactLine",
 ] as const;
 
@@ -177,6 +207,8 @@ const LABEL_PROPS = [
  * The talent header (`site_header` section) carries its nav and CTA labels in
  * `sectionProps`, not on node props: localise those seeded labels too.
  */
+const ROW_ARRAY_PROPS = ["links", "items", "contents"] as const;
+
 function localiseHeaderProps(
   sectionProps: unknown,
   one: (v: string, href?: unknown) => string | null,

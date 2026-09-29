@@ -23,7 +23,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
-import { DEMO_BATCH } from "./demos";
+import * as demosMod from "./demos";
+
+function namedFromCjs<T extends object>(mod: T | { default: T }): T {
+  if (mod && typeof mod === "object" && "default" in mod) {
+    const d = (mod as { default: unknown }).default;
+    if (d && typeof d === "object") return d as T;
+  }
+  return mod as T;
+}
+const { DEMO_BATCH } = namedFromCjs(demosMod as typeof import("./demos"));
 
 const JOR_PROFILE_ID = "f048e578-cbae-45db-9a3b-34239abea136";
 const CLONE = {

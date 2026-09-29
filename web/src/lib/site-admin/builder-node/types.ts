@@ -1337,6 +1337,8 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
      * Empty / omitted = all live portfolio shots (subject to selectionMode).
      */
     albumId?: string;
+    /** `magazine`: giant italic numeral, serif title, captioned 1 + 2 sequence. */
+    edition?: "magazine";
     style?: BuilderNodeStyle;
   };
 }
@@ -1404,7 +1406,9 @@ export interface BuilderContentsNode extends BuilderNodeBase {
     /** Show roman / decimal indices beside each link. */
     showNumbers?: boolean;
     numberStyle?: "roman" | "decimal";
-    items?: Array<{ label: string; anchor: string }>;
+    items?: Array<{ label: string; anchor: string; credit?: string }>;
+    /** `magazine`: ink rules, italic numerals, serif titles, small caps credits. */
+    edition?: "magazine";
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1434,6 +1438,27 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     coverFilter?: "bw" | "none";
     /** Cover image URL; Design stamps use {{headshotUrl}}. */
     coverSrc?: string;
+    /**
+     * `magazine`: printed-issue spread (mast line, full-width name, cover
+     * beside bio + CTAs + an "In this issue" index). Default: cover.
+     */
+    edition?: "cover" | "magazine";
+    /** Magazine: right side of the mast line (e.g. the city line). */
+    mastRight?: string;
+    /** Magazine: small caps line on the cover (trade). */
+    coverLine?: string;
+    /** Magazine: serif bio beside the cover. */
+    bio?: string;
+    /** Magazine: primary CTA. */
+    ctaLabel?: string;
+    ctaHref?: string;
+    /** Magazine: ghost CTA to the book (default "See the book"). */
+    bookLabel?: string;
+    bookHref?: string;
+    /** Magazine: index heading (default "In this issue"). */
+    contentsTitle?: string;
+    /** Magazine: index rows (anchor = section id). */
+    contents?: Array<{ label: string; anchor: string; credit?: string }>;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1456,6 +1481,11 @@ export interface BuilderStatementFooterNode extends BuilderNodeBase {
     align?: "start" | "center";
     /** Hairline rule above the statement (default true). */
     showRule?: boolean;
+    /** `magazine`: giant serif statement, CTA and a fine print row. */
+    edition?: "magazine";
+    /** Magazine: CTA under the statement. */
+    ctaLabel?: string;
+    ctaHref?: string;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1490,6 +1520,8 @@ export interface BuilderCompCardNode extends BuilderNodeBase {
     showFullDetails?: boolean;
     detailsSummaryEn?: string;
     detailsSummaryEs?: string;
+    /** `magazine`: inverted ink measure strip with large serif values. */
+    edition?: "magazine";
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };

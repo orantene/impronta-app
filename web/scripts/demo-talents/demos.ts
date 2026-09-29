@@ -20,6 +20,8 @@ export type DemoService = {
   booking: "instant" | "request" | "quote";
   /** Menu category (the category rail). */
   category?: string;
+  /** exact = fixed price; from = "desde"; free = sin costo; quote = cotización. */
+  priceDisplay?: "exact" | "from" | "free" | "quote";
   /** Free change / cancel window in hours (the visit "Changes" fact). */
   cancellationHours?: number;
   /** Options, one picked (absolute MXN price each). */
@@ -57,6 +59,9 @@ export type DemoSiteCopy = {
   brandTagline?: string;
 };
 
+
+export type DemoHoursWindow = { startMin: number; endMin: number };
+
 export type DemoTalent = {
   /** TAL-93xxx is reserved for this batch (TAL-91xxx / 92xxx are older demos). */
   profileCode: string;
@@ -73,7 +78,22 @@ export type DemoTalent = {
   bio: string;
   services: DemoService[];
   /** Working hours for instant services (talent_booking_hours). Days: 0=Sun. */
-  hours?: { timezone: string; days: number[]; startMin: number; endMin: number; slotMinutes: number };
+  hours?: {
+    timezone: string;
+    days: number[];
+    startMin: number;
+    endMin: number;
+    slotMinutes: number;
+    /** Optional multi-window day (overrides startMin/endMin when set). */
+    windows?: DemoHoursWindow[];
+  };
+  /** Comp-card / profile facts written into System-B field values. */
+  compCard?: {
+    heightCm: number;
+    suitSize: string;
+    shoeMx: string;
+    languages: string;
+  };
   /** Gallery palette key of `theme` (collection designs), e.g. "rose". */
   palette?: string;
   /** Photos from a local folder (`--photo-dir`), instead of a --photos pack. */
@@ -267,5 +287,84 @@ export const DEMOS: DemoTalent[] = [
       { name: "Sesión de entrenamiento", description: "Una hora, a domicilio o al aire libre.", pricingType: "per_contact", amountMxn: 500, durationMin: 60, booking: "instant" },
       { name: "Paquete de 10 sesiones", description: "Diez sesiones con plan de entrenamiento.", pricingType: "flat_package", amountMxn: 4500, durationMin: 600, booking: "request" },
     ],
+  },,
+  {
+    // Folio featured demo (artifact Mateo Ferrer). Password only in seed/.env.local.
+    profileCode: "TAL-93011",
+    email: "demo-mateo-ferrer@impronta.test",
+    displayName: "Mateo Ferrer",
+    siteSlug: "mateo-ferrer",
+    city: "Ciudad de México",
+    serviceCategorySlug: "fashion-models",
+    talentTypeSlug: "fashion-model",
+    theme: "folio",
+    look: "folio-stone",
+    hours: {
+      timezone: "America/Mexico_City",
+      days: [1, 2, 3, 4, 5],
+      startMin: 10 * 60,
+      endMin: 19 * 60,
+      slotMinutes: 90,
+      // Casting slots: 10:00, 11:30, 13:00, 16:00, 17:30 CDMX.
+      windows: [
+        { startMin: 10 * 60, endMin: 14 * 60 + 30 },
+        { startMin: 16 * 60, endMin: 19 * 60 },
+      ],
+    },
+    tagline: "Editorial, runway y campañas. 1.88 m, CDMX.",
+    bio: "Modelo con siete años entre pasarela y editorial. Llego puntual, con el cabello y la piel listos para cámara.",
+    compCard: {
+      heightCm: 188,
+      suitSize: "40L",
+      shoeMx: "28.5",
+      languages: "ES/EN",
+    },
+    albums: [
+      { id: "album-mateo-editorial", name: "Editorial" },
+      { id: "album-mateo-runway", name: "Runway" },
+    ],
+    services: [
+      {
+        name: "Editorial shoot, half day",
+        description: "Half-day editorial session.",
+        category: "Editorial",
+        pricingType: "event",
+        amountMxn: 9500,
+        durationMin: 240,
+        booking: "request",
+        priceDisplay: "exact",
+      },
+      {
+        name: "Runway show booking",
+        description: "Booking for a runway show.",
+        category: "Runway",
+        pricingType: "event",
+        amountMxn: 7000,
+        durationMin: 180,
+        booking: "request",
+        priceDisplay: "from",
+      },
+      {
+        name: "Lookbook / e-commerce day",
+        description: "Full e-commerce or lookbook day.",
+        category: "E-commerce",
+        pricingType: "event",
+        amountMxn: 16000,
+        durationMin: 480,
+        booking: "request",
+        priceDisplay: "exact",
+      },
+      {
+        name: "Casting en persona",
+        description: "In-person casting. Free.",
+        category: "Casting",
+        pricingType: "per_contact",
+        amountMxn: null,
+        durationMin: 30,
+        booking: "instant",
+        priceDisplay: "free",
+      },
+    ],
   },
+
 ];

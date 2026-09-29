@@ -23,8 +23,19 @@ import { fileURLToPath } from "node:url";
 
 type Sel = string | string[];
 type Row = { id: string; label: string; artifactSelector: Sel; localSelector: Sel };
-type Design = { artifactPath: string | null; artifactTodo?: string; templateSlug: string; rows: Row[] };
+type Design = {
+  artifactPath: string | null;
+  artifactTodo?: string;
+  templateSlug: string;
+  /** Override manifest.localTalentId for this design (Folio = Mateo). */
+  localTalentId?: string;
+  rows: Row[];
+};
 type Manifest = { localTalentId: string; designs: Record<string, Design> };
+
+function expandHome(p: string): string {
+  return p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p;
+}
 
 const LOCAL_ORIGIN = "http://localhost:3001";
 const ENV_FILE = "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/pm-apply/web/.env.local";
@@ -194,14 +205,20 @@ async function main(): Promise<void> {
   const design = designKey ? manifest.designs[designKey] : undefined;
   if (!designKey || !design) throw new Error(`--design must be one of: ${Object.keys(manifest.designs).join(", ")}`);
   if (![1440, 390].includes(viewport)) throw new Error("--viewport must be 1440 or 390");
-  if (!design.artifactPath || !fs.existsSync(design.artifactPath)) {
+  const artifactPath = design.artifactPath ? expandHome(design.artifactPath) : null;
+  if (!artifactPath || !fs.existsSync(artifactPath)) {
     throw new Error(design.artifactTodo ?? `artifact HTML not found: ${design.artifactPath}`);
   }
 
   // Serve the artifact's own folder (index.html + kit.js + img/) so photos load.
   // Fixtures live in the repo (scripts/design-diff-fixtures/<design>/) so
-  // cloud agents can run this too.
-  const serveDir = path.dirname(path.resolve(design.artifactPath));
+  // cloud agents can run this too. Also accept a folder path.
+  let serveDir: string;
+  if (fs.statSync(artifactPath).isDirectory()) {
+    serveDir = artifactPath;
+  } else {
+    serveDir = path.dirname(path.resolve(artifactPath));
+  }
   void SERVE_ROOT;
   const stat = await startStatic(serveDir);
 
@@ -223,12 +240,11 @@ async function main(): Promise<void> {
     // Local side.
     const lctx = await browser.newContext({ storageState: AUTH_FILE, viewport: { width: viewport, height: 900 } });
     const lp = await lctx.newPage();
-    const t = manifest.localTalentId;
-    // --demo <key>: a gallery demo talent's content (e.g. alba-nail-artist) instead of the signed-in talent's.
+    const t = design.localTalentId ?? manifest.localTalentId;
     const demoKey = arg("demo");
     const localUrl =
       `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}` +
-      (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}&locale=es` : "");
+      (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}` : "");
     assertLocal(localUrl);
     await lp.goto(localUrl, { waitUntil: "networkidle", timeout: 120_000 });
 

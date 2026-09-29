@@ -13,10 +13,8 @@ import {
   portfolioChapterRoman,
   type PortfolioLayout,
 } from "@/lib/site-admin/builder-node/portfolio-defaults";
-import {
-  loadTalentMediaAlbumsForEditor,
-  type TalentMediaAlbumOption,
-} from "@/lib/site-admin/builder-node/portfolio-albums-actions";
+import { loadTalentMediaAlbumsForEditor } from "@/lib/site-admin/builder-node/portfolio-albums-actions";
+import type { TalentMediaAlbumOption } from "@/lib/site-admin/builder-node/portfolio-albums";
 import type { BuilderPortfolioNode } from "@/lib/site-admin/builder-node/types";
 
 import { KIT } from "./kit/tokens";

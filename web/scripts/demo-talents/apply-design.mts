@@ -15,12 +15,38 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
-import { loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
-import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
-import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
-import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
-import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
-import { DEMO_BATCH } from "./demos";
+import * as maisonCatalogRowMod from "../../src/lib/talent-site/server/maison-catalog-row";
+import * as themeApplyCoreMod from "../../src/lib/talent-site/server/theme-apply-core";
+import * as publishBodiesMod from "../../src/lib/talent-site/server/publish-talent-page-bodies";
+import * as maisonSeedMod from "../../src/lib/talent-site/theme-catalog/maison/seed";
+import * as folioLooksMod from "../../src/lib/talent-site/theme-catalog/collection/folio-looks";
+import * as demosMod from "./demos";
+
+/** tsx loads .ts from .mts as CJS — named exports sit on `default`. */
+function namedFromCjs<T extends object>(mod: T | { default: T }): T {
+  if (mod && typeof mod === "object" && "default" in mod) {
+    const d = (mod as { default: unknown }).default;
+    if (d && typeof d === "object") return d as T;
+  }
+  return mod as T;
+}
+
+const { loadMaisonCatalogRow } = namedFromCjs(
+  maisonCatalogRowMod as typeof import("../../src/lib/talent-site/server/maison-catalog-row"),
+);
+const { applyDesign, applyLook, publishSiteTheme } = namedFromCjs(
+  themeApplyCoreMod as typeof import("../../src/lib/talent-site/server/theme-apply-core"),
+);
+const { publishTalentPageBodies } = namedFromCjs(
+  publishBodiesMod as typeof import("../../src/lib/talent-site/server/publish-talent-page-bodies"),
+);
+const { MAISON_PALETTE_ORDER } = namedFromCjs(
+  maisonSeedMod as typeof import("../../src/lib/talent-site/theme-catalog/maison/seed"),
+);
+const { COLLECTION_DEFAULT_LOOK } = namedFromCjs(
+  folioLooksMod as typeof import("../../src/lib/talent-site/theme-catalog/collection/folio-looks"),
+);
+const { DEMO_BATCH, DEMOS } = namedFromCjs(demosMod as typeof import("./demos"));
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -36,7 +62,9 @@ const manifestPath = opt("--manifest");
 if (!manifestPath) throw new Error("--manifest <path.json> is required");
 const only = opt("--only")?.split(",");
 const designSlug = opt("--design") ?? "maison";
+const lookOverride = opt("--look");
 const keepLook = args.includes("--keep-look");
+const demoByCode = new Map(DEMOS.map((d) => [d.profileCode, d]));
 
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -77,13 +105,23 @@ for (const [i, e] of entries.entries()) {
     .maybeSingle();
   if (!site) throw new Error(`no site for ${e.profileCode}`);
 
-  // Beauty demos keep Maison's default palette; the rest rotate through the
-  // others so the ten sites don't all look the same.
-  const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
-    ? MAISON_PALETTE_ORDER[0]
-    : MAISON_PALETTE_ORDER[(i % (MAISON_PALETTE_ORDER.length - 1)) + 1];
-  const look = keepLook ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
-  if (!keepLook && !look) throw new Error(`look maison-${paletteKey} not found`);
+  // Look: explicit --look, else the demo's `look`, else Folio stone / Maison rotate.
+  const demo = demoByCode.get(e.profileCode);
+  let lookSlug: string | null = null;
+  if (!keepLook) {
+    if (lookOverride) lookSlug = lookOverride;
+    else if (demo?.look) lookSlug = demo.look;
+    else if (designSlug === "folio" || designSlug.startsWith("folio")) {
+      lookSlug = COLLECTION_DEFAULT_LOOK.folio ?? "folio-stone";
+    } else if (designSlug === "maison" || designSlug.startsWith("maison")) {
+      const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
+        ? MAISON_PALETTE_ORDER[0]
+        : MAISON_PALETTE_ORDER[(i % (MAISON_PALETTE_ORDER.length - 1)) + 1];
+      lookSlug = `maison-${paletteKey}`;
+    }
+  }
+  const look = lookSlug ? await loadMaisonCatalogRow(admin, "look", lookSlug) : null;
+  if (lookSlug && !look) throw new Error(`look ${lookSlug} not found`);
 
   const d = await applyDesign(admin, {
     talentProfileId: e.talentProfileId,
@@ -93,13 +131,18 @@ for (const [i, e] of entries.entries()) {
     userId: e.userId,
   });
   if (!d.ok) throw new Error(`${e.profileCode} applyDesign: ${d.error}`);
-  if (look) { const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId }); if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`); }
+  if (look) {
+    const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId });
+    if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`);
+  }
 
   const now = new Date().toISOString();
   const { error: metaErr } = await admin
     .from("talent_sites")
     .update({
       pending_design: null,
+      theme_design_slug: designSlug,
+      ...(lookSlug ? { theme_look_slug: lookSlug } : {}),
       updated_at: now,
     })
     .eq("id", site.id);
@@ -122,6 +165,6 @@ for (const [i, e] of entries.entries()) {
   if (pubErr) throw pubErr;
   const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: e.profileCode });
   if (!t.ok) throw new Error(`${e.profileCode} publishSiteTheme: ${t.error}`);
-  console.log(designSlug, e.profileCode, tp.display_name, `palette ${paletteKey}`, "published");
+  console.log(designSlug, e.profileCode, tp.display_name, lookSlug ? `look ${lookSlug}` : "no-look", "published");
 }
 console.log("done");
