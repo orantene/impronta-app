@@ -120,6 +120,8 @@ function renderMagazine(args: {
     <section
       className="sb-masthead"
       data-builder-kind="masthead"
+      data-builder-node-kind="masthead"
+      data-builder-node-id={node.id}
       data-edition="magazine"
       data-masthead-filter={coverFilter}
       aria-label={name || "Masthead"}
@@ -231,6 +233,8 @@ export function renderMastheadBlock(args: {
     <section
       className="sb-masthead"
       data-builder-kind="masthead"
+      data-builder-node-kind="masthead"
+      data-builder-node-id={node.id}
       data-masthead-cover={hasCover ? "1" : "0"}
       data-masthead-filter={coverFilter}
       aria-label={lines.join(" ") || "Masthead"}

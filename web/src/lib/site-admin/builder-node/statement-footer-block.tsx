@@ -81,6 +81,8 @@ export function renderStatementFooterBlock(args: {
       <footer
         className="sb-statement-footer"
         data-builder-kind="statement_footer"
+        data-builder-node-kind="statement_footer"
+        data-builder-node-id={node.id}
         data-edition="magazine"
         aria-label={statement || "Statement"}
         style={styleAttr}
@@ -112,6 +114,8 @@ export function renderStatementFooterBlock(args: {
     <footer
       className="sb-statement-footer"
       data-builder-kind="statement_footer"
+      data-builder-node-kind="statement_footer"
+      data-builder-node-id={node.id}
       data-sf-align={align}
       data-sf-band="1"
       aria-label={statement || "Statement"}

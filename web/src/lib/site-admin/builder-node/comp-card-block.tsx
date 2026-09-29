@@ -197,6 +197,8 @@ export function renderCompCardBlock(args: {
     <section
       className="sb-comp"
       data-builder-kind="comp_card"
+      data-builder-node-kind="comp_card"
+      data-builder-node-id={node.id}
       data-comp-empty={empty ? "1" : "0"}
       data-comp-strip={showStrip ? "1" : "0"}
       data-edition={p.edition === "magazine" ? "magazine" : undefined}

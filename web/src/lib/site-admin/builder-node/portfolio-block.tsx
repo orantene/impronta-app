@@ -253,6 +253,7 @@ export function renderPortfolioBlock(args: {
   return (
     <section
       data-builder-node-kind="portfolio"
+      data-builder-node-id={args.node.id}
       data-portfolio-layout={layout}
       data-portfolio-chapter={isChapter ? roman : undefined}
       data-edition={magazine ? "magazine" : undefined}

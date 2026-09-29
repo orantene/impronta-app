@@ -116,6 +116,8 @@ export function renderContentsBlock(args: {
       <div
         className="sb-contents"
         data-builder-kind="contents"
+        data-builder-node-kind="contents"
+        data-builder-node-id={node.id}
         data-edition="magazine"
         style={styleAttr}
         {...anchorIdAttrs(node)}
@@ -130,6 +132,8 @@ export function renderContentsBlock(args: {
     <nav
       className="sb-contents"
       data-builder-kind="contents"
+      data-builder-node-kind="contents"
+      data-builder-node-id={node.id}
       data-contents-layout={layout}
       data-contents-band="1"
       aria-label={title}
