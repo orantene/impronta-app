@@ -210,3 +210,9 @@ export function renderReviewsBlock(args: {
     </section>
   );
 }
+
+/** Client-component form: the server renderer must render this file's output
+ *  as a component, not call its functions (it is a "use client" module). */
+export function ReviewsBlockView(props: Parameters<typeof renderReviewsBlock>[0]): ReactNode {
+  return renderReviewsBlock(props);
+}

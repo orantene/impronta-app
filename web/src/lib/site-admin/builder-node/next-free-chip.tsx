@@ -158,3 +158,8 @@ export function renderNextFreeChip(args: {
     </div>
   );
 }
+
+/** Client-component form for the server renderer (see ReviewsBlockView). */
+export function NextFreeChipView(props: Parameters<typeof renderNextFreeChip>[0]): ReactNode {
+  return renderNextFreeChip(props);
+}
