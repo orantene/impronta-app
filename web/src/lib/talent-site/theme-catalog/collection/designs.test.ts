@@ -356,7 +356,7 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     String(statementNodes[0]!.props?.statement ?? ""),
     /Next issue/,
   );
-  assert.equal(statementNodes[0]!.props?.creditLine, "{{maxSiteUrl}}");
+  assert.equal(statementNodes[0]!.props?.creditLine, "mateoferrer.tulala.digital");
   assert.equal(
     statementNodes[0]!.props?.contactLine,
     "For editorials, runway and campaigns. I reply the same day.",

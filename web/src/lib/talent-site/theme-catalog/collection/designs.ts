@@ -225,8 +225,8 @@ export function buildFolioPayload(): DesignPayload {
               coverLine: "{{primaryTypeLabel}}",
               mastRight: "{{locationLine}}",
               bio: "{{bio}}",
-              // Seed key: rendered per booking mode + locale by design-label-locale.
-              ctaLabel: "Book a session",
+              // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
+              ctaLabel: "Consultar",
               ctaHref: TALENT_ASK_HREF,
               bookLabel: "See the book",
               bookHref: "#chapter-1",
@@ -338,7 +338,8 @@ export function buildFolioPayload(): DesignPayload {
         fullBleed(
           statementFooterBlock(id, {
             statement: "Next issue.",
-            creditLine: "{{maxSiteUrl}}",
+            // Fine-print host; gallery demo is Mateo. Talents edit after apply.
+            creditLine: "mateoferrer.tulala.digital",
             contactLine: "For editorials, runway and campaigns. I reply the same day.",
             align: "start",
             showRule: true,

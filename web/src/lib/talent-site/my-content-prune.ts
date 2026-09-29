@@ -160,7 +160,9 @@ export function pruneEmptyMyContentBlocks(
           ...n,
           props: {
             ...p,
-            ...(albumTitle ? { title: albumTitle, creditLine: "" } : {}),
+            // Keep the Design's chapter creditLine (TOC + chapter head); only
+            // the title tracks the bound album name.
+            ...(albumTitle ? { title: albumTitle } : {}),
             albumId: "",
             selectionMode: "ids",
             selectedMediaIds: ids,
@@ -230,7 +232,11 @@ export function pruneEmptyMyContentBlocks(
         const ch = chapterCopy.get(a);
         if (!ch || !ch.title) return it;
         const fromAlbum = albumTitles.size > 0 && [...albumTitles.values()].includes(ch.title);
-        return fromAlbum ? { ...it, label: ch.title, credit: ch.credit } : it;
+        if (!fromAlbum) return it;
+        const credit =
+          (typeof ch.credit === "string" && ch.credit.trim()) ||
+          (typeof it.credit === "string" ? it.credit : "");
+        return { ...it, label: ch.title, credit };
       });
   };
 
