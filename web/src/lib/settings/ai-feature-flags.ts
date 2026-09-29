@@ -32,6 +32,8 @@ export type AiFeatureFlags = {
    * taking down the authenticated drafting tools, and vice versa.
    */
   ai_tulala_agent_enabled: boolean;
+  /** Talent-side per-field AI translate (dashboard badges). Default off; separate from the admin `ai_translations_enabled`. */
+  ai_talent_translate_enabled: boolean;
 };
 
 const DEFAULT_FLAGS: AiFeatureFlags = {
@@ -49,6 +51,7 @@ const DEFAULT_FLAGS: AiFeatureFlags = {
   ai_explanations_v2: false,
   ai_support_enabled: false,
   ai_tulala_agent_enabled: false,
+  ai_talent_translate_enabled: false,
 };
 
 const KEYS = [
@@ -66,6 +69,7 @@ const KEYS = [
   "ai_explanations_v2",
   "ai_support_enabled",
   "ai_tulala_agent_enabled",
+  "ai_talent_translate_enabled",
 ] as const;
 
 function asFlag(value: unknown): boolean {
@@ -130,5 +134,6 @@ export async function getAiFeatureFlags(): Promise<AiFeatureFlags> {
     ai_explanations_v2: asFlag(map.get("ai_explanations_v2")),
     ai_support_enabled: asFlag(map.get("ai_support_enabled")),
     ai_tulala_agent_enabled: asFlag(map.get("ai_tulala_agent_enabled")),
+    ai_talent_translate_enabled: asFlag(map.get("ai_talent_translate_enabled")),
   };
 }

@@ -1,4 +1,4 @@
-import glossary from "@/i18n/glossary.json";
+import { glossaryPromptBlock } from "@/lib/translation/glossary-prompt";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -11,11 +11,8 @@ export type BioTranslateResult =
   | { ok: true; text: string }
   | { ok: false; code: BioTranslateFailureCode; message: string };
 
-/** Shared with short-label translation (taxonomy, locations). */
-export function glossaryPromptBlock(): string {
-  const terms = (glossary as { protectedTerms: string[] }).protectedTerms;
-  return `Keep these brand/product terms unchanged (do not translate): ${terms.join(", ")}.`;
-}
+/** Shared with short-label translation (taxonomy, locations). Lives in the pure `glossary-prompt` module. */
+export { glossaryPromptBlock };
 
 /**
  * @deprecated Use {@link isResolvedAiChatConfigured} (async). Kept for rare sync checks: true if any provider key exists.
