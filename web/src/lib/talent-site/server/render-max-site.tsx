@@ -83,7 +83,7 @@ import {
   loadTalentSiteIdentity,
   type TalentSiteIdentity,
 } from "./load-max-site";
-import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
 
 /**
  * Talent Max Site — REUSABLE public render.
@@ -585,7 +585,7 @@ async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, footerTree] = splitShell(shellTree);
+  const [headerTree, footerTree] = splitShell(shellTree); const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
   // its config inline (`props.sectionProps`) and is rendered via the bespoke
@@ -765,7 +765,7 @@ async function renderMaxSiteDocument(args: {
         <footer data-talent-max-site-footer="">
           {renderBuilderNodes(footerTree, {
             publicPathPrefix,
-            mode: "freeform",
+            mode: "freeform", dataSources: { socialLinks: footerSocialLinks }, // her own links
             includeRendererStyles: false,
             includeFontLinks: false,
             captcha: captchaConfig,

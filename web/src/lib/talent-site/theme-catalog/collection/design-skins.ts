@@ -42,6 +42,8 @@ const MAISON_V2_SKIN = [
   // ── Row 1 Header: sticky frosted bar, italic Bodoni logo + small tracked trade, muted nav, ES/EN, CTA pill.
   `${S} .site-header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--token-color-background) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in srgb,var(--token-color-line) 60%,transparent);color:var(--token-color-ink)}`,
   `${S} .site-header__inner{padding:10px 18px;gap:12px}`,
+  // Phone: the bar is the inner row only (58px), no outer header padding.
+  `${S} .site-header.site-header{padding:0}${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;min-height:0}`,
   `${S} .site-header__brand{display:flex;align-items:baseline;gap:7px;line-height:1}`,
   `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:500;font-size:24px;line-height:normal;letter-spacing:-0.02em;text-transform:none}`,
   `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
@@ -49,8 +51,8 @@ const MAISON_V2_SKIN = [
   `${S} .site-header__nav-link{font-size:13.5px;font-weight:400;color:var(--token-color-muted);text-transform:none;letter-spacing:0;text-decoration:none}`,
   `${S} .site-header__nav-link:hover{color:var(--token-color-ink)}`,
   `${S} .site-header__lang{gap:0;font-size:11.5px;font-weight:600;letter-spacing:0.06em;color:var(--token-color-muted)}`,
-  `${S} .site-header__lang .site-header__lang-code{font-size:inherit;letter-spacing:inherit;opacity:1;color:inherit}`,
-  `${S} .site-header__lang .site-header__lang-code[data-active]{color:var(--token-color-ink)}`,
+  `${S} .site-header__lang .site-header__lang-code{font-size:inherit;letter-spacing:inherit;opacity:1;color:inherit;font-weight:500}`,
+  `${S} .site-header__lang .site-header__lang-code[data-active]{color:var(--token-color-ink);font-weight:700}`,
   `${S} .site-header__lang .site-header__lang-sep{opacity:1}`,
   `${S} .site-header__cta.site-btn{height:36px;padding:0 16px;border-radius:999px;font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:0;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-primary-on,var(--token-color-background));border-color:transparent}`,
   `@media (max-width:899px){${S} .site-header__cta.site-btn{display:none}}`,
@@ -157,6 +159,7 @@ const MAISON_V2_SKIN = [
   // ── Row 10 Footer: ink band, 44px / 88px italic line, page-colour pill.
   `${S} #site-footer h2{margin:0;font-style:italic;font-weight:400;font-size:44px;line-height:1;color:var(--token-color-background)}`,
   `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
+  `${S} #site-footer .site-builder-node--social-text{margin:0;font-size:11.5px;color:color-mix(in srgb,var(--token-color-background) 60%,transparent)}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
   `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 0;font-size:15px;color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
   `${MQ_DESK}{${S} #site-footer h2{font-size:88px}}`,

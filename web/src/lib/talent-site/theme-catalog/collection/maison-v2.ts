@@ -496,9 +496,19 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           },
         },
         children: [
-          ...kidsOf(node).map((k) =>
-            k.kind === "paragraph" ? withProps(k, { style: { ...styleOf(k), lineHeight: "1.5" } }) : k,
-          ),
+          // Her published links (Instagram, WhatsApp, ...) as names, from the
+          // profile; the row hides itself when she has none.
+          {
+            id: makeId(),
+            kind: "social_links",
+            props: {
+              links: [],
+              display: "text",
+              ariaLabel: "Social links",
+              dataBinding: { sourceKey: "workspace_social_links" },
+              layerLabel: "Footer links",
+            },
+          } as BuilderNode,
           {
             id: makeId(),
             kind: "paragraph",
@@ -530,7 +540,15 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
       brand: { ...brand, tagline: "{{primaryTypeLabel}}" },
       primaryCta: cta,
       tone: "surface",
-      regions: { ...regions, right },
+      // Phone: wordmark + ES / EN only (the dock carries booking + chat), so
+      // the section links hide there and no burger is drawn. Editable per item.
+      regions: {
+        ...regions,
+        center: (Array.isArray(regions.center) ? (regions.center as Props[]) : []).map((item) =>
+          item.type === "nav" ? { ...item, responsive: { ...((item.responsive as Props) ?? {}), mobile: "hide" } } : item,
+        ),
+        right,
+      },
     },
   });
 }

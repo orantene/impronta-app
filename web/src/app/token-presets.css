@@ -5820,7 +5820,8 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
 .site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; }
 .site-header[data-variant="freeform"] .site-header__spacer { flex: 1 1 auto; }
-.site-header[data-variant="freeform"] .site-header__lang { gap: 8px; }
+/* The " / " separator carries the spacing; a flex gap only lands before it (asymmetric "ES  / EN"). */
+.site-header[data-variant="freeform"] .site-header__lang { gap: 0; }
 .site-header[data-variant="freeform"] .site-header__lang-code { font-size: 0.76rem; letter-spacing: 0.12em; opacity: 0.55; }
 .site-header[data-variant="freeform"] .site-header__lang-code[data-active] { opacity: 1; color: var(--token-color-primary, #c6a14e); }
 .site-header[data-variant="freeform"] .site-header__inquiry, .site-header[data-variant="freeform"] .site-header__saved { position: relative; }
