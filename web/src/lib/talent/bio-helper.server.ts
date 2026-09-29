@@ -13,6 +13,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
+import { buildDailyAiCapQuery } from "@/lib/translation/talent-field-translate";
 import { loadPlatformTalentSelfProfile, requirePlatformTalentContext } from "@/lib/talent/platform-talent-context";
 
 export type BioSelf = { id: string; tenantId: string | null; text: string; facts: WritingFacts };
@@ -49,22 +50,27 @@ export async function selfFacts(): Promise<BioSelf | null> {
 }
 
 
-export async function underDailyCap(tenantId: string): Promise<boolean> {
+/**
+ * Per-day AI usage cap. Rows come from `recordAiGenerationUsage`, which writes
+ * `action = "generate_section"` with the real scope in `context_jsonb`; the old
+ * filter on `action = "writing_helper"` matched nothing, so the cap never fired.
+ * Counts one scope, and one talent when `talentProfileId` is given.
+ */
+export async function underDailyCap(
+  tenantId: string,
+  opts: { scope?: string; talentProfileId?: string | null; cap?: number } = {},
+): Promise<boolean> {
   const admin = createServiceRoleClient();
   if (!admin) return false;
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
-  const { count, error } = await admin
-    .from("cms_ai_usage_log")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId)
-    .eq("action", "writing_helper")
-    .gte("created_at", since.toISOString());
+  const q = buildDailyAiCapQuery({ tenantId, scope: opts.scope ?? "writing_helper", talentProfileId: opts.talentProfileId ?? null });
+  let query = admin.from(q.table).select("id", { count: "exact", head: true });
+  for (const [col, val] of q.eq) query = query.eq(col, val);
+  const { count, error } = await query.contains(q.contains.column, q.contains.value).gte("created_at", q.gteCreatedAt);
   if (error) {
     logServerError("writingHelper.cap", error);
     return false;
   }
-  return (count ?? 0) < WRITING_HELPER_DAILY_CAP;
+  return (count ?? 0) < (opts.cap ?? WRITING_HELPER_DAILY_CAP);
 }
 
 
