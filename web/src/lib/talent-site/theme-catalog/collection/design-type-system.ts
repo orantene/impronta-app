@@ -234,8 +234,14 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__saved,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inquiry,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__menu-toggle,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__burger,[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="locale"],[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="menu"]{display:none!important}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header{padding:0!important}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;padding:0 8px;border:${RULE} solid var(--token-color-line);${labelTypeM};font-size:10px;letter-spacing:0.2em;color:var(--token-color-muted)}`,
-  // Preview dock/sheet chrome is not in the Folio artifact crops.
-  `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .cb-island{display:none!important}`,
+  // Preview dock chrome only — the catalog list also lives under .cb-island.
+  `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .cb-island > .cb-dock,[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .cb-island > .cb-bar{display:none!important}`,
+  // Rate card 2-col: header left, island (list) right — skip STYLE nodes.
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-builder-node--services-catalog[data-layout="rate_card"]{display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-builder-node--services-catalog[data-layout="rate_card"] > style{display:none}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-builder-node--services-catalog[data-layout="rate_card"] > .site-builder-node--services-catalog-header{grid-column:1;grid-row:1}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-builder-node--services-catalog[data-layout="rate_card"] > .cb-island{grid-column:2;grid-row:1;display:contents}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-builder-node--services-catalog[data-layout="rate_card"] .cb-island > :not(.cb-dock):not(.cb-bar){grid-column:2}`,
   `@media (max-width:899px){[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__cta.site-btn,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__ritem.site-header__cta{display:none!important}}`,
   `${MQ_DESK}{[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{padding:14px ${v("layout.gutter")}!important}}`,
   // Cover name: beat type.display-tracking on h1 (artifact uses -.045em).
