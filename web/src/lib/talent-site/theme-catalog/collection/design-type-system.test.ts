@@ -15,6 +15,7 @@ import { validateDesign } from "../validate";
 import { designComponentStyleDefaults, designTokenDefaults } from "./design-token-defaults";
 import { EDITORIAL_TYPE_SYSTEM_CSS, typeSystemComponentStyleDefaults } from "./design-type-system";
 import { buildMaisonV2Payload, MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2";
+import { FOLIO_DESIGN_TOKEN_DEFAULTS } from "./folio-defaults";
 
 const PLATFORM = { "color.primary": "#111111", "radius.base": "md" };
 
