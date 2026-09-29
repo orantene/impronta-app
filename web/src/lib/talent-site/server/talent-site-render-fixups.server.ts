@@ -19,8 +19,10 @@ export async function prepareTalentSiteTrees(input: {
   shellTree: BuilderNode[];
   body: BuilderNode[];
   ctaMode?: SiteCtaMode | null;
+  /** The talent's fallback chain for `locale` ([visitor, primary, ...]). */
+  chain?: readonly string[];
 }): Promise<{ shellTree: BuilderNode[]; body: BuilderNode[] }> {
-  const swaps = await loadTalentLocaleSwaps(input.talentProfileId, input.locale);
+  const swaps = await loadTalentLocaleSwaps(input.talentProfileId, input.locale, input.chain ?? []);
   const shell = localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps);
   return {
     shellTree: input.logoUrl ? shell.map((n) => withHeaderLogo(n, input.logoUrl!)) : shell,

@@ -24,6 +24,20 @@ test("es swaps bio, legacy tagline slice, trade and city", () => {
   assert.ok(!("Playa del Carmen" in m));
 });
 
+test("the talent's chain picks the primary before English", () => {
+  // French visitor on an ES-primary site (chain [fr, es]): no fr copy, so the
+  // primary Spanish reads, never an empty string.
+  const m = buildTalentLocaleSwaps(
+    { bioI18n: { en, es }, typeNames: [{ en: "Nail Artist", es: "Manicurista" }], homeCity: null },
+    "fr",
+    ["fr", "es", "en"],
+  );
+  assert.equal(m[en], es);
+  assert.equal(m["Nail Artist"], "Manicurista");
+  // Without a chain the old behaviour holds: English, so no swap.
+  assert.ok(!(en in buildTalentLocaleSwaps({ bioI18n: { en, es }, typeNames: [], homeCity: null }, "fr")));
+});
+
 test("missing translation falls back to English (no swap)", () => {
   const m = buildTalentLocaleSwaps({ bioI18n: { en }, typeNames: [{ en: "DJ" }], homeCity: null }, "es");
   assert.ok(!(en in m));

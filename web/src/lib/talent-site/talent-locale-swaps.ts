@@ -20,9 +20,16 @@ export interface TalentLocaleSwapSource {
 /** The hero tagline length the token projection clamps to. */
 export const TAGLINE_MAX = 160;
 
-function pick(map: LocalizedMapLike, locale: string): string {
-  const v = map?.[locale]?.trim();
-  return v || map?.en?.trim() || "";
+/**
+ * The value for `locale`, walking the talent's fallback `chain` (visitor,
+ * primary, ...) and then English, the language the seed was baked in.
+ */
+function pick(map: LocalizedMapLike, locale: string, chain: readonly string[] = []): string {
+  for (const code of [locale, ...chain]) {
+    const v = map?.[localeKey(code)]?.trim();
+    if (v) return v;
+  }
+  return map?.en?.trim() || "";
 }
 
 /** Clamp on a word boundary with an ellipsis; never cuts mid-word. */
@@ -46,6 +53,8 @@ function localeKey(locale: string | null | undefined): string {
 export function buildTalentLocaleSwaps(
   src: TalentLocaleSwapSource,
   locale: string | null | undefined,
+  /** The talent's fallback chain for `locale` ([visitor, primary, ...]). */
+  chain: readonly string[] = [],
 ): Record<string, string> {
   const key = localeKey(locale);
   const out: Record<string, string> = {};
@@ -55,7 +64,7 @@ export function buildTalentLocaleSwaps(
   };
 
   const bioEn = src.bioI18n?.en?.trim() ?? "";
-  const bio = pick(src.bioI18n, key);
+  const bio = pick(src.bioI18n, key, chain);
   if (bioEn) {
     add(bioEn, bio);
     // Legacy tagline token: `publicBio.slice(0, 160)`.
@@ -64,11 +73,11 @@ export function buildTalentLocaleSwaps(
   }
   for (const names of src.typeNames) {
     const en = names?.en?.trim();
-    if (en) add(en, pick(names, key));
+    if (en) add(en, pick(names, key, chain));
   }
   const cityEn = src.homeCity?.en?.trim();
   if (cityEn) {
-    const city = pick(src.homeCity, key);
+    const city = pick(src.homeCity, key, chain);
     add(cityEn, city);
     if (key === "es") add(`Based in ${cityEn}`, `Con base en ${city}`);
   }

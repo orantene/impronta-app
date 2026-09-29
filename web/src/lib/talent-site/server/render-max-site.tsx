@@ -54,7 +54,6 @@ import {
   coerceTree,
   hydrateShellNav,
   maxSitePublicGate,
-  resolveMaxSiteTitles,
   scopeMaxSitePagesToPlan,
   selectMaxSitePage,
   type MaxSiteRow,
@@ -66,8 +65,6 @@ import {
   talentSiteBadgeLabel,
   talentSiteShowsPlatformBadge,
 } from "@/lib/talent-site/free-site-badge";
-import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
-import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { pruneUnconfirmedGuestStubs } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 import { publicPageBody } from "@/lib/talent-site/talent-page-publish-core";
@@ -83,8 +80,9 @@ import {
   loadTalentPlanKey,
   loadTalentSiteCtaMode,
   loadTalentSiteIdentity,
-  type TalentSiteIdentity,
 } from "./load-max-site";
+import { buildMaxSiteSeo } from "./max-site-seo.server";
+import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
 
 /**
@@ -201,6 +199,10 @@ export async function renderTalentMaxSite(
 
     const talentProfileId = site.talentProfileId;
     const previewDraft = input.previewDraft === true;
+    // The talent's own languages: bounds the locale, feeds the header switch,
+    // the builder `node.i18n` overlays and the hreflang set (PR 4 + 5).
+    const localeCtx = await loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: input.locale, hrefMode: input.hrefMode, pagePath: input.canonicalPath });
+    const locale = localeCtx.locale;
 
     // ── Owner gate for draft preview (owner-only, like the profile preview) ──
     let isOwnerDraftPreview = false;
@@ -253,7 +255,7 @@ export async function renderTalentMaxSite(
 
     // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
     const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale: input.locale, logoUrl: site.logoUrl, shellTree, body, ctaMode });
+    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
@@ -296,7 +298,8 @@ export async function renderTalentMaxSite(
       blocks,
       tenantId,
       talentProfileId,
-      locale: input.locale,
+      locale,
+      localeCtx,
       publicPathPrefix,
       draftPreview: isOwnerDraftPreview,
       // PHASE 1 — a free site carries the "Made with Tulala" mark; a paid plan
@@ -315,7 +318,7 @@ export async function renderTalentMaxSite(
         talentPlanGrantsSiteCapability(planKey, "personalSiteSeo"),
       ),
       identity,
-      locale: input.locale,
+      locale,
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
@@ -326,86 +329,6 @@ export async function renderTalentMaxSite(
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;
   }
-}
-
-/**
- * SEO-2 — populate the widened `MaxSiteSeo` from the selected page's SEO-1
- * columns, the site row, and the talent identity.
- *
- * Canonical: prefer the page's explicit `canonical_url`; else build
- * `canonicalOrigin + canonicalPath` (the talent's OWN site/domain URL — NEVER
- * the /t/[code] discovery profile). JSON-LD: reuse the SHARED
- * `buildTalentProfileJsonLd`, passing THIS canonical so the site's structured
- * data does not conflate with the profile's. If the page stored an explicit
- * `json_ld` document, that wins (operator override). Every field degrades to
- * undefined when absent so a not-yet-populated page still renders.
- */
-function buildMaxSiteSeo(args: {
-  site: MaxSiteRow;
-  page: MaxSitePageRow;
-  identity: TalentSiteIdentity | null;
-  locale: string;
-  noindex: boolean;
-  canonicalOrigin?: string;
-  canonicalPath?: string;
-}): MaxSiteSeo {
-  const { site, page, identity, locale, noindex } = args;
-
-  // SEO-3 — `meta_title` overrides the SERP/tab title. Folded into `title` here
-  // rather than added to `MaxSiteSeo`, so the shared `maxSiteSeoToMetadata`
-  // mapper needs no change and all three talent-site routes pick it up in
-  // lockstep — including og:title, which already falls back to `title`.
-  const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(
-    page,
-    identity?.name || site.siteSlug || "",
-  );
-  const description = page.metaDescription?.trim() || undefined;
-
-  // Canonical — explicit column wins; else origin + path. Never the profile.
-  const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
-    .replace(/\/$/, "");
-  const path = args.canonicalPath?.trim() || "/";
-  const builtCanonical = `${origin}${path.startsWith("/") ? path : `/${path}`}`;
-  const canonical = page.canonicalUrl?.trim() || builtCanonical;
-
-  // JSON-LD — operator override wins; else the SHARED profile builder, keyed to
-  // the SITE canonical. `name` falls back through identity → title.
-  // JSON-LD `name` is the PERSON, so it falls back to the page title, never to
-  // the SEO override (a SERP string like "Actor in Madrid | Hire" is not a name).
-  const name = identity?.name?.trim() || pageTitle;
-  const sharedJsonLd =
-    name && canonical
-      ? buildTalentProfileJsonLd({
-          canonicalUrl: canonical,
-          name,
-          givenName: identity?.firstName ?? null,
-          familyName: identity?.lastName ?? null,
-          description: description ?? page.ogDescription?.trim() ?? null,
-          imageUrl: page.ogImageUrl?.trim() ?? site.logoUrl ?? null,
-          inLanguage: locale,
-          createdAt: identity?.createdAt ?? null,
-          updatedAt: identity?.updatedAt ?? null,
-        })
-      : null;
-  const jsonLd =
-    page.jsonLd && typeof page.jsonLd === "object" ? page.jsonLd : sharedJsonLd;
-
-  return {
-    title,
-    ...(description ? { description } : {}),
-    // The draft preview is ALWAYS noindex; on top of that the page's own
-    // `noindex` column is honoured (it was loaded but never read before). NULL
-    // and `false` stay indexable, matching the column comment. The whole site
-    // is already Max-gated, so no extra tier check belongs here.
-    noindex: noindex || page.noindex === true,
-    ...(page.ogTitle?.trim() ? { ogTitle: page.ogTitle.trim() } : {}),
-    ...(page.ogDescription?.trim()
-      ? { ogDescription: page.ogDescription.trim() }
-      : {}),
-    ...(page.ogImageUrl?.trim() ? { ogImageUrl: page.ogImageUrl.trim() } : {}),
-    ...(canonical ? { canonical } : {}),
-    ...(jsonLd ? { jsonLd } : {}),
-  };
 }
 
 /**
@@ -426,6 +349,8 @@ async function renderMaxSiteDocument(args: {
   tenantId: string | null;
   talentProfileId: string;
   locale: string;
+  /** The talent's languages: switcher, overlays (talent-site-locale.server). */
+  localeCtx: TalentSiteLocaleContext;
   publicPathPrefix: string;
   draftPreview: boolean;
   /** PHASE 1 — render the "Made with Tulala" footer mark (free sites only). */
@@ -602,7 +527,7 @@ async function renderMaxSiteDocument(args: {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
       const localised = localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale);
-      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true));
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -623,6 +548,7 @@ async function renderMaxSiteDocument(args: {
                 includeFontLinks: false,
                 captcha: captchaConfig,
                 visitorLocale: locale,
+                contentLocale: args.localeCtx.contentLocale,
                 renderSectionEmbed,
               })
             : null}
@@ -638,6 +564,7 @@ async function renderMaxSiteDocument(args: {
           includeFontLinks: false,
           captcha: captchaConfig,
           visitorLocale: locale,
+          contentLocale: args.localeCtx.contentLocale,
           renderSectionEmbed,
         })}
       </div>
@@ -738,6 +665,7 @@ async function renderMaxSiteDocument(args: {
               includeFontLinks: false,
               captcha: captchaConfig,
               visitorLocale: locale,
+              contentLocale: args.localeCtx.contentLocale,
               renderSectionEmbed,
             })}
           </header>
@@ -756,6 +684,7 @@ async function renderMaxSiteDocument(args: {
           componentStyleDefaults: readableButtonDefaults(componentStyleDefaults, effectiveTokens),
           captcha: captchaConfig,
           visitorLocale: locale,
+          contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
           renderSectionEmbed,
         })}
@@ -770,6 +699,7 @@ async function renderMaxSiteDocument(args: {
             includeFontLinks: false,
             captcha: captchaConfig,
             visitorLocale: locale,
+            contentLocale: args.localeCtx.contentLocale,
             renderSectionEmbed,
           })}
         </footer>
