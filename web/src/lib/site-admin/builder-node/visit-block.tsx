@@ -30,6 +30,7 @@ export const VISIT_CSS = `
 .sb-visit-fact-icon{display:inline-flex;height:2.25rem;width:2.25rem;align-items:center;justify-content:center;border-radius:999px;background:color-mix(in oklab,var(--token-color-accent,var(--token-color-primary)) 16%,var(--token-color-surface-raised,var(--token-color-background)));color:var(--token-color-primary,var(--token-color-ink));font-size:0.85rem;line-height:1}
 .sb-visit-fact-label{margin:0;font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--token-color-muted);font-weight:500}
 .sb-visit-fact-value{margin:0.2rem 0 0;font-size:1.02rem;line-height:1.4;color:var(--token-color-ink);font-weight:500}
+.sb-visit-fact-note{margin:3px 0 0;font-size:12.5px;line-height:1.4;color:var(--token-color-muted)}
 @media (min-width:900px){
   .sb-visit[data-visit-layout="split"][data-visit-has-map="1"] .sb-visit-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,0.95fr);gap:2rem}
   .sb-visit-map{min-height:18rem}
@@ -42,6 +43,7 @@ function FactGlyph({ kind }: { kind: TalentVisitFactIcon }): ReactNode {
   if (kind === "travel") return "↗";
   if (kind === "languages") return "A";
   if (kind === "hours") return "◷";
+  if (kind === "changes") return "↺";
   return "○";
 }
 
@@ -80,7 +82,11 @@ export function renderVisitBlock(args: {
   const mapUrl = (p.mapImageUrl ?? "").trim();
   const mapCaption = (p.mapCaption ?? "").trim();
   const hasMap = layout === "split" && showMap && Boolean(mapUrl);
-  const empty = facts.length === 0;
+  const extra = (p.extraFacts ?? [])
+    .filter((f) => f.label.trim() && f.value.trim())
+    .map((f): TalentVisitFact => ({ label: f.label, value: f.value, note: f.note, icon: "note" }));
+  const allFacts = [...facts, ...extra];
+  const empty = allFacts.length === 0;
 
   return (
     <section
@@ -115,7 +121,7 @@ export function renderVisitBlock(args: {
             </figure>
           ) : null}
           <ul className="sb-visit-facts">
-            {facts.map((f) => (
+            {allFacts.map((f) => (
               <li key={`${f.label}:${f.value}`} className="sb-visit-fact">
                 <span className="sb-visit-fact-icon" aria-hidden>
                   <FactGlyph kind={f.icon} />
@@ -123,6 +129,7 @@ export function renderVisitBlock(args: {
                 <div>
                   <p className="sb-visit-fact-label">{f.label}</p>
                   <p className="sb-visit-fact-value">{f.value}</p>
+                  {f.note ? <p className="sb-visit-fact-note">{f.note}</p> : null}
                 </div>
               </li>
             ))}

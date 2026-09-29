@@ -44,7 +44,7 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
-import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { DesignSkinStyle, designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import {
@@ -571,7 +571,7 @@ async function renderMaxSiteDocument(args: {
     talentComponentStyleDefaults &&
     Object.keys(talentComponentStyleDefaults).length > 0
       ? talentComponentStyleDefaults
-      : platformDefault.componentStyles;
+      : designComponentStyleDefaults(args.designSlug, platformDefault.componentStyles);
   const effectiveTokens = resolveEffectiveSiteTokens(
     designTokens,
     siteTokens,

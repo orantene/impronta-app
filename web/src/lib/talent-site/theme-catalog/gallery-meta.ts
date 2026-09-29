@@ -96,6 +96,8 @@ export type GalleryPalette = Pick<
   key: string;
   /** Secondary text (proposal "mute"); defaults to the ink when absent. */
   muted?: string;
+  /** Soft accent tint (proposal "tint"): chips, initials, image placeholders. */
+  tint?: string;
   highContrast?: boolean;
   dark?: boolean;
 };
@@ -185,7 +187,7 @@ function pal(
   en: string,
   es: string,
   c: [page: string, section: string, rule: string, text: string, accent: string, onAccent: string],
-  flags: { highContrast?: boolean; dark?: boolean; muted?: string } = {},
+  flags: { highContrast?: boolean; dark?: boolean; muted?: string; tint?: string } = {},
 ): GalleryPalette {
   const [page, section, rule, text, accent, on_accent] = c;
   return { key, name: { en, es }, page, section, rule, text, accent, on_accent, ...flags };
@@ -266,13 +268,15 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     fonts: MAISON_V2_FONTS,
     // Proposal palettes (page, surface, line, ink, accent, on + mute).
     palettes: [
-      pal("rose", "Rosé", "Rosé", ["#FCF7F7", "#FFFFFF", "#EFDFE3", "#241417", "#B3174A", "#FFFFFF"], { muted: "#7B6468" }),
-      pal("blush", "Blush", "Rubor", ["#FBF4F2", "#FFFFFF", "#EEDCD7", "#2B1C1E", "#B24E69", "#FFFFFF"], { muted: "#86706F" }),
-      pal("noir-rose", "Noir rose", "Noir rosa", ["#151012", "#1E171A", "#34282C", "#F7EEF0", "#E3487E", "#FFFFFF"], { dark: true, muted: "#B8A5A9" }),
+      pal("rose", "Rosé", "Rosé", ["#FCF7F7", "#FFFFFF", "#EFDFE3", "#241417", "#B3174A", "#FFFFFF"], { muted: "#7B6468", tint: "#FBE6EC" }),
+      pal("blush", "Blush", "Rubor", ["#FBF4F2", "#FFFFFF", "#EEDCD7", "#2B1C1E", "#B24E69", "#FFFFFF"], { muted: "#86706F", tint: "#F7E3E4" }),
+      pal("noir-rose", "Noir rose", "Noir rosa", ["#151012", "#1E171A", "#34282C", "#F7EEF0", "#E3487E", "#FFFFFF"], { dark: true, muted: "#B8A5A9", tint: "#3A2029" }),
       pal("porcelain", "Porcelain & Ink", "Porcelana y tinta", ["#FFFFFF", "#F4F4F2", "#E2E2DE", "#141414", "#141414", "#FFFFFF"], { highContrast: true }),
       pal("sage", "Sage & Olive", "Salvia y oliva", ["#FFFFFF", "#F1F4EE", "#DFE5D9", "#1F241C", "#4A5A34", "#FFFFFF"]),
     ],
     demos: [
+      // FEATURED: Alba is the proposal's own demo (content word for word from the artifact).
+      talentDemo("alba-nail-artist", { en: "Nail & Lash Artist", es: "Uñas y pestañas" }, ["nails", "lashes"], "rose", "TAL-93020", "alba-nail-artist", "Alba"),
       talentDemo("lash-artist", { en: "Lash Artist", es: "Lashista" }, ["lashes"], "rose", "TAL-93002", "renata-lashes", "Renata Salgado"),
       talentDemo("nail-artist", { en: "Nail Artist", es: "Manicurista" }, ["nails"], "rose", "TAL-93003", "camila-nails", "Camila Rivas"),
       talentDemo("private-chef", { en: "Private Chef", es: "Chef privado" }, ["chef"], "sage", "TAL-93006", "andres-cocina", "Andrés Molina"),
@@ -395,6 +399,8 @@ export function galleryPaletteLookTokens(slug: string, paletteKey: string): Reco
     "color.primary": p.accent,
     "color.primary-on": p.on_accent,
     "color.accent": p.accent,
+    // The soft accent tint (mode chips, initials, image placeholders).
+    ...(p.tint ? { "color.blush": p.tint } : {}),
     ...designTypographyTokens(d.slug),
   };
 }

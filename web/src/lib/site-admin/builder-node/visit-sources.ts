@@ -11,6 +11,29 @@ import type { TalentVisitFact, TalentVisitFacts } from "./visit-types";
 
 const DAY_ORDER: readonly WeekdayIndex[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
 const DAY_LABELS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const DAY_LABELS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"] as const;
+
+function clock(min: number): string {
+  return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`;
+}
+
+/** Earliest open to latest close across the week, e.g. "9:00 to 20:00". */
+function hoursWindow(raw: unknown, es: boolean): string {
+  const weekly = parseWeeklyHours(raw);
+  if (!weekly) return "";
+  let start = Infinity;
+  let end = -Infinity;
+  for (const day of DAY_ORDER) {
+    for (const w of weekly[day] ?? []) {
+      start = Math.min(start, w.startMin);
+      end = Math.max(end, w.endMin);
+    }
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return "";
+  return es
+    ? `${clock(start)} a ${clock(end)}, con cita`
+    : `${clock(start)} to ${clock(end)}, by appointment`;
+}
 
 type AreaRow = {
   service_kind: string | null;
@@ -38,12 +61,13 @@ function placeName(area: AreaRow, locale: string): string | null {
   return city || null;
 }
 
-function compactDayRange(days: WeekdayIndex[]): string {
+function compactDayRange(days: WeekdayIndex[], es = false): string {
   if (!days.length) return "";
   const sorted = [...days].sort(
     (a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b),
   );
-  const labels = sorted.map((d) => DAY_LABELS_EN[d] ?? String(d));
+  const names = es ? DAY_LABELS_ES : DAY_LABELS_EN;
+  const labels = sorted.map((d) => names[d] ?? String(d));
   if (labels.length === 1) return labels[0]!;
   const idxs = sorted.map((d) => DAY_ORDER.indexOf(d));
   let contiguous = idxs.length > 1;
@@ -53,7 +77,11 @@ function compactDayRange(days: WeekdayIndex[]): string {
       break;
     }
   }
-  if (contiguous) return `${labels[0]} to ${labels[labels.length - 1]}`;
+  if (contiguous) {
+    return es
+      ? `${labels[0]} a ${labels[labels.length - 1]!.toLowerCase()}`
+      : `${labels[0]} to ${labels[labels.length - 1]}`;
+  }
   return labels.join(" · ");
 }
 
@@ -76,7 +104,7 @@ export async function loadVisitSources(
   if (!admin) return { talentVisitFacts: [] };
 
   try {
-    const [areasRes, langsRes, hoursRes] = await Promise.all([
+    const [areasRes, langsRes, hoursRes, cancelRes] = await Promise.all([
       admin
         .from("talent_service_areas")
         .select("service_kind, city, locations ( display_name_i18n )")
@@ -92,11 +120,19 @@ export async function loadVisitSources(
         .select("weekly")
         .eq("talent_profile_id", talentProfileId)
         .maybeSingle(),
+      // Change window: the most generous published cancellation window.
+      admin
+        .from("talent_offerings")
+        .select("cancellation_hours")
+        .eq("talent_profile_id", talentProfileId)
+        .eq("status", "published")
+        .not("cancellation_hours", "is", null),
     ]);
 
     if (areasRes.error) logServerError("visit.loadServiceAreas", areasRes.error);
     if (langsRes.error) logServerError("visit.loadLanguages", langsRes.error);
     if (hoursRes.error) logServerError("visit.loadBookingHours", hoursRes.error);
+    if (cancelRes.error) logServerError("visit.loadCancellation", cancelRes.error);
 
     const areas = (areasRes.data ?? []) as unknown as AreaRow[];
     const langs = (langsRes.data ?? []) as unknown as LangRow[];
@@ -112,6 +148,7 @@ export async function loadVisitSources(
         label: es ? "Dónde" : "Where",
         value: baseName,
         icon: "place",
+        note: es ? "La dirección exacta llega al confirmar." : "The exact address comes with your confirmation.",
       });
     }
 
@@ -133,12 +170,27 @@ export async function loadVisitSources(
       });
     }
 
-    const daysLabel = compactDayRange(openDaysFromWeekly(hoursRow?.weekly));
+    const daysLabel = compactDayRange(openDaysFromWeekly(hoursRow?.weekly), es);
     if (daysLabel) {
+      const window = hoursWindow(hoursRow?.weekly, es);
       facts.push({
-        label: es ? "Días" : "Days",
+        label: es ? "Horario" : "Hours",
         value: daysLabel,
         icon: "hours",
+        ...(window ? { note: window } : {}),
+      });
+    }
+
+    const cancelHours = ((cancelRes.data ?? []) as { cancellation_hours: number | null }[])
+      .map((r) => r.cancellation_hours)
+      .filter((h): h is number => typeof h === "number" && h >= 0);
+    if (cancelHours.length) {
+      const h = Math.min(...cancelHours);
+      facts.push({
+        label: es ? "Cambios" : "Changes",
+        value: es ? `Hasta ${h} h antes` : `Up to ${h} h before`,
+        icon: "changes",
+        note: es ? "Cambias o cancelas desde tu enlace." : "Change or cancel from your link.",
       });
     }
 

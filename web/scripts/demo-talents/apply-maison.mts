@@ -20,7 +20,12 @@ import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-s
 import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
 import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
+import { randomUUID } from "node:crypto";
+import { galleryPaletteLookTokens, getGalleryDesign } from "../../src/lib/talent-site/theme-catalog/gallery-meta";
+import { mergeLookIntoTokens } from "../../src/lib/talent-site/theme-catalog/look-layer";
 import { DEMO_BATCH, DEMOS } from "./demos";
+import { applyDemoSiteCopy } from "./site-copy";
+import { ALBA_PHOTO_SOURCES } from "./alba";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -82,10 +87,16 @@ for (const e of entries) {
   const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
     ? MAISON_PALETTE_ORDER[0]
     : MAISON_PALETTE_ORDER[((Number(e.profileCode.slice(-3)) - 1) % (MAISON_PALETTE_ORDER.length - 1)) + 1];
-  const look = await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
-  if (!look) throw new Error(`look maison-${paletteKey} not found`);
-
   const designSlug = designFor(e.profileCode);
+  const demo = DEMOS.find((x) => x.profileCode === e.profileCode);
+  // Collection designs (Maison v2...) wear their OWN gallery palette + fonts
+  // (Rosé for Maison v2), never a Maison Look row.
+  const gallery = designSlug !== "maison" ? getGalleryDesign(designSlug) : undefined;
+  const galleryKey = gallery ? (demo?.palette ?? gallery.palettes[0]?.key ?? null) : null;
+  const galleryTokens = gallery && galleryKey ? galleryPaletteLookTokens(designSlug, galleryKey) : null;
+  const look = galleryTokens ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
+  if (!galleryTokens && !look) throw new Error(`look maison-${paletteKey} not found`);
+
   const design = await loadMaisonCatalogRow(admin, "design", designSlug);
   if (!design) throw new Error(`design ${designSlug} not found`);
   const d = await applyDesign(admin, {
@@ -96,16 +107,71 @@ for (const e of entries) {
     userId: e.userId,
   });
   if (!d.ok) throw new Error(`${e.profileCode} applyDesign: ${d.error}`);
-  const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId });
-  if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`);
+  if (look) {
+    const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId });
+    if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`);
+  } else if (galleryTokens) {
+    const { data: cur } = await admin.from("talent_sites").select("design_tokens_draft").eq("id", site.id).single();
+    const draft = mergeLookIntoTokens(
+      (cur?.design_tokens_draft as Record<string, string> | null) ?? {},
+      galleryTokens,
+    );
+    const { error: tokErr } = await admin
+      .from("talent_sites")
+      .update({ design_tokens_draft: draft, theme_look_slug: null, updated_at: new Date().toISOString() })
+      .eq("id", site.id);
+    if (tokErr) throw tokErr;
+  }
+
+  // The demo's own page copy (hero line, ticker words, photos, facts), set
+  // on the draft trees the way a talent edits them in the builder.
+  if (demo?.siteCopy) {
+    const { data: s2 } = await admin.from("talent_sites").select("shell_tree").eq("id", site.id).single();
+    const { data: home } = await admin
+      .from("talent_pages")
+      .select("id, blocks")
+      .eq("talent_profile_id", e.talentProfileId)
+      .eq("is_home", true)
+      .single();
+    const { data: media } = await admin
+      .from("media_assets")
+      .select("storage_path, metadata")
+      .eq("owner_talent_profile_id", e.talentProfileId)
+      .is("deleted_at", null);
+    const byKey = new Map<string, string>();
+    const sources = ALBA_PHOTO_SOURCES;
+    for (const m of media ?? []) {
+      const src = (m.metadata as { source?: string } | null)?.source;
+      const key = Object.entries(sources).find(([, v]) => v === src)?.[0];
+      if (key) byKey.set(key, admin.storage.from("media-public").getPublicUrl(m.storage_path as string).data.publicUrl);
+    }
+    const out = applyDemoSiteCopy(
+      (s2?.shell_tree ?? []) as never,
+      (home?.blocks ?? []) as never,
+      demo.siteCopy,
+      (k) => byKey.get(k) ?? null,
+      () => `demo-${randomUUID().slice(0, 8)}`,
+    );
+    const { error: shErr } = await admin.from("talent_sites").update({ shell_tree: out.shell }).eq("id", site.id);
+    if (shErr) throw shErr;
+    const { error: hoErr } = await admin
+      .from("talent_pages")
+      .update({ blocks: out.home, updated_at: new Date().toISOString() })
+      .eq("id", home!.id);
+    if (hoErr) throw hoErr;
+  }
 
   const now = new Date().toISOString();
   const { error: metaErr } = await admin
     .from("talent_sites")
     .update({
       custom_palette: null,
-      theme_demo_slug: MAISON_BUILTIN_DEMO.slug,
-      menu_style: MAISON_BUILTIN_DEMO.buildPayload().menu_style ?? "tabs",
+      ...(designSlug === "maison"
+        ? {
+            theme_demo_slug: MAISON_BUILTIN_DEMO.slug,
+            menu_style: MAISON_BUILTIN_DEMO.buildPayload().menu_style ?? "tabs",
+          }
+        : {}),
       pending_design: null,
       updated_at: now,
     })
@@ -129,6 +195,6 @@ for (const e of entries) {
   if (pubErr) throw pubErr;
   const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: e.profileCode });
   if (!t.ok) throw new Error(`${e.profileCode} publishSiteTheme: ${t.error}`);
-  console.log("design", designSlug, e.profileCode, tp.display_name, `palette ${paletteKey}`, "published");
+  console.log("design", designSlug, e.profileCode, tp.display_name, `palette ${galleryKey ?? paletteKey}`, "published");
 }
 console.log("done");

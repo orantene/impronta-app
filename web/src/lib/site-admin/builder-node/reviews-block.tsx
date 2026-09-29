@@ -11,6 +11,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { carouselSlideVars, type CarouselSlidesPerView } from "./carousel-slides-per-view";
 import { REVIEWS_DEFAULT_PROPS, type ReviewsLayout } from "./reviews-defaults";
+import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentSiteReview } from "./reviews-types";
 import type { BuilderReviewsNode } from "./types";
 
@@ -34,6 +35,10 @@ export const REVIEWS_CSS = `
 .sb-reviews-mark{margin:0;font-family:var(--token-typography-heading-font-family,var(--site-heading-font,Georgia,serif));font-size:2.4rem;line-height:0.8;color:color-mix(in oklab,var(--token-color-accent,var(--token-color-primary)) 55%,var(--token-color-muted));font-weight:400}
 .sb-reviews-quote{margin:0;font-family:var(--token-typography-heading-font-family,var(--site-heading-font,Georgia,serif));font-size:clamp(1.05rem,1.5vw,1.3rem);line-height:1.4;font-weight:400;color:var(--token-color-ink)}
 .sb-reviews-meta{margin-top:auto;padding-top:1rem;border-top:1px solid color-mix(in oklab,var(--token-color-ink) 14%,transparent);display:flex;flex-direction:column;gap:0.2rem}
+.sb-reviews-who{display:flex;align-items:center;gap:10px}
+.sb-reviews-initials{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--token-color-blush,color-mix(in srgb,var(--token-color-accent,var(--token-color-ink)) 14%,transparent));color:var(--token-color-accent,var(--token-color-ink))}
+.sb-reviews-demo{margin:0;font-size:12.5px;color:var(--token-color-muted)}
+.sb-reviews-note{margin:-0.5rem 0 1rem;font-size:13px;color:var(--token-color-muted)}
 .sb-reviews-author{margin:0;font-size:0.8125rem;font-weight:500;color:var(--token-color-primary,var(--token-color-ink))}
 .sb-reviews-stars{margin:0;font-size:0.75rem;letter-spacing:0.08em;color:var(--token-color-muted)}
 .sb-reviews[data-reviews-layout="single"] .site-builder-node--carousel-slide{flex-basis:var(--bn-slide-width,100%)}
@@ -84,14 +89,21 @@ function slidesForLayout(layout: ReviewsLayout): {
   };
 }
 
+function initialsOf(name: string): string {
+  const parts = name.replace(/\./g, " ").trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p[0]!.toUpperCase()).join("") || "·";
+}
+
 function QuoteCard({
   review,
   accent,
   showRating,
+  es,
 }: {
   review: TalentSiteReview;
   accent: (typeof ACCENTS)[number];
   showRating: boolean;
+  es: boolean;
 }) {
   return (
     <blockquote
@@ -104,7 +116,17 @@ function QuoteCard({
       </p>
       <p className="sb-reviews-quote">{review.body}</p>
       <footer className="sb-reviews-meta">
-        <cite className="sb-reviews-author">{authorLabel(review)}</cite>
+        <span className="sb-reviews-who">
+          <span className="sb-reviews-initials" aria-hidden="true">
+            {initialsOf(authorLabel(review))}
+          </span>
+          <span>
+            <cite className="sb-reviews-author">{authorLabel(review)}</cite>
+            {review.demo ? (
+              <p className="sb-reviews-demo">{es ? "Reseña de demo" : "Demo review"}</p>
+            ) : null}
+          </span>
+        </span>
         {showRating ? (
           <p className="sb-reviews-stars" aria-label={`${review.rating} out of 5`}>
             {starLabel(review.rating)}
@@ -119,8 +141,10 @@ export function renderReviewsBlock(args: {
   node: BuilderReviewsNode;
   reviews: ReadonlyArray<TalentSiteReview>;
   styleAttr?: CSSProperties;
+  locale?: string;
 }): ReactNode {
   const p = args.node.props;
+  const es = (args.locale ?? "").toLowerCase().startsWith("es");
   const layout = (p.layout ?? REVIEWS_DEFAULT_PROPS.layout) as ReviewsLayout;
   const limit = Math.max(1, Math.min(24, p.limit ?? REVIEWS_DEFAULT_PROPS.limit ?? 12));
   const visible = args.reviews.filter((r) => r.body.trim()).slice(0, limit);
@@ -176,8 +200,15 @@ export function renderReviewsBlock(args: {
       <style>{REVIEWS_CSS}</style>
       <header className="sb-reviews-header">
         {eyebrow ? <p className="sb-reviews-eyebrow">{eyebrow}</p> : null}
-        <h2 className="sb-reviews-title">{title}</h2>
+        <h2 className="sb-reviews-title">{renderItalicMarkedTitle(title)}</h2>
       </header>
+      {visible.every((r) => r.demo) ? (
+        <p className="sb-reviews-note">
+          {es
+            ? "Reseñas de demo, con iniciales. En un sitio real solo aparecen reseñas de citas completadas."
+            : "Demo reviews, with initials. A real site only shows reviews from completed appointments."}
+        </p>
+      ) : null}
       <div
         className="site-builder-node site-builder-node--carousel"
         data-builder-carousel-loop={loop ? "true" : undefined}
@@ -202,6 +233,7 @@ export function renderReviewsBlock(args: {
                 review={review}
                 accent={ACCENTS[index % ACCENTS.length]}
                 showRating={showRating}
+                es={es}
               />
             </div>
           ))}

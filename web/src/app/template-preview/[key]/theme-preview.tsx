@@ -113,9 +113,8 @@ export async function ThemeCatalogPreview({
   // P4: a gallery-meta demo talent's content (allow-listed), else the
   // owner-gated hydration exactly as before.
   const demoSource = resolveDemoPreviewSource(designSlug, demo);
-  const hydration =
-    (demoSource ? await resolveDemoPreviewHydration(demoSource) : null) ??
-    (await resolvePreviewHydration(talentProfileId));
+  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource) : null;
+  const hydration = demoHydration ?? (await resolvePreviewHydration(talentProfileId));
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
@@ -123,12 +122,15 @@ export async function ThemeCatalogPreview({
   // render's locale swaps, the live data sources, and hide-empty. Demo
   // content keeps the requested locale and the untouched design.
   const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
+  // A demo talent's own live widgets (services, photos, reviews, visit) bind
+  // too, read-only, in the requested locale.
+  const contentId = ownerId ?? demoHydration?.demoTalentProfileId ?? null;
   const locale = ownerId
     ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
     : requestedLocale;
-  const mine = ownerId
+  const mine = contentId
     ? await prepareMyContentPreview({
-        talentProfileId: ownerId,
+        talentProfileId: contentId,
         locale,
         shellTree: built.shellTree,
         homeTree: built.homeTree,
@@ -150,10 +152,9 @@ export async function ThemeCatalogPreview({
 
   // Seeded labels follow the locale and (for the owner) the booking mode,
   // exactly as the live site renders them.
-  const ctaMode =
-    hydration.isReal && talentProfileId
-      ? await loadTalentSiteCtaMode(talentProfileId, await loadTalentPlanKey(talentProfileId))
-      : null;
+  const ctaMode = contentId
+    ? await loadTalentSiteCtaMode(contentId, await loadTalentPlanKey(contentId))
+    : null;
   const localise = (tree: BuilderNode[]) => localiseSeededDesignLabels(tree, locale, ctaMode);
 
   const [shellHeader, shellFooter] = splitShell(mine ? mine.shellTree : built.shellTree);
@@ -185,6 +186,7 @@ export async function ThemeCatalogPreview({
         snapshot={snapshot}
         locale={locale}
         freeformDataSources={mine?.dataSources}
+        designSlug={design.slug}
       />
     </ThemeTokenPreviewFrame>
   );

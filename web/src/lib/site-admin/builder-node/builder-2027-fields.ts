@@ -140,6 +140,7 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
           options: [
             { value: "text", label: "Plain text" },
             { value: "tags", label: "Tags" },
+            { value: "serif", label: "Serif italic" },
           ],
         },
         {
@@ -172,6 +173,7 @@ export const BUILDER_2027_INSPECTOR_GROUPS: Readonly<
             { value: "dot", label: "Dot" },
             { value: "slash", label: "Slash" },
             { value: "diamond", label: "Diamond" },
+            { value: "star", label: "Star" },
             { value: "none", label: "None" },
           ],
         },

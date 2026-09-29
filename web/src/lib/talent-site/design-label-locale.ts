@@ -55,9 +55,53 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Next issue": "Próxima edición",
   "The book": "El book",
   "What clients say": "Lo que dicen mis clientes",
-  Reviews: "Opiniones",
+  Reviews: "Reseñas",
   Ask: "Pregunta",
+  // Maison v2 (the Rosé proposal copy).
+  "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
+  "Menu and prices": "Menú y precios",
+  "See work": "Ver trabajos",
+  "What they {i}say{/i}": "Lo que {i}dicen{/i}",
+  "The detail is {i}my craft{/i}.": "El detalle es {i}mi oficio{/i}.",
+  "Before you come": "Antes de venir",
+  come: "venir",
+  visit: "visita",
+  "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
+  "See you soon.": "Nos vemos pronto.",
+  "Made with Tulala": "Hecho con Tulala",
 };
+
+/**
+ * Seeded labels with a `{{token}}` (e.g. "Hello, I'm {{displayName}}") are
+ * saved hydrated ("Hello, I'm Alba"), so they are matched as patterns: the
+ * token becomes a capture carried into the Spanish line.
+ */
+const SEEDED_PATTERNS_ES: ReadonlyArray<{ re: RegExp; es: string }> = Object.entries(SEEDED_LABELS_ES)
+  .filter(([en]) => en.includes("{{"))
+  .map(([en, es]) => {
+    const tokens: string[] = [];
+    const source = en
+      .split(/(\{\{\w+\}\})/)
+      .map((part) => {
+        const m = /^\{\{(\w+)\}\}$/.exec(part);
+        if (m) {
+          tokens.push(m[1]!);
+          return "(.+?)";
+        }
+        return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      })
+      .join("");
+    let i = 0;
+    const out = es.replace(/\{\{\w+\}\}/g, () => `$${(i += 1)}`);
+    return { re: new RegExp(`^${source}$`), es: tokens.length ? out : es };
+  });
+
+function localisePattern(value: string): string | null {
+  for (const p of SEEDED_PATTERNS_ES) {
+    if (p.re.test(value)) return value.replace(p.re, p.es);
+  }
+  return null;
+}
 
 /** The talent's site-wide booking mode (posture after the plan ceiling). */
 export type SiteCtaMode = "instant" | "request" | "inquiry";
@@ -119,7 +163,60 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
 const WORK_LABEL = { en: "Work", es: "Trabajos" } as const;
 
 /** Node props that carry visible label copy. */
-const LABEL_PROPS = ["text", "label", "eyebrow", "title", "emptyMessage", "contactLine"] as const;
+const LABEL_PROPS = [
+  "text",
+  "label",
+  "eyebrow",
+  "title",
+  "titleAccent",
+  "emptyMessage",
+  "contactLine",
+] as const;
+
+/**
+ * The talent header (`site_header` section) carries its nav and CTA labels in
+ * `sectionProps`, not on node props: localise those seeded labels too.
+ */
+function localiseHeaderProps(
+  sectionProps: unknown,
+  one: (v: string, href?: unknown) => string | null,
+): Record<string, unknown> | null {
+  if (!sectionProps || typeof sectionProps !== "object") return null;
+  const sp = sectionProps as Record<string, unknown>;
+  let next: Record<string, unknown> | null = null;
+  const mapLink = (l: unknown): unknown => {
+    if (!l || typeof l !== "object") return l;
+    const o = l as Record<string, unknown>;
+    if (typeof o.label !== "string") return l;
+    const out = one(o.label, o.href);
+    return out === null ? l : { ...o, label: out };
+  };
+  if (Array.isArray(sp.navItems)) {
+    const mapped = sp.navItems.map(mapLink);
+    if (mapped.some((m, i) => m !== (sp.navItems as unknown[])[i])) (next ??= { ...sp }).navItems = mapped;
+  }
+  if (sp.primaryCta && typeof sp.primaryCta === "object") {
+    const mapped = mapLink(sp.primaryCta);
+    if (mapped !== sp.primaryCta) (next ??= { ...sp }).primaryCta = mapped;
+  }
+  if (sp.regions && typeof sp.regions === "object") {
+    const regions = sp.regions as Record<string, unknown>;
+    let changed = false;
+    const out: Record<string, unknown> = {};
+    for (const [slot, items] of Object.entries(regions)) {
+      out[slot] = Array.isArray(items)
+        ? items.map((it) => {
+            if (!it || typeof it !== "object" || (it as { type?: unknown }).type !== "cta") return it;
+            const m = mapLink(it);
+            if (m !== it) changed = true;
+            return m;
+          })
+        : items;
+    }
+    if (changed) (next ??= { ...sp }).regions = out;
+  }
+  return next;
+}
 
 function localeKey(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
@@ -141,7 +238,7 @@ function localiseOne(
     return out === value ? null : out;
   }
   if (!es) return null;
-  return SEEDED_LABELS_ES[key] ?? null;
+  return SEEDED_LABELS_ES[key] ?? localisePattern(key);
 }
 
 /** Exposed for tests and callers that localise a single seeded string. */
@@ -177,6 +274,24 @@ export function localiseSeededDesignLabels(
       if (typeof v !== "string") continue;
       const out = one(v, key === "label" ? props.href : undefined);
       if (out !== null) (next ??= { ...props })[key] = out;
+    }
+    if (node.kind === "section" && props.sectionTypeKey === "site_header") {
+      const header = localiseHeaderProps(props.sectionProps, one);
+      if (header) (next ??= { ...props }).sectionProps = header;
+    }
+    const items = props.items;
+    if (node.kind === "marquee" && Array.isArray(items)) {
+      let changed = false;
+      const mapped = items.map((it: unknown) => {
+        if (!it || typeof it !== "object") return it;
+        const o = it as Record<string, unknown>;
+        if (typeof o.text !== "string") return it;
+        const out = one(o.text);
+        if (out === null) return it;
+        changed = true;
+        return { ...o, text: out };
+      });
+      if (changed) (next ??= { ...props }).items = mapped;
     }
     const links = props.links;
     if (Array.isArray(links)) {

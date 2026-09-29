@@ -1,16 +1,17 @@
 {
-  "$comment": "Design-diff harness manifest. artifactSelector/localSelector may be a string or an array of fallbacks (first match wins). Local selectors are best-guess from builder-node / PublishedShell data attributes; refine after the first run (rows with missing:true). Maison local page (2026-09-28) renders anchors #hero #about #services #gallery #contact only; no header/ticker/reviews/visit/footer nodes exist yet, so those rows report missing (local).",
+  "$comment": "Design-diff harness manifest. artifactSelector/localSelector may be a string or an array of fallbacks (first match wins). Local selectors are best-guess from builder-node / PublishedShell data attributes; refine after the first run (rows with missing:true). Maison local page (2026-09-28) renders anchors #hero #about #services #gallery #contact only; no header/ticker/reviews/visit/footer nodes exist yet, so those rows report missing (local). 2026-09-28 (maison-v2 agent): maison-v2 now renders header (shell landmark), ticker (marquee), #reviews, #visit and #site-footer; templateSlug fixed to maison-v2; --demo <key> renders a gallery demo talent (e.g. alba-nail-artist).",
   "localTalentId": "f048e578-cbae-45db-9a3b-34239abea136",
   "designs": {
     "maison-v2": {
       "artifactPath": "/Users/oranpersonal/.claude/projects/-Users-oranpersonal-Desktop-impronta-app/f0374548-4bfd-47f5-a318-dfb8b4e8fd7a/tool-results/artifact-b1a7ed90-1790574112-cee7.html",
-      "templateSlug": "maison",
+      "templateSlug": "maison-v2",
       "rows": [
         {
           "id": "header",
           "label": "Header",
           "artifactSelector": "[data-w^='site_header']",
           "localSelector": [
+            "[data-talent-shell-landmark='site_header']",
             "[data-section-type-key='site_header']",
             "[data-builder-node-kind='site_header']"
           ]
@@ -57,6 +58,7 @@
           "label": "Reviews",
           "artifactSelector": "[data-w^='reviews']",
           "localSelector": [
+            "#reviews",
             "[data-section-type-key='reviews']",
             "[data-builder-node-kind='reviews']"
           ]
@@ -75,6 +77,7 @@
           "label": "Visit",
           "artifactSelector": "[data-w^='visit_info']",
           "localSelector": [
+            "#visit",
             "[data-section-type-key='visit_info']",
             "[data-builder-node-kind='visit_info']"
           ]
@@ -93,6 +96,7 @@
           "label": "Footer",
           "artifactSelector": "[data-w^='footer']",
           "localSelector": [
+            "#site-footer",
             "[data-section-type-key='footer']",
             "[data-builder-node-kind='footer']"
           ]
@@ -102,6 +106,7 @@
           "label": "Dock",
           "artifactSelector": "[data-w^='selection_dock']",
           "localSelector": [
+            ".cb-island .cb-bar",
             ".cb-dock",
             "[data-builder-node-kind='selection_dock']"
           ]

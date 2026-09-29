@@ -1057,6 +1057,7 @@ export const servicesCatalogPropsSchema = z.object({
   showPrice: z.boolean().optional(),
   showUsdEquivalent: z.boolean().optional(),
   showBadges: z.boolean().optional(),
+  showModeChip: z.boolean().optional(),
   ctaLabel: z.string().max(40).optional(),
   emptyMessage: z.string().max(240).optional(),
   categoryShowAll: z.boolean().optional(),
@@ -1098,7 +1099,7 @@ export const servicesCatalogPropsSchema = z.object({
 /** W-12 Portfolio — live talent media layouts (incl. shared chapter). */
 export const portfolioPropsSchema = z.object({
   layout: z
-    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter"])
+    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter", "staggered"])
     .optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
@@ -1152,6 +1153,16 @@ export const visitPropsSchema = z.object({
   mapImageUrl: z.string().max(2000).optional(),
   mapCaption: z.string().max(160).optional(),
   band: z.boolean().optional(),
+  extraFacts: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(40),
+        value: z.string().min(1).max(120),
+        note: z.string().max(160).optional(),
+      }),
+    )
+    .max(4)
+    .optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -1231,6 +1242,7 @@ export const nextFreeChipPropsSchema = z.object({
   labelEn: z.string().max(80).optional(),
   labelEs: z.string().max(80).optional(),
   days: z.number().int().min(1).max(30).optional(),
+  variant: z.enum(["inline", "stacked"]).optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -1387,8 +1399,8 @@ const marqueePropsSchema = z.object({
     .optional(),
   speed: z.enum(["slow", "medium", "fast"]).optional(),
   direction: z.enum(["left", "right"]).optional(),
-  separator: z.enum(["dot", "slash", "diamond", "none"]).optional(),
-  variant: z.enum(["text", "tags"]).optional(),
+  separator: z.enum(["dot", "slash", "diamond", "star", "none"]).optional(),
+  variant: z.enum(["text", "tags", "serif"]).optional(),
   pauseOnHover: z.boolean().optional(),
   layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,

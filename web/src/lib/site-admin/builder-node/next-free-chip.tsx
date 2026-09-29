@@ -20,10 +20,37 @@ export const NEXT_FREE_CHIP_CSS = `
 .sb-next-free{display:inline-flex;align-items:center;gap:0.4rem;margin:0;padding:0.4rem 0.85rem;border-radius:999px;border:1px solid var(--token-color-line,currentColor);background:color-mix(in srgb,var(--token-color-background,Canvas) 88%,transparent);color:var(--token-color-ink,CanvasText);font:inherit;font-size:0.8125rem;letter-spacing:0.01em;line-height:1.2;max-width:100%}
 .sb-next-free[hidden],.sb-next-free[data-empty="1"]{display:none!important}
 .sb-next-free-label{font-weight:500;color:var(--token-color-muted,var(--token-color-ink))}
+.sb-next-free[data-variant="stacked"]{gap:9px;padding:9px 13px 9px 10px;border:0;border-radius:16px;font-size:12.5px;text-align:left;background:color-mix(in srgb,var(--token-color-surface-raised,var(--token-color-background,Canvas)) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px -16px color-mix(in srgb,var(--token-color-ink,CanvasText) 60%,transparent)}
+.sb-next-free-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--token-color-success,var(--token-color-accent,currentColor));box-shadow:0 0 0 4px color-mix(in srgb,var(--token-color-success,var(--token-color-accent,currentColor)) 18%,transparent)}
+.sb-next-free-stack{display:flex;flex-direction:column;gap:1px}
+.sb-next-free-stack b{font-size:13.5px;font-weight:600;color:var(--token-color-ink,CanvasText)}
+.sb-next-free-stack small{font-size:12.5px;color:var(--token-color-muted,var(--token-color-ink))}
 .sb-next-free-when{font-family:var(--token-typography-heading-font-family,var(--site-heading-font,Georgia,serif));font-style:italic;font-weight:400;color:var(--token-color-accent,var(--token-color-primary,var(--token-color-ink)))}
 `;
 
 type Locale = "en" | "es";
+
+/** "Today at 12:00" / "Hoy a las 12:00"; tomorrow likewise; later: weekday + time. */
+function formatSlotRelative(iso: string, timezone: string, locale: Locale): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const tz = timezone || "UTC";
+  const loc = locale === "es" ? "es-MX" : "en-US";
+  let dayKey: (d: Date) => string;
+  let time: string;
+  try {
+    const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+    dayKey = (d) => dayFmt.format(d);
+    time = new Intl.DateTimeFormat(loc, { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: locale !== "es" }).format(date);
+  } catch {
+    return formatSlotWhen(iso, timezone, locale);
+  }
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 86_400_000);
+  if (dayKey(date) === dayKey(now)) return locale === "es" ? `Hoy a las ${time}` : `Today at ${time}`;
+  if (dayKey(date) === dayKey(tomorrow)) return locale === "es" ? `Mañana a las ${time}` : `Tomorrow at ${time}`;
+  return formatSlotWhen(iso, timezone, locale);
+}
 
 function pickLocale(raw?: string): Locale {
   return raw?.toLowerCase().startsWith("es") ? "es" : "en";
@@ -55,6 +82,7 @@ export function NextFreeChipIsland({
   labelEs,
   days = 14,
   locale,
+  variant = "inline",
 }: {
   offerings: ReadonlyArray<TalentOffering>;
   offeringId?: string;
@@ -62,6 +90,7 @@ export function NextFreeChipIsland({
   labelEs: string;
   days?: number;
   locale?: string;
+  variant?: "inline" | "stacked";
 }) {
   const loc = pickLocale(locale);
   const label = (loc === "es" ? labelEs : labelEn).trim() || (loc === "es" ? "Próximo libre" : "Next free");
@@ -97,7 +126,11 @@ export function NextFreeChipIsland({
         // days prop reserved for a future slots API days param; fetchLiveSlots uses 14 today.
         void days;
         const first = slots[0];
-        const formatted = first ? formatSlotWhen(first, timezone, loc) : "";
+        const formatted = first
+          ? variant === "stacked"
+            ? formatSlotRelative(first, timezone, loc)
+            : formatSlotWhen(first, timezone, loc)
+          : "";
         if (!cancelled) {
           setWhen(formatted || null);
           setReady(true);
@@ -113,13 +146,26 @@ export function NextFreeChipIsland({
     return () => {
       cancelled = true;
     };
-  }, [offerings, offeringId, days, loc]);
+  }, [offerings, offeringId, days, loc, variant]);
 
   if (!ready || !when) {
     return (
       <span className="sb-next-free" data-empty="1" hidden aria-hidden="true">
         <style>{NEXT_FREE_CHIP_CSS}</style>
       </span>
+    );
+  }
+
+  if (variant === "stacked") {
+    return (
+      <p className="sb-next-free" data-next-free-chip="" data-has-slot="1" data-variant="stacked">
+        <style>{NEXT_FREE_CHIP_CSS}</style>
+        <span className="sb-next-free-dot" aria-hidden="true" />
+        <span className="sb-next-free-stack">
+          <b className="sb-next-free-when-strong">{when}</b>
+          <small>{loc === "es" && label === "Próximo libre" ? "Próximo horario libre" : loc === "en" && label === "Next free" ? "Next free time" : label}</small>
+        </span>
+      </p>
     );
   }
 
@@ -154,6 +200,7 @@ export function renderNextFreeChip(args: {
         labelEs={p.labelEs ?? "Próximo libre"}
         days={p.days}
         locale={args.locale}
+        variant={p.variant ?? "inline"}
       />
     </div>
   );

@@ -79,9 +79,10 @@ function stampBand(
 export function portfolioBlock(
   makeId: KitIdFactory,
   opts: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter";
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered";
     columns?: 2 | 3 | 4;
     heading?: string;
+    eyebrow?: string;
     showCaptions?: boolean;
     chapterNumber?: number;
     creditLine?: string;
@@ -111,6 +112,7 @@ export function portfolioBlock(
             opts.columns ??
             (layout === "contact_sheet" ? 4 : layout === "masonry" || layout === "chapter" ? 2 : 3),
           title: opts.heading ?? (layout === "chapter" ? "Editorial" : "Recent work"),
+          ...(opts.eyebrow ? { eyebrow: opts.eyebrow } : {}),
           showCaptions: opts.showCaptions === true,
           chapterNumber: opts.chapterNumber ?? 1,
           creditLine: opts.creditLine ?? "",

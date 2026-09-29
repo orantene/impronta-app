@@ -1304,7 +1304,7 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
 export interface BuilderPortfolioNode extends BuilderNodeBase {
   kind: "portfolio";
   props: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter";
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered";
     eyebrow?: string;
     title?: string;
     columns?: 2 | 3 | 4;
@@ -1381,6 +1381,8 @@ export interface BuilderVisitNode extends BuilderNodeBase {
     mapCaption?: string;
     /** Soft surface band behind the section. */
     band?: boolean;
+    /** Talent-written facts shown after the live ones (e.g. a deposit note). */
+    extraFacts?: Array<{ label: string; value: string; note?: string }>;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1505,6 +1507,8 @@ export interface BuilderNextFreeChipNode extends BuilderNodeBase {
     labelEs?: string;
     /** Horizon in days for the slots probe (API clamps). */
     days?: number;
+    /** `stacked`: dot + bold time over a small label (photo overlay card). */
+    variant?: "inline" | "stacked";
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1531,6 +1535,8 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     showUsdEquivalent?: boolean;
     /** Instant / Deposit badges from real offering flags only. */
     showBadges?: boolean;
+    /** Small tinted chip on rows that are not instant ("Needs confirmation" / "By quote"). */
+    showModeChip?: boolean;
     ctaLabel?: string;
     emptyMessage?: string;
     categoryShowAll?: boolean;
@@ -1858,8 +1864,9 @@ export interface BuilderMarqueeNode extends BuilderNodeBase {
     items?: Array<{ text: string; href?: string }>;
     speed?: "slow" | "medium" | "fast";
     direction?: "left" | "right";
-    separator?: "dot" | "slash" | "diamond" | "none";
-    variant?: "text" | "tags";
+    separator?: "dot" | "slash" | "diamond" | "star" | "none";
+    /** `serif`: italic display-face words between hairlines (Maison v2 ticker). */
+    variant?: "text" | "tags" | "serif";
     /** Freeze the loop while the pointer is over the strip. */
     pauseOnHover?: boolean;
     layerLabel?: string;

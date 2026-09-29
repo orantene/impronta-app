@@ -30,6 +30,7 @@ const LAYOUT_LABELS: Record<PortfolioLayout, string> = {
   masonry: "Masonry",
   contact_sheet: "Contact sheet",
   chapter: "Chapter",
+  staggered: "Staggered strip",
 };
 
 function Section({

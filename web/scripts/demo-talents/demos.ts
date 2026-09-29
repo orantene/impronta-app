@@ -8,6 +8,8 @@
  * via --photos <pack.json> (see seed.mts), with Unsplash sources recorded.
  */
 
+import { ALBA } from "./alba";
+
 export type DemoService = {
   name: string;
   description: string;
@@ -16,6 +18,41 @@ export type DemoService = {
   /** Typical length in minutes (shown on the offering). */
   durationMin: number;
   booking: "instant" | "request" | "quote";
+  /** Menu category (the category rail). */
+  category?: string;
+  /** Free change / cancel window in hours (the visit "Changes" fact). */
+  cancellationHours?: number;
+  /** Options, one picked (absolute MXN price each). */
+  variants?: { label: string; priceMxn: number }[];
+  /** Stackable extras (MXN on top). */
+  extras?: { label: string; priceMxn: number }[];
+  /** Pack photo key used as this service's thumbnail. */
+  photo?: string;
+};
+
+/** A photo key from the demo's photo folder (`<key>.jpg`). */
+export type DemoPhotoPlan = {
+  /** The headshot / hero photo (media variant `card`, first). */
+  headshot: string;
+  /** Recent work, in order, with caption + the service it links to (index in `services`). */
+  work: { key: string; caption: string; service?: number }[];
+  /** Everything else the site uses (inset, portrait, service thumbnails). */
+  more: string[];
+  alt?: Record<string, string>;
+};
+
+/** Page copy a demo sets in the builder after the design is applied. */
+export type DemoSiteCopy = {
+  heroHeading?: string;
+  heroEyebrow?: string;
+  heroLede?: string;
+  ticker?: string[];
+  heroInset?: string;
+  aboutPhoto?: string;
+  menuSubtitle?: string;
+  visitExtraFacts?: { label: string; value: string; note?: string }[];
+  footerLine?: string;
+  brandTagline?: string;
 };
 
 export type DemoTalent = {
@@ -35,11 +72,26 @@ export type DemoTalent = {
   services: DemoService[];
   /** Working hours for instant services (talent_booking_hours). Days: 0=Sun. */
   hours?: { timezone: string; days: number[]; startMin: number; endMin: number; slotMinutes: number };
+  /** Gallery palette key of `theme` (collection designs), e.g. "rose". */
+  palette?: string;
+  /** Photos from a local folder (`--photo-dir`), instead of a --photos pack. */
+  photos?: DemoPhotoPlan;
+  /** Published FAQ items (talent_faq_items). */
+  faq?: { q: string; a: string }[];
+  /** Demo reviews: labelled "Demo review" on the site (the talent is_demo). */
+  reviews?: { name: string; body: string }[];
+  siteCopy?: DemoSiteCopy;
+  /**
+   * Private profile fields so the checklist reads 100% (never shown on the
+   * site). Fictional; the phone is an all-zero placeholder, not a real line.
+   */
+  profile?: { lastName: string; phone: string; gender: "female" | "male"; dateOfBirth: string };
 };
 
 export const DEMO_BATCH = "demo-2026-09-28";
 
 export const DEMOS: DemoTalent[] = [
+  ALBA,
   {
     profileCode: "TAL-93001",
     email: "demo-valeria-baile@impronta.test",
