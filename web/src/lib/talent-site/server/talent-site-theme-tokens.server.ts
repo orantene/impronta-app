@@ -4,7 +4,7 @@ import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
-import { designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skins";
+import { designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 
 /**
  * SITE-level theme tokens for the talent page builder's Design panel (Brand +

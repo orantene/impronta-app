@@ -125,8 +125,8 @@ export async function loadMaxSiteThemeTokens(
 
 /**
  * The catalog Design the site wears (`theme_design_slug`), for the design
- * skin scope (`design-skins.ts`). Null on any failure: the site then renders
- * without a skin, never broken.
+ * token defaults (`design-type-system.ts`). Null on any failure: the site then renders
+ * without Design defaults, never broken.
  */
 export async function loadMaxSiteDesignSlug(talentProfileId: string): Promise<string | null> {
   const admin = createServiceRoleClient();

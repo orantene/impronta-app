@@ -72,6 +72,7 @@ import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
 import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
 import { ComponentDefaultsTab } from "./component-defaults-tab";
+import { SiteStyleTab, SiteStyleTabLabel } from "./site-style-tab";
 
 import type { DesignSnapshot } from "@/lib/site-admin/edit-mode/design-actions";
 import { resolveThemeActionSet } from "./theme-action-scope";
@@ -84,15 +85,12 @@ import { classifyContrast, contrastRatio } from "@/lib/site-admin/a11y/contrast"
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
-// Phase A (2026-04-26) — convergence-plan §1 / mockup §12.
-// Tab strip kept verbatim from the approved prototype (Colors / Typography /
-// Layout / Effects / Code). The "calmer Theme experience" is delivered INSIDE
-// the Code tab (formerly a wall of three peer surfaces — JSON + import +
-// nothing for mesh) by introducing a clear two-card hierarchy: Theme JSON at
-// top, Power tools disclosure card below. The everyday tabs (Colors →
-// Typography → Layout → Effects) are unchanged.
+// Phase A (2026-04-26): tab strip from the approved prototype, plus Style (site
+// style tokens: type roles, buttons, shape, spacing; see site-style-tab.tsx).
+// The Code tab holds two cards: Theme JSON on top, Power tools below.
 type TabKey =
   | "colors"
+  | "style"
   | "typography"
   | "layout"
   | "effects"
@@ -101,6 +99,7 @@ type TabKey =
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "colors", label: "Colors" },
+  { key: "style", label: "Style" },
   { key: "typography", label: "Typography" },
   { key: "layout", label: "Layout" },
   { key: "effects", label: "Effects" },
@@ -741,7 +740,7 @@ export function ThemeDrawer(): ReactElement | null {
             active={tab === t.key}
             onClick={() => setTab(t.key)}
           >
-            {t.label}
+            {t.key === "style" ? <SiteStyleTabLabel /> : t.label}
           </DrawerTab>
         ))}
       </DrawerTabs>
@@ -757,6 +756,13 @@ export function ThemeDrawer(): ReactElement | null {
 
             {tab === "colors" ? (
               <ColorsTab draft={draft} onChange={set} />
+            ) : null}
+            {tab === "style" ? (
+              <SiteStyleTab
+                draft={draft}
+                onChange={set}
+                onReplace={(next) => setDraft(next)}
+              />
             ) : null}
             {tab === "typography" ? (
               <>

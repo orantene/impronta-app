@@ -36,6 +36,7 @@
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
 import { foregroundForPrimary } from "./contrast-pair";
+import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
 export interface ResolveDesignTokensInput {
@@ -155,6 +156,13 @@ export function designTokensToCssVars(
     }
   }
 
+  // Site style tokens (type roles, buttons, shape, spacing). "" = not set:
+  // no var, so the stylesheet falls back to the Design default chain.
+  for (const [tokenKey, cssVar] of Object.entries(STYLE_TOKEN_VAR_NAMES)) {
+    const value = tokens[tokenKey];
+    if (typeof value === "string" && value.length > 0) out[cssVar] = value;
+  }
+
   // DERIVED — the readable foreground for the tenant's primary.
   //
   // `.site-theme-tenant-override` re-pins `--primary` from
@@ -256,6 +264,8 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "profile.sticky-inquiry-bar": "data-token-profile-sticky-bar",
   "profile.blocks-visibility": "data-token-profile-blocks",
   "profile.reviews-visibility": "data-token-profile-reviews",
+  // Site style switches (type system, main button variant); style-tokens.ts.
+  ...STYLE_TOKEN_DATA_ATTRS,
 };
 
 /**
@@ -289,6 +299,7 @@ export function listProjectedTokens(): ReadonlyArray<TokenSpec> {
   return Object.values(TOKEN_REGISTRY).filter(
     (spec) =>
       COLOR_VAR_NAMES[spec.key] !== undefined ||
+      STYLE_TOKEN_VAR_NAMES[spec.key] !== undefined ||
       DATA_ATTR_NAMES[spec.key] !== undefined,
   );
 }

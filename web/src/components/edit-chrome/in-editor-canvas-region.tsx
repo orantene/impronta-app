@@ -26,6 +26,7 @@
  * flow under the overlay portal — the painted nodes carry those attributes.
  */
 
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import type { ReactNode } from "react";
 
 import { useCallback, useSyncExternalStore } from "react";
@@ -195,6 +196,7 @@ export function InEditorCanvasRegion({
       {...tokenDataAttrs}
       style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
+      <TypeSystemStyle />
       {canvasRenderData?.headNodes ?? null}
       {shellHeader ? (
         <div data-talent-builder-shell="header" data-talent-max-site-header="" inert>

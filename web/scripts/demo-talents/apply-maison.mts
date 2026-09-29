@@ -2,22 +2,22 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 
-const { loadMaisonCatalogRow } = await import("../../src/lib/talent-site/server/maison-catalog-row.ts");
+const { loadMaisonCatalogRow } = await import("../../src/lib/talent-site/server/maison-catalog-row");
 const { applyDesign, applyLook, publishSiteTheme } = await import(
-  "../../src/lib/talent-site/server/theme-apply-core.ts"
+  "../../src/lib/talent-site/server/theme-apply-core"
 );
 const { publishTalentPageBodies } = await import(
-  "../../src/lib/talent-site/server/publish-talent-page-bodies.ts"
+  "../../src/lib/talent-site/server/publish-talent-page-bodies"
 );
-const { MAISON_BUILTIN_DEMO } = await import("../../src/lib/talent-site/theme-catalog/maison/builtins.ts");
-const { MAISON_PALETTE_ORDER } = await import("../../src/lib/talent-site/theme-catalog/maison/seed.ts");
+const { MAISON_BUILTIN_DEMO } = await import("../../src/lib/talent-site/theme-catalog/maison/builtins");
+const { MAISON_PALETTE_ORDER } = await import("../../src/lib/talent-site/theme-catalog/maison/seed");
 const { galleryPaletteLookTokens, getGalleryDesign } = await import(
-  "../../src/lib/talent-site/theme-catalog/gallery-meta.ts"
+  "../../src/lib/talent-site/theme-catalog/gallery-meta"
 );
-const { mergeLookIntoTokens } = await import("../../src/lib/talent-site/theme-catalog/look-layer.ts");
-const { DEMO_BATCH, DEMOS } = await import("./demos.ts");
-const { applyDemoSiteCopy } = await import("./site-copy.ts");
-const { ALBA_PHOTO_SOURCES } = await import("./alba-photos.ts");
+const { mergeLookIntoTokens } = await import("../../src/lib/talent-site/theme-catalog/look-layer");
+const { DEMO_BATCH, DEMOS } = await import("./demos");
+const { applyDemoSiteCopy } = await import("./site-copy");
+const { ALBA_PHOTO_SOURCES } = await import("./alba-photos");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
