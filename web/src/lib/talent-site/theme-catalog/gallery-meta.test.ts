@@ -16,7 +16,9 @@ import {
   GALLERY_DESIGNS,
   GALLERY_FEATURE_TAGS,
   GALLERY_STYLE_TAGS,
+  galleryDefaultLookTokens,
   galleryPaletteLookTokens,
+  galleryPreviewLookSlug,
   getGalleryDesign,
   professionsForTerm,
   searchGallery,
@@ -66,12 +68,31 @@ test("maison keeps its five palettes exactly", () => {
   }
 });
 
-test("collection palettes return the same token keys as maison", () => {
+test("collection palettes cover maison's token keys, plus muted/on-accent and design fonts", () => {
   const keys = Object.keys(maisonPaletteLookTokens("pink")).sort();
   for (const d of GALLERY_DESIGNS) {
-    for (const p of d.palettes) assert.deepEqual(Object.keys(galleryPaletteLookTokens(d.slug, p.key)!).sort(), keys);
+    for (const p of d.palettes) {
+      const got = Object.keys(galleryPaletteLookTokens(d.slug, p.key)!);
+      for (const k of keys) assert.ok(got.includes(k), `${d.slug}/${p.key} ${k}`);
+    }
   }
+  const rose = galleryPaletteLookTokens("maison-v2", "rose")!;
+  assert.equal(rose["color.background"], "#FCF7F7");
+  assert.equal(rose["color.primary"], "#B3174A");
+  assert.equal(rose["color.muted"], "#7B6468");
+  assert.match(rose["typography.heading-font-family"]!, /Bodoni Moda/);
+  assert.match(rose["typography.body-font-family"]!, /Figtree/);
   assert.equal(galleryPaletteLookTokens("solace", "nope"), null);
+  // Each design previews in its OWN default look, never another design's.
+  const v2 = getGalleryDesign("maison-v2")!;
+  assert.equal(galleryPreviewLookSlug(v2, null), "rose");
+  assert.equal(galleryPreviewLookSlug(v2, "pink"), "rose", "a Maison key is not a v2 palette");
+  assert.equal(galleryPreviewLookSlug(v2, "sage"), "sage");
+  assert.equal(galleryPreviewLookSlug(getGalleryDesign("maison")!, "pink"), "maison-pink");
+  assert.equal(galleryPreviewLookSlug(getGalleryDesign("folio")!, null), "newsprint");
+  assert.equal(galleryDefaultLookTokens("maison-v2")!["color.background"], "#FCF7F7");
+  assert.equal(galleryDefaultLookTokens("maison"), null, "Maison uses its Look rows");
+  assert.equal(galleryDefaultLookTokens("folio")!["color.background"], "#FFFFFF");
   assert.equal(galleryPaletteLookTokens("nope", "pink"), null);
 });
 

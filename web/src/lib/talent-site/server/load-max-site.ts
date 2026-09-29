@@ -124,6 +124,27 @@ export async function loadMaxSiteThemeTokens(
 }
 
 /**
+ * The catalog Design the site wears (`theme_design_slug`), for the design
+ * skin scope (`design-skins.ts`). Null on any failure: the site then renders
+ * without a skin, never broken.
+ */
+export async function loadMaxSiteDesignSlug(talentProfileId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("talent_sites")
+    .select("theme_design_slug")
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talentMaxSite.load.designSlug", error);
+    return null;
+  }
+  const slug = (data as { theme_design_slug?: unknown } | null)?.theme_design_slug;
+  return typeof slug === "string" && slug.trim() ? slug.trim() : null;
+}
+
+/**
  * Current effective plan key for a talent — the materialized `talent_plan_key`.
  * Returns null on any failure. Unlike the snapshot path (which fails OPEN), the
  * public Max-site gate fails CLOSED on a null plan (`maxSitePublicGate` requires

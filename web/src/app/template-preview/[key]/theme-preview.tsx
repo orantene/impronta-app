@@ -30,6 +30,17 @@ import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/cata
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
+import { GoogleFontsLink } from "@/app/google-fonts-link";
+import {
+  designTypographyTokens,
+  galleryDefaultLookTokens,
+  getGalleryDesign,
+  galleryPaletteLookTokens,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { resolveDemoPreviewSource } from "./demo-preview-source";
 import { resolveDemoPreviewHydration } from "./demo-preview-hydration";
 import {
@@ -37,6 +48,8 @@ import {
   resolveMyContentPreviewLocale,
 } from "@/lib/talent-site/server/preview-my-content.server";
 
+/** Maison renders in its own default Look when the gallery picks none. */
+const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 export async function ThemeCatalogPreview({
@@ -76,11 +89,26 @@ export async function ThemeCatalogPreview({
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
 
-  const lookRow =
-    lookSlug && SLUG_RE.test(lookSlug)
-      ? await loadRow("look", lookSlug)
-      : null;
+  // Look resolution, most specific first:
+  //  1. `?look=` names one of THIS design's gallery palettes (its own colours
+  //     and fonts, e.g. maison-v2 + "rose");
+  //  2. `?look=` names a published Look row (Maison palettes);
+  //  3. no / unknown look: the design's OWN default (Maison: maison-pink,
+  //     collection designs: first gallery palette + fonts). The platform's
+  //     generic default is never the whole answer for a catalog design.
+  const cleanLook = lookSlug && SLUG_RE.test(lookSlug) ? lookSlug : null;
+  const paletteTokens = cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
+  const rowSlug =
+    paletteTokens ? null : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
+  const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
+  const lookTokens: Record<string, string> | null =
+    paletteTokens ??
+    (look
+      ? getGalleryDesign(design.slug) && design.slug !== "maison"
+        ? { ...look.payload.tokens, ...designTypographyTokens(design.slug) }
+        : look.payload.tokens
+      : galleryDefaultLookTokens(design.slug));
 
   // P4: a gallery-meta demo talent's content (allow-listed), else the
   // owner-gated hydration exactly as before.
@@ -112,13 +140,21 @@ export async function ThemeCatalogPreview({
   // Same layering as the live render: the Look lands in the (empty) site
   // draft layer, then platform < site. A key the Look omits keeps the
   // platform default, exactly as on the published site.
-  const effectiveTokens = look
+  const effectiveTokens = lookTokens
     ? resolveEffectiveSiteTokens(
         {},
-        mergeLookIntoTokens({}, look.payload.tokens),
+        mergeLookIntoTokens({}, lookTokens),
         platformDefault.tokens,
       )
     : platformDefault.tokens;
+
+  // Seeded labels follow the locale and (for the owner) the booking mode,
+  // exactly as the live site renders them.
+  const ctaMode =
+    hydration.isReal && talentProfileId
+      ? await loadTalentSiteCtaMode(talentProfileId, await loadTalentPlanKey(talentProfileId))
+      : null;
+  const localise = (tree: BuilderNode[]) => localiseSeededDesignLabels(tree, locale, ctaMode);
 
   const [shellHeader, shellFooter] = splitShell(mine ? mine.shellTree : built.shellTree);
   const snapshot: TalentSiteSnapshot = {
@@ -138,11 +174,13 @@ export async function ThemeCatalogPreview({
     slots: [],
     // Header, page, footer: the same order the live site renders. Spreading
     // the whole shell first put the footer under the header in every preview.
-    builderTree: [...shellHeader, ...homeTree, ...shellFooter],
+    builderTree: localise([...shellHeader, ...homeTree, ...shellFooter]),
   };
 
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"}>
+    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"} designSlug={design.slug}>
+      <GoogleFontsLink tokens={effectiveTokens} />
+      <DesignSkinStyle slug={design.slug} />
       <TalentSiteRenderer
         snapshot={snapshot}
         locale={locale}

@@ -56,6 +56,7 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "The book": "El book",
   "What clients say": "Lo que dicen mis clientes",
   Reviews: "Opiniones",
+  Ask: "Pregunta",
 };
 
 /** The talent's site-wide booking mode (posture after the plan ceiling). */
@@ -97,6 +98,12 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     instant: { en: "Book", es: "Reserva" },
     request: { en: "Request", es: "Solicitar" },
     inquiry: { en: "Quote", es: "Cotizar" },
+  },
+  // Maison v2 hero primary: the booking mode picks the verb.
+  "Reserve a time": {
+    instant: { en: "Book now", es: "Reservar" },
+    request: { en: "Request a time", es: "Solicitar cita" },
+    inquiry: { en: "Ask for a quote", es: "Pide una cotización" },
   },
   Booking: {
     instant: { en: "Booking", es: "Reservas" },

@@ -15,6 +15,7 @@ import {
   GALLERY_FEATURE_TAGS,
   GALLERY_PROFESSIONS,
   GALLERY_STYLE_TAGS,
+  galleryPreviewLookSlug,
   getGalleryDesign,
   suggestedDesignsForTrade,
   visibleGalleryDesigns,
@@ -22,7 +23,6 @@ import {
   type GallerySearchResult,
   type GalleryStyleTag,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
-import { MAISON_BUILTIN_DEMO } from "@/lib/talent-site/theme-catalog/maison/builtins";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -122,7 +122,6 @@ export function GalleryBrowseScreen({
     [state, pendingTags],
   );
 
-  const lookSlug = MAISON_BUILTIN_DEMO.buildPayload().default_look;
   const active = isFilterActive(state);
   const searching = view.terms.length > 0;
   const multi = view.terms.length >= 2;
@@ -206,7 +205,7 @@ export function GalleryBrowseScreen({
           className="relative block w-full text-left"
           aria-label={`${t("Explore")} ${d.name}`}
         >
-          <ThemeGalleryPreviewFrame preview={preview} url={preview.src(d.slug, lookSlug, demo && demo.status === "built" && demo.source.kind === "demo-talent" ? `${d.slug}:${demo.key}` : null)} locale={locale} title={d.name} virtualWidth={1280} aspectRatio="4 / 3" />
+          <ThemeGalleryPreviewFrame preview={preview} url={preview.src(d.slug, galleryPreviewLookSlug(d, demo?.defaultPalette), demo && demo.status === "built" && demo.source.kind === "demo-talent" ? `${d.slug}:${demo.key}` : null)} locale={locale} title={d.name} virtualWidth={1280} aspectRatio="4 / 3" />
           {badge ? (
             <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-admin-ink shadow-sm">
               {badge}

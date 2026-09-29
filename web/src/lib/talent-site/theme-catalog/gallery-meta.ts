@@ -94,9 +94,14 @@ export type GalleryPalette = Pick<
   "name" | "page" | "section" | "rule" | "text" | "accent" | "on_accent"
 > & {
   key: string;
+  /** Secondary text (proposal "mute"); defaults to the ink when absent. */
+  muted?: string;
   highContrast?: boolean;
   dark?: boolean;
 };
+
+/** A design's own type pair (font-family stacks, loaded via Google Fonts). */
+export type GalleryFonts = { heading: string; body: string };
 
 export type GalleryDemoSource =
   | { kind: "maison-seed"; key: string }
@@ -121,7 +126,10 @@ export type GalleryDesign = {
   featureTags: GalleryFeatureTag[];
   professions: GalleryProfession[];
   categoryChips: GalleryCategoryChip[];
+  /** First entry is the design's default palette (used when no look is picked). */
   palettes: GalleryPalette[];
+  /** The design's own fonts. Absent: the platform default pair. */
+  fonts?: GalleryFonts;
   demos: GalleryDemo[];
 };
 
@@ -177,11 +185,17 @@ function pal(
   en: string,
   es: string,
   c: [page: string, section: string, rule: string, text: string, accent: string, onAccent: string],
-  flags: { highContrast?: boolean; dark?: boolean } = {},
+  flags: { highContrast?: boolean; dark?: boolean; muted?: string } = {},
 ): GalleryPalette {
   const [page, section, rule, text, accent, on_accent] = c;
   return { key, name: { en, es }, page, section, rule, text, accent, on_accent, ...flags };
 }
+
+/** Maison v2 (Rosé proposal) type: Bodoni Moda display, Figtree body. */
+const MAISON_V2_FONTS: GalleryFonts = {
+  heading: '"Bodoni Moda", Didot, "Bodoni 72", Georgia, serif',
+  body: '"Figtree", system-ui, sans-serif',
+};
 
 // ── Designs ─────────────────────────────────────────────────────────────────
 
@@ -249,11 +263,14 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ...collection("maison-v2"),
     styleTags: ["Editorial", "Warm", "Image-led"],
     featureTags: ["Service menu", "Booking-ready", "Portfolio"],
+    fonts: MAISON_V2_FONTS,
+    // Proposal palettes (page, surface, line, ink, accent, on + mute).
     palettes: [
-      pal("rose", "Rosé", "Rosé", ["#FFFFFF", "#FBF1F2", "#EEDFE1", "#2A1F22", "#9E3B4D", "#FFFFFF"]),
+      pal("rose", "Rosé", "Rosé", ["#FCF7F7", "#FFFFFF", "#EFDFE3", "#241417", "#B3174A", "#FFFFFF"], { muted: "#7B6468" }),
+      pal("blush", "Blush", "Rubor", ["#FBF4F2", "#FFFFFF", "#EEDCD7", "#2B1C1E", "#B24E69", "#FFFFFF"], { muted: "#86706F" }),
+      pal("noir-rose", "Noir rose", "Noir rosa", ["#151012", "#1E171A", "#34282C", "#F7EEF0", "#E3487E", "#FFFFFF"], { dark: true, muted: "#B8A5A9" }),
       pal("porcelain", "Porcelain & Ink", "Porcelana y tinta", ["#FFFFFF", "#F4F4F2", "#E2E2DE", "#141414", "#141414", "#FFFFFF"], { highContrast: true }),
       pal("sage", "Sage & Olive", "Salvia y oliva", ["#FFFFFF", "#F1F4EE", "#DFE5D9", "#1F241C", "#4A5A34", "#FFFFFF"]),
-      pal("nocturne", "Nocturne", "Nocturno", ["#17131A", "#221C26", "#3A3140", "#F4EEF2", "#E7A6BC", "#17131A"], { dark: true }),
     ],
     demos: [
       talentDemo("lash-artist", { en: "Lash Artist", es: "Lashista" }, ["lashes"], "rose", "TAL-93002", "renata-lashes", "Renata Salgado"),
@@ -374,9 +391,51 @@ export function galleryPaletteLookTokens(slug: string, paletteKey: string): Reco
     "color.surface-raised": p.section,
     "color.line": p.rule,
     "color.ink": p.text,
+    "color.muted": p.muted ?? p.text,
     "color.primary": p.accent,
+    "color.primary-on": p.on_accent,
     "color.accent": p.accent,
+    ...designTypographyTokens(d.slug),
   };
+}
+
+/**
+ * The `?look=` a gallery card / detail preview passes for a design: Maison
+ * uses its Look rows (`maison-<palette>`), every other design its OWN palette
+ * key (the demo's default when it is one of the design's palettes, else the
+ * design's first). Never another design's palette.
+ */
+export function galleryPreviewLookSlug(
+  design: Pick<GalleryDesign, "slug" | "palettes">,
+  paletteKey?: string | null,
+): string | null {
+  const known = paletteKey && design.palettes.some((p) => p.key === paletteKey) ? paletteKey : null;
+  const key = known ?? design.palettes[0]?.key ?? null;
+  if (!key) return null;
+  return design.slug === MAISON_THEME_KEY ? `maison-${key}` : key;
+}
+
+/** The design's own font tokens (empty when it uses the platform pair). */
+export function designTypographyTokens(slug: string): Record<string, string> {
+  const fonts = getGalleryDesign(slug)?.fonts;
+  if (!fonts) return {};
+  return {
+    "typography.heading-font-family": fonts.heading,
+    "typography.body-font-family": fonts.body,
+  };
+}
+
+/**
+ * The full default Look of a gallery design: its first palette + its fonts.
+ * The preview falls back to this when no look is picked, so a design never
+ * renders in the platform's generic colours. Null for Maison (it has real
+ * Look rows) and unknown slugs.
+ */
+export function galleryDefaultLookTokens(slug: string): Record<string, string> | null {
+  const d = getGalleryDesign(slug);
+  if (!d || d.slug === MAISON_THEME_KEY) return null;
+  const first = d.palettes[0];
+  return first ? galleryPaletteLookTokens(d.slug, first.key) : null;
 }
 
 // ── Search ──────────────────────────────────────────────────────────────────

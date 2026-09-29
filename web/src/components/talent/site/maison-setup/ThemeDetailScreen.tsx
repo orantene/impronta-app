@@ -22,6 +22,7 @@ import {
   type MaisonCustomPaletteStored,
 } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
+import { galleryPreviewLookSlug } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { ImportStarterPanel } from "./ImportStarterPanel";
 import { CustomColorsPanel } from "./CustomColorsPanel";
@@ -134,7 +135,9 @@ export function ThemeDetailScreen({
     const key = liveLookSlug.slice("maison-".length);
     return key in MAISON_PALETTES ? (key as MaisonPaletteKey) : null;
   })();
-  const lookSlug = maison && selectedPaletteKey ? `maison-${selectedPaletteKey}` : null;
+  // The design's OWN palette key (Maison: its `maison-*` Look rows), so the
+  // preview paints its colours and fonts on first load, not the platform's.
+  const lookSlug = selectedPaletteKey ? galleryPreviewLookSlug(design, selectedPaletteKey) : null;
   const showDemoContent = choices.contentMode === "demo";
   const url = preview.src(
     design.slug,

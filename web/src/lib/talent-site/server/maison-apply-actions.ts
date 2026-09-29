@@ -27,7 +27,11 @@ import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
-import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import {
+  designTypographyTokens,
+  galleryPaletteLookTokens,
+  getGalleryDesign,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
 import {
   captureMaisonDraftSnapshot,
   isMaisonPendingUndo,
@@ -238,7 +242,13 @@ export async function applyMaisonDesignAction(input: {
       coerceTokenMap(
         (draftRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
       ),
-      maisonCustomLookTokens(customParsed),
+      {
+        ...maisonCustomLookTokens(customParsed),
+        // A gallery palette carries its full Look (muted, on-accent, fonts);
+        // custom colours on a collection design keep that design's fonts.
+        ...(galleryPalette ? galleryPaletteLookTokens(designSlug, galleryPalette.key) ?? {} : {}),
+        ...designTypographyTokens(designSlug),
+      },
     );
     const nowTokens = new Date().toISOString();
     const { error: customErr } = await admin

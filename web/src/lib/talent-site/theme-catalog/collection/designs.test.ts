@@ -122,7 +122,7 @@ test("maison-v2 includes reviews block on shared slider and clears W-14 gap", ()
   };
   walk(payload.homeTree);
   assert.equal(found.length, 1);
-  assert.equal(found[0].layout, "row");
+  assert.equal(found[0].layout, "trio");
   assert.equal(found[0].title, "What clients say");
   assert.ok(!COLLECTION_DESIGN_GAPS["maison-v2"]?.includes("W-14 bound reviews"));
 });
@@ -163,7 +163,7 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
   };
   walk(payload.homeTree);
   assert.equal(aboutIsSplit, true);
-  assert.equal(visitLayout, "split");
+  assert.equal(visitLayout, "facts");
   assert.equal(faqBound, true);
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
 });
@@ -390,4 +390,30 @@ test("folio stamps shared rate_card services_catalog layout", () => {
   assert.equal(catalogs[0]!.showDelivery, true);
   assert.equal(catalogs[0]!.showPrice, true);
   assert.equal(catalogs[0]!.showDuration, true);
+});
+
+/** Proposal CTA: one booking-mode primary beside a ghost Ask, in one row. */
+test("maison-v2 hero has one CTA row: primary booking + ghost Ask", () => {
+  const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!;
+  const hero = maison.buildPayload().homeTree[0]!;
+  const buttons: Array<{ label?: string; tone?: string }> = [];
+  let rows = 0;
+  const walk = (nodes: unknown) => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      const node = n as { kind?: string; props?: Record<string, unknown>; children?: unknown };
+      if (node.kind === "button") buttons.push(node.props as { label?: string; tone?: string });
+      if (node.kind === "container" && node.props?.layout === "row") rows += 1;
+      walk(node.children);
+    }
+  };
+  walk([hero]);
+  assert.equal(rows, 1);
+  assert.deepEqual(
+    buttons.map((b) => [b.label, b.tone]),
+    [
+      ["Reserve a time", "primary"],
+      ["Ask", "secondary"],
+    ],
+  );
 });
