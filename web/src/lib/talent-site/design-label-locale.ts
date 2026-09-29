@@ -85,7 +85,11 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Seasonal story": "Historia de temporada",
   Measures: "Medidas",
   "Measures · Comp card": "Medidas · Comp card",
-  Rates: "Tarifas",
+  Rates: "Contratación",
+  "Base rates in MXN. Ad use and travel are quoted separately.": "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.",
+
+  "Rate card": "Contratación",
+  Tarifas: "Contratación",
   "Rates and dates": "Tarifas y fechas",
   Contact: "Contacto",
   "Next issue.": "Siguiente número.",

@@ -63,9 +63,9 @@ export const COMP_CARD_MAGAZINE_CSS = `
 .sb-comp[data-edition="magazine"] .sb-comp-cell dt{font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:inherit;opacity:.7;margin-top:4px}
 .sb-comp[data-edition="magazine"] .sb-comp-cell dd{margin:0;font:400 30px/1 var(--sb-mag-serif);letter-spacing:0;color:inherit}
 .sb-comp[data-edition="magazine"] .sb-comp-cell dd small{font-family:var(--sb-mag-label);opacity:.7}
-.sb-comp[data-edition="magazine"] .sb-comp-details{grid-column:1/-1;border-top-color:color-mix(in srgb,var(--sb-mag-bg) 35%,transparent)}
-.sb-comp[data-edition="magazine"] .sb-comp-details>summary,.sb-comp[data-edition="magazine"] .sb-comp-group dd{color:inherit;font-family:var(--sb-mag-label)}
-.sb-comp[data-edition="magazine"] .sb-comp-details__count,.sb-comp[data-edition="magazine"] .sb-comp-group h3,.sb-comp[data-edition="magazine"] .sb-comp-group dt{color:inherit;opacity:.7}
+.sb-comp[data-edition="magazine"] .sb-comp-details{display:none!important}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dd small{font-family:var(--sb-mag-label);font-size:0.35em;opacity:.7;margin-left:0.15em}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dd{margin:0;font:400 30px/1 var(--sb-mag-serif);letter-spacing:0;color:inherit;display:flex;align-items:baseline;gap:0.15em;flex-wrap:wrap}
 @media (min-width:900px){
   .sb-comp[data-edition="magazine"]{margin:90px 40px 0;padding:32px}
   .sb-comp[data-edition="magazine"] .sb-comp-inner{grid-template-columns:260px minmax(0,1fr);align-items:end}

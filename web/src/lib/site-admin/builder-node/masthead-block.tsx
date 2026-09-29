@@ -53,6 +53,16 @@ export const MASTHEAD_MAGAZINE_CSS = `
 .sb-mag-row{display:flex;gap:8px;flex-wrap:wrap}
 .sb-mag-side .sb-mag-toc{margin:36px 16px 0;width:auto}
 ${MAGAZINE_BUTTON_CSS}
+@media (min-width:900px){
+  .sb-masthead[data-edition="magazine"] .sb-mag-mast{padding:16px 40px 8px}
+  .sb-masthead[data-edition="magazine"] .sb-mag-name{padding:0 32px;font-size:clamp(84px,19cqi,300px);white-space:nowrap}
+  .sb-masthead[data-edition="magazine"] .sb-mag-name span{display:inline}
+  .sb-masthead[data-edition="magazine"] .sb-mag-spread{display:grid;grid-template-columns:1.25fr 1fr;gap:32px;padding:18px 40px 0;align-items:end}
+  .sb-masthead[data-edition="magazine"] .sb-mag-cover{margin:0;aspect-ratio:4/3.4}
+  .sb-masthead[data-edition="magazine"] .sb-mag-tag{padding:0 0 6px}
+  .sb-masthead[data-edition="magazine"] .sb-mag-tag p{font-size:34px;line-height:1.25}
+  .sb-masthead[data-edition="magazine"] .sb-mag-side .sb-mag-toc{margin:0}
+}
 @container sbmag (min-width:900px){
   .sb-mag-mast{padding:16px 40px 8px}
   .sb-mag-name{padding:0 32px;font-size:clamp(84px,19cqi,300px)}

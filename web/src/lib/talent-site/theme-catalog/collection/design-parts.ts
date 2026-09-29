@@ -62,6 +62,7 @@ export type CatalogOpts = {
   columns?: 1 | 2 | 3;
   search?: boolean;
   band?: boolean;
+  subtitle?: string;
 };
 
 export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNode {
