@@ -29,7 +29,7 @@ interface GoogleFontsLinkProps {
 }
 
 export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkProps) {
-  const wanted: string[] = [];
+  const wanted: Array<{ value: string; italic: boolean }> = [];
   for (const key of [
     "typography.heading-font-family",
     "typography.body-font-family",
@@ -39,17 +39,24 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
     // capability wired at three layers out of four.
     "shell.header-nav-font",
   ] as const) {
-    if (tokens[key]) wanted.push(tokens[key]);
+    // Display headings use genuine italics for accents (`{i}`); request
+    // them only for the heading face (the builder skips families without).
+    if (tokens[key]) {
+      wanted.push({ value: tokens[key], italic: key === "typography.heading-font-family" });
+    }
   }
   // Usage-aware builder: weights are clamped to what each family actually
   // ships (an unsupported weight 400s the whole css2 stylesheet), variable
   // families load one ranged file, and families the catalogue does not know
   // (tenant-uploaded faces, served by TenantFontFaces) are skipped.
   const href = buildGoogleFontsHrefFromUsage(
-    [...wanted, ...fontFamilies].map((value) => ({
-      value: value ?? "",
-      weights: THEME_TOKEN_FONT_WEIGHTS,
-    })),
+    [
+      ...wanted.map((w) => ({ ...w, weights: THEME_TOKEN_FONT_WEIGHTS })),
+      ...fontFamilies.map((value) => ({
+        value: value ?? "",
+        weights: THEME_TOKEN_FONT_WEIGHTS,
+      })),
+    ],
   );
   if (!href) return null;
   return (

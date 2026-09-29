@@ -17,7 +17,6 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { SERVICES_CATALOG_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/services-catalog-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
-import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import {
@@ -194,35 +193,49 @@ function tuneHeading(node: BuilderNode, style: Record<string, unknown>): Builder
   } as BuilderNode;
 }
 
-function askButton(makeId: KitIdFactory, label: string): BuilderNode {
-  return {
-    id: makeId(),
-    kind: "button",
-    props: { label, href: TALENT_ASK_HREF, tone: "secondary", layerLabel: label },
-  } as BuilderNode;
-}
-
-function withChild(node: BuilderNode, child: BuilderNode): BuilderNode {
-  // Append into the hero's text column (first container child) when present.
+/**
+ * Maison v2 footer: the proposal's dark band (ink ground, page-colour text)
+ * with a large display line. Token refs only; the skin sizes the heading.
+ */
+function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  if (props.slotKey !== "footer" || node.kind !== "container") return node;
   const kids = "children" in node && Array.isArray(node.children) ? node.children : [];
-  const idx = kids.findIndex((k) => k.kind === "container" || k.kind === "reveal");
-  if (idx < 0) return { ...node, children: [...kids, child] } as BuilderNode;
-  const col = kids[idx] as BuilderNode & { children?: BuilderNode[] };
-  const next = [...kids];
-  next[idx] = { ...col, children: [...(col.children ?? []), child] } as BuilderNode;
-  return { ...node, children: next } as BuilderNode;
+  return {
+    ...node,
+    props: {
+      ...props,
+      anchorId: "site-footer",
+      align: "start",
+      style: {
+        ...((props.style as object) ?? {}),
+        backgroundColor: styleTokenRef("color.ink"),
+        textColor: styleTokenRef("color.background"),
+        paddingY: "l",
+        paddingX: "m",
+      },
+    },
+    children: [
+      {
+        id: makeId(),
+        kind: "heading",
+        props: { text: "Let's work together", level: 2, layerLabel: "Footer line" },
+      } as BuilderNode,
+      ...kids,
+    ],
+  } as unknown as BuilderNode;
 }
 
 // ── Maison v2 (Rosé proposal) ────────────────────────────────────────────────
-// Split hero with desktop inset photo, Bodoni italic name (typography token),
-// next-free chip (slots API), recent work BEFORE the menu, the menu as
-// image-led rows with a sticky category rail (chips on phone), split about,
-// visit facts band, FAQ, then live-bound reviews quote cards.
+// Proposal order: split hero (Bodoni italic name, inset photo, next-free chip,
+// booking CTA + ghost Ask), recent work strip, the menu (sticky category rail,
+// two-column image rows), review quote cards, split about, visit facts grid,
+// FAQ. The header carries section links. Look: Rosé (gallery-meta default).
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   const hero = tuneHeading(
     heroSplit(id, {
-      ratio: "50-50",
+      ratio: "60-40",
       chips: false,
       accent: true,
       eyebrow: true,
@@ -230,13 +243,23 @@ export function buildMaisonV2Payload(): DesignPayload {
       inset: true,
       italicAccent: true,
       nextFreeChip: true,
+      // Booking-mode primary ("Reserve a time" follows the talent's mode at render)
+      // and a ghost Ask beside it. Never two stacked solid buttons.
+      ctaRow: { primaryLabel: "Reserve a time", primaryHref: "#services", secondaryLabel: "Ask" },
     }),
-    { size: "display", letterSpacing: "-0.02em" },
+    { size: "display", letterSpacing: "-0.02em", fontWeight: 450 },
   );
   return {
-    shellTree: shell(id),
+    shellTree: shell(id, {
+      navLinks: [
+        { label: "Work", href: "#gallery" },
+        { label: "Menu", href: "#services" },
+        { label: "About", href: "#about" },
+        { label: "Your visit", href: "#visit" },
+      ],
+    }).map((n) => maisonV2Footer(id, n)),
     homeTree: [
-      withChild(hero, askButton(id, "Ask about a service")),
+      hero,
       portfolioBlock(id, { layout: "filmstrip", heading: "Recent work", showCaptions: true }),
       servicesSection(id, {
         label: "Menu",
@@ -249,6 +272,13 @@ export function buildMaisonV2Payload(): DesignPayload {
         density: "comfortable",
         rowCtaVariant: "outline",
         showPhoto: true,
+        columns: 2,
+      }),
+      reviewsBlock(id, {
+        layout: "trio",
+        heading: "What clients say",
+        eyebrow: "Reviews",
+        autoplayMs: 5500,
       }),
       aboutBlock(id, {
         align: "start",
@@ -258,21 +288,15 @@ export function buildMaisonV2Payload(): DesignPayload {
         showFacts: false,
       }),
       visitBlock(id, {
-        layout: "split",
+        layout: "facts",
         heading: "Your visit",
         titleAccent: "visit",
-        band: true,
+        band: false,
       }),
       faqBlock(id, {
         heading: "Before your appointment",
         center: true,
         ask: true,
-      }),
-      reviewsBlock(id, {
-        layout: "row",
-        heading: "What clients say",
-        eyebrow: "Reviews",
-        autoplayMs: 5500,
       }),
     ],
   };

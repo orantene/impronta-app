@@ -44,6 +44,7 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
+import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import {
@@ -74,7 +75,7 @@ import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
   loadMaxSitePages,
-  loadMaxSiteThemeTokens,
+  loadMaxSiteThemeTokens, loadMaxSiteDesignSlug,
   loadTalentManagingTenantId,
   loadTalentOwnerUserId,
   loadTalentPlanKey,
@@ -280,14 +281,13 @@ export async function renderTalentMaxSite(
     // ── Demo talent (fictional theme example): Demo pill + footer line ──────
     const isDemo = await loadMaxSiteIsDemo(talentProfileId);
 
-    // ── Site-level theme tokens (theme gallery). `{}` while the switch is off
-    //    or nothing is applied → the cascade below is exactly today's. ────────
-    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, {
-      draft: isOwnerDraftPreview,
-    });
+    // Site theme tokens (`{}` = today's cascade) + the Design slug (its skin).
+    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview });
+    const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
 
     const node = await renderMaxSiteDocument({
       siteTokens,
+      designSlug,
       shellTree: hydratedShell,
       logoUrl: site.logoUrl,
       page,
@@ -416,6 +416,7 @@ function buildMaxSiteSeo(args: {
 async function renderMaxSiteDocument(args: {
   /** Site-level theme tokens (theme gallery); `{}` = today's cascade. */
   siteTokens: Readonly<Record<string, string>>;
+  designSlug?: string | null; // scopes the Design skin (design-skins.ts)
   shellTree: BuilderNode[];
   logoUrl: string | null;
   page: MaxSitePageRow;
@@ -661,6 +662,7 @@ async function renderMaxSiteDocument(args: {
     <div
       data-talent-max-site=""
       data-theme-canvas-root=""
+      data-talent-design={args.designSlug ?? undefined}
       {...dataAttrs}
       style={{
         ...(cssVars as React.CSSProperties),
@@ -684,16 +686,15 @@ async function renderMaxSiteDocument(args: {
           locale={locale}
         />
       ) : null}
-      {/* REND-2 — public render: ONE shared renderer sheet for shell + body,
-          scoped to the kinds present across BOTH trees (mirrors the FontLinks
-          nodes union below). Live-resolved instance kinds are included; any
-          uncertainty falls back to the full sheet. */}
+      {/* REND-2: ONE renderer sheet for shell + body, scoped to the kinds in
+          BOTH trees; any uncertainty falls back to the full sheet. */}
       <BuilderNodeRendererStyles
         kinds={collectPresentNodeKinds([...shellTree, ...blocks], components)}
         nodes={[...shellTree, ...blocks]}
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
+      <DesignSkinStyle slug={args.designSlug} />
 
       {draftPreview ? (
         <div

@@ -29,3 +29,16 @@ test("es: seeded labels localise, talent-edited text is untouched", () => {
 test("en: tree returned unchanged", () => {
   assert.equal(localiseSeededDesignLabels(tree, "en"), tree);
 });
+
+test("Maison v2 hero primary follows the booking mode (EN + ES)", () => {
+  const one = [
+    { id: "b", kind: "button", props: { label: "Reserve a time", href: "#services" } },
+    { id: "a", kind: "button", props: { label: "Ask", href: "#ask" } },
+  ] as unknown as BuilderNode[];
+  const label = (t: BuilderNode[], i: number) => (t[i]!.props as { label: string }).label;
+  assert.equal(label(localiseSeededDesignLabels(one, "es", "instant"), 0), "Reservar");
+  assert.equal(label(localiseSeededDesignLabels(one, "en", "instant"), 0), "Book now");
+  assert.equal(label(localiseSeededDesignLabels(one, "es", "request"), 0), "Solicitar cita");
+  assert.equal(label(localiseSeededDesignLabels(one, "en", "inquiry"), 0), "Ask for a quote");
+  assert.equal(label(localiseSeededDesignLabels(one, "es", null), 1), "Pregunta");
+});

@@ -25,6 +25,7 @@ import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { CONTACT_LAYER, TALENT_ASK_HREF, contactChannelButtons } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
+import { heroCtaRow, heroMediaChip, type HeroCtaRow } from "./section-kit-hero-parts";
 
 export type KitIdFactory = MaxSiteTemplateIdFactory;
 
@@ -225,6 +226,8 @@ export interface HeroSplitOptions {
   italicAccent?: boolean;
   /** Live next-free-time chip (hidden when the slots API returns nothing). */
   nextFreeChip?: boolean;
+  /** Primary + ghost Ask row in place of the lone Ask button. */
+  ctaRow?: HeroCtaRow;
 }
 
 /** SPLIT hero: copy on the left, headshot on the right. */
@@ -266,7 +269,8 @@ export function heroSplit(
         },
       },
       ...(opts.chips !== false ? [disciplineChips(makeId, { accent })] : []),
-      ...(opts.nextFreeChip
+      // With the inset photo the chip sits on the hero image (bottom-left).
+      ...(opts.nextFreeChip && !opts.inset
         ? [
             {
               id: makeId(),
@@ -275,7 +279,7 @@ export function heroSplit(
             } as BuilderNode,
           ]
         : []),
-      inquiryCta(makeId),
+      opts.ctaRow ? heroCtaRow(makeId, opts.ctaRow) : inquiryCta(makeId),
     ],
   } as BuilderNode;
 
@@ -310,6 +314,7 @@ export function heroSplit(
         },
         children: [
           mainImage,
+          ...(opts.nextFreeChip ? [heroMediaChip(makeId)] : []),
           {
             id: makeId(),
             kind: "image",
