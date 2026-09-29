@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { pauseBannerCopy, type PublicContactMode } from "@/lib/talent/accepting-readiness";
 import { Fragment, cloneElement, isValidElement, memo } from "react";
 
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
@@ -331,14 +330,12 @@ export interface BuilderNodeRenderDataSources {
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
   /**
-   * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
+   * Talent selling defaults for sheet CTAs (on-demand vs inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
    * in the slots route — not needed on the catalog island.
    */
-  /** WSF-C §8: the talent's public contact state on a direct channel. */
-  talentSitePause?: PublicContactMode;
   talentOfferingsBookingSettings?: {
-    bookingPosture: "instant" | "request" | "inquiry";
+    bookingPosture: "on_demand" | "inquiry";
     whoPrimaryCta: "confirm_now" | "contact" | "check_availability";
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
@@ -1108,12 +1105,11 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 
 /** The frozen `marquee` section's separator glyphs, preserved verbatim. */
 const MARQUEE_SEPARATOR_GLYPH: Readonly<
-  Record<"dot" | "slash" | "diamond" | "star" | "none", string>
+  Record<"dot" | "slash" | "diamond" | "none", string>
 > = {
   dot: "·",
   slash: "/",
   diamond: "◆",
-  star: "✦",
   none: "",
 };
 
@@ -1391,9 +1387,6 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--marquee-link{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
 .site-builder-node--marquee-tag{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase}
 .site-builder-node--marquee-sep{opacity:0.45}
-.site-builder-node--marquee[data-bn-marquee-variant="serif"]{border-block:1px solid var(--token-color-line,currentColor);padding:12px 0}
-.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-item{gap:26px;padding-right:26px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:clamp(22px,2.4vw,30px);line-height:1.2}
-.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-sep{opacity:1;font-style:normal;font-size:14px;color:var(--token-color-accent,currentColor)}
 @keyframes bn-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node--marquee-track{animation:none}}
 .site-builder-node--directory[data-bn-directory-width="full"]{max-width:none}
@@ -4356,7 +4349,6 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-stat strong{font-size:2rem;font-weight:500}
 .site-builder-node--services-catalog-stat span{margin-top:.35rem;font-size:.625rem;letter-spacing:.12em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-empty{margin:0;padding:1.5rem 0;color:var(--token-color-muted);font-size:.9rem}
-.site-builder-node--services-catalog-pause{margin:0 0 1rem;padding:.75rem 1rem;border:1px solid currentColor;border-radius:.75rem;font-size:.9rem;opacity:.85}
 .site-builder-node--services-catalog-loading{margin:0}
 .site-builder-node--services-catalog-loading-label{margin:0 0 .85rem;font-size:.8125rem;font-weight:600;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-skel{display:block;background:color-mix(in srgb,var(--token-color-ink) 8%,transparent);border-radius:8px;animation:svc-catalog-skel-pulse 1.2s ease-in-out infinite}
@@ -4441,7 +4433,6 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-duration{font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-meta{font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.15rem}
-.site-builder-node--services-catalog-mode{align-self:flex-start;display:inline-flex;font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:99px;background:var(--token-color-blush,color-mix(in srgb,var(--token-color-accent,var(--token-color-ink)) 12%,transparent));color:var(--token-color-accent,var(--token-color-ink))}
 .site-builder-node--services-catalog-badge{display:inline-flex;align-items:center;font-size:.65rem;font-weight:600;letter-spacing:.02em;padding:.15rem .45rem;border-radius:999px;border:1px solid var(--token-color-line);color:var(--token-color-ink);background:transparent}
 .site-builder-node--services-catalog-demo{margin:0 0 .85rem;padding:.55rem .75rem;border-radius:10px;background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 8%,transparent);color:var(--token-color-ink);font-size:.75rem;font-weight:600}.site-builder-node--services-catalog-search{display:flex;gap:.5rem;align-items:center;margin:0 0 1rem}
 .site-builder-node--services-catalog-search input{flex:1;min-height:2.5rem;border:1px solid var(--token-color-line);border-radius:10px;padding:0 .85rem;font:inherit;background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink)}
@@ -5731,9 +5722,6 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const ctaLabel = p.ctaLabel?.trim() || undefined;
       const bookingMode = options.dataSources.catalogBookingLive ? "live" : "demo";
-      const pauseLine = options.dataSources.talentSitePause
-        ? pauseBannerCopy(options.dataSources.talentSitePause, locale)
-        : null;
       // Defensive re-filter + widget selection (references only).
       const visible = filterOfferingsForCatalog(options.dataSources.talentOfferings ?? [], {
         selectionMode: p.selectionMode,
@@ -5871,13 +5859,6 @@ function renderBuilderNodeElement(
             ) : null}
           </header>
 
-          {/* WSF-C §8: the talent paused new bookings (or everything). */}
-          {pauseLine ? (
-            <p className="site-builder-node--services-catalog-pause" role="status">
-              {pauseLine}
-            </p>
-          ) : null}
-
           {options.dataSources.talentOfferingsLoading ? (
             <ServicesCatalogLoadingSkeleton
               locale={locale}
@@ -5918,7 +5899,6 @@ function renderBuilderNodeElement(
                 showPrice={p.showPrice !== false}
                 showUsdEquivalent={p.showUsdEquivalent !== false}
                 showBadges={p.showBadges === true}
-                showModeChip={p.showModeChip === true}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
@@ -5950,7 +5930,6 @@ function renderBuilderNodeElement(
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
         styleAttr: sharedNodeStyle(node.props.style),
-        locale: options.contentLocale?.locale,
       });
     }
     case "reviews": {
@@ -5959,7 +5938,6 @@ function renderBuilderNodeElement(
           node={node}
           reviews={options.dataSources?.talentReviews ?? []}
           styleAttr={sharedNodeStyle(node.props.style)}
-          locale={options.contentLocale?.locale}
         />
       );
     }
@@ -5979,7 +5957,6 @@ function renderBuilderNodeElement(
     case "masthead": {
       return renderMastheadBlock({
         node,
-        locale: options.contentLocale?.locale ?? options.visitorLocale,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -7519,9 +7496,6 @@ function renderBuilderNodeElement(
             Both link sets render in full markup (never visibility:hidden-into-
             nothing), so the links stay reachable at the mobile breakpoint.
           */}
-          {/* No menu button for an empty or Home-only nav (one-page talent
-              sites showed an empty hamburger box under the brand at 390). */}
-          {links.length > 1 || links.some((l) => (l.children?.length ?? 0) > 0) || navMenuFooter ? (
           <details className="site-builder-node--nav-disclosure">
             <summary
               className="site-builder-node--nav-toggle"
@@ -7544,7 +7518,6 @@ function renderBuilderNodeElement(
               {navMenuFooter}
             </ul>
           </details>
-          ) : null}
         </nav>
       );
     }
