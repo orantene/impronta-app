@@ -11,6 +11,14 @@ import { PersonalPageBand } from "../shared/profile-sections-2";
 
 
 
+/** Labels of the model-industry taxonomy parents (models, hosts) and their children. */
+const MODEL_INDUSTRY_TRADE_LABELS: ReadonlySet<string> = new Set(
+  TAXONOMY.filter((parent) => parent.id === "models" || parent.id === "hosts").flatMap((parent) => [
+    parent.label.toLowerCase(),
+    ...parent.children.map((c) => c.label.toLowerCase()),
+  ]),
+);
+
 export function MyProfilePage() {
   const t = useT();
   const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentPageAnalytics, tenantSlug, bridgeTenantIdentity } = useAdminShell();
@@ -70,6 +78,11 @@ export function MyProfilePage() {
     const localized = key ? t(key) : "";
     return localized && localized !== key ? localized : parent.label;
   };
+  // A real talent's trade is the bridged label; the scaffold's primaryType
+  // defaults to "models" for everyone, so it cannot decide this alone.
+  const showModelSections = bridgeTalentSelfProfile
+    ? MODEL_INDUSTRY_TRADE_LABELS.has((bridgeTalentSelfProfile.primaryTypeLabel ?? "").trim().toLowerCase())
+    : true;
   const primaryRoleLabel = roleLabelFor(p.primaryType) ?? t("dashboard.talentMyProfile.roleFallback");
   const secondaryRoleLabels = p.secondaryTypes
     .map(id => roleLabelFor(id))
@@ -167,9 +180,16 @@ export function MyProfilePage() {
       {/* ── Hero band ──────────────────────────────────────────────── */}
       <ProfileHero />
 
-      {/* ── All sections — primary nav into the profile shell ─────── */}
-      <Divider label={t("dashboard.talentMyProfile.editSections")} />
-      <AllSectionsGrid openSection={openSection} />
+      {/* ── Legacy model-industry sections (Polaroids, Physical details,
+          Wardrobe, Credits…). Only for trades they describe; every other
+          trade edits through the sections above, and their "Add required"
+          counts would contradict the one completion value. */}
+      {showModelSections && (
+        <>
+          <Divider label={t("dashboard.talentMyProfile.editSections")} />
+          <AllSectionsGrid openSection={openSection} />
+        </>
+      )}
 
       {/* ── Engagement strip ──────────────────────────────────────── */}
       <div className="mt-4">

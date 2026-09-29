@@ -199,4 +199,36 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "Ask support": "Pedir a soporte",
   "Closing an account is handled by Tulala support for now. There is no self-serve button yet.":
     "Por ahora el soporte de Tulala cierra las cuentas. Aún no hay un botón para hacerlo tú.",
+  // Settings rows (two-column list)
+  "Deposit and cancellations": "Depósito y cancelaciones",
+  "Your defaults for new bookings. Each booking can still set its own.":
+    "Tus valores por defecto para reservas nuevas. Cada reserva puede tener los suyos.",
+  "Currency": "Moneda",
+  "Everything you charge and everything you are shown.": "Todo lo que cobras y todo lo que ves.",
+  "Card payments are paid out to your account.": "Los pagos con tarjeta se depositan en tu cuenta.",
+  "Tax details on receipts": "Datos fiscales en recibos",
+  "Optional": "Opcional",
+  "Services and prices": "Servicios y precios",
+  "Everything clients can book or buy lives in Services.":
+    "Todo lo que tus clientes pueden reservar o comprar está en Servicios.",
+  "Your name and photo": "Tu nombre y foto",
+  "Shown on every page you appear on.": "Se muestra en cada página donde apareces.",
+  "Language": "Idioma",
+  "Your dashboard. Your public pages follow the visitor.":
+    "Tu panel. Tus páginas públicas siguen el idioma del visitante.",
+  "Sign in": "Inicio de sesión",
+  "Passkeys let you sign in with Face ID or your fingerprint.":
+    "Las llaves de acceso te dejan entrar con Face ID o tu huella.",
+  "Verification": "Verificación",
+  "Email, ownership and connected accounts.": "Correo, propiedad del perfil y cuentas conectadas.",
+  "New enquiries and payments are always on.": "Las solicitudes nuevas y los pagos siempre te llegan.",
+  "Who can contact you": "Quién puede contactarte",
+  "Which clients can send you enquiries.": "Qué clientes pueden enviarte solicitudes.",
+  "Privacy": "Privacidad",
+  "Plan": "Plan",
+  "Help and support": "Ayuda y soporte",
+  "Common questions, payouts, contact our team.": "Preguntas frecuentes, pagos, contacta a nuestro equipo.",
+  "Hide everywhere": "Ocultar en todas partes",
+  "One switch that overrides every page and listing.": "Un solo interruptor que manda sobre cada página y ficha.",
+  "Active": "Activa",
 };

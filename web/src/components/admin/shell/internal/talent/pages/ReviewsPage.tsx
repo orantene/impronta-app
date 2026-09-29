@@ -568,16 +568,13 @@ export function ReviewsPage() {
   const [reportedIds, setReportedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [repliedIds, setRepliedIds] = useState<ReadonlySet<string>>(() => new Set());
 
-  // Resolve the premium gate independently of the reviews load. Fails closed
-  // (false) so a non-entitled workspace sees the upsell, never the content.
+  // Resolve the per-tenant switch independently of the reviews load. Reviews
+  // are on by platform default for every plan; only an explicit tenant-level
+  // off shows the gate. A transport failure also shows the gate.
   useEffect(() => {
     let cancelled = false;
-    if (!tenantSlug) {
-      setEntitled(false);
-      return;
-    }
     setEntitled(null);
-    reviewsEnabledForTenantAction(tenantSlug)
+    reviewsEnabledForTenantAction(tenantSlug ?? "")
       .then((ok) => {
         if (!cancelled) setEntitled(ok);
       })
