@@ -315,6 +315,7 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
               // `.pick`: 34px ink-outline pill; `.menu-wrap` spans the container.
               rowCtaVariant: "pill",
               contentWidth: "full",
+              nameLineClamp: 3,
               style: { ...styleOf(n), maxWidth: "full" },
             })
           : n,
@@ -476,7 +477,7 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           style: { marginTopFree: "18px" },
         },
       } as BuilderNode,
-      // Fine print (`.fine`): the copyright left, "Made with Tulala" right.
+      // Fine print (`.fine`): social names left, "Hecho con Tulala" right.
       {
         id: makeId(),
         kind: "container",
@@ -512,7 +513,7 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           {
             id: makeId(),
             kind: "paragraph",
-            props: { text: "Made with Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
+            props: { text: "Hecho con Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
           } as BuilderNode,
         ],
       } as BuilderNode,

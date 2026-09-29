@@ -1564,6 +1564,8 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     durationFormat?: "auto" | "minutes" | "hours_minutes";
     /** pill = one glass capsule: chat button + "See services" (Maison v2 dock). */
     mobileBar?: "dock" | "float" | "pill" | "hidden";
+    /** Lines of service name before ellipsis. Default 2; Maison v2 rows use 3. */
+    nameLineClamp?: 2 | 3 | 4;
     columns?: 1 | 2 | 3;
     density?: "comfortable" | "compact";
     /** Default true — inherit website theme tokens; Style overrides apply when false. */

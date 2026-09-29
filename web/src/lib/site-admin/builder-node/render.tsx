@@ -1392,7 +1392,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--marquee-tag{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase}
 .site-builder-node--marquee-sep{opacity:0.45}
 .site-builder-node--marquee[data-bn-marquee-variant="serif"]{border-block:1px solid var(--token-color-line,currentColor);padding:12px 0}
-.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-item{gap:26px;padding-right:26px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:clamp(22px,2.4vw,30px);line-height:1.2}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-item{gap:26px;padding-right:26px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:clamp(22px,2.4vw,30px);line-height:1.54}
 .site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-sep{opacity:1;font-style:normal;font-size:14px;color:var(--token-color-accent,currentColor)}
 @keyframes bn-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node--marquee-track{animation:none}}
@@ -4460,6 +4460,8 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-copy{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:.15rem}
 .site-builder-node--services-catalog-name{font-weight:600;font-size:.9375rem;line-height:1.25;overflow:hidden;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-word}
 .site-builder-node--services-catalog-name-text{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog[data-name-line-clamp="3"] .site-builder-node--services-catalog-name-text{-webkit-line-clamp:3;text-wrap:pretty}
+.site-builder-node--services-catalog[data-name-line-clamp="4"] .site-builder-node--services-catalog-name-text{-webkit-line-clamp:4;text-wrap:pretty}
 .site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--token-color-primary,var(--token-color-accent,#A82458));color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
 .site-builder-node--services-catalog-desc{font-size:.75rem;line-height:1.35;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:46ch}
 .site-builder-node--services-catalog-duration{font-size:.6875rem;color:var(--token-color-muted)}
@@ -5863,6 +5865,9 @@ function renderBuilderNodeElement(
           data-layout={layout}
           data-photo-radius={p.photoRadius ?? "soft"}
           data-cta-variant={p.rowCtaVariant ?? "outline"}
+          {...(p.nameLineClamp && p.nameLineClamp !== 2
+            ? { "data-name-line-clamp": String(p.nameLineClamp) }
+            : {})}
           {...(p.contentWidth === "full" ? { "data-content-width": "full" } : {})}
           data-density={p.density ?? "comfortable"}
           data-category-nav={categoryNav}

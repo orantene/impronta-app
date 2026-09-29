@@ -90,6 +90,8 @@ export type DemoTalent = {
    * site). Fictional; the phone is an all-zero placeholder, not a real line.
    */
   profile?: { lastName: string; phone: string; gender: "female" | "male"; dateOfBirth: string };
+  /** Published social_links on talent_profiles (Instagram etc.). */
+  socialLinks?: { platform: string; href: string }[];
 };
 
 export const DEMO_BATCH = "demo-2026-09-28";

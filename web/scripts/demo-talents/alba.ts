@@ -209,6 +209,8 @@ export const ALBA: DemoTalent = {
   ],
   // The artifact's page copy, set in the builder the way a talent edits it.
   profile: { lastName: "Castillo", phone: "+52 999 000 0000", gender: "female", dateOfBirth: "1995-04-12" },
+  // Footer fine print shows "Instagram · WhatsApp" when both are published.
+  socialLinks: [{ platform: "instagram", href: "https://www.instagram.com/alba.unas.demo/" }],
   siteCopy: {
     heroHeading: "Manos que {i}hablan{/i} por ti.",
     heroEyebrow: "Nail Artist · Mérida",

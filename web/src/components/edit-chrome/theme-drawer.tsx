@@ -252,6 +252,15 @@ const LAYOUT_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "atelier-blanc", label: "Atelier Blanc" },
     ],
   },
+  {
+    key: "chat.variant",
+    label: "Chat style",
+    hint: "Card is the calm one-to-one look Maison v2 uses by default.",
+    options: [
+      { value: "standard", label: "Standard" },
+      { value: "card", label: "Card" },
+    ],
+  },
 ];
 
 const EFFECT_PRESETS: ReadonlyArray<PresetSpec> = [

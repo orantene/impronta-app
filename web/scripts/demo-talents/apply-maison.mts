@@ -82,13 +82,24 @@ for (const e of entries) {
     .maybeSingle();
   if (!site) throw new Error(`no site for ${e.profileCode}`);
 
+  const demo = DEMOS.find((x) => x.profileCode === e.profileCode);
+
+  // Demo social links (Instagram etc.) so the Maison footer fine print can
+  // show "Instagram · WhatsApp" instead of WhatsApp alone.
+  if (demo?.socialLinks?.length) {
+    const { error: socErr } = await admin
+      .from("talent_profiles")
+      .update({ social_links: demo.socialLinks, updated_at: new Date().toISOString() })
+      .eq("id", e.talentProfileId);
+    if (socErr) throw socErr;
+  }
+
   // Beauty demos keep Maison's default palette; the rest rotate through the
   // others so the ten sites don't all look the same.
   const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
     ? MAISON_PALETTE_ORDER[0]
     : MAISON_PALETTE_ORDER[((Number(e.profileCode.slice(-3)) - 1) % (MAISON_PALETTE_ORDER.length - 1)) + 1];
   const designSlug = designFor(e.profileCode);
-  const demo = DEMOS.find((x) => x.profileCode === e.profileCode);
   // Collection designs (Maison v2...) wear their OWN gallery palette + fonts
   // (Rosé for Maison v2), never a Maison Look row.
   const gallery = designSlug !== "maison" ? getGalleryDesign(designSlug) : undefined;
