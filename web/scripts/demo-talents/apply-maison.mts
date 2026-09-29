@@ -21,6 +21,7 @@ import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publis
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
 import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
 import { DEMO_BATCH, DEMOS } from "./demos";
+import { isDemoEmail } from "./demo-identity";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -57,7 +58,7 @@ const entries = Object.values(manifest.entries)
   .sort((a, b) => a.profileCode.localeCompare(b.profileCode));
 
 for (const e of entries) {
-  if (!/^TAL-93\d{3}$/.test(e.profileCode) || !e.email.endsWith("@impronta.test")) {
+  if (!/^TAL-93\d{3}$/.test(e.profileCode) || !isDemoEmail(e.email)) {
     throw new Error(`REFUSE: not a demo entry ${e.profileCode}`);
   }
   const { data: u } = await admin.auth.admin.getUserById(e.userId);

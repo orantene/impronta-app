@@ -9,7 +9,7 @@
  *  - No passwords. Sign in with a one-time magic link (--links).
  *  - Only touches rows it can prove are demo rows: profile codes TAL-93xxx
  *    whose auth user carries app_metadata.demo_batch = DEMO_BATCH and an
- *    @impronta.test email. Anything else aborts.
+ *    @impronta.test or @demo.tulala.digital email. Anything else aborts.
  *  - Demo marker: auth app_metadata { demo: true, demo_batch }. The display
  *    name never says "demo".
  *  - Not listed in the public directory; no Stripe account is created.
@@ -35,6 +35,7 @@ import {
 } from "../../src/lib/talent-site/default-max-site-trees";
 import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-preset";
 import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
+import { isDemoEmail } from "./demo-identity";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -104,7 +105,7 @@ function saveManifest(m: Manifest) {
 
 function assertDemoIdentity(d: Pick<DemoTalent, "profileCode" | "email">) {
   if (!/^TAL-93\d{3}$/.test(d.profileCode)) throw new Error(`not a demo code: ${d.profileCode}`);
-  if (!d.email.endsWith("@impronta.test")) throw new Error(`not a test email: ${d.email}`);
+  if (!isDemoEmail(d.email)) throw new Error(`not a demo email: ${d.email}`);
 }
 
 async function getAuthUserByEmail(email: string) {
