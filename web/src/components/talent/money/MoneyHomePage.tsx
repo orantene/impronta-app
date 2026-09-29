@@ -70,8 +70,11 @@ const pill =
   "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 font-admin-body text-[13.5px] sm:h-9";
 const pillOn = `${pill} bg-admin-ink font-semibold text-white`;
 const pillOff = `${pill} border border-admin-border-soft bg-white text-admin-ink`;
-const btnSec =
-  "inline-flex h-11 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[13.5px] font-semibold text-admin-ink sm:h-9";
+const btnBase =
+  "inline-flex h-11 items-center justify-center rounded-full border px-4 font-admin-body text-[13.5px] font-semibold sm:h-9";
+const btnSec = `${btnBase} border-admin-border-soft bg-white text-admin-ink`;
+// Primary: one class set only (a second bg/text pair lost to the white one).
+const btnPri = `${btnBase} border-admin-ink bg-admin-ink text-white`;
 
 function SummaryCard(props: {
   title: string;
@@ -592,7 +595,7 @@ export function MoneyHomePage() {
             </button>
             <button
               type="button"
-              className={`${btnSec} border-admin-ink bg-admin-ink text-white`}
+              className={btnPri}
               onClick={() => setSheet("request")}
             >
               {t("Request payment")}

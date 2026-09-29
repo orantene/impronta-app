@@ -595,7 +595,7 @@ export function AgendaTodayPage({
                 {copy.t("Today")} · {shortDate}
               </CardTitle>
               <span className={`text-[12px] ${MUTED}`}>
-                {totals.appointmentsToday} {copy.t("appointments")} · {bookedLabel(totals.bookedMinutes)}{" "}
+                {appointments.length} {copy.t(appointments.length === 1 ? "appointment" : "appointments")} · {bookedLabel(totals.bookedMinutes)}{" "}
                 {copy.t("booked")}
               </span>
               <span className="flex-1" />
