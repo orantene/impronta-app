@@ -220,17 +220,23 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
 
   // Masthead bar: solid stone, ink rule, tracked caps nav, square CTA.
   // Brand matches Folio artifact: Archivo Narrow uppercase (not serif title case).
-  `${M} .site-header{position:sticky;top:0;z-index:40;background:var(--token-color-background);border-bottom:${RULE} solid var(--token-color-ink);box-shadow:none}`,
-  `${M} .site-header__inner{min-height:52px;padding:0 ${v("layout.gutter-phone")}}`,
-  `${M} .site-header__brand-label{font-family:${LABEL_FACE};font-weight:700;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;font-style:normal}`,
-  `${M} .site-header__brand-tagline{display:none}`,
-  `${M} .site-header__nav-link{${labelTypeM};color:var(--token-color-ink);text-decoration:none}`,
-  `${M} .site-header__nav-link:hover{color:var(--token-color-muted)}`,
-  `${M} .site-header__cta.site-btn,${M} .site-header__ritem.site-header__cta{height:34px;min-height:34px;padding:0 14px;border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);${labelTypeM};font-size:11.5px;box-shadow:none}`,
-  `${M} .site-header__actions :is(button,a):not(.site-header__cta):not([data-demo-badge]){display:none}`,
-  `${M}[data-talent-theme-preview] .site-header__actions::before,${M}[data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;margin-right:10px;padding:0 8px;border:${RULE} solid var(--token-color-line);${labelTypeM};font-size:10px;letter-spacing:0.2em;color:var(--token-color-muted)}`,
-  `@media (max-width:767px){${M} .site-header__nav{display:none}${M} .site-header__cta.site-btn{display:inline-flex;min-height:44px;height:44px}}`,
-  `${MQ_DESK}{${M} .site-header__inner{padding:0 ${v("layout.gutter")}}}`,
+  // High-specificity (no :where) so freeform header rules cannot keep icons/CTA wrong.
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header{position:sticky;top:0;z-index:40;background:var(--token-color-background);border-bottom:${RULE} solid var(--token-color-ink);box-shadow:none}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{min-height:52px;padding:10px ${v("layout.gutter-phone")};display:flex;align-items:center;gap:10px}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="left"]{display:flex;align-items:center;gap:10px;flex:0 0 auto}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="center"]{display:flex;align-items:center;gap:22px;flex:1 1 auto;justify-content:flex-start;margin:0}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="right"]{display:flex;align-items:center;gap:10px;margin-left:auto;flex:0 0 auto}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__brand-label{font-family:${LABEL_FACE};font-weight:700;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;font-style:normal}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__brand-tagline{display:none!important}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav-link{${labelTypeM};color:var(--token-color-ink);text-decoration:none}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav-link:hover{color:var(--token-color-muted)}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__cta.site-btn,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__ritem.site-header__cta{height:34px;min-height:34px;padding:0 14px;border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);${labelTypeM};font-size:11.5px;box-shadow:none}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__saved,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inquiry,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__menu-toggle,[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="locale"],[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="menu"]{display:none!important}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;padding:0 8px;border:${RULE} solid var(--token-color-line);${labelTypeM};font-size:10px;letter-spacing:0.2em;color:var(--token-color-muted)}`,
+  `@media (max-width:899px){[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__cta.site-btn,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__ritem.site-header__cta{display:none!important}}`,
+  `${MQ_DESK}{[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{padding:14px ${v("layout.gutter")}}}`,
+  // Cover name: beat type.display-tracking on h1 (artifact uses -.045em).
+  `[data-theme-canvas-root][data-token-type-system="magazine"] h1.sb-mag-name,[data-theme-canvas-root][data-token-type-system="magazine"] .sb-mag-name{letter-spacing:-0.045em!important}`,
 
   // Shared button chrome: square, tracked caps.
   `${M} .site-builder-node--button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:${v("button.height")};padding:0 ${v("button.padding-x")};border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);text-transform:uppercase;letter-spacing:${v("type.label-tracking")};font-size:${v("button.font-size")};font-weight:${v("button.font-weight")};font-family:${LABEL_FACE};white-space:nowrap;text-decoration:none;box-shadow:none}`,
@@ -246,11 +252,13 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-subtitle{margin:0 0 14px;color:var(--token-color-muted);font-size:14px;max-width:28ch}`,
   `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{border-bottom:${RULE} solid var(--token-color-ink);border-top:${RULE} solid var(--token-color-ink);background:transparent;border-radius:0;box-shadow:none;padding:16px 0;margin-top:-1px}`,
   `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-family:var(--site-heading-font,Georgia,serif);font-size:25px;font-weight:400;letter-spacing:0;line-height:1.05}`,
-  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{${labelTypeM};letter-spacing:0.14em;color:var(--token-color-muted)}`,
-  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{font-family:var(--site-heading-font,Georgia,serif);font-size:22px;font-weight:${v("type.display-weight")};font-style:normal}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{${labelTypeM};letter-spacing:0.16em;color:var(--token-color-muted);text-transform:uppercase;justify-self:start}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-meta{display:none}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{display:none}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{font-family:${LABEL_FACE};font-size:14px;font-weight:600;letter-spacing:0.06em;font-style:normal;text-transform:none}`,
   `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price [data-usd],${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-usd{display:none!important}`,
   `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy .site-btn,${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--button{border-radius:0;min-height:38px;height:38px;padding:0 14px;font-family:${LABEL_FACE};font-size:11px;letter-spacing:0.18em;text-transform:uppercase;box-shadow:none;background:transparent;color:var(--token-color-ink);border:${RULE} solid var(--token-color-ink)}`,
-  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--button[data-builder-button-tone="primary"]{background:var(--token-color-ink);color:var(--token-color-background)}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--button[data-builder-button-tone="primary"],${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-btn--primary{background:var(--token-color-ink);color:var(--token-color-background);border-color:var(--token-color-ink)}`,
   `${MQ_DESK}{${M} .site-builder-node--services-catalog[data-layout="rate_card"]{padding:${v("layout.section-pad-top")} ${v("layout.gutter")} 0;display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start}${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-title{font-size:64px}${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-size:32px}${M} h2{font-size:${v("type.section-title-size-desktop")}}}`,
 ].join("\n");
 

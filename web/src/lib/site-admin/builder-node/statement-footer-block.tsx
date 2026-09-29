@@ -45,6 +45,18 @@ function splitLastWord(text: string): [string, string, string] {
   return m ? [m[1]!, m[2]!, m[3]!] : ["", text, ""];
 }
 
+/** Fine-print host from a max-site URL or plain credit line. */
+function formatMagazineCredit(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  try {
+    const host = t.includes("://") ? new URL(t).hostname : t.replace(/^https?:\/\//, "").split("/")[0]!;
+    return host.replace(/^www\./, "");
+  } catch {
+    return t;
+  }
+}
+
 export function renderStatementFooterBlock(args: {
   node: BuilderStatementFooterNode;
   styleAttr?: CSSProperties;
@@ -88,11 +100,10 @@ export function renderStatementFooterBlock(args: {
             {ctaLabel}
           </a>
         ) : null}
-        {creditLine ? (
-          <div className="sb-mag-fine">
-            <span>{creditLine}</span>
-          </div>
-        ) : null}
+        <div className="sb-mag-fine">
+          <span>{formatMagazineCredit(creditLine)}</span>
+          <span>Hecho con Tulala</span>
+        </div>
       </footer>
     );
   }

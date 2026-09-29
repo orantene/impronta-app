@@ -159,6 +159,8 @@
             "#site .fo-toc"
           ],
           "localSelector": [
+            ".sb-masthead .sb-mag-toc",
+            ".sb-contents[data-edition='magazine'] .sb-mag-toc",
             ".sb-contents",
             "[data-builder-node-kind='contents']",
             "[data-builder-kind='contents']",

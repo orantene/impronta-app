@@ -309,18 +309,18 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     }
   };
   walk(payload.homeTree);
-  assert.equal(chapters.length, 3);
+  assert.equal(chapters.length, 2);
   assert.deepEqual(
     chapters.map((c) => c.layout),
-    ["chapter", "chapter", "chapter"],
+    ["chapter", "chapter"],
   );
   assert.deepEqual(
     chapters.map((c) => c.chapterNumber),
-    [1, 2, 3],
+    [1, 2],
   );
   assert.deepEqual(
     chapters.map((c) => c.anchorId),
-    ["chapter-1", "chapter-2", "chapter-3"],
+    ["chapter-1", "chapter-2"],
   );
   assert.equal(contentsFound.length, 1, "folio stamps shared contents block");
   const items =
@@ -328,12 +328,12 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     [];
   assert.ok(items.length >= 3);
   assert.deepEqual(
-    items.slice(0, 3).map((it) => it.anchor),
-    ["chapter-1", "chapter-2", "chapter-3"],
+    items.slice(0, 2).map((it) => it.anchor),
+    ["chapter-1", "chapter-2"],
   );
   assert.ok(
-    items.some((it) => it.anchor === "comp_card"),
-    "folio contents links to comp card",
+    items.some((it) => it.anchor === "services"),
+    "folio contents links to rate card",
   );
   const mastheadNodes = mastheads.filter((m) => m.kind === "masthead");
   assert.equal(mastheadNodes.length, 1, "folio stamps shared masthead kind");
@@ -354,10 +354,13 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
   assert.equal(statementNodes.length, 1, "folio stamps shared statement_footer kind");
   assert.match(
     String(statementNodes[0]!.props?.statement ?? ""),
-    /editorial, campaign, and portrait/,
+    /Next issue/,
   );
-  assert.equal(statementNodes[0]!.props?.creditLine, "{{displayName}}");
-  assert.equal(statementNodes[0]!.props?.contactLine, "Inquire for bookings");
+  assert.equal(statementNodes[0]!.props?.creditLine, "{{maxSiteUrl}}");
+  assert.equal(
+    statementNodes[0]!.props?.contactLine,
+    "For editorials, runway and campaigns. I reply the same day.",
+  );
   assert.ok(
     statementFooters.some(
       (s) => s.slotKey === "statement_footer" && s.originRole === "talent.statement_footer",
@@ -384,11 +387,12 @@ test("folio stamps shared rate_card services_catalog layout", () => {
   walk(payload.homeTree);
   assert.equal(catalogs.length, 1);
   assert.equal(catalogs[0]!.layout, "rate_card");
-  assert.equal(catalogs[0]!.categoryNav, "sections");
+  assert.equal(catalogs[0]!.categoryNav, "none");
   assert.equal(catalogs[0]!.density, "compact");
   assert.equal(catalogs[0]!.showPhoto, false);
   assert.equal(catalogs[0]!.showDescription, false);
-  assert.equal(catalogs[0]!.showDelivery, true);
+  assert.equal(catalogs[0]!.showDelivery, false);
+  assert.equal(catalogs[0]!.showCategory, true);
   assert.equal(catalogs[0]!.showPrice, true);
   assert.equal(catalogs[0]!.showDuration, true);
 });

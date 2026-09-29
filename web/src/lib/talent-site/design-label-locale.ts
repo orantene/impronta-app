@@ -93,6 +93,12 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Rates and dates": "Tarifas y fechas",
   Contact: "Contacto",
   "Next issue.": "Siguiente número.",
+  "Studio, hard light": "Estudio, luz dura",
+  "Exits and details": "Salidas y detalles",
+  "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
+  "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
+  "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
+  Consultar: "Consultar",
 
 };
 
@@ -205,6 +211,7 @@ const LABEL_PROPS = [
   "statement",
   "creditLine",
   "contactLine",
+  "subtitle",
 ] as const;
 
 /**
@@ -342,6 +349,29 @@ export function localiseSeededDesignLabels(
         return { ...l, label: out };
       });
       if (changed) (next ??= { ...props }).links = mapped;
+    }
+    // Contents index + magazine masthead index: label + optional credit.
+    for (const key of ROW_ARRAY_PROPS) {
+      if (key === "links") continue;
+      const rows = props[key];
+      if (!Array.isArray(rows)) continue;
+      let changed = false;
+      const mapped = rows.map((row: unknown) => {
+        if (!row || typeof row !== "object") return row;
+        const o = row as Record<string, unknown>;
+        let nextRow: Record<string, unknown> | null = null;
+        if (typeof o.label === "string") {
+          const out = one(o.label, o.href ?? o.anchor);
+          if (out !== null) (nextRow ??= { ...o }).label = out;
+        }
+        if (typeof o.credit === "string") {
+          const out = one(o.credit);
+          if (out !== null) (nextRow ??= { ...(nextRow ?? o) }).credit = out;
+        }
+        if (nextRow) changed = true;
+        return nextRow ?? row;
+      });
+      if (changed) (next ??= { ...props })[key] = mapped;
     }
     const children =
       "children" in node && Array.isArray(node.children) ? node.children.map(visit) : null;

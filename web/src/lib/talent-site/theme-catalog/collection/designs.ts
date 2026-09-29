@@ -168,8 +168,16 @@ export function buildFramePayload(): DesignPayload {
 // Folio magazine edition: cover masthead + contents + chapters + measures +
 // rate card + statement footer. Every block is a shared widget in its magazine edition.
 export const FOLIO_CHAPTER_SEEDS = [
-  { heading: "Editorial", creditLine: "Demo studio credit · CDMX" },
-  { heading: "Runway", creditLine: "Demo show credit · 3 exits" },
+  {
+    heading: "Editorial",
+    creditLine: "Demo studio credit · CDMX",
+    tocCredit: "Studio, hard light",
+  },
+  {
+    heading: "Runway",
+    creditLine: "Demo show credit · 3 exits",
+    tocCredit: "Exits and details",
+  },
 ] as const;
 
 function magazine(node: BuilderNode): BuilderNode {
@@ -227,7 +235,7 @@ export function buildFolioPayload(): DesignPayload {
                 ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
                   label: c.heading,
                   anchor: `chapter-${i + 1}`,
-                  credit: c.creditLine,
+                  credit: c.tocCredit,
                 })),
                 { label: "Rates", anchor: "services", credit: "Rates and dates" },
               ],
@@ -244,6 +252,8 @@ export function buildFolioPayload(): DesignPayload {
         { label: "Runway", href: "#chapter-2" },
         { label: "Rates", href: "#services" },
       ],
+      // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
+      primaryCtaLabel: "Consultar",
     }),
     tokenDefaults: { ...FOLIO_TOKEN_DEFAULTS },
     homeTree: [
@@ -258,11 +268,9 @@ export function buildFolioPayload(): DesignPayload {
               ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
                 label: c.heading,
                 anchor: `chapter-${i + 1}`,
+                credit: c.tocCredit,
               })),
-              { label: "About", anchor: "about" },
-              { label: "Measures", anchor: "comp_card" },
-              { label: "Rates", anchor: "services" },
-              { label: "Contact", anchor: "contact" },
+              { label: "Rates", anchor: "services", credit: "Rates and dates" },
             ],
           }),
         ),
@@ -312,14 +320,15 @@ export function buildFolioPayload(): DesignPayload {
             title: "Rates",
             subtitle: "Base rates in MXN. Ad use and travel are quoted separately.",
             layout: "rate_card",
-            categoryNav: "sections",
+            categoryNav: "none",
             stylePreset: "editorial",
             photoRadius: "square",
             density: "compact",
             rowCtaVariant: "outline",
             showPhoto: false,
             showDescription: false,
-            showDelivery: true,
+            showDelivery: false,
+            showCategory: true,
           }),
         ),
       ),
@@ -328,9 +337,9 @@ export function buildFolioPayload(): DesignPayload {
       magazine(
         fullBleed(
           statementFooterBlock(id, {
-            statement: "Available for editorial, campaign, and portrait commissions.",
-            creditLine: "{{displayName}}",
-            contactLine: "Inquire for bookings",
+            statement: "Next issue.",
+            creditLine: "{{maxSiteUrl}}",
+            contactLine: "For editorials, runway and campaigns. I reply the same day.",
             align: "start",
             showRule: true,
           }),
@@ -356,7 +365,7 @@ function withFooterCta(node: BuilderNode): BuilderNode {
             ...k,
             props: {
               ...(k.props as Record<string, unknown>),
-              ctaLabel: "Book a session",
+              ctaLabel: "Consultar",
               ctaHref: TALENT_ASK_HREF,
             },
           } as BuilderNode)

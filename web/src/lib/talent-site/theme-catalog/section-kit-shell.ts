@@ -71,6 +71,8 @@ export interface KitShellOptions {
    * hashes that match kit `anchorId` slots (`#services`, `#gallery`, …).
    */
   navLinks?: ReadonlyArray<KitShellNavLink>;
+  /** Override `site_header` primary CTA + freeform region CTA label. */
+  primaryCtaLabel?: string;
 }
 
 /**
@@ -184,7 +186,7 @@ export function buildKitStandardShell(
   makeId: KitIdFactory,
   opts: Pick<
     KitShellOptions,
-    "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks"
+    "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks" | "primaryCtaLabel"
   >,
 ): BuilderNode[] {
   const [rawHeader, footer, ...rest] = buildDefaultShellTree(
@@ -199,9 +201,33 @@ export function buildKitStandardShell(
     if (!rawHeader) return rawHeader;
     const hasLinks = !!opts.navLinks && opts.navLinks.length > 0;
     const hasChrome = !!opts.navChrome && opts.navChrome !== "top_bar";
-    if (!hasLinks && !hasChrome) return rawHeader;
+    const hasCta = !!opts.primaryCtaLabel?.trim();
+    if (!hasLinks && !hasChrome && !hasCta) return rawHeader;
     const props = (rawHeader.props ?? {}) as Record<string, unknown>;
     const sectionProps = (props.sectionProps ?? {}) as Record<string, unknown>;
+    const ctaLabel = opts.primaryCtaLabel?.trim();
+    const primaryCta = sectionProps.primaryCta;
+    const nextPrimaryCta =
+      hasCta && primaryCta && typeof primaryCta === "object"
+        ? { ...(primaryCta as Record<string, unknown>), label: ctaLabel }
+        : hasCta
+          ? { label: ctaLabel, href: "/contact" }
+          : primaryCta;
+    const regions = sectionProps.regions;
+    let nextRegions = regions;
+    if (hasCta && regions && typeof regions === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [slot, items] of Object.entries(regions as Record<string, unknown>)) {
+        out[slot] = Array.isArray(items)
+          ? items.map((it) => {
+              if (!it || typeof it !== "object") return it;
+              const row = it as Record<string, unknown>;
+              return row.type === "cta" ? { ...row, label: ctaLabel } : it;
+            })
+          : items;
+      }
+      nextRegions = out;
+    }
     return {
       ...rawHeader,
       props: {
@@ -212,6 +238,7 @@ export function buildKitStandardShell(
             ? { navItems: opts.navLinks!.map((l) => ({ label: l.label, href: l.href })) }
             : {}),
           ...(hasChrome ? { navChrome: opts.navChrome } : {}),
+          ...(hasCta ? { primaryCta: nextPrimaryCta, ...(nextRegions ? { regions: nextRegions } : {}) } : {}),
         },
       },
     } as BuilderNode;

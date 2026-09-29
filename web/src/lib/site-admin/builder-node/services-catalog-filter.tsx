@@ -692,7 +692,7 @@ export function CatalogRow({
             </span>
           ) : null}
         </strong>
-        {showCategory && item.category ? (
+        {showCategory && item.category && !(showDuration && item.durationMinutes && item.kind !== "product") ? (
           <span className="site-builder-node--services-catalog-meta">{item.category}</span>
         ) : null}
         {showDescription && item.description ? (
@@ -713,7 +713,9 @@ export function CatalogRow({
           </span>
         ) : showDuration && item.durationMinutes && item.kind !== "product" ? (
           <span className="site-builder-node--services-catalog-duration">
-            {catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
+            {showCategory && item.category
+              ? `${item.category} · ${catalogDurationShort(item.durationMinutes)}`
+              : catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
           </span>
         ) : null}
         {showDelivery && deliveryText ? (
@@ -748,6 +750,8 @@ export function CatalogRow({
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null ? (
               <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>
+            ) : minCents === 0 ? (
+              <strong>{es ? "Sin costo" : "Free"}</strong>
             ) : (
               <>
                 {ladder ? <small>{es ? "Desde" : "From"}</small> : null}
