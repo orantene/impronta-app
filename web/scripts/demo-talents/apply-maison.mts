@@ -118,7 +118,11 @@ for (const e of entries) {
     );
     const { error: tokErr } = await admin
       .from("talent_sites")
-      .update({ design_tokens_draft: draft, theme_look_slug: null, updated_at: new Date().toISOString() })
+      .update({
+        design_tokens_draft: draft,
+        theme_look_slug: galleryKey,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", site.id);
     if (tokErr) throw tokErr;
   }

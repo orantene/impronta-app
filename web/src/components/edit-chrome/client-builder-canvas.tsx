@@ -102,6 +102,12 @@ export interface ClientBuilderCanvasProps {
    * saved tree is never changed. Pass a stable function.
    */
   transformTree?: (tree: BuilderNodeTree) => BuilderNodeTree;
+  /**
+   * Site / visitor locale for catalog chrome (dock "Ver servicios", etc.).
+   * Distinct from the editor content-locale toggle: the live site always uses
+   * this, and the builder canvas must match (handover pending #3).
+   */
+  visitorLocale?: string;
 }
 
 function ClientBuilderCanvasInner({
@@ -114,6 +120,7 @@ function ClientBuilderCanvasInner({
   componentStyleDefaults,
   includeRendererStyles = false,
   transformTree,
+  visitorLocale,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
   // server snapshot is `null` (the bridge starts empty), so we fall back to
@@ -220,6 +227,7 @@ function ClientBuilderCanvasInner({
       componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
       contentLocale,
+      visitorLocale,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
       // on the live editor canvas it wraps the tree in the FLIP primitive.
@@ -235,6 +243,7 @@ function ClientBuilderCanvasInner({
       effectiveComponentDefaults,
       renderSectionEmbed,
       contentLocale,
+      visitorLocale,
     ],
   );
 

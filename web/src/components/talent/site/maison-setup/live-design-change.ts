@@ -64,6 +64,11 @@ export function paletteDisplayName(input: {
     const hit = all.find((p) => p.key === key);
     if (hit) return es ? hit.name.es : hit.name.en;
   }
+  // Collection looks (e.g. maison-v2 "rose") use the bare palette key.
+  if (lookSlug && design) {
+    const hit = design.palettes.find((p) => p.key === lookSlug);
+    if (hit) return es ? hit.name.es : hit.name.en;
+  }
   return es ? "Mis colores" : "My colors";
 }
 

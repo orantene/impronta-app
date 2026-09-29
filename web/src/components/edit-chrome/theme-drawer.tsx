@@ -689,15 +689,28 @@ export function ThemeDrawer(): ReactElement | null {
         title={
           !snapshot && busy === "loading"
             ? "Theme · loading…"
-            : snapshot?.presetSlug
-              ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
-              : "Theme · Custom"
+            : snapshot?.designDisplayName
+              ? snapshot.paletteDisplayName
+                ? `${snapshot.designDisplayName} · ${snapshot.paletteDisplayName}`
+                : snapshot.designDisplayName
+              : snapshot?.presetSlug
+                ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
+                : "Theme · Custom"
         }
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={
           !snapshot && busy === "loading" ? (
             <span style={{ color: CHROME.muted2 }}>Loading theme…</span>
+          ) : snapshot?.designDisplayName ? (
+            <>
+              {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Site theme"}
+              {dirty ? (
+                <>
+                  <span style={{ color: CHROME.muted2 }}> · </span>Unsaved
+                </>
+              ) : null}
+            </>
           ) : (
             <>
               {lastPublishedLabel ? `Published ${lastPublishedLabel}` : "Never published"}

@@ -30,6 +30,7 @@ export interface TalentSiteThemeState {
   draft: Record<string, string>;
   live: Record<string, string>;
   designSlug: string | null;
+  lookSlug: string | null;
 }
 
 function coerceTokens(value: unknown): Record<string, string> {
@@ -49,7 +50,7 @@ export async function loadTalentSiteThemeState(
   if (!admin) return null;
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens, design_tokens_draft, theme_design_slug")
+    .select("design_tokens, design_tokens_draft, theme_design_slug, theme_look_slug")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
   if (error) {
@@ -61,11 +62,13 @@ export async function loadTalentSiteThemeState(
     design_tokens: unknown;
     design_tokens_draft: unknown;
     theme_design_slug: string | null;
+    theme_look_slug: string | null;
   };
   return {
     draft: coerceTokens(row.design_tokens_draft),
     live: coerceTokens(row.design_tokens),
     designSlug: row.theme_design_slug?.trim() || null,
+    lookSlug: row.theme_look_slug?.trim() || null,
   };
 }
 
