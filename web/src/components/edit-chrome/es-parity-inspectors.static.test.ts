@@ -93,6 +93,9 @@ const CODE_VALUE_SAMPLES: ReadonlySet<string> = new Set([
   "Sat.",
   "Reg",
   "Med",
+  // Magazine contents / masthead placeholders: shape samples, not UI chrome.
+  "chapter-1",
+  "{{headshotUrl}}",
 ]);
 
 /**

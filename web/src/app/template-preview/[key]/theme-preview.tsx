@@ -23,21 +23,90 @@ import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens"
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildDesignTrees } from "@/lib/talent-site/server/theme-apply-core";
+import { splitShell } from "@/lib/talent-site/server/render-max-site-shell";
 import { loadPublishedCatalogRow } from "@/lib/talent-site/server/theme-catalog-row";
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/catalog-visibility";
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
+import { GoogleFontsLink } from "@/app/google-fonts-link";
+import {
+  designTypographyTokens,
+  galleryDefaultLookTokens,
+  getGalleryDesign,
+  galleryPaletteLookTokens,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import {
+  COLLECTION_DEFAULT_LOOK,
+  folioLookTokensFromCode,
+} from "@/lib/talent-site/theme-catalog/collection/folio-looks";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { resolveDemoPreviewSource } from "./demo-preview-source";
+import { loadDemoSavedTrees, resolveDemoPreviewHydration } from "./demo-preview-hydration";
+import {
+  prepareMyContentPreview,
+  resolveMyContentPreviewLocale,
+} from "@/lib/talent-site/server/preview-my-content.server";
 
+/** Maison renders in its own default Look when the gallery picks none. */
+const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+/** Folio magazine leaf kinds — Design defaults stamp `edition: "magazine"`. */
+const FOLIO_MAGAZINE_KINDS = new Set([
+  "masthead",
+  "contents",
+  "portfolio",
+  "comp_card",
+  "statement_footer",
+]);
+
+/** Ensure Folio magazine blocks keep `edition: "magazine"` after saved-tree bind. */
+function stampFolioMagazineEdition(tree: BuilderNode[]): BuilderNode[] {
+  const visit = (node: BuilderNode): BuilderNode => {
+    const kids = "children" in node && Array.isArray(node.children) ? node.children : null;
+    const props = (node.props ?? {}) as Record<string, unknown>;
+    const nextProps = FOLIO_MAGAZINE_KINDS.has(node.kind)
+      ? { ...props, edition: "magazine" }
+      : props;
+    return {
+      ...node,
+      props: nextProps,
+      ...(kids ? { children: kids.map(visit) } : {}),
+    } as BuilderNode;
+  };
+  return tree.map(visit);
+}
+
+
+
+
+/** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
+function resolveFolioLookSlug(designSlug: string, lookSlug: string | null | undefined): string | null {
+  const fallback = COLLECTION_DEFAULT_LOOK[designSlug] ?? null;
+  const raw = (lookSlug || fallback || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith("folio-")) return raw;
+  if (designSlug === "folio" && ["stone", "light", "dark"].includes(raw)) return `folio-${raw}`;
+  return raw || fallback;
+}
 
 export async function ThemeCatalogPreview({
   designSlug,
   lookSlug,
   talentProfileId,
-  locale = "en",
+  locale: requestedLocale = "en",
+  localeExplicit = false,
+  demo = null,
 }: {
+  /** True when `?locale=` was in the URL; My content otherwise uses the site locale. */
+  localeExplicit?: boolean;
+  /** P4: `<designSlug>:<demoKey>`; only gallery-meta demo sources resolve. */
+  demo?: string | null;
   designSlug: string;
   lookSlug?: string | null;
   talentProfileId?: string | null;
@@ -63,28 +132,93 @@ export async function ThemeCatalogPreview({
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
 
-  const lookRow =
-    lookSlug && SLUG_RE.test(lookSlug)
-      ? await loadRow("look", lookSlug)
-      : null;
+  // Look resolution, most specific first:
+  //  1. `?look=` names one of THIS design's gallery palettes (its own colours
+  //     and fonts, e.g. maison-v2 + "rose");
+  //  2. `?look=` names a published Look row (Maison palettes);
+  //  3. no / unknown look: the design's OWN default (Maison: maison-pink,
+  //     collection designs: first gallery palette + fonts). The platform's
+  //     generic default is never the whole answer for a catalog design.
+  const effectiveLookSlug = resolveFolioLookSlug(design.slug, lookSlug);
+  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
+  const cleanLook = lookSlug && SLUG_RE.test(lookSlug) ? lookSlug : null;
+  const paletteTokens =
+    folioTokens ? null : cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
+  const rowSlug =
+    folioTokens || paletteTokens
+      ? null
+      : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
+  const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
+  const lookTokens: Record<string, string> | null =
+    folioTokens ??
+    paletteTokens ??
+    (look
+      ? getGalleryDesign(design.slug) && design.slug !== "maison"
+        ? { ...look.payload.tokens, ...designTypographyTokens(design.slug) }
+        : look.payload.tokens
+      : galleryDefaultLookTokens(design.slug));
 
-  const hydration = await resolvePreviewHydration(talentProfileId);
+  // P4: a gallery-meta demo talent's content (allow-listed), else the
+  // owner-gated hydration exactly as before.
+  const demoSource = resolveDemoPreviewSource(designSlug, demo);
+  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource) : null;
+  const hydration = demoHydration ?? (await resolvePreviewHydration(talentProfileId));
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
-  const platformDefault = await loadPlatformDefaultTheme("talent");
-  // Same layering as the live render: the Look lands in the (empty) site
-  // draft layer, then platform < site. A key the Look omits keeps the
-  // platform default, exactly as on the published site.
-  const effectiveTokens = look
-    ? resolveEffectiveSiteTokens(
-        {},
-        mergeLookIntoTokens({}, look.payload.tokens),
-        platformDefault.tokens,
-      )
-    : platformDefault.tokens;
+  // My content (the owner's real data): the talent's site locale, the live
+  // render's locale swaps, the live data sources, and hide-empty. Demo
+  // content keeps the requested locale and the untouched design.
+  const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
+  // A demo talent's own live widgets (services, photos, reviews, visit) bind
+  // too, read-only, in the requested locale.
+  const contentId = ownerId ?? demoHydration?.demoTalentProfileId ?? null;
+  const locale = ownerId
+    ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
+    : requestedLocale;
+  // A demo shows its SAVED page (her own headline, eyebrow, lede, photos);
+  // My content keeps the design tree bound to the owner's data.
+  const saved = demoHydration
+    ? await loadDemoSavedTrees(demoHydration.demoTalentProfileId, design.slug)
+    : null;
+  const folioDesign = design.slug === "folio";
+  const shellForBind = folioDesign ? built.shellTree : (saved?.shellTree ?? built.shellTree);
+  const homeForBind = folioDesign
+    ? stampFolioMagazineEdition(built.homeTree)
+    : (saved?.homeTree ?? built.homeTree);
+  const mine = contentId
+    ? await prepareMyContentPreview({
+        talentProfileId: contentId,
+        locale,
+        shellTree: shellForBind,
+        homeTree: homeForBind,
+      })
+    : null;
+  const homeTree = mine
+    ? folioDesign
+      ? stampFolioMagazineEdition(mine.homeTree)
+      : mine.homeTree
+    : homeForBind;
 
+  const platformDefault = await loadPlatformDefaultTheme("talent");
+  // Same layering as the live render: Design defaults sit between platform and Look.
+  const designDefaults = designTokenDefaults(design.slug);
+  const effectiveTokens = resolveEffectiveSiteTokens(
+    {},
+    lookTokens ? mergeLookIntoTokens({}, lookTokens) : {},
+    platformDefault.tokens,
+    designDefaults,
+  );
+
+  // Seeded labels follow the locale and (for the owner) the booking mode,
+  // exactly as the live site renders them.
+  const ctaMode = contentId
+    ? await loadTalentSiteCtaMode(contentId, await loadTalentPlanKey(contentId))
+    : null;
+  const localise = (tree: BuilderNode[]) => localiseSeededDesignLabels(tree, locale, ctaMode);
+
+  const [shellHeader, shellFooter] = splitShell(mine ? mine.shellTree : built.shellTree);
   const snapshot: TalentSiteSnapshot = {
     version: 1,
     siteKind: "talent_personal",
@@ -100,12 +234,21 @@ export async function ThemeCatalogPreview({
     },
     templateSchemaVersion: 1,
     slots: [],
-    builderTree: [...built.shellTree, ...built.homeTree],
+    // Header, page, footer: the same order the live site renders. Spreading
+    // the whole shell first put the footer under the header in every preview.
+    builderTree: localise([...shellHeader, ...homeTree, ...shellFooter]),
   };
 
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale}>
-      <TalentSiteRenderer snapshot={snapshot} locale={locale} />
+    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"} designSlug={design.slug}>
+      <GoogleFontsLink tokens={effectiveTokens} />
+      <TypeSystemStyle />
+      <TalentSiteRenderer
+        snapshot={snapshot}
+        locale={locale}
+        freeformDataSources={mine?.dataSources}
+        designSlug={design.slug}
+      />
     </ThemeTokenPreviewFrame>
   );
 }

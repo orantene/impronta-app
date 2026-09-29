@@ -7,6 +7,7 @@ import { BUILTIN_DESIGNS, BUILTIN_LOOKS } from "./builtins";
 import type { BuiltinDesignEntry, BuiltinLookEntry } from "./builtins/types";
 import { MAISON_BUILTIN_DESIGN, MAISON_BUILTIN_LOOKS } from "./maison/builtins";
 import { COLLECTION_DESIGNS } from "./collection/designs";
+import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
 import { TALENT_THEME_SCHEMA_VERSION, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
 
@@ -201,6 +202,7 @@ export async function syncBuiltinTalentThemes(
     ...COLLECTION_DESIGNS,
     ...BUILTIN_LOOKS,
     ...MAISON_BUILTIN_LOOKS,
+    ...FOLIO_BUILTIN_LOOKS,
   ];
   const built = entries.map((entry) => ({ entry, payload: entry.buildPayload() }));
 

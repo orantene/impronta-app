@@ -113,12 +113,15 @@ export function DefaultsScreen({
   onChange,
   onBack,
   onSave,
+  onOpenWebsiteSettings,
 }: {
   defaults: SellingDefaults;
   currency?: string;
   onChange: (next: SellingDefaults) => void;
   onBack: () => void;
   onSave: () => void;
+  /** Booking mode (Inherited/Custom/Reset, WSF-B) is edited in Website settings. */
+  onOpenWebsiteSettings?: () => void;
 }) {
   const copy = useDashboardText();
   const patch = (partial: Partial<SellingDefaults>) => onChange({ ...defaults, ...partial });
@@ -158,6 +161,18 @@ export function DefaultsScreen({
           <p className="mt-1 text-[13.5px] text-admin-ink-muted">
             {copy.t("Every new item starts with these. Any item can override them.")}
           </p>
+          {onOpenWebsiteSettings ? (
+            <p className="mt-1 text-[13px] text-admin-ink-muted">
+              {copy.t("Booking mode and the rest of your selling setup also live in Website settings.")}{" "}
+              <button
+                type="button"
+                onClick={onOpenWebsiteSettings}
+                className="inline-flex min-h-[44px] items-center font-semibold text-admin-brand sm:min-h-0"
+              >
+                {copy.t("Open Website settings")}
+              </button>
+            </p>
+          ) : null}
         </div>
         <button
           type="button"

@@ -11,6 +11,12 @@ export type TalentEarningsRow = {
   status: "paid" | "invoiced" | "pending" | "confirmed";
   source: "agency_routed" | "personal_page" | "hub" | "unknown";
   paymentMethod: string | null;
+  /**
+   * Booking `payment_status` when known. Needed so Money "Collected" can
+   * exclude partial deposits (status collapses to `pending` for both full
+   * and part-paid) until a real collected amount lands on the row.
+   */
+  paymentStatus?: string | null;
 };
 
 export type TalentEarningsPerAgency = {
@@ -73,6 +79,8 @@ export type TalentSnapshotAggregateRow = {
   status: TalentEarningsRow["status"];
   source: TalentEarningsRow["source"];
   paymentMethod: string | null;
+  /** Booking payment_status (paid / partial / …) when the loader has it. */
+  paymentStatus?: string | null;
   /**
    * ISO-4217 currency code from `booking_commission_snapshot.currency_code`.
    * Present only when the aggregation fetcher ran with `includeAllCurrencies:
@@ -258,6 +266,7 @@ export function buildTalentEarnings(
       status: row.status,
       source: row.source,
       paymentMethod: row.paymentMethod,
+      paymentStatus: row.paymentStatus ?? null,
     })),
   };
 }

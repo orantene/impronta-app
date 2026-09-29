@@ -48,4 +48,16 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "What unlocks your free website": "Qué desbloquea tu sitio gratis",
   "Same score as Today and Where I appear.": "La misma puntuación que Hoy y Dónde aparezco.",
   "Continue your website": "Continúa tu sitio",
+  "Pick a design, see it with your own services and photos, then publish when you are happy. Nothing goes live until you publish.":
+    "Elige un diseño, míralo con tus propios servicios y fotos, y publica cuando te guste. Nada sale en vivo hasta que publiques.",
+  "Could not load your website.": "No se pudo cargar tu sitio.",
+  "Loading your website…": "Cargando tu sitio…",
+  "Edit site": "Editar sitio",
+  "Publish site": "Publicar sitio",
+  "Back to My website": "Volver a Mi sitio web",
+  "Something went wrong.": "Algo salió mal.",
+  "Address, logo and pages": "Dirección, logo y páginas",
+  "Site address, logo, pages and custom domain": "Dirección del sitio, logo, páginas y dominio propio",
+  "Address, logo, pages, booking, payments and cancelling":
+    "Dirección, logo, páginas, reservas, pagos y cancelaciones",
 };

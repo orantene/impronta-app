@@ -1,25 +1,13 @@
 /**
- * Spanish editor-chrome strings — WAVE 4.4 (2026-08-07): the DEEP INSPECTORS.
- *
- * Covers `components/edit-chrome/inspectors/**`: the style, layout, motion,
- * data, site-header and per-block content panels. Those panels hand their copy
- * to the inspector kit primitives as `label` / `title` / `hint` / `help` /
- * `description` / `placeholder` props, so the strings are resolved at the kit
- * boundary (`inspectors/kit/use-inspector-t.ts`) rather than at each of the
- * ~660 call sites. The resolver is unchanged: `editorT` over this same
- * EN-text-keyed map.
- *
- * Split out of `editor-i18n-es.ts` for the 800-line cap, exactly like
- * `-canvas.ts` and `-sections.ts`. Pure data, no logic. Spread into `ES_TEXT`
- * in `editor-i18n-es.ts`; consumers keep importing `ES_TEXT` from
- * `editor-i18n`. Both parity guards scan this file.
- *
- * House rules that apply to every entry here: no em dashes, "cliente" never
- * "comprador", "elenco" for roster, and `{placeholder}` tokens kept intact and
- * placed naturally for Spanish word order.
+ * Spanish editor-chrome strings for deep inspectors (`inspectors/**`).
+ * Split for the 800-line cap; spread into `ES_TEXT` via `editor-i18n-es.ts`.
+ * No em dashes; "cliente" never "comprador"; keep `{placeholder}` tokens.
  */
 
+import { NAV_CHROME_ES_LABELS } from "./editor-i18n-es-nav-chrome";
+
 export const ES_INSPECTOR_TEXT: Record<string, string> = {
+  ...NAV_CHROME_ES_LABELS,
   // ── Alignment, position, direction ──────────────────────────────────────
   Align: "Alineación",
   Baseline: "Línea base",
@@ -797,4 +785,11 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "e.g. https://tiktok.com/@impronta": "p. ej. https://tiktok.com/@impronta",
   "e.g. https://x.com/impronta": "p. ej. https://x.com/impronta",
   "e.g. https://youtube.com/@impronta": "p. ej. https://youtube.com/@impronta",
+  // next_free_chip inspector
+  "Next free": "Próximo libre",
+  "Próximo libre": "Próximo libre",
+  "Shows your next open time from your live calendar. It hides itself when nothing is free.":
+    "Muestra tu próximo horario libre según tu calendario. Se oculta cuando no hay nada libre.",
+  "The words before the time. Leave empty for the default.":
+    "Las palabras antes de la hora. Déjalo vacío para usar el texto por defecto.",
 };

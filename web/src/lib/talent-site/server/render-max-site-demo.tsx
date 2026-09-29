@@ -51,3 +51,12 @@ export function MaxSiteDemoFooter({ locale }: { locale: string }) {
     </p>
   );
 }
+
+/**
+ * The header carries the site chrome: the Demo pill (demo talents, the only
+ * demo marker) and the talent site's ES / EN switch. Site header only.
+ */
+export function withHeaderSiteChrome(sectionProps: unknown, sectionTypeKey: unknown, isDemo: boolean): unknown {
+  if (sectionTypeKey !== "site_header" || !sectionProps || typeof sectionProps !== "object") return sectionProps;
+  return { ...(sectionProps as Record<string, unknown>), siteChrome: { demo: isDemo, locales: ["es", "en"] } };
+}

@@ -1,0 +1,245 @@
+{
+  "$comment": "Design-diff harness manifest. artifactSelector/localSelector may be a string or an array of fallbacks (first match wins). Local selectors are best-guess from builder-node / PublishedShell data attributes; refine after the first run (rows with missing:true). Maison local page (2026-09-28) renders anchors #hero #about #services #gallery #contact only; no header/ticker/reviews/visit/footer nodes exist yet, so those rows report missing (local). 2026-09-28 (maison-v2 agent): maison-v2 now renders header (shell landmark), ticker (marquee), #reviews, #visit and #site-footer; templateSlug fixed to maison-v2; --demo <key> renders a gallery demo talent (e.g. alba-nail-artist).",
+  "localTalentId": "f048e578-cbae-45db-9a3b-34239abea136",
+  "designs": {
+    "maison-v2": {
+      "artifactPath": "scripts/design-diff-fixtures/maison-v2/index.html",
+      "templateSlug": "maison-v2",
+      "rows": [
+        {
+          "id": "header",
+          "label": "Header",
+          "artifactSelector": "[data-w^='site_header']",
+          "localSelector": [
+            "[data-talent-shell-landmark='site_header']",
+            "[data-section-type-key='site_header']",
+            "[data-builder-node-kind='site_header']"
+          ]
+        },
+        {
+          "id": "hero",
+          "label": "Hero",
+          "artifactSelector": "[data-w^='hero']",
+          "localSelector": [
+            "[data-builder-node-kind='hero']",
+            "[data-section-type-key^='hero']",
+            "#hero"
+          ]
+        },
+        {
+          "id": "ticker",
+          "label": "Ticker",
+          "artifactSelector": "#site .tick",
+          "localSelector": [
+            "[data-section-type-key='marquee']",
+            "[data-builder-node-kind='marquee']"
+          ]
+        },
+        {
+          "id": "recent-work",
+          "label": "Recent work",
+          "artifactSelector": "[data-w^='portfolio']",
+          "localSelector": [
+            "[data-builder-node-kind='portfolio']",
+            "#gallery"
+          ]
+        },
+        {
+          "id": "menu",
+          "label": "Menu",
+          "artifactSelector": "[data-w^='services_catalog']",
+          "localSelector": [
+            "#services",
+            "[data-builder-node-kind='services_catalog']"
+          ]
+        },
+        {
+          "id": "reviews",
+          "label": "Reviews",
+          "artifactSelector": "[data-w^='reviews']",
+          "localSelector": [
+            "#reviews",
+            "[data-section-type-key='reviews']",
+            "[data-builder-node-kind='reviews']"
+          ]
+        },
+        {
+          "id": "about",
+          "label": "About",
+          "artifactSelector": "[data-w^='about']",
+          "localSelector": [
+            "[data-builder-node-kind='about']",
+            "#about"
+          ]
+        },
+        {
+          "id": "visit",
+          "label": "Visit",
+          "artifactSelector": "[data-w^='visit_info']",
+          "localSelector": [
+            "#visit",
+            "[data-section-type-key='visit_info']",
+            "[data-builder-node-kind='visit_info']"
+          ]
+        },
+        {
+          "id": "faq",
+          "label": "FAQ",
+          "artifactSelector": "[data-w^='faq']",
+          "localSelector": [
+            "[data-builder-node-kind^='faq']",
+            "#contact"
+          ]
+        },
+        {
+          "id": "footer",
+          "label": "Footer",
+          "artifactSelector": "[data-w^='footer']",
+          "localSelector": [
+            "#site-footer",
+            "[data-section-type-key='footer']",
+            "[data-builder-node-kind='footer']"
+          ]
+        },
+        {
+          "id": "dock",
+          "label": "Dock",
+          "artifactSelector": "[data-w^='selection_dock']",
+          "localSelector": [
+            ".cb-island .cb-bar",
+            ".cb-dock",
+            "[data-builder-node-kind='selection_dock']"
+          ]
+        },
+        {
+          "id": "chat",
+          "label": "Chat (open)",
+          "artifactSelector": "#site .chat",
+          "localSelector": [
+            "[role='dialog'][aria-modal='false']",
+            "[role='dialog']"
+          ],
+          "open": {
+            "artifact": ".dock .chatb",
+            "local": ".cb-bar-chat"
+          }
+        }
+      ]
+    },
+    "folio": {
+      "artifactPath": "scripts/design-diff-fixtures/folio/index.html",
+      "templateSlug": "folio",
+      "rows": [
+        {
+          "id": "masthead",
+          "label": "Header masthead bar",
+          "artifactSelector": [
+            ".fo-hdr",
+            "header.fo-hdr",
+            "#site .fo-hdr"
+          ],
+          "localSelector": [
+            "[data-talent-shell-landmark='site_header']",
+            ".site-header",
+            "header.site-header"
+          ]
+        },
+        {
+          "id": "cover",
+          "label": "Cover",
+          "artifactSelector": [
+            ".fo-spread",
+            ".fo-cover",
+            "[data-w^='hero']"
+          ],
+          "localSelector": [
+            ".sb-mag-spread",
+            "[data-edition='magazine'][data-builder-kind='masthead']",
+            "[data-builder-node-kind='masthead']",
+            "#hero"
+          ]
+        },
+        {
+          "id": "contents",
+          "label": "Contents",
+          "artifactSelector": [
+            ".fo-toc",
+            "nav.fo-toc"
+          ],
+          "localSelector": [
+            ".sb-mag-toc",
+            "#contents",
+            "[data-builder-node-kind='contents']"
+          ]
+        },
+        {
+          "id": "chapters",
+          "label": "Chapters",
+          "artifactSelector": [
+            ".fo-ch",
+            "[data-w^='portfolio']",
+            "#ch1"
+          ],
+          "localSelector": [
+            "[data-edition='magazine'][data-builder-node-kind='portfolio']",
+            "#chapter-1",
+            "[data-builder-node-kind='portfolio']"
+          ]
+        },
+        {
+          "id": "comp-card",
+          "label": "Comp card",
+          "artifactSelector": [
+            ".fo-comp",
+            "[data-w^='stats']",
+            "#site .fo-comp"
+          ],
+          "localSelector": [
+            "[data-edition='magazine'].sb-comp",
+            "#comp-card",
+            "[data-builder-node-kind='comp_card']"
+          ]
+        },
+        {
+          "id": "rate-card",
+          "label": "Rate card",
+          "artifactSelector": [
+            ".fo-rates",
+            "[data-w^='services_catalog']",
+            "#rates"
+          ],
+          "localSelector": [
+            "#services",
+            "[data-builder-node-kind='services_catalog']"
+          ]
+        },
+        {
+          "id": "statement-footer",
+          "label": "Statement footer",
+          "artifactSelector": [
+            ".fo-end",
+            "footer.fo-end",
+            "#site .fo-end"
+          ],
+          "localSelector": [
+            "[data-edition='magazine'].sb-statement-footer",
+            ".sb-statement-footer",
+            "[data-builder-node-kind='statement_footer']"
+          ]
+        }
+      ]
+    }
+  },
+  "liveTalents": {
+    "alba-nail-artist": {
+      "profileId": "8a59afc1-6e2e-49cd-b78d-27f689cc80f5",
+      "email": "demo-alba-unas@impronta.test",
+      "passwordEnv": "QA_ALBA_PASSWORD"
+    },
+    "mateo-ferrer": {
+      "profileId": "30f45c0f-6c40-44d4-bfb7-f04bfd0a6adc",
+      "email": "demo-mateo-ferrer@impronta.test",
+      "passwordEnv": "QA_MATEO_PASSWORD"
+    }
+  }
+}

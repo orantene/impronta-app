@@ -197,6 +197,7 @@ export async function loadHeaderSectionAction(): Promise<
       version: number;
       variant: string;
       brandDisplay: string;
+      navChrome: string;
       density: HeaderSectionDensity | null;
     };
   }>
@@ -213,6 +214,7 @@ export async function loadHeaderSectionAction(): Promise<
   const p = f.props as {
     variant?: unknown;
     brandDisplay?: unknown;
+    navChrome?: unknown;
     density?: unknown;
   };
   return {
@@ -225,6 +227,7 @@ export async function loadHeaderSectionAction(): Promise<
       variant: typeof p.variant === "string" ? p.variant : "standard",
       brandDisplay:
         typeof p.brandDisplay === "string" ? p.brandDisplay : "image-and-text",
+      navChrome: typeof p.navChrome === "string" ? p.navChrome : "top_bar",
       density:
         p.density && typeof p.density === "object"
           ? (p.density as HeaderSectionDensity)
@@ -240,6 +243,7 @@ export async function saveHeaderSectionAction(input: {
   expectedVersion: number;
   variant?: string;
   brandDisplay?: string;
+  navChrome?: string;
   density?: HeaderSectionDensity | null;
   /**
    * WF-6 — the freeform zone layout. `null` clears it (back to the variant's
@@ -281,6 +285,9 @@ export async function saveHeaderSectionAction(input: {
   if (input.variant !== undefined) nextProps.variant = input.variant;
   if (input.brandDisplay !== undefined) {
     nextProps.brandDisplay = input.brandDisplay;
+  }
+  if (input.navChrome !== undefined) {
+    nextProps.navChrome = input.navChrome;
   }
   if (input.density !== undefined) {
     if (input.density === null) {
@@ -469,6 +476,7 @@ export async function loadHeaderConfigAction(): Promise<
   const sectionProps = (headerSection?.props ?? {}) as {
     variant?: unknown;
     brandDisplay?: unknown;
+    navChrome?: unknown;
     density?: unknown;
     regions?: unknown;
   };
@@ -487,6 +495,10 @@ export async function loadHeaderConfigAction(): Promise<
           typeof sectionProps.brandDisplay === "string"
             ? sectionProps.brandDisplay
             : "image-and-text",
+        navChrome:
+          typeof sectionProps.navChrome === "string"
+            ? sectionProps.navChrome
+            : "top_bar",
         density:
           sectionProps.density && typeof sectionProps.density === "object"
             ? (sectionProps.density as HeaderSectionDensity)

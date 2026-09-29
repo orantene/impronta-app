@@ -22,6 +22,12 @@ export type MaisonLiveProposed = {
   contentMode: MaisonPreviewContentMode;
   demoSlug: string;
   customPalette?: MaisonCustomPaletteStored | null;
+  /**
+   * Gallery-meta palette key when the pending change came from a collection
+   * Look (Folio / Maison v2 / …). Materialize applies the full Look (muted,
+   * on-accent, tint, fonts) — not only the four custom-palette swatches.
+   */
+  galleryPaletteKey?: string | null;
   menuStyle?: string | null;
   /** Full draft trees when restoring a published revision (W70). */
   draftSnapshot?: MaisonDraftSnapshot | null;

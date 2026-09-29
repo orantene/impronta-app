@@ -1,5 +1,22 @@
 export type TalentClientNextStatus = "confirmed" | "hold" | "requested";
 
+/** One appointment on the client record ("Work and payments"). */
+export type TalentClientHistoryEntry = {
+  /** Bare booking uuid; mirrors of one appointment share it, so it dedupes. */
+  bookingId: string;
+  startsAt: string;
+  /** Agreed price in minor units; null when the source has no money field. */
+  amountCents: number | null;
+  currency: string | null;
+  paymentStatus: "paid" | "partial" | "unpaid" | null;
+  past: boolean;
+  href: string;
+  /** What happened: completed, or still confirmed / on hold / requested. */
+  state?: "completed" | "confirmed" | "hold" | "requested" | null;
+  /** Service title when the source has one. */
+  title?: string | null;
+};
+
 export type TalentClientRow = {
   id: string;
   name: string;
@@ -18,7 +35,31 @@ export type TalentClientRow = {
   nextStatus: TalentClientNextStatus | null;
   nextBookingHref: string | null;
   overdue: boolean;
+  /** Earliest date on file (first booking or first message): "Client since". */
+  firstSeenAt?: string | null;
+  /** Appointments, newest first. Optional so older callers stay valid. */
+  history?: TalentClientHistoryEntry[];
 };
+
+/** Add history entries, dropping a booking already on file (shared-PK mirrors). */
+export function mergeClientHistory(
+  existing: TalentClientHistoryEntry[] | undefined,
+  incoming: TalentClientHistoryEntry[] | undefined,
+): TalentClientHistoryEntry[] {
+  const out = [...(existing ?? [])];
+  for (const h of incoming ?? []) {
+    const at = out.findIndex((x) => x.bookingId === h.bookingId);
+    if (at < 0) out.push(h);
+    else if (out[at]!.amountCents == null && h.amountCents != null) out[at] = h;
+  }
+  return out.sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+}
+
+function earlier(a: string | null | undefined, b: string | null | undefined): string | null {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return a < b ? a : b;
+}
 
 /**
  * Person key for the Clients directory.
@@ -98,6 +139,8 @@ export function upsertClient(
       existing.currency = row.currency ?? existing.currency;
     }
   }
+  existing.firstSeenAt = earlier(existing.firstSeenAt, row.firstSeenAt);
+  existing.history = mergeClientHistory(existing.history, row.history);
   preferSoonerNext(existing, row);
   // Prefer booking provenance when we later learn of a real visit.
   if (existing.source === "inquiry" && row.source === "booking") {

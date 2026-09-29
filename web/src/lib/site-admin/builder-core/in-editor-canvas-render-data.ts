@@ -61,6 +61,27 @@ export interface InEditorCanvasRenderData {
    * tokens. The Theme drawer's preview bridge overlays the DRAFT live on top.
    */
   designTokens: Record<string, string>;
+  /**
+   * talent_page only: the catalog Design the site wears. The canvas root
+   * carries it as `data-talent-design` so the Design skin applies, exactly as
+   * on the live site. Absent on every other surface.
+   */
+  designSlug?: string | null;
+  /** talent_page only: server-rendered font links + Design skin stylesheet. */
+  headNodes?: ReactNode;
+  /** talent_page only: the site header / footer, read-only around the page. */
+  shellHeader?: ReactNode;
+  shellFooter?: ReactNode;
+  /**
+   * talent_page only: render-time label localisation (site locale, booking
+   * mode, per-talent swaps), applied to the LIVE tree on the canvas exactly
+   * as the live render applies it. Nothing is written back.
+   */
+  labelLocale?: {
+    locale: string;
+    ctaMode: "instant" | "request" | "inquiry" | null;
+    swaps: Record<string, string>;
+  } | null;
 }
 
 export async function buildInEditorCanvasRenderData(args: {

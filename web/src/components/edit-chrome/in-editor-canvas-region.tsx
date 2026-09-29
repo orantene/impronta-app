@@ -26,9 +26,10 @@
  * flow under the overlay portal — the painted nodes carry those attributes.
  */
 
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import type { ReactNode } from "react";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
@@ -36,6 +37,7 @@ import { useEditContext } from "./edit-context";
 import { PrintArtboard } from "./print-artboard";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
+import { CHROME } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   isStorefrontBodyPresent,
@@ -46,6 +48,8 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 
 export interface InEditorCanvasRegionProps {
   /**
@@ -65,7 +69,12 @@ export function InEditorCanvasRegion({
   const tree = useBuilderTree();
   // Piece B slice 1c — a print design renders on a fixed physical artboard with
   // a persistent trim/safe guide, not a fluid page. Null for every other surface.
-  const { printArtboard } = useEditContext();
+  const {
+    printArtboard,
+    compositionLoaded,
+    compositionError,
+    refreshComposition,
+  } = useEditContext();
 
   // Wave-2 cms-page canvas — when the STOREFRONT BODY paints the tree at all
   // (the live `<StorefrontBodyCanvas>` in edit mode, OR — stale-body fix
@@ -94,6 +103,29 @@ export function InEditorCanvasRegion({
   // active SurfaceAdapter (undo + autosave inherited). The canvas still mounts
   // below so the first insert / applied design paints in place.
   const isEmpty = tree.length === 0;
+  // An empty tree is only an EMPTY PAGE once the composition has loaded. While
+  // the load is in flight, or after it failed, the tree is empty because
+  // nothing arrived, and offering "Describe your page / Start from scratch"
+  // there told a talent with a full live site that their page was blank (and
+  // invited them to overwrite it). A failed load now says so, with a retry.
+  const loadFailed = isEmpty && !!compositionError;
+  const showStarter = isEmpty && compositionLoaded && !compositionError;
+
+  // talent_page: seeded labels follow the SITE locale + booking mode on the
+  // canvas, exactly as the live render localises them (render-time only).
+  const labelLocale = canvasRenderData?.labelLocale ?? null;
+  const transformTree = useCallback(
+    (t: BuilderNodeTree): BuilderNodeTree =>
+      labelLocale
+        ? (localiseSeededDesignLabels(
+            t as Parameters<typeof localiseSeededDesignLabels>[0],
+            labelLocale.locale,
+            labelLocale.ctaMode,
+            labelLocale.swaps,
+          ) as BuilderNodeTree)
+        : t,
+    [labelLocale],
+  );
 
   // Body-hosted page (freeform cms_page on the storefront): the visible canvas
   // lives in the page body — render NOTHING here so the page never paints
@@ -139,8 +171,16 @@ export function InEditorCanvasRegion({
       components={{}}
       componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
       includeRendererStyles
+      transformTree={labelLocale ? transformTree : undefined}
+      visitorLocale={labelLocale?.locale}
     />
   );
+
+  // talent_page: the site header / footer the live site wraps the page in.
+  // Read-only here (edited in the shell builder), so `inert` keeps their
+  // links and controls from navigating away or stealing canvas selection.
+  const shellHeader = canvasRenderData?.shellHeader ?? null;
+  const shellFooter = canvasRenderData?.shellFooter ?? null;
 
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
@@ -152,10 +192,54 @@ export function InEditorCanvasRegion({
     <div
       data-in-editor-canvas-region
       data-theme-canvas-root=""
+      data-talent-design={canvasRenderData?.designSlug ?? undefined}
       {...tokenDataAttrs}
       style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
-      {isEmpty ? <EmptyCanvasStarter /> : null}
+      <TypeSystemStyle />
+      {canvasRenderData?.headNodes ?? null}
+      {shellHeader ? (
+        <div data-talent-builder-shell="header" data-talent-max-site-header="" inert>
+          {shellHeader}
+        </div>
+      ) : null}
+      {showStarter ? <EmptyCanvasStarter /> : null}
+      {loadFailed ? (
+        <div
+          role="alert"
+          data-in-editor-load-error=""
+          style={{
+            margin: "48px auto",
+            maxWidth: 440,
+            padding: "20px 24px",
+            borderRadius: 12,
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+            color: CHROME.text,
+            fontSize: 14,
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          <p style={{ margin: "0 0 12px" }}>
+            We could not open this page. Your site is safe and nothing was changed.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refreshComposition({ undoResetReason: "reload" })}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: `1px solid ${CHROME.controlBorder}`,
+              background: CHROME.controlFill,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : null}
       <BuilderProfilerBoundary id="builder-canvas">
         {printArtboard ? (
           <PrintArtboard
@@ -169,6 +253,11 @@ export function InEditorCanvasRegion({
           canvas
         )}
       </BuilderProfilerBoundary>
+      {shellFooter ? (
+        <footer data-talent-builder-shell="footer" data-talent-max-site-footer="" inert>
+          {shellFooter}
+        </footer>
+      ) : null}
     </div>
   );
 }
