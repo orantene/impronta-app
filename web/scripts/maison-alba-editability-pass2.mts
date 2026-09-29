@@ -162,7 +162,7 @@ await prove("ticker", [".site-builder-node--marquee", '[data-builder-node-kind="
   const sel = p.locator("select").filter({ has: p.locator('option[value="serif"], option[value="text"], option:has-text("Serif"), option:has-text("Plain")') }).first();
   if (await sel.count()) {
     await sel.selectOption("text").catch(async () => {
-      await sel.selectOption({ label: /Plain|Text/i });
+      await sel.selectOption({ index: 0 });
     });
     return "marquee variant → text";
   }
