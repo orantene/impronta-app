@@ -194,6 +194,8 @@ function pal(
 }
 
 /** Maison v2 (Rosé proposal) type: Bodoni Moda display, Figtree body. */
+const FOLIO_FONTS = { heading: "Instrument Serif, Didot, Georgia, serif", body: "Archivo, system-ui, sans-serif" } as const;
+
 const MAISON_V2_FONTS: GalleryFonts = {
   heading: '"Bodoni Moda", Didot, "Bodoni 72", Georgia, serif',
   body: '"Figtree", system-ui, sans-serif',
@@ -336,6 +338,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
   }),
   design({
     ...collection("folio"),
+    fonts: FOLIO_FONTS,
     styleTags: ["Editorial", "Image-led"],
     featureTags: ["Portfolio", "Project stories", "Quote requests", "Chapters"],
     // Hex only here / in folio-looks.ts. Stone is the Folio default Look.

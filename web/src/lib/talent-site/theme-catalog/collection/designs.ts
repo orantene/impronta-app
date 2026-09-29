@@ -18,7 +18,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
-import { FOLIO_DESIGN_TOKEN_DEFAULTS } from "./folio-defaults";
+import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import {
   aboutBlock,
   portfolioBlock,
@@ -237,7 +237,7 @@ export function buildFolioPayload(): DesignPayload {
     ),
   } as BuilderNode;
   return {
-    tokenDefaults: { ...FOLIO_DESIGN_TOKEN_DEFAULTS },
+    tokenDefaults: { ...FOLIO_STYLE_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navChrome: "top_bar",
       navLinks: [

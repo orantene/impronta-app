@@ -6,11 +6,9 @@
  * every key in the theme panel or per-block; "Reset to design default"
  * restores this map.
  *
- * Uses EXISTING registry keys only. When Claude's
- * `refactor/design-defaults-editable` lands (typography roles, button shape,
- * rule width, …), rebase onto it — do not invent parallel Folio-only tokens.
- * Magazine CSS already falls back through `--token-typography-label-font-family`
- * / `--token-border-rule-width` so those light up when registered.
+ * `FOLIO_STYLE_TOKEN_DEFAULTS` go on `DesignPayload.tokenDefaults` (style-token
+ * allow-list). `FOLIO_REGISTRY_TOKEN_DEFAULTS` are ordinary registry keys
+ * applied via `designTokenDefaults("folio")` at resolve time.
  */
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
@@ -19,18 +17,9 @@ export const FOLIO_BODY_FONT = "Archivo, system-ui, sans-serif";
 /** Label / tracked-caps face. Stored on existing `shell.header-nav-font` until a label role token exists. */
 export const FOLIO_LABEL_FONT = "Archivo Narrow, Arial Narrow, system-ui, sans-serif";
 
-/**
- * Design-owned token defaults (not Look-layer). Keys are all in the shared
- * registry today: radius / spacing / shadow / shell.
- */
-export const FOLIO_DESIGN_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
-  // Magazine type system (replaces slug-keyed Folio skin).
+/** Style-token defaults (validateDesign allow-list / theme Style tab). */
+export const FOLIO_STYLE_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "type.system": "magazine",
-  "radius.base": "none",
-  "radius.scale-preset": "sharp",
-  "spacing.scale": "editorial",
-  "shadow.preset": "none",
-  "shell.header-nav-font": FOLIO_LABEL_FONT,
   "button.radius": "0px",
   "button.height": "44px",
   "button.padding-x": "16px",
@@ -44,6 +33,21 @@ export const FOLIO_DESIGN_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "type.display-tracking": "-0.02em",
   "type.section-title-size": "40px",
   "type.section-title-size-desktop": "72px",
+};
+
+/** Non-style registry defaults (radius / spacing / shadow / shell). */
+export const FOLIO_REGISTRY_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
+  "radius.base": "none",
+  "radius.scale-preset": "sharp",
+  "spacing.scale": "editorial",
+  "shadow.preset": "none",
+  "shell.header-nav-font": FOLIO_LABEL_FONT,
+};
+
+/** Full Design default map used by `designTokenDefaults("folio")`. */
+export const FOLIO_DESIGN_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
+  ...FOLIO_STYLE_TOKEN_DEFAULTS,
+  ...FOLIO_REGISTRY_TOKEN_DEFAULTS,
 };
 
 /** Look-layer type defaults every Folio palette shares. */
