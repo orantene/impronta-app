@@ -218,19 +218,38 @@ export function renderCompCardBlock(args: {
         ) : null}
         {showStrip ? (
           <dl className="sb-comp-rail">
-            {strip.map((m) => (
+            {strip.map((m) => {
+              let value = m.value;
+              let unit = m.unit;
+              // Magazine strip: avoid "MX 28.5 MX" when the stored value already
+              // carries the unit prefix.
+              if (p.edition === "magazine" && unit) {
+                const re = new RegExp(`^${unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+`, "i");
+                if (re.test(value)) {
+                  value = value.replace(re, "").trim();
+                }
+              }
+              if (p.edition === "magazine" && !unit && /^([A-Z]{1,3})\s+([\d.]+)$/.test(value)) {
+                const m2 = value.match(/^([A-Z]{1,3})\s+([\d.]+)$/);
+                if (m2) {
+                  value = m2[2]!;
+                  unit = m2[1]!;
+                }
+              }
+              return (
               <div
                 key={m.fieldKey}
                 className="sb-comp-cell"
-                data-comp-text={/^\d/.test(m.value) ? "0" : "1"}
+                data-comp-text={/^\d/.test(value) ? "0" : "1"}
               >
                 <dt>{m.label}</dt>
                 <dd>
-                  {m.value}
-                  {m.unit ? <small>{m.unit}</small> : null}
+                  {value}
+                  {unit ? <small>{unit}</small> : null}
                 </dd>
               </div>
-            ))}
+              );
+            })}
           </dl>
         ) : null}
         {detailCount > 0 ? (

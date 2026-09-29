@@ -92,6 +92,7 @@ export function servicesSection(makeId: KitIdFactory, o: CatalogOpts): BuilderNo
           categoryNav: o.categoryNav,
           eyebrow: o.eyebrow,
           title: o.title,
+          ...(o.subtitle ? { subtitle: o.subtitle } : {}),
           stylePreset: o.stylePreset,
           photoRadius: o.photoRadius,
           density: o.density,
