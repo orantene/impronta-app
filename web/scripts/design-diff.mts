@@ -33,11 +33,16 @@ type Design = { artifactPath: string | null; artifactTodo?: string; templateSlug
 type Manifest = { localTalentId: string; liveTalents?: Record<string, LiveTalent>; designs: Record<string, Design> };
 
 const LOCAL_ORIGIN = "http://localhost:3001";
-const ENV_FILE = "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/pm-apply/web/.env.local";
 const OUT_ROOT = path.join(os.homedir(), ".claude", "design-diff");
 const AUTH_FILE = path.join(OUT_ROOT, ".auth.json");
 const SERVE_ROOT = path.join(os.homedir(), ".claude", "mockup-serve");
 const here = path.dirname(fileURLToPath(import.meta.url));
+const ENV_CANDIDATES = [
+  process.env.DESIGN_DIFF_ENV_FILE,
+  path.join(here, "..", ".env.local"),
+  "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/pm-apply/web/.env.local",
+].filter(Boolean) as string[];
+const ENV_FILE = ENV_CANDIDATES.find((f) => fs.existsSync(f)) ?? ENV_CANDIDATES[0]!;
 
 function arg(name: string, fallback?: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
