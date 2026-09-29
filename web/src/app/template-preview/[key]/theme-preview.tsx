@@ -38,6 +38,10 @@ import {
   galleryPaletteLookTokens,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import {
+  COLLECTION_DEFAULT_LOOK,
+  folioLookTokensFromCode,
+} from "@/lib/talent-site/theme-catalog/collection/folio-looks";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
@@ -52,6 +56,17 @@ import {
 /** Maison renders in its own default Look when the gallery picks none. */
 const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+
+/** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
+function resolveFolioLookSlug(designSlug: string, lookSlug: string | null | undefined): string | null {
+  const fallback = COLLECTION_DEFAULT_LOOK[designSlug] ?? null;
+  const raw = (lookSlug || fallback || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith("folio-")) return raw;
+  if (designSlug === "folio" && ["stone", "light", "dark"].includes(raw)) return `folio-${raw}`;
+  return raw || fallback;
+}
 
 export async function ThemeCatalogPreview({
   designSlug,
@@ -97,13 +112,19 @@ export async function ThemeCatalogPreview({
   //  3. no / unknown look: the design's OWN default (Maison: maison-pink,
   //     collection designs: first gallery palette + fonts). The platform's
   //     generic default is never the whole answer for a catalog design.
+  const effectiveLookSlug = resolveFolioLookSlug(design.slug, lookSlug);
+  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
   const cleanLook = lookSlug && SLUG_RE.test(lookSlug) ? lookSlug : null;
-  const paletteTokens = cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
+  const paletteTokens =
+    folioTokens ? null : cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
   const rowSlug =
-    paletteTokens ? null : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
+    folioTokens || paletteTokens
+      ? null
+      : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
   const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
   const lookTokens: Record<string, string> | null =
+    folioTokens ??
     paletteTokens ??
     (look
       ? getGalleryDesign(design.slug) && design.slug !== "maison"

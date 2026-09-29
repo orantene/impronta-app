@@ -207,29 +207,60 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${MQ_DESK}{${S} h2{font-size:${v("type.section-title-size-desktop")}}${S} :is(${TITLE_HOOKS}){font-size:${v("type.section-title-size-desktop")}}${S} .site-builder-node--services-catalog-subtitle{font-size:${v("type.body-size")}}}`,
 ].join("\n");
 
+/**
+ * Magazine type system (Folio): masthead bar + rate-card rows. Values are
+ * style tokens — Folio ships square buttons / 1px rules / label tracking as
+ * defaults; any Design can opt in with `type.system = "magazine"`.
+ */
+const M =
+  '[data-theme-canvas-root]:where([data-token-type-system="magazine"],[data-token-type-system="magazine"] *)';
+const LABEL_FACE =
+  "var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)))";
+
+export const MAGAZINE_TYPE_SYSTEM_CSS = [
+  `${M}{font-family:var(--site-body-font,system-ui,sans-serif);color:var(--token-color-ink);background:var(--token-color-background)}`,
+  `${M} .site-header{position:sticky;top:0;z-index:40;background:var(--token-shell-header-bg,var(--token-color-background));border-bottom:${RULE} solid var(--token-shell-header-border,var(--token-color-ink));box-shadow:none}`,
+  `${M} .site-header__inner{min-height:52px;padding:0 16px}`,
+  `${M} .site-header__brand-label{font-family:var(--site-heading-font,var(--token-typography-heading-font-family,Georgia,serif));font-weight:${v("type.display-weight")};font-size:22px;letter-spacing:${v("type.display-tracking")};text-transform:none}`,
+  `${M} .site-header__nav-link{font-family:${LABEL_FACE};font-size:${v("type.label-size")};font-weight:${v("type.label-weight")};letter-spacing:${v("type.label-tracking")};text-transform:var(--site-label-case,uppercase);color:var(--token-shell-header-text,var(--token-color-ink))}`,
+  `${M} .site-header__nav-link:hover{color:var(--token-color-muted)}`,
+  `${M} .site-header__cta.site-btn,${M} .site-header__ritem.site-header__cta{height:${v("button.height")};min-height:${v("button.height")};padding:0 ${v("button.padding-x")};border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);font-family:${LABEL_FACE};font-size:${v("button.font-size")};font-weight:${v("button.font-weight")};letter-spacing:${v("type.label-tracking")};text-transform:var(--site-label-case,uppercase);box-shadow:none}`,
+  `${M}[data-talent-theme-preview] .site-header__actions::before,${M}[data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;margin-right:10px;padding:0 8px;border:${RULE} solid var(--token-color-line);font-family:${LABEL_FACE};font-size:10px;font-weight:600;letter-spacing:0.2em;color:var(--token-color-muted)}`,
+  `@media (max-width:767px){${M} .site-header__nav{display:none}${M} .site-header__cta.site-btn{display:inline-flex;min-height:44px;height:44px}}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"]{padding:52px 16px 0}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-eyebrow,${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{font-family:${LABEL_FACE};font-size:${v("type.label-size")};font-weight:${v("type.label-weight")};letter-spacing:0.2em;text-transform:var(--site-label-case,uppercase);color:var(--token-color-muted)}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-title{font-family:var(--site-heading-font,var(--token-typography-heading-font-family,Georgia,serif));font-weight:${v("type.display-weight")};font-size:clamp(${v("type.section-title-size")},6vw,${v("type.section-title-size-desktop")});letter-spacing:${v("type.display-tracking")};line-height:0.95}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{border-bottom:${RULE} solid var(--token-color-ink);background:transparent;border-radius:${v("button.radius")};box-shadow:none;padding:14px 0}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-family:var(--site-body-font,system-ui,sans-serif);font-size:16px;font-weight:500;letter-spacing:0}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{font-family:${LABEL_FACE};font-size:${v("type.label-size")};letter-spacing:0.14em;text-transform:var(--site-label-case,uppercase);color:var(--token-color-muted)}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{font-family:var(--site-heading-font,var(--token-typography-heading-font-family,Georgia,serif));font-size:22px;font-weight:${v("type.display-weight")};font-style:italic}`,
+  `${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy .site-btn,${M} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--button{border-radius:${v("button.radius")};min-height:${v("button.height")};height:${v("button.height")};font-family:${LABEL_FACE};font-size:${v("button.font-size")};letter-spacing:0.16em;text-transform:var(--site-label-case,uppercase);box-shadow:none}`,
+  `@media (min-width:900px){${M} .site-builder-node--services-catalog[data-layout="rate_card"]{padding:90px 40px 0}${M} .site-header__inner{padding:0 40px}}`,
+].join("\n");
+
 /** True when the effective tokens switch the editorial type system on. */
 export function isEditorialTypeSystem(tokens: Readonly<Record<string, string>>): boolean {
   return tokens["type.system"] === "editorial";
 }
 
+export function isMagazineTypeSystem(tokens: Readonly<Record<string, string>>): boolean {
+  return tokens["type.system"] === "magazine";
+}
+
 /**
- * Component defaults under the editorial system. The platform default paints
- * every button as a 10px accent block (secondary included) and pins heading /
- * paragraph colours inline, which beat the stylesheet (inline > stylesheet)
- * and put ink text on the dark footer. The editorial system replaces those
- * three (buttons keep only an inline radius bound to the token) so the button tokens and tone colours apply. A node's own builder
- * style still wins.
+ * Component defaults under editorial / magazine systems. The platform default
+ * paints every button as a 10px accent block (secondary included) and pins
+ * heading / paragraph colours inline, which beat the stylesheet. Both systems
+ * drop those and keep only an inline radius bound to the button token.
  */
 export function typeSystemComponentStyleDefaults(
   tokens: Readonly<Record<string, string>>,
   base: ComponentStyleDefaults,
 ): ComponentStyleDefaults {
-  if (!isEditorialTypeSystem(tokens)) return base;
+  if (!isEditorialTypeSystem(tokens) && !isMagazineTypeSystem(tokens)) return base;
   const out: ComponentStyleDefaults = { ...base };
   delete out.heading;
   delete out.paragraph;
-  // Inline, like the old pill default, so it beats renderer shape rules; it
-  // reads the button radius token, and a per-button radius still wins.
   out.button = { borderRadius: styleTokenRef("button.radius") };
   return out;
 }
