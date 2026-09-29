@@ -50,6 +50,12 @@ export const LANGUAGES_ES_TEXT: Record<string, string> = {
   "Your site's languages": "Los idiomas de tu sitio",
   "Primary": "Principal",
 
+  // Page title + SEO (Website > Pages)
+  "Page title": "Título de la página",
+  "SEO title": "Título para buscadores",
+  "Meta description": "Descripción para buscadores",
+  "Shown in search results and link previews.": "Se muestra en buscadores y al compartir el enlace.",
+
   // Top bar
   "Manage languages": "Gestionar idiomas",
   "Content language": "Idioma del contenido",

@@ -16,6 +16,8 @@
 import { useState } from "react";
 import type { OfferingVariant, OfferingAddOn } from "@/lib/talent/offerings-types";
 import { setOfferingOptions } from "@/lib/talent/offerings-actions";
+import { LocaleField } from "@/components/admin/shell/internal/primitives/locale-field";
+import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
 
 const C = {
   ink: "#14161d",
@@ -47,7 +49,65 @@ const inputStyle: React.CSSProperties = {
   fontFamily: FONT,
 };
 
-type Row = { id: string; label: string; amountCents: number | null };
+type Row = { id: string; label: string; amountCents: number | null; labelI18n?: Record<string, string> };
+
+/**
+ * One option / extra label, translatable (PR 7): an `xs` badge over the input.
+ * The plain label is the primary language; every language rides in labelI18n.
+ * Commits on blur, like the price input beside it.
+ */
+function RowLabel({
+  row,
+  extra,
+  disabled,
+  onCommit,
+}: {
+  row: Row;
+  extra: boolean;
+  disabled: boolean;
+  onCommit: (next: Pick<Row, "label" | "labelI18n">) => void;
+}) {
+  const { primary, locales } = useTalentFieldLocales();
+  const initial = { ...(row.labelI18n ?? {}), [primary]: row.label };
+  const [draft, setDraft] = useState<Record<string, string>>(initial);
+  const commit = (next: Record<string, string>) => {
+    const label = (next[primary] ?? "").trim();
+    if (!label) return;
+    const changed = locales.some((l) => (next[l] ?? "").trim() !== (initial[l] ?? "").trim());
+    if (changed) onCommit({ label, labelI18n: next });
+  };
+  return (
+    <LocaleField
+      size="xs"
+      hideLabel
+      label={row.label}
+      value={draft}
+      locales={locales}
+      primary={primary}
+      ai={{ field: extra ? "addon_label" : "variant_label" }}
+      onChange={(locale, value) => {
+        const next = { ...draft, [locale]: value };
+        setDraft(next);
+        // An AI result (or any change while the input is not focused) commits now.
+        if (typeof document !== "undefined" && document.activeElement?.tagName !== "INPUT") commit(next);
+      }}
+      renderInput={(args) => (
+        <input
+          id={args.id}
+          type="text"
+          aria-label={row.label}
+          value={args.value}
+          placeholder={args.placeholder}
+          readOnly={args.readOnly}
+          disabled={disabled}
+          onChange={(e) => args.onChange(e.target.value)}
+          onBlur={() => commit(draft)}
+          style={{ ...inputStyle, flex: "1 1 auto", minWidth: 0 }}
+        />
+      )}
+    />
+  );
+}
 
 function RowsEditor({
   title,
@@ -86,16 +146,12 @@ function RowsEditor({
       <p style={{ margin: "0 0 8px", fontSize: 11.5, color: C.inkSoft, fontFamily: FONT }}>{hint}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {rows.map((r, i) => (
-          <div key={r.id || `new-${i}`} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input
-              type="text"
-              defaultValue={r.label}
+          <div key={r.id || `new-${i}`} style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+            <RowLabel
+              row={r}
+              extra={requirePrice}
               disabled={disabled}
-              onBlur={(e) => {
-                const label = e.target.value.trim();
-                if (label && label !== r.label) onCommit(rows.map((x, j) => (j === i ? { ...x, label } : x)));
-              }}
-              style={{ ...inputStyle, flex: "1 1 auto", minWidth: 0 }}
+              onCommit={(next) => onCommit(rows.map((x, j) => (j === i ? { ...x, ...next } : x)))}
             />
             <input
               type="number"
@@ -196,10 +252,10 @@ export function OfferingOptionsEditor({
     setBusy(true);
     setError(null);
     const res = await setOfferingOptions(talentId, offeringId, {
-      variants: nextVariants.map((v) => ({ label: v.label, amountCents: v.amountCents })),
+      variants: nextVariants.map((v) => ({ label: v.label, amountCents: v.amountCents, labelI18n: v.labelI18n })),
       addOns: nextAddOns
         .filter((a): a is Row & { amountCents: number } => a.amountCents != null)
-        .map((a) => ({ label: a.label, amountCents: a.amountCents })),
+        .map((a) => ({ label: a.label, amountCents: a.amountCents, labelI18n: a.labelI18n })),
     });
     setBusy(false);
     if (res.ok) onSynced(res.variants, res.addOns);

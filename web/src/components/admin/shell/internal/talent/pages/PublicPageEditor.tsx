@@ -1,5 +1,6 @@
 "use client";
 
+import { TalentFaqEditor } from "@/components/talent/site/TalentFaqEditor";
 import { Suspense, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
@@ -112,6 +113,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           {settingsEntry}
           <WebsiteEligibilityPanel />
           <TalentMaxSiteManager locale={locale} />
+          <TalentFaqEditor />
           <div className="mt-8" />
           <TalentSiteDashboardPanel locale={locale} />
         </>

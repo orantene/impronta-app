@@ -521,11 +521,15 @@ export async function setOfferingOptions(
   talentProfileId: string,
   offeringId: string,
   input: {
-    variants: { label: string; amountCents: number | null }[];
-    addOns: { label: string; amountCents: number }[];
+    variants: { label: string; amountCents: number | null; labelI18n?: Record<string, string> }[];
+    addOns: { label: string; amountCents: number; labelI18n?: Record<string, string> }[];
   },
 ): Promise<
-  | { ok: true; variants: { id: string; label: string; amountCents: number | null }[]; addOns: { id: string; label: string; amountCents: number }[] }
+  | {
+      ok: true;
+      variants: { id: string; label: string; amountCents: number | null; labelI18n?: Record<string, string> }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: Record<string, string> }[];
+    }
   | { ok: false; error: string }
 > {
   try {
@@ -542,7 +546,7 @@ export async function setOfferingOptions(
       .maybeSingle();
     if (!own) return { ok: false, error: "Not found." };
 
-    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings");
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings", auth.primaryLocale);
     if (!saved.ok) return saved;
     revalidatePath("/talent/services");
     return saved;

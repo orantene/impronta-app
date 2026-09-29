@@ -254,7 +254,7 @@ function detailsGroupHelperText(label: string): string {
 // irreducible — max-lines grandfathered via mandated scoped suppression regen.
 
 export function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, adminBasePath, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource } = useAdminShell();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, adminBasePath, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource, talentLocales } = useAdminShell();
   const workspaceScopeTenantId =
     bridgeTenantIdentity?.tenantId
     ?? bridgeTenantIdentity?.slug
@@ -3919,7 +3919,7 @@ export function TalentProfileShellDrawer() {
                 onChange={patchBios}
                 onRegenerate={onBiosRegenerate}
                 primaryLabel={primaryRes?.child.label}
-                disabled={personalProfileLocked}
+                disabled={personalProfileLocked} talentLocales={isSelf ? talentLocales : null}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
               {/* Languages folded in from the old standalone Languages
