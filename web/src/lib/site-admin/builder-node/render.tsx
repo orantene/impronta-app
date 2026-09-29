@@ -6016,10 +6016,13 @@ function renderBuilderNodeElement(
       });
     }
     case "masthead": {
+      // Prefer visitorLocale (site locale on talent page-builder) over the
+      // editor content-locale toggle — same contract as services_catalog — so
+      // magazine "Vol. · Otoño" matches live when the editor chrome is EN.
       return renderMastheadBlock({
         node,
         styleAttr: sharedNodeStyle(node.props.style),
-        locale: options.contentLocale?.locale ?? options.visitorLocale,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
       });
     }
     case "statement_footer": {
@@ -6037,11 +6040,13 @@ function renderBuilderNodeElement(
       });
     }
     case "next_free_chip": {
+      // Prefer visitorLocale so the builder canvas chip ("Hoy a las…") matches
+      // live when contentLocale is the editor language toggle (often "en").
       return (
         <NextFreeChipView
           node={node}
           offerings={options.dataSources?.talentOfferings ?? []}
-          locale={options.contentLocale?.locale ?? options.visitorLocale}
+          locale={options.visitorLocale ?? options.contentLocale?.locale}
           styleAttr={sharedNodeStyle(node.props.style)}
         />
       );
