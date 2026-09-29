@@ -101,4 +101,61 @@ const { error: pubErr } = await admin
 if (pubErr) throw pubErr;
 const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: CODE });
 if (!t.ok) throw new Error(`publishSiteTheme: ${t.error}`);
+
+/** Script-context hydration: loadTemplateHydrationTokens needs cookies; fill cover/bio from admin. */
+async function patchMateoMagazineCover() {
+  const { data: media } = await admin
+    .from("media_assets")
+    .select("storage_path,bucket_id,variant_kind,sort_order")
+    .eq("owner_talent_profile_id", PROFILE_ID)
+    .order("sort_order", { ascending: true });
+  const head = (media ?? []).find((m) => m.variant_kind === "card") ?? media?.[0];
+  const base = url.replace(/\/$/, "");
+  const publicUrl = head
+    ? `${base}/storage/v1/object/public/${head.bucket_id}/${head.storage_path}`
+    : "";
+  const { data: prof } = await admin
+    .from("talent_profiles")
+    .select("short_bio")
+    .eq("id", PROFILE_ID)
+    .single();
+  const bio = (prof?.short_bio ?? "").trim();
+  const patch = (nodes: any[]): any[] =>
+    (nodes ?? []).map((n) => {
+      if (!n || typeof n !== "object") return n;
+      let next = n;
+      if (n.kind === "masthead") {
+        next = {
+          ...n,
+          props: {
+            ...(n.props ?? {}),
+            coverSrc: publicUrl || n.props?.coverSrc || "",
+            bio: bio || n.props?.bio || "",
+            coverLine: n.props?.coverLine || "Modelo · CDMX",
+            showCover: true,
+            edition: "magazine",
+          },
+        };
+      }
+      if (Array.isArray(n.children)) next = { ...next, children: patch(n.children) };
+      return next;
+    });
+  const { data: page } = await admin
+    .from("talent_pages")
+    .select("id, blocks")
+    .eq("talent_profile_id", PROFILE_ID)
+    .eq("is_home", true)
+    .single();
+  if (!page) return;
+  const nodes = patch(page.blocks ?? []);
+  const at = new Date().toISOString();
+  const { error } = await admin
+    .from("talent_pages")
+    .update({ blocks: nodes, blocks_published: nodes, updated_at: at })
+    .eq("id", page.id);
+  if (error) throw error;
+}
+
+await patchMateoMagazineCover();
+
 console.log("applied folio + folio-stone to", CODE, tp.display_name);
