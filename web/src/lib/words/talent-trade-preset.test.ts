@@ -8,8 +8,9 @@ import { resolveWords } from "./resolve";
 import { L2_CATEGORY_PRESET, PARENT_CATEGORY_PRESET, resolveTalentTradePreset } from "./talent-trade-preset";
 
 /**
- * The nineteen active `parent_category` terms, read off production taxonomy on
- * 2026-09-23. Restated here rather than imported because the point of the test
+ * The active `parent_category` terms: the nineteen read off production taxonomy
+ * on 2026-09-23, plus the six added by the 2026-09-29 taxonomy expansion
+ * (migration 20261231298100). Restated here rather than imported because the point of the test
  * is that the map covers the taxonomy: a new parent category must fail this
  * suite until someone chooses its voice, instead of silently falling back to
  * the hub's agency voice on a talent's own site (D-MSG-430).
@@ -34,7 +35,58 @@ const PARENT_CATEGORIES = [
   "transportation",
   "travel-concierge",
   "wellness-beauty",
+  // Taxonomy expansion, 2026-09-29.
+  "crafts-makers",
+  "design-digital",
+  "education-tutoring",
+  "health-therapy",
+  "pets-animal-care",
+  "professional-services",
 ] as const;
+
+/** The six parents the expansion added. */
+const NEW_PARENT_CATEGORIES = [
+  "professional-services",
+  "health-therapy",
+  "education-tutoring",
+  "design-digital",
+  "crafts-makers",
+  "pets-animal-care",
+] as const;
+
+/** Every group the expansion added, with the parent it hangs under. */
+const NEW_GROUPS: ReadonlyArray<readonly [group: string, parent: string]> = [
+  ["legal-services", "professional-services"],
+  ["finance-tax", "professional-services"],
+  ["real-estate-services", "professional-services"],
+  ["paperwork-permits", "professional-services"],
+  ["language-writing", "professional-services"],
+  ["business-support", "professional-services"],
+  ["dental-care", "health-therapy"],
+  ["rehabilitation", "health-therapy"],
+  ["mental-health", "health-therapy"],
+  ["medical-home-care", "health-therapy"],
+  ["birth-family-health", "health-therapy"],
+  ["academic-tutors", "education-tutoring"],
+  ["tech-education", "education-tutoring"],
+  ["music-arts-lessons", "education-tutoring"],
+  ["life-skills", "education-tutoring"],
+  ["graphic-illustration", "design-digital"],
+  ["web-product", "design-digital"],
+  ["development", "design-digital"],
+  ["architecture-interiors", "design-digital"],
+  ["jewelry-watches", "crafts-makers"],
+  ["handcraft", "crafts-makers"],
+  ["sewing-repair", "crafts-makers"],
+  ["pet-walking-sitting", "pets-animal-care"],
+  ["pet-grooming-training", "pets-animal-care"],
+  ["animal-health", "pets-animal-care"],
+  ["production-sound", "music-djs"],
+  ["event-planning", "production-bts"],
+  ["tech-repair", "home-technical-services"],
+  ["home-extras", "home-technical-services"],
+  ["vehicle-care", "transportation"],
+];
 
 /** Minimal stand-in for the one read the resolver makes. */
 function fakeAdmin(rows: Record<string, string | null>) {
@@ -187,4 +239,77 @@ test("a taxonomy error is a null, never a throw", async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   assert.equal(await resolveTalentTradePreset(broken, "beauty-services"), null);
+});
+
+test("every new parent resolves to its chosen voice, never agency", () => {
+  const expected: Record<(typeof NEW_PARENT_CATEGORIES)[number], string> = {
+    "professional-services": "practice",
+    "health-therapy": "practice",
+    "education-tutoring": "practice",
+    "design-digital": "practice",
+    "crafts-makers": "workshop_print",
+    "pets-animal-care": "practice",
+  };
+  for (const slug of NEW_PARENT_CATEGORIES) {
+    assert.equal(PARENT_CATEGORY_PRESET[slug], expected[slug], slug);
+  }
+});
+
+test("a talent whose category is a new L1 slug resolves without a lookup", async () => {
+  const exploding = { from() { throw new Error("L1 hit must not query"); } } as unknown as Parameters<typeof resolveTalentTradePreset>[0];
+  for (const slug of NEW_PARENT_CATEGORIES) {
+    assert.equal(await resolveTalentTradePreset(exploding, slug), PARENT_CATEGORY_PRESET[slug], slug);
+  }
+});
+
+test("every new group resolves to a real, non-agency voice through its parent", async () => {
+  for (const [group, parent] of NEW_GROUPS) {
+    const preset = await resolveTalentTradePreset(fakeAdmin({ [group]: parent }), group);
+    assert.ok(preset, `${group} (under ${parent}) resolved to no voice`);
+    assert.ok((INDUSTRY_PRESET_IDS as readonly string[]).includes(preset), `${group} -> ${preset}`);
+    assert.notEqual(preset, "agency", `${group} must not speak the agency voice`);
+    assert.notEqual(preset, "custom", `${group} must not resolve to the non-voice default`);
+  }
+});
+
+test("new groups whose parent voice is wrong override it", async () => {
+  const exploding = { from() { throw new Error("L2 hit must not query"); } } as unknown as Parameters<typeof resolveTalentTradePreset>[0];
+  // Producers under music-djs are not an `act`.
+  assert.equal(await resolveTalentTradePreset(exploding, "production-sound"), "practice");
+  assert.equal(PARENT_CATEGORY_PRESET["music-djs"], "act");
+  // Vehicle care under transportation is not a rental.
+  assert.equal(await resolveTalentTradePreset(exploding, "vehicle-care"), "dropoff_service");
+  assert.equal(PARENT_CATEGORY_PRESET["transportation"], "rentals");
+  // Pest control and solar are quoted jobs, not drop-offs.
+  assert.equal(await resolveTalentTradePreset(exploding, "home-extras"), "practice");
+  assert.equal(PARENT_CATEGORY_PRESET["home-technical-services"], "dropoff_service");
+  // Sewing and repair is collected, unlike jewelry and handcraft commissions.
+  assert.equal(await resolveTalentTradePreset(exploding, "sewing-repair"), "dropoff_service");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "jewelry-watches": "crafts-makers" }), "jewelry-watches"), "workshop_print");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ handcraft: "crafts-makers" }), "handcraft"), "workshop_print");
+});
+
+test("new groups whose parent voice is right inherit it", async () => {
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "event-planning": "production-bts" }), "event-planning"), "practice");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "tech-repair": "home-technical-services" }), "tech-repair"), "dropoff_service");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "dental-care": "health-therapy" }), "dental-care"), "practice");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "animal-health": "pets-animal-care" }), "animal-health"), "practice");
+});
+
+test("an L3 talent type under an overridden new group takes the group voice", async () => {
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "mobile-mechanic": "vehicle-care" }), "mobile-mechanic"), "dropoff_service");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "music-producer": "production-sound" }), "music-producer"), "practice");
+});
+
+test("L2 overrides only name groups that exist in the taxonomy", () => {
+  const known = new Set(NEW_GROUPS.map(([group]) => group));
+  for (const slug of [
+    "production-sound",
+    "vehicle-care",
+    "home-extras",
+    "sewing-repair",
+  ]) {
+    assert.ok(known.has(slug), `${slug} is overridden but is not a known group`);
+    assert.ok((INDUSTRY_PRESET_IDS as readonly string[]).includes(L2_CATEGORY_PRESET[slug]!), slug);
+  }
 });

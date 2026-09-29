@@ -12,7 +12,7 @@
  *
  * Her trade was already in the row all along. `talent_profiles.
  * service_category_slug` holds a `category_group` (L2) slug — "beauty-services"
- * for Jorg Beauty — and every L2 rolls up to one of the nineteen L1
+ * for Jorg Beauty — and every L2 rolls up to one of the L1
  * `parent_category` terms. That L1 is the closest thing the taxonomy has to an
  * industry, so it maps here to an `IndustryPresetId` and supplies the voice.
  *
@@ -36,7 +36,8 @@ import type { IndustryPresetId } from "./presets";
 /**
  * L1 `parent_category` slug → the preset whose vocabulary that trade speaks.
  *
- * Exhaustive over the nineteen active parent categories. A category whose trade
+ * Exhaustive over the twenty-five active parent categories (the nineteen
+ * original plus six added by the 2026-09 taxonomy expansion). A category whose trade
  * has no closer preset than the generic one maps to `practice` (a professional
  * who books time) or `act` (a performer who is booked for a date) rather than to
  * `agency`, because `agency` is the one preset that talks about OTHER people's
@@ -55,6 +56,25 @@ export const L2_CATEGORY_PRESET: Readonly<Record<string, IndustryPresetId>> = {
   "pastry-dessert": "private_chef",
   "beverage-talent": "private_chef",
   "culinary-experiences": "private_chef",
+  // Taxonomy expansion (2026-09-29). Only the groups whose parent's voice is
+  // WRONG for them; every other new group inherits its parent below.
+  //
+  // Producers and mixing engineers under `music-djs` are booked for studio work,
+  // not for a date on a stage, so the `act` voice ("Tell us about the date")
+  // misreads them.
+  "production-sound": "practice",
+  // `transportation` rolls up to `rentals` ("What would you like to rent?"),
+  // which is wrong for a mobile mechanic, a detailer or a bicycle mechanic.
+  // Their defining fact is the job and its turnaround, exactly what
+  // `dropoff_service` asks for.
+  "vehicle-care": "dropoff_service",
+  // Pest control and solar installation are quoted on-site jobs, not things a
+  // customer drops off, so they leave the `dropoff_service` parent voice.
+  "home-extras": "practice",
+  // Made-to-measure, repaired and restored goods (seamstress, upholsterer, shoe
+  // repair, furniture restorer) are dropped off and collected. Jewelry and
+  // handcraft keep the `crafts-makers` parent voice (commission + quote).
+  "sewing-repair": "dropoff_service",
 };
 
 export const PARENT_CATEGORY_PRESET: Readonly<Record<string, IndustryPresetId>> = {
@@ -77,6 +97,26 @@ export const PARENT_CATEGORY_PRESET: Readonly<Record<string, IndustryPresetId>> 
   "animals-specialty-acts": "act",
   "influencers-creators": "portfolio",
   "models": "portfolio",
+  // Taxonomy expansion (2026-09-29): six new parents, all solo operators who
+  // book time or quote a job. None may resolve to `agency` (see the test).
+  // Professionals: legal, finance and tax, real estate, paperwork, language,
+  // business support. The preset's own comment names these trades.
+  "professional-services": "practice",
+  // Dental, rehabilitation, mental health, home care, birth. `clinic` would
+  // call every one of them "Doctor" (a psychologist, a doula, a physio), so the
+  // neutral professional voice is the safer fit.
+  "health-therapy": "practice",
+  // Tutors and lesson teachers book one-to-one time. `studio_gym` is the group
+  // class preset ("Which class, and how many spots?") and would misread them.
+  "education-tutoring": "practice",
+  // Graphic, web, development, architecture: a brief, a quote, then the work.
+  "design-digital": "practice",
+  // Commissioned and made-to-order work. `workshop_print` is "Maker and
+  // workshop": a job, a quote, a batch.
+  "crafts-makers": "workshop_print",
+  // Walking, sitting, grooming, training, house-call vets: book a time, say
+  // what the pet needs.
+  "pets-animal-care": "practice",
 };
 
 /**

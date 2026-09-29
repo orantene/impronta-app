@@ -67,6 +67,13 @@ const PARENT_CATEGORY_EMOJI: Record<string, string> = {
   "speakers-coaches-experts": "🎓",
   "production-bts": "🎬",
   "animals-specialty-acts": "🐾",
+  // Taxonomy expansion (2026-09-29)
+  "professional-services": "💼",
+  "health-therapy": "🩺",
+  "education-tutoring": "📚",
+  "design-digital": "🎨",
+  "crafts-makers": "🧵",
+  "pets-animal-care": "🐕",
   // Static TAXONOMY parent ids that differ from the live slugs
   hosts: "🎤",
   music: "🎧",
