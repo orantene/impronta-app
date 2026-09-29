@@ -120,7 +120,13 @@ async function patchMateoMagazineCover() {
     .eq("id", PROFILE_ID)
     .single();
   const bio = (prof?.short_bio ?? "").trim();
-  const patch = (nodes: any[]): any[] =>
+  type TreeNode = {
+    kind?: string;
+    props?: Record<string, unknown>;
+    children?: TreeNode[];
+    [key: string]: unknown;
+  };
+  const patch = (nodes: TreeNode[]): TreeNode[] =>
     (nodes ?? []).map((n) => {
       if (!n || typeof n !== "object") return n;
       let next = n;
@@ -129,9 +135,9 @@ async function patchMateoMagazineCover() {
           ...n,
           props: {
             ...(n.props ?? {}),
-            coverSrc: publicUrl || n.props?.coverSrc || "",
-            bio: bio || n.props?.bio || "",
-            coverLine: n.props?.coverLine || "Modelo · CDMX",
+            coverSrc: publicUrl || (n.props?.coverSrc as string) || "",
+            bio: bio || (n.props?.bio as string) || "",
+            coverLine: (n.props?.coverLine as string) || "Modelo · CDMX",
             showCover: true,
             edition: "magazine",
           },
@@ -147,7 +153,7 @@ async function patchMateoMagazineCover() {
     .eq("is_home", true)
     .single();
   if (!page) return;
-  const nodes = patch(page.blocks ?? []);
+  const nodes = patch((page.blocks as TreeNode[] | null) ?? []);
   const at = new Date().toISOString();
   const { error } = await admin
     .from("talent_pages")

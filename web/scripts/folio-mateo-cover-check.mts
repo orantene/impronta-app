@@ -19,20 +19,25 @@ const { data: page } = await admin
   .eq("talent_profile_id", PROFILE)
   .eq("is_home", true)
   .maybeSingle();
-function find(nodes: any[], kind: string, out: any[] = []) {
+type TreeNode = {
+  kind?: string;
+  props?: Record<string, unknown>;
+  children?: TreeNode[];
+};
+function find(nodes: TreeNode[], kind: string, out: TreeNode[] = []) {
   for (const n of nodes || []) {
     if (n?.kind === kind) out.push(n);
     if (n?.children) find(n.children, kind, out);
   }
   return out;
 }
-const mh = find(page?.blocks || [], "masthead");
+const mh = find((page?.blocks as TreeNode[] | null) || [], "masthead");
 console.log("masthead count", mh.length);
 for (const n of mh) {
   console.log({
     edition: n.props?.edition,
-    coverSrc: (n.props?.coverSrc || "").slice(0, 120),
-    bio: (n.props?.bio || "").slice(0, 60),
+    coverSrc: String(n.props?.coverSrc || "").slice(0, 120),
+    bio: String(n.props?.bio || "").slice(0, 60),
     lines: n.props?.lines,
     showCover: n.props?.showCover,
   });

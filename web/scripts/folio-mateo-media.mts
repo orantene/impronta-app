@@ -13,7 +13,14 @@ const { data: tp } = await admin.from("talent_profiles").select("display_name, s
 const bio = (tp?.short_bio || "").trim();
 const coverLine = "Modelo · CDMX";
 
-function patch(nodes: any[]): any[] {
+type TreeNode = {
+  kind?: string;
+  props?: Record<string, unknown>;
+  children?: TreeNode[];
+  [key: string]: unknown;
+};
+
+function patch(nodes: TreeNode[]): TreeNode[] {
   return (nodes || []).map((n) => {
     if (!n || typeof n !== "object") return n;
     let next = n;
@@ -22,9 +29,9 @@ function patch(nodes: any[]): any[] {
         ...n,
         props: {
           ...(n.props || {}),
-          coverSrc: publicUrl || n.props?.coverSrc || "",
-          bio: bio || n.props?.bio || "",
-          coverLine: n.props?.coverLine || coverLine,
+          coverSrc: publicUrl || (n.props?.coverSrc as string) || "",
+          bio: bio || (n.props?.bio as string) || "",
+          coverLine: (n.props?.coverLine as string) || coverLine,
           showCover: true,
           edition: "magazine",
         },
@@ -41,7 +48,7 @@ const { data: page } = await admin
   .eq("talent_profile_id", PROFILE)
   .eq("is_home", true)
   .single();
-const nodes = patch(page?.blocks || []);
+const nodes = patch((page?.blocks as TreeNode[] | null) || []);
 const now = new Date().toISOString();
 const { error } = await admin
   .from("talent_pages")
