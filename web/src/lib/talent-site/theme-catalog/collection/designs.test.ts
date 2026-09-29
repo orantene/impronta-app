@@ -175,7 +175,8 @@ test("collection Designs stamp shared navChrome modes on the standard header", (
     solace: "overlay",
     mono: undefined,
     frame: "filter_bar",
-    folio: "chapter_dots",
+    // Folio masthead bar uses the default sticky top bar (stamped as top_bar → omitted).
+    folio: undefined,
   };
   for (const d of COLLECTION_DESIGNS) {
     let chrome: string | undefined;

@@ -29,6 +29,7 @@ import {
   reviewsBlock,
   visitBlock,
   compCardBlock,
+  contentsBlock,
   statementFooterBlock,
   heroCentered,
   heroCover,
@@ -397,7 +398,8 @@ export function buildFramePayload(): DesignPayload {
 // a B&W cover beside the bio, square CTAs and the "In this issue" index; then
 // chapters (sticky italic numeral, 1 large + 2 captioned plates), the inverted
 // comp card strip, a rate card of ruled rows, About, and the closing
-// "Next issue." page. Every block is a shared widget in its magazine edition.
+// Folio magazine edition: cover masthead + contents + chapters + measures +
+// rate card + statement footer. Every block is a shared widget in its magazine edition.
 export const FOLIO_CHAPTER_SEEDS = [
   { heading: "Selected work", creditLine: "From the studio" },
   { heading: "Details", creditLine: "Up close" },
@@ -482,6 +484,25 @@ export function buildFolioPayload(): DesignPayload {
       magazine(fullBleed(heroWithSpread)),
       magazine(
         fullBleed(
+          contentsBlock(id, {
+            heading: "Contents",
+            showNumbers: true,
+            numberStyle: "roman",
+            items: [
+              ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({
+                label: c.heading,
+                anchor: `chapter-${i + 1}`,
+              })),
+              { label: "About", anchor: "about" },
+              { label: "Measures", anchor: "comp_card" },
+              { label: "Rates", anchor: "services" },
+              { label: "Contact", anchor: "contact" },
+            ],
+          }),
+        ),
+      ),
+      magazine(
+        fullBleed(
           portfolioChaptersBlock(
             id,
             FOLIO_CHAPTER_SEEDS.map((c, i) => ({
@@ -502,6 +523,19 @@ export function buildFolioPayload(): DesignPayload {
             heading: "Measures · Comp card",
             showFullDetails: true,
             minMeasures: 4,
+            // Mateo Ferrer / model strip: height · suit · shoe · languages.
+            measures: [
+              { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height", labelEs: "Estatura" },
+              { fieldKey: "physical.suit_size", enabled: true, labelEn: "Suit", labelEs: "Saco" },
+              {
+                fieldKey: "physical.shoe_size_eu",
+                enabled: true,
+                labelEn: "Shoe",
+                labelEs: "Calzado",
+                unit: "MX",
+              },
+              { fieldKey: "languages", enabled: true, labelEn: "Languages", labelEs: "Idiomas" },
+            ],
           }),
         ),
       ),
@@ -524,9 +558,9 @@ export function buildFolioPayload(): DesignPayload {
       magazine(
         fullBleed(
           statementFooterBlock(id, {
-            statement: "Next issue.",
+            statement: "Available for editorial, campaign, and portrait commissions.",
             creditLine: "{{displayName}}",
-            contactLine: "Write to me and I will reply with dates and prices.",
+            contactLine: "Inquire for bookings",
             align: "start",
             showRule: true,
           }),

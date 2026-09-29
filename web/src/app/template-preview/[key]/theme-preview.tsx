@@ -15,6 +15,7 @@
  */
 import { notFound } from "next/navigation";
 
+import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { TalentSiteRenderer } from "@/components/talent/site/TalentSiteRenderer";
 import { isThemePreviewAllowed } from "./theme-preview-gate";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
@@ -36,9 +37,24 @@ import {
   prepareMyContentPreview,
   resolveMyContentPreviewLocale,
 } from "@/lib/talent-site/server/preview-my-content.server";
-import { COLLECTION_DEFAULT_LOOK } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
+import {
+  COLLECTION_DEFAULT_LOOK,
+  folioLookTokensFromCode,
+} from "@/lib/talent-site/theme-catalog/collection/folio-looks";
+import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { MAGAZINE_LABEL_FAMILY } from "@/lib/site-admin/builder-node/magazine-edition";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+/** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
+function resolveFolioLookSlug(designSlug: string, lookSlug: string | null | undefined): string | null {
+  const fallback = COLLECTION_DEFAULT_LOOK[designSlug] ?? null;
+  const raw = (lookSlug || fallback || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith("folio-")) return raw;
+  if (designSlug === "folio" && ["stone", "light", "dark"].includes(raw)) return `folio-${raw}`;
+  return raw || fallback;
+}
 
 export async function ThemeCatalogPreview({
   designSlug,
@@ -77,14 +93,17 @@ export async function ThemeCatalogPreview({
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
 
-  // No Look named: the Design's own default palette (Folio opens in stone),
-  // else the platform default below.
-  const effectiveLookSlug = lookSlug || COLLECTION_DEFAULT_LOOK[designSlug] || null;
+  // Folio Looks always come from code (`folio-looks.ts`), never the DB, so
+  // stone applies before sync and cannot drift. Other Designs keep the row path.
+  const effectiveLookSlug = resolveFolioLookSlug(designSlug, lookSlug);
+  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
   const lookRow =
-    effectiveLookSlug && SLUG_RE.test(effectiveLookSlug)
+    !folioTokens && effectiveLookSlug && SLUG_RE.test(effectiveLookSlug)
       ? await loadRow("look", effectiveLookSlug)
       : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
+  const lookTokens: Record<string, string> | null =
+    folioTokens ?? (look ? look.payload.tokens : null);
 
   // P4: a gallery-meta demo talent's content (allow-listed), else the
   // owner-gated hydration exactly as before.
@@ -116,10 +135,10 @@ export async function ThemeCatalogPreview({
   // Same layering as the live render: the Look lands in the (empty) site
   // draft layer, then platform < site. A key the Look omits keeps the
   // platform default, exactly as on the published site.
-  const effectiveTokens = look
+  const effectiveTokens = lookTokens
     ? resolveEffectiveSiteTokens(
         {},
-        mergeLookIntoTokens({}, look.payload.tokens),
+        mergeLookIntoTokens({}, lookTokens),
         platformDefault.tokens,
       )
     : platformDefault.tokens;
@@ -145,8 +164,21 @@ export async function ThemeCatalogPreview({
     builderTree: [...shellHeader, ...homeTree, ...shellFooter],
   };
 
+  const localeNorm = locale === "es" ? "es" : "en";
+  // Instrument Serif + Archivo from Look tokens; Archivo Narrow for magazine labels / nav.
+  const extraFonts =
+    designSlug === "folio"
+      ? [MAGAZINE_LABEL_FAMILY, "Archivo Narrow", "Instrument Serif", "Archivo"]
+      : [];
+
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"}>
+    <ThemeTokenPreviewFrame
+      initialTokens={effectiveTokens}
+      locale={localeNorm}
+      designSlug={design.slug}
+    >
+      <GoogleFontsLink tokens={effectiveTokens} fontFamilies={extraFonts} />
+      <DesignSkinStyle slug={design.slug} />
       <TalentSiteRenderer
         snapshot={snapshot}
         locale={locale}

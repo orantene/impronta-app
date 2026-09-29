@@ -73,6 +73,10 @@ export async function loadMaisonCatalogRow<K extends Exclude<TalentThemeKind, "d
   kind: K,
   slug: string,
 ): Promise<Extract<TalentThemeCatalogRow, { kind: K }> | null> {
+  // Folio Design + Looks are code-owned (same as theme-preview); skip stale DB rows.
+  if ((kind === "look" && slug.startsWith("folio-")) || (kind === "design" && slug === "folio")) {
+    return maisonBuiltinRow(kind, slug);
+  }
   const { data, error } = await admin
     .from("talent_theme_catalog")
     .select(CATALOG_ROW_COLUMNS)

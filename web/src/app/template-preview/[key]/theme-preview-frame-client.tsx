@@ -22,10 +22,13 @@ import { classifyPreviewClick, previewDemoNote, type GuardElement } from "./prev
 export function ThemeTokenPreviewFrame({
   initialTokens,
   locale = "en",
+  designSlug,
   children,
 }: {
   initialTokens: Record<string, string>;
   locale?: "en" | "es";
+  /** Scopes the design skin (`design-skins.ts`). */
+  designSlug?: string;
   children: React.ReactNode;
 }) {
   const [tokens, setTokens] = useState(initialTokens);
@@ -85,6 +88,7 @@ export function ThemeTokenPreviewFrame({
     <div
       data-theme-canvas-root=""
       data-talent-theme-preview=""
+      data-talent-design={designSlug || undefined}
       {...dataAttrs}
       style={{
         ...(cssVars as React.CSSProperties),

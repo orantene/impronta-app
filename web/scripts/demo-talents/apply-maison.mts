@@ -20,7 +20,16 @@ import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-s
 import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
 import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
-import { DEMO_BATCH, DEMOS } from "./demos";
+import * as demosMod from "./demos";
+
+function namedFromCjs<T extends object>(mod: T | { default: T }): T {
+  if (mod && typeof mod === "object" && "default" in mod) {
+    const d = (mod as { default: unknown }).default;
+    if (d && typeof d === "object") return d as T;
+  }
+  return mod as T;
+}
+const { DEMO_BATCH, DEMOS } = namedFromCjs(demosMod as typeof import("./demos"));
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();

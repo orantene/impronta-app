@@ -57,6 +57,8 @@ export const FOLIO_HEADING_FONT = "Instrument Serif, Didot, Georgia, serif";
 export const FOLIO_BODY_FONT = "Archivo, system-ui, sans-serif";
 
 function folioLookTokens(p: FolioPalette): LookPayload {
+  // Look layer only (color.* + typography.* + background.mode). Derived
+  // colour.primary-on, shell/shadow/radius live in design-skins / platform defaults.
   return {
     tokens: {
       "color.background": p.bg,
@@ -105,3 +107,11 @@ export const FOLIO_BUILTIN_LOOKS: readonly FolioBuiltinLookEntry[] = FOLIO_PALET
 export const COLLECTION_DEFAULT_LOOK: Readonly<Record<string, string>> = {
   folio: "folio-stone",
 };
+
+/** Resolve a Folio Look from code (never DB). Used by theme-preview. */
+export function folioLookTokensFromCode(slug: string | null | undefined): Record<string, string> | null {
+  if (!slug) return null;
+  const entry = FOLIO_BUILTIN_LOOKS.find((l) => l.slug === slug.trim().toLowerCase());
+  if (!entry) return null;
+  return { ...entry.buildPayload().tokens };
+}

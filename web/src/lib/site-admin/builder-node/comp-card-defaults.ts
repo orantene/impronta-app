@@ -13,6 +13,7 @@ export const COMP_CARD_MEASURE_CATALOG: readonly CompCardMeasureSpec[] = [
   { fieldKey: "physical.bust_cm", labelEn: "Bust", labelEs: "Busto" },
   { fieldKey: "physical.waist_cm", labelEn: "Waist", labelEs: "Cintura" },
   { fieldKey: "physical.hips_cm", labelEn: "Hips", labelEs: "Cadera" },
+  { fieldKey: "physical.suit_size", labelEn: "Suit", labelEs: "Saco" },
   {
     fieldKey: "physical.shoe_size_eu",
     labelEn: "Shoe",
@@ -22,6 +23,7 @@ export const COMP_CARD_MEASURE_CATALOG: readonly CompCardMeasureSpec[] = [
   { fieldKey: "physical.dress_size", labelEn: "Dress", labelEs: "Talla" },
   { fieldKey: "physical.hair_color", labelEn: "Hair", labelEs: "Cabello" },
   { fieldKey: "physical.eye_color", labelEn: "Eyes", labelEs: "Ojos" },
+  { fieldKey: "languages", labelEn: "Languages", labelEs: "Idiomas" },
 ] as const;
 
 export const COMP_CARD_MEASURES_MAX = 16;
