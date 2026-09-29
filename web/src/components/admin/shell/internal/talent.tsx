@@ -54,9 +54,14 @@ export function TalentSurface() {
   return (
     <div
       data-tulala-workspace-grid
-      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-admin-surface"
+      // Talent Studio primaries are the brand fill, not the workspace slate.
+      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-admin-surface [--tulala-primary-fill:var(--color-admin-brand)] [--tulala-primary-fill-deep:var(--color-admin-brand-deep)]"
     >
-      <TalentSidebar />
+      {/* The column carries the rail background so it runs the full page
+          height; the sticky aside inside only pins the nav. */}
+      <div data-tulala-app-sidebar-col className="border-r border-admin-border-soft bg-admin-surface-alt">
+        <TalentSidebar />
+      </div>
       <main
         id="tulala-talent-content"
         tabIndex={-1}
@@ -203,7 +208,7 @@ function TalentSidebar() {
   return (
     <aside
       data-tulala-app-sidebar
-      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto border-r border-admin-border-soft bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
+      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
       {/* Keyboard users can bypass the rail nav entirely. */}
       <a href="#tulala-talent-content" className="skip-to-main">

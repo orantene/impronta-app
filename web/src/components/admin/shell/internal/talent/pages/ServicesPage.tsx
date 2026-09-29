@@ -21,16 +21,7 @@ export function ServicesPage() {
 
   return (
     <div>
-      <PageHeader
-        guideNodeId="talent-rate-card"
-        eyebrow={copy.t("Catalog")}
-        title={copy.t("Services")}
-        subtitle={
-          copy.isSpanish
-            ? "Administra tus servicios, paquetes y productos"
-            : "Manage your services, packages and products"
-        }
-      />
+      {/* ServicesHome renders the one Services title with its actions. */}
       {bridgeTalentSelfProfile ? (
         <>
           <ServicesHome
@@ -41,9 +32,21 @@ export function ServicesPage() {
           <TalentOrdersQueue talentId={bridgeTalentSelfProfile.id} />
         </>
       ) : (
+        <>
+          <PageHeader
+          guideNodeId="talent-rate-card"
+          eyebrow={copy.t("Catalog")}
+          title={copy.t("Services")}
+          subtitle={
+            copy.isSpanish
+              ? "Administra tus servicios, paquetes y productos"
+              : "Manage your services, packages and products"
+          }
+        />
         <div style={{ fontSize: 13, color: "rgba(11,11,13,0.55)", padding: "18px 4px" }}>
           {copy.t("Your services will appear here once your talent profile is set up.")}
         </div>
+        </>
       )}
     </div>
   );

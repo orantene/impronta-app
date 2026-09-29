@@ -1443,7 +1443,8 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-workspace-grid] {
               grid-template-columns: 1fr !important;
             }
-            .tulala-shell [data-tulala-app-sidebar] {
+            .tulala-shell [data-tulala-app-sidebar],
+            .tulala-shell [data-tulala-app-sidebar-col] {
               display: none !important;
             }
             /* Workspace topbar — also drop nav-style chips inside. */

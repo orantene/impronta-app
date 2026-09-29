@@ -412,7 +412,7 @@ export function ServicesHome({
       <ServicesWebsiteSetupBanner />
       <div className="flex flex-wrap items-end justify-between gap-3" data-tulala-page-header>
         <div>
-          <h1 className="font-admin-display text-[28px] font-semibold text-admin-ink">{copy.t("Services")}</h1>
+          <h1 className="font-admin-display text-[20px] font-semibold tracking-[-0.3px] text-admin-ink">{copy.t("Services")}</h1>
           <p className="text-[13px] text-admin-ink-muted">
             {hideTarget
               ? `${copy.t("Hiding")} "${hideTarget.title}"`
