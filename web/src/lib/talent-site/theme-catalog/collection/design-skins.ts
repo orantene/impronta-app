@@ -43,8 +43,8 @@ const MAISON_V2_SKIN = [
   `${S} .site-header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--token-color-background) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in srgb,var(--token-color-line) 60%,transparent);color:var(--token-color-ink)}`,
   `${S} .site-header__inner{padding:10px 18px;gap:12px}`,
   `${S} .site-header__brand{display:flex;align-items:baseline;gap:7px;line-height:1}`,
-  `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:500;font-size:24px;letter-spacing:-0.02em;text-transform:none}`,
-  `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
+  `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:500;font-size:24px;line-height:normal;letter-spacing:-0.02em;text-transform:none}`,
+  `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
   `${S} .site-header__nav-list{gap:22px}`,
   `${S} .site-header__nav-link{font-size:13.5px;font-weight:400;color:var(--token-color-muted);text-transform:none;letter-spacing:0;text-decoration:none}`,
   `${S} .site-header__nav-link:hover{color:var(--token-color-ink)}`,
@@ -60,7 +60,7 @@ const MAISON_V2_SKIN = [
 
   // ── Row 2 Hero: 47px / 96px heading with italic accent, muted lede, 26px / 34px photo, 20px inset.
   `${S} #hero{align-items:center}`,
-  `${S} #hero h1{margin:6px 0 0;font-size:47px;line-height:.98;font-weight:450}`,
+  `${S} #hero h1{margin:6px 0 0;font-size:47px;line-height:.98;font-weight:500}`,
   `${S} #hero h1 em{font-weight:400;color:var(--token-color-accent,var(--token-color-primary))}`,
   `${S} #hero p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){margin-top:12px;font-size:15.5px;max-width:34ch;color:var(--token-color-muted)}`,
   `${S} #hero img{border-radius:26px}`,
