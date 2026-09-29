@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   clientMergeKey,
+  mergeClientHistory,
   upsertClient,
   type TalentClientRow,
 } from "./clients-merge";
@@ -159,5 +160,25 @@ describe("upsertClient mirror collapse", () => {
     assert.equal(lucia.completedCount, 2);
     assert.equal(lucia.visitCount, 2);
     assert.equal(lucia.amountOwedCents, 300_00);
+  });
+});
+
+describe("mergeClientHistory", () => {
+  it("dedupes a booking and prefers the entry with money, newest first", () => {
+    const base = { currency: "MXN", paymentStatus: null, past: true, href: "/x" } as const;
+    const out = mergeClientHistory(
+      [{ ...base, bookingId: "a", startsAt: "2026-09-01", amountCents: null }],
+      [
+        { ...base, bookingId: "a", startsAt: "2026-09-01", amountCents: 50000 },
+        { ...base, bookingId: "b", startsAt: "2026-09-10", amountCents: null },
+      ],
+    );
+    assert.deepEqual(
+      out.map((h) => [h.bookingId, h.amountCents]),
+      [
+        ["b", null],
+        ["a", 50000],
+      ],
+    );
   });
 });

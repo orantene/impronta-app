@@ -59,7 +59,7 @@ export function HomeView({
     <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16, minHeight: "100%" }}>
       <div>
         <div style={{ fontFamily: FONTS.display, fontSize: 19, fontWeight: 600, color: COLORS.ink }}>
-          {interpolate(t("dashboard.adminSupport.greeting"), { name: firstName })}
+          {interpolate(t("dashboard.adminSupport.greeting"), { name: firstName }).trim()}
         </div>
         <div style={{ fontSize: 13, color: COLORS.inkMuted, marginTop: 4 }}>
           {t("dashboard.adminSupport.subline")}

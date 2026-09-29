@@ -23,12 +23,14 @@ import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
 import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
 import { MONEY_ES_TEXT } from "./dashboard-i18n-money";
+import { MONEY_HOME_ES_TEXT } from "./dashboard-i18n-money-home";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
   ...LINKS_ES_TEXT,
   ...WEBSITE_ES_TEXT,
   ...MONEY_ES_TEXT,
+  ...MONEY_HOME_ES_TEXT,
   ...CLIENTS_ES_TEXT,
   ...LANGUAGES_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
@@ -60,6 +62,16 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent Messages + Actions: shown when no thread is open (kept out of
   // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
   "Pick a conversation first": "Elige una conversación primero",
+  "Pick services, add extras.": "Elige servicios y extras.",
+  "Not available yet. Paste a link in the message for now.":
+    "Aún no disponible. Por ahora pega un enlace en el mensaje.",
+  "Not available yet. Private notes are coming.": "Aún no disponible. Las notas privadas vienen pronto.",
+  "The client sees the services, the total and one Accept button.":
+    "El cliente ve los servicios, el total y un botón de Aceptar.",
+  "What the client pays": "Lo que paga el cliente",
+  "Services total": "Total de servicios",
+  "Deposit to hold the time": "Anticipo para apartar el horario",
+  "Paid at the appointment": "Se paga en la cita",
   "Send a quote": "Enviar una cotización",
   "Pick services from your catalogue. Prices stay in your currency. The quote holds 24 hours.":
     "Elige servicios de tu catálogo. Los precios quedan en tu moneda. La cotización vale 24 horas.",

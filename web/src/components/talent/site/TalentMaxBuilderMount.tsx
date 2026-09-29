@@ -32,6 +32,7 @@ import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { TALENT_LOCKED_OPERATION_EVENT } from "@/components/edit-chrome/talent-lock-broadcast";
 import { BuilderMediaScopeProvider } from "@/components/edit-chrome/builder-media-scope";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentBuilderPageSwitcher } from "./TalentBuilderPageSwitcher";
@@ -69,6 +70,9 @@ export interface TalentMaxBuilderMountProps {
   onExit?: () => void;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /** Server-primed page composition (the route reads the talent_pages row
+   *  once). When present the editor opens on it instead of a client load. */
+  initialComposition?: CompositionData | null;
   /**
    * The site's pages — when provided, the exit bar renders the multi-page
    * switcher (switch page / add page / jump to shell or manager). Omitted on the
@@ -88,6 +92,7 @@ export function TalentMaxBuilderMount({
   locale,
   onExit,
   canvasRenderData = null,
+  initialComposition = null,
   sitePages,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
@@ -215,6 +220,7 @@ export function TalentMaxBuilderMount({
         }
         canInsertRawHtmlElements={false}
         canvasRenderData={canvasRenderData}
+        initialComposition={initialComposition}
       />
     </div>
     </BuilderMediaScopeProvider>

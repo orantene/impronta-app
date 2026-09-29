@@ -1,8 +1,9 @@
 import "server-only";
 
 import type { ReactNode } from "react";
-import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill } from "./render-max-site-demo";
+import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
+import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -20,7 +21,7 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
-import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
@@ -31,7 +32,7 @@ import {
 import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
 import {
   loadBuilderNodeDataSources,
-  loadServicesCatalogSources,
+  loadPersonalMaxNativeSources,
 } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
@@ -43,6 +44,9 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
+import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import {
@@ -74,14 +78,15 @@ import {
   loadMaxSiteByProfileId,
   loadMaxSiteBySlug,
   loadMaxSitePages,
-  loadMaxSiteThemeTokens,
+  loadMaxSiteThemeTokens, loadMaxSiteDesignSlug,
   loadTalentManagingTenantId,
   loadTalentOwnerUserId,
   loadTalentPlanKey,
+  loadTalentSiteCtaMode,
   loadTalentSiteIdentity,
   type TalentSiteIdentity,
 } from "./load-max-site";
-import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
+import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
 
 /**
  * Talent Max Site — REUSABLE public render.
@@ -218,6 +223,7 @@ export async function renderTalentMaxSite(
     // unpublished draft — but the plan is still READ there, because read-time
     // SEO scoping below needs it on both paths.
     const planKey = await loadTalentPlanKey(talentProfileId);
+    const ctaMode = await loadTalentSiteCtaMode(talentProfileId, planKey); // seeded CTA copy follows booking mode
     const gateOpen = maxSitePublicGate({
       sitePublishedAt: site.sitePublishedAt,
       planKey,
@@ -248,7 +254,8 @@ export async function renderTalentMaxSite(
 
     // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
     const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const blocks = localiseSeededDesignLabels(pruneUnconfirmedGuestStubs(body), input.locale);
+    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale: input.locale, logoUrl: site.logoUrl, shellTree, body, ctaMode });
+    const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
@@ -261,7 +268,7 @@ export async function renderTalentMaxSite(
     const nav = buildMaxSiteNav(navSource);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
-      localiseSeededDesignLabels(shellTree, input.locale),
+      fixed.shellTree,
       nav,
       site.siteSlug,
       publicPathPrefix,
@@ -277,14 +284,13 @@ export async function renderTalentMaxSite(
     // ── Demo talent (fictional theme example): Demo pill + footer line ──────
     const isDemo = await loadMaxSiteIsDemo(talentProfileId);
 
-    // ── Site-level theme tokens (theme gallery). `{}` while the switch is off
-    //    or nothing is applied → the cascade below is exactly today's. ────────
-    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, {
-      draft: isOwnerDraftPreview,
-    });
+    // Site theme tokens + Design slug (token defaults).
+    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview });
+    const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
 
     const node = await renderMaxSiteDocument({
       siteTokens,
+      designSlug,
       shellTree: hydratedShell,
       logoUrl: site.logoUrl,
       page,
@@ -414,6 +420,7 @@ function buildMaxSiteSeo(args: {
 async function renderMaxSiteDocument(args: {
   /** Site-level theme tokens (theme gallery); `{}` = today's cascade. */
   siteTokens: Readonly<Record<string, string>>;
+  designSlug?: string | null;
   shellTree: BuilderNode[];
   logoUrl: string | null;
   page: MaxSitePageRow;
@@ -470,19 +477,22 @@ async function renderMaxSiteDocument(args: {
   // which used to skip data sources entirely. Hablar/dock still loaded
   // offerings, but `services_catalog` rendered the empty state. Load catalog
   // sources by talent profile whenever the page tree needs them.
-  const pageNeedsServicesCatalog = (function needsCatalog(nodes: unknown): boolean {
-    if (Array.isArray(nodes)) return nodes.some(needsCatalog);
-    if (!nodes || typeof nodes !== "object") return false;
-    const n = nodes as { kind?: unknown; children?: unknown };
-    return n.kind === "services_catalog" || needsCatalog(n.children);
-  })(blocks);
+  const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
+  const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
+  const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
+  const pageNeedsVisit = builderTreeHasKind(blocks, "visit");
+  const pageNeedsCompCard = builderTreeHasKind(blocks, "comp_card");
+  const pageNeedsFaq = builderTreeHasFaqBind(blocks);
+  const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
+  const pageNeedsTalentOfferings =
+    pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
 
   // Codex P2 / ACCEPTANCE: loading offerings with catalogBookingLive=false mounts
   // demo booking ("Preview: no real bookings") on published free vanity. Own-work
   // Path A / inquiry uses the platform hub when there is no managing agency
   // tenant — same as Agenda `resolveTalentOwnWorkTenant` / Path B hub pick.
   let bookingTenantId: string | null = tenantId;
-  if (!bookingTenantId && !draftPreview && pageNeedsServicesCatalog) {
+  if (!bookingTenantId && !draftPreview && pageNeedsTalentOfferings) {
     bookingTenantId = (await getPlatformHubTenant())?.tenantId ?? null;
   }
   const catalogBookingLive = Boolean(bookingTenantId) && !draftPreview;
@@ -494,10 +504,18 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsServicesCatalog
-          ? loadServicesCatalogSources(talentProfileId, locale).then(
-              (catalog) => ({ ...catalog }) as BuilderNodeRenderDataSources,
-            )
+        : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
+          ? loadPersonalMaxNativeSources({
+              talentProfileId,
+              locale,
+              servicesCatalog: pageNeedsServicesCatalog,
+              portfolio: pageNeedsPortfolio,
+              nextFreeChip: pageNeedsNextFreeChip,
+              reviews: pageNeedsReviews,
+              visit: pageNeedsVisit,
+              compCard: pageNeedsCompCard,
+              talentFaq: pageNeedsFaq,
+            })
           : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)
         ? loadBuilderComponentsForTenant(tenantId)
@@ -550,18 +568,16 @@ async function renderMaxSiteDocument(args: {
       })
     : null;
 
-  // Unthemed talent → the PLATFORM DEFAULT (Modern light), so the page renders
-  // at parity with the editor and never inherits a host tenant's dark bg.
-  const componentStyleDefaults =
-    talentComponentStyleDefaults &&
-    Object.keys(talentComponentStyleDefaults).length > 0
-      ? talentComponentStyleDefaults
-      : platformDefault.componentStyles;
   const effectiveTokens = resolveEffectiveSiteTokens(
     designTokens,
     siteTokens,
     platformDefault.tokens,
+    designTokenDefaults(args.designSlug),
   );
+  const componentStyleDefaults =
+    talentComponentStyleDefaults && Object.keys(talentComponentStyleDefaults).length > 0
+      ? talentComponentStyleDefaults
+      : typeSystemComponentStyleDefaults(effectiveTokens, platformDefault.componentStyles);
   const hasTokens = Object.keys(effectiveTokens).length > 0;
   const cssVars = hasTokens ? designTokensToCssVars(effectiveTokens) : {};
   const headingFamily = effectiveTokens["typography.heading-font-family"]?.trim();
@@ -571,7 +587,7 @@ async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, footerTree] = splitShell(shellTree);
+  const [headerTree, footerTree] = splitShell(shellTree); const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
   // its config inline (`props.sectionProps`) and is rendered via the bespoke
@@ -587,7 +603,8 @@ async function renderMaxSiteDocument(args: {
     ) {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
-      const parsed = schema?.safeParse(localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale));
+      const localised = localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale);
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -647,6 +664,7 @@ async function renderMaxSiteDocument(args: {
     <div
       data-talent-max-site=""
       data-theme-canvas-root=""
+      data-talent-design={args.designSlug ?? undefined}
       {...dataAttrs}
       style={{
         ...(cssVars as React.CSSProperties),
@@ -670,16 +688,15 @@ async function renderMaxSiteDocument(args: {
           locale={locale}
         />
       ) : null}
-      {/* REND-2 — public render: ONE shared renderer sheet for shell + body,
-          scoped to the kinds present across BOTH trees (mirrors the FontLinks
-          nodes union below). Live-resolved instance kinds are included; any
-          uncertainty falls back to the full sheet. */}
+      {/* REND-2: ONE renderer sheet for shell + body, scoped to the kinds in
+          BOTH trees; any uncertainty falls back to the full sheet. */}
       <BuilderNodeRendererStyles
         kinds={collectPresentNodeKinds([...shellTree, ...blocks], components)}
         nodes={[...shellTree, ...blocks]}
       />
       <BuilderNodeFontLinks nodes={[...shellTree, ...blocks]} components={components} />
       {hasTokens ? <GoogleFontsLink tokens={effectiveTokens} /> : null}
+      <TypeSystemStyle />
 
       {draftPreview ? (
         <div
@@ -698,7 +715,7 @@ async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
-      {args.isDemo ? <MaxSiteDemoPill /> : null}
+      {args.isDemo && !(hasShell && headerTree.length > 0 && headerHasLandmark) ? <MaxSiteDemoPill /> : null /* the landmark paints its own pill */}
 
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (
@@ -738,7 +755,7 @@ async function renderMaxSiteDocument(args: {
           styleClasses,
           dataSources: pricedDataSources,
           components,
-          componentStyleDefaults,
+          componentStyleDefaults: readableButtonDefaults(componentStyleDefaults, effectiveTokens),
           captcha: captchaConfig,
           visitorLocale: locale,
           ...experimentContext,
@@ -750,7 +767,7 @@ async function renderMaxSiteDocument(args: {
         <footer data-talent-max-site-footer="">
           {renderBuilderNodes(footerTree, {
             publicPathPrefix,
-            mode: "freeform",
+            mode: "freeform", dataSources: { socialLinks: footerSocialLinks }, // her own links
             includeRendererStyles: false,
             includeFontLinks: false,
             captcha: captchaConfig,
@@ -782,6 +799,4 @@ async function renderMaxSiteDocument(args: {
   );
 }
 
-// Re-export the published-page render data type for any caller that wants the
-// shared shape (avoids a separate import path).
 export type { PublishedTalentPageRenderData };

@@ -96,6 +96,18 @@ export interface ClientBuilderCanvasProps {
    * defaults off to avoid a duplicate.
    */
   includeRendererStyles?: boolean;
+  /**
+   * Optional render-time projection of the live tree (talent_page: seeded
+   * labels in the site locale, as the live site renders them). Pure; the
+   * saved tree is never changed. Pass a stable function.
+   */
+  transformTree?: (tree: BuilderNodeTree) => BuilderNodeTree;
+  /**
+   * Site / visitor locale for catalog chrome (dock "Ver servicios", etc.).
+   * Distinct from the editor content-locale toggle: the live site always uses
+   * this, and the builder canvas must match (handover pending #3).
+   */
+  visitorLocale?: string;
 }
 
 function ClientBuilderCanvasInner({
@@ -107,6 +119,8 @@ function ClientBuilderCanvasInner({
   visibilityContext,
   componentStyleDefaults,
   includeRendererStyles = false,
+  transformTree,
+  visitorLocale,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
   // server snapshot is `null` (the bridge starts empty), so we fall back to
@@ -117,7 +131,11 @@ function ClientBuilderCanvasInner({
     getBuilderCanvasTreeSnapshot,
     () => null,
   );
-  const tree = bridgedTree ?? initialTree;
+  const rawTree = bridgedTree ?? initialTree;
+  const tree = useMemo(
+    () => (transformTree ? transformTree(rawTree) : rawTree),
+    [rawTree, transformTree],
+  );
 
   // builder-perf-2026 (reload fix) — announce that a client canvas is mounted for
   // this page, so `edit-context` skips the per-edit server `router.refresh()` ONLY
@@ -209,6 +227,7 @@ function ClientBuilderCanvasInner({
       componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
       contentLocale,
+      visitorLocale,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
       // on the live editor canvas it wraps the tree in the FLIP primitive.
@@ -224,6 +243,7 @@ function ClientBuilderCanvasInner({
       effectiveComponentDefaults,
       renderSectionEmbed,
       contentLocale,
+      visitorLocale,
     ],
   );
 

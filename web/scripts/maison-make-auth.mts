@@ -1,0 +1,18 @@
+import { chromium } from "playwright";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+const BASE="http://localhost:3001";
+const OUT=path.join(os.homedir(),".claude","design-diff",".auth-alba-nail-artist.json");
+const cookies = fs.readFileSync("/tmp/alba-cookies.txt","utf8").split("\n").filter(l=>l&&!l.startsWith("#")).map(l=>{const p=l.split("\t");return p.length>=7?{name:p[5],value:p[6],url:BASE}:null}).filter(Boolean) as Array<{name:string;value:string;url:string}>;
+const browser = await chromium.launch({headless:true});
+const ctx = await browser.newContext();
+await ctx.addCookies(cookies);
+const page = await ctx.newPage();
+await page.goto(BASE+"/talent",{waitUntil:"domcontentloaded",timeout:60000});
+console.log("url", page.url());
+fs.mkdirSync(path.dirname(OUT),{recursive:true});
+await ctx.storageState({path:OUT});
+fs.chmodSync(OUT,0o600);
+console.log("wrote", OUT, "login?", /\/login/.test(page.url()));
+await browser.close();

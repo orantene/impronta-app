@@ -32,6 +32,9 @@ export type RecordActionVisibility = {
   requestPayment: boolean;
 };
 
+/** Mockup tc_more: cancel is offered on live bookings only (a request is declined). */
+const CANCELLABLE = new Set<string>(["confirmed", "hold"]);
+
 const DEPOSIT_SETTLED = new Set<string>([
   "paid",
   "paid_by_agency",
@@ -46,7 +49,7 @@ export function recordActionVisibility(input: RecordActionInput): RecordActionVi
   return {
     talentOwnsActions: owns,
     reschedule: act && confirmed,
-    cancel: act,
+    cancel: act && CANCELLABLE.has(String(input.bookingState ?? "confirmed")),
     noShow: act && confirmed,
     collectDeposit:
       act && confirmed && !DEPOSIT_SETTLED.has(String(input.paymentState ?? "")),
@@ -116,4 +119,57 @@ export function placeLabelFor(
   if (where?.mode === "online" && !label) return "Online";
   if (opts?.hasStudio) return "At your studio";
   return undefined;
+}
+
+/**
+ * Mockup tc_record: the header carries Message, Reschedule and More. More is
+ * hidden for agency jobs, requests and finished records (cancelled, no-show).
+ */
+export function showMoreMenu(input: {
+  isAgency?: boolean;
+  bookingState?: AgendaBookingState;
+}): boolean {
+  if (input.isAgency) return false;
+  const s = input.bookingState ?? "confirmed";
+  return s === "confirmed" || s === "hold" || s === "completed";
+}
+
+const MONEY_TAKEN = new Set<string>(["deposit_paid", "paid", "checking_payment"]);
+
+/** True when the client has paid something that a cancel or no-show touches. */
+export function clientPaidSomething(paymentState?: AgendaPaymentState): boolean {
+  return MONEY_TAKEN.has(String(paymentState ?? ""));
+}
+
+export type CancelledBy = "talent" | "client";
+
+/**
+ * Mockup tc_cancel: consequences first. Copy keys (EN source strings) in the
+ * order shown, money first. The server computes the amount by the talent's
+ * cancellation terms; the UI never invents it.
+ */
+export function cancelConsequenceKeys(
+  paymentState: AgendaPaymentState | undefined,
+  cancelledBy: CancelledBy,
+): string[] {
+  const rest = [
+    "The time is freed on your calendar.",
+    "The client sees the cancellation in your conversation.",
+  ];
+  if (!clientPaidSomething(paymentState)) {
+    return ["No payment was taken, so there is nothing to refund.", ...rest];
+  }
+  return [
+    cancelledBy === "talent"
+      ? "When you cancel, what the client paid always goes back."
+      : "Your cancellation terms decide what goes back. The amount shows after you confirm.",
+    ...rest,
+  ];
+}
+
+/** Mockup tc_noshow: honest about money before recording a no-show. */
+export function noShowMoneyKey(paymentState?: AgendaPaymentState): string {
+  return clientPaidSomething(paymentState)
+    ? "What the client paid stays as paid. Nothing is refunded automatically."
+    : "Nothing was paid, so there is nothing to keep or refund.";
 }

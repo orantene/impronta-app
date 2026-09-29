@@ -32,18 +32,29 @@ import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
-import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
-import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
+import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
+import {
+  buildEmptyTalentPageComposition,
+  resolveTalentPageEditorTree,
+  type TalentPageRow,
+} from "@/lib/site-admin/builder-core/adapters/talent-page-adapter-core";
+import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 
 export const dynamic = "force-dynamic";
 
 const HOME_FALLBACK_SLUG = "home";
+
+/** The editor row: the adapter's own column set plus the live body, so the
+ *  server-primed composition matches what a client `load()` builds. */
+const EDITOR_ROW_COLUMNS =
+  "id, talent_profile_id, slug, title, status, blocks, blocks_published, theme, required_talent_tier, " +
+  "published_at, updated_at, meta_description, og_title, og_description, og_image_url, canonical_url, " +
+  "noindex, json_ld, style_classes, style_presets";
 
 const PAGE_COLUMNS =
   "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
@@ -169,40 +180,50 @@ export default async function TalentPageBuilderRoute({
 
   // Prime the in-editor canvas for the active PAGE (not the shell — the shell
   // surface paints from its own load). Best-effort.
+  //
+  // The page row is read ONCE here (service role; `profile` is the signed-in
+  // talent's own row, so this is the owner reading their own page) and handed
+  // to the editor as its initial composition. The editor then opens on exactly
+  // the tree visitors see (draft, falling back to the live body) instead of
+  // waiting on a client round-trip whose failure used to leave an empty
+  // "Describe your page" canvas with no error. No row yet (brand-new page) ->
+  // null, and the client adapter's ensurePage creates it as before.
   let canvasRenderData = null;
-  if (hasBuilderAccess && !shellMode && tenantId) {
+  let initialComposition: CompositionData | null = null;
+  let editorRow: TalentPageRow | null = null;
+  if (hasBuilderAccess && !shellMode) {
+    const admin = createServiceRoleClient();
+    if (admin) {
+      const { data, error } = await admin
+        .from("talent_pages")
+        .select(EDITOR_ROW_COLUMNS)
+        .eq("talent_profile_id", profile.id)
+        .eq("slug", activeSlug)
+        .maybeSingle();
+      if (error) logServerError("talentPageBuilder/editorRow", error);
+      editorRow = (data as unknown as TalentPageRow | null) ?? null;
+      if (editorRow) initialComposition = buildEmptyTalentPageComposition(editorRow, locale);
+    }
+  }
+  if (hasBuilderAccess && !shellMode) {
     try {
       const admin = createServiceRoleClient();
       let draftTree: BuilderNodeTree = [];
-      let talentComponentStyleDefaults = null;
-      let talentDesignTokens: Record<string, string> | null = null;
+      let pageTheme: unknown = null;
       if (admin) {
-        const { data: pageRow } = await admin
-          .from("talent_pages")
-          .select("blocks, theme")
-          .eq("talent_profile_id", profile.id)
-          .eq("slug", activeSlug)
-          .maybeSingle();
-        const row = pageRow as { blocks: BuilderNodeTree | null; theme: unknown } | null;
-        draftTree = (row?.blocks ?? []) as BuilderNodeTree;
-        const slice = readTalentDesignSlice(row?.theme);
-        const platformDefault = await loadPlatformDefaultTheme("talent");
-        talentComponentStyleDefaults =
-          Object.keys(slice.componentStyles).length > 0
-            ? slice.componentStyles
-            : platformDefault.componentStyles;
-        talentDesignTokens =
-          Object.keys(slice.tokens).length > 0 ? slice.tokens : platformDefault.tokens;
+        const row = editorRow;
+        draftTree = row ? (resolveTalentPageEditorTree(row) as BuilderNodeTree) : [];
+        pageTheme = row?.theme ?? null;
       }
-      canvasRenderData = await buildInEditorCanvasRenderData({
+      canvasRenderData = await buildTalentBuilderCanvasData({
+        talentProfileId: profile.id,
+        pageSlug: activeSlug,
         tree: draftTree,
+        pageTheme,
         tenantId,
-        locale,
-        previewSubject: { kind: "talent", id: profile.id },
-        componentStyleDefaultsOverride: talentComponentStyleDefaults,
-        designTokens: talentDesignTokens,
       });
-    } catch {
+    } catch (error) {
+      logServerError("talentPageBuilder/canvasRenderData", error);
       canvasRenderData = null;
     }
   }
@@ -218,6 +239,7 @@ export default async function TalentPageBuilderRoute({
       talentDisplayName={profile.displayName}
       locale={locale}
       canvasRenderData={canvasRenderData}
+      initialComposition={initialComposition}
       shellMode={shellMode}
       sitePages={sitePages}
     />

@@ -6,8 +6,8 @@ import dynamic from "next/dynamic";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
+import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetworksPanel";
-import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
 import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeStates";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { NavRow } from "@/components/talent/website-settings/primitives";
@@ -66,7 +66,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
     <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
       <NavRow
         title={copy.t("Website settings")}
-        summary={copy.t("How clients book, timing, payments and cancelling")}
+        summary={copy.t("Address, logo, pages, booking, payments and cancelling")}
         onOpen={() => setSettingsOpen(true)}
       />
     </div>
@@ -91,7 +91,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   return (
     <>
       <PageHeader title={copy.t("My presence")} subtitle={copy.t("What the public sees")} />
-      <div className="mb-4 flex gap-2" role="tablist">
+      <div className="mb-5 flex gap-5 border-b border-admin-border-soft" role="tablist">
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -99,7 +99,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             role="tab"
             aria-selected={tab === item.id}
             onClick={() => setTab(item.id)}
-            className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${tab === item.id ? "bg-admin-ink text-white" : "bg-[rgba(11,11,13,0.06)] text-admin-ink"}`}
+            className={`-mb-px min-h-11 border-b-[2.5px] px-0.5 text-[14px] font-semibold ${tab === item.id ? "border-admin-brand text-admin-brand" : "border-transparent text-admin-ink-muted hover:text-admin-ink"}`}
           >
             {item.label}
           </button>
@@ -110,12 +110,22 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           <Suspense fallback={null}>
             <WebOfficeReturnBanner />
           </Suspense>
-          {settingsEntry}
-          <WebsiteEligibilityPanel />
           <TalentMaxSiteManager locale={locale} />
           <TalentFaqEditor />
-          <div className="mt-8" />
-          <TalentSiteDashboardPanel locale={locale} />
+          {/* Address, logo, pages and domain live in Website settings. Flag
+              off → keep them reachable under a collapsed row, not deleted. */}
+          {settingsEntry ? (
+            <div className="mt-6">{settingsEntry}</div>
+          ) : (
+            <details className="mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
+              <summary className="min-h-11 cursor-pointer px-4 py-3 text-[15px] font-semibold text-admin-ink">
+                {copy.t("Website settings")}
+              </summary>
+              <div className="px-4 pb-4">
+                <MaxSiteSettingsPanels />
+              </div>
+            </details>
+          )}
         </>
       )}
       {tab === "appear" && <TalentSiteAppearancesPanel locale={locale} />}
@@ -132,6 +142,8 @@ function LegacyPresence({ locale }: { locale: "en" | "es" }) {
         hint="A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell."
       />
       <TalentMaxSiteManager locale={locale} />
+      <div className="mt-4" />
+      <MaxSiteSettingsPanels />
 
       <div className="mt-8" />
       <SectionLabel

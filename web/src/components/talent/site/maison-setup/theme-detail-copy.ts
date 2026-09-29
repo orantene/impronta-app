@@ -1,0 +1,44 @@
+/**
+ * EN/ES copy for the P4 Theme detail upgrade (demo strip, sheets, colors
+ * kept). Kept beside `maison-setup-copy.ts` (shared with the gallery agent)
+ * so the two branches do not conflict; falls back to `maisonSetupT`.
+ */
+import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+
+const ES: Record<string, string> = {
+  "All themes": "Todos los temas",
+  "Results for": "Resultados para",
+  Demos: "Demos",
+  "Preview planned": "Vista planeada",
+  "Showing the featured demo · this demo's preview is planned":
+    "Se muestra el demo destacado · la vista de este demo está planeada",
+  "Each demo can change photos, sample text, sections and its default colors.":
+    "Cada demo puede cambiar fotos, textos, secciones y sus colores base.",
+  "Switching demo changes photos, sample text and sections. Your colors are kept.":
+    "Cambiar de demo cambia fotos, textos y secciones. Tus colores se conservan.",
+  "My colors": "Mis colores",
+  "kept when you switch demos": "se conservan al cambiar de demo",
+  "✓ Your colors are kept": "✓ Tus colores se conservan",
+  "Import starter content from this demo ›": "Importar contenido inicial de este demo ›",
+  "Demo content": "Contenido de demo",
+  "Demo colors": "Colores del demo",
+  "Use demo colors": "Usar colores del demo",
+  "Custom colors": "Colores propios",
+  "High contrast": "Alto contraste",
+  Dark: "Oscuro",
+  Selected: "Seleccionado",
+};
+
+export function detailT(locale: MaisonSetupLocale, key: string): string {
+  if (locale === "es") return ES[key] ?? maisonSetupT(locale, key);
+  return key;
+}
+
+/** `Results for "Model"` with typographic quotes. */
+export function resultsForLabel(locale: MaisonSetupLocale, query: string): string {
+  return `${detailT(locale, "Results for")} “${query}”`;
+}
+
+export function demosCountLabel(locale: MaisonSetupLocale, n: number): string {
+  return `${detailT(locale, "Demos")} · ${n}`;
+}

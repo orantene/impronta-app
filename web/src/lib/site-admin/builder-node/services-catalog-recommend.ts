@@ -8,6 +8,7 @@ export type ServicesCatalogLayout =
   | "cards"
   | "grid"
   | "compact_list"
+  | "rate_card"
   | "editorial"
   | "featured";
 

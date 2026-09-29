@@ -1,0 +1,73 @@
+/**
+ * Three finished designs in the gallery (Maison, Maison v2, Folio); Solace,
+ * Mono and Frame only with TALENT_GALLERY_EXTRA_DESIGNS=1.
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  FINISHED_GALLERY_SLUGS,
+  GALLERY_DESIGNS,
+  searchGallery,
+  suggestedDesignsForTrade,
+  tagCounts,
+  visibleGalleryDesigns,
+} from "./gallery-meta";
+
+const THREE = ["maison", "maison-v2", "folio"];
+
+test("default gallery shows exactly the three finished designs", () => {
+  delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
+  delete process.env.NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS;
+  assert.deepEqual([...FINISHED_GALLERY_SLUGS], THREE);
+  assert.deepEqual(visibleGalleryDesigns().map((d) => d.slug), THREE);
+  const out = searchGallery();
+  assert.deepEqual(out.results.map((r) => r.design.slug), THREE);
+  assert.equal(out.themeCount, 3);
+  // Hidden designs stay in code for previews and saved sites.
+  assert.equal(GALLERY_DESIGNS.length, 6);
+  assert.equal(searchGallery({ query: "solace" }).themeCount, 0);
+});
+
+test("flag on shows all six designs", () => {
+  process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
+  try {
+    assert.equal(visibleGalleryDesigns().length, 6);
+    assert.equal(searchGallery().themeCount, 6);
+    assert.deepEqual(suggestedDesignsForTrade("Personal Trainer"), ["mono", "solace"]);
+  } finally {
+    delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
+  }
+  assert.equal(searchGallery({ showExtra: true }).themeCount, 6);
+  assert.equal(searchGallery({ showExtra: false }).themeCount, 3);
+});
+
+test("tag counts follow the visible designs", () => {
+  const counts = tagCounts(searchGallery({ showExtra: false }).results);
+  assert.equal(counts.styleTags.Minimal, 0);
+  assert.equal(counts.styleTags.Editorial, 3);
+});
+
+test("trade suggestions only name visible designs", () => {
+  for (const trade of ["Personal Trainer", "Masajista", "wellness", "DJ", "Chef", "Nails"]) {
+    const s = suggestedDesignsForTrade(trade, false);
+    assert.ok(s.length > 0, trade);
+    for (const slug of s) assert.ok(THREE.includes(slug), `${trade} -> ${slug}`);
+  }
+});
+
+test("each visible design features a built demo", () => {
+  for (const r of searchGallery({ showExtra: false }).results) {
+    assert.equal(r.featuredDemo?.status, "built", r.design.slug);
+  }
+  const built = (slug: string) =>
+    GALLERY_DESIGNS.find((d) => d.slug === slug)!
+      .demos.filter((d) => d.status === "built")
+      .map((d) =>
+        d.source.kind === "demo-talent" ? d.source.siteSlug : d.source.kind === "maison-seed" ? `seed:${d.source.key}` : "",
+      );
+  assert.deepEqual(built("maison"), ["seed:nails"]);
+  // Alba (the proposal demo) is Maison v2's featured demo: first built.
+  assert.deepEqual(built("maison-v2"), ["alba-nail-artist", "renata-lashes", "camila-nails", "andres-cocina"]);
+  assert.deepEqual(built("folio"), ["mateo-ferrer", "lucia-herrera", "sofia-barra"]);
+});

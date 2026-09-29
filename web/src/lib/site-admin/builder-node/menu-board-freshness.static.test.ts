@@ -77,9 +77,11 @@ test("a submit clears the refresh floor so the retry reads the truth", () => {
 });
 
 test("the renderer passes the content locale down to the refresh", () => {
+  // Tip: contentLocale first (editor/site language), then visitorLocale so a
+  // Spanish board still refreshes with Spanish titles when contentLocale is set.
   assert.match(
     renderer,
-    /<MenuBoardIsland[\s\S]{0,400}?locale=\{options\.contentLocale\?\.locale\}/,
+    /<MenuBoardIsland[\s\S]{0,400}?locale=\{options\.contentLocale\?\.locale(?:\s*\?\?\s*options\.visitorLocale)?\}/,
     "without it a Spanish board refreshes into English titles",
   );
 });

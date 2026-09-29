@@ -32,7 +32,7 @@ const CHIP_KEYS: readonly InboxFilterKey[] = ["mine", "unassigned", "unread", "p
  * via `useDashboardLocale()` like the rest of the dashboard.
  */
 export function Inbox(props: InboxProps) {
-  const { rows, filter, onFilter, chips, onToggleChip, search, onSearch, selectedId, onSelect, loading, error, onRetry, counts, onNew, currentUserId, copy, variant, now: nowProp, onSearchSubmit } = props;
+  const { rows, filter, onFilter, chips, onToggleChip, search, onSearch, selectedId, onSelect, loading, error, onRetry, counts, onNew, currentUserId, copy, variant, now: nowProp, onSearchSubmit, seller } = props;
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const locale = useDashboardLocale();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -92,7 +92,7 @@ export function Inbox(props: InboxProps) {
         <div key={group.key}>
           <div className={variant === "mobile" ? "mx-gh" : "grp-h"}>{group.label}</div>
           {group.rows.map((row) => (
-            <InboxRowV5 key={row.id} row={row} copy={copy} variant={variant} selected={row.id === selectedId} currentUserId={currentUserId} now={now} locale={locale} onOpen={onSelect} />
+            <InboxRowV5 key={row.id} row={row} copy={copy} variant={variant} selected={row.id === selectedId} currentUserId={currentUserId} now={now} locale={locale} onOpen={onSelect} seller={seller} />
           ))}
         </div>
       ))}

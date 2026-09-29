@@ -3,10 +3,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useFocusTrap } from "@/components/support/use-focus-trap";
+import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import {
+  chooseStepContinueLabel,
+  DEFAULT_SHEET_BOOKING_SETTINGS,
+  whenStepTimeGroupLabel,
+  type CatalogSheetBookingSettings,
+} from "@/lib/talent/selling-booking-settings";
+import {
+  doneStepNextActionCopy,
+  resolveWhoStepPaymentUi,
+} from "@/lib/talent/who-step-payment-copy";
 
+import type { CatalogBookFn } from "./catalog-booking-confirm";
+import {
+  openCatalogBookingChat,
+  type CatalogBookingChatHandoff,
+  type CatalogBookingSelection,
+} from "./catalog-booking-chat";
 import {
   catalogBookingDurationMinutes,
   catalogCanContinueWhen,
@@ -23,32 +40,16 @@ import {
   groupIsoSlotsByDay,
   type CatalogBookingMode,
 } from "./catalog-booking-logic";
-import type { CatalogBookFn } from "./catalog-booking-confirm";
-import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
-import {
-  openCatalogBookingChat,
-  type CatalogBookingChatHandoff,
-  type CatalogBookingSelection,
-} from "./catalog-booking-chat";
-import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
-import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
+import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
 import {
   fetchLiveSlots,
   shouldSkipGuestCaptchaOnHost,
   type CatalogSlotsFn,
 } from "./catalog-booking-live-slots";
-import {
-  chooseStepContinueLabel,
-  DEFAULT_SHEET_BOOKING_SETTINGS,
-  whenStepTimeGroupLabel,
-  type CatalogSheetBookingSettings,
-} from "@/lib/talent/selling-booking-settings";
-import {
-  doneStepNextActionCopy,
-  resolveWhoStepPaymentUi,
-} from "@/lib/talent/who-step-payment-copy";
-import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
-import { deriveGuestBookingPresentation } from "@/lib/booking/guest-booking-presentation";
+import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
+import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -56,9 +57,7 @@ export type CatalogBookingDetail = OfferingRequestDetail & {
   inclusion?: string | null;
 };
 
-export type { CatalogBookFn };
-export type { CatalogSlotsFn };
-export type { CatalogSheetBookingSettings };
+export type { CatalogBookFn, CatalogSlotsFn, CatalogSheetBookingSettings };
 
 export function CatalogBookingSheet({
   locale = "es",
@@ -78,15 +77,10 @@ export function CatalogBookingSheet({
   bookFn?: CatalogBookFn;
   slotsFn?: CatalogSlotsFn;
   showAsk?: boolean;
-  /** Override ask/chat handoff. Default opens existing guest chat with context. */
   onAsk?: (handoff: CatalogBookingChatHandoff) => void;
   captcha?: GuestCaptchaConfig | null;
-  /** Talent selling defaults: posture + who-step CTA vocabulary. */
   bookingSettings?: CatalogSheetBookingSettings;
-  /**
-   * When false and the offering requires online collect, force inquiry path
-   * and honest unavailable copy (platform checkout / setup incomplete).
-   */
+  /** When false with online collect required, force inquiry + unavailable copy. */
   onlineCollectReady?: boolean;
 }) {
   const es = locale.startsWith("es");
@@ -418,7 +412,12 @@ export function CatalogBookingSheet({
                       : null}
                   </p>
                 ) : null}
-                {detail.inclusion ? <p className="jb-incl">✓ {detail.inclusion}</p> : null}
+                <CatalogInquiryBrief
+                  description={detail.description}
+                  where={detail.where}
+                  inclusion={detail.inclusion}
+                  locale={locale}
+                />
               </div>
 
               {needsVariant ? (

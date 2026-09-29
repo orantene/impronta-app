@@ -26,13 +26,19 @@ test("P0: live site + nothing opened → host renders nothing; Change design ope
   assert.equal(gate(false, false), true);
 });
 
-test("P0: manager passes maisonLive to the host and hides ManagerThemeGallery when live", () => {
+test("P0/P1: host stays hidden while live (or before Activate); gallery hidden when live", () => {
   const manager = readFileSync(
     join(process.cwd(), "src/components/talent/site/TalentMaxSiteManager.tsx"),
     "utf8",
   );
-  assert.match(manager, /siteLive=\{maisonLive\}/);
-  assert.match(manager, /\{maisonLive \? null : \(\s*<ManagerThemeGallery/);
+  assert.match(manager, /const hostHidden = maisonLive \|\| !setupOpen;/);
+  assert.match(manager, /siteLive=\{hostHidden\}/);
+  assert.match(manager, /\{hostHidden \|\| maisonSetupEnabled \? null : \(\s*<>\s*<ManagerThemeGallery/);
+  // P1: live card for ANY published design slug, not only "maison".
+  assert.match(manager, /const maisonLive = Boolean\(state\.sitePublishedAt\);/);
+  assert.doesNotMatch(manager, /themeDesignSlug === "maison"/);
+  // P1: the old 5-template starter gallery is gone.
+  assert.doesNotMatch(manager, /TemplateGallery|Choose a starter template/);
 });
 
 // ── P1 #3: real Undo controls ────────────────────────────────────────────
@@ -88,7 +94,7 @@ test("P1: live card shows saved custom palette name, default My colors / Mis col
   assert.equal(liveCardPaletteName("es", null, custom), "Noche chef");
   assert.notEqual(liveCardPaletteName("en", null, null), "Colors");
   const card = read("MyWebsiteCard.tsx");
-  assert.match(card, /liveCardPaletteName\(locale, themeLookSlug, customPalette\)/);
+  assert.match(card, /paletteDisplayName\(\{/);
 });
 
 // ── P1 #5: live-stays line at all widths ─────────────────────────────────

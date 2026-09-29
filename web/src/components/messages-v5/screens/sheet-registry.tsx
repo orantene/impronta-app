@@ -18,6 +18,7 @@ import type { ComponentType } from "react";
 
 import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
 
+import type { SellerChrome } from "../shell/seller";
 import type { ScreenCopy } from "./copy";
 import type { ScreenVariant, ShellActionId } from "./contracts";
 
@@ -40,6 +41,8 @@ export type ShellSheetContext = {
   readonly notify: (n: { kind: "refusal"; code: MessagingRefusal } | { kind: "ok"; text: string }) => void;
   /** Open another action (e.g. items picker → create_offer). */
   readonly dispatch: (id: ShellActionId) => void;
+  /** Talent seller mode: translated quote-builder chrome; null for staff. */
+  readonly seller?: SellerChrome | null;
 };
 
 export type ActionSheetProps = {

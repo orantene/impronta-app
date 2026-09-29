@@ -70,6 +70,14 @@ import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
 import { GenericContent } from "./generic-content";
 import { ServicesCatalogContentInspector } from "./services-catalog-inspector";
+import { PortfolioContentInspector } from "./portfolio-inspector";
+import { ReviewsContentInspector } from "./reviews-inspector";
+import { VisitContentInspector } from "./visit-inspector";
+import { ContentsContentInspector } from "./contents-inspector";
+import { MastheadContentInspector } from "./masthead-inspector";
+import { StatementFooterContentInspector } from "./statement-footer-inspector";
+import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
+import { CompCardContentInspector } from "./comp-card-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1072,6 +1080,14 @@ function BuilderNodeContentInspectorBody({
                   helper="When off, setting a default item keeps just one question open at a time."
                 />
               </div>
+              <div style={{ padding: "4px 0" }}>
+                <Toggle
+                  on={node.props.startClosed === true}
+                  onChange={(next) => void commitPatch({ startClosed: next })}
+                  label="Start with every question closed"
+                  helper="Visitors open the questions they care about."
+                />
+              </div>
             </div>
           </CardBody>
         </Card>
@@ -1559,6 +1575,32 @@ function BuilderNodeContentInspectorBody({
 
   if (node.kind === "services_catalog") {
     return <ServicesCatalogContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "portfolio") {
+    return <PortfolioContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "reviews") {
+    return <ReviewsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "visit") {
+    return <VisitContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "contents") {
+    return <ContentsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "masthead") {
+    return <MastheadContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "statement_footer") {
+    return (
+      <StatementFooterContentInspector node={node} commitPatch={commitPatch} />
+    );
+  }
+  if (node.kind === "comp_card") {
+    return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "next_free_chip") {
+    return <NextFreeChipContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
@@ -2840,6 +2882,43 @@ function BuilderNodeContentInspectorBody({
                 />
               </Field>
               <Field flush>
+                <FieldLabel info="Where the section links live on the page. Top bar is the classic sticky row. Overlay, side rail, bottom tabs, filter bar, and chapter dots are shared chrome modes any Design can use.">
+                  Navigation style
+                </FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["top_bar", "Top bar"],
+                      ["overlay", "Overlay"],
+                      ["side_rail", "Side rail"],
+                      ["bottom_tab", "Bottom tabs"],
+                      ["filter_bar", "Filter bar"],
+                      ["chapter_dots", "Chapter dots"],
+                    ] as const
+                  ).map(([value, label]) => {
+                    const active = (node.props.navChrome ?? "top_bar") === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          void commitPatch({ navChrome: value });
+                        }}
+                        className="rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors"
+                        style={{
+                          borderColor: active ? CHROME.accent : CHROME.line,
+                          background: active ? CHROME.paper2 : "transparent",
+                          color: CHROME.ink,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+              <Field flush>
                 <FieldLabel info="How a link’s submenu opens on desktop. “Mega” uses a wider multi-column panel. Only affects links with child links.">Submenu style</FieldLabel>
                 <Segmented
                   fullWidth
@@ -3871,6 +3950,16 @@ function BuilderNodeContentInspectorBody({
                 }}
                 dataControl="social-icon-shape"
               />
+              <Field flush>
+                <FieldLabel info="Print the platform names in a line (Instagram · WhatsApp) instead of icons. Good for footer fine print.">Show as</FieldLabel>
+                <Toggle
+                  on={node.props.display === "text"}
+                  onChange={(checked) => {
+                    void commitPatch({ display: checked ? "text" : undefined });
+                  }}
+                  label="Names instead of icons"
+                />
+              </Field>
               <Field flush>
                 <FieldLabel info="When on, this block shows the social/contact links from your workspace identity and ignores the manual list below.">Source</FieldLabel>
                 <Toggle
@@ -5130,6 +5219,22 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Menu · orderable items";
     case "services_catalog":
       return "Services menu · your catalogue";
+    case "portfolio":
+      return "Portfolio · your live media";
+    case "reviews":
+      return "Reviews · your client quotes";
+    case "visit":
+      return "Visit · areas, days, languages";
+    case "contents":
+      return "Contents · chapter index";
+    case "masthead":
+      return "Masthead · stacked words";
+    case "statement_footer":
+      return "Statement footer · credit and contact";
+    case "comp_card":
+      return "Comp card · measure strip";
+    case "next_free_chip":
+      return "Next free · live slot chip";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":

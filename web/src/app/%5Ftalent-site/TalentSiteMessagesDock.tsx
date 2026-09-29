@@ -27,6 +27,33 @@ import { getActiveGuestInquiry } from "@/app/t/[profileCode]/_actions/guest-chat
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 
 import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
+import {
+  chatCardColorsFromTokens,
+  chatCardReplyKey,
+  resolveChatVariant,
+  type ChatCardConfig,
+} from "@/lib/talent-site/chat-card";
+import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
+import { interpolate } from "@/i18n/interpolate";
+
+/** Honest reply time for the chat card subline; null without real data. */
+async function chatCardReplyLabel(
+  tenantId: string | null,
+  talentProfileId: string,
+  t: (key: string) => string,
+): Promise<string | null> {
+  if (!tenantId) return null;
+  const hit = chatCardReplyKey(await getTypicalReplyLabel({ tenantId, talentProfileId }));
+  if (!hit) return null;
+  return interpolate(t(hit.key), { n: String(hit.n ?? "") });
+}
+
+function localizedName(raw: unknown, locale: string): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const names = raw as Record<string, unknown>;
+  const pick = [locale, "es", "en"].map((k) => names[k]).find((v) => typeof v === "string" && v.trim());
+  return typeof pick === "string" ? pick.trim() : null;
+}
 
 /**
  * Solid CTA/brand fill for Hablar — prefer primary over pale accent blush.
@@ -36,17 +63,34 @@ import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 async function loadVanitySiteChrome(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
-): Promise<{ accentColor: string | null; logoUrl: string | null }> {
+): Promise<{
+  accentColor: string | null;
+  logoUrl: string | null;
+  tokens: Record<string, unknown> | null;
+  designSlug: string | null;
+}> {
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens, logo_url")
+    .select("design_tokens, logo_url, theme_design_slug")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
-  if (error) return { accentColor: null, logoUrl: null };
-  const row = data as { design_tokens?: unknown; logo_url?: string | null } | null;
+  if (error) return { accentColor: null, logoUrl: null, tokens: null, designSlug: null };
+  const row = data as {
+    design_tokens?: unknown;
+    logo_url?: string | null;
+    theme_design_slug?: string | null;
+  } | null;
   // AUD-039: the same `talent_sites.logo_url` the Max-site shell header paints.
   const logoUrl = row?.logo_url?.trim() || null;
-  return { accentColor: accentFromDesignTokens(row?.design_tokens), logoUrl };
+  const raw = row?.design_tokens;
+  const tokens =
+    raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
+  return {
+    accentColor: accentFromDesignTokens(raw),
+    logoUrl,
+    tokens,
+    designSlug: row?.theme_design_slug?.trim() || null,
+  };
 }
 
 function accentFromDesignTokens(raw: unknown): string | null {
@@ -128,7 +172,7 @@ export async function TalentSiteMessagesDock({
     admin
       .from("talent_profiles")
       .select(
-        "profile_code, display_name, phone, phone_e164, social_links, talent_plan_key, service_category_slug",
+        "profile_code, display_name, phone, phone_e164, social_links, talent_plan_key, service_category_slug, residence_city:locations!residence_city_id ( display_name_i18n )",
       )
       .eq("id", talentProfileId)
       .maybeSingle(),
@@ -158,6 +202,7 @@ export async function TalentSiteMessagesDock({
     social_links: unknown;
     talent_plan_key: string | null;
     service_category_slug: string | null;
+    residence_city: { display_name_i18n: unknown } | null;
   } | null;
   const code = profile?.profile_code?.trim();
   if (!code) return null;
@@ -180,6 +225,17 @@ export async function TalentSiteMessagesDock({
     resolveIndustryPreset(tradePreset),
     locale === "es" ? "es" : "en",
   );
+
+  // `chat.variant`: the Design's default, overridden by the site token.
+  const chatCard: ChatCardConfig | null =
+    resolveChatVariant(siteChrome.tokens, siteChrome.designSlug) === "card"
+      ? {
+          replyLabel: await chatCardReplyLabel(resolved.tenant.tenantId, talentProfileId, t),
+          city: localizedName(profile?.residence_city?.display_name_i18n, locale),
+          customGreeting: switches.chatConfig.greeting ?? null,
+          ...chatCardColorsFromTokens(siteChrome.tokens),
+        }
+      : null;
 
   return (
     <>
@@ -216,6 +272,7 @@ export async function TalentSiteMessagesDock({
           greeting={resolveTalentChatGreeting(switches, tradeVoice)}
           wordsPresetOverride={tradePreset}
           omitPlatformBrand
+          chatCard={chatCard}
         />
       ) : askEntry === "form" ? (
         <TalentInquiryFormSheet

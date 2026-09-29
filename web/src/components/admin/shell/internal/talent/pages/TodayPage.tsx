@@ -21,8 +21,8 @@ import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
 import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
-import { WorkFlowsScreen } from "@/components/talent/studio/WorkFlowsScreen";
-import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
@@ -32,7 +32,6 @@ const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£
 
 export function TalentTodayPage() {
   const copy = useDashboardText();
-  const studio = useTalentStudioV2();
   const {
     openDrawer,
     setTalentPage,
@@ -47,17 +46,21 @@ export function TalentTodayPage() {
     bridgeTalentPayoutSnapshot,
     bridgeTalentRepresentation,
     bridgeTalentChecklistDismissed,
-    state,
   } = useAdminShell();
-  // "Start a workspace" tile is for talents who don't already own one.
-  // `state.alsoTalent` flips to true once a workspace is provisioned for
-  // this user (the hybrid identity), so we hide the tile in that case.
-  const showStartWorkspaceTile = !state.alsoTalent;
+  // ONE completion value (mockup rule): the website-eligibility model is the
+  // single source read by Today, the header reward control and the website
+  // card. Called above the agenda early return (hooks rule).
+  const websiteEligibility = useWebsiteEligibility();
+  // Live-site fact for Today's mode + live card (same source as the header
+  // reward control). Above the agenda early return (hooks rule).
+  const siteLoad = useTalentSiteDashboardInitialLoad();
   // Use real bridge data when available so a freshly-provisioned talent
   // sees their own name/photo/city in the Today header instead of Marta's.
   const profile = bridgeTalentSelfProfile
     ? buildFreshTalentProfile(bridgeTalentSelfProfile, bridgeTalentPageAnalytics?.data ?? null)
     : MY_TALENT_PROFILE;
+  const completionPercent =
+    websiteEligibility.percent ?? bridgeTalentCompletion?.percent ?? profile.completeness;
   // Bridge-aware conversations. Falls back to MOCK_CONVERSATIONS when the
   // bridge array is empty (prototype / mock-mode sessions). See
   // `useTalentConversations()` above for the full adapter contract.
@@ -125,6 +128,19 @@ export function TalentTodayPage() {
         loadError={bridgeTalentAgendaError}
         hours={bridgeTalentAgendaHours}
         completionMissingKeys={bridgeTalentCompletion?.missing.map((m) => m.key) ?? null}
+        eligibility={websiteEligibility}
+        bookableCount={websiteEligibility.bookableCount}
+        sitePublished={siteLoad?.ok ? siteLoad.state.site?.status === "published" : false}
+        siteUrl={siteLoad?.ok ? siteLoad.state.publicSiteUrl ?? null : null}
+        monthCollected={(() => {
+          if (bridgeTalentEarnings == null) return null;
+          const ptm = computePaidThisMonth(bridgeTalentEarnings);
+          return { cents: ptm.totalCents, count: ptm.count, currency: ptm.currency };
+        })()}
+        payoutsEnabled={
+          bridgeTalentPayoutSnapshot?.ok === true ? bridgeTalentPayoutSnapshot.data.payoutsEnabled : null
+        }
+        onSendQuote={() => setTalentPage("messages")}
         newLabel={resolveTradeProfile(bridgeTalentSelfProfile?.primaryTypeLabel).words.newLabel[copy.isSpanish ? 1 : 0]}
         onOpenAttention={() => setTalentPage("attention")}
         onOpenCalendar={() => setTalentPage("calendar")}
@@ -254,7 +270,7 @@ export function TalentTodayPage() {
   const onboardingCompleteness = isFreshSelf
     ? bridgeTalentCompletion
       ? {
-          percent: bridgeTalentCompletion.percent,
+          percent: completionPercent,
           missing: bridgeTalentCompletion.missing.map((m) => ({
             id: m.key,
             label: m.label,
@@ -323,8 +339,6 @@ export function TalentTodayPage() {
       `}</style>
 
       <TalentAgencyFilterChips />
-
-      {showStartWorkspaceTile && <StartWorkspaceTile />}
 
       {/* Fresh-talent onboarding banner — only for talents who were just
           provisioned via "Create your talent page" (bridge has their
@@ -437,7 +451,7 @@ export function TalentTodayPage() {
           step sees it ticked instead of a permanently-empty checklist. */}
       {isDay1 && !firstSessionDismissed && !onboardingCompleteness && (
         <FirstSessionChecklist
-          completeness={profile.completeness}
+          completeness={completionPercent}
           polaroidCount={portfolioCount}
           channelsLive={channelsLive}
           payoutSet={payoutSet}
@@ -458,7 +472,7 @@ export function TalentTodayPage() {
           (after Day-1 so it doesn't clash with FirstSessionChecklist).
           Also hidden while the fresh-talent setup band above is showing —
           ONE card owns onboarding at a time; they used to stack. */}
-      {!isDay1 && profile.completeness < 40 && !onboardingCompleteness && (
+      {!isDay1 && completionPercent < 40 && !onboardingCompleteness && (
         <TalentFirstRunBanner />
       )}
 
@@ -466,9 +480,9 @@ export function TalentTodayPage() {
           threshold. Indigo soft (info, not urgent) with a clear CTA.
           Auto-disappears at >= 80% so it never becomes wallpaper. Hidden
           on Day-1 since the FirstSessionChecklist owns that moment. */}
-      {!isDay1 && profile.completeness >= 40 && profile.completeness < 80 && !onboardingCompleteness && (
+      {!isDay1 && completionPercent >= 40 && completionPercent < 80 && !onboardingCompleteness && (
         <ProfileCompletenessBanner
-          percent={profile.completeness}
+          percent={completionPercent}
           missing={profile.missing}
           onFinish={() => openSection("identity")}
         />
@@ -502,7 +516,7 @@ export function TalentTodayPage() {
         nextBookingDate={upcoming[0]?.date}
         paidThisMonth={paidThisMonthTotal}
         paidCurrency={paidThisMonthCurrency}
-        profileCompleteness={profile.completeness}
+        profileCompleteness={completionPercent}
         currentLocation={profile.currentLocation}
         availableForWork={profile.availableForWork}
         availableToTravel={profile.availableToTravel}
@@ -651,132 +665,6 @@ export function TalentTodayPage() {
           {copy.t("Agency analytics")}
         </button>
       </div>
-      {studio && (
-        <div className="mt-6">
-          <WorkFlowsScreen />
-        </div>
-      )}
     </>
-  );
-}
-
-/**
- * StartWorkspaceTile — top-of-page nudge that invites talent to run their
- * own roster. Click fires the global "open start-workspace dialog" event
- * the TulalaIdentityBar listens for; the existing StartFreeWorkspaceDialog
- * handles the actual provisioning.
- *
- * Hidden once the user is hybrid (state.alsoTalent). Visual register matches
- * the Tulala marketing palette (parchment + forest accent), not the workspace
- * shell — so it reads as opportunity, not a system notice.
- */
-function StartWorkspaceTile() {
-  const copy = useDashboardText();
-  return (
-    <div
-      data-platform-surface="marketing"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        padding: "14px 16px",
-        marginBottom: 12,
-        borderRadius: 14,
-        background:
-          "linear-gradient(135deg, color-mix(in srgb, var(--plt-forest) 9%, var(--plt-bg-elevated)) 0%, var(--plt-bg-elevated) 60%)",
-        border: "1px solid color-mix(in srgb, var(--plt-forest) 22%, transparent)",
-        fontFamily: FONTS.body,
-      }}
-    >
-      {/* Glyph */}
-      <span
-        aria-hidden
-        style={{
-          flexShrink: 0,
-          width: 42,
-          height: 42,
-          borderRadius: 12,
-          background: "var(--plt-bg)",
-          border: "1px solid color-mix(in srgb, var(--plt-forest) 22%, transparent)",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--plt-forest)",
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M12 11v5M9.5 13.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      </span>
-
-      {/* Copy */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1.25,
-            color: "var(--plt-ink)",
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {copy.t("Run your own talent business?")}
-        </div>
-        <div
-          style={{
-            marginTop: 2,
-            fontSize: 12.5,
-            lineHeight: 1.4,
-            color: "var(--plt-muted)",
-          }}
-        >
-          {copy.t("Start a free workspace — invite roster, send pitches, take bookings end-to-end. 1 minute, no card.")}
-        </div>
-      </div>
-
-      {/* CTA */}
-      <button
-        type="button"
-        onClick={() =>
-          window.dispatchEvent(new CustomEvent("tulala:open-start-workspace-dialog"))
-        }
-        style={{
-          flexShrink: 0,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "9px 16px",
-          borderRadius: 999,
-          background: "var(--plt-forest)",
-          color: "var(--plt-forest-on)",
-          border: "none",
-          cursor: "pointer",
-          fontFamily: FONTS.body,
-          fontSize: 12.5,
-          fontWeight: 600,
-          letterSpacing: "-0.005em",
-          transition: "background 120ms ease, transform 120ms ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--plt-forest-deep)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--plt-forest)";
-        }}
-      >
-        {copy.t("Start a workspace")}
-        <svg width="11" height="9" viewBox="0 0 14 10" fill="none" aria-hidden>
-          <path
-            d="M1 5H13M13 5L9 1M13 5L9 9"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-    </div>
   );
 }

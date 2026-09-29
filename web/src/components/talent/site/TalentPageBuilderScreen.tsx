@@ -26,6 +26,7 @@ import { CHROME } from "@/components/edit-chrome/kit/tokens";
 import { siteCapabilityDeniedMessageClient } from "@/lib/talent-site/free-site-capability-denied-copy";
 import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 
 type Props = {
@@ -42,6 +43,9 @@ type Props = {
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
+  /** Server-primed page composition (the route reads the talent_pages row
+   *  once). When present the editor opens on it instead of a client load. */
+  initialComposition?: CompositionData | null;
   /** When true, edit the SITE SHELL (header/logo/footer) instead of a page. */
   shellMode?: boolean;
   /** The site's pages — powers the in-editor page switcher. */
@@ -72,6 +76,7 @@ export function TalentPageBuilderScreen({
   talentDisplayName,
   locale,
   canvasRenderData = null,
+  initialComposition = null,
   shellMode = false,
   sitePages,
 }: Props) {
@@ -227,6 +232,7 @@ export function TalentPageBuilderScreen({
           locale={locale}
           onExit={handleExit}
           canvasRenderData={canvasRenderData}
+          initialComposition={initialComposition}
           sitePages={sitePages}
         />
       )}

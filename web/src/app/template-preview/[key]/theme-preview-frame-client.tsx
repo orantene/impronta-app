@@ -22,10 +22,13 @@ import { classifyPreviewClick, previewDemoNote, type GuardElement } from "./prev
 export function ThemeTokenPreviewFrame({
   initialTokens,
   locale = "en",
+  designSlug,
   children,
 }: {
   initialTokens: Record<string, string>;
   locale?: "en" | "es";
+  /** The Design slug (a marker; its token defaults come from `design-type-system.ts`). */
+  designSlug?: string;
   children: React.ReactNode;
 }) {
   const [tokens, setTokens] = useState(initialTokens);
@@ -85,6 +88,7 @@ export function ThemeTokenPreviewFrame({
     <div
       data-theme-canvas-root=""
       data-talent-theme-preview=""
+      {...(designSlug ? { "data-talent-design": designSlug } : {})}
       {...dataAttrs}
       style={{
         ...(cssVars as React.CSSProperties),

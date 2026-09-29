@@ -72,6 +72,7 @@ export function EditorScreen({
   catalogNames,
   needsWorkingHours = false,
   onOpenWorkingHours,
+  initialPreview = false,
 }: {
   item: TalentOffering;
   setItem: (next: TalentOffering) => void;
@@ -91,10 +92,12 @@ export function EditorScreen({
   catalogNames?: string[];
   needsWorkingHours?: boolean;
   onOpenWorkingHours?: () => void;
+  /** Row menu "Preview as customer" opens straight into the preview. */
+  initialPreview?: boolean;
 }) {
   const copy = useDashboardText();
   const es = copy.isSpanish;
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState(initialPreview);
   const [photosOpen, setPhotosOpen] = useState(false);
   const [busy, setBusy] = useState<null | "draft" | "publish">(null);
   const [error, setError] = useState<string | null>(null);

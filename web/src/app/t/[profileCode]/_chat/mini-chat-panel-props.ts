@@ -4,6 +4,7 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 
 import type { SurfaceMode } from "./mini-chat-styles";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
 // Local extension of MiniChatPanelProps for the F4 expand/collapse props + the
 // Phase 3 launcher-cart wiring. NOT added to guest-chat-contract.ts (shared
@@ -16,6 +17,11 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * tenants are byte-identical.
    */
   surfaceMode?: SurfaceMode;
+  /**
+   * `chat.variant` = card: render the one-to-one chat card (CardChatColumn)
+   * instead of the full dock column. Null/absent = the dock, unchanged.
+   */
+  chatCard?: ChatCardConfig | null;
   /**
    * P0-5 / W0-F — the panel is mounted on a HUB host (platform/network hub or
    * the marketing apex), not an agency. Drives the SEND-path copy so the send

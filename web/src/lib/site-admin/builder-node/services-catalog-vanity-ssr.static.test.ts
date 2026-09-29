@@ -53,15 +53,16 @@ test("services_catalog chrome locale falls back to visitorLocale, not hard en", 
     .split("\n")
     .find((line) => /const locale = /.test(line));
   assert.ok(localeLine, "services_catalog must assign locale");
+  // Tip order: visitorLocale first, then contentLocale, then hard en.
   assert.match(
     localeLine!,
-    /contentLocale\?\.locale\s*\?\?\s*options\.visitorLocale\s*\?\?\s*"en"/,
+    /visitorLocale\s*\?\?\s*options\.contentLocale\?\.locale\s*\?\?\s*"en"/,
     "services_catalog must prefer visitorLocale before hard en",
   );
-  assert.doesNotMatch(
+  assert.match(
     localeLine!,
-    /contentLocale\?\.locale\s*\?\?\s*"en"/,
-    "services_catalog must not hard-fallback locale to en when visitorLocale exists",
+    /^\s*const locale = options\.visitorLocale/,
+    "services_catalog must read visitorLocale first",
   );
 });
 
