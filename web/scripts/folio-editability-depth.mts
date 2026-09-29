@@ -73,6 +73,34 @@ async function dockVisible(page: Page) {
   return page.locator("[data-testid=inspector-dock]").isVisible().catch(() => false);
 }
 
+/** Open the right inspector Content panel for the current selection. */
+async function openContentInspector(page: Page) {
+  // If Content is already the active rail tab, a no-op click leaves the dock
+  // closed — bounce Style → Content to force remount.
+  await page
+    .getByRole("tab", { name: /^Style$|^Estilo$/i })
+    .first()
+    .click({ force: true })
+    .catch(() => {});
+  await page.waitForTimeout(250);
+  await page
+    .getByRole("tab", { name: /^Content$|^Contenido$/i })
+    .first()
+    .click({ force: true })
+    .catch(() => {});
+  await page.waitForTimeout(500);
+  // Floating selection bar — force click even when Playwright reports hidden
+  const edit = page.locator("button").filter({ hasText: /^Edit Content$|^Editar contenido$/i });
+  if (await edit.count()) {
+    await edit.first().click({ force: true }).catch(() => {});
+    await page.waitForTimeout(500);
+  }
+  return (
+    (await page.locator("[data-builder-node-content-panel]").count()) > 0 ||
+    (await page.locator("[data-testid=inspector-dock]").count()) > 0
+  );
+}
+
 /** Click a leaf by kind (and optional CSS fallbacks). */
 async function selectKind(
   page: Page,
@@ -91,8 +119,10 @@ async function selectKind(
     try {
       await loc.scrollIntoViewIfNeeded({ timeout: 4000 });
       await loc.click({ force: true, timeout: 5000 });
-      await page.waitForTimeout(700);
-      if (await dockVisible(page)) return true;
+      await page.waitForTimeout(600);
+      const opened = await openContentInspector(page);
+      const panel = page.locator(`[data-builder-node-content-panel="${kind}"]`);
+      if ((await panel.count()) || opened) return true;
     } catch {
       /* try next */
     }
@@ -131,13 +161,25 @@ async function mutateSelectNearLabel(
 }
 
 async function clickChip(page: Page, name: RegExp): Promise<string> {
-  const dock = page.locator("[data-testid=inspector-dock]");
-  const btn = dock.getByRole("button", { name });
-  if (await btn.count()) {
-    await btn.first().click({ force: true });
-    const t = ((await btn.first().textContent()) || "").trim();
-    await page.waitForTimeout(400);
-    return t;
+  // Prefer text filter — getByRole name matching is flaky on Segmented chips
+  const scopes = [
+    page.locator("[data-builder-node-content-panel]"),
+    page.locator("[data-testid=inspector-dock]"),
+    page.locator("[data-edit-drawer=dock]"),
+    page.locator("body"),
+  ];
+  for (const scope of scopes) {
+    if (!(await scope.count())) continue;
+    const alt = scope.locator("button").filter({ hasText: name });
+    const n = await alt.count();
+    for (let i = 0; i < n; i++) {
+      const btn = alt.nth(i);
+      if (!(await btn.isVisible().catch(() => false)) && i < n - 1) continue;
+      await btn.click({ force: true });
+      const t = ((await btn.textContent()) || "").trim();
+      await page.waitForTimeout(400);
+      if (t) return t;
+    }
   }
   return "";
 }
@@ -197,22 +239,21 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
 {
   const id = "cover";
   try {
-    const selected = await selectKind(page, "masthead", [".sb-masthead", "#hero .sb-masthead"]);
-    await contentTab(page);
+    await ensureDock(page);
+    await page.locator('[data-builder-node-kind="masthead"]').first().scrollIntoViewIfNeeded();
+    await page.locator('[data-builder-node-kind="masthead"]').first().click({ force: true });
+    await page.waitForTimeout(600);
+    await openContentInspector(page);
     let control = "";
-    // coverFilter: Full color / B&W chips
-    const full = await clickChip(page, /Full color|A color|Color completo/i);
+    const full = await clickChip(page, /Full color/i);
     if (full) control = `coverFilter → none (${full})`;
     if (!control) {
-      const bw = await clickChip(page, /B\s*&\s*W|Blanco y negro|Black.?white/i);
+      const bw = await clickChip(page, /Black and white|B\s*&\s*W/i);
       if (bw) control = `coverFilter → bw (${bw})`;
     }
     if (!control) {
       const split = await clickChip(page, /Split|Divid/i);
       if (split) control = `splitWords (${split})`;
-    }
-    if (!control) {
-      control = await mutateSelectNearLabel(page, /filter|Filter|filtro/i, "none");
     }
     if (!control) control = await patchFirstText(page);
     const file = await shot(page, "cover");
@@ -220,7 +261,7 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     results.push({
       id,
       ok: Boolean(control),
-      note: control || (selected ? "selected; no control" : "masthead miss"),
+      note: control || "masthead miss",
       control,
       shot: file,
     });
@@ -233,17 +274,45 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
 {
   const id = "contents";
   try {
-    const selected = await selectKind(page, "contents", [".sb-mag-toc", "#contents"]);
-    await contentTab(page);
+    await ensureDock(page);
+    await page.locator('[data-builder-node-kind="contents"]').first().scrollIntoViewIfNeeded();
+    await page.locator('[data-builder-node-kind="contents"]').first().click({ force: true });
+    await page.waitForTimeout(600);
+    await openContentInspector(page);
     let control = "";
-    const dec = await clickChip(page, /decimal|Decimal|1,\s*2|Arabic/i);
+    const dock = page.locator("[data-testid=inspector-dock]");
+    if (await dock.count()) {
+      await dock.evaluate((el) => {
+        el.scrollTop = 240;
+      }).catch(() => {});
+    }
+    const dec = await clickChip(page, /Decimal \(01|Decimal/i);
     if (dec) control = `numberStyle → decimal (${dec})`;
     if (!control) {
-      const rom = await clickChip(page, /roman|Roman|i,\s*ii|Romano/i);
+      const rom = await clickChip(page, /Roman \(I|Roman/i);
       if (rom) control = `numberStyle → roman (${rom})`;
     }
     if (!control) {
-      control = await mutateSelectNearLabel(page, /number|Number|numer/i, "decimal");
+      const show = page.locator("label").filter({ hasText: /Show chapter numbers|Mostrar números/i });
+      if (await show.count()) {
+        await show.locator("input").first().click({ force: true }).catch(async () => {
+          await show.click({ force: true });
+        });
+        control = "showNumbers toggled";
+      }
+    }
+    if (!control) {
+      const heading = page
+        .locator("[data-builder-node-content-panel=contents] label")
+        .filter({ hasText: /^Heading$|^Título$/i });
+      if (await heading.count()) {
+        const inp = heading.locator("xpath=following::input[1]");
+        if (await inp.count()) {
+          const v = await inp.inputValue();
+          await inp.fill(`${v} ·E`.slice(0, 40));
+          control = "contents heading patched";
+        }
+      }
     }
     if (!control) control = await patchFirstText(page);
     const file = await shot(page, "contents");
@@ -251,7 +320,7 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     results.push({
       id,
       ok: Boolean(control),
-      note: control || (selected ? "selected; no control" : "contents miss"),
+      note: control || "contents miss",
       control,
       shot: file,
     });
@@ -264,15 +333,14 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
 {
   const id = "chapters";
   try {
-    const selected = await selectKind(page, "portfolio", [
-      ".sb-portfolio[data-edition='magazine']",
-      "#chapter-1 .sb-portfolio",
-      ".sb-portfolio",
-    ]);
-    await contentTab(page);
+    await ensureDock(page);
+    await page.locator('[data-builder-node-kind="portfolio"]').first().scrollIntoViewIfNeeded();
+    await page.locator('[data-builder-node-kind="portfolio"]').first().click({ force: true });
+    await page.waitForTimeout(600);
+    await openContentInspector(page);
     let control = "";
     const layoutSel = page
-      .locator("[data-testid=inspector-dock] select")
+      .locator("[data-testid=inspector-dock] select, [data-builder-node-content-panel=portfolio] select")
       .filter({
         has: page.locator(
           'option[value="filmstrip"], option[value="grid"], option[value="staggered"], option[value="chapters"], option[value="contact_sheet"], option[value="chapter"]',
@@ -292,7 +360,7 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     }
     if (!control) {
       const cap = page
-        .locator("[data-testid=inspector-dock] label")
+        .locator("[data-testid=inspector-dock] label, [data-builder-node-content-panel] label")
         .filter({ hasText: /caption|Caption|leyenda|Show captions/i });
       if (await cap.count()) {
         await cap
@@ -311,7 +379,7 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     results.push({
       id,
       ok: Boolean(control),
-      note: control || (selected ? "selected; no control" : "portfolio miss"),
+      note: control || "portfolio miss",
       control,
       shot: file,
     });
@@ -324,11 +392,24 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
 {
   const id = "comp-card";
   try {
-    const selected = await selectKind(page, "comp_card", [".sb-comp-card", "#comp-card"]);
-    await contentTab(page);
+    await ensureDock(page);
+    await page.locator('[data-builder-node-kind="comp_card"]').first().scrollIntoViewIfNeeded();
+    await page.locator('[data-builder-node-kind="comp_card"]').first().click({ force: true });
+    await page.waitForTimeout(600);
+    await openContentInspector(page);
     let control = "";
+    const panel = page.locator("[data-builder-node-content-panel=comp_card]");
+    if (await panel.count()) {
+      await panel
+        .evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        })
+        .catch(() => {});
+    }
     const layout = page
-      .locator("[data-testid=inspector-dock] select")
+      .locator(
+        "[data-testid=inspector-dock] select, [data-builder-node-content-panel=comp_card] select",
+      )
       .filter({
         has: page.locator('option[value="strip"], option[value="strip_with_details"]'),
       })
@@ -340,8 +421,10 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     }
     if (!control) {
       const det = page
-        .locator("[data-testid=inspector-dock] label")
-        .filter({ hasText: /details|Details|detalles|full/i });
+        .locator(
+          "[data-testid=inspector-dock] label, [data-builder-node-content-panel=comp_card] label",
+        )
+        .filter({ hasText: /Show full comp|full details|detalles|Show details/i });
       if (await det.count()) {
         await det
           .locator("input")
@@ -353,13 +436,26 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
         control = "showFullDetails toggled";
       }
     }
+    if (!control) {
+      const title = page
+        .locator("[data-builder-node-content-panel=comp_card] label")
+        .filter({ hasText: /^Title$|^Título$/i });
+      if (await title.count()) {
+        const inp = title.locator("xpath=following::input[1]");
+        if (await inp.count()) {
+          const v = await inp.inputValue();
+          await inp.fill(`${v} ·E`.slice(0, 40));
+          control = "comp title patched";
+        }
+      }
+    }
     if (!control) control = await patchFirstText(page);
     const file = await shot(page, "comp-card");
     await undo(page);
     results.push({
       id,
       ok: Boolean(control),
-      note: control || (selected ? "selected; no control" : "comp miss"),
+      note: control || "comp miss",
       control,
       shot: file,
     });
@@ -518,38 +614,33 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     await page.waitForTimeout(3500);
     await ensureDock(page);
     await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click({ force: true });
-    await page.waitForTimeout(500);
-    await page
-      .getByRole("tab", { name: /^Theme$|^Tema$/i })
-      .first()
-      .click({ force: true })
-      .catch(() => {});
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(700);
+    // Design panel uses Segmented Brand|Theme (buttons), not role=tab
+    const designPanel = page.locator("[data-testid=design-panel]");
     let opened = false;
-    for (const re of [
-      /Open theme editor/i,
-      /Open Theme/i,
-      /Abrir editor de tema/i,
-      /Theme editor/i,
-    ]) {
-      const b = page.getByRole("button", { name: re });
-      const n = await b.count();
-      for (let i = 0; i < n; i++) {
-        if (await b.nth(i).isVisible().catch(() => false)) {
-          await b.nth(i).click({ force: true, timeout: 5000 }).catch(() => {});
-          opened = true;
-          break;
-        }
+    if (await designPanel.isVisible().catch(() => false)) {
+      // Segmented Brand|Theme — not always exposed as named role=button
+      const themeSeg = designPanel.locator("button").filter({ hasText: /^Theme$|^Tema$/i });
+      if (await themeSeg.count()) {
+        await themeSeg.first().click({ force: true });
+        await page.waitForTimeout(500);
       }
-      if (opened) break;
+      const openTheme = designPanel.locator("[data-design-open-theme]");
+      if (await openTheme.count()) {
+        await openTheme.first().click({ force: true });
+        opened = true;
+        await page.waitForTimeout(1200);
+      }
     }
     if (!opened) {
-      const t = page
-        .locator("button, a, [role='button']")
-        .filter({ hasText: /Open theme|Abrir editor|Theme editor/i });
-      if (await t.count()) {
-        await t.first().click({ force: true, timeout: 5000 }).catch(() => {});
-        opened = true;
+      for (const re of [/Open theme editor/i, /Abrir editor de tema/i]) {
+        const b = page.getByRole("button", { name: re });
+        if (await b.count()) {
+          await b.first().click({ force: true }).catch(() => {});
+          opened = true;
+          await page.waitForTimeout(1200);
+          break;
+        }
       }
     }
     await page.waitForTimeout(1500);
@@ -558,12 +649,12 @@ console.log("KIND_PROBE", JSON.stringify(kindCounts));
     if (await drawer.isVisible().catch(() => false)) {
       await drawer.getByRole("tab", { name: /^Layout$/i }).click({ force: true });
       await page.waitForTimeout(500);
-      const std = drawer.getByRole("button", { name: /^Standard$/i });
+      const std = drawer.locator("button").filter({ hasText: /^Standard$/i });
       if (await std.count()) {
         await std.first().click({ force: true });
         control = "chat.variant → Standard";
         await page.waitForTimeout(300);
-        const card = drawer.getByRole("button", { name: /^Card$/i });
+        const card = drawer.locator("button").filter({ hasText: /^Card$/i });
         if (await card.count()) await card.first().click({ force: true });
       } else if (await drawer.getByText(/Chat style/i).count()) {
         control = "chat style visible";
