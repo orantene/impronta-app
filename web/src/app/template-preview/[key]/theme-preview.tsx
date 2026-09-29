@@ -137,16 +137,23 @@ export async function ThemeCatalogPreview({
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
-  // My content (the owner's real data): the talent's site locale, the live
-  // render's locale swaps, the live data sources, and hide-empty. Demo
-  // content keeps the requested locale and the untouched design.
+  // Bind live widgets (portfolio chapters, rate card, comp card) for:
+  //  - Demo: the allow-listed demo talent (`demoTalentProfileId`)
+  //  - My content: the signed-in owner (`isReal`)
+  // Both paths prune sections that are truly empty. Demo without a
+  // resolved talent id keeps the seeded tree untouched.
+  const demoTalentId =
+    demoSource && "demoTalentProfileId" in hydration
+      ? (hydration.demoTalentProfileId as string | undefined)?.trim() || null
+      : null;
   const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
-  const locale = ownerId
-    ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
+  const contentId = demoTalentId ?? ownerId;
+  const locale = contentId
+    ? await resolveMyContentPreviewLocale(contentId, localeExplicit ? requestedLocale : null)
     : requestedLocale;
-  const mine = ownerId
+  const mine = contentId
     ? await prepareMyContentPreview({
-        talentProfileId: ownerId,
+        talentProfileId: contentId,
         locale,
         shellTree: built.shellTree,
         homeTree: built.homeTree,
@@ -166,7 +173,6 @@ export async function ThemeCatalogPreview({
       )
     : platformDefault.tokens;
 
-  const contentId = ownerId;
   const ctaMode = contentId
     ? await loadTalentSiteCtaMode(contentId, await loadTalentPlanKey(contentId))
     : null;
