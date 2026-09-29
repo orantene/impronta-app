@@ -7,7 +7,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
-import { NEXT_FREE_CHIP_CSS, renderNextFreeChip } from "./next-free-chip";
+import { NEXT_FREE_CHIP_CSS, NextFreeChipView } from "./next-free-chip";
 import type { BuilderNextFreeChipNode } from "./types";
 
 function chip(overrides: Partial<BuilderNextFreeChipNode["props"]> = {}): BuilderNextFreeChipNode {
@@ -26,11 +26,11 @@ test("next_free_chip CSS uses token vars only (no hex)", () => {
 
 test("SSR render is empty-hidden before client fetch (no invented clock)", () => {
   const html = renderToStaticMarkup(
-    renderNextFreeChip({
-      node: chip(),
-      offerings: [],
-      locale: "en",
-    }) as React.ReactElement,
+    <NextFreeChipView
+      node={chip()}
+      offerings={[]}
+      locale="en"
+    /> as React.ReactElement,
   );
   assert.match(html, /data-builder-node-kind="next_free_chip"/);
   assert.match(html, /data-empty="1"|hidden/);
