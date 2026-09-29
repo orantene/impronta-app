@@ -79,6 +79,8 @@ export interface TalentMaxBuilderMountProps {
    * legacy single-page entry, which keeps the plain display-name chip.
    */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: talent languages -> builder defaultLocale / availableLocales. */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 }
 
 export function TalentMaxBuilderMount({
@@ -94,6 +96,7 @@ export function TalentMaxBuilderMount({
   canvasRenderData = null,
   initialComposition = null,
   sitePages,
+  talentLocales,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
   // Config rebuilds on talentProfileId, tier or capability record change.
@@ -210,6 +213,8 @@ export function TalentMaxBuilderMount({
         tenantId={tenantId}
         workspacePlan={workspacePlan}
         locale={locale}
+        defaultLocale={talentLocales?.primary}
+        availableLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : undefined}
         // pageId carries talentProfileId on talent_page surfaces (adapter contract)
         // pageSlug carries the talent_pages.slug
         pageSlug={pageSlug}

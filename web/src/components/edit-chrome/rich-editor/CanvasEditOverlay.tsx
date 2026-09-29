@@ -43,6 +43,8 @@ interface Props {
   initialValue: string;
   /** Remount the editor when undo/redo changes stored copy mid-edit. */
   resyncKey?: number;
+  /** PR 7: placeholder for an empty secondary-locale edit (the primary text). */
+  ghost?: string;
   /** Tenant id for LinkPicker scoping. */
   tenantId?: string;
   /**
@@ -96,6 +98,7 @@ export function CanvasEditOverlay({
   target,
   initialValue,
   resyncKey = 0,
+  ghost,
   tenantId,
   variant,
   onCommit,
@@ -174,8 +177,10 @@ export function CanvasEditOverlay({
     committedRef.current = true;
     const serialized = valueRef.current.trim();
     const liveText = (fieldRef.current?.innerText ?? "").trim();
+    // An empty seed (untranslated secondary) never falls back to innerText:
+    // that would read the ghost placeholder and save it as the translation.
     onCommit(
-      serialized === initialValue.trim() && liveText ? liveText : serialized,
+      serialized === initialValue.trim() && liveText && initialValue.trim() ? liveText : serialized,
     );
   }, [initialValue, onCommit]);
 
@@ -315,6 +320,7 @@ export function CanvasEditOverlay({
           variant={variant}
           tenantId={tenantId}
           ariaLabel="Inline canvas editor"
+          placeholder={ghost}
           autoFocus
           autoFocusCaretPoint={initialCaretPoint}
           suppressFloatingToolbar

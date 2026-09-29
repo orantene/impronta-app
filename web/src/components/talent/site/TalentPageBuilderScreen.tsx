@@ -50,6 +50,8 @@ type Props = {
   shellMode?: boolean;
   /** The site's pages — powers the in-editor page switcher. */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: the talent's languages (builder pill + inspector tabs). */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 };
 
 const UPSELL_HEADING = {
@@ -78,6 +80,7 @@ export function TalentPageBuilderScreen({
   canvasRenderData = null,
   initialComposition = null,
   shellMode = false,
+  talentLocales,
   sitePages,
 }: Props) {
   const router = useRouter();
@@ -220,6 +223,7 @@ export function TalentPageBuilderScreen({
           locale={locale}
           onExit={handleExit}
           sitePages={sitePages}
+          talentLocales={talentLocales}
         />
       ) : (
         <TalentMaxBuilderMount
@@ -234,6 +238,7 @@ export function TalentPageBuilderScreen({
           canvasRenderData={canvasRenderData}
           initialComposition={initialComposition}
           sitePages={sitePages}
+          talentLocales={talentLocales}
         />
       )}
     </div>

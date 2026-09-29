@@ -47,6 +47,8 @@ export interface TalentSiteShellBuilderMountProps {
   onExit?: () => void;
   /** The site's pages — powers the in-editor page switcher. */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: talent languages -> builder defaultLocale / availableLocales. */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 }
 
 export function TalentSiteShellBuilderMount({
@@ -58,6 +60,7 @@ export function TalentSiteShellBuilderMount({
   locale,
   onExit,
   sitePages,
+  talentLocales,
 }: TalentSiteShellBuilderMountProps) {
   const surfaceConfig = useMemo(
     () =>
@@ -143,6 +146,8 @@ export function TalentSiteShellBuilderMount({
           tenantId={tenantId}
           workspacePlan={workspacePlan}
           locale={locale}
+          defaultLocale={talentLocales?.primary}
+          availableLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : undefined}
           // The bound shell adapter captures `talentProfileId` in its closure, so
           // the shell surface needs no pageSlug — every op keys off that id.
           tenantSiteLabel={

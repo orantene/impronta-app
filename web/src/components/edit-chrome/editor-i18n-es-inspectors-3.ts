@@ -145,4 +145,17 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
     "Dónde viven los enlaces de sección en la página. La barra superior es la fila fija clásica. Superposición, carril lateral, pestañas inferiores, barra de filtros y puntos de capítulo son modos de chrome compartidos que cualquier Diseño puede usar.",
   "Where the section links live: classic top bar, overlay on the hero, side rail with scroll-spy, phone bottom tabs, filter chip bar, or chapter dots with labels.":
     "Dónde viven los enlaces de sección: barra superior clásica, superposición sobre el hero, carril lateral con seguimiento de scroll, pestañas inferiores en el teléfono, barra de chips de filtro o puntos de capítulo con etiquetas.",
+  // PR 7: talent languages (LocaleFieldTabs + content-locale pill).
+  "Field language": "Idioma del campo",
+  "primary": "principal",
+  "translated": "traducido",
+  "missing": "falta",
+  "Translate to {lang} with AI": "Traducir al {lang} con AI",
+  "AI translation is not available on this plan.": "La traducción con AI no está disponible en este plan.",
+  "AI limit reached. Try later or write it yourself.": "Llegaste al límite de AI. Inténtalo más tarde o escríbelo tú.",
+  "Translation failed. Try again.": "No se pudo traducir. Inténtalo de nuevo.",
+  "Show the page in {lang} (primary).": "Ver la página en {lang} (principal).",
+  "Preview and translate in {lang}. Untranslated blocks dim.":
+    "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
+  "Content language": "Idioma del contenido",
 };
