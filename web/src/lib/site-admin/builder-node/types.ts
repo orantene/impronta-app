@@ -2513,6 +2513,11 @@ export interface BuilderSocialLinksNode extends BuilderNodeBase {
     size?: "sm" | "md" | "lg";
     /** Icon container shape: "bare" = glyph only, "circle"/"square" = chip. */
     shape?: "bare" | "circle" | "square";
+    /**
+     * "icons" (default) paints a glyph per platform; "text" prints the
+     * platform names inline ("Instagram · WhatsApp"), for fine-print rows.
+     */
+    display?: "icons" | "text";
     /** Accessible label for the list landmark (default "Social links"). */
     ariaLabel?: string;
     /** Optional bind to `workspace_social_links` (tenant identity store). */

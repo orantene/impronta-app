@@ -157,6 +157,7 @@ const MAISON_V2_SKIN = [
   // ── Row 10 Footer: ink band, 44px / 88px italic line, page-colour pill.
   `${S} #site-footer h2{margin:0;font-style:italic;font-weight:400;font-size:44px;line-height:1;color:var(--token-color-background)}`,
   `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
+  `${S} #site-footer .site-builder-node--social-text{margin:0;font-size:11.5px;color:color-mix(in srgb,var(--token-color-background) 60%,transparent)}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
   `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 0;font-size:15px;color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
   `${MQ_DESK}{${S} #site-footer h2{font-size:88px}}`,

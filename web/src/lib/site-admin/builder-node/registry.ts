@@ -1966,6 +1966,7 @@ const socialLinksPropsSchema = z.object({
   links: z.array(socialLinkSchema).max(12),
   size: z.enum(["sm", "md", "lg"]).optional(),
   shape: z.enum(["bare", "circle", "square"]).optional(),
+  display: z.enum(["icons", "text"]).optional(),
   ariaLabel: z.string().max(80).optional(),
   dataBinding: dataBindingPropsSchema.optional(),
   layerLabel: layerLabelSchema,

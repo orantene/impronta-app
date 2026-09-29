@@ -2491,7 +2491,7 @@ function styleColor(tone: BuilderNodeStyleValue["tone"]): string | undefined {
   // Theme-adaptive (AIQ-4): fall back to the old hardcoded values only when the
   // theme defines no token, so light themes look identical and dark themes stop
   // rendering muted/strong text near-black-on-dark.
-  if (tone === "muted") return "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (tone === "muted") return MUTED_TONE_COLOR;
   if (tone === "strong") return "var(--token-color-ink, #111)";
   return undefined;
 }
@@ -3108,6 +3108,13 @@ function clampFreeWidthForMobile(value: string): string {
   return `min(${value.trim()}, 100%)`;
 }
 
+/**
+ * Muted tone: inside a band that sets its own ink (`--bn-ink`), fine print is
+ * that ink at 60%; elsewhere the theme's muted token (unchanged).
+ */
+const MUTED_TONE_COLOR =
+  "var(--bn-ink-muted, var(--token-color-muted, rgba(18, 18, 18, 0.62)))";
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -3153,7 +3160,7 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
       "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
     out.color = "var(--token-color-ink, #111)";
   }
-  if (style.tone === "muted") out.color = "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (style.tone === "muted") out.color = MUTED_TONE_COLOR;
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
   // fontFamily may be a `token:typography.*-font-family` binding → resolved to
@@ -3183,8 +3190,24 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   }
   // Color emits — a `token:<key>` value binds to a Theme token (resolved to its
   // CSS var); a raw hex/rgb/keyword is emitted unchanged (flagship-identical).
-  if (style.textColor) out.color = styleToken(style.textColor);
-  if (style.backgroundColor) out.backgroundColor = styleToken(style.backgroundColor);
+  if (style.textColor) {
+    out.color = styleToken(style.textColor);
+    // Band ink: a container that sets its own text colour (a dark footer band)
+    // hands it down, so default paragraphs + muted fine print inside inherit a
+    // readable soft ink instead of the page ink (invisible on the dark band).
+    (out as Record<string, string>)["--bn-ink"] = String(out.color);
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${String(out.color)} 60%, transparent)`;
+  }
+  if (style.backgroundColor) {
+    out.backgroundColor = styleToken(style.backgroundColor);
+    // A new surface without its own ink resets the band ink (a light card
+    // inside a dark band reads the page ink again).
+    if (!style.textColor) {
+      (out as Record<string, string>)["--bn-ink"] = "initial";
+      (out as Record<string, string>)["--bn-ink-muted"] = "initial";
+    }
+  }
   if (style.borderColor || style.borderWidth || style.borderStyle) {
     out.borderStyle = style.borderStyle ?? "solid";
     out.borderWidth = style.borderWidth ?? "1px";
@@ -5252,7 +5275,7 @@ function renderBuilderNodeElement(
             // #121212) this is byte-equivalent to the old color-mix(in oklab,currentColor 72%,transparent);
             // on dark themes it becomes soft LIGHT ink instead of near-black-on-
             // dark (default paragraphs were rendering invisible on noir).
-            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
+            color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
             ...cue.style,
           })}
         >
@@ -6849,7 +6872,7 @@ function renderBuilderNodeElement(
             // #121212) this is byte-equivalent to the old color-mix(in oklab,currentColor 72%,transparent);
             // on dark themes it becomes soft LIGHT ink instead of near-black-on-
             // dark (default paragraphs were rendering invisible on noir).
-            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
+            color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
             whiteSpace: "pre-wrap",
             ...cue.style,
           })}
@@ -7606,6 +7629,39 @@ function renderBuilderNodeElement(
       // An empty social row (no links, no bound data) renders nothing rather
       // than an empty <ul> — keeps the shell clean when nothing is configured.
       if (resolved.length === 0) return null;
+      if (socialProps.display === "text") {
+        // Fine-print variant: platform names inline, separated by " · ".
+        return (
+          <p
+            key={node.id}
+            {...anchorIdAttrs(node)}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-bn-display="text"
+            {...builderNodeStyleAttrs(socialProps.style)}
+            aria-label={ariaLabel}
+            className="site-builder-node site-builder-node--social-text"
+            style={inlineNodeStyle(socialProps.style, MARGIN_ZERO, {
+              lineHeight: 1.5,
+              color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
+            })}
+          >
+            {resolved.map((link, i) => (
+              <Fragment key={`${node.id}:${link.key}`}>
+                {i > 0 ? " · " : null}
+                <a
+                  href={socialLinkHref(link.platform, link.href)}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  style={{ color: "inherit", textDecoration: "none" }}
+                >
+                  {link.label?.trim() || socialPlatformLabel(link.platform)}
+                </a>
+              </Fragment>
+            ))}
+          </p>
+        );
+      }
       return (
         <ul
           key={node.id}

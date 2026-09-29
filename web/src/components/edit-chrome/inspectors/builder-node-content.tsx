@@ -3947,6 +3947,16 @@ function BuilderNodeContentInspectorBody({
                 dataControl="social-icon-shape"
               />
               <Field flush>
+                <FieldLabel info="Print the platform names in a line (Instagram · WhatsApp) instead of icons. Good for footer fine print.">Show as</FieldLabel>
+                <Toggle
+                  on={node.props.display === "text"}
+                  onChange={(checked) => {
+                    void commitPatch({ display: checked ? "text" : undefined });
+                  }}
+                  label="Names instead of icons"
+                />
+              </Field>
+              <Field flush>
                 <FieldLabel info="When on, this block shows the social/contact links from your workspace identity and ignores the manual list below.">Source</FieldLabel>
                 <Toggle
                   on={isBound}

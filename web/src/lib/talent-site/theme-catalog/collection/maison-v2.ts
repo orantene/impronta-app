@@ -496,9 +496,19 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           },
         },
         children: [
-          ...kidsOf(node).map((k) =>
-            k.kind === "paragraph" ? withProps(k, { style: { ...styleOf(k), lineHeight: "1.5" } }) : k,
-          ),
+          // Her published links (Instagram, WhatsApp, ...) as names, from the
+          // profile; the row hides itself when she has none.
+          {
+            id: makeId(),
+            kind: "social_links",
+            props: {
+              links: [],
+              display: "text",
+              ariaLabel: "Social links",
+              dataBinding: { sourceKey: "workspace_social_links" },
+              layerLabel: "Footer links",
+            },
+          } as BuilderNode,
           {
             id: makeId(),
             kind: "paragraph",
