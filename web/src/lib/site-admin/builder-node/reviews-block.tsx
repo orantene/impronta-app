@@ -137,15 +137,7 @@ function QuoteCard({
   );
 }
 
-/**
- * Client component boundary for W-14. Must be rendered as JSX from
- * `render.tsx` — never called as a function on the server (RSC error).
- */
-export function ReviewsBlockView({
-  node,
-  reviews,
-  styleAttr,
-}: {
+export function renderReviewsBlock(args: {
   node: BuilderReviewsNode;
   reviews: ReadonlyArray<TalentSiteReview>;
   styleAttr?: CSSProperties;
@@ -155,7 +147,7 @@ export function ReviewsBlockView({
   const es = (args.locale ?? "").toLowerCase().startsWith("es");
   const layout = (p.layout ?? REVIEWS_DEFAULT_PROPS.layout) as ReviewsLayout;
   const limit = Math.max(1, Math.min(24, p.limit ?? REVIEWS_DEFAULT_PROPS.limit ?? 12));
-  const visible = reviews.filter((r) => r.body.trim()).slice(0, limit);
+  const visible = args.reviews.filter((r) => r.body.trim()).slice(0, limit);
   const title = (p.title ?? REVIEWS_DEFAULT_PROPS.title)?.trim() || "What clients say";
   const eyebrow = p.eyebrow?.trim() || "";
 
@@ -168,7 +160,7 @@ export function ReviewsBlockView({
         data-reviews-layout={layout}
         data-reviews-empty="1"
         className="sb-reviews"
-        style={styleAttr}
+        style={args.styleAttr}
         hidden
         aria-hidden="true"
       >
@@ -197,7 +189,7 @@ export function ReviewsBlockView({
       data-reviews-layout={layout}
       className="sb-reviews"
       style={{
-        ...styleAttr,
+        ...args.styleAttr,
         ["--bn-slide-width" as string]: carouselVars.slideWidth,
         ["--bn-tablet-slides" as string]: carouselVars.tabletSlides,
         ...(carouselVars.mobileSlideWidth
@@ -223,7 +215,7 @@ export function ReviewsBlockView({
         data-builder-carousel-autoplay-ms={autoplayMs}
       >
         <BuilderNodeCarouselTrack
-          nodeId={node.id}
+          nodeId={args.node.id}
           variant="rail"
           showArrows={showArrows}
           showDots={showDots}
@@ -234,7 +226,7 @@ export function ReviewsBlockView({
           {visible.map((review, index) => (
             <div
               key={review.id}
-              id={`${node.id}-slide-${index + 1}`}
+              id={`${args.node.id}-slide-${index + 1}`}
               className="site-builder-node--carousel-slide"
             >
               <QuoteCard

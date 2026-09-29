@@ -179,31 +179,22 @@ export function NextFreeChipIsland({
   );
 }
 
-/**
- * Client component boundary for next_free_chip. Must be rendered as JSX from
- * `render.tsx` — never called as a function on the server (RSC error).
- */
-export function NextFreeChipView({
-  node,
-  offerings,
-  locale,
-  styleAttr,
-}: {
+export function renderNextFreeChip(args: {
   node: BuilderNextFreeChipNode;
   offerings: ReadonlyArray<TalentOffering>;
   locale?: string;
   styleAttr?: CSSProperties;
 }): ReactNode {
-  const p = node.props;
+  const p = args.node.props;
   return (
     <div
       data-builder-node-kind="next_free_chip"
-      data-builder-node-id={node.id}
+      data-builder-node-id={args.node.id}
       className="site-builder-node site-builder-node--next-free-chip"
-      style={styleAttr}
+      style={args.styleAttr}
     >
       <NextFreeChipIsland
-        offerings={offerings}
+        offerings={args.offerings}
         offeringId={p.offeringId}
         labelEn={p.labelEn ?? "Next free"}
         labelEs={p.labelEs ?? "Próximo libre"}
