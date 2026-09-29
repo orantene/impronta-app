@@ -165,6 +165,9 @@ export async function applyMaisonDesignAction(input: {
         contentMode,
         demoSlug: MAISON_BUILTIN_DEMO.slug,
         customPalette: useCustom ? customParsed : null,
+        // Carry the gallery Look key so Publish materializes fonts + tint
+        // the same way the never-published draft path does.
+        galleryPaletteKey: galleryPalette?.key ?? null,
         menuStyle: demoPayload.menu_style ?? "tabs",
       },
       liveBaseline: {

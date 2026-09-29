@@ -179,6 +179,7 @@ export async function loadBuilderNodeDataSources(
     !nativeNeeds.portfolio &&
     !nativeNeeds.reviews &&
     !nativeNeeds.visit &&
+    !nativeNeeds.compCard &&
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&

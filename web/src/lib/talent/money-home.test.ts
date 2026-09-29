@@ -109,7 +109,7 @@ describe("money-home", () => {
       clients: [],
       earnings: earnings([
         row({ id: "1", paymentMethod: "card", grossCents: 500 }),
-        row({ id: "2", paymentMethod: "cash", grossCents: 300, status: "pending" }),
+        row({ id: "2", paymentMethod: "cash", grossCents: 300, status: "pending", paymentStatus: "paid" }),
         row({ id: "3", status: "confirmed" }),
         row({ id: "4", workDate: "2026-08-30" }),
       ]),
@@ -118,6 +118,27 @@ describe("money-home", () => {
     assert.equal(v.collectedCount, 2);
     assert.equal(v.byMethod.card, 500);
     assert.equal(v.byMethod.cash, 300);
+  });
+
+  it("excludes partial deposits from Collected (do not count full gross)", () => {
+    const v = buildMoneyHomeView({
+      month: "2026-09",
+      clients: [],
+      earnings: earnings([
+        row({
+          id: "partial",
+          paymentMethod: "card",
+          grossCents: 100_000,
+          status: "pending",
+          paymentStatus: "partial",
+        }),
+        row({ id: "full", paymentMethod: "cash", grossCents: 50_000, status: "paid" }),
+      ]),
+    });
+    assert.equal(v.collectedCents, 50_000);
+    assert.equal(v.collectedCount, 1);
+    assert.equal(v.byMethod.card, 0);
+    assert.equal(v.byMethod.cash, 50_000);
   });
 
   it("groups payouts by date and sums the scheduled next payout", () => {

@@ -70,9 +70,18 @@ export function methodBucket(raw: string | null | undefined): MoneyMethodBucket 
   return "other";
 }
 
-/** A client has paid for this row (fully or part). "confirmed" is unpaid pipeline. */
+/**
+ * Money that belongs in Collected. `pending` covers both fully paid (awaiting
+ * talent payout) and partial deposits — mapBookingPayoutStatus collapses both.
+ * Partials must not add full `grossCents` (a 30k deposit on a 100k booking would
+ * show as 100k collected). Exclude until a real collected amount is on the row.
+ */
 function isCollected(row: TalentEarningsRow): boolean {
-  return row.status === "paid" || row.status === "invoiced" || row.status === "pending";
+  if (row.status === "paid" || row.status === "invoiced") return true;
+  if (row.status !== "pending") return false;
+  const ps = (row.paymentStatus ?? "").trim().toLowerCase();
+  if (ps === "partial" || ps === "partially_paid") return false;
+  return true;
 }
 
 export function buildMoneyHomeView(input: {
