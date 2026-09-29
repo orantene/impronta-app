@@ -16,7 +16,7 @@ import {
   deriveHours,
   type FieldDef,
 } from "./foundation-plan";
-import { findLocationId, type LocationIndex } from "./foundation-seed-core";
+import { findLocationId, type LocationIndex, type Manifest } from "./foundation-seed-core";
 
 type DbErr = { message: string } | null;
 function ok<T>(res: { data: T; error: DbErr }, what: string): T {
@@ -36,6 +36,10 @@ export type VerifyContext = {
   signIn?: (email: string, password: string) => Promise<string | null>;
   /** Live demos keep their own password unless --set-live-password was used; sign in only when asked. */
   signInLive?: boolean;
+  /** Seed manifest: supported_locales are recorded there until the product has a column. */
+  manifest?: Pick<Manifest, "entries">;
+  /** Called with informational lines (not mismatches). */
+  info?: (line: string) => void;
   /** The shared demo password (DEMO_PASSWORD), used only for the sign-in check. */
   password?: string;
 };
@@ -68,7 +72,12 @@ export async function verifyDemo(ctx: VerifyContext, d: FoundationDemo): Promise
   if (tp.user_id !== user.id) bad.push("profile is linked to a different user");
   if (!d.isLive && !tp.bio_i18n?.es) bad.push("bio_i18n.es is empty");
   if (!d.isLive && d.bioEn && !tp.bio_i18n?.en) bad.push("bio_i18n.en is empty");
-  if (!d.isLive && tp.preferred_locale !== d.localePrimary) bad.push(`preferred_locale is ${tp.preferred_locale}, expected ${d.localePrimary}`);
+  if (!d.isLive && tp.preferred_locale !== d.defaultLocale) bad.push(`preferred_locale is ${tp.preferred_locale}, expected ${d.defaultLocale}`);
+  const rec = ctx.manifest?.entries[d.profileCode];
+  if (rec && !d.isLive && JSON.stringify(rec.supportedLocales ?? null) !== JSON.stringify(d.supportedLocales)) {
+    bad.push(`manifest supported_locales ${JSON.stringify(rec.supportedLocales)}, expected ${JSON.stringify(d.supportedLocales)}`);
+  }
+  ctx.info?.(`${d.profileCode} site language ${d.defaultLocale}; supported_locales ${JSON.stringify(rec?.supportedLocales ?? d.supportedLocales)}${rec ? " (manifest)" : " (workbook, no manifest)"}`);
   if (!d.isLive && tp.default_currency !== demoCurrency(d)) bad.push(`default_currency is ${tp.default_currency}, expected ${demoCurrency(d)}`);
   if (!d.isLive && tp.home_city_text !== d.city) bad.push(`home_city_text is "${tp.home_city_text}", expected "${d.city}"`);
 

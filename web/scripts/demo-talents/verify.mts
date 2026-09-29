@@ -9,7 +9,7 @@
  * Exit 1 on any mismatch. Never writes, never prints a password.
  *
  *   DEMO_SEED_TARGET_REF=<ref> [DEMO_PASSWORD=<password>] npx tsx --env-file=<env> \
- *     scripts/demo-talents/verify.mts --only TAL-93103,TAL-93104 [--dir <foundation dir>]
+ *     scripts/demo-talents/verify.mts --only TAL-93103,TAL-93104 [--dir <foundation dir>] [--manifest <path.json>]
  */
 import { createClient } from "@supabase/supabase-js";
 import { demoPasswordStatus, redact } from "./demo-identity";
@@ -19,6 +19,7 @@ import {
   loadAuthUsers,
   loadFieldDefs,
   loadLocationIndex,
+  loadManifest,
   readOnly,
   resolveHubTenantId,
   resolveTermIds,
@@ -72,6 +73,8 @@ async function main() {
     now: new Date(),
     signIn,
     signInLive: args.includes("--check-live-signin"),
+    manifest: opt("--manifest") ? loadManifest(opt("--manifest")!, targetRef) : undefined,
+    info: (l: string) => console.log(`  info ${l}`),
     password: pwStatus === "ok" ? password : undefined,
   };
 

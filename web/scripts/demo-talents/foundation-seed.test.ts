@@ -497,7 +497,7 @@ test("status.json: merged per demo id, no secrets, overwritten on re-run", async
   const s = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, Record<string, unknown>>;
   assert.deepEqual(Object.keys(s).sort(), ["DEMO003", "DEMO009"]);
   assert.equal(s.DEMO003.offerings, 3);
-  assert.deepEqual(Object.keys(s.DEMO003).sort(), ["code", "completeness", "demo_id", "email", "offerings", "photos", "profile_id", "seeded_at", "site_published", "site_slug"]);
+  assert.deepEqual(Object.keys(s.DEMO003).sort(), ["code", "completeness", "default_locale", "demo_id", "email", "offerings", "photos", "profile_id", "seeded_at", "site_published", "site_slug", "supported_locales"]);
   assert.ok(!fs.readFileSync(file, "utf8").includes(PW));
 });
 

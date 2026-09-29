@@ -45,6 +45,8 @@ export function makeDemo(over: Partial<FoundationDemo> = {}): FoundationDemo {
     isLive: false,
     country: "MX",
     localePrimary: "es",
+    defaultLocale: "es",
+    supportedLocales: ["es"],
     displayName: "Itzel Canché",
     firstName: "Itzel",
     lastName: "Canché",

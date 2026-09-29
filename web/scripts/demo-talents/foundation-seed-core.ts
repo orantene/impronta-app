@@ -335,6 +335,9 @@ export type ManifestEntry = {
   fieldValueDefinitionIds?: string[];
   languageCodes?: string[];
   serviceAreaIds?: string[];
+  /** Site language (site-languages.json). Kept here until the product has a per-talent column. */
+  defaultLocale?: string;
+  supportedLocales?: string[];
   createdSite?: boolean;
   createdProfile?: boolean;
 };
@@ -372,6 +375,8 @@ export type StatusEntry = {
   photos: number;
   site_published: boolean;
   completeness: string;
+  default_locale: string;
+  supported_locales: string[];
   seeded_at: string;
 };
 
@@ -383,6 +388,42 @@ export function mergeStatus(file: string, entry: StatusEntry) {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(current, null, 2));
   fs.renameSync(tmp, file);
+}
+
+// ── Supported languages ─────────────────────────────────────────────────────
+
+/**
+ * Where a talent's supported site languages would be stored.
+ *
+ * TODAY THERE IS NO PER-TALENT COLUMN. The product has talent_profiles.
+ * preferred_locale (the default language and dashboard language) and
+ * agency_business_identity.supported_locales (per agency, and the talent
+ * language is constrained to it at resolve time). Checked against origin/main
+ * on 2026-09-29: no supported-locales column on talent_profiles or
+ * talent_sites. So this is null and applySupportedLocales does nothing; the
+ * value lives in the manifest entry and status.json instead.
+ *
+ * ONE PLACE TO CHANGE once a column exists, e.g.
+ *   { table: "talent_profiles", key: "id", column: "supported_locales" }
+ */
+export const SUPPORTED_LOCALES_TARGET: { table: string; key: string; column: string } | null = null;
+
+/**
+ * Write a talent's supported languages, if the product has somewhere to put
+ * them. Documented no-op today (see SUPPORTED_LOCALES_TARGET). Never invents
+ * schema. Returns whether anything was written.
+ */
+export async function applySupportedLocales(
+  admin: Admin,
+  a: { profileId: string; supportedLocales: readonly string[] },
+  target: typeof SUPPORTED_LOCALES_TARGET = SUPPORTED_LOCALES_TARGET,
+): Promise<{ applied: boolean }> {
+  if (!target) return { applied: false };
+  must(
+    await admin.from(target.table).update({ [target.column]: [...a.supportedLocales] }).eq(target.key, a.profileId),
+    `${target.table}.${target.column}`,
+  );
+  return { applied: true };
 }
 
 // ── Seeding ─────────────────────────────────────────────────────────────────
@@ -633,7 +674,10 @@ export async function seedDemo(ctx: SeedContext, d: FoundationDemo): Promise<Sta
   };
   entry.userId = userId;
   entry.talentProfileId = profileId;
+  entry.defaultLocale = d.defaultLocale;
+  entry.supportedLocales = d.supportedLocales;
   ctx.manifest.entries[d.profileCode] = entry;
+  await applySupportedLocales(admin, { profileId, supportedLocales: d.supportedLocales });
   ctx.saveManifest();
 
   const offeringIds = await writeOfferings(ctx, profileId, offeringPlan.rows);
@@ -765,6 +809,8 @@ export async function seedDemo(ctx: SeedContext, d: FoundationDemo): Promise<Sta
     photos: photoRows?.length ?? 0,
     site_published: siteNow?.status === "published" || !!siteNow?.site_published_at,
     completeness: predictCompleteness(d).label,
+    default_locale: d.defaultLocale,
+    supported_locales: d.supportedLocales,
     seeded_at: nowIso,
   };
   ctx.onStatus?.(status);
@@ -839,6 +885,8 @@ export async function seedLiveMinimal(ctx: SeedContext, d: FoundationDemo): Prom
     photos: photos?.length ?? 0,
     site_published: site?.status === "published" || !!site?.site_published_at,
     completeness: predictCompleteness(d).label,
+    default_locale: d.defaultLocale,
+    supported_locales: d.supportedLocales,
     seeded_at: ctx.now.toISOString(),
   };
   ctx.onStatus?.(status);

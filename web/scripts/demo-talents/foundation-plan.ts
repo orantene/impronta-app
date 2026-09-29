@@ -44,6 +44,7 @@ export function checkDemoData(d: FoundationDemo): string[] {
   const problems: string[] = [];
   if (!["MX", "US", "AR"].includes(d.country)) problems.push(`unknown country ${d.country}`);
   if (d.isLive && d.country !== "MX") problems.push("a live demo must stay in Mexico");
+  if (!["es", "en"].includes(d.defaultLocale) || d.supportedLocales[0] !== d.defaultLocale) problems.push("site language: default must be first in supported_locales");
   if (!["es", "en"].includes(d.localePrimary)) problems.push(`unknown primary locale ${d.localePrimary}`);
   const currencies = new Set(d.services.map((s) => s.currency));
   for (const c of currencies) if (c !== "MXN" && c !== "USD") problems.push(`currency ${c} is not supported (the engine prices in MXN or USD)`);
@@ -390,8 +391,12 @@ export function mergeBookingTerms(existing: unknown, optIn: boolean): Record<str
  */
 export function buildProfilePatch(d: FoundationDemo, ctx: ProfileCtx): Record<string, unknown> {
   const u = d.universal;
-  const bio_i18n: Record<string, string> = { es: d.bio };
-  if (d.bioEn) bio_i18n.en = d.bioEn;
+  // Default language first (jsonb itself does not keep key order; the bios field value does).
+  const bio_i18n: Record<string, string> = {};
+  for (const l of [d.defaultLocale, d.defaultLocale === "en" ? "es" : "en"]) {
+    const text = l === "en" ? d.bioEn : d.bio;
+    if (text) bio_i18n[l] = text;
+  }
   const optIn = ctx.instantCount > 0 && ctx.hasHours;
   const selling = asObject(ctx.existingSellingDefaults);
   selling.where = sellingWhere(d.services);
@@ -413,7 +418,7 @@ export function buildProfilePatch(d: FoundationDemo, ctx: ProfileCtx): Record<st
     selling_defaults: selling,
     services_menu: ctx.servicesMenu,
     service_category_slug: d.serviceCategorySlug,
-    preferred_locale: d.localePrimary,
+    preferred_locale: d.defaultLocale,
     default_currency: demoCurrency(d),
     is_demo: true,
     updated_at: ctx.nowIso,
@@ -612,7 +617,7 @@ export function universalValues(d: FoundationDemo): { fieldKey: string; value: u
   const bios: { locale: string; text: string }[] = [];
   if (d.bioEn) bios.push({ locale: "en", text: d.bioEn });
   if (d.bio) bios.push({ locale: "es", text: d.bio });
-  if (d.localePrimary === "es") bios.reverse();
+  if (d.defaultLocale === "es") bios.reverse();
   const license = u.driversLicense === null ? null : u.driversLicense ? "standard" : "none";
   return [
     { fieldKey: "identity.pronouns", value: pronounsValue(u.pronouns) },

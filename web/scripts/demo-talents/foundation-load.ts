@@ -102,6 +102,28 @@ export type FoundationFieldMeta = {
   sensitive: boolean;
 };
 
+export type SiteLocale = "en" | "es";
+
+export type SiteLanguage = { defaultLocale: SiteLocale; supportedLocales: SiteLocale[]; forced: boolean };
+
+/**
+ * Validate one site-languages.json entry: every value is en or es, at least
+ * one is supported, and the default comes first. Spoken languages play no part:
+ * a demo who does not speak English can still list en.
+ */
+export function parseSiteLanguage(id: string, e: { default_locale?: unknown; supported_locales?: unknown; forced?: unknown }): SiteLanguage {
+  const ok = (v: unknown): v is SiteLocale => v === "en" || v === "es";
+  const def = e.default_locale;
+  const sup = e.supported_locales;
+  if (!ok(def)) throw new Error(`${id}: default_locale must be "en" or "es"`);
+  if (!Array.isArray(sup) || sup.length === 0 || sup.length > 2 || !sup.every(ok)) {
+    throw new Error(`${id}: supported_locales must list "en" and/or "es" (at most two)`);
+  }
+  if (new Set(sup).size !== sup.length) throw new Error(`${id}: supported_locales has a duplicate`);
+  if (sup[0] !== def) throw new Error(`${id}: default_locale ${def} must be first in supported_locales`);
+  return { defaultLocale: def, supportedLocales: sup as SiteLocale[], forced: e.forced === true };
+}
+
 export type FoundationCountry = "MX" | "US" | "AR";
 
 export type FoundationDemo = {
@@ -118,8 +140,12 @@ export type FoundationDemo = {
   age: number | null;
   /** ISO country of the demo (MX when the file has none). */
   country: FoundationCountry;
-  /** The language the profile is written in first ("es" | "en"). */
+  /** The language the profile is written in first ("es" | "en"). New demos: the site language. */
   localePrimary: "es" | "en";
+  /** Site and dashboard language (site-languages.json; else locale_primary). */
+  defaultLocale: SiteLocale;
+  /** Main language first, then the optional second one shown in the ES|EN switch. */
+  supportedLocales: SiteLocale[];
   city: string;
   neighbourhood: string | null;
   state: string | null;
@@ -285,6 +311,12 @@ export function loadFoundation(opts: LoadOptions = {}): FoundationDemo[] {
   const foundation = readJson<{ "Demo Profiles": { rows: Json[] } }>(path.join(dir, "foundation.json")); // theme only
   const workbookRows = new Map(foundation["Demo Profiles"].rows.map((r) => [String(r["Demo ID"]), r]));
 
+  // Optional: without the file every demo is single-language in its locale_primary.
+  const langFile = path.join(dir, "site-languages.json");
+  const siteLangs = fs.existsSync(langFile)
+    ? new Map(readJson<{ demos: { id: string; code?: string; default_locale?: unknown; supported_locales?: unknown; forced?: unknown }[] }>(langFile).demos.map((x) => [x.id, x]))
+    : null;
+
   const out: FoundationDemo[] = [];
   const seenCodes = new Set<string>();
   const seenEmails = new Set<string>();
@@ -339,7 +371,16 @@ export function loadFoundation(opts: LoadOptions = {}): FoundationDemo[] {
     const media = (f.media_plan ?? {}) as Json;
     const universal = mapUniversal((f.universal ?? {}) as Json);
     const country = (str(b.country)?.toUpperCase() ?? "MX") as FoundationCountry;
-    const localePrimary = (str(b.locale_primary) ?? str(b.locale) ?? "es") as "es" | "en";
+    const filePrimary = (str(b.locale_primary) ?? str(b.locale) ?? "es") as "es" | "en";
+    let lang: SiteLanguage = { defaultLocale: filePrimary, supportedLocales: [filePrimary], forced: false };
+    if (siteLangs) {
+      const entry = siteLangs.get(demoId);
+      if (!entry) throw new Error(`${demoId}: missing from site-languages.json`);
+      if (entry.code && entry.code !== profileCode) throw new Error(`${demoId}: site-languages.json code ${entry.code} differs from ${profileCode}`);
+      lang = parseSiteLanguage(demoId, entry);
+    }
+    // The site language overrides locale_primary for new demos; live demos keep theirs.
+    const localePrimary = (isLive ? filePrimary : lang.defaultLocale) as "es" | "en";
     const themeCell = str(workbookRows.get(demoId)?.["Primary theme"]);
 
     out.push({
@@ -354,6 +395,8 @@ export function loadFoundation(opts: LoadOptions = {}): FoundationDemo[] {
       age: numOrNull(b.age),
       country,
       localePrimary,
+      defaultLocale: lang.defaultLocale,
+      supportedLocales: lang.supportedLocales,
       city: String(b.city),
       neighbourhood: str(b.neighbourhood),
       state: str(b.state),

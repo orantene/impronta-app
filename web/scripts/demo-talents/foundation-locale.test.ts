@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { loadFoundation } from "./foundation-load";
+import { DEFAULT_FOUNDATION_DIR, loadFoundation, parseSiteLanguage } from "./foundation-load";
 import {
   buildFieldValuePlan,
   buildLanguageRows,
@@ -21,7 +21,9 @@ import {
   deriveHours,
   warnDemoData,
 } from "./foundation-plan";
-import { findLocationId, seedDemo, validateDemo } from "./foundation-seed-core";
+import { SUPPORTED_LOCALES_TARGET, applySupportedLocales, findLocationId, loadAuthUsers, readOnly, seedDemo, validateDemo } from "./foundation-seed-core";
+import { verifyDemo } from "./foundation-verify";
+import { addExistingLive } from "./test-fixtures";
 import { harness, makeDefs, makeDemo, svc } from "./test-fixtures";
 
 const HUB = "hub-1";
@@ -37,6 +39,8 @@ function usDemo(over: Parameters<typeof makeDemo>[0] = {}) {
     lastName: "Lee",
     country: "US",
     localePrimary: "en",
+    defaultLocale: "en",
+    supportedLocales: ["en", "es"],
     city: "Chicago",
     neighbourhood: "Logan Square",
     state: "Illinois",
@@ -337,4 +341,141 @@ test("dry run reports locale warnings for an English-primary demo with no Englis
   const r = await validateDemo(h.ctx, usDemo());
   assert.deepEqual(r.problems, []);
   assert.ok(r.warnings.some((w) => /categories have no English text/.test(w)));
+});
+
+// ── Site languages ──────────────────────────────────────────────────────────
+
+function withLangs(langs: Record<string, unknown>[], demos = [{ id: "DEMO005" }, { id: "DEMO006" }]) {
+  const dir = writeDir({ outDir: "out", fieldsDir: "fields-out", demos: demos.map((d) => ({ ...d, out: { locale_primary: "es" } })) });
+  fs.writeFileSync(path.join(dir, "site-languages.json"), JSON.stringify({ demos: langs }));
+  return dir;
+}
+
+test("site-languages.json overrides locale_primary for new demos; absent file falls back to locale_primary", () => {
+  const dir = withLangs([
+    { id: "DEMO005", default_locale: "en", supported_locales: ["en", "es"] },
+    { id: "DEMO006", default_locale: "es", supported_locales: ["es"] },
+  ]);
+  const [a, b] = loadFoundation({ dir });
+  assert.equal(a.localePrimary, "en");
+  assert.equal(a.defaultLocale, "en");
+  assert.deepEqual(a.supportedLocales, ["en", "es"]);
+  assert.equal(b.localePrimary, "es");
+  const none = writeDir({ outDir: "out", fieldsDir: "fields-out", demos: [{ id: "DEMO005", out: { locale_primary: "en" } }] });
+  const [c] = loadFoundation({ dir: none });
+  assert.equal(c.defaultLocale, "en");
+  assert.deepEqual(c.supportedLocales, ["en"]);
+});
+
+test("site languages: a live demo keeps its locale_primary", () => {
+  const dir = writeDir({ outDir: "out", fieldsDir: "fields-out", demos: [{ id: "DEMO001", out: { locale_primary: "es", email: "demo-camila-unas@impronta.test" } }] });
+  fs.writeFileSync(path.join(dir, "live-accounts-export.json"), JSON.stringify([{ email: "demo-camila-unas@impronta.test", profile: { profile_code: "TAL-93003" }, site: { site_slug: "camila-nails" } }]));
+  fs.writeFileSync(path.join(dir, "site-languages.json"), JSON.stringify({ demos: [{ id: "DEMO001", default_locale: "en", supported_locales: ["en", "es"] }] }));
+  const [d] = loadFoundation({ dir });
+  assert.equal(d.isLive, true);
+  assert.equal(d.localePrimary, "es");
+  assert.equal(d.defaultLocale, "en", "recorded, but only written with --include-live-content");
+});
+
+test("site languages are validated: en/es only, default first, no duplicates, every demo present, code matches", () => {
+  const bad = (e: Record<string, unknown>) => () => parseSiteLanguage("DEMO005", e);
+  assert.deepEqual(parseSiteLanguage("D", { default_locale: "es", supported_locales: ["es", "en"] }), { defaultLocale: "es", supportedLocales: ["es", "en"], forced: false });
+  assert.throws(bad({ default_locale: "fr", supported_locales: ["fr"] }), /must be "en" or "es"/);
+  assert.throws(bad({ default_locale: "es", supported_locales: ["es", "fr"] }), /supported_locales must list/);
+  assert.throws(bad({ default_locale: "es", supported_locales: [] }), /supported_locales must list/);
+  assert.throws(bad({ default_locale: "es", supported_locales: ["en", "es"] }), /must be first/);
+  assert.throws(bad({ default_locale: "es", supported_locales: ["es", "es"] }), /at most two|duplicate/);
+  assert.throws(() => loadFoundation({ dir: withLangs([{ id: "DEMO005", default_locale: "es", supported_locales: ["es"] }]) }), /DEMO006: missing from site-languages/);
+  assert.throws(() => loadFoundation({ dir: withLangs([{ id: "DEMO005", code: "TAL-99999", default_locale: "es", supported_locales: ["es"] }, { id: "DEMO006", default_locale: "es", supported_locales: ["es"] }]) }), /differs from/);
+});
+
+test("real site-languages.json (skipped when absent): 224 valid entries; a demo who lacks English can still list en", { skip: !fs.existsSync(path.join(DEFAULT_FOUNDATION_DIR, "site-languages.json")) }, () => {
+  const demos = loadFoundation();
+  const c = { es: 0, en: 0, both: 0 };
+  for (const d of demos) {
+    assert.equal(d.supportedLocales[0], d.defaultLocale);
+    if (d.supportedLocales.length === 2) c.both += 1;
+    else c[d.defaultLocale] += 1;
+    if (!d.isLive) assert.equal(d.localePrimary, d.defaultLocale);
+  }
+  assert.deepEqual(c, { es: 59, en: 78, both: 87 });
+  const d112 = demos.find((d) => d.demoId === "DEMO112")!;
+  assert.ok(d112.supportedLocales.includes("en"));
+  assert.ok(!d112.languages.some((l) => /english|ingl/i.test(l)), "spoken languages do not gate site languages");
+});
+
+// ── Seeder and verify ───────────────────────────────────────────────────────
+
+test("seeding writes preferred_locale = default_locale, default-language text first, and records supported_locales", async () => {
+  const h = await harness();
+  const es = makeDemo({ defaultLocale: "es", supportedLocales: ["es", "en"] });
+  const en = usDemo({ supportedLocales: ["en", "es"] });
+  await seedDemo(h.ctx, es);
+  await seedDemo(h.ctx, en);
+  const [pEs, pEn] = h.db.table("talent_profiles");
+  assert.equal(pEs.preferred_locale, "es");
+  assert.equal(pEn.preferred_locale, "en");
+  assert.deepEqual(Object.keys(pEs.bio_i18n as object), ["es", "en"]);
+  assert.deepEqual(Object.keys(pEn.bio_i18n as object), ["en", "es"]);
+  const bios = (id: string) => (h.db.table("talent_profile_field_values").find((r) => r.talent_profile_id === id && Array.isArray(r.value) && (r.value as { locale?: string }[])[0]?.locale) ?.value as { locale: string }[]).map((b) => b.locale);
+  assert.deepEqual(bios(pEs.id as string), ["es", "en"]);
+  assert.deepEqual(bios(pEn.id as string), ["en", "es"]);
+  assert.equal(h.manifest.entries["TAL-93103"].defaultLocale, "es");
+  assert.deepEqual(h.manifest.entries["TAL-93103"].supportedLocales, ["es", "en"]);
+  assert.deepEqual(h.manifest.entries["TAL-93110"].supportedLocales, ["en", "es"]);
+  assert.deepEqual(h.statuses.map((s) => [s.default_locale, s.supported_locales]), [["es", ["es", "en"]], ["en", ["en", "es"]]]);
+  // No schema invented: no column was written for supported locales.
+  assert.ok(h.db.ops.every((o) => !JSON.stringify(o.patch ?? o.rows ?? "").includes("supported_locales")));
+});
+
+test("applySupportedLocales: a documented no-op today, and one place to map it once a column exists", async () => {
+  const h = await harness();
+  h.db.table("talent_profiles").push({ id: "tp-x" });
+  assert.equal(SUPPORTED_LOCALES_TARGET, null, "no per-talent column exists yet");
+  assert.deepEqual(await applySupportedLocales(h.admin, { profileId: "tp-x", supportedLocales: ["en", "es"] }), { applied: false });
+  assert.equal(h.db.ops.length, 0);
+  const r = await applySupportedLocales(h.admin, { profileId: "tp-x", supportedLocales: ["en", "es"] }, { table: "talent_profiles", key: "id", column: "supported_locales" });
+  assert.deepEqual(r, { applied: true });
+  assert.deepEqual(h.db.table("talent_profiles")[0].supported_locales, ["en", "es"]);
+});
+
+test("a demo who does not speak English can still list en as a supported site language", async () => {
+  const h = await harness();
+  const d = makeDemo({ languages: ["Español"], defaultLocale: "es", supportedLocales: ["es", "en"], universal: { ...makeDemo().universal, languages: ["Español"] } });
+  await seedDemo(h.ctx, d);
+  assert.deepEqual(h.manifest.entries["TAL-93103"].supportedLocales, ["es", "en"]);
+  assert.equal(h.db.table("talent_languages").length, 1);
+});
+
+test("live demos: preferred_locale is not written by default, only with --include-live-content", async () => {
+  const live = () => makeDemo({ isLive: true, profileCode: "TAL-93003", email: "demo-camila-unas@impronta.test", defaultLocale: "en", supportedLocales: ["en", "es"] });
+  const h = await harness();
+  const ids = addExistingLive(h.db, live());
+  h.db.table("talent_profiles").find((r) => r.id === ids.profileId)!.preferred_locale = "es";
+  h.ctx.auth = await loadAuthUsers(h.admin);
+  await seedDemo(h.ctx, live());
+  assert.equal(h.db.table("talent_profiles")[0].preferred_locale, "es");
+  assert.equal(h.manifest.entries["TAL-93003"], undefined);
+  h.ctx.includeLiveContent = true;
+  await seedDemo(h.ctx, live());
+  assert.equal(h.db.table("talent_profiles")[0].preferred_locale, "en");
+});
+
+test("verify: preferred_locale must equal default_locale for new demos; supported_locales come from the manifest", async () => {
+  const h = await harness();
+  const d = usDemo({ supportedLocales: ["en", "es"] });
+  await seedDemo(h.ctx, d);
+  const info: string[] = [];
+  const ctx = {
+    admin: readOnly(h.admin), hubTenantId: h.ctx.hubTenantId, termIds: h.ctx.termIds, fieldDefs: h.ctx.fieldDefs,
+    authByEmail: new Map(h.db.users.map((u) => [u.email.toLowerCase(), u as never])), locations: h.ctx.locations, now: h.ctx.now,
+    manifest: h.manifest, info: (l: string) => info.push(l),
+  };
+  assert.deepEqual(await verifyDemo(ctx, d), []);
+  assert.match(info.join("\n"), /site language en; supported_locales \["en","es"\] \(manifest\)/);
+  h.db.table("talent_profiles")[0].preferred_locale = "es";
+  assert.match((await verifyDemo(ctx, d)).join("\n"), /preferred_locale is es, expected en/);
+  h.db.table("talent_profiles")[0].preferred_locale = "en";
+  h.manifest.entries["TAL-93110"].supportedLocales = ["en"];
+  assert.match((await verifyDemo(ctx, d)).join("\n"), /manifest supported_locales \["en"\]/);
 });
