@@ -19,8 +19,9 @@ export const localeCookieOptions = {
 /**
  * Mark the `locale` cookie we are about to write as MACHINE-WRITTEN.
  *
- * Only the auto-write branch of `syncLocaleCookieForPath` may call this. See
- * `@/i18n/locale-cookies` for the full contract and why it exists.
+ * Only the auto-write branch of `syncLocaleCookieForPath` and
+ * `seedTalentDashboardLocaleCookie` may call this. See `@/i18n/locale-cookies`
+ * for the full contract and why it exists.
  */
 function markLocaleCookieAuto(res: NextResponse): void {
   res.cookies.set(LOCALE_AUTO_COOKIE, "1", localeCookieOptions);
@@ -39,6 +40,19 @@ function markLocaleCookieAuto(res: NextResponse): void {
  */
 export function clearLocaleCookieAutoMarker(res: NextResponse): void {
   res.cookies.set(LOCALE_AUTO_COOKIE, "", { ...localeCookieOptions, maxAge: 0 });
+}
+
+/**
+ * AUTO writer #2 (2026-09-29): seed the talent dashboard's `locale` cookie to
+ * the talent's own primary language. Bookkeeping, not a choice: the talent
+ * never picked this cookie value, so the marker stays set and a later change
+ * of primary re-seeds it. Callers MUST only reach this when the existing
+ * cookie is absent or already auto-written; a deliberate cookie is never
+ * overwritten (the route handler at `/api/talent/locale-seed` re-checks).
+ */
+export function seedTalentDashboardLocaleCookie(res: NextResponse, locale: string): void {
+  res.cookies.set(LOCALE_COOKIE, locale, localeCookieOptions);
+  markLocaleCookieAuto(res);
 }
 
 /**
