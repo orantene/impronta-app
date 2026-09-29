@@ -1142,7 +1142,7 @@
   },
   "src/components/admin/shell/internal/talent/shared/page-chrome-1.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 6
+      "count": 5
     }
   },
   "src/components/admin/shell/internal/talent/shared/profile-1.tsx": {

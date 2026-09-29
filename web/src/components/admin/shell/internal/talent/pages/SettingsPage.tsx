@@ -1,7 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
+import { useState, type ReactNode } from "react";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
@@ -10,272 +9,295 @@ import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/T
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
-import { Divider, SecondaryCard, StatDot } from "../../primitives";
-import { MY_AGENCIES, MY_TALENT_PROFILE, useAdminShell } from "../../state";
-import { Grid, PageHeader } from "../shared/page-chrome-1";
-import { ContactPolicySummary, TalentTrustCard } from "../shared/settings-1";
+import { Icon } from "../../primitives";
+import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
+import { PageHeader } from "../shared/page-chrome-1";
 
-const HARD_BTN =
-  "inline-flex min-h-11 items-center rounded-full border border-admin-border-soft bg-white px-4 text-[13px] font-semibold text-admin-ink";
-
-const HARD_TONE: Record<"ok" | "warn" | "risk", string> = {
+const TAG_TONE: Record<"ok" | "warn" | "risk", string> = {
   ok: "bg-admin-success-soft text-admin-success-deep",
   warn: "bg-admin-amber-soft text-admin-amber-deep",
   risk: "bg-admin-critical-soft text-admin-critical-deep",
 };
 
+type Row = {
+  key: string;
+  label: string;
+  sub?: string;
+  value?: ReactNode;
+  tag?: { text: string; tone: "ok" | "warn" | "risk" };
+  /** Opens a drawer or a page. */
+  onOpen?: () => void;
+  /** Or unfolds an inline editor under the row. */
+  panel?: ReactNode;
+};
+
+function SettingsGroup({ title, rows, tone = "plain" }: { title: string; rows: Row[]; tone?: "plain" | "risk" }) {
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  if (rows.length === 0) return null;
+  return (
+    <section
+      data-tulala-settings-group
+      className={`overflow-hidden rounded-[12px] border bg-admin-card font-admin-body ${
+        tone === "risk" ? "border-admin-critical-soft" : "border-admin-border-soft"
+      }`}
+    >
+      <h2
+        className={`m-0 px-[18px] py-[13px] text-[13.5px] font-semibold ${
+          tone === "risk" ? "bg-admin-critical-soft text-admin-critical-deep" : "text-admin-ink"
+        }`}
+      >
+        {title}
+      </h2>
+      <ul className="m-0 list-none divide-y divide-admin-border-soft border-t border-admin-border-soft p-0">
+        {rows.map((r) => {
+          const expanded = openKey === r.key;
+          const onClick = r.panel ? () => setOpenKey(expanded ? null : r.key) : r.onOpen;
+          return (
+            <li key={r.key}>
+              <button
+                type="button"
+                data-tulala-settings-row={r.key}
+                aria-expanded={r.panel ? expanded : undefined}
+                onClick={onClick}
+                className="flex w-full cursor-pointer items-center gap-[12px] border-0 bg-transparent px-[18px] py-[12px] text-left hover:bg-admin-surface-alt"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] font-medium text-admin-ink">{r.label}</span>
+                  {r.sub ? (
+                    <span className="mt-[2px] block text-[11.5px] leading-snug text-admin-ink-muted">{r.sub}</span>
+                  ) : null}
+                </span>
+                {r.tag ? (
+                  <span className={`shrink-0 rounded-[5px] px-[7px] py-[2px] text-[10.5px] font-semibold ${TAG_TONE[r.tag.tone]}`}>
+                    {r.tag.text}
+                  </span>
+                ) : null}
+                {r.value ? <span className="shrink-0 text-[12.5px] text-admin-ink-muted">{r.value}</span> : null}
+                <span aria-hidden className={`inline-flex shrink-0 text-admin-ink-dim ${expanded ? "rotate-90" : ""}`}>
+                  <Icon name="chevron-right" size={13} stroke={1.8} color="currentColor" />
+                </span>
+              </button>
+              {r.panel && expanded ? <div className="px-[12px] pb-[12px]">{r.panel}</div> : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /**
- * Talent Settings, grouped by the question a talent is asking: when she
- * works, the money rules, her account, who she works with, and the things
- * that are hard to undo. Hiding a page, leaving an agency and closing the
- * account are three different things in three different places.
+ * Talent Settings: two columns of row lists, grouped by the question a solo
+ * talent is asking (when she works, the money rules, her account, what is
+ * hard to undo, who she works with). Each row opens its drawer or page;
+ * inline editors unfold under their own row instead of stacking open cards.
+ * Agency and network concepts (add an agency, My Circle, talent network,
+ * multi-agency workspaces) are not a solo talent's settings and are gone;
+ * existing agency relationships still show, and only when they exist.
  */
 export function SettingsPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug } = useAdminShell();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug, state } = useAdminShell();
   const copy = useDashboardText();
   const { t: tx } = usePresenceText();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
-  const settingsAgencies = bridgeTalentAgencies !== null
-    ? bridgeTalentAgencies.map((a) => ({
-        id:          a.id,
-        name:        a.agencyName,
-        status:      (["exclusive", "non-exclusive"] as const).includes(a.rosterStatus as never)
-                       ? (a.rosterStatus as "exclusive" | "non-exclusive")
-                       : ("non-exclusive" as const),
-        joinedAt:    a.addedAt,
-        isPrimary:   a.isPrimary,
-      }))
-    : MY_AGENCIES;
-  // Prefer bridge data so a real tenant never sees a fixture agency name.
-  const primaryAgencyName = settingsAgencies.find((a) => a.isPrimary)?.name
-    ?? settingsAgencies[0]?.name;
-  const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
+  const agencies = bridgeTalentAgencies ?? [];
+  const openSection = (section: string) =>
+    openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
+  const displayName = bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name;
 
-  const hardRows: Array<{ title: string; body: string; tag: string; tone: "ok" | "warn" | "risk"; action: ReactNode }> = [
+  const whenYouWork: Row[] = [
     {
-      title: tx("Hide a public page"),
-      body: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
-      tag: tx("In Where I appear"),
-      tone: "ok",
-      action: (
-        <button type="button" className={HARD_BTN} onClick={() => setTalentPage("public-page")}>
-          {tx("Open My presence")}
-        </button>
-      ),
-    },
-    {
-      title: tx("Leave an agency"),
-      body: tx("You stop receiving their jobs. Work already agreed is still yours to finish and still gets paid."),
-      tag: tx("Ends a relationship"),
-      tone: "warn",
-      action: (
-        <button type="button" className={HARD_BTN} onClick={() => openDrawer("representation")}>
-          {tx("Open agencies")}
-        </button>
-      ),
-    },
-    {
-      title: tx("Close your account"),
-      body: tx("Everything goes: pages, clients, history, money records. Not possible while a booking is unfinished or money is owed to you."),
-      tag: tx("Cannot be undone"),
-      tone: "risk",
-      action: (
-        <button type="button" className={HARD_BTN} onClick={() => openDrawer("help")}>
-          {tx("Ask support")}
-        </button>
-      ),
+      key: "hours",
+      label: tx("Working hours and days off"),
+      sub: tx("Hours, breaks, time between appointments, how far ahead and how late clients can book."),
+      onOpen: () => setTalentPage("calendar-availability"),
     },
   ];
 
-  return (
-    <>
-      <PageHeader
-        guideNodeId="talent-notifications"
-        title={copy.t("Settings")}
-        subtitle={bridgeTalentSelfProfile?.displayName ?? tx("Grouped by the question you are asking")}
-      />
+  const money: Row[] = [];
+  if (bridgeTalentSelfProfile) {
+    money.push(
+      {
+        key: "terms",
+        label: tx("Deposit and cancellations"),
+        sub: tx("Your defaults for new bookings. Each booking can still set its own."),
+        panel: <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />,
+      },
+      {
+        key: "currency",
+        label: tx("Currency"),
+        sub: tx("Everything you charge and everything you are shown."),
+        panel: <DefaultCurrencyCard />,
+      },
+    );
+  }
+  money.push(
+    {
+      key: "payouts",
+      label: tx("Where your money goes"),
+      sub: tx("Card payments are paid out to your account."),
+      onOpen: () => setTalentPage("payouts"),
+    },
+    {
+      key: "tax",
+      label: tx("Tax details on receipts"),
+      tag: { text: tx("Optional"), tone: "ok" },
+      onOpen: () => openDrawer("talent-tax-docs"),
+    },
+    {
+      key: "services",
+      label: tx("Services and prices"),
+      sub: tx("Everything clients can book or buy lives in Services."),
+      onOpen: () => setTalentPage("services"),
+    },
+  );
 
-      <Divider label={tx("When you work")} />
-      <Grid cols="2">
-        <SecondaryCard
-          title={tx("Working hours and days off")}
-          description={tx("Hours, breaks, time between appointments, how far ahead and how late clients can book.")}
-          affordance={tx("Open hours")}
-          onClick={() => setTalentPage("calendar-availability")}
-        />
-      </Grid>
+  const account: Row[] = [
+    {
+      key: "identity",
+      label: tx("Your name and photo"),
+      sub: tx("Shown on every page you appear on."),
+      value: displayName,
+      onOpen: () => openSection("identity"),
+    },
+  ];
+  if (bridgeTalentSelfProfile) {
+    account.push({
+      key: "language",
+      label: tx("Language"),
+      sub: tx("Your dashboard. Your public pages follow the visitor."),
+      panel: <PreferredLanguageCard />,
+    });
+  }
+  account.push(
+    {
+      key: "signin",
+      label: tx("Sign in"),
+      sub: tx("Passkeys let you sign in with Face ID or your fingerprint."),
+      panel: <PasskeysCard userName={displayName} userId={bridgeTalentSelfProfile?.id ?? "talent-self"} />,
+    },
+    {
+      key: "verification",
+      label: tx("Verification"),
+      sub: tx("Email, ownership and connected accounts."),
+      onOpen: () => openDrawer("talent-trust-detail"),
+    },
+    {
+      key: "notifications",
+      label: tx("What you are told about"),
+      sub: tx("New enquiries and payments are always on."),
+      onOpen: () => openDrawer("talent-notifications", { expanded: "settings" }),
+    },
+    {
+      key: "contact",
+      label: tx("Who can contact you"),
+      sub: tx("Which clients can send you enquiries."),
+      onOpen: () => openDrawer("talent-contact-preferences"),
+    },
+    {
+      key: "privacy",
+      label: tx("Privacy"),
+      sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
+      onOpen: () => openSection("admin"),
+    },
+    bridgeTalentSelfProfile
+      ? {
+          key: "plan",
+          label: tx("Plan"),
+          value: TALENT_TIER_META[state.talentTier].label,
+          panel: (
+            <TalentPlanCard
+              onCompare={() => openDrawer("talent-tier-compare")}
+              onUpgrade={() => openDrawer("talent-tier-compare")}
+            />
+          ),
+        }
+      : {
+          key: "plan",
+          label: tx("Plan"),
+          value: TALENT_TIER_META[state.talentTier].label,
+          onOpen: () => openDrawer("talent-tier-compare"),
+        },
+    {
+      key: "help",
+      label: tx("Help and support"),
+      sub: tx("Common questions, payouts, contact our team."),
+      onOpen: () => openDrawer("help"),
+    },
+  );
 
-      <Divider label={tx("Money rules")} />
-      {/* Booking-terms DEFAULTS and currency. Gated on a real bridged
-          profile: the mock prototype user has no talent_profiles row. */}
-      {bridgeTalentSelfProfile && <CommercialBookingTermsCard talentId={bridgeTalentSelfProfile.id} />}
-      {bridgeTalentSelfProfile && <DefaultCurrencyCard />}
-      <Grid cols="2">
-        <SecondaryCard
-          title={tx("Where your money goes")}
-          description={copy.t("Connect a Stripe account to receive payouts on confirmed bookings. Set up right inside Tulala.")}
-          affordance={copy.t("Set up payouts")}
-          onClick={() => setTalentPage("payouts")}
-        />
-        <SecondaryCard
-          title={copy.t("Tax documents")}
-          description={copy.t("Year-end summaries, W-8BEN/W-9 on file, off-platform self-declaration.")}
-          affordance={copy.t("Open tax docs")}
-          onClick={() => openDrawer("talent-tax-docs")}
-        />
-        {bridgeTalentSelfProfile && (
-          <SecondaryCard
-            title={copy.t("Services & pricing → moved to your Services tab")}
-            description={copy.t("Manage everything clients can book or buy from your page in one place.")}
-            affordance={tx("Open Services")}
-            onClick={() => setTalentPage("services")}
-          />
-        )}
-      </Grid>
-
-      <Divider label={tx("You and your account")} icon={<SettingsSectionIcon sectionId="account" />} />
-      {bridgeTalentSelfProfile && <PreferredLanguageCard />}
-      <PasskeysCard
-        userName={bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name}
-        userId={bridgeTalentSelfProfile?.id ?? "talent-self"}
-      />
-      <TalentTrustCard onOpenDetail={() => openDrawer("talent-trust-detail")} primaryAgencyName={primaryAgencyName} />
-      <Grid cols="2">
-        <SecondaryCard
-          title={tx("What you are told about")}
-          description={copy.t("What email and push you get when an agency sends you a request.")}
-          affordance={copy.t("Manage prefs")}
-          onClick={() => openDrawer("talent-notifications", { expanded: "settings" })}
-        />
-        <SecondaryCard
-          title={copy.t("Contact preferences")}
-          description={copy.t("Choose which client trust tiers can send you inquiries. Selectivity is opt-in; defaults stay open.")}
-          meta={<ContactPolicySummary policy={MY_TALENT_PROFILE.contactPolicy} />}
-          affordance={copy.t("Manage")}
-          onClick={() => openDrawer("talent-contact-preferences")}
-        />
-        <SecondaryCard
-          title={copy.t("Privacy")}
-          description={tx("Search-engine indexing, sensitive measurements and document visibility.")}
-          affordance={copy.t("Manage")}
-          onClick={() => openSection("admin")}
-        />
-        <SecondaryCard
-          title={copy.t("Identity verification")}
-          description={copy.t("ID review plus connected-account badges. Social badges only turn on after ownership is verified.")}
-          meta={<><StatDot tone="amber" /> {copy.t("Not yet verified")}</>}
-          affordance={copy.t("Open verification")}
-          onClick={() => openDrawer("talent-connections")}
-        />
-      </Grid>
-
-      <Divider label={tx("Who you work with")} icon={<SettingsSectionIcon sectionId="agencies" />} />
-      <Grid cols="auto">
-        {settingsAgencies.map((a) => (
-          <SecondaryCard
-            key={a.id}
-            title={a.name}
-            description={`${copy.t(a.status === "exclusive" ? "Exclusive" : "Non-exclusive")} · ${copy.t("joined")} ${a.joinedAt}`}
-            meta={
-              <>
-                <StatDot tone={a.isPrimary ? "green" : "ink"} />
-                {copy.t(a.isPrimary ? "Primary" : "Secondary")}
-              </>
-            }
-            affordance={copy.t("Open relationship")}
-            onClick={() => openDrawer("representation", { focusAgencyId: a.id })}
-          />
-        ))}
-        <SecondaryCard
-          title={copy.t("Add another agency")}
-          description={copy.t("Get invited via email. Agencies onboard talent, not the other way around.")}
-          affordance={copy.t("Learn more")}
-          onClick={() => openDrawer("representation")}
-        />
-        <SecondaryCard
-          title={copy.t("My Circle")}
-          description={copy.t("Trusted collaborators you can recommend into bookings in one tap.")}
-          affordance={copy.t("Manage →")}
-          onClick={() => openDrawer("circle-manage")}
-        />
-        <SecondaryCard
-          title={copy.t("Talent network")}
-          description={copy.t("Follow other talents, see who's working where, hand off briefs you can't take.")}
-          affordance={copy.t("Open network")}
-          onClick={() => openDrawer("talent-network")}
-        />
-        <SecondaryCard
-          title={copy.t("Workspace · multi-agency")}
-          description={copy.t("On the Network plan? Switch between agencies you own from one account.")}
-          affordance={copy.t("Switch workspace")}
-          onClick={() => openDrawer("talent-multi-agency-picker")}
-        />
-      </Grid>
-
-      <Divider label={copy.t("Personal page")} icon={<SettingsSectionIcon sectionId="personal-page" />} />
-      {bridgeTalentSelfProfile ? (
-        <TalentPlanCard
-          onCompare={() => openDrawer("talent-tier-compare")}
-          onUpgrade={() => openDrawer("talent-tier-compare")}
-        />
-      ) : (
-        <SecondaryCard
-          title={copy.t("Plan")}
-          description={tx("Sign in as a talent to see your live plan and any active trial.")}
-          meta={<><StatDot tone="dim" /> {copy.t("Preview")}</>}
-          affordance={copy.t("Compare plans")}
-          onClick={() => openDrawer("talent-tier-compare")}
-        />
-      )}
-
-      <Divider label={tx("Things that are hard to undo")} />
-      <div className="mb-4 overflow-hidden rounded-2xl border border-admin-critical-soft bg-white font-admin-body">
-        <p className="bg-admin-critical-soft px-4 py-3 text-[13px] text-admin-critical-deep">
-          {tx("Hiding a page, leaving an agency and closing your account are three different things. Only the last one cannot be undone.")}
-        </p>
-        <ul className="divide-y divide-admin-border-soft">
-          {hardRows.map((r) => (
-            <li key={r.title} className="flex flex-wrap items-start gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1 basis-[240px]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[14px] font-semibold text-admin-ink">{r.title}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${HARD_TONE[r.tone]}`}>{r.tag}</span>
-                </div>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-admin-ink-muted">{r.body}</p>
-              </div>
-              {r.action}
-            </li>
-          ))}
-        </ul>
-        <p className="border-t border-admin-border-soft px-4 py-3 text-[12px] text-admin-ink-muted">
-          {tx("Closing an account is handled by Tulala support for now. There is no self-serve button yet.")}
-        </p>
-      </div>
-      {/* Hide everywhere: the talent's global switch, overriding every listing. */}
-      {bridgeTalentSelfProfile && tenantSlug && (
+  const hard: Row[] = [
+    {
+      key: "hide",
+      label: tx("Hide a public page"),
+      sub: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
+      tag: { text: tx("In Where I appear"), tone: "ok" },
+      onOpen: () => setTalentPage("public-page"),
+    },
+  ];
+  if (bridgeTalentSelfProfile && tenantSlug) {
+    hard.push({
+      key: "visibility",
+      label: tx("Hide everywhere"),
+      sub: tx("One switch that overrides every page and listing."),
+      panel: (
         <ProfileVisibilityCard
           tenantSlug={tenantSlug}
           talentId={bridgeTalentSelfProfile.id}
           initialHidden={bridgeTalentSelfProfile.isPubliclyHidden}
           onOpenRepresentation={() => openDrawer("representation")}
-          agencies={(bridgeTalentAgencies ?? []).map((a) => ({
+          agencies={agencies.map((a) => ({
             id: a.id,
             agencyName: a.agencyName,
             agencyVisibility: a.agencyVisibility,
             talentSiteHidden: a.talentSiteHidden,
           }))}
         />
-      )}
+      ),
+    });
+  }
+  if (agencies.length > 0) {
+    hard.push({
+      key: "leave",
+      label: tx("Leave an agency"),
+      sub: tx("You stop receiving their jobs. Work already agreed is still yours to finish and still gets paid."),
+      tag: { text: tx("Ends a relationship"), tone: "warn" },
+      onOpen: () => openDrawer("representation"),
+    });
+  }
+  hard.push({
+    key: "close",
+    label: tx("Close your account"),
+    sub: tx(
+      "Everything goes: pages, clients, history, money records. Not possible while a booking is unfinished or money is owed to you.",
+    ),
+    tag: { text: tx("Cannot be undone"), tone: "risk" },
+    onOpen: () => openDrawer("help"),
+  });
 
-      <Divider label={copy.t("Help & support")} />
-      <Grid cols="2">
-        <SecondaryCard
-          title={copy.t("Help & support")}
-          description={copy.t("Common questions, contracts, payouts, contact our team.")}
-          affordance={copy.t("Get help")}
-          onClick={() => openDrawer("help")}
-        />
-      </Grid>
+  // Only relationships that exist. A solo talent has none, so the group hides.
+  const workWith: Row[] = agencies.map((a) => ({
+    key: a.id,
+    label: a.agencyName,
+    sub: a.isPrimary ? tx("Primary") : undefined,
+    tag: { text: tx("Active"), tone: "ok" as const },
+    onOpen: () => openDrawer("representation", { focusAgencyId: a.id }),
+  }));
+
+  return (
+    <>
+      <PageHeader guideNodeId="talent-notifications" title={copy.t("Settings")} subtitle={displayName} />
+      <div data-tulala-settings-grid className="grid grid-cols-1 items-start gap-[16px] lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-[16px]">
+          <SettingsGroup title={tx("When you work")} rows={whenYouWork} />
+          <SettingsGroup title={tx("Money rules")} rows={money} />
+        </div>
+        <div className="flex min-w-0 flex-col gap-[16px]">
+          <SettingsGroup title={tx("You and your account")} rows={account} />
+          <SettingsGroup title={tx("Things that are hard to undo")} rows={hard} tone="risk" />
+          <SettingsGroup title={tx("Who you work with")} rows={workWith} />
+        </div>
+      </div>
     </>
   );
 }
