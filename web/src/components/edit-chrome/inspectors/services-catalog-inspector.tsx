@@ -555,6 +555,18 @@ export function ServicesCatalogLayoutInspector({
         >
           <option value="outline">Outline (mockup Seleccionar)</option>
           <option value="solid">Solid fill</option>
+          <option value="pill">Ink pill</option>
+        </select>
+      </div>
+      <div className={KIT.field}>
+        <label className={KIT.label}>Content width</label>
+        <select
+          className={KIT.input}
+          value={catalog.contentWidth ?? "contained"}
+          onChange={(e) => onPatch({ contentWidth: e.target.value })}
+        >
+          <option value="contained">Centered column</option>
+          <option value="full">Full width</option>
         </select>
       </div>
       {showPhotoCorners ? (

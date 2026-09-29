@@ -71,12 +71,13 @@ const MAISON_V2_SKIN = [
   // ── Row 3 Ticker: the serif marquee variant carries the look; colour from the Look.
   `${S} .site-builder-node--marquee{color:var(--token-color-ink);letter-spacing:normal}`,
   `${S} .site-builder-node--marquee :is(.site-builder-node--marquee-item,.site-builder-node--marquee-sep){line-height:normal;letter-spacing:normal}`,
+  `${S} .site-builder-node--marquee .site-builder-node--marquee-item{line-height:1.54}`,
 
   // ── Row 4 Recent work: 3:4 frames, 20px radius, bold caption + accent service link.
   `${S} .sb-portfolio-cap{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;line-height:1.5;font-weight:600;color:var(--token-color-ink)}`,
   `${S} .sb-portfolio-shot{font:inherit}`,
   // Phone filmstrip bleeds to the screen edge (`.strip{margin:0 -18px;padding:0 18px 6px}`).
-  `@media (max-width:899px){${S} .sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px;scroll-padding-inline:18px}}`,
+  `@media (max-width:899px){${S} .sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px}}`,
   `${S} .sb-portfolio-service{margin:0;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;white-space:nowrap;color:var(--token-color-accent,var(--token-color-primary))}`,
 
   // ── Row 5 Menu: category chips (phone) / sticky 240px rail (desktop), italic group heads, 64px thumb rows.
@@ -91,6 +92,7 @@ const MAISON_V2_SKIN = [
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-photo{width:64px;height:64px;border-radius:14px;background:var(--token-color-blush,var(--token-color-surface-raised))}`,
   `${S} .site-builder-node--services-catalog-copy{max-width:none;gap:3px}`,
   `${S} .site-builder-node--services-catalog-name{font-size:15px;font-weight:600;line-height:1.3}`,
+  `${S} .site-builder-node--services-catalog-name-text{-webkit-line-clamp:3;text-wrap:pretty}`,
   `${S} .site-builder-node--services-catalog-duration{font-size:12.5px;color:var(--token-color-muted)}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:10px;width:auto;min-width:0}`,
   `${S} .site-builder-node--services-catalog-price{min-width:0;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--token-color-ink)}`,
@@ -100,7 +102,6 @@ const MAISON_V2_SKIN = [
   `${S} .site-builder-node--services-catalog-pill-count{margin-left:4px;font-size:.85em;opacity:.55;color:inherit}`,
   `${S} .site-builder-node--services-catalog-group-title{display:flex;align-items:baseline;gap:10px}`,
   `${S} .site-builder-node--services-catalog-group-count{font-family:var(--site-body-font,inherit);font-style:normal;font-size:11.5px;font-weight:500;color:var(--token-color-muted)}`,
-  `${S} .site-builder-node--services-catalog-demo{font-size:12px;margin:0 0 8px;color:var(--token-color-muted);background:none;padding:0}`,
   `${S} .site-builder-node--services-catalog-cta{min-height:34px;height:34px;padding:0 14px;border-radius:99px;border:1.5px solid var(--token-color-ink);background:transparent;color:var(--token-color-ink);font-size:13px;font-weight:600}`,
   `${S} .site-builder-node--services-catalog-cta[data-selected="true"]{background:var(--token-color-accent);border-color:var(--token-color-accent);color:var(--token-color-primary-on,var(--token-color-background))}`,
   `${MQ_DESK}{`,

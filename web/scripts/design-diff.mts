@@ -117,11 +117,22 @@ async function ensureAuth(browser: Browser): Promise<void> {
   await ctx.close();
 }
 
+/**
+ * Marks the page as a harness capture: `[data-harness]` stops the marquee on
+ * both sides (the local renderer honours it; the artifact gets the same rule
+ * injected) so the ticker row compares a still frame, not a random offset.
+ */
+async function markHarness(page: Page): Promise<void> {
+  await page.evaluate(() => document.documentElement.setAttribute("data-harness", ""));
+  await page.addStyleTag({ content: "[data-harness] .tick div{animation:none!important}" });
+}
+
 async function shoot(page: Page, sels: string[], file: string): Promise<boolean> {
   for (const s of sels) {
     const loc = page.locator(s).first();
     if ((await loc.count()) > 0 && (await loc.isVisible().catch(() => false))) {
-      await loc.scrollIntoViewIfNeeded().catch(() => {});
+      // Centre the row so a short band never sits under the fixed dock.
+      await loc.evaluate((el) => el.scrollIntoView({ block: "center" })).catch(() => {});
       await page.waitForTimeout(400);
       await loc.screenshot({ path: file, animations: "disabled" });
       return true;
@@ -218,6 +229,7 @@ async function main(): Promise<void> {
     await ap.locator("[data-v='exp']").first().click().catch(() => {});
     await ap.locator(`#devseg button[data-d="${viewport}"]`).click().catch(() => {});
     await ap.waitForTimeout(800);
+    await markHarness(ap);
 
     // Local side.
     const lctx = await browser.newContext({ storageState: AUTH_FILE, viewport: { width: viewport, height: 900 } });
@@ -230,6 +242,7 @@ async function main(): Promise<void> {
       (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}&locale=es` : "");
     assertLocal(localUrl);
     await lp.goto(localUrl, { waitUntil: "networkidle", timeout: 120_000 });
+    await markHarness(lp);
 
     const summary: { row: string; label: string; score: number | null; missing: boolean; missingSide?: string }[] = [];
     for (const row of design.rows) {

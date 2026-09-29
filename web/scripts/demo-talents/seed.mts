@@ -213,7 +213,7 @@ async function writeOfferings(d: DemoTalent, profileId: string) {
     sort_order: i,
     owner_kind: "talent",
     first_published_at: now,
-    attributes: { demo_batch: DEMO_BATCH },
+    attributes: { demo_batch: DEMO_BATCH, ...(s.priceUnit ? { price_unit: s.priceUnit } : {}) },
   }));
   const { data: inserted, error } = await admin.from("talent_offerings").insert(rows).select("id, sort_order");
   if (error) throw error;

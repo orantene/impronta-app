@@ -312,6 +312,9 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
               showUsdEquivalent: false,
               pricePlacement: "meta",
               mobileBar: "pill",
+              // `.pick`: 34px ink-outline pill; `.menu-wrap` spans the container.
+              rowCtaVariant: "pill",
+              contentWidth: "full",
               style: { ...styleOf(n), maxWidth: "full" },
             })
           : n,
@@ -360,11 +363,16 @@ function maisonV2About(makeId: KitIdFactory): BuilderNode {
     }
     return kids.length ? withProps(node, {}, kids) : node;
   };
-  // `.about`: .8fr / 1fr, 64px gutter, centred; stacked on the phone.
-  const { marginTop: _mt, ...aboutStyle } = styleOf(about);
+  // `.about`: .8fr / 1fr, 64px gutter, centred; stacked on the phone. The kit's
+  // own width / gutter (maxWidth wide, paddingX m) must not ride back in through
+  // the extra style, or the split stays a 960px column with 24px sides.
+  const { marginTop: _mt, maxWidth: _mw, paddingX: _px, paddingY: _py, ...aboutStyle } = styleOf(about);
   void _mt;
+  void _mw;
+  void _px;
+  void _py;
   return fullBleed(visit(withProps(about, { style: aboutStyle })), {
-    ...withSecPad(aboutStyle),
+    ...withSecPad({ responsive: aboutStyle.responsive }),
     gridTemplateColumns: "0.8fr 1fr",
     gap: "64px",
     responsive: { mobile: { paddingX: "s", ...SEC_PAD_MOBILE, gridTemplateColumns: "1fr", gap: "18px" } },

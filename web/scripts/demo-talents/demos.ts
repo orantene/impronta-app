@@ -26,6 +26,8 @@ export type DemoService = {
   variants?: { label: string; priceMxn: number }[];
   /** Stackable extras (MXN on top). */
   extras?: { label: string; priceMxn: number }[];
+  /** Priced per unit ("Desde $120 por uña"): stored as `attributes.price_unit`. */
+  priceUnit?: { es: string; en: string };
   /** Pack photo key used as this service's thumbnail. */
   photo?: string;
 };

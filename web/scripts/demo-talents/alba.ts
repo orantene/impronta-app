@@ -140,6 +140,7 @@ export const ALBA: DemoTalent = {
       amountMxn: 120,
       // The proposal lists no length ("Desde $120 por uña"); 10 min per nail.
       durationMin: 10,
+      priceUnit: { es: "uña", en: "nail" },
       booking: "request",
       photo: "nailart",
     },

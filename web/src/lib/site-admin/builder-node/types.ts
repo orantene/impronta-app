@@ -1556,7 +1556,10 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     featuredOfferingIds?: string[];
     sort?: "catalog" | "manual";
     manualOrderIds?: string[];
-    rowCtaVariant?: "outline" | "solid";
+    /** pill = 34px ink-outline pill (Maison v2 `.pick`); request rows take the hairline alt. */
+    rowCtaVariant?: "outline" | "solid" | "pill";
+    /** full = rail + rows span the whole section (no 1120px column). */
+    contentWidth?: "contained" | "full";
     photoRadius?: "square" | "soft" | "round";
     durationFormat?: "auto" | "minutes" | "hours_minutes";
     /** pill = one glass capsule: chat button + "See services" (Maison v2 dock). */
