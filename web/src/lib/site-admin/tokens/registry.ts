@@ -30,6 +30,7 @@
  */
 
 import { z } from "zod";
+import { STYLE_TOKEN_DEFS, styleTokenValidator, type StyleTokenGroup } from "./style-tokens";
 
 /**
  * Hex color in the form "#rgb" or "#rrggbb". Accessibility contrast checks
@@ -1065,7 +1066,51 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`editorial-ivory` is the warm Muse Bridal canvas. `editorial-noir` is the black-canvas gold-serif register (original Impronta). `aurora` is the existing default radial glow. `plain` = neutral solid background.",
   },
+
+  // ── Guest chat look ─────────────────────────────────────────────────
+  "chat.variant": {
+    key: "chat.variant",
+    label: "Chat style",
+    scope: "background",
+    agencyConfigurable: true,
+    validator: z.enum(["standard", "card"]),
+    defaultValue: "standard",
+    group: "Site shell",
+    description:
+      "`standard` = the full messages dock (tabs, services rail, progress). `card` = a calm one-to-one chat card in the site's own colours and fonts: avatar + name, a greeting bubble and a message pill. Sending and booking work the same in both. A Design may set this as its default.",
+  },
+  // Site style tokens (type roles, buttons, shape, spacing). Defaults are "",
+  // i.e. "use the Design default"; see style-tokens.ts.
+  ...styleTokenSpecs(),
 };
+
+function styleTokenSpecs(): Record<string, TokenSpec> {
+  const scopeOf: Record<StyleTokenGroup, TokenScope> = {
+    typography: "typography",
+    buttons: "radius",
+    shape: "radius",
+    spacing: "spacing",
+  };
+  const groupOf: Record<StyleTokenGroup, string> = {
+    typography: "Type roles",
+    buttons: "Buttons",
+    shape: "Shape",
+    spacing: "Spacing",
+  };
+  const out: Record<string, TokenSpec> = {};
+  for (const def of STYLE_TOKEN_DEFS) {
+    out[def.key] = {
+      key: def.key,
+      label: def.label.en,
+      scope: scopeOf[def.group],
+      agencyConfigurable: true,
+      validator: styleTokenValidator(def),
+      defaultValue: "",
+      group: groupOf[def.group],
+    };
+  }
+  return out;
+}
 
 export function getToken(key: string): TokenSpec | null {
   return TOKEN_REGISTRY[key] ?? null;

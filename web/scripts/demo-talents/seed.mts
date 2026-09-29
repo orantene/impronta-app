@@ -24,6 +24,13 @@
  *
  * Photo pack JSON: { "TAL-93001": [ { "file": "/abs/path.jpg", "variant": "card"|"gallery"|"banner",
  *   "source": "https://unsplash.com/photos/..." , "alt": "..." } ] }
+ *
+ * A demo with a `photos` plan (Alba) reads `<key>.jpg` from --photo-dir instead
+ * and also gets: service categories, options and extras, captions + service
+ * links on its work photos, FAQ, demo reviews (from demo client users, shown
+ * with a "Demo review" label), a home-base city and a change window.
+ *   ... seed.mts --manifest <m.json> --only TAL-93020 --photo-dir <dir> \
+ *       --password-env <path/.env.local>   # QA sign-in, written there, never printed
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
@@ -34,7 +41,9 @@ import {
   buildStarterHomePageTree,
 } from "../../src/lib/talent-site/default-max-site-trees";
 import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-preset";
+import { randomBytes } from "node:crypto";
 import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
+import { ALBA_PHOTO_SOURCES } from "./alba";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -49,6 +58,8 @@ const opt = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const manifestPath = opt("--manifest");
+const photoDir = opt("--photo-dir");
+const passwordEnv = opt("--password-env");
 if (!manifestPath) throw new Error("--manifest <path.json> is required");
 if (path.resolve(manifestPath).startsWith(path.resolve(process.cwd(), ".."))) {
   throw new Error("REFUSE: keep the manifest outside the repo (the repo is public)");
@@ -84,6 +95,10 @@ type ManifestEntry = {
   storagePaths: string[];
   photoSources: string[];
   bookingHours?: boolean;
+  /** Photo plan key -> media asset id (plan-based demos). */
+  photoKeys?: Record<string, string>;
+  /** Demo client users that wrote the demo reviews (removed with the batch). */
+  reviewerUserIds?: string[];
   createdAt: string;
 };
 type PackPhoto = { file: string; variant: string; source: string; photographer?: string; alt?: string };
@@ -189,6 +204,8 @@ async function writeOfferings(d: DemoTalent, profileId: string) {
     reserve_mode: "free",
     allow_pay_in_person: true,
     duration_minutes: s.durationMin,
+    ...(s.category ? { category: s.category } : {}),
+    ...(s.cancellationHours != null ? { cancellation_hours: s.cancellationHours } : {}),
     status: "published",
     visibility: "public",
     moderation_state: "approved",
@@ -196,10 +213,218 @@ async function writeOfferings(d: DemoTalent, profileId: string) {
     sort_order: i,
     owner_kind: "talent",
     first_published_at: now,
-    attributes: { demo_batch: DEMO_BATCH },
+    attributes: { demo_batch: DEMO_BATCH, ...(s.priceUnit ? { price_unit: s.priceUnit } : {}) },
   }));
-  const { error } = await admin.from("talent_offerings").insert(rows);
+  const { data: inserted, error } = await admin.from("talent_offerings").insert(rows).select("id, sort_order");
   if (error) throw error;
+  const idBySort = new Map((inserted ?? []).map((r) => [r.sort_order as number, r.id as string]));
+  const variants = d.services.flatMap((s, i) =>
+    (s.variants ?? []).map((v, j) => ({ offering_id: idBySort.get(i), label: v.label, amount_cents: v.priceMxn * 100, sort_order: j })),
+  );
+  const addons = d.services.flatMap((s, i) =>
+    (s.extras ?? []).map((x, j) => ({ offering_id: idBySort.get(i), label: x.label, amount_cents: x.priceMxn * 100, sort_order: j })),
+  );
+  if (variants.length) {
+    const { error: vErr } = await admin.from("talent_offering_variants").insert(variants);
+    if (vErr) throw vErr;
+  }
+  if (addons.length) {
+    const { error: aErr } = await admin.from("talent_offering_addons").insert(addons);
+    if (aErr) throw aErr;
+  }
+}
+
+// Plan-based photos (Alba): headshot as `card` first, then the work strip in
+// order (caption in metadata), then the rest. Sources are the proposal's
+// Unsplash picks.
+async function uploadPlanPhotos(d: DemoTalent, profileId: string, userId: string, dir: string, entry: ManifestEntry, manifest: Manifest) {
+  const plan = d.photos!;
+  if (entry.photoKeys && Object.keys(entry.photoKeys).length) {
+    console.log("  plan photos already uploaded, skipping", d.profileCode);
+    return;
+  }
+  entry.photoKeys = {};
+  const list: { key: string; variant: string; caption?: string }[] = [
+    { key: plan.headshot, variant: "card" },
+    ...plan.work.map((w) => ({ key: w.key, variant: "gallery", caption: w.caption })),
+    ...plan.more.filter((k) => !plan.work.some((w) => w.key === k)).map((k) => ({ key: k, variant: "gallery" })),
+  ];
+  for (const [i, p] of list.entries()) {
+    const file = path.join(dir, `${p.key}.jpg`);
+    const source = ALBA_PHOTO_SOURCES[p.key];
+    if (!source) throw new Error(`no source recorded for photo ${p.key}`);
+    const body = fs.readFileSync(file);
+    const storagePath = `tenant/${HUB_TENANT_ID}/talent/${profileId}/${randomUUID()}.jpg`;
+    const { error: upErr } = await admin.storage.from(BUCKET).upload(storagePath, body, { contentType: "image/jpeg" });
+    if (upErr) throw upErr;
+    entry.storagePaths.push(storagePath);
+    saveManifest(manifest);
+    const { data, error } = await admin
+      .from("media_assets")
+      .insert({
+        tenant_id: HUB_TENANT_ID,
+        owner_talent_profile_id: profileId,
+        bucket_id: BUCKET,
+        storage_path: storagePath,
+        variant_kind: p.variant,
+        approval_state: "approved",
+        purpose: "talent",
+        sort_order: i,
+        file_size: body.length,
+        mime_type: "image/jpeg",
+        alt: plan.alt?.[p.key] ?? p.caption ?? d.displayName,
+        attribution_note: `Unsplash · ${source}`,
+        metadata: { source, demo_batch: DEMO_BATCH, ...(p.caption ? { caption: p.caption } : {}) },
+        ownership_kind: "talent",
+        owner_tenant_id: null,
+        uploaded_by_user_id: userId,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    entry.mediaAssetIds.push(data.id);
+    entry.photoSources.push(source);
+    entry.photoKeys[p.key] = data.id;
+    saveManifest(manifest);
+  }
+}
+
+// Each service's own thumbnail first, then the work shots that link to it
+// ("Quiero esto" on the strip opens that service).
+async function linkPlanPhotos(d: DemoTalent, profileId: string, entry: ManifestEntry) {
+  const keys = entry.photoKeys ?? {};
+  const { data: offers, error } = await admin
+    .from("talent_offerings")
+    .select("id, sort_order")
+    .eq("talent_profile_id", profileId)
+    .order("sort_order");
+  if (error) throw error;
+  const byIndex = new Map((offers ?? []).map((o) => [o.sort_order as number, o.id as string]));
+  const rows: { offering_id: string; media_asset_id: string; sort_order: number }[] = [];
+  d.services.forEach((s, i) => {
+    const oid = byIndex.get(i);
+    const mid = s.photo ? keys[s.photo] : undefined;
+    if (oid && mid) rows.push({ offering_id: oid, media_asset_id: mid, sort_order: 0 });
+  });
+  for (const w of d.photos?.work ?? []) {
+    const oid = w.service != null ? byIndex.get(w.service) : undefined;
+    const mid = keys[w.key];
+    if (oid && mid && !rows.some((r) => r.offering_id === oid && r.media_asset_id === mid)) {
+      rows.push({ offering_id: oid, media_asset_id: mid, sort_order: 1 });
+    }
+  }
+  if (rows.length) {
+    const { error: lErr } = await admin.from("talent_offering_media").insert(rows);
+    if (lErr) throw lErr;
+  }
+}
+
+// Private checklist fields (last name, phone, gender, birth date, where she
+// lives and is from) so the profile reads 100% complete.
+async function completeProfile(d: DemoTalent, profileId: string) {
+  if (!d.profile) return;
+  const slug = d.city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const [{ data: loc }, { data: mx }] = await Promise.all([
+    admin.from("locations").select("id").eq("country_code", "MX").eq("city_slug", slug).is("archived_at", null).maybeSingle(),
+    admin.from("countries").select("id").eq("iso2", "MX").maybeSingle(),
+  ]);
+  const { error } = await admin
+    .from("talent_profiles")
+    .update({
+      last_name: d.profile.lastName,
+      phone: d.profile.phone,
+      gender: d.profile.gender,
+      date_of_birth: d.profile.dateOfBirth,
+      ...(loc?.id ? { location_id: loc.id, residence_city_id: loc.id, origin_city_id: loc.id } : {}),
+      ...(mx?.id ? { origin_country_id: mx.id } : {}),
+    })
+    .eq("id", profileId);
+  if (error) throw error;
+  if (!loc?.id) console.warn("  no location row for", d.city, "(lives in / from left empty)");
+}
+
+async function writeFaq(d: DemoTalent, profileId: string) {
+  if (!d.faq?.length) return;
+  const { error: delErr } = await admin.from("talent_faq_items").delete().eq("talent_profile_id", profileId);
+  if (delErr) throw delErr;
+  const { error } = await admin.from("talent_faq_items").insert(
+    d.faq.map((f, i) => ({ talent_profile_id: profileId, question: f.q, answer: f.a, status: "published", sort_order: i })),
+  );
+  if (error) throw error;
+}
+
+// Demo reviews come from demo client users (@impronta.test, demo_batch). The
+// site labels every card "Demo review" because the talent is_demo.
+async function writeReviews(d: DemoTalent, profileId: string, entry: ManifestEntry) {
+  if (!d.reviews?.length) return;
+  const { error: delErr } = await admin.from("talent_reviews").delete().eq("talent_profile_id", profileId);
+  if (delErr) throw delErr;
+  entry.reviewerUserIds = entry.reviewerUserIds ?? [];
+  const base = Date.now();
+  for (const [i, r] of d.reviews.entries()) {
+    const reviewer: DemoTalent = { ...d, email: d.email.replace("@", `-cliente-${i + 1}@`), displayName: r.name };
+    assertDemoIdentity(reviewer);
+    const uid = await ensureUser(reviewer);
+    if (!entry.reviewerUserIds.includes(uid)) entry.reviewerUserIds.push(uid);
+    await admin.from("profiles").update({ display_name: r.name }).eq("id", uid);
+    const { error } = await admin.from("talent_reviews").insert({
+      tenant_id: HUB_TENANT_ID,
+      talent_profile_id: profileId,
+      client_user_id: uid,
+      rating: 5,
+      body: r.body,
+      status: "published",
+      // First review in the list is the newest.
+      created_at: new Date(base - i * 86_400_000).toISOString(),
+    });
+    if (error) throw error;
+  }
+}
+
+async function writeHomeBase(d: DemoTalent, profileId: string) {
+  if (!d.photos) return;
+  const slug = d.city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const { data: loc } = await admin
+    .from("locations")
+    .select("id")
+    .eq("country_code", "MX")
+    .eq("city_slug", slug)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (!loc?.id) {
+    console.warn("  no location row for", d.city, "(home base skipped)");
+    return;
+  }
+  const { error: delErr } = await admin
+    .from("talent_service_areas")
+    .delete()
+    .eq("talent_profile_id", profileId)
+    .eq("service_kind", "home_base");
+  if (delErr) throw delErr;
+  const { error } = await admin.from("talent_service_areas").insert({
+    tenant_id: HUB_TENANT_ID,
+    talent_profile_id: profileId,
+    location_id: loc.id,
+    service_kind: "home_base",
+    display_order: 0,
+  });
+  if (error) throw error;
+}
+
+// QA sign-in for ONE demo: a random password set on the demo user and written
+// to the given env file as QA_<NAME>_PASSWORD. Never printed.
+async function setQaPassword(d: DemoTalent, userId: string, envFile: string) {
+  const password = randomBytes(18).toString("base64url");
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) throw error;
+  const key = `QA_${d.displayName.split(" ")[0]!.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()}_PASSWORD`;
+  const text = fs.existsSync(envFile) ? fs.readFileSync(envFile, "utf8") : "";
+  const lines = text.split("\n").filter((l) => !l.startsWith(`${key}=`));
+  while (lines.length && lines[lines.length - 1] === "") lines.pop();
+  lines.push(`${key}=${password}`, "");
+  fs.writeFileSync(envFile, lines.join("\n"), { mode: 0o600 });
+  console.log("  QA password set; written to", envFile, "as", key);
 }
 
 // Working hours so instant services show real time slots. Bookings are still
@@ -402,12 +627,22 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     .upsert({ talent_profile_id: profileId, taxonomy_term_id: tid, is_primary: true, relationship_type: "primary_role", display_order: 0, updated_at: now }, { onConflict: "talent_profile_id,taxonomy_term_id" });
   if (txErr) throw txErr;
 
-  if (pack?.[d.profileCode]?.length) {
-    await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry, manifest);
-    saveManifest(manifest);
+  if (d.photos) {
+    if (!photoDir) throw new Error(`${d.profileCode} has a photo plan: --photo-dir <dir> is required`);
+    await uploadPlanPhotos(d, profileId, userId, photoDir, entry, manifest);
+    await linkPlanPhotos(d, profileId, entry);
+  } else {
+    if (pack?.[d.profileCode]?.length) {
+      await uploadPhotos(d, profileId, userId, pack[d.profileCode], entry, manifest);
+      saveManifest(manifest);
+    }
+    await linkOfferingPhotos(profileId);
   }
-
-  await linkOfferingPhotos(profileId);
+  await completeProfile(d, profileId);
+  await writeFaq(d, profileId);
+  await writeReviews(d, profileId, entry);
+  await writeHomeBase(d, profileId);
+  if (passwordEnv) await setQaPassword(d, userId, passwordEnv);
   await writeBookingHours(d, profileId, entry);
   saveManifest(manifest);
 
@@ -470,6 +705,9 @@ async function removeBatch(manifest: Manifest) {
       ["media_assets", admin.from("media_assets").delete().eq("owner_talent_profile_id", e.talentProfileId)],
       ["talent_booking_hours", admin.from("talent_booking_hours").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_offerings", admin.from("talent_offerings").delete().eq("talent_profile_id", e.talentProfileId)],
+      ["talent_reviews", admin.from("talent_reviews").delete().eq("talent_profile_id", e.talentProfileId)],
+      ["talent_faq_items", admin.from("talent_faq_items").delete().eq("talent_profile_id", e.talentProfileId)],
+      ["talent_service_areas", admin.from("talent_service_areas").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_pages", admin.from("talent_pages").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_site_revisions", admin.from("talent_site_revisions").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_sites", admin.from("talent_sites").delete().eq("talent_profile_id", e.talentProfileId)],
@@ -487,6 +725,12 @@ async function removeBatch(manifest: Manifest) {
     }
     const { error: uErr } = await admin.auth.admin.deleteUser(e.userId);
     if (uErr) console.warn("  auth delete failed", e.email, uErr.message);
+    for (const rid of e.reviewerUserIds ?? []) {
+      const { data: ru } = await admin.auth.admin.getUserById(rid);
+      if (ru.user && ru.user.app_metadata?.demo_batch !== DEMO_BATCH) continue;
+      const { error: rErr } = await admin.auth.admin.deleteUser(rid);
+      if (rErr) console.warn("  reviewer delete failed", rid, rErr.message);
+    }
     delete manifest.entries[e.profileCode];
     saveManifest(manifest);
     console.log("removed", e.profileCode, e.email);
@@ -501,6 +745,7 @@ if (flag("--links")) {
   await removeBatch(manifest);
 } else {
   const only = opt("--only")?.split(",");
+  if (passwordEnv && only?.length !== 1) throw new Error("--password-env needs exactly one --only demo");
   const packPath = opt("--photos");
   const pack = packPath ? (JSON.parse(fs.readFileSync(packPath, "utf8")) as Pack) : null;
   for (const d of DEMOS.filter((x) => !only || only.includes(x.profileCode))) {

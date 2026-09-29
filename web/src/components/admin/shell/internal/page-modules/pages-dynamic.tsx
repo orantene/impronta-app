@@ -56,8 +56,13 @@ export const MessagesV5Shell = dynamic(
   { loading: MessagesShellSkeleton },
 );
 
+// TalentSurface has its OWN import target (perf/talent-dev-bundle). Since
+// talent.tsx loads its page bodies with next/dynamic, it no longer reaches the
+// messages shell or the drawers statically, so sharing the
+// `shell-lazy-surfaces` group only made every talent route download all 118
+// drawer bodies and the messages shell before it could hydrate.
 export const TalentSurface = dynamic(
-  () => import("../shell-lazy-surfaces").then((m) => ({ default: m.TalentSurface })),
+  () => import("../talent").then((m) => ({ default: m.TalentSurface })),
   { loading: () => null },
 );
 

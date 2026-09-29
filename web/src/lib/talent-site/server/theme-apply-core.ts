@@ -107,9 +107,26 @@ export function pruneEmptyHydratedNodes(tree: ReadonlyArray<BuilderNode>): Build
     }
     return false;
   };
+  // A ticker word that hydrated to "" (no third service...) drops out; a ticker
+  // left with no words drops out entirely.
+  const dropEmptyItems = (node: BuilderNode): BuilderNode => {
+    if (node.kind !== "marquee") return node;
+    const items = ((node.props ?? {}) as { items?: Array<{ text?: unknown }> }).items;
+    if (!Array.isArray(items)) return node;
+    const kept = items.filter((it) => typeof it?.text === "string" && it.text.trim() !== "");
+    return kept.length === items.length
+      ? node
+      : ({ ...node, props: { ...(node.props as object), items: kept } } as BuilderNode);
+  };
+  const emptyTicker = (node: BuilderNode): boolean =>
+    node.kind === "marquee" &&
+    Array.isArray((node.props as { items?: unknown[] }).items) &&
+    ((node.props as { items: unknown[] }).items.length === 0);
   const prune = (nodes: ReadonlyArray<BuilderNode>): BuilderNode[] =>
     nodes
       .filter((node) => !isEmpty(node))
+      .map(dropEmptyItems)
+      .filter((node) => !emptyTicker(node))
       .map((node) =>
         "children" in node && Array.isArray(node.children)
           ? ({ ...node, children: prune(node.children) } as BuilderNode)

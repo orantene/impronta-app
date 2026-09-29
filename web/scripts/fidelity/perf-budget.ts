@@ -233,12 +233,18 @@ export const BUDGETS: readonly Budget[] = [
   // emit (audited again: 0 B of the number is commentary). The remaining
   // +1.2 KB is the feature, not waste.
   //
+  // RE-TUNED 2026-09-29: 128 → 136 KB. Spend is integ designs-final land
+  // (#2429): Maison v2 + Folio native widgets (portfolio chapter, masthead,
+  // rate_card, reviews, visit, comp_card, next_free_chip, magazine spread
+  // leaves, etc.) on the shared renderer sheet. Measured 134.3 KB across all
+  // fidelity designs. Scoped/shipped sheet still green (≤ 90 KB; worst ~83.9).
+  // ~1.7 KB named pad so the next kind is an argument, not an accidental red.
+  //
   // What a visitor downloads did NOT move into the red: the scoped ceiling
-  // below stays at 103 KB and measures 83.8–89.3 KB across all seven designs,
-  // ~14 KB of headroom. That is the number that protects page weight; this one
-  // is an early-warning on the build-time sheet, and twelve kinds cannot cost
-  // less than the ~1 KB of pad the previous retune deliberately left.
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 128 * KB, unit: "bytes" },
+  // below stays at 90 KB and measures ≤ 83.9 KB across designs. That is the
+  // number that protects page weight; this one is an early-warning on the
+  // build-time sheet.
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 136 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for
@@ -378,7 +384,10 @@ export const BUDGETS: readonly Budget[] = [
   },
   // The HTML document itself. Rich pages reference images externally, so the
   // document stays small; a balloon here means inlined data or runaway markup.
-  { key: "htmlBytes", label: "Rendered HTML size", max: 220 * KB, unit: "bytes" },
+  // RE-TUNED 2026-09-29: 220 → 236 KB. Spend is integ #2429 (Impronta fidelity
+  // design HTML grew with shell/composer composition). Measured 232.4 KB on
+  // `impronta`; ~3.6 KB named pad.
+  { key: "htmlBytes", label: "Rendered HTML size", max: 236 * KB, unit: "bytes" },
   // Structure runaway guard (a repeater bound to a 5,000-row source, etc.).
   { key: "domNodeCount", label: "DOM node count", max: 2_500, unit: "count" },
   // Each webfont blocks text paint; 2–4 faces is tasteful, 6 is a hard ceiling.

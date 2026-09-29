@@ -14,30 +14,32 @@ function read(name: string): string {
   return readFileSync(join(ROOT, name), "utf8");
 }
 
-test("W75: Choose a design has no search or filter controls", () => {
+test("P3: Choose a design renders the browse gallery (supersedes W75)", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /data-maison-choose-design/);
-  assert.match(src, /no search input and no filter chips/);
   assert.match(src, /maison-gallery-back/);
-  assert.match(src, /Find your website style/);
-  assert.equal(/type=["']search["']/.test(src), false);
-  assert.equal(/placeholder=\{?["'].*Search/.test(src), false);
-  assert.equal(/filter/i.test(src) && /<input/.test(src), false);
+  assert.match(src, /<GalleryBrowseScreen/);
+  const gallery = read("GalleryBrowseScreen.tsx");
+  assert.match(gallery, /t\("Find your website style"\)/);
+  assert.match(gallery, /t\("Search a profession or theme"\)/);
+  assert.match(gallery, /t\("Reset filters"\)/);
+  assert.match(gallery, /t\("Last viewed"\)/);
+  assert.match(gallery, /visibleGalleryDesigns/);
+  assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(gallery), false, "no hex literals");
+  assert.equal(gallery.includes("—"), false, "no em dashes");
 });
 
-test("cr_gallery chrome: Today back + close + hero hierarchy", () => {
+test("cr_gallery chrome: Today back + close above the gallery hero", () => {
   const src = read("ChooseDesignScreen.tsx");
   assert.match(src, /maisonSetupT\(locale, "Today"\)/);
   assert.match(src, /maison-gallery-close/);
-  assert.match(src, /Find your website style/);
-  // Hero is the large heading; chrome title is Choose a design
-  const heroIdx = src.indexOf('maisonSetupT(locale, "Find your website style")');
   const chooseIdx = src.indexOf('maisonSetupT(locale, "Choose a design")');
-  assert.ok(chooseIdx > 0 && heroIdx > chooseIdx);
+  const galleryIdx = src.indexOf("<GalleryBrowseScreen");
+  assert.ok(chooseIdx > 0 && galleryIdx > chooseIdx);
 });
 
 test("PDF primary CTAs use admin-ink (black), not emerald", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /maison-use-design[\s\S]*?bg-admin-ink/);
   assert.match(detail, /maison-use-design-phone[\s\S]*?bg-admin-ink/);
   assert.match(detail, /maison-phone-colors-close/);
@@ -71,7 +73,7 @@ test("host renders nothing when flag/bootstrap is off", () => {
 });
 
 test("W34: phone sheets are mutually exclusive state", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /phoneSheet/);
   assert.match(detail, /data-maison-phone-sheet/);
   assert.match(detail, /openSheet\("demos"\)/);
@@ -79,11 +81,12 @@ test("W34: phone sheets are mutually exclusive state", () => {
 });
 
 test("W30–W32: Demo|My content, status words, five palettes", () => {
-  const detail = read("ThemeDetailScreen.tsx");
+  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
   assert.match(detail, /maison-mode-\$\{mode\}/);
   assert.match(detail, /\(\["demo", "mine"\]/);
   assert.match(detail, /maison-status-word/);
-  assert.match(detail, /MAISON_PALETTE_ORDER/);
+  // P4: palettes come from gallery-meta for every design (Maison included).
+  assert.match(detail, /design\.palettes\.map/);
   assert.match(detail, /Choices saved/);
 });
 
@@ -112,7 +115,11 @@ test("W40: My website card has Live + View / Change / Design options", () => {
   assert.match(card, /maison-view-website/);
   assert.match(card, /maison-change-design/);
   assert.match(card, /maison-design-options/);
-  assert.match(card, /● Live/);
+  assert.match(card, /data-testid="maison-live-pill"/);
+  assert.match(card, /maison-edit-site/);
+  assert.match(card, /maison-restore-previous/);
+  assert.match(card, /liveCardDesignLabel/);
+  assert.match(card, /kind=live-site/);
   assert.match(card, /DesignOptionsPanel/);
   assert.equal(/Design options open in a later step/.test(card), false);
 });

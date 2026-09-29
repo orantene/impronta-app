@@ -87,6 +87,22 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Menu · orderable items";
     case "services_catalog":
       return "Services menu · your catalogue";
+    case "portfolio":
+      return "Portfolio · your live media";
+    case "reviews":
+      return "Reviews · your client quotes";
+    case "visit":
+      return "Visit · areas, days, languages";
+    case "contents":
+      return "Contents · chapter index";
+    case "masthead":
+      return "Masthead · stacked words";
+    case "statement_footer":
+      return "Statement footer · credit and contact";
+    case "comp_card":
+      return "Comp card · measure strip";
+    case "next_free_chip":
+      return "Next free · live slot chip";
     case "session_picker":
       return "Sessions · book a seat";
     case "ticket_picker":

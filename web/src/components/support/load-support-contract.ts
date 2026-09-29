@@ -26,12 +26,17 @@ export async function loadSupportContract(input: {
   const session = await getCachedActorSession();
   if (!session.user) return null;
 
-  const firstName =
-    (typeof session.user.user_metadata?.first_name === "string"
-      ? session.user.user_metadata.first_name
-      : null) ||
-    session.user.email?.split("@")[0] ||
-    "there";
+  // Greeting name: the talent's own profile name on the talent surface, then
+  // the account first name. Never the email local-part (it greeted
+  // "Hi demo-jor-clone"); an empty name renders a neutral "Hi".
+  let firstName =
+    typeof session.user.user_metadata?.first_name === "string"
+      ? session.user.user_metadata.first_name.trim()
+      : "";
+  if (input.surface === "talent") {
+    const profileName = await loadTalentGreetingName(session.user.id);
+    if (profileName) firstName = profileName;
+  }
 
   const initialTickets = await loadSupportTicketSummaries(session.user.id, {
     tenantId: input.tenantId ?? null,
@@ -72,4 +77,27 @@ export async function loadSupportContract(input: {
     closeTicket: closeSupportTicketAction,
     updateContact: updateTicketContactAction,
   };
+}
+
+async function loadTalentGreetingName(userId: string): Promise<string> {
+  const admin = createServiceRoleClient();
+  if (!admin) return "";
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("first_name, display_name")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  // Greeting is decorative — empty on miss or error is the same UX.
+  if (error || !data) return "";
+  return pickGreetingName(data.first_name ?? null, data.display_name ?? null);
+}
+
+/** First name when set, else the first word of the display name, else "". */
+export function pickGreetingName(firstName: string | null, displayName: string | null): string {
+  const first = firstName?.trim();
+  if (first) return first;
+  const display = displayName?.trim();
+  if (display) return display.split(/\s+/)[0] ?? "";
+  return "";
 }

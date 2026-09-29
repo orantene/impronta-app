@@ -42,6 +42,8 @@ export type InboxFilter = InboxSegment;
 export type InboxLoadState = "idle" | "loading" | "ok" | "empty" | "failed";
 
 export type InboxProps = {
+  /** Talent seller mode: no owner / Unassigned metadata on rows (a solo talent has no team). */
+  readonly seller?: boolean;
   readonly rows: readonly InboxRow[];
   readonly filter: InboxFilter;
   readonly onFilter: (filter: InboxFilter) => void;

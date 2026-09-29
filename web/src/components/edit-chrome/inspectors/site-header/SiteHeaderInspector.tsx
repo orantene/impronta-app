@@ -135,6 +135,7 @@ export interface SiteHeaderPatch {
   patchSection: (input: {
     variant?: string;
     brandDisplay?: string;
+    navChrome?: string;
     density?: {
       logoScale?: string | null;
       navDensity?: string | null;
@@ -397,6 +398,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
               ...(entry.payload as {
                 variant?: string;
                 brandDisplay?: string;
+                navChrome?: string;
                 density?: HeaderSectionDensity | null;
               }),
             });
@@ -631,6 +633,9 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
                   : {}),
                 ...(input.brandDisplay !== undefined
                   ? { brandDisplay: input.brandDisplay }
+                  : {}),
+                ...(input.navChrome !== undefined
+                  ? { navChrome: input.navChrome }
                   : {}),
                 ...(input.density !== undefined
                   ? {

@@ -10,6 +10,12 @@ import {
   hoverV2ViewportRules,
 } from "./hover-style-css";
 import { BUILDER_NODE_NAV_CSS } from "./nav-css";
+import { NavChromeScrollSpy } from "./NavChromeScrollSpy";
+import {
+  DEFAULT_NAV_CHROME,
+  navChromeNeedsScrollSpy,
+  normalizeNavChrome,
+} from "@/lib/site-admin/nav-chrome";
 import { BuilderIconSvg } from "./builder-icon-svg";
 import type { BuilderIconName } from "./icon-registry";
 import { socialPlatformIconName } from "./social-platform-icons";
@@ -149,6 +155,14 @@ import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
+import { renderPortfolioBlock } from "./portfolio-block";
+import { ReviewsBlockView } from "./reviews-block";
+import { renderVisitBlock } from "./visit-block";
+import { renderContentsBlock } from "./contents-block";
+import { renderMastheadBlock } from "./masthead-block";
+import { renderStatementFooterBlock } from "./statement-footer-block";
+import { renderCompCardBlock } from "./comp-card-block";
+import { NextFreeChipView } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
@@ -288,6 +302,26 @@ export interface BuilderNodeRenderDataSources {
    * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
+  /**
+   * W-12 Portfolio — live approved media shots for `portfolio` nodes.
+   * Resolved by the SERVER caller; the renderer never queries.
+   */
+  talentPortfolioShots?: ReadonlyArray<import("./portfolio-types").TalentPortfolioShot>;
+  /**
+   * W-14 Reviews — published talent_reviews quote cards for `reviews` nodes.
+   * Resolved by the SERVER caller; the renderer never invents quotes.
+   */
+  talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
+  /**
+   * Visit facts — service areas / languages / hours for `visit` nodes.
+   * Resolved by the SERVER caller; the renderer never invents facts.
+   */
+  talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /**
+   * Comp card — public profile field rows for the measure strip.
+   * Resolved by the SERVER caller; the renderer never invents measures.
+   */
+  talentCompCard?: import("./comp-card-types").TalentCompCardSource;
   /**
    * When true, `services_catalog` paints the dedicated loading skeleton
    * (BRIEF-03 / §14) instead of the empty message or interactive list.
@@ -1074,11 +1108,12 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 
 /** The frozen `marquee` section's separator glyphs, preserved verbatim. */
 const MARQUEE_SEPARATOR_GLYPH: Readonly<
-  Record<"dot" | "slash" | "diamond" | "none", string>
+  Record<"dot" | "slash" | "diamond" | "star" | "none", string>
 > = {
   dot: "·",
   slash: "/",
   diamond: "◆",
+  star: "✦",
   none: "",
 };
 
@@ -1356,8 +1391,12 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--marquee-link{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
 .site-builder-node--marquee-tag{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase}
 .site-builder-node--marquee-sep{opacity:0.45}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"]{border-block:1px solid var(--token-color-line,currentColor);padding:12px 0}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-item{gap:26px;padding-right:26px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:clamp(22px,2.4vw,30px);line-height:1.54}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-sep{opacity:1;font-style:normal;font-size:14px;color:var(--token-color-accent,currentColor)}
 @keyframes bn-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node--marquee-track{animation:none}}
+[data-harness] .site-builder-node--marquee-track{animation:none}
 .site-builder-node--directory[data-bn-directory-width="full"]{max-width:none}
 .site-builder-node--directory-filters{display:flex;flex-wrap:wrap;align-items:center;gap:0.6rem;width:100%}
 .site-builder-node--directory-filter-input{flex:1 1 16rem;min-width:0;padding:0.8rem 1rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font:inherit;color:inherit;background:var(--token-color-surface-raised,#fff)}
@@ -2452,7 +2491,7 @@ function styleColor(tone: BuilderNodeStyleValue["tone"]): string | undefined {
   // Theme-adaptive (AIQ-4): fall back to the old hardcoded values only when the
   // theme defines no token, so light themes look identical and dark themes stop
   // rendering muted/strong text near-black-on-dark.
-  if (tone === "muted") return "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (tone === "muted") return MUTED_TONE_COLOR;
   if (tone === "strong") return "var(--token-color-ink, #111)";
   return undefined;
 }
@@ -3069,6 +3108,13 @@ function clampFreeWidthForMobile(value: string): string {
   return `min(${value.trim()}, 100%)`;
 }
 
+/**
+ * Muted tone: inside a band that sets its own ink (`--bn-ink`), fine print is
+ * that ink at 60%; elsewhere the theme's muted token (unchanged).
+ */
+const MUTED_TONE_COLOR =
+  "var(--bn-ink-muted, var(--token-color-muted, rgba(18, 18, 18, 0.62)))";
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -3114,7 +3160,7 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
       "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
     out.color = "var(--token-color-ink, #111)";
   }
-  if (style.tone === "muted") out.color = "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (style.tone === "muted") out.color = MUTED_TONE_COLOR;
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
   // fontFamily may be a `token:typography.*-font-family` binding → resolved to
@@ -3144,8 +3190,24 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   }
   // Color emits — a `token:<key>` value binds to a Theme token (resolved to its
   // CSS var); a raw hex/rgb/keyword is emitted unchanged (flagship-identical).
-  if (style.textColor) out.color = styleToken(style.textColor);
-  if (style.backgroundColor) out.backgroundColor = styleToken(style.backgroundColor);
+  if (style.textColor) {
+    out.color = styleToken(style.textColor);
+    // Band ink: a container that sets its own text colour (a dark footer band)
+    // hands it down, so default paragraphs + muted fine print inside inherit a
+    // readable soft ink instead of the page ink (invisible on the dark band).
+    (out as Record<string, string>)["--bn-ink"] = String(out.color);
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${String(out.color)} 60%, transparent)`;
+  }
+  if (style.backgroundColor) {
+    out.backgroundColor = styleToken(style.backgroundColor);
+    // A new surface without its own ink resets the band ink (a light card
+    // inside a dark band reads the page ink again).
+    if (!style.textColor) {
+      (out as Record<string, string>)["--bn-ink"] = "initial";
+      (out as Record<string, string>)["--bn-ink-muted"] = "initial";
+    }
+  }
   if (style.borderColor || style.borderWidth || style.borderStyle) {
     out.borderStyle = style.borderStyle ?? "solid";
     out.borderWidth = style.borderWidth ?? "1px";
@@ -4335,6 +4397,11 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"]{gap:0;border-bottom:1px solid var(--token-color-line);padding-bottom:0}
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill{border:0;border-radius:0;border-bottom:2px solid transparent;background:transparent;padding:.55rem .9rem;margin-bottom:-1px}
 .site-builder-node--services-catalog-nav[data-category-nav="tabs"] .site-builder-node--services-catalog-pill[data-active="true"]{background:transparent;color:var(--token-color-ink);border-bottom-color:var(--token-color-ink)}
+/* W-01 Maison v2: phone chips stay a horizontal strip; desktop becomes sticky rail. */
+.site-builder-node--services-catalog-body{display:block}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:.15rem;margin-bottom:1rem}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav::-webkit-scrollbar{display:none}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{flex:0 0 auto}
 .site-builder-node--services-catalog-pill{display:inline-flex;align-items:center;border:1px solid var(--token-color-line);border-radius:999px;padding:.4rem 1rem;font-size:.75rem;font-weight:600;color:var(--token-color-ink);background:transparent;text-decoration:none;cursor:pointer}
 .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border-color:var(--token-color-ink)}
 .site-builder-node--services-catalog-group{margin-bottom:0}
@@ -4347,6 +4414,17 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 12px;padding:.85rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:.45rem .65rem;padding:.45rem 0;border-bottom:1px solid var(--token-color-line)}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-photo{display:none}
+/* W-01 Folio rate card: hairline name · duration · price rows (no photo). */
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:1rem;row-gap:.2rem;padding:.5rem 0;border-bottom:1px solid var(--token-color-line);background:transparent}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-photo{display:none}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:.75rem;gap:.15rem .75rem;flex:none;min-width:0}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-weight:500;font-size:.875rem;letter-spacing:.01em}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{justify-self:end;white-space:nowrap;font-size:.75rem;color:var(--token-color-muted)}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-desc,.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-meta,.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-badges{grid-column:1/-1}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{flex:none;width:auto;min-width:0;justify-content:flex-end;gap:.65rem;align-items:baseline}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{align-items:flex-end;text-align:right;font-size:.875rem;font-weight:500}
+.site-builder-node--services-catalog[data-layout="rate_card"][data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.4rem;padding-bottom:.4rem}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{margin:0 0 .35rem;font-size:.8125rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--token-color-muted)}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.5rem}
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
@@ -4382,12 +4460,17 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-copy{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:.15rem}
 .site-builder-node--services-catalog-name{font-weight:600;font-size:.9375rem;line-height:1.25;overflow:hidden;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;word-break:break-word}
 .site-builder-node--services-catalog-name-text{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.site-builder-node--services-catalog[data-name-line-clamp="3"] .site-builder-node--services-catalog-name-text{-webkit-line-clamp:3;text-wrap:pretty}
+.site-builder-node--services-catalog[data-name-line-clamp="4"] .site-builder-node--services-catalog-name-text{-webkit-line-clamp:4;text-wrap:pretty}
 .site-builder-node--services-catalog-check{flex:0 0 auto;width:21px;height:21px;border-radius:99px;background:var(--token-color-primary,var(--token-color-accent,#A82458));color:#fff;display:inline-grid;place-items:center;font-size:.75rem;line-height:1}
 .site-builder-node--services-catalog-desc{font-size:.75rem;line-height:1.35;color:var(--token-color-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:46ch}
 .site-builder-node--services-catalog-duration{font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-meta{font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.15rem}
+.site-builder-node--services-catalog-mode{align-self:flex-start;display:inline-flex;font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:99px;background:var(--token-color-blush,color-mix(in srgb,var(--token-color-accent,var(--token-color-ink)) 12%,transparent));color:var(--token-color-accent,var(--token-color-ink))}
 .site-builder-node--services-catalog-badge{display:inline-flex;align-items:center;font-size:.65rem;font-weight:600;letter-spacing:.02em;padding:.15rem .45rem;border-radius:999px;border:1px solid var(--token-color-line);color:var(--token-color-ink);background:transparent}
+.site-builder-node--services-catalog-demo-toast{position:fixed;left:50%;bottom:96px;z-index:60;margin:0;padding:8px 14px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--token-color-ink);color:var(--token-color-background);transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .2s ease}
+.site-builder-node--services-catalog-demo-toast[data-show="true"]{opacity:1}
 .site-builder-node--services-catalog-demo{margin:0 0 .85rem;padding:.55rem .75rem;border-radius:10px;background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 8%,transparent);color:var(--token-color-ink);font-size:.75rem;font-weight:600}.site-builder-node--services-catalog-search{display:flex;gap:.5rem;align-items:center;margin:0 0 1rem}
 .site-builder-node--services-catalog-search input{flex:1;min-height:2.5rem;border:1px solid var(--token-color-line);border-radius:10px;padding:0 .85rem;font:inherit;background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink)}
 .site-builder-node--services-catalog-search button{appearance:none;border:0;background:transparent;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--token-color-ink);text-decoration:underline;min-height:44px}
@@ -4397,6 +4480,9 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-usd{display:block;font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.45rem 1rem;min-height:44px;font-size:.8125rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);flex:0 0 auto;white-space:nowrap}
 .site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
+.site-builder-node--services-catalog[data-cta-variant="pill"] .site-builder-node--services-catalog-cta{min-height:34px;height:34px;padding:0 14px;border-radius:99px;border:1.5px solid var(--token-color-ink);background:transparent;color:var(--token-color-ink);font-size:13px;font-weight:600}
+.site-builder-node--services-catalog[data-cta-variant="pill"] .site-builder-node--services-catalog-cta:is([data-offering-cta^="request"],[data-offering-cta^="ask"]):not([data-selected="true"]){border:1px solid var(--token-color-line);background:var(--token-color-surface-raised,transparent)}
+.site-builder-node--services-catalog[data-content-width="full"] > :not(style){max-width:none}
 .site-builder-node--services-catalog[data-cta-variant="solid"] .site-builder-node--services-catalog-cta{background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);border:1px solid var(--token-color-ink)}
 .site-builder-node--services-catalog-cta[data-selected="true"]{background:color-mix(in srgb,var(--token-color-primary,var(--token-color-accent,#A82458)) 14%,transparent);color:var(--token-color-ink);border:1px solid var(--token-color-primary,var(--token-color-accent,#A82458))}
 .site-builder-node--services-catalog[data-density="compact"] .site-builder-node--services-catalog-row{padding-top:.55rem;padding-bottom:.55rem}
@@ -4435,6 +4521,9 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-row{flex-wrap:nowrap}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-copy{max-width:46ch}
 .site-builder-node--services-catalog[data-layout="compact_list"] .site-builder-node--services-catalog-buy{flex:0 0 auto;margin-inline-start:.75rem}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{grid-template-columns:minmax(0,1fr) auto;align-items:baseline}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-copy{max-width:none}
+.site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy{margin-inline-start:0}
 }
 /* AUD-042: desktop menu reads as one centered column (same 1120px as
    container/split/nav), not edge to edge. The section keeps painting the
@@ -4454,6 +4543,11 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-desc{max-width:62ch}
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-buy{justify-self:end}
+/* W-01: sticky category rail beside the menu rows (filter chips stay phone-only). */
+.site-builder-node--services-catalog-body[data-category-nav="rail"]{display:grid;grid-template-columns:10.5rem minmax(0,1fr);gap:1.75rem;align-items:start}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{position:sticky;top:1rem;z-index:1;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:.35rem;margin:0;padding:0;overflow:visible}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{justify-content:flex-start;border-radius:10px;width:100%}
+.site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-groups{min-width:0}
 }
 .cb-island .cb-bar[data-bar-style="float"]{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .cb-island .cb-bar[data-bar-style="hidden"]{display:none!important}
@@ -4613,7 +4707,9 @@ function renderBuilderNodeElement(
         >
           {renderChildren(accordionNode, {
             ...options,
-            accordionOpenIds: node.props.defaultOpenItemIds,
+            accordionOpenIds: node.props.startClosed
+              ? node.props.defaultOpenItemIds ?? []
+              : node.props.defaultOpenItemIds,
           })}
         </div>
       );
@@ -5067,8 +5163,12 @@ function renderBuilderNodeElement(
         >
           <BuilderNodeCarouselTrack
             nodeId={node.id}
+            variant="rail"
             showArrows={node.props.showArrows}
             showDots={node.props.showDots}
+            autoplayMs={node.props.autoplayMs}
+            loop={node.props.loop}
+            pauseOnHover={node.props.pauseOnHover !== false}
           >
             {carouselItems}
           </BuilderNodeCarouselTrack>
@@ -5177,7 +5277,7 @@ function renderBuilderNodeElement(
             // #121212) this is byte-equivalent to the old color-mix(in oklab,currentColor 72%,transparent);
             // on dark themes it becomes soft LIGHT ink instead of near-black-on-
             // dark (default paragraphs were rendering invisible on noir).
-            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
+            color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
             ...cue.style,
           })}
         >
@@ -5650,11 +5750,11 @@ function renderBuilderNodeElement(
     case "services_catalog": {
       const p = node.props;
       // Talent Max vanity SSR passes visitorLocale (preferred_locale / resolved
-      // guest locale) but often no contentLocale. Falling back to hard "en"
-      // left Jorg Beauty chrome in ENGLISH (YOUR BOOKING / estimated duration)
-      // while html lang + CMS copy were Spanish — mockup 1:1 fail on
-      // book-jorgelina. Prefer contentLocale, then visitorLocale, then en.
-      const locale = options.contentLocale?.locale ?? options.visitorLocale ?? "en";
+      // guest locale). The talent page builder also passes visitorLocale (= site
+      // locale) alongside contentLocale (editor language toggle, often "en").
+      // Prefer visitorLocale for catalog chrome (dock "Ver servicios") so the
+      // canvas matches the live site; fall back to contentLocale, then en.
+      const locale = options.visitorLocale ?? options.contentLocale?.locale ?? "en";
       const es = locale.startsWith("es");
       const text = (prop: string, value: string | undefined) =>
         value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "";
@@ -5715,7 +5815,8 @@ function renderBuilderNodeElement(
       const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
       const categoryNav = p.categoryNav ?? "pills";
-      const filterNav = categoryNav === "tabs" || categoryNav === "pills";
+      const filterNav =
+        categoryNav === "tabs" || categoryNav === "pills" || categoryNav === "rail";
       const accordionNav = categoryNav === "accordion";
       const jumpNav = categoryNav === "jump_strip";
       const sectionsNav = categoryNav === "sections";
@@ -5744,7 +5845,9 @@ function renderBuilderNodeElement(
             : filterNav
               ? categoryNav === "tabs"
                 ? "tabs"
-                : "pills"
+                : categoryNav === "rail"
+                  ? "rail"
+                  : "pills"
               : accordionNav
                 ? "accordion"
                 : sectionsNav
@@ -5762,10 +5865,16 @@ function renderBuilderNodeElement(
           data-layout={layout}
           data-photo-radius={p.photoRadius ?? "soft"}
           data-cta-variant={p.rowCtaVariant ?? "outline"}
+          {...(p.nameLineClamp && p.nameLineClamp !== 2
+            ? { "data-name-line-clamp": String(p.nameLineClamp) }
+            : {})}
+          {...(p.contentWidth === "full" ? { "data-content-width": "full" } : {})}
           data-density={p.density ?? "comfortable"}
           data-category-nav={categoryNav}
           data-show-photo={
-            p.showPhoto !== false && layout !== "compact_list" ? "true" : "false"
+            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+              ? "true"
+              : "false"
           }
           data-enable-catalog-search={p.enableCatalogSearch === true ? "true" : "false"}
           {...(p.stylePreset ? { "data-style-preset": p.stylePreset } : {})}
@@ -5809,7 +5918,9 @@ function renderBuilderNodeElement(
           {options.dataSources.talentOfferingsLoading ? (
             <ServicesCatalogLoadingSkeleton
               locale={locale}
-              showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+              showPhoto={
+                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+              }
               rows={Math.min(Math.max(visible.length, 4), 6)}
             />
           ) : visible.length === 0 ? (
@@ -5820,7 +5931,9 @@ function renderBuilderNodeElement(
                 <ServicesCatalogStaticFallback
                   groups={groups}
                   locale={locale}
-                  showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+                  showPhoto={
+                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                  }
                   showDuration={p.showDuration !== false}
                   showUsdEquivalent={p.showUsdEquivalent !== false}
                   ctaLabel={ctaLabel}
@@ -5831,7 +5944,9 @@ function renderBuilderNodeElement(
                 groups={groups}
                 locale={locale}
                 nav={navMode}
-                showPhoto={p.showPhoto !== false && layout !== "compact_list"}
+                showPhoto={
+                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                }
                 showDescription={p.showDescription !== false}
                 showCategory={p.showCategory === true}
                 showDuration={p.showDuration !== false}
@@ -5840,6 +5955,8 @@ function renderBuilderNodeElement(
                 showPrice={p.showPrice !== false}
                 showUsdEquivalent={p.showUsdEquivalent !== false}
                 showBadges={p.showBadges === true}
+                showModeChip={p.showModeChip === true}
+                priceInMeta={p.pricePlacement === "meta"}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
@@ -5862,6 +5979,76 @@ function renderBuilderNodeElement(
             </CatalogIslandBoundary>
           )}
         </section>
+      );
+    }
+    case "portfolio": {
+      return renderPortfolioBlock({
+        node,
+        shots: options.dataSources?.talentPortfolioShots ?? [],
+        offerings: options.dataSources?.talentOfferings,
+        confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
+        styleAttr: sharedNodeStyle(node.props.style),
+        styleDataAttrs: node.props.style?.responsive ? builderNodeStyleAttrs(node.props.style) : undefined,
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
+      });
+    }
+    case "reviews": {
+      return (
+        <ReviewsBlockView
+          node={node}
+          reviews={options.dataSources?.talentReviews ?? []}
+          styleAttr={sharedNodeStyle(node.props.style)}
+          locale={options.contentLocale?.locale ?? options.visitorLocale}
+        />
+      );
+    }
+    case "visit": {
+      return renderVisitBlock({
+        node,
+        facts: options.dataSources?.talentVisitFacts ?? [],
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "contents": {
+      return renderContentsBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "masthead": {
+      // Prefer visitorLocale (site locale on talent page-builder) over the
+      // editor content-locale toggle — same contract as services_catalog — so
+      // magazine "Vol. · Otoño" matches live when the editor chrome is EN.
+      return renderMastheadBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+      });
+    }
+    case "statement_footer": {
+      return renderStatementFooterBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "comp_card": {
+      return renderCompCardBlock({
+        node,
+        rows: options.dataSources?.talentCompCard?.rows ?? [],
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "next_free_chip": {
+      // Prefer visitorLocale so the builder canvas chip ("Hoy a las…") matches
+      // live when contentLocale is the editor language toggle (often "en").
+      return (
+        <NextFreeChipView
+          node={node}
+          offerings={options.dataSources?.talentOfferings ?? []}
+          locale={options.visitorLocale ?? options.contentLocale?.locale}
+          styleAttr={sharedNodeStyle(node.props.style)}
+        />
       );
     }
     case "menu_board": {
@@ -6040,7 +6227,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             usdRates={options.dataSources.usdRates ?? null}
           />
         </section>
@@ -6077,7 +6264,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offeringId={p.offeringId}
             title={text("title", p.title) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         </div>
       );
@@ -6104,7 +6291,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             eventId={p.eventId}
             title={text("title", p.title) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             layout={p.layout}
             presentation={p.presentation}
             tiers={p.tiers}
@@ -6140,7 +6327,7 @@ function renderBuilderNodeElement(
             editor={options.contentLocale?.editorPreview === true}
             eyebrow={text("eyebrow", p.eyebrow) || undefined}
             heading={text("heading", p.heading) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             layout={p.layout}
             groupBy={p.groupBy}
             showTimes={p.showTimes}
@@ -6206,7 +6393,7 @@ function renderBuilderNodeElement(
             partyMax={p.partyMax ?? 8}
             cardNotice={p.cardNotice ?? null}
             notesEnabled={p.notesEnabled ?? true}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         </div>
       );
@@ -6696,7 +6883,7 @@ function renderBuilderNodeElement(
             // #121212) this is byte-equivalent to the old color-mix(in oklab,currentColor 72%,transparent);
             // on dark themes it becomes soft LIGHT ink instead of near-black-on-
             // dark (default paragraphs were rendering invisible on noir).
-            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
+            color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
             whiteSpace: "pre-wrap",
             ...cue.style,
           })}
@@ -7076,6 +7263,9 @@ function renderBuilderNodeElement(
       const collapseAt = navProps.collapseAt ?? "mobile";
       const submenuVariant = navProps.submenuVariant ?? "dropdown";
       const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
+      const navChrome = normalizeNavChrome(
+        navProps.navChrome ?? DEFAULT_NAV_CHROME,
+      );
       const menuLabel = navProps.menuLabel?.trim() || "Menu";
       const navAriaLabel = navProps.ariaLabel?.trim() || "Primary";
       const menuId = `${node.id}-menu`;
@@ -7320,6 +7510,7 @@ function renderBuilderNodeElement(
           data-bn-submenu={submenuVariant}
           data-bn-mobile-menu={mobileMenuVariant}
           data-bn-link-hover={navProps.linkHover ?? "underline"}
+          data-nav-chrome={navChrome}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
           // The menu's colours were documented as "overridable via the
@@ -7351,6 +7542,7 @@ function renderBuilderNodeElement(
               : {}),
           } as React.CSSProperties}
         >
+          {navChromeNeedsScrollSpy(navChrome) ? <NavChromeScrollSpy /> : null}
           {navBrand.value ? (
             <a
               className="site-builder-node--nav-brand"
@@ -7371,6 +7563,9 @@ function renderBuilderNodeElement(
             Both link sets render in full markup (never visibility:hidden-into-
             nothing), so the links stay reachable at the mobile breakpoint.
           */}
+          {/* No menu button for an empty or Home-only nav (one-page talent
+              sites showed an empty hamburger box under the brand at 390). */}
+          {links.length > 1 || links.some((l) => (l.children?.length ?? 0) > 0) || navMenuFooter ? (
           <details className="site-builder-node--nav-disclosure">
             <summary
               className="site-builder-node--nav-toggle"
@@ -7393,6 +7588,7 @@ function renderBuilderNodeElement(
               {navMenuFooter}
             </ul>
           </details>
+          ) : null}
         </nav>
       );
     }
@@ -7444,6 +7640,39 @@ function renderBuilderNodeElement(
       // An empty social row (no links, no bound data) renders nothing rather
       // than an empty <ul> — keeps the shell clean when nothing is configured.
       if (resolved.length === 0) return null;
+      if (socialProps.display === "text") {
+        // Fine-print variant: platform names inline, separated by " · ".
+        return (
+          <p
+            key={node.id}
+            {...anchorIdAttrs(node)}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-bn-display="text"
+            {...builderNodeStyleAttrs(socialProps.style)}
+            aria-label={ariaLabel}
+            className="site-builder-node site-builder-node--social-text"
+            style={inlineNodeStyle(socialProps.style, MARGIN_ZERO, {
+              lineHeight: 1.5,
+              color: "color-mix(in oklab, var(--bn-ink, var(--token-color-ink, #121212)) 72%, transparent)",
+            })}
+          >
+            {resolved.map((link, i) => (
+              <Fragment key={`${node.id}:${link.key}`}>
+                {i > 0 ? " · " : null}
+                <a
+                  href={socialLinkHref(link.platform, link.href)}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  style={{ color: "inherit", textDecoration: "none" }}
+                >
+                  {link.label?.trim() || socialPlatformLabel(link.platform)}
+                </a>
+              </Fragment>
+            ))}
+          </p>
+        );
+      }
       return (
         <ul
           key={node.id}

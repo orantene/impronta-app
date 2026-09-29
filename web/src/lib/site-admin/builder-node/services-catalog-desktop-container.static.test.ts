@@ -31,3 +31,17 @@ test("AUD-042: phone layout from AUD-026 untouched", () => {
   assert.ok(css.includes("@media (max-width:560px){"));
   assert.ok(css.includes("[data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}"));
 });
+
+/** W-01 Maison v2 — sticky category rail on desktop; chips stay phone-horizontal. */
+test("W-01: rail category nav sticks beside rows from 768px", () => {
+  assert.match(css, /services-catalog-body\[data-category-nav="rail"\]/);
+  const desktop = css.slice(css.indexOf("@media (min-width:768px){"));
+  assert.match(
+    desktop,
+    /services-catalog-body\[data-category-nav="rail"\]\{display:grid;grid-template-columns:10\.5rem minmax\(0,1fr\)/,
+  );
+  assert.match(
+    desktop,
+    /services-catalog-body\[data-category-nav="rail"\] > \.site-builder-node--services-catalog-nav\{position:sticky/,
+  );
+});

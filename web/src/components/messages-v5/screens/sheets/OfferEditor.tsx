@@ -36,6 +36,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatCentsUSD } from "@/lib/bookings/commission";
+import { quoteSummary, type SellerChrome } from "../../shell/seller";
 import { messagingSendOffer } from "@/lib/server-actions/messaging-engine";
 import {
   messagingCounterOffer,
@@ -111,6 +112,8 @@ export type OfferEditorViewProps = {
 
   readonly draft: OfferDraftState | null;
   readonly clientName: string;
+  /** Talent seller mode (mockup "Quote builder"): subtitle + total / deposit / balance summary. */
+  readonly seller?: SellerChrome | null;
   readonly saveState: OfferSaveState;
   readonly lastSavedLineCount: number | null;
   readonly lastSavedTotalCents: number | null;
@@ -160,6 +163,32 @@ function depositLine(draft: OfferDraftState, copy: ScreenCopy["kit"]): string | 
 
 function offerCardStateFor(status: OfferDraftState["status"]): OfferCardState {
   return status;
+}
+
+/** Seller summary card: what she charges, what holds the time, what is paid at the appointment. */
+function SellerQuoteSummary({ seller, totalCents, depositCents }: { seller: SellerChrome; totalCents: number; depositCents: number | null | undefined }) {
+  const sum = quoteSummary(totalCents, depositCents);
+  return (
+    <section className="pn-sec" data-offer-seller-summary>
+      <h4>{seller.summaryTitle}</h4>
+      <div className="offer-internal-row">
+        <span>{seller.summaryTotal}</span>
+        <b>{formatCentsUSD(sum.totalCents)}</b>
+      </div>
+      {sum.depositCents != null ? (
+        <div className="offer-internal-row">
+          <span>{seller.summaryDeposit}</span>
+          <b>{formatCentsUSD(sum.depositCents)}</b>
+        </div>
+      ) : null}
+      {sum.balanceCents != null ? (
+        <div className="offer-internal-row">
+          <span>{seller.summaryBalance}</span>
+          <b>{formatCentsUSD(sum.balanceCents)}</b>
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 /** Pure view. Every state the lane brief asks for (empty/loading/ready/busy/refused/done) is one prop combination here. */
@@ -219,6 +248,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
       variant={sheetVariant}
       width={560}
       labelledBy="msgv5-offer-editor-title"
+      subtitle={props.seller?.quoteSubtitle}
       header={
         draft.status === "draft" ? null : (
           <span className="vers" data-offer-status={draft.status}>
@@ -430,6 +460,8 @@ export function OfferEditorView(props: OfferEditorViewProps) {
             <b>{formatCentsUSD(platformFee)}</b>
           </div>
         </section>
+
+        {props.seller ? <SellerQuoteSummary seller={props.seller} totalCents={totalCents} depositCents={draftDepositCents(draft)} /> : null}
 
         <section className="pn-sec" data-offer-preview>
           <h4>{c.previewTitle}</h4>
@@ -674,6 +706,7 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       onRetry={() => void loadEverything()}
       draft={draft}
       clientName={clientName}
+      seller={ctx.seller ?? null}
       saveState={saveState}
       lastSavedLineCount={lastSaved?.lineCount ?? null}
       lastSavedTotalCents={lastSaved?.totalCents ?? null}

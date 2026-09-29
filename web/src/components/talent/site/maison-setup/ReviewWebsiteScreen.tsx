@@ -15,6 +15,11 @@ import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-a
 import { maisonReadinessHeadline } from "@/lib/talent-site/server/maison-publish-readiness";
 import { maisonPaletteLookTokens } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { maisonCustomLookTokens } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import {
+  galleryPaletteLookTokens,
+  galleryPreviewLookSlug,
+  getGalleryDesign,
+} from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import type { MaisonSetupChoices } from "./maison-choices";
@@ -45,15 +50,28 @@ export function ReviewWebsiteScreen({
   const [toast, setToast] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const preview = useThemePreview({ talentProfileId, locale });
-  const previewUrl = preview.src(choices.designSlug, `maison-${choices.paletteKey}`);
+  // Each design previews in its OWN palette (Maison: the maison-* Look rows).
+  const galleryDesign = getGalleryDesign(choices.designSlug);
+  const isMaison = !galleryDesign || galleryDesign.slug === "maison";
+  const designPaletteKey = isMaison ? choices.paletteKey : choices.designPaletteKey;
+  const previewUrl = preview.src(
+    choices.designSlug,
+    galleryDesign ? galleryPreviewLookSlug(galleryDesign, designPaletteKey) : `maison-${choices.paletteKey}`,
+  );
 
   useEffect(() => {
     if (choices.useCustomPalette && choices.customPalette) {
       preview.sendTokens(maisonCustomLookTokens(choices.customPalette));
-    } else {
+    } else if (isMaison) {
       preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
+    } else if (galleryDesign && designPaletteKey) {
+      const tokens = galleryPaletteLookTokens(galleryDesign.slug, designPaletteKey);
+      if (tokens) preview.sendTokens(tokens);
     }
   }, [
+    isMaison,
+    galleryDesign,
+    designPaletteKey,
     choices.paletteKey,
     choices.useCustomPalette,
     choices.customPalette,

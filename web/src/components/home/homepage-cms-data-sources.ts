@@ -41,6 +41,10 @@ import {
   fetchNativeFeaturedTalentByNodeId,
 } from "@/lib/site-admin/server/native-directory-source";
 import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/native-data-block-needs";
+import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
+import { loadCompCardSources } from "@/lib/site-admin/builder-node/comp-card-sources";
 import {
   isPlatformCheckoutReady,
   resolveOnlineCollectReady,
@@ -172,6 +176,10 @@ export async function loadBuilderNodeDataSources(
     !nativeNeeds.needsTalentCount &&
     !nativeNeeds.menuBoard &&
     !nativeNeeds.servicesCatalog &&
+    !nativeNeeds.portfolio &&
+    !nativeNeeds.reviews &&
+    !nativeNeeds.visit &&
+    !nativeNeeds.compCard &&
     nativeNeeds.disciplines == null &&
     nativeNeeds.directories.length === 0 &&
     mediaIds.length === 0 &&
@@ -361,6 +369,26 @@ export async function loadBuilderNodeDataSources(
           locale,
           servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
         )
+      : nativeNeeds.portfolio && catalogTalentId
+        ? // Portfolio service links need OfferingCta payloads even without a
+          // services_catalog on the page.
+          await loadServicesCatalogSources(
+            catalogTalentId,
+            locale,
+            servicesCatalogChannel({ explicitTalentProfileId: talentProfileId }),
+          )
+        : {}),
+    ...(nativeNeeds.portfolio && catalogTalentId
+      ? await loadPortfolioSources(catalogTalentId)
+      : {}),
+    ...(nativeNeeds.reviews && catalogTalentId
+      ? await loadReviewsSources(catalogTalentId)
+      : {}),
+    ...(nativeNeeds.visit && catalogTalentId
+      ? await loadVisitSources(catalogTalentId, locale)
+      : {}),
+    ...(nativeNeeds.compCard && catalogTalentId
+      ? await loadCompCardSources(catalogTalentId, locale)
       : {}),
     ...(nativeNeeds.talentFaq && catalogTalentId
       ? { talentFaqItems: await loadPublishedFaqForProfile(catalogTalentId) }
@@ -455,4 +483,44 @@ export async function loadServicesCatalogSources(
     ...(categoryNotes ? { talentOfferingsCategoryNotes: categoryNotes } : {}),
     ...(talentSitePause !== "open" ? { talentSitePause } : {}),
   };
+}
+
+/**
+ * Personal Max sites with no managing agency tenant: load live-bound native
+ * widgets (catalog / portfolio / reviews / visit) by talent profile alone.
+ */
+export async function loadPersonalMaxNativeSources(args: {
+  talentProfileId: string;
+  locale: string;
+  servicesCatalog: boolean;
+  portfolio: boolean;
+  nextFreeChip: boolean;
+  reviews: boolean;
+  visit: boolean;
+  compCard?: boolean;
+  /** An accordion bound to `talent_faq_items` (the agency path already loads it). */
+  talentFaq?: boolean;
+}): Promise<BuilderNodeRenderDataSources> {
+  const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
+  if (
+    !needCatalog &&
+    !args.portfolio &&
+    !args.reviews &&
+    !args.visit &&
+    !args.compCard &&
+    !args.talentFaq
+  ) {
+    return {};
+  }
+  const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
+    needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
+    args.portfolio ? loadPortfolioSources(args.talentProfileId) : {},
+    args.reviews ? loadReviewsSources(args.talentProfileId) : {},
+    args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
+    args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
+    args.talentFaq
+      ? loadPublishedFaqForProfile(args.talentProfileId).then((talentFaqItems) => ({ talentFaqItems }))
+      : {},
+  ]);
+  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard, ...faq };
 }

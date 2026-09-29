@@ -35,6 +35,14 @@ function formatMoney(cents: number, currency: string | null): string {
   return code ? `$${formatted} ${code}` : `$${formatted}`;
 }
 
+function formatMonthYear(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  } catch {
+    return "";
+  }
+}
+
 function formatDay(iso: string | null): string {
   if (!iso) return "";
   try {
@@ -73,11 +81,46 @@ function nextStatusLabel(
   return "";
 }
 
-function Avatar({ name }: { name: string }) {
+type HistoryEntry = NonNullable<TalentClientRow["history"]>[number];
+
+function historyService(h: HistoryEntry, clientName: string): string | null {
+  const title = h.title?.trim();
+  if (!title || title.toLowerCase() === clientName.trim().toLowerCase()) return null;
+  return title;
+}
+
+function lastCompleted(row: TalentClientRow): HistoryEntry | null {
+  return (row.history ?? []).find((h) => (h.state ?? (h.past ? "completed" : null)) === "completed") ?? null;
+}
+
+function historyStateLabel(h: HistoryEntry, t: (s: string) => string): string {
+  const state = h.state ?? (h.past ? "completed" : "confirmed");
+  if (state === "completed") return t("Completed");
+  if (state === "hold") return t("On hold");
+  if (state === "requested") return t("Requested");
+  return h.past ? t("Not marked complete") : t("Confirmed");
+}
+
+function StatusTag({ row, t }: { row: TalentClientRow; t: (s: string) => string }) {
+  const returning = row.completedCount > 0;
+  return (
+    <span
+      className={`ml-1.5 inline-flex h-5 items-center rounded-full px-2 align-middle text-[11px] font-semibold ${
+        returning ? "bg-black/[0.05] text-admin-ink-muted" : "bg-admin-accent/10 text-admin-accent"
+      }`}
+    >
+      {returning ? t("Returning") : t("New")}
+    </span>
+  );
+}
+
+function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg" }) {
   return (
     <span
       aria-hidden
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--admin-ink)_8%,transparent)] font-admin-body text-[13px] font-semibold text-admin-ink"
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-black/[0.06] font-admin-body font-semibold text-admin-ink ${
+        size === "lg" ? "h-14 w-14 text-[17px]" : "h-10 w-10 text-[13px]"
+      }`}
     >
       {clientInitials(name)}
     </span>
@@ -144,104 +187,194 @@ function ClientRecord(props: {
 }) {
   const { row, t, router } = props;
   const action = clientsRowAction(row);
+  const history = row.history ?? [];
+  const completed = history.filter((h) => (h.state ?? (h.past ? "completed" : null)) === "completed");
+  const paidCents = completed
+    .filter((h) => h.paymentStatus === "paid" && h.amountCents != null)
+    .reduce((sum, h) => sum + (h.amountCents ?? 0), 0);
+  const currency = history.find((h) => h.currency)?.currency ?? row.currency;
+  const first = completed[completed.length - 1] ?? null;
+  const btn =
+    "inline-flex h-11 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] font-semibold text-admin-ink";
   return (
-    <div data-clients-record>
-      <button
-        type="button"
-        onClick={props.onBack}
-        className="mb-3 font-admin-body text-[13.5px] text-admin-ink-muted"
-      >
-        ‹ {t("Back to Clients")}
-      </button>
-      <div className="flex items-start gap-3.5">
-        <Avatar name={row.name} />
-        <div className="min-w-0 flex-1">
-          <h2 className="font-admin-display text-[22px] font-semibold text-admin-ink">{row.name}</h2>
-          <p className="mt-0.5 font-admin-body text-[14px] text-admin-ink-muted">
-            {[row.phone, row.email].filter(Boolean).join(" · ") || t("Client")}
-          </p>
-          <p className="mt-1 font-admin-body text-[13px] text-admin-ink-muted">
-            {row.source === "booking" ? t("From a booking") : t("From a message")}
-            {row.completedCount > 0
-              ? ` · ${row.completedCount} ${t("completed")}`
-              : ` · ${t("No work yet")}`}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-[12px] border-[1.5px] border-admin-ink bg-white p-4">
-        <div className="text-[12px] font-bold uppercase tracking-wide text-admin-ink-muted">
-          {t("Next")}
-        </div>
-        {row.nextStartsAt ? (
-          <>
-            <div className="mt-1 font-admin-body text-[17px] font-bold text-admin-ink">
-              {formatDay(row.nextStartsAt)}
-            </div>
-            <div className="mt-1 text-[13px] font-semibold text-admin-ink-muted">
-              {nextStatusLabel(row.nextStatus, t)}
-            </div>
-          </>
-        ) : (
-          <div className="mt-1 font-admin-body text-[15px] text-admin-ink-muted">
-            {t("Nothing booked")}
-          </div>
-        )}
-        {row.amountOwedCents != null && row.amountOwedCents > 0 ? (
-          <div className="mt-2.5 border-t border-admin-border-soft pt-2.5">
-            <div className="flex items-baseline gap-2">
-              <span className="flex-1 text-[14.5px]">{t("Outstanding")}</span>
-              <span className="font-semibold">
-                {formatMoney(row.amountOwedCents, row.currency)}
-              </span>
-            </div>
-            <p className="mt-1 text-[13px] text-admin-ink-muted">
-              {t("Due at the appointment · the same amount shows in Money and on the booking")}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {row.conversationHref ? (
-          <button
-            type="button"
-            className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] font-semibold text-admin-ink"
-            onClick={() => router.push(row.conversationHref!)}
-          >
-            {t("Message")}
-          </button>
-        ) : null}
+    <div data-clients-record className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="min-w-0">
         <button
           type="button"
-          className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] font-semibold text-admin-ink"
-          onClick={() => router.push(action.href || "/talent/calendar")}
+          onClick={props.onBack}
+          className="mb-3 min-h-[32px] font-admin-body text-[13.5px] font-medium text-admin-accent"
         >
-          {actionLabel(action, t)}
+          ‹ {t("Clients")}
         </button>
-        {row.completedCount > 0 || !row.nextStartsAt ? (
+        <div className="flex items-start gap-3.5">
+          <Avatar name={row.name} size="lg" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-admin-display text-[22px] font-semibold text-admin-ink">{row.name}</h2>
+            <p className="mt-0.5 font-admin-body text-[14px] text-admin-ink-muted">
+              {[row.phone, row.email].filter(Boolean).join(" · ") || t("No phone or email on file")}
+            </p>
+            <p className="mt-0.5 font-admin-body text-[13px] text-admin-ink-muted">
+              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt)} · ` : ""}
+              {row.source === "booking" ? t("From a booking") : t("From a message")}
+            </p>
+          </div>
           <button
             type="button"
-            className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-admin-ink px-4 font-admin-body text-[14px] font-semibold text-white"
-            onClick={() => router.push("/talent/calendar")}
+            disabled
+            title={t("Editing client details is not available yet.")}
+            className={`${btn} disabled:opacity-50`}
+          >
+            {t("Edit details")}
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-[12px] border-[1.5px] border-admin-ink bg-white p-4">
+          <div className="text-[12px] font-bold uppercase tracking-wide text-admin-ink-muted">{t("Next")}</div>
+          {row.nextStartsAt ? (
+            <>
+              <div className="mt-1 font-admin-body text-[17px] font-bold text-admin-ink">
+                {formatDay(row.nextStartsAt)}
+              </div>
+              <div className="mt-1 text-[13px] font-semibold text-admin-ink-muted">
+                {nextStatusLabel(row.nextStatus, t)}
+              </div>
+            </>
+          ) : (
+            <div className="mt-1 font-admin-body text-[15px] text-admin-ink-muted">{t("Nothing booked")}</div>
+          )}
+          {row.amountOwedCents != null && row.amountOwedCents > 0 ? (
+            <div className="mt-2.5 border-t border-admin-border-soft pt-2.5">
+              <div className="flex items-baseline gap-2">
+                <span className="flex-1 text-[14.5px]">{t("Outstanding")}</span>
+                <span className="font-semibold">{formatMoney(row.amountOwedCents, row.currency)}</span>
+              </div>
+              <p className="mt-1 text-[13px] text-admin-ink-muted">
+                {t("Due at the appointment · the same amount shows in Money and on the booking")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {row.conversationHref ? (
+            <button type="button" className={btn} onClick={() => router.push(row.conversationHref!)}>
+              {t("Message")}
+            </button>
+          ) : null}
+          {action.kind !== "book_appointment" && action.href ? (
+            <button type="button" className={btn} onClick={() => router.push(action.href!)}>
+              {actionLabel(action, t)}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-admin-ink px-4 font-admin-body text-[14px] font-semibold text-white"
+            onClick={() => router.push("/talent/bookings/new")}
           >
             {t("Book appointment")}
           </button>
-        ) : null}
+        </div>
+
+        <div className="mt-5">
+          <div className="flex items-baseline gap-2">
+            <h3 className="flex-1 font-admin-body text-[16px] font-semibold text-admin-ink">{t("Work and payments")}</h3>
+            <span className="text-[13px] text-admin-ink-muted">
+              {completed.length > 0 ? `${completed.length} ${t("completed")}` : t("No completed work yet")}
+            </span>
+          </div>
+          {history.length > 0 ? (
+            <div className="mt-2 overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
+              {history.map((h, i) => (
+                <button
+                  key={h.bookingId}
+                  type="button"
+                  onClick={() => router.push(h.href)}
+                  className={`flex min-h-[44px] w-full items-start gap-3 px-4 py-3 text-left ${
+                    i ? "border-t border-admin-border-soft" : ""
+                  }`}
+                >
+                  <span className="w-[96px] shrink-0 font-admin-body text-[13.5px] text-admin-ink">
+                    {formatDay(h.startsAt)}
+                  </span>
+                  <span className="min-w-0 flex-1 font-admin-body text-[13px]">
+                    <span className="block text-[14px] text-admin-ink">
+                      {historyService(h, row.name) ?? t("No service set")}
+                    </span>
+                    <span className="mt-0.5 block text-admin-ink-muted">
+                      {historyStateLabel(h, t)}
+                      {h.paymentStatus ? (
+                        <span
+                          className={`font-semibold ${
+                            h.paymentStatus === "paid"
+                              ? "text-admin-success-deep"
+                              : h.past
+                                ? "text-admin-critical"
+                                : "text-admin-ink-muted"
+                          }`}
+                        >
+                          {" · "}
+                          {h.paymentStatus === "paid"
+                            ? t("Paid")
+                            : h.paymentStatus === "partial"
+                              ? t("Part paid")
+                              : t("Not paid yet")}
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                  {h.amountCents != null ? (
+                    <span className="whitespace-nowrap font-admin-body text-[14px] font-semibold text-admin-ink">
+                      {formatMoney(h.amountCents, h.currency)}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[13px] text-admin-ink-muted">{t("No appointments yet.")}</p>
+          )}
+        </div>
       </div>
 
-      <div className="mt-5">
-        <h3 className="font-admin-body text-[14px] font-semibold text-admin-ink">
-          {t("Work and payments")}
-        </h3>
-        <p className="mt-1 text-[13px] text-admin-ink-muted">
-          {row.completedCount > 0
-            ? `${row.completedCount} ${t("completed")}${
-                row.lastVisit ? ` · ${formatDay(row.lastVisit)}` : ""
-              }`
-            : t("No work yet")}
-        </p>
-      </div>
+      <aside className="flex flex-col gap-3 lg:pt-10">
+        <div className="flex items-baseline gap-2">
+          <h3 className="flex-1 font-admin-body text-[16px] font-semibold text-admin-ink">{t("Private notes")}</h3>
+          <button
+            type="button"
+            disabled
+            title={t("Private notes are not available yet.")}
+            className="min-h-[32px] text-[13px] font-semibold text-admin-accent disabled:opacity-50"
+          >
+            {t("Edit")}
+          </button>
+        </div>
+        <div className="rounded-[12px] border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] text-admin-ink-muted">
+          {t("Private notes are not available yet. When they are, only you will see them: never in checkout, receipts, your public pages or message previews.")}
+        </div>
+        <details className="rounded-[12px] border border-admin-border-soft bg-white px-4 py-3" open>
+          <summary className="cursor-pointer font-admin-body text-[14px] font-semibold text-admin-ink">
+            {t("History in numbers")}
+          </summary>
+          <dl className="mt-2 space-y-1.5 font-admin-body text-[13px]">
+            <div className="flex justify-between gap-3">
+              <dt className="text-admin-ink-muted">{t("Completed")}</dt>
+              <dd className="text-admin-ink">{completed.length}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-admin-ink-muted">{t("Paid to you")}</dt>
+              <dd className="text-admin-ink">{paidCents > 0 ? formatMoney(paidCents, currency) : t("None yet")}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-admin-ink-muted">{t("First visit")}</dt>
+              <dd className="text-admin-ink">{first ? formatDay(first.startsAt) : t("None yet")}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-admin-ink-muted">{t("Last visit")}</dt>
+              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt) : t("None yet")}</dd>
+            </div>
+          </dl>
+        </details>
+      </aside>
     </div>
   );
 }
@@ -320,8 +453,8 @@ export function TalentClientsPage() {
             type="button"
             className="inline-flex h-9 items-center rounded-full bg-admin-ink px-3.5 font-admin-body text-[13px] font-semibold text-white"
             onClick={() => {
-              /* Add client sheet is K3+ — keep CTA visible, honest no-op path via calendar for now */
-              router.push("/talent/calendar");
+              // A client is added with their first booking (find-or-add on New booking).
+              router.push("/talent/bookings/new");
             }}
           >
             {t("Add client")}
@@ -352,7 +485,7 @@ export function TalentClientsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("Search name, phone or email")}
-              className="h-11 w-full rounded-[12px] border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] text-admin-ink outline-none placeholder:text-admin-ink-muted focus:border-admin-ink"
+              className="h-11 w-full rounded-[12px] border border-admin-border-soft bg-white px-4 sm:w-[340px] font-admin-body text-[14px] text-admin-ink outline-none placeholder:text-admin-ink-muted focus:border-admin-ink"
               data-clients-search
             />
           </label>
@@ -399,6 +532,7 @@ export function TalentClientsPage() {
                         <span className="min-w-0">
                           <span className="block truncate text-[14.5px] font-bold text-admin-ink">
                             {row.name}
+                            <StatusTag row={row} t={t} />
                           </span>
                           {row.phone ? (
                             <span className="block truncate text-[13px] text-admin-ink-muted">
@@ -410,7 +544,15 @@ export function TalentClientsPage() {
                       <div className="text-[13.5px] text-admin-ink">
                         {row.completedCount > 0 ? (
                           <>
-                            {formatDay(row.lastVisit)}
+                            {[
+                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit),
+                              (() => {
+                                const h = lastCompleted(row);
+                                return h ? historyService(h, row.name) : null;
+                              })(),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
                             <div className="text-[12.5px] text-admin-ink-muted">
                               {row.completedCount} {t("completed")}
                             </div>
@@ -439,7 +581,7 @@ export function TalentClientsPage() {
                           type="button"
                           className="inline-flex h-9 items-center rounded-full border border-admin-border-soft px-3 font-admin-body text-[13px] font-semibold text-admin-ink"
                           onClick={() => {
-                            if (action.href) router.push(action.href);
+                            router.push(action.kind === "book_appointment" ? "/talent/bookings/new" : action.href || "/talent/calendar");
                           }}
                         >
                           {actionLabel(action, t)}

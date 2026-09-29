@@ -1,23 +1,17 @@
 "use client";
 
 /**
- * cr_detail — Theme detail desktop + phone (W27–W34).
+ * cr_detail / fg_th_* — Theme detail desktop + phone (W27–W34, P4).
+ * Demo strip + demo switching (gallery-meta demos), colors for every design,
+ * colors kept on demo switch, phone Demos / Colors sheets.
  * Use this design → applyMaisonDesignAction → Review (W35).
  */
 import { useEffect, useState, useTransition } from "react";
 import {
-  MAISON_BUILTIN_DEMO,
-  MAISON_BUILTIN_DESIGN,
-} from "@/lib/talent-site/theme-catalog/maison/builtins";
-import {
-  MAISON_DEFAULT_PALETTE_KEY,
-  MAISON_PALETTE_ORDER,
   MAISON_PALETTES,
-  MAISON_SEED,
-  maisonPaletteLookTokens,
+  MAISON_STARTER_COUNTS,
   type MaisonPaletteKey,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
-import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
 import {
@@ -28,17 +22,37 @@ import {
   type MaisonCustomPaletteStored,
 } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
+import { galleryPreviewLookSlug } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
-import { MaisonTagChips } from "./MaisonTagChips";
 import { ImportStarterPanel } from "./ImportStarterPanel";
 import { CustomColorsPanel } from "./CustomColorsPanel";
+import { PublishColorsDialog, type MaisonColorSwatchRef } from "./PublishColorsDialog";
+import { PublishDesignDialog } from "./PublishDesignDialog";
 import {
-  PublishColorsDialog,
-  type MaisonColorSwatchRef,
-} from "./PublishColorsDialog";
-import { MAISON_STARTER_COUNTS } from "@/lib/talent-site/theme-catalog/maison/seed";
+  buildLiveDesignChangeSummary,
+  paletteDisplayName,
+  type LiveDesignChangeSummary,
+} from "./live-design-change";
+import { DemoStrip } from "./DemoStrip";
+import { DemosSheet } from "./DemosSheet";
+import { ColorSwatches, ColorsSheet, swatchStyle, type ColorsProps } from "./ColorsSheet";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+import { demosCountLabel, detailT, resultsForLabel } from "./theme-detail-copy";
+import {
+  demoDefaultPaletteKey,
+  demoPreviewParam,
+  demoSupportsImport,
+  demoSwitchPatch,
+  detailDesign,
+  effectiveColors,
+  isMaisonDesign,
+  orderedDemos,
+  pickPalettePatch,
+  previewTokensFor,
+  resolveActiveDemo,
+  useDemoColorsPatch,
+} from "./theme-detail-model";
 
 type Props = {
   locale: MaisonSetupLocale;
@@ -50,6 +64,10 @@ type Props = {
   onAppliedToReview: () => void;
   /** After colors-only publish on a live site (W68). */
   onColorsPublished?: () => void;
+  /** P5: after a live design switch is published; toast "✓ <Design> is live". */
+  onDesignPublished?: (toast: string, designSlug: string) => void;
+  /** Design currently live (for "Layout: <Old> → <New>"). */
+  liveDesignSlug?: string | null;
   /** Current live look — used for before swatch in Publish new colors (W68). */
   liveLookSlug?: string | null;
   liveCustomPalette?: MaisonCustomPaletteStored | null;
@@ -65,6 +83,8 @@ export function ThemeDetailScreen({
   onClose,
   onAppliedToReview,
   onColorsPublished,
+  onDesignPublished,
+  liveDesignSlug = null,
   liveLookSlug = null,
   liveCustomPalette = null,
   fromLiveSite = false,
@@ -73,70 +93,98 @@ export function ThemeDetailScreen({
   const [applyError, setApplyError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  const [keptToast, setKeptToast] = useState(false);
   const [colorsDialog, setColorsDialog] = useState<{
     before: MaisonColorSwatchRef;
     after: MaisonColorSwatchRef;
   } | null>(null);
   const [publishColorsError, setPublishColorsError] = useState<string | null>(null);
+  const [designDialog, setDesignDialog] = useState<LiveDesignChangeSummary | null>(null);
+  const [publishDesignError, setPublishDesignError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const design = detailDesign(choices.designSlug);
+  const maison = isMaisonDesign(design.slug);
+  const demos = orderedDemos(design);
+  const { demo, requested, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
+  const selectedDemoKey = requested?.key ?? demo?.key ?? null;
+  const colors = effectiveColors(design, demo, choices);
+  const usingCustom = colors.kind === "custom";
+  const activeCustom = usingCustom ? choices.customPalette : null;
+  const demoPaletteKey = demoDefaultPaletteKey(design, demo);
+  const isDemoDefault = colors.kind === "palette" && colors.isDemoDefault;
+  const selectedPaletteKey = colors.kind === "palette" ? colors.palette.key : null;
+  const tokens = previewTokensFor(design, colors, choices);
+  const loadState = preview.loadState;
+  const sendTokens = preview.sendTokens;
+
+  const tokensKey = tokens ? JSON.stringify(tokens) : "";
+  useEffect(() => {
+    // Re-send after every iframe load too: a demo switch reloads the frame.
+    if (tokensKey) sendTokens(JSON.parse(tokensKey) as Record<string, string>);
+  }, [tokensKey, loadState, sendTokens]);
+
+  useEffect(() => {
+    if (!keptToast) return;
+    const t = window.setTimeout(() => setKeptToast(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [keptToast]);
 
   const livePaletteKey = ((): MaisonPaletteKey | null => {
     if (!liveLookSlug?.startsWith("maison-")) return null;
     const key = liveLookSlug.slice("maison-".length);
     return key in MAISON_PALETTES ? (key as MaisonPaletteKey) : null;
   })();
-  const lookSlug = `maison-${choices.paletteKey}`;
-  const collectionDesign = COLLECTION_DESIGNS.find((d) => d.slug === choices.designSlug) ?? null;
-  const designTitle = collectionDesign ? collectionDesign.title : MAISON_BUILTIN_DESIGN.title;
-  const url = preview.src(collectionDesign ? collectionDesign.slug : "maison", lookSlug);
-  const demoTitle =
-    locale === "es" ? MAISON_BUILTIN_DEMO.summary : MAISON_BUILTIN_DEMO.title;
-  const description = collectionDesign
-    ? locale === "es"
-      ? (COLLECTION_DESIGN_SUMMARY_ES[collectionDesign.slug] ?? collectionDesign.summary)
-      : collectionDesign.summary
-    : locale === "es"
-      ? MAISON_SEED.theme.description.es
-      : MAISON_SEED.theme.description.en;
-  const namedPalette = MAISON_PALETTES[choices.paletteKey];
-  const usingCustom = choices.useCustomPalette && choices.customPalette !== null;
-  const activeCustom = usingCustom ? choices.customPalette! : null;
-  const palette = activeCustom
-    ? {
-        section: activeCustom.fields.section,
-        accent: activeCustom.fields.accent,
-        page: activeCustom.fields.page,
-        text: activeCustom.fields.text,
-      }
-    : namedPalette;
+  // The design's OWN palette key (Maison: its `maison-*` Look rows), so the
+  // preview paints its colours and fonts on first load, not the platform's.
+  const lookSlug = selectedPaletteKey ? galleryPreviewLookSlug(design, selectedPaletteKey) : null;
+  const showDemoContent = choices.contentMode === "demo";
+  const url = preview.src(
+    design.slug,
+    lookSlug,
+    showDemoContent ? demoPreviewParam(design.slug, demo) : null,
+  );
+  const designTitle = design.name;
+  const description = locale === "es" ? design.description.es : design.description.en;
+  const demoTitle = demo ? (locale === "es" ? demo.name.es : demo.name.en) : "";
+  const swatch =
+    activeCustom
+      ? { section: activeCustom.fields.section, accent: activeCustom.fields.accent }
+      : colors.kind === "palette"
+        ? colors.palette
+        : design.palettes[0]!;
   const paletteName = activeCustom
     ? locale === "es"
       ? activeCustom.name.es
       : activeCustom.name.en
-    : locale === "es"
-      ? namedPalette.name.es
-      : namedPalette.name.en;
-  const isDefaultPalette =
-    !usingCustom && choices.paletteKey === MAISON_DEFAULT_PALETTE_KEY;
+    : colors.kind === "palette"
+      ? locale === "es"
+        ? colors.palette.name.es
+        : colors.palette.name.en
+      : "";
+  const colorsKept = usingCustom || !isDemoDefault;
+  const showImport = maison && demoSupportsImport(demo);
 
-  useEffect(() => {
-    if (usingCustom && choices.customPalette) {
-      preview.sendTokens(maisonCustomLookTokens(choices.customPalette));
-    } else {
-      preview.sendTokens(maisonPaletteLookTokens(choices.paletteKey));
-    }
-  }, [choices.paletteKey, choices.useCustomPalette, choices.customPalette, usingCustom, preview]);
+  const backLabel = fromLiveSite
+    ? maisonSetupT(locale, "My website")
+    : choices.fromQuery
+      ? resultsForLabel(locale, choices.fromQuery)
+      : detailT(locale, "All themes");
 
-  const setPalette = (key: MaisonPaletteKey) => {
-    onChange({
-      paletteKey: key,
-      useCustomPalette: false,
-      status: "Choices saved",
-      phoneSheet: null,
-    });
+  const selectDemo = (key: string) => {
+    const { patch, kept } = demoSwitchPatch(design, choices, key);
+    if (!patch) return;
+    onChange(patch);
+    if (kept && key !== demo?.key) setKeptToast(true);
   };
 
+  const pickPalette = (key: string) => onChange(pickPalettePatch(design, key));
+  const useDemoColors = () => onChange(useDemoColorsPatch(design, demo));
+  const useCustom = () =>
+    onChange({ useCustomPalette: true, status: "Choices saved", phoneSheet: null });
+
   const openCustomColors = () => {
+    // Custom colors replaces the sheet (never a sheet on a sheet).
     onChange({ phoneSheet: null });
     setCustomOpen(true);
   };
@@ -165,13 +213,12 @@ export function ThemeDetailScreen({
     startTransition(async () => {
       setApplyError(null);
       const res = await applyMaisonDesignAction({
-        paletteKey: choices.paletteKey,
-        designSlug: collectionDesign ? collectionDesign.slug : "maison",
+        paletteKey: maison && selectedPaletteKey ? selectedPaletteKey : choices.paletteKey,
+        designSlug: design.slug,
         contentMode: choices.contentMode,
-        customPalette:
-          choices.useCustomPalette && choices.customPalette
-            ? choices.customPalette
-            : null,
+        customPalette: usingCustom && choices.customPalette ? choices.customPalette : null,
+        // Non-Maison designs: the gallery-meta palette on screen.
+        galleryPaletteKey: !maison && !usingCustom ? selectedPaletteKey : null,
       });
       if (!res.ok) {
         setApplyError(res.error);
@@ -179,15 +226,28 @@ export function ThemeDetailScreen({
       }
       if (res.data.livePending && res.data.colorsOnly) {
         setColorsDialog({
-          before: {
-            paletteKey: livePaletteKey,
-            customPalette: liveCustomPalette,
-          },
-          after: {
-            paletteKey: res.data.paletteKey,
-            customPalette: res.data.customPalette,
-          },
+          before: { paletteKey: livePaletteKey, customPalette: liveCustomPalette },
+          after: { paletteKey: res.data.paletteKey, customPalette: res.data.customPalette },
         });
+        onChange({ status: "Choices saved", phoneSheet: null });
+        return;
+      }
+      if (res.data.livePending) {
+        // P5 — live design switch: one "Publish <Design>?" review + publish.
+        setPublishDesignError(null);
+        setDesignDialog(
+          buildLiveDesignChangeSummary({
+            locale,
+            fromSlug: liveDesignSlug,
+            toSlug: design.slug,
+            paletteName: paletteDisplayName({
+              locale,
+              designSlug: design.slug,
+              lookSlug: res.data.lookSlug,
+              customPalette: res.data.customPalette,
+            }),
+          }),
+        );
         onChange({ status: "Choices saved", phoneSheet: null });
         return;
       }
@@ -210,9 +270,40 @@ export function ThemeDetailScreen({
     });
   };
 
+  const handlePublishDesign = () => {
+    const summary = designDialog;
+    if (!summary) return;
+    startTransition(async () => {
+      setPublishDesignError(null);
+      // Materializes pending_design and writes the design revision (Restore).
+      const res = await publishMaxSiteAction();
+      if (!res.ok) {
+        setPublishDesignError(res.error);
+        return;
+      }
+      setDesignDialog(null);
+      onChange({ status: "Live", phoneSheet: null, screen: "gallery" });
+      onDesignPublished?.(summary.toast, design.slug);
+    });
+  };
+
   const customInitialFields: MaisonCustomColorFields =
-    choices.customPalette?.fields ??
-    defaultCustomFieldsFromPalette(namedPalette);
+    choices.customPalette?.fields ?? defaultCustomFieldsFromPalette(
+      colors.kind === "palette" ? colors.palette : design.palettes[0]!,
+    );
+
+  const colorsProps: ColorsProps = {
+    design,
+    locale,
+    selectedKey: selectedPaletteKey,
+    demoPaletteKey,
+    customPalette: choices.customPalette,
+    usingCustom,
+    onPick: pickPalette,
+    onUseCustom: useCustom,
+    onOpenCustom: openCustomColors,
+    onUseDemoColors: useDemoColors,
+  };
 
   const previewFrame = (
     <div
@@ -232,8 +323,10 @@ export function ThemeDetailScreen({
           errorTitle={maisonSetupT(locale, "The preview didn't load")}
           errorBody={maisonSetupT(locale, "Your choices are saved. Try again.")}
           retryLabel={maisonSetupT(locale, "Try again")}
+          virtualWidth={choices.previewDevice === "phone" ? undefined : 1280}
+          aspectRatio={choices.previewDevice === "phone" ? undefined : "16 / 11"}
         />
-        {choices.contentMode === "demo" ? (
+        {showDemoContent ? (
           <span className="absolute bottom-3 left-3 rounded bg-admin-ink/85 px-2 py-1 text-[10px] font-bold tracking-wide text-white">
             {maisonSetupT(locale, "DEMO CONTENT")}
           </span>
@@ -257,10 +350,8 @@ export function ThemeDetailScreen({
           aria-selected={choices.contentMode === mode}
           data-testid={`maison-mode-${mode}`}
           onClick={() => onChange({ contentMode: mode, status: "Choices saved" })}
-          className={`min-h-[38px] rounded-md text-[13px] font-semibold ${
-            choices.contentMode === mode
-              ? "bg-admin-ink text-white"
-              : "bg-transparent text-admin-ink"
+          className={`min-h-11 rounded-md text-[13px] font-semibold ${
+            choices.contentMode === mode ? "bg-admin-ink text-white" : "bg-transparent text-admin-ink"
           }`}
         >
           {maisonSetupT(locale, mode === "demo" ? "Demo" : "My content")}
@@ -269,97 +360,32 @@ export function ThemeDetailScreen({
     </div>
   );
 
-  const swatches = (
-    <div data-maison-palette-swatches="" className="flex flex-wrap items-center gap-2">
-      {MAISON_PALETTE_ORDER.map((key) => {
-        const p = MAISON_PALETTES[key];
-        const selected = !usingCustom && choices.paletteKey === key;
-        return (
-          <button
-            key={key}
-            type="button"
-            data-maison-palette={key}
-            data-testid={`maison-palette-${key}`}
-            aria-label={locale === "es" ? p.name.es : p.name.en}
-            aria-pressed={selected}
-            onClick={() => setPalette(key)}
-            className={`relative h-[34px] w-[34px] min-h-11 min-w-11 rounded-full p-1 ${
-              selected ? "ring-2 ring-admin-ink ring-offset-2" : ""
-            }`}
-          >
-            <span
-              className="block h-full w-full rounded-full"
-              style={{
-                background: `linear-gradient(135deg, ${p.section} 50%, ${p.accent} 50%)`,
-              }}
-            />
-          </button>
-        );
-      })}
-      {choices.customPalette ? (
-        <button
-          type="button"
-          data-testid="maison-palette-custom"
-          aria-label={
-            locale === "es"
-              ? choices.customPalette.name.es
-              : choices.customPalette.name.en
-          }
-          aria-pressed={usingCustom}
-          onClick={() =>
-            onChange({
-              useCustomPalette: true,
-              status: "Choices saved",
-              phoneSheet: null,
-            })
-          }
-          className={`relative h-[34px] w-[34px] min-h-11 min-w-11 rounded-full p-1 ${
-            usingCustom ? "ring-2 ring-admin-ink ring-offset-2" : ""
-          }`}
-        >
-          <span
-            className="block h-full w-full rounded-full"
-            style={{
-              background: `linear-gradient(135deg, ${choices.customPalette.fields.section} 50%, ${choices.customPalette.fields.accent} 50%)`,
-            }}
-          />
-        </button>
-      ) : null}
-      <button
-        type="button"
-        data-testid="maison-custom-colors"
-        onClick={openCustomColors}
-        className="min-h-11 rounded-full border border-admin-border-soft px-3 text-[12.5px] font-semibold text-admin-ink"
-      >
-        ✎ {maisonSetupT(locale, "Custom colors")}
-      </button>
-    </div>
-  );
+  const plannedNote = plannedFallback ? (
+    <p data-testid="maison-demo-planned-note" className="text-[12px] text-admin-ink-dim">
+      {detailT(locale, "Showing the featured demo · this demo's preview is planned")}
+    </p>
+  ) : null;
 
   return (
     <section
       data-maison-theme-detail=""
       data-testid="maison-theme-detail"
-      className="flex min-h-[70vh] flex-col font-admin-body"
+      data-design-slug={design.slug}
+      className="relative flex min-h-[70vh] flex-col font-admin-body"
     >
       {/* Desktop top bar */}
       <header className="hidden items-center gap-3 border-b border-admin-border-soft px-4 py-3 md:flex md:min-h-16">
         <button
           type="button"
           onClick={fromLiveSite ? onClose : onBackToGallery}
-          className="min-h-11 text-[13.5px] font-semibold text-admin-ink"
+          className="min-h-11 max-w-[220px] truncate text-[13.5px] font-semibold text-admin-ink"
           data-testid={fromLiveSite ? "maison-back-my-website" : "maison-back-designs"}
         >
-          ‹{" "}
-          {fromLiveSite
-            ? maisonSetupT(locale, "My website")
-            : maisonSetupT(locale, "Designs")}
+          ‹ {backLabel}
         </button>
         <span aria-hidden className="h-6 w-px bg-admin-border-soft" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold text-admin-ink">
-            {designTitle}
-          </p>
+          <p className="truncate text-[15px] font-semibold text-admin-ink">{designTitle}</p>
           <p className="truncate text-[12px] text-admin-ink-muted">{description}</p>
         </div>
         {fromLiveSite ? (
@@ -367,10 +393,7 @@ export function ThemeDetailScreen({
             data-testid="maison-live-stays-pill"
             className="inline max-w-[220px] shrink-0 text-[11.5px] text-admin-ink-dim"
           >
-            {maisonSetupT(
-              locale,
-              "Your live site stays as it is until you publish.",
-            )}
+            {maisonSetupT(locale, "Your live site stays as it is until you publish.")}
           </span>
         ) : null}
         <span
@@ -378,6 +401,7 @@ export function ThemeDetailScreen({
           data-testid="maison-status-word"
           className="shrink-0 text-[12.5px] font-semibold text-emerald-900"
         >
+          {choices.status === "Choices saved" ? "✓ " : ""}
           {maisonSetupT(locale, choices.status)}
         </span>
         <div className="flex rounded-lg border border-admin-border-soft p-0.5">
@@ -386,11 +410,10 @@ export function ThemeDetailScreen({
               key={device}
               type="button"
               data-testid={`maison-device-${device}`}
+              aria-pressed={choices.previewDevice === device}
               onClick={() => onChange({ previewDevice: device })}
               className={`min-h-11 rounded-md px-3 text-[12.5px] font-semibold ${
-                choices.previewDevice === device
-                  ? "bg-admin-ink text-white"
-                  : "text-admin-ink"
+                choices.previewDevice === device ? "bg-admin-ink text-white" : "text-admin-ink"
               }`}
             >
               {maisonSetupT(locale, device === "desktop" ? "Desktop" : "Phone")}
@@ -407,20 +430,18 @@ export function ThemeDetailScreen({
         </button>
       </header>
 
-      {/* Phone compact header */}
+      {/* Phone compact header: <Theme> / <Demo> · <Palette> */}
       <header className="flex min-h-14 items-center gap-2 border-b border-admin-border-soft px-3 py-2 md:hidden">
         <button
           type="button"
-          onClick={onBackToGallery}
+          onClick={fromLiveSite ? onClose : onBackToGallery}
           className="grid h-11 w-11 place-items-center text-[18px]"
-          aria-label={maisonSetupT(locale, "Designs")}
+          aria-label={backLabel}
         >
           ‹
         </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold text-admin-ink">
-            {designTitle}
-          </p>
+          <p className="truncate text-[14px] font-semibold text-admin-ink">{designTitle}</p>
           <p className="truncate text-[11.5px] text-admin-ink-muted">
             {demoTitle} · {paletteName}
           </p>
@@ -428,39 +449,32 @@ export function ThemeDetailScreen({
         <span data-maison-status="" className="text-[11.5px] font-semibold text-emerald-900">
           {maisonSetupT(locale, choices.status)}
         </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={maisonSetupT(locale, "Close")}
+          className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
+        >
+          ✕
+        </button>
       </header>
 
       <div className="flex flex-1 flex-col md:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 md:p-4">
-          {/* Demo strip — desktop */}
-          <div
-            data-maison-demo-strip=""
-            className="hidden items-center gap-3 md:flex"
-          >
-            <span className="text-[12px] font-semibold text-admin-ink-dim">
-              {maisonSetupT(locale, "Demos · 1")}
-            </span>
-            <button
-              type="button"
-              data-testid="maison-demo-card"
-              aria-pressed="true"
-              className="flex w-[120px] flex-col overflow-hidden rounded-lg border-2 border-admin-ink bg-white"
-            >
-              <span
-                className="block h-[74px] w-full"
-                style={{
-                  background: `linear-gradient(135deg, ${palette.section}, ${palette.accent})`,
-                }}
-              />
-              <span className="flex items-center justify-between px-2 py-1.5 text-[11px] font-semibold">
-                {demoTitle}
-                <span aria-hidden>✓</span>
-              </span>
-            </button>
+          <div className="hidden md:block">
+            <DemoStrip
+              design={design}
+              demos={demos}
+              selectedKey={selectedDemoKey}
+              locale={locale}
+              onSelect={selectDemo}
+            />
+            {plannedNote}
           </div>
 
-          {/* Phone segment above preview */}
+          {/* Phone: full-width Demo | My content above the preview */}
           <div className="md:hidden">{segment}</div>
+          <div className="md:hidden">{plannedNote}</div>
 
           <div className="min-h-0 flex-1 overflow-auto">{previewFrame}</div>
         </div>
@@ -474,20 +488,37 @@ export function ThemeDetailScreen({
               </p>
               <p className="mt-1 text-[16px] font-semibold text-admin-ink">
                 {designTitle}
+                {demoTitle ? (
+                  <span className="font-normal text-admin-ink-muted">
+                    {" · "}
+                    {maisonSetupT(locale, "Demo:")} <span className="font-semibold text-admin-ink">{demoTitle}</span>
+                  </span>
+                ) : null}
               </p>
-              <p className="mt-0.5 text-[13px] text-admin-ink-muted">
-                {maisonSetupT(locale, "Demo:")}{" "}
-                <span className="font-semibold text-admin-ink">{demoTitle}</span>
-              </p>
-              <div className="mt-2">
-                <MaisonTagChips locale={locale} />
+              <div className="mt-2 flex flex-wrap gap-1.5" data-maison-tags="">
+                {design.styleTags.map((tag) => (
+                  <span
+                    key={`s-${tag}`}
+                    data-maison-tag-kind="style"
+                    className="rounded-full border border-admin-border-soft px-2 py-0.5 text-[11.5px] text-admin-ink"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {design.featureTags.map((tag) => (
+                  <span
+                    key={`f-${tag}`}
+                    data-maison-tag-kind="layout"
+                    className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[11.5px] text-admin-ink"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
 
             <div>
-              <p className="mb-2 text-[13px] font-semibold text-admin-ink">
-                {maisonSetupT(locale, "Show")}
-              </p>
+              <p className="mb-2 text-[13px] font-semibold text-admin-ink">{maisonSetupT(locale, "Show")}</p>
               {segment}
               <p className="mt-2 text-[12px] leading-snug text-admin-ink-muted">
                 {maisonSetupT(
@@ -501,45 +532,49 @@ export function ThemeDetailScreen({
 
             <div>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-[13px] font-semibold text-admin-ink">
-                  {maisonSetupT(locale, "Colors")}
-                </p>
-                {isDefaultPalette ? (
-                  <span className="text-[12px] text-admin-ink-dim">
-                    {maisonSetupT(locale, "Demo colors")}
-                  </span>
+                <p className="text-[13px] font-semibold text-admin-ink">{detailT(locale, "Colors")}</p>
+                {isDemoDefault ? (
+                  <span className="text-[12px] text-admin-ink-dim">{detailT(locale, "Demo colors")}</span>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setPalette(MAISON_DEFAULT_PALETTE_KEY)}
-                    className="text-[12px] font-semibold text-emerald-900"
+                    data-testid="maison-use-demo-colors"
+                    onClick={useDemoColors}
+                    className="min-h-11 text-[12px] font-semibold text-emerald-900"
                   >
-                    {maisonSetupT(locale, "Use demo colors")}
+                    {detailT(locale, "Use demo colors")}
                   </button>
                 )}
               </div>
-              {swatches}
-              <p className="mt-2 text-[13px] font-semibold text-admin-ink">{paletteName}</p>
+              <ColorSwatches {...colorsProps} />
+              <p className="mt-2 text-[13px] font-semibold text-admin-ink" data-testid="maison-palette-name">
+                {usingCustom
+                  ? `${detailT(locale, "Custom colors")} · ${detailT(locale, "My colors")} · ${detailT(locale, "kept when you switch demos")}`
+                  : paletteName}
+              </p>
+              {colorsKept && !usingCustom ? (
+                <p className="mt-1 text-[12px] text-admin-ink-dim" data-testid="maison-colors-kept-note">
+                  {detailT(locale, "Switching demo changes photos, sample text and sections. Your colors are kept.")}
+                </p>
+              ) : null}
             </div>
 
-            <div>
-              <p className="mb-2 text-[13px] font-semibold text-admin-ink">
-                {maisonSetupT(locale, "Personalise")}
-              </p>
-              <button
-                type="button"
-                data-testid="maison-import-entry"
-                onClick={() => setImportOpen(true)}
-                className="flex min-h-12 w-full items-center justify-between rounded-xl border border-admin-border-soft px-3 text-left text-[13px] font-semibold text-admin-ink"
-              >
-                {locale === "es"
-                  ? `Importar contenido inicial · ${MAISON_STARTER_COUNTS.total} disponibles ›`
-                  : `Import starter content · ${MAISON_STARTER_COUNTS.total} available ›`}
-              </button>
-              <p className="mt-1.5 text-[12px] text-admin-ink-dim">
-                {maisonSetupT(locale, "Optional. Imported items are saved as drafts.")}
-              </p>
-            </div>
+            {showImport ? (
+              <div>
+                <p className="mb-2 text-[13px] font-semibold text-admin-ink">{maisonSetupT(locale, "Personalise")}</p>
+                <button
+                  type="button"
+                  data-testid="maison-import-entry"
+                  onClick={() => setImportOpen(true)}
+                  className="flex min-h-12 w-full items-center justify-between rounded-xl border border-admin-border-soft px-3 text-left text-[13px] font-semibold text-admin-ink"
+                >
+                  {detailT(locale, "Import starter content from this demo ›")}
+                </button>
+                <p className="mt-1.5 text-[12px] text-admin-ink-dim">
+                  {MAISON_STARTER_COUNTS.total} · {maisonSetupT(locale, "Optional. Imported items are saved as drafts.")}
+                </p>
+              </div>
+            ) : null}
           </div>
           <div className="sticky bottom-0 border-t border-admin-border-soft bg-white px-4 py-3">
             {applyError ? (
@@ -560,189 +595,60 @@ export function ThemeDetailScreen({
         </aside>
       </div>
 
-      {/* Phone bottom bar */}
-      <div className="flex items-center gap-2 border-t border-admin-border-soft bg-white px-3 py-2 md:hidden">
+      {/* Phone bottom bar: Demos · N | Colors | Use this design (never wraps) */}
+      <div className="sticky bottom-0 flex flex-nowrap items-center gap-2 border-t border-admin-border-soft bg-white px-3 py-2 md:hidden">
+        {applyError ? <span className="sr-only">{applyError}</span> : null}
         <button
           type="button"
           data-testid="maison-phone-demos"
           onClick={() => openSheet("demos")}
-          className="min-h-12 shrink-0 rounded-xl border border-admin-border-soft px-3 text-[14px] font-semibold text-admin-ink max-[379px]:px-[9px] max-[379px]:text-[14px]"
+          className="min-h-11 shrink-0 whitespace-nowrap rounded-xl border border-admin-border-soft px-3 text-[14px] font-semibold text-admin-ink max-[379px]:px-[9px]"
         >
-          {maisonSetupT(locale, "Demos · 1")}
+          {demosCountLabel(locale, demos.length)}
         </button>
         <button
           type="button"
           data-testid="maison-phone-colors"
           onClick={() => openSheet("colors")}
-          className="flex min-h-12 shrink-0 items-center gap-1.5 rounded-xl border border-admin-border-soft px-3 text-[14px] font-semibold text-admin-ink max-[379px]:px-[9px]"
+          className="flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-admin-border-soft px-3 text-[14px] font-semibold text-admin-ink max-[379px]:px-[9px]"
         >
-          <span
-            className="inline-block h-3.5 w-3.5 rounded-full"
-            style={{
-              background: `linear-gradient(135deg, ${palette.section} 50%, ${palette.accent} 50%)`,
-            }}
-          />
-          {maisonSetupT(locale, "Colors")}
+          <span className="inline-block h-3.5 w-3.5 rounded-full" style={swatchStyle(swatch.section, swatch.accent)} />
+          {detailT(locale, "Colors")}
         </button>
         <button
           type="button"
           data-testid="maison-use-design-phone"
           onClick={handleUseDesign}
           disabled={pending}
-          className="min-h-12 min-w-0 flex-1 truncate rounded-xl bg-admin-ink px-3 text-[14px] font-semibold text-white disabled:opacity-50"
+          className="min-h-11 min-w-0 flex-1 truncate whitespace-nowrap rounded-xl bg-admin-ink px-3 text-[14px] font-semibold text-white disabled:opacity-50"
         >
           {maisonSetupT(locale, "Use this design")}
         </button>
       </div>
 
       {/* One sheet at a time (W34) */}
-      {choices.phoneSheet ? (
+      {choices.phoneSheet === "demos" ? (
+        <DemosSheet
+          design={design}
+          demos={demos}
+          selectedKey={selectedDemoKey}
+          description={description}
+          colorsKept={colorsKept}
+          locale={locale}
+          onSelect={selectDemo}
+          onClose={() => onChange({ phoneSheet: null })}
+        />
+      ) : choices.phoneSheet === "colors" ? (
+        <ColorsSheet {...colorsProps} isDemoDefault={isDemoDefault} onClose={() => onChange({ phoneSheet: null })} />
+      ) : null}
+
+      {keptToast ? (
         <div
-          className="fixed inset-0 z-[70] flex items-end bg-black/30 md:hidden"
-          data-maison-phone-sheet={choices.phoneSheet}
-          onClick={() => onChange({ phoneSheet: null })}
+          role="status"
+          data-testid="maison-colors-kept-toast"
+          className="fixed bottom-[110px] left-1/2 z-[80] -translate-x-1/2 rounded-full bg-admin-ink px-4 py-2 text-[13px] font-semibold text-white md:bottom-6"
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="max-h-[85vh] w-full overflow-auto rounded-t-2xl bg-white px-4 pb-6 pt-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-black/15" />
-            {choices.phoneSheet === "demos" ? (
-              <>
-                <h2 className="text-[16px] font-semibold text-admin-ink">
-                  {maisonSetupT(locale, "Demos · 1")}
-                </h2>
-                <p className="mt-1 text-[13px] text-admin-ink-muted">{description}</p>
-                <div className="mt-2">
-                  <MaisonTagChips locale={locale} />
-                </div>
-                <p className="mt-3 text-[12.5px] text-admin-ink-dim">
-                  {maisonSetupT(
-                    locale,
-                    "Switching demos changes sample photos, text and prices — not your saved site.",
-                  )}
-                </p>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    className="overflow-hidden rounded-lg border-2 border-admin-ink text-left"
-                    onClick={() => onChange({ phoneSheet: null })}
-                  >
-                    <span
-                      className="block h-16 w-full"
-                      style={{
-                        background: `linear-gradient(135deg, ${palette.section}, ${palette.accent})`,
-                      }}
-                    />
-                    <span className="block px-2 py-1.5 text-[12px] font-semibold">
-                      {demoTitle} ✓
-                    </span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <h2 className="text-[16px] font-semibold text-admin-ink">
-                    {maisonSetupT(locale, "Colors")}
-                  </h2>
-                  <button
-                    type="button"
-                    aria-label={maisonSetupT(locale, "Close")}
-                    data-testid="maison-phone-colors-close"
-                    className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
-                    onClick={() => onChange({ phoneSheet: null })}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <ul className="mt-3 space-y-1">
-                  {MAISON_PALETTE_ORDER.map((key) => {
-                    const p = MAISON_PALETTES[key];
-                    const selected = !usingCustom && choices.paletteKey === key;
-                    return (
-                      <li key={key}>
-                        <button
-                          type="button"
-                          onClick={() => setPalette(key)}
-                          className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-admin-surface-alt"
-                        >
-                          <span
-                            className="h-9 w-9 shrink-0 rounded-full"
-                            style={{
-                              background: `linear-gradient(135deg, ${p.section} 50%, ${p.accent} 50%)`,
-                            }}
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[13.5px] font-semibold text-admin-ink">
-                              {locale === "es" ? p.name.es : p.name.en}
-                            </span>
-                            {key === MAISON_DEFAULT_PALETTE_KEY ? (
-                              <span className="text-[11.5px] text-admin-ink-dim">
-                                {maisonSetupT(locale, "Demo colors")}
-                              </span>
-                            ) : null}
-                          </span>
-                          {selected ? <span aria-hidden>✓</span> : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                  {choices.customPalette ? (
-                    <li>
-                      <button
-                        type="button"
-                        data-testid="maison-phone-my-colors"
-                        onClick={() =>
-                          onChange({
-                            useCustomPalette: true,
-                            status: "Choices saved",
-                            phoneSheet: null,
-                          })
-                        }
-                        className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-admin-surface-alt"
-                      >
-                        <span
-                          className="h-9 w-9 shrink-0 rounded-full"
-                          style={{
-                            background: `linear-gradient(135deg, ${choices.customPalette.fields.section} 50%, ${choices.customPalette.fields.accent} 50%)`,
-                          }}
-                        />
-                        <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-admin-ink">
-                          {locale === "es"
-                            ? choices.customPalette.name.es
-                            : choices.customPalette.name.en}
-                        </span>
-                        {usingCustom ? <span aria-hidden>✓</span> : null}
-                      </button>
-                    </li>
-                  ) : null}
-                </ul>
-                <button
-                  type="button"
-                  data-testid="maison-phone-custom-colors"
-                  className="mt-2 flex min-h-12 w-full items-center rounded-xl border border-admin-border-soft px-3 text-[13.5px] font-semibold"
-                  onClick={openCustomColors}
-                >
-                  {maisonSetupT(locale, "Custom colors")} ›
-                </button>
-                {!isDefaultPalette || usingCustom ? (
-                  <button
-                    type="button"
-                    className="mt-2 min-h-11 w-full text-[13px] font-semibold text-emerald-900"
-                    onClick={() => setPalette(MAISON_DEFAULT_PALETTE_KEY)}
-                  >
-                    {maisonSetupT(locale, "Use demo colors")}
-                  </button>
-                ) : null}
-                <p className="mt-3 text-[12px] text-admin-ink-dim">
-                  {maisonSetupT(locale, "Only colors change. Photos, content and layout stay.")}
-                </p>
-              </>
-            )}
-          </div>
+          {detailT(locale, "✓ Your colors are kept")}
         </div>
       ) : null}
 
@@ -766,7 +672,10 @@ export function ThemeDetailScreen({
               : undefined
           }
           onPreviewFields={handleCustomPreview}
-          onClose={() => setCustomOpen(false)}
+          onClose={() => {
+            setCustomOpen(false);
+            if (tokens) preview.sendTokens(tokens);
+          }}
           onSaved={handleCustomSaved}
         />
       ) : null}
@@ -782,6 +691,19 @@ export function ThemeDetailScreen({
           onKeepEditing={() => {
             setColorsDialog(null);
             setPublishColorsError(null);
+          }}
+        />
+      ) : null}
+      {designDialog ? (
+        <PublishDesignDialog
+          locale={locale}
+          summary={designDialog}
+          pending={pending}
+          error={publishDesignError}
+          onPublish={handlePublishDesign}
+          onKeepEditing={() => {
+            setDesignDialog(null);
+            setPublishDesignError(null);
           }}
         />
       ) : null}

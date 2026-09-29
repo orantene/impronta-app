@@ -88,4 +88,61 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
     "Los detalles se abren en la hoja de reserva (modal en escritorio, hoja inferior en móvil). La expansión en línea no está en esta versión: sin controles muertos.",
   "How visitors open details and start booking. Chat Ask handoff is shared with the booking sheet.":
     "Cómo abren los visitantes los detalles y empiezan a reservar. El Ask del chat se comparte con la hoja de reserva.",
+
+  // ── Magazine / visit / reviews / masthead / contents (tip #2429) ─────────
+  Contents: "Contenidos",
+  Statement: "Declaración",
+  Map: "Mapa",
+  Neighbourhood: "Barrio",
+  "Your visit": "Tu visita",
+  Credit: "Crédito",
+  "Credit and contact": "Crédito y contacto",
+  Numbers: "Números",
+  Optional: "Opcional",
+  "Stacked words": "Palabras apiladas",
+  "Word or line": "Palabra o línea",
+  "Label EN": "Etiqueta EN",
+  "Label ES": "Etiqueta ES",
+  "Measure strip": "Franja de medidas",
+  "Names instead of icons": "Nombres en vez de iconos",
+  "Recent work": "Trabajo reciente",
+  "Start with every question closed": "Empezar con todas las preguntas cerradas",
+  "Optional credit": "Crédito opcional",
+  "Optional role or issue line": "Línea opcional de rol o número",
+  "Optional contact line": "Línea de contacto opcional",
+  "Optional (leave blank for a bare strip)":
+    "Opcional (déjalo en blanco para una franja sin título)",
+  "Photographer, client, year": "Fotógrafo, cliente, año",
+  "Available for editorial, campaign, and portrait commissions.":
+    "Disponible para encargos editoriales, de campaña y de retrato.",
+  "A chapter index with links to sections on this page. Anchors must match a block Anchor name (Data panel) or a chapter id like chapter-1.":
+    "Un índice de capítulos con enlaces a secciones de esta página. Los anclajes deben coincidir con el nombre de ancla de un bloque (panel Datos) o con un id de capítulo como chapter-1.",
+  "A short closing line for the page. Keep it to one or two sentences.":
+    "Una línea breve de cierre para la página. Que sea una o dos frases.",
+  "Autoplay pauses for reduced motion and while editing.":
+    "La reproducción automática se pausa con movimiento reducido y al editar.",
+  "Each row is one giant line in the masthead. With one line and Split words on, spaces become separate stack rows on the page.":
+    "Cada fila es una línea grande en el masthead. Con una sola línea y Separar palabras activado, los espacios se convierten en filas apiladas en la página.",
+  "Each row needs a label and an anchor. Drag to reorder.":
+    "Cada fila necesita una etiqueta y un ancla. Arrastra para reordenar.",
+  "Full-bleed photo behind the stacked words. B&W is the magazine default.":
+    "Foto a sangre detrás de las palabras apiladas. El blanco y negro es el valor por defecto de la revista.",
+  "Live facts from your service areas, languages, and booking days. The block hides itself when there are none.":
+    "Datos en vivo de tus zonas de servicio, idiomas y días de reserva. El bloque se oculta cuando no hay ninguno.",
+  "Live quotes from published client reviews. The block hides itself when there are none.":
+    "Citas en vivo de reseñas publicadas de clientes. El bloque se oculta cuando no hay ninguna.",
+  "Only fields marked public on the profile appear. Turning a measure off here hides it on the site even if the profile shows it.":
+    "Solo aparecen los campos marcados como públicos en el perfil. Desactivar una medida aquí la oculta en el sitio aunque el perfil la muestre.",
+  "Optional lines under the statement. Credit is usually the name; contact can be an email, handle, or short ask.":
+    "Líneas opcionales bajo la declaración. El crédito suele ser el nombre; el contacto puede ser un correo, un handle o una petición breve.",
+  "Optional. Without a map URL the facts render alone, even in the split layout.":
+    "Opcional. Sin URL de mapa, los datos se muestran solos, incluso en el diseño dividido.",
+  "Print the platform names in a line (Instagram · WhatsApp) instead of icons. Good for footer fine print.":
+    "Imprime los nombres de las plataformas en una línea (Instagram · WhatsApp) en vez de iconos. Sirve para la letra pequeña del pie.",
+  "Trio, single, or row on the shared slider.":
+    "Trío, individual o fila en el carrusel compartido.",
+  "Where the section links live on the page. Top bar is the classic sticky row. Overlay, side rail, bottom tabs, filter bar, and chapter dots are shared chrome modes any Design can use.":
+    "Dónde viven los enlaces de sección en la página. La barra superior es la fila fija clásica. Superposición, carril lateral, pestañas inferiores, barra de filtros y puntos de capítulo son modos de chrome compartidos que cualquier Diseño puede usar.",
+  "Where the section links live: classic top bar, overlay on the hero, side rail with scroll-spy, phone bottom tabs, filter chip bar, or chapter dots with labels.":
+    "Dónde viven los enlaces de sección: barra superior clásica, superposición sobre el hero, carril lateral con seguimiento de scroll, pestañas inferiores en el teléfono, barra de chips de filtro o puntos de capítulo con etiquetas.",
 };

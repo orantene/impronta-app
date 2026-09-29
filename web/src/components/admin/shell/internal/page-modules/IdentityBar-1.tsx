@@ -347,7 +347,7 @@ export function TulalaIdentityBar() {
               onClick={inTalent ? undefined : onActingClick}
               aria-label={copy.isSpanish ? `Actuando como ${actingLabel}` : `Acting as ${actingLabel}`}
               title={inTalent ? undefined : actingSubLabel}
-              className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-admin-border-soft bg-white px-[10px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
+              className={`tulala-acting-chip ${inTalent ? "max-sm:hidden " : ""}inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-admin-border-soft bg-white px-[10px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]`}
             >
               {inWorkspace && (
               <span

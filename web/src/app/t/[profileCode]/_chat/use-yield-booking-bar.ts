@@ -30,7 +30,13 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   useEffect(() => {
     if (!mounted) return;
     const measure = () => {
-      setSelectionDockUp(Boolean(document.querySelector(".cb-dock[data-show='true']")));
+      // The pill capsule carries its own chat button: the FAB tucks away too.
+      const pill = document.querySelector<HTMLElement>(".cb-bar[data-bar-style='pill'][data-show='true']");
+      setSelectionDockUp(Boolean(document.querySelector(".cb-dock[data-show='true']") || pill));
+      if (pill) {
+        setYieldBookingBar(false);
+        return;
+      }
       const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
       if (!bar) {
         setYieldBookingBar(false);
