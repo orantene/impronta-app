@@ -15,6 +15,8 @@
 
 import { useState } from "react";
 import type { OfferingVariant, OfferingAddOn } from "@/lib/talent/offerings-types";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
+import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { setOfferingOptions } from "@/lib/talent/offerings-actions";
 import { LocaleField } from "@/components/admin/shell/internal/primitives/locale-field";
 import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
@@ -49,7 +51,7 @@ const inputStyle: React.CSSProperties = {
   fontFamily: FONT,
 };
 
-type Row = { id: string; label: string; amountCents: number | null; labelI18n?: Record<string, string> };
+type Row = { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap };
 
 /**
  * One option / extra label, translatable (PR 7): an `xs` badge over the input.
@@ -68,7 +70,7 @@ function RowLabel({
   onCommit: (next: Pick<Row, "label" | "labelI18n">) => void;
 }) {
   const { primary, locales } = useTalentFieldLocales();
-  const initial = { ...(row.labelI18n ?? {}), [primary]: row.label };
+  const initial: Record<string, string> = { ...toI18nMap(row.labelI18n), [primary]: row.label };
   const [draft, setDraft] = useState<Record<string, string>>(initial);
   const commit = (next: Record<string, string>) => {
     const label = (next[primary] ?? "").trim();

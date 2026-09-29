@@ -17,7 +17,7 @@
  *
  * Token classes only (inline styles are frozen under components/admin/shell).
  */
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
 import { LocaleTabsBadge, type LocaleTabsBadgeTheme } from "@/components/locale-field/LocaleTabsBadge";
 import type { TalentTranslateField } from "@/components/locale-field/translate-action";
@@ -118,10 +118,10 @@ export function LocaleField({
   }, [storeLocale]);
   const current = locales.includes(tab) ? tab : primary;
 
-  const initial = useRef<LocalizedMap>(value);
+  const [initial] = useState<LocalizedMap>(value);
   const stale = useMemo(
-    () => outdated ?? outdatedLocales(initial.current, value, primary, locales),
-    [outdated, value, primary, locales],
+    () => outdated ?? outdatedLocales(initial, value, primary, locales),
+    [outdated, initial, value, primary, locales],
   );
 
   const aiHook = useAiTranslate(ai?.field ?? "builder_text");

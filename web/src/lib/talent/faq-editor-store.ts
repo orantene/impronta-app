@@ -94,16 +94,11 @@ export async function writeOwnFaqItems(
     }
   }
   if (plan.inserts.length > 0) {
-    const rows = plan.inserts.map((r) => ({
-      ...(withI18n ? r : stripI18n(r)),
-      talent_profile_id: talentProfileId,
-      status: "published",
-    }));
-    let { error } = await admin.from("talent_faq_items").insert(rows);
+    const full = plan.inserts.map((r) => ({ ...r, talent_profile_id: talentProfileId, status: "published" }));
+    const bare = full.map(({ question_i18n: _q, answer_i18n: _a, ...rest }) => rest);
+    let { error } = await admin.from("talent_faq_items").insert(withI18n ? full : bare);
     if (error && withI18n && isPostgrestMissingColumnError(error)) {
-      ({ error } = await admin
-        .from("talent_faq_items")
-        .insert(rows.map(({ question_i18n: _q, answer_i18n: _a, ...rest }) => rest)));
+      ({ error } = await admin.from("talent_faq_items").insert(bare));
     }
     if (error) {
       logServerError("faq-editor.insert", error);

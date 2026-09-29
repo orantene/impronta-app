@@ -13,6 +13,7 @@
  * table is read-only for anon/owner); auth is enforced here at the app layer.
  */
 
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -521,14 +522,14 @@ export async function setOfferingOptions(
   talentProfileId: string,
   offeringId: string,
   input: {
-    variants: { label: string; amountCents: number | null; labelI18n?: Record<string, string> }[];
-    addOns: { label: string; amountCents: number; labelI18n?: Record<string, string> }[];
+    variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
+    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
   },
 ): Promise<
   | {
       ok: true;
-      variants: { id: string; label: string; amountCents: number | null; labelI18n?: Record<string, string> }[];
-      addOns: { id: string; label: string; amountCents: number; labelI18n?: Record<string, string> }[];
+      variants: { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap }[];
     }
   | { ok: false; error: string }
 > {

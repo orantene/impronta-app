@@ -6,7 +6,7 @@
  * add, remove, reorder, one `LocaleField` per question and answer, one Save.
  * Rows feed the site's FAQ section (`bindSource: "talent_faq_items"`).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { LocaleField } from "@/components/admin/shell/internal/primitives/locale-field";
@@ -30,7 +30,7 @@ export function TalentFaqEditor() {
   const [primary, setPrimary] = useState<string | null>(null);
   const [rows, setRows] = useState<Draft[]>([]);
   const [status, setStatus] = useState<"loading" | "idle" | "saving" | "saved" | "error">("loading");
-  const baseline = useRef("[]");
+  const [baseline, setBaseline] = useState("[]");
 
   useEffect(() => {
     let live = true;
@@ -42,7 +42,7 @@ export function TalentFaqEditor() {
       }
       setPrimary(res.primary);
       const drafts = res.items.map(withKey);
-      baseline.current = JSON.stringify(res.items);
+      setBaseline(JSON.stringify(res.items));
       setRows(drafts);
       setStatus("idle");
     });
@@ -52,7 +52,7 @@ export function TalentFaqEditor() {
   }, []);
 
   const plain = (list: Draft[]) => list.map(({ key: _key, ...item }) => item);
-  const dirty = status !== "loading" && JSON.stringify(plain(rows)) !== baseline.current;
+  const dirty = status !== "loading" && JSON.stringify(plain(rows)) !== baseline;
   useBeforeUnloadGuard(dirty);
 
   if (primary === null) {
@@ -84,7 +84,7 @@ export function TalentFaqEditor() {
     }
     const fresh = await loadMyFaqItems();
     if (fresh.ok) {
-      baseline.current = JSON.stringify(fresh.items);
+      setBaseline(JSON.stringify(fresh.items));
       setRows(fresh.items.map(withKey));
     }
     setStatus("saved");
