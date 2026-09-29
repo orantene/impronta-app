@@ -105,6 +105,7 @@ export function ComponentDefaultsTab({
   version,
   onSaved,
   saveComponentStyles,
+  designComponentDefaults,
 }: {
   initialDefaults: ComponentStyleDefaults;
   version: number;
@@ -119,6 +120,8 @@ export function ComponentDefaultsTab({
     componentStyles: ComponentStyleDefaults;
     expectedVersion: number;
   }) => Promise<ComponentStylesSaveResult>;
+  /** When set (e.g. Folio), offer "Reset to design default" for component styles. */
+  designComponentDefaults?: ComponentStyleDefaults;
 }): ReactElement {
   const [defaults, setDefaults] = useState<ComponentStyleDefaults>(initialDefaults);
   const [savedSnapshot, setSavedSnapshot] = useState<ComponentStyleDefaults>(initialDefaults);
@@ -157,6 +160,12 @@ export function ComponentDefaultsTab({
     },
     [],
   );
+
+  const resetToDesignDefault = useCallback(() => {
+    if (!designComponentDefaults) return;
+    setDefaults({ ...designComponentDefaults });
+    setError(null);
+  }, [designComponentDefaults]);
 
   const handleSave = useCallback(async () => {
     setBusy(true);
@@ -236,6 +245,27 @@ export function ComponentDefaultsTab({
       ))}
 
       <div className="mt-2 flex items-center justify-end gap-2">
+        {designComponentDefaults ? (
+          <button
+            type="button"
+            onClick={resetToDesignDefault}
+            disabled={busy}
+            style={{
+              height: 30,
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              color: CHROME.muted,
+              background: "transparent",
+              border: "none",
+              cursor: busy ? "not-allowed" : "pointer",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+            }}
+          >
+            Reset to design default
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void handleSave()}

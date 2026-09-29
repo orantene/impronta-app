@@ -14,6 +14,11 @@
  */
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 
+import {
+  FOLIO_COMPONENT_STYLE_DEFAULTS,
+  FOLIO_DESIGN_TOKEN_DEFAULTS,
+} from "./folio-defaults";
+
 const S = '[data-talent-design="maison-v2"]';
 const MQ_DESK = "@media (min-width:900px)";
 
@@ -142,31 +147,29 @@ const MAISON_V2_SKIN = [
 const F = '[data-talent-design="folio"]';
 
 /**
- * Folio masthead bar + rate-card rows (Builder map rows 1 and 6).
- * Sticky stone bar, ink rule, tracked caps nav, square CTA; phone = name + CTA.
- * Rate card: ruled rows, Instrument Serif prices, no cards.
+ * Folio chrome layout hooks (header bar + rate-card rows).
+ * VALUES come from theme tokens / component defaults (Folio ships them as
+ * defaults only — see folio-defaults.ts). No hardcoded fonts, radii, or rule
+ * widths. Prefer Claude's future label-font / rule-width vars when projected.
  */
 const FOLIO_SKIN = [
   `${F}{font-family:var(--site-body-font,system-ui,sans-serif);color:var(--token-color-ink);background:var(--token-color-background)}`,
-  // Masthead bar (HEADER)
-  `${F} .site-header{position:sticky;top:0;z-index:40;background:var(--token-color-background);border-bottom:1px solid var(--token-color-ink);box-shadow:none}`,
+  `${F} .site-header{position:sticky;top:0;z-index:40;background:var(--token-shell-header-bg,var(--token-color-background));border-bottom:var(--token-border-rule-width,1px) solid var(--token-shell-header-border,var(--token-color-ink));box-shadow:none}`,
   `${F} .site-header__inner{min-height:52px;padding:0 16px}`,
-  `${F} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-weight:400;font-size:22px;letter-spacing:-0.02em;text-transform:none}`,
-  `${F} .site-header__nav-link{font-family:"Archivo Narrow",var(--site-body-font,system-ui,sans-serif);font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--token-color-ink)}`,
+  `${F} .site-header__brand-label{font-family:var(--site-heading-font,var(--token-typography-heading-font-family,Georgia,serif));font-weight:400;font-size:22px;letter-spacing:-0.02em;text-transform:none}`,
+  `${F} .site-header__nav-link{font-family:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)));font-size:11px;font-weight:600;letter-spacing:var(--site-label-tracking,0.18em);text-transform:var(--site-label-case,uppercase);color:var(--token-shell-header-text,var(--token-color-ink))}`,
   `${F} .site-header__nav-link:hover{color:var(--token-color-muted)}`,
-  `${F} .site-header__cta.site-btn,${F} .site-header__ritem.site-header__cta{height:40px;min-height:40px;padding:0 16px;border-radius:0;border:1px solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);font-family:"Archivo Narrow",var(--site-body-font,system-ui,sans-serif);font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;box-shadow:none}`,
-  // DEMO chip on theme preview only (artifact masthead bar)
-  `${F}[data-talent-theme-preview] .site-header__actions::before,${F}[data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;margin-right:10px;padding:0 8px;border:1px solid var(--token-color-line);font-family:"Archivo Narrow",var(--site-body-font,system-ui,sans-serif);font-size:10px;font-weight:600;letter-spacing:0.2em;color:var(--token-color-muted)}`,
+  `${F} .site-header__cta.site-btn,${F} .site-header__ritem.site-header__cta{height:40px;min-height:40px;padding:0 16px;border-radius:var(--site-radius,0);border:var(--token-border-rule-width,1px) solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);font-family:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)));font-size:11px;font-weight:600;letter-spacing:var(--site-label-tracking,0.18em);text-transform:var(--site-label-case,uppercase);box-shadow:none}`,
+  `${F}[data-talent-theme-preview] .site-header__actions::before,${F}[data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;margin-right:10px;padding:0 8px;border:var(--token-border-rule-width,1px) solid var(--token-color-line);font-family:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)));font-size:10px;font-weight:600;letter-spacing:var(--site-label-tracking,0.2em);color:var(--token-color-muted)}`,
   `@media (max-width:767px){${F} .site-header__nav{display:none}${F} .site-header__cta.site-btn{display:inline-flex;min-height:44px;height:44px}}`,
-  // Rate card rows (RATE CARD)
   `${F} .site-builder-node--services-catalog[data-layout="rate_card"]{padding:52px 16px 0}`,
-  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-eyebrow,${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{font-family:"Archivo Narrow",var(--site-body-font,system-ui,sans-serif);font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
-  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-title{font-family:var(--site-heading-font,Georgia,serif);font-weight:400;font-size:clamp(40px,6vw,72px);letter-spacing:-0.02em;line-height:0.95}`,
-  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{border-bottom:1px solid var(--token-color-ink);background:transparent;border-radius:0;box-shadow:none;padding:14px 0}`,
+  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-eyebrow,${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-group-title{font-family:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)));font-size:11px;font-weight:600;letter-spacing:var(--site-label-tracking,0.2em);text-transform:var(--site-label-case,uppercase);color:var(--token-color-muted)}`,
+  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-title{font-family:var(--site-heading-font,var(--token-typography-heading-font-family,Georgia,serif));font-weight:400;font-size:clamp(40px,6vw,72px);letter-spacing:-0.02em;line-height:0.95}`,
+  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-row{border-bottom:var(--token-border-rule-width,1px) solid var(--token-color-ink);background:transparent;border-radius:var(--site-radius,0);box-shadow:none;padding:14px 0}`,
   `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-name{font-family:var(--site-body-font,system-ui,sans-serif);font-size:16px;font-weight:500;letter-spacing:0}`,
-  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{font-family:"Archivo Narrow",var(--site-body-font,system-ui,sans-serif);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--token-color-muted)}`,
-  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{font-family:var(--site-heading-font,Georgia,serif);font-size:22px;font-weight:400;font-style:italic}`,
-  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy .site-btn,${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--button{border-radius:0;min-height:44px;height:44px;font-family:"Archivo Narrow",var(--site-body-font,system-ui,sans-serif);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;box-shadow:none}`,
+  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-duration{font-family:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)));font-size:11px;letter-spacing:var(--site-label-tracking,0.14em);text-transform:var(--site-label-case,uppercase);color:var(--token-color-muted)}`,
+  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-price{font-family:var(--site-heading-font,var(--token-typography-heading-font-family,Georgia,serif));font-size:22px;font-weight:400;font-style:italic}`,
+  `${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--services-catalog-buy .site-btn,${F} .site-builder-node--services-catalog[data-layout="rate_card"] .site-builder-node--button{border-radius:var(--site-radius,0);min-height:44px;height:44px;font-family:var(--token-typography-label-font-family,var(--token-shell-header-nav-font,var(--site-body-font,system-ui,sans-serif)));font-size:11px;letter-spacing:var(--site-label-tracking,0.16em);text-transform:var(--site-label-case,uppercase);box-shadow:none}`,
   `@media (min-width:900px){${F} .site-builder-node--services-catalog[data-layout="rate_card"]{padding:90px 40px 0}${F} .site-header__inner{padding:0 40px}}`,
 ].join("\n");
 
@@ -186,14 +189,18 @@ export function designSkinCss(slug: string | null | undefined): string | null {
  * platform default paints every button as a 10px accent block (secondary
  * included) and pins heading / paragraph colours inline, which beat the skin
  * (inline > stylesheet) and put ink text on the dark footer. Maison v2 keeps
- * only the pill shape; colours come from the skin by tone. A node's own
- * builder style still wins over these defaults.
+ * only the pill shape; Folio keeps the square. Colours come from the skin by
+ * tone. A node's own builder style still wins over these defaults.
  */
 const DESIGN_COMPONENT_STYLES: Readonly<
   Record<string, { set: ComponentStyleDefaults; drop: ReadonlyArray<keyof ComponentStyleDefaults> }>
 > = {
   "maison-v2": {
     set: { button: { borderRadius: "999px" } },
+    drop: ["heading", "paragraph"],
+  },
+  folio: {
+    set: FOLIO_COMPONENT_STYLE_DEFAULTS,
     drop: ["heading", "paragraph"],
   },
 };
@@ -207,4 +214,38 @@ export function designComponentStyleDefaults(
   const out: ComponentStyleDefaults = { ...base };
   for (const key of entry.drop) delete out[key];
   return { ...out, ...entry.set };
+}
+
+/** Design-owned token defaults (shape / spacing / shell) for a slug. */
+export function designTokenDefaults(
+  slug: string | null | undefined,
+): Readonly<Record<string, string>> {
+  if (!slug) return {};
+  switch (slug.trim().toLowerCase()) {
+    case "folio":
+      return FOLIO_DESIGN_TOKEN_DEFAULTS;
+    default:
+      return {};
+  }
+}
+
+/**
+ * Merge Design-owned defaults under a draft token map. Look-owned keys are
+ * never written here. Existing draft values for Design-owned keys WIN so
+ * talent edits stick; pass `force: true` for "Reset to design default".
+ */
+export function mergeDesignTokenDefaults(
+  draft: Readonly<Record<string, string>>,
+  slug: string | null | undefined,
+  opts: { force?: boolean } = {},
+): Record<string, string> {
+  const defaults = designTokenDefaults(slug);
+  if (Object.keys(defaults).length === 0) return { ...draft };
+  const out: Record<string, string> = { ...draft };
+  for (const [key, value] of Object.entries(defaults)) {
+    if (opts.force || out[key] === undefined || out[key] === "") {
+      out[key] = value;
+    }
+  }
+  return out;
 }

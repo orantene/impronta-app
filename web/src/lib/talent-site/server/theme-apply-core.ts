@@ -6,6 +6,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 import { bustTalentSiteCache } from "../cache-tags";
 import { hydrateTalentTree, type TalentProfileTokens } from "../default-talent-tree";
+import { mergeDesignTokenDefaults } from "../theme-catalog/collection/design-skins";
 import { mergeLookIntoTokens } from "../theme-catalog/look-layer";
 import type {
   DesignPayload,
@@ -211,6 +212,23 @@ export async function applyDesign(
   }
 
   const now = new Date().toISOString();
+
+  // Seed Design-owned token defaults (radius / spacing / shell) into the draft
+  // without clobbering Look colours the talent already set. Folio square /
+  // sharp / editorial spacing land here as editable defaults.
+  const { data: tokenRow } = await admin
+    .from("talent_sites")
+    .select("design_tokens_draft")
+    .eq("id", input.siteId)
+    .eq("talent_profile_id", input.talentProfileId)
+    .maybeSingle();
+  const draftWithDesignDefaults = mergeDesignTokenDefaults(
+    coerceTokenMap(
+      (tokenRow as { design_tokens_draft?: unknown } | null)?.design_tokens_draft,
+    ),
+    design.slug,
+  );
+
   const { error: siteErr, count: siteCount } = await admin
     .from("talent_sites")
     .update(
@@ -218,6 +236,7 @@ export async function applyDesign(
         shell_tree: built.shellTree,
         theme_design_slug: design.slug,
         theme_design_version: design.version,
+        design_tokens_draft: draftWithDesignDefaults,
         draft_updated_at: now,
         updated_at: now,
         ...(input.userId ? { updated_by: input.userId } : {}),

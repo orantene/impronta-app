@@ -76,6 +76,11 @@ import { ComponentDefaultsTab } from "./component-defaults-tab";
 import type { DesignSnapshot } from "@/lib/site-admin/edit-mode/design-actions";
 import { resolveThemeActionSet } from "./theme-action-scope";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
+import {
+  draftLooksLikeFolio,
+  FOLIO_COMPONENT_STYLE_DEFAULTS,
+  folioResetTokenDefaults,
+} from "@/lib/talent-site/theme-catalog/collection/folio-defaults";
 import { GoogleFontPicker } from "./GoogleFontPicker";
 import { ContrastChecker } from "./ContrastChecker";
 import { BrandKitImport } from "./BrandKitImport";
@@ -489,6 +494,14 @@ export function ThemeDrawer(): ReactElement | null {
     setConfirmingPublish(false);
   }, []);
 
+  /** Restore Folio Design token defaults (shape + type) while keeping other draft keys. */
+  const resetToDesignDefaults = useCallback(() => {
+    if (!draft) return;
+    setDraft(folioResetTokenDefaults(draft));
+    setError(null);
+    setConfirmingPublish(false);
+  }, [draft]);
+
   // Decision-1 — theme preset picker. Delegates to the tested
   // `applyThemePreset` lib op via the gated edit action; merges the preset
   // bundle into the DRAFT (operator must Publish to go live — surfaced in UI).
@@ -836,6 +849,11 @@ export function ThemeDrawer(): ReactElement | null {
               <ComponentDefaultsTab
                 initialDefaults={snapshot.componentStylesDraft}
                 version={snapshot.version}
+                designComponentDefaults={
+                  draftLooksLikeFolio(draft ?? {})
+                    ? FOLIO_COMPONENT_STYLE_DEFAULTS
+                    : undefined
+                }
                 saveComponentStyles={(input) =>
                   themeActions
                     ? themeActions.saveComponentStyles(input)
@@ -861,6 +879,9 @@ export function ThemeDrawer(): ReactElement | null {
               <AdvancedTab
                 draft={draft}
                 onResetDefaults={resetToDefaults}
+                onResetDesignDefaults={
+                  draftLooksLikeFolio(draft) ? resetToDesignDefaults : undefined
+                }
                 onApplyPreset={handleApplyPreset}
                 currentPreset={snapshot?.presetSlug ?? null}
                 presetBusy={busy === "saving" || busy === "publishing"}
@@ -1181,6 +1202,7 @@ const PRESET_OPTIONS: { slug: string; label: string; hint: string }[] = [
 function AdvancedTab({
   draft,
   onResetDefaults,
+  onResetDesignDefaults,
   onBulkApply,
   onApplyPreset,
   currentPreset,
@@ -1188,6 +1210,7 @@ function AdvancedTab({
 }: {
   draft: Record<string, string>;
   onResetDefaults: () => void;
+  onResetDesignDefaults?: () => void;
   onBulkApply: (tokens: Record<string, string>) => void;
   onApplyPreset: (slug: string) => void;
   currentPreset: string | null;
@@ -1317,28 +1340,50 @@ function AdvancedTab({
               justifyContent: "space-between",
               alignItems: "center",
               gap: 8,
+              flexWrap: "wrap",
             }}
           >
             <span style={{ fontSize: 11, color: CHROME.muted }}>
               Read-only. Edit through the controls above.
             </span>
-            <button
-              type="button"
-              onClick={onResetDefaults}
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: CHROME.muted,
-                background: "transparent",
-                border: "none",
-                padding: "2px 4px",
-                cursor: "pointer",
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
-              }}
-            >
-              Reset to platform defaults
-            </button>
+            <span style={{ display: "inline-flex", gap: 10, flexWrap: "wrap" }}>
+              {onResetDesignDefaults ? (
+                <button
+                  type="button"
+                  onClick={onResetDesignDefaults}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: CHROME.muted,
+                    background: "transparent",
+                    border: "none",
+                    padding: "2px 4px",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  Reset to design default
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onResetDefaults}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: CHROME.muted,
+                  background: "transparent",
+                  border: "none",
+                  padding: "2px 4px",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
+                }}
+              >
+                Reset to platform defaults
+              </button>
+            </span>
           </div>
         </CardBody>
       </Card>

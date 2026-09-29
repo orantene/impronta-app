@@ -7,7 +7,6 @@ import { builderTreeHasKind } from "./builder-tree-has-kind";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
-
 import {
   BuilderNodeFontLinks,
   BuilderNodeRendererStyles,
@@ -44,7 +43,7 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
-import { DesignSkinStyle, designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { DesignSkinStyle, designComponentStyleDefaults, mergeDesignTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import {
@@ -572,9 +571,10 @@ async function renderMaxSiteDocument(args: {
     Object.keys(talentComponentStyleDefaults).length > 0
       ? talentComponentStyleDefaults
       : designComponentStyleDefaults(args.designSlug, platformDefault.componentStyles);
+  // Folio shape defaults fill under the site draft; Look can still swap.
   const effectiveTokens = resolveEffectiveSiteTokens(
     designTokens,
-    siteTokens,
+    mergeDesignTokenDefaults(siteTokens, args.designSlug),
     platformDefault.tokens,
   );
   const hasTokens = Object.keys(effectiveTokens).length > 0;

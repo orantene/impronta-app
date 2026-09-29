@@ -14,6 +14,7 @@
  * Gated with Maison: `isMaisonCatalogSlug` treats every collection slug as
  * flag-owned, so only `TALENT_MAISON_THEME_ENABLED` talents see them.
  */
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";

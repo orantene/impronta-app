@@ -8,6 +8,13 @@
  */
 import type { BuiltinLookEntry } from "../builtins/types";
 import type { LookPayload } from "../types";
+import {
+  FOLIO_BODY_FONT,
+  FOLIO_HEADING_FONT,
+  FOLIO_LOOK_TYPE_DEFAULTS,
+} from "./folio-defaults";
+
+export { FOLIO_BODY_FONT, FOLIO_HEADING_FONT };
 
 type FolioPalette = {
   key: "stone" | "light" | "dark";
@@ -53,12 +60,9 @@ const FOLIO_PALETTES: readonly FolioPalette[] = [
   },
 ];
 
-export const FOLIO_HEADING_FONT = "Instrument Serif, Didot, Georgia, serif";
-export const FOLIO_BODY_FONT = "Archivo, system-ui, sans-serif";
-
 function folioLookTokens(p: FolioPalette): LookPayload {
-  // Look layer only (color.* + typography.* + background.mode). Derived
-  // colour.primary-on, shell/shadow/radius live in design-skins / platform defaults.
+  // Look layer only (color.* + typography.* + background.mode). Shape tokens
+  // (radius / spacing / shell nav font) live in Folio design defaults.
   return {
     tokens: {
       "color.background": p.bg,
@@ -68,8 +72,7 @@ function folioLookTokens(p: FolioPalette): LookPayload {
       "color.muted": p.mute,
       "color.primary": p.ink,
       "color.accent": p.ink,
-      "typography.heading-font-family": FOLIO_HEADING_FONT,
-      "typography.body-font-family": FOLIO_BODY_FONT,
+      ...FOLIO_LOOK_TYPE_DEFAULTS,
       "background.mode": "plain",
     },
   };

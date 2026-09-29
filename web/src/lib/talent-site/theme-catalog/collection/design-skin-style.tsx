@@ -1,10 +1,16 @@
 import { designSkinCss } from "./design-skins";
 
-export { designComponentStyleDefaults } from "./design-skins";
+export {
+  designComponentStyleDefaults,
+  designTokenDefaults,
+  mergeDesignTokenDefaults,
+} from "./design-skins";
 
 /**
  * The Design skin stylesheet (`design-skins.ts`) for a slug, or nothing. The
  * canvas root must carry `data-talent-design="<slug>"` for it to apply.
+ * Folio skin VALUES are theme tokens (defaults in folio-defaults.ts) — not
+ * hardcoded magazine CSS.
  */
 export function DesignSkinStyle({ slug }: { slug: string | null | undefined }) {
   const css = designSkinCss(slug);

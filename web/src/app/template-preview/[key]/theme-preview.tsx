@@ -47,7 +47,7 @@ import {
   COLLECTION_DEFAULT_LOOK,
   folioLookTokensFromCode,
 } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
-import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
+import { DesignSkinStyle, mergeDesignTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
 import { MAGAZINE_LABEL_FAMILY } from "@/lib/site-admin/builder-node/magazine-edition";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
@@ -163,14 +163,12 @@ export async function ThemeCatalogPreview({
 
   const platformDefault = await loadPlatformDefaultTheme("talent");
   // Same layering as the live render: the Look lands in the (empty) site
-  // draft layer, then platform < site. A key the Look omits keeps the
-  // platform default, exactly as on the published site.
+  // draft layer, Design-owned shape defaults fill under it, then
+  // platform < site. A key the Look omits keeps the platform default.
+  const lookLayer = lookTokens ? mergeLookIntoTokens({}, lookTokens) : {};
+  const siteLayer = mergeDesignTokenDefaults(lookLayer, design.slug);
   const effectiveTokens = lookTokens
-    ? resolveEffectiveSiteTokens(
-        {},
-        mergeLookIntoTokens({}, lookTokens),
-        platformDefault.tokens,
-      )
+    ? resolveEffectiveSiteTokens({}, siteLayer, platformDefault.tokens)
     : platformDefault.tokens;
 
   const ctaMode = contentId
