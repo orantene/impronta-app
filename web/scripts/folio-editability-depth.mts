@@ -12,7 +12,7 @@ import path from "node:path";
 const BASE = "http://127.0.0.1:3001";
 const AUTH = "/home/ubuntu/.claude/design-diff/.auth-mateo-ferrer.json";
 const OUT =
-  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/folio-mateo-dod";
+  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/integ-designs-final/folio-mateo";
 const TMP = "/tmp/folio-edit-depth";
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(TMP, { recursive: true });

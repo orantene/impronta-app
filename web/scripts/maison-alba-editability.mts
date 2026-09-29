@@ -10,7 +10,7 @@ import path from "node:path";
 
 const BASE = "http://127.0.0.1:3001";
 const OUT =
-  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/alba-builder-pending";
+  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/integ-designs-final/maison-alba";
 const TMP_SHOTS = "/tmp/maison-alba-shots";
 const PROFILE = "8a59afc1-6e2e-49cd-b78d-27f689cc80f5";
 const LIVE = `${BASE}/template-preview/current?kind=live-site&talent=${PROFILE}&locale=es`;

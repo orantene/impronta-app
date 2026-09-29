@@ -16,8 +16,8 @@ import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/
 import { loadMaisonDesignOptionsStateAction } from "@/lib/talent-site/server/maison-options-actions";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
-import { legacyPaletteLabel, liveCardDesignLabel, lookToPalette } from "./maison-live-summary";
-import { paletteDisplayName } from "./live-design-change";
+import { legacyPaletteLabel, liveCardDesignLabel } from "./maison-live-summary";
+import { lookSlugToGalleryPaletteKey, paletteDisplayName } from "./live-design-change";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 type Props = {
@@ -75,7 +75,8 @@ export function MyWebsiteCard({
   const [customPalette, setCustomPalette] = useState<MaisonCustomPaletteStored | null>(null);
   /** null = unknown (options state unavailable) → the line is not shown. */
   const [hasPending, setHasPending] = useState<boolean | null>(null);
-  const hasNamedPalette = lookToPalette(themeLookSlug) !== null;
+  const hasNamedPalette =
+    lookSlugToGalleryPaletteKey(themeDesignSlug, themeLookSlug) !== null;
   // The live vanity domain refuses to be framed from the app host (and
   // /t/site 308s to it), so the thumbnail renders the talent's CURRENT
   // published site through the same-origin, owner-only live-site preview.
@@ -97,7 +98,7 @@ export function MyWebsiteCard({
     return () => {
       alive = false;
     };
-  }, [hasNamedPalette, themeLookSlug]);
+  }, [hasNamedPalette, themeLookSlug, themeDesignSlug]);
 
   useEffect(() => {
     if (optionsOpen) return;

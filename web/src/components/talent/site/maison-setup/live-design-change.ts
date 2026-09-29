@@ -31,6 +31,31 @@ function sameHex(a: string | undefined, b: string | undefined): boolean {
 }
 
 /**
+ * Resolve a gallery palette key from a stored look slug.
+ * Accepts bare keys (`stone`, `rose`), Maison looks (`maison-pink`), and
+ * collection Look rows (`folio-stone`).
+ */
+export function lookSlugToGalleryPaletteKey(
+  designSlug: string | null,
+  lookSlug: string | null,
+): string | null {
+  const slug = lookSlug?.trim().toLowerCase() ?? "";
+  if (!slug) return null;
+  const design = getGalleryDesign(designSlug ?? "") ?? null;
+  if (design?.palettes.some((p) => p.key === slug)) return slug;
+  if (slug.startsWith("maison-")) {
+    const key = slug.slice("maison-".length);
+    if ((getGalleryDesign("maison")?.palettes ?? []).some((p) => p.key === key)) return key;
+  }
+  const designKey = (designSlug ?? "").trim().toLowerCase();
+  if (designKey && slug.startsWith(`${designKey}-`)) {
+    const key = slug.slice(designKey.length + 1);
+    if (design?.palettes.some((p) => p.key === key)) return key;
+  }
+  return null;
+}
+
+/**
  * Palette name to show for a site. Order: a gallery palette of the design
  * whose colors match the stored custom palette (localized name), then a named
  * look palette of the design, then the stored custom name, then "My colors".
@@ -58,15 +83,13 @@ export function paletteDisplayName(input: {
     if (saved) return saved;
     return es ? "Mis colores" : "My colors";
   }
-  if (lookSlug?.startsWith("maison-")) {
-    const key = lookSlug.slice("maison-".length);
-    const all = getGalleryDesign("maison")?.palettes ?? [];
-    const hit = all.find((p) => p.key === key);
-    if (hit) return es ? hit.name.es : hit.name.en;
-  }
-  // Collection looks (e.g. maison-v2 "rose") use the bare palette key.
-  if (lookSlug && design) {
-    const hit = design.palettes.find((p) => p.key === lookSlug);
+  const lookKey = lookSlugToGalleryPaletteKey(designSlug, lookSlug);
+  if (lookKey) {
+    const hit =
+      design?.palettes.find((p) => p.key === lookKey) ??
+      (lookSlug?.startsWith("maison-")
+        ? getGalleryDesign("maison")?.palettes.find((p) => p.key === lookKey)
+        : undefined);
     if (hit) return es ? hit.name.es : hit.name.en;
   }
   return es ? "Mis colores" : "My colors";

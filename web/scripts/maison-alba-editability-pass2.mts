@@ -8,7 +8,7 @@ import path from "node:path";
 
 const BASE = "http://127.0.0.1:3001";
 const OUT =
-  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/alba-builder-pending";
+  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/integ-designs-final/maison-alba";
 const TMP = "/tmp/maison-alba-shots";
 fs.mkdirSync(TMP, { recursive: true });
 fs.mkdirSync(OUT, { recursive: true });

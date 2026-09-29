@@ -102,4 +102,36 @@ describe("paletteDisplayName", () => {
       "Mis colores",
     );
   });
+
+  it("names Folio collection Look rows (folio-stone) and bare keys", () => {
+    const folio = getGalleryDesign("folio")!;
+    const stone = folio.palettes.find((p) => p.key === "stone")!;
+    assert.equal(
+      paletteDisplayName({
+        locale: "en",
+        designSlug: "folio",
+        lookSlug: "folio-stone",
+        customPalette: null,
+      }),
+      stone.name.en,
+    );
+    assert.equal(
+      paletteDisplayName({
+        locale: "es",
+        designSlug: "folio",
+        lookSlug: "folio-stone",
+        customPalette: null,
+      }),
+      stone.name.es,
+    );
+    assert.equal(
+      paletteDisplayName({
+        locale: "en",
+        designSlug: "folio",
+        lookSlug: "stone",
+        customPalette: null,
+      }),
+      stone.name.en,
+    );
+  });
 });

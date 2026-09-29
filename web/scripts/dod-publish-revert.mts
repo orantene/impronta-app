@@ -13,7 +13,7 @@ const CFG = {
   mateo: {
     profile: "30f45c0f-6c40-44d4-bfb7-f04bfd0a6adc",
     auth: "/home/ubuntu/.claude/design-diff/.auth-mateo-ferrer.json",
-    out: "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/folio-mateo-dod",
+    out: "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/integ-designs-final/folio-mateo",
     prefix: "05-dod5",
     // Prefer heading block (known editable); fallback services title
     pick: "heading" as const,
@@ -21,8 +21,8 @@ const CFG = {
   },
   alba: {
     profile: "8a59afc1-6e2e-49cd-b78d-27f689cc80f5",
-    auth: "/home/ubuntu/.claude/design-diff/.auth-alba-nail-artist.json",
-    out: "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/alba-builder-pending",
+    auth: "/home/ubuntu/.claude/design-diff/.auth-alba-127.json",
+    out: "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/integ-designs-final/maison-alba",
     prefix: "11-dod5",
     pick: "heading" as const,
     liveBaselineRe: /Manos que|Alba|Ver servicios/i,
