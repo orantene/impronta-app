@@ -71,8 +71,13 @@ type View = "home" | "site" | "booking" | "timing" | "pay" | "self" | "chat" | "
 export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string; onClose: () => void }) {
   const copy = useDashboardText();
   // Screen strings live in the lazy chunk, not the global admin map.
-  const t = (value: string) =>
-    copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[value] ?? copy.t(value)) : copy.t(value);
+  // Stable per locale: the load effect below depends on it, and a new function
+  // every render re-ran the load and wiped the unsaved draft (~3 s after a tap).
+  const t = useCallback(
+    (value: string) =>
+      copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[value] ?? copy.t(value)) : copy.t(value),
+    [copy],
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [offerings, setOfferings] = useState<TalentOffering[] | null>(null);
   const [saved, setSaved] = useState<SettingsDraft | null>(null);
