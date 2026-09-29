@@ -49,8 +49,8 @@
           "label": "Menu",
           "artifactSelector": "[data-w^='services_catalog']",
           "localSelector": [
-            "[data-builder-node-kind='services_catalog']",
-            "#services"
+            "#services",
+            "[data-builder-node-kind='services_catalog']"
           ]
         },
         {

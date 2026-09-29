@@ -3,7 +3,7 @@ import "server-only";
 import type { ReactNode } from "react";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
-import { builderTreeHasKind } from "./builder-tree-has-kind";
+import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -478,6 +478,7 @@ async function renderMaxSiteDocument(args: {
   const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
   const pageNeedsVisit = builderTreeHasKind(blocks, "visit");
   const pageNeedsCompCard = builderTreeHasKind(blocks, "comp_card");
+  const pageNeedsFaq = builderTreeHasFaqBind(blocks);
   const pageNeedsNextFreeChip = builderTreeHasKind(blocks, "next_free_chip");
   const pageNeedsTalentOfferings =
     pageNeedsServicesCatalog || pageNeedsPortfolio || pageNeedsNextFreeChip;
@@ -499,10 +500,7 @@ async function renderMaxSiteDocument(args: {
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
-        : pageNeedsTalentOfferings ||
-            pageNeedsReviews ||
-            pageNeedsVisit ||
-            pageNeedsCompCard
+        : pageNeedsTalentOfferings || pageNeedsReviews || pageNeedsVisit || pageNeedsCompCard || pageNeedsFaq
           ? loadPersonalMaxNativeSources({
               talentProfileId,
               locale,
@@ -512,6 +510,7 @@ async function renderMaxSiteDocument(args: {
               reviews: pageNeedsReviews,
               visit: pageNeedsVisit,
               compCard: pageNeedsCompCard,
+              talentFaq: pageNeedsFaq,
             })
           : Promise.resolve({} as BuilderNodeRenderDataSources),
       tenantId && treeHasInstances(blocks)

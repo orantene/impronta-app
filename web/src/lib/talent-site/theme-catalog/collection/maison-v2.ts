@@ -97,6 +97,13 @@ function withSecPad(style: Props): Props {
   };
 }
 
+/** Drop the kit's vertical padding (the proposal's copy column has none). */
+function unpadded(style: Props): Props {
+  const { paddingY: _y, ...rest } = style;
+  void _y;
+  return { ...rest, paddingTop: "0px", paddingBottom: "0px" };
+}
+
 /** Drop the shared kit radius so the skin's proposal radii apply. */
 function unrounded(style: Props): Props {
   const { radius: _radius, ...rest } = style;
@@ -121,14 +128,45 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       nextFreeChip: true,
       ctaRow: { primaryLabel: "See services", primaryHref: "#services", secondaryLabel: "See work" },
     }),
-    { size: "display", letterSpacing: "-0.02em", fontWeight: 450 },
+    {
+      size: "display",
+      letterSpacing: "-0.01em",
+      fontWeight: 500,
+      lineHeight: "0.93",
+      marginTopFree: "6px",
+      responsive: { mobile: { lineHeight: "0.98" } },
+    },
   );
   const visit = (node: BuilderNode): BuilderNode => {
     const p = propsOf(node);
     const kids = kidsOf(node).map(visit);
     if (node.kind === "container" && p.layerLabel === "Hero actions") {
       // CTA + ghost side by side on the phone too (containers stack by default).
-      return withProps(node, { responsive: { mobile: { layout: "row" } } }, kids.length ? kids : undefined);
+      // `.ctas`: 28px under the lede (18px on the phone), 10px apart.
+      return withProps(
+        node,
+        {
+          responsive: { mobile: { layout: "row" } },
+          style: { ...styleOf(node), marginTopFree: "28px", gap: "10px", responsive: { mobile: { marginTopFree: "18px" } } },
+        },
+        kids.length ? kids : undefined,
+      );
+    }
+    if (node.kind === "paragraph" && p.text === "{{primaryTypeLabel}}") {
+      return withProps(node, { layerLabel: "Hero eyebrow", style: { ...styleOf(node), lineHeight: "1.2" } });
+    }
+    if (node.kind === "paragraph" && p.text === "{{tagline}}") {
+      // `.lede`: 22px under the heading (12px on the phone), 1.5 leading.
+      return withProps(node, {
+        layerLabel: "Hero lede",
+        style: {
+          ...styleOf(node),
+          lineHeight: "1.5",
+          marginTopFree: "22px",
+          maxWidthFree: "462px",
+          responsive: { mobile: { marginTopFree: "12px" } },
+        },
+      });
     }
     if (node.kind === "container" && kids.some((k) => propsOf(k).layerLabel === "Hero actions")) {
       // Proof line under the CTAs (`.proofline`): years of craft, the studio.
@@ -138,10 +176,11 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
         props: {
           text: "{{locationLine}}",
           layerLabel: "Hero proof",
-          style: { size: "sm", tone: "muted", marginTop: "s" },
+          style: { size: "sm", tone: "muted", lineHeight: "1.5", marginTopFree: "16px" },
         },
       } as BuilderNode;
-      return withProps(node, {}, [...kids, proof]);
+      // `.hero > div`: no padding, the children carry their own rhythm.
+      return withProps(node, { style: { ...unpadded(styleOf(node)), gap: "0px" } }, [...kids, proof]);
     }
     if (node.kind === "button" && p.tone === "secondary") {
       return withProps(node, { label: "See work", href: "#gallery", layerLabel: "See work" }, kids.length ? kids : undefined);
@@ -160,7 +199,10 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
     if (node.kind === "image" && p.src === "{{headshotUrl}}") {
       const { aspectRatio: _a, ...rest } = unrounded(styleOf(node));
       void _a;
-      return withProps(node, { layerLabel: "Hero photo", style: { ...rest, aspectRatioFree: "4 / 4.3" } });
+      return withProps(node, {
+        layerLabel: "Hero photo",
+        style: { ...rest, aspectRatioFree: "4 / 4.3", responsive: { mobile: { aspectRatioFree: "4 / 4.6" } } },
+      });
     }
     if (node.kind === "image" && p.src === "{{gallery1}}") {
       const { bottom: _b, maxWidthFree: _m, aspectRatio: _a, ...rest } = unrounded(styleOf(node));
@@ -179,8 +221,8 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
     paddingTop: "56px",
     paddingBottom: "20px",
     gridTemplateColumns: "1.05fr 0.95fr",
-    columnGap: "56px",
-    responsive: { mobile: { paddingX: "s", paddingTop: "22px", paddingBottom: "8px", gridTemplateColumns: "1fr" } },
+    gap: "56px",
+    responsive: { mobile: { paddingX: "s", paddingTop: "22px", paddingBottom: "8px", gridTemplateColumns: "1fr", gap: "18px" } },
   });
 }
 
@@ -201,7 +243,8 @@ function maisonV2Ticker(makeId: KitIdFactory): BuilderNode {
       speed: "medium",
       pauseOnHover: true,
       layerLabel: "Ticker",
-      style: { marginTop: "m" },
+      // `.tick`: 22px above, 4px below.
+      style: { marginTopFree: "22px", marginBottomFree: "4px" },
     },
   } as BuilderNode;
 }
@@ -233,7 +276,7 @@ function maisonV2Work(makeId: KitIdFactory): BuilderNode {
   );
   return withProps(
     band,
-    { layerLabel: "Ticker and recent work", style: { ...styleOf(band), maxWidth: "full", paddingX: "none", paddingY: "none" } },
+    { layerLabel: "Ticker and recent work", style: { ...styleOf(band), maxWidth: "full", paddingX: "none", paddingY: "none", gap: "0px" } },
     [ticker, ...kids],
   );
 }
@@ -253,10 +296,12 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
     showDescription: false,
     columns: 2,
   });
+  // The band carries the section rhythm: the catalog follows the website
+  // theme, which paints its own ground and ignores node padding.
   return fullBleed(
     withProps(
       section,
-      {},
+      { style: withSecPad(styleOf(section)) },
       kidsOf(section).map((n) =>
         n.kind === "services_catalog"
           ? withProps(n, {
@@ -267,7 +312,7 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
               showUsdEquivalent: false,
               pricePlacement: "meta",
               mobileBar: "pill",
-              style: withSecPad({ ...styleOf(n), maxWidth: "full" }),
+              style: { ...styleOf(n), maxWidth: "full" },
             })
           : n,
       ),
@@ -288,10 +333,25 @@ function maisonV2About(makeId: KitIdFactory): BuilderNode {
     const p = propsOf(node);
     const kids = kidsOf(node).map(visit);
     if (node.kind === "paragraph" && p.text === "About") {
-      return withProps(node, { text: "Hello, I'm {{displayName}}", layerLabel: "About greeting" });
+      return withProps(node, {
+        text: "Hello, I'm {{displayName}}",
+        layerLabel: "About greeting",
+        style: { ...styleOf(node), lineHeight: "1.2" },
+      });
     }
     if (node.kind === "heading" && p.layerLabel === "About greeting") {
-      return withProps(node, { layerLabel: "About heading" });
+      // `.about h2`: 6px above, 14px below, 1.02 leading.
+      return withProps(node, {
+        layerLabel: "About heading",
+        style: { ...styleOf(node), lineHeight: "1.02", marginTopFree: "6px", marginBottomFree: "14px" },
+      });
+    }
+    if (node.kind === "paragraph" && p.text === "{{richBio}}") {
+      return withProps(node, { style: { ...styleOf(node), lineHeight: "1.5", marginBottomFree: "10px" } });
+    }
+    if (node.kind === "container" && p.layerLabel === "About copy") {
+      // The copy column has no gap; each line carries its own margin.
+      return withProps(node, { style: { ...styleOf(node), gap: "0px" } }, kids);
     }
     if (node.kind === "image") {
       const { aspectRatio: _a, ...rest } = unrounded(styleOf(node));
@@ -301,11 +361,13 @@ function maisonV2About(makeId: KitIdFactory): BuilderNode {
     return kids.length ? withProps(node, {}, kids) : node;
   };
   // `.about`: .8fr / 1fr, 64px gutter, centred; stacked on the phone.
-  return fullBleed(visit(about), {
-    ...withSecPad(styleOf(about)),
+  const { marginTop: _mt, ...aboutStyle } = styleOf(about);
+  void _mt;
+  return fullBleed(visit(withProps(about, { style: aboutStyle })), {
+    ...withSecPad(aboutStyle),
     gridTemplateColumns: "0.8fr 1fr",
-    columnGap: "64px",
-    responsive: { mobile: { paddingX: "s", ...SEC_PAD_MOBILE, gridTemplateColumns: "1fr" } },
+    gap: "64px",
+    responsive: { mobile: { paddingX: "s", ...SEC_PAD_MOBILE, gridTemplateColumns: "1fr", gap: "18px" } },
   });
 }
 
@@ -317,14 +379,47 @@ function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
     props: {
       text: "Questions",
       layerLabel: "FAQ eyebrow",
-      style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", textColor: styleTokenRef("color.accent") },
+      style: {
+        textTransform: "uppercase",
+        letterSpacing: "0.18em",
+        size: "sm",
+        lineHeight: "1.2",
+        textColor: styleTokenRef("color.accent"),
+      },
     },
   } as BuilderNode;
   // Closed by default (`<details>` in the proposal): visitors open what they need.
-  const kids = kidsOf(faq).map((k) => (k.kind === "accordion" ? withProps(k, { startClosed: true }) : k));
+  const kids = kidsOf(faq).map((k) => {
+    if (k.kind === "accordion") return withProps(k, { startClosed: true });
+    if (k.kind === "heading") {
+      // `.sec-h h2`: 4px under the eyebrow, 16px above the list, 34px / 58px.
+      return withProps(k, {
+        style: {
+          ...styleOf(k),
+          fontSize: "58px",
+          lineHeight: "1.02",
+          marginTopFree: "4px",
+          marginBottomFree: "16px",
+          responsive: { mobile: { fontSize: "34px" } },
+        },
+      });
+    }
+    return k;
+  });
+  const { marginBottom: _mb, ...faqStyle } = styleOf(faq);
+  void _mb;
   return withProps(
     faq,
-    { style: withSecPad({ ...styleOf(faq), maxWidth: "full", paddingX: "l", maxWidthFree: "856px" }) },
+    {
+      style: withSecPad({
+        ...faqStyle,
+        maxWidth: "full",
+        paddingX: "l",
+        maxWidthFree: "856px",
+        gap: "0px",
+        responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px" } },
+      }),
+    },
     [eyebrow, ...kids],
   );
 }
@@ -351,6 +446,8 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
         paddingX: "l",
         paddingTop: "70px",
         paddingBottom: "120px",
+        // Children carry their own rhythm (`.foot` has no gap).
+        gap: "0px",
         responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
       },
     },
@@ -358,12 +455,18 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
       {
         id: makeId(),
         kind: "heading",
-        props: { text: "See you soon.", level: 2, layerLabel: "Footer line" },
+        props: { text: "See you soon.", level: 2, layerLabel: "Footer line", style: { lineHeight: "1" } },
       } as BuilderNode,
       {
         id: makeId(),
         kind: "button",
-        props: { label: "See services", href: "#services", tone: "primary", layerLabel: "Footer CTA" },
+        props: {
+          label: "See services",
+          href: "#services",
+          tone: "primary",
+          layerLabel: "Footer CTA",
+          style: { marginTopFree: "18px" },
+        },
       } as BuilderNode,
       // Fine print (`.fine`): the copyright left, "Made with Tulala" right.
       {
@@ -375,14 +478,23 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
           align: "center",
           layerLabel: "Footer fine print",
           responsive: { mobile: { layout: "row" } },
-          style: { width: "100%", maxWidth: "full", justifyContent: "space-between", flexWrap: "wrap", marginTopFree: "28px" },
+          style: {
+            width: "100%",
+            maxWidth: "full",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            marginTopFree: "28px",
+            gap: "10px",
+          },
         },
         children: [
-          ...kidsOf(node),
+          ...kidsOf(node).map((k) =>
+            k.kind === "paragraph" ? withProps(k, { style: { ...styleOf(k), lineHeight: "1.5" } }) : k,
+          ),
           {
             id: makeId(),
             kind: "paragraph",
-            props: { text: "Made with Tulala", layerLabel: "Footer credit" },
+            props: { text: "Made with Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
           } as BuilderNode,
         ],
       } as BuilderNode,
