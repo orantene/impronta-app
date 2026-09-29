@@ -65,6 +65,11 @@ export interface DesignSnapshot {
    * render "Editorial Bridal (with overrides)". `null` for fully-custom
    * tenants. */
   presetSlug: string | null;
+  /**
+   * Talent gallery identity for the Theme drawer head (e.g. "Maison v2 · Rosé").
+   * Agency surfaces leave this unset and use `presetSlug` instead.
+   */
+  galleryLabel?: string | null;
   /** ISO timestamp of the last theme_json publish. Null until first publish. */
   themePublishedAt: string | null;
   /** CAS version on the shared agency_branding row. */

@@ -143,11 +143,17 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
     if (node.kind === "container" && p.layerLabel === "Hero actions") {
       // CTA + ghost side by side on the phone too (containers stack by default).
       // `.ctas`: 28px under the lede (18px on the phone), 10px apart.
+      // flexWrap on mobile keeps long ES labels from clipping in the builder frame.
       return withProps(
         node,
         {
-          responsive: { mobile: { layout: "row" } },
-          style: { ...styleOf(node), marginTopFree: "28px", gap: "10px", responsive: { mobile: { marginTopFree: "18px" } } },
+          responsive: { mobile: { layout: "row", flexWrap: "wrap" } },
+          style: {
+            ...styleOf(node),
+            marginTopFree: "28px",
+            gap: "10px",
+            responsive: { mobile: { marginTopFree: "18px", flexWrap: "wrap" } },
+          },
         },
         kids.length ? kids : undefined,
       );

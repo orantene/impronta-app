@@ -30,6 +30,12 @@ export interface TalentSiteThemeState {
   draft: Record<string, string>;
   live: Record<string, string>;
   designSlug: string | null;
+  /** Gallery look slug (e.g. `maison-v2-rose` / `maison-rose`) when set. */
+  lookSlug: string | null;
+  /** Saved custom palette blob when the talent picked "My colors". */
+  customPalette: unknown;
+  /** Site last-published timestamp (theme / site publish). */
+  sitePublishedAt: string | null;
 }
 
 function coerceTokens(value: unknown): Record<string, string> {
@@ -49,7 +55,9 @@ export async function loadTalentSiteThemeState(
   if (!admin) return null;
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens, design_tokens_draft, theme_design_slug")
+    .select(
+      "design_tokens, design_tokens_draft, theme_design_slug, theme_look_slug, custom_palette, site_published_at",
+    )
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
   if (error) {
@@ -61,11 +69,18 @@ export async function loadTalentSiteThemeState(
     design_tokens: unknown;
     design_tokens_draft: unknown;
     theme_design_slug: string | null;
+    theme_look_slug: string | null;
+    custom_palette: unknown;
+    site_published_at: string | null;
   };
   return {
     draft: coerceTokens(row.design_tokens_draft),
     live: coerceTokens(row.design_tokens),
     designSlug: row.theme_design_slug?.trim() || null,
+    lookSlug: row.theme_look_slug?.trim() || null,
+    customPalette: row.custom_palette ?? null,
+    sitePublishedAt:
+      typeof row.site_published_at === "string" ? row.site_published_at : null,
   };
 }
 

@@ -102,4 +102,25 @@ describe("paletteDisplayName", () => {
       "Mis colores",
     );
   });
+
+  it("names a collection palette from the bare look slug (Maison v2 · Rosé)", () => {
+    assert.equal(
+      paletteDisplayName({
+        locale: "en",
+        designSlug: "maison-v2",
+        lookSlug: "rose",
+        customPalette: null,
+      }),
+      "Rosé",
+    );
+    assert.equal(
+      paletteDisplayName({
+        locale: "es",
+        designSlug: "maison-v2",
+        lookSlug: "rose",
+        customPalette: null,
+      }),
+      "Rosé",
+    );
+  });
 });

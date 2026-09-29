@@ -44,6 +44,10 @@ import type {
   DesignSaveResult,
   ComponentStylesSaveResult,
 } from "./design-actions";
+import { liveDesignName } from "@/components/talent/site/maison-setup/maison-live-summary";
+import { paletteDisplayName } from "@/components/talent/site/maison-setup/live-design-change";
+import { parseMaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import {
   readTalentDesignSlice,
   writeTalentDesignSlice,
@@ -164,6 +168,48 @@ async function persistDesignSlice(
   return { ok: true };
 }
 
+/** Drawer head label from the talent gallery Design + palette (e.g. "Maison v2 · Rosé"). */
+function talentGalleryLabel(site: TalentSiteThemeState): string | null {
+  if (!site.designSlug?.trim()) return null;
+  const designName = liveDesignName("en", site.designSlug);
+  const custom = parseMaisonCustomPaletteStored(site.customPalette);
+  let lookSlug = site.lookSlug;
+  // apply-maison used to leave lookSlug null for collection palettes while
+  // still writing the palette tokens. Infer the matching gallery key from
+  // the live/draft colors so the drawer still names Rosé (etc.).
+  if (!lookSlug && !custom) {
+    lookSlug = inferGalleryPaletteKey(site.designSlug, { ...site.live, ...site.draft });
+  }
+  const palette = paletteDisplayName({
+    locale: "en",
+    designSlug: site.designSlug,
+    lookSlug,
+    customPalette: custom,
+  });
+  return `${designName} · ${palette}`;
+}
+
+function inferGalleryPaletteKey(
+  designSlug: string,
+  tokens: Record<string, string>,
+): string | null {
+  const design = getGalleryDesign(designSlug);
+  if (!design) return null;
+  const page = tokens["color.background"]?.trim().toLowerCase();
+  const text = tokens["color.ink"]?.trim().toLowerCase();
+  const accent = (tokens["color.accent"] ?? tokens["color.primary"])?.trim().toLowerCase();
+  const section = tokens["color.surface-raised"]?.trim().toLowerCase();
+  if (!page || !text || !accent) return null;
+  const hit = design.palettes.find(
+    (p) =>
+      p.page.toLowerCase() === page &&
+      p.text.toLowerCase() === text &&
+      p.accent.toLowerCase() === accent &&
+      (!section || p.section.toLowerCase() === section),
+  );
+  return hit?.key ?? design.palettes[0]?.key ?? null;
+}
+
 function snapshotFromSlice(
   slice: TalentDesignSlice,
   platformTokens: Record<string, string>,
@@ -177,13 +223,17 @@ function snapshotFromSlice(
     const designStyles = siteDesignComponentStyles(site.designSlug, platformComponentStyles);
     const pick = (own: ComponentStyleDefaults) =>
       normalizeComponentStyleDefaults(Object.keys(own).length > 0 ? own : designStyles);
+    const galleryLabel = talentGalleryLabel(site);
     return {
       ok: true,
       snapshot: {
         themeDraft: withDefaults({ ...site.draft, ...slice.tokensDraft }, platformTokens),
         themeLive: withDefaults({ ...site.live, ...slice.tokens }, platformTokens),
-        presetSlug: slice.presetSlug,
-        themePublishedAt: slice.publishedAt,
+        // Prefer the gallery Design slug for the drawer when the page slice
+        // never recorded an agency preset (common after apply-maison).
+        presetSlug: slice.presetSlug ?? site.designSlug,
+        galleryLabel,
+        themePublishedAt: slice.publishedAt ?? site.sitePublishedAt,
         version: slice.version,
         componentStylesDraft: pick(slice.componentStylesDraft),
         componentStylesLive: pick(slice.componentStyles),

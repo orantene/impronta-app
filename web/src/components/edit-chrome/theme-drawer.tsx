@@ -689,9 +689,11 @@ export function ThemeDrawer(): ReactElement | null {
         title={
           !snapshot && busy === "loading"
             ? "Theme · loading…"
-            : snapshot?.presetSlug
-              ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
-              : "Theme · Custom"
+            : snapshot?.galleryLabel
+              ? snapshot.galleryLabel
+              : snapshot?.presetSlug
+                ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
+                : "Theme · Custom"
         }
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}

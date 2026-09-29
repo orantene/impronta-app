@@ -102,6 +102,13 @@ export interface ClientBuilderCanvasProps {
    * saved tree is never changed. Pass a stable function.
    */
   transformTree?: (tree: BuilderNodeTree) => BuilderNodeTree;
+  /**
+   * Site visitor locale for runtime chrome that is not stored in the tree
+   * (services catalog dock pill, etc.). Talent builder passes the site
+   * locale so "Ver servicios" matches the live site even when the editor
+   * content-locale toggle is still on English.
+   */
+  visitorLocale?: string;
 }
 
 function ClientBuilderCanvasInner({
@@ -114,6 +121,7 @@ function ClientBuilderCanvasInner({
   componentStyleDefaults,
   includeRendererStyles = false,
   transformTree,
+  visitorLocale,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
   // server snapshot is `null` (the bridge starts empty), so we fall back to
@@ -189,15 +197,25 @@ function ClientBuilderCanvasInner({
   // (editorPreview: true). On the default locale this resolves to the base prop
   // → byte-identical to today. The bridge flip re-renders the canvas with no
   // navigation / reload.
+  //
+  // Talent builder: when the site locale is threaded as `visitorLocale`, use it
+  // for runtime chrome (dock "Ver servicios", catalog pills) so the canvas
+  // matches the live site even if the editor's content-locale toggle is still
+  // on English. Tree labels are already localised via `transformTree`.
   const activeLocale = useActiveContentLocale();
   const contentLocale = useMemo(
     () => ({
-      locale: activeLocale.locale,
+      locale: visitorLocale ?? activeLocale.locale,
       defaultLocale: activeLocale.defaultLocale,
       chain: activeLocale.chain,
       editorPreview: true,
     }),
-    [activeLocale.locale, activeLocale.defaultLocale, activeLocale.chain],
+    [
+      visitorLocale,
+      activeLocale.locale,
+      activeLocale.defaultLocale,
+      activeLocale.chain,
+    ],
   );
 
   // W2-T1 — memoize the `renderBuilderNodes` options object. The only memo
@@ -220,6 +238,7 @@ function ClientBuilderCanvasInner({
       componentStyleDefaults: effectiveComponentDefaults,
       renderSectionEmbed,
       contentLocale,
+      visitorLocale,
       // W3-T1 — editor-only insert/delete/reorder motion. The published /
       // server render paths never set this, so they stay byte-identical; here
       // on the live editor canvas it wraps the tree in the FLIP primitive.
@@ -235,6 +254,7 @@ function ClientBuilderCanvasInner({
       effectiveComponentDefaults,
       renderSectionEmbed,
       contentLocale,
+      visitorLocale,
     ],
   );
 

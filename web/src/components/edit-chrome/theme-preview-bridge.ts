@@ -56,8 +56,10 @@ export function publishThemePreview(tokens: ThemePreviewTokens): void {
 }
 
 /**
- * Clear the preview (drawer closed / publish complete). The projector reverts
- * the canvas root to the inherited LIVE `--token-*` vars from <html>.
+ * Clear the preview (drawer closed / publish complete). The projector restores
+ * each canvas-root CSS var to the value it had before the preview (talent
+ * builder site tokens live on the canvas root, not on <html>), and restores
+ * any <html> data-token-* attrs it overwrote.
  */
 export function clearThemePreview(): void {
   if (previewTokens === null) return;

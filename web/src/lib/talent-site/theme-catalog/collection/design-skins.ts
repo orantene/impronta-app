@@ -38,6 +38,9 @@ const MAISON_V2_SKIN = [
   `${S} .site-builder-node--button:active{transform:scale(.98)}`,
   `${S} :is(.site-builder-node--button[data-builder-button-tone="primary"],.site-builder-node--button-primary){background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-primary-on,var(--token-color-background))}`,
   `${S} :is(.site-builder-node--button[data-builder-button-tone="secondary"],.site-builder-node--button-secondary){background:transparent;color:var(--token-color-ink);border:1.5px solid color-mix(in srgb,var(--token-color-ink) 22%,transparent)}`,
+  // Phone / narrow builder frame: hero CTAs may wrap so ES labels ("Ver servicios")
+  // are not clipped mid-glyph by overflow-x:clip on the section band.
+  `@media (max-width:899px){${S} #hero .site-builder-node--button{white-space:normal;height:auto;min-height:48px;padding:10px 18px;line-height:1.2;text-align:center}}`,
 
   // ── Row 1 Header: sticky frosted bar, italic Bodoni logo + small tracked trade, muted nav, ES/EN, CTA pill.
   `${S} .site-header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--token-color-background) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in srgb,var(--token-color-line) 60%,transparent);color:var(--token-color-ink)}`,

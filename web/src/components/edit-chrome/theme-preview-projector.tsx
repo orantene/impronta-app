@@ -18,6 +18,11 @@
  *     consumer `--site-heading/body-font` is declared on <html>), so we also set
  *     that consumable on the canvas root when a custom family is present.
  *
+ *     Talent builder canvases paint LIVE site tokens as React inline styles on
+ *     the same canvas root (not on <html>). So on clear we must RESTORE the
+ *     pre-preview inline values — `removeProperty` would strip the site look
+ *     and leave platform defaults until an unrelated remount.
+ *
  *  2. ENUM PRESET tokens → `<html>` data-attributes.
  *     Radius / shadow / spacing / typography presets, background mode, motion,
  *     etc. flip `--site-*` consumables via `html[data-token-*]` rules in
@@ -48,8 +53,15 @@ const CANVAS_ROOT_SELECTOR = "[data-theme-canvas-root]";
 
 export function ThemePreviewProjector(): ReactElement | null {
   const tokens = useThemePreview();
-  // Canvas-root CSS vars we last set (so we can remove stale ones on clear).
+  // Canvas-root CSS vars we last set (so we can restore baseline on clear).
   const appliedVarsRef = useRef<Set<string>>(new Set());
+  // Per-root snapshot of each var's ORIGINAL inline value before we overwrote
+  // it (null = property was absent). Closing the drawer restores these so the
+  // talent canvas keeps its site tokens instead of falling through to platform
+  // defaults.
+  const varSnapshotRef = useRef<Map<HTMLElement, Map<string, string | null>> | null>(
+    null,
+  );
   // <html> data-attrs we last set + a snapshot of their ORIGINAL values, so a
   // clear restores the live theme (set back the original, or remove if the
   // attribute didn't exist before we touched it).
@@ -69,17 +81,44 @@ export function ThemePreviewProjector(): ReactElement | null {
       const bodyFamily = tokens["typography.body-font-family"]?.trim();
       if (headingFamily) nextVars["--site-heading-font"] = headingFamily;
       if (bodyFamily) nextVars["--site-body-font"] = bodyFamily;
+      if (varSnapshotRef.current === null) varSnapshotRef.current = new Map();
     }
     const nextVarKeys = new Set(Object.keys(nextVars));
-    for (const root of roots) {
-      for (const varName of appliedVarsRef.current) {
-        if (!nextVarKeys.has(varName)) root.style.removeProperty(varName);
+    const varSnap = varSnapshotRef.current;
+
+    if (tokens && varSnap) {
+      for (const root of roots) {
+        let rootSnap = varSnap.get(root);
+        if (!rootSnap) {
+          rootSnap = new Map();
+          varSnap.set(root, rootSnap);
+        }
+        for (const varName of appliedVarsRef.current) {
+          if (!nextVarKeys.has(varName)) {
+            restoreCssVar(root, varName, rootSnap);
+          }
+        }
+        for (const [varName, value] of Object.entries(nextVars)) {
+          if (!rootSnap.has(varName)) {
+            const existing = root.style.getPropertyValue(varName);
+            rootSnap.set(varName, existing === "" ? null : existing);
+          }
+          root.style.setProperty(varName, value);
+        }
       }
-      for (const [varName, value] of Object.entries(nextVars)) {
-        root.style.setProperty(varName, value);
+      appliedVarsRef.current = nextVarKeys;
+    } else {
+      // Clear → restore every var we touched to its pre-preview inline value.
+      if (varSnap) {
+        for (const [root, rootSnap] of varSnap) {
+          for (const varName of appliedVarsRef.current) {
+            restoreCssVar(root, varName, rootSnap);
+          }
+        }
       }
+      appliedVarsRef.current = new Set();
+      varSnapshotRef.current = null;
     }
-    appliedVarsRef.current = nextVarKeys;
 
     // ── Channel 2: <html> enum data-attrs ────────────────────────────────
     const html = document.documentElement;
@@ -109,18 +148,22 @@ export function ThemePreviewProjector(): ReactElement | null {
     }
   }, [tokens]);
 
-  // Cleanup on unmount: strip canvas vars + restore <html> attrs so a teardown
+  // Cleanup on unmount: restore canvas vars + <html> attrs so a teardown
   // (e.g. leaving edit mode) never leaves the editor frozen on a draft value.
   useEffect(() => {
     return () => {
+      const varSnap = varSnapshotRef.current;
       document
         .querySelectorAll<HTMLElement>(CANVAS_ROOT_SELECTOR)
         .forEach((root) => {
+          const rootSnap = varSnap?.get(root);
           for (const varName of appliedVarsRef.current) {
-            root.style.removeProperty(varName);
+            if (rootSnap) restoreCssVar(root, varName, rootSnap);
+            else root.style.removeProperty(varName);
           }
         });
       appliedVarsRef.current = new Set();
+      varSnapshotRef.current = null;
       const html = document.documentElement;
       const snap = attrSnapshotRef.current;
       if (snap) {
@@ -132,6 +175,21 @@ export function ThemePreviewProjector(): ReactElement | null {
   }, []);
 
   return null;
+}
+
+/** Restore a single CSS var from the snapshot, then forget it. */
+function restoreCssVar(
+  root: HTMLElement,
+  varName: string,
+  snap: Map<string, string | null>,
+): void {
+  const original = snap.get(varName);
+  if (original === null || original === undefined) {
+    root.style.removeProperty(varName);
+  } else {
+    root.style.setProperty(varName, original);
+  }
+  snap.delete(varName);
 }
 
 /** Restore a single data-attr from the snapshot, then forget it. */
