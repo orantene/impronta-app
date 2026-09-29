@@ -39,6 +39,10 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
+import { loadMaxSiteDesignSlug, loadMaxSiteThemeTokens } from "@/lib/talent-site/server/load-max-site";
+import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
+import { typeSystemComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-type-system";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
 
 export const dynamic = "force-dynamic";
@@ -187,12 +191,22 @@ export default async function TalentPageBuilderRoute({
         draftTree = (row?.blocks ?? []) as BuilderNodeTree;
         const slice = readTalentDesignSlice(row?.theme);
         const platformDefault = await loadPlatformDefaultTheme("talent");
+        // Same layering as the live site (render-max-site): platform < the
+        // Design's token defaults < site (draft, the owner is editing) < page.
+        const [siteTokens, designSlug] = await Promise.all([
+          loadMaxSiteThemeTokens(profile.id, { draft: true }),
+          loadMaxSiteDesignSlug(profile.id),
+        ]);
+        talentDesignTokens = resolveEffectiveSiteTokens(
+          slice.tokens,
+          siteTokens,
+          platformDefault.tokens,
+          designTokenDefaults(designSlug),
+        );
         talentComponentStyleDefaults =
           Object.keys(slice.componentStyles).length > 0
             ? slice.componentStyles
-            : platformDefault.componentStyles;
-        talentDesignTokens =
-          Object.keys(slice.tokens).length > 0 ? slice.tokens : platformDefault.tokens;
+            : typeSystemComponentStyleDefaults(talentDesignTokens, platformDefault.componentStyles);
       }
       canvasRenderData = await buildInEditorCanvasRenderData({
         tree: draftTree,

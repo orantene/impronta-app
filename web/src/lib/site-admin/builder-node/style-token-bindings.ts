@@ -43,6 +43,7 @@
 
 import { COLOR_VAR_NAMES } from "@/lib/site-admin/tokens/resolve";
 import { TOKEN_REGISTRY } from "@/lib/site-admin/tokens/registry";
+import { STYLE_TOKEN_DEFS, styleTokenCssVar } from "@/lib/site-admin/tokens/style-tokens";
 
 /** The `token:` prefix that marks a style value as a token reference. */
 export const STYLE_TOKEN_REF_PREFIX = "token:";
@@ -217,6 +218,21 @@ const DERIVED_THEME_BINDINGS: ReadonlyArray<StyleBindableToken> = [
 ];
 
 /**
+ * Site style tokens a block can bind to (`token:shape.card-radius`, ...), so a
+ * block follows the site-wide value instead of a raw one. Appended after the
+ * derived vars so no existing catalog entry moves.
+ */
+const SITE_STYLE_BINDINGS: ReadonlyArray<StyleBindableToken> = STYLE_TOKEN_DEFS.filter(
+  (d) => d.bind !== undefined,
+).map((d) => ({
+  key: d.key,
+  label: d.label.en,
+  cssVar: styleTokenCssVar(d.key),
+  fallback: d.fallback,
+  kind: d.bind!,
+}));
+
+/**
  * Build the bindable-color catalog from the registry's `color.*` tokens that
  * have a CSS-var projection. Derived once at module load — the registry is a
  * static constant. Ordered to match the registry declaration order.
@@ -240,10 +256,11 @@ function buildColorBindings(): ReadonlyArray<StyleBindableToken> {
 
 const COLOR_BINDINGS = buildColorBindings();
 
-const RADIUS_BINDINGS = DERIVED_THEME_BINDINGS.filter((t) => t.kind === "radius");
-const SHADOW_BINDINGS = DERIVED_THEME_BINDINGS.filter((t) => t.kind === "shadow");
-const SPACING_BINDINGS = DERIVED_THEME_BINDINGS.filter((t) => t.kind === "spacing");
-const FONT_SIZE_BINDINGS = DERIVED_THEME_BINDINGS.filter(
+const DERIVED_AND_STYLE = [...DERIVED_THEME_BINDINGS, ...SITE_STYLE_BINDINGS];
+const RADIUS_BINDINGS = DERIVED_AND_STYLE.filter((t) => t.kind === "radius");
+const SHADOW_BINDINGS = DERIVED_AND_STYLE.filter((t) => t.kind === "shadow");
+const SPACING_BINDINGS = DERIVED_AND_STYLE.filter((t) => t.kind === "spacing");
+const FONT_SIZE_BINDINGS = DERIVED_AND_STYLE.filter(
   (t) => t.kind === "font-size",
 );
 
@@ -256,6 +273,7 @@ export const STYLE_BINDABLE_TOKENS: ReadonlyArray<StyleBindableToken> = [
   ...COLOR_BINDINGS,
   ...FONT_FAMILY_BINDINGS,
   ...DERIVED_THEME_BINDINGS,
+  ...SITE_STYLE_BINDINGS,
 ];
 
 /** Bindable color tokens — for the inspector color pickers. */
@@ -372,6 +390,9 @@ function buildExactRawToTokenMap(): ReadonlyMap<string, string> {
     // The font/spacing "inherit" sentinel fallback is not a meaningful raw value
     // to rebind from — skip it so an authored `inherit` isn't hijacked.
     if (t.fallback === "inherit") continue;
+    // Site style tokens are Design-owned values, not a shared scale: a raw
+    // 48px is not "the gutter", so never auto-rebind to them.
+    if (SITE_STYLE_BINDINGS.includes(t)) continue;
     const key = t.kind === "color" ? t.fallback.toLowerCase() : t.fallback;
     if (!out.has(key)) out.set(key, t.key);
   }

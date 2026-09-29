@@ -20,7 +20,7 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
-import { designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-skins";
+import { designComponentStyleDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import {
   isTalentShellLandmark,
   renderTalentShellLandmark,
