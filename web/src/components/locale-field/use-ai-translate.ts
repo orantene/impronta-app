@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  aiStateForCode,
   translateTalentField,
   type TalentTranslateField,
 } from "./translate-action";
@@ -62,14 +63,9 @@ export function useAiTranslate(field: TalentTranslateField) {
         timer.current = setTimeout(() => setState("idle"), 1500);
         return res.text;
       }
-      if (res.code === "quota") {
-        sessionQuotaHit = true;
-        setState("quota");
-      } else if (res.code === "no_key" || res.code === "disabled") {
-        setState("unavailable");
-      } else {
-        setState("error");
-      }
+      const next = aiStateForCode(res.code);
+      if (next === "quota") sessionQuotaHit = true;
+      setState(next);
       return null;
     },
     [field],

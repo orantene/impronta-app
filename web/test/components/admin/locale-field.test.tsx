@@ -12,6 +12,7 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { testRender } from "../../helpers/test-render";
 
 vi.mock("@/components/locale-field/translate-action", () => ({
+  aiStateForCode: () => "error",
   translateTalentField: vi.fn(async ({ text }: { text: string }) => ({
     ok: true,
     text: `EN(${text})`,
