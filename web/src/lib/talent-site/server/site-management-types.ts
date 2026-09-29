@@ -45,6 +45,11 @@ export type MaxSiteManagerState = {
   themeDesignSlug: string | null;
   /** Applied Look slug (e.g. `maison-lilac`); null until a Look is applied. */
   themeLookSlug: string | null;
+  /**
+   * `talent_profiles.profile_template` (e.g. `maison`). Lets the live card
+   * name a site built by hand before the design catalog (no design slug).
+   */
+  legacyProfileTemplate?: string | null;
   pages: MaxSiteManagerPage[];
 };
 

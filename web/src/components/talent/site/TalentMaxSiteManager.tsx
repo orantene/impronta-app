@@ -175,6 +175,7 @@ function ManagerBody({
           siteSlug={state.siteSlug}
           themeDesignSlug={state.themeDesignSlug}
           themeLookSlug={state.themeLookSlug}
+          legacyProfileTemplate={state.legacyProfileTemplate}
           publishedAt={state.sitePublishedAt}
           contentModeLabel="mine"
           onChangeDesign={() => setMaisonForceScreen("gallery")}

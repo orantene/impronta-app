@@ -2,7 +2,7 @@
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { MAISON_PALETTES, MAISON_SEED, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
-import type { MaisonSetupLocale } from "./maison-setup-copy";
+import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 export function lookToPalette(lookSlug: string | null): MaisonPaletteKey | null {
   if (!lookSlug?.startsWith("maison-")) return null;
@@ -38,4 +38,35 @@ export function liveDesignName(locale: MaisonSetupLocale, designSlug: string | n
   const hit = COLLECTION_DESIGNS.find((d) => d.slug === slug);
   if (hit) return hit.title;
   return locale === "es" ? "Tu diseño" : "Your design";
+}
+
+/**
+ * Design label on the live card. A design slug names its design. A site with
+ * no design slug was built by hand: when the talent's profile template is the
+ * original Maison layout, say so ("Maison (original)"); otherwise the honest
+ * name is "Custom design".
+ */
+export function liveCardDesignLabel(input: {
+  locale: MaisonSetupLocale;
+  designSlug: string | null;
+  legacyProfileTemplate: string | null;
+}): string {
+  const { locale, designSlug, legacyProfileTemplate } = input;
+  if (designSlug?.trim()) return liveDesignName(locale, designSlug);
+  if (legacyProfileTemplate?.trim().toLowerCase() === "maison") {
+    return maisonSetupT(locale, "Maison (original)");
+  }
+  return maisonSetupT(locale, "Custom design");
+}
+
+/**
+ * Palette part of the live card summary for a site with no catalog design:
+ * "Your colors" only when a custom palette is saved, otherwise omitted (null).
+ */
+export function legacyPaletteLabel(
+  locale: MaisonSetupLocale,
+  customPalette: MaisonCustomPaletteStored | null,
+): string | null {
+  if (!customPalette) return null;
+  return maisonSetupT(locale, "Your colors");
 }
