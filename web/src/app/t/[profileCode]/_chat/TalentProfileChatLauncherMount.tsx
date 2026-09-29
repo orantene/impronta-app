@@ -38,6 +38,7 @@ import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 import { createTranslator } from "@/i18n/messages";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
@@ -124,6 +125,11 @@ type TalentProfileChatLauncherMountProps = {
    * panel never names Tulala on her own site (front-door Ana step 1).
    */
   omitPlatformBrand?: boolean;
+  /**
+   * `chat.variant` = card: the calm one-to-one chat card painted from her
+   * site's tokens (a talent's own host only). Null keeps the standard dock.
+   */
+  chatCard?: ChatCardConfig | null;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -144,6 +150,7 @@ export async function TalentProfileChatLauncherMount({
   backgroundMode = null,
   wordsPresetOverride = null,
   omitPlatformBrand = false,
+  chatCard = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -280,6 +287,7 @@ export async function TalentProfileChatLauncherMount({
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
+      chatCard={chatCard}
       activePhase={lifecycle.activePhase}
       activeStatus={lifecycle.activeStatus}
       coordinatorId={lifecycle.coordinatorId}

@@ -59,12 +59,15 @@ import {
   readableOn,
   type SurfaceMode,
 } from "./mini-chat-styles";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
 // Jon 360 Phase 7 — `surfaceMode` is a LOCAL extension (the dark-surface signal
 // derived from the tenant's resolved background.mode), NOT added to the shared
 // read-only guest-chat-contract. Threaded launcher → panel.
 type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
+  /** `chat.variant` = card (her own site): the one-to-one chat card. */
+  chatCard?: ChatCardConfig | null;
   /**
    * Phase 3 — lifecycle inputs for the resolver-driven pill label, resolved
    * server-side at the Mount seam (from getActiveGuestInquiry +
@@ -137,6 +140,7 @@ export function TalentProfileChatLauncher({
   className,
   openFullHref = null,
   surfaceMode = "light",
+  chatCard = null,
   activePhase = null,
   activeStatus = null,
   coordinatorId = null,
@@ -696,6 +700,7 @@ export function TalentProfileChatLauncher({
         brand={brand}
         isHub={isHub}
         surfaceMode={surfaceMode}
+        chatCard={chatCard}
         key={freshEpoch}
         existingInquiryId={resumeSuppressed ? freshOverrideId : existingInquiryId}
         existingContactPromoted={resumeSuppressed ? (freshOverrideId ? false : null) : existingContactPromoted}

@@ -1065,6 +1065,19 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`editorial-ivory` is the warm Muse Bridal canvas. `editorial-noir` is the black-canvas gold-serif register (original Impronta). `aurora` is the existing default radial glow. `plain` = neutral solid background.",
   },
+
+  // ── Guest chat look ─────────────────────────────────────────────────
+  "chat.variant": {
+    key: "chat.variant",
+    label: "Chat style",
+    scope: "background",
+    agencyConfigurable: true,
+    validator: z.enum(["standard", "card"]),
+    defaultValue: "standard",
+    group: "Site shell",
+    description:
+      "`standard` = the full messages dock (tabs, services rail, progress). `card` = a calm one-to-one chat card in the site's own colours and fonts: avatar + name, a greeting bubble and a message pill. Sending and booking work the same in both. A Design may set this as its default.",
+  },
 };
 
 export function getToken(key: string): TokenSpec | null {
