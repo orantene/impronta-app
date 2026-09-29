@@ -21,9 +21,11 @@ import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
+import { useTalentContentLocaleSeed } from "./use-talent-content-locale-seed";
 
 export function LanguageMenu() {
-  const { state, openDrawer, supportedLocales, tenantDefaultLocale } = useAdminShell();
+  const { state, openDrawer, supportedLocales, tenantDefaultLocale, talentLocales } = useAdminShell();
+  useTalentContentLocaleSeed(talentLocales);
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
