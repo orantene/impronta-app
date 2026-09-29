@@ -32,9 +32,7 @@ import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
-import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
-import { readTalentDesignSlice } from "@/lib/site-admin/edit-mode/talent-design-store";
+import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
@@ -167,15 +165,17 @@ export default async function TalentPageBuilderRoute({
       ? requestedPage
       : homePage?.slug ?? HOME_FALLBACK_SLUG;
 
-  // Prime the in-editor canvas for the active PAGE (not the shell — the shell
-  // surface paints from its own load). Best-effort.
+  // Prime the in-editor canvas for the active PAGE (not the shell: the shell
+  // surface paints from its own load). The talent's OWN site pipeline (design
+  // tokens + skin + fonts, site-locale labels, header/footer), so the canvas is
+  // WYSIWYG with her live site. Needs no managing agency: solo / free talents
+  // get the personal data sources, like the live host. Best-effort.
   let canvasRenderData = null;
-  if (hasBuilderAccess && !shellMode && tenantId) {
+  if (hasBuilderAccess && !shellMode) {
     try {
       const admin = createServiceRoleClient();
       let draftTree: BuilderNodeTree = [];
-      let talentComponentStyleDefaults = null;
-      let talentDesignTokens: Record<string, string> | null = null;
+      let pageTheme: unknown = null;
       if (admin) {
         const { data: pageRow } = await admin
           .from("talent_pages")
@@ -185,24 +185,17 @@ export default async function TalentPageBuilderRoute({
           .maybeSingle();
         const row = pageRow as { blocks: BuilderNodeTree | null; theme: unknown } | null;
         draftTree = (row?.blocks ?? []) as BuilderNodeTree;
-        const slice = readTalentDesignSlice(row?.theme);
-        const platformDefault = await loadPlatformDefaultTheme("talent");
-        talentComponentStyleDefaults =
-          Object.keys(slice.componentStyles).length > 0
-            ? slice.componentStyles
-            : platformDefault.componentStyles;
-        talentDesignTokens =
-          Object.keys(slice.tokens).length > 0 ? slice.tokens : platformDefault.tokens;
+        pageTheme = row?.theme ?? null;
       }
-      canvasRenderData = await buildInEditorCanvasRenderData({
+      canvasRenderData = await buildTalentBuilderCanvasData({
+        talentProfileId: profile.id,
+        pageSlug: activeSlug,
         tree: draftTree,
+        pageTheme,
         tenantId,
-        locale,
-        previewSubject: { kind: "talent", id: profile.id },
-        componentStyleDefaultsOverride: talentComponentStyleDefaults,
-        designTokens: talentDesignTokens,
       });
-    } catch {
+    } catch (error) {
+      logServerError("talentPageBuilder/canvasRenderData", error);
       canvasRenderData = null;
     }
   }

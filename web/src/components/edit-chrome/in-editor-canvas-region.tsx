@@ -28,7 +28,7 @@
 
 import type { ReactNode } from "react";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
@@ -46,6 +46,8 @@ import {
   designTokensToDataAttrs,
 } from "@/lib/site-admin/tokens/resolve";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 
 export interface InEditorCanvasRegionProps {
   /**
@@ -95,6 +97,22 @@ export function InEditorCanvasRegion({
   // below so the first insert / applied design paints in place.
   const isEmpty = tree.length === 0;
 
+  // talent_page: seeded labels follow the SITE locale + booking mode on the
+  // canvas, exactly as the live render localises them (render-time only).
+  const labelLocale = canvasRenderData?.labelLocale ?? null;
+  const transformTree = useCallback(
+    (t: BuilderNodeTree): BuilderNodeTree =>
+      labelLocale
+        ? (localiseSeededDesignLabels(
+            t as Parameters<typeof localiseSeededDesignLabels>[0],
+            labelLocale.locale,
+            labelLocale.ctaMode,
+            labelLocale.swaps,
+          ) as BuilderNodeTree)
+        : t,
+    [labelLocale],
+  );
+
   // Body-hosted page (freeform cms_page on the storefront): the visible canvas
   // lives in the page body — render NOTHING here so the page never paints
   // twice. The empty-page starter still needs this region (it reads EditContext,
@@ -139,8 +157,15 @@ export function InEditorCanvasRegion({
       components={{}}
       componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
       includeRendererStyles
+      transformTree={labelLocale ? transformTree : undefined}
     />
   );
+
+  // talent_page: the site header / footer the live site wraps the page in.
+  // Read-only here (edited in the shell builder), so `inert` keeps their
+  // links and controls from navigating away or stealing canvas selection.
+  const shellHeader = canvasRenderData?.shellHeader ?? null;
+  const shellFooter = canvasRenderData?.shellFooter ?? null;
 
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
@@ -152,9 +177,16 @@ export function InEditorCanvasRegion({
     <div
       data-in-editor-canvas-region
       data-theme-canvas-root=""
+      data-talent-design={canvasRenderData?.designSlug ?? undefined}
       {...tokenDataAttrs}
       style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
+      {canvasRenderData?.headNodes ?? null}
+      {shellHeader ? (
+        <div data-talent-builder-shell="header" data-talent-max-site-header="" inert>
+          {shellHeader}
+        </div>
+      ) : null}
       {isEmpty ? <EmptyCanvasStarter /> : null}
       <BuilderProfilerBoundary id="builder-canvas">
         {printArtboard ? (
@@ -169,6 +201,11 @@ export function InEditorCanvasRegion({
           canvas
         )}
       </BuilderProfilerBoundary>
+      {shellFooter ? (
+        <footer data-talent-builder-shell="footer" data-talent-max-site-footer="" inert>
+          {shellFooter}
+        </footer>
+      ) : null}
     </div>
   );
 }

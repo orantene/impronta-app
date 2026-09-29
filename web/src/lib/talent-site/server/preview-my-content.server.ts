@@ -43,7 +43,7 @@ export async function resolveMyContentPreviewLocale(
  * loaders; plus the talent's own public offerings and USD rates. Preview
  * never books (`catalogBookingLive: false`).
  */
-async function loadPreviewDataSources(
+export async function loadPreviewDataSources(
   talentProfileId: string,
   tree: BuilderNode[],
   locale: string,
