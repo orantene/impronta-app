@@ -29,11 +29,15 @@ async function canEditTalent(talentProfileId: string): Promise<boolean> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return false;
 
-  const { data: tp } = await supabase
+  const { data: tp, error: tpErr } = await supabase
     .from("talent_profiles")
     .select("id, user_id")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (tpErr) {
+    logServerError("portfolioAlbums.canEdit.talent", tpErr);
+    return false;
+  }
   if (!tp) return false;
   if (tp.user_id === session.user.id) return true;
 
@@ -41,13 +45,17 @@ async function canEditTalent(talentProfileId: string): Promise<boolean> {
   if (!staff.ok) return false;
   const admin = createServiceRoleClient();
   if (!admin) return false;
-  const { data: roster } = await admin
+  const { data: roster, error: rosterErr } = await admin
     .from("agency_talent_roster")
     .select("id")
     .eq("tenant_id", staff.tenantId)
     .eq("talent_profile_id", talentProfileId)
     .neq("status", "removed")
     .maybeSingle();
+  if (rosterErr) {
+    logServerError("portfolioAlbums.canEdit.roster", rosterErr);
+    return false;
+  }
   return Boolean(roster);
 }
 

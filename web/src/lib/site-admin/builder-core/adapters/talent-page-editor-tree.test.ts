@@ -18,6 +18,7 @@ import { dirname, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { blankComments } from "@/lib/quality/supabase-unchecked-read";
 import {
   buildEmptyTalentPageComposition,
   createTalentPageAdapter,
@@ -95,14 +96,16 @@ test("adapter load opens on the published tree when the draft is empty", async (
 });
 
 test("the load action selects blocks_published", () => {
-  const src = readFileSync(resolve(THIS_DIR, "talent-page-actions.ts"), "utf8");
+  const src = blankComments(readFileSync(resolve(THIS_DIR, "talent-page-actions.ts"), "utf8"));
   assert.match(src, /TALENT_PAGE_COLS = `[^`]*blocks_published/);
 });
 
 test("the page-builder route primes the editor with the row it reads", () => {
-  const src = readFileSync(
-    resolve(THIS_DIR, "../../../../app/(workspace)/talent/page-builder/page.tsx"),
-    "utf8",
+  const src = blankComments(
+    readFileSync(
+      resolve(THIS_DIR, "../../../../app/(workspace)/talent/page-builder/page.tsx"),
+      "utf8",
+    ),
   );
   assert.ok(src.includes("blocks_published"), "route must read the live body");
   assert.ok(src.includes("buildEmptyTalentPageComposition("), "route must build the composition");
@@ -111,9 +114,11 @@ test("the page-builder route primes the editor with the row it reads", () => {
 });
 
 test("the canvas shows the empty-page starter only for a LOADED empty page", () => {
-  const src = readFileSync(
-    resolve(THIS_DIR, "../../../../components/edit-chrome/in-editor-canvas-region.tsx"),
-    "utf8",
+  const src = blankComments(
+    readFileSync(
+      resolve(THIS_DIR, "../../../../components/edit-chrome/in-editor-canvas-region.tsx"),
+      "utf8",
+    ),
   );
   assert.ok(src.includes("isEmpty && compositionLoaded && !compositionError"));
   assert.ok(src.includes("{showStarter ? <EmptyCanvasStarter /> : null}"));

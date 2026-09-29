@@ -95,6 +95,22 @@ export const DEMOS: DemoTalent[] = [
     ],
   },
   {
+    profileCode: "TAL-93011",
+    email: "demo-mateo-ferrer@impronta.test",
+    displayName: "Mateo Ferrer",
+    siteSlug: "mateo-ferrer",
+    city: "Ciudad de México",
+    serviceCategorySlug: "fashion-models",
+    talentTypeSlug: "fashion-model",
+    theme: "folio",
+    tagline: "Modelo de moda editorial y pasarela en CDMX",
+    bio: "Modelo para editorial, pasarela y campañas. Trabajo en estudio y en locación en Ciudad de México.",
+    services: [
+      { name: "Día de editorial", description: "Jornada completa en estudio o locación.", pricingType: "event", amountMxn: 8000, durationMin: 480, booking: "request" },
+      { name: "Campaña o pasarela", description: "Tarifa según uso, medios y duración.", pricingType: "custom", amountMxn: null, durationMin: 480, booking: "quote" },
+    ],
+  },
+  {
     profileCode: "TAL-93005",
     email: "demo-diego-dj@impronta.test",
     displayName: "Diego Navarro",

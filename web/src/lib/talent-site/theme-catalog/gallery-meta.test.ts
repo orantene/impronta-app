@@ -89,10 +89,10 @@ test("collection palettes cover maison's token keys, plus muted/on-accent and de
   assert.equal(galleryPreviewLookSlug(v2, "pink"), "rose", "a Maison key is not a v2 palette");
   assert.equal(galleryPreviewLookSlug(v2, "sage"), "sage");
   assert.equal(galleryPreviewLookSlug(getGalleryDesign("maison")!, "pink"), "maison-pink");
-  assert.equal(galleryPreviewLookSlug(getGalleryDesign("folio")!, null), "newsprint");
+  assert.equal(galleryPreviewLookSlug(getGalleryDesign("folio")!, null), "stone");
   assert.equal(galleryDefaultLookTokens("maison-v2")!["color.background"], "#FCF7F7");
   assert.equal(galleryDefaultLookTokens("maison"), null, "Maison uses its Look rows");
-  assert.equal(galleryDefaultLookTokens("folio")!["color.background"], "#FFFFFF");
+  assert.equal(galleryDefaultLookTokens("folio")!["color.background"], "#ECEAE5");
   assert.equal(galleryPaletteLookTokens("nope", "pink"), null);
 });
 

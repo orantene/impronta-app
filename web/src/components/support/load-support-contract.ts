@@ -82,13 +82,15 @@ export async function loadSupportContract(input: {
 async function loadTalentGreetingName(userId: string): Promise<string> {
   const admin = createServiceRoleClient();
   if (!admin) return "";
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("first_name, display_name")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();
-  return pickGreetingName(data?.first_name ?? null, data?.display_name ?? null);
+  // Greeting is decorative — empty on miss or error is the same UX.
+  if (error || !data) return "";
+  return pickGreetingName(data.first_name ?? null, data.display_name ?? null);
 }
 
 /** First name when set, else the first word of the display name, else "". */

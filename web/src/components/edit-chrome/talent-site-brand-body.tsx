@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 
 import { useEditContext } from "./edit-context";
 import { CHROME, Field, FieldLabel, SaveChip, type SaveChipStatus } from "./kit";
+import { ColorSwatchButton } from "./inspectors/color-swatch-button";
 import { resolveThemeActionSet } from "./theme-action-scope";
 import { publishThemePreview } from "./theme-preview-bridge";
 import { useEditorLocale } from "./use-editor-locale";
@@ -131,11 +132,10 @@ export function TalentSiteBrandBody({ active }: { active: boolean }) {
               <Field key={key}>
                 <FieldLabel info={t(hint)}>{t(label)}</FieldLabel>
                 <div className="flex items-center gap-[8px]">
-                  <input
-                    type="color"
-                    aria-label={t(label)}
-                    value={HEX6.test(value) ? value : undefined}
-                    onChange={(e) => setColor(key, e.target.value)}
+                  <ColorSwatchButton
+                    color={HEX6.test(value) ? value : "#000000"}
+                    ariaLabel={t(label)}
+                    onChange={(next) => setColor(key, next)}
                   />
                   <input
                     className="w-full rounded-[8px] border px-[10px] py-[6px] text-[12px]"

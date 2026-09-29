@@ -117,6 +117,11 @@ test("editorial component defaults: pill radius bound to the token, pinned text 
   assert.equal(out.heading, undefined);
   assert.equal(out.paragraph, undefined);
   assert.deepEqual(out.card, base.card);
-  assert.equal(designComponentStyleDefaults("folio", base), base);
+  // Folio is magazine type.system — same drop of pinned text colours + token radius.
+  const folioOut = designComponentStyleDefaults("folio", base);
+  assert.deepEqual(folioOut.button, { borderRadius: "token:button.radius" });
+  assert.equal(folioOut.heading, undefined);
+  assert.equal(folioOut.paragraph, undefined);
+  assert.deepEqual(folioOut.card, base.card);
   assert.equal(typeSystemComponentStyleDefaults({ "type.system": "off" }, base), base);
 });

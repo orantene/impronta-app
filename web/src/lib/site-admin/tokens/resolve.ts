@@ -214,6 +214,11 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "shell.footer-variant": "data-token-shell-footer-variant",
   "shell.mobile-nav-variant": "data-token-shell-mobile-nav-variant",
   "background.mode": "data-token-background-mode",
+  // Guest chat look (standard dock vs card). Consumed in JS via
+  // `resolveChatVariant`, but every agency-configurable token must project —
+  // same contract as directory.card.profile-popup. The attr also lets CSS /
+  // instrumentation see the tenant-wide chat chrome without re-deriving.
+  "chat.variant": "data-token-chat-variant",
   // M7.1 template families
   "template.directory-card-family": "data-token-template-directory-card-family",
   "template.profile-layout-family": "data-token-template-profile-layout-family",

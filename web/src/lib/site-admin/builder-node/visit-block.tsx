@@ -113,6 +113,7 @@ export function renderVisitBlock(args: {
     <section
       className="sb-visit"
       data-builder-kind="visit"
+      data-builder-node-kind="visit"
       data-visit-layout={layout}
       data-visit-band={band ? "1" : "0"}
       data-visit-has-map={hasMap ? "1" : "0"}
