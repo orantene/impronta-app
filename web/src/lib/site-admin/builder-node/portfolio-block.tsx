@@ -161,6 +161,12 @@ export function renderPortfolioBlock(args: {
   offerings?: ReadonlyArray<TalentOffering>;
   confirmsByHand?: boolean;
   styleAttr?: CSSProperties;
+  /**
+   * `builderNodeStyleAttrs(style)`: the presence attrs the static sheet keys
+   * the phone/tablet overrides on (`--bn-mobile-*`). Without them a
+   * responsive padding on the block never applies.
+   */
+  styleDataAttrs?: Record<string, string | undefined>;
   locale?: string;
 }): ReactNode {
   const p = args.node.props;
@@ -205,7 +211,8 @@ export function renderPortfolioBlock(args: {
       data-builder-node-kind="portfolio"
       data-portfolio-layout={layout}
       data-portfolio-chapter={isChapter ? roman : undefined}
-      className="sb-portfolio"
+      {...(args.styleDataAttrs ?? {})}
+      className={args.styleDataAttrs ? "site-builder-node sb-portfolio" : "sb-portfolio"}
       style={{
         ...args.styleAttr,
         ["--sb-portfolio-cols" as string]: String(cols),

@@ -85,7 +85,12 @@ export function applyDemoSiteCopy(
       kids.splice(at + 1, 0, {
         id: newId(),
         kind: "paragraph",
-        props: { text: copy.footerLine, layerLabel: "Footer place" },
+        // `.foot p`: 10px under the line (the pill keeps its own 18px).
+        props: {
+          text: copy.footerLine,
+          layerLabel: "Footer place",
+          style: { lineHeight: "1.5", marginTopFree: "10px" },
+        },
       });
       return { ...root, children: kids };
     }

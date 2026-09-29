@@ -10,7 +10,7 @@ import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-lan
 import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { pruneEmptyMyContentBlocks } from "@/lib/talent-site/my-content-prune";
-import { builderTreeHasKind } from "./builder-tree-has-kind";
+import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import {
   loadTalentManagingTenantId,
   loadTalentPlanKey,
@@ -65,6 +65,7 @@ async function loadPreviewDataSources(
           reviews: has("reviews"),
           visit: has("visit"),
           compCard: has("comp_card"),
+          talentFaq: builderTreeHasFaqBind(tree),
         }),
     loadPublicOfferingsForProfile(talentProfileId, locale, null),
   ]);

@@ -497,6 +497,8 @@ export async function loadPersonalMaxNativeSources(args: {
   reviews: boolean;
   visit: boolean;
   compCard?: boolean;
+  /** An accordion bound to `talent_faq_items` (the agency path already loads it). */
+  talentFaq?: boolean;
 }): Promise<BuilderNodeRenderDataSources> {
   const needCatalog = args.servicesCatalog || args.portfolio || args.nextFreeChip;
   if (
@@ -504,16 +506,20 @@ export async function loadPersonalMaxNativeSources(args: {
     !args.portfolio &&
     !args.reviews &&
     !args.visit &&
-    !args.compCard
+    !args.compCard &&
+    !args.talentFaq
   ) {
     return {};
   }
-  const [catalog, portfolio, reviews, visit, compCard] = await Promise.all([
+  const [catalog, portfolio, reviews, visit, compCard, faq] = await Promise.all([
     needCatalog ? loadServicesCatalogSources(args.talentProfileId, args.locale) : {},
     args.portfolio ? loadPortfolioSources(args.talentProfileId) : {},
     args.reviews ? loadReviewsSources(args.talentProfileId) : {},
     args.visit ? loadVisitSources(args.talentProfileId, args.locale) : {},
     args.compCard ? loadCompCardSources(args.talentProfileId, args.locale) : {},
+    args.talentFaq
+      ? loadPublishedFaqForProfile(args.talentProfileId).then((talentFaqItems) => ({ talentFaqItems }))
+      : {},
   ]);
-  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard };
+  return { ...catalog, ...portfolio, ...reviews, ...visit, ...compCard, ...faq };
 }

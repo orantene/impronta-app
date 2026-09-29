@@ -20,16 +20,16 @@ const MQ_DESK = "@media (min-width:900px)";
 /** Maison v2 = the Rosé proposal's type and shape layer (artifact CSS values). */
 const MAISON_V2_SKIN = [
   // ── Base: Figtree body, Bodoni display headings, italic accent spans.
-  `${S}{font-family:var(--site-body-font,system-ui,sans-serif);color:var(--token-color-ink);font-size:15px;line-height:1.5}`,
-  `${S} :is(h1,h2,h3){font-family:var(--site-heading-font,Georgia,serif);font-weight:450;letter-spacing:-0.01em;text-wrap:balance}`,
+  `${S}{font-family:var(--site-body-font,system-ui,sans-serif);color:var(--token-color-ink);font-size:15px;line-height:1.5;letter-spacing:normal}`,
+  `${S} :is(h1,h2,h3){font-family:var(--site-heading-font,Georgia,serif);font-weight:500;letter-spacing:-0.01em;text-wrap:balance}`,
   `${S} :is(h1,h2,h3) em{font-style:italic;font-weight:400;color:var(--token-color-accent,var(--token-color-primary))}`,
   `${S} h2{font-size:34px;line-height:1.02}`,
   `${S} p.site-builder-node--paragraph{color:var(--token-color-muted)}`,
   // Eyebrows (uppercase paragraphs): 11px Figtree 600, 0.18em.
   `${S} p.site-builder-node--paragraph[style*="text-transform:uppercase"]{font-size:11px;font-weight:600;letter-spacing:0.18em}`,
-  `${S} :is(.sb-portfolio-eyebrow,.sb-reviews-eyebrow,.sb-visit-eyebrow,.site-builder-node--services-catalog-eyebrow){margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--token-color-accent,var(--token-color-primary))}`,
-  `${S} :is(.sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title){margin:4px 0 0;font-family:var(--site-heading-font,Georgia,serif);font-weight:450;font-size:34px;line-height:1.02;letter-spacing:-0.01em;color:var(--token-color-ink)}`,
-  `${S} :is(.sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title) em{font-style:italic;font-weight:400;color:var(--token-color-accent,var(--token-color-primary))}`,
+  `${S} :is(.sb-portfolio-eyebrow,.sb-reviews-eyebrow,.sb-visit-eyebrow,.site-builder-node--services-catalog-eyebrow){margin:0;line-height:normal;font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--token-color-accent,var(--token-color-primary))}`,
+  `${S} :is(.sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title){margin:4px 0 0;font-family:var(--site-heading-font,Georgia,serif);font-weight:500;font-size:34px;line-height:1.02;letter-spacing:-0.01em;color:var(--token-color-ink)}`,
+  `${S} :is(.sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title) em{font-style:italic;font-weight:inherit;color:var(--token-color-accent,var(--token-color-primary))}`,
   `${S} :is(.sb-portfolio-header,.sb-reviews-header,.sb-visit-header,.site-builder-node--services-catalog-header){margin-bottom:16px}`,
   `${S} .site-builder-node--services-catalog-subtitle{margin:6px 0 0;font-size:13.5px;color:var(--token-color-muted);max-width:40ch}`,
 
@@ -52,10 +52,12 @@ const MAISON_V2_SKIN = [
   `${S} .site-header__cta.site-btn{height:36px;padding:0 16px;border-radius:999px;font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:0;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-primary-on,var(--token-color-background));border-color:transparent}`,
   `@media (max-width:899px){${S} .site-header__cta.site-btn{display:none}}`,
   `${MQ_DESK}{${S} .site-header__inner{padding:14px 48px}${S} .site-header__brand-label{font-size:28px}}`,
+  // `.m-hdr`: one full-width bar (no centred 1120 column), nav right after the logo.
+  `${MQ_DESK}{${S} .site-header.site-header{padding:0}${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;padding:14px 48px;gap:12px}${S} .site-header .site-header__region:nth-child(2){justify-content:flex-start;margin-left:30px}}`,
 
   // ── Row 2 Hero: 47px / 96px heading with italic accent, muted lede, 26px / 34px photo, 20px inset.
   `${S} #hero{align-items:center}`,
-  `${S} #hero h1{margin:6px 0 0;font-size:47px;line-height:.98;font-weight:450}`,
+  `${S} #hero h1{margin:6px 0 0;font-size:47px;line-height:.98;font-weight:500}`,
   `${S} #hero h1 em{font-weight:400;color:var(--token-color-accent,var(--token-color-primary))}`,
   `${S} #hero p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){margin-top:12px;font-size:15.5px;max-width:34ch;color:var(--token-color-muted)}`,
   `${S} #hero img{border-radius:26px}`,
@@ -67,18 +69,25 @@ const MAISON_V2_SKIN = [
   `${S} #hero .site-builder-node--container + p.site-builder-node--paragraph b{color:var(--token-color-ink);font-weight:600}`,
 
   // ── Row 3 Ticker: the serif marquee variant carries the look; colour from the Look.
-  `${S} .site-builder-node--marquee{color:var(--token-color-ink)}`,
+  `${S} .site-builder-node--marquee{color:var(--token-color-ink);letter-spacing:normal}`,
+  `${S} .site-builder-node--marquee :is(.site-builder-node--marquee-item,.site-builder-node--marquee-sep){line-height:normal;letter-spacing:normal}`,
 
   // ── Row 4 Recent work: 3:4 frames, 20px radius, bold caption + accent service link.
-  `${S} .sb-portfolio-cap{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;font-weight:600;color:var(--token-color-ink)}`,
+  `${S} .sb-portfolio-cap{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;line-height:1.5;font-weight:600;color:var(--token-color-ink)}`,
+  `${S} .sb-portfolio-shot{font:inherit}`,
+  // Phone filmstrip bleeds to the screen edge (`.strip{margin:0 -18px;padding:0 18px 6px}`).
+  `@media (max-width:899px){${S} .sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px;scroll-padding-inline:18px}}`,
   `${S} .sb-portfolio-service{margin:0;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;white-space:nowrap;color:var(--token-color-accent,var(--token-color-primary))}`,
 
   // ── Row 5 Menu: category chips (phone) / sticky 240px rail (desktop), italic group heads, 64px thumb rows.
   `${S} .site-builder-node--services-catalog-pill{height:34px;padding:0 14px;border-radius:99px;border:1px solid var(--token-color-line);background:var(--token-color-surface-raised,var(--token-color-background));color:var(--token-color-ink);font-size:13px;font-weight:500;text-transform:none;letter-spacing:0}`,
   `${S} .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-background);border-color:var(--token-color-ink)}`,
-  `${S} .site-builder-node--services-catalog-group-title{margin:22px 0 4px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:22px;line-height:1.2}`,
+  `${S} .site-builder-node--services-catalog{letter-spacing:normal}`,
+  `${S} .site-builder-node--services-catalog-group-title{margin:22px 0 4px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:22px;line-height:normal;letter-spacing:normal}`,
+  // Phone: the chip row sticks under the header and bleeds to the edges (`.cats`).
+  `@media (max-width:899px){${S} .site-builder-node--services-catalog-nav{position:sticky;top:57px;z-index:4;gap:7px;margin:0 -18px;padding:10px 18px;background:color-mix(in srgb,var(--token-color-background) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);scrollbar-width:none}}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo]{display:grid;grid-template-columns:64px minmax(0,1fr) auto;grid-template-areas:none;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--token-color-line)}`,
-  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo] > *{grid-area:auto}`,
+  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo] :is(.site-builder-node--services-catalog-photo,.site-builder-node--services-catalog-copy,.site-builder-node--services-catalog-buy){grid-area:auto}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-photo{width:64px;height:64px;border-radius:14px;background:var(--token-color-blush,var(--token-color-surface-raised))}`,
   `${S} .site-builder-node--services-catalog-copy{max-width:none;gap:3px}`,
   `${S} .site-builder-node--services-catalog-name{font-size:15px;font-weight:600;line-height:1.3}`,
@@ -119,6 +128,7 @@ const MAISON_V2_SKIN = [
   // ── Row 7 About: the proposal's 26/26/140/26 arch, large display line, 17px bio.
   `${S} #about img{border-radius:26px 26px 140px 26px}`,
   `${S} #about h2{margin:6px 0 14px;font-size:clamp(32px,4vw,56px);line-height:1.02;font-weight:450}`,
+  `${S} #about h2 em{font-weight:inherit}`,
   `${S} #about p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){font-size:15px;color:var(--token-color-muted)}`,
   `${MQ_DESK}{${S} #about p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){font-size:17px}}`,
 
@@ -144,7 +154,7 @@ const MAISON_V2_SKIN = [
   `${S} #site-footer h2{margin:0;font-style:italic;font-weight:400;font-size:44px;line-height:1;color:var(--token-color-background)}`,
   `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
-  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 18px;font-size:15px;color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
+  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 0;font-size:15px;color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
   `${MQ_DESK}{${S} #site-footer h2{font-size:88px}}`,
 
   // ── Row 11 Dock: one frosted capsule.

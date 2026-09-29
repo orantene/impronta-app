@@ -5953,6 +5953,7 @@ function renderBuilderNodeElement(
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
         styleAttr: sharedNodeStyle(node.props.style),
+        styleDataAttrs: node.props.style?.responsive ? builderNodeStyleAttrs(node.props.style) : undefined,
         locale: options.contentLocale?.locale ?? options.visitorLocale,
       });
     }
