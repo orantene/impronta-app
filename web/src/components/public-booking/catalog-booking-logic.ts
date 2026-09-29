@@ -199,7 +199,9 @@ export function catalogRowCtaLabel(opts: {
     confirmsByHand: opts.confirmsByHand === true,
   });
   if (opts.surface === "magazine_rate") {
-    if (cta === "ask_quote" || cta === "request" || opts.offering.visibility === "on_request") {
+    const cat = String((opts.offering as { category?: string }).category ?? "").toLowerCase();
+    // Folio artifact: Editorial = inquiry Consultar; Runway/Lookbook = request date; Casting = see times.
+    if (cat.includes("editorial") || cta === "ask_quote" || cta === "request" || opts.offering.visibility === "on_request") {
       return es ? "Consultar" : "Ask about this";
     }
     if (cta === "request_to_book") return es ? "Solicitar fecha" : "Request date";
