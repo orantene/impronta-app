@@ -231,12 +231,10 @@ export function pruneEmptyMyContentBlocks(
         const a = (it.anchor as string).replace(/^#/, "");
         const ch = chapterCopy.get(a);
         if (!ch || !ch.title) return it;
+        // Album bind may rename the chapter; keep the Design's TOC credit
+        // (short index line), not the longer chapter-head credit.
         const fromAlbum = albumTitles.size > 0 && [...albumTitles.values()].includes(ch.title);
-        if (!fromAlbum) return it;
-        const credit =
-          (typeof ch.credit === "string" && ch.credit.trim()) ||
-          (typeof it.credit === "string" ? it.credit : "");
-        return { ...it, label: ch.title, credit };
+        return fromAlbum ? { ...it, label: ch.title } : it;
       });
   };
 
