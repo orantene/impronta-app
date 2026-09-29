@@ -158,24 +158,23 @@ async function undo(page: Page) {
 }
 
 async function openThemeEditor(page: Page) {
-  await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click().catch(() => {});
-  await page.waitForTimeout(400);
-  // Theme sub-tab inside Design panel
-  const themeTab = page.getByRole("tab", { name: /^Theme$|^Tema$/i });
-  if (await themeTab.count()) await themeTab.first().click().catch(() => {});
-  await page.waitForTimeout(300);
-  const openBtn = page.getByRole("button", { name: /Open theme editor|Abrir editor/i });
-  if (await openBtn.count()) {
-    await openBtn.first().click();
+  await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click({ timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  // Theme is a Design-panel segment, not a role=tab
+  await page.getByText(/^Theme$|^Tema$/i).first().click().catch(() => {});
+  await page.waitForTimeout(500);
+  const alt = page.locator("[data-design-open-theme]").first();
+  await alt.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+  if (await alt.isVisible().catch(() => false)) {
+    await alt.click();
     await page.waitForTimeout(1200);
-    return true;
+    return (await page.locator('[data-edit-drawer="theme"]').count()) > 0;
   }
-  // data attribute fallback
-  const alt = page.locator("[data-design-open-theme]");
-  if (await alt.count()) {
-    await alt.first().click();
+  const openBtn = page.getByText(/Open theme editor|Abrir editor de tema/i).first();
+  if (await openBtn.count()) {
+    await openBtn.click();
     await page.waitForTimeout(1200);
-    return true;
+    return (await page.locator('[data-edit-drawer="theme"]').count()) > 0;
   }
   return false;
 }

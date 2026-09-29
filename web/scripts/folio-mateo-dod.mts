@@ -12,7 +12,7 @@ import path from "node:path";
 
 const BASE = "http://127.0.0.1:3001";
 const OUT =
-  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/folio-mateo-dod";
+  "/cursor/stores/bc-80661ff2-8036-4d60-998b-696a75e11225/media/integ-designs-final/folio-mateo";
 const TMP = "/tmp/folio-mateo-dod-shots";
 const PROFILE = "30f45c0f-6c40-44d4-bfb7-f04bfd0a6adc";
 const LIVE = `${BASE}/template-preview/current?kind=live-site&talent=${PROFILE}&locale=es`;
@@ -42,20 +42,18 @@ async function shot(page: Page, name: string) {
 }
 
 async function openTheme(page: Page) {
-  await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click();
-  await page.waitForTimeout(500);
-  const design = page.locator("[data-testid='design-panel']");
-  if (await design.getByText(/^Theme$|^Tema$/i).count()) {
-    await design.getByText(/^Theme$|^Tema$/i).first().click();
-  }
+  await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(400);
-  if (await page.locator("[data-design-open-theme]").count()) {
-    await page.locator("[data-design-open-theme]").first().click();
+  await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click({ force: true, timeout: 15000 });
+  await page.waitForTimeout(500);
+  await page.getByText(/^Theme$|^Tema$/i).first().click().catch(() => {});
+  await page.waitForTimeout(500);
+  const openBtn = page.locator("[data-design-open-theme]").first();
+  await openBtn.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+  if (await openBtn.isVisible().catch(() => false)) {
+    await openBtn.click();
   } else {
-    await page.keyboard.press("Control+k");
-    await page.waitForTimeout(300);
-    await page.keyboard.type("Open Theme");
-    await page.keyboard.press("Enter");
+    await page.getByText(/Open theme editor|Abrir editor de tema/i).first().click({ timeout: 8000 }).catch(() => {});
   }
   await page.waitForTimeout(1500);
   return page.locator('[data-edit-drawer="theme"]');
@@ -222,16 +220,38 @@ results.dod4 = { ok: accentChanged || fontChanged, accentChanged, fontChanged, d
 // ── DoD 5: draft → publish → revert ───────────────────────────────────────
 await page.goto(`${BASE}/talent/page-builder`, { waitUntil: "domcontentloaded", timeout: 60000 });
 await page.waitForTimeout(4000);
+
+async function clickPublish(): Promise<boolean> {
+  const pub = page.getByRole("button", { name: /^Publish$|^Publicar$/i }).first();
+  if (!(await pub.count()) || (await pub.isDisabled().catch(() => true))) return false;
+  await pub.click();
+  await page.waitForTimeout(1200);
+  const confirm = page.getByRole("button", { name: /^Publish$|^Publicar$|Confirm|Confirmar|Yes|Sí/i });
+  if (await confirm.count()) {
+    await confirm.last().click().catch(() => {});
+    await page.waitForTimeout(2800);
+  } else {
+    await page.waitForTimeout(2000);
+  }
+  return true;
+}
+
 const cover = page.locator("[data-builder-kind='masthead'], .sb-mag-name, #hero").first();
 if (await cover.count()) {
   await cover.click({ force: true }).catch(() => {});
   await page.waitForTimeout(400);
   await page.getByRole("button", { name: /Edit Content|Editar contenido/i }).first().click().catch(() => {});
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
+  await page.getByRole("tab", { name: /^Content$|^Contenido$/i }).first().click().catch(() => {});
+  await page.waitForTimeout(400);
 }
-const text = page.locator('textarea, [contenteditable="true"], input[type="text"]').first();
+const text = page
+  .locator('[data-inspector] textarea, [data-inspector] [contenteditable="true"]')
+  .or(page.locator('textarea, [contenteditable="true"]'))
+  .first();
 let original = "";
 let published = false;
+let edited = false;
 if (await text.count()) {
   original = (await text.inputValue().catch(async () => (await text.textContent()) ?? "")) || "";
   const marker = " ·QA";
@@ -242,20 +262,14 @@ if (await text.count()) {
     await page.keyboard.type(next);
   });
   await page.waitForTimeout(800);
+  edited = true;
   await shot(page, "04-dod5-draft.png");
-  const pub = page.getByRole("button", { name: /^Publish$|^Publicar$/i });
-  if (await pub.count()) {
-    await pub.first().click();
-    await page.waitForTimeout(1500);
-    const confirm = page.getByRole("button", { name: /^Publish$|^Publicar$|Confirm|Confirmar|Yes|Sí/i });
-    if (await confirm.count()) {
-      await confirm.last().click().catch(() => {});
-      await page.waitForTimeout(2500);
-    }
-    published = true;
-  }
-  await shot(page, "04-dod5-after-publish.png");
+} else {
+  await shot(page, "04-dod5-draft.png");
 }
+published = await clickPublish();
+await shot(page, "04-dod5-after-publish.png");
+results.dod5Edited = edited;
 const live2 = await ctx.newPage();
 await live2.goto(LIVE, { waitUntil: "domcontentloaded", timeout: 60000 });
 await live2.waitForTimeout(2500);
@@ -263,25 +277,37 @@ await shot(live2, "04-dod5-live-after.png");
 const liveHasMarker = (await live2.getByText(/·QA/i).count()) > 0;
 await live2.close();
 
-// Revert
+// Revert text + theme accent, republish
 await page.bringToFront();
-if (await text.count() && original) {
+if (edited && (await text.count()) && original) {
   await text.fill(original).catch(async () => {
     await page.keyboard.press("Control+z");
   });
   await page.waitForTimeout(800);
-  const pub2 = page.getByRole("button", { name: /^Publish$|^Publicar$/i });
-  if (await pub2.count()) {
-    await pub2.first().click();
-    await page.waitForTimeout(1200);
-    const confirm = page.getByRole("button", { name: /^Publish$|^Publicar$|Confirm|Confirmar|Yes|Sí/i });
-    if (await confirm.count()) {
-      await confirm.last().click().catch(() => {});
-      await page.waitForTimeout(2500);
+}
+{
+  const drawerR = await openTheme(page);
+  await drawerR.getByRole("tab", { name: /^Colors$|^Colores$/i }).click().catch(() => {});
+  await page.waitForTimeout(400);
+  const field = drawerR
+    .locator('label:has-text("Primary"), label:has-text("Accent"), label:has-text("Primario"), label:has-text("Acento")')
+    .locator("xpath=following::input[1]")
+    .first();
+  if (await field.count()) {
+    await field.fill("#1A1A1A").catch(async () => {
+      await field.click();
+      await page.keyboard.type("#1A1A1A");
+    });
+    const save = drawerR.getByRole("button", { name: /Save draft|Guardar borrador|Save|Guardar/i });
+    if (await save.count() && !(await save.isDisabled().catch(() => true))) {
+      await save.click();
+      await page.waitForTimeout(1200);
     }
   }
-  await shot(page, "04-dod5-reverted.png");
+  await page.keyboard.press("Escape").catch(() => {});
 }
+await clickPublish();
+await shot(page, "04-dod5-reverted.png");
 const live3 = await ctx.newPage();
 await live3.goto(LIVE, { waitUntil: "domcontentloaded", timeout: 60000 });
 await live3.waitForTimeout(2500);

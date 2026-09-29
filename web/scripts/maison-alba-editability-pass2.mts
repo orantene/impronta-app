@@ -67,33 +67,21 @@ await waitReady(page);
 
 // ── Theme via Design → Open theme editor OR Launch checklist Open Theme
 async function openTheme(): Promise<boolean> {
-  // Prefer Design panel button
-  await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click().catch(() => {});
+  // Design rail → Theme segment (not a tab) → data-design-open-theme
+  await page.getByRole("button", { name: /^Design$|^Diseño$/i }).first().click({ timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(500);
-  const themeTab = page.getByRole("tab", { name: /^Theme$|^Tema$/i });
-  if (await themeTab.count()) await themeTab.first().click().catch(() => {});
-  await page.waitForTimeout(400);
-  let open = page.locator("[data-design-open-theme], button").filter({ hasText: /Open theme editor|Abrir editor de tema/i });
-  if (await open.count()) {
-    await open.first().click();
+  await page.getByText(/^Theme$|^Tema$/i).first().click().catch(() => {});
+  await page.waitForTimeout(500);
+  const openBtn = page.locator("[data-design-open-theme]").first();
+  await openBtn.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+  if (await openBtn.isVisible().catch(() => false)) {
+    await openBtn.click();
     await page.waitForTimeout(1500);
-    return true;
+    return (await page.locator('[data-edit-drawer="theme"]').count()) > 0;
   }
-  // Launch checklist
-  open = page.getByRole("button", { name: /^Open Theme$|^Abrir tema$/i });
-  if (await open.count()) {
-    await open.first().click();
-    await page.waitForTimeout(1500);
-    return true;
-  }
-  // Any visible Open Theme
-  open = page.getByText(/Open Theme|Open theme editor|Abrir editor/i);
-  if (await open.count()) {
-    await open.first().click();
-    await page.waitForTimeout(1500);
-    return true;
-  }
-  return false;
+  await page.getByText(/Open theme editor|Abrir editor de tema/i).first().click({ timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  return (await page.locator('[data-edit-drawer="theme"]').count()) > 0;
 }
 
 {
