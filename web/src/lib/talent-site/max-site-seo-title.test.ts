@@ -24,6 +24,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  resolveMaxSiteDescription,
   resolveMaxSiteTitles,
   type MaxSitePageRow,
 } from "./resolve-max-site-core";
@@ -98,4 +99,27 @@ test("[SEO-3] meta_title still wins over the identity fallback", () => {
       .seoTitle,
     "Override",
   );
+});
+
+test("[i18n] a locale reads the page maps, falling back to the plain primary columns", () => {
+  const p = page({
+    title: "Inicio",
+    metaTitle: "Ana Ruiz, actriz",
+    metaDescription: "Actriz en Madrid",
+    titleI18n: { es: "Inicio", en: "Home" },
+    metaTitleI18n: { en: "Ana Ruiz, actor" },
+  });
+  const en = resolveMaxSiteTitles(p, "", "en");
+  assert.equal(en.pageTitle, "Home");
+  assert.equal(en.seoTitle, "Ana Ruiz, actor");
+  assert.equal(resolveMaxSiteDescription(p, "en"), "Actriz en Madrid");
+  const fr = resolveMaxSiteTitles(p, "", "fr");
+  assert.equal(fr.pageTitle, "Inicio");
+  assert.equal(fr.seoTitle, "Ana Ruiz, actriz");
+});
+
+test("[i18n] no locale keeps the plain columns exactly as before", () => {
+  const p = page({ title: "Inicio", titleI18n: { en: "Home" }, metaDescription: "  " });
+  assert.equal(resolveMaxSiteTitles(p).pageTitle, "Inicio");
+  assert.equal(resolveMaxSiteDescription(p), undefined);
 });

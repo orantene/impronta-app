@@ -50,6 +50,7 @@ import {
   coerceTree,
   hydrateShellNav,
   maxSitePublicGate,
+  resolveMaxSiteDescription,
   resolveMaxSiteTitles,
   scopeMaxSitePagesToPlan,
   selectMaxSitePage,
@@ -352,8 +353,9 @@ function buildMaxSiteSeo(args: {
   const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(
     page,
     identity?.name || site.siteSlug || "",
+    locale,
   );
-  const description = page.metaDescription?.trim() || undefined;
+  const description = resolveMaxSiteDescription(page, locale);
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
