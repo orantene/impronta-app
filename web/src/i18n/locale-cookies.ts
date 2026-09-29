@@ -31,8 +31,11 @@
  * THE CONTRACT (every writer of `locale` must satisfy exactly one branch):
  *
  *   AUTO      write `locale` AND set `locale_auto=1`.
- *             Exactly one writer qualifies: the `isUnprefixedPublicDefaultPath`
- *             branch of `syncLocaleCookieForPath`.
+ *             Exactly two writers qualify: the `isUnprefixedPublicDefaultPath`
+ *             branch of `syncLocaleCookieForPath`, and
+ *             `seedTalentDashboardLocaleCookie` (the talent dashboard seeding
+ *             the talent's own primary language, only over an absent or
+ *             already-auto cookie; 2026-09-29).
  *
  *   DELIBERATE write `locale` AND clear `locale_auto`.
  *             Everything else: the public language switcher (which persists

@@ -532,6 +532,12 @@ type Ctx = {
   /** Tenant's primary locale; initial active state for the locale toggle. */
   tenantDefaultLocale: string;
   /**
+   * Talent surface only: the signed-in talent's own language pair
+   * (`talent_profiles.preferred_locale` + `secondary_locales`), bridged from
+   * the platform talent layout. `null` on every non-talent surface.
+   */
+  talentLocales: { primary: string; secondary: readonly string[] } | null;
+  /**
    * Platform-wide switch for the floating "+" quick-action button
    * (BottomActionFab). Set by HQ on /platform/admin/settings; false (the
    * default, incl. standalone/mock mode) hides the FAB everywhere.
@@ -2061,6 +2067,7 @@ export function AdminShellProvider({
     initialBridgeData?.localeSettings?.supportedLocales ?? ["en", "es"];
   const tenantDefaultLocale: string =
     initialBridgeData?.localeSettings?.defaultLocale ?? "en";
+  const talentLocales = initialBridgeData?.talentLocales ?? null;
 
   // Platform-wide workspace-UI switches (HQ, /platform/admin/settings) —
   // gate the floating "+" FAB and the first-run tour. Default hidden.
@@ -2338,6 +2345,7 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      talentLocales,
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,
@@ -2468,6 +2476,7 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      talentLocales,
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,

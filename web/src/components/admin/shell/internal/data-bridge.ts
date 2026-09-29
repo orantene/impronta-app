@@ -482,6 +482,8 @@ export type BridgeData = {
   clientFieldSource?: ClientFieldSourcePayload | null;
   /** Tenant locale settings (loadTenantLocaleSettings) — drives the shell chrome's DashboardLocaleToggle so registry-added languages show; omitted = mock mode → ["en","es"]. */
   localeSettings?: { supportedLocales: readonly import("@/i18n/config").Locale[]; defaultLocale: import("@/i18n/config").Locale } | null;
+  /** Talent surface: the talent's own primary + secondary languages (loadTalentLocaleSettings). */
+  talentLocales?: { primary: string; secondary: readonly string[] } | null;
 
   /**
    * Platform-wide workspace-UI switches (`platform_settings` singleton, set by
