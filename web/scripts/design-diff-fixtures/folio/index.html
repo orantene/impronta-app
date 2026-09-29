@@ -146,15 +146,15 @@ const T={
   renderSite(K,S){
     const D=K.D, ed=D.services.find(s=>s.id==='ed')||D.services[0];
     return `${K.status()}
-    <header class="fo-hdr"><b>${K.esc(D.talent.name)}</b><nav><a data-k-go="ch1">Editorial</a><a data-k-go="ch2">Runway</a><a data-k-go="rates">Contratación</a></nav><span class="sp"></span>${K.demo()}${K.act(ed,'k-btn')}</header>
+    <header class="fo-hdr" data-w="site_header · masthead-bar"><b>${K.esc(D.talent.name)}</b><nav><a data-k-go="ch1">Editorial</a><a data-k-go="ch2">Runway</a><a data-k-go="rates">Contratación</a></nav><span class="sp"></span>${K.demo()}${K.act(ed,'k-btn')}</header>
     <div class="fo-mast"><span>Vol. 07 · Otoño 2026</span><span>CDMX · ES / EN</span></div>
-    <h1 class="fo-name" data-w="hero · magazine-cover">${D.talent.name.split(" ").map(w=>`<span>${K.esc(w)}</span>`).join(" ")}</h1>
+    <h1 class="fo-name" data-w="masthead · magazine-cover">${D.talent.name.split(" ").map(w=>`<span>${K.esc(w)}</span>`).join(" ")}</h1>
     <div class="fo-spread">
       <div class="fo-cover"><img src="${K.img('f-hero')}" alt="${K.esc(D.talent.name)}, retrato de estudio"><div class="fo-lines"><small>Modelo · CDMX</small><p>Editorial, runway y campañas.</p></div></div>
       <div>
         <div class="fo-tag"><p>${K.esc(D.talent.bio)}</p>
           <div class="row">${K.act(ed,'k-btn')}<button class="k-btn ghost" data-k-go="ch1">Ver el libro</button></div></div>
-        <nav class="fo-toc" aria-label="Contenido"><h2>En este número</h2>
+        <nav class="fo-toc" data-w="contents · chapter-index" aria-label="Contenido"><h2>En este número</h2>
           ${[['I','Editorial','Estudio, luz dura','ch1'],['II','Runway','Salidas y detalles','ch2'],['III','Contratación','Tarifas y fechas','rates']].map(r=>`<button data-k-go="${r[3]}"><i>${r[0]}</i><b>${r[1]}</b><small>${r[2]}</small></button>`).join('')}
         </nav>
       </div>
@@ -163,10 +163,10 @@ const T={
       <div class="fo-seq"><figure class="a"><img src="${K.img('f-hero')}" alt="" loading="lazy"><figcaption>01 · Luz dura</figcaption></figure><figure class="b"><img src="${K.img('f-d-knit')}" alt="" loading="lazy"><figcaption>02 · Punto</figcaption></figure><figure class="b"><img src="${K.img('f-d-quilt')}" alt="" loading="lazy"><figcaption>03 · Textura</figcaption></figure></div></section>
     <section class="fo-ch" id="ch2"><div class="fo-chh"><i>II</i><h3>Runway</h3><p>Show ficticio de demo · 3 salidas</p></div>
       <div class="fo-seq"><figure class="a"><img src="${K.img('f-d-stride')}" alt="" loading="lazy"><figcaption>Salida 1</figcaption></figure><figure class="b"><img src="${K.img('f-d-feet')}" alt="" loading="lazy"><figcaption>Fitting</figcaption></figure><figure class="b"><img src="${K.img('f-d-shirt')}" alt="" loading="lazy"><figcaption>Salida 3</figcaption></figure></div></section>`}
-    <section class="fo-comp" data-w="stats · measure-strip" aria-label="Medidas"><h3>Medidas · Comp card</h3><div class="fo-stats"><div><b>188</b><small>Estatura cm</small></div><div><b>40L</b><small>Saco</small></div><div><b>28.5</b><small>Calzado MX</small></div><div><b>ES/EN</b><small>Idiomas</small></div></div></section>
+    <section class="fo-comp" data-w="comp_card · measure-strip" aria-label="Medidas"><h3>Medidas · Comp card</h3><div class="fo-stats"><div><b>188</b><small>Estatura cm</small></div><div><b>40L</b><small>Saco</small></div><div><b>28.5</b><small>Calzado MX</small></div><div><b>ES/EN</b><small>Idiomas</small></div></div></section>
     <section class="fo-rates" id="rates" data-w="services_catalog · rate-card"><div><h2>Contrata&shy;ción</h2><p>Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte.</p></div>
       <div>${D.services.map(s=>`<div class="fo-rate" data-k-open="${s.id}"><div><div class="h"><b>${K.esc(s.name)}</b></div><small>${K.esc(s.cat)} · ${K.esc(s.dur)}</small></div><div class="f"><span class="p">${K.esc(s.priceLabel||s.price)}</span>${K.act(s, s.mode==='instant'?'k-btn':'k-btn ghost')}</div></div>`).join('')}</div></section>
-    <footer class="fo-end"><h2>Siguiente <em>número</em>.</h2><p>Para editoriales, runway y campañas. Respondo en el día.</p>${K.act(ed,'k-btn')}<div class="fine"><span>${K.esc(T.domain)}</span><span>Hecho con Tulala</span></div></footer>`;
+    <footer class="fo-end" data-w="statement_footer · closing"><h2>Siguiente <em>número</em>.</h2><p>Para editoriales, runway y campañas. Respondo en el día.</p>${K.act(ed,'k-btn')}<div class="fine"><span>${K.esc(T.domain)}</span><span>Hecho con Tulala</span></div></footer>`;
   },
   notes:{
     summary:'Folio reads like a magazine issue: a cover with a full-width masthead, a contents page that is real navigation, and numbered chapters that each hold a deliberate image sequence with credits. Booking lives in a rate card at the back, the way a comp card sits at the end of a book.',

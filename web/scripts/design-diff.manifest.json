@@ -123,28 +123,28 @@
           "id": "masthead",
           "label": "Header masthead bar",
           "artifactSelector": [
-            "[data-w='site_header']",
             "[data-w^='site_header']",
+            ".fo-hdr",
             "#site header"
           ],
           "localSelector": [
+            ".site-header",
             "[data-section-type-key='site_header']",
-            "[data-builder-node-kind='site_header']",
-            ".site-header"
+            "[data-builder-node-kind='site_header']"
           ]
         },
         {
           "id": "cover",
           "label": "Cover",
           "artifactSelector": [
-            "[data-w='masthead']",
             "[data-w^='masthead']",
-            "[data-w^='hero']",
-            "#site .cover"
+            ".fo-name",
+            ".fo-spread",
+            "#site .fo-cover"
           ],
           "localSelector": [
-            "[data-builder-kind='masthead']",
             "[data-builder-node-kind='masthead']",
+            "[data-builder-kind='masthead']",
             "[data-section-type-key^='hero']",
             "[data-builder-node-kind^='hero']"
           ]
@@ -153,13 +153,13 @@
           "id": "contents",
           "label": "Contents",
           "artifactSelector": [
-            "[data-w='contents']",
             "[data-w^='contents']",
-            "#site .contents"
+            ".fo-toc",
+            "#site .fo-toc"
           ],
           "localSelector": [
-            "[data-builder-kind='contents']",
             "[data-builder-node-kind='contents']",
+            "[data-builder-kind='contents']",
             "[data-section-type-key='contents']"
           ]
         },
@@ -167,10 +167,9 @@
           "id": "chapters",
           "label": "Chapters",
           "artifactSelector": [
-            "[data-w='portfolio']",
             "[data-w^='portfolio']",
-            "[data-w^='chapter']",
-            "#site .chapters"
+            ".fo-ch",
+            "#site .fo-ch"
           ],
           "localSelector": [
             "[data-builder-node-kind='portfolio'][data-layout='chapter']",
@@ -182,13 +181,13 @@
           "id": "comp-card",
           "label": "Comp card",
           "artifactSelector": [
-            "[data-w='comp_card']",
-            "[data-w^='comp']",
-            "#site .comp"
+            "[data-w^='comp_card']",
+            ".fo-comp",
+            "#site .fo-comp"
           ],
           "localSelector": [
-            "[data-builder-kind='comp_card']",
             "[data-builder-node-kind='comp_card']",
+            "[data-builder-kind='comp_card']",
             "[data-section-type-key^='comp']"
           ]
         },
@@ -196,10 +195,9 @@
           "id": "rate-card",
           "label": "Rate card",
           "artifactSelector": [
-            "[data-w='services_catalog']",
-            "[data-w^='services']",
-            "[data-w^='rate']",
-            "#site .bigrate"
+            "[data-w^='services_catalog']",
+            ".fo-rates",
+            "#site .fo-rates"
           ],
           "localSelector": [
             "[data-builder-node-kind='services_catalog'][data-layout='rate_card']",
@@ -212,14 +210,13 @@
           "id": "statement-footer",
           "label": "Statement footer",
           "artifactSelector": [
-            "[data-w='statement_footer']",
-            "[data-w^='statement']",
-            "[data-w^='footer']",
+            "[data-w^='statement_footer']",
+            ".fo-end",
             "#site footer"
           ],
           "localSelector": [
-            "[data-builder-kind='statement_footer']",
             "[data-builder-node-kind='statement_footer']",
+            "[data-builder-kind='statement_footer']",
             "[data-section-type-key='footer']"
           ]
         }

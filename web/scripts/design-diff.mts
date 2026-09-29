@@ -37,12 +37,15 @@ function expandHome(p: string): string {
   return p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p;
 }
 
-const LOCAL_ORIGIN = "http://localhost:3001";
-const ENV_FILE = "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/pm-apply/web/.env.local";
+const here = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_ORIGIN = process.env.DESIGN_DIFF_ORIGIN
+  ?? (process.env.QA_PORT ? `http://localhost:${process.env.QA_PORT}` : "http://localhost:3003");
+const ENV_FILE =
+  process.env.DESIGN_DIFF_ENV
+  ?? path.join(here, "../.env.local");
 const OUT_ROOT = path.join(os.homedir(), ".claude", "design-diff");
 const AUTH_FILE = path.join(OUT_ROOT, ".auth.json");
 const SERVE_ROOT = path.join(os.homedir(), ".claude", "mockup-serve");
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 function arg(name: string, fallback?: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -93,10 +96,10 @@ async function waitForLocal(tries = 10, delayMs = 30_000): Promise<void> {
     } catch {
       /* restarting */
     }
-    console.log(`localhost:3001 not ready (attempt ${i + 1}/${tries})`);
+    console.log(`${LOCAL_ORIGIN} not ready (attempt ${i + 1}/${tries})`);
     await new Promise((r) => setTimeout(r, delayMs));
   }
-  throw new Error("localhost:3001 did not answer 200");
+  throw new Error(`${LOCAL_ORIGIN} did not answer 200`);
 }
 
 async function ensureAuth(browser: Browser): Promise<void> {
@@ -108,12 +111,34 @@ async function ensureAuth(browser: Browser): Promise<void> {
     await ctx.close();
     if (ok) return;
   }
-  const env = readEnv(ENV_FILE);
-  const email = env.QA_JOR_REAL_EMAIL;
-  const password = env.QA_JOR_REAL_PASSWORD;
-  if (!email || !password) throw new Error("QA_JOR_REAL_EMAIL / QA_JOR_REAL_PASSWORD missing in env file");
+  fs.mkdirSync(OUT_ROOT, { recursive: true });
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
+  // Prefer passwordless Mateo fixture sign-in (VERCEL_ENV=preview / next start).
+  const demoEmail =
+    process.env.DESIGN_DIFF_EMAIL
+    ?? "demo-mateo-ferrer@impronta.test";
+  const signinUrl = `${LOCAL_ORIGIN}/api/dev/signin?email=${encodeURIComponent(demoEmail)}&next=/talent`;
+  assertLocal(signinUrl);
+  const res = await page.goto(signinUrl, { waitUntil: "networkidle", timeout: 60_000 });
+  if (res && res.ok() && !/\/login/.test(page.url())) {
+    await ctx.storageState({ path: AUTH_FILE });
+    fs.chmodSync(AUTH_FILE, 0o600);
+    await ctx.close();
+    return;
+  }
+  // Fallback: password login from .env.local when present.
+  if (!fs.existsSync(ENV_FILE)) {
+    await ctx.close();
+    throw new Error(`dev signin failed (${res?.status()}) and no env file at ${ENV_FILE}`);
+  }
+  const env = readEnv(ENV_FILE);
+  const email = process.env.QA_JOR_REAL_EMAIL ?? env.QA_JOR_REAL_EMAIL ?? demoEmail;
+  const password = process.env.QA_JOR_REAL_PASSWORD ?? env.QA_JOR_REAL_PASSWORD;
+  if (!password) {
+    await ctx.close();
+    throw new Error("dev signin failed and no QA_JOR_REAL_PASSWORD / DESIGN_DIFF password");
+  }
   await page.goto(`${LOCAL_ORIGIN}/login`, { waitUntil: "networkidle" });
   assertLocal(page.url());
   await page.locator("input[type=email], input[name=email]").first().fill(email);
@@ -122,7 +147,6 @@ async function ensureAuth(browser: Browser): Promise<void> {
     page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 60_000 }),
     page.locator("form button[type=submit]").first().click(),
   ]);
-  fs.mkdirSync(OUT_ROOT, { recursive: true });
   await ctx.storageState({ path: AUTH_FILE });
   fs.chmodSync(AUTH_FILE, 0o600);
   await ctx.close();
