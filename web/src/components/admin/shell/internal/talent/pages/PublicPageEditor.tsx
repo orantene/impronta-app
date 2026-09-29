@@ -65,7 +65,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
     <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
       <NavRow
         title={copy.t("Website settings")}
-        summary={copy.t("Address, logo, pages, booking, payments and cancelling")}
+        summary={copy.t("How clients book, timing, payments and cancelling")}
         onOpen={() => setSettingsOpen(true)}
       />
     </div>
@@ -110,20 +110,17 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             <WebOfficeReturnBanner />
           </Suspense>
           <TalentMaxSiteManager locale={locale} />
-          {/* Address, logo, pages and domain live in Website settings. Flag
-              off → keep them reachable under a collapsed row, not deleted. */}
-          {settingsEntry ? (
-            <div className="mt-6">{settingsEntry}</div>
-          ) : (
-            <details className="mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
-              <summary className="min-h-11 cursor-pointer px-4 py-3 text-[15px] font-semibold text-admin-ink">
-                {copy.t("Website settings")}
-              </summary>
-              <div className="px-4 pb-4">
-                <MaxSiteSettingsPanels />
-              </div>
-            </details>
-          )}
+          {/* Booking settings open the lazy screen (flag). Address, logo, pages
+              and domain stay reachable under their own collapsed row. */}
+          {settingsEntry ? <div className="mt-6">{settingsEntry}</div> : null}
+          <details className="mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
+            <summary className="min-h-11 cursor-pointer px-4 py-3 text-[15px] font-semibold text-admin-ink">
+              {settingsEntry ? copy.t("Address, logo and pages") : copy.t("Website settings")}
+            </summary>
+            <div className="px-4 pb-4">
+              <MaxSiteSettingsPanels />
+            </div>
+          </details>
         </>
       )}
       {tab === "appear" && <TalentSiteAppearancesPanel locale={locale} />}
