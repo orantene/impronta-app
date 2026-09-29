@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { createBuilderNode } from "./create";
-import { VISIT_CSS } from "./visit-block";
+import { VISIT_CSS, mergeVisitFacts } from "./visit-block";
 import { renderBuilderNodes, type BuilderNodeRenderDataSources } from "./render";
 import type { TalentVisitFact } from "./visit-types";
 import type { BuilderNode } from "./types";
@@ -71,4 +71,23 @@ test("visit split shows map only when URL set", () => {
   assert.match(html, /data-visit-has-map="1"/);
   assert.match(html, /map\.png/);
   assert.match(html, /Polanco/);
+});
+
+test("authored facts: same label replaces the live fact; the rest go before Changes", () => {
+  const live: TalentVisitFact[] = [
+    { label: "Dónde", value: "Mérida", icon: "place" },
+    { label: "Cambios", value: "Hasta 24 h antes", icon: "changes" },
+  ];
+  const out = mergeVisitFacts(live, [
+    { label: "Anticipo", value: "Solo en pestañas", icon: "note" },
+    { label: "dónde", value: "García Ginerés, Mérida", icon: "note" },
+  ]);
+  assert.deepEqual(
+    out.map((f) => [f.label, f.value, f.icon]),
+    [
+      ["dónde", "García Ginerés, Mérida", "place"],
+      ["Anticipo", "Solo en pestañas", "note"],
+      ["Cambios", "Hasta 24 h antes", "changes"],
+    ],
+  );
 });

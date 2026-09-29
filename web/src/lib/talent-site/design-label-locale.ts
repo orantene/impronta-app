@@ -15,7 +15,7 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   About: "Sobre mí",
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
-  "Recent work": "Trabajos recientes",
+  "Recent work": "Trabajo reciente",
   "How booking works": "Cómo reservar",
   Questions: "Preguntas",
   "Ask a question": "Hacer una pregunta",

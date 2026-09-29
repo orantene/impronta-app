@@ -20,7 +20,7 @@ const tree = [
 
 test("es: seeded labels localise, talent-edited text is untouched", () => {
   const out = JSON.stringify(localiseSeededDesignLabels(tree, "es-MX"));
-  for (const s of ["Trabajos recientes", "Mi trabajo", "Hacer una pregunta", "El menú", "Servicios {i}y precios{/i}"]) {
+  for (const s of ["Trabajo reciente", "Mi trabajo", "Hacer una pregunta", "El menú", "Servicios {i}y precios{/i}"]) {
     assert.ok(out.includes(s), s);
   }
   assert.ok(!out.includes("Recent work"));

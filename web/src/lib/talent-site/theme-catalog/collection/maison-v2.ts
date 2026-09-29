@@ -58,15 +58,43 @@ function styleOf(node: BuilderNode): Props {
 function fullBleed(node: BuilderNode, extra: Props = {}): BuilderNode {
   const style = styleOf(node);
   const responsive = (style.responsive as Record<string, Props> | undefined) ?? {};
+  const extraResponsive = (extra.responsive as Record<string, Props> | undefined) ?? {};
   return withProps(node, {
     style: {
       ...style,
       maxWidth: "full",
       paddingX: "l",
       ...extra,
-      responsive: { ...responsive, mobile: { ...(responsive.mobile ?? {}), paddingX: "s" } },
+      responsive: {
+        ...responsive,
+        ...extraResponsive,
+        // The proposal's 18px phone gutter.
+        mobile: {
+          ...(responsive.mobile ?? {}),
+          paddingX: "s",
+          paddingLeft: "18px",
+          paddingRight: "18px",
+          ...(extraResponsive.mobile ?? {}),
+        },
+      },
     },
   });
+}
+
+/**
+ * The proposal's section rhythm (`.sec`): 84px above on desktop, 40px on the
+ * phone, a short tail. Free padding, so the builder still edits it.
+ */
+const SEC_PAD: Props = { paddingTop: "84px", paddingBottom: "10px" };
+const SEC_PAD_MOBILE: Props = { paddingTop: "40px", paddingBottom: "8px" };
+
+function withSecPad(style: Props): Props {
+  const responsive = (style.responsive as Record<string, Props> | undefined) ?? {};
+  return {
+    ...style,
+    ...SEC_PAD,
+    responsive: { ...responsive, mobile: { ...(responsive.mobile ?? {}), ...SEC_PAD_MOBILE } },
+  };
 }
 
 /** Drop the shared kit radius so the skin's proposal radii apply. */
@@ -91,13 +119,30 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       inset: true,
       italicAccent: true,
       nextFreeChip: true,
-      ctaRow: { primaryLabel: "Reserve a time", primaryHref: "#services", secondaryLabel: "See work" },
+      ctaRow: { primaryLabel: "See services", primaryHref: "#services", secondaryLabel: "See work" },
     }),
     { size: "display", letterSpacing: "-0.02em", fontWeight: 450 },
   );
   const visit = (node: BuilderNode): BuilderNode => {
     const p = propsOf(node);
     const kids = kidsOf(node).map(visit);
+    if (node.kind === "container" && p.layerLabel === "Hero actions") {
+      // CTA + ghost side by side on the phone too (containers stack by default).
+      return withProps(node, { responsive: { mobile: { layout: "row" } } }, kids.length ? kids : undefined);
+    }
+    if (node.kind === "container" && kids.some((k) => propsOf(k).layerLabel === "Hero actions")) {
+      // Proof line under the CTAs (`.proofline`): years of craft, the studio.
+      const proof: BuilderNode = {
+        id: makeId(),
+        kind: "paragraph",
+        props: {
+          text: "{{locationLine}}",
+          layerLabel: "Hero proof",
+          style: { size: "sm", tone: "muted", marginTop: "s" },
+        },
+      } as BuilderNode;
+      return withProps(node, {}, [...kids, proof]);
+    }
     if (node.kind === "button" && p.tone === "secondary") {
       return withProps(node, { label: "See work", href: "#gallery", layerLabel: "See work" }, kids.length ? kids : undefined);
     }
@@ -129,7 +174,14 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
     }
     return kids.length ? withProps(node, {}, kids) : node;
   };
-  return fullBleed(visit(hero), { paddingY: "l" });
+  // The proposal's 1.05fr / .95fr split with a 56px gutter; one column on the phone.
+  return fullBleed(visit(hero), {
+    paddingTop: "56px",
+    paddingBottom: "20px",
+    gridTemplateColumns: "1.05fr 0.95fr",
+    columnGap: "56px",
+    responsive: { mobile: { paddingX: "s", paddingTop: "22px", paddingBottom: "8px", gridTemplateColumns: "1fr" } },
+  });
 }
 
 /** Ticker: italic display words between hairlines, from the talent's own services. */
@@ -173,8 +225,8 @@ function maisonV2Work(makeId: KitIdFactory): BuilderNode {
           style: {
             ...styleOf(n),
             paddingX: "l",
-            marginTop: "l",
-            responsive: { mobile: { paddingX: "s" } },
+            ...SEC_PAD,
+            responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", ...SEC_PAD_MOBILE } },
           },
         })
       : n,
@@ -212,6 +264,10 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
               categoryShowAll: true,
               categoryShowCounts: true,
               showStats: false,
+              showUsdEquivalent: false,
+              pricePlacement: "meta",
+              mobileBar: "pill",
+              style: withSecPad({ ...styleOf(n), maxWidth: "full" }),
             })
           : n,
       ),
@@ -244,7 +300,13 @@ function maisonV2About(makeId: KitIdFactory): BuilderNode {
     }
     return kids.length ? withProps(node, {}, kids) : node;
   };
-  return fullBleed(visit(about));
+  // `.about`: .8fr / 1fr, 64px gutter, centred; stacked on the phone.
+  return fullBleed(visit(about), {
+    ...withSecPad(styleOf(about)),
+    gridTemplateColumns: "0.8fr 1fr",
+    columnGap: "64px",
+    responsive: { mobile: { paddingX: "s", ...SEC_PAD_MOBILE, gridTemplateColumns: "1fr" } },
+  });
 }
 
 function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
@@ -258,10 +320,11 @@ function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
       style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", textColor: styleTokenRef("color.accent") },
     },
   } as BuilderNode;
-  const kids = kidsOf(faq);
+  // Closed by default (`<details>` in the proposal): visitors open what they need.
+  const kids = kidsOf(faq).map((k) => (k.kind === "accordion" ? withProps(k, { startClosed: true }) : k));
   return withProps(
     faq,
-    { style: { ...styleOf(faq), maxWidth: "full", paddingX: "l", maxWidthFree: "760px" } },
+    { style: withSecPad({ ...styleOf(faq), maxWidth: "full", paddingX: "l", maxWidthFree: "856px" }) },
     [eyebrow, ...kids],
   );
 }
@@ -283,8 +346,12 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
         ...((props.style as object) ?? {}),
         backgroundColor: styleTokenRef("color.ink"),
         textColor: styleTokenRef("color.background"),
+        maxWidth: "full",
         paddingY: "xl",
         paddingX: "l",
+        paddingTop: "70px",
+        paddingBottom: "120px",
+        responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
       },
     },
     children: [
@@ -298,7 +365,27 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
         kind: "button",
         props: { label: "See services", href: "#services", tone: "primary", layerLabel: "Footer CTA" },
       } as BuilderNode,
-      ...kidsOf(node),
+      // Fine print (`.fine`): the copyright left, "Made with Tulala" right.
+      {
+        id: makeId(),
+        kind: "container",
+        props: {
+          layout: "row",
+          gap: "s",
+          align: "center",
+          layerLabel: "Footer fine print",
+          responsive: { mobile: { layout: "row" } },
+          style: { width: "100%", maxWidth: "full", justifyContent: "space-between", flexWrap: "wrap", marginTopFree: "28px" },
+        },
+        children: [
+          ...kidsOf(node),
+          {
+            id: makeId(),
+            kind: "paragraph",
+            props: { text: "Made with Tulala", layerLabel: "Footer credit" },
+          } as BuilderNode,
+        ],
+      } as BuilderNode,
     ],
   } as unknown as BuilderNode;
 }
@@ -310,7 +397,7 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
   const sp = (props.sectionProps ?? {}) as Props;
   const brand = (sp.brand ?? {}) as Props;
   const regions = (sp.regions ?? {}) as Record<string, unknown>;
-  const cta = { label: "Reserve a time", href: "#services" };
+  const cta = { label: "Menu and prices", href: "#services" };
   const right = Array.isArray(regions.right)
     ? (regions.right as Props[]).map((it) => (it?.type === "cta" ? { ...it, ...cta, responsive: { mobile: "hide" } } : it))
     : regions.right;
@@ -323,6 +410,28 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
       regions: { ...regions, right },
     },
   });
+}
+
+/** Full-bleed band with the proposal's section rhythm. */
+function padSection(node: BuilderNode): BuilderNode {
+  return fullBleed(node, withSecPad(styleOf(node)));
+}
+
+/** Reviews: three quote cards (no stars, as proposed), initials + name. */
+function maisonV2Reviews(makeId: KitIdFactory): BuilderNode {
+  const band = reviewsBlock(makeId, {
+    layout: "trio",
+    heading: "What they {i}say{/i}",
+    eyebrow: "Reviews",
+    autoplayMs: 0,
+  });
+  return padSection(
+    withProps(
+      band,
+      {},
+      kidsOf(band).map((n) => (n.kind === "reviews" ? withProps(n, { showRating: false, showDots: false }) : n)),
+    ),
+  );
 }
 
 export function buildMaisonV2Payload(): DesignPayload {
@@ -342,16 +451,9 @@ export function buildMaisonV2Payload(): DesignPayload {
       maisonV2Hero(id),
       maisonV2Work(id),
       maisonV2Menu(id),
-      fullBleed(
-        reviewsBlock(id, {
-          layout: "trio",
-          heading: "What they {i}say{/i}",
-          eyebrow: "Reviews",
-          autoplayMs: 0,
-        }),
-      ),
+      maisonV2Reviews(id),
       maisonV2About(id),
-      fullBleed(
+      padSection(
         visitBlock(id, {
           layout: "facts",
           heading: "Before you come",
@@ -359,7 +461,6 @@ export function buildMaisonV2Payload(): DesignPayload {
           eyebrow: "Your visit",
           band: false,
         }),
-        { paddingY: "l" },
       ),
       maisonV2Faq(id),
     ],

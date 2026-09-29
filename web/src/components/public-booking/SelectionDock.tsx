@@ -21,7 +21,7 @@ export type SelectionDockItem = {
   priceLabel?: string | null;
 };
 
-function ChatIcon({ size }: { size: number }) {
+export function ChatIcon({ size }: { size: number }) {
   return (
     <svg
       width={size}

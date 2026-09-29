@@ -807,6 +807,8 @@ export interface BuilderAccordionNode extends BuilderNodeBase {
   props: {
     allowMultiple?: boolean;
     defaultOpenItemIds?: string[];
+    /** Every item starts closed (bound FAQ lists have no stable item ids to pick). */
+    startClosed?: boolean;
     layerLabel?: string;
     style?: BuilderNodeStyle;
     /**
@@ -1537,6 +1539,8 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     showBadges?: boolean;
     /** Small tinted chip on rows that are not instant ("Needs confirmation" / "By quote"). */
     showModeChip?: boolean;
+    /** meta = price inline after the duration (Maison v2 rows); default column. */
+    pricePlacement?: "column" | "meta";
     ctaLabel?: string;
     emptyMessage?: string;
     categoryShowAll?: boolean;
@@ -1555,7 +1559,8 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     rowCtaVariant?: "outline" | "solid";
     photoRadius?: "square" | "soft" | "round";
     durationFormat?: "auto" | "minutes" | "hours_minutes";
-    mobileBar?: "dock" | "float" | "hidden";
+    /** pill = one glass capsule: chat button + "See services" (Maison v2 dock). */
+    mobileBar?: "dock" | "float" | "pill" | "hidden";
     columns?: 1 | 2 | 3;
     density?: "comfortable" | "compact";
     /** Default true — inherit website theme tokens; Style overrides apply when false. */

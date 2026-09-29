@@ -38,6 +38,8 @@ html {
   --token-color-neutral: #737373;
   --token-color-blush: #d8b7b0;
   --token-color-sage: #a8b1a0;
+  /* Availability signal (next-free chip dot). No token emits it yet. */
+  --token-color-success: #2f9e62;
   --token-color-ink: #111111;
   --token-color-muted: #737373;
   --token-color-line: #e5e5e5;

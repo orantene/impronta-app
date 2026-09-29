@@ -69,6 +69,27 @@ function titleNodes(title: string, accent: string): ReactNode {
   );
 }
 
+/**
+ * Authored facts join the live ones: a fact with the same label as a live
+ * fact replaces it in place (e.g. a fuller "Where"), the rest go before the
+ * change window, which reads as the closing fact.
+ */
+export function mergeVisitFacts(
+  live: ReadonlyArray<TalentVisitFact>,
+  extra: ReadonlyArray<TalentVisitFact>,
+): TalentVisitFact[] {
+  const key = (s: string) => s.trim().toLowerCase();
+  const byLabel = new Map(extra.map((f) => [key(f.label), f]));
+  const merged = live.map((f) => {
+    const own = byLabel.get(key(f.label));
+    return own ? { ...own, icon: f.icon } : f;
+  });
+  const used = new Set(live.map((f) => key(f.label)));
+  const rest = extra.filter((f) => !used.has(key(f.label)));
+  const at = merged.findIndex((f) => f.icon === "changes");
+  return at < 0 ? [...merged, ...rest] : [...merged.slice(0, at), ...rest, ...merged.slice(at)];
+}
+
 export function renderVisitBlock(args: {
   node: BuilderVisitNode;
   facts: ReadonlyArray<TalentVisitFact>;
@@ -85,7 +106,7 @@ export function renderVisitBlock(args: {
   const extra = (p.extraFacts ?? [])
     .filter((f) => f.label.trim() && f.value.trim())
     .map((f): TalentVisitFact => ({ label: f.label, value: f.value, note: f.note, icon: "note" }));
-  const allFacts = [...facts, ...extra];
+  const allFacts = mergeVisitFacts(facts, extra);
   const empty = allFacts.length === 0;
 
   return (

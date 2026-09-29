@@ -46,6 +46,8 @@ export type DemoSiteCopy = {
   heroHeading?: string;
   heroEyebrow?: string;
   heroLede?: string;
+  /** Proof line under the hero CTAs; `{b}...{/b}` for the bold lead. */
+  heroProof?: string;
   ticker?: string[];
   heroInset?: string;
   aboutPhoto?: string;

@@ -82,6 +82,10 @@ export const CATALOG_BOOKING_CSS = `
 .cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -12px 32px -20px rgba(36,33,38,.4)}
 .cb-bar[data-show="true"]{display:flex}
 .cb-bar-text{min-width:0;display:grid;gap:2px}
+.cb-bar[data-bar-style="pill"]{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));gap:8px;padding:6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--cb-line) 80%,transparent);background:color-mix(in srgb,var(--cb-surface) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--cb-ink) 45%,transparent)}
+.cb-bar[data-bar-style="pill"] .cb-bar-chat{width:48px;height:48px;min-height:48px;padding:0;border-radius:50%;display:grid;place-items:center;background:var(--cb-blush,color-mix(in srgb,var(--cb-primary) 12%,var(--cb-surface)));color:var(--cb-primary)}
+.cb-bar[data-bar-style="pill"] .cb-bar-go{flex:1;height:48px;border-radius:999px;font-size:15px}
+@media (min-width:720px){.cb-bar[data-bar-style="pill"][data-show="true"]{display:flex!important;left:50%;right:auto;bottom:22px;transform:translateX(-50%)}.cb-bar[data-bar-style="pill"] .cb-bar-go{flex:0 0 auto;padding:0 22px}}
 .cb-bar-text strong{font-size:.9375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cb-bar-text span{font-size:.75rem;color:var(--cb-muted)}
 .cb-bar button{appearance:none;border:0;cursor:pointer;min-height:44px;padding:0 18px;border-radius:10px;background:var(--cb-primary);color:#fff;font:inherit;font-size:.8125rem;font-weight:600;flex:0 0 auto}

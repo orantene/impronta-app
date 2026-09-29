@@ -42,7 +42,7 @@ import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-local
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { resolveDemoPreviewSource } from "./demo-preview-source";
-import { resolveDemoPreviewHydration } from "./demo-preview-hydration";
+import { loadDemoSavedTrees, resolveDemoPreviewHydration } from "./demo-preview-hydration";
 import {
   prepareMyContentPreview,
   resolveMyContentPreviewLocale,
@@ -128,12 +128,17 @@ export async function ThemeCatalogPreview({
   const locale = ownerId
     ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
     : requestedLocale;
+  // A demo shows its SAVED page (her own headline, eyebrow, lede, photos);
+  // My content keeps the design tree bound to the owner's data.
+  const saved = demoHydration
+    ? await loadDemoSavedTrees(demoHydration.demoTalentProfileId, design.slug)
+    : null;
   const mine = contentId
     ? await prepareMyContentPreview({
         talentProfileId: contentId,
         locale,
-        shellTree: built.shellTree,
-        homeTree: built.homeTree,
+        shellTree: saved?.shellTree ?? built.shellTree,
+        homeTree: saved?.homeTree ?? built.homeTree,
       })
     : null;
   const homeTree = mine ? mine.homeTree : built.homeTree;

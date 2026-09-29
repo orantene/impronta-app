@@ -569,6 +569,24 @@ test("rail categoryNav emits data-category-nav=rail and body wrapper", () => {
   assert.match(html, /site-builder-node--services-catalog-cta/);
 });
 
+/** Maison v2 rows: price inline after the duration, group heads with counts, pill dock. */
+test("pricePlacement meta + rail group heads + pill bar", () => {
+  const html = render(
+    [catalogNode({ categoryNav: "rail", layout: "rows", pricePlacement: "meta", mobileBar: "pill", categoryShowCounts: true, categoryShowAll: true })],
+    {
+      talentOfferings: [
+        offering({ id: "a", category: "Uñas", title: "Manicure", durationMinutes: 90, imageUrls: ["https://example.test/a.jpg"] }),
+        offering({ id: "b", category: "Cejas", title: "Brow", durationMinutes: 50, imageUrls: ["https://example.test/b.jpg"] }),
+      ],
+    },
+  );
+  assert.match(html, /data-price-in-meta="true"[\s\S]*?1 h 30 min/);
+  assert.doesNotMatch(html, /estimated duration/);
+  assert.match(html, /site-builder-node--services-catalog-group-count">1 service</);
+  assert.match(html, /site-builder-node--services-catalog-pill-count">1</);
+  assert.match(html, /data-bar-style="pill"[\s\S]*?cb-bar-chat[\s\S]*?See services/);
+});
+
 /** BLD five-settings — public SSR markers for change→publish verification. */
 test("five-settings: layout / categoryNav / showPhoto / search / stylePreset emit public attrs", () => {
   const html = render(

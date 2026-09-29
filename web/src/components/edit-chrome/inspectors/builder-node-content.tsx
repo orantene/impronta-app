@@ -1079,6 +1079,14 @@ function BuilderNodeContentInspectorBody({
                   helper="When off, setting a default item keeps just one question open at a time."
                 />
               </div>
+              <div style={{ padding: "4px 0" }}>
+                <Toggle
+                  on={node.props.startClosed === true}
+                  onChange={(next) => void commitPatch({ startClosed: next })}
+                  label="Start with every question closed"
+                  helper="Visitors open the questions they care about."
+                />
+              </div>
             </div>
           </CardBody>
         </Card>

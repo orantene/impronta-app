@@ -11,6 +11,12 @@ import {
   buildTemplatePreviewHydration,
   type TemplatePreviewHydration,
 } from "@/lib/talent-site/templates/preview-hydration";
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import {
+  loadMaxSiteByProfileId,
+  loadMaxSiteDesignSlug,
+  loadMaxSitePages,
+} from "@/lib/talent-site/server/load-max-site";
 import type { DemoPreviewSource } from "./demo-preview-source";
 
 /**
@@ -48,4 +54,28 @@ export async function resolveDemoPreviewHydration(
     ...buildTemplatePreviewHydration({ profile, media }, { isReal: false }),
     demoTalentProfileId: id,
   };
+}
+
+/**
+ * The demo talent's SAVED page (its published shell + home body), so the
+ * preview shows the demo exactly as its own site does: her headline, eyebrow,
+ * lede and photos as edited in the builder, not the design's template copy.
+ * Only when the demo's site wears THIS design; null otherwise (the caller
+ * then renders the design tree). Read-only.
+ */
+export async function loadDemoSavedTrees(
+  demoTalentProfileId: string,
+  designSlug: string,
+): Promise<{ shellTree: BuilderNode[]; homeTree: BuilderNode[] } | null> {
+  const [slug, site, pages] = await Promise.all([
+    loadMaxSiteDesignSlug(demoTalentProfileId),
+    loadMaxSiteByProfileId(demoTalentProfileId),
+    loadMaxSitePages(demoTalentProfileId),
+  ]);
+  if (slug !== designSlug || !site) return null;
+  const home = pages.find((p) => p.isHome);
+  const body = home ? (Array.isArray(home.blocksPublished) ? home.blocksPublished : home.blocks) : null;
+  const shell = Array.isArray(site.shellPublished) ? site.shellPublished : site.shellTree;
+  if (!Array.isArray(body) || body.length === 0 || !Array.isArray(shell)) return null;
+  return { shellTree: shell as BuilderNode[], homeTree: body as BuilderNode[] };
 }

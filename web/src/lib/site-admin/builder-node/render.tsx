@@ -4676,7 +4676,9 @@ function renderBuilderNodeElement(
         >
           {renderChildren(accordionNode, {
             ...options,
-            accordionOpenIds: node.props.defaultOpenItemIds,
+            accordionOpenIds: node.props.startClosed
+              ? node.props.defaultOpenItemIds ?? []
+              : node.props.defaultOpenItemIds,
           })}
         </div>
       );
@@ -5919,6 +5921,7 @@ function renderBuilderNodeElement(
                 showUsdEquivalent={p.showUsdEquivalent !== false}
                 showBadges={p.showBadges === true}
                 showModeChip={p.showModeChip === true}
+                priceInMeta={p.pricePlacement === "meta"}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
@@ -5950,7 +5953,7 @@ function renderBuilderNodeElement(
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
         styleAttr: sharedNodeStyle(node.props.style),
-        locale: options.contentLocale?.locale,
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
       });
     }
     case "reviews": {
@@ -5959,7 +5962,7 @@ function renderBuilderNodeElement(
           node={node}
           reviews={options.dataSources?.talentReviews ?? []}
           styleAttr={sharedNodeStyle(node.props.style)}
-          locale={options.contentLocale?.locale}
+          locale={options.contentLocale?.locale ?? options.visitorLocale}
         />
       );
     }
@@ -5992,7 +5995,7 @@ function renderBuilderNodeElement(
       return renderCompCardBlock({
         node,
         rows: options.dataSources?.talentCompCard?.rows ?? [],
-        locale: options.contentLocale?.locale,
+        locale: options.contentLocale?.locale ?? options.visitorLocale,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -6001,7 +6004,7 @@ function renderBuilderNodeElement(
         <NextFreeChipView
           node={node}
           offerings={options.dataSources?.talentOfferings ?? []}
-          locale={options.contentLocale?.locale}
+          locale={options.contentLocale?.locale ?? options.visitorLocale}
           styleAttr={sharedNodeStyle(node.props.style)}
         />
       );
@@ -6182,7 +6185,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
             copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             usdRates={options.dataSources.usdRates ?? null}
           />
         </section>
@@ -6219,7 +6222,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             offeringId={p.offeringId}
             title={text("title", p.title) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         </div>
       );
@@ -6246,7 +6249,7 @@ function renderBuilderNodeElement(
             tenantId={options.dataSources.tenantId ?? ""}
             eventId={p.eventId}
             title={text("title", p.title) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             layout={p.layout}
             presentation={p.presentation}
             tiers={p.tiers}
@@ -6282,7 +6285,7 @@ function renderBuilderNodeElement(
             editor={options.contentLocale?.editorPreview === true}
             eyebrow={text("eyebrow", p.eyebrow) || undefined}
             heading={text("heading", p.heading) || undefined}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
             layout={p.layout}
             groupBy={p.groupBy}
             showTimes={p.showTimes}
@@ -6348,7 +6351,7 @@ function renderBuilderNodeElement(
             partyMax={p.partyMax ?? 8}
             cardNotice={p.cardNotice ?? null}
             notesEnabled={p.notesEnabled ?? true}
-            locale={options.contentLocale?.locale}
+            locale={options.contentLocale?.locale ?? options.visitorLocale}
           />
         </div>
       );

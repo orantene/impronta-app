@@ -523,6 +523,7 @@ const layerLabelSchema = z.string().max(80).optional();
 const accordionPropsSchema = z.object({
   allowMultiple: z.boolean().optional(),
   defaultOpenItemIds: z.array(z.string().min(1)).max(30).optional(),
+  startClosed: z.boolean().optional(),
   layerLabel: layerLabelSchema,
   style: builderNodeStyleSchema,
   /** Maison FAQ bind — expand from published `talent_faq_items` at render. */
@@ -1058,6 +1059,7 @@ export const servicesCatalogPropsSchema = z.object({
   showUsdEquivalent: z.boolean().optional(),
   showBadges: z.boolean().optional(),
   showModeChip: z.boolean().optional(),
+  pricePlacement: z.enum(["column", "meta"]).optional(),
   ctaLabel: z.string().max(40).optional(),
   emptyMessage: z.string().max(240).optional(),
   categoryShowAll: z.boolean().optional(),
@@ -1074,7 +1076,7 @@ export const servicesCatalogPropsSchema = z.object({
   rowCtaVariant: z.enum(["outline", "solid"]).optional(),
   photoRadius: z.enum(["square", "soft", "round"]).optional(),
   durationFormat: z.enum(["auto", "minutes", "hours_minutes"]).optional(),
-  mobileBar: z.enum(["dock", "float", "hidden"]).optional(),
+  mobileBar: z.enum(["dock", "float", "pill", "hidden"]).optional(),
   columns: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   density: z.enum(["comfortable", "compact"]).optional(),
   useWebsiteTheme: z.boolean().optional(),

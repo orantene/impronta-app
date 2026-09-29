@@ -41,6 +41,9 @@ export function applyDemoSiteCopy(
       eyebrowDone = true;
       return withProps(n, { text: copy.heroEyebrow });
     }
+    if (ctx.inHero && n.kind === "paragraph" && p.layerLabel === "Hero proof") {
+      return copy.heroProof ? withProps(n, { text: copy.heroProof }) : n;
+    }
     if (
       ctx.inHero &&
       n.kind === "paragraph" &&

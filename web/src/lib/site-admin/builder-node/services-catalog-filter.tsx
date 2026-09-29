@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -21,7 +21,7 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel } from "./services-catalog-bar-price";
-import { SelectionDock } from "@/components/public-booking/SelectionDock";
+import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
 import {
   EMPTY_DOCK,
   dockPickSwitches,
@@ -103,6 +103,23 @@ function dispatchOffering(
   );
 }
 
+/** Rail pill count: a trailing muted number; other navs keep " (n)". */
+function railCount(nav: CatalogNavMode, n: number): ReactNode {
+  return nav === "rail" ? (
+    <small className="site-builder-node--services-catalog-pill-count">{n}</small>
+  ) : (
+    ` (${n})`
+  );
+}
+
+/** "2 h 30 min" / "1 h" / "50 min", without the "estimated" suffix. */
+function catalogDurationShort(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h <= 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
 export function ServicesCatalogFilter({
   groups,
   locale,
@@ -117,6 +134,7 @@ export function ServicesCatalogFilter({
   showUsdEquivalent,
   showBadges = false,
   showModeChip = false,
+  priceInMeta = false,
   confirmsByHand,
   usdRates,
   ctaLabel,
@@ -147,6 +165,8 @@ export function ServicesCatalogFilter({
   showUsdEquivalent: boolean;
   showBadges?: boolean;
   showModeChip?: boolean;
+  /** Price inline after the duration (Maison v2 rows), not in the buy column. */
+  priceInMeta?: boolean;
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
@@ -155,7 +175,7 @@ export function ServicesCatalogFilter({
   /** Builder node id — used only for jump-nav fragment ids (serializable). */
   nodeId: string;
   durationFormat?: "auto" | "minutes" | "hours_minutes";
-  mobileBar?: "dock" | "float" | "hidden";
+  mobileBar?: "dock" | "float" | "pill" | "hidden";
   /** Pass-through to sheet; chat handoff owned by sibling sheet/chat PR. */
   showAskLink?: boolean;
   sheetAccent?: "ink" | "primary";
@@ -360,9 +380,9 @@ export function ServicesCatalogFilter({
               data-active={active === null ? "true" : "false"}
               onClick={() => setActive(null)}
             >
-              {es ? "Todos" : "All"}
+              {nav === "rail" ? (es ? "Todo" : "All") : es ? "Todos" : "All"}
               {categoryShowCounts
-                ? ` (${groups.reduce((n, g) => n + g.items.filter(matchesSearch).length, 0)})`
+                ? railCount(nav, groups.reduce((n, g) => n + g.items.filter(matchesSearch).length, 0))
                 : ""}
             </button>
           ) : null}
@@ -380,7 +400,7 @@ export function ServicesCatalogFilter({
                 onClick={() => setActive(g.name)}
               >
                 {g.name}
-                {categoryShowCounts ? ` (${count})` : ""}
+                {categoryShowCounts ? railCount(nav, count) : ""}
               </button>
             );
           })}
@@ -410,7 +430,7 @@ export function ServicesCatalogFilter({
           filterNav && active !== null && Boolean(g.name) && active !== g.name;
         const accordionOpen =
           nav !== "accordion" || openAccordion === g.name || (!g.name && openAccordion === null);
-        const showGroupHeading = nav === "jump" || nav === "sections";
+        const showGroupHeading = nav === "jump" || nav === "sections" || nav === "rail";
         const visibleItems = g.items.filter(matchesSearch);
         return (
           <div
@@ -423,6 +443,13 @@ export function ServicesCatalogFilter({
             {showGroupHeading ? (
               <h3 className="site-builder-node--services-catalog-group-title">
                 {g.name ?? (es ? "Otros" : "Other")}
+                {nav === "rail" ? (
+                  <small className="site-builder-node--services-catalog-group-count">
+                    {es
+                      ? `${visibleItems.length} ${visibleItems.length === 1 ? "servicio" : "servicios"}`
+                      : `${visibleItems.length} ${visibleItems.length === 1 ? "service" : "services"}`}
+                  </small>
+                ) : null}
               </h3>
             ) : null}
             {nav === "accordion" && g.name ? (
@@ -461,6 +488,7 @@ export function ServicesCatalogFilter({
                       showUsdEquivalent={showUsdEquivalent}
                       showBadges={showBadges}
                       showModeChip={showModeChip}
+                      priceInMeta={priceInMeta}
                       confirmsByHand={confirmsByHand}
                       bookingPosture={bookingPosture}
                       usdRates={usdRates}
@@ -486,10 +514,34 @@ export function ServicesCatalogFilter({
         data-has-selection="false"
         data-bar-style={mobileBar}
       >
-        <div className="cb-bar-text">
-          <strong>{es ? "Elige tu servicio" : "Choose a service"}</strong>
-          <span>{es ? "Del menú completo, con sus opciones" : "From the full menu, with its options"}</span>
-        </div>
+        {mobileBar === "pill" ? (
+          <>
+            <button
+              type="button"
+              className="cb-bar-chat"
+              aria-label={es ? "Abrir el chat" : "Open the chat"}
+              onClick={() => window.dispatchEvent(new CustomEvent("tulala:open-guest-chat"))}
+            >
+              <ChatIcon size={20} />
+            </button>
+            <button
+              type="button"
+              className="cb-bar-go"
+              onClick={() =>
+                document
+                  .querySelector(`[data-builder-node-id="${nodeId}"]`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              {es ? "Ver servicios" : "See services"}
+            </button>
+          </>
+        ) : (
+          <div className="cb-bar-text">
+            <strong>{es ? "Elige tu servicio" : "Choose a service"}</strong>
+            <span>{es ? "Del menú completo, con sus opciones" : "From the full menu, with its options"}</span>
+          </div>
+        )}
       </div>
 
       <SelectionDock
@@ -539,6 +591,7 @@ export function CatalogRow({
   showUsdEquivalent,
   showBadges = false,
   showModeChip = false,
+  priceInMeta = false,
   confirmsByHand,
   bookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
   usdRates,
@@ -559,6 +612,7 @@ export function CatalogRow({
   showUsdEquivalent: boolean;
   showBadges?: boolean;
   showModeChip?: boolean;
+  priceInMeta?: boolean;
   confirmsByHand: boolean;
   bookingPosture?: TalentBookingPosture;
   usdRates: UsdRates | null;
@@ -597,6 +651,20 @@ export function CatalogRow({
           ? "Por cotización"
           : "By quote"
         : null;
+  // One-line price for the meta row: "Desde $650" / "$900" / "A cotizar".
+  const money = minCents == null ? "" : formatMoney(minCents, item.currency, locale);
+  const priceText =
+    onRequest || quote || minCents == null
+      ? es
+        ? onRequest
+          ? "Bajo consulta"
+          : "A cotizar"
+        : onRequest
+          ? "On request"
+          : "Quote"
+      : ladder
+        ? `${es ? "Desde" : "From"} ${money}`
+        : money;
   const badges: string[] = [];
   if (showBadges) {
     if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
@@ -630,7 +698,20 @@ export function CatalogRow({
         {showDescription && item.description ? (
           <span className="site-builder-node--services-catalog-desc">{item.description}</span>
         ) : null}
-        {showDuration && item.durationMinutes && item.kind !== "product" ? (
+        {priceInMeta ? (
+          <span className="site-builder-node--services-catalog-duration" data-price-in-meta="true">
+            {showDuration && item.durationMinutes && item.kind !== "product" ? (
+              <>
+                <span>{catalogDurationShort(item.durationMinutes)}</span>
+                {showPrice ? <span aria-hidden>·</span> : null}
+              </>
+            ) : null}
+            {showPrice ? <span className="site-builder-node--services-catalog-price">{priceText}</span> : null}
+            {showModeChip && modeChip ? (
+              <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
+            ) : null}
+          </span>
+        ) : showDuration && item.durationMinutes && item.kind !== "product" ? (
           <span className="site-builder-node--services-catalog-duration">
             {catalogDurationPhrase(item.durationMinutes, locale, durationFormat)}
           </span>
@@ -649,7 +730,7 @@ export function CatalogRow({
                 : "Subject to confirmation"}
           </span>
         ) : null}
-        {showModeChip && modeChip ? (
+        {showModeChip && modeChip && !priceInMeta ? (
           <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
         ) : null}
         {badges.length ? (
@@ -663,7 +744,7 @@ export function CatalogRow({
         ) : null}
       </span>
       <span className="site-builder-node--services-catalog-buy">
-        {showPrice ? (
+        {priceInMeta ? null : showPrice ? (
           <span className="site-builder-node--services-catalog-price">
             {onRequest || quote || minCents == null ? (
               <strong>{es ? (onRequest ? "Bajo consulta" : "Cotización a pedido") : onRequest ? "On request" : "Quote on request"}</strong>

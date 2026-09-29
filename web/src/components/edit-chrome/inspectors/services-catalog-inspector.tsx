@@ -314,6 +314,14 @@ export function ServicesCatalogContentInspector({
             {label}
           </label>
         ))}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={catalog.pricePlacement === "meta"}
+            onChange={(e) => void commitPatch({ pricePlacement: e.target.checked ? "meta" : "column" })}
+          />
+          Price next to the duration
+        </label>
 
         <div className={KIT.field}>
           <label className={KIT.label}>Button label override</label>
@@ -584,6 +592,7 @@ export function ServicesCatalogLayoutInspector({
         >
           <option value="float">Floating card</option>
           <option value="dock">Full-bleed dock</option>
+          <option value="pill">Chat + button capsule</option>
           <option value="hidden">Hidden</option>
         </select>
       </div>

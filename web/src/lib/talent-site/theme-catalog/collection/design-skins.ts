@@ -62,6 +62,10 @@ const MAISON_V2_SKIN = [
   `${S} #hero img[style*="position:absolute"]{border-radius:20px;box-shadow:0 30px 50px -30px color-mix(in srgb,var(--token-color-ink) 60%,transparent)}`,
   `${MQ_DESK}{${S} #hero h1{font-size:96px;line-height:.93}${S} #hero p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){margin-top:22px;font-size:18px;max-width:40ch}${S} #hero img{border-radius:34px}${S} #hero img[style*="position:absolute"]{border-radius:20px}}`,
 
+  // Proof line under the CTAs (`.proofline`): 12.5px muted, bold lead in ink.
+  `${S} #hero .site-builder-node--container + p.site-builder-node--paragraph.site-builder-node--paragraph{margin-top:16px;font-size:12.5px;line-height:1.5;max-width:none;color:var(--token-color-muted)}`,
+  `${S} #hero .site-builder-node--container + p.site-builder-node--paragraph b{color:var(--token-color-ink);font-weight:600}`,
+
   // ── Row 3 Ticker: the serif marquee variant carries the look; colour from the Look.
   `${S} .site-builder-node--marquee{color:var(--token-color-ink)}`,
 
@@ -81,6 +85,13 @@ const MAISON_V2_SKIN = [
   `${S} .site-builder-node--services-catalog-duration{font-size:12.5px;color:var(--token-color-muted)}`,
   `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-buy{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:10px;width:auto;min-width:0}`,
   `${S} .site-builder-node--services-catalog-price{min-width:0;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--token-color-ink)}`,
+  `${S} .site-builder-node--services-catalog-duration[data-price-in-meta]{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:3px}`,
+  `${S} .site-builder-node--services-catalog-duration[data-price-in-meta] .site-builder-node--services-catalog-price{display:inline;font-size:12.5px;text-align:left}`,
+  `${S} .site-builder-node--services-catalog-mode{font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:99px;background:var(--token-color-blush,var(--token-color-surface-raised));color:var(--token-color-accent,var(--token-color-primary))}`,
+  `${S} .site-builder-node--services-catalog-pill-count{margin-left:4px;font-size:.85em;opacity:.55;color:inherit}`,
+  `${S} .site-builder-node--services-catalog-group-title{display:flex;align-items:baseline;gap:10px}`,
+  `${S} .site-builder-node--services-catalog-group-count{font-family:var(--site-body-font,inherit);font-style:normal;font-size:11.5px;font-weight:500;color:var(--token-color-muted)}`,
+  `${S} .site-builder-node--services-catalog-demo{font-size:12px;margin:0 0 8px;color:var(--token-color-muted);background:none;padding:0}`,
   `${S} .site-builder-node--services-catalog-cta{min-height:34px;height:34px;padding:0 14px;border-radius:99px;border:1.5px solid var(--token-color-ink);background:transparent;color:var(--token-color-ink);font-size:13px;font-weight:600}`,
   `${S} .site-builder-node--services-catalog-cta[data-selected="true"]{background:var(--token-color-accent);border-color:var(--token-color-accent);color:var(--token-color-primary-on,var(--token-color-background))}`,
   `${MQ_DESK}{`,
@@ -100,6 +111,10 @@ const MAISON_V2_SKIN = [
   `${S} .sb-reviews-author{display:block;font-style:normal;font-size:13px;font-weight:600;color:var(--token-color-ink)}`,
   `${S} .sb-reviews .site-builder-node--carousel-track{gap:10px}`,
   `${S} .sb-reviews .site-builder-node--carousel-dots{display:none}`,
+  `${S} .sb-reviews[data-reviews-layout] .sb-reviews-card{min-height:0}`,
+  `${S} .sb-reviews-note{margin:0 0 14px;font-size:13px}`,
+  `${S} .sb-reviews-demo{font-size:12.5px}`,
+  `${MQ_DESK}{${S} .sb-reviews[data-reviews-layout="trio"] .site-builder-node--carousel-track{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}}`,
 
   // ── Row 7 About: the proposal's 26/26/140/26 arch, large display line, 17px bio.
   `${S} #about img{border-radius:26px 26px 140px 26px}`,
@@ -129,11 +144,21 @@ const MAISON_V2_SKIN = [
   `${S} #site-footer h2{margin:0;font-style:italic;font-weight:400;font-size:44px;line-height:1;color:var(--token-color-background)}`,
   `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
+  `${S} #site-footer h2 + p.site-builder-node--paragraph{margin:10px 0 18px;font-size:15px;color:color-mix(in srgb,var(--token-color-background) 70%,transparent)}`,
   `${MQ_DESK}{${S} #site-footer h2{font-size:88px}}`,
 
   // ── Row 11 Dock: one frosted capsule.
-  `${S} .cb-island .cb-bar[data-bar-style="float"]{border-radius:999px;padding:6px;background:color-mix(in srgb,var(--token-color-surface-raised,var(--token-color-background)) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid color-mix(in srgb,var(--token-color-line) 80%,transparent);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--token-color-ink) 45%,transparent)}`,
-  `${MQ_DESK}{${S} .cb-island .cb-bar[data-bar-style="float"]{left:50%;right:auto;transform:translateX(-50%);width:560px;bottom:22px}}`,
+  `${S} .cb-island .cb-bar[data-bar-style="pill"]{border-radius:999px;padding:6px;background:color-mix(in srgb,var(--token-color-surface-raised,var(--token-color-background)) 82%,transparent);border:1px solid color-mix(in srgb,var(--token-color-line) 80%,transparent);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--token-color-ink) 45%,transparent)}`,
+  `${S} .cb-island .cb-bar[data-bar-style="pill"] .cb-bar-chat{background:var(--token-color-blush,var(--token-color-surface-raised));color:var(--token-color-accent,var(--token-color-primary))}`,
+  `${S} .cb-island .cb-bar[data-bar-style="pill"] .cb-bar-go{background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-primary-on,var(--token-color-background));font-weight:600;font-family:var(--site-body-font,inherit)}`,
+  // Active: chat first, then the summary, then Continuar, in the same capsule.
+  `${S} .cb-island .cb-dock{left:12px;right:12px;bottom:14px;gap:8px;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--token-color-surface-raised,var(--token-color-background)) 82%,transparent);border:1px solid color-mix(in srgb,var(--token-color-line) 80%,transparent);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--token-color-ink) 45%,transparent)}`,
+  `${S} .cb-island .cb-dock-stack{display:none}`,
+  `${S} .cb-island .cb-dock-ask{order:-1;width:48px;height:48px;border:0;background:var(--token-color-blush,var(--token-color-surface-raised));color:var(--token-color-accent,var(--token-color-primary))}`,
+  `${S} .cb-island .cb-dock-info{padding:0 4px}`,
+  `${S} .cb-island .cb-dock-go{height:48px;border-radius:999px;padding:0 22px;background:var(--token-color-accent,var(--token-color-primary));font-weight:600}`,
+  `${S} .cb-island .cb-dock-go::after,${S} .cb-island .cb-dock-arr{display:none}`,
+  `${MQ_DESK}{${S} .cb-island .cb-dock{left:50%;right:auto;transform:translateX(-50%);width:560px;bottom:22px}}`,
 
   // Section rhythm on desktop: 58px display titles.
   `${MQ_DESK}{${S} h2{font-size:58px}${S} :is(.sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title){font-size:58px}${S} .site-builder-node--services-catalog-subtitle{font-size:15px}}`,
