@@ -16,6 +16,7 @@
  */
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
+import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import {
   aboutBlock,
   portfolioBlock,
