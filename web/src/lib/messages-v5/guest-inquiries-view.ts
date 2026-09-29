@@ -15,6 +15,12 @@ import { readConversationState, readOpportunityState } from "@/lib/messaging/sta
 
 export type GuestInquirySegment = "needs" | "wait" | "done";
 
+/**
+ * Front-door brief DoR v27 Yours cards — status pills, not Needs you filters.
+ * Draft / Awaiting / Replied / Offer / Booked.
+ */
+export type GuestYoursPill = "draft" | "awaiting" | "replied" | "offer" | "booked";
+
 export type GuestInquiryRecordChip = {
   readonly kind: string;
   readonly recordId: string;
@@ -102,6 +108,38 @@ export function guestInquirySegment(row: GuestInquiryRowInput): GuestInquirySegm
   if (conv === "needs_reply") return "wait";
   if (row.isDraft) return "wait";
   return "wait";
+}
+
+/**
+ * DoR Yours status pill. One uppercase label per card — flat list, no
+ * Needs you / Waiting / Done filter chips (front-door brief v27).
+ */
+export function guestYoursPill(row: GuestInquiryRowInput): GuestYoursPill {
+  if (row.isDraft) return "draft";
+
+  const status = (row.threadStatus ?? "").toLowerCase();
+  const chip = row.recordChip ?? null;
+  const conv = readConversationState(stateInput(row));
+  const opp = readOpportunityState(stateInput(row));
+
+  if (
+    status === "booked" ||
+    SETTLED.has(chip?.fulfilmentState ?? "") ||
+    (FULFILLED.has(chip?.fulfilmentState ?? "") && chip?.paymentState !== "requested" && chip?.paymentState !== "opened")
+  ) {
+    return "booked";
+  }
+  if (conv === "resolved" || opp === "lost" || status === "closed") {
+    return "booked";
+  }
+
+  if (chip && PAY_NEEDS_GUEST.has(chip.paymentState ?? "")) return "offer";
+  if (opp === "awaiting_acceptance" || opp === "accepted_awaiting_deposit") return "offer";
+  if (status === "offer_pending") return "offer";
+
+  if (conv === "awaiting_customer") return "replied";
+
+  return "awaiting";
 }
 
 export function rowsForGuestSegment(

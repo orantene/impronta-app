@@ -45,34 +45,48 @@ function html(inquiries: GuestInquirySummary[]) {
   );
 }
 
-test("empty Needs you: three segments and the empty sentence", () => {
+test("empty Yours: no filter segments, DoR empty sentence", () => {
   const out = html([]);
-  assert.match(out, /data-guest-dock-inquiries-seg="needs"/);
-  assert.match(out, /data-guest-dock-inquiries-seg="wait"/);
-  assert.match(out, /data-guest-dock-inquiries-seg="done"/);
-  assert.match(out, /public\.guestChat\.dockInquiriesEmptyNeeds/);
+  assert.doesNotMatch(out, /data-guest-dock-inquiries-seg=/);
+  assert.match(out, /data-guest-dock-yours-empty/);
+  assert.match(out, /public\.guestChat\.dockInquiriesEmpty/);
   assert.doesNotMatch(out, /data-guest-dock-same-person/);
 });
 
-test("ready Needs you row: name+time, subject, one state line, one record chip with amount", () => {
+test("Yours card: project title + status pill + state line (no Needs you filters)", () => {
   const out = html([
     summary({
-      recordChip: {
-        kind: "order",
-        recordId: "o1",
-        paymentState: "requested",
-        fulfilmentState: null,
-        recordDate: null,
-        amountCents: 1800,
-        currency: "USD",
-      },
+      projectLabel: "Lumina lineup",
+      conversationState: "needs_reply",
+      lastMessageAuthor: "guest",
     }),
   ]);
-  assert.match(out, />Ada</);
-  assert.match(out, /Dinner for two/);
-  assert.match(out, /public\.guestChat\.dockInquiriesStatePay/);
-  assert.match(out, /data-guest-dock-record-chip="order"/);
-  assert.match(out, /\$18\.00/);
+  assert.doesNotMatch(out, /data-guest-dock-inquiries-seg=/);
+  assert.match(out, /Lumina lineup/);
+  assert.match(out, /data-guest-dock-yours-pill="awaiting"/);
+  assert.match(out, /data-guest-dock-status-pill="awaiting"/);
+  assert.match(out, /public\.guestChat\.dockYoursPillAwaiting/);
+  assert.match(out, /public\.guestChat\.dockInquiriesStateWaiting/);
+  assert.doesNotMatch(out, /data-guest-dock-record-chip=/);
+});
+
+test("Yours pills across Draft / Replied / Offer / Booked", () => {
+  const out = html([
+    summary({ inquiryId: "d", projectLabel: "Wedding package", isDraft: true, threadStatus: "draft", conversationState: null, lastMessageAuthor: null }),
+    summary({ inquiryId: "r", projectLabel: "Berni + Morena", conversationState: "awaiting_customer", lastMessageAuthor: "agency" }),
+    summary({
+      inquiryId: "o",
+      projectLabel: "Offer row",
+      opportunityState: "awaiting_acceptance",
+      currentOfferId: "of1",
+      lastMessageAuthor: "agency",
+    }),
+    summary({ inquiryId: "b", projectLabel: "Tulum Saturday", threadStatus: "booked" }),
+  ]);
+  assert.match(out, /data-guest-dock-yours-pill="draft"/);
+  assert.match(out, /data-guest-dock-yours-pill="replied"/);
+  assert.match(out, /data-guest-dock-yours-pill="offer"/);
+  assert.match(out, /data-guest-dock-yours-pill="booked"/);
 });
 
 test("Same person? banner when two open inquiries share a placeholder name", () => {

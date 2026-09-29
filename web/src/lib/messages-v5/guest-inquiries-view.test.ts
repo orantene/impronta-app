@@ -5,6 +5,7 @@ import {
   guestInquirySegment,
   guestSegmentCounts,
   guestStateLine,
+  guestYoursPill,
   pickRecordChip,
   rowsForGuestSegment,
   showSamePersonBanner,
@@ -41,6 +42,31 @@ const orderChip = (over: Partial<GuestInquiryRecordChip> = {}): GuestInquiryReco
   amountCents: 1800,
   currency: "USD",
   ...over,
+});
+
+test("Yours pills: Draft / Awaiting / Replied / Offer / Booked", () => {
+  assert.equal(guestYoursPill(row({ isDraft: true, threadStatus: "draft" })), "draft");
+  assert.equal(
+    guestYoursPill(row({ conversationState: "needs_reply", lastMessageAuthor: "guest" })),
+    "awaiting",
+  );
+  assert.equal(
+    guestYoursPill(row({ conversationState: "awaiting_customer", lastMessageAuthor: "agency" })),
+    "replied",
+  );
+  assert.equal(
+    guestYoursPill(row({ opportunityState: "awaiting_acceptance", currentOfferId: "of1", lastMessageAuthor: "agency" })),
+    "offer",
+  );
+  assert.equal(
+    guestYoursPill(row({ recordChip: orderChip({ paymentState: "requested" }) })),
+    "offer",
+  );
+  assert.equal(guestYoursPill(row({ threadStatus: "booked" })), "booked");
+  assert.equal(
+    guestYoursPill(row({ recordChip: orderChip({ paymentState: "paid", fulfilmentState: "fulfilled" }) })),
+    "booked",
+  );
 });
 
 test("Needs you: staff wrote last (awaiting_customer) and an unpaid link", () => {
