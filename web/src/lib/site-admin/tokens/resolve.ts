@@ -36,6 +36,7 @@
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
 import { foregroundForPrimary } from "./contrast-pair";
+import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
 export interface ResolveDesignTokensInput {
@@ -167,6 +168,13 @@ export function designTokensToCssVars(
   // Emitted ONLY when the primary is a colour we can measure. An unparseable
   // value (a CSS keyword, a gradient, a var reference) leaves the var unset so
   // the existing cascade is untouched — absence stays distinct from a value.
+  // Site style tokens (type roles, buttons, shape, spacing). "" = not set:
+  // no var, so the stylesheet falls back to the Design default chain.
+  for (const [tokenKey, cssVar] of Object.entries(STYLE_TOKEN_VAR_NAMES)) {
+    const value = tokens[tokenKey];
+    if (typeof value === "string" && value.length > 0) out[cssVar] = value;
+  }
+
   const primary = out[COLOR_VAR_NAMES["color.primary"]!];
   if (typeof primary === "string" && primary.length > 0) {
     const onPrimary = foregroundForPrimary(primary);
@@ -256,6 +264,8 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "profile.sticky-inquiry-bar": "data-token-profile-sticky-bar",
   "profile.blocks-visibility": "data-token-profile-blocks",
   "profile.reviews-visibility": "data-token-profile-reviews",
+  // Site style switches (type system, main button variant); style-tokens.ts.
+  ...STYLE_TOKEN_DATA_ATTRS,
 };
 
 /**
@@ -289,6 +299,7 @@ export function listProjectedTokens(): ReadonlyArray<TokenSpec> {
   return Object.values(TOKEN_REGISTRY).filter(
     (spec) =>
       COLOR_VAR_NAMES[spec.key] !== undefined ||
+      STYLE_TOKEN_VAR_NAMES[spec.key] !== undefined ||
       DATA_ATTR_NAMES[spec.key] !== undefined,
   );
 }

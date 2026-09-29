@@ -37,6 +37,8 @@ import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/cata
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
+import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { resolveDemoPreviewSource } from "./demo-preview-source";
 import { loadDemoSavedTrees, resolveDemoPreviewHydration } from "./demo-preview-hydration";
 import {
@@ -47,12 +49,13 @@ import {
   COLLECTION_DEFAULT_LOOK,
   folioLookTokensFromCode,
 } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
-import { DesignSkinStyle } from "@/lib/talent-site/theme-catalog/collection/design-skin-style";
 import { MAGAZINE_LABEL_FAMILY } from "@/lib/site-admin/builder-node/magazine-edition";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
+/** Maison renders in its own default Look when the gallery picks none. */
+const MAISON_DEFAULT_LOOK = "maison-pink";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 /** Gallery palette keys (`stone`) and full Look slugs (`folio-stone`). */
@@ -116,7 +119,7 @@ export async function ThemeCatalogPreview({
     folioTokens || paletteTokens
       ? null
       : (effectiveLookSlug && SLUG_RE.test(effectiveLookSlug) ? effectiveLookSlug : null) ??
-        (design.slug === "maison" ? "maison-pink" : null);
+        (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
   const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
   const lookTokens: Record<string, string> | null =
@@ -131,9 +134,8 @@ export async function ThemeCatalogPreview({
   // P4: a gallery-meta demo talent's content (allow-listed), else the
   // owner-gated hydration exactly as before.
   const demoSource = resolveDemoPreviewSource(designSlug, demo);
-  const hydration =
-    (demoSource ? await resolveDemoPreviewHydration(demoSource) : null) ??
-    (await resolvePreviewHydration(talentProfileId));
+  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource) : null;
+  const hydration = demoHydration ?? (await resolvePreviewHydration(talentProfileId));
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
@@ -142,12 +144,8 @@ export async function ThemeCatalogPreview({
   //  - My content: the signed-in owner (`isReal`)
   // Both paths prune sections that are truly empty. Demo without a
   // resolved talent id keeps the seeded tree untouched.
-  const demoTalentId =
-    demoSource && "demoTalentProfileId" in hydration
-      ? (hydration.demoTalentProfileId as string | undefined)?.trim() || null
-      : null;
   const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
-  const contentId = demoTalentId ?? ownerId;
+  const contentId = ownerId ?? demoHydration?.demoTalentProfileId ?? null;
   const locale = contentId
     ? await resolveMyContentPreviewLocale(contentId, localeExplicit ? requestedLocale : null)
     : requestedLocale;
@@ -170,13 +168,14 @@ export async function ThemeCatalogPreview({
   // Same layering as the live render: the Look lands in the (empty) site
   // draft layer, then platform < site. A key the Look omits keeps the
   // platform default, exactly as on the published site.
-  const effectiveTokens = lookTokens
-    ? resolveEffectiveSiteTokens(
-        {},
-        mergeLookIntoTokens({}, lookTokens),
-        platformDefault.tokens,
-      )
-    : platformDefault.tokens;
+  // The Design's token defaults sit between the platform and the Look.
+  const designDefaults = designTokenDefaults(design.slug);
+  const effectiveTokens = resolveEffectiveSiteTokens(
+    {},
+    lookTokens ? mergeLookIntoTokens({}, lookTokens) : {},
+    platformDefault.tokens,
+    designDefaults,
+  );
 
   const ctaMode = contentId
     ? await loadTalentSiteCtaMode(contentId, await loadTalentPlanKey(contentId))
@@ -218,7 +217,7 @@ export async function ThemeCatalogPreview({
       designSlug={design.slug}
     >
       <GoogleFontsLink tokens={effectiveTokens} fontFamilies={extraFonts} />
-      <DesignSkinStyle slug={design.slug} />
+      <TypeSystemStyle />
       <TalentSiteRenderer
         snapshot={snapshot}
         locale={locale}

@@ -58,7 +58,7 @@ export const FOLIO_BODY_FONT = "Archivo, system-ui, sans-serif";
 
 function folioLookTokens(p: FolioPalette): LookPayload {
   // Look layer only (color.* + typography.* + background.mode). Derived
-  // colour.primary-on, shell/shadow/radius live in design-skins / platform defaults.
+  // colour.primary-on, shell/shadow/radius live in Folio token defaults / platform.
   return {
     tokens: {
       "color.background": p.bg,

@@ -2,7 +2,9 @@
  * Maison v2: the Rosé proposal (Theme Review artifact, Experience + Builder
  * map tabs) composed from shared widgets only. Every row is an editable
  * builder node or variant; the look comes from the Rosé Look (gallery-meta)
- * plus the design skin (`design-skins.ts`), never from hex values here.
+ * plus this Design's token defaults (`MAISON_V2_TOKEN_DEFAULTS`: type roles,
+ * buttons, shape, spacing), which the talent edits in the theme drawer. No hex
+ * values here.
  *
  * Builder map rows, in order:
  *   header    site_header, section links, ES/EN, booking-mode CTA pill
@@ -31,6 +33,9 @@ import {
   type KitIdFactory,
 } from "../section-kit";
 import { seqIds, servicesSection, shell, tuneHeading } from "./design-parts";
+import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
+
+export { MAISON_V2_TOKEN_DEFAULTS };
 
 type Props = Record<string, unknown>;
 
@@ -72,8 +77,8 @@ function fullBleed(node: BuilderNode, extra: Props = {}): BuilderNode {
         mobile: {
           ...(responsive.mobile ?? {}),
           paddingX: "s",
-          paddingLeft: "18px",
-          paddingRight: "18px",
+          paddingLeft: styleTokenRef("layout.gutter-phone"),
+          paddingRight: styleTokenRef("layout.gutter-phone"),
           ...(extraResponsive.mobile ?? {}),
         },
       },
@@ -83,10 +88,18 @@ function fullBleed(node: BuilderNode, extra: Props = {}): BuilderNode {
 
 /**
  * The proposal's section rhythm (`.sec`): 84px above on desktop, 40px on the
- * phone, a short tail. Free padding, so the builder still edits it.
+ * phone, a short tail. Bound to the site spacing tokens, so the theme drawer
+ * changes every section at once and a block can still override its own.
  */
-const SEC_PAD: Props = { paddingTop: "84px", paddingBottom: "10px" };
-const SEC_PAD_MOBILE: Props = { paddingTop: "40px", paddingBottom: "8px" };
+const SEC_PAD: Props = {
+  paddingTop: styleTokenRef("layout.section-pad-top"),
+  paddingBottom: styleTokenRef("layout.section-pad-bottom"),
+};
+const SEC_PAD_MOBILE: Props = {
+  paddingTop: styleTokenRef("layout.section-pad-top-phone"),
+  paddingBottom: styleTokenRef("layout.section-pad-bottom-phone"),
+};
+
 
 function withSecPad(style: Props): Props {
   const responsive = (style.responsive as Record<string, Props> | undefined) ?? {};
@@ -269,7 +282,7 @@ function maisonV2Work(makeId: KitIdFactory): BuilderNode {
             ...styleOf(n),
             paddingX: "l",
             ...SEC_PAD,
-            responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", ...SEC_PAD_MOBILE } },
+            responsive: { mobile: { paddingX: "s", paddingLeft: styleTokenRef("layout.gutter-phone"), paddingRight: styleTokenRef("layout.gutter-phone"), ...SEC_PAD_MOBILE } },
           },
         })
       : n,
@@ -448,7 +461,15 @@ function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
         paddingBottom: "120px",
         // Children carry their own rhythm (`.foot` has no gap).
         gap: "0px",
-        responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
+        responsive: {
+          mobile: {
+            paddingX: "s",
+            paddingLeft: styleTokenRef("layout.gutter-phone"),
+            paddingRight: styleTokenRef("layout.gutter-phone"),
+            paddingTop: "40px",
+            paddingBottom: "130px",
+          },
+        },
       },
     },
     children: [
@@ -559,6 +580,7 @@ export function buildMaisonV2Payload(): DesignPayload {
     })
       .map(maisonV2Header)
       .map((n) => maisonV2Footer(id, n)),
+    tokenDefaults: { ...MAISON_V2_TOKEN_DEFAULTS },
     homeTree: [
       maisonV2Hero(id),
       maisonV2Work(id),

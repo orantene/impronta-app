@@ -17,6 +17,7 @@
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
+import { FOLIO_TOKEN_DEFAULTS } from "./folio-tokens";
 import {
   aboutBlock,
   portfolioBlock,
@@ -246,6 +247,7 @@ export function buildFolioPayload(): DesignPayload {
         { label: "Contact", href: "#contact" },
       ],
     }),
+    tokenDefaults: { ...FOLIO_TOKEN_DEFAULTS },
     homeTree: [
       magazine(fullBleed(heroWithSpread)),
       magazine(

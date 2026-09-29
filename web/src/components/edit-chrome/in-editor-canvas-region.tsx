@@ -26,6 +26,7 @@
  * flow under the overlay portal — the painted nodes carry those attributes.
  */
 
+import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import type { ReactNode } from "react";
 
 import { useSyncExternalStore } from "react";
@@ -155,6 +156,8 @@ export function InEditorCanvasRegion({
       {...tokenDataAttrs}
       style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
+      {/* Editorial type system: token-driven, scoped to this root's type.system. */}
+      <TypeSystemStyle />
       {isEmpty ? <EmptyCanvasStarter /> : null}
       <BuilderProfilerBoundary id="builder-canvas">
         {printArtboard ? (
