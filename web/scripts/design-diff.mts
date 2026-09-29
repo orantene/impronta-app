@@ -120,7 +120,7 @@ async function ensureAuth(
   if (who && !email.endsWith("@impronta.test")) throw new Error(`not a demo test account: ${email}`);
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.goto(`${LOCAL_ORIGIN}/login`, { waitUntil: "networkidle" });
+  await page.goto(`${LOCAL_ORIGIN}/login`, { waitUntil: "domcontentloaded" });
   assertLocal(page.url());
   await page.locator("input[type=email], input[name=email]").first().fill(email);
   await page.locator("input[type=password]").first().fill(password);
