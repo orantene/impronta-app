@@ -11,6 +11,12 @@
  * Picking a language writes the same cookie the account menu's pills write
  * (`setLocaleCookie`) and reloads, so layout copy follows.
  *
+ * Talents (PR 7): with exactly one secondary language the button becomes a
+ * `LocaleSwitchPill` (ES | EN); with none it renders nothing; with more the
+ * menu lists the talent's languages and ends in "Manage languages", which
+ * opens Website settings > Languages. The switch changes only the dashboard
+ * language and the content locale (via reload), never the site's primary.
+ *
  * Token classes only; inline styles are frozen under components/admin/shell.
  */
 
@@ -21,24 +27,30 @@ import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
+import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
+import { LocaleSwitchPill } from "./LocaleSwitchPill";
 import { useTalentContentLocaleSeed } from "./use-talent-content-locale-seed";
 
 export function LanguageMenu() {
-  const { state, openDrawer, supportedLocales, tenantDefaultLocale, talentLocales } = useAdminShell();
+  const { state, openDrawer, setTalentPage, supportedLocales, tenantDefaultLocale, talentLocales } = useAdminShell();
   useTalentContentLocaleSeed(talentLocales);
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  const locales: readonly Locale[] =
-    supportedLocales.length > 0 ? supportedLocales : [tenantDefaultLocale];
+  const locales: readonly Locale[] = talentLocales
+    ? [talentLocales.primary, ...talentLocales.secondary]
+    : supportedLocales.length > 0
+      ? supportedLocales
+      : [tenantDefaultLocale];
+  const defaultLocale: Locale = talentLocales?.primary ?? tenantDefaultLocale;
   const localesKey = locales.join(",");
-  const [active, setActive] = useState<Locale>(tenantDefaultLocale);
+  const [active, setActive] = useState<Locale>(talentLocales?.primary ?? tenantDefaultLocale);
 
   useEffect(() => {
     const list = localesKey.split(",").filter((s): s is Locale => s.length > 0);
-    setActive(readLocaleFromDocumentCookie(tenantDefaultLocale, list));
-  }, [tenantDefaultLocale, localesKey]);
+    setActive(readLocaleFromDocumentCookie(defaultLocale, list));
+  }, [defaultLocale, localesKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -64,8 +76,22 @@ export function LanguageMenu() {
     window.location.reload();
   };
 
-  const canAddLanguage = meetsRole(state.role, "admin");
+  const canAddLanguage = talentLocales ? true : meetsRole(state.role, "admin");
   const languageWord = copy.t("Language");
+
+  if (talentLocales) {
+    if (talentLocales.secondary.length === 0) return null;
+    if (talentLocales.secondary.length === 1) {
+      return <LocaleSwitchPill locales={locales} active={active} label={languageWord} onPick={pick} />;
+    }
+  }
+  const manage = () => {
+    setOpen(false);
+    if (talentLocales) {
+      requestWebsiteSettingsView("lang");
+      setTalentPage("public-page");
+    } else openDrawer("workspace-settings");
+  };
 
   return (
     <div ref={rootRef} className="relative">
@@ -118,14 +144,14 @@ export function LanguageMenu() {
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
+                onClick={manage}
                 className="flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] px-[10px] py-[7px] text-left hover:bg-admin-surface-alt"
               >
                 <span className="inline-flex w-[26px] shrink-0 justify-center text-admin-ink-dim">
                   <Icon name="plus" size={13} stroke={1.75} color="currentColor" />
                 </span>
                 <span className="min-w-0 flex-1 text-admin-13 font-medium text-admin-ink">
-                  {copy.t("Add a language")}
+                  {talentLocales ? copy.t("Manage languages") : copy.t("Add a language")}
                 </span>
               </button>
             </>

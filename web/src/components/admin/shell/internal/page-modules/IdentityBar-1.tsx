@@ -466,7 +466,7 @@ function AccountMenuTrigger({
   /** Which edge the dropdown hugs — "right" when the trigger sits at the bar's right end. */
   align?: "left" | "right";
 }) {
-  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, adminBasePath, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, adminBasePath, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale, talentLocales } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
@@ -641,8 +641,8 @@ function AccountMenuTrigger({
             </div>
             <DashboardLocaleToggle
               variant="prototype"
-              supportedLocales={supportedLocales}
-              defaultLocale={tenantDefaultLocale}
+              supportedLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : supportedLocales}
+              defaultLocale={talentLocales?.primary ?? tenantDefaultLocale}
             />
           </div>
           <AccountMenuItem
