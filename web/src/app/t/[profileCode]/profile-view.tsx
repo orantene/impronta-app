@@ -1451,22 +1451,37 @@ export async function buildTalentProfileMetadata({
   const metadataTaxonomyVisibility = await loadProfileTaxonomyVisibility(
     await resolveProfileOverrideTenantId(hostCtx, profile.id),
   );
+  // Title and description follow the page language: the /es/ URL is its own
+  // indexable page (hreflang says so), so it must read Spanish in the SERP,
+  // "Modelo de moda en Playa del Carmen", not the English label.
   const talentType =
     primaryTalentType(
-      "en",
+      locale,
       profile.talent_profile_taxonomy ?? [],
       metadataTaxonomyVisibility,
-    ) ?? "Talent";
-  const loc = residenceLabel("en", profile as TalentProfile);
+    ) ?? pickLocale(locale, { en: "Talent", es: "Talento" });
+  const loc = residenceLabel(locale, profile as TalentProfile);
 
-  const title = loc ? `${name} — ${talentType} · ${loc}` : `${name} — ${talentType}`;
+  // Query-shaped ("<name>, <type> in <place>"): that is how clients search.
+  const title = loc
+    ? pickLocale(locale, {
+        en: `${name}, ${talentType} in ${loc}`,
+        es: `${name}, ${talentType} en ${loc}`,
+      })
+    : `${name}, ${talentType}`;
   const about = publicBioForLocale(locale, [locale, "en"], {
     ...(profile.bio_i18n ?? {}),
     en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
   });
+  // No bio: build a descriptive, brand-neutral line in the page's language. It
+  // used to hardcode "Impronta" (one tenant's name) on every host, platform
+  // apex included, and was English on the /es/ URL.
   const description =
     about.trim() ||
-    `View ${name}'s talent profile on Impronta — ${talentType}${loc ? ` — lives in ${loc}` : ""}.`;
+    pickLocale(locale, {
+      en: `${name}, ${talentType}${loc ? ` in ${loc}` : ""}. See the portfolio, services and availability, and send a booking request.`,
+      es: `${name}, ${talentType}${loc ? ` en ${loc}` : ""}. Mira su portafolio, servicios y disponibilidad, y envía una solicitud de reserva.`,
+    });
 
   return {
     title,
