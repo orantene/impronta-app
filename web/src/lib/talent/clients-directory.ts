@@ -108,6 +108,31 @@ export function clientsRowAction(row: TalentClientRow): ClientsRowAction {
   return { kind: "book_appointment", href: "/talent/calendar" };
 }
 
+export type ClientVisitState = "completed" | "confirmed" | "hold" | "requested";
+
+/**
+ * What one appointment means for a client row. Being in the past is not the
+ * same as being done: a past hold or request never counts as completed work,
+ * and an appointment still running today is still "next", not history.
+ */
+export function clientVisit(opts: {
+  status: string | null | undefined;
+  startsAt: string | null;
+  endsAt?: string | null;
+  nowIso: string;
+}): { state: ClientVisitState | null; done: boolean; upcoming: boolean } {
+  const s = (opts.status ?? "").toLowerCase();
+  const next = mapBookingStatusToNext(s);
+  const state: ClientVisitState | null =
+    s === "completed" || s === "done" ? "completed" : next;
+  if (!state || !opts.startsAt) return { state, done: false, upcoming: false };
+  const end = opts.endsAt || opts.startsAt;
+  const finished = end < opts.nowIso;
+  const done = state === "completed" || (state === "confirmed" && finished);
+  const upcoming = !done && !finished;
+  return { state: done ? "completed" : state, done, upcoming };
+}
+
 export function mapBookingStatusToNext(
   status: string | null | undefined,
 ): TalentClientRow["nextStatus"] {

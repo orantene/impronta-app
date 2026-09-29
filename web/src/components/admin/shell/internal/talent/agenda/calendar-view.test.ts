@@ -6,6 +6,8 @@ import {
   chipTag,
   daySummary,
   filterCounts,
+  layoutLanes,
+  serviceLabel,
   matchesFilter,
   monthCells,
   nextFreeTime,
@@ -138,5 +140,33 @@ describe("dates", () => {
     assert.ok(next);
     assert.equal(next.getDate(), 28);
     assert.equal(next.getHours(), 10);
+  });
+});
+
+describe("layoutLanes", () => {
+  it("puts visually overlapping chips side by side and leaves lone chips full width", () => {
+    const lanes = layoutLanes([
+      { id: "a", top: 0, bottom: 30 },
+      { id: "b", top: 20, bottom: 50 },
+      { id: "c", top: 40, bottom: 70 },
+      { id: "d", top: 100, bottom: 130 },
+    ]);
+    assert.deepEqual(lanes.get("a"), { lane: 0, lanes: 2 });
+    assert.deepEqual(lanes.get("b"), { lane: 1, lanes: 2 });
+    assert.deepEqual(lanes.get("c"), { lane: 0, lanes: 2 });
+    assert.deepEqual(lanes.get("d"), { lane: 0, lanes: 1 });
+  });
+});
+
+describe("serviceLabel", () => {
+  const client = { name: "Bozo", initials: "B" };
+  it("prefers the first line item", () => {
+    assert.equal(
+      serviceLabel({ kind: "booking", title: "Bozo", client, lines: [{ label: "Gel polish", cents: 1 }] }),
+      "Gel polish",
+    );
+  });
+  it("never returns the client's name as the service", () => {
+    assert.equal(serviceLabel({ kind: "booking", title: "Bozo", client, lines: [{ label: "bozo", cents: 1 }] }), null);
   });
 });

@@ -3,7 +3,50 @@ import { describe, it } from "node:test";
 
 import type { TalentClientRow } from "./clients-merge";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings, type TalentEarningsRow } from "./earnings-types";
-import { buildMoneyHomeView, methodBucket, moneyMonths, shiftMonth } from "./money-home";
+import { agendaMoneyRows, buildMoneyHomeView, methodBucket, moneyMonths, shiftMonth } from "./money-home";
+
+describe("agendaMoneyRows", () => {
+  const now = new Date(2026, 8, 28, 12, 0);
+  const base = {
+    kind: "hold" as const,
+    title: "Bozo",
+    client: { name: "Bozo", initials: "B" },
+    startsAt: new Date(2026, 8, 28, 10, 0).toISOString(),
+    booking: "hold" as const,
+    payment: "awaiting" as const,
+    money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" },
+  };
+  it("lists holds awaiting a deposit as waiting requests, with no invented amount", () => {
+    const out = agendaMoneyRows([{ ...base, id: "h1" }], now);
+    assert.equal(out.owed.length, 0);
+    assert.equal(out.waiting.length, 1);
+    assert.equal(out.waiting[0]!.amountCents, null);
+    assert.equal(out.waiting[0]!.dueByToday, true);
+    assert.equal(out.waiting[0]!.service, "");
+  });
+  it("counts balances due on booked work as owed", () => {
+    const out = agendaMoneyRows(
+      [
+        {
+          ...base,
+          id: "b1",
+          kind: "booking",
+          booking: "confirmed",
+          payment: "partial",
+          title: "Gel polish",
+          money: { totalCents: 90000, paidCents: 30000, dueCents: 60000, currency: "MXN" },
+        },
+        { ...base, id: "c1", booking: "cancelled" },
+      ],
+      now,
+    );
+    assert.deepEqual(
+      out.owed.map((r) => [r.id, r.amountCents, r.service]),
+      [["b1", 60000, "Gel polish"]],
+    );
+    assert.equal(out.waiting.length, 0);
+  });
+});
 
 function row(p: Partial<TalentEarningsRow>): TalentEarningsRow {
   return {

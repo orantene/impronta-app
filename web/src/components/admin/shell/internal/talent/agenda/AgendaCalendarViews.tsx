@@ -20,7 +20,9 @@ import {
   isHold,
   isRecord,
   isRequest,
+  layoutLanes,
   monthCells,
+  serviceLabel,
   requestOverlap,
   stripDots,
   timeRange,
@@ -69,7 +71,12 @@ export function dayWindows(hours: BookingHours | null | undefined, day: Date) {
   return windowsForDate(hours, localYmd(day), day.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6);
 }
 
-export function gridBounds(hours: BookingHours | null | undefined, days: Date[]) {
+/**
+ * Visible hour range: working hours plus one hour of outside-hours band on
+ * each side (mockup tc_cal), stretched so the now-line is always on screen
+ * when today is in view.
+ */
+export function gridBounds(hours: BookingHours | null | undefined, days: Date[], clock?: Date) {
   let start = DEFAULT_OPEN;
   let end = DEFAULT_CLOSE;
   for (const day of days) {
@@ -77,6 +84,13 @@ export function gridBounds(hours: BookingHours | null | undefined, days: Date[])
       start = Math.min(start, win.startMin);
       end = Math.max(end, win.endMin);
     }
+  }
+  start = Math.max(0, Math.floor((start - 60) / 60) * 60);
+  end = Math.min(24 * 60, Math.ceil((end + 60) / 60) * 60);
+  if (clock && days.some((day) => sameDay(day, clock))) {
+    const now = minutesOf(clock);
+    start = Math.min(start, Math.max(0, Math.floor((now - 30) / 60) * 60));
+    end = Math.max(end, Math.min(24 * 60, Math.ceil((now + 30) / 60) * 60));
   }
   return { startMin: start, endMin: Math.max(end, start + 60) };
 }
@@ -129,6 +143,21 @@ function TimeColumn({
   const gaps = freeGaps(day, dayItems, wins.length ? { windows: wins } : null, clock);
   const showNow = sameDay(day, clock);
   const nowTop = (minutesOf(clock) - bounds.startMin) * PX_PER_MIN;
+  const timed = dayItems.filter((item) => weekChipKind(item, tradeRules) !== "allDay");
+  const geometry = new Map(
+    timed.map((item) => {
+      const occ = occupiedInterval(item);
+      const top = Math.max(0, (minutesOf(occ.startsAt) - bounds.startMin) * PX_PER_MIN);
+      const h = Math.max(24, (minutesOf(occ.endsAt) - minutesOf(occ.startsAt)) * PX_PER_MIN);
+      return [item.id, { top, h }] as const;
+    }),
+  );
+  const lanes = layoutLanes(
+    timed.map((item) => {
+      const g = geometry.get(item.id) ?? { top: 0, h: 24 };
+      return { id: item.id, top: g.top, bottom: g.top + g.h };
+    }),
+  );
   return (
     <div
       className="relative h-[var(--agenda-h)] rounded-lg border border-[rgba(11,11,13,0.08)] bg-[rgba(11,11,13,0.04)]"
@@ -160,9 +189,8 @@ function TimeColumn({
         if (kind === "allDay") return null;
         const dayKey = localYmd(day);
         const overnight = overnightLabel(item.startsAt, item.endsAt, dayKey);
-        const occ = occupiedInterval(item);
-        const top = Math.max(0, (minutesOf(occ.startsAt) - bounds.startMin) * PX_PER_MIN);
-        const h = Math.max(24, (minutesOf(occ.endsAt) - minutesOf(occ.startsAt)) * PX_PER_MIN);
+        const { top, h } = geometry.get(item.id) ?? { top: 0, h: 24 };
+        const lane = lanes.get(item.id) ?? { lane: 0, lanes: 1 };
         const travel = (item.where.travelMin ?? 0) > 0;
         const hatch = kind !== "done" && (travel || item.bufferAfterMin > 0);
         const place = placeLabelFor(item.where);
@@ -173,19 +201,23 @@ function TimeColumn({
             data-week-chip={kind}
             aria-label={`${timeRange(item.startsAt, item.endsAt)} ${item.client?.name ?? item.title}`}
             onClick={(event) => onOpen(item, event)}
-            className={`absolute inset-x-1 top-[var(--agenda-top)] z-10 h-[var(--agenda-span)] overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] ${chipClass(item, kind)} ${
+            className={`absolute left-[var(--agenda-left)] top-[var(--agenda-top)] z-10 h-[var(--agenda-span)] w-[var(--agenda-w)] overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] ${chipClass(item, kind)} ${
               hatch && item.kind !== "block" ? "shadow-[inset_0_-6px_0_rgba(11,11,13,0.06)]" : ""
             }`}
             style={{
               "--agenda-top": `${top}px`,
               "--agenda-span": `${h}px`,
+              "--agenda-left": `calc(4px + (100% - 8px) * ${lane.lane / lane.lanes})`,
+              "--agenda-w": `calc((100% - 8px) / ${lane.lanes} - ${lane.lanes > 1 ? 2 : 0}px)`,
             }}
           >
             <div className={`tabular-nums ${MUTED}`}>{timeRange(item.startsAt, item.endsAt)}</div>
-            <div className="font-semibold">
+            <div className="truncate font-semibold">
               {item.kind === "block" ? `${copy.t("Blocked")}${item.title ? ` · ${item.title}` : ""}` : (item.client?.name ?? item.title)}
             </div>
-            {item.kind !== "block" && item.client?.name && h > 58 ? <div className={MUTED}>{item.title}</div> : null}
+            {item.kind !== "block" && item.client?.name && h > 58 && serviceLabel(item) ? (
+              <div className={`truncate ${MUTED}`}>{serviceLabel(item)}</div>
+            ) : null}
             {wide && place ? <div className={MUTED}>{place}</div> : null}
             {travel && wide ? (
               <div className={MUTED}>{`${copy.t("Travel")} ${item.where.travelMin} ${copy.t("min")}`}</div>
@@ -208,23 +240,40 @@ function TimeColumn({
           key={gap.startsAt.toISOString()}
           type="button"
           onClick={() => onGap(day, gap.startsAt)}
-          className="absolute inset-x-1 top-[var(--agenda-top)] z-[5] h-[var(--agenda-span)] rounded border border-dashed border-[rgba(59,76,202,0.35)] text-[10px] text-[var(--tc-accent)]"
+          aria-label={`${copy.t("Free")} ${timeRange(gap.startsAt, gap.endsAt)}`}
+          className="absolute inset-x-1 top-[var(--agenda-top)] z-[5] h-[var(--agenda-span)] rounded text-[10px] text-[var(--tc-accent)] opacity-0 transition-opacity hover:bg-[rgba(59,76,202,0.05)] hover:opacity-100 focus-visible:opacity-100"
           style={{
             "--agenda-top": `${(minutesOf(gap.startsAt) - bounds.startMin) * PX_PER_MIN}px`,
             "--agenda-span": `${Math.max(18, (minutesOf(gap.endsAt) - minutesOf(gap.startsAt)) * PX_PER_MIN)}px`,
           }}
         >
-          {copy.t("Free")}
+          {`+ ${copy.t("Book")}`}
         </button>
       ))}
     </div>
   );
 }
 
-function HourRail({ bounds }: { bounds: { startMin: number; endMin: number } }) {
+function HourRail({
+  bounds,
+  now,
+}: {
+  bounds: { startMin: number; endMin: number };
+  /** Set when today is in view: the gutter carries the current time in red. */
+  now?: Date | null;
+}) {
   const height = (bounds.endMin - bounds.startMin) * PX_PER_MIN;
+  const nowMin = now ? minutesOf(now) : null;
   return (
     <div className="relative h-[var(--agenda-h)]" style={{ "--agenda-h": `${height}px` }}>
+      {nowMin != null && nowMin >= bounds.startMin && nowMin <= bounds.endMin ? (
+        <div
+          className="absolute right-1 top-[var(--agenda-top)] z-20 -translate-y-1/2 bg-white text-[10px] font-semibold tabular-nums text-[var(--agenda-now)]"
+          style={{ "--agenda-top": `${(nowMin - bounds.startMin) * PX_PER_MIN}px`, "--agenda-now": NOW_LINE }}
+        >
+          {hm(nowMin)}
+        </div>
+      ) : null}
       {Array.from({ length: Math.ceil((bounds.endMin - bounds.startMin) / 60) + 1 }, (_, i) => {
         const min = bounds.startMin + i * 60;
         return (
@@ -335,7 +384,7 @@ export function WeekGrid({
             })}
           </>
         ) : null}
-        <HourRail bounds={bounds} />
+        <HourRail bounds={bounds} now={days.some((day) => sameDay(day, clock)) ? clock : null} />
         {days.map((day) => (
           <TimeColumn
             key={localYmd(day)}
@@ -396,15 +445,21 @@ export function DayTimeline({
   onGap: (day: Date, startsAt?: Date) => void;
 }) {
   const copy = useAgendaCopy();
-  const bounds = gridBounds(hours, [day]);
+  const bounds = gridBounds(hours, [day], clock);
   const wins = dayWindows(hours, day);
   const gaps = freeGaps(day, itemsOnDay(items, day), wins.length ? { windows: wins } : null, clock).filter(
     (g) => g.endsAt > clock,
   );
+  // Why there are no gaps: closed, the working day already ended, or fully booked.
+  const lastClose = wins.reduce((max, w) => Math.max(max, w.endMin), 0);
+  const dayOver =
+    localYmd(day) < localYmd(clock) || (sameDay(day, clock) && minutesOf(clock) >= lastClose);
+  const emptyNote =
+    wins.length === 0 ? "Closed this day" : dayOver ? "Working hours are over for this day" : "Fully booked";
   return (
     <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
       <div className="grid grid-cols-[56px_1fr] gap-1 rounded-2xl border border-[rgba(11,11,13,0.08)] bg-white p-2">
-        <HourRail bounds={bounds} />
+        <HourRail bounds={bounds} now={sameDay(day, clock) ? clock : null} />
         <TimeColumn
           day={day}
           items={items}
@@ -422,7 +477,7 @@ export function DayTimeline({
           {copy.t(sameDay(day, clock) ? "Free today" : "Free times")}
         </h3>
         {gaps.length === 0 ? (
-          <p className={`text-[12px] ${MUTED}`}>{copy.t("No free gaps")}</p>
+          <p className={`text-[12px] ${MUTED}`}>{copy.t(emptyNote)}</p>
         ) : (
           gaps.map((gap) => (
             <div key={gap.startsAt.toISOString()} className="flex min-h-[44px] items-center justify-between gap-2 border-b border-[rgba(11,11,13,0.06)] text-[13px]">

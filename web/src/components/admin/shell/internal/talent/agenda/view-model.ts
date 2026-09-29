@@ -1,4 +1,5 @@
 import { formatDualTimezoneWhen } from "./present";
+import { serviceLabel } from "./calendar-view";
 import { CONFIRMED_AGENCY_NOW_BODY, CONFIRMED_NOW_BODY, isCompletedUnpaid, placeLabelFor } from "./record-actions";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { TalentCalendarEntry, TalentSelfProfile } from "../../data-bridge";
@@ -181,6 +182,57 @@ function paymentStateOf(item: TalentAgendaItem): AgendaPaymentState {
   );
 }
 
+function moneyText(cents: number, currency: string): string {
+  return `$${(cents / 100).toLocaleString("en-US", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })} ${currency}`.trim();
+}
+
+/**
+ * Mockup tc_record "Agreed" card: one row per service line, then Total,
+ * deposit, what was paid and what is still due. Labels are EN keys; the record
+ * translates them. With no agreed price the card says so instead of going blank.
+ */
+export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "payment" | "title" | "client" | "kind">): AgendaMoneyItem[] {
+  const currency = item.money.currency?.trim() || "MXN";
+  const total = item.money.totalCents;
+  if (total <= 0) {
+    return [
+      {
+        id: "unpriced",
+        label: serviceLabel(item) ?? "No service set",
+        value: "Price not set",
+        helper: "Agree a price with the client, then send a payment link.",
+      },
+    ];
+  }
+  const out: AgendaMoneyItem[] = [];
+  const priced = item.lines.filter((line) => line.cents > 0);
+  if (priced.length > 0) {
+    priced.forEach((line, i) =>
+      out.push({ id: `line-${i}`, label: line.label, value: moneyText(line.cents, currency) }),
+    );
+  } else {
+    out.push({ id: "line-0", label: serviceLabel(item) ?? "Agreed", value: moneyText(total, currency) });
+  }
+  out.push({ id: "total", label: "Total", value: moneyText(total, currency) });
+  const deposit = item.money.depositCents ?? 0;
+  if (deposit > 0) out.push({ id: "deposit", label: "Deposit", value: moneyText(deposit, currency) });
+  if (item.money.paidCents > 0) {
+    out.push({ id: "paid", label: "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
+  }
+  if (item.money.dueCents > 0) {
+    out.push({
+      id: "due",
+      label: item.payment === "overdue" ? "Overdue" : "Balance due",
+      value: moneyText(item.money.dueCents, currency),
+      tone: "attention",
+    });
+  }
+  return out;
+}
+
 export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): AgendaListItem {
   const whenLabel = formatDualTimezoneWhen(
     item.startsAt,
@@ -227,8 +279,8 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
   }
   return {
     id: item.id,
-    title: item.title,
-    subtitle: item.client?.name,
+    title: item.client?.name ?? item.title,
+    subtitle: serviceLabel(item) ?? undefined,
     who: item.client
       ? {
           name: item.client.name,
@@ -245,15 +297,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     nowTitle,
     nowBody,
     nowTone,
-    moneyLines: item.money.totalCents
-      ? [
-          {
-            id: "total",
-            label: "Agreed",
-            value: `${(item.money.totalCents / 100).toFixed(2)} ${item.money.currency}`.trim(),
-          },
-        ]
-      : [],
+    moneyLines: agreedLines(item),
     dueCents: item.money.dueCents,
     currency: item.money.currency?.trim() || "MXN",
     orderId: item.orderId ?? null,

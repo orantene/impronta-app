@@ -126,6 +126,15 @@ describe("todayAppointmentAction", () => {
       { kind: "request_deposit" },
     );
   });
+  it("hold with no agreed price is Send a payment link", () => {
+    assert.deepEqual(
+      todayAppointmentAction(
+        item({ kind: "hold", booking: "hold", payment: "awaiting", money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" } }),
+        NOW,
+      ),
+      { kind: "payment_link" },
+    );
+  });
   it("completed has no action", () => {
     assert.equal(todayAppointmentAction(item({ booking: "completed" }), NOW), null);
   });

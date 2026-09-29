@@ -14,8 +14,10 @@ import { PageHeader } from "../shared/page-chrome-1";
 import { PrimaryButton, SecondaryButton } from "../../primitives";
 import { MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import { AgendaFirstDay } from "./AgendaFirstDay";
+import { AgendaPayRequest } from "./AgendaPayRequest";
 import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from "./present";
 import { placeLabelFor } from "./record-actions";
+import { serviceLabel } from "./calendar-view";
 import {
   firstDayCompletedStepIds,
   hasBookingHoursWindows,
@@ -177,6 +179,7 @@ export function AgendaTodayPage({
   const clock = now ?? new Date();
   const [attentionLimit, setAttentionLimit] = useState(3);
   const [ideaDismissed, setIdeaDismissed] = useState(false);
+  const [payFor, setPayFor] = useState<TalentAgendaItem | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 720px)");
@@ -326,7 +329,14 @@ export function AgendaTodayPage({
         ? copy.t("Check in")
         : action.kind === "collect"
           ? `${copy.t("Collect")} ${formatMoney(action.cents ?? 0, item.money.currency, locale)}`
-          : copy.t("Request deposit");
+          : action.kind === "payment_link"
+            ? copy.t("Send a payment link")
+            : copy.t("Request deposit");
+    // Deposit and link requests open the composer in place; the rest open the record.
+    const onAction =
+      action && (action.kind === "request_deposit" || action.kind === "payment_link")
+        ? () => setPayFor(item)
+        : open(item.id);
     const pay = rowFromAgendaItem(item, clock).paymentState;
     return (
       <div key={item.id} className="flex gap-3.5 border-t border-black/10 px-4 py-3">
@@ -348,7 +358,7 @@ export function AgendaTodayPage({
             <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
               {item.client?.name ?? item.managedBy?.name ?? item.title}
             </div>
-            <div className="truncate text-[12.5px] text-black/70">{item.title}</div>
+            <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
             {placeLabelFor(item.where) ? (
               <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{placeLabelFor(item.where)}</div>
             ) : null}
@@ -356,7 +366,7 @@ export function AgendaTodayPage({
         </button>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           {pay ? <PaymentStateChip state={pay} /> : null}
-          {actionLabel ? <ActionButton label={actionLabel} onClick={open(item.id)} /> : null}
+          {actionLabel ? <ActionButton label={actionLabel} onClick={onAction} /> : null}
         </div>
       </div>
     );
@@ -653,6 +663,12 @@ export function AgendaTodayPage({
           ) : null}
         </div>
       </div>
+
+      {payFor ? (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
+          <AgendaPayRequest orderId={payFor.orderId} onClose={() => setPayFor(null)} />
+        </div>
+      ) : null}
     </div>
   );
 }

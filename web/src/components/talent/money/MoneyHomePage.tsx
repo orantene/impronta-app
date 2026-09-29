@@ -17,16 +17,21 @@ import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings } from "@/lib/talent/earnings-types";
 import {
+  agendaMoneyRows,
   buildMoneyHomeView,
   methodBucket,
   moneyMonths,
-  shiftMonth,
+  type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
+import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agenda/AgendaPayRequest";
 
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 
 type Tab = "payments" | "outstanding" | "payouts";
+type OutFilter = "all" | "today" | "later";
+type SourceFilter = "all" | "direct" | "agency";
+type PayoutLine = { state: "verified" | "pending" | "none" };
 
 function money(cents: number, currency: string): string {
   const amount = Math.round(cents) / 100;
@@ -99,7 +104,57 @@ function SummaryCard(props: {
   );
 }
 
-function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientRow[] | null }) {
+function AgendaMoneyLine({
+  row,
+  first,
+  onRequest,
+}: {
+  row: MoneyAgendaRow;
+  first: boolean;
+  onRequest: (row: MoneyAgendaRow) => void;
+}) {
+  const copy = useDashboardText();
+  const t = copy.t;
+  const router = useRouter();
+  return (
+    <div
+      className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${first ? "" : "border-t border-admin-border-soft"}`}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name}</div>
+        <div className={`text-[13px] ${row.overdue ? "font-semibold text-admin-critical" : "text-admin-ink-muted"}`}>
+          {[
+            row.kind === "deposit" ? t("Deposit requested") : row.overdue ? t("Overdue") : t("Balance due"),
+            row.service,
+            day(row.startsAt, copy.locale),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+      </div>
+      <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">
+        {row.amountCents != null ? money(row.amountCents, row.currency) : t("Amount not set")}
+      </span>
+      <div className="flex gap-2">
+        <button type="button" className={`${btnSec} flex-1`} onClick={() => router.push(row.bookingHref)}>
+          {t("Open booking")}
+        </button>
+        <button type="button" className={`${btnSec} flex-1`} onClick={() => onRequest(row)}>
+          {t("Send a payment link")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MoneyHomePane(props: {
+  earnings: TalentEarnings;
+  clients: TalentClientRow[] | null;
+  agenda: { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[] };
+  payout: PayoutLine;
+  onManagePayouts: () => void;
+  onRequest: (row: MoneyAgendaRow) => void;
+}) {
   const copy = useDashboardText();
   const t = copy.t;
   const locale = copy.locale;
@@ -108,15 +163,46 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
   const [month, setMonth] = useState(current);
   const [tab, setTab] = useState<Tab>("payments");
   const [method, setMethod] = useState<MoneyMethodBucket | "all">("all");
+  const [search, setSearch] = useState("");
+  const [source, setSource] = useState<SourceFilter>("all");
+  const [outFilter, setOutFilter] = useState<OutFilter>("all");
   const months = useMemo(() => moneyMonths(props.earnings, current), [props.earnings, current]);
   const view = useMemo(
     () => buildMoneyHomeView({ earnings: props.earnings, clients: props.clients, month }),
     [props.earnings, props.clients, month],
   );
   const cur = view.currency;
-  const oldest = months[months.length - 1] ?? current;
-  const payments =
-    method === "all" ? view.payments : view.payments.filter((p) => methodBucket(p.paymentMethod) === method);
+  const q = search.trim().toLowerCase();
+  const sourced = view.payments.filter(
+    (p) =>
+      (source === "all" ||
+        (source === "agency" ? p.source === "agency_routed" : p.source !== "agency_routed")) &&
+      (!q || p.client.toLowerCase().includes(q) || p.agencyName.toLowerCase().includes(q)),
+  );
+  const methodCount = (m: MoneyMethodBucket) => sourced.filter((p) => methodBucket(p.paymentMethod) === m).length;
+  const payments = method === "all" ? sourced : sourced.filter((p) => methodBucket(p.paymentMethod) === method);
+
+  // Owed = the client ledger, or the agenda's balances when those are larger (booked work
+  // the ledger has not caught up with). Requests waiting are shown apart: not owed yet.
+  const agendaOwedCents = props.agenda.owed.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
+  const owedCents = Math.max(view.owedCents, agendaOwedCents);
+  const waiting = props.agenda.waiting;
+  const waitingPriced = waiting.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const clientDueToday = (o: (typeof view.owed)[number]) =>
+    o.overdue || (o.nextStartsAt != null && Date.parse(o.nextStartsAt) <= endOfToday.getTime());
+  const owedList = view.owed.filter((o) =>
+    outFilter === "all" ? true : outFilter === "today" ? clientDueToday(o) : !clientDueToday(o),
+  );
+  const clientHrefs = new Set(view.owed.map((o) => o.bookingHref).filter(Boolean));
+  const agendaOwedList = props.agenda.owed
+    .filter((r) => !clientHrefs.has(r.bookingHref))
+    .filter((r) => (outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday));
+  const waitingList = waiting.filter((r) =>
+    outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday,
+  );
+  const outstandingCount = view.owed.length + props.agenda.owed.filter((r) => !clientHrefs.has(r.bookingHref)).length;
 
   const split = (["card", "cash", "transfer", "other"] as const)
     .filter((m) => view.byMethod[m] > 0)
@@ -126,30 +212,35 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
   return (
     <div data-money-home className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          aria-label={t("Previous month")}
-          disabled={month <= oldest}
-          onClick={() => setMonth(shiftMonth(month, -1))}
-          className={`${btnSec} w-11 px-0 disabled:opacity-40`}
+        <select
+          aria-label={t("Month")}
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="h-11 rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] font-semibold capitalize text-admin-ink sm:h-9"
         >
-          ‹
-        </button>
-        <span className="min-w-[150px] text-center font-admin-body text-[14px] font-semibold capitalize text-admin-ink">
-          {monthLabel(month, locale)}
-        </span>
-        <button
-          type="button"
-          aria-label={t("Next month")}
-          disabled={month >= current}
-          onClick={() => setMonth(shiftMonth(month, 1))}
-          className={`${btnSec} w-11 px-0 disabled:opacity-40`}
-        >
-          ›
-        </button>
+          {months.map((m) => (
+            <option key={m} value={m}>
+              {monthLabel(m, locale)}
+            </option>
+          ))}
+        </select>
         <span className="flex-1" />
         <span className="font-admin-body text-[13px] text-admin-ink-muted">
-          {t("Amounts in")} {cur}
+          {t("Payout account")}:{" "}
+          <span className="font-semibold text-admin-ink">
+            {props.payout.state === "verified"
+              ? t("Stripe · verified")
+              : props.payout.state === "pending"
+                ? t("Stripe · setup not finished")
+                : t("Not set up")}
+          </span>{" "}
+          <button
+            type="button"
+            onClick={props.onManagePayouts}
+            className="min-h-[32px] font-semibold text-admin-accent"
+          >
+            {props.payout.state === "none" ? t("Set up") : t("Manage")}
+          </button>
         </span>
       </div>
 
@@ -168,15 +259,24 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
         <SummaryCard
           title={t("Owed to you")}
           scope={t("any month")}
-          value={props.clients == null ? t("Loading") : money(view.owedCents, cur)}
-          tone={view.owedCents > 0 ? "warn" : undefined}
-          lines={
-            view.owed.length > 0
-              ? `${view.owed.length} ${t("clients")}${
+          value={props.clients == null ? t("Loading") : money(owedCents, cur)}
+          tone={owedCents > 0 ? "warn" : undefined}
+          lines={[
+            outstandingCount > 0
+              ? `${outstandingCount} ${t(outstandingCount === 1 ? "balance" : "balances")}${
                   view.overdueCents > 0 ? ` · ${money(view.overdueCents, cur)} ${t("overdue")}` : ""
                 }`
-              : t("Nobody owes you anything on file.")
-          }
+              : waiting.length === 0
+                ? t("Nobody owes you anything on file.")
+                : "",
+            waiting.length > 0
+              ? `${waiting.length} ${t(waiting.length === 1 ? "payment request waiting" : "payment requests waiting")}${
+                  waitingPriced > 0 ? ` · ${money(waitingPriced, cur)}` : ""
+                }`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
           onClick={() => setTab("outstanding")}
         />
         <SummaryCard
@@ -198,7 +298,7 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
         {(
           [
             ["payments", t("Payments"), view.payments.length],
-            ["outstanding", t("Outstanding"), view.owed.length],
+            ["outstanding", t("Outstanding"), outstandingCount + waiting.length],
             ["payouts", t("Payouts"), view.payouts.length],
           ] as const
         ).map(([id, label, n]) => (
@@ -222,23 +322,44 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
 
       {tab === "payments" ? (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-2 overflow-x-auto">
-            {(["all", "card", "cash", "transfer"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={method === m}
-                onClick={() => setMethod(m)}
-                className={method === m ? pillOn : pillOff}
-              >
-                {m === "all" ? t("All methods") : t(METHOD_LABEL[m])}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("Search client or service")}
+              aria-label={t("Search client or service")}
+              className="h-11 w-full rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] text-admin-ink sm:h-9 sm:w-[280px]"
+            />
+            <div className="flex gap-2 overflow-x-auto">
+              {(["all", "card", "cash", "transfer"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={method === m}
+                  onClick={() => setMethod(m)}
+                  className={method === m ? pillOn : pillOff}
+                >
+                  {m === "all" ? t("All methods") : t(METHOD_LABEL[m])}
+                  <span className="text-[12px] opacity-70">{m === "all" ? sourced.length : methodCount(m)}</span>
+                </button>
+              ))}
+            </div>
+            <select
+              aria-label={t("Source")}
+              value={source}
+              onChange={(e) => setSource(e.target.value as SourceFilter)}
+              className={`${pillOff} pr-2`}
+            >
+              <option value="all">{`${t("Source")}: ${t("all")}`}</option>
+              <option value="direct">{`${t("Source")}: ${t("your own clients")}`}</option>
+              <option value="agency">{`${t("Source")}: ${t("agencies")}`}</option>
+            </select>
           </div>
           {payments.length === 0 ? (
             <p className="px-1 py-4 font-admin-body text-[13.5px] text-admin-ink-muted">
-              {t("No payments in this month yet.")}
+              {q || source !== "all" || method !== "all" ? t("No payments match.") : t("No payments in this month yet.")}
             </p>
           ) : (
             <div className="overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
@@ -277,19 +398,43 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
       ) : null}
 
       {tab === "outstanding" ? (
-        props.clients == null ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2 overflow-x-auto">
+            {(
+              [
+                ["all", t("All")],
+                ["today", t("Due by today")],
+                ["later", t("Later")],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={outFilter === id}
+                onClick={() => setOutFilter(id)}
+                className={outFilter === id ? pillOn : pillOff}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        {props.clients == null ? (
           <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{t("Loading")}</p>
-        ) : view.owed.length === 0 ? (
+        ) : owedList.length === 0 && agendaOwedList.length === 0 ? (
           <p className="px-1 py-4 font-admin-body text-[13.5px] text-admin-ink-muted">
-            {t("Nobody owes you anything on file.")}
+            {waiting.length > 0 ? t("Nothing is owed yet. Requests waiting are below.") : t("Nobody owes you anything on file.")}
           </p>
         ) : (
           <div className="overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
-            {view.owed.map((o, i) => (
+            {agendaOwedList.map((r, i) => (
+              <AgendaMoneyLine key={r.id} row={r} first={i === 0} onRequest={props.onRequest} />
+            ))}
+            {owedList.map((o, i) => (
               <div
                 key={o.id}
                 className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${
-                  i ? "border-t border-admin-border-soft" : ""
+                  i || agendaOwedList.length ? "border-t border-admin-border-soft" : ""
                 }`}
               >
                 <div className="min-w-0 flex-1">
@@ -330,7 +475,23 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
               </div>
             ))}
           </div>
-        )
+        )}
+          <h3 className="mt-2 font-admin-body text-[15px] font-bold text-admin-ink">
+            {t("Payment requests waiting")} <span className="text-[12.5px] text-admin-ink-muted">{waitingList.length}</span>
+          </h3>
+          <p className="-mt-2 font-admin-body text-[12.5px] text-admin-ink-muted">
+            {t("Deposits and payments you asked for on holds and bookings. Not owed until the time is booked.")}
+          </p>
+          {waitingList.length === 0 ? (
+            <p className="px-1 py-2 font-admin-body text-[13.5px] text-admin-ink-muted">{t("No requests waiting.")}</p>
+          ) : (
+            <div className="overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
+              {waitingList.map((r, i) => (
+                <AgendaMoneyLine key={r.id} row={r} first={i === 0} onRequest={props.onRequest} />
+              ))}
+            </div>
+          )}
+        </div>
       ) : null}
 
       {tab === "payouts" ? (
@@ -371,7 +532,29 @@ function MoneyHomePane(props: { earnings: TalentEarnings; clients: TalentClientR
 }
 
 export function MoneyHomePage() {
-  const { openDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentPayoutSnapshot } = useAdminShell();
+  const router = useRouter();
+  const [sheet, setSheet] = useState<"record" | "request" | null>(null);
+  const [linkFor, setLinkFor] = useState<MoneyAgendaRow | null>(null);
+  const agenda = useMemo(
+    () => agendaMoneyRows(bridgeTalentAgendaItems ?? [], new Date()),
+    [bridgeTalentAgendaItems],
+  );
+  const payout: PayoutLine = {
+    state:
+      bridgeTalentPayoutSnapshot?.ok !== true || !bridgeTalentPayoutSnapshot.data.stripeAccountId
+        ? "none"
+        : bridgeTalentPayoutSnapshot.data.payoutsEnabled
+          ? "verified"
+          : "pending",
+  };
+  // A link needs an order on the booking; without one the booking record makes it.
+  const request = (row: MoneyAgendaRow) => {
+    setSheet(null);
+    if (row.orderId) setLinkFor(row);
+    else router.push(row.bookingHref);
+  };
+  const pickRows = [...agenda.owed, ...agenda.waiting];
   const copy = useDashboardText();
   const t = copy.t;
   const { byCurrency, defaultCurrency, loadError } = useResolvedTalentEarningsByCurrency();
@@ -403,9 +586,18 @@ export function MoneyHomePage() {
         title={t("Money")}
         subtitle={t("What clients paid you, what they still owe, and what reached your bank.")}
         actions={
-          <button type="button" className={btnSec} onClick={() => openDrawer("talent-payouts")}>
-            {t("Payout settings")}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={btnSec} onClick={() => setSheet("record")}>
+              {t("Record payment")}
+            </button>
+            <button
+              type="button"
+              className={`${btnSec} border-admin-ink bg-admin-ink text-white`}
+              onClick={() => setSheet("request")}
+            >
+              {t("Request payment")}
+            </button>
+          </div>
         }
       />
       {loadError ? (
@@ -430,9 +622,79 @@ export function MoneyHomePage() {
               ))}
             </div>
           ) : null}
-          <MoneyHomePane key={active.totals.currency} earnings={active} clients={clients} />
+          <MoneyHomePane
+            key={active.totals.currency}
+            earnings={active}
+            clients={clients}
+            agenda={agenda}
+            payout={payout}
+            onManagePayouts={() => openDrawer("talent-payouts")}
+            onRequest={request}
+          />
         </>
       )}
+
+      {sheet ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={sheet === "record" ? t("Record payment") : t("Request payment")}
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/20 sm:items-center"
+        >
+          <div className="max-h-[85vh] w-full max-w-[520px] overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
+            <h2 className="font-admin-display text-[18px] font-semibold text-admin-ink">
+              {sheet === "record" ? t("Record payment") : t("Request payment")}
+            </h2>
+            <p className="mt-1 font-admin-body text-[13px] text-admin-ink-muted">
+              {sheet === "record"
+                ? t("Pick the booking. Cash and transfers are recorded on the booking with Finish and collect or Mark transfer received.")
+                : t("Pick the booking to send a payment link for.")}
+            </p>
+            {pickRows.length === 0 ? (
+              <p className="mt-4 font-admin-body text-[13.5px] text-admin-ink-muted">
+                {t("No bookings are waiting for a payment.")}
+              </p>
+            ) : (
+              <ul className="mt-3 overflow-hidden rounded-[12px] border border-admin-border-soft">
+                {pickRows.map((r, i) => (
+                  <li key={r.id} className={i ? "border-t border-admin-border-soft" : ""}>
+                    <button
+                      type="button"
+                      onClick={() => (sheet === "record" ? router.push(r.bookingHref) : request(r))}
+                      className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left hover:bg-black/[0.03]"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-admin-body text-[14px] font-semibold text-admin-ink">
+                          {r.name}
+                        </span>
+                        <span className="block text-[12.5px] text-admin-ink-muted">
+                          {[r.kind === "deposit" ? t("Deposit requested") : t("Balance due"), day(r.startsAt, copy.locale)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </span>
+                      <span className="whitespace-nowrap font-admin-body text-[14px] font-bold text-admin-ink">
+                        {r.amountCents != null ? money(r.amountCents, r.currency) : t("Amount not set")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button type="button" className={btnSec} onClick={() => setSheet(null)}>
+                {t("Cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {linkFor?.orderId ? (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
+          <AgendaPayRequest orderId={linkFor.orderId} onClose={() => setLinkFor(null)} />
+        </div>
+      ) : null}
     </>
   );
 }

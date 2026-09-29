@@ -11,6 +11,10 @@ export type TalentClientHistoryEntry = {
   paymentStatus: "paid" | "partial" | "unpaid" | null;
   past: boolean;
   href: string;
+  /** What happened: completed, or still confirmed / on hold / requested. */
+  state?: "completed" | "confirmed" | "hold" | "requested" | null;
+  /** Service title when the source has one. */
+  title?: string | null;
 };
 
 export type TalentClientRow = {
