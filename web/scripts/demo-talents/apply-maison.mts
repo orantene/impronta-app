@@ -1,31 +1,23 @@
-/**
- * Apply the Maison design to every demo talent in a seed manifest and publish
- * it. Uses the app's own apply + publish cores (theme-apply-core,
- * publishTalentPageBodies, publishSiteTheme) with the design hydrated from
- * each talent's real profile, services and photos; no hand-written trees.
- *
- * Demo sites only: every entry is re-checked as a demo (TAL-93xxx, demo_batch
- * user, matching profile) before anything is written.
- *
- * Run (from web/). The stubs let server-only modules load outside Next and
- * stand in for the cookie session client, which scripts don't have:
- *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
- *     npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=<env> \
- *     scripts/demo-talents/apply-maison.mts --manifest <path.json> [--only TAL-93001]
- */
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
-import { loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
-import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
-import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
-import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
-import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
 import { randomUUID } from "node:crypto";
-import { galleryPaletteLookTokens, getGalleryDesign } from "../../src/lib/talent-site/theme-catalog/gallery-meta";
-import { mergeLookIntoTokens } from "../../src/lib/talent-site/theme-catalog/look-layer";
-import { DEMO_BATCH, DEMOS } from "./demos";
-import { applyDemoSiteCopy } from "./site-copy";
-import { ALBA_PHOTO_SOURCES } from "./alba";
+
+const { loadMaisonCatalogRow } = await import("../../src/lib/talent-site/server/maison-catalog-row.ts");
+const { applyDesign, applyLook, publishSiteTheme } = await import(
+  "../../src/lib/talent-site/server/theme-apply-core.ts"
+);
+const { publishTalentPageBodies } = await import(
+  "../../src/lib/talent-site/server/publish-talent-page-bodies.ts"
+);
+const { MAISON_BUILTIN_DEMO } = await import("../../src/lib/talent-site/theme-catalog/maison/builtins.ts");
+const { MAISON_PALETTE_ORDER } = await import("../../src/lib/talent-site/theme-catalog/maison/seed.ts");
+const { galleryPaletteLookTokens, getGalleryDesign } = await import(
+  "../../src/lib/talent-site/theme-catalog/gallery-meta.ts"
+);
+const { mergeLookIntoTokens } = await import("../../src/lib/talent-site/theme-catalog/look-layer.ts");
+const { DEMO_BATCH, DEMOS } = await import("./demos.ts");
+const { applyDemoSiteCopy } = await import("./site-copy.ts");
+const { ALBA_PHOTO_SOURCES } = await import("./alba-photos.ts");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -52,7 +44,6 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
 };
 if (manifest.targetRef !== targetRef) throw new Error(`manifest is for ${manifest.targetRef}`);
 
-// Each demo's own Design (demos.ts `theme`); --design overrides for all.
 const designOverride = opt("--design");
 const designFor = (code: string) =>
   designOverride ?? DEMOS.find((d) => d.profileCode === code)?.theme ?? "maison";
@@ -84,8 +75,6 @@ for (const e of entries) {
 
   const demo = DEMOS.find((x) => x.profileCode === e.profileCode);
 
-  // Demo social links (Instagram etc.) so the Maison footer fine print can
-  // show "Instagram · WhatsApp" instead of WhatsApp alone.
   if (demo?.socialLinks?.length) {
     const { error: socErr } = await admin
       .from("talent_profiles")
@@ -94,14 +83,10 @@ for (const e of entries) {
     if (socErr) throw socErr;
   }
 
-  // Beauty demos keep Maison's default palette; the rest rotate through the
-  // others so the ten sites don't all look the same.
   const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
     ? MAISON_PALETTE_ORDER[0]
     : MAISON_PALETTE_ORDER[((Number(e.profileCode.slice(-3)) - 1) % (MAISON_PALETTE_ORDER.length - 1)) + 1];
   const designSlug = designFor(e.profileCode);
-  // Collection designs (Maison v2...) wear their OWN gallery palette + fonts
-  // (Rosé for Maison v2), never a Maison Look row.
   const gallery = designSlug !== "maison" ? getGalleryDesign(designSlug) : undefined;
   const galleryKey = gallery ? (demo?.palette ?? gallery.palettes[0]?.key ?? null) : null;
   const galleryTokens = gallery && galleryKey ? galleryPaletteLookTokens(designSlug, galleryKey) : null;
@@ -138,8 +123,6 @@ for (const e of entries) {
     if (tokErr) throw tokErr;
   }
 
-  // The demo's own page copy (hero line, ticker words, photos, facts), set
-  // on the draft trees the way a talent edits them in the builder.
   if (demo?.siteCopy) {
     const { data: s2 } = await admin.from("talent_sites").select("shell_tree").eq("id", site.id).single();
     const { data: home } = await admin
