@@ -3,7 +3,7 @@
   "localTalentId": "f048e578-cbae-45db-9a3b-34239abea136",
   "designs": {
     "maison-v2": {
-      "artifactPath": "/Users/oranpersonal/.claude/projects/-Users-oranpersonal-Desktop-impronta-app/f0374548-4bfd-47f5-a318-dfb8b4e8fd7a/tool-results/artifact-b1a7ed90-1790574112-cee7.html",
+      "artifactPath": "scripts/design-diff-fixtures/maison-v2/index.html",
       "templateSlug": "maison-v2",
       "rows": [
         {
@@ -114,8 +114,7 @@
       ]
     },
     "folio": {
-      "artifactPath": null,
-      "artifactTodo": "TODO: save the Folio artifact HTML (https://claude.ai/artifact/QHVfJH5oHTc2EkM2VKXpR2, via the Artifact tool 'read') to a local file and set artifactPath. Artifact selectors below are placeholders until the markup is inspected.",
+      "artifactPath": "scripts/design-diff-fixtures/folio/index.html",
       "templateSlug": "folio",
       "rows": [
         {
