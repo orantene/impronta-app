@@ -32,6 +32,10 @@ import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { ThemeTokenPreviewFrame } from "./theme-preview-frame-client";
 import { resolveDemoPreviewSource } from "./demo-preview-source";
 import { resolveDemoPreviewHydration } from "./demo-preview-hydration";
+import {
+  prepareMyContentPreview,
+  resolveMyContentPreviewLocale,
+} from "@/lib/talent-site/server/preview-my-content.server";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -39,9 +43,12 @@ export async function ThemeCatalogPreview({
   designSlug,
   lookSlug,
   talentProfileId,
-  locale = "en",
+  locale: requestedLocale = "en",
+  localeExplicit = false,
   demo = null,
 }: {
+  /** True when `?locale=` was in the URL; My content otherwise uses the site locale. */
+  localeExplicit?: boolean;
   /** P4: `<designSlug>:<demoKey>`; only gallery-meta demo sources resolve. */
   demo?: string | null;
   designSlug: string;
@@ -84,6 +91,23 @@ export async function ThemeCatalogPreview({
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
+  // My content (the owner's real data): the talent's site locale, the live
+  // render's locale swaps, the live data sources, and hide-empty. Demo
+  // content keeps the requested locale and the untouched design.
+  const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
+  const locale = ownerId
+    ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
+    : requestedLocale;
+  const mine = ownerId
+    ? await prepareMyContentPreview({
+        talentProfileId: ownerId,
+        locale,
+        shellTree: built.shellTree,
+        homeTree: built.homeTree,
+      })
+    : null;
+  const homeTree = mine ? mine.homeTree : built.homeTree;
+
   const platformDefault = await loadPlatformDefaultTheme("talent");
   // Same layering as the live render: the Look lands in the (empty) site
   // draft layer, then platform < site. A key the Look omits keeps the
@@ -96,7 +120,7 @@ export async function ThemeCatalogPreview({
       )
     : platformDefault.tokens;
 
-  const [shellHeader, shellFooter] = splitShell(built.shellTree);
+  const [shellHeader, shellFooter] = splitShell(mine ? mine.shellTree : built.shellTree);
   const snapshot: TalentSiteSnapshot = {
     version: 1,
     siteKind: "talent_personal",
@@ -114,12 +138,16 @@ export async function ThemeCatalogPreview({
     slots: [],
     // Header, page, footer: the same order the live site renders. Spreading
     // the whole shell first put the footer under the header in every preview.
-    builderTree: [...shellHeader, ...built.homeTree, ...shellFooter],
+    builderTree: [...shellHeader, ...homeTree, ...shellFooter],
   };
 
   return (
-    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale}>
-      <TalentSiteRenderer snapshot={snapshot} locale={locale} />
+    <ThemeTokenPreviewFrame initialTokens={effectiveTokens} locale={locale === "es" ? "es" : "en"}>
+      <TalentSiteRenderer
+        snapshot={snapshot}
+        locale={locale}
+        freeformDataSources={mine?.dataSources}
+      />
     </ThemeTokenPreviewFrame>
   );
 }

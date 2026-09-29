@@ -138,6 +138,7 @@ export default async function TemplatePreviewPage({
         lookSlug={sp.look}
         talentProfileId={sp.talentProfileId ?? sp.talent}
         locale={sp.locale === "es" ? "es" : "en"}
+        localeExplicit={sp.locale === "es" || sp.locale === "en"}
         demo={sp.demo ?? null}
       />
     );

@@ -48,8 +48,11 @@ export async function TalentSiteFreeformRenderer({
   tree,
   locale,
   context,
+  dataSources: presetDataSources,
 }: {
   tree: BuilderNode[];
+  /** Pre-resolved sources (My content preview); skips the tenant load. */
+  dataSources?: import("@/lib/site-admin/builder-node/render").BuilderNodeRenderDataSources;
   locale: string;
   context?: {
     tenantId: string | null;
@@ -80,9 +83,11 @@ export async function TalentSiteFreeformRenderer({
   // so the page renders at parity with the published talent freeform page.
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
     await Promise.all([
-      tenantId
-        ? loadBuilderNodeDataSources(tree, tenantId, locale, null, context?.talentProfileId)
-        : Promise.resolve({}),
+      presetDataSources
+        ? Promise.resolve(presetDataSources)
+        : tenantId
+          ? loadBuilderNodeDataSources(tree, tenantId, locale, null, context?.talentProfileId)
+          : Promise.resolve({}),
       tenantId && treeHasInstances(tree)
         ? loadBuilderComponentsForTenant(tenantId)
         : Promise.resolve({}),
