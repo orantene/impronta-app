@@ -259,7 +259,6 @@ const ES: Record<string, string> = {
   week: "semana",
   "This week": "Esta semana",
   appointments: "citas",
-  appointment: "cita",
   "Nothing next": "Nada a continuación",
   "The rest of the day is open.": "El resto del día está libre.",
   "Nothing else today": "Nada más hoy",
