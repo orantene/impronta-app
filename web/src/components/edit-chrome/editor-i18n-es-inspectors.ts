@@ -785,4 +785,11 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "e.g. https://tiktok.com/@impronta": "p. ej. https://tiktok.com/@impronta",
   "e.g. https://x.com/impronta": "p. ej. https://x.com/impronta",
   "e.g. https://youtube.com/@impronta": "p. ej. https://youtube.com/@impronta",
+  // next_free_chip inspector
+  "Next free": "Próximo libre",
+  "Próximo libre": "Próximo libre",
+  "Shows your next open time from your live calendar. It hides itself when nothing is free.":
+    "Muestra tu próximo horario libre según tu calendario. Se oculta cuando no hay nada libre.",
+  "The words before the time. Leave empty for the default.":
+    "Las palabras antes de la hora. Déjalo vacío para usar el texto por defecto.",
 };

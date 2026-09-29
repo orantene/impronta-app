@@ -38,7 +38,9 @@ import type {
 const TALENT_PAGE_BASE_COLS =
   "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at, " +
   "meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
-const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets`;
+// `blocks_published` rides the graceful list too: the editor falls back to the
+// live body when the draft is empty (resolveTalentPageEditorTree).
+const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets, blocks_published`;
 
 /** SEO-1 — the metadata columns a talent-page save may write. Same convention as
  *  the STYLE-1 registries: `undefined` = leave the stored value alone (a

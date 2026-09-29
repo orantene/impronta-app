@@ -36,6 +36,7 @@ import { useEditContext } from "./edit-context";
 import { PrintArtboard } from "./print-artboard";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
+import { CHROME } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   isStorefrontBodyPresent,
@@ -65,7 +66,12 @@ export function InEditorCanvasRegion({
   const tree = useBuilderTree();
   // Piece B slice 1c — a print design renders on a fixed physical artboard with
   // a persistent trim/safe guide, not a fluid page. Null for every other surface.
-  const { printArtboard } = useEditContext();
+  const {
+    printArtboard,
+    compositionLoaded,
+    compositionError,
+    refreshComposition,
+  } = useEditContext();
 
   // Wave-2 cms-page canvas — when the STOREFRONT BODY paints the tree at all
   // (the live `<StorefrontBodyCanvas>` in edit mode, OR — stale-body fix
@@ -94,6 +100,13 @@ export function InEditorCanvasRegion({
   // active SurfaceAdapter (undo + autosave inherited). The canvas still mounts
   // below so the first insert / applied design paints in place.
   const isEmpty = tree.length === 0;
+  // An empty tree is only an EMPTY PAGE once the composition has loaded. While
+  // the load is in flight, or after it failed, the tree is empty because
+  // nothing arrived, and offering "Describe your page / Start from scratch"
+  // there told a talent with a full live site that their page was blank (and
+  // invited them to overwrite it). A failed load now says so, with a retry.
+  const loadFailed = isEmpty && !!compositionError;
+  const showStarter = isEmpty && compositionLoaded && !compositionError;
 
   // Body-hosted page (freeform cms_page on the storefront): the visible canvas
   // lives in the page body — render NOTHING here so the page never paints
@@ -155,7 +168,43 @@ export function InEditorCanvasRegion({
       {...tokenDataAttrs}
       style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
     >
-      {isEmpty ? <EmptyCanvasStarter /> : null}
+      {showStarter ? <EmptyCanvasStarter /> : null}
+      {loadFailed ? (
+        <div
+          role="alert"
+          data-in-editor-load-error=""
+          style={{
+            margin: "48px auto",
+            maxWidth: 440,
+            padding: "20px 24px",
+            borderRadius: 12,
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+            color: CHROME.text,
+            fontSize: 14,
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          <p style={{ margin: "0 0 12px" }}>
+            We could not open this page. Your site is safe and nothing was changed.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refreshComposition({ undoResetReason: "reload" })}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: `1px solid ${CHROME.controlBorder}`,
+              background: CHROME.controlFill,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      ) : null}
       <BuilderProfilerBoundary id="builder-canvas">
         {printArtboard ? (
           <PrintArtboard

@@ -76,6 +76,7 @@ import { VisitContentInspector } from "./visit-inspector";
 import { ContentsContentInspector } from "./contents-inspector";
 import { MastheadContentInspector } from "./masthead-inspector";
 import { StatementFooterContentInspector } from "./statement-footer-inspector";
+import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
@@ -1597,6 +1598,9 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "comp_card") {
     return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "next_free_chip") {
+    return <NextFreeChipContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────

@@ -322,6 +322,16 @@ export function ServicesCatalogContentInspector({
           />
           Price next to the duration
         </label>
+        {/* The render reads `showModeChip === true` (the booking-mode chip
+            on each row); Maison v2 turns it on, so it must be switchable. */}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={catalog.showModeChip === true}
+            onChange={(e) => void commitPatch({ showModeChip: e.target.checked })}
+          />
+          Show how each service books (confirmation / quote)
+        </label>
 
         <div className={KIT.field}>
           <label className={KIT.label}>Button label override</label>
