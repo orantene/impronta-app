@@ -5931,6 +5931,7 @@ function renderBuilderNodeElement(
                 durationFormat={p.durationFormat ?? "auto"}
                 mobileBar={p.mobileBar ?? "float"}
                 showAskLink={p.showAskLink !== false}
+                magazineRateCtas={layout === "rate_card"}
                 // Both accents are live CSS (`data-sheet-accent`). Default is
                 // primary (Maison rose); ink is an explicit operator choice.
                 sheetAccent={resolveServicesCatalogSheetAccent(p.bookingSheet?.accent)}

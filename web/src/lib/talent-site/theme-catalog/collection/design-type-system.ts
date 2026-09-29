@@ -222,7 +222,7 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   // Brand matches Folio artifact: Archivo Narrow uppercase (not serif title case).
   // High-specificity (no :where) so freeform header rules cannot keep icons/CTA wrong.
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header{position:sticky;top:0;z-index:40;background:var(--token-color-background);border-bottom:${RULE} solid var(--token-color-ink);box-shadow:none}`,
-  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{min-height:52px;padding:10px ${v("layout.gutter-phone")};display:flex;align-items:center;gap:10px}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{min-height:0!important;height:auto;padding:10px ${v("layout.gutter-phone")}!important;display:flex;align-items:center;gap:10px}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="left"]{display:flex;align-items:center;gap:10px;flex:0 0 auto}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="center"]{display:flex;align-items:center;gap:22px;flex:1 1 auto;justify-content:flex-start;margin:0}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__region[data-region="right"]{display:flex;align-items:center;gap:10px;margin-left:auto;flex:0 0 auto}`,
@@ -231,10 +231,13 @@ export const MAGAZINE_TYPE_SYSTEM_CSS = [
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav-link{${labelTypeM};color:var(--token-color-ink);text-decoration:none}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav-link:hover{color:var(--token-color-muted)}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__cta.site-btn,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__ritem.site-header__cta{height:34px;min-height:34px;padding:0 14px;border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);background:var(--token-color-ink);color:var(--token-color-background);${labelTypeM};font-size:11.5px;box-shadow:none}`,
-  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__saved,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inquiry,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__menu-toggle,[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="locale"],[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="menu"]{display:none!important}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__saved,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inquiry,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__menu-toggle,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__burger,[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="locale"],[data-theme-canvas-root][data-token-type-system="magazine"] [data-header-item="menu"]{display:none!important}`,
+  `[data-theme-canvas-root][data-token-type-system="magazine"] .site-header{padding:0!important}`,
   `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .site-header__region[data-region="right"]::before{content:"DEMO";display:inline-flex;align-items:center;height:28px;padding:0 8px;border:${RULE} solid var(--token-color-line);${labelTypeM};font-size:10px;letter-spacing:0.2em;color:var(--token-color-muted)}`,
+  // Preview dock/sheet chrome is not in the Folio artifact crops.
+  `[data-theme-canvas-root][data-token-type-system="magazine"][data-talent-theme-preview] .cb-island{display:none!important}`,
   `@media (max-width:899px){[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__nav,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__cta.site-btn,[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__ritem.site-header__cta{display:none!important}}`,
-  `${MQ_DESK}{[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{padding:14px ${v("layout.gutter")}}}`,
+  `${MQ_DESK}{[data-theme-canvas-root][data-token-type-system="magazine"] .site-header__inner{padding:14px ${v("layout.gutter")}!important}}`,
   // Cover name: beat type.display-tracking on h1 (artifact uses -.045em).
   `[data-theme-canvas-root][data-token-type-system="magazine"] h1.sb-mag-name,[data-theme-canvas-root][data-token-type-system="magazine"] .sb-mag-name{letter-spacing:-0.045em!important}`,
 

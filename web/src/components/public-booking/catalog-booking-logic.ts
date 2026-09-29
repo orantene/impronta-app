@@ -185,6 +185,11 @@ export function catalogRowCtaLabel(opts: {
    * (bookingMode null); a service's own mode wins (§1, deriveOfferingCta).
    */
   bookingPosture?: TalentBookingPosture;
+  /**
+   * Folio magazine rate card: Consultar / Solicitar fecha / Ver horarios
+   * (artifact copy). Other surfaces keep the platform catalog labels.
+   */
+  surface?: "catalog" | "magazine_rate";
 }): string {
   if (opts.selected) return opts.locale.startsWith("es") ? "Seleccionado" : "Selected";
   const es = opts.locale.startsWith("es");
@@ -193,6 +198,16 @@ export function catalogRowCtaLabel(opts: {
     defaults: { bookingPosture: opts.bookingPosture ?? PLATFORM_DEFAULT_BOOKING_POSTURE },
     confirmsByHand: opts.confirmsByHand === true,
   });
+  if (opts.surface === "magazine_rate") {
+    if (cta === "ask_quote" || cta === "request" || opts.offering.visibility === "on_request") {
+      return es ? "Consultar" : "Ask about this";
+    }
+    if (cta === "request_to_book") return es ? "Solicitar fecha" : "Request date";
+    if (cta === "book_now" || cta === "buy_now") {
+      const free = (opts.offering.amountCents ?? 0) === 0 && opts.offering.priceDisplay === "exact";
+      if (free) return es ? "Ver horarios" : "See times";
+    }
+  }
   // Meaning-preserving labels (brief §10). Never say Book when the path is inquiry/quote.
   // Inspector ctaLabel must not clobber option / quote / consult CTAs — Jorg Beauty
   // CMS stored "Seleccionar" and wiped "Elegir opciones" on Soft Gel (vanity 1:1).

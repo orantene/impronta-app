@@ -151,6 +151,7 @@ export function ServicesCatalogFilter({
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
   onlineCollectReady,
+  magazineRateCtas = false,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -170,6 +171,8 @@ export function ServicesCatalogFilter({
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
+  /** Folio magazine rate card CTA copy (Consultar / Solicitar fecha / Ver horarios). */
+  magazineRateCtas?: boolean;
   bookingMode?: CatalogBookingMode;
   tenantId?: string | null;
   /** Builder node id — used only for jump-nav fragment ids (serializable). */
@@ -494,6 +497,7 @@ export function ServicesCatalogFilter({
                       usdRates={usdRates}
                       ctaLabel={ctaLabel}
                       durationFormat={durationFormat}
+                      ctaSurface={magazineRateCtas ? "magazine_rate" : "catalog"}
                       selected={dock.picked.some((p) => p.id === item.id)}
                       onSelect={() => onRowAction(item, g.note)}
                     />
@@ -597,6 +601,7 @@ export function CatalogRow({
   usdRates,
   ctaLabel,
   durationFormat = "auto",
+  ctaSurface = "catalog",
   selected = false,
   onSelect,
 }: {
@@ -618,6 +623,7 @@ export function CatalogRow({
   usdRates: UsdRates | null;
   ctaLabel?: string;
   durationFormat?: "auto" | "minutes" | "hours_minutes";
+  ctaSurface?: "catalog" | "magazine_rate";
   selected?: boolean;
   onSelect?: () => void;
 }) {
@@ -638,6 +644,7 @@ export function CatalogRow({
     inspectorLabel: selected ? undefined : ctaLabel,
     confirmsByHand,
     bookingPosture,
+    surface: ctaSurface,
   });
   const where = offeringWhereFromAttributes(item.attributes);
   const deliveryText = formatOfferingWhereLabel(where, locale);
