@@ -16,7 +16,7 @@ import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/
 import { loadMaisonDesignOptionsStateAction } from "@/lib/talent-site/server/maison-options-actions";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
-import { liveDesignName, lookToPalette } from "./maison-live-summary";
+import { legacyPaletteLabel, liveCardDesignLabel, lookToPalette } from "./maison-live-summary";
 import { paletteDisplayName } from "./live-design-change";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
@@ -27,6 +27,8 @@ type Props = {
   /** Applied design slug (maison, maison-v2, solace, mono, frame, folio…). */
   themeDesignSlug: string | null;
   themeLookSlug: string | null;
+  /** `talent_profiles.profile_template`; names a hand-built site. */
+  legacyProfileTemplate?: string | null;
   /** ISO time the site went live. */
   publishedAt: string | null;
   contentModeLabel?: "mine" | "demo";
@@ -60,6 +62,7 @@ export function MyWebsiteCard({
   siteSlug,
   themeDesignSlug,
   themeLookSlug,
+  legacyProfileTemplate = null,
   publishedAt,
   contentModeLabel = "mine",
   onChangeDesign,
@@ -74,15 +77,14 @@ export function MyWebsiteCard({
   const [hasPending, setHasPending] = useState<boolean | null>(null);
   const hasNamedPalette = lookToPalette(themeLookSlug) !== null;
   // The live vanity domain refuses to be framed from the app host (and
-  // /t/site 308s to it), so the thumbnail renders the applied design with the
-  // talent's own content through the same-origin design preview.
+  // /t/site 308s to it), so the thumbnail renders the talent's CURRENT
+  // published site through the same-origin, owner-only live-site preview.
+  // Works for any live site, including one built by hand before the design
+  // catalog (no design slug).
   const talentId = useAdminShellOptional()?.bridgeTalentSelfProfile?.id ?? null;
-  const thumbSrc =
-    talentId && themeDesignSlug
-      ? `/template-preview/${encodeURIComponent(themeDesignSlug)}?kind=talent-theme${
-          themeLookSlug ? `&look=${encodeURIComponent(themeLookSlug)}` : ""
-        }&talent=${talentId}&talentProfileId=${talentId}`
-      : null;
+  const thumbSrc = talentId
+    ? `/template-preview/current?kind=live-site&talent=${encodeURIComponent(talentId)}&locale=${locale}`
+    : null;
 
   useEffect(() => {
     if (hasNamedPalette) return;
@@ -119,15 +121,26 @@ export function MyWebsiteCard({
   }, [liveToast, onLiveToastDone]);
 
   const t = (key: string) => maisonSetupT(locale, key);
-  const paletteName = paletteDisplayName({
+  const hasDesignSlug = Boolean(themeDesignSlug?.trim());
+  // A hand-built site (no design slug) names its colors only when a custom
+  // palette is saved; otherwise the palette part is omitted.
+  const paletteName = hasDesignSlug
+    ? paletteDisplayName({
+        locale,
+        designSlug: themeDesignSlug,
+        lookSlug: themeLookSlug,
+        customPalette,
+      })
+    : legacyPaletteLabel(locale, customPalette);
+  const designName = liveCardDesignLabel({
     locale,
     designSlug: themeDesignSlug,
-    lookSlug: themeLookSlug,
-    customPalette,
+    legacyProfileTemplate,
   });
-  const designName = liveDesignName(locale, themeDesignSlug);
   const content = contentModeLabel === "mine" ? t("Your content") : t("Demo content");
-  const summary = `${t("Design:")} ${designName} · ${paletteName} · ${content}`;
+  const summary = [`${t("Design:")} ${designName}`, paletteName, content]
+    .filter(Boolean)
+    .join(" · ");
   const address = siteSlug ? `${siteSlug}.tulala.digital` : publicSiteUrl ?? "";
   const since = formatSince(publishedAt, locale);
   const secondaryBtn =

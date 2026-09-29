@@ -30,6 +30,7 @@
  */
 
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadLegacyProfileTemplate } from "./legacy-profile-template";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
@@ -187,6 +188,7 @@ export async function loadMaxSiteManagerAction(): Promise<
     return { ok: false, code: "server_error", error: "Could not load your pages." };
   }
 
+
   const site = (siteRow ?? null) as {
     id: string;
     site_slug: string | null;
@@ -235,6 +237,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       publicSiteUrl: siteUrl(site?.site_slug ?? null),
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
+      legacyProfileTemplate: await loadLegacyProfileTemplate(sb, scope.talentProfile.id),
       pages,
     },
   };
