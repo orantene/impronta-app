@@ -581,13 +581,8 @@ export async function SiteHeaderComponent({
       }
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
-    // The burger only earns its place when an item actually folds into it on
-    // the phone (a header whose items all show or hide has nothing to open).
-    const hasMobileMenu = allItems.some(
-      (item) =>
-        (item.responsive?.mobile ??
-          (item.type === "wordmark" || item.type === "logo" ? "show" : "menu")) === "menu",
-    );
+    // Burger + panel only when an item actually folds into it on the phone.
+    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? (i.type === "wordmark" || i.type === "logo" ? "show" : "menu")) === "menu");
     return (
       <header
         className="site-header"
@@ -611,20 +606,10 @@ export async function SiteHeaderComponent({
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
           <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
-          {hasMobileMenu ? (
-            <>
-              <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} />
-              <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu">
-                <span /><span /><span />
-              </label>
-            </>
-          ) : null}
+          {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
+          {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
         </div>
-        {hasMobileMenu ? (
-          <div className="site-header__mobile-panel" data-mobile-panel="">
-            {allItems.map((item, i) => renderItem(item, i))}
-          </div>
-        ) : null}
+        {hasMobileMenu ? <div className="site-header__mobile-panel" data-mobile-panel="">{allItems.map((item, i) => renderItem(item, i))}</div> : null}
       </header>
     );
   }
