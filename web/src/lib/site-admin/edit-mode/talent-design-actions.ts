@@ -49,6 +49,14 @@ import {
   writeTalentDesignSlice,
   type TalentDesignSlice,
 } from "./talent-design-store";
+import {
+  loadTalentSiteThemeState,
+  siteDesignComponentStyles,
+  siteThemeMode,
+  writeTalentSiteDraftTokens,
+  type TalentSiteThemeState,
+} from "@/lib/talent-site/server/talent-site-theme-tokens.server";
+import { publishSiteThemeForTalent } from "@/lib/talent-site/server/theme-publish-hook";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -159,7 +167,29 @@ async function persistDesignSlice(
 function snapshotFromSlice(
   slice: TalentDesignSlice,
   platformTokens: Record<string, string>,
+  site: TalentSiteThemeState | null = null,
+  platformComponentStyles: ComponentStyleDefaults = {},
 ): DesignLoadResult {
+  if (site) {
+    // SITE theme: the site's tokens (the Design + Look she picked, then her
+    // edits) under any per-page override. The Design's component defaults
+    // are the starting value until she saves her own.
+    const designStyles = siteDesignComponentStyles(site.designSlug, platformComponentStyles);
+    const pick = (own: ComponentStyleDefaults) =>
+      normalizeComponentStyleDefaults(Object.keys(own).length > 0 ? own : designStyles);
+    return {
+      ok: true,
+      snapshot: {
+        themeDraft: withDefaults({ ...site.draft, ...slice.tokensDraft }, platformTokens),
+        themeLive: withDefaults({ ...site.live, ...slice.tokens }, platformTokens),
+        presetSlug: slice.presetSlug,
+        themePublishedAt: slice.publishedAt,
+        version: slice.version,
+        componentStylesDraft: pick(slice.componentStylesDraft),
+        componentStylesLive: pick(slice.componentStyles),
+      },
+    };
+  }
   return {
     ok: true,
     snapshot: {
@@ -189,7 +219,10 @@ export async function loadTalentDesignAction(input: {
   try {
     const platformDefault = await loadPlatformDefaultTheme("talent");
     const slice = readTalentDesignSlice(resolved.row.theme);
-    return snapshotFromSlice(slice, platformDefault.tokens);
+    const site = siteThemeMode()
+      ? await loadTalentSiteThemeState(resolved.row.talent_profile_id)
+      : null;
+    return snapshotFromSlice(slice, platformDefault.tokens, site, platformDefault.componentStyles);
   } catch (error) {
     logServerError("talent-design/load", error);
     return { ok: false, error: "Failed to load theme." };
@@ -231,15 +264,20 @@ export async function saveTalentDesignDraftAction(input: {
   const validated = validateThemePatch(cleaned);
   const normalized = validated.normalized; // registry-accepted subset
 
+  // SITE theme: the working copy becomes the site draft (every page), and
+  // the page draft layer is cleared so it no longer shadows the site.
+  const siteMode = await writeSiteDraftIfSiteMode(resolved.row.talent_profile_id, normalized);
+  if (siteMode === "failed") return { ok: false, error: "Could not save your theme." };
+
   const nextSlice: TalentDesignSlice = {
     ...current,
-    tokensDraft: normalized,
+    tokensDraft: siteMode === "written" ? {} : normalized,
     version: current.version + 1,
   };
   try {
     const saved = await persistDesignSlice(resolved.supabase, resolved.row, nextSlice);
     if (!saved.ok) return { ok: false, error: saved.error };
-    return { ok: true, version: nextSlice.version, themeDraft: nextSlice.tokensDraft };
+    return { ok: true, version: nextSlice.version, themeDraft: normalized };
   } catch (error) {
     logServerError("talent-design/save-draft", error);
     return { ok: false, error: "Could not save theme draft." };
@@ -321,9 +359,14 @@ export async function applyTalentThemePresetAction(input: {
   }
 
   const validated = validateThemePatch(preset.tokens);
+  const siteMode = await writeSiteDraftIfSiteMode(
+    resolved.row.talent_profile_id,
+    validated.normalized,
+  );
+  if (siteMode === "failed") return { ok: false, error: "Could not apply theme preset." };
   const nextSlice: TalentDesignSlice = {
     ...current,
-    tokensDraft: validated.normalized,
+    tokensDraft: siteMode === "written" ? {} : validated.normalized,
     presetSlug: preset.slug,
     version: current.version + 1,
   };
@@ -333,7 +376,7 @@ export async function applyTalentThemePresetAction(input: {
     return {
       ok: true,
       version: nextSlice.version,
-      themeDraft: nextSlice.tokensDraft,
+      themeDraft: validated.normalized,
       presetSlug: nextSlice.presetSlug ?? preset.slug,
     };
   } catch (error) {
@@ -379,11 +422,41 @@ export async function publishTalentDesignAction(input: {
     version: current.version + 1,
   };
   try {
+    if (siteThemeMode()) {
+      // SITE theme: the site draft goes live for every page (same writer as
+      // "Publish site").
+      const published = await publishSiteThemeForTalent({
+        talentProfileId: resolved.row.talent_profile_id,
+        profileCode: null,
+      });
+      if (!published.ok) return { ok: false, error: published.error };
+    }
     const saved = await persistDesignSlice(resolved.supabase, resolved.row, nextSlice);
     if (!saved.ok) return { ok: false, error: saved.error };
-    return { ok: true, version: nextSlice.version, theme: nextSlice.tokens };
+    const site = siteThemeMode()
+      ? await loadTalentSiteThemeState(resolved.row.talent_profile_id)
+      : null;
+    return {
+      ok: true,
+      version: nextSlice.version,
+      theme: site ? { ...site.live, ...nextSlice.tokens } : nextSlice.tokens,
+    };
   } catch (error) {
     logServerError("talent-design/publish", error);
     return { ok: false, error: "Could not publish theme." };
   }
+}
+
+/**
+ * SITE theme mode: write the validated working copy to the site draft.
+ * "legacy" when the site theme is off (the page slice keeps the tokens),
+ * "failed" when the site write did not land.
+ */
+async function writeSiteDraftIfSiteMode(
+  talentProfileId: string,
+  tokens: Record<string, string>,
+): Promise<"written" | "legacy" | "failed"> {
+  if (!siteThemeMode()) return "legacy";
+  const ok = await writeTalentSiteDraftTokens(talentProfileId, tokens);
+  return ok ? "written" : "failed";
 }

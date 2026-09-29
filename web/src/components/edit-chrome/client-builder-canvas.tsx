@@ -96,6 +96,12 @@ export interface ClientBuilderCanvasProps {
    * defaults off to avoid a duplicate.
    */
   includeRendererStyles?: boolean;
+  /**
+   * Optional render-time projection of the live tree (talent_page: seeded
+   * labels in the site locale, as the live site renders them). Pure; the
+   * saved tree is never changed. Pass a stable function.
+   */
+  transformTree?: (tree: BuilderNodeTree) => BuilderNodeTree;
 }
 
 function ClientBuilderCanvasInner({
@@ -107,6 +113,7 @@ function ClientBuilderCanvasInner({
   visibilityContext,
   componentStyleDefaults,
   includeRendererStyles = false,
+  transformTree,
 }: ClientBuilderCanvasProps): ReactNode {
   // Subscribe to the live in-memory tree published by EditProvider. The
   // server snapshot is `null` (the bridge starts empty), so we fall back to
@@ -117,7 +124,11 @@ function ClientBuilderCanvasInner({
     getBuilderCanvasTreeSnapshot,
     () => null,
   );
-  const tree = bridgedTree ?? initialTree;
+  const rawTree = bridgedTree ?? initialTree;
+  const tree = useMemo(
+    () => (transformTree ? transformTree(rawTree) : rawTree),
+    [rawTree, transformTree],
+  );
 
   // builder-perf-2026 (reload fix) — announce that a client canvas is mounted for
   // this page, so `edit-context` skips the per-edit server `router.refresh()` ONLY
