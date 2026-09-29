@@ -6,6 +6,7 @@ import {
   canBookInstantly,
   changeCount,
   countCustom,
+  defaultModeImpact,
   diffDraft,
   effectiveServiceMode,
   needsOwnDeposit,
@@ -101,5 +102,16 @@ test("pendingChangeLabels names only what is still unsaved (partial save)", asyn
   assert.deepEqual(
     pendingChangeLabels({ saved: draft, draft, savedSwitches: sw, draftSwitches: sw, serviceTitle: () => "x", labels }),
     [],
+  );
+});
+
+test("defaultModeImpact counts services that follow the default vs their own", () => {
+  assert.deepEqual(
+    defaultModeImpact({
+      a: { bookingMode: null, depositPct: null, cancellationHours: null },
+      b: { bookingMode: "request", depositPct: null, cancellationHours: null },
+      c: { bookingMode: null, depositPct: 10, cancellationHours: null },
+    }),
+    { follows: 2, own: 1 },
   );
 });

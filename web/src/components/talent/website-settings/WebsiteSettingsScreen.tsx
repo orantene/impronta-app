@@ -7,7 +7,9 @@
  *
  * Backed only by stores that exist and are read today:
  *  - `talent_profiles.selling_defaults` via load/saveSellingDefaults
- *  - `talent_offerings.booking_mode` via loadTalentOfferingsForEditor/upsertTalentOffering
+ *  - `talent_offerings.booking_mode` / deposit / cancelling via
+ *    loadTalentOfferingsForEditor/patchOfferingBookingRules (only those
+ *    columns, so a Services-editor edit made meanwhile survives; WSF B2)
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,7 +20,8 @@ import {
   saveSellingDefaults,
   type SellingDefaults,
 } from "@/lib/talent/services-settings-actions";
-import { loadTalentOfferingsForEditor, upsertTalentOffering } from "@/lib/talent/offerings-actions";
+import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
+import { patchOfferingBookingRules } from "@/lib/talent/offering-booking-rules-action";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { resolveEffectiveMinNoticeMin } from "@/lib/scheduling/instant-book-gates";
 import { settle } from "./settle";
@@ -124,7 +127,16 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         id: o.id,
         title: o.title || t("Untitled service"),
         canBookInstantly: canBookInstantly(o) && !(needsOwnDeposit({ ...o, bookingMode: "instant" }) && !o.depositPct),
-        depositRequired: needsOwnDeposit(o),
+        // Effective mode: an inherited-instant service with a deposit reserve
+        // needs its own deposit too (WSF B2).
+        depositRequired: needsOwnDeposit({
+          ...o,
+          bookingMode: effectiveServiceMode(
+            draft?.services[o.id]?.bookingMode ?? null,
+            draft?.defaults.bookingPosture ?? "request",
+          ),
+        }),
+        quote: o.priceDisplay === "quote",
         instantGap: swReadiness
           ? (() => {
               const gap = readinessGaps({
@@ -138,7 +150,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
             })()
           : null,
       })),
-    [offerings, t, swReadiness],
+    [offerings, t, swReadiness, draft],
   );
 
   const unsaved = saved && draft ? changeCount(saved, draft) + switchChangeCount(savedSw, draftSw) : 0;
@@ -170,8 +182,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       if (idx < 0) continue;
       const fields = draft.services[id];
       const r = await settle(() =>
-        upsertTalentOffering(talentId, {
-          ...nextOfferings[idx],
+        patchOfferingBookingRules(talentId, id, {
           bookingMode: fields.bookingMode,
           depositPct: fields.depositPct,
           cancellationHours: fields.cancellationHours,
@@ -179,7 +190,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       );
       const res = r.ok ? r.value : null;
       if (res?.ok) {
-        nextOfferings[idx] = res.item;
+        nextOfferings[idx] = { ...res.item, imageUrls: nextOfferings[idx].imageUrls };
         nextSaved = { ...nextSaved, services: { ...nextSaved.services, [id]: fields } };
       } else ok = false;
     }
@@ -334,6 +345,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
         <BookingGroup
           {...groupProps}
           defaultInstantGap={defaultInstantGap}
+          savedPosture={saved.defaults.bookingPosture}
           before={<AcceptBookingsCard {...switchProps} />}
         />
       ) : null}

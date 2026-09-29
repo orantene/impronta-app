@@ -30,7 +30,8 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Free cancelling until {c} h · rescheduling until {r} h": "Cancela gratis hasta {c} h · reprograma hasta {r} h",
   "Default": "Por defecto",
   "Default booking mode": "Modo de reserva por defecto",
-  "Instant booking": "Reserva inmediata",
+  // WSF B2: same wording as the Services editor (global map).
+  "Instant booking": "Reserva instantánea",
   "Inquiry only": "Solo consulta",
   "{n} of {total} with their own setting": "{n} de {total} con su propio ajuste",
   "Search services": "Buscar servicios",
@@ -64,10 +65,18 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Needs a fixed price and its booking details first. Set them in Services.":
     "Primero necesita un precio fijo y sus datos de reserva. Ponlos en Servicios.",
   "{mode} by default · {n} of {total} services with their own setting": "{mode} por defecto · {n} de {total} servicios con ajuste propio",
-  "Booking request": "Solicitud de cita",
-  "They pick a free time and confirm.": "Eligen un horario libre y confirman.",
-  "They send preferred times. You approve.": "Te proponen horarios. Tú apruebas.",
-  "You talk first, then arrange the work.": "Primero conversan y luego acuerdan el trabajo.",
+  "Request to book": "Pedir reserva",
+  "Request a quote": "Pedir cotización",
+  "They pick a free time and it is booked": "Eligen un horario libre y queda reservado",
+  "You approve before anything is held": "Tú apruebas antes de apartar nada",
+  "They message you first, nothing is booked": "Te escriben primero, no se reserva nada",
+  "You agree the amount with each client": "Acuerdas el monto con cada cliente",
+  "This changes {n} services. The {m} with their own setting stay unchanged.":
+    "Esto cambia {n} servicios. Los {m} con su propio ajuste no cambian.",
+  "{n} of them will take requests until they have a fixed price: {names}":
+    "{n} de ellos recibirán solicitudes hasta que tengan un precio fijo: {names}",
+  "Quote services agree the price first. Change the price in Services to book instantly.":
+    "En los servicios con cotización primero acuerdas el precio. Cambia el precio en Servicios para reservar al instante.",
   "Inherited from your default": "Sigue tu opción predeterminada",
   "{n} with their own setting": "{n} con su propio ajuste",
   "Default deposit": "Anticipo por defecto",

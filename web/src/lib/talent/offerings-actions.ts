@@ -17,6 +17,7 @@ import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
+import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   rowToOffering,
@@ -31,13 +32,10 @@ import {
   loadAddonGroupsForOfferings,
   mergeAddonGroupsIntoAddOns,
 } from "@/lib/talent/merge-addon-groups";
-import { getCachedActorSession } from "@/lib/server/request-cache";
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { setOfferingStock, stockChanged } from "@/lib/capacity";
-import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
@@ -60,84 +58,6 @@ function offeringsTable(client: unknown) {
 }
 function offeringMediaTable(client: unknown) {
   return (client as SupabaseClient).from("talent_offering_media");
-}
-
-type AuthResult =
-  | {
-      ok: true;
-      userId: string;
-      isStaff: boolean;
-      defaultCurrency: string;
-      tenantId: string | null;
-    }
-  | { ok: false; error: string };
-
-async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> {
-  const session = await getCachedActorSession();
-  if (!session.user) return { ok: false, error: "Not authenticated." };
-
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return { ok: false, error: "Database unavailable." };
-
-  const { data: tp, error } = await supabase
-    .from("talent_profiles")
-    .select("id, user_id, default_currency")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-
-  if (error || !tp) {
-    if (error) logServerError("talent.offerings.authorize", error);
-    return { ok: false, error: "Profile not found." };
-  }
-
-  const isOwner = tp.user_id === session.user.id;
-
-  // Prefer the active workspace when the actor is staff/owner there and the
-  // talent is on that roster. is_primary-first inference would pin a studio
-  // owner's new offerings to their exclusive agency.
-  const staff = await requireWorkspaceStaffAction();
-  let isStaff = false;
-  let staffTenantId: string | null = null;
-  if (staff.ok) {
-    const adminForCheck = createServiceRoleClient();
-    if (!adminForCheck) return { ok: false, error: "Server configuration error." };
-    const { data: rosterRow } = await adminForCheck
-      .from("agency_talent_roster")
-      .select("id")
-      .eq("tenant_id", staff.tenantId)
-      .eq("talent_profile_id", talentProfileId)
-      .neq("status", "removed")
-      .maybeSingle();
-    if (rosterRow) {
-      isStaff = !isOwner;
-      staffTenantId = staff.tenantId;
-    } else if (!isOwner) {
-      return { ok: false, error: "Talent not on this roster." };
-    }
-  } else if (!isOwner) {
-    return { ok: false, error: "Forbidden." };
-  }
-
-  let tenantId: string | null = staffTenantId;
-  const admin = createServiceRoleClient();
-  if (admin && !tenantId) {
-    const { data: rosterRows } = await admin
-      .from("agency_talent_roster")
-      .select("tenant_id, is_primary")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "active");
-    const rows = (rosterRows ?? []) as { tenant_id: string; is_primary: boolean }[];
-    rows.sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
-    tenantId = rows[0]?.tenant_id ?? null;
-  }
-
-  return {
-    ok: true,
-    userId: session.user.id,
-    isStaff,
-    defaultCurrency: resolveDefaultCurrencyForUI(tp.default_currency),
-    tenantId,
-  };
 }
 
 /** Resolve hero-first image URLs for a set of offerings in one query. */
@@ -244,7 +164,7 @@ export async function upsertTalentOffering(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
-    const errors = validateOffering(offering);
+    const errors = validateOffering(offering, await loadTalentDefaultPosture(talentProfileId));
     if (errors.length > 0) return { ok: false, error: errors[0] };
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it
