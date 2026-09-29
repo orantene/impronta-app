@@ -12,6 +12,10 @@ import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeState
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { NavRow } from "@/components/talent/website-settings/primitives";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
+import {
+  takeWebsiteSettingsIntent,
+  type WebsiteSettingsIntentView,
+} from "@/components/talent/website-settings/website-settings-intent";
 import { talentSiteCopy } from "@/lib/talent-site/talent-site-i18n";
 import { useAdminShell } from "../../state";
 import { useDashboardText } from "../../dashboard-i18n";
@@ -44,7 +48,9 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const copy = useDashboardText();
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // PR 7: "Manage languages" / "Change in Website settings" deep-link here.
+  const [intent] = useState<WebsiteSettingsIntentView | null>(() => takeWebsiteSettingsIntent());
+  const [settingsOpen, setSettingsOpen] = useState(intent !== null);
   // Dark launch (TALENT_WEBSITE_SETTINGS_ENABLED): flag off → no entry row, no screen.
   const [settingsEnabled, setSettingsEnabled] = useState(false);
   useEffect(() => {
@@ -60,7 +66,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   }, []);
   const talentId = settingsEnabled ? (bridgeTalentSelfProfile?.id ?? null) : null;
   if (settingsOpen && talentId) {
-    return <WebsiteSettingsScreen talentId={talentId} onClose={() => setSettingsOpen(false)} />;
+    return <WebsiteSettingsScreen talentId={talentId} initialView={intent ?? undefined} onClose={() => setSettingsOpen(false)} />;
   }
   const settingsEntry = talentId ? (
     <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
