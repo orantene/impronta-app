@@ -209,7 +209,9 @@ export function catalogRowCtaLabel(opts: {
     // Purchase rail is mounted — honest Buy (options picked inside the sheet).
     return es ? "Comprar" : "Buy";
   }
-  if (catalogRowHasOptions(opts.offering)) return es ? "Elegir opciones" : "Choose options";
+  // Instant rows read "Select" even with options (Maison v2 `.pick`); the tap
+  // still opens the option picker (catalogRowOpensSheetImmediately).
+  if (catalogRowHasOptions(opts.offering)) return offeringCtaLabel("book_now", opts.locale, "catalog");
   // Instant appointment — menu-style "Select" matches Maison idle CTA.
   // Sheet opens from Continuar (or from Elegir opciones), not from this label.
   // Inspector may rename the plain Select label only.
@@ -373,4 +375,24 @@ export function catalogSlotDateLabel(date: Date, time: string, es: boolean): str
   const day = (es ? DAYS_ES : DAYS_EN)[date.getDay()] ?? "";
   const month = (es ? MONTHS_ES : MONTHS_EN)[date.getMonth()] ?? "";
   return `${day} ${date.getDate()} ${es ? "de" : ""} ${month}, ${time}`.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The unit a service is priced by ("uña" in "Desde $120 por uña"), from the
+ * offering's long-tail `attributes.price_unit`: a plain string or `{ es, en }`.
+ * Null when the service is not priced per unit.
+ */
+export function offeringPriceUnit(
+  attributes: Record<string, unknown> | null | undefined,
+  locale: string,
+): string | null {
+  const raw = attributes?.price_unit;
+  if (typeof raw === "string") return raw.trim() || null;
+  if (raw && typeof raw === "object") {
+    const map = raw as Record<string, unknown>;
+    const lang = locale.startsWith("es") ? "es" : "en";
+    const pick = map[lang] ?? map.en ?? map.es;
+    return typeof pick === "string" && pick.trim() ? pick.trim() : null;
+  }
+  return null;
 }

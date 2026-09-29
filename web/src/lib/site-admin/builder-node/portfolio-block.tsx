@@ -40,10 +40,11 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--staggered::-webkit-scrollbar{display:none}
 .sb-portfolio--staggered .sb-portfolio-item{flex:0 0 62%;margin:0;scroll-snap-align:start}
 .sb-portfolio--staggered .sb-portfolio-frame{aspect-ratio:3/4;border-radius:20px}
+.sb-portfolio--staggered .sb-portfolio-shot{background:none}
 .sb-portfolio--staggered .sb-portfolio-shot img{transition:transform .5s ease}
 .sb-portfolio--staggered .sb-portfolio-shot:hover img{transform:scale(1.04)}
 @media (min-width:900px){
-  .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0}
+  .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;align-items:center}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(n+6){display:none}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
 }

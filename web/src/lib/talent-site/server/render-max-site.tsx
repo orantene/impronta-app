@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ReactNode } from "react";
-import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill } from "./render-max-site-demo";
+import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 
@@ -601,7 +601,8 @@ async function renderMaxSiteDocument(args: {
     ) {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
-      const parsed = schema?.safeParse(localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale));
+      const localised = localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale);
+      const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
       return (
@@ -712,7 +713,7 @@ async function renderMaxSiteDocument(args: {
         </div>
       ) : null}
 
-      {args.isDemo ? <MaxSiteDemoPill /> : null}
+      {args.isDemo && !(hasShell && headerTree.length > 0 && headerHasLandmark) ? <MaxSiteDemoPill /> : null /* the landmark paints its own pill */}
 
       {hasShell && headerTree.length > 0 ? (
         headerHasLandmark ? (

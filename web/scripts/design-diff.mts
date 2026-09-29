@@ -2,6 +2,9 @@
  * Design-diff harness (Step 1 of the design-fidelity plan).
  *
  *   node --import tsx web/scripts/design-diff.mts --design <maison-v2|folio> [--viewport 1440|390]
+ *     [--demo alba-nail-artist]         design preview with a demo talent's content
+ *     [--demo alba-nail-artist --live]  the demo talent's LIVE site (kind=live-site,
+ *                                       the vanity host's render), signed in as her
  *
  * For every manifest row: screenshots the ARTIFACT section (standalone reviewer
  * HTML served from a throwaway static server) and the SAME section rendered on
@@ -22,9 +25,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 type Sel = string | string[];
-type Row = { id: string; label: string; artifactSelector: Sel; localSelector: Sel };
+/** `open`: click these first (artifact / local), e.g. the dock chat button for the chat row. */
+type Row = { id: string; label: string; artifactSelector: Sel; localSelector: Sel; open?: { artifact: string; local: string } };
+/** A demo talent whose LIVE site (`--live`) is measured, signed in as that demo talent. */
+type LiveTalent = { profileId: string; email: string; passwordEnv: string };
 type Design = { artifactPath: string | null; artifactTodo?: string; templateSlug: string; rows: Row[] };
-type Manifest = { localTalentId: string; designs: Record<string, Design> };
+type Manifest = { localTalentId: string; liveTalents?: Record<string, LiveTalent>; designs: Record<string, Design> };
 
 const LOCAL_ORIGIN = "http://localhost:3001";
 const ENV_FILE = "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/pm-apply/web/.env.local";
@@ -88,9 +94,13 @@ async function waitForLocal(tries = 10, delayMs = 30_000): Promise<void> {
   throw new Error("localhost:3001 did not answer 200");
 }
 
-async function ensureAuth(browser: Browser): Promise<void> {
-  if (fs.existsSync(AUTH_FILE)) {
-    const ctx = await browser.newContext({ storageState: AUTH_FILE });
+async function ensureAuth(
+  browser: Browser,
+  authFile: string = AUTH_FILE,
+  who?: { email: string; passwordEnv: string },
+): Promise<void> {
+  if (fs.existsSync(authFile)) {
+    const ctx = await browser.newContext({ storageState: authFile });
     const page = await ctx.newPage();
     await page.goto(`${LOCAL_ORIGIN}/talent`, { waitUntil: "domcontentloaded" });
     const ok = !/\/login/.test(page.url());
@@ -98,9 +108,11 @@ async function ensureAuth(browser: Browser): Promise<void> {
     if (ok) return;
   }
   const env = readEnv(ENV_FILE);
-  const email = env.QA_JOR_REAL_EMAIL;
-  const password = env.QA_JOR_REAL_PASSWORD;
-  if (!email || !password) throw new Error("QA_JOR_REAL_EMAIL / QA_JOR_REAL_PASSWORD missing in env file");
+  const email = who ? who.email : env.QA_JOR_REAL_EMAIL;
+  const password = who ? env[who.passwordEnv] : env.QA_JOR_REAL_PASSWORD;
+  if (!email || !password) throw new Error(`sign-in for ${email ?? "the harness"} missing in env file`);
+  // Only the seeded demo test accounts (never a real talent) sign in here.
+  if (who && !email.endsWith("@impronta.test")) throw new Error(`not a demo test account: ${email}`);
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto(`${LOCAL_ORIGIN}/login`, { waitUntil: "networkidle" });
@@ -112,16 +124,27 @@ async function ensureAuth(browser: Browser): Promise<void> {
     page.locator("form button[type=submit]").first().click(),
   ]);
   fs.mkdirSync(OUT_ROOT, { recursive: true });
-  await ctx.storageState({ path: AUTH_FILE });
-  fs.chmodSync(AUTH_FILE, 0o600);
+  await ctx.storageState({ path: authFile });
+  fs.chmodSync(authFile, 0o600);
   await ctx.close();
+}
+
+/**
+ * Marks the page as a harness capture: `[data-harness]` stops the marquee on
+ * both sides (the local renderer honours it; the artifact gets the same rule
+ * injected) so the ticker row compares a still frame, not a random offset.
+ */
+async function markHarness(page: Page): Promise<void> {
+  await page.evaluate(() => document.documentElement.setAttribute("data-harness", ""));
+  await page.addStyleTag({ content: "[data-harness] .tick div{animation:none!important}" });
 }
 
 async function shoot(page: Page, sels: string[], file: string): Promise<boolean> {
   for (const s of sels) {
     const loc = page.locator(s).first();
     if ((await loc.count()) > 0 && (await loc.isVisible().catch(() => false))) {
-      await loc.scrollIntoViewIfNeeded().catch(() => {});
+      // Centre the row so a short band never sits under the fixed dock.
+      await loc.evaluate((el) => el.scrollIntoView({ block: "center" })).catch(() => {});
       await page.waitForTimeout(400);
       await loc.screenshot({ path: file, animations: "disabled" });
       return true;
@@ -205,12 +228,17 @@ async function main(): Promise<void> {
   void SERVE_ROOT;
   const stat = await startStatic(serveDir);
 
-  const outDir = path.join(OUT_ROOT, designKey, String(viewport));
+  const live = process.argv.includes("--live");
+  const demoKey = arg("demo");
+  const liveTalent = live ? (demoKey ? manifest.liveTalents?.[demoKey] : undefined) : undefined;
+  if (live && !liveTalent) throw new Error("--live needs --demo <key> listed in the manifest's liveTalents");
+  const authFile = liveTalent ? path.join(OUT_ROOT, `.auth-${demoKey}.json`) : AUTH_FILE;
+  const outDir = path.join(OUT_ROOT, designKey, `${viewport}${live ? "-live" : ""}`);
   fs.mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch();
   try {
     await waitForLocal();
-    await ensureAuth(browser);
+    await ensureAuth(browser, authFile, liveTalent);
 
     // Artifact side: reviewer page; pick Experience view + device width.
     const actx = await browser.newContext({ viewport: { width: 1800, height: 1200 } });
@@ -219,24 +247,32 @@ async function main(): Promise<void> {
     await ap.locator("[data-v='exp']").first().click().catch(() => {});
     await ap.locator(`#devseg button[data-d="${viewport}"]`).click().catch(() => {});
     await ap.waitForTimeout(800);
+    await markHarness(ap);
 
     // Local side.
-    const lctx = await browser.newContext({ storageState: AUTH_FILE, viewport: { width: viewport, height: 900 } });
+    const lctx = await browser.newContext({ storageState: authFile, viewport: { width: viewport, height: 900 } });
     const lp = await lctx.newPage();
     const t = manifest.localTalentId;
     // --demo <key>: a gallery demo talent's content (e.g. alba-nail-artist) instead of the signed-in talent's.
-    const demoKey = arg("demo");
-    const localUrl =
-      `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}` +
-      (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}&locale=es` : "");
+    // --live: that demo talent's published site through the live-site render.
+    const localUrl = liveTalent
+      ? `${LOCAL_ORIGIN}/template-preview/current?kind=live-site&talent=${liveTalent.profileId}&locale=es`
+      : `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}` +
+        (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}&locale=es` : "");
     assertLocal(localUrl);
     await lp.goto(localUrl, { waitUntil: "networkidle", timeout: 120_000 });
+    await markHarness(lp);
 
     const summary: { row: string; label: string; score: number | null; missing: boolean; missingSide?: string }[] = [];
     for (const row of design.rows) {
       const dir = path.join(outDir, row.id);
       fs.mkdirSync(dir, { recursive: true });
       for (const f of ["artifact.png", "local.png", "diff.png"]) fs.rmSync(path.join(dir, f), { force: true });
+      if (row.open) {
+        await ap.locator(row.open.artifact).first().click().catch(() => {});
+        await lp.locator(row.open.local).first().click().catch(() => {});
+        await Promise.all([ap.waitForTimeout(900), lp.waitForTimeout(900)]);
+      }
       const aOk = await shoot(ap, selList(row.artifactSelector), path.join(dir, "artifact.png"));
       const lOk = await shoot(lp, selList(row.localSelector), path.join(dir, "local.png"));
       let score: number | null = null;

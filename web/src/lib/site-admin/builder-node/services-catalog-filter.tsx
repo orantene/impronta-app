@@ -14,6 +14,7 @@ import { CatalogBookingSheet, type CatalogSheetBookingSettings } from "@/compone
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
   catalogRowCtaLabel,
+  offeringPriceUnit,
   catalogRowMinCents,
   catalogRowOpensSheetImmediately,
   catalogRowShowsFrom,
@@ -21,6 +22,7 @@ import {
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel } from "./services-catalog-bar-price";
+import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
 import {
   EMPTY_DOCK,
@@ -199,6 +201,7 @@ export function ServicesCatalogFilter({
   const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const demoToast = useDemoToast(bookingMode === "demo");
   const es = locale.startsWith("es");
   const filterNav = nav === "pills" || nav === "tabs" || nav === "rail";
   const bookingPosture = bookingSettings.bookingPosture;
@@ -238,6 +241,7 @@ export function ServicesCatalogFilter({
   }, []);
 
   const onRowAction = (item: TalentOffering, inclusion?: string | null) => {
+    demoToast.ping();
     // Maison DoR: option / consult rows open the sheet; plain Seleccionar only
     // paints Seleccionado + Continuar. continueFromBar opens the sheet.
     if (catalogRowOpensSheetImmediately(item)) {
@@ -338,13 +342,7 @@ export function ServicesCatalogFilter({
 
   return (
     <div className="cb-island" data-sheet-accent={sheetAccent} data-booking-mode={bookingMode}>
-      {bookingMode === "demo" ? (
-        <p className="site-builder-node--services-catalog-demo" role="status">
-          {es
-            ? "Vista previa: no se crea ninguna reserva real."
-            : "Preview: no real bookings are created."}
-        </p>
-      ) : null}
+      {bookingMode === "demo" ? <ServicesCatalogDemoToast show={demoToast.show} locale={locale} /> : null}
       {enableCatalogSearch ? (
         <div className="site-builder-node--services-catalog-search">
           <input
@@ -653,8 +651,12 @@ export function CatalogRow({
         : null;
   // One-line price for the meta row: "Desde $650" / "$900" / "A cotizar".
   const money = minCents == null ? "" : formatMoney(minCents, item.currency, locale);
-  const priceText =
-    onRequest || quote || minCents == null
+  // Priced per unit ("Desde $120 por uña"): the unit replaces the duration.
+  const unit = offeringPriceUnit(item.attributes, locale);
+  const perUnit = !!unit && !onRequest && !quote && minCents != null;
+  const priceText = perUnit
+    ? `${es ? "Desde" : "From"} ${money} ${es ? "por" : "per"} ${unit}`
+    : onRequest || quote || minCents == null
       ? es
         ? onRequest
           ? "Bajo consulta"
@@ -700,7 +702,7 @@ export function CatalogRow({
         ) : null}
         {priceInMeta ? (
           <span className="site-builder-node--services-catalog-duration" data-price-in-meta="true">
-            {showDuration && item.durationMinutes && item.kind !== "product" ? (
+            {showDuration && !perUnit && item.durationMinutes && item.kind !== "product" ? (
               <>
                 <span>{catalogDurationShort(item.durationMinutes)}</span>
                 {showPrice ? <span aria-hidden>·</span> : null}

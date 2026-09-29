@@ -656,3 +656,19 @@ test("useWebsiteTheme without authored backgroundColor does not force blush", ()
     "shared path must not invent blush without an authored binding",
   );
 });
+
+// Maison v2 proposal: an INSTANT row with options reads "Select" (the tap opens
+// the option picker); an inspector rename never applies to an options row.
+test("instant row with extras says Select and ignores the inspector ctaLabel", () => {
+  const html = render([catalogNode({ ctaLabel: "Book it" })], {
+    talentOfferings: [
+      offering({
+        bookingMode: "instant",
+        addOns: [{ id: "x1", label: "French", amountCents: 8000 }],
+      }),
+    ],
+    talentOfferingsConfirmsByHand: false,
+  });
+  assert.match(html, />Select</);
+  assert.doesNotMatch(html, />Book it</);
+});
