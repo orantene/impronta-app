@@ -540,7 +540,15 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
       brand: { ...brand, tagline: "{{primaryTypeLabel}}" },
       primaryCta: cta,
       tone: "surface",
-      regions: { ...regions, right },
+      // Phone: wordmark + ES / EN only (the dock carries booking + chat), so
+      // the section links hide there and no burger is drawn. Editable per item.
+      regions: {
+        ...regions,
+        center: (Array.isArray(regions.center) ? (regions.center as Props[]) : []).map((item) =>
+          item.type === "nav" ? { ...item, responsive: { ...((item.responsive as Props) ?? {}), mobile: "hide" } } : item,
+        ),
+        right,
+      },
     },
   });
 }

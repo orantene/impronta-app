@@ -42,6 +42,8 @@ const MAISON_V2_SKIN = [
   // ── Row 1 Header: sticky frosted bar, italic Bodoni logo + small tracked trade, muted nav, ES/EN, CTA pill.
   `${S} .site-header{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--token-color-background) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in srgb,var(--token-color-line) 60%,transparent);color:var(--token-color-ink)}`,
   `${S} .site-header__inner{padding:10px 18px;gap:12px}`,
+  // Phone: the bar is the inner row only (58px), no outer header padding.
+  `${S} .site-header.site-header{padding:0}${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;min-height:0}`,
   `${S} .site-header__brand{display:flex;align-items:baseline;gap:7px;line-height:1}`,
   `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:500;font-size:24px;line-height:normal;letter-spacing:-0.02em;text-transform:none}`,
   `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
