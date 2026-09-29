@@ -590,3 +590,11 @@ test("write guard: a read-only client cannot write even if a script forgot the f
   assert.equal(h.db.ops.length, 0);
   assert.equal(h.db.authCalls.filter((c) => c.method !== "listUsers").length, 0);
 });
+
+test("verify comparison ignores jsonb key order", async () => {
+  const { same } = await import("./foundation-verify");
+  assert.equal(same({ "1": [{ startMin: 540, endMin: 1080 }] }, { "1": [{ endMin: 1080, startMin: 540 }] }), true);
+  assert.equal(same([{ locale: "en", text: "a" }], [{ text: "a", locale: "en" }]), true);
+  assert.equal(same([{ locale: "en", text: "a" }], [{ text: "b", locale: "en" }]), false);
+  assert.equal(same([1, 2], [2, 1]), false);
+});

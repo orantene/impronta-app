@@ -44,8 +44,21 @@ export type VerifyContext = {
   password?: string;
 };
 
-function same(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+/** Stable JSON: object keys sorted, arrays kept in order. Postgres jsonb does
+ *  not preserve key order, so a raw JSON.stringify compare flags identical
+ *  values (e.g. {startMin,endMin} read back as {endMin,startMin}). */
+function canonical(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(
+      Object.keys(v as Record<string, unknown>).sort().map((k) => [k, canonical((v as Record<string, unknown>)[k])]),
+    );
+  }
+  return v;
+}
+
+export function same(a: unknown, b: unknown): boolean {
+  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 }
 
 export async function verifyDemo(ctx: VerifyContext, d: FoundationDemo): Promise<string[]> {
