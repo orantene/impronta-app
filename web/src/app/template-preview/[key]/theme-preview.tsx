@@ -36,6 +36,7 @@ import {
   prepareMyContentPreview,
   resolveMyContentPreviewLocale,
 } from "@/lib/talent-site/server/preview-my-content.server";
+import { COLLECTION_DEFAULT_LOOK } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -76,9 +77,12 @@ export async function ThemeCatalogPreview({
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
 
+  // No Look named: the Design's own default palette (Folio opens in stone),
+  // else the platform default below.
+  const effectiveLookSlug = lookSlug || COLLECTION_DEFAULT_LOOK[designSlug] || null;
   const lookRow =
-    lookSlug && SLUG_RE.test(lookSlug)
-      ? await loadRow("look", lookSlug)
+    effectiveLookSlug && SLUG_RE.test(effectiveLookSlug)
+      ? await loadRow("look", effectiveLookSlug)
       : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
 

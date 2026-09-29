@@ -11,6 +11,7 @@ import {
   MAISON_BUILTIN_LOOKS,
 } from "./maison/builtins";
 import { COLLECTION_DESIGNS } from "./collection/designs";
+import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
 import { filterCatalogRowsForMaisonFlag } from "./maison/catalog-visibility";
 import { isTalentThemeRequiredTier, talentPlanAllowsThemeTier } from "./tier";
 import type {
@@ -128,7 +129,7 @@ function fallbackRows(maisonOn: boolean): CatalogListingRow[] {
   }));
   const looks = [
     ...BUILTIN_LOOKS,
-    ...(maisonOn ? [...MAISON_BUILTIN_LOOKS] : []),
+    ...(maisonOn ? [...MAISON_BUILTIN_LOOKS, ...FOLIO_BUILTIN_LOOKS] : []),
   ].map((entry) => ({
     kind: entry.kind as TalentThemeKind,
     slug: entry.slug,

@@ -56,7 +56,40 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "The book": "El book",
   "What clients say": "Lo que dicen mis clientes",
   Reviews: "Opiniones",
+  // Folio (magazine edition).
+  Contents: "En este número",
+  "In this issue": "En este número",
+  "See the book": "Ver el libro",
+  "Selected work": "Trabajos elegidos",
+  "From the studio": "Desde el estudio",
+  Details: "Detalles",
+  "Up close": "De cerca",
+  Portraits: "Retratos",
+  "Natural light": "Luz natural",
+  Editorial: "Editorial",
+  Lookbook: "Lookbook",
+  "Studio session": "Sesión de estudio",
+  "Seasonal story": "Historia de temporada",
+  Measures: "Medidas",
+  "Measures · Comp card": "Medidas · Comp card",
+  Rates: "Tarifas",
+  "Rates and dates": "Tarifas y fechas",
+  Contact: "Contacto",
+  "Next issue.": "Siguiente número.",
+  "Write to me and I will reply with dates and prices.":
+    "Escríbeme y te respondo con fechas y precios.",
+  "Available for editorial, campaign, and portrait commissions.":
+    "Disponible para editoriales, campañas y retratos.",
 };
+
+/**
+ * Seeded labels that carry a hydrated token (the tree is saved AFTER
+ * `{{displayName}}` resolves, so an exact-key match never fires). Matched by
+ * shape; the captured value is carried into the Spanish line.
+ */
+const SEEDED_PATTERNS_ES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^Hello, I'm (.+)$/, "Hola, soy $1"],
+];
 
 /** The talent's site-wide booking mode (posture after the plan ceiling). */
 export type SiteCtaMode = "instant" | "request" | "inquiry";
@@ -112,7 +145,27 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
 const WORK_LABEL = { en: "Work", es: "Trabajos" } as const;
 
 /** Node props that carry visible label copy. */
-const LABEL_PROPS = ["text", "label", "eyebrow", "title", "emptyMessage", "contactLine"] as const;
+const LABEL_PROPS = [
+  "text",
+  "label",
+  "eyebrow",
+  "title",
+  "emptyMessage",
+  "contactLine",
+  "creditLine",
+  "statement",
+  "ctaLabel",
+  "bookLabel",
+  "contentsTitle",
+  "coverLine",
+  "subline",
+  "mastRight",
+  "bio",
+] as const;
+
+/** Array props whose rows carry visible `label` / `credit` copy. */
+const ROW_ARRAY_PROPS = ["links", "items", "contents"] as const;
+const ROW_TEXT_KEYS = ["label", "credit"] as const;
 
 function localeKey(locale: string | null | undefined): string {
   return (locale ?? "").trim().toLowerCase().slice(0, 2);
@@ -134,7 +187,12 @@ function localiseOne(
     return out === value ? null : out;
   }
   if (!es) return null;
-  return SEEDED_LABELS_ES[key] ?? null;
+  const exact = SEEDED_LABELS_ES[key];
+  if (exact !== undefined) return exact === value ? null : exact;
+  for (const [re, to] of SEEDED_PATTERNS_ES) {
+    if (re.test(key)) return key.replace(re, to);
+  }
+  return null;
 }
 
 /** Exposed for tests and callers that localise a single seeded string. */
@@ -171,19 +229,25 @@ export function localiseSeededDesignLabels(
       const out = one(v, key === "label" ? props.href : undefined);
       if (out !== null) (next ??= { ...props })[key] = out;
     }
-    const links = props.links;
-    if (Array.isArray(links)) {
+    for (const arrayKey of ROW_ARRAY_PROPS) {
+      const rows = props[arrayKey];
+      if (!Array.isArray(rows)) continue;
       let changed = false;
-      const mapped = links.map((link: unknown) => {
-        if (!link || typeof link !== "object") return link;
-        const l = link as Record<string, unknown>;
-        if (typeof l.label !== "string") return link;
-        const out = one(l.label, l.href);
-        if (out === null) return link;
+      const mapped = rows.map((row: unknown) => {
+        if (!row || typeof row !== "object") return row;
+        const r = row as Record<string, unknown>;
+        let out: Record<string, unknown> | null = null;
+        for (const textKey of ROW_TEXT_KEYS) {
+          const v = r[textKey];
+          if (typeof v !== "string") continue;
+          const swapped = one(v, textKey === "label" ? r.href : undefined);
+          if (swapped !== null) (out ??= { ...r })[textKey] = swapped;
+        }
+        if (!out) return row;
         changed = true;
-        return { ...l, label: out };
+        return out;
       });
-      if (changed) (next ??= { ...props }).links = mapped;
+      if (changed) (next ??= { ...props })[arrayKey] = mapped;
     }
     const children =
       "children" in node && Array.isArray(node.children) ? node.children.map(visit) : null;
