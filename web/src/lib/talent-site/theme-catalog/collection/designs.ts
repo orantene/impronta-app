@@ -24,7 +24,6 @@ import {
   reviewsBlock,
   visitBlock,
   compCardBlock,
-  contentsBlock,
   statementFooterBlock,
   heroCentered,
   heroCover,
