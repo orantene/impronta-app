@@ -1,0 +1,201 @@
+{
+  "$comment": "Design-diff harness manifest. artifactSelector/localSelector may be a string or an array of fallbacks (first match wins). Local selectors are best-guess from builder-node / PublishedShell data attributes; refine after the first run (rows with missing:true). Maison local page (2026-09-28) renders anchors #hero #about #services #gallery #contact only; no header/ticker/reviews/visit/footer nodes exist yet, so those rows report missing (local).",
+  "localTalentId": "f048e578-cbae-45db-9a3b-34239abea136",
+  "designs": {
+    "maison-v2": {
+      "artifactPath": "/Users/oranpersonal/.claude/projects/-Users-oranpersonal-Desktop-impronta-app/f0374548-4bfd-47f5-a318-dfb8b4e8fd7a/tool-results/artifact-b1a7ed90-1790574112-cee7.html",
+      "templateSlug": "maison",
+      "rows": [
+        {
+          "id": "header",
+          "label": "Header",
+          "artifactSelector": "[data-w^='site_header']",
+          "localSelector": [
+            "[data-section-type-key='site_header']",
+            "[data-builder-node-kind='site_header']"
+          ]
+        },
+        {
+          "id": "hero",
+          "label": "Hero",
+          "artifactSelector": "[data-w^='hero']",
+          "localSelector": [
+            "[data-builder-node-kind='hero']",
+            "[data-section-type-key^='hero']",
+            "#hero"
+          ]
+        },
+        {
+          "id": "ticker",
+          "label": "Ticker",
+          "artifactSelector": "#site .tick",
+          "localSelector": [
+            "[data-section-type-key='marquee']",
+            "[data-builder-node-kind='marquee']"
+          ]
+        },
+        {
+          "id": "recent-work",
+          "label": "Recent work",
+          "artifactSelector": "[data-w^='portfolio']",
+          "localSelector": [
+            "[data-builder-node-kind='portfolio']",
+            "#gallery"
+          ]
+        },
+        {
+          "id": "menu",
+          "label": "Menu",
+          "artifactSelector": "[data-w^='services_catalog']",
+          "localSelector": [
+            "[data-builder-node-kind='services_catalog']",
+            "#services"
+          ]
+        },
+        {
+          "id": "reviews",
+          "label": "Reviews",
+          "artifactSelector": "[data-w^='reviews']",
+          "localSelector": [
+            "[data-section-type-key='reviews']",
+            "[data-builder-node-kind='reviews']"
+          ]
+        },
+        {
+          "id": "about",
+          "label": "About",
+          "artifactSelector": "[data-w^='about']",
+          "localSelector": [
+            "[data-builder-node-kind='about']",
+            "#about"
+          ]
+        },
+        {
+          "id": "visit",
+          "label": "Visit",
+          "artifactSelector": "[data-w^='visit_info']",
+          "localSelector": [
+            "[data-section-type-key='visit_info']",
+            "[data-builder-node-kind='visit_info']"
+          ]
+        },
+        {
+          "id": "faq",
+          "label": "FAQ",
+          "artifactSelector": "[data-w^='faq']",
+          "localSelector": [
+            "[data-builder-node-kind^='faq']",
+            "#contact"
+          ]
+        },
+        {
+          "id": "footer",
+          "label": "Footer",
+          "artifactSelector": "[data-w^='footer']",
+          "localSelector": [
+            "[data-section-type-key='footer']",
+            "[data-builder-node-kind='footer']"
+          ]
+        },
+        {
+          "id": "dock",
+          "label": "Dock",
+          "artifactSelector": "[data-w^='selection_dock']",
+          "localSelector": [
+            ".cb-dock",
+            "[data-builder-node-kind='selection_dock']"
+          ]
+        }
+      ]
+    },
+    "folio": {
+      "artifactPath": null,
+      "artifactTodo": "TODO: save the Folio artifact HTML (https://claude.ai/artifact/QHVfJH5oHTc2EkM2VKXpR2, via the Artifact tool 'read') to a local file and set artifactPath. Artifact selectors below are placeholders until the markup is inspected.",
+      "templateSlug": "folio",
+      "rows": [
+        {
+          "id": "masthead",
+          "label": "Header masthead bar",
+          "artifactSelector": [
+            "[data-w^='site_header']",
+            "#site header"
+          ],
+          "localSelector": [
+            "[data-section-type-key='site_header']"
+          ]
+        },
+        {
+          "id": "cover",
+          "label": "Cover",
+          "artifactSelector": [
+            "[data-w^='hero']",
+            "#site .cover"
+          ],
+          "localSelector": [
+            "[data-section-type-key^='hero']",
+            "[data-builder-node-kind^='hero']"
+          ]
+        },
+        {
+          "id": "contents",
+          "label": "Contents",
+          "artifactSelector": [
+            "[data-w^='contents']",
+            "#site .contents"
+          ],
+          "localSelector": [
+            "[data-section-type-key='contents']",
+            "[data-builder-node-kind='contents']"
+          ]
+        },
+        {
+          "id": "chapters",
+          "label": "Chapters",
+          "artifactSelector": [
+            "[data-w^='chapter']",
+            "#site .chapters"
+          ],
+          "localSelector": [
+            "[data-section-type-key^='chapter']",
+            "[data-builder-node-kind^='chapter']"
+          ]
+        },
+        {
+          "id": "comp-card",
+          "label": "Comp card",
+          "artifactSelector": [
+            "[data-w^='comp']",
+            "#site .comp"
+          ],
+          "localSelector": [
+            "[data-section-type-key^='comp']",
+            "[data-builder-node-kind^='comp']"
+          ]
+        },
+        {
+          "id": "rate-card",
+          "label": "Rate card",
+          "artifactSelector": [
+            "[data-w^='rate']",
+            "#site .bigrate"
+          ],
+          "localSelector": [
+            "[data-section-type-key^='rate']",
+            "[data-section-type-key='services_catalog']"
+          ]
+        },
+        {
+          "id": "statement-footer",
+          "label": "Statement footer",
+          "artifactSelector": [
+            "[data-w^='footer']",
+            "#site footer"
+          ],
+          "localSelector": [
+            "[data-section-type-key='footer']"
+          ]
+        }
+      ]
+    }
+  }
+}
