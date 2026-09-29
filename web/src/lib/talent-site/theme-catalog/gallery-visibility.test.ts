@@ -67,6 +67,7 @@ test("each visible design features a built demo", () => {
         d.source.kind === "demo-talent" ? d.source.siteSlug : d.source.kind === "maison-seed" ? `seed:${d.source.key}` : "",
       );
   assert.deepEqual(built("maison"), ["seed:nails"]);
-  assert.deepEqual(built("maison-v2"), ["renata-lashes", "camila-nails", "andres-cocina"]);
+  // Alba (the proposal demo) is Maison v2's featured demo: first built.
+  assert.deepEqual(built("maison-v2"), ["alba-nail-artist", "renata-lashes", "camila-nails", "andres-cocina"]);
   assert.deepEqual(built("folio"), ["lucia-herrera", "sofia-barra"]);
 });

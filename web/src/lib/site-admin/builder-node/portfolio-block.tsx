@@ -18,6 +18,7 @@ import {
 } from "./portfolio-defaults";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { PortfolioShotLink } from "./portfolio-shot-link";
+import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
 import type { BuilderPortfolioNode } from "./types";
 
@@ -35,6 +36,17 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--filmstrip{display:flex;gap:0.75rem;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:0.25rem}
 .sb-portfolio--filmstrip .sb-portfolio-item{flex:0 0 auto;width:min(72vw,280px);scroll-snap-align:start}
 .sb-portfolio--filmstrip .sb-portfolio-frame{aspect-ratio:4/5}
+.sb-portfolio--staggered{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:6px}
+.sb-portfolio--staggered::-webkit-scrollbar{display:none}
+.sb-portfolio--staggered .sb-portfolio-item{flex:0 0 62%;margin:0;scroll-snap-align:start}
+.sb-portfolio--staggered .sb-portfolio-frame{aspect-ratio:3/4;border-radius:20px}
+.sb-portfolio--staggered .sb-portfolio-shot img{transition:transform .5s ease}
+.sb-portfolio--staggered .sb-portfolio-shot:hover img{transform:scale(1.04)}
+@media (min-width:900px){
+  .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0}
+  .sb-portfolio--staggered .sb-portfolio-item:nth-child(n+6){display:none}
+  .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
+}
 .sb-portfolio--grid{display:grid;gap:0.75rem;grid-template-columns:repeat(var(--sb-portfolio-cols,3),minmax(0,1fr))}
 .sb-portfolio--grid .sb-portfolio-frame{aspect-ratio:4/5}
 .sb-portfolio--masonry{column-count:var(--sb-portfolio-cols,3);column-gap:0.75rem}
@@ -72,6 +84,7 @@ function defaultColumns(layout: PortfolioLayout, authored?: 2 | 3 | 4): number {
   if (authored) return authored;
   if (layout === "contact_sheet") return 4;
   if (layout === "filmstrip") return 3;
+  if (layout === "staggered") return 5;
   if (layout === "masonry") return 2;
   if (layout === "chapter") return 2;
   return 3;
@@ -89,19 +102,25 @@ function ShotFigure({
   showCaptions,
   confirmsByHand,
   itemClass,
+  wantLabel,
 }: {
   shot: TalentPortfolioShot;
   offering?: TalentOffering | null;
   showCaptions: boolean;
   confirmsByHand: boolean;
   itemClass?: string;
+  /** Staggered strip: a linked shot reads "I want this" instead of the service name. */
+  wantLabel?: string;
 }) {
   const label =
     shot.caption?.trim() ||
     shot.offeringTitle?.trim() ||
     shot.alt ||
     "Portfolio photo";
-  const serviceLine = shot.offeringTitle?.trim() || null;
+  const serviceLine =
+    wantLabel && shot.offeringId && shot.caption?.trim()
+      ? wantLabel
+      : shot.offeringTitle?.trim() || null;
 
   return (
     <figure
@@ -142,9 +161,12 @@ export function renderPortfolioBlock(args: {
   offerings?: ReadonlyArray<TalentOffering>;
   confirmsByHand?: boolean;
   styleAttr?: CSSProperties;
+  locale?: string;
 }): ReactNode {
   const p = args.node.props;
   const layout = (p.layout ?? PORTFOLIO_DEFAULT_PROPS.layout) as PortfolioLayout;
+  const es = (args.locale ?? "").toLowerCase().startsWith("es");
+  const wantLabel = layout === "staggered" ? (es ? "Quiero esto" : "I want this") : undefined;
   const showCaptions = p.showCaptions === true;
   const linkMode = p.linkMode ?? PORTFOLIO_DEFAULT_PROPS.linkMode;
   const cols = defaultColumns(layout, p.columns);
@@ -174,6 +196,7 @@ export function renderPortfolioBlock(args: {
       showCaptions={showCaptions}
       confirmsByHand={args.confirmsByHand ?? true}
       itemClass={isChapter ? chapterItemClass(index) : undefined}
+      wantLabel={wantLabel}
     />
   ));
 
@@ -209,7 +232,7 @@ export function renderPortfolioBlock(args: {
         <>
           <header className="sb-portfolio-header">
             {eyebrow ? <p className="sb-portfolio-eyebrow">{eyebrow}</p> : null}
-            <h2 className="sb-portfolio-title">{title}</h2>
+            <h2 className="sb-portfolio-title">{renderItalicMarkedTitle(title)}</h2>
           </header>
           {visible.length === 0 ? (
             <p className="sb-portfolio-empty">{empty}</p>

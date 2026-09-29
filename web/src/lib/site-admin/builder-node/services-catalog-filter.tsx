@@ -116,6 +116,7 @@ export function ServicesCatalogFilter({
   showPrice = true,
   showUsdEquivalent,
   showBadges = false,
+  showModeChip = false,
   confirmsByHand,
   usdRates,
   ctaLabel,
@@ -145,6 +146,7 @@ export function ServicesCatalogFilter({
   showPrice?: boolean;
   showUsdEquivalent: boolean;
   showBadges?: boolean;
+  showModeChip?: boolean;
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
@@ -458,6 +460,7 @@ export function ServicesCatalogFilter({
                       showPrice={showPrice}
                       showUsdEquivalent={showUsdEquivalent}
                       showBadges={showBadges}
+                      showModeChip={showModeChip}
                       confirmsByHand={confirmsByHand}
                       bookingPosture={bookingPosture}
                       usdRates={usdRates}
@@ -535,6 +538,7 @@ export function CatalogRow({
   showPrice = true,
   showUsdEquivalent,
   showBadges = false,
+  showModeChip = false,
   confirmsByHand,
   bookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
   usdRates,
@@ -554,6 +558,7 @@ export function CatalogRow({
   showPrice?: boolean;
   showUsdEquivalent: boolean;
   showBadges?: boolean;
+  showModeChip?: boolean;
   confirmsByHand: boolean;
   bookingPosture?: TalentBookingPosture;
   usdRates: UsdRates | null;
@@ -582,6 +587,16 @@ export function CatalogRow({
   });
   const where = offeringWhereFromAttributes(item.attributes);
   const deliveryText = formatOfferingWhereLabel(where, locale);
+  const modeChip =
+    derived.effectiveMode === "request"
+      ? es
+        ? "Con confirmación"
+        : "Needs confirmation"
+      : derived.effectiveMode === "inquiry" || quote
+        ? es
+          ? "Por cotización"
+          : "By quote"
+        : null;
   const badges: string[] = [];
   if (showBadges) {
     if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");
@@ -633,6 +648,9 @@ export function CatalogRow({
                 ? "Sujeto a confirmación"
                 : "Subject to confirmation"}
           </span>
+        ) : null}
+        {showModeChip && modeChip ? (
+          <span className="site-builder-node--services-catalog-mode">{modeChip}</span>
         ) : null}
         {badges.length ? (
           <span className="site-builder-node--services-catalog-badges">

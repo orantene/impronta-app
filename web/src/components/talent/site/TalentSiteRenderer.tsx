@@ -39,6 +39,8 @@ type Props = {
    * freeform renderer binds these instead of loading tenant-scoped sources.
    */
   freeformDataSources?: BuilderNodeRenderDataSources;
+  /** Theme preview: inherit this Design's canvas tokens (see the freeform renderer). */
+  designSlug?: string | null;
 };
 
 /**
@@ -50,6 +52,7 @@ export function TalentSiteRenderer({
   locale = "en",
   freeformContext,
   freeformDataSources,
+  designSlug = null,
 }: Props) {
   if (snapshot.siteKind !== "talent_personal") {
     return null;
@@ -71,6 +74,7 @@ export function TalentSiteRenderer({
         locale={locale}
         context={freeformContext}
         dataSources={freeformDataSources}
+        designSlug={designSlug}
       />
     );
   }

@@ -42,3 +42,11 @@ test("Maison v2 hero primary follows the booking mode (EN + ES)", () => {
   assert.equal(label(localiseSeededDesignLabels(one, "en", "inquiry"), 0), "Ask for a quote");
   assert.equal(label(localiseSeededDesignLabels(one, "es", null), 1), "Pregunta");
 });
+
+test("hydrated seeded labels with a token localise as patterns", async () => {
+  const { localiseSeededDesignLabel } = await import("./design-label-locale");
+  assert.equal(localiseSeededDesignLabel("Hello, I'm Alba", "es"), "Hola, soy Alba");
+  assert.equal(localiseSeededDesignLabel("Hello, I'm Alba", "en"), "Hello, I'm Alba");
+  assert.equal(localiseSeededDesignLabel("Before you come", "es"), "Antes de venir");
+  assert.equal(localiseSeededDesignLabel("Menu and prices", "es"), "Menú y precios");
+});

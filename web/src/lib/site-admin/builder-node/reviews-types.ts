@@ -11,4 +11,6 @@ export type TalentSiteReview = {
   clientName: string | null;
   rating: number;
   createdAt: string;
+  /** True on a demo talent's site: the card says "Demo review". */
+  demo?: boolean;
 };

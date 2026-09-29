@@ -22,7 +22,7 @@ import type { DemoPreviewSource } from "./demo-preview-source";
  */
 export async function resolveDemoPreviewHydration(
   source: DemoPreviewSource,
-): Promise<TemplatePreviewHydration | null> {
+): Promise<(TemplatePreviewHydration & { demoTalentProfileId: string }) | null> {
   const scope = await requireTalentSelf();
   if (!scope.ok) return null;
   const admin = createServiceRoleClient();
@@ -42,5 +42,10 @@ export async function resolveDemoPreviewHydration(
   const profile = await loadTalentStarterProfileData(id);
   if (!profile) return null;
   const media = await loadTalentStarterMedia(id, profile.displayName);
-  return buildTemplatePreviewHydration({ profile, media }, { isReal: false });
+  // The demo's id rides along so the preview can bind its live widgets
+  // (services, portfolio, reviews, visit) exactly as the demo site does.
+  return {
+    ...buildTemplatePreviewHydration({ profile, media }, { isReal: false }),
+    demoTalentProfileId: id,
+  };
 }

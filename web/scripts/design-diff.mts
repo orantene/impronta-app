@@ -223,7 +223,11 @@ async function main(): Promise<void> {
     const lctx = await browser.newContext({ storageState: AUTH_FILE, viewport: { width: viewport, height: 900 } });
     const lp = await lctx.newPage();
     const t = manifest.localTalentId;
-    const localUrl = `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}`;
+    // --demo <key>: a gallery demo talent's content (e.g. alba-nail-artist) instead of the signed-in talent's.
+    const demoKey = arg("demo");
+    const localUrl =
+      `${LOCAL_ORIGIN}/template-preview/${design.templateSlug}?kind=talent-theme&talent=${t}&talentProfileId=${t}` +
+      (demoKey ? `&demo=${encodeURIComponent(`${design.templateSlug}:${demoKey}`)}&locale=es` : "");
     assertLocal(localUrl);
     await lp.goto(localUrl, { waitUntil: "networkidle", timeout: 120_000 });
 

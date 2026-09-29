@@ -78,6 +78,8 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "statement_footer",
   "comp_card",
   "next_free_chip",
+  // Maison v2 ticker (serif variant of the shared marquee).
+  "marquee",
 ]);
 
 /** Kinds rejected with a specific message (raw markup / third-party / agency data). */

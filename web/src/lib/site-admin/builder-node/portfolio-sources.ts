@@ -116,7 +116,11 @@ export async function loadPortfolioSources(
       id: r.id,
       url: trusted.storage.from(BUCKET).getPublicUrl(r.storage_path).data.publicUrl,
       alt: r.alt?.trim() || altName,
-      caption: null,
+      // Talent-written caption (media metadata), shown under the shot.
+      caption:
+        typeof r.metadata?.caption === "string" && r.metadata.caption.trim()
+          ? r.metadata.caption.trim()
+          : null,
       offeringId: linked?.id ?? null,
       offeringTitle: linked?.title ?? null,
       albumId: metaAlbum || null,

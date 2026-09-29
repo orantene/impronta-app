@@ -1108,11 +1108,12 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 
 /** The frozen `marquee` section's separator glyphs, preserved verbatim. */
 const MARQUEE_SEPARATOR_GLYPH: Readonly<
-  Record<"dot" | "slash" | "diamond" | "none", string>
+  Record<"dot" | "slash" | "diamond" | "star" | "none", string>
 > = {
   dot: "·",
   slash: "/",
   diamond: "◆",
+  star: "✦",
   none: "",
 };
 
@@ -1390,6 +1391,9 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--marquee-link{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
 .site-builder-node--marquee-tag{display:inline-flex;align-items:center;padding:0.35rem 0.85rem;border:1px solid color-mix(in oklab,currentColor 20%,transparent);border-radius:999px;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase}
 .site-builder-node--marquee-sep{opacity:0.45}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"]{border-block:1px solid var(--token-color-line,currentColor);padding:12px 0}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-item{gap:26px;padding-right:26px;font-family:var(--site-heading-font,Georgia,serif);font-style:italic;font-weight:400;font-size:clamp(22px,2.4vw,30px);line-height:1.2}
+.site-builder-node--marquee[data-bn-marquee-variant="serif"] .site-builder-node--marquee-sep{opacity:1;font-style:normal;font-size:14px;color:var(--token-color-accent,currentColor)}
 @keyframes bn-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.site-builder-node--marquee-track{animation:none}}
 .site-builder-node--directory[data-bn-directory-width="full"]{max-width:none}
@@ -4437,6 +4441,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-duration{font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-meta{font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.15rem}
+.site-builder-node--services-catalog-mode{align-self:flex-start;display:inline-flex;font-size:10.5px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:99px;background:var(--token-color-blush,color-mix(in srgb,var(--token-color-accent,var(--token-color-ink)) 12%,transparent));color:var(--token-color-accent,var(--token-color-ink))}
 .site-builder-node--services-catalog-badge{display:inline-flex;align-items:center;font-size:.65rem;font-weight:600;letter-spacing:.02em;padding:.15rem .45rem;border-radius:999px;border:1px solid var(--token-color-line);color:var(--token-color-ink);background:transparent}
 .site-builder-node--services-catalog-demo{margin:0 0 .85rem;padding:.55rem .75rem;border-radius:10px;background:color-mix(in srgb,var(--token-color-primary,var(--token-color-ink)) 8%,transparent);color:var(--token-color-ink);font-size:.75rem;font-weight:600}.site-builder-node--services-catalog-search{display:flex;gap:.5rem;align-items:center;margin:0 0 1rem}
 .site-builder-node--services-catalog-search input{flex:1;min-height:2.5rem;border:1px solid var(--token-color-line);border-radius:10px;padding:0 .85rem;font:inherit;background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink)}
@@ -5913,6 +5918,7 @@ function renderBuilderNodeElement(
                 showPrice={p.showPrice !== false}
                 showUsdEquivalent={p.showUsdEquivalent !== false}
                 showBadges={p.showBadges === true}
+                showModeChip={p.showModeChip === true}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
@@ -5944,6 +5950,7 @@ function renderBuilderNodeElement(
         offerings: options.dataSources?.talentOfferings,
         confirmsByHand: options.dataSources?.talentOfferingsConfirmsByHand ?? true,
         styleAttr: sharedNodeStyle(node.props.style),
+        locale: options.contentLocale?.locale,
       });
     }
     case "reviews": {
@@ -5952,6 +5959,7 @@ function renderBuilderNodeElement(
           node={node}
           reviews={options.dataSources?.talentReviews ?? []}
           styleAttr={sharedNodeStyle(node.props.style)}
+          locale={options.contentLocale?.locale}
         />
       );
     }

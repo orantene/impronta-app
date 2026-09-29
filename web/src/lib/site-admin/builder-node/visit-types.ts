@@ -3,7 +3,14 @@
  * Resolved server-side from service areas + languages (+ optional hours).
  * The renderer never queries and never invents facts.
  */
-export type TalentVisitFactIcon = "place" | "travel" | "languages" | "hours" | "remote";
+export type TalentVisitFactIcon =
+  | "place"
+  | "travel"
+  | "languages"
+  | "hours"
+  | "remote"
+  | "changes"
+  | "note";
 
 export type TalentVisitFact = {
   /** Short label (Where / Travels / Languages / Days). */
@@ -11,6 +18,8 @@ export type TalentVisitFact = {
   /** Human value; empty facts are dropped before render. */
   value: string;
   icon: TalentVisitFactIcon;
+  /** Optional small second line under the value. */
+  note?: string;
 };
 
 export type TalentVisitFacts = {

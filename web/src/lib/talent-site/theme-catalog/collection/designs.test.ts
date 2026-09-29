@@ -123,7 +123,7 @@ test("maison-v2 includes reviews block on shared slider and clears W-14 gap", ()
   walk(payload.homeTree);
   assert.equal(found.length, 1);
   assert.equal(found[0].layout, "trio");
-  assert.equal(found[0].title, "What clients say");
+  assert.equal(found[0].title, "What they {i}say{/i}");
   assert.ok(!COLLECTION_DESIGN_GAPS["maison-v2"]?.includes("W-14 bound reviews"));
 });
 
@@ -392,8 +392,8 @@ test("folio stamps shared rate_card services_catalog layout", () => {
   assert.equal(catalogs[0]!.showDuration, true);
 });
 
-/** Proposal CTA: one booking-mode primary beside a ghost Ask, in one row. */
-test("maison-v2 hero has one CTA row: primary booking + ghost Ask", () => {
+/** Proposal CTA: one booking-mode primary beside a ghost "See work", in one row. */
+test("maison-v2 hero has one CTA row: primary booking + ghost See work", () => {
   const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!;
   const hero = maison.buildPayload().homeTree[0]!;
   const buttons: Array<{ label?: string; tone?: string }> = [];
@@ -413,7 +413,24 @@ test("maison-v2 hero has one CTA row: primary booking + ghost Ask", () => {
     buttons.map((b) => [b.label, b.tone]),
     [
       ["Reserve a time", "primary"],
-      ["Ask", "secondary"],
+      ["See work", "secondary"],
     ],
   );
+});
+/** Builder map rows 3 + 4: serif ticker from the talent's services, staggered work strip. */
+test("maison-v2 has the serif ticker and the staggered recent-work strip", () => {
+  const payload = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2")!.buildPayload();
+  const gallery = payload.homeTree.find((n) => (n.props as { slotKey?: string }).slotKey === "gallery")!;
+  const ticker = (gallery as { children?: Array<{ kind: string; props: unknown }> }).children?.find((n) => n.kind === "marquee");
+  assert.ok(ticker, "ticker row");
+  const tp = ticker!.props as { variant?: string; separator?: string; items?: { text: string }[] };
+  assert.equal(tp.variant, "serif");
+  assert.equal(tp.separator, "star");
+  assert.ok(tp.items?.some((i) => i.text === "{{service1}}"));
+  assert.match(JSON.stringify(payload.homeTree), /"layout":"staggered"/);
+  // Header carries section links, the booking CTA and the trade line.
+  const header = payload.shellTree.find((n) => (n.props as { sectionTypeKey?: string }).sectionTypeKey === "site_header");
+  const sp = (header!.props as { sectionProps: Record<string, unknown> }).sectionProps;
+  assert.deepEqual((sp.primaryCta as { label: string }).label, "Reserve a time");
+  assert.equal((sp.brand as { tagline?: string }).tagline, "{{primaryTypeLabel}}");
 });
