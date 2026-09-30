@@ -29,6 +29,7 @@ import { loadOwnedSiteRev, loadSiteRev } from "@/lib/talent-site/history/history
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
+import { publishSiteChromeWithPage } from "@/lib/talent-site/server/publish-site-chrome-with-page";
 import { findDuplicatePublish, pageScopeHash } from "@/lib/talent-site/server/publish-idempotency";
 import type {
   TalentPageAdapterActions,
@@ -362,6 +363,12 @@ export async function publishTalentPageAction(
     if (!result.ok) return { ok: false as const, error: result.error };
     const page = result.pages[0];
     if (!page) return { ok: false as const, error: "Talent page publish failed." };
+    // F134: the shared shell + theme tokens go live with the page when their
+    // drafts differ (a theme update rewrites them too); the chip counts them.
+    if (!first.delegated) {
+      const chrome = await publishSiteChromeWithPage(sb, talentProfileId);
+      if (!chrome.ok) return { ok: false as const, error: chrome.error };
+    }
     const admin = createServiceRoleClient();
     const site = admin ? await loadSiteRev(admin, talentProfileId) : null;
     // The site publish already wrote the history entry when it ran.
