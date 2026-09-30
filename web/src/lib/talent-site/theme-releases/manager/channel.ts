@@ -16,6 +16,12 @@ export interface ChannelDeps {
   applyToDemos: () => Promise<{ ok: true; applied: number; warnings?: string[] } | { ok: false; error: string }>;
   fanOut: () => Promise<{ updates: number; bells: number }>;
   persist: (channel: ReleaseChannel) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * `default` only, BEFORE any other effect: move the catalog row to the
+   * release's version (from the snapshot) so new applies get it. A failure
+   * refuses the change and touches nothing else. Idempotent.
+   */
+  flipCatalog?: () => Promise<{ ok: true } | { ok: false; error: string }>;
   /** Phase 4: runs after `default` persisted. */
   autoImprove?: () => Promise<{ improved: number; failures: string[] }>;
 }
@@ -36,6 +42,10 @@ export async function executeChannelChange(
   if (!guard.ok) return guard;
   if (target === "optin" && release.rollout_pct <= 0) {
     return { ok: false, error: "Set a rollout % above 0 before opening to talents." };
+  }
+  if (target === "default" && deps.flipCatalog) {
+    const flipped = await deps.flipCatalog();
+    if (!flipped.ok) return flipped;
   }
   let demosApplied = 0;
   let updates = 0;
