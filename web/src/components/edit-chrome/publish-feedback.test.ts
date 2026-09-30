@@ -78,3 +78,23 @@ test("F95b: Valeria's real input shape (5 published nodes, page row) yields a lo
     assert.deepEqual(r.rows, []);
   }
 });
+
+test("F119: Spanish section count copy is spelled and pluralised correctly", () => {
+  const src = read("components/edit-chrome/publish-drawer.tsx");
+  assert.ok(!src.includes("secciónes"));
+  assert.ok(src.includes('"sección lista" : "secciones listas"'));
+});
+
+test("F119: the developer-sounding diff paragraphs are gone, replaced by one talent line in EN and ES", () => {
+  const src = read("components/edit-chrome/publish-drawer.tsx");
+  assert.ok(!src.includes("Publish diff shows zero changes"));
+  assert.ok(!src.includes("Diff shows no section changes"));
+  assert.equal((src.match(/t\("No changes since your last publish\."\)/g) ?? []).length, 2);
+  assert.equal(editorT("No changes since your last publish.", "en"), "No changes since your last publish.");
+  assert.equal(editorT("No changes since your last publish.", "es"), "No hay cambios desde tu última publicación.");
+});
+
+test("F119: no failure is announced while the snapshot load is pending", () => {
+  const src = read("components/edit-chrome/publish-drawer.tsx");
+  assert.match(src, /if \(publishedRowsLoading \|\| \(publishedRows === null && !publishedRowsFailed\)\) \{/);
+});
