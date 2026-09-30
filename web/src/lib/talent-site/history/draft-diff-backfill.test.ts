@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { diffDraftAgainstLive, sectionKey, sectionText } from "./draft-diff";
+import { diffDraftAgainstLive, sectionKey, sectionText, summarizeGoLive } from "./draft-diff";
 import { mapPageRevisions, mapSiteRevision } from "./backfill";
 
 const sec = (id: string, kind: string, props: Record<string, unknown>, children?: BuilderNode[]): BuilderNode =>
@@ -158,4 +158,77 @@ test("backfill: keeps only the newest windows per page", () => {
   }));
   const out = mapPageRevisions(rows, new Map(), { limitPerPage: 3 });
   assert.deepEqual(out.map((e) => e.sourceRef), ["talent_page_revisions:r7", "talent_page_revisions:r8", "talent_page_revisions:r9"]);
+});
+
+// ── F64: talent language in "What will go live" ──────────────────────────────
+
+test("F64: sections read by display name (EN + ES), never node kinds", () => {
+  const live = [sec("x", "split", { slotKey: "hero", title: "Old" })];
+  const draft = [
+    sec("x", "split", { slotKey: "hero", title: "New" }),
+    sec("y", "container", { slotKey: "services", originRole: "talent.services" }),
+    sec("z", "container", { slotKey: "reviews" }),
+  ];
+  const input = { shell: { draft: [], live: [] }, pages: [{ id: "p", title: "Home", draft, live }], tokens: { draft: {}, live: {} } };
+  const en = diffDraftAgainstLive(input, labels, "en").map((c) => c.label);
+  const es = diffDraftAgainstLive(input, labels, "es").map((c) => c.label);
+  assert.deepEqual(en, ["Hero", "Services", "Reviews"]);
+  assert.deepEqual(es, ["Portada", "Servicios", "Reseñas"]);
+  assert.ok(![...en, ...es].some((l) => /^(Section|Container|Split)$/.test(l)));
+});
+
+test("F64: an unnamed wrapper is looked through; nested containers are not listed", () => {
+  const wrapper = sec("w", "container", {}, [
+    sec("a", "split", { slotKey: "about" }),
+    sec("f", "container", { slotKey: "faq" }, [sec("n", "container", {})]),
+  ]);
+  const out = diffDraftAgainstLive(
+    { shell: { draft: [], live: [] }, pages: [{ id: "p", title: "Home", draft: [wrapper], live: [] }], tokens: { draft: {}, live: {} } },
+    labels,
+    "en",
+  );
+  assert.deepEqual(out.map((c) => c.label), ["About", "FAQ"]);
+});
+
+test("F64: inline markup never leaks into excerpts", () => {
+  assert.equal(sectionText(sec("a", "p", { title: "Recent {i}work{/i}" })), "Recent work");
+  assert.equal(sectionText(sec("a", "p", { title: "Services {i}and prices{/i}" })), "Services and prices");
+});
+
+test("F64: colour tokens read as names with swatches, fonts by family (EN + ES)", () => {
+  const input = {
+    shell: { draft: [], live: [] },
+    pages: [],
+    tokens: {
+      draft: { "color.accent": "#E3487E", "typography.heading-font-family": '"Bodoni Moda", Didot, serif' },
+      live: { "color.accent": "#111111", "typography.heading-font-family": '"Inter", sans-serif' },
+    },
+  };
+  const en = diffDraftAgainstLive(input, labels, "en");
+  const accent = en.find((c) => c.key === "color.accent")!;
+  assert.equal(accent.label, "Accent colour");
+  assert.equal(accent.after, null);
+  assert.equal(accent.afterSwatch, "#E3487E");
+  const font = en.find((c) => c.key.includes("font"))!;
+  assert.equal(font.label, "Heading font");
+  assert.equal(font.after, "Bodoni Moda");
+  assert.equal(font.before, "Inter");
+  const es = diffDraftAgainstLive(input, labels, "es");
+  assert.equal(es.find((c) => c.key === "color.accent")!.label, "Color de acento");
+  assert.ok(!JSON.stringify(en.map((c) => [c.label, c.before, c.after])).includes("#"));
+});
+
+test("F64: never published: first-publish summary, count agrees with the sheet", () => {
+  const input = {
+    shell: { draft: [sec("h", "section", { slotKey: "header" })], live: null },
+    pages: [{ id: "p", title: "Home", draft: [sec("a", "split", { slotKey: "hero" }), sec("b", "container", { slotKey: "faq" })], live: null }],
+    tokens: { draft: { "color.accent": "#E3487E" }, live: {} },
+  };
+  const first = summarizeGoLive(input, labels, "en", false);
+  assert.deepEqual(first.firstPublish, { pages: 1, sections: 3 });
+  assert.equal(first.unpublishedCount, 0);
+  assert.equal(first.changes.length, 0);
+  const later = summarizeGoLive(input, labels, "en", true);
+  assert.equal(later.firstPublish, null);
+  assert.equal(later.unpublishedCount, later.changes.length);
 });

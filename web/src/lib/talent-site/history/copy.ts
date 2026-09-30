@@ -137,6 +137,21 @@ export const CHROME_COPY = {
   applying: { en: "Applying a design. Publish waits until it finishes.", es: "Aplicando un diseño. Publicar espera a que termine." },
 } as const satisfies Record<string, Bilingual>;
 
+export const FIRST_PUBLISH_COPY = {
+  chip: { en: "Draft · not live yet", es: "Borrador · aún no publicado" },
+  title: {
+    en: "Your whole site goes live for the first time",
+    es: "Todo tu sitio se publica por primera vez",
+  },
+} as const satisfies Record<string, Bilingual>;
+
+export function firstPublishSummary(pages: number, sections: number): Bilingual {
+  return {
+    en: `${pages} page${pages === 1 ? "" : "s"} · ${sections} section${sections === 1 ? "" : "s"}, with your colours and fonts.`,
+    es: `${pages} página${pages === 1 ? "" : "s"} · ${sections} sección${sections === 1 ? "" : "es"}, con tus colores y fuentes.`,
+  };
+}
+
 export function unpublishedChangesLabel(n: number): Bilingual {
   return {
     en: `Draft · ${n} unpublished change${n === 1 ? "" : "s"}`,
