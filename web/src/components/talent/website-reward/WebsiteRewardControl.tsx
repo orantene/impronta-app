@@ -197,6 +197,18 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           </span>
           {chevron}
         </button>
+      ) : percent == null ? (
+        // F40: slices still loading. A neutral pill, never "0%".
+        <span
+          aria-busy="true"
+          data-website-reward-pending
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 ${placement === "services" ? "w-full" : ""}`}
+        >
+          <span aria-hidden className="min-w-0 flex-1 space-y-1.5 py-0.5">
+            <span className="block h-[10px] w-3/4 animate-pulse rounded-full bg-black/[0.07]" />
+            <span className="block h-[8px] w-1/2 animate-pulse rounded-full bg-black/[0.05]" />
+          </span>
+        </span>
       ) : (
         <button
           type="button"
