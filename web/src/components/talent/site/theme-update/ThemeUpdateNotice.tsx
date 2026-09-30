@@ -23,6 +23,7 @@ import {
   appliedToast,
   bannerTitle,
   bannerTitleAgain,
+  quietEntryTitle,
   updateLocale,
 } from "@/lib/talent-site/theme-releases/talent-update/copy";
 import {
@@ -143,8 +144,26 @@ export function ThemeUpdateNotice({
   const again = notice.state === "undone";
   const title = again ? bannerTitleAgain(notice.designTitle, locale) : bannerTitle(notice.designTitle, locale);
   const floating = surface === "builder";
+  const quiet = notice.state === "dismissed";
   return (
     <>
+      {quiet ? (
+        <section
+          aria-label={title}
+          data-theme-update-quiet={surface}
+          className={floating ? "hidden" : "mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-admin-border-soft bg-white px-4 py-2 font-admin-body"}
+        >
+          <span className="text-[13.5px] text-admin-ink-muted">{quietEntryTitle(notice.designTitle, locale)}</span>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-admin-ink underline"
+            data-theme-update-whats-new
+          >
+            {t("seeWhatsNew")}
+          </button>
+        </section>
+      ) : (
       <section
         aria-label={title}
         data-theme-update-notice={surface}
@@ -192,6 +211,7 @@ export function ThemeUpdateNotice({
           </button>
         </div>
       </section>
+      )}
       {open ? (
         <ThemeUpdateSheet
           notice={notice}

@@ -17,7 +17,7 @@ import { planFanOut } from "../manager/notify";
 import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 import { runAutoImprove } from "./auto-improve.server";
 import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
-import { GROUP_COPY, UPDATE_COPY, appliedToast, applyLabel, bannerTitle, keptLine } from "./copy";
+import { GROUP_COPY, UPDATE_COPY, appliedToast, quietEntryTitle, applyLabel, bannerTitle, keptLine } from "./copy";
 import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
 import {
   NOTICE_RELEASE_COLUMNS,
@@ -33,7 +33,7 @@ import {
   type TalentRelease,
   type UpdateDeps,
 } from "./talent-update.server";
-import { applyItemsOf, groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
+import { applyItemsOf, groupItems, isNoticeVisible, isQuietEntry, placeKeyAfter, summarizeReport } from "./view";
 
 const PROFILE = "11111111-1111-4111-8111-111111111111";
 const SITE = "22222222-2222-4222-8222-222222222222";
@@ -147,8 +147,8 @@ test("notice shows for available, previewed and undone (F83), not applied or dis
 });
 
 for (const state of ["available", "previewed", "applied", "dismissed", "undone"]) {
-  const open = state === "available" || state === "previewed" || state === "undone";
-  test(`notices: a row in state ${state} ${open ? "shows" : "stays quiet"}`, async () => {
+  const open = state === "available" || state === "previewed" || state === "undone" || state === "dismissed";
+  test(`notices: a row in state ${state} ${open ? "loads" : "stays out"}`, async () => {
     const db = world(state);
     const notices = await loadTalentUpdateNotices(db.admin, PROFILE);
     assert.equal(notices.length, open ? 1 : 0);
@@ -560,7 +560,32 @@ test("not now: available → dismissed, no draft write", async () => {
   assert.ok(res.ok);
   assert.equal(stateOf(db), "dismissed");
   assert.equal(draftWrites(db).length, 0);
-  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 0);
+  // F92: no banner, but the update stays reachable as a quiet entry.
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.equal(n!.state, "dismissed");
+  assert.equal(isNoticeVisible("dismissed"), false);
+  assert.equal(isQuietEntry("dismissed"), true);
+});
+
+test("F92: a dismissed update can still be previewed and applied", async () => {
+  const db = world("dismissed");
+  const prev = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(prev.ok);
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok);
+  assert.equal(stateOf(db), "applied");
+});
+
+test("F92: the notice shows a quiet entry and opens the sheet for dismissed rows (EN + ES)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (p: string) => readFileSync(`${process.cwd()}/src/${p}`, "utf8");
+  assert.equal(quietEntryTitle("Maison v2", "en"), "Maison v2 update available");
+  assert.equal(quietEntryTitle("Maison v2", "es"), "Maison v2: actualización disponible");
+  assert.equal(UPDATE_COPY.seeWhatsNew.es, "Ver novedades");
+  assert.ok(!quietEntryTitle("Maison v2", "es").includes("—"));
+  const src = read("components/talent/site/theme-update/ThemeUpdateNotice.tsx");
+  assert.match(src, /data-theme-update-quiet/);
+  assert.match(src, /themeUpdate"\) === "open"\) setOpen\(true\)/, "?themeUpdate=open opens the sheet whatever the state");
 });
 
 test("not now never overrides an applied update", async () => {

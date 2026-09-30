@@ -95,7 +95,7 @@ export interface UpdateDeps {
 
 export interface TalentUpdateNotice {
   updateId: string;
-  /** `available`, `previewed` or `undone` (F83: shown as "available again"). */
+  /** `available`, `previewed`, `undone` (F83: "available again") or `dismissed` (F92: quiet entry only). */
   state: SiteUpdateState;
   releaseId: string;
   designSlug: string;
@@ -139,7 +139,8 @@ export async function loadTalentUpdateNotices(
     .from("talent_site_theme_updates")
     .select("id, release_id, talent_site_id, state")
     .eq("talent_profile_id", talentProfileId)
-    .in("state", [...OPEN_UPDATE_STATES]);
+    // F92: dismissed rows load too, so a dismissed update stays reachable (quiet entry).
+    .in("state", [...OPEN_UPDATE_STATES, "dismissed"]);
   if (error) {
     logServerError("themeUpdate.notices", error);
     return [];

@@ -236,3 +236,8 @@ export function nextTokenOrigin(
 export function isEmptyMerge(report: Pick<DesignMergeReport, "applied" | "added" | "removed">): boolean {
   return report.applied.length === 0 && report.added.length === 0 && report.removed.length === 0;
 }
+
+/** F92: a dismissed update has no banner but keeps a quiet entry and can still be opened and applied. */
+export function isQuietEntry(state: SiteUpdateState | string | null | undefined): boolean {
+  return state === "dismissed";
+}
