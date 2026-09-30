@@ -5,6 +5,7 @@
  */
 
 export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
+  "First publish: your whole site goes live": "Primera publicación: todo tu sitio sale en vivo",
   "just now": "justo ahora",
   "{n}s ago": "hace {n} s",
   "{n}m ago": "hace {n} min",
