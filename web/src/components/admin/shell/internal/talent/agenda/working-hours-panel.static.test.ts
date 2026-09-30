@@ -43,7 +43,9 @@ test("New booking opens as the same drawer / bottom sheet from Today and Calenda
   assert.match(panel, /AgendaPanelFrame/);
   assert.match(panel, /embedded/);
   // Success only after the writer: toast and close live in onSaved / onOpenRecord.
-  assert.match(panel, /onSaved=\{\(\) => \{\s*toast\("Booking saved"\)/);
+  // F63: the toast (with View booking) comes first, then the panel closes and the agenda refreshes.
+  assert.match(panel, /onSaved=\{\(id\) => \{[^]*toast\(\s*copy\.t\("Booking saved"\)[^]*store\.close\(\);\s*router\.refresh\(\)/);
+  assert.match(panel, /copy\.t\("View booking"\)/);
   assert.match(read("talent/agenda/AgendaNewBooking.tsx"), /embedded \? "grid gap-4"/);
 });
 

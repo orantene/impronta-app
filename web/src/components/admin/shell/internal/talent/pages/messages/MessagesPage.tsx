@@ -13,6 +13,7 @@ import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
 
 import { TalentMessagesShellLazy, useKeyboardInset } from "../../shared/client-threads-1";
 import { MessagesFirstRun } from "./MessagesFirstRun";
+import { openSendQuotePanel } from "../../agenda/SendQuotePanel";
 import { TalentDecisionBar } from "./TalentDecisionBar";
 import {
   TalentSellerActions,
@@ -99,7 +100,15 @@ function TalentMessagesV5() {
         onDispatchReady={onDispatchReady}
         seller={seller}
         composerAccessory={
-          <div className="flex justify-start px-3 pb-1 pt-2" data-talent-seller-actions>
+          <div className="flex items-center justify-start gap-2 px-3 pb-1 pt-2" data-talent-seller-actions>
+            <button
+              type="button"
+              onClick={openSendQuotePanel}
+              data-send-quote-open
+              className="min-h-[44px] rounded-full border border-admin-border-soft bg-white px-4 text-[13px] font-semibold text-admin-ink"
+            >
+              {copy.t("Send quote")}
+            </button>
             <TalentSellerActions
               hasThread={Boolean(activeId)}
               onPick={(id) => {
