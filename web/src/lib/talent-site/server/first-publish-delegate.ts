@@ -22,7 +22,7 @@ export type FirstPublishDelegation =
 export async function delegateFirstPublish(
   sb: SupabaseClient,
   talentProfileId: string,
-  deps: { publishSite?: typeof publishMaxSiteAction } = {},
+  deps: { publishSite?: typeof publishMaxSiteAction; contentHash?: string | null } = {},
 ): Promise<FirstPublishDelegation> {
   const { data, error } = await sb
     .from("talent_sites")
@@ -32,7 +32,7 @@ export async function delegateFirstPublish(
   if (error) return { ok: false, error: error.message };
   const row = data as { site_published_at: string | null } | null;
   if (!row || row.site_published_at) return { ok: true, delegated: false };
-  const res = await (deps.publishSite ?? publishMaxSiteAction)();
+  const res = await (deps.publishSite ?? publishMaxSiteAction)({ contentHash: deps.contentHash ?? null });
   if (!res.ok) return { ok: false, error: res.error };
   return { ok: true, delegated: true };
 }

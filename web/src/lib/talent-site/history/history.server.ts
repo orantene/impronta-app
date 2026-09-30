@@ -408,7 +408,11 @@ export async function applyThemeUpdateToDraft(
 }
 
 /** A publish lands in the site history (best-effort; never fails the publish). */
-export async function recordSitePublish(siteId: string, createdBy: string | null): Promise<void> {
+export async function recordSitePublish(
+  siteId: string,
+  createdBy: string | null,
+  contentHash?: string | null,
+): Promise<void> {
   const admin = createServiceRoleClient();
   if (!admin) return;
   const summary = summaryFor("publish");
@@ -418,6 +422,7 @@ export async function recordSitePublish(siteId: string, createdBy: string | null
     summaryEs: summary.es,
     source: "published",
     createdBy,
+    ...(contentHash ? { report: { contentHash } } : {}),
   });
 }
 
