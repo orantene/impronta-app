@@ -15,6 +15,7 @@ import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { bookingIdFromTalentPath } from "./state/talent-page-segment";
 import { WorkingHoursPanelHost, openWorkingHoursPanel } from "./talent/agenda/WorkingHoursPanel";
+import { NewBookingPanelHost, openNewBookingPanel } from "./talent/agenda/NewBookingPanel";
 
 // ── Page bodies load ON DEMAND (perf/talent-dev-bundle) ──
 // Every talent page body used to be a static import here, so /talent/today
@@ -375,7 +376,7 @@ function TalentRouter() {
             loadError={bridgeTalentAgendaError}
             tradeRules={tradeRules}
             onOpenToday={() => setTalentPage("today")}
-            onNewBooking={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
+            onNewBooking={openNewBookingPanel}
             onOpenAvailability={openWorkingHoursPanel}
             onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
             onOpenMessages={() => setTalentPage("messages")}
@@ -519,6 +520,10 @@ function TalentRouter() {
       <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
       <WorkingHoursPanelHost />
+      <NewBookingPanelHost
+        onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
+        onFallback={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
+      />
     </div>
   );
 }
