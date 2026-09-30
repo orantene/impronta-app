@@ -24,11 +24,12 @@ export async function delegateFirstPublish(
   talentProfileId: string,
   deps: { publishSite?: typeof publishMaxSiteAction } = {},
 ): Promise<FirstPublishDelegation> {
-  const { data } = await sb
+  const { data, error } = await sb
     .from("talent_sites")
     .select("site_published_at")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
+  if (error) return { ok: false, error: error.message };
   const row = data as { site_published_at: string | null } | null;
   if (!row || row.site_published_at) return { ok: true, delegated: false };
   const res = await (deps.publishSite ?? publishMaxSiteAction)();
