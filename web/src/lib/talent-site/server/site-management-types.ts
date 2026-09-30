@@ -89,4 +89,8 @@ export type TalentSiteActivationState = {
   isPublished: boolean;
   /** Provisioned slug when hasSite; null otherwise (Today suggests from name). */
   siteSlug: string | null;
+  /** Applied design; set = the talent applied a design ("preview" in website-flow). */
+  themeDesignSlug: string | null;
+  /** Applied look; null = the design's own colours (never name a palette then). */
+  themeLookSlug: string | null;
 };
