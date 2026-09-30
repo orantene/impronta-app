@@ -1373,13 +1373,21 @@ export interface BuilderReviewsNode extends BuilderNodeBase {
 
 /**
  * Visit — live service-area / language / booking-hours facts.
- * Layouts: facts (list) · split (optional map beside facts).
+ * Layouts: facts (list) · split (optional map beside facts) · location (the
+ * Ubicación section: kind, zone, rows, actions and a token-coloured zone map
+ * placeholder, driven by the talent's address-visibility setting).
  * Hidden when there are no real facts; never invents visit details.
  */
 export interface BuilderVisitNode extends BuilderNodeBase {
   kind: "visit";
   props: {
-    layout?: "facts" | "split";
+    layout?: "facts" | "split" | "location";
+    /** location layout: which side the map sits on (desktop). */
+    mapSide?: "left" | "right";
+    /** location layout: map height (sm 16/8, md 16/10, lg 4/3). */
+    mapSize?: "sm" | "md" | "lg";
+    /** location layout: show the "Ver mapa" button (inert until map consent ships). */
+    showMapButton?: boolean;
     eyebrow?: string;
     title?: string;
     /** Italic accent word inside the title (e.g. "visit" in "Your visit"). */

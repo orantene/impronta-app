@@ -21,6 +21,7 @@ import {
   contactBlock,
   faqBlock,
   galleryBlock,
+  locationBlock,
   portfolioBlock,
   portfolioChaptersBlock,
   reviewsBlock,
@@ -58,6 +59,7 @@ const SECTIONS: Array<[string, BuilderNode]> = [
   ],
   ["beforeAfterBlock", beforeAfterBlock(ids())],
   ["aftercareBlock", aftercareBlock(ids())],
+  ["locationBlock", locationBlock(ids())],
   ["heroCentered", heroCentered(ids())],
   ["heroCentered accent", heroCentered(ids(), { accent: true })],
   ["heroCover", heroCover(ids())],
@@ -236,4 +238,17 @@ test("aftercareBlock: every visible text has an ES overlay and no dash in the co
     assert.doesNotMatch(`${t.text} ${t.es}`, /[\u2013\u2014]/, "no en or em dash in user-facing copy");
   }
   assert.equal(TALENT_KIT_SECTIONS.aftercare.originRole, "talent.aftercare");
+});
+
+test("locationBlock: the shared visit widget in its location layout, no data baked in", () => {
+  const section = locationBlock(ids());
+  const visit = [...walk([section])].find((n) => n.kind === "visit")!;
+  const props = visit.props as { layout?: string; title?: string; mapSide?: string; showMapButton?: boolean };
+  assert.equal(props.layout, "location");
+  assert.equal(props.title, "", "the heading is derived from the studio kind, not authored");
+  assert.equal(props.showMapButton, true);
+  assert.equal(TALENT_KIT_SECTIONS.location.originRole, "talent.location");
+  const json = JSON.stringify(section);
+  assert.doesNotMatch(json, /Mérida|Calle|exactAddress|exact_address/);
+  assert.doesNotMatch(json, /[–—]/);
 });

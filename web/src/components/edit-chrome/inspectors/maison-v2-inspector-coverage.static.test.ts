@@ -143,3 +143,43 @@ test("guard: every option release 2.5 adds or changes on these widgets is reacha
   }
   assert.ok(checked >= 4, "the guard saw the 2.5 options (cardStyle, rowStyle, href, layout)");
 });
+
+// ── Location section (visit layout "location"): all four layers ───────────
+
+const libAt = (f: string) => readFileSync(resolve(THIS_DIR, "../../../lib", f), "utf8");
+
+test("location layout: types, validation, renderer, inspector and add gallery are all wired", () => {
+  // 1. types + validation
+  assert.ok(libAt("site-admin/builder-node/types.ts").includes('layout?: "facts" | "split" | "location"'));
+  const registry = libAt("site-admin/builder-node/registry.ts");
+  assert.ok(registry.includes('layout: z.enum(["facts", "split", "location"])'));
+  for (const k of ["mapSide:", "mapSize:", "showMapButton:"]) assert.ok(registry.includes(k), `schema ${k}`);
+  // 2. renderer
+  assert.ok(libAt("site-admin/builder-node/visit-block.tsx").includes('layout === "location"'));
+  assert.ok(libAt("site-admin/builder-node/render.tsx").includes("location: options.dataSources?.talentLocation"));
+  // 3. inspector: the layout button and every control the renderer reads
+  const inspector = read("visit-inspector.tsx");
+  assert.ok(inspector.includes('location: "Location"'), "layout button");
+  for (const v of ["mapSide: id", "mapSize: id", "showMapButton: e.target.checked"]) {
+    assert.ok(inspector.includes(v), `inspector ${v}`);
+  }
+  // 4. add gallery: a card that starts in the location layout
+  const gallery = libAt("site-admin/add-gallery/registry-catalog-sections-connected.ts");
+  assert.ok(gallery.includes('id: "conn-location-native"'));
+  assert.ok(gallery.includes("defaultProps: { ...LOCATION_DEFAULT_PROPS }"));
+});
+
+test("location layout: every inspector string has a Spanish row", () => {
+  const es = read("../editor-i18n-es-inspectors-3.ts");
+  for (const s of [
+    '"Area map"',
+    '"Map on the left"',
+    '"Map on the right"',
+    '"Small map"',
+    '"Medium map"',
+    '"Large map"',
+    '"Show the View map button"',
+  ]) {
+    assert.ok(es.includes(s), `ES row for ${s}`);
+  }
+});

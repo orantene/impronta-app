@@ -141,7 +141,7 @@ export function revertR19(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** v20 back to v19: the 2.6 "chrome" header switcher (the help bubble default is code, gated on the pinned version). */
+/** v20 back to v19: the 2.6 "chrome" header switcher and the optional Location block (the help bubble default is code, gated on the pinned version). */
 export function revertR20(p: DesignPayload): DesignPayload {
   const out = clonePayload(p);
   walkNodes(out.shellTree, (n) => {
@@ -150,6 +150,7 @@ export function revertR20(p: DesignPayload): DesignPayload {
       sp.regions.center = sp.regions.center.filter((i) => i.type !== "section_switcher");
     }
   });
+  out.homeTree = out.homeTree.filter((n) => propsOf(n).slotKey !== "location");
   return out;
 }
 

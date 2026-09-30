@@ -36,6 +36,7 @@ import {
   beforeAfterBlock,
   faqBlock,
   heroSplit,
+  locationBlock,
   portfolioBlock,
   reviewsBlock,
   visitBlock,
@@ -697,6 +698,8 @@ export function buildMaisonV2Payload(): DesignPayload {
           band: false,
         }),
       ),
+      // Release 2.5 (optional block): Location, driven by the talent's address setting.
+      padSection(locationBlock(id, { band: false })),
       maisonV2Faq(id),
     ],
   };

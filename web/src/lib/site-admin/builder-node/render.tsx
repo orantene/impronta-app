@@ -318,6 +318,8 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /** Public-safe location (exact address present only in "public" mode). */
+  talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
    * Comp card — public profile field rows for the measure strip.
    * Resolved by the SERVER caller; the renderer never invents measures.
@@ -6033,6 +6035,8 @@ function renderBuilderNodeElement(
       return renderVisitBlock({
         node,
         facts: options.dataSources?.talentVisitFacts ?? [],
+        location: options.dataSources?.talentLocation,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

@@ -1153,7 +1153,10 @@ export const reviewsPropsSchema = z.object({
 
 /** Visit facts — live service areas / languages / hours. */
 export const visitPropsSchema = z.object({
-  layout: z.enum(["facts", "split"]).optional(),
+  layout: z.enum(["facts", "split", "location"]).optional(),
+  mapSide: z.enum(["left", "right"]).optional(),
+  mapSize: z.enum(["sm", "md", "lg"]).optional(),
+  showMapButton: z.boolean().optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
   titleAccent: z.string().max(80).optional(),

@@ -13,6 +13,7 @@ import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 
 import { logAction } from "./action-log";
 import { appointmentConfirmedBody } from "./appointment-confirmed";
+import { loadConfirmationAddress } from "./confirmation-address";
 import { insertMessage } from "./insert-message";
 import {
   buildConfirmPlan,
@@ -473,7 +474,9 @@ async function confirmFromOffer(c: Clients, deps: ConfirmDeps, input: ConfirmInp
 
   return finish(c, deps, input, plan, "project", bookingId, gate.overrode, {
     kind: "appointment_confirmation",
-    body: appointmentConfirmedBody(null),
+    // Only the talent's "exact address after booking" setting releases her
+    // private address, and only when this appointment has a single talent.
+    body: appointmentConfirmedBody(await loadConfirmationAddress(c.admin, lines.map((l) => l.talentProfileId))),
     payload: {
       bookingId,
       offerId: offer.id,

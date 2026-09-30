@@ -285,8 +285,8 @@ export const MAISON_V2_RELEASE_2_6 = {
   design: "maison-v2",
   toVersion: 20,
   notes: {
-    en: "Maison v2 2.6: on phones, a section switcher in the header; a small help bubble above the chat button; and a richer chat that keeps your booking one tap away.",
-    es: "Maison v2 2.6: en teléfonos, un selector de secciones en el encabezado; una burbuja de ayuda sobre el botón del chat; y un chat más completo que mantiene tu reserva a un toque.",
+    en: "Maison v2 2.6: on phones, a section switcher in the header; a small help bubble above the chat button; a richer chat that keeps your booking one tap away; and a new optional Location section (your address stays private unless you choose to show it).",
+    es: "Maison v2 2.6: en teléfonos, un selector de secciones en el encabezado; una burbuja de ayuda sobre el botón del chat; un chat más completo que mantiene tu reserva a un toque; y una nueva sección opcional de Ubicación (tu dirección sigue privada a menos que elijas mostrarla).",
   } satisfies ReleaseNote,
   codeNotes: [
     {
@@ -306,6 +306,10 @@ export const MAISON_V2_RELEASE_2_6 = {
     "variant-default:shell:header": {
       en: "On phones, your header shows the current section with a menu of every section (only if you have not edited your header).",
       es: "En teléfonos, tu encabezado muestra la sección actual con un menú de todas las secciones (solo si no editaste tu encabezado).",
+    },
+    "new-block:home:location": {
+      en: "New optional block: Location. It shows your zone, hours and how to arrive, and follows the address setting in Services, Defaults (zone only, exact address after booking, or public).",
+      es: "Nuevo bloque opcional: Ubicación. Muestra tu zona, tu horario y cómo llegar, y sigue el ajuste de dirección en Servicios, Valores predeterminados (solo la zona, dirección exacta al reservar, o pública).",
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;

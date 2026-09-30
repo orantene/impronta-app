@@ -1,5 +1,6 @@
 import type { AddGalleryItem } from "./types";
 import { connected, section } from "./registry-helpers";
+import { LOCATION_DEFAULT_PROPS } from "../builder-node/visit-defaults";
 
 export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Sections / Hero ─────────────────────────────────────────────────────
@@ -561,6 +562,22 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
       "where",
       "travels",
     ],
+  }),
+  connected({
+    id: "conn-location-native",
+    label: "Location",
+    description:
+      "Where to find you: studio kind, your zone, how to arrive, and a map area drawn from your city. Follows your address setting. Hidden when empty.",
+    category: "dynamic",
+    icon: "about",
+    insertMethod: "nativeNode",
+    nativeKind: "visit",
+    // Same node kind as `conn-visit-native` (listed first, so it stays the
+    // canonical card for `visit`); this card starts in the location layout.
+    defaultProps: { ...LOCATION_DEFAULT_PROPS },
+    sourceType: "native-freeform",
+    connectedSource: "Your profile",
+    searchTerms: ["location", "ubicacion", "address", "map", "where", "studio", "directions", "find me"],
   }),
   connected({
     id: "conn-comp-card-native",

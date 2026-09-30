@@ -107,7 +107,11 @@ function isEmptyBoundBlock(n: BuilderNode, ds: BuilderNodeRenderDataSources): bo
     const authored = (n as AnyNode).children ?? [];
     return (ds.talentFaqItems ?? []).length === 0 && authored.length === 0;
   }
-  if (n.kind === "visit") return (ds.talentVisitFacts ?? []).length === 0;
+  if (n.kind === "visit") {
+    // The location layout is driven by the location settings, not the facts.
+    if (p.layout === "location") return !ds.talentLocation;
+    return (ds.talentVisitFacts ?? []).length === 0;
+  }
   if (n.kind === "reviews") return (ds.talentReviews ?? []).length === 0;
   return false;
 }
