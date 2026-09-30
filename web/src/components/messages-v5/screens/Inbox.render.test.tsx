@@ -133,6 +133,7 @@ const SELLER = {
   firstRunTitle: "No messages yet",
   firstRunBody: "Share your link.",
   firstRunAction: <span data-share-link>link</span>,
+  totalConversations: 0,
 };
 
 test("F35/F37: seller with zero conversations gets a first run and no filters", () => {
@@ -154,4 +155,19 @@ test("F35: seller with conversations keeps segments, without team chips", () => 
   assert.doesNotMatch(html, /data-inbox-first-run/);
   assert.doesNotMatch(html, />Mine</);
   assert.doesNotMatch(html, />Unassigned</);
+});
+
+test("F54: an empty Needs action segment is not a first run when she has conversations", () => {
+  const html = renderToStaticMarkup(
+    <Inbox {...baseProps({ rows: [], filter: "needs", seller: true, sellerChrome: { ...SELLER, totalConversations: 1 } })} />,
+  );
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+  assert.match(html, /role="tablist"/);
+});
+
+test("F54: total still unknown shows no first run", () => {
+  const html = renderToStaticMarkup(
+    <Inbox {...baseProps({ rows: [], seller: true, sellerChrome: { ...SELLER, totalConversations: null } })} />,
+  );
+  assert.doesNotMatch(html, /data-inbox-first-run/);
 });

@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { inquiryIsHers, talentIdsOnInquiry } from "@/lib/messaging/talent-pov";
+
 import { talentSelfInquiryAllowed } from "./talent-self-inquiry";
 
 const HUB = "hub-tenant";
@@ -40,4 +42,20 @@ test("talent startConversation goes through the funnel, not a direct insert", ()
   assert.match(start, /talent_self: true/);
   assert.doesNotMatch(start, /"inquiries"\)\s*\.insert/);
   assert.doesNotMatch(start, /inquiry_requirement_groups/);
+});
+
+test("F54: a talent_self inquiry is listed in her inbox (seat and named lineup both count)", () => {
+  // Shape of a64db5b5 as the funnel wrote it.
+  const sourceContext = { channel: "counter", started_by: "talent", talent_ids: [ME] };
+  const interpreted = { talent: { selected_ids: [ME] } };
+  const named = talentIdsOnInquiry(sourceContext, interpreted);
+  assert.deepEqual(named, [ME]);
+  assert.equal(inquiryIsHers({ profileId: ME, participant: true, talentIds: named }), true);
+  assert.equal(inquiryIsHers({ profileId: ME, participant: false, talentIds: named }), true);
+  assert.equal(inquiryIsHers({ profileId: "talent-other", participant: false, talentIds: named }), false);
+});
+
+test("F54: after Start the shell opens the thread and lists it under All", () => {
+  const shell = readFileSync(join(dir, "..", "..", "components", "messages-v5", "shell", "MessagesV5Shell.tsx"), "utf8");
+  assert.match(shell, /openThread\(r\.inquiryId\);[^\n]*\n\s*if \(segment === "all"\) await reloadInbox\(\); else setSegment\("all"\);/);
 });

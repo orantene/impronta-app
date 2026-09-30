@@ -26,6 +26,8 @@ export type SellerChrome = {
   readonly firstRunTitle?: string;
   readonly firstRunBody?: string;
   readonly firstRunAction?: ReactNode;
+  /** Every conversation she has, across segments; null while unknown. First run needs 0 (F54). */
+  readonly totalConversations?: number | null;
 };
 
 /** Thread menu entries a talent can actually run (the rest refuse on her engine). */
