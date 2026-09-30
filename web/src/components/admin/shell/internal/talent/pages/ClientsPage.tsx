@@ -9,6 +9,7 @@ import {
   clientsRowAction,
   countClientsByFilter,
   filterClientsDirectory,
+  hasRepeatServices,
   type ClientsFilter,
   type ClientsRowAction,
 } from "@/lib/talent/clients-directory";
@@ -21,7 +22,7 @@ const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "upcoming", label: "Upcoming" },
   { id: "outstanding", label: "Outstanding" },
-  { id: "follow", label: "Follow-up" },
+  { id: "follow", label: "Due for a refill" },
   { id: "fresh", label: "New" },
 ];
 
@@ -132,6 +133,7 @@ function FilterChips(props: {
   counts: Record<ClientsFilter, number>;
   onChange: (f: ClientsFilter) => void;
   t: (s: string) => string;
+  showRefill: boolean;
 }) {
   return (
     <div
@@ -140,7 +142,7 @@ function FilterChips(props: {
       className="flex gap-2 overflow-x-auto pb-1"
       data-clients-filters
     >
-      {FILTERS.map((f) => {
+      {FILTERS.filter((f) => f.id !== "follow" || props.showRefill).map((f) => {
         const selected = props.filter === f.id;
         return (
           <button
@@ -438,10 +440,17 @@ export function TalentClientsPage() {
   }
 
   const total = items?.length ?? 0;
-  const subtitle =
+  const showRefill = hasRepeatServices(items ?? []);
+  const baseSubtitle =
     items == null
       ? t("People who booked or messaged you")
       : `${total} ${t(total === 1 ? "person you have worked with or talked to" : "people you have worked with or talked to")}`;
+  const subtitle =
+    items != null && showRefill
+      ? t("{people} · {due} due for a refill")
+          .replace("{people}", `${total} ${t(total === 1 ? "person" : "people")}`)
+          .replace("{due}", String(counts.follow))
+      : baseSubtitle;
 
   return (
     <div data-clients-directory>
@@ -457,7 +466,7 @@ export function TalentClientsPage() {
               router.push("/talent/bookings/new");
             }}
           >
-            {t("Add client")}
+            {t("Add a client")}
           </button>
         }
       />
@@ -490,12 +499,12 @@ export function TalentClientsPage() {
             />
           </label>
 
-          <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} />
+          <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} showRefill={showRefill} />
 
           <p className="px-0.5 font-admin-body text-[13.5px] text-admin-ink-muted">
             {visible.length} {t("of")} {total} {t("clients")}
             {filter === "follow"
-              ? ` · ${t("Follow-up suggestions need a rebooking interval on each service. None are ready yet.")}`
+              ? ` · ${t("Based on how often each client repeats a service.")}`
               : ""}
           </p>
 

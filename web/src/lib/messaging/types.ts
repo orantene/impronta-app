@@ -137,6 +137,8 @@ export type InboxRow = {
   updatedAt: string;
   version: number;
   recordChips: readonly RecordChip[];
+  /** Talent inbox only: the thread belongs to an agency, not to her own site. */
+  agency?: boolean;
 };
 
 /**

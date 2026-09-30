@@ -3,7 +3,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,25 +38,17 @@ describe("Money page M2 spine", () => {
     assert.match(outstanding, /onRecord/);
   });
 
-  it("AUD-018 wires Request / Record / Refund / Correct sheets", () => {
+  it("AUD-018 routes Request / Record to the booking writer; no fake-success sheets", () => {
     const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
     const detail = readFileSync(join(moneyDir, "PaymentDetailDrawer.tsx"), "utf8");
-    const request = readFileSync(join(moneyDir, "MoneyRequestPaymentSheet.tsx"), "utf8");
-    const refund = readFileSync(join(moneyDir, "MoneyRefundSheet.tsx"), "utf8");
-    const correct = readFileSync(join(moneyDir, "MoneyCorrectRecordSheet.tsx"), "utf8");
-    assert.match(page, /MoneyRequestPaymentSheet/);
-    // Record payment routes to the booking record's real writer (no fake sheet).
-    assert.doesNotMatch(page, /MoneyRecordPaymentSheet/);
+    // Record and request route to the booking record's real writer.
     assert.match(page, /\/talent\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\?collect=1/);
-    assert.match(page, /MoneyRefundSheet/);
-    assert.match(page, /MoneyCorrectRecordSheet/);
-    assert.match(detail, /onRefund/);
-    assert.match(detail, /onCorrect/);
-    assert.match(request, /mc_req_pick/);
-    assert.match(request, /mc_req_amount/);
-    assert.match(request, /mc_req_created/);
-    assert.match(refund, /mc_refund/);
-    assert.match(correct, /mc_cash_correct/);
+    // Refund / correct / request sheets showed success with no write: they are gone.
+    for (const f of ["MoneyRequestPaymentSheet", "MoneyRefundSheet", "MoneyCorrectRecordSheet", "MoneyRecordPaymentSheet"]) {
+      assert.equal(existsSync(join(moneyDir, `${f}.tsx`)), false, f);
+      assert.doesNotMatch(page, new RegExp(f));
+    }
+    assert.doesNotMatch(detail, /onRefund|onCorrect/);
   });
 
   it("MoneySpine M4 wires payout detail, failed alternate, and account states", () => {

@@ -14,6 +14,7 @@ import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
 import { Icon } from "../../primitives";
 import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
+import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { PageHeader } from "../shared/page-chrome-1";
 
 const TAG_TONE: Record<"ok" | "warn" | "risk", string> = {
@@ -127,7 +128,7 @@ export function SettingsPage() {
       key: "hours",
       label: tx("Working hours and days off"),
       sub: tx("Hours, breaks, time between appointments, how far ahead and how late clients can book."),
-      onOpen: () => setTalentPage("calendar-availability"),
+      onOpen: openWorkingHoursPanel,
     },
   ];
 

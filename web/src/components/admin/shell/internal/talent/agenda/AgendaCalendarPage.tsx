@@ -360,7 +360,7 @@ export function AgendaCalendarPage({
   return (
     <div style={TALENT_AGENDA_VARS} className="space-y-4">
       <PageHeader
-        title={copy.t("Calendar")}
+        title={copy.t("Bookings")}
         subtitle={phone ? undefined : subtitle}
         actions={
           phone ? (
@@ -385,6 +385,10 @@ export function AgendaCalendarPage({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton onClick={() => setView(view === "list" ? "week" : "list")}>{copy.t("List")}</SecondaryButton>
+              {onOpenAvailability ? (
+                <SecondaryButton onClick={onOpenAvailability}>{copy.t("Working hours")}</SecondaryButton>
+              ) : null}
               <SecondaryButton onClick={() => openBlock(selected)}>{copy.t("Block time")}</SecondaryButton>
               {onNewBooking ? <PrimaryButton onClick={onNewBooking}>{copy.t("New booking")}</PrimaryButton> : null}
             </div>
@@ -494,9 +498,6 @@ export function AgendaCalendarPage({
                 { id: "month", label: copy.t("Month") },
               ]}
             />
-          ) : null}
-          {onOpenAvailability ? (
-            <SecondaryButton onClick={onOpenAvailability}>{copy.t("Availability")}</SecondaryButton>
           ) : null}
           <SecondaryButton onClick={() => setOverlay("sync")}>
             <span aria-hidden>⟳</span> {copy.t("Calendar sync")}

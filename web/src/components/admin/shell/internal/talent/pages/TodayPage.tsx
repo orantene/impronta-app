@@ -24,6 +24,7 @@ import { WebsiteTodayHero } from "@/components/talent/website-reward/WebsiteToda
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
+import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { type MoneyLanding } from "@/lib/money/today-money-tiles";
@@ -145,7 +146,7 @@ export function TalentTodayPage() {
         onOpenAttention={() => setTalentPage("attention")}
         onOpenCalendar={() => setTalentPage("calendar")}
         onNewBooking={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
-        onOpenAvailability={() => setTalentPage("calendar-availability")}
+        onOpenAvailability={openWorkingHoursPanel}
         onOpenServices={() => setTalentPage("services")}
         onOpenSite={() => setTalentPage("public-page")}
         onOpenProfile={() => setTalentPage("profile")}

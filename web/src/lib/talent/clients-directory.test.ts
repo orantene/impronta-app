@@ -7,6 +7,8 @@ import {
   clientsRowAction,
   countClientsByFilter,
   filterClientsDirectory,
+  hasRepeatServices,
+  isDueForRefill,
   isNewClient,
   isUpcomingClient,
   mapBookingStatusToNext,
@@ -79,6 +81,50 @@ describe("clients-directory", () => {
     assert.equal(counts.outstanding, 1);
     assert.equal(counts.follow, 0);
     assert.equal(counts.fresh, 2); // Cora + Dani (done === 0; request still counts as New)
+  });
+
+  it("due for a refill: a repeat service whose last visit is older than its cycle", () => {
+    const now = "2026-09-28T12:00:00.000Z";
+    const visit = (id: string, startsAt: string, title: string | null) => ({
+      bookingId: id,
+      startsAt,
+      amountCents: null,
+      currency: null,
+      paymentStatus: null,
+      past: true,
+      href: "/talent/bookings/" + id,
+      state: "completed" as const,
+      title,
+    });
+    const due = row({
+      id: "due",
+      name: "Regina",
+      completedCount: 3,
+      history: [
+        visit("3", "2026-08-01T10:00:00.000Z", "Volumen ruso"),
+        visit("2", "2026-07-01T10:00:00.000Z", "Volumen ruso"),
+        visit("1", "2026-06-01T10:00:00.000Z", "Volumen ruso"),
+      ],
+    });
+    const fresh = row({
+      id: "fresh",
+      name: "Valeria",
+      completedCount: 3,
+      history: [
+        visit("6", "2026-09-20T10:00:00.000Z", "Gel"),
+        visit("5", "2026-09-05T10:00:00.000Z", "Gel"),
+        visit("4", "2026-08-20T10:00:00.000Z", "Gel"),
+      ],
+    });
+    const once = row({ id: "once", name: "Sofia", completedCount: 1, history: [visit("7", "2026-01-01T10:00:00.000Z", "Gel")] });
+    const booked = row({ ...due, id: "booked", name: "Camila", nextStartsAt: "2026-10-02T10:00:00.000Z" });
+    assert.equal(isDueForRefill(due, now), true);
+    assert.equal(isDueForRefill(fresh, now), false);
+    assert.equal(isDueForRefill(once, now), false);
+    assert.equal(isDueForRefill(booked, now), false);
+    assert.equal(hasRepeatServices([once]), false);
+    assert.equal(hasRepeatServices([once, due]), true);
+    assert.equal(countClientsByFilter([once, due, fresh, booked], now).follow, 1);
   });
 
   it("searches name phone email", () => {
