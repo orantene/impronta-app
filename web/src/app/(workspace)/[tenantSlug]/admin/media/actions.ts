@@ -1405,25 +1405,16 @@ export async function actionLoadTalentGallery(
 export async function actionLoadTalentMediaBundle(
   talentProfileId: string,
 ): Promise<ActionResult<TalentMediaBundle>> {
-  // Staff of the tenant that rosters this talent, OR the talent who OWNS the
-  // profile (uploads already accept both; this loader only accepted staff, so
-  // a talent's own drawer hydrated an empty gallery: "Main 0 photos" and an
-  // "Add photos" panel that only showed this session's uploads).
+  // Staff of the rostering tenant OR the owning talent (uploads accept both).
   const staff = await requireWorkspaceStaffAction();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
   if (staff.ok) {
-    const { data: rosterRow } = await admin
-      .from("agency_talent_roster")
-      .select("id")
-      .eq("tenant_id", staff.tenantId)
-      .eq("talent_profile_id", talentProfileId)
-      .neq("status", "removed")
-      .maybeSingle();
+    const { data: rosterRow } = await admin.from("agency_talent_roster").select("id")
+      .eq("tenant_id", staff.tenantId).eq("talent_profile_id", talentProfileId).neq("status", "removed").maybeSingle();
     if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
-  } else {
-    const self = await requireTalentSelfAction(talentProfileId);
-    if (!self.ok) return { ok: false, error: staff.error };
+  } else if (!(await requireTalentSelfAction(talentProfileId)).ok) {
+    return { ok: false, error: staff.error };
   }
 
   const { data, error } = await admin
