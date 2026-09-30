@@ -15,6 +15,7 @@ import {
   type FieldValue,
 } from "../field-kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, InspectorOverrideBadge } from "../kit/inspector-ui";
+import { useInspectorT } from "../kit/use-inspector-t";
 import { getStyleOverrideDevice } from "../responsive-field-state";
 import { parseCssLength } from "./length-utils";
 import { MarginSidesGroup, PaddingSidesGroup } from "./exact-spacing-sides";
@@ -56,6 +57,7 @@ export function SpacingBody({
   setOrToggleStandaloneStyle,
   spacingHasResponsiveOverride,
 }: SpacingSectionProps) {
+  const { t } = useInspectorT();
   return (
             <>
             {spacingHasResponsiveOverride ? (
@@ -274,15 +276,23 @@ export function SpacingBody({
               </div>
             ) : null}
 
-            {/* Box-model diagram for freeform spacing — visual shortcut.
-                D4 — "Box model" WAS the second label-disguised disclosure in
-                this file: a grey <details> summary indistinguishable from a
-                field label. The diagram is the fastest way to read and edit
-                all eight sides at once, so it renders. */}
+            {/* Box-model diagram — visual shortcut for the eight sides above.
+                Collapsed by default so chips + fine-tune aren't duplicated in
+                the first viewport (page-builder Estilo UX). */}
             {!["divider", "spacer"].includes(selectedStandaloneStyleNode.kind) ? (
-              <div data-builder-node-style-control="box-model">
-                  <span className={FIELD_LABEL}>Box model</span>
-                  <div className="mt-2">
+              <details
+                className="border-t pt-2"
+                data-builder-node-style-control="box-model"
+                style={{ borderColor: CHROME.line }}
+              >
+                <summary
+                  className="flex cursor-pointer list-none items-center justify-between gap-2 select-none"
+                  style={{ outline: "none" }}
+                >
+                  <span className={FIELD_LABEL}>{t("Box model")}</span>
+                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
+                </summary>
+                <div className="mt-2">
                     <BoxModel
                       margin={{
                         top: selectedStandaloneViewportStyle?.marginTopFree
@@ -329,8 +339,8 @@ export function SpacingBody({
                         else if (side === "left") patchSelectedStandaloneStyle({ paddingLeft: css });
                       }}
                     />
-                  </div>
-              </div>
+                </div>
+              </details>
             ) : null}
                   </div>
               </div>

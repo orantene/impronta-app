@@ -158,4 +158,11 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Preview and translate in {lang}. Untranslated blocks dim.":
     "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
   "Content language": "Idioma del contenido",
+
+  // ── Estilo panel density (page-builder panel cleanup) ──────────────────
+  "Following the theme": "Sigue el tema",
+  "container name": "nombre del contenedor",
+  "Box model": "Modelo de caja",
+  "How the things inside this box sit next to each other.":
+    "Cómo se acomodan las cosas dentro de este cuadro.",
 };
