@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { consumePendingConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
@@ -43,6 +43,19 @@ function TalentMessagesV5() {
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
   const dispatchRef = useRef<(id: ShellActionId) => void>(() => undefined);
   const copy = useDashboardText();
+  // F54: the shell lists one segment at a time; the first run needs her total
+  // across all of them. Re-read when the open thread changes (a new
+  // conversation opens itself), so the first run leaves as soon as one exists.
+  const [totalConversations, setTotalConversations] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void talentShellEngine.loadInbox({ locationSlug: "all", filter: "all" }).then((r) => {
+      if (!cancelled) setTotalConversations(r.ok ? r.rows.length : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId]);
   // Seller mode: a solo talent sees client, state and her own verbs, not staff chrome.
   const seller = useMemo<SellerChrome>(
     () => ({
@@ -57,8 +70,9 @@ function TalentMessagesV5() {
       firstRunTitle: copy.t("No messages yet"),
       firstRunBody: copy.t("Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation."),
       firstRunAction: <MessagesFirstRun />,
+      totalConversations,
     }),
-    [copy],
+    [copy, totalConversations],
   );
   const onDispatchReady = useCallback((dispatch: (id: ShellActionId) => void) => {
     dispatchRef.current = dispatch;

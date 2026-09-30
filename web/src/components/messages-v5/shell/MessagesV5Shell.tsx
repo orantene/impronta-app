@@ -755,8 +755,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         onStart={async (input) => {
           const r = await engine.startConversation(input);
           if (!r.ok) return r.reason;
-          await reloadInbox();
-          openThread(r.inquiryId);
+          openThread(r.inquiryId); // F54: a new thread waits on the client, so it is listed under All, not Needs action.
+          if (segment === "all") await reloadInbox(); else setSegment("all");
           return null;
         }}
       />

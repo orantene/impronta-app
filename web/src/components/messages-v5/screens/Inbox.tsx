@@ -38,7 +38,8 @@ export function Inbox(props: InboxProps) {
   const chipKeys = seller ? SELLER_CHIP_KEYS : CHIP_KEYS;
   const title = sellerChrome?.inboxTitle ?? copy.inbox.title;
   // F35: a talent with zero conversations gets a first run, and no filters until there is something to filter.
-  const firstRun = Boolean(sellerChrome?.firstRunTitle) && !loading && !error && rows.length === 0;
+  // F54: `rows` is one segment only (Needs action by default), so the first run keys on her total.
+  const firstRun = Boolean(sellerChrome?.firstRunTitle) && sellerChrome?.totalConversations === 0 && !loading && !error && rows.length === 0;
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const locale = useDashboardLocale();
   const [sheetOpen, setSheetOpen] = useState(false);
