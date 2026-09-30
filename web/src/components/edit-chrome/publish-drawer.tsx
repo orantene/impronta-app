@@ -887,9 +887,7 @@ export function PublishDrawer() {
       preflightBlockingErrors - preflightMobileOverflowErrors;
     if (nonOverflowBlockers > 0) {
       reasons.push(
-        `${nonOverflowBlockers} publish check${
-          nonOverflowBlockers === 1 ? "" : "s"
-        } marked Blocker above must be fixed. Warnings are advisory. They do not stop publish.`,
+        "Something on your page needs fixing before you can publish. Fix the items marked Blocker above. Warnings do not stop publish.",
       );
     }
     if (getCompositionCasVersion() === null) {
@@ -1929,7 +1927,7 @@ export function PublishDrawer() {
                   }}
                 >
                   {publishHardBlockReasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
+                    <li key={reason}>{t(reason)}</li>
                   ))}
                 </ul>
               </div>

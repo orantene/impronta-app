@@ -397,7 +397,7 @@ export function PublishPreflight({
             </span>
           ) : null}
         </div>
-        <p className="leading-snug">{issue.category === "brand_identity" ? t(issue.message) : issue.message}</p>
+        <p className="leading-snug">{issue.category === "brand_identity" || issue.category === "builder_payload" ? t(issue.message) : issue.message}</p>
         {issue.category === "brand_identity" ? (
           <div className="mt-1.5 flex flex-wrap gap-2" data-testid="preflight-brand-identity">
             <Button

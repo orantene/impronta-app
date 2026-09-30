@@ -682,16 +682,12 @@ export async function addThemeUpdateBlock(
 ): Promise<UpdateResult<{ draftRev: number }>> {
   const ctx = await loadUpdateContext(deps.admin, input.talentProfileId, input.updateId);
   if (!ctx) return NOT_FOUND;
-  const item = (ctx.release.items ?? []).find(
-    (i) => i.type === "new-block" && (i.id ?? `${i.type}:${i.key}`) === input.itemId,
-  );
+  const item = (ctx.release.items ?? []).find((i) => i.type === "new-block" && (i.id ?? `${i.type}:${i.key}`) === input.itemId);
   if (!item) return { ok: false, code: "not_found", error: "That block is not part of this update." };
   // A block she skipped stays on offer after Apply (the site is re-pinned past
   // it). Merge against the release's FROM version so a never-added block reads
   // as new, never as a block she deleted. Only an added block's removal counts.
-  const mergeCtx = ctx.state === "applied" || (ctx.pinnedVersion ?? 0) >= ctx.release.to_version
-    ? { ...ctx, pinnedVersion: ctx.release.from_version }
-    : ctx;
+  const mergeCtx = ctx.state === "applied" || (ctx.pinnedVersion ?? 0) >= ctx.release.to_version ? { ...ctx, pinnedVersion: ctx.release.from_version } : ctx;
   const m = await deps.merge(mergeCtx, [item]);
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   if (!m.homePageId) return { ok: false, code: "not_found", error: "Home page not found." };

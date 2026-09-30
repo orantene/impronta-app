@@ -56,6 +56,7 @@ import {
   reorderByRank,
   sameList,
 } from "./tree-ops";
+import { collectNodeIds, freshenNodeIds } from "@/lib/site-admin/builder-node/unique-ids";
 import {
   emptyReport,
   type LeafChange,
@@ -72,6 +73,8 @@ interface Ctx {
   seq: () => number;
   /** Swap pairs declared by release items (per tree), on top of detected ones. */
   swaps: ReadonlyArray<SwapPair>;
+  /** Ids already in this tree. Inserted nodes are remapped against it (F131). */
+  usedIds: Set<string>;
 }
 
 export const MOVED_EDITS_NOTE = "moved your edits to the new layout";
@@ -313,7 +316,7 @@ function mergeSwap(
       allowance,
     ),
   );
-  return carried.node;
+  return freshenNodeIds(carried.node, ctx.usedIds);
 }
 
 function mergeList(
@@ -374,7 +377,7 @@ function mergeList(
     const allowance = ctx.allow("node", key, ctx.tree);
     if (allowance.explicitCritical) {
       const anchor = anchorFor(tKids, key, out);
-      out = insertAfter(out, t, anchor);
+      out = insertAfter(out, freshenNodeIds(t, ctx.usedIds), anchor);
       seen.add(key);
       ctx.report.applied.push(
         entry(ctx, { change: "restore", key, parentKey, anchor, node: t, reason: "critical" }, allowance),
@@ -392,7 +395,7 @@ function mergeList(
     const t = tMap.get(pair.to)!;
     const anchor = anchorFor(tKids, pair.to, out);
     if (allowance.ok && allowance.explicitCritical) {
-      out = insertAfter(out, t, anchor);
+      out = insertAfter(out, freshenNodeIds(t, ctx.usedIds), anchor);
       ctx.report.applied.push(
         entry(ctx, { change: "insert", key: pair.to, fromKey: pair.from, parentKey, anchor, node: t, reason: "critical" }, allowance),
       );
@@ -424,7 +427,7 @@ function mergeList(
       );
       continue;
     }
-    out = insertAfter(out, t, anchor);
+    out = insertAfter(out, freshenNodeIds(t, ctx.usedIds), anchor);
     ctx.report.added.push(entry(ctx, { change: "insert", key, parentKey, anchor, node: t }, allowance));
   }
 
@@ -485,7 +488,7 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
       continue;
     }
     const swaps = declared.filter((d) => !d.tree || d.tree === name).map((d) => d.pair);
-    trees[name] = mergeList({ tree: name, allow, report, seq, swaps }, null, input.base.trees[name] ?? [], ours, theirs);
+    trees[name] = mergeList({ tree: name, allow, report, seq, swaps, usedIds: new Set(collectNodeIds(ours)) }, null, input.base.trees[name] ?? [], ours, theirs);
   }
   const tokens = mergeTokenDefaults({
     base: input.base.tokens ?? {},
