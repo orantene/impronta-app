@@ -46,6 +46,18 @@ export async function loadTalentActor(): Promise<TalentActor | { ok: false; reas
   };
 }
 
+/**
+ * The tenant of an inquiry she is named on (seated or not), or null. Upload and
+ * voice notes both authorise a talent through this, the same ownership rule as
+ * her replies, so a guest chat that names her is not half open.
+ */
+export async function loadNamedTalentTenant(inquiryId: string): Promise<string | null> {
+  const actor = await loadTalentActor();
+  if (!actor.ok) return null;
+  const owned = await loadOwnedTalentInquiry(actor.admin, actor.talentProfileId, inquiryId);
+  return owned.ok ? owned.tenantId : null;
+}
+
 export type OwnedTalentInquiry = {
   ok: true;
   participantId: string | null;

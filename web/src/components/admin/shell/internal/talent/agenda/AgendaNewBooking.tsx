@@ -37,7 +37,10 @@ export function AgendaNewBooking({
   onCancel,
   onSaved,
   onOpenRecord,
+  embedded = false,
 }: {
+  /** Inside the shared New booking panel: single column, no page header. */
+  embedded?: boolean;
   talentTypeSlug?: string | null;
   talentProfileId?: string;
   newLabel?: string;
@@ -74,6 +77,7 @@ export function AgendaNewBooking({
       onCancel={onCancel}
       onSaved={onSaved}
       onOpenRecord={onOpenRecord}
+      embedded={embedded}
     />
   );
 }
@@ -113,7 +117,9 @@ function SlotComposer({
   onCancel,
   onSaved,
   onOpenRecord,
+  embedded = false,
 }: {
+  embedded?: boolean;
   talentProfileId?: string;
   agendaItems: readonly TalentAgendaItem[];
   hours: BookingHours | null;
@@ -281,8 +287,8 @@ function SlotComposer({
   ];
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-3">
-      <header>
+    <div className={embedded ? "space-y-3" : "mx-auto max-w-[1100px] space-y-3"}>
+      {embedded ? null : <header>
         <h1 className="text-[20px] font-semibold text-[var(--tc-primary)]">{copy.t("New booking")}</h1>
         <p className={`text-[12.5px] ${MUTED}`}>{copy.t("Add a booking you arranged yourself")}</p>
         <button
@@ -292,9 +298,9 @@ function SlotComposer({
         >
           ‹ {copy.t("Calendar")}
         </button>
-      </header>
+      </header>}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className={embedded ? "grid gap-4" : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]"}>
         <div className="overflow-hidden rounded-2xl border border-black/10 bg-white">
           {savedNote ? (
             <p className="m-5 mb-0 rounded-xl border border-[rgba(31,92,66,0.25)] bg-[rgba(31,92,66,0.08)] px-3 py-2 text-[13px] text-[var(--tc-ok)]">

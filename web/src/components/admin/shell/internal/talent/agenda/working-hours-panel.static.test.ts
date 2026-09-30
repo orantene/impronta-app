@@ -21,13 +21,30 @@ test("Working hours opens as ONE shared panel from Settings, Calendar and Today/
 
 test("the panel is a drawer on desktop and a bottom sheet on a phone, and closes after a real save", () => {
   const panel = read("talent/agenda/WorkingHoursPanel.tsx");
-  assert.match(panel, /max-md:bottom-0/);
-  assert.match(panel, /md:right-0/);
-  assert.match(panel, /role="dialog"/);
+  assert.match(read("talent/agenda/AgendaPanelFrame.tsx"), /role="dialog"/);
+  assert.match(panel, /AgendaPanelFrame/);
   assert.match(panel, /onSaved=/);
   const page = read("talent/agenda/AgendaAvailabilityPage.tsx");
   // onSaved fires only on the ok branch of saveBookingHours.
   assert.match(page, /Availability saved\.[^]*onSaved\?\.\(\)/);
+});
+
+test("New booking opens as the same drawer / bottom sheet from Today and Calendar, route kept", () => {
+  const today = read("talent/pages/TodayPage.tsx");
+  assert.match(today, /onNewBooking=\{openNewBookingPanel\}/);
+  const router = read("talent.tsx");
+  assert.match(router, /onNewBooking=\{openNewBookingPanel\}/);
+  assert.match(router, /<NewBookingPanelHost/);
+  assert.match(router, /case "bookings-new":/);
+  const frame = read("talent/agenda/AgendaPanelFrame.tsx");
+  assert.match(frame, /max-md:bottom-0/);
+  assert.match(frame, /md:right-0/);
+  const panel = read("talent/agenda/NewBookingPanel.tsx");
+  assert.match(panel, /AgendaPanelFrame/);
+  assert.match(panel, /embedded/);
+  // Success only after the writer: toast and close live in onSaved / onOpenRecord.
+  assert.match(panel, /onSaved=\{\(\) => \{\s*toast\("Booking saved"\)/);
+  assert.match(read("talent/agenda/AgendaNewBooking.tsx"), /embedded \? "grid gap-4"/);
 });
 
 test("Calendar header reads Bookings with List and Working hours buttons (calendar_d)", () => {

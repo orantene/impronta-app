@@ -290,7 +290,7 @@
   "src/lib/server-actions/talent-takeover.ts": 4,
   "src/lib/server-actions/team-management.ts": 5,
   "src/lib/server-actions/user-prefs.ts": 8,
-  "src/lib/server-actions/voice-notes.ts": 8,
+  "src/lib/server-actions/voice-notes.ts": 6,
   "src/lib/server/commercial-audit.ts": 1,
   "src/lib/server/staff-api-route.ts": 1,
   "src/lib/site-admin/add-gallery/template-preview-url.ts": 1,

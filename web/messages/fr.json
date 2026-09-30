@@ -7386,7 +7386,8 @@
       "inbox": {
         "title": "Boîte de réception",
         "newConversation": "Nouvelle",
-        "threads": "{count} conversations",
+        "threads": "{count} discussions",
+        "threadsOne": "{count} discussion",
         "visitor": "Visiteur",
         "unassigned": "non assignée",
         "you": "Vous",

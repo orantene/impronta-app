@@ -18547,6 +18547,7 @@
         "title": "Inbox",
         "newConversation": "New",
         "threads": "{count} conversations",
+        "threadsOne": "{count} conversation",
         "visitor": "Visitor",
         "unassigned": "unassigned",
         "you": "You",
