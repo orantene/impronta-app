@@ -11,6 +11,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { hashString, propsOf } from "../origin";
+import { countParts } from "../parts";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
 import type { DesignMergeReport, ReleaseItem, ReleaseItemType, SiteUpdateState } from "../types";
 
@@ -119,7 +120,7 @@ export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "add
   return {
     applied: report.applied.length,
     added: report.added.length,
-    kept: report.kept.length,
+    kept: countParts(report.kept),
     conflicts: report.conflicts.length,
     keptLabels: [...labels].slice(0, 6),
   };

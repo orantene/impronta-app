@@ -46,6 +46,8 @@ export interface HistorySnapshot {
 export interface ThemeUpdateHistoryReport {
   merge: DesignMergeReport;
   releaseId?: string | null;
+  /** Design title at apply time, for the undo summary. Absent on older entries. */
+  designName?: string | null;
   updateId?: string | null;
   fromVersion?: number | null;
   toVersion?: number | null;

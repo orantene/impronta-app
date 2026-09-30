@@ -298,6 +298,7 @@ test("undo this update: reverts it, keeps her later edit, state undone", async (
   assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows", "update reverted");
   assert.equal(prop(homeSide(db), "home", "about", "layout"), "stack", "later edit kept");
   assert.equal(db.tables.talent_sites![0]!.theme_design_version, 1, "re-pinned");
+  assert.doesNotMatch(db.tables.talent_site_history!.at(-1)!.summary_en as string, /\d+ changes/);
 });
 
 test("F83: after undo the update is offered again and re-applying works", async () => {
@@ -321,6 +322,23 @@ test("F83: after undo the update is offered again and re-applying works", async 
   assert.ok(second.ok, "re-apply works");
   assert.equal(stateOf(db), "applied");
   assert.equal(db.tables.talent_sites![0]!.theme_design_version, 2);
+});
+
+test("F82: undo summary counts what she did (parts), not nodes or props", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok && res.value.historyId);
+  // One later edit of a part the update touched (the menu layout it changed).
+  db.tables.talent_pages![0]!.blocks = edit(homeSide(db), "home", "menu/services_catalog", "layout", "cards").trees.home;
+  const undo = await undoThemeUpdateEntry(db.admin, {
+    talentProfileId: PROFILE,
+    entryId: res.value.historyId!,
+    expectedDraftRev: 8,
+    actorId: null,
+  });
+  assert.ok(undo.ok);
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your 1 later edit");
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "cards", "her edit stays");
 });
 
 // ── Dismiss ──────────────────────────────────────────────────────────────────

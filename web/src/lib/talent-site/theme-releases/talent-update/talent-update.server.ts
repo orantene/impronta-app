@@ -31,6 +31,7 @@ import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
+import { countParts } from "../parts";
 import { addBlockSummary } from "./copy";
 import {
   OPEN_UPDATE_STATES,
@@ -423,7 +424,7 @@ export async function applyThemeUpdate(
   await setUpdateState(deps.admin, ctx.talentProfileId, ctx.updateId, "applied", {
     report: summarizeReport(m.result.report),
   });
-  return { ok: true, value: { draftRev: res.draftRev, kept: m.result.report.kept.length, historyId: res.historyId } };
+  return { ok: true, value: { draftRev: res.draftRev, kept: countParts(m.result.report.kept), historyId: res.historyId } };
 }
 
 /** Not now: the banner goes quiet; the update stays in What's new history. */
