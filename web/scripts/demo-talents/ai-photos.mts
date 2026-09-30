@@ -263,6 +263,10 @@ function promptFor(plan: Plan, shot: PlannedShot, theme: string, withRef: boolea
   }
   parts.push(`Scene: ${shot.scene_en}`);
   if (NO_CLIENT_FACES.has(theme)) parts.push("No client, patient or child faces visible.");
+  // Screens and paper came out with garbled pseudo-text; keep any such surface unreadable.
+  if (/\b(screen|laptop|monitor|tablet|phone|paper|document|page|notebook|journal|menu|sign|poster|book|chart|form)s?\b/i.test(shot.scene_en)) {
+    parts.push("Any screen, page or paper in the image shows only soft, blurred, unreadable shapes: no words or letters.");
+  }
   parts.push(RULES);
   return parts.join("\n");
 }
@@ -306,7 +310,9 @@ async function slot<T>(fn: () => Promise<T>): Promise<T> {
 // several work models (deterministic per shot) so more groups run in parallel. A 429 pushes back
 // only that model's lane.
 const PER_MIN = Number(opt("--per-min") ?? 4.5);
-const MAX_WORKING_FACES = Number(opt("--max-working-faces") ?? 3);
+// Work-shot edits run on the work lanes, so the face cap is off by default (a capped shot whose
+// scene still shows the talent came out as a stranger).
+const MAX_WORKING_FACES = Number(opt("--max-working-faces") ?? 99);
 const DEMO_CONCURRENCY = Number(opt("--demo-concurrency") ?? 8);
 const WORK_MODELS = (opt("--work-models") ?? "gpt-image-1-mini,gpt-image-1,gpt-image-2").split(",").map((m) => m.trim()).filter(Boolean);
 /** USD per 1M tokens {textIn, imageIn, output} (OpenAI pricing page); others use the engine default. */
@@ -401,7 +407,20 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
   const f = fields.get(demoId)!;
   const theme = themeOf.get(demoId) ?? "Common";
   const code = status.code;
-  const plan = await planFor(d, f, theme, code);
+  const planned = await planFor(d, f, theme, code);
+  // The talent is in a shot when the planner says so OR the scene names them doing something that
+  // is not hands-only; without the reference such a shot would show a different person.
+  const slotList = slotsFor(d, f, theme);
+  const named = new RegExp(`\\b(${[d.first_name, ...d.display_name.split(/\s+/)].filter((n) => n.length > 2).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+  const plan: Plan = {
+    ...planned,
+    shots: planned.shots.map((sh, i) => {
+      const person = slotList[i]?.person;
+      if (person !== "optional" || sh.shows_person) return sh;
+      const inScene = named.test(sh.scene_en) && !/\b(hands?|from behind|back view|out of frame|only their)\b/i.test(sh.scene_en);
+      return inScene ? { ...sh, shows_person: true } : sh;
+    }),
+  };
   const slots = slotsFor(d, f, theme);
   const dir = path.join(OUT, code);
   fs.mkdirSync(dir, { recursive: true });

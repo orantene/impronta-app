@@ -81,7 +81,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(OUT, "..", "manifest-found
 const stockTenant = await resolveStockTenantId(admin);
 if (!stockTenant) throw new Error("stock tenant (slug tulala) not found");
 
-let registered = 0, skipped = 0, promoted = 0;
+let registered = 0, skipped = 0, promoted = 0, retired = 0;
 for (const code of ONLY) {
   if (!/^TAL-93[123]\d{2}$/.test(code)) throw new Error(`REFUSE: ${code} is not a TAL-931xx..933xx demo code`);
   if (!manifest.entries?.[code]) throw new Error(`REFUSE: ${code} is not in manifest-foundation.json`);
@@ -122,6 +122,15 @@ for (const code of ONLY) {
     if (!r.ok) throw new Error(`${m.key}: ${r.error}`);
     registered++;
   }
-  console.log(`${code}: ${metas.length} images`);
+  // A regenerated shot supersedes its old image: soft-retire stock rows no longer in the pack
+  // (retired_at only; the object stays, per the stock library's retire rule).
+  const keep = new Set(metas.map((m) => m.key));
+  const { data: rows } = await admin.from("platform_stock_images").select("id, tags").like("tags->>demo_key", `${code}/%`).is("retired_at", null);
+  const stale = ((rows ?? []) as { id: string; tags: { demo_key?: string } }[]).filter((r) => !keep.has(r.tags.demo_key ?? ""));
+  if (stale.length && WRITE) {
+    await admin.from("platform_stock_images").update({ retired_at: new Date().toISOString() } as never).in("id", stale.map((r) => r.id));
+  }
+  retired += stale.length;
+  console.log(`${code}: ${metas.length} images, ${stale.length} superseded`);
 }
-console.log(`${WRITE ? "" : "DRY RUN: "}registered ${registered}, skipped ${skipped}, promoted ${promoted}`);
+console.log(`${WRITE ? "" : "DRY RUN: "}registered ${registered}, skipped ${skipped}, promoted ${promoted}, retired ${retired}`);
