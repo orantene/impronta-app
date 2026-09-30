@@ -69,6 +69,12 @@ export function makeFakeDb(tables: Tables): FakeDb {
         patch = p;
         return q;
       },
+      insert(rows: Row | Row[]) {
+        const list = Array.isArray(rows) ? rows : [rows];
+        (tables[table] ??= []).push(...list.map((r) => ({ id: newId(), ...r })));
+        db.writes.push({ kind: "update", target: table, payload: { inserted: list.length } });
+        return Promise.resolve({ data: null, error: null });
+      },
       async maybeSingle() {
         const res = run();
         return { data: (res.data as Row[])[0] ?? null, error: null };

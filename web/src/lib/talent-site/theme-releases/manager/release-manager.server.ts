@@ -23,6 +23,7 @@ import {
 import { applyDemosWithPorts, talentSitesOnly } from "./demos";
 import { fanOutWithPorts } from "./fan-out";
 import type { BellRow, UpdateRow } from "./notify";
+import { supersedeOlderBells } from "../theme-bells.server";
 import { makeBaseResolver } from "./base-resolver.server";
 import { mergeSite, writeMergedDraft, type SiteRef } from "./merge-site.server";
 import { runAutoImprove } from "../talent-update/auto-improve.server";
@@ -286,6 +287,7 @@ async function fanOut(admin: SupabaseClient, release: ThemeRelease): Promise<{ u
       insertBells: async (rows: BellRow[]) => {
         const { error } = await admin.from("user_notifications").insert(rows as never);
         if (error) throw new Error(error.message);
+        await supersedeOlderBells(admin, rows);
       },
     },
     release,
@@ -337,6 +339,31 @@ async function autoImproveAll(admin: SupabaseClient, release: ThemeRelease) {
     title,
     sites,
   );
+}
+
+/**
+ * F126: pause / resume. Pausing is status only (talents stop seeing it).
+ * RESUMING runs the same fan-out as a rollout raise, so sites that became
+ * eligible while it was paused (rollout raised, new sites) get their row and
+ * bell now. Returns the counts for the "Done" message.
+ */
+export async function setReleasePaused(
+  admin: SupabaseClient,
+  release: ThemeRelease,
+  paused: boolean,
+): Promise<{ ok: true; updates: number; bells: number } | { ok: false; error: string }> {
+  if (release.status === "archived") return { ok: false, error: "This release is archived." };
+  const open = release.channel === "optin" || release.channel === "default";
+  const status = paused ? "paused" : open ? "published" : "draft";
+  const { error } = await admin
+    .from("talent_theme_releases")
+    .update({ status, updated_at: new Date().toISOString() } as never)
+    .eq("id", release.id);
+  if (error) return { ok: false, error: error.message };
+  if (paused || status !== "published") return { ok: true, updates: 0, bells: 0 };
+  const fresh = await loadRelease(admin, release.id);
+  if (!fresh) return { ok: true, updates: 0, bells: 0 };
+  return { ok: true, ...(await fanOut(admin, fresh)) };
 }
 
 /** Rollout %: after the release is open, newly in-bucket sites get their notice. */

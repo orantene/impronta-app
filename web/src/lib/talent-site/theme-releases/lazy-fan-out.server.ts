@@ -13,9 +13,10 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { supersedeOlderBells } from "./theme-bells.server";
 import { fanOutWithPorts, type FanOutPorts } from "./manager/fan-out";
 import type { BellRow, FanOutSite, UpdateRow } from "./manager/notify";
-import { isOfferActionable, pinnedBaseKnown } from "./offer-actionable.server";
+import { hasCriticalCandidates, isOfferActionable, pinnedBaseKnown } from "./offer-actionable.server";
 import { combineReleaseItems } from "./talent-update/view";
 import type { ReleaseItem, ThemeRelease } from "./types";
 
@@ -68,6 +69,7 @@ function adminPorts(admin: SupabaseClient): FanOutPorts {
     insertBells: async (rows: BellRow[]) => {
       const { error } = await admin.from("user_notifications").insert(rows as never);
       if (error) throw new Error(error.message);
+      await supersedeOlderBells(admin, rows);
     },
   };
 }
@@ -168,7 +170,7 @@ export async function ensureSiteThemeUpdates(
         [...(itemsRes.data as Array<{ to_version: number; items?: ReleaseItem[] | null }>)].sort((a, b) => a.to_version - b.to_version),
       );
       const blocks = (homeRes.data as { blocks?: unknown } | null)?.blocks;
-      if (!isOfferActionable({ hasBase: known, items, addedIds: [], homeBlocks: Array.isArray(blocks) ? (blocks as never) : [] })) {
+      if (!isOfferActionable({ hasBase: known, items, addedIds: [], homeBlocks: Array.isArray(blocks) ? (blocks as never) : [], criticalPossible: hasCriticalCandidates(items, []) })) {
         return none;
       }
     }

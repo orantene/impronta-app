@@ -283,9 +283,10 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
             onClick={() =>
               run(
                 () => actionSetPaused(release.id, status !== "paused"),
-                () => {
-                  setStatus(status === "paused" ? (channel === "optin" || channel === "default" ? "published" : "draft") : "paused");
-                  return t.done;
+                (d) => {
+                  const resuming = status === "paused";
+                  setStatus(resuming ? (channel === "optin" || channel === "default" ? "published" : "draft") : "paused");
+                  return resuming ? `${t.done} ${d.updates} ${t.noticesDone}, ${d.bells} ${t.bellsDone}.` : t.done;
                 },
               )
             }

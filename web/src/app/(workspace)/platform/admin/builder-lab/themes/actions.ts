@@ -13,6 +13,7 @@ import {
   changeChannel,
   resyncDemos,
   changeRollout,
+  setReleasePaused,
   loadRelease,
   runDryRun,
 } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
@@ -112,17 +113,10 @@ export async function actionSetRollout(releaseId: string, pct: number): Promise<
   });
 }
 
-/** Instant pause / resume (status only; talents stop seeing it, nothing is undone). */
-export async function actionSetPaused(releaseId: string, paused: boolean): Promise<Result> {
+/** Pause hides the release from talents; resume also fans out to sites that became eligible meanwhile (F126). */
+export async function actionSetPaused(releaseId: string, paused: boolean): Promise<Result<{ updates: number; bells: number }>> {
   return withRelease(releaseId, async (admin, release) => {
-    if (release.status === "archived") return { ok: false, error: "This release is archived." };
-    const { error } = await admin
-      .from("talent_theme_releases")
-      .update({
-        status: paused ? "paused" : release.channel === "optin" || release.channel === "default" ? "published" : "draft",
-        updated_at: new Date().toISOString(),
-      } as never)
-      .eq("id", releaseId);
-    return error ? { ok: false, error: error.message } : { ok: true, data: null };
+    const res = await setReleasePaused(admin, release, paused);
+    return res.ok ? { ok: true, data: { updates: res.updates, bells: res.bells } } : res;
   });
 }

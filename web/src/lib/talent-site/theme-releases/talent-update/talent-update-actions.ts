@@ -10,6 +10,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { CONFLICT_COPY, pick } from "@/lib/talent-site/history/copy";
 import { gate } from "@/lib/talent-site/server/site-action-gate";
 
+import { applyCriticalFix } from "./critical-fix.server";
 import {
   addThemeUpdateBlock,
   applyThemeUpdate,
@@ -68,6 +69,26 @@ export async function applyThemeUpdateAction(input: {
   if (!deps) return OFF;
   return localized(
     await applyThemeUpdate(deps, {
+      talentProfileId: g.talentProfileId,
+      updateId: input.updateId,
+      expectedDraftRev: typeof input.expectedDraftRev === "number" ? input.expectedDraftRev : null,
+      actorId: g.userId,
+    }),
+  );
+}
+
+/** F125: the important fix alone, for a site with no exact base. */
+export async function applyCriticalFixAction(input: {
+  updateId: string;
+  expectedDraftRev: number | null;
+}): Promise<UpdateResult<ApplyOutcome>> {
+  if (!UUID_RE.test(input.updateId)) return BAD;
+  const g = await gate("personalSiteEdit");
+  if (!g.ok) return { ok: false, code: g.code, error: g.error };
+  const deps = defaultUpdateDeps();
+  if (!deps) return OFF;
+  return localized(
+    await applyCriticalFix(deps, {
       talentProfileId: g.talentProfileId,
       updateId: input.updateId,
       expectedDraftRev: typeof input.expectedDraftRev === "number" ? input.expectedDraftRev : null,
