@@ -72,6 +72,8 @@ export interface InEditorCanvasRenderData {
   /** talent_page only: the site header / footer, read-only around the page. */
   shellHeader?: ReactNode;
   shellFooter?: ReactNode;
+  /** talent_page only: the global Tulala footer socket, shown locked under the footer. */
+  shellSocket?: ReactNode;
   /**
    * talent_page only: render-time label localisation (site locale, booking
    * mode, per-talent swaps), applied to the LIVE tree on the canvas exactly

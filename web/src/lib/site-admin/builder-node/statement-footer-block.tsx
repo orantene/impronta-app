@@ -104,7 +104,6 @@ export function renderStatementFooterBlock(args: {
         ) : null}
         <div className="sb-mag-fine">
           <span>{formatMagazineCredit(creditLine)}</span>
-          <span>Hecho con Tulala</span>
         </div>
       </footer>
     );

@@ -190,6 +190,7 @@ export function InEditorCanvasRegion({
   // links and controls from navigating away or stealing canvas selection.
   const shellHeader = canvasRenderData?.shellHeader ?? null;
   const shellFooter = canvasRenderData?.shellFooter ?? null;
+  const shellSocket = canvasRenderData?.shellSocket ?? null;
 
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
@@ -292,6 +293,11 @@ export function InEditorCanvasRegion({
         <footer data-talent-builder-shell="footer" data-talent-max-site-footer="" inert>
           {shellFooter}
         </footer>
+      ) : null}
+      {shellSocket ? (
+        <div data-talent-builder-shell="socket" inert>
+          {shellSocket}
+        </div>
       ) : null}
     </div>
   );
