@@ -439,7 +439,7 @@ for (const demo of targets) {
   // What the site should be: the same pure build applyDesign runs, then the style.
   const tokens = await loadTemplateHydrationTokens(tp.id as string);
   if (!tokens) throw new Error(`${demo.profileCode}: hydration tokens unavailable`);
-  const built = buildDesignTrees(design.payload, tokens);
+  const built = buildDesignTrees(design.payload, tokens, undefined, { design: design.slug, version: design.version });
   if (!built.ok) throw new Error(`${demo.profileCode}: build failed ${built.errors.join("; ")}`);
   const trees = style
     ? styleTrees(built, style, await loadMedia(admin, tp.id as string), demo.profileCode)

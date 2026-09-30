@@ -14,6 +14,13 @@ import type {
 } from "../theme-catalog/types";
 import { validateDesign, validateLook } from "../theme-catalog/validate";
 import { loadTemplateHydrationTokens } from "./apply-template-core";
+import {
+  refreshOriginFingerprints,
+  stampDesignOrigin,
+  tokenOriginMap,
+  type StampSource,
+} from "../theme-releases/origin";
+import { writeThemeTokenOrigin } from "../theme-releases/token-origin-store";
 
 /**
  * Talent theme gallery: APPLY CORE (server-only, NOT "use server").
@@ -148,12 +155,16 @@ export function buildDesignTrees(
   design: DesignPayload,
   tokens: TalentProfileTokens,
   year: number = new Date().getFullYear(),
+  origin?: StampSource,
 ): BuildDesignTreesResult {
+  // Theme releases: stamp the RAW design (tokens intact, so content-owned
+  // props are known), then re-fingerprint after validation (below).
+  const stamp = (tree: BuilderNode[]) => (origin ? stampDesignOrigin(tree, origin) : tree);
   const shell = pruneEmptyHydratedNodes(
-    hydrateTalentTree(resolveYearToken(design.shellTree, year), tokens),
+    hydrateTalentTree(resolveYearToken(stamp(design.shellTree), year), tokens),
   );
   const home = pruneEmptyHydratedNodes(
-    hydrateTalentTree(resolveYearToken(design.homeTree, year), tokens),
+    hydrateTalentTree(resolveYearToken(stamp(design.homeTree), year), tokens),
   );
   const shellCheck = validateBuilderNodeTree(shell);
   const homeCheck = validateBuilderNodeTree(home);
@@ -166,7 +177,12 @@ export function buildDesignTrees(
       ],
     };
   }
-  return { ok: true, shellTree: shellCheck.tree, homeTree: homeCheck.tree };
+  if (!origin) return { ok: true, shellTree: shellCheck.tree, homeTree: homeCheck.tree };
+  return {
+    ok: true,
+    shellTree: refreshOriginFingerprints(shellCheck.tree),
+    homeTree: refreshOriginFingerprints(homeCheck.tree),
+  };
 }
 
 /** Coerce a jsonb token column to a string map (junk entries dropped). */
@@ -204,7 +220,10 @@ export async function applyDesign(
   const tokens =
     (await loadTemplateHydrationTokens(input.talentProfileId)) ??
     fallbackHydrationTokens(input.displayName);
-  const built = buildDesignTrees(design.payload, tokens);
+  const built = buildDesignTrees(design.payload, tokens, undefined, {
+    design: design.slug,
+    version: design.version,
+  });
   if (!built.ok) {
     logServerError("talentTheme.applyDesign.invalidTree", { slug: design.slug, errors: built.errors });
     return { ok: false, code: "server_error", error: "Could not build that design." };
@@ -242,6 +261,9 @@ export async function applyDesign(
     return { ok: false, code: "server_error", error: "Could not apply the design home page." };
   }
   if (!homeCount) return { ok: false, code: "page_not_found", error: "Home page not found." };
+
+  // Token origin (theme releases): which defaults the site started from.
+  await writeThemeTokenOrigin(admin, input.siteId, tokenOriginMap(design.payload.tokenDefaults));
 
   return { ok: true, data: { designSlug: design.slug, designVersion: design.version } };
 }
