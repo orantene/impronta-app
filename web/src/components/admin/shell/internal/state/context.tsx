@@ -521,16 +521,13 @@ type Ctx = {
     initials: string;
     entityType: EntityType;
   };
-  /**
-   * Tenant's full supported-locale list, resolved server-side and threaded
-   * onto the bridge (`initialBridgeData.localeSettings`). The shell chrome's
-   * `DashboardLocaleToggle` reads this so registry-added languages (e.g. `fr`)
-   * appear — not just the static en/es default. Falls back to `["en", "es"]`
-   * in standalone/mock mode (no bridge).
-   */
+  /** Full supported-locale list from the bridge (`localeSettings`) for the
+   * `DashboardLocaleToggle`; `["en", "es"]` in standalone/mock mode. */
   supportedLocales: readonly string[];
   /** Tenant's primary locale; initial active state for the locale toggle. */
   tenantDefaultLocale: string;
+  /** Talent surface only: the talent's own language pair; `null` elsewhere. */
+  talentLocales: { primary: string; secondary: readonly string[] } | null;
   /**
    * Platform-wide switch for the floating "+" quick-action button
    * (BottomActionFab). Set by HQ on /platform/admin/settings; false (the
@@ -2052,15 +2049,13 @@ export function AdminShellProvider({
   const bridgeTenantIdentity = initialBridgeData?.tenantIdentity ?? null;
   const bridgeSessionIdentity = initialBridgeData?.sessionIdentity ?? null;
 
-  // Tenant locale settings, resolved server-side and threaded onto the bridge
-  // (`initialBridgeData.localeSettings`). Exposed so the shell chrome's
-  // `DashboardLocaleToggle` (in `TulalaIdentityBar`) renders the full
-  // registry-driven language list. Falls back to the static en/es default in
-  // standalone/mock mode so the toggle behaves exactly as before.
+  // Locale settings from the bridge for the `DashboardLocaleToggle`; static
+  // en/es default in standalone/mock mode.
   const supportedLocales: readonly string[] =
     initialBridgeData?.localeSettings?.supportedLocales ?? ["en", "es"];
   const tenantDefaultLocale: string =
     initialBridgeData?.localeSettings?.defaultLocale ?? "en";
+  const talentLocales = initialBridgeData?.talentLocales ?? null;
 
   // Platform-wide workspace-UI switches (HQ, /platform/admin/settings) —
   // gate the floating "+" FAB and the first-run tour. Default hidden.
@@ -2338,6 +2333,7 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      talentLocales,
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,
@@ -2468,6 +2464,7 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      talentLocales,
       workspaceFabEnabled,
       workspaceTourEnabled,
       workspaceSupportEnabled,

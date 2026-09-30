@@ -13,6 +13,7 @@
  * table is read-only for anon/owner); auth is enforced here at the app layer.
  */
 
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -521,11 +522,15 @@ export async function setOfferingOptions(
   talentProfileId: string,
   offeringId: string,
   input: {
-    variants: { label: string; amountCents: number | null }[];
-    addOns: { label: string; amountCents: number }[];
+    variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
+    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
   },
 ): Promise<
-  | { ok: true; variants: { id: string; label: string; amountCents: number | null }[]; addOns: { id: string; label: string; amountCents: number }[] }
+  | {
+      ok: true;
+      variants: { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+    }
   | { ok: false; error: string }
 > {
   try {
@@ -542,7 +547,7 @@ export async function setOfferingOptions(
       .maybeSingle();
     if (!own) return { ok: false, error: "Not found." };
 
-    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings");
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings", auth.primaryLocale);
     if (!saved.ok) return saved;
     revalidatePath("/talent/services");
     return saved;

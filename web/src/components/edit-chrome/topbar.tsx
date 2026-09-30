@@ -1007,6 +1007,7 @@ function ContentLocaleToggle({
   availableLocales: ReadonlyArray<string>;
 }) {
   const { locale: activeContentLocale } = useActiveContentLocale();
+  const { t } = useEditorLocale();
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Default first, then the rest in tenant order.
@@ -1056,7 +1057,7 @@ function ContentLocaleToggle({
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
       role="radiogroup"
-      aria-label="Content language (in-session preview + per-block translation)"
+      aria-label={t("Content language")}
       onKeyDown={handleKey}
     >
       {orderedLocales.map((code, i) => {
@@ -1074,11 +1075,10 @@ function ContentLocaleToggle({
             ref={(el) => {
               buttonsRef.current[i] = el;
             }}
-            title={
-              isDefault
-                ? `Show the page in ${label} (default). ←/→ to cycle`
-                : `Translate / preview the page in ${label} (untranslated blocks dim). ←/→ to cycle`
-            }
+            title={(isDefault
+              ? t("Show the page in {lang} (primary).")
+              : t("Preview and translate in {lang}. Untranslated blocks dim.")
+            ).replace("{lang}", label)}
             onClick={() => selectLocale(code)}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[7px] text-[13px] font-semibold uppercase tracking-[0.04em] transition-all"
             style={{
@@ -2967,7 +2967,7 @@ export function TopBar({
   // ContentLocaleToggle + canvas + Content panel all read this bridge; seeding
   // here means the canvas resolves overlays for the correct locale immediately,
   // even before the operator touches the toggle. Re-runs only on a real change.
-  const seededLocale = activeLocale || defaultLocale;
+  const seededLocale = activeLocale && availableLocales.includes(activeLocale) ? activeLocale : defaultLocale;
   useEffect(() => {
     const ordered = [
       defaultLocale,
@@ -3147,12 +3147,8 @@ export function TopBar({
       {headerVariant === "lab" && labHeaderActions ? (
         <>{labHeaderActions}</>
       ) : null}
-      {availableLocales.length > 1 && editCtx?.surfaceKind !== "cms_page" ? (
-        <ContentLocaleToggle
-          defaultLocale={defaultLocale}
-          availableLocales={availableLocales}
-        />
-      ) : tenantLocales.length > 1 ? (
+      {/* The in-session content-locale pill sits beside the viewport switcher (PR 7). */}
+      {availableLocales.length > 1 && editCtx?.surfaceKind !== "cms_page" ? null : tenantLocales.length > 1 ? (
         // Freeform locale comes from the URL segment (the body is server-
         // rendered, so an in-place flip would repaint nothing). This pill
         // navigates; edit mode is a cookie, so the editor stays open. Both URLs
@@ -3191,6 +3187,9 @@ export function TopBar({
 
       {/* ── Center — device preview controls ── */}
       <div className="inline-flex shrink-0 items-center gap-2">
+        {availableLocales.length > 1 && editCtx?.surfaceKind !== "cms_page" ? (
+          <ContentLocaleToggle defaultLocale={defaultLocale} availableLocales={availableLocales} />
+        ) : null}
         <ViewportSwitcher
           device={device}
           setDevice={setDevice}

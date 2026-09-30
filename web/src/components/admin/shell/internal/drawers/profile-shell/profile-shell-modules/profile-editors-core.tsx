@@ -5,6 +5,7 @@
 // ./talent-type-picker — same shape the monolith used internally.
 "use client";
 import React, { useState } from "react";
+import { TalentBiosLocaleEditor } from "./talent-bios-locale-editor";
 import {
   AvailabilityCell,
   AvailabilityStatus,
@@ -364,10 +365,16 @@ export type BiosEditorProps = {
    *  paste-clipboard and regenerate buttons are all inert. Optional;
    *  defaults to unlocked. */
   disabled?: boolean;
+  /** PR 7: the talent's own languages. When set, tabs are restricted to them
+   *  (no "+ Add language" / "×"), with status dots and the AI button. */
+  talentLocales?: { primary: string; secondary: readonly string[] } | null;
 };
 
-export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel, disabled }: BiosEditorProps) {
+export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel, disabled, talentLocales }: BiosEditorProps) {
   const copy = useDashboardText();
+  if (talentLocales) {
+    return <TalentBiosLocaleEditor bios={bios} talentLocales={talentLocales} onChange={onChange} onRegenerate={onRegenerate} primaryLabel={primaryLabel} disabled={disabled} />;
+  }
   const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
   const ensureLocale = (l: LocaleCode) => {
     if (bios.some(b => b.locale === l)) return;

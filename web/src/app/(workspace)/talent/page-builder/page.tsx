@@ -30,6 +30,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
@@ -228,8 +229,13 @@ export default async function TalentPageBuilderRoute({
     }
   }
 
+  // PR 7: the builder's content-locale pill + inspector tabs follow the
+  // talent's own languages (primary first), not the managing agency's.
+  const talentLocale = await loadTalentLocaleSettings(profile.id);
+
   return (
     <TalentPageBuilderScreen
+      talentLocales={{ primary: talentLocale.defaultLocale, secondary: [...talentLocale.secondaryLocales] }}
       talentProfileId={profile.id}
       pageSlug={activeSlug}
       tenantId={tenantId ?? ""}

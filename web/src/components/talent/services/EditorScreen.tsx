@@ -2,6 +2,8 @@
 
 import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { useEffect, useState, type ReactNode } from "react";
+import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
+import { OfferingDescriptionField, OfferingNameField } from "./OfferingTextFields";
 import {
   listTalentPortfolioPhotos,
   setOfferingImages,
@@ -113,6 +115,9 @@ export function EditorScreen({
   const kindWord =
     kind === "package" ? copy.t("Package") : kind === "product" ? copy.t("Product") : copy.t("Service");
   const patch = (partial: Partial<TalentOffering>) => setItem({ ...item, ...partial });
+  // Unsaved edits survive a language-switch reload only with a prompt (PR 7).
+  const [baseline, setBaseline] = useState(() => JSON.stringify(item));
+  useBeforeUnloadGuard(JSON.stringify(item) !== baseline);
   const patchAttr = (key: string, value: unknown) =>
     setItem({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
 
@@ -157,6 +162,7 @@ export function EditorScreen({
     try {
       const pending = isNew ? photos.filter((p) => !p.id.startsWith("url-")).map((p) => p.id) : undefined;
       await onSave(item, publish, pending);
+      setBaseline(JSON.stringify(item));
     } catch {
       setError(copy.t("It did not save. Everything you entered is still here. Try again."));
     } finally {
@@ -235,10 +241,7 @@ export function EditorScreen({
       <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           <Card title={copy.t("Details")} sub={copy.t("What it is and what it looks like")}>
-            <label className="block">
-              <span className={LABEL}>{copy.t("Name")}</span>
-              <input className={INPUT} maxLength={120} value={item.title} onChange={(e) => patch({ title: e.target.value })} />
-            </label>
+            <OfferingNameField item={item} label={copy.t("Name")} inputClass={INPUT} patch={patch} />
 
             <div>
               <p className={LABEL}>
@@ -358,10 +361,7 @@ export function EditorScreen({
             </div>
             )}
 
-            <label className="block">
-              <span className={LABEL}>{copy.t("Short description")}</span>
-              <textarea rows={2} maxLength={280} className={INPUT} value={item.description ?? ""} onChange={(e) => patch({ description: e.target.value || null })} />
-            </label>
+            <OfferingDescriptionField item={item} label={copy.t("Short description")} inputClass={INPUT} patch={patch} />
           </Card>
 
           <Card title={copy.t("How clients buy it")} sub={copy.t("You can change any of this later")}>
