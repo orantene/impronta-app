@@ -12,13 +12,14 @@
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { updateSelfEmergencyContact } from "@/lib/server-actions/talent-self-profile-sections";
 import {
   COLORS,
   FONTS,
   MY_TALENT_PROFILE,
   TALENT_TIER_META,
-  TENANT,
   useAdminShell,
   type TalentSubscriptionTier,
 } from "../state";
@@ -314,12 +315,14 @@ export function TalentEmergencyContactDrawer() {
 // the real surface. Better: link them out to the live URLs.
 
 export function TalentPublicPreviewDrawer() {
-  const { state, closeDrawer, toast, openDrawer } = useAdminShell();
+  const { state, closeDrawer, toast, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const t = useT();
+  const origin = useCurrentOrigin();
   const open = state.drawer.drawerId === "talent-public-preview";
-  const p = MY_TALENT_PROFILE;
-  const slug = p.subscription.personalPageUrl.replace(/^.*\/t\//, "").trim() || "marta-reyes";
-  const currentTier = p.subscription.tier;
+  // Her own profile code and plan (never the demo talent's). The link is
+  // origin-aware (F41): a local dev origin builds it on itself.
+  const slug = bridgeTalentSelfProfile?.profileCode ?? "";
+  const currentTier: TalentSubscriptionTier = bridgeTalentSelfProfile?.talentTier ?? "free";
   const [previewTier, setPreviewTier] = useState<TalentSubscriptionTier>(currentTier);
 
   // ── Build the distribution-links list for the previewed tier ──
@@ -334,60 +337,20 @@ export function TalentPublicPreviewDrawer() {
   const links: LinkRow[] = (() => {
     const rows: LinkRow[] = [];
 
-    // Tulala personal page — always present. Custom domain only on
-    // Max (and only if verified).
-    const hasCustomDomain = previewTier === "max" && p.subscription.customDomain && p.subscription.customDomainStatus === "verified";
-    if (hasCustomDomain) {
-      rows.push({
-        id: "personal-custom",
-        label: t("dashboard.talentDrawers.profileExtras.personalCustomLabel"),
-        sub: t("dashboard.talentDrawers.profileExtras.personalCustomSub"),
-        url: `https://${p.subscription.customDomain}`,
-        icon: "globe",
-        primary: true,
-      });
-    } else {
+    // Her Tulala page. A custom-domain row waits for a verified domain read
+    // from her own record, so it never shows a demo one.
+    if (slug) {
       rows.push({
         id: "personal-tulala",
         label: previewTier === "max" ? t("dashboard.talentDrawers.profileExtras.personalFallbackLabel") : t("dashboard.talentDrawers.profileExtras.personalTulalaLabel"),
         sub: previewTier === "max"
           ? t("dashboard.talentDrawers.profileExtras.personalFallbackSub")
           : interpolate(t("dashboard.talentDrawers.profileExtras.personalCanonicalSub"), { tier: TALENT_TIER_META[previewTier].label }),
-        url: `https://tulala.digital/t/${slug}`,
+        url: talentPublicProfileHref(slug, origin),
         icon: "globe",
         primary: previewTier !== "max",
       });
     }
-
-    // Agency-roster page — shown for all tiers because the agency
-    // page is independent of the talent's personal-page subscription.
-    if (p.primaryAgency) {
-      rows.push({
-        id: "agency",
-        label: interpolate(t("dashboard.talentDrawers.profileExtras.agencyRosterLabel"), { agency: p.primaryAgency }),
-        sub: interpolate(t("dashboard.talentDrawers.profileExtras.agencyRosterSub"), { domain: TENANT.customDomain || TENANT.domain }),
-        url: `https://${TENANT.customDomain || TENANT.domain}/talent/${slug}`,
-        icon: "team",
-      });
-    }
-
-    // Hub listings — same independence rule. Show 1-2 representative
-    // hubs the talent appears on. (Production wires this to real
-    // hub_memberships rows.)
-    rows.push({
-      id: "hub-discover",
-      label: t("dashboard.talentDrawers.profileExtras.hubDiscoverLabel"),
-      sub: t("dashboard.talentDrawers.profileExtras.hubDiscoverSub"),
-      url: "https://tulala.network/hub/discover",
-      icon: "search",
-    });
-    rows.push({
-      id: "hub-vertical",
-      label: t("dashboard.talentDrawers.profileExtras.hubVerticalLabel"),
-      sub: t("dashboard.talentDrawers.profileExtras.hubVerticalSub"),
-      url: "https://tulala.network/hub/hospitality",
-      icon: "briefcase",
-    });
 
     return rows;
   })();
@@ -606,7 +569,6 @@ export function TalentPublicPreviewDrawer() {
         </div>
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12, lineHeight: 1.55 }} className="text-admin-ink-muted">
           <li>{t("dashboard.talentDrawers.profileExtras.hiddenBullet1")}</li>
-          <li>{interpolate(t("dashboard.talentDrawers.profileExtras.hiddenBullet2"), { visibility: p.rateCard.visibility })}</li>
           <li>{t("dashboard.talentDrawers.profileExtras.hiddenBullet3")}</li>
           <li>{t("dashboard.talentDrawers.profileExtras.hiddenBullet4")}</li>
         </ul>

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import { isLocalDevOrigin, talentPublicProfileHref, talentPublicProfileLabel } from "./public-profile-href";
@@ -18,4 +20,18 @@ test("F41: only local hosts count as local", () => {
   assert.equal(isLocalDevOrigin("http://localhost.evil.com"), false);
   assert.equal(isLocalDevOrigin("not a url"), false);
   assert.equal(isLocalDevOrigin("http://tulala.test"), true);
+});
+
+test("the public-preview drawer uses her real code and the origin-aware helper", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent-drawers/profile-extras.tsx"),
+    "utf8",
+  );
+  const start = src.indexOf("export function TalentPublicPreviewDrawer");
+  const drawer = src.slice(start, src.indexOf("function PreviewKv"));
+  assert.match(drawer, /talentPublicProfileHref\(slug, origin\)/);
+  assert.match(drawer, /bridgeTalentSelfProfile\?\.profileCode/);
+  assert.equal(drawer.includes("https://tulala.digital"), false);
+  assert.equal(drawer.includes("MY_TALENT_PROFILE"), false);
+  assert.equal(drawer.includes("marta-reyes"), false);
 });
