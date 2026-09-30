@@ -32,7 +32,7 @@ export { AlertLine, OkLine, RefusalLine, type LineAction } from "./RefusalLine";
 export { PanelSection, SummaryBlock, type PanelSectionProps, type SummaryBlockProps } from "./Panel";
 export { OptionRow, type OptionRowProps } from "./OptionRow";
 export { Sheet, type SheetProps, type SheetVariant } from "./Sheet";
-export { Tray, defaultTrayGroups, type TrayGroup, type TrayItem, type TrayItemKey, type TrayProps } from "./Tray";
+export { Tray, defaultTrayGroups, sellerTrayGroups, type TrayGroup, type TrayItem, type TrayItemKey, type TrayProps } from "./Tray";
 export { LineEditorRow, type LineEditorFlags, type LineEditorRowProps } from "./LineEditor";
 export { PaymentLadder, paymentLadderSteps, type LadderStep } from "./PaymentLadder";
 export { EmptyState, Skeleton, type EmptyStateProps } from "./Skeleton";

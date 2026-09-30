@@ -441,7 +441,7 @@ export function TalentClientsPage() {
   const subtitle =
     items == null
       ? t("People who booked or messaged you")
-      : `${total} ${t("people you have worked with or talked to")}`;
+      : `${total} ${t(total === 1 ? "person you have worked with or talked to" : "people you have worked with or talked to")}`;
 
   return (
     <div data-clients-directory>

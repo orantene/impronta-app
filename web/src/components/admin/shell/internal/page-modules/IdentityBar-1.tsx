@@ -30,9 +30,12 @@ import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 
 export function TulalaIdentityBar() {
+  const origin = useCurrentOrigin();
   const {
     state,
     openDrawer,
@@ -405,7 +408,7 @@ export function TulalaIdentityBar() {
                 eye when the talent had no agency. */}
             {(() => {
               const ownPage = bridgeTalentSelfProfile?.profileCode
-                ? `https://tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
+                ? talentPublicProfileHref(bridgeTalentSelfProfile.profileCode, origin)
                 : null;
               const show = studioV2
                 ? (inTalent ? Boolean(ownPage) : true)

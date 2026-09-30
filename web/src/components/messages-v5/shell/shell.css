@@ -33,6 +33,9 @@
 .msgv5.msgs.one.pane-thread > .pane.thread { display: flex; }
 .msgv5.msgs.tab > .pane.panel { display: none; }
 .msgv5.msgs.one > .pane.panel { display: none; }
+/* F36: nothing selected, no context: the thread takes the panel's width. */
+.msgv5.msgs:not(.tab):not(.one):not(.hide-inbox):has(> .pane.panel[data-context-panel="empty"]) { grid-template-columns: 340px minmax(0, 1fr); }
+.msgv5.msgs > .pane.panel[data-context-panel="empty"] { display: none; }
 
 /* ===== panes ===== */
 .msgv5 .pane.thread { position: relative; }

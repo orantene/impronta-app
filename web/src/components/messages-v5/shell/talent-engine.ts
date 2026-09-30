@@ -6,11 +6,17 @@ import {
   messagingTalentLoadInbox,
   messagingTalentLoadThread,
   messagingTalentMarkRead,
-  messagingTalentNote,
   messagingTalentReply,
   messagingTalentThreadLink,
 } from "@/lib/server-actions/messaging-talent";
+import {
+  messagingTalentPrivateNote,
+  messagingTalentSetState,
+  messagingTalentStartConversation,
+} from "@/lib/server-actions/messaging-talent-writes";
 import type { MessagingRefusal } from "@/lib/messaging/types";
+
+import { engineComposerActions } from "../screens/ComposerWire";
 
 import { engineIdentityActions } from "../screens/IdentityCaptureWire";
 import type { ShellEngine } from "./engine";
@@ -19,7 +25,10 @@ const refused = (reason: MessagingRefusal = "not_allowed") => Promise.resolve({ 
 
 /**
  * The same shell, with readers and writers that resolve the talent on the
- * server. Actions that are not hers return a refusal code. The buttons stay.
+ * server. F38: start a conversation, private notes, resolve / reopen and
+ * file upload are hers (mockup msg_d / msg_actions). Assign, hand over,
+ * rename, close lost, merge and history are staff chrome: they refuse, and
+ * seller mode (`seller.ts`) renders no control for them.
  *
  * Identity uses the shared inquiry-manager writers (match / capture / create
  * client) — stubbing them to `not_allowed` blocked Request payment → Pagado
@@ -31,8 +40,8 @@ export const talentShellEngine: ShellEngine = {
   loadEssentials: (input) => messagingTalentLoadEssentials(input),
   loadContextLines: (input) => messagingTalentLoadContextLines(input),
   markRead: (input) => messagingTalentMarkRead({ inquiryId: input.inquiryId }),
-  resolve: () => refused(),
-  reopen: () => refused(),
+  resolve: (input) => messagingTalentSetState({ ...input, state: "resolved" }),
+  reopen: (input) => messagingTalentSetState({ ...input, state: "needs_reply" }),
   assign: () => refused(),
   handOver: () => refused(),
   handOverTargets: () => refused(),
@@ -41,13 +50,15 @@ export const talentShellEngine: ShellEngine = {
   threadLink: (input) => messagingTalentThreadLink(input),
   merge: () => refused(),
   history: () => refused(),
-  startConversation: () => refused(),
+  startConversation: (input) => messagingTalentStartConversation(input),
   whatsappConnected: async () => false,
   composer: {
     reply: (input) => messagingTalentReply(input),
-    note: () => messagingTalentNote(),
-    reopen: () => refused(),
-    upload: async () => ({ ok: false, error: "You cannot do that from here." }),
+    note: (input) => messagingTalentPrivateNote(input),
+    reopen: (input) => messagingTalentSetState({ ...input, state: "needs_reply" }),
+    // The signed attachment pipeline already accepts an active talent participant.
+    upload: engineComposerActions.upload,
+    seller: true,
   },
   identity: engineIdentityActions,
 };

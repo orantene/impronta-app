@@ -177,12 +177,12 @@ function AnalyticsStrip({ analytics }: { analytics: ReviewAnalytics }) {
   const t = useT();
   const stats: { label: string; value: string }[] = [];
 
+  // F46: no rating yet means no band. The standing header already says
+  // "No reviews yet"; a "LIFETIME RATING" dash only repeated it.
+  if (analytics.ratingCount <= 0 || analytics.lifetimeAvg == null) return null;
   stats.push({
     label: t("dashboard.talentReviews.analytics.lifetimeRating"),
-    value:
-      analytics.ratingCount > 0 && analytics.lifetimeAvg != null
-        ? `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`
-        : "—",
+    value: `${analytics.lifetimeAvg.toFixed(1)} (${analytics.ratingCount})`,
   });
 
   if (analytics.wouldBookAgainPct != null) {

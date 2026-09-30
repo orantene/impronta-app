@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
@@ -11,7 +12,6 @@ import { LEDGER_CONTRACT_CLOCK } from "@/lib/money/september-ledger-contract";
 import { MoneyBreakdownPanel } from "./MoneyBreakdownPanel";
 import { MoneyCorrectRecordSheet } from "./MoneyCorrectRecordSheet";
 import { MoneyHomePage } from "./MoneyHomePage";
-import { MoneyRecordPaymentSheet } from "./MoneyRecordPaymentSheet";
 import { MoneyRefundSheet } from "./MoneyRefundSheet";
 import { MoneyRequestPaymentSheet } from "./MoneyRequestPaymentSheet";
 import { MoneySpine, MoneySpineHeaderActions } from "./MoneySpine";
@@ -37,7 +37,18 @@ function MoneySpineFixturePage() {
   const copy = useDashboardText();
   const view = useMemo(() => buildMoneySpineView(), []);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
-  const [action, setAction] = useState<MoneyAction | null>(null);
+  const [action, setActionRaw] = useState<MoneyAction | null>(null);
+  const router = useRouter();
+  // Record payment has no sheet of its own: the booking record's Finish and
+  // collect is the real writer. A "Recorded" message without a write is never shown.
+  const setAction = (next: MoneyAction | null) => {
+    if (next?.kind === "record") {
+      const bookingId = next.prefill?.bookingId;
+      router.push(bookingId ? `/talent/bookings/${encodeURIComponent(bookingId)}?collect=1` : "/talent/calendar");
+      return;
+    }
+    setActionRaw(next);
+  };
 
   if (breakdownOpen) {
     return <MoneyBreakdownPanel onBack={() => setBreakdownOpen(false)} />;
@@ -62,14 +73,6 @@ function MoneySpineFixturePage() {
 
       {action?.kind === "request" ? (
         <MoneyRequestPaymentSheet
-          outstanding={view.outstanding}
-          currency={view.currency}
-          prefill={action.prefill}
-          onClose={() => setAction(null)}
-        />
-      ) : null}
-      {action?.kind === "record" ? (
-        <MoneyRecordPaymentSheet
           outstanding={view.outstanding}
           currency={view.currency}
           prefill={action.prefill}

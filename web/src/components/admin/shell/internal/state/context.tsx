@@ -48,6 +48,7 @@ import { useDevPlanOverride, useOpenUpgradeModal } from "./upgrade-bridge";
 import { railMovesWithPushState } from "../spa-segments";
 import { useLazyBridgeSlices } from "./use-lazy-bridge-slices";
 import { adaptBridgeClient, adaptBridgeTeamMember } from "./bridge-adapters";
+import { bookingIdFromTalentPath, talentPageToSegment } from "./talent-page-segment";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, WORKSPACE_PAGES, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import {
   clampWorkspacePage,
@@ -899,34 +900,9 @@ function pageToSegment(p: WorkspacePage): string {
   return resolved === "overview" ? "" : resolved;
 }
 
-/** Maps a TalentPage to the URL segment for canonical talent routes. */
-function talentPageToSegment(p: TalentPage): string {
-  // Canonical canonical paths mirror the existing /talent/* route tree.
-  const map: Partial<Record<TalentPage, string>> = {
-    today:     "today",
-    attention: "attention",
-    messages:  "inbox",  // messages → inbox canonical route
-    inbox:     "inbox",
-    profile:   "profile",
-    reviews:   "reviews",
-    calendar:  "calendar",
-    "calendar-availability": "calendar/availability",
-    "bookings-new": "bookings/new",
-    "booking-record": "bookings",
-    money:     "money",
-    clients:   "clients",
-    payouts:   "payouts",
-    agencies:  "money",   // legacy alias
-    activity:  "money",   // legacy alias
-    reach:     "money",   // legacy alias
-    "public-page": "site",
-    settings:  "settings",
-  };  return map[p] ?? p;
-}
-
 // Segments the talent layout serves — used by the prefetcher below.
-const TALENT_ROUTE_SEGMENTS = TALENT_PAGES.map(talentPageToSegment).filter(
-  (s, i, a) => a.indexOf(s) === i,
+const TALENT_ROUTE_SEGMENTS = TALENT_PAGES.map((p) => talentPageToSegment(p)).filter(
+  (s, i, a): s is string => s !== null && a.indexOf(s) === i,
 );
 
 export function AdminShellProvider({
@@ -1173,9 +1149,14 @@ export function AdminShellProvider({
   const setTalentPage = useCallback((p: TalentPage) => {
     setTalentPageRaw(p);
     if (initialSurface !== "talent") return;
-    const segment = talentPageToSegment(p);
     if (typeof window === "undefined") return;
     const currentPath = window.location.pathname;
+    // F44: a booking record already on /talent/bookings/<id> stays put.
+    if (p === "booking-record" && bookingIdFromTalentPath(currentPath)) return;
+    let storedBookingId: string | null = null;
+    try { storedBookingId = sessionStorage.getItem("tulala:agenda:bookingId"); } catch { /* ignore */ }
+    const segment = talentPageToSegment(p, storedBookingId);
+    if (segment === null) return;
 
     if (platformTalentRoutesRef.current) {
       const platformHref = `/talent/${segment}`;
@@ -1919,7 +1900,7 @@ export function AdminShellProvider({
         nextHref = segment ? `${base}/${segment}` : base;
       } else {
         // Preserve last talent page similarly.
-        const segment = talentPageToSegment(talentPage);
+        const segment = talentPageToSegment(talentPage) ?? "calendar";
         nextHref = `/${slug}/talent/${segment}`;
       }
       router.push(nextHref);

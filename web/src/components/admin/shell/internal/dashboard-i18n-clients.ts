@@ -7,6 +7,7 @@
 export const CLIENTS_ES_TEXT: Record<string, string> = {
   "People who booked or messaged you": "Personas con quienes trabajaste o hablaste",
   "people you have worked with or talked to": "personas con quienes trabajaste o hablaste",
+  "person you have worked with or talked to": "persona con quien trabajaste o hablaste",
   "Search name, phone or email": "Buscar nombre, teléfono o correo",
   All: "Todas",
   Upcoming: "Próximas",

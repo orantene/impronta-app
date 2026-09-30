@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveNextActionBy } from "./inquiry-lifecycle";
 import { anyDemoTalent } from "@/lib/talent/demo-talent";
 import { validateActorPermission } from "./inquiry-permissions";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
@@ -175,7 +176,16 @@ export async function submitInquiry(
     // by-design accessible to anyone. Spam protection lives in the
     // rate-limit + honeypot layer above, not here.
     if (input.actorUserId) {
-      const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry");
+      // A talent may open a conversation for herself on the hub (talent-self-inquiry.ts).
+      const selfInquiry =
+        input.initiator_role === "talent" && input.talent_profile_ids.length === 1
+          ? {
+              talentProfileIds: input.talent_profile_ids,
+              tenantId: input.tenant_id,
+              hubTenantId: (await getPlatformHubTenant())?.tenantId ?? null,
+            }
+          : undefined;
+      const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry", { selfInquiry });
       if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
     }
 

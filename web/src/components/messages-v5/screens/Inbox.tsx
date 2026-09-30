@@ -25,6 +25,8 @@ import type { InboxProps } from "./contracts";
 
 /** The board's own chip set (D01 `.chips`, M10 Filter sheet): Mine, Unassigned, Unread, Payment issues, Orders, Offers, Appointments. */
 const CHIP_KEYS: readonly InboxFilterKey[] = ["mine", "unassigned", "unread", "paymentIssues", "orders", "offers", "appointments"];
+/** A solo talent has no team: Mine / Unassigned would always match everything or nothing. */
+const SELLER_CHIP_KEYS: readonly InboxFilterKey[] = ["unread", "paymentIssues", "offers", "appointments"];
 
 /**
  * `now` (optional, contracts.ts) keeps the day-boundary grouping
@@ -32,7 +34,11 @@ const CHIP_KEYS: readonly InboxFilterKey[] = ["mine", "unassigned", "unread", "p
  * via `useDashboardLocale()` like the rest of the dashboard.
  */
 export function Inbox(props: InboxProps) {
-  const { rows, filter, onFilter, chips, onToggleChip, search, onSearch, selectedId, onSelect, loading, error, onRetry, counts, onNew, currentUserId, copy, variant, now: nowProp, onSearchSubmit, seller } = props;
+  const { rows, filter, onFilter, chips, onToggleChip, search, onSearch, selectedId, onSelect, loading, error, onRetry, counts, onNew, currentUserId, copy, variant, now: nowProp, onSearchSubmit, seller, sellerChrome } = props;
+  const chipKeys = seller ? SELLER_CHIP_KEYS : CHIP_KEYS;
+  const title = sellerChrome?.inboxTitle ?? copy.inbox.title;
+  // F35: a talent with zero conversations gets a first run, and no filters until there is something to filter.
+  const firstRun = Boolean(sellerChrome?.firstRunTitle) && !loading && !error && rows.length === 0;
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const locale = useDashboardLocale();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -84,6 +90,11 @@ export function Inbox(props: InboxProps) {
     <Skeleton rows={6} variant={variant} copy={copy} />
   ) : error ? (
     <EmptyState variant={variant} title={copy.inbox.empty.failedTitle} body={copy.inbox.empty.failedBody} action={{ label: copy.inbox.empty.failedAction, onClick: onRetry }} />
+  ) : firstRun ? (
+    <div data-inbox-first-run>
+      <EmptyState variant={variant} icon="link" title={sellerChrome?.firstRunTitle ?? ""} body={sellerChrome?.firstRunBody ?? ""} />
+      {sellerChrome?.firstRunAction ?? null}
+    </div>
   ) : visibleRows.length === 0 ? (
     <InboxEmpty variant={variant} filter={filter} search={search} copy={copy} onClearSearch={() => onSearch("")} onShowWaiting={() => onFilter("wait")} />
   ) : (
@@ -103,9 +114,9 @@ export function Inbox(props: InboxProps) {
     return (
       <div className="pane inbox mx" data-inbox-pane="mobile">
         <div className="mx-ih">
-          <h1>{copy.inbox.title}</h1>
-          <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />
-          <div className="tools">
+          <h1>{title}</h1>
+          {firstRun ? null : <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />}
+          {firstRun ? null : <div className="tools">
             <div className="mx-search">
               <Icon name="search" size={16} />
               <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
@@ -114,14 +125,14 @@ export function Inbox(props: InboxProps) {
               {copy.inbox.filter}
               {chips.length > 0 ? ` · ${chips.length}` : ""}
             </Btn>
-          </div>
+          </div>}
         </div>
         {body}
         <FilterSheet
           open={sheetOpen}
           active={chips}
           copy={copy}
-          keys={CHIP_KEYS}
+          keys={chipKeys}
           resultCount={sheetResultCount}
           onToggle={onToggleChip}
           onClear={() => chips.forEach((key) => onToggleChip(key))}
@@ -138,18 +149,22 @@ export function Inbox(props: InboxProps) {
     <div className="pane inbox" data-inbox-pane="desktop">
       <div className="ib-head">
         <div className="row">
-          <h2>{copy.inbox.title}</h2>
-          <span className="cnt-txt">{fill(copy.inbox.threads, { count: rows.length })}</span>
+          <h2>{title}</h2>
+          {firstRun ? null : <span className="cnt-txt">{fill(copy.inbox.threads, { count: rows.length })}</span>}
           <Btn size="sm" icon="plus" iconSize={13} onClick={onNew}>
-            {copy.inbox.newConversation}
+            {sellerChrome?.newConversation ?? copy.inbox.newConversation}
           </Btn>
         </div>
-        <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />
-        <div className="search">
-          <Icon name="search" size={14} />
-          <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
-        </div>
-        <FilterChips active={chips} copy={copy} keys={CHIP_KEYS} variant="desktop" onToggle={onToggleChip} />
+        {firstRun ? null : (
+          <>
+            <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />
+            <div className="search">
+              <Icon name="search" size={14} />
+              <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
+            </div>
+            <FilterChips active={chips} copy={copy} keys={chipKeys} variant="desktop" onToggle={onToggleChip} />
+          </>
+        )}
       </div>
       {body}
     </div>

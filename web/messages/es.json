@@ -2343,6 +2343,8 @@
         "sendRequest": "Enviar solicitud",
         "pickFromBookings": "Elegir de mis reservas",
         "inviteByEmail": "Invitar por correo",
+        "pickClient": "Elige una clienta con la que trabajaste",
+        "otherEmail": "¿Otra persona? Escribe su correo",
         "sendError": "No se pudo enviar la solicitud."
       },
       "tabAll": "Todas · {count}",

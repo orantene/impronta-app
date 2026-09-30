@@ -663,7 +663,7 @@ export function MoneyHomePage() {
                   <li key={r.id} className={i ? "border-t border-admin-border-soft" : ""}>
                     <button
                       type="button"
-                      onClick={() => (sheet === "record" ? router.push(r.bookingHref) : request(r))}
+                      onClick={() => (sheet === "record" ? router.push(`${r.bookingHref}?collect=1`) : request(r))}
                       className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left hover:bg-black/[0.03]"
                     >
                       <span className="min-w-0 flex-1">

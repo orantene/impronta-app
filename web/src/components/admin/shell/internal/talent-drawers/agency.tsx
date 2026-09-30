@@ -10,6 +10,8 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { talentPublicProfileHref, talentPublicProfileLabel } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { interpolate } from "@/i18n/interpolate";
 import {
   CLIENT_TRUST_LEVELS,
@@ -61,6 +63,7 @@ export function TalentAgencyRelationshipDrawer() {
   const [settingPrimary, setSettingPrimary] = useState(false);
   const [primaryError, setPrimaryError] = useState<string | null>(null);
   const [respondingExclusivity, setRespondingExclusivity] = useState(false);
+  const origin = useCurrentOrigin();
 
   const handleSetPrimary = async () => {
     const talentProfileId = bridgeTalentSelfProfile?.id;
@@ -103,8 +106,11 @@ export function TalentAgencyRelationshipDrawer() {
 
   if (mode === "add") {
     const publicUrl = bridgeTalentSelfProfile?.profileCode
-      ? `tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
+      ? talentPublicProfileLabel(bridgeTalentSelfProfile.profileCode, origin)
       : MY_TALENT_PROFILE.publicUrl;
+    const publicHref = bridgeTalentSelfProfile?.profileCode
+      ? talentPublicProfileHref(bridgeTalentSelfProfile.profileCode, origin)
+      : `https://${publicUrl}`;
     return (
       <DrawerShell
         open={open}
@@ -123,7 +129,7 @@ export function TalentAgencyRelationshipDrawer() {
           </div>
           <button
             type="button"
-            onClick={() => { void navigator.clipboard.writeText(`https://${publicUrl}`); toast(t("dashboard.talentDrawers.agency.linkCopied")); }}
+            onClick={() => { void navigator.clipboard.writeText(publicHref); toast(t("dashboard.talentDrawers.agency.linkCopied")); }}
             style={{ padding: "8px 12px", background: COLORS.fill, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: FONTS.body, whiteSpace: "nowrap" }}
           >
             {t("dashboard.talentDrawers.copy")}

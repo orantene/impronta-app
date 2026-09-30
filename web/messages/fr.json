@@ -827,6 +827,8 @@
         "sendRequest": "Envoyer la demande",
         "pickFromBookings": "Choisir parmi mes réservations",
         "inviteByEmail": "Inviter par e-mail",
+        "pickClient": "Choisissez une cliente avec qui vous avez travaillé",
+        "otherEmail": "Quelqu'un d'autre ? Saisissez son e-mail",
         "sendError": "Impossible d'envoyer la demande."
       }
     },
