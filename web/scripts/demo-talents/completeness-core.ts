@@ -156,6 +156,8 @@ export type AuditData = {
   fvsCount: Map<string, number>; // profile id -> managed FVS rows
   faqs: Map<string, FaqDb[]>;
   designSlugs: Set<string>;
+  /** profile id -> "ok" or why the public profile page cannot show the avatar (only profiles with a card asset). */
+  avatar: Map<string, string>;
 };
 
 export type LoadContext = {
@@ -254,7 +256,7 @@ export async function loadAuditData(ctx: LoadContext): Promise<AuditData> {
     await fetchIn<Row>(
       admin,
       "media_assets",
-      "owner_talent_profile_id, variant_kind, approval_state",
+      "owner_talent_profile_id, variant_kind, approval_state, bucket_id, storage_path, sort_order, id",
       "owner_talent_profile_id",
       ids,
       (q) => q.is("deleted_at", null),
@@ -327,7 +329,39 @@ export async function loadAuditData(ctx: LoadContext): Promise<AuditData> {
     "talent_theme_catalog",
   );
 
+  // The public profile shows the first card asset (sort_order, id) as the avatar; prove its file is served.
+  const avatar = new Map<string, string>();
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
+  const checks: (() => Promise<void>)[] = [];
+  for (const [pid, rows] of media) {
+    const cards = rows
+      .filter((m) => m.variant_kind === "card")
+      .sort((a, b) => Number(a.sort_order) - Number(b.sort_order) || String(a.id).localeCompare(String(b.id)));
+    if (cards.length === 0) continue;
+    const card = cards[0];
+    if (card.approval_state !== "approved") {
+      avatar.set(pid, "card_not_approved");
+      continue;
+    }
+    if (cards.length > 1) avatar.set(pid, "multiple_cards");
+    checks.push(async () => {
+      const url = `${base}/storage/v1/object/public/${card.bucket_id}/${card.storage_path}`;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const res = await fetch(url, { method: "HEAD" });
+          if (!res.ok) avatar.set(pid, `file_http_${res.status}`);
+          else if (!avatar.has(pid)) avatar.set(pid, "ok");
+          return;
+        } catch {
+          if (attempt === 2) avatar.set(pid, "file_unreachable");
+        }
+      }
+    });
+  }
+  for (const part of chunk(checks, 12)) await Promise.all(part.map((f) => f()));
+
   return {
+    avatar,
     profiles,
     primaryTermByProfile,
     areas,
@@ -581,6 +615,8 @@ export function auditDemo(d: FoundationDemo, data: AuditData, ctx: Pick<LoadCont
   const approved = media.filter((m) => m.approval_state === "approved");
   const count = (kind: string) => approved.filter((m) => m.variant_kind === kind).length;
   if (count("card") < 1) gap("media.card_missing");
+  const av = data.avatar.get(p.id);
+  if (av && av !== "ok") gap(`avatar.${av}`);
   if (count("hero") < 1) gap("media.hero_missing");
   if (count("gallery") < 4) gap("media.gallery_lt4");
   const albumsList = fv.get("albums.list");
