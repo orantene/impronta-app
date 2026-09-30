@@ -264,12 +264,16 @@ export function InspectorOptionCards<T extends string>({
             type="button"
             onClick={() => toggle(opt.value)}
             aria-pressed={active}
-            className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-colors"
+            className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-[background-color,border-color,box-shadow,color] duration-150"
             style={{
               minHeight: 64,
-              background: active ? "rgba(124, 58, 237, 0.08)" : CHROME.surface,
+              background: active ? "rgba(124, 58, 237, 0.10)" : CHROME.surface,
               borderColor: active ? CHROME.accent : CHROME.line,
               color: active ? CHROME.accent : CHROME.muted,
+              boxShadow: active
+                ? "0 1px 4px rgba(124,58,237,0.14)"
+                : "0 1px 2px rgba(17,24,39,0.03)",
+              fontWeight: active ? 650 : 550,
             }}
           >
             {opt.icon ? <span aria-hidden>{opt.icon}</span> : null}
