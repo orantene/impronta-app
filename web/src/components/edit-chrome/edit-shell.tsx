@@ -16,6 +16,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
+import { useFirstPaintTipAtBottom } from "./first-paint-tip-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -1326,6 +1327,7 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip() {
+  const atBottom = useFirstPaintTipAtBottom();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
@@ -1385,7 +1387,7 @@ function FirstPaintTip() {
         // light control language as the chip / command palette / menus
         // (white surface, dark text, popover shadow) so first paint shows
         // ONE chrome voice.
-        top: 70,
+        ...(atBottom ? { bottom: 76 } : { top: 70 }),
         background: "rgba(255, 255, 255, 0.96)",
         color: CHROME.text,
         fontSize: 11.5,
