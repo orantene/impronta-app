@@ -1,12 +1,13 @@
 /**
- * F33: the review / resume line names the APPLIED design and look.
+ * F33: the review / resume line names the APPLIED design and look, through
+ * the shared `appliedThemeLabel` resolver.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { designSummaryLine } from "./maison-summary-line";
 
-test("Maison v2 with a null saved look reads its own name and default palette", () => {
+test("Maison v2 with a null saved look reads its own name and no palette (design's own colours)", () => {
   const line = designSummaryLine({
     designSlug: "maison-v2",
     lookSlug: null,
@@ -15,7 +16,7 @@ test("Maison v2 with a null saved look reads its own name and default palette", 
     tail: "Your content",
     locale: "en",
   });
-  assert.equal(line, "Maison v2 · Rosé · Your content");
+  assert.equal(line, "Maison v2 · Your content");
 });
 
 test("a gallery design's saved look key names that palette; a Maison palette key never leaks", () => {
@@ -25,7 +26,7 @@ test("a gallery design's saved look key names that palette; a Maison palette key
   );
 });
 
-test("custom colours win; Maison keeps its own palettes", () => {
+test("custom colours win; Maison names its own palette", () => {
   assert.equal(
     designSummaryLine({
       designSlug: "maison-v2",
