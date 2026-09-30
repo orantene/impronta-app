@@ -58,9 +58,6 @@ export const talentShellEngine: ShellEngine = {
     reopen: (input) => messagingTalentSetState({ ...input, state: "needs_reply" }),
     // The signed attachment pipeline already accepts an active talent participant.
     upload: engineComposerActions.upload,
-    // Voice notes authorise on a seated participant only; she can also be merely
-    // named on a guest chat, where they refuse, so her composer shows no mic.
-    voice: false,
     seller: true,
   },
   identity: engineIdentityActions,
