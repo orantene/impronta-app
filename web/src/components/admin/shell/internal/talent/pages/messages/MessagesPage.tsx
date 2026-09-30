@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { consumePendingConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
+import { clearPendingConversation, peekPendingConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { SellerChrome } from "@/components/messages-v5/shell/seller";
@@ -39,7 +39,10 @@ function TalentMessagesV5() {
   const fromQuery =
     linkedInquiry && /^[0-9a-f-]{36}$/i.test(linkedInquiry) ? linkedInquiry : null;
   // `/talent/inbox/[id]` PinThenRedirect pins then replaces to /talent/inbox.
-  const [fromPin] = useState(() => consumePendingConversation());
+  const [fromPin] = useState(() => peekPendingConversation());
+  useEffect(() => {
+    clearPendingConversation();
+  }, []);
   const initialInquiryId = fromQuery ?? fromPin;
   const [activeId, setActiveId] = useState<string | null>(initialInquiryId);
   const dispatchRef = useRef<(id: ShellActionId) => void>(() => undefined);

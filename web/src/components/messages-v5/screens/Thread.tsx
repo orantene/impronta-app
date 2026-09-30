@@ -10,6 +10,8 @@
 
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
+import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
+
 import type { DerivedTask, Essentials, InboxRow, InquiryMessagingState, MessagingRefusal, RecordChip, ThreadMessage } from "@/lib/messaging/types";
 
 import { EssentialsStrip } from "../kit/EssentialsStrip";
@@ -162,14 +164,14 @@ export function Thread(props: ThreadProps) {
         if (it.kind === "system") {
           return (
             <div key={it.key} data-stream-key={it.key}>
-              <SystemLine text={it.message.body || it.message.kind} variant={variant} />
+              <SystemLine text={localiseEngineLine(it.message.body || it.message.kind, kit)} variant={variant} />
             </div>
           );
         }
         if (it.kind === "card") {
           return (
             <div key={it.key} data-stream-key={it.key}>
-              <ThreadCard message={it.message} cardKind={it.cardKind} clientName={clientName} copy={copy} variant={variant} locale={locale} onAction={onAction} onCopyText={onCopyText} origin={origin} />
+              <ThreadCard message={it.message} cardKind={it.cardKind} clientName={clientName} copy={copy} variant={variant} locale={locale} onAction={onAction} onCopyText={onCopyText} origin={origin} hideVersion={Boolean(seller)} />
             </div>
           );
         }

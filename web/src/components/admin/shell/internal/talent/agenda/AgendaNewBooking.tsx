@@ -9,7 +9,7 @@ import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
-import type { TalentClientRow } from "@/lib/talent/clients-merge";
+import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { dayWindows } from "./AgendaCalendarViews";
@@ -177,13 +177,14 @@ function SlotComposer({
     if (starts && duration) setEnds(addMinutes(starts, duration));
   }, [starts, duration]);
 
+  const people = useMemo(() => dedupeClientsByPerson(clients), [clients]);
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return clients.slice(0, 6);
-    return clients
+    if (!q) return people.slice(0, 6);
+    return people
       .filter((c) => [c.name, c.phone ?? "", c.email ?? ""].some((v) => v.toLowerCase().includes(q)))
       .slice(0, 6);
-  }, [clients, query]);
+  }, [people, query]);
 
   const serviceName = selected?.title ?? (offeringId === OTHER ? service.trim() : "");
   const serviceReady = Boolean(serviceName);
@@ -343,7 +344,10 @@ function SlotComposer({
                           }}
                           className="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 text-left text-[13.5px] hover:bg-black/[0.03]"
                         >
-                          <span className="truncate font-medium text-[var(--tc-primary)]">{c.name}</span>
+                          <span className="min-w-0 truncate font-medium text-[var(--tc-primary)]">
+                            {c.name}
+                            {clientPickerHint(c, people) ? <span className={`ml-2 font-normal ${MUTED}`}>{clientPickerHint(c, people)}</span> : null}
+                          </span>
                           <span className={`shrink-0 text-[12px] ${MUTED}`}>
                             {c.completedCount > 0
                               ? `${c.completedCount} ${copy.t(c.completedCount === 1 ? "visit" : "visits")}`

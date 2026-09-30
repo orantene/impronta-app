@@ -104,30 +104,26 @@ export async function messagingTalentStartConversation(input: {
   });
   if (!created.ok) return fail(created.reason === "forbidden" ? "not_allowed" : "unavailable");
   const inquiryId = created.inquiryId;
-  await tenantScopedQuery(admin, "inquiries", tenantId)
-    .update({ channel: parsed.data.channel, location_slug: "default", owner_user_id: actor.userId })
-    .eq("id", inquiryId);
-  // She started it: her own seat is active, not an invitation to accept.
-  await tenantScopedQuery(admin, "inquiry_participants", tenantId)
-    .update({ status: "active" })
-    .eq("inquiry_id", inquiryId)
-    .eq("talent_profile_id", actor.talentProfileId)
-    .eq("role", "talent");
-
-  if (parsed.data.firstMessage) {
-    await insertMessage(admin, {
-      tenantId,
-      inquiryId,
-      kind: "text",
-      body: parsed.data.firstMessage,
-      senderUserId: actor.userId,
-    });
-  }
-
-  // She typed the phone or email: the client is known, so the thread starts
-  // confirmed and linked to a customer row (her Clients list reads those).
+  // F99: these four writes are independent, so they run together instead of
+  // one round trip after another. The version is read after they all land.
   const { ensureCustomer } = await import("@/lib/customers/ensure-customer");
-  const customer = await ensureCustomer({ tenantId, email, phone, displayName: parsed.data.name }, { admin });
+  const [, , , customer] = await Promise.all([
+    tenantScopedQuery(admin, "inquiries", tenantId)
+      .update({ channel: parsed.data.channel, location_slug: "default", owner_user_id: actor.userId })
+      .eq("id", inquiryId),
+    // She started it: her own seat is active, not an invitation to accept.
+    tenantScopedQuery(admin, "inquiry_participants", tenantId)
+      .update({ status: "active" })
+      .eq("inquiry_id", inquiryId)
+      .eq("talent_profile_id", actor.talentProfileId)
+      .eq("role", "talent"),
+    parsed.data.firstMessage
+      ? insertMessage(admin, { tenantId, inquiryId, kind: "text", body: parsed.data.firstMessage, senderUserId: actor.userId })
+      : Promise.resolve(null),
+    // She typed the phone or email: the client is known, so the thread starts
+    // confirmed and linked to a customer row (her Clients list reads those).
+    ensureCustomer({ tenantId, email, phone, displayName: parsed.data.name }, { admin }),
+  ]);
   const { data: fresh, error: freshErr } = await tenantScopedQuery(admin, "inquiries", tenantId).select("version").eq("id", inquiryId).maybeSingle();
   if (freshErr) logServerError("messaging-talent.start.version", freshErr);
   const version = (fresh as { version?: number } | null)?.version;

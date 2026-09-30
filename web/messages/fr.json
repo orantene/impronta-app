@@ -7509,8 +7509,10 @@
       "offer": {
         "draft": "Brouillon",
         "sentV": "Envoyée · v{version}",
+        "sentPlain": "Envoyée",
         "viewedAt": "Vue {time}",
         "acceptedV": "Acceptée v{version}",
+        "acceptedPlain": "Acceptée",
         "declined": "Refusée",
         "expired": "Expirée",
         "validUntil": "Valable jusqu'au {date}",

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { messagingTalentSendQuote } from "@/lib/server-actions/messaging-talent-quote";
+import { messagingTalentQuoteSend, messagingTalentQuoteStart } from "@/lib/server-actions/messaging-talent-quote";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
-import type { TalentClientRow } from "@/lib/talent/clients-merge";
+import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
 
@@ -74,6 +74,7 @@ function SendQuoteForm({
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState("");
   const [sent, setSent] = useState(false);
+  const [step, setStep] = useState<0 | 1 | 2>(0);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -91,13 +92,14 @@ function SendQuoteForm({
     };
   }, [talentProfileId]);
 
+  const people = useMemo(() => dedupeClientsByPerson(clients), [clients]);
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = q
-      ? clients.filter((c) => [c.name, c.phone ?? "", c.email ?? ""].some((v) => v.toLowerCase().includes(q)))
-      : clients;
+      ? people.filter((c) => [c.name, c.phone ?? "", c.email ?? ""].some((v) => v.toLowerCase().includes(q)))
+      : people;
     return rows.slice(0, 6);
-  }, [clients, query]);
+  }, [people, query]);
 
   const offering = offerings.find((o) => o.id === offeringId);
   const hasContact = Boolean(picked && (picked.phone.trim() || picked.email.trim()));
@@ -108,32 +110,36 @@ function SendQuoteForm({
     if (!picked || !offering || !canCreate) return;
     setError(null);
     start(async () => {
-      const res = await messagingTalentSendQuote({
+      // F99: two real steps, each shown as it runs, so a slow one is visible and
+      // a failure after step 1 says exactly what exists.
+      setStep(1);
+      const started = await messagingTalentQuoteStart({
         name: picked.name.trim(),
         email: picked.email.trim() || null,
         phone: picked.phone.trim() || null,
         offeringId: offering.id,
+        note: note.trim() || null,
+      });
+      if (!started.ok) {
+        setStep(0);
+        setError(
+          started.reason === "invalid"
+            ? copy.t("Add a phone or an email so the client can be reached.")
+            : copy.t("Could not create the quote. Nothing was sent."),
+        );
+        return;
+      }
+      setStep(2);
+      const res = await messagingTalentQuoteSend({
+        inquiryId: started.inquiryId,
+        offeringId: offering.id,
         amountCents,
         note: note.trim() || null,
       });
-      if (res.ok) {
-        setSent(true);
-        setCreatedId(res.inquiryId);
-        return;
-      }
-      // The conversation may exist even though the quote did not go out: say so, never fake a send.
-      if (res.inquiryId) {
-        setSent(false);
-        setCreatedId(res.inquiryId);
-        return;
-      }
-      setError(
-        res.reason === "invalid"
-          ? copy.t("Add a phone or an email so the client can be reached.")
-          : res.reason === "no_price"
-            ? copy.t("Enter the price of the quote.")
-            : copy.t("Could not create the quote. Nothing was sent."),
-      );
+      setStep(0);
+      // The conversation exists even if the quote did not go out: say so, never fake a send.
+      setSent(res.ok);
+      setCreatedId(started.inquiryId);
     });
   }
 
@@ -189,7 +195,7 @@ function SendQuoteForm({
             disabled={!canCreate}
             className="min-h-[48px] flex-1 rounded-full bg-[var(--tc-primary)] px-5 text-[15px] font-semibold text-white disabled:opacity-40 md:flex-none"
           >
-            {pending ? copy.t("Working…") : copy.t("Send quote")}
+            {pending ? (step === 2 ? copy.t("Sending quote… (2 of 2)") : copy.t("Creating conversation… (1 of 2)")) : copy.t("Send quote")}
           </button>
         </div>
       }
@@ -226,7 +232,12 @@ function SendQuoteForm({
                       onClick={() => setPicked({ name: c.name, phone: c.phone ?? "", email: c.email ?? "" })}
                       className="flex min-h-[48px] w-full items-center px-3 text-left text-[14px] text-[var(--tc-primary)]"
                     >
-                      {c.name}
+                      <span className="min-w-0 truncate">
+                        {c.name}
+                        {clientPickerHint(c, people) ? (
+                          <span className="ml-2 text-[12.5px] font-normal text-[var(--tc-muted)]">{clientPickerHint(c, people)}</span>
+                        ) : null}
+                      </span>
                     </button>
                   </li>
                 ))}
