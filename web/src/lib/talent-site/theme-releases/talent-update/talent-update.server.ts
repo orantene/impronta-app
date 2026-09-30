@@ -38,6 +38,8 @@ import { addBlockSummary } from "./copy";
 import {
   OPEN_UPDATE_STATES,
   applyItemsOf,
+  combineReleaseItems,
+  combinedUpdateState,
   groupItems,
   offeredItems,
   toTalentItem,
@@ -81,7 +83,15 @@ export interface UpdateContext {
   /** Blocks she already added from this release (tracked so a removal is explicit). */
   addedBlocks: string[];
   designTitle: string;
+  /**
+   * F110: the release the talent is offered. When her site is behind several
+   * open releases this is ONE combined release: id/notes of the newest,
+   * from_version = her pinned version, to_version = the newest, items deduped
+   * across all of them (later wins).
+   */
   release: TalentRelease;
+  /** Every update row this offer covers (`updateId` = the newest release's row). */
+  coveredUpdateIds: string[];
 }
 
 export type MergeFn = (ctx: UpdateContext, items: ReadonlyArray<ReleaseItem> | undefined) => Promise<SiteMergeOutcome>;
@@ -160,7 +170,7 @@ export async function loadTalentUpdateNotices(
         list.map((r) => r.release_id),
       ),
     // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
-    admin.from("talent_sites").select("draft_rev").eq("talent_profile_id", talentProfileId).maybeSingle(),
+    admin.from("talent_sites").select("draft_rev, theme_design_version").eq("talent_profile_id", talentProfileId).maybeSingle(),
   ]);
   if (relRes.error) {
     logServerError("themeUpdate.notices.releases", relRes.error);
@@ -170,23 +180,35 @@ export async function loadTalentUpdateNotices(
   const byId = new Map(releases.map((r) => [r.id, r]));
   const site = siteRes.data;
   const draftRev = typeof (site as { draft_rev?: number } | null)?.draft_rev === "number" ? (site as { draft_rev: number }).draft_rev : 0;
+  const pin = (site as { theme_design_version?: number | null } | null)?.theme_design_version;
+  const pinned = typeof pin === "number" ? pin : null;
   const open = list.filter((row) => {
     const rel = byId.get(row.release_id);
-    return rel && rel.status === "published" && OPEN_CHANNELS.has(rel.channel);
+    return rel && rel.status === "published" && OPEN_CHANNELS.has(rel.channel) && (pinned === null || rel.to_version > pinned);
   });
-  const slugs = [...new Set(open.map((row) => byId.get(row.release_id)!.design_slug))];
+  // F110/F111: ONE notice per design, driven by ALL its open rows: labelled
+  // from her pin to the newest release; "dismissed" only if every row is.
+  const byDesign = new Map<string, typeof open>();
+  for (const row of open) {
+    const slug = byId.get(row.release_id)!.design_slug;
+    byDesign.set(slug, [...(byDesign.get(slug) ?? []), row]);
+  }
+  const slugs = [...byDesign.keys()];
   const titles = new Map(await Promise.all(slugs.map(async (slug) => [slug, await designTitle(admin, slug)] as const)));
-  const out: TalentUpdateNotice[] = open.map((row) => {
-    const rel = byId.get(row.release_id)!;
+  const out: TalentUpdateNotice[] = [...byDesign.entries()].map(([slug, rows]) => {
+    const sorted = [...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version);
+    const newestRow = sorted[sorted.length - 1]!;
+    const rel = byId.get(newestRow.release_id)!;
+    const from = sorted.length > 1 && pinned !== null ? pinned : rel.from_version;
     return {
-      updateId: row.id,
-      state: row.state as SiteUpdateState,
+      updateId: newestRow.id,
+      state: combinedUpdateState(sorted.map((r) => r.state as SiteUpdateState)),
       releaseId: rel.id,
-      designSlug: rel.design_slug,
-      designTitle: titles.get(rel.design_slug) ?? rel.design_slug,
-      fromVersion: rel.from_version,
+      designSlug: slug,
+      designTitle: titles.get(slug) ?? slug,
+      fromVersion: from,
       toVersion: rel.to_version,
-      critical: rel.critical,
+      critical: sorted.some((r) => byId.get(r.release_id)!.critical),
       notes: notesOf(rel.notes),
       draftRev,
     };
@@ -240,9 +262,12 @@ export async function loadUpdateContext(
     theme_token_origin: Record<string, string> | null;
   };
   const prof = profRes.data;
+  const pinnedVersion = typeof s.theme_design_version === "number" ? s.theme_design_version : null;
+  const combined = await combineCoveredUpdates(admin, s.id, release, u, pinnedVersion);
   return {
-    updateId: u.id,
-    state: u.state,
+    updateId: combined.updateId,
+    state: combined.state,
+    coveredUpdateIds: combined.coveredUpdateIds,
     siteId: s.id,
     siteSlug: s.site_slug,
     talentProfileId,
@@ -250,9 +275,91 @@ export async function loadUpdateContext(
     pinnedVersion: typeof s.theme_design_version === "number" ? s.theme_design_version : null,
     draftRev: typeof s.draft_rev === "number" ? s.draft_rev : 0,
     tokenOrigin: s.theme_token_origin && typeof s.theme_token_origin === "object" ? s.theme_token_origin : null,
-    addedBlocks: Array.isArray(u.report?.addedBlocks) ? (u.report!.addedBlocks as unknown[]).filter((x): x is string => typeof x === "string") : [],
+    addedBlocks: combined.addedBlocks,
     designTitle: await designTitle(admin, release.design_slug),
-    release,
+    release: combined.release,
+  };
+}
+
+type UpdateRowLite = { id: string; state: SiteUpdateState; report?: { addedBlocks?: unknown } | null };
+
+const addedOf = (r: UpdateRowLite["report"]): string[] =>
+  Array.isArray(r?.addedBlocks) ? (r!.addedBlocks as unknown[]).filter((x): x is string => typeof x === "string") : [];
+
+/** Open, not-applied update rows of this site for releases above her pin (oldest first). */
+async function loadOpenCovered(
+  admin: SupabaseClient,
+  siteId: string,
+  designSlug: string,
+  pinned: number | null,
+): Promise<Array<{ row: UpdateRowLite; release: TalentRelease }>> {
+  const { data: rows, error } = await admin
+    .from("talent_site_theme_updates")
+    .select("id, release_id, state, report")
+    .eq("talent_site_id", siteId);
+  if (error || !Array.isArray(rows)) return [];
+  const list = rows as Array<UpdateRowLite & { release_id: string }>;
+  if (list.length === 0) return [];
+  const { data: rels, error: rErr } = await admin
+    .from("talent_theme_releases")
+    .select(TALENT_RELEASE_COLUMNS)
+    .in(
+      "id",
+      list.map((r) => r.release_id),
+    );
+  if (rErr || !Array.isArray(rels)) return [];
+  const byId = new Map((rels as unknown as TalentRelease[]).map((r) => [r.id, r]));
+  const out: Array<{ row: UpdateRowLite; release: TalentRelease }> = [];
+  for (const row of list) {
+    const release = byId.get(row.release_id);
+    if (
+      release &&
+      release.design_slug === designSlug &&
+      release.status === "published" &&
+      OPEN_CHANNELS.has(release.channel) &&
+      release.to_version > (pinned ?? 0) &&
+      row.state !== "applied"
+    ) {
+      out.push({ row, release });
+    }
+  }
+  return out.sort((a, b) => a.release.to_version - b.release.to_version);
+}
+
+/**
+ * F110: fold every open release her site is behind on into ONE offer, from her
+ * pinned version to the newest. A site on its release's version (or past it)
+ * keeps the single-release context (skipped blocks, applied state).
+ */
+async function combineCoveredUpdates(
+  admin: SupabaseClient,
+  siteId: string,
+  release: TalentRelease,
+  u: UpdateRowLite,
+  pinned: number | null,
+): Promise<{
+  updateId: string;
+  state: SiteUpdateState;
+  coveredUpdateIds: string[];
+  addedBlocks: string[];
+  release: TalentRelease;
+}> {
+  const single = { updateId: u.id, state: u.state, coveredUpdateIds: [u.id], addedBlocks: addedOf(u.report), release };
+  if (u.state === "applied" || (pinned ?? 0) >= release.to_version) return single;
+  const covered = await loadOpenCovered(admin, siteId, release.design_slug, pinned);
+  if (covered.length < 2 || !covered.some((c) => c.row.id === u.id)) return single;
+  const newest = covered[covered.length - 1]!;
+  return {
+    updateId: newest.row.id,
+    state: combinedUpdateState(covered.map((c) => c.row.state)),
+    coveredUpdateIds: covered.map((c) => c.row.id),
+    addedBlocks: [...new Set(covered.flatMap((c) => addedOf(c.row.report)))],
+    release: {
+      ...newest.release,
+      from_version: pinned ?? covered[0]!.release.from_version,
+      critical: covered.some((c) => c.release.critical),
+      items: combineReleaseItems(covered.map((c) => c.release)),
+    },
   };
 }
 
@@ -463,16 +570,41 @@ export async function applyThemeUpdate(
     toVersion: ctx.release.to_version,
     releaseId: ctx.release.id,
     updateId: ctx.updateId,
+    updateIds: ctx.coveredUpdateIds,
     actor: "talent",
     kind: "theme_update",
     actorId: input.actorId,
     tokenOrigin: nextTokenOrigin(ctx.tokenOrigin, m.result.report),
   });
   if (!res.ok) return writeFailure(res);
-  await setUpdateState(deps.admin, ctx.talentProfileId, ctx.updateId, "applied", {
-    report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
-  });
+  // F110: every covered row moves to `applied` together.
+  for (const id of ctx.coveredUpdateIds) {
+    await setUpdateState(deps.admin, ctx.talentProfileId, id, "applied", {
+      report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
+    });
+  }
   return { ok: true, value: { draftRev: res.draftRev, kept: countParts(m.result.report.kept), historyId: res.historyId } };
+}
+
+/** The update rows one offer covers (falls back to just the given row). */
+async function coveredIdsFor(admin: SupabaseClient, talentProfileId: string, updateId: string): Promise<string[]> {
+  const { data: row, error } = await admin
+    .from("talent_site_theme_updates")
+    .select("talent_site_id, release_id")
+    .eq("id", updateId)
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error || !row) return [updateId];
+  const r = row as { talent_site_id: string; release_id: string };
+  const [relRes, siteRes] = await Promise.all([
+    admin.from("talent_theme_releases").select("design_slug").eq("id", r.release_id).maybeSingle(),
+    admin.from("talent_sites").select("theme_design_version").eq("id", r.talent_site_id).maybeSingle(),
+  ]);
+  const slug = (relRes.data as { design_slug?: string } | null)?.design_slug;
+  if (relRes.error || !slug) return [updateId];
+  const pin = (siteRes.data as { theme_design_version?: number | null } | null)?.theme_design_version;
+  const covered = await loadOpenCovered(admin, r.talent_site_id, slug, typeof pin === "number" ? pin : null);
+  return [...new Set([updateId, ...covered.map((c) => c.row.id)])];
 }
 
 /** Not now: the banner goes quiet; the update stays in What's new history. */
@@ -481,9 +613,12 @@ export async function dismissThemeUpdate(
   talentProfileId: string,
   updateId: string,
 ): Promise<UpdateResult<null>> {
-  const ok = await setUpdateState(admin, talentProfileId, updateId, "dismissed", {
-    onlyFrom: [...OPEN_UPDATE_STATES],
-  });
+  // F111: "Not now" dismisses every row the combined offer covers, not just the newest.
+  const ids = await coveredIdsFor(admin, talentProfileId, updateId);
+  let ok = true;
+  for (const id of ids) {
+    ok = (await setUpdateState(admin, talentProfileId, id, "dismissed", { onlyFrom: [...OPEN_UPDATE_STATES] })) && ok;
+  }
   return ok ? { ok: true, value: null } : { ok: false, code: "error", error: "Could not save." };
 }
 
@@ -556,7 +691,7 @@ async function recordAddedBlock(admin: SupabaseClient, ctx: UpdateContext, itemI
   const { error } = await admin
     .from("talent_site_theme_updates")
     .update({ report: { addedBlocks }, updated_at: new Date().toISOString() } as never)
-    .eq("id", ctx.updateId)
+    .in("id", ctx.coveredUpdateIds)
     .eq("talent_profile_id", ctx.talentProfileId);
   if (error) logServerError("themeUpdate.recordAddedBlock", error);
 }

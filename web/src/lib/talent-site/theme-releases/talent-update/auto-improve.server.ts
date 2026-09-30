@@ -81,6 +81,7 @@ export async function runAutoImprove(
       if (!st) throw new Error("site not found");
       const ctx: UpdateContext = {
         updateId: "",
+        coveredUpdateIds: [],
         state: "available",
         siteId: site.siteId,
         siteSlug: st.slug,

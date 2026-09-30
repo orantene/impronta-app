@@ -44,6 +44,33 @@ export function autoImproveItems(items: ReadonlyArray<ReleaseItem>): ReleaseItem
  * New blocks are NEVER part of Apply: they arrive only through "Add this
  * block" with a placement, as the sheet promises.
  */
+/** Item identity across releases (the merge engine's default id). */
+const itemId = (i: ReleaseItem) => i.id ?? `${i.type}:${i.key}`;
+
+/**
+ * F110: ONE combined item list for a site behind several releases. `releases`
+ * in ascending to-version order; the same item changed twice is listed once
+ * and the LATER release's version wins.
+ */
+export function combineReleaseItems(releases: ReadonlyArray<{ items?: ReleaseItem[] | null }>): ReleaseItem[] {
+  const byId = new Map<string, ReleaseItem>();
+  for (const r of releases) {
+    for (const i of Array.isArray(r.items) ? r.items : []) byId.set(itemId(i), i);
+  }
+  return [...byId.values()];
+}
+
+/**
+ * F111: one banner state for several rows. Any row still waiting keeps the
+ * banner up; "dismissed" only when EVERY covered row is dismissed.
+ */
+export function combinedUpdateState<S extends string>(states: ReadonlyArray<S>): S {
+  for (const s of ["available", "undone", "previewed"] as const) {
+    if (states.includes(s as S)) return s as S;
+  }
+  return states[0]!;
+}
+
 export function applyItemsOf(items: ReadonlyArray<ReleaseItem>): ReleaseItem[] {
   return items.filter((i) => i.type !== "new-block");
 }
