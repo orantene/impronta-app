@@ -14,6 +14,7 @@
  */
 
 import { CHROME } from "../../kit/tokens";
+import { useInspectorT } from "../kit/use-inspector-t";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 
 export function ContainerFieldLabel({
@@ -25,15 +26,16 @@ export function ContainerFieldLabel({
   modified: boolean;
   onReset: () => void;
 }) {
+  const { t } = useInspectorT();
   return (
     <div className="flex items-center justify-between gap-1.5">
       <span className={`${FIELD_LABEL} flex items-center gap-1`}>
-        {label}
+        {t(label)}
         {modified ? (
           <span
             aria-hidden
             data-builder-field-modified=""
-            title="Overridden on this breakpoint"
+            title={t("Overridden on this breakpoint")}
             className="inline-block h-1.5 w-1.5 rounded-full"
             style={{ background: CHROME.amber }}
           />
@@ -46,9 +48,9 @@ export function ContainerFieldLabel({
           onClick={onReset}
           className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.08em]"
           style={{ background: "transparent", border: "none", color: CHROME.muted, padding: 0 }}
-          title="Reset to desktop value"
+          title={t("Reset to desktop value")}
         >
-          Reset
+          {t("Reset")}
         </button>
       ) : null}
     </div>

@@ -833,8 +833,8 @@ function SaveStatusButton({
   if (saveFailed) {
     const label =
       mutationError?.code === "VERSION_CONFLICT"
-        ? "Save conflict"
-        : "Couldn't save";
+        ? t("Save conflict")
+        : t("Couldn't save");
     return (
       <span role="status" aria-live="polite" aria-atomic="true">
         <SaveChip
@@ -842,8 +842,8 @@ function SaveStatusButton({
           label={label}
           title={
             mutationError?.code === "VERSION_CONFLICT"
-              ? "This page changed in another tab or session. Choose Reload latest or Keep editing this copy in the banner."
-              : "Your last draft didn't save. It will retry on your next edit; reload the editor if it persists."
+              ? t("This page changed in another tab. Choose Load the latest or Keep this copy.")
+              : t("Your last draft didn't save. It will retry on your next edit; reload the editor if it persists.")
           }
         />
       </span>
