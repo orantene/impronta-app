@@ -46,10 +46,8 @@ export const TALENT_KIT_SECTIONS = {
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   comp_card: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
-  statement_footer: {
-    slotKey: "statement_footer",
-    originRole: "talent.statement_footer",
-  },
+  statement_footer: { slotKey: "statement_footer", originRole: "talent.statement_footer" },
+  before_after: { slotKey: "before_after", originRole: "talent.before_after" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -748,6 +746,7 @@ export {
   compCardBlock,
   measureStripBlock,
 } from "./section-kit-bands";
+export { beforeAfterBlock } from "./section-kit-before-after";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

@@ -176,3 +176,51 @@ test("Maison v2: a services_catalog default change diffs, merges and undoes clea
   const back = reverseMerge(r.report, { trees: r.trees, tokens: r.tokens });
   assert.deepEqual(back.trees.home, b.homeTree);
 });
+
+test("Maison v2 release 2.1 classifies as new-block + token-default + opt-in layout + code", async () => {
+  const { MAISON_V2_RELEASE_2_1 } = await import("./release-notes/maison-v2");
+  const next = buildMaisonV2Payload();
+  // Rebuild the pre-2.1 payload from the new one (the 2.1 changes reverted).
+  const prev = JSON.parse(JSON.stringify(next)) as DesignPayload;
+  prev.homeTree = prev.homeTree.filter(
+    (n) => (n.props as Record<string, unknown>).slotKey !== "before_after",
+  );
+  const visit = (nodes: BuilderNode[]) => {
+    for (const n of nodes) {
+      const p = n.props as Record<string, unknown>;
+      if (p.slotKey === "hero_inset_bl") {
+        delete p.slotKey;
+        const style = p.style as Record<string, unknown>;
+        delete style.left;
+        delete style.bottom;
+        Object.assign(style, { right: "-26px", top: "38px", width: "34%" });
+      }
+      visit(((n as { children?: BuilderNode[] }).children ?? []) as BuilderNode[]);
+    }
+  };
+  visit(prev.homeTree);
+  delete prev.tokenDefaults!["layout.menu-row-gap"];
+
+  const items = diffDesignPayloads(
+    "maison-v2",
+    { payload: prev, version: 14 },
+    { payload: next, version: 15 },
+    MAISON_V2_RELEASE_2_1.codeNotes,
+  );
+  const by = (t: string) => items.filter((i) => i.type === t);
+  assert.equal(by("new-block").length, 1);
+  assert.equal(by("new-block")[0]!.key, "home:before_after");
+  assert.equal(by("token-default").length, 1);
+  assert.equal(by("token-default")[0]!.key, "layout.menu-row-gap");
+  assert.equal(by("code").length, 1);
+  assert.equal(by("variant-default").length, 0, "the inset move must not auto-merge as a prop change");
+  // The block's own children ride with the new-block item, no nested noise.
+  assert.ok(!items.some((i) => i.key.startsWith("home:before_after/")));
+  // The inset move is opt-in layout only: old key removed + keyed replacement.
+  assert.deepEqual(by("layout").map((i) => i.layout).sort(), ["nested-new", "removed"]);
+  // Every generated candidate has an authored EN/ES note.
+  for (const i of items.filter((x) => x.type !== "code")) {
+    const note = (MAISON_V2_RELEASE_2_1.byItemId as Record<string, { en: string; es: string }>)[i.id ?? ""];
+    assert.ok(note?.en && note?.es, `missing release note for ${i.id}`);
+  }
+});

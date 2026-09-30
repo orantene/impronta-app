@@ -61,4 +61,5 @@ export const MAISON_V2_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "layout.header-pad-y": "14px",
   "layout.header-pad-y-phone": "10px",
   "layout.menu-rail-width": "240px",
+  "layout.menu-row-gap": "17px",
 };

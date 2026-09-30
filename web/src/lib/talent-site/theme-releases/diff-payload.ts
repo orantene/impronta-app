@@ -43,6 +43,8 @@ function diffTree(tree: string, from: BuilderNode[], to: BuilderNode[], out: Can
     const prev = a.get(key);
     if (!prev) {
       const topLevel = next.parentKey === null;
+      // A node inside a block that is itself new ships with that block's item.
+      if (!topLevel && next.parentKey !== null && !a.has(next.parentKey)) continue;
       out.push({
         id: `${topLevel ? "new-block" : "layout"}:${tree}:${key}`,
         type: topLevel ? "new-block" : "layout",

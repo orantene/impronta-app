@@ -4477,6 +4477,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-buy{flex:1 0 100%;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
 .site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;white-space:nowrap;font-size:.9375rem;flex:0 0 auto}
 .site-builder-node--services-catalog-price small{font-size:.625rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--token-color-muted)}
+@media(max-width:480px){.site-builder-node--services-catalog-price{white-space:normal;text-wrap:balance;overflow-wrap:anywhere;min-width:0;flex:0 1 auto}}
 .site-builder-node--services-catalog-usd{display:block;font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.45rem 1rem;min-height:44px;font-size:.8125rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);flex:0 0 auto;white-space:nowrap}
 .site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
