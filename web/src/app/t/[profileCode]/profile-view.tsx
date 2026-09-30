@@ -1,6 +1,11 @@
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadProfileStorefrontPayload } from "./profile-storefront-payload";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { pickByChain } from "@/lib/talent-site/talent-profile-locale";
+import {
+  resolveTalentProfileLocale,
+  talentProfileLocaleMetadata,
+} from "@/lib/talent-site/talent-profile-locale.server";
 import { humaniseFieldToken } from "./humanise-field-token";
 import { resolveSharperBanner } from "./banner-source";
 import type { Metadata } from "next";
@@ -267,15 +272,16 @@ function flattenTaxonomy(rows: TaxonomyRow[]): TaxonomyTerm[] {
   });
 }
 
-function pickTaxonomyLabel(locale: string, term: TaxonomyTerm): string {
+function pickTaxonomyLabel(locale: string, term: TaxonomyTerm, chain?: readonly string[]): string {
   const i18n = term.name_i18n ?? {};
+  if (chain) return pickByChain(i18n, chain);
   return pickLocale(locale, { en: i18n.en ?? "", es: i18n.es?.trim() || undefined });
 }
 
-function groupByKind(locale: string, terms: TaxonomyTerm[]): Record<string, string[]> {
+function groupByKind(locale: string, terms: TaxonomyTerm[], chain?: readonly string[]): Record<string, string[]> {
   return terms.reduce<Record<string, string[]>>((acc, t) => {
     if (!acc[t.kind]) acc[t.kind] = [];
-    acc[t.kind].push(pickTaxonomyLabel(locale, t));
+    acc[t.kind].push(pickTaxonomyLabel(locale, t, chain));
     return acc;
   }, {});
 }
@@ -286,16 +292,16 @@ function displayName(p: TalentProfile): string {
   return parts || p.profile_code;
 }
 
-function residenceLabel(locale: string, p: TalentProfile): string {
+function residenceLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
   const row = resolveResidenceLocationEmbed({
     residence_city: p.residence_city,
     legacy_location: p.legacy_location,
   });
-  return formatCityCountryLabel(locale, row);
+  return formatCityCountryLabel(locale, row, chain);
 }
 
-function originLabel(locale: string, p: TalentProfile): string {
-  return formatCityCountryLabel(locale, p.origin_city ?? null);
+function originLabel(locale: string, p: TalentProfile, chain?: readonly string[]): string {
+  return formatCityCountryLabel(locale, p.origin_city ?? null, chain);
 }
 
 /**
@@ -1409,21 +1415,15 @@ export async function buildTalentProfileMetadata({
     }
   }
 
-  const locale = await getRequestLocale();
-
-  // Phase 5/6 M2 — the canonical URL for a talent is ALWAYS the app host
-  // (`app.pdcvacations.com/t/[code]`). When the agency storefront renders
-  // the overlay view, it emits a canonical pointing back to the app host
-  // so search engines consolidate signals on the global view. If the
-  // app-host origin can't be resolved (env + DB both empty in a dev-less
-  // build), fall back to a relative path — better than a broken URL.
-  const canonicalAbsolute = await canonicalTalentUrl(profileCode);
-  const pathEn = `/t/${encodeURIComponent(profileCode)}`;
-  const pathEs = `/es/t/${encodeURIComponent(profileCode)}`;
-  const canonicalEn = canonicalAbsolute ?? pathEn;
-  const canonicalEs = canonicalAbsolute
-    ? `${canonicalAbsolute.replace(/\/t\/[^/]+$/, "")}${pathEs}`
-    : pathEs;
+  // Canonical is ALWAYS the app host (agency overlays point back to it);
+  // languages, hreflang and x-default follow the talent's own set.
+  const localeMeta = await talentProfileLocaleMetadata({
+    profileId: profile.id,
+    profileCode,
+    canonicalAbsolute: await canonicalTalentUrl(profileCode),
+    fallbackOrigin: site,
+  });
+  const { locale, chain } = localeMeta.profile;
 
   // OG image / metadataBase host preference:
   // - On an agency host (improntamodels.com etc.) prefer the agency
@@ -1454,14 +1454,14 @@ export async function buildTalentProfileMetadata({
   );
   const talentType =
     primaryTalentType(
-      "en",
+      locale,
       profile.talent_profile_taxonomy ?? [],
       metadataTaxonomyVisibility,
     ) ?? "Talent";
-  const loc = residenceLabel("en", profile as TalentProfile);
+  const loc = residenceLabel(locale, profile as TalentProfile, chain);
 
   const title = loc ? `${name} — ${talentType} · ${loc}` : `${name} — ${talentType}`;
-  const about = publicBioForLocale(locale, [locale, "en"], {
+  const about = publicBioForLocale(locale, [...chain, "en"], {
     ...(profile.bio_i18n ?? {}),
     en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
   });
@@ -1473,20 +1473,13 @@ export async function buildTalentProfileMetadata({
     title,
     description,
     metadataBase: metadataBaseUrl,
-    alternates: {
-      canonical: pickLocale(locale, { en: canonicalEn, es: canonicalEs }),
-      languages: {
-        en: canonicalEn,
-        es: canonicalEs,
-        "x-default": canonicalEn,
-      },
-    },
+    alternates: localeMeta.alternates,
     openGraph: {
       title,
       description,
       type: "profile",
-      locale: pickLocale(locale, { en: "en_US", es: "es_ES" }),
-      alternateLocale: pickLocale(locale, { en: "es_ES", es: "en_US" }),
+      locale: localeMeta.openGraphLocale,
+      alternateLocale: localeMeta.openGraphAlternateLocale,
     },
   };
 }
@@ -1520,8 +1513,8 @@ export async function TalentProfileView({
 }) {
   const isModal = variant === "modal";
   const { preview } = sp;
-  const locale = await getRequestLocale();
-  const t = createTranslator(locale);
+  let locale = await getRequestLocale();
+  let t = createTranslator(locale);
   const previewMode = preview === "1";
   const [initialSavedIds, initialFavoriteIds] = await Promise.all([
     getSavedTalentIds(),
@@ -1581,7 +1574,7 @@ export async function TalentProfileView({
       : Promise.resolve(null),
   ]);
   const tenantBrand = tenantBrandIdentity?.public_name ?? null;
-  const ui = buildDirectoryUiCopy(t, tenantBrand);
+  let ui = buildDirectoryUiCopy(t, tenantBrand);
   const surface: TalentSurface =
     hostCtx.kind === "agency" ? "agency" : "freelancer";
 
@@ -1621,6 +1614,12 @@ export async function TalentProfileView({
     notFound();
   }
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
+  // Follow the talent's own languages (requested locale only if in their set).
+  const profileLocale = await resolveTalentProfileLocale(profile.id);
+  const chain = profileLocale.chain;
+  locale = profileLocale.locale as typeof locale;
+  t = createTranslator(locale);
+  ui = buildDirectoryUiCopy(t, tenantBrand);
 
   // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
   // the freelancer/app surface requires is_publicly_hidden = false AND
@@ -1831,13 +1830,14 @@ export async function TalentProfileView({
     profile.id,
     locale,
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
+    chain,
   );
 
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
   for (const term of flattenTaxonomy(profile.talent_profile_taxonomy ?? [])) {
     if (term.kind === "talent_type" && term.id && taxonomyVisibility.isTermVisible(term.id)) {
-      disciplineLabels[term.id] = pickTaxonomyLabel(locale, term);
+      disciplineLabels[term.id] = pickTaxonomyLabel(locale, term, chain);
     }
   }
 
@@ -2005,7 +2005,7 @@ export async function TalentProfileView({
 
   // Taxonomy
   const allTerms = flattenTaxonomy(profile.talent_profile_taxonomy ?? []);
-  const grouped = groupByKind(locale, allTerms);
+  const grouped = groupByKind(locale, allTerms, chain);
 
   const fitLabels = grouped["fit_label"] ?? [];
   const skills = grouped["skill"] ?? [];
@@ -2116,7 +2116,7 @@ export async function TalentProfileView({
     for (const term of terms) {
       if (term.kind !== "talent_type") continue;
       if (!taxonomyVisibility.isTermVisible(term.id)) continue;
-      const label = pickTaxonomyLabel(locale, term);
+      const label = pickTaxonomyLabel(locale, term, chain);
       if (row.is_primary) {
         // Insert primary at the front
         if (!allTalentTypes.includes(label)) allTalentTypes.unshift(label);
@@ -2127,15 +2127,15 @@ export async function TalentProfileView({
   }
 
   const canonicalName = displayName(profile as TalentProfile);
-  const canonicalAboutText = publicBioForLocale(locale, [locale, "en"], {
+  const canonicalAboutText = publicBioForLocale(locale, [...chain, "en"], {
     ...(profile.bio_i18n ?? {}),
     en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
   });
   // PR-A — home_base from talent_service_areas takes precedence over the
   // legacy residence_city/location_id pair when populated. Falls through
   // to the existing residenceLabel() helper otherwise.
-  const livesIn = homeBaseLabel ?? residenceLabel(locale, profile as TalentProfile);
-  const originallyFrom = originLabel(locale, profile as TalentProfile);
+  const livesIn = homeBaseLabel ?? residenceLabel(locale, profile as TalentProfile, chain);
+  const originallyFrom = originLabel(locale, profile as TalentProfile, chain);
 
   // Phase 5/6 M3 — compose final presentation. On the freelancer/hub/admin
   // surface the overlay is ignored regardless of what agencyOverlay holds
