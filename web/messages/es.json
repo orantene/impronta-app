@@ -5159,7 +5159,7 @@
         "groupWebsite": "Sitio web",
         "groupWebsiteBlurb": "Impulsa tu storefront público con tus propias claves de proveedor y tu propio código.",
         "groupAnalytics": "Analítica y marketing",
-        "groupAnalyticsBlurb": "Agrega tus propios IDs de medición. Las etiquetas se inyectan en tu storefront, siempre sujetas al consentimiento del visitante.",
+        "groupAnalyticsBlurb": "Agrega tus propios IDs de medición. Las etiquetas se inyectan en tu storefront. Eres responsable de obtener el consentimiento de los visitantes que exija tu jurisdicción.",
         "groupSocial": "Canales sociales",
         "groupSocialBlurb": "Conecta canales de marca verificados y decide qué aparece en el sitio público.",
         "groupSecurity": "Seguridad",
@@ -10574,7 +10574,7 @@
         },
         "ga4": {
           "label": "Google Analytics 4",
-          "description": "Mide las visitas a tu sitio público con Google Analytics 4. Pega tu ID de medición de GA4 y el fragmento de gtag.js se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "description": "Mide las visitas a tu sitio público con Google Analytics 4. Pega tu ID de medición de GA4 y el fragmento de gtag.js se inyecta en tu storefront. Eres responsable de obtener el consentimiento de los visitantes que exija tu jurisdicción.",
           "steps": {
             "s1": "Abre Google Analytics y ve a Administrar (el engranaje de abajo a la izquierda).",
             "s2": "En la columna Propiedad elige \"Flujos de datos\" y luego selecciona (o crea) tu flujo web.",
@@ -10587,7 +10587,7 @@
         },
         "meta_pixel": {
           "label": "Meta Pixel",
-          "description": "Mide conversiones y crea audiencias para tus anuncios de Facebook e Instagram. Pega el ID de tu Meta Pixel y el código base del pixel se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "description": "Mide conversiones y crea audiencias para tus anuncios de Facebook e Instagram. Pega el ID de tu Meta Pixel y el código base del pixel se inyecta en tu storefront. Eres responsable de obtener el consentimiento de los visitantes que exija tu jurisdicción.",
           "steps": {
             "s1": "Abre Meta Events Manager (business.facebook.com/events_manager).",
             "s2": "Selecciona tu pixel o conjunto de datos en la lista de fuentes de datos de la izquierda.",
@@ -10600,7 +10600,7 @@
         },
         "tiktok_pixel": {
           "label": "TikTok Pixel",
-          "description": "Mide las conversiones de tus anuncios de TikTok. Pega el ID de tu TikTok Pixel y el código base del pixel se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "description": "Mide las conversiones de tus anuncios de TikTok. Pega el ID de tu TikTok Pixel y el código base del pixel se inyecta en tu storefront. Eres responsable de obtener el consentimiento de los visitantes que exija tu jurisdicción.",
           "steps": {
             "s1": "Abre TikTok Ads Manager y ve a Recursos → Eventos.",
             "s2": "En \"Eventos web\", abre (o crea) tu pixel.",
@@ -10613,7 +10613,7 @@
         },
         "linkedin_insight": {
           "label": "LinkedIn Insight Tag",
-          "description": "Mide las conversiones de tus anuncios de LinkedIn y vuelve a impactar a tus visitantes. Pega tu Partner ID de LinkedIn y la Insight Tag se inyecta en tu storefront, siempre sujeta al consentimiento del visitante.",
+          "description": "Mide las conversiones de tus anuncios de LinkedIn y vuelve a impactar a tus visitantes. Pega tu Partner ID de LinkedIn y la Insight Tag se inyecta en tu storefront. Eres responsable de obtener el consentimiento de los visitantes que exija tu jurisdicción.",
           "steps": {
             "s1": "Abre LinkedIn Campaign Manager y ve a Analizar → Insight Tag.",
             "s2": "Elige \"Instalar mi Insight Tag\" o \"Administrar Insight Tag\".",
@@ -10626,7 +10626,7 @@
         },
         "gtm": {
           "label": "Google Tag Manager",
-          "description": "Administra todas tus etiquetas de marketing desde un solo contenedor sin editar el sitio. Pega tu ID de contenedor de GTM y el fragmento del contenedor se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "description": "Administra todas tus etiquetas de marketing desde un solo contenedor sin editar el sitio. Pega tu ID de contenedor de GTM y el fragmento del contenedor se inyecta en tu storefront. Eres responsable de obtener el consentimiento de los visitantes que exija tu jurisdicción.",
           "steps": {
             "s1": "Abre Google Tag Manager (tagmanager.google.com).",
             "s2": "Selecciona tu cuenta y el contenedor de este sitio web.",

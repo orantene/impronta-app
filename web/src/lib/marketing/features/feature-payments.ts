@@ -76,7 +76,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "Where the money lands",
         body: [
           [
-            "Payouts go to the bank account you connect, on the standard schedule, once your account is verified. You are the merchant of record for your own work, not a balance in somebody else's wallet waiting to be released.",
+            "Payouts go to the bank account you connect, on the standard schedule, once your account is verified. Payments are processed by Stripe through Tulala, and payouts go to you.",
           ],
         ],
       },

@@ -368,7 +368,7 @@ export function SelfServiceGroup(props: GroupProps & ServiceProps) {
       <SettingsCard>
         <Stepper
           label={t("Cancelling")}
-          detail={t("Inside {hours} hours the deposit is kept. The client is refunded in full before that.").replace("{hours}", String(cancel))}
+          detail={t("Sets the cancellation window shown to clients ({hours} hours). Refunds follow your published policy.").replace("{hours}", String(cancel))}
           value={cancel}
           display={`${cancel} h`}
           step={12}

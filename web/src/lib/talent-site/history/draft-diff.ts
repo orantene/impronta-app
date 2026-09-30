@@ -42,7 +42,6 @@ const EXCERPT = 80;
 
 const SECTION_NAMES: Record<string, { en: string; es: string }> = {
   hero: { en: "Hero", es: "Portada" },
-  before_after: { en: "Before / After", es: "Antes / Después" },
   "before-after": { en: "Before / After", es: "Antes / Después" },
   services: { en: "Services", es: "Servicios" },
   menu: { en: "Services", es: "Servicios" },

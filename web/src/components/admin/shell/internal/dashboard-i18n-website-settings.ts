@@ -53,6 +53,8 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "The balance is paid at the visit.": "El resto se paga en la visita.",
   "Every service starts with this. A service with its own deposit keeps it.":
     "Cada servicio empieza con esto. Un servicio con su propio anticipo lo mantiene.",
+  "Sets the cancellation window shown to clients ({hours} hours). Refunds follow your published policy.":
+    "Define la ventana de cancelación que ven los clientes ({hours} horas). Los reembolsos siguen tu política publicada.",
   "Inside {hours} hours the deposit is kept. The client is refunded in full before that.":
     "Dentro de las {hours} horas se retiene el anticipo. Antes de eso se reembolsa todo al cliente.",
   "The deposit moves to the new date. Inside {hours} hours it is kept and a new one is asked for.":
