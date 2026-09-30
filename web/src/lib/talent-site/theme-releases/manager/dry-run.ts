@@ -81,11 +81,16 @@ export function siteResultFromReport(
   meta: Pick<SiteDryRunResult, "siteId" | "profileCode" | "displayName" | "isDemo" | "pinnedVersion" | "noBase">,
   report: DesignMergeReport,
 ): SiteDryRunResult {
+  // No exact base (talent): only new blocks can be offered, so nothing else counts as applied.
+  const appliedCount =
+    meta.noBase && !meta.isDemo
+      ? report.applied.filter((e) => e.itemType === "new-block").length
+      : report.applied.length;
   return {
     ...meta,
     status: meta.isDemo ? "auto" : classifySiteReport(report),
     counts: {
-      applied: report.applied.length,
+      applied: appliedCount,
       kept: report.kept.length,
       conflicts: report.conflicts.length,
       added: report.added.length,
