@@ -2342,6 +2342,8 @@
         "sendRequest": "Send request",
         "pickFromBookings": "Pick from my bookings",
         "inviteByEmail": "Invite by email instead",
+        "pickClient": "Pick a client you worked with",
+        "otherEmail": "Someone else? Type their email",
         "sendError": "Could not send the request."
       },
       "tabAll": "All · {count}",
