@@ -38,6 +38,16 @@ export function autoImproveItems(items: ReadonlyArray<ReleaseItem>): ReleaseItem
   return items.filter(isAutoItem);
 }
 
+/**
+ * F78: what "Apply" merges. Automatic improvements (code, token and variant
+ * defaults), critical fixes and layout changes she opts into by applying.
+ * New blocks are NEVER part of Apply: they arrive only through "Add this
+ * block" with a placement, as the sheet promises.
+ */
+export function applyItemsOf(items: ReadonlyArray<ReleaseItem>): ReleaseItem[] {
+  return items.filter((i) => i.type !== "new-block");
+}
+
 export type WhatsNewGroup = "auto" | "blocks" | "layout" | "critical";
 
 export const WHATS_NEW_GROUP_ORDER: readonly WhatsNewGroup[] = ["critical", "auto", "blocks", "layout"];

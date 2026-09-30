@@ -35,6 +35,7 @@ import { countParts } from "../parts";
 import { addBlockSummary } from "./copy";
 import {
   OPEN_UPDATE_STATES,
+  applyItemsOf,
   groupItems,
   nextTokenOrigin,
   placeKeyAfter,
@@ -92,6 +93,8 @@ export interface TalentUpdateNotice {
   critical: boolean;
   notes: { en: string; es: string };
   groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
+  /** False when the release only offers new blocks: nothing for Apply to do (F78). */
+  hasApplicable: boolean;
   draftRev: number;
 }
 
@@ -162,6 +165,7 @@ export async function loadTalentUpdateNotices(
       critical: rel.critical,
       notes: notesOf(rel.notes),
       groups: groupItems(Array.isArray(rel.items) ? rel.items : []),
+      hasApplicable: applyItemsOf(Array.isArray(rel.items) ? rel.items : []).length > 0,
       draftRev,
     });
   }
@@ -313,7 +317,7 @@ export async function previewThemeUpdate(
 ): Promise<UpdateResult<UpdatePreview>> {
   const ctx = await loadUpdateContext(deps.admin, talentProfileId, updateId);
   if (!ctx) return NOT_FOUND;
-  const m = await deps.merge(ctx, ctx.release.items);
+  const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   return {
     ok: true,
@@ -335,7 +339,7 @@ export async function loadThemeUpdatePreviewSnapshot(
   if (!deps || !/^[0-9a-f-]{36}$/i.test(updateId)) return null;
   const ctx = await loadUpdateContext(deps.admin, talentProfileId, updateId);
   if (!ctx) return null;
-  const m = await deps.merge(ctx, ctx.release.items);
+  const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok || !m.homePageId) return null;
   // F76: opening the preview is measurement. Record `previewed` on the update
   // row only; her site is untouched. Never downgrades applied/dismissed/undone.
@@ -396,7 +400,7 @@ export async function applyThemeUpdate(
   const ctx = await loadUpdateContext(deps.admin, input.talentProfileId, input.updateId);
   if (!ctx) return NOT_FOUND;
   if (ctx.state === "applied") return { ok: false, code: "already_applied", error: "This update is already in your draft." };
-  const m = await deps.merge(ctx, ctx.release.items);
+  const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   if (!m.homePageId) return { ok: false, code: "not_found", error: "Home page not found." };
   const home = m.result.trees.home ?? [];

@@ -8,8 +8,9 @@
  *     new blocks, layout changes) with EN/ES notes and screenshots
  *   - Preview on my site: the merge runs in memory (no save); the link opens
  *     her own draft with the update and the "kept your edits" line shows here
- *   - Add this block: placement picker, inserted into the draft
- *   - Apply to my draft / Not now
+ *   - Add this block: its own button + placement picker, inserted into the draft
+ *   - Apply N changes (automatic improvements + layout changes, never new
+ *     blocks) / Not now
  */
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
@@ -19,6 +20,7 @@ import { pick } from "@/lib/talent-site/history/copy";
 import {
   GROUP_COPY,
   UPDATE_COPY,
+  applyLabel,
   bannerTitle,
   changesLine,
   keptLine,
@@ -166,9 +168,11 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
           ) : null}
           <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
-              {busy ? t("applying") : t("apply")}
-            </button>
+            {notice.hasApplicable ? (
+              <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
+                {busy ? t("applying") : applyLabel(preview ? preview.summary.applied + preview.summary.added : null, locale)}
+              </button>
+            ) : null}
             <button type="button" className={BTN_GHOST} disabled={busy} onClick={props.onDismiss} data-theme-update-dismiss>
               {t("notNow")}
             </button>

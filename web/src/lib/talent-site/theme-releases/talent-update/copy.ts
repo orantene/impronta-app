@@ -42,8 +42,8 @@ export const UPDATE_COPY = {
   cancel: { en: "Cancel", es: "Cancelar" },
   loading: { en: "Checking your site…", es: "Revisando tu sitio…" },
   draftOnly: {
-    en: "Applies to your draft only. Undo it any time from History.",
-    es: "Se aplica solo a tu borrador. Puedes deshacerla cuando quieras desde Historial.",
+    en: "Apply adds the automatic improvements and layout changes above to your draft. New blocks are added only with their own button. Undo any time from History.",
+    es: "Aplicar agrega a tu borrador las mejoras automáticas y los cambios de diseño de arriba. Los bloques nuevos se agregan solo con su propio botón. Puedes deshacerlo desde Historial.",
   },
   failed: { en: "Something went wrong. Try again.", es: "Algo salió mal. Inténtalo de nuevo." },
   version: { en: "Version", es: "Versión" },
@@ -66,8 +66,8 @@ export const GROUP_COPY: Record<WhatsNewGroup, Bilingual & { hintEn: string; hin
   blocks: {
     en: "New blocks you can add",
     es: "Bloques nuevos que puedes agregar",
-    hintEn: "Optional. You pick where they go.",
-    hintEs: "Opcionales. Tú eliges dónde van.",
+    hintEn: "Optional. Apply never adds them: use Add this block and pick where it goes.",
+    hintEs: "Opcionales. Aplicar no los agrega: usa Agregar este bloque y elige dónde va.",
   },
   layout: {
     en: "Layout changes",
@@ -131,4 +131,12 @@ export function autoImproveSummary(designTitle: string, changed: number): Biling
   const tailEn = changed > 0 ? ` · ${designTitle} (${changed} change${changed === 1 ? "" : "s"})` : ` · ${designTitle}`;
   const tailEs = changed > 0 ? ` · ${designTitle} (${changed} cambio${changed === 1 ? "" : "s"})` : ` · ${designTitle}`;
   return { en: `Improved by Tulala${tailEn}`, es: `Mejorado por Tulala${tailEs}` };
+}
+
+/** F78: the primary button says what Apply will do. */
+export function applyLabel(changes: number | null, locale: UpdateLocale): string {
+  if (changes === null || changes <= 0) return locale === "es" ? "Aplicar a mi borrador" : "Apply to my draft";
+  return locale === "es"
+    ? `Aplicar ${changes} cambio${changes === 1 ? "" : "s"}`
+    : `Apply ${changes} change${changes === 1 ? "" : "s"}`;
 }

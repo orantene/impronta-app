@@ -16,7 +16,7 @@ import type { SiteRef } from "../manager/merge-site.server";
 import { planFanOut } from "../manager/notify";
 import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 import { runAutoImprove } from "./auto-improve.server";
-import { appliedToast, bannerTitle, keptLine } from "./copy";
+import { GROUP_COPY, UPDATE_COPY, appliedToast, applyLabel, bannerTitle, keptLine } from "./copy";
 import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
 import {
   TALENT_RELEASE_COLUMNS,
@@ -30,7 +30,7 @@ import {
   type TalentRelease,
   type UpdateDeps,
 } from "./talent-update.server";
-import { groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
+import { applyItemsOf, groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
 
 const PROFILE = "11111111-1111-4111-8111-111111111111";
 const SITE = "22222222-2222-4222-8222-222222222222";
@@ -276,6 +276,54 @@ test("apply: toast copy says how many edits were kept (EN + ES, no em dash)", ()
   assert.equal(bannerTitle("Maison v2", "es"), "Maison v2 tiene una actualización");
   const line = keptLine(summarizeReport({ applied: [], added: [], kept: [], conflicts: [] }), "en");
   for (const s of [appliedToast(1, "en"), appliedToast(1, "es"), line]) assert.ok(!s.includes("—"));
+});
+
+test("F78: Apply merges automatic + layout items only; a new block is never inserted", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok);
+  assert.ok(!topKeys(homeSide(db), "home").includes("gallery"), "gallery block not added by Apply");
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "grid", "automatic change applied");
+  const entry = db.tables.talent_site_history![0]!.report as { merge: { added: unknown[] } };
+  assert.equal(entry.merge.added.length, 0);
+});
+
+test("F78: preview counts and the preview render exclude new blocks", async () => {
+  const db = world();
+  const withBlock = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(withBlock.ok);
+  assert.equal(withBlock.value.summary.added, 0);
+  const snap = await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.ok(!topKeys({ trees: { home: snap!.pages![HOME]! } }, "home").includes("gallery"));
+});
+
+test("F78: the block still arrives through Add this block, and Apply after it does not duplicate", async () => {
+  const db = world();
+  const add = await addThemeUpdateBlock(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, itemId: "new-block:gallery", afterId: null, expectedDraftRev: 7, actorId: null });
+  assert.ok(add.ok);
+  const rev = db.tables.talent_sites![0]!.draft_rev as number;
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: rev, actorId: null });
+  assert.ok(res.ok);
+  assert.equal(topKeys(homeSide(db), "home").filter((k) => k === "gallery").length, 1);
+});
+
+test("F78: sheet copy states what Apply will do (EN + ES, no em dash)", () => {
+  assert.equal(applyLabel(2, "en"), "Apply 2 changes");
+  assert.equal(applyLabel(1, "en"), "Apply 1 change");
+  assert.equal(applyLabel(2, "es"), "Aplicar 2 cambios");
+  assert.equal(applyLabel(null, "en"), "Apply to my draft");
+  assert.equal(applyLabel(0, "es"), "Aplicar a mi borrador");
+  for (const g of Object.values(GROUP_COPY)) assert.ok(!JSON.stringify(g).includes("—"));
+  assert.match(GROUP_COPY.blocks.hintEn, /Apply never adds them/);
+  assert.ok(!JSON.stringify(UPDATE_COPY).includes("—"));
+});
+
+test("F78: a release of only new blocks has nothing for Apply", async () => {
+  const db = world("available", release({ items: [ITEMS[1]!] }));
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.equal(n!.hasApplicable, false);
+  assert.deepEqual(applyItemsOf([ITEMS[1]!]), []);
+  assert.equal(applyItemsOf(ITEMS).length, 3);
 });
 
 // ── Undo ─────────────────────────────────────────────────────────────────────
