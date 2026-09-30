@@ -8,6 +8,7 @@ import type { ReleaseChannel, ReleaseItem, ReleaseItemType, ReleaseStatus } from
 
 import {
   actionChangeChannel,
+  actionGenerateItems,
   actionRunDryRun,
   actionSaveRelease,
   actionSetPaused,
@@ -197,9 +198,25 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
             );
           })}
         </ul>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" className={btn} disabled={pending || !hasUnsaved} onClick={save}>
             {t.save}
+          </button>
+          <button
+            type="button"
+            className={btn}
+            disabled={pending || hasUnsaved}
+            onClick={() =>
+              run(
+                () => actionGenerateItems(release.id),
+                (d) => {
+                  window.location.reload();
+                  return `${t.done} ${d.items} ${t.generated}.`;
+                },
+              )
+            }
+          >
+            {t.generate}
           </button>
         </div>
       </section>

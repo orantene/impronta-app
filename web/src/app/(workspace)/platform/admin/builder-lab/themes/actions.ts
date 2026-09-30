@@ -8,6 +8,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { updateReleaseNotes } from "@/lib/talent-site/theme-releases/releases.server";
 import type { ReleaseChannel, ThemeRelease } from "@/lib/talent-site/theme-releases/types";
+import { generateReleaseItems } from "@/lib/talent-site/theme-releases/manager/generate-items.server";
 import { editItemInList, type ItemEdit } from "@/lib/talent-site/theme-releases/manager/items";
 import {
   changeChannel,
@@ -71,6 +72,15 @@ export async function actionSaveRelease(
     };
     const res = await updateReleaseNotes(admin, releaseId, { notes, items });
     return res.ok ? { ok: true, data: null } : { ok: false, error: res.error };
+  });
+}
+
+/** Fill empty items + base from the version snapshots; the dry run becomes stale. */
+export async function actionGenerateItems(releaseId: string): Promise<Result<{ items: number; filledBase: boolean }>> {
+  return withRelease(releaseId, async (admin, release) => {
+    if (release.status === "archived") return { ok: false, error: "This release is archived." };
+    const res = await generateReleaseItems(admin, release);
+    return res.ok ? { ok: true, data: { items: res.items, filledBase: res.filledBase } } : res;
   });
 }
 
