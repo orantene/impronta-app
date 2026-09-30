@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { buildMaisonV2Payload } from "../../theme-catalog/collection/designs";
 import type { DesignPayload } from "../../theme-catalog/types";
+import { maisonV2At } from "../maison-v2-releases.fixtures";
 import { makeAllow } from "../policy";
 import { MAISON_V2_RELEASE_2_1 } from "./maison-v2";
 import { generateReleaseItems, groupLayoutItems, releaseNotesFor } from "./index";
@@ -36,12 +37,12 @@ function prev21(next: DesignPayload): DesignPayload {
 
 test("the module is found by design + version, and only then", () => {
   assert.equal(releaseNotesFor("maison-v2", 15), MAISON_V2_RELEASE_2_1);
-  assert.equal(releaseNotesFor("maison-v2", 16), null);
+  assert.equal(releaseNotesFor("maison-v2", 99), null);
   assert.equal(releaseNotesFor("folio", 15), null);
 });
 
 test("Maison v2 2.1: code item appears, notes are prefilled, hero inset is ONE layout item", () => {
-  const next = buildMaisonV2Payload();
+  const next = maisonV2At(15);
   const { items, notes } = generateReleaseItems(
     "maison-v2",
     { payload: prev21(next), version: 14 },
