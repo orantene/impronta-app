@@ -1777,7 +1777,7 @@ export function AdminShellProvider({
     });
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, (opts?.undo || opts?.action) ? 5000 : 2400); // actionable toasts stay longer
+    }, (opts?.undo || opts?.action) ? 9000 : 2400); // actionable toasts stay long enough to reach the link (F63; matches ToastRow)
   }, []);
 
   const dismissToast = useCallback((id: number) => {

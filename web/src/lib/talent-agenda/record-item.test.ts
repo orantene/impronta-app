@@ -47,4 +47,9 @@ test("F63: the New booking panel has one save outcome: close, stay, toast with V
   const form = readFileSync(join(dir, "../../components/admin/shell/internal/talent/agenda/AgendaNewBooking.tsx"), "utf8");
   assert.match(form, /onSaved\?\.\(result\.id\)/);
   assert.doesNotMatch(form, /request_link" && onOpenRecord/);
+  // The toast is raised before the panel closes, and an actionable toast lives at least 6 s.
+  assert.ok(saved.indexOf("toast(") < saved.indexOf("store.close()"));
+  const ctx = readFileSync(join(dir, "../../components/admin/shell/internal/state/context.tsx"), "utf8");
+  const ms = Number(/\(opts\?\.undo \|\| opts\?\.action\) \? (\d+) :/.exec(ctx)?.[1] ?? 0);
+  assert.ok(ms >= 6000, `actionable toast lifetime ${ms}ms`);
 });
