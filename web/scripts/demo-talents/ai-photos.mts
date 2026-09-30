@@ -263,6 +263,11 @@ function promptFor(plan: Plan, shot: PlannedShot, theme: string, withRef: boolea
   }
   parts.push(`Scene: ${shot.scene_en}`);
   if (NO_CLIENT_FACES.has(theme)) parts.push("No client, patient or child faces visible.");
+  // Adults only: a scene the planner set around children (kids' parties, babysitting) keeps its
+  // setting, but no child or baby may appear (the model drew them despite the rule line).
+  if (/\b(child|children|kid|kids|baby|babies|toddler|toddlers|infant|infants|newborn|boy|girl|teen|teenager|student)s?\b|children’s|children's/i.test(shot.scene_en)) {
+    parts.push("No children, babies or minors appear anywhere in the image: show only the setting, objects, adults or the professional's hands.");
+  }
   // Screens and paper came out with garbled pseudo-text; keep any such surface unreadable.
   if (/\b(screen|laptop|monitor|tablet|phone|paper|document|page|notebook|journal|menu|sign|poster|book|chart|form)s?\b/i.test(shot.scene_en)) {
     parts.push("Any screen, page or paper in the image shows only soft, blurred, unreadable shapes: no words or letters.");
