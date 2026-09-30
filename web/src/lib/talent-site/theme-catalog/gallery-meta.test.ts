@@ -11,6 +11,7 @@ process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { MAISON_PALETTES, MAISON_PALETTE_ORDER, maisonPaletteLookTokens } from "./maison/seed";
 import { DEMOS } from "../../../../scripts/demo-talents/demos";
+import { THEME_DEMOS } from "./theme-demos";
 import {
   GALLERY_CATEGORY_CHIPS,
   GALLERY_DESIGNS,
@@ -101,10 +102,17 @@ test("built talent demos point at real demo-talent packs on that design", () => 
     for (const demo of d.demos) {
       if (demo.source.kind !== "demo-talent") continue;
       const code = demo.source.profileCode;
+      // Either a hand-built pack (demos.ts) or a guide demo (theme-demos.ts).
       const pack = DEMOS.find((x) => x.profileCode === code);
-      assert.ok(pack, code);
-      assert.equal(pack.siteSlug, demo.source.siteSlug);
-      assert.equal(pack.theme, d.slug);
+      const guide = THEME_DEMOS.find((x) => x.profileCode === code);
+      assert.ok(pack || guide, code);
+      if (guide) {
+        assert.equal(guide.siteSlug, demo.source.siteSlug);
+        assert.equal(guide.design, d.slug);
+      } else {
+        assert.equal(pack!.siteSlug, demo.source.siteSlug);
+        assert.equal(pack!.theme, d.slug);
+      }
     }
   }
 });
