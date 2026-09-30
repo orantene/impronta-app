@@ -27,6 +27,7 @@ import {
 import { buildTimelineResult } from "./timeline";
 import type { HistoryRow, HistorySnapshot, ThemeUpdateHistoryReport } from "./types";
 import { recordSiteHistory, writeSiteDraft, type WriteSiteDraftResult } from "./writer";
+import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fan-out.server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const LIST_COLS =
@@ -270,7 +271,7 @@ export async function restoreHistoryEntry(
     }
   }
   const summary = restoreSummary(entry.at);
-  return writeSiteDraft(admin, {
+  const restored = await writeSiteDraft(admin, {
     siteId: state.siteId,
     expectedDraftRev: input.expectedDraftRev,
     site: { ...plan.site, ...(input.actorId ? { updated_by: input.actorId } : {}) },
@@ -283,6 +284,9 @@ export async function restoreHistoryEntry(
       createdBy: input.actorId,
     },
   });
+  // F108: restoring an older design can leave the site below an open release.
+  if (restored.ok) await ensureSiteThemeUpdates(admin, input.talentProfileId);
+  return restored;
 }
 
 /** Talent edits saved after `appliedAt`: the sum of edit counts of edit/colour entries since. */

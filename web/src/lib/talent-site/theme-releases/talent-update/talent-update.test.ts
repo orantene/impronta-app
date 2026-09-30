@@ -184,7 +184,7 @@ test("notices: named release columns only (no base_payload, no dry_run_report)",
 
 test("F74: the banner read is lean (no items) and the sheet's preview carries the groups", async () => {
   const db = world();
-  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
   assert.ok(n);
   assert.equal("groups" in n, false, "no release body on the notice");
   const relSelects = db.selects.filter((x) => x.table === "talent_theme_releases");
@@ -199,7 +199,7 @@ test("F74: the banner read is lean (no items) and the sheet's preview carries th
 
 test("F74: notice load is 4 reads with the release, site and title reads in one parallel step", async () => {
   const db = world();
-  await loadTalentUpdateNotices(db.admin, PROFILE);
+  await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
   assert.deepEqual(
     db.selects.map((x) => x.table),
     ["talent_site_theme_updates", "talent_theme_releases", "talent_sites", "talent_theme_catalog"],

@@ -23,6 +23,7 @@ import {
 import { designApplySummary, lookSummary } from "../history/copy";
 import type { HistoryActor } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
+import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
 
 /**
  * Talent theme gallery: APPLY CORE (server-only, NOT "use server").
@@ -267,6 +268,8 @@ export async function applyDesign(
     return { ok: false, code: "server_error", error: "Could not apply the design." };
   }
 
+  // F108: a new apply can land below an open release; offer the update now.
+  await ensureSiteThemeUpdates(admin, input.talentProfileId);
   return { ok: true, data: { designSlug: design.slug, designVersion: design.version } };
 }
 
