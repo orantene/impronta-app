@@ -19,8 +19,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
-import { Btn, EmptyState, FilterChips, FilterSheet, Icon, InboxRowV5, InboxSegments, Skeleton, fill, type InboxFilterKey } from "../kit";
-import { applyInboxFilters, groupInboxRows, inboxSegmentCounts, rowsForSegment, searchInboxRows } from "@/lib/messages-v5/inbox-view";
+import { Btn, Chip, EmptyState, FilterChips, FilterSheet, Icon, InboxRowV5, InboxSegments, Skeleton, fill, type InboxFilterKey } from "../kit";
+import { applyInboxFilters, groupInboxRows, inboxSegmentCounts, rowsForSegment, rowsForSellerFilter, searchInboxRows, sellerFilterCounts, type SellerInboxFilter } from "@/lib/messages-v5/inbox-view";
 import type { InboxProps } from "./contracts";
 
 /** The board's own chip set (D01 `.chips`, M10 Filter sheet): Mine, Unassigned, Unread, Payment issues, Orders, Offers, Appointments. */
@@ -42,11 +42,17 @@ export function Inbox(props: InboxProps) {
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const locale = useDashboardLocale();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Talent: her four filters (All, Needs reply, Quotes out, Agency) replace the staff segments and chips.
+  const sellerFilters = sellerChrome?.filters ?? null;
+  const [sellerFilter, setSellerFilter] = useState<SellerInboxFilter>("all");
+  const sellerCounts = useMemo(() => sellerFilterCounts(rows), [rows]);
+  const waitingLine = sellerFilters && sellerChrome?.waitingOnYou && sellerCounts.needs > 0 ? fill(sellerChrome.waitingOnYou, { count: sellerCounts.needs }) : null;
 
-  const segmentRows = useMemo(() => rowsForSegment(rows, filter, now), [rows, filter, now]);
+  const segmentRows = useMemo(() => (sellerFilters ? rowsForSellerFilter(rows, sellerFilter) : rowsForSegment(rows, filter, now)), [rows, filter, now, sellerFilters, sellerFilter]);
   const chipFilteredRows = useMemo(() => applyInboxFilters(segmentRows, chips, { currentUserId }), [segmentRows, chips, currentUserId]);
   const visibleRows = useMemo(() => searchInboxRows(chipFilteredRows, search), [chipFilteredRows, search]);
-  const groups = useMemo(() => groupInboxRows(visibleRows, filter, copy, now, locale), [visibleRows, filter, copy, now, locale]);
+  const groupFilter = sellerFilters ? (sellerFilter === "needs" ? "needs" : "all") : filter;
+  const groups = useMemo(() => groupInboxRows(visibleRows, groupFilter, copy, now, locale), [visibleRows, groupFilter, copy, now, locale]);
   const flatRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
 
   const computedCounts = useMemo(() => inboxSegmentCounts(rows, now), [rows, now]);
@@ -96,7 +102,7 @@ export function Inbox(props: InboxProps) {
       {sellerChrome?.firstRunAction ?? null}
     </div>
   ) : visibleRows.length === 0 ? (
-    <InboxEmpty variant={variant} filter={filter} search={search} copy={copy} onClearSearch={() => onSearch("")} onShowWaiting={() => onFilter("wait")} />
+    <InboxEmpty variant={variant} filter={sellerFilters ? "all" : filter} search={search} copy={copy} onClearSearch={() => onSearch("")} onShowWaiting={() => onFilter("wait")} />
   ) : (
     <div className={variant === "mobile" ? "mx-list" : "ib-list"} data-inbox-groups>
       {groups.map((group) => (
@@ -115,16 +121,19 @@ export function Inbox(props: InboxProps) {
       <div className="pane inbox mx" data-inbox-pane="mobile">
         <div className="mx-ih">
           <h1>{title}</h1>
-          {firstRun ? null : <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />}
+          {waitingLine && !firstRun ? <p data-inbox-waiting style={{ margin: 0, fontSize: 12.5, color: "var(--msgv5-ink-2)" }}>{waitingLine}</p> : null}
+          {firstRun ? null : sellerFilters ? <SellerFilters labels={sellerFilters} counts={sellerCounts} value={sellerFilter} onChange={setSellerFilter} variant="mobile" /> : <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="mobile" onChange={onFilter} />}
           {firstRun ? null : <div className="tools">
             <div className="mx-search">
               <Icon name="search" size={16} />
               <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
             </div>
-            <Btn size="lg" icon="layers" iconSize={15} className="filt" onClick={() => setSheetOpen(true)}>
-              {copy.inbox.filter}
-              {chips.length > 0 ? ` · ${chips.length}` : ""}
-            </Btn>
+            {sellerFilters ? null : (
+              <Btn size="lg" icon="layers" iconSize={15} className="filt" onClick={() => setSheetOpen(true)}>
+                {copy.inbox.filter}
+                {chips.length > 0 ? ` · ${chips.length}` : ""}
+              </Btn>
+            )}
           </div>}
         </div>
         {body}
@@ -157,16 +166,37 @@ export function Inbox(props: InboxProps) {
         </div>
         {firstRun ? null : (
           <>
-            <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />
+            {waitingLine ? <p data-inbox-waiting style={{ margin: 0, fontSize: 12.5, color: "var(--msgv5-ink-2)" }}>{waitingLine}</p> : null}
+            {sellerFilters ? <SellerFilters labels={sellerFilters} counts={sellerCounts} value={sellerFilter} onChange={setSellerFilter} variant="desktop" /> : <InboxSegments value={filter} counts={segmentCounts} copy={copy} variant="desktop" onChange={onFilter} />}
             <div className="search">
               <Icon name="search" size={14} />
               <input type="search" value={search} placeholder={copy.inbox.search} aria-label={copy.inbox.search} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit?.(search); }} />
             </div>
-            <FilterChips active={chips} copy={copy} keys={chipKeys} variant="desktop" onToggle={onToggleChip} />
+            {sellerFilters ? null : <FilterChips active={chips} copy={copy} keys={chipKeys} variant="desktop" onToggle={onToggleChip} />}
           </>
         )}
       </div>
       {body}
+    </div>
+  );
+}
+
+function SellerFilters({ labels, counts, value, onChange, variant }: {
+  readonly labels: NonNullable<NonNullable<InboxProps["sellerChrome"]>["filters"]>;
+  readonly counts: Record<SellerInboxFilter, number>;
+  readonly value: SellerInboxFilter;
+  readonly onChange: (next: SellerInboxFilter) => void;
+  readonly variant: "desktop" | "mobile";
+}) {
+  const keys: readonly SellerInboxFilter[] = ["all", "needs", "quotes", "agency"];
+  return (
+    <div className={variant === "mobile" ? "mx-chips" : "chips"} role="group" data-inbox-seller-filters>
+      {keys.map((key) => (
+        <Chip key={key} soft on={value === key} onClick={() => onChange(key)}>
+          {labels[key]}
+          {key !== "all" && counts[key] > 0 ? ` · ${counts[key]}` : ""}
+        </Chip>
+      ))}
     </div>
   );
 }

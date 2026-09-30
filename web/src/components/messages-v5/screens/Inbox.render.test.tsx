@@ -155,3 +155,22 @@ test("F35: seller with conversations keeps segments, without team chips", () => 
   assert.doesNotMatch(html, />Mine</);
   assert.doesNotMatch(html, />Unassigned</);
 });
+
+const SELLER_FILTERS = {
+  ...SELLER,
+  filters: { all: "All", needs: "Needs reply", quotes: "Quotes out", agency: "Agency" },
+  waitingOnYou: "{count} waiting on you",
+};
+
+test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting line", () => {
+  const rows = [
+    inboxRow({ id: "r1", conversationState: "needs_reply", ownerUserId: null, nextAction: null }),
+    inboxRow({ id: "r2", conversationState: "needs_reply", ownerUserId: null, nextAction: null, agency: true }),
+  ];
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, seller: true, sellerChrome: SELLER_FILTERS })} />);
+  assert.match(html, /data-inbox-seller-filters/);
+  for (const label of ["All", "Needs reply", "Quotes out", "Agency"]) assert.match(html, new RegExp(">" + label));
+  assert.match(html, /2 waiting on you/);
+  assert.doesNotMatch(html, /Needs action/);
+  assert.doesNotMatch(html, /data-inbox-chips/);
+});
