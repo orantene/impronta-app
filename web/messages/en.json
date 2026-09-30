@@ -5159,7 +5159,7 @@
         "groupWebsite": "Website",
         "groupWebsiteBlurb": "Power your public storefront with your own provider keys and code.",
         "groupAnalytics": "Analytics & marketing",
-        "groupAnalyticsBlurb": "Drop your own measurement IDs in. Tags are injected on your storefront, gated behind visitor consent.",
+        "groupAnalyticsBlurb": "Drop your own measurement IDs in. Tags are injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
         "groupSocial": "Social channels",
         "groupSocialBlurb": "Connect verified brand channels and decide what appears on the public site.",
         "groupSecurity": "Security",
@@ -10574,7 +10574,7 @@
         },
         "ga4": {
           "label": "Google Analytics 4",
-          "description": "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
+          "description": "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
           "steps": {
             "s1": "Open Google Analytics → Admin (gear, bottom-left).",
             "s2": "Under the Property column choose \"Data streams\", then select (or create) your Web stream.",
@@ -10587,7 +10587,7 @@
         },
         "meta_pixel": {
           "label": "Meta Pixel",
-          "description": "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront (consent-gated).",
+          "description": "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
           "steps": {
             "s1": "Open Meta Events Manager (business.facebook.com/events_manager).",
             "s2": "Select your pixel / dataset in the Data Sources list on the left.",
@@ -10600,7 +10600,7 @@
         },
         "tiktok_pixel": {
           "label": "TikTok Pixel",
-          "description": "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront (consent-gated).",
+          "description": "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
           "steps": {
             "s1": "Open TikTok Ads Manager → Assets → Events.",
             "s2": "Under \"Web Events\", open (or create) your pixel.",
@@ -10613,7 +10613,7 @@
         },
         "linkedin_insight": {
           "label": "LinkedIn Insight Tag",
-          "description": "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront (consent-gated).",
+          "description": "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
           "steps": {
             "s1": "Open LinkedIn Campaign Manager → Analyze → Insight Tag.",
             "s2": "Choose \"Install my Insight Tag\" / \"Manage Insight Tag\".",
@@ -10626,7 +10626,7 @@
         },
         "gtm": {
           "label": "Google Tag Manager",
-          "description": "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront (consent-gated).",
+          "description": "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
           "steps": {
             "s1": "Open Google Tag Manager (tagmanager.google.com).",
             "s2": "Select your account and the container for this website.",

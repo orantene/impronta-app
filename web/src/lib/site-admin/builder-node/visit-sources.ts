@@ -207,7 +207,7 @@ export async function loadVisitSources(
         label: es ? "Cambios" : "Changes",
         value: es ? `Hasta ${h} h antes` : `Up to ${h} h before`,
         icon: "changes",
-        note: es ? "Cambias o cancelas desde tu enlace." : "Change or cancel from your link.",
+        note: es ? "Según la política publicada de la profesional." : "Per the professional's published policy.",
       });
     }
 

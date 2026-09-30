@@ -17,12 +17,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// LEGAL REVIEW REQUIRED: Phase 0 factual corrections only (2026-09-30). Removed
+// promises the code does not implement (30-day deletion, full export, consent
+// banner opt-out). Counsel must review before this is treated as a final policy.
 export default function PrivacyPage() {
   return (
     <LegalPage
       eyebrow="Legal"
       title="Privacy Policy"
-      lastUpdated="2026-04-01"
+      lastUpdated="2026-09-30"
       intro={
         <p>
           {PLATFORM_BRAND.name} is a platform for roster-based businesses, coordinators,
@@ -46,8 +49,8 @@ export default function PrivacyPage() {
               </p>
               <p>
                 <strong>Usage analytics</strong>, aggregate events (page views, CTA clicks,
-                inquiry funnel steps) that help us improve the product. You can opt out via
-                the consent banner.
+                inquiry funnel steps) that help us improve the product. We do not currently
+                offer an in-product opt-out for this aggregate analytics.
               </p>
             </>
           ),
@@ -81,11 +84,29 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                Account and content data is retained while your account is active. Full
-                export is available on every paid plan (CSV + JSON).
-                Account deletion removes your content within 30 days; backups age out within
-                90 days.
+                Account and content data is retained while your account is active. You can
+                ask for a copy of your data, and we provide it on request through support.
+                You can also ask us to delete your account; we handle deletion on request
+                and do not commit to a fixed deletion timeline on this page.
               </p>
+            </>
+          ),
+        },
+        {
+          heading: "Service providers (subprocessors)",
+          body: (
+            <>
+              <p>We use these providers to run the service:</p>
+              <ul className="list-disc pl-5">
+                <li>Vercel, hosting and delivery</li>
+                <li>Supabase, database, authentication and file storage</li>
+                <li>Stripe, payment processing</li>
+                <li>Resend, transactional email</li>
+                <li>Sentry, error monitoring</li>
+                <li>Google Maps, places and address lookup</li>
+                <li>Anthropic and OpenAI, AI-assisted features</li>
+                <li>Upstash, rate limiting and caching</li>
+              </ul>
             </>
           ),
         },
@@ -113,7 +134,7 @@ export default function PrivacyPage() {
               >
                 privacy@{PLATFORM_BRAND.domain}
               </a>
-              . Data subject requests are handled within 30 days.
+              . Data requests (export, correction, deletion) are handled on request through support.
             </p>
           ),
         },
