@@ -8,12 +8,12 @@ import { GALLERY_DESIGNS } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { allowedDemoProfileCodes, resolveDemoPreviewSource } from "./demo-preview-source";
 
 test("a built demo-talent demo resolves to its gallery-meta profile code", () => {
-  const src = resolveDemoPreviewSource("folio", "folio:bartender");
+  const src = resolveDemoPreviewSource("folio", "folio:commercial-model");
   assert.deepEqual(src, {
     designSlug: "folio",
-    demoKey: "bartender",
-    profileCode: "TAL-93007",
-    siteSlug: "sofia-barra",
+    demoKey: "commercial-model",
+    profileCode: "TAL-93109",
+    siteSlug: "priya-shah",
   });
 });
 
@@ -37,10 +37,10 @@ test("rejects anything outside the allow-list", () => {
     "maison:nails", // maison-seed, not a demo talent
     "folio:dj", // demo of another design
     "frame:dj", // valid demo but wrong route design
-    "folio:TAL-93007",
+    "folio:TAL-93109",
     "folio:00000000-0000-0000-0000-000000000000",
-    "folio:bartender;drop",
-    "../folio:bartender",
+    "folio:commercial-model;drop",
+    "../folio:commercial-model",
   ]) {
     assert.equal(resolveDemoPreviewSource("folio", bad), null, String(bad));
   }

@@ -38,13 +38,13 @@ describe("choices parse: demoKey / fromQuery", () => {
 
   it("round-trips a valid demo key, query and palette for the design", () => {
     const stored = persistableMaisonChoices(
-      choices({ demoKey: "bartender", fromQuery: "  Model ", designPaletteKey: "ochre" }),
+      choices({ demoKey: "commercial-model", fromQuery: "  Model ", designPaletteKey: "light" }),
     );
     const parsed = parseMaisonChoices(JSON.parse(JSON.stringify(stored)));
     assert.equal(parsed.designSlug, "folio");
-    assert.equal(parsed.demoKey, "bartender");
+    assert.equal(parsed.demoKey, "commercial-model");
     assert.equal(parsed.fromQuery, "Model");
-    assert.equal(parsed.designPaletteKey, "ochre");
+    assert.equal(parsed.designPaletteKey, "light");
   });
 
   it("drops a demo key or palette that is not in that design", () => {
@@ -85,7 +85,7 @@ describe("demo resolution", () => {
   });
 
   it("only demo-talent built demos produce a preview param", () => {
-    assert.equal(demoPreviewParam("folio", folio.demos.find((d) => d.key === "bartender")!), "folio:bartender");
+    assert.equal(demoPreviewParam("folio", folio.demos.find((d) => d.key === "commercial-model")!), "folio:commercial-model");
     assert.equal(demoPreviewParam("folio", folio.demos.find((d) => d.key === "illustrator")!), null);
     const maison = getGalleryDesign("maison")!;
     assert.equal(demoPreviewParam("maison", maison.demos[0]!), null);
@@ -95,29 +95,29 @@ describe("demo resolution", () => {
 describe("colors-kept rule", () => {
   it("on demo colors, switching demo follows the new demo's palette and is not 'kept'", () => {
     const c = choices({ demoKey: "fashion-model" });
-    const { patch, kept } = demoSwitchPatch(folio, c, "bartender");
+    const { patch, kept } = demoSwitchPatch(folio, c, "commercial-model");
     assert.equal(kept, false);
-    assert.equal(patch?.demoKey, "bartender");
+    assert.equal(patch?.demoKey, "commercial-model");
     assert.equal("designPaletteKey" in (patch ?? {}), false);
     const after = { ...c, ...patch };
-    const colors = effectiveColors(folio, folio.demos.find((d) => d.key === "bartender")!, after);
-    assert.equal(colors.kind === "palette" && colors.palette.key, "ochre");
+    const colors = effectiveColors(folio, folio.demos.find((d) => d.key === "commercial-model")!, after);
+    assert.equal(colors.kind === "palette" && colors.palette.key, "light");
   });
 
   it("a picked palette is kept when the demo switches", () => {
-    const c = { ...choices({ demoKey: "fashion-model" }), ...pickPalettePatch(folio, "noir") };
-    const { patch, kept } = demoSwitchPatch(folio, c, "bartender");
+    const c = { ...choices({ demoKey: "fashion-model" }), ...pickPalettePatch(folio, "dark") };
+    const { patch, kept } = demoSwitchPatch(folio, c, "commercial-model");
     assert.equal(kept, true);
     const after = { ...c, ...patch };
-    const colors = effectiveColors(folio, folio.demos.find((d) => d.key === "bartender")!, after);
-    assert.equal(colors.kind === "palette" && colors.palette.key, "noir");
-    assert.equal(after.designPaletteKey, "noir");
+    const colors = effectiveColors(folio, folio.demos.find((d) => d.key === "commercial-model")!, after);
+    assert.equal(colors.kind === "palette" && colors.palette.key, "dark");
+    assert.equal(after.designPaletteKey, "dark");
   });
 
   it("custom colors are kept when the demo switches", () => {
     const custom = buildMaisonCustomPalette({ page: "#FFFFFF", text: "#111111", accent: "#224466", section: "#F0F0F0" });
     const c = choices({ designSlug: "maison-v2", demoKey: "lash-artist", customPalette: custom, useCustomPalette: true });
-    const { patch, kept } = demoSwitchPatch(maisonV2, c, "private-chef");
+    const { patch, kept } = demoSwitchPatch(maisonV2, c, "barber");
     assert.equal(kept, true);
     assert.equal(patch?.useCustomPalette, undefined);
     assert.equal(effectiveColors(maisonV2, null, { ...c, ...patch }).kind, "custom");

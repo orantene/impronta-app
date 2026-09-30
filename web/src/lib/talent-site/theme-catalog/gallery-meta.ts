@@ -19,6 +19,7 @@
  * Everything else is `planned` (Preview planned tile).
  */
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
+import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
 import {
   MAISON_PALETTES,
   MAISON_PALETTE_ORDER,
@@ -67,6 +68,7 @@ export type GalleryCategoryChip = (typeof GALLERY_CATEGORY_CHIPS)[number];
 export type GalleryProfession =
   | "nails"
   | "lashes"
+  | "brows"
   | "bridal_makeup"
   | "hair"
   | "barber"
@@ -143,6 +145,7 @@ export const GALLERY_PROFESSIONS: Record<
 > = {
   nails: { label: { en: "Nail Artist", es: "Manicurista" }, chip: "beauty", synonyms: ["nails", "nail", "manicure", "manicurist", "uñas", "unas", "manicurista"] },
   lashes: { label: { en: "Lash Artist", es: "Lashista" }, chip: "beauty", synonyms: ["lashes", "lash", "eyelashes", "pestañas", "pestanas", "lashista"] },
+  brows: { label: { en: "Brow Artist", es: "Diseñadora de cejas" }, chip: "beauty", synonyms: ["brows", "brow", "eyebrows", "microblading", "lamination", "cejas", "ceja", "laminado"] },
   bridal_makeup: { label: { en: "Bridal Hair & Makeup", es: "Peinado y maquillaje de novia" }, chip: "beauty", synonyms: ["makeup", "make-up", "bridal", "mua", "maquillaje", "maquillista", "novia"] },
   hair: { label: { en: "Hair Stylist", es: "Estilista" }, chip: "beauty", synonyms: ["hair", "hairstylist", "stylist", "estilista", "peinado", "cabello"] },
   barber: { label: { en: "Barber", es: "Barbero" }, chip: "beauty", synonyms: ["barber", "barbershop", "barbero", "barberia", "barbería"] },
@@ -221,6 +224,13 @@ function talentDemo(
   return { key, name, professions, defaultPalette, status: "built", source: { kind: "demo-talent", profileCode, siteSlug, displayName } };
 }
 
+/** The guide's demo talents for a design (theme-demos.ts), as built gallery demos. */
+function guideDemos(design: ThemeDemoDesign): GalleryDemo[] {
+  return themeDemosFor(design).map((d) =>
+    talentDemo(d.key, d.name, d.professions, d.palette, d.profileCode, d.siteSlug, d.displayName),
+  );
+}
+
 function planned(key: string, name: Localized, professions: GalleryProfession[], defaultPalette: string): GalleryDemo {
   return { key, name, professions, defaultPalette, status: "planned", source: { kind: "none" } };
 }
@@ -279,9 +289,8 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       // FEATURED: Alba is the proposal's own demo (content word for word from the artifact).
       talentDemo("alba-nail-artist", { en: "Nail & Lash Artist", es: "Uñas y pestañas" }, ["nails", "lashes"], "rose", "TAL-93020", "alba-nail-artist", "Alba"),
-      talentDemo("lash-artist", { en: "Lash Artist", es: "Lashista" }, ["lashes"], "rose", "TAL-93002", "renata-lashes", "Renata Salgado"),
-      talentDemo("nail-artist", { en: "Nail Artist", es: "Manicurista" }, ["nails"], "rose", "TAL-93003", "camila-nails", "Camila Rivas"),
-      talentDemo("private-chef", { en: "Private Chef", es: "Chef privado" }, ["chef"], "sage", "TAL-93006", "andres-cocina", "Andrés Molina"),
+      // The guide's seven Maison demos (Camila + Renata live, five drafts).
+      ...guideDemos("maison-v2"),
     ],
   }),
   design({
@@ -348,15 +357,14 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
       pal("dark", "Dark contrast", "Contraste oscuro", ["#0E0E0E", "#171717", "#2C2B29", "#F1EFEA", "#F1EFEA", "#0E0E0E"], { dark: true }),
     ],
     demos: [
-      // Featured Folio demo = Mateo Ferrer (artifact). Lucía stays as second built demo.
+      // Featured Folio demo = Mateo Ferrer (artifact).
       talentDemo("fashion-model", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93011", "mateo-ferrer", "Mateo Ferrer"),
-      talentDemo("fashion-model-lucia", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93004", "lucia-herrera", "Lucía Herrera"),
-      talentDemo("bartender", { en: "Bartender", es: "Bartender" }, ["bartender"], "stone", "TAL-93007", "sofia-barra", "Sofía Campos"),
+      // The guide's seven Folio demos (Lucía live, six drafts).
+      ...guideDemos("folio"),
       planned("portrait-photographer", { en: "Portrait Photographer", es: "Fotógrafo de retrato" }, ["photographer"], "stone"),
       planned("graphic-designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "light"),
       planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "stone"),
       planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "light"),
-      planned("model-singer", { en: "Model & Singer", es: "Modelo y cantante" }, ["model", "singer"], "dark"),
     ],
   }),
 ];
