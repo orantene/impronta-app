@@ -1092,6 +1092,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`standard` = the full messages dock (tabs, services rail, progress). `card` = a calm one-to-one chat card in the site's own colours and fonts: avatar + name, a greeting bubble and a message pill. Sending and booking work the same in both. A Design may set this as its default.",
   },
+  "chat.help-bubble": {
+    key: "chat.help-bubble",
+    label: "Help bubble",
+    scope: "background",
+    agencyConfigurable: true,
+    validator: z.enum(["off", "on"]),
+    defaultValue: "off",
+    group: "Site shell",
+    description:
+      "`on` = once per visit, after the visitor scrolls, a small bubble above the chat button offers help choosing (photo, name, 'Can I help you choose?'). It never shows while the chat or the booking sheet is open, and never when chat or inquiries are paused.",
+  },
   // Site style tokens (type roles, buttons, shape, spacing). Defaults are "",
   // i.e. "use the Design default"; see style-tokens.ts.
   ...styleTokenSpecs(),

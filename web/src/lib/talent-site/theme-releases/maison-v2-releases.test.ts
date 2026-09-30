@@ -420,3 +420,59 @@ test("Maison v2 v19 payload: every new option is set, tokens only, no hex", () =
   assert.doesNotMatch(JSON.stringify(maisonV2At(19)), HEX);
   assert.equal(maisonV2At(19).tokenDefaults!["shape.chrome"], "soft");
 });
+
+// ── Release 2.6 (v20, slice "chrome"): header switcher + help bubble default ─
+
+const headerOf = (trees: DesignSide["trees"]) =>
+  trees.shell!.find((n) => propsOf(n).sectionTypeKey === "site_header")!;
+const centerTypes = (trees: DesignSide["trees"]) =>
+  (((propsOf(headerOf(trees)).sectionProps as { regions: { center: Array<{ type: string }> } }).regions.center) ?? []).map(
+    (i) => i.type,
+  );
+
+test("Maison v2 v20 classifies as one header default, nothing opt-in (chat and dock ride as code notes)", () => {
+  const items = diff(maisonV2At(19), 19, maisonV2At(20), 20);
+  assert.deepEqual(items.map((i) => i.id), ["variant-default:shell:header"]);
+  assert.deepEqual(types(items, "variant-default")[0]!.paths, ["sectionProps.regions.center"]);
+  for (const t of ["new-block", "layout", "critical"]) assert.equal(types(items, t).length, 0, `no ${t} in 2.6`);
+  assertNotesFor(items, 20);
+  // The platform chat and dock changes ride as code notes (EN + ES, no dashes).
+  const rel = authoredRelease("maison-v2", 20)!;
+  assert.ok(rel.codeNotes.length >= 1);
+  for (const n of rel.codeNotes) {
+    assert.ok(n.en && n.es);
+    assert.doesNotMatch(`${n.en} ${n.es}`, /—|–/);
+  }
+});
+
+test("Maison v2 v20: the payload carries the switcher phone-only, and v19 does not", () => {
+  const now = maisonV2At(20);
+  const before = maisonV2At(19);
+  const header = now.shellTree.find((n) => propsOf(n).sectionTypeKey === "site_header")!;
+  const center = (propsOf(header).sectionProps as { regions: { center: Array<Record<string, unknown>> } }).regions.center;
+  const sw = center.find((i) => i.type === "section_switcher")!;
+  assert.deepEqual(sw.responsive, { desktop: "hide", tablet: "hide", mobile: "show" });
+  assert.equal(now.tokenDefaults!["chat.help-bubble"], undefined, "a Design token default must be a site style token");
+  const old = before.shellTree.find((n) => propsOf(n).sectionTypeKey === "site_header")!;
+  const oldCenter = (propsOf(old).sectionProps as { regions: { center: Array<{ type: string }> } }).regions.center;
+  assert.ok(!oldCenter.some((i) => i.type === "section_switcher"));
+});
+
+test("Maison v2 v20 merge: an untouched header gains the switcher; an edited one keeps hers", async () => {
+  const prev = maisonV2At(19);
+  const next = maisonV2At(20);
+  const { base, theirs } = await siteSides(prev, 19, next, 20);
+  const items = diff(prev, 19, next, 20);
+
+  const clean = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items });
+  assert.ok(centerTypes(clean.trees).includes("section_switcher"), "untouched header gets the switcher");
+  assert.equal(clean.report.conflicts.length, 0);
+
+  // She rebuilt her header centre herself: her choice wins, nothing is forced.
+  const ours = siteOf(base);
+  const sp = propsOf(headerOf(ours.trees)).sectionProps as { regions: { center: Array<Record<string, unknown>> } };
+  sp.regions.center = [{ type: "nav" }];
+  const kept = mergeDesignUpdate({ base, ours, theirs, items });
+  assert.ok(!centerTypes(kept.trees).includes("section_switcher"), "her header is kept as she built it");
+  assert.ok(kept.report.kept.some((e) => e.key === "header"));
+});

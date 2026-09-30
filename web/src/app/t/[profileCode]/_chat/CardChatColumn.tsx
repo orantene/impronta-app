@@ -13,18 +13,33 @@
  * with the page's `--token-color-*` vars, then the chat palette, as fallbacks.
  */
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
+import {
+  peekBookingResume,
+  requestBookingResume,
+  subscribeBookingResume,
+} from "@/components/public-booking/booking-resume-store";
+import { requestChatAddService } from "@/components/public-booking/chat-catalog-events";
+
+import {
+  CARD_CHAT_CSS,
+  CardChatBackToBooking,
+  CardChatChips,
+  CardChatContextCard,
+  CardChatServiceBrowser,
+} from "./CardChatExtras";
 import type { MiniChatPanelColumnProps } from "./MiniChatPanelColumn";
 import { MiniChatGateForm } from "./MiniChatGateForm";
 import { MiniChatMessageBubble } from "./MiniChatMessageBubble";
 import { SendToAgencyBar } from "./SendToAgencyBar";
 import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
 import { guestThreadBlocksSendBar } from "./guest-thread-blocks-send";
+import { clearPendingOffering, peekPendingOffering, setPendingOffering } from "./pending-offering-store";
 import { C, FONT } from "./mini-chat-styles";
 import a11y from "./mini-chat-a11y.module.css";
 
@@ -176,6 +191,7 @@ export function CardChatPanel(props: CardChatPanelProps) {
     isHub = false,
     typicalReply,
     surfaceMode = "light",
+    offerings = [],
   } = props;
   const t = createTranslator(brand.locale ?? "en");
   const name = brand.talentDisplayName || brand.agencyName;
@@ -186,12 +202,26 @@ export function CardChatPanel(props: CardChatPanelProps) {
     card.customGreeting?.trim() || interpolate(t("public.guestChat.cardGreeting"), { name: talentFirst || name });
   const visibleRows = rows.filter((m) => !m.isDeleted);
 
-  const seeServices = () => {
-    onClose();
-    const target = document.getElementById("services");
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-    else window.location.hash = "services";
+  // CH-4: the header list button swaps the thread for her services (no more
+  // closing the chat and scrolling the page). CH-3: the way back to the sheet.
+  const [browsing, setBrowsing] = useState(false);
+  const [, bumpPending] = useState(0);
+  const resume = useSyncExternalStore(subscribeBookingResume, peekBookingResume, () => null);
+  const pending = peekPendingOffering();
+  const askTitles = pending ? (pending.askAbout?.length ? pending.askAbout : [pending.title]) : [];
+  const fillComposer = (q: string) => {
+    onDraftChange(q);
+    textareaRef.current?.focus();
   };
+
+  // The booking sheet opening (an Add that needs options) hides the chat.
+  useEffect(() => {
+    const onSheet = (e: Event) => {
+      if ((e as CustomEvent<{ open?: boolean }>).detail?.open === true) onClose();
+    };
+    window.addEventListener("tulala:maison-sheet", onSheet);
+    return () => window.removeEventListener("tulala:maison-sheet", onSheet);
+  }, [onClose]);
 
   return (
     <div
@@ -202,6 +232,7 @@ export function CardChatPanel(props: CardChatPanelProps) {
       data-tl-motion=""
       style={{ ...cardVars(card, accent, accentInk), ...frame(compact, keyboardInsetPx) } as CSSProperties}
     >
+      <style>{CARD_CHAT_CSS}</style>
       <div
         style={{
           padding: "14px 14px 10px",
@@ -219,13 +250,27 @@ export function CardChatPanel(props: CardChatPanelProps) {
           <b style={{ display: "block", fontSize: 15, fontWeight: 600 }}>{name}</b>
           {subline ? <small style={{ fontSize: 12, color: "var(--cc-muted)" }}>{subline}</small> : null}
         </div>
-        <button type="button" onClick={seeServices} aria-label={t("public.guestChat.cardServicesAria")} className={a11y.focusRing} style={ROUND_BTN}>
-          <LinesIcon />
-        </button>
+        {card.browseServices ? (
+          <button type="button" onClick={() => setBrowsing((v) => !v)} aria-expanded={browsing} aria-label={t("public.guestChat.cardServicesAria")} className={a11y.focusRing} style={ROUND_BTN}>
+            <LinesIcon />
+          </button>
+        ) : null}
         <button type="button" onClick={onClose} aria-label={t("public.guestChat.closeAria")} className={a11y.focusRing} style={ROUND_BTN}>
           <XIcon />
         </button>
       </div>
+
+      {resume && !showGate ? (
+        <CardChatBackToBooking
+          resume={resume}
+          locale={brand.locale ?? "en"}
+          t={t}
+          onBack={() => {
+            requestBookingResume();
+            onClose();
+          }}
+        />
+      ) : null}
 
       <div
         ref={scrollRef}
@@ -239,6 +284,24 @@ export function CardChatPanel(props: CardChatPanelProps) {
           gap: 10,
         }}
       >
+        {browsing ? (
+          <CardChatServiceBrowser
+            offerings={offerings}
+            locale={brand.locale ?? "en"}
+            t={t}
+            onBack={() => setBrowsing(false)}
+            onAdd={(o) => {
+              requestChatAddService(o.offeringId);
+              setBrowsing(false);
+              onClose();
+            }}
+            onAsk={(o) => {
+              setPendingOffering({ ...o, intent: "request", askAbout: [o.title] });
+              setBrowsing(false);
+            }}
+          />
+        ) : (
+          <>
         <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--cc-muted)" }}>
           {interpolate(t("public.guestChat.cardNote"), { name: talentFirst || name })}
         </div>
@@ -272,6 +335,8 @@ export function CardChatPanel(props: CardChatPanelProps) {
               {m.body}
             </div>
           ),
+        )}
+          </>
         )}
       </div>
 
@@ -317,6 +382,25 @@ export function CardChatPanel(props: CardChatPanelProps) {
           typicalReply={typicalReply}
           onSend={onSendToAgency}
         />
+      ) : null}
+
+      {!showGate && !browsing ? (
+        pending ? (
+          <CardChatContextCard
+            titles={askTitles}
+            imageUrl={pending.imageUrl ?? null}
+            t={t}
+            onPick={fillComposer}
+            onClear={() => {
+              clearPendingOffering();
+              bumpPending((n) => n + 1);
+            }}
+          />
+        ) : visibleRows.length === 0 ? (
+          <div style={{ padding: "8px 12px 0" }}>
+            <CardChatChips t={t} onPick={fillComposer} />
+          </div>
+        ) : null
       ) : null}
 
       {!showGate ? (

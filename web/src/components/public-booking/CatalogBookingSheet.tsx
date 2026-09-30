@@ -50,6 +50,12 @@ import {
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import { CatalogLiveWhenPicker } from "./CatalogLiveWhenPicker";
+import {
+  BOOKING_RESUME_EVENT,
+  clearBookingResume,
+  peekBookingResume,
+  setBookingResume,
+} from "./booking-resume-store";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 
@@ -141,12 +147,27 @@ export function CatalogBookingSheet({
       setWrote(false);
       setAskAttempted(false);
       setTakenNotice(null);
+      clearBookingResume();
       const needsOption = catalogNeedsOptions(d);
       setStep(d.startAt === "when" && !needsOption ? "when" : "choose");
     };
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
+  }, []);
+
+  // CH-3: the chat's "back to my booking" re-opens the sheet with every pick kept
+  // (this component's state survives a close; only a fresh open resets it).
+  useEffect(() => {
+    const resume = () => {
+      const snap = peekBookingResume();
+      if (!snap) return;
+      clearBookingResume();
+      setDetail(snap.detail as CatalogBookingDetail);
+      setStep(snap.step);
+    };
+    window.addEventListener(BOOKING_RESUME_EVENT, resume);
+    return () => window.removeEventListener(BOOKING_RESUME_EVENT, resume);
   }, []);
 
   useEffect(() => {
@@ -324,6 +345,12 @@ export function CatalogBookingSheet({
     totalCents: total,
   });
 
+  /** CH-3: remember where she left so the chat can offer the way back. */
+  const stashResume = () => {
+    if (mode !== "live" || step === "done") return;
+    setBookingResume({ detail, step, title: detail.title, totalCents: isQuote ? null : total, currency: detail.currency });
+  };
+
   const startChat = () => {
     setTouched(true);
     setAskAttempted(true);
@@ -341,6 +368,7 @@ export function CatalogBookingSheet({
       sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
       demo: mode === "demo",
     };
+    stashResume();
     setDetail(null);
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);
@@ -355,6 +383,7 @@ export function CatalogBookingSheet({
       sourcePage: typeof window !== "undefined" ? window.location.pathname : undefined,
       demo: mode === "demo",
     };
+    stashResume();
     setDetail(null);
     if (onAsk) onAsk(handoff);
     else openCatalogBookingChat(handoff);

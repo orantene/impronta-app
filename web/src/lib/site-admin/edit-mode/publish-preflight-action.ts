@@ -24,10 +24,7 @@ import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { validateSectionProps } from "@/lib/site-admin/forms/sections";
-import {
-  findInvalidInquiryCtas,
-  isSectionHidden,
-} from "./publish-preflight-rules";
+import { findInvalidInquiryCtas, findSectionSwitcherIssues, isSectionHidden } from "./publish-preflight-rules";
 import {
   classifyCanonicalIssue,
   classifyHrefIssue,
@@ -438,6 +435,8 @@ export async function runPublishPreflight(input?: {
         message,
       });
     }
+
+    for (const message of findSectionSwitcherIssues(sectionName, r.section_type_key, props)) issues.push({ severity: "warn", category: "link_integrity", sectionId: r.id, message });
 
     // Generic link integrity audit.
     for (const candidate of collectLinkCandidates(props)) {

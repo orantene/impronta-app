@@ -230,6 +230,7 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   // same contract as directory.card.profile-popup. The attr also lets CSS /
   // instrumentation see the tenant-wide chat chrome without re-deriving.
   "chat.variant": "data-token-chat-variant",
+  "chat.help-bubble": "data-token-chat-help-bubble",
   // M7.1 template families
   "template.directory-card-family": "data-token-template-directory-card-family",
   "template.profile-layout-family": "data-token-template-profile-layout-family",

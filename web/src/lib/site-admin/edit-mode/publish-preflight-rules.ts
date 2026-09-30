@@ -58,6 +58,29 @@ function collectCtas(props: MaybeRecord): CtaLike[] {
   return out;
 }
 
+/**
+ * H-4: the phone section switcher reads the header's own menu links, so it
+ * needs at least two that point at a section of the page (`#services`).
+ * Fewer and the switcher renders nothing; say so before publish.
+ */
+export function findSectionSwitcherIssues(
+  sectionName: string,
+  sectionTypeKey: string,
+  props: MaybeRecord,
+): string[] {
+  if (sectionTypeKey !== "site_header" || !props || isSectionHidden(props)) return [];
+  const regions = asRecord(props.regions);
+  const placed = ["left", "center", "right"].some((zone) => {
+    const items = regions?.[zone];
+    return Array.isArray(items) && items.some((i) => asRecord(i)?.type === "section_switcher");
+  });
+  if (!placed || !Array.isArray(props.navItems)) return [];
+  const anchors = props.navItems.filter((i) => asString(asRecord(i)?.href).length > 1 && asString(asRecord(i)?.href).startsWith("#"));
+  return anchors.length >= 2
+    ? []
+    : [`${sectionName}: the section switcher needs at least two menu links that point to sections of the page.`];
+}
+
 export function findInvalidInquiryCtas(
   sectionName: string,
   props: MaybeRecord,

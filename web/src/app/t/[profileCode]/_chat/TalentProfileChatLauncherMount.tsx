@@ -130,6 +130,11 @@ type TalentProfileChatLauncherMountProps = {
    * site's tokens (a talent's own host only). Null keeps the standard dock.
    */
   chatCard?: ChatCardConfig | null;
+  /**
+   * `chat.help-bubble` = on: the once-per-visit "can I help you choose?" bubble
+   * above the chat button (DK-3). Off everywhere unless the site asks for it.
+   */
+  helpBubble?: boolean;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -151,6 +156,7 @@ export async function TalentProfileChatLauncherMount({
   wordsPresetOverride = null,
   omitPlatformBrand = false,
   chatCard = null,
+  helpBubble = false,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -288,6 +294,7 @@ export async function TalentProfileChatLauncherMount({
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}
       chatCard={chatCard}
+      helpBubble={helpBubble}
       activePhase={lifecycle.activePhase}
       activeStatus={lifecycle.activeStatus}
       coordinatorId={lifecycle.coordinatorId}

@@ -112,10 +112,24 @@ function dockReduce(state: DockState, action: DockAction, multi: boolean): DockS
 
 export const dockReducer = makeDockReducer(MULTI_SERVICE_ENABLED);
 
+/** TO-1: the toast kinds. `removed` and `switched` carry Undo; the rest are plain confirmations. */
+export type DockToastKind = "added" | "removed" | "switched";
+export type DockToast = { kind: DockToastKind; name: string };
+
+export function dockToastHasUndo(kind: DockToastKind): boolean {
+  return kind === "removed" || kind === "switched";
+}
+
+/** 2.6 s for a confirmation, 5 s when the toast offers Undo (the mockup's two timings). */
+export function dockToastMs(kind: DockToastKind): number {
+  return dockToastHasUndo(kind) ? 5000 : 2600;
+}
+
 export type DockCopy = {
   region: string;
   services: (n: number) => string;
   remove: (name: string) => string;
+  added: (name: string) => string;
   removed: (name: string) => string;
   switched: (name: string) => string;
   undo: string;
@@ -128,6 +142,7 @@ const EN: DockCopy = {
   region: "Your selection",
   services: (n) => `${n} services`,
   remove: (name) => `Remove ${name}`,
+  added: (name) => `${name} in your booking`,
   removed: (name) => `Removed ${name}`,
   switched: (name) => `Switched to ${name}`,
   undo: "Undo",
@@ -140,6 +155,7 @@ const ES: DockCopy = {
   region: "Tu selección",
   services: (n) => `${n} servicios`,
   remove: (name) => `Quitar ${name}`,
+  added: (name) => `${name} en tu cita`,
   removed: (name) => `Quitaste ${name}`,
   switched: (name) => `Cambiaste a ${name}`,
   undo: "Deshacer",
@@ -150,6 +166,11 @@ const ES: DockCopy = {
 
 export function selectionDockCopy(locale: string): DockCopy {
   return locale.toLowerCase().startsWith("es") ? ES : EN;
+}
+
+/** The toast line for a toast (copy lives here so the dock and its tests share it). */
+export function dockToastText(copy: DockCopy, toast: DockToast): string {
+  return copy[toast.kind](toast.name);
 }
 
 /**

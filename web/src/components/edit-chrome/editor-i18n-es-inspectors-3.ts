@@ -175,4 +175,15 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Link to": "Enlazar a",
   "Make the card a link, for example #services to jump to your menu. Leave empty for plain text.":
     "Convierte la tarjeta en un enlace, por ejemplo #services para ir a tu menú. Déjalo vacío para texto simple.",
+
+  // ── Header section switcher (Maison v2 2.6, H-4) ───────────────────────
+  "Section switcher": "Selector de secciones",
+  "On phones, shows the current section and opens a menu of every section. Uses your menu links.":
+    "En teléfonos, muestra la sección actual y abre un menú con todas las secciones. Usa tus enlaces del menú.",
+  "{count} sections, shown on phones": "{count} secciones, visibles en teléfonos",
+  "Needs at least two in-page menu links": "Necesita al menos dos enlaces del menú que apunten a secciones de la página",
+  "Section number": "Número de sección",
+  "The two-digit number shown before the section name.": "El número de dos dígitos que aparece antes del nombre de la sección.",
+  "Show the number": "Mostrar el número",
+  "Name only": "Solo el nombre",
 };

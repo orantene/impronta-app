@@ -19,6 +19,7 @@ g.IS_REACT_ACT_ENVIRONMENT = true;
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { CatalogBookingSheet } from "./CatalogBookingSheet";
+import { clearBookingResume, peekBookingResume, requestBookingResume } from "./booking-resume-store";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -634,6 +635,62 @@ test("DS-4: a taken slot returns to the time step WITH the message and 3 alterna
   act(() => alts[0]!.click());
   assert.equal(host.querySelector("[data-slot-taken]"), null);
   assert.equal(host.querySelectorAll(".jb-time[data-on='true']").length, 1);
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("CH-3: leaving for the chat stashes the booking; 'back to my booking' re-opens it with picks kept", async () => {
+  clearBookingResume();
+  const handoffs: unknown[] = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={mockBook() as never}
+        showAsk
+        onAsk={(h) => handoffs.push(h)}
+        slotsFn={async () => ({ slots: ["2026-09-25T15:00:00.000Z", "2026-09-25T16:00:00.000Z"], timezone: "UTC" })}
+      />,
+    );
+  });
+  open(detail({ addOns: [] }), "when");
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  act(() => host.querySelectorAll<HTMLButtonElement>(".jb-times .jb-time")[1]!.click());
+  act(() => host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]')!.click());
+  const type = (testId: string, value: string) => {
+    const el = host.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`)!;
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!;
+    const key = Object.keys(el).find((k) => k.startsWith("__reactProps"))!;
+    const props = (el as unknown as Record<string, { onChange: (e: { target: HTMLInputElement }) => void }>)[key];
+    act(() => {
+      setter.call(el, value);
+      props.onChange({ target: el });
+    });
+  };
+  type("cb-name", "Vale Demo");
+  type("cb-phone", "+525551112233");
+  act(() => host.querySelector<HTMLButtonElement>("[data-catalog-ask]")!.click());
+  assert.equal(handoffs.length, 1, "the chat handoff fired");
+  assert.equal(host.querySelector(".jb-back"), null, "the sheet closed");
+  const stash = peekBookingResume();
+  assert.ok(stash, "what she was building is stashed");
+  assert.equal(stash.step, "who");
+  assert.equal(stash.title, "Gel pedicure");
+  assert.equal(stash.totalCents, 30000);
+
+  act(() => requestBookingResume());
+  assert.ok(host.querySelector(".jb-back"), "the sheet is back");
+  assert.equal(peekBookingResume(), null, "the stash is used up");
+  assert.equal(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')?.value, "Vale Demo", "name kept");
+  assert.match(host.textContent ?? "", /16:00|4:00/, "the chosen time is kept");
+
   act(() => root.unmount());
   host.remove();
 });
