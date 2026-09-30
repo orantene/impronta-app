@@ -12,9 +12,11 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  ChevronRight,
   ClipboardPaste,
   Copy,
   Files,
+  GripVertical,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -4893,25 +4895,26 @@ function NestedBlocksCard({
                     onDragOver={handleDragOver(index)}
                     onDrop={(event) => void handleDrop(event)}
                     onDragEnd={clearDragState}
+                    data-nested-block-card=""
                     className={
                       draggingNode?.nodeId === child.id
-                        ? "rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-2 opacity-70"
-                        : "rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                        ? "rounded-[12px] border border-violet-300 bg-violet-50/70 px-3 py-2.5 opacity-70 shadow-sm"
+                        : "rounded-[12px] border border-stone-200/90 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-[border-color,box-shadow] duration-150 hover:border-violet-200 hover:shadow-[0_2px_8px_rgba(124,58,237,0.08)]"
                     }
                   >
                     <div className="flex items-start gap-2">
                       <div
                         aria-hidden
-                        className="mt-0.5 inline-flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded-md text-[13px] font-semibold text-stone-500 active:cursor-grabbing"
+                        className="mt-0.5 inline-flex h-8 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 active:cursor-grabbing"
                         title={t("Drag to reorder")}
                       >
-                        ⋮⋮
+                        <GripVertical size={15} strokeWidth={2.2} />
                       </div>
                       {selectMode ? (
-                        <label className="mt-0.5 inline-flex h-7 w-5 shrink-0 cursor-pointer items-center justify-center">
+                        <label className="mt-0.5 inline-flex h-8 w-5 shrink-0 cursor-pointer items-center justify-center">
                           <input
                             type="checkbox"
-                            className="h-3.5 w-3.5 accent-indigo-600"
+                            className="h-3.5 w-3.5 accent-violet-600"
                             checked={selectedChildIds.has(child.id)}
                             onChange={() => toggleSelectedChild(child.id)}
                             aria-label={t("Select {label}").replace(
@@ -4922,10 +4925,10 @@ function NestedBlocksCard({
                         </label>
                       ) : null}
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[12px] font-semibold text-stone-700">
+                        <div className="truncate text-[13px] font-semibold tracking-[-0.01em] text-stone-800">
                           {t(childPrimaryLabel(child))}
                         </div>
-                        <div className="mt-0.5 text-[11px] leading-snug text-stone-500">
+                        <div className="mt-0.5 text-[11px] font-medium leading-snug text-stone-500">
                           {(() => {
                             const secondary = childSecondaryLabel(child);
                             const countMatch = secondary.match(
@@ -4942,84 +4945,108 @@ function NestedBlocksCard({
                             return t(secondary);
                           })()}
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-1">
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                           {extraActions ? extraActions(child, index) : null}
                           <button
                             type="button"
-                            className={KIT.primaryButton + " !px-2.5 !py-1.5 !text-[12px]"}
+                            className={
+                              KIT.primaryButton +
+                              " !h-8 !gap-1 !px-3 !py-0 !text-[12px] !shadow-[0_1px_3px_rgba(124,58,237,0.35)]"
+                            }
                             onClick={() => onSelect(child.id)}
                           >
                             {t("Open")}
+                            <ChevronRight
+                              size={14}
+                              strokeWidth={2.4}
+                              aria-hidden
+                            />
                           </button>
-                          <NestedBlockIconButton
-                            label={t("Copy block")}
-                            onClick={() => {
-                              void onCopy(child.id);
-                            }}
+                          <div
+                            className="inline-flex flex-wrap items-center gap-0.5 rounded-[10px] border border-stone-200/80 bg-stone-50/90 p-0.5"
+                            data-nested-block-actions=""
                           >
-                            <Copy size={14} strokeWidth={2.1} aria-hidden />
-                          </NestedBlockIconButton>
-                          <NestedBlockIconButton
-                            label={t("Duplicate block")}
-                            onClick={() => {
-                              void onDuplicate(child.id);
-                            }}
-                          >
-                            <Files size={14} strokeWidth={2.1} aria-hidden />
-                          </NestedBlockIconButton>
-                          {copiedKind ? (
                             <NestedBlockIconButton
-                              label={t("Paste")}
+                              label={t("Copy block")}
                               onClick={() => {
-                                void onPaste(child.id);
+                                void onCopy(child.id);
                               }}
                             >
-                              <ClipboardPaste
+                              <Copy size={14} strokeWidth={2.1} aria-hidden />
+                            </NestedBlockIconButton>
+                            <NestedBlockIconButton
+                              label={t("Duplicate block")}
+                              onClick={() => {
+                                void onDuplicate(child.id);
+                              }}
+                            >
+                              <Files size={14} strokeWidth={2.1} aria-hidden />
+                            </NestedBlockIconButton>
+                            {copiedKind ? (
+                              <NestedBlockIconButton
+                                label={t("Paste")}
+                                onClick={() => {
+                                  void onPaste(child.id);
+                                }}
+                              >
+                                <ClipboardPaste
+                                  size={14}
+                                  strokeWidth={2.1}
+                                  aria-hidden
+                                />
+                              </NestedBlockIconButton>
+                            ) : null}
+                            {addKinds.length > 0 ? (
+                              <NestedBlockIconButton
+                                label={t("Insert after")}
+                                onClick={() =>
+                                  setInsertAt((current) =>
+                                    current === index + 1 ? null : index + 1,
+                                  )
+                                }
+                              >
+                                <Plus size={14} strokeWidth={2.1} aria-hidden />
+                              </NestedBlockIconButton>
+                            ) : null}
+                            <NestedBlockIconButton
+                              label={t("Move block up")}
+                              disabled={index === 0}
+                              onClick={() => {
+                                void onMove(child.id, "up");
+                              }}
+                            >
+                              <ArrowUp size={14} strokeWidth={2.1} aria-hidden />
+                            </NestedBlockIconButton>
+                            <NestedBlockIconButton
+                              label={t("Move block down")}
+                              disabled={index === nodes.length - 1}
+                              onClick={() => {
+                                void onMove(child.id, "down");
+                              }}
+                            >
+                              <ArrowDown
                                 size={14}
                                 strokeWidth={2.1}
                                 aria-hidden
                               />
                             </NestedBlockIconButton>
-                          ) : null}
-                          {addKinds.length > 0 ? (
                             <NestedBlockIconButton
-                              label={t("Insert after")}
-                              onClick={() =>
-                                setInsertAt((current) =>
-                                  current === index + 1 ? null : index + 1,
-                                )
+                              label={t("Remove block")}
+                              tone="danger"
+                              disabled={
+                                canRemove ? !canRemove(child, index) : false
                               }
+                              onClick={() => {
+                                void onRemove(child.id);
+                              }}
                             >
-                              <Plus size={14} strokeWidth={2.1} aria-hidden />
+                              <Trash2
+                                size={14}
+                                strokeWidth={2.1}
+                                aria-hidden
+                              />
                             </NestedBlockIconButton>
-                          ) : null}
-                          <NestedBlockIconButton
-                            label={t("Move block up")}
-                            disabled={index === 0}
-                            onClick={() => {
-                              void onMove(child.id, "up");
-                            }}
-                          >
-                            <ArrowUp size={14} strokeWidth={2.1} aria-hidden />
-                          </NestedBlockIconButton>
-                          <NestedBlockIconButton
-                            label={t("Move block down")}
-                            disabled={index === nodes.length - 1}
-                            onClick={() => {
-                              void onMove(child.id, "down");
-                            }}
-                          >
-                            <ArrowDown size={14} strokeWidth={2.1} aria-hidden />
-                          </NestedBlockIconButton>
-                          <NestedBlockIconButton
-                            label={t("Remove block")}
-                            disabled={canRemove ? !canRemove(child, index) : false}
-                            onClick={() => {
-                              void onRemove(child.id);
-                            }}
-                          >
-                            <Trash2 size={14} strokeWidth={2.1} aria-hidden />
-                          </NestedBlockIconButton>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -5081,16 +5108,22 @@ function NestedBlockIconButton({
   disabled,
   onClick,
   children,
+  tone = "default",
 }: {
   label: string;
   disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
+  tone?: "default" | "danger";
 }) {
   return (
     <button
       type="button"
-      className="inline-flex h-7 w-7 items-center justify-center rounded-[8px] border border-transparent text-stone-500 transition hover:border-stone-200 hover:bg-white hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-35"
+      className={
+        tone === "danger"
+          ? "inline-flex h-7 w-7 items-center justify-center rounded-[7px] border border-transparent text-stone-500 transition-[background-color,color,border-color] duration-150 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-35"
+          : "inline-flex h-7 w-7 items-center justify-center rounded-[7px] border border-transparent text-stone-500 transition-[background-color,color,border-color] duration-150 hover:border-violet-200 hover:bg-white hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-35"
+      }
       title={label}
       aria-label={label}
       disabled={disabled}
