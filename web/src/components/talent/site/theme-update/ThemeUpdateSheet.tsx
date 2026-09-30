@@ -8,8 +8,9 @@
  *     new blocks, layout changes) with EN/ES notes and screenshots
  *   - Preview on my site: the merge runs in memory (no save); the link opens
  *     her own draft with the update and the "kept your edits" line shows here
- *   - Add this block: placement picker, inserted into the draft
- *   - Apply to my draft / Not now
+ *   - Add this block: its own button + placement picker, inserted into the draft
+ *   - Apply N changes (automatic improvements + layout changes, never new
+ *     blocks) / Not now
  */
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
@@ -19,6 +20,7 @@ import { pick } from "@/lib/talent-site/history/copy";
 import {
   GROUP_COPY,
   UPDATE_COPY,
+  applyLabel,
   bannerTitle,
   changesLine,
   keptLine,
@@ -114,24 +116,30 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
 
           <section aria-live="polite" className="mb-5 rounded-xl border border-admin-border-soft bg-admin-surface-alt p-4" data-theme-update-preview>
             {preview ? (
-              <>
-                <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
-                <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
-                  {keptLine(preview.summary, locale)}
+              preview.noBase ? (
+                <p className="m-0 text-[14px] font-semibold text-admin-ink" data-theme-update-no-base>
+                  {t("noBase")}
                 </p>
-                {preview.previewUrl ? (
-                  <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
-                    {t("previewOnSite")}
-                  </a>
-                ) : null}
-                <p className="m-0 mt-2 text-[12px] text-admin-ink-dim">{t("previewHint")}</p>
-              </>
+              ) : (
+                <>
+                  <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
+                  <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
+                    {keptLine(preview.summary, locale)}
+                  </p>
+                  {preview.previewUrl ? (
+                    <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
+                      {t("previewOnSite")}
+                    </a>
+                  ) : null}
+                  <p className="m-0 mt-2 text-[12px] text-admin-ink-dim">{t("previewHint")}</p>
+                </>
+              )
             ) : (
               <p className="m-0 text-[13px] text-admin-ink-muted">{previewError ?? t("loading")}</p>
             )}
           </section>
 
-          {notice.groups.map((g) => (
+          {(preview?.groups ?? []).map((g) => (
             <section key={g.group} className="mb-5" data-theme-update-group={g.group}>
               <h3 className="m-0 text-[14px] font-semibold text-admin-ink">{pick(GROUP_COPY[g.group], locale)}</h3>
               <p className="m-0 mb-2 text-[12px] text-admin-ink-muted">
@@ -164,11 +172,13 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
               {props.error}
             </p>
           ) : null}
-          <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>
+          {preview?.noBase ? null : <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
-              {busy ? t("applying") : t("apply")}
-            </button>
+            {preview?.hasApplicable ? (
+              <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
+                {busy ? t("applying") : applyLabel(preview ? preview.summary.applied + preview.summary.added : null, locale)}
+              </button>
+            ) : null}
             <button type="button" className={BTN_GHOST} disabled={busy} onClick={props.onDismiss} data-theme-update-dismiss>
               {t("notNow")}
             </button>

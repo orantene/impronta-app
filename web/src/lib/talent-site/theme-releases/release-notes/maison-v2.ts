@@ -31,8 +31,8 @@ export const MAISON_V2_RELEASE_2_1 = {
   /** Candidate id (from `diffDesignPayloads`) to note. */
   byItemId: {
     "new-block:home:before_after": {
-      en: "New optional block: Before and after, two photos side by side with your own gallery images.",
-      es: "Nuevo bloque opcional: Antes y después, dos fotos lado a lado con las imágenes de tu galería.",
+      en: "New optional block: Before and after, two photos side by side. You choose both photos.",
+      es: "Nuevo bloque opcional: Antes y después, dos fotos lado a lado. Tú eliges las dos fotos.",
     },
     "token-default:layout.menu-row-gap": {
       en: "Menu rows have 4px more room between them (only if you have not changed the spacing yourself).",

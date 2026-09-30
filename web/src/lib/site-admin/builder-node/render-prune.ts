@@ -208,3 +208,28 @@ export function resolveRepeatCollectionWithBinding(
     rawRecords as ReadonlyArray<Record<string, unknown>>,
   );
 }
+
+
+/** Number of image nodes under `node` that carry a picture (src or media id). */
+function countPictures(node: BuilderNode): number {
+  let n = 0;
+  if (node.kind === "image") {
+    const p = node.props as { src?: unknown; mediaId?: unknown };
+    if ((typeof p.src === "string" && p.src.trim() !== "") || (typeof p.mediaId === "string" && p.mediaId.trim() !== "")) n += 1;
+  }
+  if ("children" in node && Array.isArray(node.children)) {
+    for (const c of node.children) n += countPictures(c);
+  }
+  return n;
+}
+
+/**
+ * F77: the Before / After block (slot `before_after`) is seeded with EMPTY image
+ * slots, never random gallery photos. Until BOTH pictures are set it is
+ * incomplete: the public site hides it, the builder shows a prompt.
+ */
+export function isIncompleteBeforeAfter(node: BuilderNode): boolean {
+  if (node.kind !== "container") return false;
+  if ((node.props as { slotKey?: unknown }).slotKey !== "before_after") return false;
+  return countPictures(node) < 2;
+}

@@ -131,9 +131,11 @@ test("summaries: theme update + undo name kept edits in EN + ES", () => {
   const t = themeUpdateSummary("Maison v2", 3, 2);
   assert.equal(t.en, "Maison v2 update 3 applied · kept 2 of your edits");
   assert.equal(t.es, "Actualización Maison v2 3 aplicada · conservamos 2 de tus cambios");
-  const u = undoUpdateSummary(4, 1);
-  assert.match(u.en, /Undid a design update \(4 changes\) · kept 1 later edits/);
-  assert.match(u.es, /Deshiciste/);
+  const u = undoUpdateSummary("Maison v2", 1);
+  assert.equal(u.en, "Undid the Maison v2 update · kept your 1 later edit");
+  assert.equal(u.es, "Deshiciste la actualización Maison v2 · conservamos tu edición posterior");
+  assert.equal(undoUpdateSummary("Maison v2", 3).en, "Undid the Maison v2 update · kept your 3 later edits");
+  assert.equal(undoUpdateSummary(null, 0).en, "Undid the design update");
   const all = JSON.stringify([t, u, CHROME_COPY]);
   assert.equal(all.includes("—"), false, "no em dashes in user copy");
 });

@@ -16,9 +16,11 @@ import type { SiteRef } from "../manager/merge-site.server";
 import { planFanOut } from "../manager/notify";
 import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 import { runAutoImprove } from "./auto-improve.server";
-import { appliedToast, bannerTitle, keptLine } from "./copy";
+import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
+import { GROUP_COPY, UPDATE_COPY, appliedToast, applyLabel, bannerTitle, keptLine } from "./copy";
 import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
 import {
+  NOTICE_RELEASE_COLUMNS,
   TALENT_RELEASE_COLUMNS,
   addThemeUpdateBlock,
   applyThemeUpdate,
@@ -30,7 +32,7 @@ import {
   type TalentRelease,
   type UpdateDeps,
 } from "./talent-update.server";
-import { groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
+import { applyItemsOf, groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
 
 const PROFILE = "11111111-1111-4111-8111-111111111111";
 const SITE = "22222222-2222-4222-8222-222222222222";
@@ -138,16 +140,18 @@ const homeSide = (db: FakeDb): DesignSide => ({
 
 // ── Notice visibility ────────────────────────────────────────────────────────
 
-test("notice shows only for state available", () => {
-  assert.equal(isNoticeVisible("available"), true);
-  for (const s of ["previewed", "applied", "dismissed", "undone", null, undefined]) assert.equal(isNoticeVisible(s), false);
+test("notice shows for available, previewed and undone (F83), not applied or dismissed", () => {
+  for (const s of ["available", "previewed", "undone"]) assert.equal(isNoticeVisible(s), true);
+  for (const s of ["applied", "dismissed", null, undefined]) assert.equal(isNoticeVisible(s), false);
 });
 
 for (const state of ["available", "previewed", "applied", "dismissed", "undone"]) {
-  test(`notices: a row in state ${state} ${state === "available" ? "shows" : "stays quiet"}`, async () => {
+  const open = state === "available" || state === "previewed" || state === "undone";
+  test(`notices: a row in state ${state} ${open ? "shows" : "stays quiet"}`, async () => {
     const db = world(state);
     const notices = await loadTalentUpdateNotices(db.admin, PROFILE);
-    assert.equal(notices.length, state === "available" ? 1 : 0);
+    assert.equal(notices.length, open ? 1 : 0);
+    if (open) assert.equal(notices[0]!.state, state);
   });
 }
 
@@ -177,11 +181,49 @@ test("notices: named release columns only (no base_payload, no dry_run_report)",
   assert.ok(!JSON.stringify(n).includes("others"));
 });
 
+test("F74: the banner read is lean (no items) and the sheet's preview carries the groups", async () => {
+  const db = world();
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.ok(n);
+  assert.equal("groups" in n, false, "no release body on the notice");
+  const relSelects = db.selects.filter((x) => x.table === "talent_theme_releases");
+  assert.equal(relSelects.length, 1);
+  assert.equal(relSelects[0]!.cols, NOTICE_RELEASE_COLUMNS);
+  assert.doesNotMatch(NOTICE_RELEASE_COLUMNS, /items|base_payload|dry_run_report|\*/);
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.deepEqual(res.value.groups.map((g) => g.group), ["auto", "blocks"]);
+  assert.equal(res.value.hasApplicable, true);
+});
+
+test("F74: notice load is 4 reads with the release, site and title reads in one parallel step", async () => {
+  const db = world();
+  await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.deepEqual(
+    db.selects.map((x) => x.table),
+    ["talent_site_theme_updates", "talent_theme_releases", "talent_sites", "talent_theme_catalog"],
+  );
+});
+
 test("what's new groups: important, automatic, new blocks, layout", () => {
   const groups = groupItems([...ITEMS, { type: "layout", key: "hero" }, { type: "critical", key: "footer" }]);
   assert.deepEqual(groups.map((g) => g.group), ["critical", "auto", "blocks", "layout"]);
   assert.equal(groups.find((g) => g.group === "auto")!.items.length, 3);
   assert.equal(groups.find((g) => g.group === "blocks")!.items[0]!.noteEs, "Nuevo bloque de galería");
+});
+
+test("F73: an old release with two hero-inset layout items shows one row", () => {
+  const note = { en: "Hero photo inset moves to the bottom-left. Preview it before you choose.", es: "La foto pequeña del inicio pasa abajo a la izquierda. Míralo antes de elegir." };
+  const items: ReleaseItem[] = [
+    { type: "layout", key: "hero/container#2/image#2:removed", tree: "home", note },
+    { type: "layout", key: "hero/container#2/hero_inset_bl", tree: "home", note },
+    { type: "layout", key: "footer", tree: "home", note: { en: "Footer spacing", es: "Espacio del pie" } },
+    { type: "code", key: "a" },
+    { type: "code", key: "b" },
+  ];
+  const layout = groupItems(items).find((g) => g.group === "layout")!;
+  assert.equal(layout.items.length, 2, "two hero-inset entries collapse, footer stays");
+  assert.equal(groupItems(items).find((g) => g.group === "auto")!.items.length, 2, "note-less items are never merged");
 });
 
 // ── Preview: no write ────────────────────────────────────────────────────────
@@ -208,7 +250,30 @@ test("preview snapshot renders her content with the update, and writes nothing",
   assert.equal(prop({ trees: { home } }, "home", "menu/services_catalog", "layout"), "grid");
   assert.equal(prop({ trees: { home } }, "home", "hero", "variant"), "split", "her edited hero kept");
   assert.equal(prop({ trees: { home } }, "home", "hero/heading", "text"), "Valeria", "her content");
-  assert.equal(db.writes.length, 0);
+  // Only the measurement row moves (F76); her site is never written.
+  assert.deepEqual(db.writes.map((w) => w.target), ["talent_site_theme_updates"]);
+});
+
+test("F76: opening the preview moves available to previewed without touching her site", async () => {
+  const db = world();
+  const before = JSON.stringify([db.tables.talent_sites, db.tables.talent_pages, db.tables.talent_site_history]);
+  const snap = await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.ok(snap);
+  assert.equal(stateOf(db), "previewed");
+  assert.equal(JSON.stringify([db.tables.talent_sites, db.tables.talent_pages, db.tables.talent_site_history]), before);
+  assert.equal(draftWrites(db).length, 0);
+  // Still offered, and a second look changes nothing.
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 1);
+  await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.equal(stateOf(db), "previewed");
+});
+
+test("F76: previewing never downgrades applied, dismissed or undone", async () => {
+  for (const state of ["applied", "dismissed", "undone"]) {
+    const db = world(state);
+    await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+    assert.equal(stateOf(db), state);
+  }
 });
 
 // ── Apply ────────────────────────────────────────────────────────────────────
@@ -253,6 +318,117 @@ test("apply: toast copy says how many edits were kept (EN + ES, no em dash)", ()
   for (const s of [appliedToast(1, "en"), appliedToast(1, "es"), line]) assert.ok(!s.includes("—"));
 });
 
+test("F78: Apply merges automatic + layout items only; a new block is never inserted", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok);
+  assert.ok(!topKeys(homeSide(db), "home").includes("gallery"), "gallery block not added by Apply");
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "grid", "automatic change applied");
+  const entry = db.tables.talent_site_history![0]!.report as { merge: { added: unknown[] } };
+  assert.equal(entry.merge.added.length, 0);
+});
+
+test("F78: preview counts and the preview render exclude new blocks", async () => {
+  const db = world();
+  const withBlock = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(withBlock.ok);
+  assert.equal(withBlock.value.summary.added, 0);
+  const snap = await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.ok(!topKeys({ trees: { home: snap!.pages![HOME]! } }, "home").includes("gallery"));
+});
+
+test("F78: the block still arrives through Add this block, and Apply after it does not duplicate", async () => {
+  const db = world();
+  const add = await addThemeUpdateBlock(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, itemId: "new-block:gallery", afterId: null, expectedDraftRev: 7, actorId: null });
+  assert.ok(add.ok);
+  const rev = db.tables.talent_sites![0]!.draft_rev as number;
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: rev, actorId: null });
+  assert.ok(res.ok);
+  assert.equal(topKeys(homeSide(db), "home").filter((k) => k === "gallery").length, 1);
+});
+
+test("F78: sheet copy states what Apply will do (EN + ES, no em dash)", () => {
+  assert.equal(applyLabel(2, "en"), "Apply 2 changes");
+  assert.equal(applyLabel(1, "en"), "Apply 1 change");
+  assert.equal(applyLabel(2, "es"), "Aplicar 2 cambios");
+  assert.equal(applyLabel(null, "en"), "Apply to my draft");
+  assert.equal(applyLabel(0, "es"), "Aplicar a mi borrador");
+  for (const g of Object.values(GROUP_COPY)) assert.ok(!JSON.stringify(g).includes("—"));
+  assert.match(GROUP_COPY.blocks.hintEn, /Apply never adds them/);
+  assert.ok(!JSON.stringify(UPDATE_COPY).includes("—"));
+});
+
+test("F78: a release of only new blocks has nothing for Apply", async () => {
+  const db = world("available", release({ items: [ITEMS[1]!] }));
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.hasApplicable, false);
+  assert.deepEqual(applyItemsOf([ITEMS[1]!]), []);
+  assert.equal(applyItemsOf(ITEMS).length, 3);
+});
+
+test("F86: the kept-your-edits line uses localized section names shared with the go-live sheet", () => {
+  const summary = summarizeReport({
+    applied: [],
+    added: [],
+    conflicts: [],
+    kept: [
+      { key: "footer", change: "props" },
+      { key: "hero/heading", change: "props" },
+      { key: "gallery", change: "props" },
+      { key: "menu/services_catalog", change: "props" },
+      { key: "contact", change: "props" },
+      { key: "color.accent", change: "token" },
+    ] as never,
+  });
+  assert.equal(
+    keptLine(summary, "es"),
+    "Conservamos 6 de tus cambios: Pie de página, Portada, Galería, Servicios, Contacto, colores",
+  );
+  assert.equal(
+    keptLine(summary, "en"),
+    "We keep 6 of your edits: Footer, Hero, Gallery, Services, Contact, colours",
+  );
+  assert.equal(sectionNameForKey("hero", "es"), "Portada");
+  assert.ok(!keptLine(summary, "es").includes("—"));
+});
+
+/** A merge that reports "no exact base" (site older than origin stamps). */
+const noBaseDeps = (db: FakeDb): UpdateDeps => {
+  const base = mergeOver(db);
+  return { ...deps(db), merge: async (ctx, items) => {
+    const out = await base(ctx, items);
+    return out.ok ? { ...out, noBase: true } : out;
+  } };
+};
+
+test("F87: a no-base site is offered only new blocks and Apply is unavailable", async () => {
+  const db = world("available", release({ items: [...ITEMS, { type: "layout", key: "hero", note: { en: "Hero inset", es: "Foto del inicio" } }] }));
+  const res = await previewThemeUpdate(noBaseDeps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.noBase, true);
+  assert.equal(res.value.hasApplicable, false);
+  assert.deepEqual(res.value.groups.map((g) => g.group), ["blocks"], "no automatic or layout items");
+  assert.equal(UPDATE_COPY.noBase.es, "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.");
+});
+
+test("F87: Apply on a no-base site is refused server-side and writes nothing", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(noBaseDeps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "no_base");
+  assert.equal(draftWrites(db).length, 0);
+  assert.equal(stateOf(db), "available");
+});
+
+test("F87: a site with an exact base is unchanged (all groups, Apply available)", async () => {
+  const db = world();
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.noBase, false);
+  assert.equal(res.value.hasApplicable, true);
+});
+
 // ── Undo ─────────────────────────────────────────────────────────────────────
 
 test("undo this update: reverts it, keeps her later edit, state undone", async () => {
@@ -273,6 +449,47 @@ test("undo this update: reverts it, keeps her later edit, state undone", async (
   assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows", "update reverted");
   assert.equal(prop(homeSide(db), "home", "about", "layout"), "stack", "later edit kept");
   assert.equal(db.tables.talent_sites![0]!.theme_design_version, 1, "re-pinned");
+  assert.doesNotMatch(db.tables.talent_site_history!.at(-1)!.summary_en as string, /\d+ changes/);
+});
+
+test("F83: after undo the update is offered again and re-applying works", async () => {
+  const db = world();
+  const first = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(first.ok && first.value.historyId);
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 0, "quiet while applied");
+  const undo = await undoThemeUpdateEntry(db.admin, {
+    talentProfileId: PROFILE,
+    entryId: first.value.historyId!,
+    expectedDraftRev: 8,
+    actorId: null,
+  });
+  assert.ok(undo.ok);
+  assert.equal(stateOf(db), "undone");
+  const [again] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.ok(again, "an undone update is re-offerable");
+  assert.equal(again.state, "undone");
+  const rev = db.tables.talent_sites![0]!.draft_rev as number;
+  const second = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: rev, actorId: null });
+  assert.ok(second.ok, "re-apply works");
+  assert.equal(stateOf(db), "applied");
+  assert.equal(db.tables.talent_sites![0]!.theme_design_version, 2);
+});
+
+test("F82: undo summary counts what she did (parts), not nodes or props", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok && res.value.historyId);
+  // One later edit of a part the update touched (the menu layout it changed).
+  db.tables.talent_pages![0]!.blocks = edit(homeSide(db), "home", "menu/services_catalog", "layout", "cards").trees.home;
+  const undo = await undoThemeUpdateEntry(db.admin, {
+    talentProfileId: PROFILE,
+    entryId: res.value.historyId!,
+    expectedDraftRev: 8,
+    actorId: null,
+  });
+  assert.ok(undo.ok);
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your 1 later edit");
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "cards", "her edit stays");
 });
 
 // ── Dismiss ──────────────────────────────────────────────────────────────────

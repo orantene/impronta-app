@@ -77,12 +77,20 @@ export function themeUpdateSummary(
   };
 }
 
-export function undoUpdateSummary(revertedCount: number, keptCount: number): Bilingual {
-  const keptEn = keptCount > 0 ? ` · kept ${keptCount} later edits` : "";
-  const keptEs = keptCount > 0 ? ` · conservamos ${keptCount} cambios posteriores` : "";
+/**
+ * "Undid the Maison v2 update · kept your 1 later edit". `keptParts` is the
+ * talent-level count (sections/blocks she changed since), never nodes or props.
+ */
+export function undoUpdateSummary(designName: string | null | undefined, keptParts: number): Bilingual {
+  const name = designName?.trim();
+  const keptEn = keptParts > 0 ? ` · kept your ${keptParts} later edit${keptParts === 1 ? "" : "s"}` : "";
+  const keptEs =
+    keptParts > 0
+      ? ` · conservamos ${keptParts === 1 ? "tu edición posterior" : `tus ${keptParts} ediciones posteriores`}`
+      : "";
   return {
-    en: `Undid a design update (${revertedCount} changes)${keptEn}`,
-    es: `Deshiciste una actualización del diseño (${revertedCount} cambios)${keptEs}`,
+    en: `${name ? `Undid the ${name} update` : "Undid the design update"}${keptEn}`,
+    es: `${name ? `Deshiciste la actualización ${name}` : "Deshiciste la actualización del diseño"}${keptEs}`,
   };
 }
 

@@ -15,6 +15,7 @@ import type { DesignMergeReport } from "@/lib/talent-site/theme-releases/types";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 
+import { countParts } from "@/lib/talent-site/theme-releases/parts";
 import { CHROME_COPY, restoreSummary, summaryFor, themeUpdateSummary, undoUpdateSummary } from "./copy";
 import { summarizeGoLive, type SectionChange } from "./draft-diff";
 import {
@@ -304,7 +305,7 @@ export async function undoThemeUpdateEntry(
     homePageId: home.id,
     tokens: state.tokens,
   });
-  const summary = undoUpdateSummary(plan.reverted, plan.kept);
+  const summary = undoUpdateSummary(report.designName ?? null, plan.keptParts);
   const res = await writeSiteDraft(admin, {
     siteId: state.siteId,
     expectedDraftRev: input.expectedDraftRev,
@@ -314,7 +315,7 @@ export async function undoThemeUpdateEntry(
       kind: "theme_update",
       summaryEn: summary.en,
       summaryEs: summary.es,
-      report: { undoOf: input.entryId, reverted: plan.reverted, kept: plan.kept },
+      report: { undoOf: input.entryId, reverted: plan.reverted, kept: plan.kept, revertedParts: plan.revertedParts, keptParts: plan.keptParts },
       undoOf: input.entryId,
       createdBy: input.actorId,
     },
@@ -360,12 +361,13 @@ export async function applyThemeUpdateToDraft(
   const stored: ThemeUpdateHistoryReport = {
     merge: input.report,
     releaseId: input.releaseId ?? null,
+    designName: input.designName?.trim() || null,
     updateId: input.updateId ?? null,
     fromVersion: input.fromVersion,
     toVersion: input.toVersion,
   };
   const summary =
-    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, input.report.kept.length);
+    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, countParts(input.report.kept));
   return writeSiteDraft(admin, {
     siteId: input.siteId,
     expectedDraftRev: input.expectedDraftRev,

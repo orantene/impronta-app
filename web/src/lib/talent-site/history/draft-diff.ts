@@ -141,11 +141,21 @@ export function sectionText(node: BuilderNode, depth = 0): string | null {
 }
 
 /** Talent-facing section name: known design slot, else a readable slot, else its heading. */
+/**
+ * The ONE key -> display name map (go-live sheet, update sheet "kept your
+ * edits" line). Null when the key is not a known design slot.
+ */
+export function sectionNameForKey(key: string | null | undefined, locale: DiffLocale): string | null {
+  if (!key) return null;
+  const base = key.split(/[-_./]/)[0]?.toLowerCase() ?? "";
+  const known = SECTION_NAMES[key.toLowerCase()] ?? SECTION_NAMES[base];
+  return known ? known[locale] : null;
+}
+
 export function sectionLabel(node: BuilderNode, locale: DiffLocale): string {
   const key = namedKey(node);
-  const base = key?.split(/[-_.]/)[0]?.toLowerCase() ?? "";
-  const known = SECTION_NAMES[key?.toLowerCase() ?? ""] ?? SECTION_NAMES[base];
-  if (known) return known[locale];
+  const known = sectionNameForKey(key, locale);
+  if (known) return known;
   const role = propsOf(node).originRole;
   const roleTail = typeof role === "string" ? role.split(".").pop()?.toLowerCase() ?? "" : "";
   if (SECTION_NAMES[roleTail]) return SECTION_NAMES[roleTail]![locale];
