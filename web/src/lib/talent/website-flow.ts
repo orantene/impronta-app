@@ -116,3 +116,12 @@ export function websiteFlowCopy(
       };
   }
 }
+
+/**
+ * True while the pill must stay neutral: the profile is complete but the
+ * site read has not landed, so "ready" cannot be told from "preview" or
+ * "published". Showing "Activate" then flashes the wrong next step (F53).
+ */
+export function websiteFlowPending(percent: number | null, activationLoaded: boolean): boolean {
+  return percent != null && percent >= 100 && !activationLoaded;
+}

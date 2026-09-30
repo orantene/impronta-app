@@ -45,3 +45,10 @@ test("the flow hook shares ONE activation store and keeps the last good value", 
   assert.match(hook, /if \(next\) storeValue = next;/);
   assert.match(hook, /storeInFlight/);
 });
+
+test("the pill renders a neutral placeholder while websiteFlowPending", () => {
+  const pill = read(SURFACES.pill);
+  assert.match(pill, /websiteFlowPending\(percent, flow\.loaded\)/);
+  assert.match(pill, /\{pending \? \(/);
+  assert.match(pill, /data-testid="website-reward-pending"/);
+});
