@@ -28,6 +28,71 @@ export function consumeWebsiteSetupRequest(): WebsiteSetupStep | null {
   return step;
 }
 
+/*
+ * ONE activation store for every surface (F53). Each surface used to fetch on
+ * its own, so the pill, the Today card and My presence could hold different
+ * answers on the same screen (Today read "ready" while Inbox read "preview").
+ * Now there is one in-flight request, one last-good value, and every
+ * subscriber re-renders from it. A failed read keeps the last good value
+ * instead of falling back to "no design".
+ */
+let storeValue: TalentSiteActivationState | null = null;
+let storeInFlight: Promise<void> | null = null;
+let storeStale = true;
+/** A refresh asked for while one was in flight: run once more after it. */
+let storeAgain = false;
+const storeListeners = new Set<() => void>();
+
+function refreshActivationStore(): Promise<void> {
+  if (storeInFlight) {
+    storeAgain = true;
+    return storeInFlight;
+  }
+  storeInFlight = loadTalentSiteActivationStateAction()
+    .then((next) => {
+      if (next) storeValue = next;
+      storeStale = false;
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      storeInFlight = null;
+      for (const fn of storeListeners) fn();
+      if (storeAgain) {
+        storeAgain = false;
+        void refreshActivationStore();
+      }
+    });
+  return storeInFlight;
+}
+
+function useActivationStore(pathname: string | null): TalentSiteActivationState | null {
+  const [value, setValue] = useState<TalentSiteActivationState | null>(storeValue);
+  useEffect(() => {
+    const sync = () => setValue(storeValue);
+    storeListeners.add(sync);
+    const bump = () => {
+      storeStale = true;
+      void refreshActivationStore();
+    };
+    window.addEventListener(WEBSITE_ELIGIBILITY_CHANGED_EVENT, bump);
+    return () => {
+      storeListeners.delete(sync);
+      window.removeEventListener(WEBSITE_ELIGIBILITY_CHANGED_EVENT, bump);
+    };
+  }, []);
+  useEffect(() => {
+    // Every route change re-reads once (shared by all mounted surfaces).
+    storeStale = true;
+    void refreshActivationStore();
+  }, [pathname]);
+  return value;
+}
+
+/** Test seam: the store's current value. */
+export function activationStoreSnapshot(): { value: TalentSiteActivationState | null; stale: boolean } {
+  return { value: storeValue, stale: storeStale };
+}
+
 /**
  * The one free-website state + next action for the pill, Today and the My
  * presence card. Read-only: it never provisions a site. Re-reads on every
@@ -40,24 +105,7 @@ export function useWebsiteFlow() {
   const { setTalentPage } = useAdminShell();
   const router = useRouter();
   const pathname = usePathname();
-  const [activation, setActivation] = useState<TalentSiteActivationState | null>(null);
-  const [version, setVersion] = useState(0);
-
-  useEffect(() => {
-    const bump = () => setVersion((v) => v + 1);
-    window.addEventListener(WEBSITE_ELIGIBILITY_CHANGED_EVENT, bump);
-    return () => window.removeEventListener(WEBSITE_ELIGIBILITY_CHANGED_EVENT, bump);
-  }, []);
-
-  useEffect(() => {
-    let live = true;
-    void loadTalentSiteActivationStateAction().then((s) => {
-      if (live) setActivation(s);
-    });
-    return () => {
-      live = false;
-    };
-  }, [version, pathname]);
+  const activation = useActivationStore(pathname);
 
   const state = websiteFlowState({
     percent: eligibility.percent,

@@ -21,6 +21,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import type { TalentSiteActivationState } from "./site-management-types";
+import { activationFromRow, type ActivationRow } from "./site-activation-core";
 
 export async function loadTalentSiteActivationStateAction(): Promise<
   TalentSiteActivationState | null
@@ -29,9 +30,9 @@ export async function loadTalentSiteActivationStateAction(): Promise<
   if (!scope.ok) return null;
 
   const capabilities = buildTalentSiteCapabilities(scope.planKey);
-  if (!capabilities.personalSiteEdit) {
-    return { canManage: false, hasSite: false, isPublished: false, siteSlug: null, themeDesignSlug: null, themeLookSlug: null };
-  }
+  // Read the row even when capabilities.personalSiteEdit is off (flag-off
+  // builds make it Max-only): a design applied through the free Design
+  // presets must still read as applied (F53). activationFromRow decides.
 
   const sb = await getCachedServerSupabase();
   if (!sb) return null;
@@ -46,18 +47,5 @@ export async function loadTalentSiteActivationStateAction(): Promise<
     return null;
   }
 
-  // A row with a NULL slug is not a usable site: every pre-existing production
-  // row looks like that, and none of them serves anything.
-  const slug = data?.site_slug ?? null;
-  const hasSite = Boolean(slug);
-  const isPublished = hasSite && Boolean(data?.site_published_at);
-
-  return {
-    canManage: true,
-    hasSite,
-    isPublished,
-    siteSlug: slug,
-    themeDesignSlug: (data as { theme_design_slug?: string | null } | null)?.theme_design_slug ?? null,
-    themeLookSlug: (data as { theme_look_slug?: string | null } | null)?.theme_look_slug ?? null,
-  };
+  return activationFromRow(data as ActivationRow, capabilities);
 }
