@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { messagingTalentStartConversation } from "@/lib/server-actions/messaging-talent-writes";
+import { messagingTalentSendQuote } from "@/lib/server-actions/messaging-talent-quote";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
@@ -72,6 +72,8 @@ function SendQuoteForm({
   const [adding, setAdding] = useState(false);
   const [offeringId, setOfferingId] = useState("");
   const [note, setNote] = useState("");
+  const [amount, setAmount] = useState("");
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -99,29 +101,39 @@ function SendQuoteForm({
 
   const offering = offerings.find((o) => o.id === offeringId);
   const hasContact = Boolean(picked && (picked.phone.trim() || picked.email.trim()));
-  const canCreate = Boolean(picked?.name.trim() && hasContact && offering && !pending);
+  const amountCents = Math.round(parseFloat(amount || "0") * 100);
+  const canCreate = Boolean(picked?.name.trim() && hasContact && offering && amountCents > 0 && !pending);
 
   function create() {
     if (!picked || !offering || !canCreate) return;
     setError(null);
     start(async () => {
-      const res = await messagingTalentStartConversation({
+      const res = await messagingTalentSendQuote({
         name: picked.name.trim(),
         email: picked.email.trim() || null,
         phone: picked.phone.trim() || null,
-        channel: "counter",
-        quoteOfferingId: offering.id,
-        quoteNote: note.trim() || null,
+        offeringId: offering.id,
+        amountCents,
+        note: note.trim() || null,
       });
-      if (!res.ok) {
-        setError(
-          res.reason === "invalid"
-            ? copy.t("Add a phone or an email so the client can be reached.")
-            : copy.t("Could not create the quote. Nothing was sent."),
-        );
+      if (res.ok) {
+        setSent(true);
+        setCreatedId(res.inquiryId);
         return;
       }
-      setCreatedId(res.inquiryId);
+      // The conversation may exist even though the quote did not go out: say so, never fake a send.
+      if (res.inquiryId) {
+        setSent(false);
+        setCreatedId(res.inquiryId);
+        return;
+      }
+      setError(
+        res.reason === "invalid"
+          ? copy.t("Add a phone or an email so the client can be reached.")
+          : res.reason === "no_price"
+            ? copy.t("Enter the price of the quote.")
+            : copy.t("Could not create the quote. Nothing was sent."),
+      );
     });
   }
 
@@ -135,7 +147,7 @@ function SendQuoteForm({
         open
         panel
         onClose={close}
-        title={copy.t("Quote ready")}
+        title={sent ? copy.t("Quote sent") : copy.t("Quote not sent")}
         primaryActionLabel={copy.t("Open conversation")}
         onPrimaryAction={() => {
           close();
@@ -144,9 +156,13 @@ function SendQuoteForm({
         secondaryActionLabel={copy.t("Close")}
       >
         <div className="space-y-2" aria-live="polite">
-          <p className="text-[15px] font-semibold text-[var(--tc-ok)]">{copy.t("Conversation created")}</p>
+          <p className={`text-[15px] font-semibold ${sent ? "text-[var(--tc-ok)]" : "text-[var(--tc-risk)]"}`}>
+            {sent ? copy.t("The client has your quote") : copy.t("The conversation was created but the quote did not go out")}
+          </p>
           <p className="text-[13.5px] text-[var(--tc-primary)]">
-            {copy.t("Your service and its price are on the conversation. Review and send the quote to the client there. Nothing has been sent yet.")}
+            {sent
+              ? copy.t("They can accept it from the link. You will see the answer in the conversation.")
+              : copy.t("Open the conversation to send the quote from there. Nothing reached the client yet.")}
           </p>
         </div>
       </TaskShell>
@@ -173,7 +189,7 @@ function SendQuoteForm({
             disabled={!canCreate}
             className="min-h-[48px] flex-1 rounded-full bg-[var(--tc-primary)] px-5 text-[15px] font-semibold text-white disabled:opacity-40 md:flex-none"
           >
-            {pending ? copy.t("Working…") : copy.t("Create quote")}
+            {pending ? copy.t("Working…") : copy.t("Send quote")}
           </button>
         </div>
       }
@@ -279,7 +295,11 @@ function SendQuoteForm({
         <section className="space-y-2">
           <label className={LABEL}>
             {copy.t("What is it for?")}
-            <select className={FIELD} value={offeringId} onChange={(e) => setOfferingId(e.target.value)}>
+            <select className={FIELD} value={offeringId} onChange={(e) => {
+                setOfferingId(e.target.value);
+                const chosen = offerings.find((o) => o.id === e.target.value);
+                setAmount(chosen?.amountCents != null ? (chosen.amountCents / 100).toFixed(2) : "");
+              }}>
               <option value="">{copy.t("Choose an offering")}</option>
               {offerings.map((o) => (
                 <option key={o.id} value={o.id}>
@@ -295,12 +315,25 @@ function SendQuoteForm({
         </section>
 
         <label className={LABEL}>
+          {copy.t("Price")} {offering ? `(${offering.currency})` : ""}
+          <input
+            type="number"
+            inputMode="decimal"
+            min="1"
+            step="0.01"
+            className={FIELD}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </label>
+
+        <label className={LABEL}>
           {copy.t("Note for the client")}
           <textarea className={`${FIELD} min-h-[88px] py-2`} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
 
         <p className="text-[12.5px] text-[var(--tc-muted)]">
-          {copy.t("Creates the conversation with your service and price. You review and send the quote from there.")}
+          {copy.t("Sends the client your quote for this service. They can accept it from the link.")}
         </p>
         {error ? (
           <p role="alert" className="text-[13px] text-[var(--tc-risk)]">

@@ -25,6 +25,7 @@ import {
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
 import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
+import { AgendaFinishCollect } from "@/components/admin/shell/internal/talent/agenda/AgendaFinishCollect";
 import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agenda/AgendaPayRequest";
 
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
@@ -540,6 +541,8 @@ export function MoneyHomePage() {
   const router = useRouter();
   const [sheet, setSheet] = useState<"record" | "request" | null>(null);
   const [linkFor, setLinkFor] = useState<MoneyAgendaRow | null>(null);
+  // Record payment opens Finish and collect right here, over Money.
+  const [finishFor, setFinishFor] = useState<MoneyAgendaRow | null>(null);
   const agenda = useMemo(
     () => agendaMoneyRows(bridgeTalentAgendaItems ?? [], new Date()),
     [bridgeTalentAgendaItems],
@@ -664,7 +667,12 @@ export function MoneyHomePage() {
                 <li key={r.id} className={i ? "border-t border-admin-border-soft" : ""}>
                   <button
                     type="button"
-                    onClick={() => (sheet === "record" ? router.push(`${r.bookingHref}?collect=1`) : request(r))}
+                    onClick={() => {
+                      if (sheet === "record") {
+                        setSheet(null);
+                        setFinishFor(r);
+                      } else request(r);
+                    }}
                     className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left hover:bg-black/[0.03]"
                   >
                     <span className="min-w-0 flex-1">
@@ -686,6 +694,19 @@ export function MoneyHomePage() {
             </ul>
           )}
         </AgendaPanelFrame>
+      ) : null}
+
+      {finishFor ? (
+        <AgendaFinishCollect
+          bookingId={finishFor.id}
+          orderId={finishFor.orderId}
+          dueCents={finishFor.amountCents ?? undefined}
+          onClose={() => setFinishFor(null)}
+          onDone={() => {
+            setFinishFor(null);
+            router.refresh();
+          }}
+        />
       ) : null}
 
       {linkFor?.orderId ? (

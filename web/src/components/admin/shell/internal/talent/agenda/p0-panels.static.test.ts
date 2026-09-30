@@ -63,9 +63,8 @@ describe("Request payment panel and QR", () => {
 describe("Send quote panel", () => {
   it("creates through the inquiry funnel writer and is opened from Today and Messages", () => {
     const panel = code("SendQuotePanel.tsx");
-    assert.match(panel, /messagingTalentStartConversation\(/);
+    assert.match(panel, /messagingTalentSendQuote\(/);
     assert.match(panel, /loadTalentClients/);
-    assert.match(panel, /quoteOfferingId/);
     const router = read("../../talent.tsx");
     assert.match(router, /<SendQuotePanelHost/);
     assert.match(read("../pages/TodayPage.tsx"), /onSendQuote=\{openSendQuotePanel\}/);
@@ -76,6 +75,15 @@ describe("Send quote panel", () => {
     assert.match(writes, /loadTalentOfferingsForEditor\(actor\.talentProfileId\)/);
     assert.match(writes, /createInquiryFromIntent\(/);
     assert.doesNotMatch(writes, /from\("inquiries"\)\s*\.insert/);
+  });
+});
+
+describe("Money Record payment opens Finish over Money", () => {
+  it("renders the Finish panel in place instead of navigating to the booking", () => {
+    const money = code("../../../../../talent/money/MoneyHomePage.tsx");
+    assert.match(money, /<AgendaFinishCollect/);
+    assert.match(money, /setFinishFor\(r\)/);
+    assert.doesNotMatch(money, /collect=1/);
   });
 });
 

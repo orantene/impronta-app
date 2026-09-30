@@ -36,11 +36,7 @@ const ES: Record<string, string> = {
   "Show QR": "Mostrar QR",
   "Show this only when the client is with you.": "Muéstralo solo cuando la clienta esté contigo.",
   "Could not create the image": "No se pudo crear la imagen",
-  "Quote ready": "Cotización lista",
   "Open conversation": "Abrir conversación",
-  "Conversation created": "Conversación creada",
-  "Your service and its price are on the conversation. Review and send the quote to the client there. Nothing has been sent yet.":
-    "Tu servicio y su precio están en la conversación. Revisa y envía la cotización a la clienta desde ahí. Aún no se ha enviado nada.",
   "Search your clients": "Buscar en tus clientas",
   "No clients match.": "Ninguna clienta coincide.",
   "Pick an existing client": "Elegir una clienta existente",
@@ -48,9 +44,17 @@ const ES: Record<string, string> = {
   "Choose an offering": "Elige un servicio",
   "Publish a service first. Quotes are made from your services.": "Publica un servicio primero. Las cotizaciones se hacen con tus servicios.",
   "Note for the client": "Nota para la clienta",
-  "Creates the conversation with your service and price. You review and send the quote from there.":
-    "Crea la conversación con tu servicio y precio. Revisas y envías la cotización desde ahí.",
-  "Create quote": "Crear cotización",
+  "Enter the price of the quote.": "Escribe el precio de la cotización.",
+  "Quote sent": "Cotización enviada",
+  "Quote not sent": "Cotización no enviada",
+  "The client has your quote": "La clienta ya tiene tu cotización",
+  "The conversation was created but the quote did not go out": "La conversación se creó pero la cotización no salió",
+  "They can accept it from the link. You will see the answer in the conversation.":
+    "Puede aceptarla desde el enlace. Verás la respuesta en la conversación.",
+  "Open the conversation to send the quote from there. Nothing reached the client yet.":
+    "Abre la conversación para enviar la cotización desde ahí. Aún no llegó nada a la clienta.",
+  "Sends the client your quote for this service. They can accept it from the link.":
+    "Envía a la clienta tu cotización de este servicio. Puede aceptarla desde el enlace.",
   "Add a phone or an email so the client can be reached.": "Agrega un teléfono o un correo para poder contactar a la clienta.",
   "Could not create the quote. Nothing was sent.": "No se pudo crear la cotización. No se envió nada.",
   "Link copied": "Enlace copiado",
