@@ -17,11 +17,16 @@ export function repairTree(tree: unknown): { tree: unknown; remapped: number } {
   return Array.isArray(tree) ? dedupeTreeIds(tree) : { tree, remapped: 0 };
 }
 
-const DEMO_CODES = new Set(["TAL-93900"]); // Jorg Beauty
-const QA_CODES = new Set(["TAL-93901"]); // Valeria
+/** Non-demo QA accounts (is_demo=false). Everything else that is not a demo is "real". */
+export const QA_CODES = new Set(["TAL-93900", "TAL-93901", "TAL-QAFIXFREE"]);
 
-/** Bucket by profile code (not by the is_test_account flag). */
-export function classify(code: string): "demo" | "qa" | "real" {
-  if (DEMO_CODES.has(code)) return "demo";
-  return QA_CODES.has(code) || /QA/i.test(code) ? "qa" : "real";
+/** Bucket by `talent_profiles.is_demo`, then the explicit QA allow-list. */
+export function classify(code: string, isDemo: boolean): "demo" | "qa" | "real" {
+  if (isDemo) return "demo";
+  return QA_CODES.has(code) ? "qa" : "real";
+}
+
+/** Only demos and allow-listed QA accounts may ever be rewritten. */
+export function mayRepair(code: string, isDemo: boolean): boolean {
+  return classify(code, isDemo) !== "real";
 }

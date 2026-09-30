@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classify, repairTree, scanTree } from "./repair-duplicate-ids-lib";
+import { classify, mayRepair, repairTree, scanTree } from "./repair-duplicate-ids-lib";
 
 test("scan reports a tree with duplicate ids and skips a clean one", () => {
   const dirty = [{ id: "maison-v2-39" }, { id: "x", children: [{ id: "maison-v2-39" }] }];
@@ -15,8 +15,11 @@ test("repair yields a clean tree", () => {
   assert.equal(out.remapped, 1);
 });
 
-test("classify buckets demo, qa and real talents", () => {
-  assert.equal(classify("TAL-93900"), "demo");
-  assert.equal(classify("TAL-QAFIXFREE"), "qa");
-  assert.equal(classify("TAL-12345"), "real");
+test("classify uses is_demo first, then the QA allow-list", () => {
+  assert.equal(classify("TAL-93002", true), "demo");
+  assert.equal(classify("TAL-93900", false), "qa");
+  assert.equal(classify("TAL-12345", false), "real");
+  assert.equal(mayRepair("TAL-12345", false), false);
+  assert.equal(mayRepair("TAL-93901", false), true);
+  assert.equal(mayRepair("TAL-93002", true), true);
 });
