@@ -27,7 +27,7 @@
  * the operator sees the design contract while the data model catches up.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   copyPublishedHomepageAction,
@@ -430,14 +430,14 @@ export function PublishDrawer() {
     return () => clearTimeout(t);
   }, [copyState.kind]);
 
+  // F95b/F104: reset on OPEN only (a pageMetadata dep re-ran it on every refresh,
+  // wiping the loaded snapshot to "failed" and success back to idle).
+  const pageMetaRef = useRef(pageMetadata); useEffect(() => { pageMetaRef.current = pageMetadata; });
   useEffect(() => {
     if (publishOpen) {
       setState({ kind: "idle" });
       setShowLegacy(false);
-      // Every open starts on Checks — blockers (when any) are the first thing
-      // the operator must see; a clean page reads "all checks passed" and the
-      // eye moves straight to Publish now.
-      setPublishTab("checks");
+      setPublishTab("checks"); // every open starts on Checks (blockers first)
       // PublishPreflight resolves status before this parent effect; start
       // loading only on surfaces that actually run the checks.
       setPreflightLoading(isPublishPreflightSurface(surfaceKind));
@@ -449,14 +449,14 @@ export function PublishDrawer() {
       setPublishedRowsFailed(false);
       setPublishedBuilderTree(null);
       setHasPublishedSnapshot(false);
-      setMiniTitle(pageMetadata?.title ?? "");
-      setMiniDesc(pageMetadata?.metaDescription ?? "");
+      setMiniTitle(pageMetaRef.current?.title ?? "");
+      setMiniDesc(pageMetaRef.current?.metaDescription ?? "");
       setCopyState({ kind: "idle" });
       setBuilderDiffIds(null);
       setBuilderDiffLoading(false);
       setBuilderDiffFailed(false);
     }
-  }, [publishOpen, pageMetadata, surfaceKind]);
+  }, [publishOpen, surfaceKind]);
 
   // W1-L2 — snapshot loader with a hard timeout + explicit failed state. The
   // audit saw this hang as a skeleton forever ("Last published loading…"); now
