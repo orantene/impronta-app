@@ -179,7 +179,8 @@ test("Maison v2: a services_catalog default change diffs, merges and undoes clea
 
 test("Maison v2 release 2.1 classifies as new-block + token-default + opt-in layout + code", async () => {
   const { MAISON_V2_RELEASE_2_1 } = await import("./release-notes/maison-v2");
-  const next = buildMaisonV2Payload();
+  const { maisonV2At } = await import("./maison-v2-releases.fixtures");
+  const next = maisonV2At(15);
   // Rebuild the pre-2.1 payload from the new one (the 2.1 changes reverted).
   const prev = JSON.parse(JSON.stringify(next)) as DesignPayload;
   prev.homeTree = prev.homeTree.filter(

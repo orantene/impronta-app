@@ -46,3 +46,31 @@ export const MAISON_V2_RELEASE_2_1 = {
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 2.2 (v15 to v16, update round 2): defaults only, nothing new to
+ * place. Token and variant defaults reach untouched parts on their own; a
+ * talent's own values always win.
+ */
+export const MAISON_V2_RELEASE_2_2 = {
+  design: "maison-v2",
+  notes: {
+    en: "Maison v2 2.2: slightly tighter headings, softer button corners and reviews that show arrows and up to nine quotes.",
+    es: "Maison v2 2.2: títulos un poco más juntos, botones con esquinas más suaves y reseñas con flechas y hasta nueve citas.",
+  } satisfies ReleaseNote,
+  codeNotes: [] satisfies ReleaseNote[],
+  byItemId: {
+    "token-default:type.display-tracking": {
+      en: "Headings sit a touch tighter (only if you have not changed the letter spacing yourself).",
+      es: "Los títulos quedan un poco más juntos (solo si no cambiaste el espaciado de letras tú).",
+    },
+    "token-default:button.radius": {
+      en: "Buttons have softer corners instead of a full pill (only if you have not changed the button shape yourself).",
+      es: "Los botones tienen esquinas más suaves en lugar de una píldora completa (solo si no cambiaste la forma tú).",
+    },
+    "variant-default:home:reviews/reviews": {
+      en: "Reviews show previous and next arrows and up to nine quotes (only if you have not edited that section).",
+      es: "Las reseñas muestran flechas y hasta nueve citas (solo si no editaste esa sección).",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;

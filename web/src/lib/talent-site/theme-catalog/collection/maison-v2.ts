@@ -584,7 +584,7 @@ function maisonV2Reviews(makeId: KitIdFactory): BuilderNode {
     withProps(
       band,
       {},
-      kidsOf(band).map((n) => (n.kind === "reviews" ? withProps(n, { showRating: false, showDots: false }) : n)),
+      kidsOf(band).map((n) => (n.kind === "reviews" ? withProps(n, { showRating: false, showDots: false, showArrows: true, limit: 9 }) : n)),
     ),
   );
 }
