@@ -282,6 +282,7 @@ function TalentSidebar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function TalentRouter() {
+  const dashboardCopy = useDashboardText();
   const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, bridgeTalentAgendaV2, toast } = useAdminShell();
   const agendaV2 = bridgeTalentAgendaV2;
   const agendaNow = readAgendaNowClient(new Date());
@@ -493,7 +494,7 @@ function TalentRouter() {
       break;
     case "public-page":
       // WS-8.2 — new canonical page
-      page = <PublicPageEditor />;
+      page = <PublicPageEditor locale={dashboardCopy.isSpanish ? "es" : "en"} />;
       break;
     case "settings":
       page = <SettingsPage />;

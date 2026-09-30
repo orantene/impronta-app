@@ -44,7 +44,8 @@ import {
 } from "@/lib/site-admin/server/talent-locale-seed";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
-import { ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
@@ -292,6 +293,10 @@ export default async function PlatformTalentLayout({
     redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
   }
 
+  // Seed client dashboard copy with the SERVER-resolved locale so the first
+  // render is not English regardless of the cookie (use-dashboard-locale.ts).
+  const requestLocale = await getRequestLocale();
+
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -305,6 +310,7 @@ export default async function PlatformTalentLayout({
   };
 
   return (
+    <DashboardLocaleProvider locale={requestLocale}>
     <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
     <TalentShellClient
       tenantSlug={activeAgency?.slug}
@@ -403,5 +409,6 @@ export default async function PlatformTalentLayout({
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>
+    </DashboardLocaleProvider>
   );
 }
