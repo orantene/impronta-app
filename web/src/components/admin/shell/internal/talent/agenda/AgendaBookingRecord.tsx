@@ -8,6 +8,7 @@ import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
+import { recordSourceLabel, recordWhenLabel } from "@/lib/talent-agenda/record-labels";
 import { TradeSections } from "./TradeSections";
 import {
   cancelConsequenceKeys,
@@ -87,6 +88,9 @@ export function AgendaBookingRecord({
     paymentState: item.paymentState,
     started: noShowReady,
   });
+  // F61: the record states the day, not just the times.
+  const whenFull =
+    recordWhenLabel({ startsAt: item.startsAtIso, endsAt: item.endsAtIso, tz: item.talentTz, locale: copy.locale }) ?? item.whenLabel;
   // F44: Money → Record payment lands here with ?collect=1 and opens Finish and collect.
   useEffect(() => {
     if (!show.finishCollect) return;
@@ -265,7 +269,7 @@ export function AgendaBookingRecord({
           <div className="min-w-0">
             <h1 className="text-[20px] font-semibold text-[var(--tc-primary)]">{item.title}</h1>
             <p className="mt-0.5 text-[12.5px] text-[var(--tc-muted)]">
-              {[item.id ? `#${item.id.slice(0, 8).toUpperCase()}` : "", item.whenLabel].filter(Boolean).join(" · ")}
+              {[item.id ? `#${item.id.slice(0, 8).toUpperCase()}` : "", whenFull].filter(Boolean).join(" · ")}
             </p>
             <button
               type="button"
@@ -440,7 +444,7 @@ export function AgendaBookingRecord({
           <dl className="divide-y divide-black/8 rounded-xl border border-black/8 px-3">
             <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
               <dt className="text-[var(--tc-muted)]">{copy.t("When")}</dt>
-              <dd>{item.whenLabel}</dd>
+              <dd>{whenFull}</dd>
             </div>
             <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
               <dt className="text-[var(--tc-muted)]">{copy.t("Where")}</dt>
@@ -454,7 +458,7 @@ export function AgendaBookingRecord({
             </div>
             <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
               <dt className="text-[var(--tc-muted)]">{copy.t("Came from")}</dt>
-              <dd>{copy.t(item.sourceLabel)}</dd>
+              <dd>{copy.t(recordSourceLabel(item.sourceLabel))}</dd>
             </div>
             {isAgency ? (
               <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">

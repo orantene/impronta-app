@@ -36,7 +36,6 @@ export function AgendaNewBooking({
   hours,
   onCancel,
   onSaved,
-  onOpenRecord,
 }: {
   talentTypeSlug?: string | null;
   talentProfileId?: string;
@@ -45,9 +44,7 @@ export function AgendaNewBooking({
   agendaItems?: readonly TalentAgendaItem[];
   hours?: BookingHours | null;
   onCancel: () => void;
-  onSaved?: () => void;
-  /** After a "Request payment" save, opens the new booking to send the link. */
-  onOpenRecord?: (id: string) => void;
+  onSaved?: (bookingId?: string) => void;
 }) {
   const profile = resolveTradeProfile(talentTypeSlug);
   const newLabel = profile.words.newLabel[0];
@@ -73,7 +70,6 @@ export function AgendaNewBooking({
       hours={hours ?? null}
       onCancel={onCancel}
       onSaved={onSaved}
-      onOpenRecord={onOpenRecord}
     />
   );
 }
@@ -112,14 +108,12 @@ function SlotComposer({
   hours,
   onCancel,
   onSaved,
-  onOpenRecord,
 }: {
   talentProfileId?: string;
   agendaItems: readonly TalentAgendaItem[];
   hours: BookingHours | null;
   onCancel: () => void;
-  onSaved?: () => void;
-  onOpenRecord?: (id: string) => void;
+  onSaved?: (bookingId?: string) => void;
 }) {
   const copy = useAgendaCopy();
   const locale = copy.locale === "es" ? "es" : "en";
@@ -250,8 +244,8 @@ function SlotComposer({
             ? copy.t("Saved as unpaid. Request a payment link from the booking when you are ready. The client has not been told.")
             : copy.t("Due later. The client has not been told."),
       );
-      if (pay === "request_link" && onOpenRecord) onOpenRecord(result.id);
-      else onSaved?.();
+      // F63: one outcome for every payment choice; the caller toasts with a View booking link.
+      onSaved?.(result.id);
     } finally {
       setSaving(false);
     }
