@@ -110,24 +110,31 @@ export function NodeThemeInheritancePanel({
   if (allInherit) {
     return (
       <details
-        className="border-t pt-3"
+        className="rounded-[10px] border px-2.5 py-1.5"
         data-builder-node-inherit-panel=""
         data-inherit-collapsed="all"
-        style={{ borderColor: CHROME.line }}
+        style={{
+          borderColor: CHROME.lineStrong,
+          background: CHROME.surface,
+          boxShadow: "0 1px 2px rgba(17,24,39,0.03)",
+        }}
       >
         <summary
-          className="flex cursor-pointer list-none items-center justify-between gap-2"
+          className="flex cursor-pointer list-none items-center justify-between gap-2 py-1"
           style={{ outline: "none" }}
         >
           <span className={FIELD_LABEL}>{t("Theme inheritance")}</span>
           <span
-            className="text-[10px] font-medium"
-            style={{ color: CHROME.muted2 }}
+            className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{
+              color: CHROME.accent,
+              background: "rgba(124,58,237,0.08)",
+            }}
           >
             {t("Following the theme")}
           </span>
         </summary>
-        <div className="mt-2 flex flex-col gap-2">
+        <div className="mt-2 flex flex-col gap-2 border-t pt-2" style={{ borderColor: CHROME.line }}>
           <span
             className="text-[10px] font-medium"
             style={{ color: CHROME.muted2 }}

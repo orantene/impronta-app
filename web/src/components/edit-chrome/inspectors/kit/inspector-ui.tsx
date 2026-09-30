@@ -35,11 +35,11 @@ import type { OverrideDevice } from "../responsive-field-state";
 
 /** Sentence-case section heading inside a tab body. */
 export const INSPECTOR_SECTION_TITLE_CLASS =
-  "text-[13px] font-semibold tracking-[-0.01em] text-stone-900";
+  "text-[13px] font-semibold tracking-[-0.015em] text-stone-900";
 
 /** Small field label above an input. */
 export const INSPECTOR_FIELD_LABEL_CLASS =
-  "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-600";
+  "text-[11.5px] font-semibold tracking-[-0.005em] text-stone-700";
 
 /** Muted helper copy under a field or section. */
 export const INSPECTOR_HELP_TEXT_CLASS =
@@ -209,10 +209,16 @@ export function InspectorAccordion({
 
   return (
     <div
-      className="overflow-hidden rounded-xl"
+      className="overflow-hidden rounded-[12px]"
+      data-inspector-accordion=""
+      data-open={shown ? "true" : "false"}
       style={{
-        border: `1px solid ${CHROME.line}`,
+        border: `1px solid ${shown ? "rgba(124,58,237,0.22)" : CHROME.lineStrong}`,
         background: CHROME.surface,
+        boxShadow: shown
+          ? "0 1px 4px rgba(124,58,237,0.08)"
+          : "0 1px 2px rgba(17,24,39,0.04)",
+        transition: "border-color 160ms ease, box-shadow 160ms ease",
       }}
     >
       {/* The ⓘ is a real <button>, so it CANNOT sit inside the toggle button —
@@ -220,9 +226,9 @@ export function InspectorAccordion({
           alongside the toggle in a flex row instead, and the row (not the
           button) owns the hover tint so the whole header still highlights. */}
       <div
-        className="flex w-full items-center pr-3"
+        className="flex w-full items-center pr-3 transition-colors duration-150"
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = CHROME.paper;
+          e.currentTarget.style.background = "rgba(124,58,237,0.04)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "transparent";
@@ -241,9 +247,19 @@ export function InspectorAccordion({
           style={{ color: CHROME.ink }}
         >
           {shown ? (
-            <ChevronDown size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
+            <ChevronDown
+              size={15}
+              strokeWidth={2.25}
+              aria-hidden
+              style={{ color: CHROME.accent }}
+            />
           ) : (
-            <ChevronRight size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
+            <ChevronRight
+              size={15}
+              strokeWidth={2.25}
+              aria-hidden
+              style={{ color: CHROME.muted }}
+            />
           )}
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</span>
@@ -262,8 +278,12 @@ export function InspectorAccordion({
       {shown ? (
         <div
           id={panelId}
-          className="flex flex-col border-t px-3.5 pb-3.5 pt-2"
-          style={{ borderColor: CHROME.line, gap: INSPECTOR_SECTION_GAP }}
+          className="flex flex-col border-t px-3.5 pb-3.5 pt-2.5"
+          style={{
+            borderColor: "rgba(124,58,237,0.12)",
+            gap: INSPECTOR_SECTION_GAP,
+            background: "rgba(124,58,237,0.015)",
+          }}
         >
           {localizedDescription && descriptionPlacement === "inline" ? (
             <p className={INSPECTOR_HELP_TEXT_CLASS}>{localizedDescription}</p>

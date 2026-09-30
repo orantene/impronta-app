@@ -117,8 +117,9 @@ export function InspectorViewportRail({
       className="flex flex-col"
       style={{
         gap: 8,
-        padding: compact ? "8px 0 10px" : "10px 0 12px",
-        borderBottom: `1px solid ${BUILDER_VISUAL.divider}`,
+        padding: compact ? "8px 0 12px" : "10px 0 14px",
+        borderBottom: `1px solid ${CHROME.lineStrong}`,
+        marginBottom: 2,
       }}
       data-inspector-viewport-rail=""
     >
