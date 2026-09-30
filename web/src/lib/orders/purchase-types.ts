@@ -99,6 +99,8 @@ export type PurchaseInput = {
    * `guestSessionId: null` once an email is known.
    */
   guestSessionId?: string | null;
+  /** Talent policy version in force at checkout; stamped on the order and its booking. */
+  policyVersionId?: string | null;
   /**
    * A CALENDAR SLOT this purchase must hold, distinct from capacity units.
    *

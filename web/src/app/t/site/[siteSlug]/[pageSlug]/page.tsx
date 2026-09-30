@@ -18,6 +18,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { talentSitePathRedirectTarget } from "@/lib/talent-site/site-public-url";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
@@ -101,6 +102,9 @@ export default async function TalentMaxSiteInnerPage({
     canonicalOrigin: publicSiteMetadataBase().origin,
     canonicalPath: innerPath(siteSlug, pageSlug),
   });
+  if (result.kind !== "render" && pageSlug === LEGACY_PRIVACY_SLUG) {
+    permanentRedirect(`/t/site/${encodeURIComponent(siteSlug)}/${POLICY_SLUG.privacy}`);
+  }
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (

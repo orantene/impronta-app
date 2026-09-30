@@ -415,7 +415,7 @@ export async function createOffer(
 
     const { data: inq } = await supabase
       .from("inquiries")
-      .select("version, uses_new_engine, is_frozen, status, current_offer_id")
+      .select("version, uses_new_engine, is_frozen, status, current_offer_id, policy_version_id")
       .eq("id", ctx.inquiryId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
@@ -478,6 +478,8 @@ export async function createOffer(
         deposit_amount_cents: 0,
         balance_collection_method: defaults.balanceMethod,
         refund_policy_key: defaults.refundPolicy,
+        // The policy version the client saw at inquiry time (null when none).
+        policy_version_id: inq.policy_version_id ?? null,
       })
       .select("id")
       .single();

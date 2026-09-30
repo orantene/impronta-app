@@ -46,6 +46,7 @@ import { instantReadiness, readinessGaps, takesMoneyOnline } from "@/lib/talent/
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
 
 export type InstantPurchaseInput = {
   tenantId: string;
@@ -453,5 +454,7 @@ export async function placeInstantPurchase(
         : undefined,
     openThread: input.openThread,
     guestSessionId: input.guestSessionId ?? null,
+    // Snapshot: the talent's published policy the buyer saw at checkout.
+    policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });
 }

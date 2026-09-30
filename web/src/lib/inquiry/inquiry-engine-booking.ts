@@ -13,6 +13,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
 import { logServerError } from "@/lib/server/safe-error";
+import { stampBookingPolicyVersion } from "@/lib/talent-policies/stamp";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 
 type InquiryRow = Database["public"]["Tables"]["inquiries"]["Row"];
@@ -493,6 +494,9 @@ export async function convertToBooking(
         detail: termErr instanceof Error ? termErr.message : String(termErr),
       });
     }
+
+    // The policy version the client accepted rides onto the booking (non-fatal).
+    await stampBookingPolicyVersion(supabase, { inquiryId: ctx.inquiryId, tenantId: ctx.tenantId, bookingId });
 
     // Appointments: stamp agency_bookings times + talent_bookings mirror.
     // No-op when there is neither a reservation stamp nor a live hold

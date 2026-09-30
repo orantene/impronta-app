@@ -18,6 +18,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { linkInquiryCustomer } from "./link-inquiry-customer";
 import { ensureClientRelationshipForInquiry } from "./ensure-client-relationship";
 import { refuseOfferingRequestIfPolicyOff } from "@/lib/scheduling/reservation-submit-gate";
+import { policyVersionIdForTalents } from "@/lib/talent-policies/stamp";
 import { insertSystemMessage } from "./inquiry-system-messages";
 import { buildInquiryBells } from "./inquiry-notifications";
 
@@ -291,6 +292,8 @@ export async function submitInquiry(
 
     const status = "submitted" as const;
     const next = resolveNextActionBy(status);
+    // Snapshot: the policy version in force when the client asked (one talent only).
+    const policyVersionId = await policyVersionIdForTalents(input.talent_profile_ids);
 
     const { data: row, error } = await supabase
       .from("inquiries")
@@ -334,6 +337,7 @@ export async function submitInquiry(
         coordinator_assigned_at: coordinatorOfRecordId ? new Date().toISOString() : null,
         next_action_by: next,
         version: 1,
+        policy_version_id: policyVersionId,
       })
       .select("id")
       .single();
