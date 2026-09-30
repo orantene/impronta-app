@@ -13,6 +13,8 @@ import {
   siteResultFromReport,
   type SiteDryRunResult,
 } from "./dry-run";
+import { executeResyncDemos } from "./channel";
+import { applyDemosWithPorts, selectDemoTargets, talentSitesOnly, type DemoPorts } from "./demos";
 import { fanOutWithPorts, type FanOutPorts } from "./fan-out";
 import { applyItemEdit, cleanScreenshotUrl, editItemInList, itemsMissingNotes } from "./items";
 import { inRolloutBucket, planFanOut, themeUpdateCopy, type FanOutSite } from "./notify";
@@ -87,27 +89,39 @@ test("siteResultFromReport trims the drill-down and counts every bucket", () => 
     { siteId: "s", profileCode: "TAL-93003", displayName: "Camila", isDemo: true, pinnedVersion: 1, noBase: false },
     r,
   );
-  assert.equal(res.status, "kept");
+  assert.equal(res.status, "auto");
   assert.equal(res.counts.kept, 40);
   assert.equal(res.counts.applied, 1);
   assert.equal(res.counts.added, 1);
   assert.equal(res.kept.length, 24);
 });
 
-test("aggregateDryRun tallies all sites and demos separately", () => {
+test("aggregateDryRun: demos are auto, talents carry clean/kept/conflicts/noBase", () => {
   const rows = [
-    site("TAL-93003"),
-    site("TAL-93002", { status: "kept" }),
-    site("TAL-93103", { status: "conflicts" }),
-    site("TAL-90001", { isDemo: false, status: "error", error: "boom" }),
-    site("TAL-90002", { isDemo: false, noBase: true }),
+    site("TAL-93003", { status: "auto" }),
+    site("TAL-93002", { status: "auto", noBase: true }),
+    site("TAL-93103", { status: "error", error: "boom" }),
+    site("TAL-90001", { isDemo: false, status: "clean" }),
+    site("TAL-90002", { isDemo: false, status: "kept", noBase: true }),
+    site("TAL-90003", { isDemo: false, status: "conflicts" }),
+    site("TAL-90004", { isDemo: false, status: "error", error: "boom" }),
   ];
   const s = aggregateDryRun(rows);
   assert.deepEqual(
     { total: s.total, clean: s.clean, kept: s.kept, conflicts: s.conflicts, errors: s.errors, noBase: s.noBase },
-    { total: 5, clean: 2, kept: 1, conflicts: 1, errors: 1, noBase: 1 },
+    { total: 7, clean: 1, kept: 1, conflicts: 1, errors: 2, noBase: 1 },
   );
-  assert.deepEqual(s.demos, { total: 3, clean: 1, kept: 1, conflicts: 1, errors: 0 });
+  assert.deepEqual(s.demos, { total: 3, auto: 2, errors: 1 });
+});
+
+test("siteResultFromReport: a demo reads auto, a talent keeps its clean/kept status", () => {
+  const r = emptyReport();
+  r.kept.push({ seq: 1, change: "props", key: "hero", reason: "edited" });
+  const meta = { siteId: "s", profileCode: "TAL-1", displayName: "X", pinnedVersion: 1, noBase: true };
+  assert.equal(siteResultFromReport({ ...meta, isDemo: true }, r).status, "auto");
+  const talent = siteResultFromReport({ ...meta, isDemo: false }, r);
+  assert.equal(talent.status, "kept");
+  assert.equal(talent.noBase, true);
 });
 
 test("report orders demos first and pins the release + items hash", () => {
@@ -186,7 +200,7 @@ test("executeChannelChange: demos applies then persists; optin needs rollout > 0
   const c = spyDeps();
   const open = await executeChannelChange(withFreshReport({ channel: "demos", rollout_pct: 50 }), "optin", c.deps);
   assert.equal(open.ok, true);
-  assert.deepEqual(c.calls, ["fanOut", "persist:optin"]);
+  assert.deepEqual(c.calls, ["demos", "fanOut", "persist:optin"], "demos update before talents are notified");
 });
 
 test("executeChannelChange: a failing demo apply does not advance the channel", async () => {
@@ -210,7 +224,7 @@ test("executeChannelChange: Make default flips the catalog first; a failed flip 
   ok.deps.flipCatalog = async () => (ok.calls.push("flip"), { ok: true as const });
   const res = await executeChannelChange(withFreshReport({ channel: "optin", status: "published", rollout_pct: 100 }), "default", ok.deps);
   assert.equal(res.ok, true);
-  assert.deepEqual(ok.calls, ["flip", "fanOut", "persist:default"]);
+  assert.deepEqual(ok.calls, ["flip", "demos", "fanOut", "persist:default"]);
 
   const bad = spyDeps();
   bad.deps.flipCatalog = async () => (bad.calls.push("flip"), { ok: false as const, error: "no snapshot" });
@@ -382,4 +396,118 @@ test("item edit: only https screenshots; unknown ids untouched", () => {
   const one = editItemInList(ITEMS, "new-block:home:beforeAfter", { type: "layout" });
   assert.equal(one[1]!.type, "layout");
   assert.equal(itemsMissingNotes(ITEMS), 2);
+});
+
+// ── Publish to demos: every is_demo site, whatever its pinned version ────────
+
+interface DemoSite {
+  siteId: string;
+  profileCode: string;
+  pinnedVersion: number | null;
+  isDemo: boolean;
+  live: boolean;
+}
+const dsite = (code: string, pinned: number | null, over: Partial<DemoSite> = {}): DemoSite => ({
+  siteId: `s-${code}`,
+  profileCode: code,
+  pinnedVersion: pinned,
+  isDemo: true,
+  live: false,
+  ...over,
+});
+
+function demoPorts(noBase: Set<string> = new Set(), failMerge: Set<string> = new Set()) {
+  const calls: string[] = [];
+  const ports: DemoPorts<DemoSite> = {
+    merge: async (s) => {
+      if (failMerge.has(s.profileCode)) return { ok: false, error: "build failed" };
+      return {
+        ok: true,
+        noBase: noBase.has(s.profileCode),
+        write: async () => void calls.push(`write:${s.profileCode}`),
+      };
+    },
+    reapply: async (s) => void calls.push(`reapply:${s.profileCode}`),
+    publish: async (s) => (calls.push(`publish:${s.profileCode}`), { warning: `${s.profileCode}: cache` }),
+  };
+  return { ports, calls };
+}
+
+test("demos: selects every is_demo site behind the target, not talents, not already current", () => {
+  const sites = [
+    dsite("TAL-93020", 12),
+    dsite("TAL-93006", 1),
+    dsite("TAL-93003", 15),
+    dsite("TAL-93002", null),
+    dsite("TAL-90001", 1, { isDemo: false }),
+  ];
+  assert.deepEqual(selectDemoTargets(sites, 15).map((s) => s.profileCode), ["TAL-93020", "TAL-93006", "TAL-93002"]);
+});
+
+test("demos: exact base merges, no base re-applies the full design, live ones publish", async () => {
+  const { ports, calls } = demoPorts(new Set(["TAL-93020", "TAL-93006"]));
+  const sites = [dsite("TAL-93003", 14, { live: true }), dsite("TAL-93020", 12), dsite("TAL-93006", 1)];
+  const r = await applyDemosWithPorts(ports, sites, 15);
+  assert.deepEqual(calls, ["write:TAL-93003", "publish:TAL-93003", "reapply:TAL-93020", "reapply:TAL-93006"]);
+  assert.equal(r.applied, 3);
+  assert.equal(r.merged, 1);
+  assert.equal(r.reapplied, 2);
+  assert.deepEqual(r.warnings, ["TAL-93003: cache"]);
+  assert.deepEqual(r.failures, []);
+});
+
+test("demos: a failing demo is reported, the rest still update", async () => {
+  const { ports, calls } = demoPorts(new Set(), new Set(["TAL-93020"]));
+  const r = await applyDemosWithPorts(ports, [dsite("TAL-93020", 12), dsite("TAL-93006", 1)], 15);
+  assert.equal(r.applied, 1);
+  assert.equal(r.failures.length, 1);
+  assert.match(r.failures[0]!, /TAL-93020: build failed/);
+  assert.deepEqual(calls, ["write:TAL-93006"]);
+});
+
+test("notices and auto-improve only ever see non-demo sites", () => {
+  const rows = [dsite("TAL-93003", 1), dsite("TAL-90001", 1, { isDemo: false })];
+  assert.deepEqual(talentSitesOnly(rows).map((s) => s.profileCode), ["TAL-90001"]);
+});
+
+// ── in-app confirm replaces window.confirm ───────────────────────────────────
+
+test("release manager uses an in-app ConfirmDialog, never window.confirm", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../app/(workspace)/platform/admin/builder-lab/themes");
+  const panel = readFileSync(join(dir, "[releaseId]/release-panel.tsx"), "utf8");
+  const dialog = readFileSync(join(dir, "[releaseId]/confirm-dialog.tsx"), "utf8");
+  const copy = readFileSync(join(dir, "copy.ts"), "utf8");
+  assert.doesNotMatch(panel, /window\.confirm|[^.\w]confirm\(/);
+  assert.match(panel, /<ConfirmDialog/);
+  assert.match(dialog, /role="alertdialog"/);
+  assert.match(dialog, /aria-modal="true"/);
+  assert.match(dialog, /Escape/);
+  assert.equal((copy.match(/confirmYes:/g) ?? []).length, 2, "EN + ES confirm labels");
+  assert.equal((copy.match(/confirmCancel:/g) ?? []).length, 2);
+});
+
+// ── Re-sync demos (F68) ──────────────────────────────────────────────────────
+
+test("resync demos: any channel after draft, fresh dry run required, talents untouched", async () => {
+  const calls: string[] = [];
+  const deps = { applyToDemos: async () => (calls.push("demos"), { ok: true as const, applied: 2 }) };
+  assert.equal((await executeResyncDemos(withFreshReport({ channel: "draft" }), deps)).ok, false);
+  assert.equal((await executeResyncDemos(release({ channel: "demos" }), deps)).ok, false, "no dry run");
+  assert.equal((await executeResyncDemos(withFreshReport({ channel: "demos", status: "paused" }), deps)).ok, false);
+  assert.deepEqual(calls, []);
+  for (const channel of ["demos", "optin", "default"] as const) {
+    const r = await executeResyncDemos(withFreshReport({ channel }), deps);
+    assert.deepEqual(r, { ok: true, applied: 2, warnings: [] });
+  }
+  assert.deepEqual(calls, ["demos", "demos", "demos"]);
+});
+
+test("resync demos: a failing demo update is reported", async () => {
+  const r = await executeResyncDemos(withFreshReport({ channel: "demos" }), {
+    applyToDemos: async () => ({ ok: false as const, error: "TAL-93020: boom" }),
+  });
+  assert.equal(r.ok, false);
 });

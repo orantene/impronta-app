@@ -17,6 +17,8 @@ import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
+import { restoreClient } from "@/lib/talent/client-records-actions";
+import { ClientArchiveSheet, ClientDetailsPanel, ClientNoteInline } from "./ClientPanels";
 
 const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -183,6 +185,10 @@ function OutstandingCell({ row, t }: { row: TalentClientRow; t: (s: string) => s
 
 function ClientRecord(props: {
   row: TalentClientRow;
+  talentId: string | null;
+  onEdit: () => void;
+  onArchive: () => void;
+  onNote: (note: string | null) => void;
   onBack: () => void;
   t: (s: string) => string;
   router: ReturnType<typeof useRouter>;
@@ -220,12 +226,7 @@ function ClientRecord(props: {
               {row.source === "booking" ? t("From a booking") : t("From a message")}
             </p>
           </div>
-          <button
-            type="button"
-            disabled
-            title={t("Editing client details is not available yet.")}
-            className={`${btn} disabled:opacity-50`}
-          >
+          <button type="button" className={btn} onClick={props.onEdit} data-client-edit>
             {t("Edit details")}
           </button>
         </div>
@@ -258,6 +259,9 @@ function ClientRecord(props: {
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className={btn} onClick={props.onArchive} data-client-archive>
+            {t("Archive")}
+          </button>
           {row.conversationHref ? (
             <button type="button" className={btn} onClick={() => router.push(row.conversationHref!)}>
               {t("Message")}
@@ -339,20 +343,9 @@ function ClientRecord(props: {
       </div>
 
       <aside className="flex flex-col gap-3 lg:pt-10">
-        <div className="flex items-baseline gap-2">
-          <h3 className="flex-1 font-admin-body text-[16px] font-semibold text-admin-ink">{t("Private notes")}</h3>
-          <button
-            type="button"
-            disabled
-            title={t("Private notes are not available yet.")}
-            className="min-h-[32px] text-[13px] font-semibold text-admin-accent disabled:opacity-50"
-          >
-            {t("Edit")}
-          </button>
-        </div>
-        <div className="rounded-[12px] border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] text-admin-ink-muted">
-          {t("Private notes are not available yet. When they are, only you will see them: never in checkout, receipts, your public pages or message previews.")}
-        </div>
+        {props.talentId ? (
+          <ClientNoteInline key={`${row.id}:${row.note ?? ""}`} talentId={props.talentId} row={row} t={t} onSaved={props.onNote} />
+        ) : null}
         <details className="rounded-[12px] border border-admin-border-soft bg-white px-4 py-3" open>
           <summary className="cursor-pointer font-admin-body text-[14px] font-semibold text-admin-ink">
             {t("History in numbers")}
@@ -382,7 +375,7 @@ function ClientRecord(props: {
 }
 
 export function TalentClientsPage() {
-  const { bridgeTalentSelfProfile } = useAdminShell();
+  const { bridgeTalentSelfProfile, toast } = useAdminShell();
   const copy = useDashboardText();
   const t = copy.t;
   const router = useRouter();
@@ -391,6 +384,10 @@ export function TalentClientsPage() {
   const [filter, setFilter] = useState<ClientsFilter>("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [panel, setPanel] = useState<
+    { kind: "add" } | { kind: "edit"; row: TalentClientRow } | { kind: "archive"; row: TalentClientRow } | null
+  >(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   useEffect(() => {
@@ -408,7 +405,7 @@ export function TalentClientsPage() {
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [talentId, reloadKey]);
 
   const counts = useMemo(
     () => countClientsByFilter(items ?? []),
@@ -425,16 +422,68 @@ export function TalentClientsPage() {
   );
   const selected = items?.find((r) => r.id === selectedId) ?? null;
 
+  const panels = talentId ? (
+    <>
+      {panel && (panel.kind === "add" || panel.kind === "edit") ? (
+        <ClientDetailsPanel
+          talentId={talentId}
+          row={panel.kind === "edit" ? panel.row : undefined}
+          t={t}
+          onClose={() => setPanel(null)}
+          onSaved={({ key, message }) => {
+            setPanel(null);
+            toast(message);
+            setReloadKey((n) => n + 1);
+            if (panel.kind === "add") setSelectedId(key);
+          }}
+        />
+      ) : null}
+      {panel?.kind === "archive" ? (
+        <ClientArchiveSheet
+          talentId={talentId}
+          row={panel.row}
+          t={t}
+          onClose={() => setPanel(null)}
+          onArchived={() => {
+            const archivedRow = panel.row;
+            setPanel(null);
+            setSelectedId(null);
+            setReloadKey((n) => n + 1);
+            toast(t("Client archived"), {
+              action: {
+                label: t("Undo"),
+                onClick: () => {
+                  void restoreClient(talentId, archivedRow.id).then((r) => {
+                    if (r.ok) setReloadKey((n) => n + 1);
+                    else toast(t("Could not save. Try again."));
+                  });
+                },
+              },
+            });
+          }}
+        />
+      ) : null}
+    </>
+  ) : null;
+
   if (selected) {
     return (
       <div>
         <PageHeader title={selected.name} subtitle={t("Client")} />
         <ClientRecord
           row={selected}
+          talentId={talentId}
+          onEdit={() => setPanel({ kind: "edit", row: selected })}
+          onArchive={() => setPanel({ kind: "archive", row: selected })}
+          onNote={(note) => {
+            toast(t("Note saved"));
+            setItems((prev) => prev?.map((r) => (r.id === selected.id ? { ...r, note } : r)) ?? prev);
+          }}
           onBack={() => setSelectedId(null)}
           t={t}
           router={router}
         />
+        {panels}
       </div>
     );
   }
@@ -461,10 +510,9 @@ export function TalentClientsPage() {
           <button
             type="button"
             className="inline-flex h-9 items-center rounded-full bg-admin-ink px-3.5 font-admin-body text-[13px] font-semibold text-white"
-            onClick={() => {
-              // A client is added with their first booking (find-or-add on New booking).
-              router.push("/talent/bookings/new");
-            }}
+            onClick={() => setPanel({ kind: "add" })}
+            disabled={!talentId}
+            data-client-add
           >
             {t("Add a client")}
           </button>
@@ -682,6 +730,7 @@ export function TalentClientsPage() {
           )}
         </div>
       )}
+      {panels}
     </div>
   );
 }

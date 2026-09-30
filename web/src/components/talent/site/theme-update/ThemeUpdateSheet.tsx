@@ -8,8 +8,9 @@
  *     new blocks, layout changes) with EN/ES notes and screenshots
  *   - Preview on my site: the merge runs in memory (no save); the link opens
  *     her own draft with the update and the "kept your edits" line shows here
- *   - Add this block: placement picker, inserted into the draft
- *   - Apply to my draft / Not now
+ *   - Add this block: its own button + placement picker, inserted into the draft
+ *   - Apply N changes (automatic improvements + layout changes, never new
+ *     blocks) / Not now
  */
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
@@ -19,6 +20,7 @@ import { pick } from "@/lib/talent-site/history/copy";
 import {
   GROUP_COPY,
   UPDATE_COPY,
+  applyLabel,
   bannerTitle,
   changesLine,
   keptLine,
@@ -29,7 +31,7 @@ import {
   previewThemeUpdateAction,
 } from "@/lib/talent-site/theme-releases/talent-update/talent-update-actions";
 import type { TalentUpdateNotice, UpdatePreview } from "@/lib/talent-site/theme-releases/talent-update/talent-update.server";
-import type { TalentReleaseItem } from "@/lib/talent-site/theme-releases/talent-update/view";
+import type { PlacementOption, TalentReleaseItem } from "@/lib/talent-site/theme-releases/talent-update/view";
 
 const BTN_PRIMARY =
   "inline-flex min-h-11 items-center justify-center rounded-lg bg-admin-ink px-4 text-[14px] font-semibold text-white disabled:opacity-60";
@@ -93,7 +95,7 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
         aria-labelledby={titleId}
         data-theme-update-sheet
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white font-admin-body shadow-xl sm:max-h-none sm:w-[440px] sm:rounded-none"
+        className="flex max-h-[88dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-2xl bg-white font-admin-body shadow-xl sm:max-h-none sm:w-[440px] sm:rounded-none"
       >
         <header className="flex items-start gap-3 border-b border-admin-border-soft px-5 py-4">
           <div className="min-w-0 flex-1">
@@ -104,7 +106,7 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
               {t("whatsNew")} · {t("version")} {notice.fromVersion} → {notice.toVersion}
             </p>
           </div>
-          <button type="button" onClick={onClose} className={BTN_GHOST} aria-label={t("close")}>
+          <button type="button" onClick={onClose} className={`${BTN_GHOST} shrink-0`} aria-label={t("close")}>
             {t("close")}
           </button>
         </header>
@@ -114,24 +116,30 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
 
           <section aria-live="polite" className="mb-5 rounded-xl border border-admin-border-soft bg-admin-surface-alt p-4" data-theme-update-preview>
             {preview ? (
-              <>
-                <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
-                <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
-                  {keptLine(preview.summary, locale)}
+              preview.noBase ? (
+                <p className="m-0 text-[14px] font-semibold text-admin-ink" data-theme-update-no-base>
+                  {t("noBase")}
                 </p>
-                {preview.previewUrl ? (
-                  <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
-                    {t("previewOnSite")}
-                  </a>
-                ) : null}
-                <p className="m-0 mt-2 text-[12px] text-admin-ink-dim">{t("previewHint")}</p>
-              </>
+              ) : (
+                <>
+                  <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
+                  <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
+                    {keptLine(preview.summary, locale)}
+                  </p>
+                  {preview.previewUrl ? (
+                    <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
+                      {t("previewOnSite")}
+                    </a>
+                  ) : null}
+                  <p className="m-0 mt-2 text-[12px] text-admin-ink-dim">{t("previewHint")}</p>
+                </>
+              )
             ) : (
               <p className="m-0 text-[13px] text-admin-ink-muted">{previewError ?? t("loading")}</p>
             )}
           </section>
 
-          {notice.groups.map((g) => (
+          {(preview?.groups ?? []).map((g) => (
             <section key={g.group} className="mb-5" data-theme-update-group={g.group}>
               <h3 className="m-0 text-[14px] font-semibold text-admin-ink">{pick(GROUP_COPY[g.group], locale)}</h3>
               <p className="m-0 mb-2 text-[12px] text-admin-ink-muted">
@@ -143,8 +151,8 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                     key={item.id}
                     item={item}
                     locale={locale}
-                    notice={notice}
-                    preview={preview}
+                    updateId={notice.updateId}
+                    placements={preview?.placements ?? []}
                     draftRev={draftRev}
                     disabled={busy}
                     onAdded={(rev) => {
@@ -158,17 +166,19 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
           ))}
         </div>
 
-        <footer className="flex flex-col gap-2 border-t border-admin-border-soft px-5 py-4">
+        <footer className="flex flex-col gap-2 border-t border-admin-border-soft px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {props.error ? (
             <p role="alert" className="m-0 text-[13px] text-admin-critical">
               {props.error}
             </p>
           ) : null}
-          <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>
+          {preview?.noBase ? null : <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
-              {busy ? t("applying") : t("apply")}
-            </button>
+            {preview?.hasApplicable ? (
+              <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
+                {busy ? t("applying") : applyLabel(preview ? preview.summary.applied + preview.summary.added : null, locale)}
+              </button>
+            ) : null}
             <button type="button" className={BTN_GHOST} disabled={busy} onClick={props.onDismiss} data-theme-update-dismiss>
               {t("notNow")}
             </button>
@@ -179,11 +189,11 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
   );
 }
 
-function ItemRow(p: {
+export function ItemRow(p: {
   item: TalentReleaseItem;
   locale: UpdateLocale;
-  notice: TalentUpdateNotice;
-  preview: UpdatePreview | null;
+  updateId: string;
+  placements: PlacementOption[];
   draftRev: number;
   disabled: boolean;
   onAdded: (draftRev: number) => void;
@@ -202,7 +212,7 @@ function ItemRow(p: {
     setSaving(true);
     setMsg(null);
     const res = await addThemeUpdateBlockAction({
-      updateId: p.notice.updateId,
+      updateId: p.updateId,
       itemId: item.id,
       afterId: after === "" ? null : after,
       expectedDraftRev: p.draftRev,
@@ -216,31 +226,31 @@ function ItemRow(p: {
   }
 
   return (
-    <li className="rounded-xl border border-admin-border-soft p-3" data-theme-update-item={item.type}>
-      <p className="m-0 text-[13.5px] text-admin-ink">{note}</p>
+    <li className="min-w-0 rounded-xl border border-admin-border-soft p-3" data-theme-update-item={item.type}>
+      <p className="m-0 break-words text-[13.5px] text-admin-ink">{note}</p>
       {item.screenshotUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- admin-provided https screenshot, any host
-        <img src={item.screenshotUrl} alt={t("screenshotAlt")} loading="lazy" className="mt-2 w-full rounded-lg border border-admin-border-soft" />
+        <img src={item.screenshotUrl} alt={t("screenshotAlt")} loading="lazy" className="mt-2 h-auto max-w-full w-full rounded-lg border border-admin-border-soft" />
       ) : null}
       {item.type === "new-block" ? (
         picking ? (
           <fieldset className="m-0 mt-3 border-0 p-0" data-theme-update-placement>
             <legend className="mb-1 text-[13px] font-semibold text-admin-ink">{t("placeAfter")}</legend>
             {canPlace ? (
-              <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-                <label className="flex min-h-10 items-center gap-2 text-[13px] text-admin-ink">
-                  <input type="radio" name={groupName} value="" checked={after === ""} onChange={() => setAfter("")} />
+              <div className="flex max-h-[40dvh] flex-col gap-1 overflow-y-auto">
+                <label className="flex min-h-11 items-center gap-2 text-[13px] text-admin-ink">
+                  <input type="radio" className="size-5 shrink-0" name={groupName} value="" checked={after === ""} onChange={() => setAfter("")} />
                   {t("placeTop")}
                 </label>
-                {(p.preview?.placements ?? []).map((o) => (
-                  <label key={o.afterId} className="flex min-h-10 items-center gap-2 text-[13px] text-admin-ink">
-                    <input type="radio" name={groupName} value={o.afterId} checked={after === o.afterId} onChange={() => setAfter(o.afterId)} />
-                    {o.label}
+                {p.placements.map((o) => (
+                  <label key={o.afterId} className="flex min-h-11 items-center gap-2 text-[13px] text-admin-ink">
+                    <input type="radio" className="size-5 shrink-0" name={groupName} value={o.afterId} checked={after === o.afterId} onChange={() => setAfter(o.afterId)} />
+                    <span className="min-w-0 break-words">{o.label}</span>
                   </label>
                 ))}
               </div>
             ) : null}
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" className={BTN_PRIMARY} disabled={saving || p.disabled} onClick={() => void add()} data-theme-update-add-confirm>
                 {t("addHere")}
               </button>

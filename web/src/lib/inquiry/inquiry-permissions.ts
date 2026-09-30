@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { talentSelfInquiryAllowed } from "./talent-self-inquiry";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { talentOwnOfferAllowed, talentSelfInquiryAllowed } from "./talent-self-inquiry";
+
+const OFFER_VERBS: readonly EngineAction[] = ["create_offer", "update_offer", "send_offer"];
 
 export type EngineAction =
   | "submit_inquiry"
@@ -242,6 +245,37 @@ export async function validateActorPermission(
       .maybeSingle();
     if (tp && tp.role === "talent" && ["invited", "active"].includes(tp.status)) {
       return { ok: true, isStaff: false, talentProfileId };
+    }
+  }
+
+  // Her own talent_self inquiry: the offer verbs are hers (talent-self-inquiry.ts).
+  if (talentProfileId && OFFER_VERBS.includes(action)) {
+    const { data: inq, error: inqErr } = await supabase
+      .from("inquiries")
+      .select("tenant_id, owner_user_id, source_context")
+      .eq("id", inquiryId)
+      .maybeSingle();
+    if (inq && !inqErr) {
+      const { data: seats, error: seatsErr } = await supabase
+        .from("inquiry_participants")
+        .select("talent_profile_id")
+        .eq("inquiry_id", inquiryId)
+        .eq("role", "talent");
+      // A failed read fails closed: no seats read means no lineup proof, so refused.
+      if (seatsErr) return { ok: false, reason: "forbidden" };
+      const ctx = (inq.source_context ?? {}) as { started_by?: unknown };
+      const allowed = talentOwnOfferAllowed({
+        actorUserId,
+        ownerUserId: inq.owner_user_id as string | null,
+        startedBy: ctx.started_by,
+        actorTalentProfileId: talentProfileId,
+        talentProfileIds: ((seats ?? []) as Array<{ talent_profile_id: string | null }>)
+          .map((r) => r.talent_profile_id)
+          .filter((v): v is string => Boolean(v)),
+        tenantId: inq.tenant_id as string | null,
+        hubTenantId: (await getPlatformHubTenant())?.tenantId ?? null,
+      });
+      if (allowed) return { ok: true, isStaff: false, talentProfileId };
     }
   }
 

@@ -15,8 +15,10 @@ import {
   applyThemeUpdate,
   defaultUpdateDeps,
   dismissThemeUpdate,
+  loadAvailableBlocks,
   loadTalentUpdateNotices,
   previewThemeUpdate,
+  type AvailableBlocks,
   type ApplyOutcome,
   type TalentUpdateNotice,
   type UpdatePreview,
@@ -105,4 +107,13 @@ export async function addThemeUpdateBlockAction(input: {
       actorId: g.userId,
     }),
   );
+}
+
+/** Skipped new blocks from releases she is on or past; each can still be added. */
+export async function loadAvailableBlocksAction(): Promise<{ ok: true; value: AvailableBlocks } | { ok: false; error: string }> {
+  const g = await gate("personalSiteEdit");
+  if (!g.ok) return { ok: false, error: g.error };
+  const deps = defaultUpdateDeps();
+  if (!deps) return { ok: false, error: OFF.error };
+  return { ok: true, value: await loadAvailableBlocks(deps.admin, g.talentProfileId) };
 }

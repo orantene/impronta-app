@@ -21,3 +21,12 @@ export function consumePendingConversation(): string | null {
   __pendingActiveConversationId = null;
   return v;
 }
+
+/**
+ * Non-destructive read for a mount that may render twice (StrictMode, a lazy
+ * page that remounts on the route change): `consume` would hand the id to the
+ * first render and leave the one that stays on screen with null, so the thread
+ * never opened (F100). Pair with `clearPendingConversation()` in an effect.
+ */
+export function peekPendingConversation(): string | null { return __pendingActiveConversationId; }
+export function clearPendingConversation() { __pendingActiveConversationId = null; }

@@ -50,13 +50,15 @@ test("channel change: the guard runs before any effect", () => {
   assert.ok(guard < s.indexOf("deps.persist(target)"));
 });
 
-test("dry run is read-only; demos are chosen by demo markers, never is_test_account", () => {
+test("dry run is read-only; demos are is_demo profiles, never is_test_account", () => {
   const mgr = read(join(HERE, "release-manager.server.ts"));
   const merge = read(join(HERE, "merge-site.server.ts"));
   const dry = mgr.slice(mgr.indexOf("export async function runDryRun"), mgr.indexOf("async function applyToDemos"));
   assert.doesNotMatch(dry, /writeMergedDraft|publishDemoSite|\.insert\(|talent_sites"\)\s*\.update/);
-  assert.match(mgr, /isDemoAccount\(/);
-  assert.match(mgr, /filter\(\(s\) => s\.isDemo\)/);
+  assert.match(mgr, /is_demo/);
+  assert.match(mgr, /isDemo: p\.isDemo/);
+  assert.match(mgr, /talentSitesOnly\(/, "notices + auto-improve skip demos");
+  assert.doesNotMatch(mgr, /isDemoAccount\(/);
   const code = (x: string) => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\n\s*\/\/[^\n]*/g, "");
   assert.doesNotMatch(code(mgr + merge + read(join(HERE, "notify.ts"))), /is_test_account/);
 });

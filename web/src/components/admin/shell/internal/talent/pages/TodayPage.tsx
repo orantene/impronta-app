@@ -25,6 +25,7 @@ import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteElig
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
 import { openNewBookingPanel } from "../agenda/NewBookingPanel";
+import { openSendQuotePanel } from "../agenda/SendQuotePanel";
 import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
@@ -142,7 +143,7 @@ export function TalentTodayPage() {
         payoutsEnabled={
           bridgeTalentPayoutSnapshot?.ok === true ? bridgeTalentPayoutSnapshot.data.payoutsEnabled : null
         }
-        onSendQuote={() => setTalentPage("messages")}
+        onSendQuote={openSendQuotePanel}
         newLabel={resolveTradeProfile(bridgeTalentSelfProfile?.primaryTypeLabel).words.newLabel[copy.isSpanish ? 1 : 0]}
         onOpenAttention={() => setTalentPage("attention")}
         onOpenCalendar={() => setTalentPage("calendar")}

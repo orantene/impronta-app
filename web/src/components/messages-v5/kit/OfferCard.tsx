@@ -18,6 +18,8 @@ export type OfferCardProps = {
   readonly title: string;
   readonly state: OfferCardState;
   readonly version: number;
+  /** False for a talent: the internal version number is engine bookkeeping, not hers to read. */
+  readonly showVersion?: boolean;
   readonly versions?: readonly number[];
   readonly forName: string;
   readonly affects?: string | null;
@@ -34,16 +36,16 @@ export type OfferCardProps = {
   readonly onOpenVersion?: (version: number) => void;
 };
 
-export function OfferCard({ title, state, version, versions, forName, affects, lines, total, depositLine, validUntil, viewedAt, copy, busy, mine = true, variant = "desktop", onAction, onOpenVersion }: OfferCardProps) {
+export function OfferCard({ title, state, version, versions, forName, affects, lines, total, depositLine, validUntil, viewedAt, copy, busy, mine = true, variant = "desktop", showVersion = true, onAction, onOpenVersion }: OfferCardProps) {
   const pill =
     state === "draft" ? (
       <Pill tone="ch">{copy.offer.draft}</Pill>
     ) : state === "sent" ? (
-      <Pill tone="opp">{fill(copy.offer.sentV, { version })}</Pill>
+      <Pill tone="opp">{showVersion ? fill(copy.offer.sentV, { version }) : copy.offer.sentPlain}</Pill>
     ) : state === "viewed" ? (
       <Pill tone="opp">{viewedAt ? fill(copy.offer.viewedAt, { time: viewedAt }) : copy.card.state.viewed}</Pill>
     ) : state === "accepted" ? (
-      <Pill tone="won">{fill(copy.offer.acceptedV, { version })}</Pill>
+      <Pill tone="won">{showVersion ? fill(copy.offer.acceptedV, { version }) : copy.offer.acceptedPlain}</Pill>
     ) : state === "declined" ? (
       <Pill tone="lost">{copy.offer.declined}</Pill>
     ) : (

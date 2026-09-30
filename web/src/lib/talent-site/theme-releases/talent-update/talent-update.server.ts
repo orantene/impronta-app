@@ -3,7 +3,7 @@ import "server-only";
 /**
  * THEME RELEASES (Phase 4): the talent update experience, server side.
  *
- *   loadTalentUpdateNotices   rows in state `available` on an open release
+ *   loadTalentUpdateNotices   rows in an open state (available, previewed, undone) on an open release
  *   previewThemeUpdate        merge in memory, return the report: NO write
  *   loadThemeUpdatePreviewSnapshot  the same merge as a snapshot for the
  *                             owner's `?preview=draft&themeUpdate=<id>` render
@@ -31,9 +31,15 @@ import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
+import { countParts } from "../parts";
+import { findKeyPath } from "../tree-ops";
 import { addBlockSummary } from "./copy";
 import {
+  OPEN_UPDATE_STATES,
+  applyItemsOf,
   groupItems,
+  offeredItems,
+  toTalentItem,
   nextTokenOrigin,
   placeKeyAfter,
   placementOptions,
@@ -48,6 +54,13 @@ import {
 /** Talent-readable release columns (migration 20261231299560 grant list). */
 export const TALENT_RELEASE_COLUMNS =
   "id, design_slug, from_version, to_version, channel, status, notes, items, critical, published_at";
+
+/**
+ * F74: the BANNER needs no item payload. `items` (the What's new list) loads
+ * with the sheet's preview call, so opening /talent/site reads a few short
+ * columns, not the release body.
+ */
+export const NOTICE_RELEASE_COLUMNS = "id, design_slug, from_version, to_version, channel, status, notes, critical";
 
 export type TalentRelease = Pick<
   ThemeRelease,
@@ -64,6 +77,8 @@ export interface UpdateContext {
   pinnedVersion: number | null;
   draftRev: number;
   tokenOrigin: Record<string, string> | null;
+  /** Blocks she already added from this release (tracked so a removal is explicit). */
+  addedBlocks: string[];
   designTitle: string;
   release: TalentRelease;
 }
@@ -80,6 +95,8 @@ export interface UpdateDeps {
 
 export interface TalentUpdateNotice {
   updateId: string;
+  /** `available`, `previewed`, `undone` (F83: "available again") or `dismissed` (F92: quiet entry only). */
+  state: SiteUpdateState;
   releaseId: string;
   designSlug: string;
   designTitle: string;
@@ -87,7 +104,6 @@ export interface TalentUpdateNotice {
   toVersion: number;
   critical: boolean;
   notes: { en: string; es: string };
-  groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
   draftRev: number;
 }
 
@@ -108,7 +124,13 @@ async function designTitle(admin: SupabaseClient, slug: string): Promise<string>
   return ((data as { title?: string } | null)?.title ?? "").trim() || slug;
 }
 
-/** Open update notices for one talent (state `available`, release open). */
+/**
+ * Open update notices for one talent (state available / previewed / undone,
+ * release open). F74: after the rows, the release columns, the site's draft
+ * rev and the design titles are independent reads, so they run in ONE parallel
+ * step (was four sequential round trips), and the release read is the lean
+ * banner column set.
+ */
 export async function loadTalentUpdateNotices(
   admin: SupabaseClient,
   talentProfileId: string,
@@ -117,51 +139,61 @@ export async function loadTalentUpdateNotices(
     .from("talent_site_theme_updates")
     .select("id, release_id, talent_site_id, state")
     .eq("talent_profile_id", talentProfileId)
-    .eq("state", "available");
+    // F92: dismissed rows load too, so a dismissed update stays reachable (quiet entry).
+    .in("state", [...OPEN_UPDATE_STATES, "dismissed"]);
   if (error) {
     logServerError("themeUpdate.notices", error);
     return [];
   }
   const list = (rows ?? []) as Array<{ id: string; release_id: string; talent_site_id: string; state: string }>;
   if (list.length === 0) return [];
-  const { data: rels, error: relErr } = await admin
-    .from("talent_theme_releases")
-    .select(TALENT_RELEASE_COLUMNS)
-    .in(
-      "id",
-      list.map((r) => r.release_id),
-    );
-  if (relErr) {
-    logServerError("themeUpdate.notices.releases", relErr);
+  const [relRes, siteRes] = await Promise.all([
+    admin
+      .from("talent_theme_releases")
+      .select(NOTICE_RELEASE_COLUMNS)
+      .in(
+        "id",
+        list.map((r) => r.release_id),
+      ),
+    // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
+    admin.from("talent_sites").select("draft_rev").eq("talent_profile_id", talentProfileId).maybeSingle(),
+  ]);
+  if (relRes.error) {
+    logServerError("themeUpdate.notices.releases", relRes.error);
     return [];
   }
-  const byId = new Map(((rels ?? []) as TalentRelease[]).map((r) => [r.id, r]));
-  // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
-  const { data: site } = await admin
-    .from("talent_sites")
-    .select("draft_rev")
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
+  const releases = (relRes.data ?? []) as unknown as TalentReleaseLean[];
+  const byId = new Map(releases.map((r) => [r.id, r]));
+  const site = siteRes.data;
   const draftRev = typeof (site as { draft_rev?: number } | null)?.draft_rev === "number" ? (site as { draft_rev: number }).draft_rev : 0;
-  const out: TalentUpdateNotice[] = [];
-  for (const row of list) {
+  const open = list.filter((row) => {
     const rel = byId.get(row.release_id);
-    if (!rel || rel.status !== "published" || !OPEN_CHANNELS.has(rel.channel)) continue;
-    out.push({
+    return rel && rel.status === "published" && OPEN_CHANNELS.has(rel.channel);
+  });
+  const slugs = [...new Set(open.map((row) => byId.get(row.release_id)!.design_slug))];
+  const titles = new Map(await Promise.all(slugs.map(async (slug) => [slug, await designTitle(admin, slug)] as const)));
+  const out: TalentUpdateNotice[] = open.map((row) => {
+    const rel = byId.get(row.release_id)!;
+    return {
       updateId: row.id,
+      state: row.state as SiteUpdateState,
       releaseId: rel.id,
       designSlug: rel.design_slug,
-      designTitle: await designTitle(admin, rel.design_slug),
+      designTitle: titles.get(rel.design_slug) ?? rel.design_slug,
       fromVersion: rel.from_version,
       toVersion: rel.to_version,
       critical: rel.critical,
       notes: notesOf(rel.notes),
-      groups: groupItems(Array.isArray(rel.items) ? rel.items : []),
       draftRev,
-    });
-  }
+    };
+  });
   return out.sort((a, b) => b.toVersion - a.toVersion);
 }
+
+type TalentReleaseLean = Pick<
+  ThemeRelease,
+  "id" | "design_slug" | "from_version" | "to_version" | "channel" | "status" | "notes" | "critical"
+>;
 
 /** One update row + its release + the site, owner-scoped. */
 export async function loadUpdateContext(
@@ -169,42 +201,41 @@ export async function loadUpdateContext(
   talentProfileId: string,
   updateId: string,
 ): Promise<UpdateContext | null> {
-  const { data: row, error } = await admin
-    .from("talent_site_theme_updates")
-    .select("id, release_id, talent_site_id, state")
-    .eq("id", updateId)
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
-  if (error || !row) return null;
-  const u = row as { id: string; release_id: string; talent_site_id: string; state: SiteUpdateState };
-  const { data: rel, error: relErr } = await admin
-    .from("talent_theme_releases")
-    .select(TALENT_RELEASE_COLUMNS)
-    .eq("id", u.release_id)
-    .maybeSingle();
-  if (relErr || !rel) return null;
-  const release = rel as TalentRelease;
+  // F74: the update row and the profile name do not depend on each other.
+  const [rowRes, profRes] = await Promise.all([
+    admin
+      .from("talent_site_theme_updates")
+      .select("id, release_id, talent_site_id, state, report")
+      .eq("id", updateId)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle(),
+    // supabase-read-unchecked-ok: the name only feeds fallback hydration.
+    admin.from("talent_profiles").select("display_name").eq("id", talentProfileId).maybeSingle(),
+  ]);
+  if (rowRes.error || !rowRes.data) return null;
+  const u = rowRes.data as { id: string; release_id: string; talent_site_id: string; state: SiteUpdateState; report?: { addedBlocks?: unknown } | null };
+  // The release and the site are independent reads keyed off the update row.
+  const [relRes, siteRes] = await Promise.all([
+    admin.from("talent_theme_releases").select(TALENT_RELEASE_COLUMNS).eq("id", u.release_id).maybeSingle(),
+    admin
+      .from("talent_sites")
+      .select("id, site_slug, draft_rev, theme_design_version, theme_token_origin")
+      .eq("id", u.talent_site_id)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle(),
+  ]);
+  if (relRes.error || !relRes.data) return null;
+  const release = relRes.data as TalentRelease;
   if (release.status !== "published" || !OPEN_CHANNELS.has(release.channel)) return null;
-  const { data: site, error: siteErr } = await admin
-    .from("talent_sites")
-    .select("id, site_slug, draft_rev, theme_design_version, theme_token_origin")
-    .eq("id", u.talent_site_id)
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
-  if (siteErr || !site) return null;
-  const s = site as {
+  if (siteRes.error || !siteRes.data) return null;
+  const s = siteRes.data as {
     id: string;
     site_slug: string | null;
     draft_rev: number | null;
     theme_design_version: number | null;
     theme_token_origin: Record<string, string> | null;
   };
-  // supabase-read-unchecked-ok: the name only feeds fallback hydration.
-  const { data: prof } = await admin
-    .from("talent_profiles")
-    .select("display_name")
-    .eq("id", talentProfileId)
-    .maybeSingle();
+  const prof = profRes.data;
   return {
     updateId: u.id,
     state: u.state,
@@ -215,6 +246,7 @@ export async function loadUpdateContext(
     pinnedVersion: typeof s.theme_design_version === "number" ? s.theme_design_version : null,
     draftRev: typeof s.draft_rev === "number" ? s.draft_rev : 0,
     tokenOrigin: s.theme_token_origin && typeof s.theme_token_origin === "object" ? s.theme_token_origin : null,
+    addedBlocks: Array.isArray(u.report?.addedBlocks) ? (u.report!.addedBlocks as unknown[]).filter((x): x is string => typeof x === "string") : [],
     designTitle: await designTitle(admin, release.design_slug),
     release,
   };
@@ -223,14 +255,14 @@ export async function loadUpdateContext(
 /** The real merge: catalog Design at to_version, base = her pinned version. */
 export function makeSiteMerge(admin: SupabaseClient): MergeFn {
   return async (ctx, items) => {
-    const design = await loadReleaseDesign(admin, ctx.release);
+    // F74: the target design and the merge-base payload are independent reads.
+    const [design, baseRes] = await Promise.all([
+      loadReleaseDesign(admin, ctx.release),
+      // Admin-only column, read server-side for the merge base; never returned.
+      admin.from("talent_theme_releases").select("base_payload").eq("id", ctx.release.id).maybeSingle(),
+    ]);
     if (!design) return { ok: false, error: "Design not found." };
-    // Admin-only column, read server-side for the merge base; never returned.
-    const { data, error } = await admin
-      .from("talent_theme_releases")
-      .select("base_payload")
-      .eq("id", ctx.release.id)
-      .maybeSingle();
+    const { data, error } = baseRes;
     if (error) return { ok: false, error: error.message };
     const release = {
       design_slug: ctx.release.design_slug,
@@ -251,6 +283,7 @@ export function makeSiteMerge(admin: SupabaseClient): MergeFn {
         locale: null,
         pinnedVersion: ctx.pinnedVersion,
         isDemo: false,
+        published: false,
       },
       items,
       makeBaseResolver(admin, release),
@@ -274,6 +307,12 @@ export function defaultUpdateDeps(): UpdateDeps | null {
 
 export interface UpdatePreview {
   summary: UpdateSummary;
+  /** F87: no exact base for her site; only new blocks are offered, Apply is unavailable. */
+  noBase: boolean;
+  /** What's new list, loaded here so the banner never reads the release body (F74). */
+  groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
+  /** False when the release only offers new blocks: nothing for Apply to do (F78). */
+  hasApplicable: boolean;
   previewUrl: string | null;
   placements: PlacementOption[];
   draftRev: number;
@@ -308,14 +347,22 @@ export async function previewThemeUpdate(
 ): Promise<UpdateResult<UpdatePreview>> {
   const ctx = await loadUpdateContext(deps.admin, talentProfileId, updateId);
   if (!ctx) return NOT_FOUND;
-  const m = await deps.merge(ctx, ctx.release.items);
+  const items = Array.isArray(ctx.release.items) ? ctx.release.items : [];
+  // F74: the merge and the placement tree are independent reads.
+  const [m, tree] = await Promise.all([
+    deps.merge(ctx, applyItemsOf(items)),
+    homeTree(deps.admin, talentProfileId),
+  ]);
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   return {
     ok: true,
     value: {
       summary: summarizeReport(m.result.report),
+      noBase: m.noBase,
+      groups: groupItems(offeredItems(items, m.noBase)),
+      hasApplicable: !m.noBase && applyItemsOf(items).length > 0,
       previewUrl: themeUpdatePreviewUrl(ctx.siteSlug, updateId),
-      placements: placementOptions(await homeTree(deps.admin, talentProfileId)),
+      placements: placementOptions(tree),
       draftRev: ctx.draftRev,
     },
   };
@@ -330,8 +377,11 @@ export async function loadThemeUpdatePreviewSnapshot(
   if (!deps || !/^[0-9a-f-]{36}$/i.test(updateId)) return null;
   const ctx = await loadUpdateContext(deps.admin, talentProfileId, updateId);
   if (!ctx) return null;
-  const m = await deps.merge(ctx, ctx.release.items);
+  const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok || !m.homePageId) return null;
+  // F76: opening the preview is measurement. Record `previewed` on the update
+  // row only; her site is untouched. Never downgrades applied/dismissed/undone.
+  await setUpdateState(deps.admin, talentProfileId, updateId, "previewed", { onlyFrom: ["available"] });
   return {
     v: 1,
     source: "draft",
@@ -388,8 +438,10 @@ export async function applyThemeUpdate(
   const ctx = await loadUpdateContext(deps.admin, input.talentProfileId, input.updateId);
   if (!ctx) return NOT_FOUND;
   if (ctx.state === "applied") return { ok: false, code: "already_applied", error: "This update is already in your draft." };
-  const m = await deps.merge(ctx, ctx.release.items);
+  const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
+  // F87: no exact base means only new blocks can be offered; Apply never runs.
+  if (m.noBase) return { ok: false, code: "no_base", error: "Your site is older than this version. You can add the new blocks." };
   if (!m.homePageId) return { ok: false, code: "not_found", error: "Home page not found." };
   const home = m.result.trees.home ?? [];
   const refused = await deps.checkTree(ctx, await homeTree(deps.admin, ctx.talentProfileId), home);
@@ -414,9 +466,9 @@ export async function applyThemeUpdate(
   });
   if (!res.ok) return writeFailure(res);
   await setUpdateState(deps.admin, ctx.talentProfileId, ctx.updateId, "applied", {
-    report: summarizeReport(m.result.report),
+    report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
   });
-  return { ok: true, value: { draftRev: res.draftRev, kept: m.result.report.kept.length, historyId: res.historyId } };
+  return { ok: true, value: { draftRev: res.draftRev, kept: countParts(m.result.report.kept), historyId: res.historyId } };
 }
 
 /** Not now: the banner goes quiet; the update stays in What's new history. */
@@ -426,7 +478,7 @@ export async function dismissThemeUpdate(
   updateId: string,
 ): Promise<UpdateResult<null>> {
   const ok = await setUpdateState(admin, talentProfileId, updateId, "dismissed", {
-    onlyFrom: ["available", "previewed"],
+    onlyFrom: [...OPEN_UPDATE_STATES],
   });
   return ok ? { ok: true, value: null } : { ok: false, code: "error", error: "Could not save." };
 }
@@ -449,7 +501,13 @@ export async function addThemeUpdateBlock(
     (i) => i.type === "new-block" && (i.id ?? `${i.type}:${i.key}`) === input.itemId,
   );
   if (!item) return { ok: false, code: "not_found", error: "That block is not part of this update." };
-  const m = await deps.merge(ctx, [item]);
+  // A block she skipped stays on offer after Apply (the site is re-pinned past
+  // it). Merge against the release's FROM version so a never-added block reads
+  // as new, never as a block she deleted. Only an added block's removal counts.
+  const mergeCtx = ctx.state === "applied" || (ctx.pinnedVersion ?? 0) >= ctx.release.to_version
+    ? { ...ctx, pinnedVersion: ctx.release.from_version }
+    : ctx;
+  const m = await deps.merge(mergeCtx, [item]);
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   if (!m.homePageId) return { ok: false, code: "not_found", error: "Home page not found." };
   const added = m.result.report.added;
@@ -484,5 +542,77 @@ export async function addThemeUpdateBlock(
     tokenOrigin: nextTokenOrigin(ctx.tokenOrigin, m.result.report),
   });
   if (!res.ok) return writeFailure(res);
+  await recordAddedBlock(deps.admin, ctx, input.itemId);
   return { ok: true, value: { draftRev: res.draftRev } };
+}
+
+/** Remember the block was added, so removing it later is an explicit removal. */
+async function recordAddedBlock(admin: SupabaseClient, ctx: UpdateContext, itemId: string): Promise<void> {
+  const addedBlocks = [...new Set([...ctx.addedBlocks, itemId])];
+  const { error } = await admin
+    .from("talent_site_theme_updates")
+    .update({ report: { addedBlocks }, updated_at: new Date().toISOString() } as never)
+    .eq("id", ctx.updateId)
+    .eq("talent_profile_id", ctx.talentProfileId);
+  if (error) logServerError("themeUpdate.recordAddedBlock", error);
+}
+
+// ── Available blocks (skipped new blocks stay reachable after Apply) ─────────
+
+export interface AvailableBlock {
+  updateId: string;
+  item: TalentReleaseItem;
+}
+
+export interface AvailableBlocks {
+  blocks: AvailableBlock[];
+  placements: PlacementOption[];
+  draftRev: number;
+}
+
+const stripTree = (key: string) => key.replace(/^(shell|home):/, "");
+
+/**
+ * New-block items from releases her site is ON or PAST (update row `applied`)
+ * that are not on her page and were never added by her. A block she added and
+ * later removed is an explicit removal and is not offered again.
+ */
+export async function loadAvailableBlocks(admin: SupabaseClient, talentProfileId: string): Promise<AvailableBlocks> {
+  const empty: AvailableBlocks = { blocks: [], placements: [], draftRev: 0 };
+  const { data: rows, error } = await admin
+    .from("talent_site_theme_updates")
+    .select("id, release_id, state, report")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("state", "applied");
+  if (error) {
+    logServerError("themeUpdate.availableBlocks", error);
+    return empty;
+  }
+  const list = (rows ?? []) as Array<{ id: string; release_id: string; report?: { addedBlocks?: unknown } | null }>;
+  if (list.length === 0) return empty;
+  const [relRes, tree, siteRes] = await Promise.all([
+    admin.from("talent_theme_releases").select(TALENT_RELEASE_COLUMNS).in("id", list.map((r) => r.release_id)),
+    homeTree(admin, talentProfileId),
+    // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
+    admin.from("talent_sites").select("draft_rev").eq("talent_profile_id", talentProfileId).maybeSingle(),
+  ]);
+  const releases = new Map(((relRes.data ?? []) as TalentRelease[]).map((r) => [r.id, r]));
+  const draftRev = (siteRes.data as { draft_rev?: number } | null)?.draft_rev ?? 0;
+  const blocks: AvailableBlock[] = [];
+  const seen = new Set<string>();
+  const ordered = [...list].sort((a, b) => (releases.get(b.release_id)?.to_version ?? 0) - (releases.get(a.release_id)?.to_version ?? 0));
+  for (const row of ordered) {
+    const rel = releases.get(row.release_id);
+    if (!rel || rel.status !== "published") continue;
+    const added = new Set(Array.isArray(row.report?.addedBlocks) ? (row.report!.addedBlocks as unknown[]) : []);
+    for (const item of Array.isArray(rel.items) ? rel.items : []) {
+      if (item.type !== "new-block") continue;
+      const view = toTalentItem(item);
+      if (seen.has(view.id) || added.has(view.id)) continue;
+      if (findKeyPath(tree, stripTree(item.key))) continue;
+      seen.add(view.id);
+      blocks.push({ updateId: row.id, item: view });
+    }
+  }
+  return { blocks, placements: placementOptions(tree), draftRev };
 }

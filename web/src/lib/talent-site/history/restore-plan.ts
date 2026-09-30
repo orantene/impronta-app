@@ -4,6 +4,7 @@
  * back one theme update with `reverseMerge` so later edits stay.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { countParts } from "@/lib/talent-site/theme-releases/parts";
 import { reverseMerge } from "@/lib/talent-site/theme-releases/reverse-merge";
 import type { DesignMergeReport } from "@/lib/talent-site/theme-releases/types";
 import type { DraftPageWrite, DraftSitePatch } from "./writer";
@@ -98,6 +99,9 @@ export interface UndoUpdatePlan {
   pages: DraftPageWrite[];
   reverted: number;
   kept: number;
+  /** Talent-level counts: distinct sections/blocks (plus colours), not nodes or props. */
+  revertedParts: number;
+  keptParts: number;
 }
 
 /** Undo ONE theme update: reverse its report against today's draft. */
@@ -118,5 +122,7 @@ export function planUndoUpdate(input: UndoUpdateInput): UndoUpdatePlan {
     pages: [{ id: input.homePageId, patch: { blocks: res.trees.home ?? input.home } }],
     reverted: res.reverted.length,
     kept: res.kept.length,
+    revertedParts: countParts(res.reverted),
+    keptParts: countParts(res.kept),
   };
 }

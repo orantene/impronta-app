@@ -22,6 +22,8 @@ import {
   UPDATE_COPY,
   appliedToast,
   bannerTitle,
+  bannerTitleAgain,
+  quietEntryTitle,
   updateLocale,
 } from "@/lib/talent-site/theme-releases/talent-update/copy";
 import {
@@ -41,7 +43,7 @@ import { ThemeUpdateSheet } from "./ThemeUpdateSheet";
 export const BUILDER_PILL_CLASS =
   "fixed left-1/2 top-[68px] z-[250] inline-flex min-h-9 -translate-x-1/2 items-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[13px] font-semibold text-admin-ink shadow-lg";
 export const BUILDER_CARD_CLASS =
-  "fixed inset-x-3 top-[112px] z-[250] mx-auto max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
+  "fixed inset-x-3 top-[112px] max-h-[60dvh] overflow-y-auto z-[250] mx-auto max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
 
 const TOAST_KEY = "tulala-theme-update-toast";
 const TOAST_MS = 6_000;
@@ -143,7 +145,7 @@ export function ThemeUpdateNotice({
       role="status"
       aria-live="polite"
       data-theme-update-toast
-      className="fixed inset-x-4 bottom-4 z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
+      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
     >
       {toast}
     </div>
@@ -151,10 +153,30 @@ export function ThemeUpdateNotice({
 
   if (!notice) return toastEl;
 
-  const title = bannerTitle(notice.designTitle, locale);
+  const again = notice.state === "undone";
+  const title = again ? bannerTitleAgain(notice.designTitle, locale) : bannerTitle(notice.designTitle, locale);
   const floating = surface === "builder";
+  const quiet = notice.state === "dismissed";
   return (
     <>
+      {quiet ? (
+        <section
+          aria-label={title}
+          data-theme-update-quiet={surface}
+          className={floating ? "hidden" : "mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-admin-border-soft bg-white px-4 py-2 font-admin-body"}
+        >
+          <span className="text-[13.5px] text-admin-ink-muted">{quietEntryTitle(notice.designTitle, locale)}</span>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-admin-ink underline"
+            data-theme-update-whats-new
+          >
+            {t("seeWhatsNew")}
+          </button>
+        </section>
+      ) : (
+      <>
       {floating ? (
         <button
           type="button"
@@ -173,11 +195,11 @@ export function ThemeUpdateNotice({
         className={
           floating
             ? BUILDER_CARD_CLASS
-            : "mb-5 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
+            : "mb-5 min-w-0 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
         }
       >
         <p className="m-0 text-[15px] font-semibold text-admin-ink">{title}</p>
-        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{t("bannerBody")}</p>
+        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{t(again ? "againBody" : "bannerBody")}</p>
         {error ? (
           <p role="alert" className="m-0 mt-2 text-[13px] text-admin-critical">
             {error}
@@ -192,6 +214,17 @@ export function ThemeUpdateNotice({
           >
             {t("whatsNew")}
           </button>
+          {again ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void apply(notice.draftRev)}
+              className="inline-flex min-h-11 items-center rounded-lg bg-admin-ink px-4 text-[14px] font-semibold text-white disabled:opacity-60"
+              data-theme-update-apply-again
+            >
+              {busy ? t("applying") : t("applyShort")}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={busy}
@@ -203,6 +236,8 @@ export function ThemeUpdateNotice({
           </button>
         </div>
       </section>
+      )}
+      </>
       )}
       {open ? (
         <ThemeUpdateSheet

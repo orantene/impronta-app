@@ -89,6 +89,7 @@ export async function runAutoImprove(
         pinnedVersion: site.pinnedVersion,
         draftRev: st.draftRev,
         tokenOrigin: st.tokenOrigin,
+        addedBlocks: [],
         designTitle,
         release,
       };

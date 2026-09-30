@@ -3,7 +3,8 @@
  * House rule: no em dashes in user copy. Pure.
  */
 import type { Bilingual } from "@/lib/talent-site/history/copy";
-import type { UpdateSummary, WhatsNewGroup } from "./view";
+import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
+import { humanKey, type UpdateSummary, type WhatsNewGroup } from "./view";
 
 export type UpdateLocale = "en" | "es";
 
@@ -19,6 +20,21 @@ export const UPDATE_COPY = {
     en: "Preview it with your content first. Your edits are kept and nothing goes live until you publish.",
     es: "Pruébala primero con tu contenido. Tus cambios se conservan y nada se publica hasta que publiques.",
   },
+  againBody: {
+    en: "You undid this update. Apply it again whenever you like. Your edits stay.",
+    es: "Deshiciste esta actualización. Aplícala de nuevo cuando quieras. Tus cambios se conservan.",
+  },
+  noBase: {
+    en: "Your site is older than this version: you can add the new blocks.",
+    es: "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.",
+  },
+  availableBlocks: { en: "Available blocks", es: "Bloques disponibles" },
+  availableBlocksHint: {
+    en: "New blocks from updates you have already applied. Add one whenever you like and pick where it goes.",
+    es: "Bloques nuevos de actualizaciones que ya aplicaste. Agrega uno cuando quieras y elige dónde va.",
+  },
+  seeWhatsNew: { en: "See what's new", es: "Ver novedades" },
+  applyShort: { en: "Apply", es: "Aplicar" },
   previewOnSite: { en: "Preview on my site", es: "Ver en mi sitio" },
   previewHint: {
     en: "Opens your site with the update in a new tab. Nothing is saved.",
@@ -38,8 +54,8 @@ export const UPDATE_COPY = {
   cancel: { en: "Cancel", es: "Cancelar" },
   loading: { en: "Checking your site…", es: "Revisando tu sitio…" },
   draftOnly: {
-    en: "Applies to your draft only. Undo it any time from History.",
-    es: "Se aplica solo a tu borrador. Puedes deshacerla cuando quieras desde Historial.",
+    en: "Apply adds the automatic improvements and layout changes above to your draft. New blocks are added only with their own button. Undo any time from History.",
+    es: "Aplicar agrega a tu borrador las mejoras automáticas y los cambios de diseño de arriba. Los bloques nuevos se agregan solo con su propio botón. Puedes deshacerlo desde Historial.",
   },
   failed: { en: "Something went wrong. Try again.", es: "Algo salió mal. Inténtalo de nuevo." },
   version: { en: "Version", es: "Versión" },
@@ -62,8 +78,8 @@ export const GROUP_COPY: Record<WhatsNewGroup, Bilingual & { hintEn: string; hin
   blocks: {
     en: "New blocks you can add",
     es: "Bloques nuevos que puedes agregar",
-    hintEn: "Optional. You pick where they go.",
-    hintEs: "Opcionales. Tú eliges dónde van.",
+    hintEn: "Optional. Apply never adds them: use Add this block and pick where it goes.",
+    hintEs: "Opcionales. Aplicar no los agrega: usa Agregar este bloque y elige dónde va.",
   },
   layout: {
     en: "Layout changes",
@@ -75,6 +91,13 @@ export const GROUP_COPY: Record<WhatsNewGroup, Bilingual & { hintEn: string; hin
 
 export function bannerTitle(designTitle: string, locale: UpdateLocale): string {
   return locale === "es" ? `${designTitle} tiene una actualización` : `${designTitle} has an update`;
+}
+
+/** F83: an undone update is offered again. */
+export function bannerTitleAgain(designTitle: string, locale: UpdateLocale): string {
+  return locale === "es"
+    ? `La actualización de ${designTitle} está disponible de nuevo`
+    : `${designTitle} update is available again`;
 }
 
 /** Toast after Apply: "Update applied to your draft · we kept N of your edits". */
@@ -89,12 +112,19 @@ export function appliedToast(kept: number, locale: UpdateLocale): string {
     : "Update applied to your draft";
 }
 
+/** F86: a kept part in the talent's language, from the same name map as the go-live sheet. */
+export function keptPartLabel(key: string, locale: UpdateLocale): string {
+  if (key === "colours") return locale === "es" ? "colores" : "colours";
+  return sectionNameForKey(key, locale) ?? humanKey(key);
+}
+
 /** The preview panel's "kept your edits" line. */
 export function keptLine(s: UpdateSummary, locale: UpdateLocale): string {
   if (s.kept === 0) {
     return locale === "es" ? "No cambiaste nada de lo que toca esta actualización." : "You have not changed anything this update touches.";
   }
-  const parts = s.keptLabels.length > 0 ? `: ${s.keptLabels.join(", ")}` : "";
+  const names = [...new Set((s.keptKeys ?? []).map((k) => keptPartLabel(k, locale)))];
+  const parts = names.length > 0 ? `: ${names.join(", ")}` : "";
   return locale === "es"
     ? `Conservamos ${s.kept} de tus cambios${parts}`
     : `We keep ${s.kept} of your edits${parts}`;
@@ -120,4 +150,17 @@ export function autoImproveSummary(designTitle: string, changed: number): Biling
   const tailEn = changed > 0 ? ` · ${designTitle} (${changed} change${changed === 1 ? "" : "s"})` : ` · ${designTitle}`;
   const tailEs = changed > 0 ? ` · ${designTitle} (${changed} cambio${changed === 1 ? "" : "s"})` : ` · ${designTitle}`;
   return { en: `Improved by Tulala${tailEn}`, es: `Mejorado por Tulala${tailEs}` };
+}
+
+/** F78: the primary button says what Apply will do. */
+export function applyLabel(changes: number | null, locale: UpdateLocale): string {
+  if (changes === null || changes <= 0) return locale === "es" ? "Aplicar a mi borrador" : "Apply to my draft";
+  return locale === "es"
+    ? `Aplicar ${changes} cambio${changes === 1 ? "" : "s"}`
+    : `Apply ${changes} change${changes === 1 ? "" : "s"}`;
+}
+
+/** F92: the quiet line for a dismissed update. */
+export function quietEntryTitle(designTitle: string, locale: UpdateLocale): string {
+  return locale === "es" ? `${designTitle}: actualización disponible` : `${designTitle} update available`;
 }
