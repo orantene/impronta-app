@@ -34,7 +34,8 @@ export interface BellRow {
   surface: "talent";
   title: string;
   body: string;
-  target_drawer: null;
+  /** Page target (`NOTIFICATION_PAGE_TARGETS`): opens My presence with the notice. */
+  target_drawer: "theme-update";
   target_payload: { kind: "theme_update"; releaseId: string; design: string; toVersion: number };
   origin_event_id: string;
   origin_kind: "theme_release";
@@ -83,7 +84,7 @@ export function planFanOut(
       surface: "talent",
       title: copy.title,
       body: copy.body,
-      target_drawer: null,
+      target_drawer: "theme-update",
       target_payload: { kind: "theme_update", releaseId: release.id, design: release.design_slug, toVersion: release.to_version },
       origin_event_id: release.id,
       origin_kind: "theme_release",

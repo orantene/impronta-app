@@ -5,7 +5,9 @@
  *
  *   demos   re-apply the design to demo sites through the merge, then persist
  *   optin   needs rollout > 0; create update rows + bell entries, then persist
- *   default fan out again (idempotent), then persist
+ *   default fan out again (idempotent), then persist, then (Phase 4) the
+ *           safe items land on untouched parts of every draft ("Improved by
+ *           Tulala"); a failed auto-improve never undoes the channel change
  */
 import type { ReleaseChannel, ThemeRelease } from "../types";
 import { checkChannelChange } from "./dry-run";
@@ -14,6 +16,8 @@ export interface ChannelDeps {
   applyToDemos: () => Promise<{ ok: true; applied: number; warnings?: string[] } | { ok: false; error: string }>;
   fanOut: () => Promise<{ updates: number; bells: number }>;
   persist: (channel: ReleaseChannel) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Phase 4: runs after `default` persisted. */
+  autoImprove?: () => Promise<{ improved: number; failures: string[] }>;
 }
 
 export type ChannelChangeResult =
@@ -49,5 +53,9 @@ export async function executeChannelChange(
   }
   const saved = await deps.persist(target);
   if (!saved.ok) return saved;
+  if (target === "default" && deps.autoImprove) {
+    const ai = await deps.autoImprove();
+    warnings = [...warnings, ...ai.failures.map((f) => `Auto-improve ${f}`)];
+  }
   return { ok: true, channel: target, demosApplied, updates, bells, warnings };
 }

@@ -28,6 +28,7 @@ import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
+import { ThemeUpdateNotice } from "./theme-update/ThemeUpdateNotice";
 
 type Props = {
   talentProfileId: string;
@@ -214,6 +215,8 @@ export function TalentPageBuilderScreen({
     >
       {/* AUD-035: canvas shows reveal-lane nodes at final state (editor only). */}
       <style>{EDITOR_CANVAS_REVEAL_CSS}</style>
+      {/* Theme releases Phase 4: "Maison v2 has an update" (self-hiding). */}
+      <ThemeUpdateNotice surface="builder" locale={locale} />
       {shellMode ? (
         <TalentSiteShellBuilderMount
           talentProfileId={talentProfileId}

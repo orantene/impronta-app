@@ -75,11 +75,11 @@ export default async function TalentMaxSiteHomePage({
   searchParams,
 }: {
   params: Promise<{ siteSlug: string }>;
-  searchParams: Promise<{ preview?: string; history?: string }>;
+  searchParams: Promise<{ preview?: string; history?: string; themeUpdate?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const { siteSlug } = await params;
-  const { preview, history } = await searchParams;
+  const { preview, history, themeUpdate } = await searchParams;
 
   // Once the site lives at `<slug>.tulala.digital`, this path is its OLD
   // address: one canonical home, one set of links people share. 308 so the move
@@ -107,6 +107,7 @@ export default async function TalentMaxSiteHomePage({
     hrefMode: "path",
     previewDraft: preview === "draft",
     previewHistoryEntryId: history ?? null,
+    previewThemeUpdateId: themeUpdate ?? null,
     canonicalOrigin: publicSiteMetadataBase().origin,
     canonicalPath: homePath(siteSlug),
   });

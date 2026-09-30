@@ -25,6 +25,8 @@ import { fanOutWithPorts } from "./fan-out";
 import type { BellRow, UpdateRow } from "./notify";
 import { makeBaseResolver } from "./base-resolver.server";
 import { mergeSite, writeMergedDraft, type SiteRef } from "./merge-site.server";
+import { runAutoImprove } from "../talent-update/auto-improve.server";
+import { makeSiteMerge } from "../talent-update/talent-update.server";
 
 const DEMO_CODES = new Set(THEME_DEMOS.map((d) => d.profileCode));
 const CHUNK = 100;
@@ -290,7 +292,27 @@ export async function changeChannel(
       const r = await setChannel(admin, release.id, channel);
       return r.ok ? { ok: true } : r;
     },
+    autoImprove: () => autoImproveAll(admin, release),
   });
+}
+
+/** Phase 4: safe items onto untouched parts of every site draft (history "Improved by Tulala"). */
+async function autoImproveAll(admin: SupabaseClient, release: ThemeRelease) {
+  // supabase-read-unchecked-ok: the title is decoration; the slug stands in.
+  const { data: d } = await admin
+    .from("talent_theme_catalog")
+    .select("title")
+    .eq("kind", "design")
+    .eq("slug", release.design_slug)
+    .maybeSingle();
+  const title = (d?.title as string | undefined) ?? release.design_slug;
+  const sites = await collectSites(admin, release.design_slug);
+  return runAutoImprove(
+    { admin, merge: makeSiteMerge(admin) },
+    { ...release, channel: "default", status: "published" },
+    title,
+    sites,
+  );
 }
 
 /** Rollout %: after the release is open, newly in-bucket sites get their notice. */

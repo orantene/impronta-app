@@ -351,6 +351,10 @@ export async function applyThemeUpdateToDraft(
     actor?: "talent" | "tulala" | "system";
     kind?: "theme_update" | "auto_improve";
     actorId?: string | null;
+    /** Phase 4: entry summary override (Add this block, Improved by Tulala). */
+    summary?: { en: string; es: string };
+    /** Phase 4: `theme_token_origin` after the merge (keys the update wrote). */
+    tokenOrigin?: Record<string, string> | null;
   },
 ): Promise<WriteSiteDraftResult> {
   const stored: ThemeUpdateHistoryReport = {
@@ -360,7 +364,8 @@ export async function applyThemeUpdateToDraft(
     fromVersion: input.fromVersion,
     toVersion: input.toVersion,
   };
-  const summary = themeUpdateSummary(input.designName, input.toVersion, input.report.kept.length);
+  const summary =
+    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, input.report.kept.length);
   return writeSiteDraft(admin, {
     siteId: input.siteId,
     expectedDraftRev: input.expectedDraftRev,
@@ -368,6 +373,7 @@ export async function applyThemeUpdateToDraft(
       shell_tree: input.shell,
       design_tokens_draft: input.tokens,
       ...(typeof input.toVersion === "number" ? { theme_design_version: input.toVersion } : {}),
+      ...(input.tokenOrigin ? { theme_token_origin: input.tokenOrigin } : {}),
     },
     pages: [{ id: input.homePageId, patch: { blocks: input.home } }],
     history: {
