@@ -5,24 +5,26 @@
  * For every talent site with a pinned Design (`theme_design_slug`):
  *   base = the Design at the site's pinned `theme_design_version`, built with
  *          the talent's own content (`buildDesignTrees(..., origin)`).
- *          The catalog stores only the CURRENT payload per Design, so a site
- *          pinned to an older version gets the current payload with a WARNING
- *          and `fp: "?"` stamps (everything reads edited, so an update only
- *          ever offers new blocks). Payload history is not in git by version.
+ *          An older pin reads its snapshot from `talent_theme_versions`; with
+ *          no snapshot the current payload is used with a WARNING and
+ *          `fp: "?"` stamps (everything reads edited, so an update only ever
+ *          offers new blocks), and such a site is never written.
  *   stamp = match each site node to the base by design key (slotKey, then
  *          child segment), never by node id; unmatched nodes stay talent-added.
  * Report per site (demo sites first): pinned vs catalog version, matched,
  * talent-added, base keys missing, nodes already reading edited.
  *
- * DRY RUN by default (reads only). `--yes-write` writes ONLY demo accounts
- * (profile code in THEME_DEMOS, demo_batch user, demo email), draft trees
- * only, plus the published copy when it equals the draft; a JSON backup of
+ * DRY RUN by default (reads only). `--yes-write` needs `--allow <codes>` and
+ * writes ONLY those profile codes (never TAL-JORGBEAUTY, never a site without
+ * an exact base; a THEME_DEMOS code must also be a real demo account): draft
+ * trees, plus the published copy when it equals the draft; a JSON backup of
  * each row is taken first. Idempotent: stamped nodes are left alone.
+ * The base prefers `talent_theme_versions` (the pinned version's snapshot).
  *
  * Run (from web/):
  *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
  *     npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=.env.local \
- *     scripts/theme-releases/stamp-sites.mts [--only TAL-93103] [--demos-only] [--yes-write]
+ *     scripts/theme-releases/stamp-sites.mts [--only TAL-93103] [--demos-only] [--yes-write --allow TAL-93901]
  */
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
@@ -40,6 +42,7 @@ const { stampFromBase } = await import("../../src/lib/talent-site/theme-releases
 const { classifyTree } = await import("../../src/lib/talent-site/theme-releases/classify");
 const { stripDesignOrigin, stableStringify } = await import("../../src/lib/talent-site/theme-releases/origin");
 const { DEMO_BATCH } = await import("../demo-talents/demos");
+const { loadThemeVersionPayload } = await import("../../src/lib/talent-site/theme-releases/theme-versions.server");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -54,6 +57,10 @@ const opt = (name: string) => {
 const write = args.includes("--yes-write");
 const demosOnly = args.includes("--demos-only");
 const only = opt("--only")?.split(",");
+// Writes need an explicit allow-list of profile codes; nothing else is ever written.
+const allow = new Set(opt("--allow")?.split(",").filter(Boolean) ?? []);
+const NEVER_WRITE = new Set(["TAL-JORGBEAUTY"]);
+if (write && allow.size === 0) throw new Error("REFUSE: --yes-write needs --allow <codes>");
 const backupDir = opt("--backup-dir") ?? path.join(os.homedir(), "Desktop/tulala-exports/theme-releases/backups");
 
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -116,7 +123,12 @@ for (const { site, profile } of ordered) {
     console.log(`${tag}: SKIP design not in catalog`);
     continue;
   }
-  const unknownBase = site.theme_design_version !== design.version;
+  const pinned = site.theme_design_version ?? design.version;
+  // Exact base: the pinned version's snapshot (talent_theme_versions), else the
+  // catalog payload when the pin is current, else unknown (fp "?").
+  const snapshot = pinned === design.version ? null : await loadThemeVersionPayload(admin, design.slug, pinned);
+  const basePayload = snapshot ?? design.payload;
+  const unknownBase = pinned !== design.version && !snapshot;
   if (unknownBase) totals.unknownBase += 1;
   else totals.exact += 1;
 
@@ -130,10 +142,7 @@ for (const { site, profile } of ordered) {
   const tokens =
     (await loadTemplateHydrationTokens(site.talent_profile_id)) ??
     fallbackHydrationTokens(String(profile!.display_name ?? ""));
-  const built = buildDesignTrees(design.payload, tokens, undefined, {
-    design: design.slug,
-    version: site.theme_design_version ?? design.version,
-  });
+  const built = buildDesignTrees(basePayload, tokens, undefined, { design: design.slug, version: pinned });
   if (!built.ok) {
     console.log(`${tag}: SKIP base build failed ${built.errors.slice(0, 2).join("; ")}`);
     continue;
@@ -145,7 +154,7 @@ for (const { site, profile } of ordered) {
   const already = shell.stats.alreadyStamped + homeRes.stats.alreadyStamped;
   if (already > 0) totals.alreadyStamped += 1;
   console.log(
-    `${tag}: ${unknownBase ? `WARN pinned v${site.theme_design_version} != catalog v${design.version}, fp "?" ` : "base exact "}` +
+    `${tag}: ${unknownBase ? `WARN pinned v${pinned} != catalog v${design.version}, no snapshot, fp "?" ` : snapshot ? `base exact (snapshot v${pinned}) ` : "base exact "}` +
       `| shell matched ${shell.stats.matched} added ${shell.stats.unmatched} missing ${shell.stats.missing.length} edited ${cShell.counts.edited}` +
       ` | home matched ${homeRes.stats.matched} added ${homeRes.stats.unmatched} missing ${homeRes.stats.missing.length} edited ${cHome.counts.edited}` +
       (already ? ` | already stamped ${already}` : "") +
@@ -154,14 +163,19 @@ for (const { site, profile } of ordered) {
 
   const changed = shell.stats.matched + homeRes.stats.matched > 0;
   if (!write || !changed) continue;
-  if (!isDemo) {
-    console.log(`${tag}: not written (Phase 1A writes demo accounts only)`);
+  if (!allow.has(code) || NEVER_WRITE.has(code)) {
+    console.log(`${tag}: not written (not in --allow)`);
+    continue;
+  }
+  if (unknownBase) {
+    console.log(`${tag}: not written (no exact base)`);
     continue;
   }
   const { data: u } = await admin.auth.admin.getUserById(profile!.user_id as string);
   const email = u.user?.email ?? "";
-  if (!DEMO_EMAIL.test(email) || u.user?.app_metadata?.demo_batch !== DEMO_BATCH) {
-    console.log(`${tag}: REFUSE not a demo account (${email})`);
+  const demoAccount = DEMO_EMAIL.test(email) && u.user?.app_metadata?.demo_batch === DEMO_BATCH;
+  if (isDemo && !demoAccount) {
+    console.log(`${tag}: REFUSE listed as a demo but not a demo account (${email})`);
     continue;
   }
   fs.mkdirSync(backupDir, { recursive: true });

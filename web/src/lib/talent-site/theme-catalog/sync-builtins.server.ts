@@ -8,9 +8,10 @@ import type { BuiltinDesignEntry, BuiltinLookEntry } from "./builtins/types";
 import { MAISON_BUILTIN_DESIGN, MAISON_BUILTIN_LOOKS } from "./maison/builtins";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
-import { TALENT_THEME_SCHEMA_VERSION, type TalentThemeKind } from "./types";
+import { TALENT_THEME_SCHEMA_VERSION, type DesignPayload, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
 import { createDraftRelease } from "../theme-releases/releases.server";
+import { writeThemeVersionSnapshots } from "../theme-releases/theme-versions.server";
 
 /**
  * Talent theme gallery: BUILT-IN SYNC. Code (`./builtins`) → published
@@ -299,6 +300,14 @@ export async function syncBuiltinTalentThemes(
   for (const d of drafts) {
     await createDraftRelease(admin, { ...d, createdBy: userId });
   }
+
+  // Payload snapshot per design version (exact merge base for pinned sites).
+  await writeThemeVersionSnapshots(
+    admin,
+    plan.upserts
+      .filter((u) => u.kind === "design" && priorVersions.get(`${u.kind}:${u.slug}`) !== u.version)
+      .map((u) => ({ design: u.slug, version: u.version, payload: u.payload as DesignPayload, source: "sync" })),
+  );
 
   return {
     ok: true,
