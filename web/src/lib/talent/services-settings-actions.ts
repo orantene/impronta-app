@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { parseInPersonMethods, type InPersonMethod } from "@/lib/talent-policies/facts";
 import {
   parseBookingPosture,
   parseSellingBookingSettings,
@@ -17,6 +18,8 @@ export type SellingDefaults = {
   cancelHours: number | null;
   rescheduleHours: number | null;
   where: string[];
+  /** Accepted ways to pay at the visit (descriptive; the per-service switch stays the gate). */
+  inPersonMethods?: InPersonMethod[];
   travelRadiusKm: number | null;
   travelFeeCents: number | null;
   /** Preparation minutes blocked before each start (slot engine). */
@@ -77,6 +80,7 @@ export async function loadSellingDefaults(
       cancelHours: typeof raw.cancelHours === "number" ? raw.cancelHours : 24,
       rescheduleHours: typeof raw.rescheduleHours === "number" ? raw.rescheduleHours : 24,
       where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
+      inPersonMethods: parseInPersonMethods(raw.inPersonMethods),
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
       bufferBeforeMin: booking.bufferBeforeMin,
@@ -105,6 +109,7 @@ export async function saveSellingDefaults(
   const selling_defaults = {
     ...prev,
     ...defaults,
+    inPersonMethods: parseInPersonMethods(defaults.inPersonMethods ?? prev.inPersonMethods),
     bookingPosture: parseBookingPosture(defaults.bookingPosture) ?? PLATFORM_DEFAULT_BOOKING_POSTURE,
   };
   const { error } = await auth.admin

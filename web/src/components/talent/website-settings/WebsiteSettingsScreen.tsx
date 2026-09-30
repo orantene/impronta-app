@@ -46,6 +46,7 @@ import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "
 import { ConfirmSheet, LanguagesGroup, languagesSummary } from "./LanguagesGroup";
 import { languagesChangeCount, type LanguagesDraft } from "./languages-model";
 import { useLanguagesDraft } from "./use-languages-draft";
+import { PoliciesView } from "./PoliciesView";
 import { BookingGroup, PaymentsGroup, SelfServiceGroup, TimingGroup, postureLabel } from "./WebsiteSettingsGroups";
 import {
   switchChangeCount,
@@ -69,7 +70,7 @@ function fieldsOf(o: TalentOffering): ServiceFields {
   };
 }
 
-type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
+type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis" | "policies";
 
 export function WebsiteSettingsScreen({
   talentId,
@@ -279,6 +280,7 @@ export function WebsiteSettingsScreen({
     self: t("Client self-service"),
     chat: t("Chat & inquiries"),
     vis: t("Appearance & visibility"),
+    policies: t("Policies and privacy"),
   };
 
   const header = (
@@ -316,6 +318,19 @@ export function WebsiteSettingsScreen({
         {header}
         <p className="text-[13.5px] text-admin-ink-muted">{t("Loading…")}</p>
       </div>
+    );
+  }
+
+  // Policies owns its header, sticky publish footer and confirm sheet: it reads
+  // facts from their stores and does not ride this screen's draft / Save flow.
+  if (view === "policies") {
+    return (
+      <PoliciesView
+        talentId={talentId}
+        isSpanish={copy.isSpanish}
+        onBack={() => setView("home")}
+        onEdit={(target) => setView(target)}
+      />
     );
   }
 
@@ -390,6 +405,11 @@ export function WebsiteSettingsScreen({
           />
           <NavRow title={titles.chat} summary={chatSummary(t, draftSw)} onOpen={() => setView("chat")} />
           <NavRow title={titles.vis} summary={visibilitySummary(t, draftSw)} onOpen={() => setView("vis")} />
+          <NavRow
+            title={titles.policies}
+            summary={t("Cancelling, deposit and what your clients read before they book")}
+            onOpen={() => setView("policies")}
+          />
         </div>
       ) : null}
       {view === "booking" ? (
