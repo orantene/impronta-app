@@ -20,7 +20,6 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
-import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { talentSiteRewriteReentryResponse } from "@/lib/saas/talent-site-rewrite-reentry";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
@@ -33,7 +32,7 @@ import {
 import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { boundTalentFallbackLocale, loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
+import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -197,45 +196,9 @@ export async function proxy(request: NextRequest) {
   // reads the talent_profile_id from a host header set here, so a client can
   // never spoof it.
   if (hostContext.kind === "talent_site") {
-    // A talent's own preferred_locale as the fallback locale, see
-    // boundTalentFallbackLocale (2026-09-24). Genuinely parallel.
-    const [talentLangSettings, talentPreferredLocaleRaw] = await Promise.all([
-      getLanguageSettingsForMiddleware(),
-      loadTalentPreferredLocale(hostContext.talentProfileId),
-    ]);
-    const talentFallbackLocale = boundTalentFallbackLocale(talentPreferredLocaleRaw, talentLangSettings.publicLocales);
-    const localeStripped = isNonDefaultLocalePrefixedPath(pathname, talentLangSettings) ? stripNonDefaultLocalePrefix(pathname, talentLangSettings) : stripDefaultLocalePrefixFromPath(pathname, talentLangSettings);
-
-    const decision = isTalentSiteHostPathAllowed(localeStripped);
-    if (!decision) {
-      return NextResponse.rewrite(
-        new URL("/_page-not-found", request.url),
-        { status: 404 },
-      );
-    }
-
-    const talentHeaders = new Headers(sanitizedInboundHeaders);
-    const locale = resolveLocaleForPathname(pathname, request, talentLangSettings, talentFallbackLocale);
-    talentHeaders.set(LOCALE_HEADER, locale);
-    talentHeaders.set(ORIGINAL_PATHNAME_HEADER, request.nextUrl.pathname);
-    talentHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
-    talentHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
-    talentHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
-    // A talent_site host is NOT tenant-scoped — never let a tenant id leak.
-    talentHeaders.delete(TENANT_HEADER_NAME);
-    talentHeaders.delete(HOST_TENANT_SLUG_HEADER);
-    talentHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
-
-    const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
-    if (decision.kind === "passthrough") {
-      return attachGuestCookie(NextResponse.next({ request: { headers: talentHeaders } }));
-    }
-
-    const rewriteUrl = request.nextUrl.clone();
-    rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
-    const res = attachGuestCookie(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } }));
-    syncLocaleCookieForPath(res, request.nextUrl.pathname, talentLangSettings, request, talentFallbackLocale);
-    return res;
+    // Talent languages + URL grammar live in the extracted helper (keeps proxy
+    // under max-lines): talent-site-host-response.ts.
+    return talentSiteHostResponse(request, pathname, sanitizedInboundHeaders, hostContext);
   }
 
   if (

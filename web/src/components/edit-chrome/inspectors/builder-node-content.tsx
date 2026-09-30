@@ -85,6 +85,7 @@ import {
   type Builder2027Node,
 } from "./builder-2027-node-content";
 import { LocaleFieldTabs } from "./locale-field-tabs";
+import { useTalentAiTranslateEnabled } from "@/components/locale-field/talent-ai-context";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import {
   removeItemAt,
@@ -5369,7 +5370,12 @@ export function BuilderNodeLocalizableTextField({
   patch: (patch: Record<string, unknown>) => void | Promise<void>;
 }) {
   const { availableLocales, defaultLocale } = useEditContext();
+  const talentAi = useTalentAiTranslateEnabled();
   const { locale: activeContentLocale } = useActiveContentLocale();
+  // PR 7: a secondary tab ghosts the primary text (native placeholder, never a
+  // pre-filled value), and talent surfaces get the AI translate button.
+  const ghost = (isDefault: boolean) => (isDefault ? placeholder : baseValue.trim() || placeholder);
+  const aiOn = talentAi && (fieldKind === "input" || fieldKind === "textarea");
 
   const overlay = node.i18n;
   const supported = availableLocales.length > 0 ? availableLocales : [defaultLocale];
@@ -5422,7 +5428,7 @@ export function BuilderNodeLocalizableTextField({
           key={fieldKey}
           defaultValue={fieldValue}
           className={className}
-          placeholder={placeholder}
+          placeholder={ghost(isDefault)}
           aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
           onBlur={(event) => {
             void commit(event.currentTarget.value);
@@ -5435,7 +5441,7 @@ export function BuilderNodeLocalizableTextField({
         key={fieldKey}
         defaultValue={fieldValue}
         className={className}
-        placeholder={placeholder}
+        placeholder={ghost(isDefault)}
         aria-label={`${ariaLabel}${isDefault ? "" : ` (${locale})`}`}
         onBlur={(event) => {
           void commit(event.currentTarget.value);
@@ -5463,6 +5469,7 @@ export function BuilderNodeLocalizableTextField({
       hasValueForLocale={hasValueForLocale}
       renderField={renderField}
       ariaLabel={`${ariaLabel} language`}
+      ai={aiOn ? { sourceText: baseValue, valueFor: valueForLocale, commit: (l, v) => commitForLocale(l)(v) } : undefined}
     />
   );
 }

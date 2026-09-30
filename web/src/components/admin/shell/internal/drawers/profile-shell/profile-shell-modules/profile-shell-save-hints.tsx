@@ -5,10 +5,14 @@ import {
   PROFILE_SHELL_SAVE_REQUIRED_HINT,
   PROFILE_SHELL_UNSAVED_BANNER,
 } from "@/lib/talent/profile-shell-save-feedback";
+import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
 import { useDashboardText } from "../../drawer-shared";
 
 export function ProfileShellUnsavedBanner({ visible }: { visible: boolean }) {
   const copy = useDashboardText();
+  // Rendered with the drawer's `dirty` flag: a reload (the top-bar language
+  // switch reloads) asks first instead of dropping unsaved profile edits.
+  useBeforeUnloadGuard(visible);
   if (!visible) return null;
   return (
     <div

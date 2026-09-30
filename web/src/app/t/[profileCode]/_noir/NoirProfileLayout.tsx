@@ -54,6 +54,7 @@ import {
 import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
+import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
 
 /** Noir palette as `--plt-*` overrides so reused light-theme blocks go dark. */
 const noirVars: Record<string, string> = {
@@ -161,7 +162,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     agencyName, agencyDisplayName, similarTalent, ui, t, profileSourcePage,
     resolvedPreview, showFooter, variant = "page", inquireButtonHeader,
     inquireButtonSidebar, inquireButtonFooter, shareMenuSidebar, discoveryCta2,
-    discoveryCta3, hubsIndicator, slotPicker,
+    discoveryCta3, hubsIndicator, slotPicker, askEntry, hostCtxKind,
   } = props;
 
   const isModal = variant === "modal";
@@ -220,10 +221,12 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
   const primaryLabel = bookable ? L("Check availability", "Ver disponibilidad") : L(`Inquire about ${firstName}`, `Consultar por ${firstName}`);
   // When the storefront slot picker owns booking, inquireButtons() is null and
   // the primary CTA is an anchor to the closing moment where the picker lives.
+  // WSF §8 (#2435): no "Inquire about" fallback when her intake is closed.
+  const inquireOpen = hostCtxKind === "agency" || askEntry == null || askEntryPointsVisible(askEntry);
   const primary = (slotNode: React.ReactNode, compact = false) =>
     slotNode ? (
       <div className={`nf-cta-slot${compact ? " nf-cta-slot--compact" : ""}`}>{slotNode}</div>
-    ) : (
+    ) : !bookable && !inquireOpen ? null : (
       <div className="nf-cta-slot"><a href="#nf-book" className="nf-btn nf-btn--primary">{primaryLabel}</a></div>
     );
 

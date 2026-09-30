@@ -32,6 +32,7 @@ import {
   getServerPublishRequirements,
 } from "@/lib/field-engine/profile-publish-server-gate";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
+import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
 import {
   syncProfileShellDynFieldValues,
   loadProfileShellDynFieldValues,
@@ -721,6 +722,8 @@ export async function commitTalentProfileShellAdmin(
   // deliberate carve-out (powers booking queries) and stays a column.
   await syncBlobFieldValuesToCatalog(supabase, tid, tenantId, blobValues);
   lap("blobFieldValuesCatalog");
+  // PR 7: the public site reads bio_i18n; mirror the editor's bios into it.
+  await syncBiosToBioI18n(supabase, tid, about.bios);
 
   // T4 collapse-dedicated-columns: System B is now the SOLE store for the
   // Tier-C identity-PII fields pronouns + pronouns_custom (their dedicated

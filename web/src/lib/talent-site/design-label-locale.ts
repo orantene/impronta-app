@@ -126,6 +126,22 @@ const SEEDED_PATTERNS_ES: ReadonlyArray<{ re: RegExp; es: string }> = Object.ent
     return { re: new RegExp(`^${source}$`), es: tokens.length ? out : es };
   });
 
+/**
+ * The inverse table (2026-09-29): a Spanish-primary talent's site seeded or
+ * written with these exact Spanish labels reads in English for an English
+ * visitor. Derived once from `SEEDED_LABELS_ES` (first English key wins on a
+ * shared Spanish value; identical pairs and token patterns are skipped), so
+ * the two directions can never drift.
+ */
+const SEEDED_LABELS_EN: Readonly<Record<string, string>> = (() => {
+  const out: Record<string, string> = {};
+  for (const [en, es] of Object.entries(SEEDED_LABELS_ES)) {
+    if (en === es || en.includes("{{") || es in out) continue;
+    out[es] = en;
+  }
+  return out;
+})();
+
 function localisePattern(value: string): string | null {
   for (const p of SEEDED_PATTERNS_ES) {
     if (p.re.test(value)) return value.replace(p.re, p.es);
@@ -185,6 +201,15 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     inquiry: { en: "Quotes", es: "Cotizaciones" },
   },
 };
+
+/** Spanish mode copy -> its entry, so a Spanish seed follows the mode in English. */
+const SEEDED_MODE_COPY_BY_ES: Readonly<Record<string, ModeCopy>> = (() => {
+  const out: Record<string, ModeCopy> = {};
+  for (const copy of Object.values(SEEDED_MODE_COPY)) {
+    for (const line of Object.values(copy)) if (!(line.es in out)) out[line.es] = copy;
+  }
+  return out;
+})();
 
 /**
  * Folio used to seed its GALLERY nav link as "Book" (a model's book of work).
@@ -260,27 +285,36 @@ function localiseHeaderProps(
   return next;
 }
 
-function localeKey(locale: string | null | undefined): string {
-  return (locale ?? "").trim().toLowerCase().slice(0, 2);
+/** The label table a locale reads from: es, en, or none (other languages). */
+export type LabelTarget = "es" | "en" | "other";
+
+export function labelTarget(locale: string | null | undefined): LabelTarget {
+  const key = (locale ?? "").trim().toLowerCase().slice(0, 2);
+  return key === "es" ? "es" : key === "en" ? "en" : "other";
 }
 
-/** Localised replacement for one seeded string, or null when it stays as is. */
-function localiseOne(
+/**
+ * Localised replacement for one seeded string in `target`, or null when it
+ * stays as is. EN seeds -> es via `SEEDED_LABELS_ES`; ES seeds -> en via
+ * `SEEDED_LABELS_EN`; action copy follows the booking mode either way.
+ */
+export function localiseOne(
   value: string,
-  es: boolean,
+  target: LabelTarget,
   mode: SiteCtaMode | null,
   href?: unknown,
 ): string | null {
   const key = value.trim();
-  if (key === "Book" && href === "#gallery") return es ? WORK_LABEL.es : WORK_LABEL.en;
-  const modeCopy = SEEDED_MODE_COPY[key];
+  if (key === "Book" && href === "#gallery") return target === "es" ? WORK_LABEL.es : WORK_LABEL.en;
+  const modeCopy = SEEDED_MODE_COPY[key] ?? (target === "en" ? SEEDED_MODE_COPY_BY_ES[key] : undefined);
   if (modeCopy) {
     const line = modeCopy[mode ?? "instant"];
-    const out = es ? line.es : line.en;
+    const out = target === "es" ? line.es : line.en;
     return out === value ? null : out;
   }
-  if (!es) return null;
-  return SEEDED_LABELS_ES[key] ?? localisePattern(key);
+  if (target === "es") return SEEDED_LABELS_ES[key] ?? localisePattern(key);
+  if (target === "en") return SEEDED_LABELS_EN[key] ?? null;
+  return null;
 }
 
 /** Exposed for tests and callers that localise a single seeded string. */
@@ -289,7 +323,7 @@ export function localiseSeededDesignLabel(
   locale: string | null | undefined,
   mode: SiteCtaMode | null = null,
 ): string {
-  return localiseOne(value, localeKey(locale) === "es", mode) ?? value;
+  return localiseOne(value, labelTarget(locale), mode) ?? value;
 }
 
 /**
@@ -304,10 +338,10 @@ export function localiseSeededDesignLabels(
   mode: SiteCtaMode | null = null,
   swaps: Readonly<Record<string, string>> = {},
 ): BuilderNode[] {
-  const es = localeKey(locale) === "es";
-  if (!es && mode === null && Object.keys(swaps).length === 0) return tree;
+  const target = labelTarget(locale);
+  if (target === "other" && mode === null && Object.keys(swaps).length === 0) return tree;
   const one = (v: string, href?: unknown): string | null =>
-    swaps[v.trim()] ?? localiseOne(v, es, mode, href);
+    swaps[v.trim()] ?? localiseOne(v, target, mode, href);
   const visit = (node: BuilderNode): BuilderNode => {
     const props = (node.props ?? {}) as Record<string, unknown>;
     let next: Record<string, unknown> | null = null;
@@ -372,8 +406,13 @@ export function localiseSeededDesignLabels(
       });
       if (changed) (next ??= { ...props })[key] = mapped;
     }
-    const children =
+    const mappedChildren =
       "children" in node && Array.isArray(node.children) ? node.children.map(visit) : null;
+    // Keep node identity when nothing below changed (untouched trees stay ===).
+    const children =
+      mappedChildren && mappedChildren.some((c, i) => c !== (node as { children: BuilderNode[] }).children[i])
+        ? mappedChildren
+        : null;
     if (!next && !children) return node;
     return {
       ...node,
@@ -381,5 +420,6 @@ export function localiseSeededDesignLabels(
       ...(children ? { children } : {}),
     } as BuilderNode;
   };
-  return tree.map(visit);
+  const out = tree.map(visit);
+  return out.every((n, i) => n === tree[i]) ? tree : out;
 }

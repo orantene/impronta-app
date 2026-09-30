@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
@@ -79,6 +80,8 @@ export interface TalentMaxBuilderMountProps {
    * legacy single-page entry, which keeps the plain display-name chip.
    */
   sitePages?: MaxSiteManagerPage[];
+  /** PR 7: talent languages -> builder defaultLocale / availableLocales. */
+  talentLocales?: { primary: string; secondary: readonly string[] };
 }
 
 export function TalentMaxBuilderMount({
@@ -94,6 +97,7 @@ export function TalentMaxBuilderMount({
   canvasRenderData = null,
   initialComposition = null,
   sitePages,
+  talentLocales,
 }: TalentMaxBuilderMountProps) {
   // Create a per-mount adapter with talentProfileId in closure.
   // Config rebuilds on talentProfileId, tier or capability record change.
@@ -204,12 +208,15 @@ export function TalentMaxBuilderMount({
         </div>
       )}
 
+      <TalentAiTranslateProvider>
       <BuilderEditorMount
         surfaceConfig={surfaceConfig}
         // tenantId = the workspace/agency managing this talent (builder scope)
         tenantId={tenantId}
         workspacePlan={workspacePlan}
         locale={locale}
+        defaultLocale={talentLocales?.primary}
+        availableLocales={talentLocales ? [talentLocales.primary, ...talentLocales.secondary] : undefined}
         // pageId carries talentProfileId on talent_page surfaces (adapter contract)
         // pageSlug carries the talent_pages.slug
         pageSlug={pageSlug}
@@ -222,6 +229,7 @@ export function TalentMaxBuilderMount({
         canvasRenderData={canvasRenderData}
         initialComposition={initialComposition}
       />
+      </TalentAiTranslateProvider>
     </div>
     </BuilderMediaScopeProvider>
   );

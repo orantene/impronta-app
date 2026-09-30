@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
+import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
+import { languageName } from "@/lib/i18n/locale-field-model";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
 import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/DefaultCurrencyCard";
 import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
@@ -96,7 +99,21 @@ function SettingsGroup({ title, rows, tone = "plain" }: { title: string; rows: R
  * existing agency relationships still show, and only when they exist.
  */
 export function SettingsPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug, state } = useAdminShell();
+  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug, state, talentLocales } = useAdminShell();
+  // PR 7: languages are managed in Website settings > Languages (single
+  // source); this row becomes a summary + link when that screen is on.
+  const [settingsOn, setSettingsOn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void loadWebsiteSettingsEnabledAction()
+      .then((on) => {
+        if (live) setSettingsOn(on);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
   const copy = useDashboardText();
   const { t: tx } = usePresenceText();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
@@ -161,7 +178,25 @@ export function SettingsPage() {
       onOpen: () => openSection("identity"),
     },
   ];
-  if (bridgeTalentSelfProfile) {
+  if (bridgeTalentSelfProfile && talentLocales && settingsOn) {
+    const own = (c: string) => languageName(c, c, true);
+    account.push({
+      key: "language",
+      label: copy.t("Language"),
+      sub: copy.t("Change in Website settings"),
+      value:
+        talentLocales.secondary.length === 0
+          ? copy.t("{lang} only").replace("{lang}", own(talentLocales.primary))
+          : copy
+              .t("{primary} and {secondary}")
+              .replace("{primary}", own(talentLocales.primary))
+              .replace("{secondary}", talentLocales.secondary.map(own).join(", ")),
+      onOpen: () => {
+        requestWebsiteSettingsView("lang");
+        setTalentPage("public-page");
+      },
+    });
+  } else if (bridgeTalentSelfProfile) {
     account.push({
       key: "language",
       label: tx("Language"),

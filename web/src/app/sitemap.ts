@@ -18,6 +18,10 @@ import {
   featurePaths,
 } from "@/lib/marketing/features";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { normalizeTalentLocalePair } from "@/lib/site-admin/server/talent-locale-settings";
+import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import { talentProfileSitemapEntries } from "@/lib/talent-site/talent-site-locale-routing";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -83,11 +87,13 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
     profile_code: string | null;
     updated_at: string | null;
     created_at: string | null;
+    preferred_locale: string | null;
+    secondary_locales: string[] | null;
   };
 
   const { data: rowsRaw } = await admin
     .from("talent_profiles")
-    .select("profile_code, updated_at, created_at")
+    .select("profile_code, updated_at, created_at, preferred_locale, secondary_locales")
     .is("deleted_at", null)
     .eq("is_publicly_hidden", false)
     .eq("is_publicly_listed", true)
@@ -98,6 +104,9 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
     .limit(5000);
 
   const rows = (rowsRaw ?? []) as unknown as PlatformTalentSitemapRow[];
+  // Each talent's OWN languages (primary + secondary, PR 5), bounded to the
+  // platform public set, in the platform URL grammar (default unprefixed).
+  const platform = await getLanguageSettingsPublicCached().catch(() => FALLBACK_LANGUAGE_SETTINGS);
   return rows.flatMap((row) => {
     const profileCode = row.profile_code?.trim();
     if (!profileCode) return [];
@@ -110,19 +119,19 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
       ? new Date(row.updated_at ?? row.created_at!)
       : new Date();
 
-    const enUrl = new URL(`/t/${code}`, PLATFORM_TALENT_SITEMAP_BASE).toString();
-    const esUrl = new URL(
-      withLocalePath(`/t/${code}`, "es"),
-      PLATFORM_TALENT_SITEMAP_BASE,
-    ).toString();
-    // Both locales of one profile are one page in two languages; say so, or
-    // Google reads them as unrelated duplicates.
-    const languages = { en: enUrl, es: esUrl, "x-default": enUrl };
-
-    return [
-      { url: enUrl, lastModified, alternates: { languages } },
-      { url: esUrl, lastModified, alternates: { languages } },
-    ];
+    const pair = normalizeTalentLocalePair(
+      row.preferred_locale,
+      row.secondary_locales,
+      platform.publicLocales,
+      platform.defaultLocale,
+    );
+    return talentProfileSitemapEntries({
+      origin: PLATFORM_TALENT_SITEMAP_BASE,
+      path: `/t/${code}`,
+      urlDefault: platform.defaultLocale,
+      locales: [pair.primary, ...pair.secondary],
+      lastModified,
+    });
   });
 }
 

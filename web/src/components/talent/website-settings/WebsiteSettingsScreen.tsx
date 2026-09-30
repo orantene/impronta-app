@@ -43,6 +43,9 @@ import {
   switchSaveImpact,
 } from "@/lib/talent/accepting-readiness";
 import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "./primitives";
+import { ConfirmSheet, LanguagesGroup, languagesSummary } from "./LanguagesGroup";
+import { languagesChangeCount, type LanguagesDraft } from "./languages-model";
+import { useLanguagesDraft } from "./use-languages-draft";
 import { BookingGroup, PaymentsGroup, SelfServiceGroup, TimingGroup, postureLabel } from "./WebsiteSettingsGroups";
 import {
   switchChangeCount,
@@ -66,9 +69,18 @@ function fieldsOf(o: TalentOffering): ServiceFields {
   };
 }
 
-type View = "home" | "site" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
+type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
 
-export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string; onClose: () => void }) {
+export function WebsiteSettingsScreen({
+  talentId,
+  onClose,
+  initialView,
+}: {
+  talentId: string;
+  onClose: () => void;
+  /** Deep link (PR 7): open straight on a group, e.g. "lang". */
+  initialView?: "lang";
+}) {
   const copy = useDashboardText();
   // Screen strings live in the lazy chunk, not the global admin map.
   // Stable per locale: the load effect below depends on it, and a new function
@@ -82,7 +94,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   const [offerings, setOfferings] = useState<TalentOffering[] | null>(null);
   const [saved, setSaved] = useState<SettingsDraft | null>(null);
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(initialView ?? "home");
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [confirmExit, setConfirmExit] = useState(false);
   const [hoursNoticeMin, setHoursNoticeMin] = useState<number | null>(null);
@@ -159,7 +171,16 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
     [offerings, t, swReadiness, draft],
   );
 
-  const unsaved = saved && draft ? changeCount(saved, draft) + switchChangeCount(savedSw, draftSw) : 0;
+  // PR 7: talent languages ride the same draft / Save / unsaved-exit flow.
+  const lang = useLanguagesDraft(t);
+  const langOnOpen = lang.onOpen;
+  useEffect(() => {
+    if (view === "lang") langOnOpen();
+  }, [view, langOnOpen]);
+  const unsaved =
+    saved && draft
+      ? changeCount(saved, draft) + switchChangeCount(savedSw, draftSw) + languagesChangeCount(lang.saved, lang.draft)
+      : 0;
   const dirty = unsaved > 0;
 
   const edit = (next: SettingsDraft) => {
@@ -170,8 +191,12 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   const setService = (id: string, patch: Partial<ServiceFields>) =>
     draft && edit({ ...draft, services: { ...draft.services, [id]: { ...draft.services[id], ...patch } } });
 
-  const save = useCallback(async (): Promise<boolean> => {
+  const save = useCallback(async (confirmedPrimary = false): Promise<boolean> => {
     if (!saved || !draft || !offerings) return false;
+    if (!confirmedPrimary && lang.primaryChanged) {
+      lang.askConfirmPrimary();
+      return false;
+    }
     setStatus("saving");
     const diff = diffDraft(saved, draft);
     let nextSaved = saved;
@@ -210,6 +235,10 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       }
       else ok = false;
     }
+    if (languagesChangeCount(lang.saved, lang.draft) > 0) {
+      const res = await lang.save();
+      if (!res) ok = false;
+    }
     // Keep whatever did save, so a retry only resends what is still different.
     setOfferings(nextOfferings);
     setSaved(nextSaved);
@@ -217,11 +246,12 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
     setPartial(!ok && (nextSaved !== saved || swSaved));
     setStatus(ok ? "idle" : "failed");
     return ok;
-  }, [saved, draft, offerings, talentId, draftSw, savedSw, t]);
+  }, [saved, draft, offerings, talentId, draftSw, savedSw, t, lang]);
 
   const discard = () => {
     if (saved) setDraft(saved);
     setDraftSw(savedSw);
+    lang.discard();
     setPartial(false);
     setStatus("idle");
   };
@@ -241,6 +271,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
   const titles: Record<View, string> = {
     home: t("Website settings"),
     site: t("Address, logo and pages"),
+    lang: t("Languages"),
     booking: t("Services & booking"),
     timing: t("Availability & timing"),
     pay: t("Payments"),
@@ -319,6 +350,13 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
             summary={t("Site address, logo, pages and custom domain")}
             onOpen={() => setView("site")}
           />
+          {lang.draft ? (
+            <NavRow
+              title={titles.lang}
+              summary={languagesSummary(t, lang.draft)}
+              onOpen={() => setView("lang")}
+            />
+          ) : null}
           <NavRow
             title={titles.booking}
             summary={t("{mode} by default · {n} of {total} services with their own setting")
@@ -388,6 +426,35 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
       ) : null}
       {view === "self" ? <SelfServiceGroup {...groupProps} /> : null}
       {view === "site" ? <MaxSiteSettingsPanels /> : null}
+      {view === "lang" && lang.draft && lang.saved ? (
+        <LanguagesGroup
+          t={t}
+          uiLocale={copy.locale}
+          draft={lang.draft}
+          saved={lang.saved}
+          suggested={lang.suggested}
+          setDraft={(next: LanguagesDraft) => {
+            lang.setDraft(next);
+            if (status === "failed") setStatus("idle");
+          }}
+        />
+      ) : null}
+      {lang.confirmPrimary && lang.draft && lang.saved ? (
+        <ConfirmSheet
+          title={t("Switch your primary language to {lang}?").replace("{lang}", lang.nameInUi(lang.draft.primary))}
+          body={t("Your site's default language, links and search listing change. Your {old} text is kept.").replace(
+            "{old}",
+            lang.nameInUi(lang.saved.primary),
+          )}
+          confirm={t("Switch language")}
+          cancel={t("Keep editing")}
+          onConfirm={() => {
+            lang.closeConfirmPrimary();
+            void save(true);
+          }}
+          onCancel={lang.closeConfirmPrimary}
+        />
+      ) : null}
 
       {view === "site" ? null : (
       <SaveBar
@@ -409,7 +476,7 @@ export function WebsiteSettingsScreen({ talentId, onClose }: { talentId: string;
           labels={{ saveLeave: t("Save and leave"), discard: t("Discard changes"), stay: t("Keep editing") }}
           onSaveAndLeave={() => {
             setConfirmExit(false);
-            void save().then((ok) => {
+            void save(true).then((ok) => {
               if (ok) onClose();
             });
           }}

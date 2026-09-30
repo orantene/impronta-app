@@ -327,6 +327,8 @@ export const siteHeaderSchemaV1 = z.object({
     .object({
       demo: z.boolean().optional(),
       locales: z.array(z.string().min(2).max(8)).max(4).optional(),
+      /** Per-locale href of THIS page (talent URL grammar); else `?locale=`. */
+      hrefs: z.record(z.string().min(2).max(8), z.string().max(512)).optional(),
     })
     .optional(),
 });
