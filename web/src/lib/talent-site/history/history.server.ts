@@ -341,12 +341,14 @@ export async function undoThemeUpdateEntry(
       createdBy: input.actorId,
     },
   });
-  if (res.ok && report.updateId) {
-    await admin
+  const covered = [...new Set([...(report.updateIds ?? []), ...(report.updateId ? [report.updateId] : [])])];
+  if (res.ok && covered.length > 0) {
+    const { error: undoErr } = await admin
       .from("talent_site_theme_updates")
       .update({ state: "undone", updated_at: new Date().toISOString() })
-      .eq("id", report.updateId)
+      .in("id", covered)
       .eq("talent_profile_id", input.talentProfileId);
+    if (undoErr) logServerError("themeUpdate.undoRows", undoErr);
   }
   return res;
 }
@@ -370,6 +372,8 @@ export async function applyThemeUpdateToDraft(
     toVersion: number | null;
     releaseId?: string | null;
     updateId?: string | null;
+    /** F110: all rows a combined apply covered. */
+    updateIds?: string[];
     actor?: "talent" | "tulala" | "system";
     kind?: "theme_update" | "auto_improve";
     actorId?: string | null;
@@ -384,6 +388,7 @@ export async function applyThemeUpdateToDraft(
     releaseId: input.releaseId ?? null,
     designName: input.designName?.trim() || null,
     updateId: input.updateId ?? null,
+    ...(input.updateIds && input.updateIds.length > 0 ? { updateIds: input.updateIds } : {}),
     fromVersion: input.fromVersion,
     toVersion: input.toVersion,
   };

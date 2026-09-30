@@ -49,6 +49,8 @@ export interface ThemeUpdateHistoryReport {
   /** Design title at apply time, for the undo summary. Absent on older entries. */
   designName?: string | null;
   updateId?: string | null;
+  /** F110: every update row a combined apply covered; undo marks them all `undone`. */
+  updateIds?: string[];
   fromVersion?: number | null;
   toVersion?: number | null;
   /** Set on the entry that undid another one. */
