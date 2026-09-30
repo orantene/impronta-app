@@ -59,6 +59,8 @@ export function groupLayoutItems(
     ...(tree ? { tree } : {}),
     layout: "nested-new",
     detail: { layout: "nested-new", grouped: hits.map((h) => h.id) },
+    // A detected key swap stays ONE atomic choice in the merge (see `swap.ts`).
+    ...(hits.every((h) => h.swap) ? { swap: hits[0]!.swap, ...(hits[0]!.group ? { group: hits[0]!.group } : {}) } : {}),
   };
   const out: CandidateItem[] = [];
   let placed = false;
