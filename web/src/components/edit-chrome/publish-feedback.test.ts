@@ -5,8 +5,9 @@ import { join } from "node:path";
 
 import { runPublishOnce, SITE_PUBLISHED_EVENT } from "./site-published-event";
 import { editorT } from "./editor-i18n";
+import { blankComments } from "../../lib/quality/supabase-unchecked-read";
 
-const read = (rel: string) => readFileSync(join(process.cwd(), "src", rel), "utf8");
+const read = (rel: string) => blankComments(readFileSync(join(process.cwd(), "src", rel), "utf8"));
 
 test("F104: a second publish while one is pending is dropped", async () => {
   let runs = 0;
