@@ -262,7 +262,14 @@ function promptFor(plan: Plan, shot: PlannedShot, theme: string, withRef: boolea
     parts.push(`The professional's face is NOT in the frame: at most their hands and forearms appear, matching this description (skin tone, sleeves of the outfit): ${plan.person_en}`);
   }
   parts.push(`Scene: ${shot.scene_en}`);
-  if (NO_CLIENT_FACES.has(theme)) parts.push("No client, patient or child faces visible.");
+  if (NO_CLIENT_FACES.has(theme)) {
+    parts.push("No client, patient or child faces visible.");
+    // The work models ignored the soft line (patients' faces in the dental chair, a child in speech
+    // therapy), so any scene with another person puts that person fully out of frame.
+    if (/\b(client|clients|patient|patients|customer|customers|child|children|kid|kids|baby|student|family|couple|guest|guests|owner|owners|person|people|someone|senior|elder|mother|father|parent|group|session)s?\b/i.test(shot.scene_en)) {
+      parts.push("The client or patient is ENTIRELY OUT OF FRAME: show only the professional, their hands, the tools, the room or the result on an object; no other person, face or body anywhere in the image.");
+    }
+  }
   // Adults only: a scene the planner set around children (kids' parties, babysitting) keeps its
   // setting, but no child or baby may appear (the model drew them despite the rule line).
   if (/\b(child|children|kid|kids|baby|babies|toddler|toddlers|infant|infants|newborn|boy|girl|teen|teenager|student|family|families|parent|son|daughter|school|nursery|playground)s?\b|children’s|children's/i.test(shot.scene_en)) {
