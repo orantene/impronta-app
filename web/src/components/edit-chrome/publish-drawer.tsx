@@ -1191,7 +1191,7 @@ export function PublishDrawer() {
                       }
                       label={
                         publishDiff.firstPublish
-                          ? t("changes since last publish (first publish)")
+                          ? t("First publish: your whole site goes live")
                           : t("changes since last publish")
                       }
                       tone={

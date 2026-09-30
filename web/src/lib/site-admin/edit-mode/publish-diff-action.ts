@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
+import { talentPublishedSnapshotResult } from "@/lib/site-admin/edit-mode/talent-published-snapshot";
 
 export interface PublishedSnapshotRow {
   slotKey: string;
@@ -64,7 +65,17 @@ export async function loadPublishedSnapshotRowsAction(input: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
-  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  if (!scope) {
+    // F95 - a talent (no agency workspace) publishes `talent_pages`; "no live
+    // body yet" is a normal first publish, not a load failure.
+    const { data: tp, error: tpErr } = await auth.supabase
+      .from("talent_pages")
+      .select("blocks_published, published_at")
+      .eq("id", input.pageId)
+      .maybeSingle<{ blocks_published: unknown; published_at: string | null }>();
+    if (tpErr || !tp) return { ok: false, error: "Published snapshot not found." };
+    return talentPublishedSnapshotResult(tp);
+  }
 
   const { data: row, error } = await auth.supabase
     .from("cms_pages")

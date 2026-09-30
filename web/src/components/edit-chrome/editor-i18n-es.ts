@@ -307,6 +307,7 @@ export const ES_TEXT: Record<string, string> = {
   "Saving only stores your draft. It does not mean visitors see these changes. Scroll the canvas, try Preview mode, and review the publish checks below before publishing.":
     "Guardar solo almacena tu borrador. No significa que los visitantes vean estos cambios. Recorre el lienzo, prueba el modo Vista previa y revisa las verificaciones de publicación de abajo antes de publicar.",
   "changes since last publish": "cambios desde la última publicación",
+  "First publish: your whole site goes live": "Primera publicación: todo tu sitio sale en vivo",
   "changes since last publish (first publish)":
     "cambios desde la última publicación (primera publicación)",
   "Checking the last published snapshot…": "Revisando la última instantánea publicada...",
