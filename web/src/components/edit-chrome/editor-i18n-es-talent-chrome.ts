@@ -5,6 +5,10 @@
  */
 
 export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
+  "We loaded the latest version. Undo history started fresh.":
+    "Cargamos la versión más reciente. El historial de deshacer empezó de nuevo.",
+  "We reloaded this page. Undo history started fresh.":
+    "Recargamos esta página. El historial de deshacer empezó de nuevo.",
   "This section": "Esta sección",
   "Container": "Contenedor",
   "Reset": "Restablecer",
