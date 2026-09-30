@@ -255,4 +255,11 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Box model": "Modelo de caja",
   "How the things inside this box sit next to each other.":
     "Cómo se acomodan las cosas dentro de este cuadro.",
+  // ── Portada Diseño density (page-builder panel cleanup) ────────────────
+  "Pick a look, then fine-tune the columns.":
+    "Elige un aspecto y luego ajusta las columnas.",
+  "Gap & mobile": "Espacio y móvil",
+  "Keep side by side": "Mantener lado a lado",
+  "Stack on phone": "Apilar en el teléfono",
+  "Stacking & visibility": "Apilado y visibilidad",
 };
