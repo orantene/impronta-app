@@ -13,7 +13,7 @@
  */
 
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
-import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_PLATFORM_LOCALE, isLocale, type Locale } from "@/lib/site-admin/locales";
 import { buildTenantLocaleSettings, type TenantLocaleSettings } from "./locale-resolver";
@@ -65,8 +65,34 @@ export function buildTalentLocaleSettings(
   );
 }
 
+/**
+ * The primary the dashboard cookie may be SEEDED to, or null when it is not
+ * known for certain. Only a stored `preferred_locale` that a SUCCESSFUL
+ * platform-language read lists as public qualifies. A degraded read (row not
+ * readable, language settings unavailable, preference unset) must never seed:
+ * 2026-09-29 QA saw the dashboard flip-flop ES/EN because a failed read fell
+ * back to the platform default and the seed wrote that over the auto cookie,
+ * then the next good read wrote the real primary back.
+ */
+export function talentSeedPrimary(input: {
+  rowRead: boolean;
+  preferred: string | null | undefined;
+  publicLocales: readonly string[] | null;
+}): Locale | null {
+  if (!input.rowRead || !input.publicLocales) return null;
+  return isLocale(input.preferred) && input.publicLocales.includes(input.preferred)
+    ? input.preferred
+    : null;
+}
+
+export interface TalentLocaleState {
+  settings: TenantLocaleSettings;
+  /** See `talentSeedPrimary`. */
+  seedPrimary: Locale | null;
+}
+
 const TTL_MS = 60_000;
-const cache = new Map<string, { loadedAt: number; value: TenantLocaleSettings }>();
+const cache = new Map<string, { loadedAt: number; value: TalentLocaleState }>();
 
 /** Drop the cached settings for one talent (call after a write). */
 export function invalidateTalentLocaleSettings(profileId: string): void {
@@ -76,21 +102,27 @@ export function invalidateTalentLocaleSettings(profileId: string): void {
 type Row = { preferred_locale: string | null; secondary_locales?: string[] | null };
 
 /**
- * Raw read of the talent's stored pair. Tolerates a missing
- * `secondary_locales` column (pre-migration) by retrying without it.
+ * Raw read of the talent's stored pair. Service-role, scoped to one id:
+ * callers pass the SESSION talent's own profile id. (The anon client is
+ * subject to talent_profiles RLS and can hide an unpublished profile, which
+ * read as "no preference".) Tolerates a missing `secondary_locales` column.
+ * Returns `{ ok: false }` on any failure so callers can tell "unset" from
+ * "unknown".
  */
-export async function loadTalentLocaleRow(profileId: string): Promise<Row | null> {
-  const supabase = createPublicSupabaseClient();
-  if (!supabase || !profileId) return null;
+export async function readTalentLocaleRow(
+  profileId: string,
+): Promise<{ ok: true; row: Row | null } | { ok: false }> {
+  const supabase = createServiceRoleClient();
+  if (!supabase || !profileId) return { ok: false };
   const first = await supabase
     .from("talent_profiles")
     .select("preferred_locale, secondary_locales")
     .eq("id", profileId)
     .maybeSingle<Row>();
-  if (!first.error) return first.data ?? null;
+  if (!first.error) return { ok: true, row: first.data ?? null };
   if (!isPostgrestMissingColumnError(first.error)) {
     logServerError("talent-locale-settings.load", first.error);
-    return null;
+    return { ok: false };
   }
   const retry = await supabase
     .from("talent_profiles")
@@ -98,38 +130,56 @@ export async function loadTalentLocaleRow(profileId: string): Promise<Row | null
     .eq("id", profileId)
     .maybeSingle<Row>();
   if (retry.error) {
-    if (!isPostgrestMissingColumnError(retry.error)) {
-      logServerError("talent-locale-settings.loadRetry", retry.error);
-    }
-    return null;
+    logServerError("talent-locale-settings.loadRetry", retry.error);
+    return { ok: false };
   }
-  return retry.data ?? null;
+  return { ok: true, row: retry.data ?? null };
+}
+
+/** Back-compat: the row, or null when unset OR unreadable. */
+export async function loadTalentLocaleRow(profileId: string): Promise<Row | null> {
+  const r = await readTalentLocaleRow(profileId);
+  return r.ok ? r.row : null;
 }
 
 /**
- * Cached (60 s) talent locale settings. Never throws: degrades to the
- * single-locale platform default.
+ * Cached (60 s) talent locale state. Never throws. Only fully successful
+ * reads are cached, so a transient failure is not pinned for a minute.
  */
-export async function loadTalentLocaleSettings(profileId: string): Promise<TenantLocaleSettings> {
+export async function loadTalentLocaleState(profileId: string): Promise<TalentLocaleState> {
   const now = Date.now();
   const hit = profileId ? cache.get(profileId) : undefined;
   if (hit && now - hit.loadedAt < TTL_MS) return hit.value;
 
-  const [language, row] = await Promise.all([
+  const [language, read] = await Promise.all([
     getLanguageSettingsPublicCached().catch(() => null),
-    profileId ? loadTalentLocaleRow(profileId).catch(() => null) : Promise.resolve(null),
+    profileId
+      ? readTalentLocaleRow(profileId).catch(() => ({ ok: false }) as const)
+      : Promise.resolve({ ok: false } as const),
   ]);
-  const publicLocales = language?.publicLocales?.length
-    ? language.publicLocales
-    : [DEFAULT_PLATFORM_LOCALE];
-  const value = buildTalentLocaleSettings(
-    row?.preferred_locale ?? null,
-    row?.secondary_locales ?? [],
-    publicLocales,
-    language?.defaultLocale ?? DEFAULT_PLATFORM_LOCALE,
-  );
-  if (profileId && row) cache.set(profileId, { loadedAt: now, value });
+  const languageOk = Boolean(language?.publicLocales?.length);
+  const publicLocales = languageOk ? language!.publicLocales : [DEFAULT_PLATFORM_LOCALE];
+  const row = read.ok ? read.row : null;
+  const value: TalentLocaleState = {
+    settings: buildTalentLocaleSettings(
+      row?.preferred_locale ?? null,
+      row?.secondary_locales ?? [],
+      publicLocales,
+      language?.defaultLocale ?? DEFAULT_PLATFORM_LOCALE,
+    ),
+    seedPrimary: talentSeedPrimary({
+      rowRead: read.ok,
+      preferred: row?.preferred_locale,
+      publicLocales: languageOk ? publicLocales : null,
+    }),
+  };
+  if (profileId && read.ok && languageOk) cache.set(profileId, { loadedAt: now, value });
   return value;
+}
+
+/** Cached (60 s) talent locale settings (see `loadTalentLocaleState`). */
+export async function loadTalentLocaleSettings(profileId: string): Promise<TenantLocaleSettings> {
+  return (await loadTalentLocaleState(profileId)).settings;
 }
 
 /** Convenience: the `{primary, secondary}` view of the settings. */

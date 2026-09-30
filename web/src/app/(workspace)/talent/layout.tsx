@@ -36,7 +36,7 @@ import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSite
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
-import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
   talentLocaleSeedHref,
@@ -207,7 +207,7 @@ export default async function PlatformTalentLayout({
     talentPayoutAttention,
     profileEditorLayout,
     clientFieldSource,
-    localeSettings,
+    talentLocaleState,
     userNotifications,
     talentPageAnalytics,
     workspaceUi,
@@ -248,7 +248,7 @@ export default async function PlatformTalentLayout({
     // The talent's OWN languages (primary + secondary, bounded to platform
     // public locales) drive the shell's DashboardLocaleToggle / LanguageMenu.
     // No secondary = single locale, so the toggle hides. Never throws.
-    loadTalentLocaleSettings(talentSelfProfile.id),
+    loadTalentLocaleState(talentSelfProfile.id),
     // Talent-surface notifications (`user_notifications`, surface='talent').
     // Cross-agency on purpose — see the loader's comment. Without this the
     // shell's `bridgeUserNotifications` stayed null on the whole talent
@@ -279,13 +279,14 @@ export default async function PlatformTalentLayout({
   // absent or auto-written. A deliberate choice is never overwritten. A layout
   // cannot write cookies, so hop once through the seed route (which re-checks
   // from the session and sets a 60 s attempt cookie so this can never loop).
+  const localeSettings = talentLocaleState.settings;
   const jar = await cookies();
-  const seedTarget = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value
+  const seedTarget = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value || !talentLocaleState.seedPrimary
     ? null
     : talentLocaleSeedTarget({
         cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
         cookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
-        primary: localeSettings.defaultLocale,
+        primary: talentLocaleState.seedPrimary,
       });
   if (seedTarget) {
     redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
