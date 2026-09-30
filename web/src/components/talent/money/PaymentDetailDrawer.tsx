@@ -13,13 +13,9 @@ import {
 export function PaymentDetailDrawer({
   detail,
   onClose,
-  onRefund,
-  onCorrect,
 }: {
   detail: PaymentDetailView;
   onClose: () => void;
-  onRefund: () => void;
-  onCorrect: () => void;
 }) {
   const copy = useDashboardText();
   const { payment, refund } = detail;
@@ -216,10 +212,6 @@ export function PaymentDetailDrawer({
         >
           <OutlineBtn label={copy.t("Message")} />
           <OutlineBtn label={copy.t("Receipt")} />
-          <OutlineBtn
-            label={isCard ? copy.t("Refund") : copy.t("Correct record")}
-            onClick={isCard ? onRefund : onCorrect}
-          />
         </footer>
       </aside>
     </div>

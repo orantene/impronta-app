@@ -10,10 +10,7 @@ import { buildMoneySpineView } from "@/lib/money/money-spine-view";
 import { LEDGER_CONTRACT_CLOCK } from "@/lib/money/september-ledger-contract";
 
 import { MoneyBreakdownPanel } from "./MoneyBreakdownPanel";
-import { MoneyCorrectRecordSheet } from "./MoneyCorrectRecordSheet";
 import { MoneyHomePage } from "./MoneyHomePage";
-import { MoneyRefundSheet } from "./MoneyRefundSheet";
-import { MoneyRequestPaymentSheet } from "./MoneyRequestPaymentSheet";
 import { MoneySpine, MoneySpineHeaderActions } from "./MoneySpine";
 
 /**
@@ -37,17 +34,17 @@ function MoneySpineFixturePage() {
   const copy = useDashboardText();
   const view = useMemo(() => buildMoneySpineView(), []);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
-  const [action, setActionRaw] = useState<MoneyAction | null>(null);
   const router = useRouter();
-  // Record payment has no sheet of its own: the booking record's Finish and
-  // collect is the real writer. A "Recorded" message without a write is never shown.
+  // Record / request payment have no sheet of their own: the booking record's
+  // Finish and collect is the real writer (records the payment or mints the pay link).
+  // Refund / correct have no writer yet, so they have no entry point either.
+  // A success message without a write is never shown.
   const setAction = (next: MoneyAction | null) => {
-    if (next?.kind === "record") {
+    if (next?.kind === "record" || next?.kind === "request") {
       const bookingId = next.prefill?.bookingId;
       router.push(bookingId ? `/talent/bookings/${encodeURIComponent(bookingId)}?collect=1` : "/talent/calendar");
       return;
     }
-    setActionRaw(next);
   };
 
   if (breakdownOpen) {
@@ -71,23 +68,6 @@ function MoneySpineFixturePage() {
         onOpenAction={setAction}
       />
 
-      {action?.kind === "request" ? (
-        <MoneyRequestPaymentSheet
-          outstanding={view.outstanding}
-          currency={view.currency}
-          prefill={action.prefill}
-          onClose={() => setAction(null)}
-        />
-      ) : null}
-      {action?.kind === "refund" ? (
-        <MoneyRefundSheet detail={action.detail} onClose={() => setAction(null)} />
-      ) : null}
-      {action?.kind === "correct" ? (
-        <MoneyCorrectRecordSheet
-          payment={action.payment}
-          onClose={() => setAction(null)}
-        />
-      ) : null}
     </>
   );
 }

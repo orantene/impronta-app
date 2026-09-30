@@ -266,16 +266,6 @@ export function MoneySpine({
         <PaymentDetailDrawer
           detail={paymentDetail}
           onClose={() => setPaymentDetail(null)}
-          onRefund={() => {
-            const d = paymentDetail;
-            setPaymentDetail(null);
-            onOpenAction({ kind: "refund", detail: d });
-          }}
-          onCorrect={() => {
-            const d = paymentDetail;
-            setPaymentDetail(null);
-            onOpenAction({ kind: "correct", payment: d.payment });
-          }}
         />
       ) : null}
 
