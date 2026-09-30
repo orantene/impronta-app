@@ -158,4 +158,8 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Preview and translate in {lang}. Untranslated blocks dim.":
     "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
   "Content language": "Idioma del contenido",
+
+  // ── Site Diseño Marca / Tema entry (page-builder panel cleanup) ────────
+  "Site colours used across every page. Tema opens the full editor.":
+    "Colores del sitio en todas las páginas. Tema abre el editor completo.",
 };
