@@ -41,7 +41,7 @@ test("the five designs are structurally distinct (section order differs)", () =>
 });
 
 /** W-01 — Maison v2 menu uses sticky category rail (chips on phone via CSS). */
-test("maison-v2 services_catalog uses categoryNav rail + rows", () => {
+test("maison-v2 services_catalog uses categoryNav rail + two-column cards", () => {
   const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2");
   assert.ok(maison);
   const found: Array<Record<string, unknown>> = [];
@@ -57,7 +57,10 @@ test("maison-v2 services_catalog uses categoryNav rail + rows", () => {
   walk(maison!.buildPayload().homeTree);
   assert.equal(found.length, 1);
   assert.equal(found[0].categoryNav, "rail");
-  assert.equal(found[0].layout, "rows");
+  // Release 2.3: two-column cards under the keyed `services_two_col` node.
+  assert.equal(found[0].layout, "cards");
+  assert.equal(found[0].columns, 2);
+  assert.equal(found[0].slotKey, "services_two_col");
   assert.equal(found[0].showPhoto, true);
 });
 
