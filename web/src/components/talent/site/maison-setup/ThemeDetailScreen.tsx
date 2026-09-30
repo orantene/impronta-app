@@ -114,7 +114,12 @@ export function ThemeDetailScreen({
   const demoPaletteKey = demoDefaultPaletteKey(design, demo);
   const isDemoDefault = colors.kind === "palette" && colors.isDemoDefault;
   const selectedPaletteKey = colors.kind === "palette" ? colors.palette.key : null;
-  const tokens = previewTokensFor(design, colors, choices);
+  // A demo talent's own site shown on its default palette already wears its
+  // saved Look (server side, F19); pushing the gallery palette would repaint
+  // every demo in the design default.
+  const demoWearsOwnLook =
+    choices.contentMode === "demo" && isDemoDefault && demo?.source.kind === "demo-talent";
+  const tokens = demoWearsOwnLook ? null : previewTokensFor(design, colors, choices);
   const loadState = preview.loadState;
   const sendTokens = preview.sendTokens;
 

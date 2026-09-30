@@ -15,6 +15,8 @@ export type DemoPreviewSource = {
   demoKey: string;
   profileCode: string;
   siteSlug: string;
+  /** The demo's gallery palette key (the look a gallery card passes by default). */
+  defaultPalette: string;
 };
 
 const PARAM_RE = /^([a-z0-9][a-z0-9-]{0,63}):([a-z0-9][a-z0-9-]{0,63})$/;
@@ -38,6 +40,7 @@ export function resolveDemoPreviewSource(
     demoKey: demo.key,
     profileCode: demo.source.profileCode,
     siteSlug: demo.source.siteSlug,
+    defaultPalette: demo.defaultPalette,
   };
 }
 
