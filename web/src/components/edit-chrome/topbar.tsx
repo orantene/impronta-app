@@ -1779,7 +1779,7 @@ function PublishSplitButton({
   }, [menuOpen]);
 
   return (
-    <div className="relative shrink-0" data-publish-split>
+    <div className="sticky right-[20px] z-[2] shrink-0" data-publish-split>
       <div
         className="inline-flex items-stretch overflow-hidden rounded-[10px]"
         role="group"
@@ -3125,7 +3125,7 @@ export function TopBar({
           horizontal scroll parent, Publish/Exit sit outside the viewport and
           Playwright (and operators) cannot reach them. Inner row keeps natural
           width; outer bar scrolls. */}
-      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px]">
+      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px] max-[1100px]:gap-[6px] max-[1100px]:px-[12px]">
       {/* ── Left cluster — page-level navigation ── */}
       {headerVariant === "lab" ? (
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />

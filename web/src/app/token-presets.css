@@ -5818,7 +5818,7 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__region { display: flex; align-items: center; gap: clamp(10px, 1.6vw, 20px); min-width: 0; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 1 1 auto; justify-content: center; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
-.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; }
+.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; white-space: nowrap; }
 .site-header[data-variant="freeform"] .site-header__spacer { flex: 1 1 auto; }
 /* The " / " separator carries the spacing; a flex gap only lands before it (asymmetric "ES  / EN"). */
 .site-header[data-variant="freeform"] .site-header__lang { gap: 0; }
@@ -5879,7 +5879,7 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header__nav-link { color: var(--token-color-ink); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 0; opacity: 0.85; transition: opacity var(--site-motion-dur-short, 180ms) var(--site-motion-ease, ease); }
 .site-header__nav-link:hover { opacity: 1; }
 
-.site-header__cta { margin-left: auto; }
+.site-header__cta { margin-left: auto; white-space: nowrap; flex: none; }
 @media (max-width: 720px) {
   .site-header__nav { display: none; }
   .site-header[data-variant="split"] .site-header__inner { grid-template-columns: 1fr auto; }
