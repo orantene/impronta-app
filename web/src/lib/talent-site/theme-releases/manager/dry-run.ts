@@ -9,7 +9,8 @@
 import { hashString, stableStringify } from "../origin";
 import type { DesignMergeReport, MergeReportEntry, ReleaseChannel, ReleaseItem, ThemeRelease } from "../types";
 
-export type SiteDryRunStatus = "clean" | "kept" | "conflicts" | "error";
+/** `auto`: a demo (platform presentation), updated automatically on Publish to demos. */
+export type SiteDryRunStatus = "clean" | "kept" | "conflicts" | "error" | "auto";
 
 export interface DryRunEntry {
   key: string;
@@ -39,8 +40,10 @@ export interface DryRunSummary {
   kept: number;
   conflicts: number;
   errors: number;
+  /** Talents (non-demo) with no exact base: only new blocks are offered. */
   noBase: number;
-  demos: { total: number; clean: number; kept: number; conflicts: number; errors: number };
+  /** Demos never get notices; they update automatically. */
+  demos: { total: number; auto: number; errors: number };
 }
 
 export interface DryRunReport {
@@ -80,7 +83,7 @@ export function siteResultFromReport(
 ): SiteDryRunResult {
   return {
     ...meta,
-    status: classifySiteReport(report),
+    status: meta.isDemo ? "auto" : classifySiteReport(report),
     counts: {
       applied: report.applied.length,
       kept: report.kept.length,
@@ -117,18 +120,20 @@ export function orderDemosFirst<T extends { isDemo: boolean; profileCode: string
 }
 
 export function aggregateDryRun(results: ReadonlyArray<SiteDryRunResult>): DryRunSummary {
-  const tally = (rows: ReadonlyArray<SiteDryRunResult>) => ({
-    total: rows.length,
-    clean: rows.filter((r) => r.status === "clean").length,
-    kept: rows.filter((r) => r.status === "kept").length,
-    conflicts: rows.filter((r) => r.status === "conflicts").length,
-    errors: rows.filter((r) => r.status === "error").length,
-  });
-  const all = tally(results);
+  const demos = results.filter((r) => r.isDemo);
+  const talents = results.filter((r) => !r.isDemo);
   return {
-    ...all,
-    noBase: results.filter((r) => r.noBase).length,
-    demos: tally(results.filter((r) => r.isDemo)),
+    total: results.length,
+    clean: talents.filter((r) => r.status === "clean").length,
+    kept: talents.filter((r) => r.status === "kept").length,
+    conflicts: talents.filter((r) => r.status === "conflicts").length,
+    errors: results.filter((r) => r.status === "error").length,
+    noBase: talents.filter((r) => r.noBase).length,
+    demos: {
+      total: demos.length,
+      auto: demos.filter((r) => r.status === "auto").length,
+      errors: demos.filter((r) => r.status === "error").length,
+    },
   };
 }
 

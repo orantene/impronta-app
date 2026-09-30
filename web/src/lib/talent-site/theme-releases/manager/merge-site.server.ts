@@ -39,6 +39,8 @@ export interface SiteRef {
   locale: string | null;
   pinnedVersion: number | null;
   isDemo: boolean;
+  /** talent_sites.site_published_at is set. */
+  published: boolean;
 }
 
 export type SiteMergeOutcome =

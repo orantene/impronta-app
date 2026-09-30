@@ -15,6 +15,8 @@ export interface ReleaseNote {
 
 export const MAISON_V2_RELEASE_2_1 = {
   design: "maison-v2",
+  /** The catalog version this release ships (2.1 = v15). */
+  toVersion: 15,
   notes: {
     en: "Maison v2 2.1: a new Before and after block, roomier menu rows, an optional bottom-left hero photo and a cleaner price line on phones.",
     es: "Maison v2 2.1: un nuevo bloque Antes y después, filas del menú con más aire, una foto del inicio opcional abajo a la izquierda y un precio mejor ajustado en móvil.",
@@ -45,4 +47,12 @@ export const MAISON_V2_RELEASE_2_1 = {
       es: "La foto pequeña del inicio pasa abajo a la izquierda. Míralo antes de elegir.",
     },
   } satisfies Record<string, ReleaseNote>,
+  /**
+   * The two candidate layout ids that are ONE opt-in change for the talent
+   * (the old inset is removed at its key, a keyed replacement appears).
+   */
+  layoutKeys: [
+    "layout:home:hero/container#2/image#2:removed",
+    "layout:home:hero/container#2/hero_inset_bl",
+  ],
 } as const;

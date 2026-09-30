@@ -404,3 +404,58 @@ export async function applyThemeDemos(
 
   return results;
 }
+
+/**
+ * Theme releases, "Publish to demos": re-apply the FULL design at its current
+ * version to a demo that has no exact merge base (older pinned version with no
+ * snapshot). The demo's own content is rebuilt into the design; its seeded
+ * Maison v2 style (MAISON_V2_DEMO_STYLES) is layered on again where one exists,
+ * and its look tokens are kept. Demo accounts only (callers select
+ * `talent_profiles.is_demo = true`). Does not publish; the caller does.
+ */
+export async function reapplyDemoDesignAtVersion(
+  admin: SupabaseClient,
+  input: { siteId: string; talentProfileId: string; profileCode: string; userId: string; displayName: string },
+  design: Parameters<typeof applyDesign>[1]["design"],
+): Promise<void> {
+  const d = await applyDesign(admin, {
+    talentProfileId: input.talentProfileId,
+    siteId: input.siteId,
+    design,
+    displayName: input.displayName,
+    userId: input.userId,
+    actor: "tulala",
+  });
+  if (!d.ok) throw new Error(`${input.profileCode} applyDesign: ${d.error}`);
+  const style = design.slug === "maison-v2" ? MAISON_V2_DEMO_STYLES[input.profileCode] : undefined;
+  if (!style) return;
+  const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
+  if (!tokens) throw new Error(`${input.profileCode}: hydration tokens unavailable`);
+  const built = buildDesignTrees(design.payload, tokens, undefined, { design: design.slug, version: design.version });
+  if (!built.ok) throw new Error(`${input.profileCode}: build failed ${built.errors.join("; ")}`);
+  const trees = styleTrees(built, style, await loadMedia(admin, input.talentProfileId), input.profileCode);
+  const { data: site, error: sErr } = await admin
+    .from("talent_sites")
+    .select("design_tokens_draft")
+    .eq("id", input.siteId)
+    .single();
+  if (sErr) throw sErr;
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("talent_sites")
+    .update({
+      shell_tree: trees.shellTree,
+      design_tokens_draft: { ...((site?.design_tokens_draft as Record<string, string> | null) ?? {}), ...(style.tokens ?? {}) },
+      draft_updated_at: now,
+      updated_at: now,
+    })
+    .eq("id", input.siteId)
+    .eq("talent_profile_id", input.talentProfileId);
+  if (error) throw error;
+  const { error: hErr } = await admin
+    .from("talent_pages")
+    .update({ blocks: trees.homeTree, updated_at: now })
+    .eq("talent_profile_id", input.talentProfileId)
+    .eq("is_home", true);
+  if (hErr) throw hErr;
+}

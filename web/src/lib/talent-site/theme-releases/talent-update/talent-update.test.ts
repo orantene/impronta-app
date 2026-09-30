@@ -359,6 +359,7 @@ function siteRef(isDemo: boolean, over: Partial<SiteRef> = {}): SiteRef {
     locale: "es",
     pinnedVersion: 1,
     isDemo,
+    published: false,
     ...over,
   };
 }

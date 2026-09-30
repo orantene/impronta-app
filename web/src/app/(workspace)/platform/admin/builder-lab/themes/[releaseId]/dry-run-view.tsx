@@ -36,8 +36,17 @@ function Row({ site, lang }: { site: SiteDryRunResult; lang: Lang }) {
         <span className="text-xs text-white/50">{site.profileCode}</span>
         {site.isDemo ? <span className="rounded bg-white/15 px-1.5 text-xs">{t.demoTag}</span> : null}
         <span className="text-xs text-white/50">v{site.pinnedVersion ?? "?"}</span>
+        {!site.isDemo && site.noBase ? <span className="text-xs text-white/60">{t.noBaseTag}</span> : null}
         <span className="ml-auto text-xs">
-          {site.status === "clean" ? t.clean : site.status === "kept" ? t.kept : site.status === "conflicts" ? t.conflicts : t.errors}
+          {site.status === "auto"
+            ? t.auto
+            : site.status === "clean"
+              ? t.clean
+              : site.status === "kept"
+                ? t.kept
+                : site.status === "conflicts"
+                  ? t.conflicts
+                  : t.errors}
           {` · ${site.counts.applied}/${site.counts.kept}/${site.counts.conflicts}`}
         </span>
       </button>
@@ -77,21 +86,20 @@ export function DryRunView({ report, lang, stale }: { report: DryRunReport; lang
       <p className="mb-2 text-xs text-white/50">
         {t.dryAt}: {new Date(report.generatedAt).toLocaleString(lang === "es" ? "es-MX" : "en-US")}
       </p>
-      <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.allRow}</p>
-      <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-        <Tile label={t.total} value={s.total} />
+      <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.demosRow}</p>
+      <p className="mb-2 text-xs text-white/60">{t.demosAutoLead}</p>
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        <Tile label={t.total} value={s.demos.total} />
+        <Tile label={t.auto} value={s.demos.auto ?? 0} />
+        <Tile label={t.errors} value={s.demos.errors} tone={s.demos.errors > 0 ? "bad" : undefined} />
+      </div>
+      <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.talentsRow}</p>
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-5">
+        <Tile label={t.total} value={s.total - s.demos.total} />
         <Tile label={t.clean} value={s.clean} />
         <Tile label={t.kept} value={s.kept} tone="warn" />
         <Tile label={t.conflicts} value={s.conflicts} tone={s.conflicts > 0 ? "warn" : undefined} />
-        <Tile label={t.errors} value={s.errors} tone={s.errors > 0 ? "bad" : undefined} />
-      </div>
-      <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.demosRow}</p>
-      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-5">
-        <Tile label={t.total} value={s.demos.total} />
-        <Tile label={t.clean} value={s.demos.clean} />
-        <Tile label={t.kept} value={s.demos.kept} tone="warn" />
-        <Tile label={t.conflicts} value={s.demos.conflicts} tone={s.demos.conflicts > 0 ? "warn" : undefined} />
-        <Tile label={t.errors} value={s.demos.errors} tone={s.demos.errors > 0 ? "bad" : undefined} />
+        <Tile label={t.errors} value={s.errors - s.demos.errors} tone={s.errors - s.demos.errors > 0 ? "bad" : undefined} />
       </div>
       <p className="mb-1 text-xs uppercase tracking-wider text-white/40">{t.drill}</p>
       <ul className="grid gap-1">
