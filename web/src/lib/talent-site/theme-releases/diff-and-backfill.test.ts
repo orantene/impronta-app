@@ -10,7 +10,7 @@ import type { DesignPayload } from "../theme-catalog/types";
 import { classifyTree } from "./classify";
 import { diffDesignPayloads } from "./diff-payload";
 import { mergeDesignUpdate } from "./merge";
-import { UNKNOWN_FP, readOrigin, stripDesignOrigin } from "./origin";
+import { UNKNOWN_FP, readOrigin, stampDesignOrigin, stripDesignOrigin } from "./origin";
 import { stampFromBase } from "./stamp-existing";
 import { addNode, built, edit, plain, prop, rawDesign, type Opts } from "./test-fixtures";
 
@@ -99,6 +99,26 @@ test("backfill: talent-added nodes stay unstamped; removed keys are listed", () 
   assert.deepEqual(stats.missing.sort(), ["faq", "faq/faq"]);
   assert.equal(stats.unmatched, 1);
   assert.equal(readOrigin(tree.at(-1)!), undefined);
+});
+
+test("backfill: same-kind siblings a demo style reordered still match by layer label", () => {
+  const make = (swap: boolean): BuilderNode[] => {
+    const copy = { id: "c", kind: "container", props: { layerLabel: "Hero copy", layout: "stack" }, children: [
+      { id: "h", kind: "heading", props: { text: "{{displayName}}", level: 1 } },
+    ] };
+    const media = { id: "m", kind: "container", props: { layerLabel: "Hero media", layout: "stack" }, children: [
+      { id: "i", kind: "image", props: { src: "{{headshotUrl}}", layerLabel: "Hero photo" } },
+    ] };
+    return [{ id: "s", kind: "container", props: { slotKey: "hero", layout: "row" }, children: swap ? [media, copy] : [copy, media] }] as unknown as BuilderNode[];
+  };
+  const base = stampDesignOrigin(make(false), { design: "maison-v2", version: 1 });
+  const { tree, stats } = stampFromBase(make(true), base);
+  assert.equal(stats.unmatched, 0);
+  assert.equal(stats.missing.length, 0);
+  const kids = (tree[0] as unknown as { children: BuilderNode[] }).children;
+  assert.equal(readOrigin(kids[0]!)?.key, "hero/container#2");
+  assert.equal(readOrigin((kids[0] as unknown as { children: BuilderNode[] }).children[0]!)?.key, "hero/container#2/image");
+  assert.equal(classifyTree(tree).counts.edited, 0);
 });
 
 test("backfill: an unknown base version stamps fp '?' (everything reads edited)", () => {
