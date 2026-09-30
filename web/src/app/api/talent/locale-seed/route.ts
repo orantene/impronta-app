@@ -17,7 +17,7 @@ import {
   seedTalentDashboardLocaleCookie,
 } from "@/i18n/locale-middleware";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
-import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   safeTalentNextPath,
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
@@ -42,11 +42,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const scope = await requireTalentSelf();
   if (!scope.ok) return res;
 
-  const settings = await loadTalentLocaleSettings(scope.talentProfile.id);
+  const { seedPrimary } = await loadTalentLocaleState(scope.talentProfile.id);
+  if (!seedPrimary) return res;
   const target = talentLocaleSeedTarget({
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value ?? null,
     cookieIsAuto: localeCookieIsAutoWritten(request),
-    primary: settings.defaultLocale,
+    primary: seedPrimary,
   });
   if (target) seedTalentDashboardLocaleCookie(res, target);
   return res;
