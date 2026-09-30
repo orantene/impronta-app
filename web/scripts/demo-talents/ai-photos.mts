@@ -269,7 +269,7 @@ function promptFor(plan: Plan, shot: PlannedShot, theme: string, withRef: boolea
     parts.push("No children, babies or minors appear anywhere in the image: show only the setting, objects, adults or the professional's hands.");
   }
   // Screens and paper came out with garbled pseudo-text; keep any such surface unreadable.
-  if (/\b(screen|laptop|monitor|tablet|phone|paper|document|page|notebook|journal|menu|sign|poster|book|chart|form)s?\b/i.test(shot.scene_en)) {
+  if (/\b(screen|laptop|monitor|tablet|phone|paper|document|page|notebook|journal|menu|sign|poster|book|chart|form|whiteboard|board|flipchart|sticky|label|jar|report|plan|audit|slide|presentation|spreadsheet|invoice|contract|resume|letter)s?\b/i.test(shot.scene_en)) {
     parts.push("Any screen, page or paper in the image shows only soft, blurred, unreadable shapes: no words or letters.");
   }
   parts.push(RULES);
