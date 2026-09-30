@@ -432,7 +432,7 @@ export function PublishDrawer() {
 
   // F95b/F104: reset on OPEN only (a pageMetadata dep re-ran it on every refresh,
   // wiping the loaded snapshot to "failed" and success back to idle).
-  const pageMetaRef = useRef(pageMetadata); pageMetaRef.current = pageMetadata;
+  const pageMetaRef = useRef(pageMetadata); useEffect(() => { pageMetaRef.current = pageMetadata; });
   useEffect(() => {
     if (publishOpen) {
       setState({ kind: "idle" });
