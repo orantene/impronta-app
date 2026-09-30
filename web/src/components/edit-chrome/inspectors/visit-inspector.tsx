@@ -20,7 +20,19 @@ type CommitPatch = (patch: Record<string, unknown>) => void;
 const LAYOUT_LABELS: Record<VisitLayout, string> = {
   facts: "Facts",
   split: "Map + facts",
+  location: "Location",
 };
+
+const MAP_SIDES = ["left", "right"] as const;
+const MAP_SIZES = ["sm", "md", "lg"] as const;
+const SIDE_LABELS: Record<(typeof MAP_SIDES)[number], string> = { left: "Map on the left", right: "Map on the right" };
+const SIZE_LABELS: Record<(typeof MAP_SIZES)[number], string> = { sm: "Small map", md: "Medium map", lg: "Large map" };
+
+function choiceClass(on: boolean): string {
+  return on
+    ? "rounded-md border border-stone-800 bg-stone-800 px-2.5 py-1.5 text-[12px] text-white"
+    : "rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-[12px] text-stone-700";
+}
 
 function Section({
   title,
@@ -81,15 +93,17 @@ export function VisitContentInspector({
             onChange={(e) => commitPatch({ title: e.target.value })}
           />
         </div>
-        <div className={KIT.field}>
-          <label className={KIT.label}>Italic accent</label>
-          <input
-            className={KIT.input}
-            value={p.titleAccent ?? VISIT_DEFAULT_PROPS.titleAccent ?? ""}
-            placeholder="visit"
-            onChange={(e) => commitPatch({ titleAccent: e.target.value })}
-          />
-        </div>
+        {layout === "location" ? null : (
+          <div className={KIT.field}>
+            <label className={KIT.label}>Italic accent</label>
+            <input
+              className={KIT.input}
+              value={p.titleAccent ?? VISIT_DEFAULT_PROPS.titleAccent ?? ""}
+              placeholder="visit"
+              onChange={(e) => commitPatch({ titleAccent: e.target.value })}
+            />
+          </div>
+        )}
       </Section>
 
       <Section title="Layout">
@@ -124,6 +138,52 @@ export function VisitContentInspector({
           </span>
         </label>
       </Section>
+
+      {layout === "location" ? (
+        <Section
+          title="Area map"
+          info="Who sees your address, the studio kind, the arrival note and photo come from Services, Defaults. The map area is drawn from your city and neighbourhood."
+        >
+          <div className="flex flex-wrap gap-2">
+            {MAP_SIDES.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={choiceClass((p.mapSide ?? "left") === id)}
+                onClick={() => commitPatch({ mapSide: id })}
+              >
+                {SIDE_LABELS[id]}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {MAP_SIZES.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={choiceClass((p.mapSize ?? "md") === id)}
+                onClick={() => commitPatch({ mapSize: id })}
+              >
+                {SIZE_LABELS[id]}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-start gap-2 text-[13px] text-stone-800">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={p.showMapButton !== false}
+              onChange={(e) => commitPatch({ showMapButton: e.target.checked })}
+            />
+            <span>
+              Show the View map button
+              <span className="mt-0.5 block text-[12px] text-stone-500">
+                Appears once the interactive map is available. Until then only the area drawing shows.
+              </span>
+            </span>
+          </label>
+        </Section>
+      ) : null}
 
       {layout === "split" ? (
         <Section

@@ -418,3 +418,22 @@ test("price unit reads a string or a per-locale map from attributes", () => {
   assert.equal(offeringPriceUnit({}, "es"), null);
   assert.equal(offeringPriceUnit(null, "es"), null);
 });
+
+test("DS-4: nearest alternatives skip the lost start and stay chronological", async () => {
+  const { catalogNearestStarts, catalogTakenSlotMessage } = await import("./catalog-taken-slot");
+  const open = [
+    "2026-09-25T13:00:00.000Z",
+    "2026-09-25T14:00:00.000Z",
+    "2026-09-25T16:00:00.000Z",
+    "2026-09-25T20:00:00.000Z",
+    "2026-09-26T15:00:00.000Z",
+  ];
+  const got = catalogNearestStarts("2026-09-25T15:00:00.000Z", open);
+  assert.deepEqual(got, ["2026-09-25T13:00:00.000Z", "2026-09-25T14:00:00.000Z", "2026-09-25T16:00:00.000Z"]);
+  assert.deepEqual(catalogNearestStarts("2026-09-25T16:00:00.000Z", open).includes("2026-09-25T16:00:00.000Z"), false);
+  assert.deepEqual(catalogNearestStarts(null, open), open.slice(0, 3));
+  assert.deepEqual(catalogNearestStarts(null, []), []);
+  assert.match(catalogTakenSlotMessage({ locale: "es", lostClock: "10:00", serverMessage: "x" }), /^Las 10:00 se acaban de ocupar/);
+  assert.match(catalogTakenSlotMessage({ locale: "en", lostClock: "10:00", serverMessage: "x" }), /^10:00 was just taken/);
+  assert.equal(catalogTakenSlotMessage({ locale: "en", lostClock: null, serverMessage: "x" }), "x");
+});

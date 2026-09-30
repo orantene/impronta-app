@@ -1,0 +1,184 @@
+/**
+ * Slice 2.6 dock: the chat button wears her photo with an online dot and an
+ * unread dot (DK-1), and the toast has the mockup's kinds, timings and look
+ * (TO-1). Rendered in jsdom; the CSS is asserted from source.
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import test, { mock } from "node:test";
+import { fileURLToPath } from "node:url";
+import { JSDOM } from "jsdom";
+
+const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://example.test/" });
+const g = globalThis as Record<string, unknown>;
+g.window = dom.window;
+g.document = dom.window.document;
+Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+g.HTMLElement = dom.window.HTMLElement;
+g.Element = dom.window.Element;
+g.Node = dom.window.Node;
+g.Event = dom.window.Event;
+g.IS_REACT_ACT_ENVIRONMENT = true;
+
+/* eslint-disable import/first -- jsdom globals must exist before react-dom loads */
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { SelectionDock } from "./SelectionDock";
+import { setChatPresence } from "./chat-presence-store";
+import {
+  dockToastHasUndo,
+  dockToastMs,
+  dockToastText,
+  selectionDockCopy,
+  type DockToast,
+} from "./selection-dock-state";
+import { useDockToast } from "./use-dock-toast";
+/* eslint-enable import/first */
+
+const here = dirname(fileURLToPath(import.meta.url));
+const ITEM = { id: "o1", title: "Gel pedicure", imageUrl: null, bits: null, totalCents: 30000, priceLabel: null };
+
+function mountDock(toast: DockToast | null = null) {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() =>
+    root.render(
+      <SelectionDock
+        items={[ITEM]}
+        show
+        locale="es"
+        formatPrice={(c) => `$${c / 100}`}
+        onRemoveFront={() => undefined}
+        onAsk={() => undefined}
+        onContinue={() => undefined}
+        toast={toast}
+        onUndo={() => undefined}
+      />,
+    ),
+  );
+  return {
+    host,
+    unmount() {
+      act(() => root.unmount());
+      host.remove();
+    },
+  };
+}
+
+// ── DK-1 ─────────────────────────────────────────────────────────────────────
+
+test("DK-1 without a live chat the button keeps the generic icon", () => {
+  setChatPresence(null);
+  const { host, unmount } = mountDock();
+  assert.equal(host.querySelector("[data-dock-avatar]"), null);
+  assert.ok(host.querySelector(".cb-dock-ask svg"));
+  unmount();
+});
+
+test("DK-1 with a live chat the button wears her photo, with the online dot", () => {
+  setChatPresence({ photoUrl: "https://example.test/alba.jpg", name: "Alba", unread: false });
+  const { host, unmount } = mountDock();
+  const img = host.querySelector<HTMLImageElement>("[data-dock-avatar]")!;
+  assert.equal(img.getAttribute("src"), "https://example.test/alba.jpg");
+  assert.equal(img.getAttribute("alt"), "", "decorative: the button keeps its own label");
+  assert.equal(host.querySelector(".cb-dock-ask svg"), null);
+  assert.ok(host.querySelector(".cb-dock-ask .cb-dock-dot"), "online dot");
+  assert.equal(host.querySelector("[data-dock-unread]"), null);
+  unmount();
+  setChatPresence(null);
+});
+
+test("DK-1 an unseen reply shows the unread dot, and it follows the chat as it changes", () => {
+  setChatPresence({ photoUrl: null, name: "Alba", unread: true });
+  const { host, unmount } = mountDock();
+  assert.ok(host.querySelector("[data-dock-unread]"));
+  assert.equal(host.querySelector("[data-dock-avatar]"), null, "no photo: the icon stays");
+  act(() => setChatPresence({ photoUrl: null, name: "Alba", unread: false }));
+  assert.equal(host.querySelector("[data-dock-unread]"), null);
+  unmount();
+  setChatPresence(null);
+});
+
+test("DK-1 the launcher publishes presence only while it is mounted", () => {
+  const launcher = readFileSync(join(here, "../../app/t/[profileCode]/_chat/TalentProfileChatLauncher.tsx"), "utf8");
+  assert.match(launcher, /setChatPresence\(\{ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply \}\)/);
+  assert.match(launcher, /return \(\) => setChatPresence\(null\)/);
+});
+
+// ── TO-1 ─────────────────────────────────────────────────────────────────────
+
+test("TO-1 the toast kinds read as the mockup does, in Spanish and English", () => {
+  const es = selectionDockCopy("es");
+  const en = selectionDockCopy("en");
+  assert.equal(dockToastText(es, { kind: "added", name: "Gel" }), "Gel en tu cita");
+  assert.equal(dockToastText(es, { kind: "removed", name: "Gel" }), "Quitaste Gel");
+  assert.equal(dockToastText(en, { kind: "added", name: "Gel" }), "Gel in your booking");
+  assert.equal(dockToastText(en, { kind: "switched", name: "Gel" }), "Switched to Gel");
+  for (const c of [es, en]) for (const k of ["added", "removed", "switched"] as const) assert.doesNotMatch(dockToastText(c, { kind: k, name: "x" }), /—|–/);
+});
+
+test("TO-1 a plain confirmation lasts 2.6s; a toast with Undo lasts 5s", () => {
+  assert.equal(dockToastMs("added"), 2600);
+  assert.equal(dockToastMs("removed"), 5000);
+  assert.equal(dockToastMs("switched"), 5000);
+  assert.equal(dockToastHasUndo("added"), false);
+  assert.equal(dockToastHasUndo("removed"), true);
+});
+
+test("TO-1 only Undo toasts carry the Deshacer button", () => {
+  const added = mountDock({ kind: "added", name: "Gel pedicure" });
+  const toast = added.host.querySelector<HTMLElement>(".cb-dock-toast")!;
+  assert.equal(toast.getAttribute("data-show"), "true");
+  assert.equal(toast.getAttribute("data-kind"), "added");
+  assert.match(toast.textContent ?? "", /Gel pedicure en tu cita/);
+  assert.equal(toast.querySelector("button"), null, "a confirmation has nothing to undo");
+  added.unmount();
+  const removed = mountDock({ kind: "removed", name: "Gel pedicure" });
+  assert.match(removed.host.querySelector(".cb-dock-toast")!.textContent ?? "", /Quitaste Gel pedicure.*Deshacer/);
+  removed.unmount();
+});
+
+test("TO-1 the toast hook hides a confirmation after 2.6s and an Undo toast after 5s", () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    let api!: ReturnType<typeof useDockToast>;
+    const Probe = () => {
+      api = useDockToast();
+      return null;
+    };
+    const host = dom.window.document.createElement("div");
+    dom.window.document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => root.render(<Probe />));
+    act(() => api.showToast({ kind: "added", name: "Gel" }));
+    assert.equal(api.toast?.kind, "added");
+    act(() => mock.timers.tick(2599));
+    assert.ok(api.toast, "still up just before 2.6s");
+    act(() => mock.timers.tick(2));
+    assert.equal(api.toast, null);
+    act(() => api.showToast({ kind: "removed", name: "Gel" }));
+    act(() => mock.timers.tick(4999));
+    assert.ok(api.toast, "an Undo toast stays to 5s");
+    act(() => mock.timers.tick(2));
+    assert.equal(api.toast, null);
+    act(() => root.unmount());
+    host.remove();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("TO-1 look and motion: Maison dark pill radius 14, 84px, rises in .2s; every dock animation honours reduced motion; no hex", () => {
+  const dts = readFileSync(join(here, "../../lib/talent-site/theme-catalog/collection/design-type-system.ts"), "utf8");
+  assert.match(dts, /\.cb-dock-toast\{border-radius:14px;padding:10px 12px 10px 14px;bottom:calc\(84px/);
+  assert.match(dts, /\.cb-dock-toast\{bottom:96px\}/);
+  assert.match(dts, /transition:opacity \.2s ease,transform \.2s ease/);
+  const css = readFileSync(join(here, "catalog-booking-styles.ts"), "utf8");
+  assert.match(css, /prefers-reduced-motion:reduce\)\{\.cb-dock,\.cb-dock \*,\.cb-dock-toast,\.cb-dock-go::after\{transition:none!important;animation:none!important\}\}/);
+  const dockCss = css.slice(css.indexOf("/* AUD-044"));
+  assert.doesNotMatch(dockCss, /#[0-9a-fA-F]{3,8}\b/);
+  assert.match(dockCss, /\.cb-dock-avatar\{/);
+  assert.match(dockCss, /\.cb-dock-unread\{/);
+});

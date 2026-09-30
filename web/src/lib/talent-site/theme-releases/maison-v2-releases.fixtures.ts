@@ -141,9 +141,23 @@ export function revertR19(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 19 = release 2.5), rebuilt from code. */
+/** v20 back to v19: the 2.6 "chrome" header switcher and the optional Location block (the help bubble default is code, gated on the pinned version). */
+export function revertR20(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  walkNodes(out.shellTree, (n) => {
+    const sp = (propsOf(n).sectionProps ?? undefined) as { regions?: { center?: Array<{ type: string }> } } | undefined;
+    if (propsOf(n).sectionTypeKey === "site_header" && sp?.regions?.center) {
+      sp.regions.center = sp.regions.center.filter((i) => i.type !== "section_switcher");
+    }
+  });
+  out.homeTree = out.homeTree.filter((n) => propsOf(n).slotKey !== "location");
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 20) out = revertR20(out);
   if (version < 19) out = revertR19(out);
   if (version < 18) out = revertR18(out);
   if (version < 17) out = revertR17(out);

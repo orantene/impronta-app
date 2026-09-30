@@ -66,6 +66,9 @@ export const CATALOG_BOOKING_CSS = `
 .jb-field input:focus-visible{outline:2px solid var(--cb-primary);outline-offset:1px}
 .jb-field input[aria-invalid="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
 .jb-field em{font-style:normal;font-size:.8125rem;color:var(--cb-primary)}
+.jb-taken{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-surface)}
+.jb-taken p{margin:0;font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
+.jb-taken .jb-times{margin-top:10px}
 .jb-error{margin:0 0 12px;font-size:.875rem;color:var(--cb-primary)}
 .jb-done{text-align:center;padding:8px 0 4px}
 .jb-check{width:60px;height:60px;border-radius:99px;background:var(--cb-soft);color:var(--cb-primary);display:grid;place-items:center;font-size:1.5rem;margin:0 auto 16px}
@@ -135,6 +138,9 @@ export const CATALOG_BOOKING_CSS = `
 .cb-dock-toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:82;background:var(--cb-ink);color:var(--cb-surface);border-radius:999px;padding:9px 8px 9px 16px;font-size:13px;display:flex;gap:10px;align-items:center;opacity:0;pointer-events:none;white-space:nowrap;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);transition:opacity .35s var(--cb-ease,ease),transform .35s cubic-bezier(.2,.9,.25,1.15)}
 .cb-dock-toast[data-show="true"]{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 .cb-dock-toast button{appearance:none;background:color-mix(in srgb,var(--cb-surface) 14%,transparent);color:var(--cb-surface);border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.cb-dock-avatar{width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:50% 25%;display:block}
+.cb-dock-ask:has(.cb-dock-avatar) .cb-dock-dot{top:auto;bottom:1px;right:0;width:11px;height:11px;animation:none}
+.cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}
 @media (min-width:720px){.cb-dock{left:auto;right:32px;bottom:32px;width:min(440px,calc(100vw - 64px))}.cb-dock-toast{bottom:112px}}
 @media (prefers-reduced-motion:reduce){.cb-dock,.cb-dock *,.cb-dock-toast,.cb-dock-go::after{transition:none!important;animation:none!important}}
 `;

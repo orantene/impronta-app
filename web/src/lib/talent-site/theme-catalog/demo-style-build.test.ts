@@ -52,7 +52,7 @@ for (const [code, style] of Object.entries(MAISON_V2_DEMO_STYLES)) {
     const labels = styleTrees(built, style, media, code).homeTree.map((n) => (n.props as { layerLabel?: string }).layerLabel);
     const wanted = style.order.map((k) => MAISON_V2_SECTION_LABELS[k]);
     assert.deepEqual(labels.slice(1, 1 + wanted.length), wanted, "hero first, then the demo's six sections in its own order");
-    // Optional design blocks (Before and after, Aftercare tips) follow the six.
-    assert.deepEqual(labels.slice(1 + wanted.length), ["Before and after", "Aftercare tips"]);
+    // Optional design blocks (Before and after, Aftercare tips, Location) follow the six.
+    assert.deepEqual(labels.slice(1 + wanted.length), ["Before and after", "Aftercare tips", "Location"]);
   });
 }

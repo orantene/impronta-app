@@ -255,10 +255,13 @@ const LAYOUT_PRESETS: ReadonlyArray<PresetSpec> = [
     key: "chat.variant",
     label: "Chat style",
     hint: "Card is the calm one-to-one look Maison v2 uses by default.",
-    options: [
-      { value: "standard", label: "Standard" },
-      { value: "card", label: "Card" },
-    ],
+    options: [{ value: "standard", label: "Standard" }, { value: "card", label: "Card" }],
+  },
+  {
+    key: "chat.help-bubble",
+    label: "Help bubble",
+    hint: "A small bubble above the chat button, once per visit, after the visitor scrolls.",
+    options: [{ value: "off", label: "Off" }, { value: "on", label: "On" }],
   },
 ];
 
@@ -287,12 +290,7 @@ const EFFECT_PRESETS: ReadonlyArray<PresetSpec> = [
   {
     key: "motion.stagger-preset",
     label: "Reveal stagger",
-    options: [
-      { value: "none", label: "None" },
-      { value: "subtle", label: "Subtle" },
-      { value: "editorial", label: "Editorial" },
-      { value: "dramatic", label: "Dramatic" },
-    ],
+    options: [{ value: "none", label: "None" }, { value: "subtle", label: "Subtle" }, { value: "editorial", label: "Editorial" }, { value: "dramatic", label: "Dramatic" }],
   },
 ];
 

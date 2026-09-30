@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -31,6 +31,8 @@ import {
   dockReducer,
 } from "@/components/public-booking/selection-dock-state";
 import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
+import { useChatAddService } from "@/components/public-booking/use-chat-add-service";
+import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
@@ -183,8 +185,7 @@ export function ServicesCatalogFilter({
   const [openAccordion, setOpenAccordion] = useState<string | null>(first);
   // AUD-044 — multi-select dock state (front = first picked).
   const [dock, dispatchDock] = useReducer(dockReducer, EMPTY_DOCK);
-  const [toast, setToast] = useState<{ kind: "removed" | "switched"; name: string } | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { toast, showToast, clearToast } = useDockToast();
   const selectedId = dock.picked[0]?.id ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -249,6 +250,7 @@ export function ServicesCatalogFilter({
       },
     });
     if (switching) showToast({ kind: "switched", name: item.title });
+    else if (!dock.picked.some((p) => p.id === item.id)) showToast({ kind: "added", name: item.title });
     else clearToast();
   };
 
@@ -256,6 +258,14 @@ export function ServicesCatalogFilter({
     const group = groups.find((g) => g.items.some((o) => o.id === id));
     return { group, found: group?.items.find((o) => o.id === id) ?? null };
   };
+
+  // CH-4: the card chat's in-chat service list asks for a service, exactly like
+  // tapping its row (select, or open the sheet when it has options). A service
+  // that is already picked stays as it is.
+  useChatAddService((id) => {
+    const { found } = findOffering(id);
+    if (found && !dock.picked.some((p) => p.id === found.id)) onRowAction(found);
+  });
 
   const continueFromBar = () => {
     const { group, found } = findOffering(selectedId);
@@ -279,17 +289,6 @@ export function ServicesCatalogFilter({
   });
   const dockCurrency = dock.picked[0]?.currency ?? "MXN";
 
-  const clearToast = useCallback(() => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = null;
-    setToast(null);
-  }, []);
-  const showToast = (next: { kind: "removed" | "switched"; name: string }) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(next);
-    toastTimer.current = setTimeout(() => setToast(null), 5000);
-  };
-  useEffect(() => clearToast, [clearToast]);
 
   const removeFront = () => {
     const front = dockItems[0];

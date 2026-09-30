@@ -420,3 +420,102 @@ test("Maison v2 v19 payload: every new option is set, tokens only, no hex", () =
   assert.doesNotMatch(JSON.stringify(maisonV2At(19)), HEX);
   assert.equal(maisonV2At(19).tokenDefaults!["shape.chrome"], "soft");
 });
+
+// ── Release 2.6 (v20, slice "chrome"): header switcher + help bubble default ─
+
+const headerOf = (trees: DesignSide["trees"]) =>
+  trees.shell!.find((n) => propsOf(n).sectionTypeKey === "site_header")!;
+const centerTypes = (trees: DesignSide["trees"]) =>
+  (((propsOf(headerOf(trees)).sectionProps as { regions: { center: Array<{ type: string }> } }).regions.center) ?? []).map(
+    (i) => i.type,
+  );
+
+test("Maison v2 v20 classifies as one header default plus the opt-in Location block (chat and dock ride as code notes)", () => {
+  const items = diff(maisonV2At(19), 19, maisonV2At(20), 20);
+  assert.deepEqual(items.map((i) => i.id).sort(), ["new-block:home:location", "variant-default:shell:header"]);
+  assert.deepEqual(types(items, "variant-default")[0]!.paths, ["sectionProps.regions.center"]);
+  for (const t of ["layout", "critical"]) assert.equal(types(items, t).length, 0, `no ${t} in 2.6`);
+  assertNotesFor(items, 20);
+  // The platform chat and dock changes ride as code notes (EN + ES, no dashes).
+  const rel = authoredRelease("maison-v2", 20)!;
+  assert.ok(rel.codeNotes.length >= 1);
+  for (const n of rel.codeNotes) {
+    assert.ok(n.en && n.es);
+    assert.doesNotMatch(`${n.en} ${n.es}`, /—|–/);
+  }
+});
+
+test("Maison v2 v20: the payload carries the switcher phone-only, and v19 does not", () => {
+  const now = maisonV2At(20);
+  const before = maisonV2At(19);
+  const header = now.shellTree.find((n) => propsOf(n).sectionTypeKey === "site_header")!;
+  const center = (propsOf(header).sectionProps as { regions: { center: Array<Record<string, unknown>> } }).regions.center;
+  const sw = center.find((i) => i.type === "section_switcher")!;
+  assert.deepEqual(sw.responsive, { desktop: "hide", tablet: "hide", mobile: "show" });
+  assert.equal(now.tokenDefaults!["chat.help-bubble"], undefined, "a Design token default must be a site style token");
+  const old = before.shellTree.find((n) => propsOf(n).sectionTypeKey === "site_header")!;
+  const oldCenter = (propsOf(old).sectionProps as { regions: { center: Array<{ type: string }> } }).regions.center;
+  assert.ok(!oldCenter.some((i) => i.type === "section_switcher"));
+});
+
+test("Maison v2 v20 merge: an untouched header gains the switcher; an edited one keeps hers", async () => {
+  const prev = maisonV2At(19);
+  const next = maisonV2At(20);
+  const { base, theirs } = await siteSides(prev, 19, next, 20);
+  const items = diff(prev, 19, next, 20);
+
+  const clean = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items });
+  assert.ok(centerTypes(clean.trees).includes("section_switcher"), "untouched header gets the switcher");
+  assert.equal(clean.report.conflicts.length, 0);
+
+  // She rebuilt her header centre herself: her choice wins, nothing is forced.
+  const ours = siteOf(base);
+  const sp = propsOf(headerOf(ours.trees)).sectionProps as { regions: { center: Array<Record<string, unknown>> } };
+  sp.regions.center = [{ type: "nav" }];
+  const kept = mergeDesignUpdate({ base, ours, theirs, items });
+  assert.ok(!centerTypes(kept.trees).includes("section_switcher"), "her header is kept as she built it");
+  assert.ok(kept.report.kept.some((e) => e.key === "header"));
+});
+
+// ── Location release (v20): one new optional block, its own separable notes ──
+
+async function v20Site() {
+  const prev = maisonV2At(19);
+  const next = maisonV2At(20);
+  const { base, theirs } = await siteSides(prev, 19, next, 20);
+  const items = withAuthoredNotes(diff(prev, 19, next, 20), authoredRelease("maison-v2", 20)!);
+  return { base, theirs, items };
+}
+
+test("Maison v2 v20 (location) adds exactly one new block and no other token or layout change", () => {
+  const items = diff(maisonV2At(19), 19, maisonV2At(20), 20);
+  assert.ok(items.some((i) => i.id === "new-block:home:location"));
+  assert.equal(types(items, "new-block")[0]!.key, "home:location");
+  assert.ok(!items.some((i) => i.key.startsWith("home:location/")), "children ride with the block");
+  for (const t of ["token-default", "layout", "critical", "code"]) {
+    assert.equal(types(items, t).length, 0, `no ${t} in the location release`);
+  }
+  assertNotesFor(items, 20);
+});
+
+test("Maison v2 v20: the Location block is opt-in and carries no place or address", async () => {
+  const { base, theirs, items } = await v20Site();
+  assert.ok(!slotOrder(base.trees.home!).includes("location"));
+
+  const none = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: [] });
+  assert.ok(!slotOrder(none.trees.home!).includes("location"), "nothing chosen, nothing added");
+
+  const chosen = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items });
+  const order = slotOrder(chosen.trees.home!);
+  assert.ok(order.includes("location"));
+  assert.ok(order.indexOf("visit") < order.indexOf("location"), "Location follows Visit");
+  assert.ok(chosen.report.added.some((e) => e.key === "location"));
+
+  // The block is the shared widget in its location layout, with no data baked in.
+  const block = findBySlot(chosen.trees.home as never, "location")!;
+  const visit = findByKind([block], "visit")!;
+  assert.equal(propsOf(visit).layout, "location");
+  const json = JSON.stringify(block);
+  assert.doesNotMatch(json, /Mérida|Calle|Ejemplo|exactAddress|exact_address/);
+  assert.doesNotMatch(json, HEX);
+});

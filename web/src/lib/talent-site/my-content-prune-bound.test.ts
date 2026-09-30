@@ -64,6 +64,24 @@ test("My content prune hides an empty visit and an empty FAQ too", () => {
   assert.equal(find(out, (n) => n.kind === "visit").length, 0);
 });
 
+test("the Location section follows the location settings, not the visit facts", () => {
+  const tree = buildMaisonV2Payload().homeTree;
+  const isLocation = (n: BuilderNode) => n.kind === "visit" && (n.props as { layout?: string }).layout === "location";
+  assert.equal(find(tree, isLocation).length, 1);
+  const loc = { addressMode: "zone_only", studioKind: "studio", city: "Mérida", neighbourhood: "", arrivalNote: "", arrivalPhotoUrl: "" };
+  // Facts but no zone: the location band goes, the facts band stays.
+  const noZone = pruneEmptyBoundSections(
+    tree,
+    ds({ talentFaqItems: [], talentVisitFacts: [{ label: "Where", value: "CDMX", icon: "place" }] }),
+  );
+  assert.equal(find(noZone, isLocation).length, 0);
+  assert.equal(find(noZone, (n) => n.kind === "visit").length, 1);
+  // A zone and no facts: the location band stays, the facts band goes.
+  const zoneOnly = pruneEmptyBoundSections(tree, ds({ talentFaqItems: [], talentVisitFacts: [], talentLocation: loc }));
+  assert.equal(find(zoneOnly, isLocation).length, 1);
+  assert.equal(find(zoneOnly, (n) => n.kind === "visit").length, 1);
+});
+
 test("the Maison v2 ticker binds services, not the trade", () => {
   const tree = buildMaisonV2Payload().homeTree;
   const ticker = find(tree, (n) => n.kind === "marquee")[0]!;

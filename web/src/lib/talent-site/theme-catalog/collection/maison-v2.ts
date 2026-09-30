@@ -36,6 +36,7 @@ import {
   beforeAfterBlock,
   faqBlock,
   heroSplit,
+  locationBlock,
   portfolioBlock,
   reviewsBlock,
   visitBlock,
@@ -625,9 +626,14 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
       // the section links hide there and no burger is drawn. Editable per item.
       regions: {
         ...regions,
-        center: (Array.isArray(regions.center) ? (regions.center as Props[]) : []).map((item) =>
-          item.type === "nav" ? { ...item, responsive: { ...((item.responsive as Props) ?? {}), mobile: "hide" } } : item,
-        ),
+        center: [
+          ...(Array.isArray(regions.center) ? (regions.center as Props[]) : []).map((item) =>
+            item.type === "nav" ? { ...item, responsive: { ...((item.responsive as Props) ?? {}), mobile: "hide" } } : item,
+          ),
+          // Release 2.6 (H-4): the phone section switcher replaces the hidden links.
+          // It reads the same menu links, so there is one list to edit.
+          { type: "section_switcher", responsive: { desktop: "hide", tablet: "hide", mobile: "show" } },
+        ],
         right,
       },
     },
@@ -692,6 +698,8 @@ export function buildMaisonV2Payload(): DesignPayload {
           band: false,
         }),
       ),
+      // Release 2.5 (optional block): Location, driven by the talent's address setting.
+      padSection(locationBlock(id, { band: false })),
       maisonV2Faq(id),
     ],
   };

@@ -272,3 +272,44 @@ export const MAISON_V2_RELEASE_2_5 = {
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 2.6 (v19 to v20, slice "chrome"): defaults only, nothing new to
+ * place. The header gets a phone section switcher (only if the header has not
+ * been edited), and the once-per-visit help bubble turns on (only if the
+ * talent has not set it herself). Chat and dock improvements ship as platform
+ * code for every design: the context card with quick questions, the way back
+ * to the booking, services inside the chat, the dock photo and the toasts.
+ */
+export const MAISON_V2_RELEASE_2_6 = {
+  design: "maison-v2",
+  toVersion: 20,
+  notes: {
+    en: "Maison v2 2.6: on phones, a section switcher in the header; a small help bubble above the chat button; a richer chat that keeps your booking one tap away; and a new optional Location section (your address stays private unless you choose to show it).",
+    es: "Maison v2 2.6: en teléfonos, un selector de secciones en el encabezado; una burbuja de ayuda sobre el botón del chat; un chat más completo que mantiene tu reserva a un toque; y una nueva sección opcional de Ubicación (tu dirección sigue privada a menos que elijas mostrarla).",
+  } satisfies ReleaseNote,
+  codeNotes: [
+    {
+      en: "Chat: a card for the service you are asking about with three quick questions, a Back to my booking button, and your services inside the chat.",
+      es: "Chat: una tarjeta del servicio por el que preguntas con tres preguntas rápidas, un botón Volver a mi reserva y tus servicios dentro del chat.",
+    },
+    {
+      en: "A small help bubble appears above the chat button once per visit, after a visitor scrolls. It turns on when you apply this update; you can switch it off in the theme panel.",
+      es: "Aparece una burbuja de ayuda pequeña sobre el botón del chat, una vez por visita, cuando la persona hace scroll. Se activa al aplicar esta actualización; puedes apagarla en el panel del tema.",
+    },
+    {
+      en: "The booking bar shows your photo on the chat button, and its notices are clearer. If a time is taken while booking, you see it on the time step with three times that still fit.",
+      es: "La barra de reserva muestra tu foto en el botón del chat y sus avisos son más claros. Si un horario se ocupa mientras reservas, lo ves en el paso de la hora con tres horarios que sí caben.",
+    },
+  ] satisfies ReleaseNote[],
+  byItemId: {
+    "variant-default:shell:header": {
+      en: "On phones, your header shows the current section with a menu of every section (only if you have not edited your header).",
+      es: "En teléfonos, tu encabezado muestra la sección actual con un menú de todas las secciones (solo si no editaste tu encabezado).",
+    },
+    "new-block:home:location": {
+      en: "New optional block: Location. It shows your zone, hours and how to arrive, and follows the address setting in Services, Defaults (zone only, exact address after booking, or public).",
+      es: "Nuevo bloque opcional: Ubicación. Muestra tu zona, tu horario y cómo llegar, y sigue el ajuste de dirección en Servicios, Valores predeterminados (solo la zona, dirección exacta al reservar, o pública).",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;

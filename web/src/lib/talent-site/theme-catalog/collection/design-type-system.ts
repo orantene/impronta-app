@@ -203,6 +203,11 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .cb-island .cb-dock-go{height:${v("button.height")};border-radius:${v("button.radius")};padding:0 ${v("button.padding-x")};background:${ACCENT};font-weight:${v("button.font-weight")}}`,
   `${S} .cb-island .cb-dock-go::after,${S} .cb-island .cb-dock-arr{display:none}`,
   `${MQ_DESK}{${S} .cb-island .cb-dock{left:50%;right:auto;transform:translateX(-50%);width:560px;bottom:22px}}`,
+  // Chat button wears her photo (DK-1); the avatar fills the round button.
+  `${S} .cb-island .cb-dock-ask:has(.cb-dock-avatar){padding:0;border:0}`,
+  // Toast (TO-1): dark pill, radius 14, 10/12/10/14 padding, rises in .2s; sits above the dock.
+  `${S} .cb-island .cb-dock-toast{border-radius:14px;padding:10px 12px 10px 14px;bottom:calc(84px + env(safe-area-inset-bottom));transition:opacity .2s ease,transform .2s ease}`,
+  `${MQ_DESK}{${S} .cb-island .cb-dock-toast{bottom:96px}}`,
 
   // Section rhythm on desktop: display titles and subtitles.
   `${MQ_DESK}{${S} h2{font-size:${v("type.section-title-size-desktop")}}${S} :is(${TITLE_HOOKS}){font-size:${v("type.section-title-size-desktop")}}${S} .site-builder-node--services-catalog-subtitle{font-size:${v("type.body-size")}}}`,

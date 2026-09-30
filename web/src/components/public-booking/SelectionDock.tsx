@@ -10,7 +10,16 @@
  * floating control. Styles live in catalog-booking-styles (`.cb-dock*`).
  */
 
-import { selectionDockCopy, dockSummary } from "./selection-dock-state";
+import { useSyncExternalStore } from "react";
+
+import { peekChatPresence, subscribeChatPresence } from "./chat-presence-store";
+import {
+  dockSummary,
+  dockToastHasUndo,
+  dockToastText,
+  selectionDockCopy,
+  type DockToast,
+} from "./selection-dock-state";
 
 export type SelectionDockItem = {
   id: string;
@@ -57,11 +66,13 @@ export function SelectionDock({
   onRemoveFront: () => void;
   onAsk: () => void;
   onContinue: () => void;
-  /** The 5s Undo toast: a ✕-remove or a single-select switch, else null. */
-  toast: { kind: "removed" | "switched"; name: string } | null;
+  /** TO-1: the toast to show (added, updated, removed, switched), else null. */
+  toast: DockToast | null;
   onUndo: () => void;
 }) {
   const copy = selectionDockCopy(locale);
+  // DK-1: the chat button wears her photo when the chat is live on this page.
+  const presence = useSyncExternalStore(subscribeChatPresence, peekChatPresence, () => null);
   const front = items[0] ?? null;
   const { name, line } = dockSummary(items, locale, formatPrice);
   const thumbs = items
@@ -115,22 +126,28 @@ export function SelectionDock({
           aria-label={items.length > 1 ? copy.askMany : copy.ask}
           onClick={onAsk}
         >
-          <ChatIcon size={20} />
+          {presence?.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- tenant avatar URL, small
+            <img src={presence.photoUrl} alt="" className="cb-dock-avatar" data-dock-avatar="" />
+          ) : (
+            <ChatIcon size={20} />
+          )}
           <span className="cb-dock-dot" aria-hidden />
+          {presence?.unread ? <span className="cb-dock-unread" data-dock-unread="" aria-hidden /> : null}
         </button>
         <button type="button" className="cb-dock-go" onClick={onContinue}>
           {copy.continueLabel} <span className="cb-dock-arr" aria-hidden>→</span>
         </button>
       </div>
-      <div className="cb-dock-toast" role="status" data-show={toast ? "true" : "false"}>
+      <div className="cb-dock-toast" role="status" data-show={toast ? "true" : "false"} data-kind={toast?.kind}>
         {toast ? (
           <>
-            <span>
-              {toast.kind === "switched" ? copy.switched(toast.name) : copy.removed(toast.name)}
-            </span>
-            <button type="button" onClick={onUndo}>
-              {copy.undo}
-            </button>
+            <span>{dockToastText(copy, toast)}</span>
+            {dockToastHasUndo(toast.kind) ? (
+              <button type="button" onClick={onUndo}>
+                {copy.undo}
+              </button>
+            ) : null}
           </>
         ) : null}
       </div>

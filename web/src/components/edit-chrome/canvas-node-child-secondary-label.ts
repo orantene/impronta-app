@@ -92,7 +92,9 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
     case "reviews":
       return "Reviews · your client quotes";
     case "visit":
-      return "Visit · areas, days, languages";
+      return node.props.layout === "location"
+        ? "Location · zone, hours, how to arrive"
+        : "Visit · areas, days, languages";
     case "contents":
       return "Contents · chapter index";
     case "masthead":

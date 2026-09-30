@@ -156,7 +156,8 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
         children?: unknown;
       };
       if (node.kind === "split" && node.props?.slotKey === "about") aboutIsSplit = true;
-      if (node.kind === "visit") visitLayout = String(node.props?.layout ?? "");
+      // The optional Location block (2.5) is also a `visit`; this pin is about the facts one.
+      if (node.kind === "visit" && node.props?.layout !== "location") visitLayout = String(node.props?.layout ?? "");
       if (
         node.kind === "accordion" &&
         node.props?.bindSource === "talent_faq_items"

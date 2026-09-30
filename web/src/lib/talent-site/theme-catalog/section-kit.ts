@@ -49,6 +49,7 @@ export const TALENT_KIT_SECTIONS = {
   statement_footer: { slotKey: "statement_footer", originRole: "talent.statement_footer" },
   before_after: { slotKey: "before_after", originRole: "talent.before_after" },
   aftercare: { slotKey: "aftercare", originRole: "talent.aftercare" },
+  location: { slotKey: "location", originRole: "talent.location" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -742,6 +743,7 @@ export {
 } from "./section-kit-bands";
 export { beforeAfterBlock } from "./section-kit-before-after";
 export { aftercareBlock } from "./section-kit-aftercare";
+export { locationBlock } from "./section-kit-location";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

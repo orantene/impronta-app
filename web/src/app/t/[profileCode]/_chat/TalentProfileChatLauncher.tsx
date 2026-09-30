@@ -37,6 +37,8 @@ import {
 import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
 
+import { setChatPresence } from "@/components/public-booking/chat-presence-store";
+import { ChatHelpBubble } from "./ChatHelpBubble";
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherProjectPicker } from "./LauncherProjectPicker";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -68,6 +70,8 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
   /** `chat.variant` = card (her own site): the one-to-one chat card. */
   chatCard?: ChatCardConfig | null;
+  /** `chat.help-bubble` = on: the once-per-visit help bubble above the button (DK-3). */
+  helpBubble?: boolean;
   /**
    * Phase 3 — lifecycle inputs for the resolver-driven pill label, resolved
    * server-side at the Mount seam (from getActiveGuestInquiry +
@@ -141,6 +145,7 @@ export function TalentProfileChatLauncher({
   openFullHref = null,
   surfaceMode = "light",
   chatCard = null,
+  helpBubble = false,
   activePhase = null,
   activeStatus = null,
   coordinatorId = null,
@@ -521,6 +526,14 @@ export function TalentProfileChatLauncher({
     narrowLauncher,
   );
 
+  // DK-1: publish her photo + unread state for the catalog dock's chat button.
+  // Mounted only when chat is on and inquiries are open, so the dot is honest.
+  const presencePhoto = brand.photoUrl ?? null;
+  useEffect(() => {
+    setChatPresence({ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply });
+    return () => setChatPresence(null);
+  }, [presencePhoto, talentFirst, unseenAgencyReply]);
+
   if (!mounted) return null;
 
   // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
@@ -634,6 +647,19 @@ export function TalentProfileChatLauncher({
               />
             </div>
           )}
+
+        {/* DK-3: once-per-visit help bubble above the button (site token, off by default). */}
+        {helpBubble && !open ? (
+          <ChatHelpBubble
+            profileCode={talentProfileCode}
+            name={talentFirst}
+            photoUrl={presencePhoto}
+            t={t}
+            chatOpen={open}
+            dockUp={selectionDockUp}
+            onOpenChat={() => setOpen(true)}
+          />
+        ) : null}
 
         {/* While the panel is open the round launcher is hidden. The client
             closes with the X in the panel corner, on phone and desktop. */}

@@ -11,6 +11,8 @@ import { parseWeeklyHours, type WeekdayIndex } from "@/lib/scheduling/hours-type
 import { recurringFromAvailabilityData, weeklyFromAvailabilityPattern } from "@/lib/scheduling/pattern-hours";
 import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 
+import { parseLocationSettings, toPublicLocation, type TalentLocationPublic } from "@/lib/talent/location-settings";
+
 import type { TalentVisitFact, TalentVisitFacts } from "./visit-types";
 
 const DAY_ORDER: readonly WeekdayIndex[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
@@ -102,13 +104,13 @@ function openDaysFromWeekly(raw: unknown): WeekdayIndex[] {
 export async function loadVisitSources(
   talentProfileId: string,
   locale = "en",
-): Promise<{ talentVisitFacts: TalentVisitFact[] }> {
+): Promise<{ talentVisitFacts: TalentVisitFact[]; talentLocation?: TalentLocationPublic | null }> {
   if (!talentProfileId) return { talentVisitFacts: [] };
   const admin = createServiceRoleClient();
   if (!admin) return { talentVisitFacts: [] };
 
   try {
-    const [areasRes, langsRes, hoursRes, cancelRes, profileRes] = await Promise.all([
+    const [areasRes, langsRes, hoursRes, cancelRes, profileRes, locationRes] = await Promise.all([
       admin
         .from("talent_service_areas")
         .select("service_kind, city, locations ( display_name_i18n )")
@@ -136,7 +138,15 @@ export async function loadVisitSources(
         .select("home_city_text, availability_data")
         .eq("id", talentProfileId)
         .maybeSingle(),
+      // Location settings (Services > Defaults). The private address rides in
+      // this row, so it is passed ONLY through `toPublicLocation` below.
+      admin
+        .from("talent_location_settings")
+        .select("address_mode, studio_kind, zone_neighbourhood, arrival_note, arrival_photo_url, exact_address")
+        .eq("talent_profile_id", talentProfileId)
+        .maybeSingle(),
     ]);
+    if (locationRes.error) logServerError("visit.loadLocationSettings", locationRes.error);
 
     if (areasRes.error) logServerError("visit.loadServiceAreas", areasRes.error);
     if (langsRes.error) logServerError("visit.loadLanguages", langsRes.error);
@@ -160,12 +170,26 @@ export async function loadVisitSources(
 
     const base = areas.find((a) => a.service_kind === "home_base");
     const baseName = (base ? placeName(base, locale) : null) ?? cityLabelFromPlaceText(profile?.home_city_text);
+    const locationSettings = parseLocationSettings(locationRes.data ?? null);
+    const talentLocation = toPublicLocation(locationSettings, baseName ?? "");
+    // The note follows the talent's address setting (it used to always promise
+    // the address at confirmation, which is only one of the three modes).
+    const whereNote =
+      locationSettings.addressMode === "after_booking"
+        ? es
+          ? "La dirección exacta llega al confirmar."
+          : "The exact address comes with your confirmation."
+        : locationSettings.addressMode === "zone_only"
+          ? es
+            ? "Solo se muestra la zona."
+            : "Only the area is shown."
+          : undefined;
     if (baseName) {
       facts.push({
         label: es ? "Dónde" : "Where",
         value: baseName,
         icon: "place",
-        note: es ? "La dirección exacta llega al confirmar." : "The exact address comes with your confirmation.",
+        ...(whereNote ? { note: whereNote } : {}),
       });
     }
 
@@ -222,7 +246,7 @@ export async function loadVisitSources(
       });
     }
 
-    return { talentVisitFacts: facts };
+    return { talentVisitFacts: facts, talentLocation };
   } catch (err) {
     logServerError("visit.loadVisitSources", err);
     return { talentVisitFacts: [] };

@@ -87,6 +87,9 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Brand colors": "Colores de marca",
   "Border color": "Color del borde",
   "Page background": "Fondo de la página",
+  "Help bubble": "Burbuja de ayuda",
+  "A small bubble above the chat button, once per visit, after the visitor scrolls.":
+    "Una burbuja pequeña sobre el botón del chat, una vez por visita, cuando la persona hace scroll.",
   "Background & Surface": "Fondo y superficie",
   Surface: "Superficie",
   "Surface band": "Franja de superficie",
