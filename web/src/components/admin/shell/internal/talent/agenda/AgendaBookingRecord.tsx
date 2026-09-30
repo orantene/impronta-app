@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { ConfirmDialog, MoreMenu, initialsFor, type MoreMenuAction } from "./AgendaRecordParts";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
@@ -87,6 +87,12 @@ export function AgendaBookingRecord({
     paymentState: item.paymentState,
     started: noShowReady,
   });
+  // F44: Money → Record payment lands here with ?collect=1 and opens Finish and collect.
+  useEffect(() => {
+    if (!show.finishCollect) return;
+    if (new URLSearchParams(window.location.search).get("collect") !== "1") return;
+    setShowFinish(true);
+  }, [show.finishCollect]);
 
   // ── No-show ──────────────────────────────────────────────────────
   function handleNoShow() {
