@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
+import { blankComments } from "../quality/supabase-unchecked-read";
 import { policyFakeAdmin, type Store } from "../talent-policies/__fixtures__/policy-fake-admin";
 import { loadBookingCancelPolicy } from "./booking-cancel-policy";
 import { refundableCentsFromPolicy } from "./cancel-booking";
@@ -68,8 +69,8 @@ test("window: no order means no window and the old behaviour", async () => {
 
 test("the manage link and the cancel engine read the SAME loader", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-  const manage = readFileSync(join(root, "app", "(public)", "manage", "[token]", "page.tsx"), "utf8");
-  const engine = readFileSync(join(root, "lib", "scheduling", "cancel-booking.ts"), "utf8");
+  const manage = blankComments(readFileSync(join(root, "app", "(public)", "manage", "[token]", "page.tsx"), "utf8"));
+  const engine = blankComments(readFileSync(join(root, "lib", "scheduling", "cancel-booking.ts"), "utf8"));
   for (const src of [manage, engine]) {
     assert.ok(src.includes("loadBookingCancelPolicy"), "uses the shared loader");
     assert.ok(!src.includes("readPolicyOverride"), "does not read the overrides table on its own");
