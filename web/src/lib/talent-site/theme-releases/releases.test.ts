@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildDraftReleaseRow, clampRolloutPct, isMissingTable } from "./releases.server";
+import { buildDraftReleaseRow, clampRolloutPct, isMissingTable, shouldCreateDraftRelease } from "./releases.server";
 import { planReleaseDrafts } from "../theme-catalog/sync-builtins.server";
 
 const SQL = readFileSync(
@@ -75,4 +75,9 @@ test("migration: RLS on, no anon grant, no WITH CHECK (true), additive", () => {
   assert.match(SQL, /theme_token_origin jsonb/);
   assert.match(SQL, /state IN \('previewed', 'dismissed'\)/);
   assert.match(SQL, /GRANT UPDATE \(state, updated_at\)/);
+});
+
+test("the sync creates no release for an empty diff", () => {
+  assert.equal(shouldCreateDraftRelease([]), false);
+  assert.equal(shouldCreateDraftRelease([{ type: "code", key: "code:1" }]), true);
 });

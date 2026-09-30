@@ -251,6 +251,7 @@ export function makeSiteMerge(admin: SupabaseClient): MergeFn {
         locale: null,
         pinnedVersion: ctx.pinnedVersion,
         isDemo: false,
+        published: false,
       },
       items,
       makeBaseResolver(admin, release),

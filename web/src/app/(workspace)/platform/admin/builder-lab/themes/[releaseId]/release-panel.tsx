@@ -14,6 +14,7 @@ import {
   actionSetRollout,
 } from "../actions";
 import { COPY, type Lang } from "../copy";
+import { ConfirmDialog } from "./confirm-dialog";
 import { DryRunView } from "./dry-run-view";
 
 interface Props {
@@ -38,6 +39,7 @@ const btn =
 export function ReleasePanel({ lang, release, report: initialReport }: Props) {
   const t = COPY[lang];
   const [items, setItems] = useState<ReleaseItem[]>(release.items);
+  const [pendingGo, setPendingGo] = useState<{ target: ReleaseChannel; message: string } | null>(null);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [notes, setNotes] = useState(release.notes);
   const [notesDirty, setNotesDirty] = useState(false);
@@ -109,8 +111,12 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
     );
   }
 
-  function go(target: ReleaseChannel, confirmText: string) {
-    if (!window.confirm(confirmText)) return;
+  function ask(target: ReleaseChannel, message: string) {
+    setPendingGo({ target, message });
+  }
+
+  function go(target: ReleaseChannel) {
+    setPendingGo(null);
     run(
       () => actionChangeChannel(release.id, target),
       (d) => {
@@ -128,6 +134,14 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
 
   return (
     <div className="grid gap-8">
+      <ConfirmDialog
+        open={pendingGo !== null}
+        message={pendingGo?.message ?? ""}
+        confirmLabel={t.confirmYes}
+        cancelLabel={t.confirmCancel}
+        onConfirm={() => pendingGo && go(pendingGo.target)}
+        onCancel={() => setPendingGo(null)}
+      />
       {msg ? (
         <p role="status" className="rounded border border-white/20 bg-white/10 px-3 py-2 text-sm">
           {msg}
@@ -236,13 +250,13 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
           <span className="text-white/50">{t.status[status]}</span>
         </p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={btn} disabled={!canMove("demos")} onClick={() => go("demos", t.confirmDemos)}>
+          <button type="button" className={btn} disabled={!canMove("demos")} onClick={() => ask("demos", t.confirmDemos)}>
             {t.toDemos}
           </button>
-          <button type="button" className={btn} disabled={!canMove("optin")} onClick={() => go("optin", t.confirmOptin)}>
+          <button type="button" className={btn} disabled={!canMove("optin")} onClick={() => ask("optin", t.confirmOptin)}>
             {t.toOptin}
           </button>
-          <button type="button" className={btn} disabled={!canMove("default")} onClick={() => go("default", t.confirmDefault)}>
+          <button type="button" className={btn} disabled={!canMove("default")} onClick={() => ask("default", t.confirmDefault)}>
             {t.toDefault}
           </button>
           <button

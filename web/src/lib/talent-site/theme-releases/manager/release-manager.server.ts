@@ -7,8 +7,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { flipCatalogToRelease, loadReleaseDesign } from "../release-design.server";
-import { publishDemoSite } from "@/lib/talent-site/server/demo-pipeline.server";
-import { isDemoAccount } from "@/lib/talent-site/theme-catalog/demo-account";
+import { publishDemoSite, reapplyDemoDesignAtVersion } from "@/lib/talent-site/server/demo-pipeline.server";
 import { THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import { isMissingTable, listReleases, setChannel, setRollout } from "../releases.server";
 import type { ReleaseChannel, ThemeRelease } from "../types";
@@ -21,6 +20,7 @@ import {
   type DryRunReport,
   type SiteDryRunResult,
 } from "./dry-run";
+import { applyDemosWithPorts, talentSitesOnly } from "./demos";
 import { fanOutWithPorts } from "./fan-out";
 import type { BellRow, UpdateRow } from "./notify";
 import { makeBaseResolver } from "./base-resolver.server";
@@ -28,7 +28,6 @@ import { mergeSite, writeMergedDraft, type SiteRef } from "./merge-site.server";
 import { runAutoImprove } from "../talent-update/auto-improve.server";
 import { makeSiteMerge } from "../talent-update/talent-update.server";
 
-const DEMO_CODES = new Set(THEME_DEMOS.map((d) => d.profileCode));
 const CHUNK = 100;
 
 export interface DesignOverview {
@@ -101,21 +100,21 @@ export async function loadRelease(admin: SupabaseClient, id: string): Promise<Th
   return (data as ThemeRelease | null) ?? null;
 }
 
-/** Every site on a design, demos verified by the demo markers (never is_test_account). */
+/** Every site on a design. Demo = `talent_profiles.is_demo = true` (never is_test_account). */
 export async function collectSites(admin: SupabaseClient, designSlug: string): Promise<SiteRef[]> {
   const { data: sites, error } = await admin
     .from("talent_sites")
-    .select("id, talent_profile_id, theme_design_version")
+    .select("id, talent_profile_id, theme_design_version, site_published_at")
     .eq("theme_design_slug", designSlug);
   // Throws: an empty list would read as "no sites" in a dry run or a fan-out.
   if (error) throw new Error(`sites: ${error.message}`);
   const rows = sites ?? [];
-  const profiles = new Map<string, { code: string; userId: string; name: string; locale: string | null }>();
+  const profiles = new Map<string, { code: string; userId: string; name: string; locale: string | null; isDemo: boolean }>();
   for (let i = 0; i < rows.length; i += CHUNK) {
     const ids = rows.slice(i, i + CHUNK).map((r) => r.talent_profile_id as string);
     const { data, error: pErr } = await admin
       .from("talent_profiles")
-      .select("id, profile_code, user_id, display_name, preferred_locale")
+      .select("id, profile_code, user_id, display_name, preferred_locale, is_demo")
       .in("id", ids)
       .is("deleted_at", null);
     if (pErr) throw new Error(`profiles: ${pErr.message}`);
@@ -125,6 +124,7 @@ export async function collectSites(admin: SupabaseClient, designSlug: string): P
         userId: p.user_id as string,
         name: (p.display_name as string | null) ?? (p.profile_code as string),
         locale: (p.preferred_locale as string | null) ?? null,
+        isDemo: p.is_demo === true,
       });
     }
   }
@@ -132,12 +132,6 @@ export async function collectSites(admin: SupabaseClient, designSlug: string): P
   for (const s of rows) {
     const p = profiles.get(s.talent_profile_id as string);
     if (!p) continue;
-    let isDemo = false;
-    if (DEMO_CODES.has(p.code)) {
-      const { data: u, error: uErr } = await admin.auth.admin.getUserById(p.userId);
-      if (uErr) throw new Error(`demo check ${p.code}: ${uErr.message}`);
-      isDemo = isDemoAccount(u.user?.email, u.user?.app_metadata?.demo_batch);
-    }
     refs.push({
       siteId: s.id as string,
       talentProfileId: s.talent_profile_id as string,
@@ -146,7 +140,8 @@ export async function collectSites(admin: SupabaseClient, designSlug: string): P
       displayName: p.name,
       locale: p.locale,
       pinnedVersion: typeof s.theme_design_version === "number" ? s.theme_design_version : null,
-      isDemo,
+      isDemo: p.isDemo,
+      published: Boolean(s.site_published_at),
     });
   }
   return orderDemosFirst(refs);
@@ -191,43 +186,62 @@ export async function runDryRun(
   return { ok: true, report };
 }
 
-/** Re-apply the design at the release version to every DEMO site, through the merge. */
+/**
+ * "Publish to demos": EVERY site on the design whose profile is a demo
+ * (`is_demo = true`), whatever its pinned version. Exact base: the merge.
+ * No exact base: the full design re-applied (demo content and seeded style
+ * kept). Live demos are then published and revalidated.
+ */
 async function applyToDemos(
   admin: SupabaseClient,
   release: ThemeRelease,
 ): Promise<{ ok: true; applied: number; warnings: string[] } | { ok: false; error: string }> {
   const design = await loadReleaseDesign(admin, release);
   if (!design) return { ok: false, error: "Design not found in the catalog." };
-  const warnings: string[] = [];
-  const demos = (await collectSites(admin, release.design_slug)).filter((s) => s.isDemo);
+  const liveCodes = new Set(THEME_DEMOS.filter((d) => d.live).map((d) => d.profileCode));
+  const sites = (await collectSites(admin, release.design_slug)).map((s) => ({
+    ...s,
+    live: liveCodes.has(s.profileCode) || s.published,
+  }));
   const resolveBase = makeBaseResolver(admin, release);
-  const live = new Set(THEME_DEMOS.filter((d) => d.live).map((d) => d.profileCode));
-  let applied = 0;
-  const failures: string[] = [];
-  for (const site of demos) {
-    if ((site.pinnedVersion ?? 0) >= release.to_version) continue;
-    try {
-      // Whole update (no item filter): demos take everything the merge allows.
-      const m = await mergeSite(admin, release, design, site, undefined, resolveBase);
-      if (!m.ok) throw new Error(m.error);
-      await writeMergedDraft(admin, site, m.homePageId, m.result, design, release.to_version);
-      if (live.has(site.profileCode)) {
-        const pub = await publishDemoSite(admin, {
+  const r = await applyDemosWithPorts(
+    {
+      merge: async (site) => {
+        // Whole update (no item filter): demos take everything the merge allows.
+        const m = await mergeSite(admin, release, design, site, undefined, resolveBase);
+        if (!m.ok) return m;
+        return {
+          ok: true,
+          noBase: m.noBase,
+          write: () => writeMergedDraft(admin, site, m.homePageId, m.result, design, release.to_version),
+        };
+      },
+      reapply: (site) =>
+        reapplyDemoDesignAtVersion(
+          admin,
+          {
+            siteId: site.siteId,
+            talentProfileId: site.talentProfileId,
+            profileCode: site.profileCode,
+            userId: site.userId,
+            displayName: site.displayName,
+          },
+          design,
+        ),
+      publish: (site) =>
+        publishDemoSite(admin, {
           siteId: site.siteId,
           talentProfileId: site.talentProfileId,
           profileCode: site.profileCode,
           userId: site.userId,
-        });
-        if (pub.warning) warnings.push(pub.warning);
-      }
-      applied += 1;
-    } catch (err) {
-      logServerError("themeReleaseManager.demo", err);
-      failures.push(`${site.profileCode}: ${err instanceof Error ? err.message : "failed"}`);
-    }
-  }
-  if (failures.length > 0) return { ok: false, error: failures.join(" | ") };
-  return { ok: true, applied, warnings };
+        }),
+      onError: (_site, err) => logServerError("themeReleaseManager.demo", err),
+    },
+    sites,
+    release.to_version,
+  );
+  if (r.failures.length > 0) return { ok: false, error: r.failures.join(" | ") };
+  return { ok: true, applied: r.applied, warnings: r.warnings };
 }
 
 async function fanOut(admin: SupabaseClient, release: ThemeRelease): Promise<{ updates: number; bells: number }> {
@@ -239,7 +253,7 @@ async function fanOut(admin: SupabaseClient, release: ThemeRelease): Promise<{ u
     .maybeSingle();
   if (dErr) throw new Error(`design title: ${dErr.message}`);
   const title = (d?.title as string | undefined) ?? release.design_slug;
-  const sites = (await collectSites(admin, release.design_slug)).map((s) => ({
+  const sites = talentSitesOnly(await collectSites(admin, release.design_slug)).map((s) => ({
     siteId: s.siteId,
     talentProfileId: s.talentProfileId,
     userId: s.userId,
@@ -310,7 +324,8 @@ async function autoImproveAll(admin: SupabaseClient, release: ThemeRelease) {
     .eq("slug", release.design_slug)
     .maybeSingle();
   const title = (d?.title as string | undefined) ?? release.design_slug;
-  const sites = await collectSites(admin, release.design_slug);
+  // Demos are updated by Publish to demos; only talents and QA users are auto-improved.
+  const sites = talentSitesOnly(await collectSites(admin, release.design_slug));
   return runAutoImprove(
     { admin, merge: makeSiteMerge(admin) },
     { ...release, channel: "default", status: "published" },

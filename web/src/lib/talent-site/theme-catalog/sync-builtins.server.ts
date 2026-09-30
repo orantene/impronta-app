@@ -10,9 +10,9 @@ import { COLLECTION_DESIGNS } from "./collection/designs";
 import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
 import { TALENT_THEME_SCHEMA_VERSION, type DesignPayload, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
-import { createDraftRelease } from "../theme-releases/releases.server";
-import { diffDesignPayloads } from "../theme-releases/diff-payload";
-import type { ReleaseItem } from "../theme-releases/types";
+import { createDraftRelease, shouldCreateDraftRelease } from "../theme-releases/releases.server";
+import { generateReleaseItems } from "../theme-releases/release-notes";
+import type { ReleaseItem, ReleaseNotes } from "../theme-releases/types";
 import { writeThemeVersionSnapshots } from "../theme-releases/theme-versions.server";
 
 /**
@@ -352,18 +352,24 @@ export async function syncBuiltinTalentThemes(
       | DesignPayload
       | undefined;
     let items: ReleaseItem[] = [];
+    let notes: ReleaseNotes = {};
     if (prior && next) {
       try {
-        items = diffDesignPayloads(
+        const gen = generateReleaseItems(
           d.designSlug,
           { payload: prior, version: d.fromVersion },
           { payload: next, version: d.toVersion },
         );
+        items = gen.items;
+        notes = gen.notes;
       } catch (err) {
         logServerError("talentTheme.syncBuiltins.diff", err);
       }
     }
-    await createDraftRelease(admin, { ...d, items, basePayload: prior, createdBy: userId });
+    // An empty diff has nothing to tell talents: no release row (the snapshot
+    // below is still written, so pinned sites keep an exact base).
+    if (!shouldCreateDraftRelease(items)) continue;
+    await createDraftRelease(admin, { ...d, items, notes, basePayload: prior, createdBy: userId });
   }
 
   // Payload snapshot per design version (exact merge base for pinned sites).
