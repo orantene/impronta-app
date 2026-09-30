@@ -82,6 +82,7 @@ export async function runAutoImprove(
       const ctx: UpdateContext = {
         updateId: "",
         coveredUpdateIds: [],
+        baseFromVersion: release.from_version,
         state: "available",
         siteId: site.siteId,
         siteSlug: st.slug,
