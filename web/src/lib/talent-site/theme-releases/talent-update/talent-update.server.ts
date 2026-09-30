@@ -27,6 +27,7 @@ import type { HistorySnapshot } from "@/lib/talent-site/history/types";
 import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
+import { ensureSiteThemeUpdates } from "../lazy-fan-out.server";
 import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
@@ -134,7 +135,10 @@ async function designTitle(admin: SupabaseClient, slug: string): Promise<string>
 export async function loadTalentUpdateNotices(
   admin: SupabaseClient,
   talentProfileId: string,
+  opts: { lazyFanOut?: boolean } = {},
 ): Promise<TalentUpdateNotice[]> {
+  // F108: a site below an open release gets its row even if fan-out ran before it arrived.
+  if (opts.lazyFanOut !== false) await ensureSiteThemeUpdates(admin, talentProfileId);
   const { data: rows, error } = await admin
     .from("talent_site_theme_updates")
     .select("id, release_id, talent_site_id, state")

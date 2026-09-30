@@ -25,6 +25,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildDesignTrees } from "@/lib/talent-site/server/theme-apply-core";
 import { splitShell } from "@/lib/talent-site/server/render-max-site-shell";
 import { loadPublishedCatalogRow } from "@/lib/talent-site/server/theme-catalog-row";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/catalog-visibility";
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
@@ -124,10 +125,16 @@ export async function ThemeCatalogPreview({
 
   // Maison slugs are not in the generic built-in list, so they resolve
   // through the Maison loader (DB row, else the Maison built-in). AUD-033.
-  const loadRow = <K extends "design" | "look">(kind: K, slug: string) =>
-    isMaisonCatalogSlug(slug)
+  // F109: a Design previews at the version a new apply would pin (newest released).
+  const loadRow = async <K extends "design" | "look">(kind: K, slug: string) => {
+    if (kind === "design") {
+      const applied = await loadApplyDesignRow(admin, slug);
+      if (applied) return applied as never;
+    }
+    return isMaisonCatalogSlug(slug)
       ? loadMaisonCatalogRow(admin, kind, slug)
       : loadPublishedCatalogRow(admin, kind, slug);
+  };
   const design = await loadRow("design", designSlug);
   // Same publish-time validation the apply action runs: a malformed row is a
   // 404 here, never a thrown render.

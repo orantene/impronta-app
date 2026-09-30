@@ -52,6 +52,45 @@ export function checkCatalogFlip(
   return { ok: true, flip: true };
 }
 
+/**
+ * PURE (F109): the Design a NEW apply uses. The newest version released to
+ * talents (published optin/default release) wins over a catalog row still
+ * gated behind "Make default"; its payload is the snapshot. With no such
+ * release (or no snapshot) the catalog row is used as is.
+ */
+export function pickApplyDesign(
+  row: TalentThemeDesignRow,
+  newestOpenToVersion: number | null,
+  snapshot: DesignPayload | null,
+): TalentThemeDesignRow {
+  if (newestOpenToVersion === null || newestOpenToVersion <= row.version || !snapshot) return row;
+  return { ...row, version: newestOpenToVersion, payload: snapshot };
+}
+
+/**
+ * Catalog row for a new apply AND the gallery preview (same function, so what
+ * she sees is what she gets). See `pickApplyDesign`.
+ */
+export async function loadApplyDesignRow(
+  admin: SupabaseClient,
+  slug: string,
+): Promise<TalentThemeDesignRow | null> {
+  const row = await loadMaisonCatalogRow(admin, "design", slug);
+  if (!row) return null;
+  const { data, error } = await admin
+    .from("talent_theme_releases")
+    .select("to_version")
+    .eq("design_slug", slug)
+    .eq("status", "published")
+    .in("channel", ["optin", "default"])
+    .order("to_version", { ascending: false })
+    .limit(1);
+  if (error) return row; // tables missing / unreadable: the catalog row
+  const top = (data as Array<{ to_version?: number }> | null)?.[0]?.to_version;
+  if (typeof top !== "number" || top <= row.version) return row;
+  return pickApplyDesign(row, top, await loadThemeVersionPayload(admin, slug, top));
+}
+
 export async function loadReleaseDesign(
   admin: SupabaseClient,
   release: ReleaseRef,
