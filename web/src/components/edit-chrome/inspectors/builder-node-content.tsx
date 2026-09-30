@@ -12,11 +12,14 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  CheckSquare,
   ChevronRight,
   ClipboardPaste,
   Copy,
   Files,
+  FolderOpen,
   GripVertical,
+  Library,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -4750,16 +4753,34 @@ function NestedBlocksCard({
             />
           ) : null}
           {/* Library + saved blocks stay collapsed; primary path is the list. */}
-          <details className="rounded-lg border border-stone-200 bg-white">
-            <summary className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-stone-700">
-              {t("Library & saved blocks")}
+          <details
+            className="group rounded-[11px] border bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+            style={{ borderColor: "rgba(24,24,27,0.12)" }}
+            data-nested-library=""
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-stone-800">
+              <Library
+                size={14}
+                strokeWidth={2.2}
+                aria-hidden
+                className="shrink-0 text-violet-600"
+              />
+              <span className="min-w-0 flex-1 truncate">
+                {t("Library & saved blocks")}
+              </span>
+              <ChevronRight
+                size={14}
+                strokeWidth={2.2}
+                aria-hidden
+                className="shrink-0 text-stone-400 transition-transform duration-150 group-open:rotate-90 group-open:text-violet-600"
+              />
             </summary>
-            <div className="flex flex-col gap-2 border-t border-stone-100 px-3 py-2">
+            <div className="flex flex-col gap-2 border-t border-stone-100 px-3 py-2.5">
               <MyBlocksPanel parentNodeId={parentNodeId} />
               <ComponentLibraryPanel parentNodeId={parentNodeId} />
               {presets.length > 0 ? (
                 <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-600">
                     {t("Block presets")} ({presets.length})
                   </div>
                   {presets.slice(0, 6).map((preset) => (
@@ -4799,29 +4820,34 @@ function NestedBlocksCard({
           </details>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.10em] text-stone-500">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.10em] text-stone-600">
               {t("Blocks in this group")}
             </span>
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1.5">
               {addKinds.length > 0 ? (
                 <button
                   type="button"
                   data-builder-node-insert-top
-                  className={KIT.ghostButton}
+                  className="inline-flex h-8 items-center gap-1 rounded-[9px] border-none px-2.5 text-[12px] font-semibold text-white shadow-[0_1px_3px_rgba(124,58,237,0.32)] transition-[transform,background-color] duration-150 motion-safe:active:scale-[0.98]"
+                  style={{ background: "#7c3aed" }}
                   title={t("Insert at top")}
                   aria-label={t("Insert at top")}
                   onClick={() =>
                     setInsertAt((current) => (current === 0 ? null : 0))
                   }
                 >
-                  <Plus size={14} strokeWidth={2.2} aria-hidden className="inline" />{" "}
+                  <Plus size={14} strokeWidth={2.4} aria-hidden />
                   {t("Insert")}
                 </button>
               ) : null}
               {nodes.length > 1 ? (
                 <button
                   type="button"
-                  className={selectMode ? KIT.enumChipOn : KIT.ghostButton}
+                  className={
+                    selectMode
+                      ? "inline-flex h-8 items-center gap-1 rounded-[9px] border border-violet-300 bg-violet-50 px-2.5 text-[12px] font-semibold text-violet-700 transition-[transform,background-color] duration-150 motion-safe:active:scale-[0.98]"
+                      : "inline-flex h-8 items-center gap-1 rounded-[9px] border border-stone-300 bg-white px-2.5 text-[12px] font-semibold text-stone-700 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition-[transform,background-color,border-color] duration-150 hover:border-violet-300 hover:text-violet-700 motion-safe:active:scale-[0.98]"
+                  }
                   aria-pressed={selectMode}
                   onClick={() => {
                     setSelectMode((open) => {
@@ -4830,6 +4856,7 @@ function NestedBlocksCard({
                     });
                   }}
                 >
+                  <CheckSquare size={14} strokeWidth={2.2} aria-hidden />
                   {selectMode ? t("Done selecting") : t("Select multiple")}
                 </button>
               ) : null}
@@ -5080,11 +5107,27 @@ function NestedBlocksCard({
             </div>
           )}
           {addKinds.length > 0 ? (
-            <details className="rounded-lg border border-stone-200 bg-white">
-              <summary className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-stone-700">
-                {t("Add a block")}
+            <details
+              className="group rounded-[11px] border bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+              style={{ borderColor: "rgba(24,24,27,0.12)" }}
+              data-nested-add-block=""
+            >
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-[12px] font-semibold text-stone-800">
+                <FolderOpen
+                  size={14}
+                  strokeWidth={2.2}
+                  aria-hidden
+                  className="shrink-0 text-violet-600"
+                />
+                <span className="min-w-0 flex-1 truncate">{t("Add a block")}</span>
+                <ChevronRight
+                  size={14}
+                  strokeWidth={2.2}
+                  aria-hidden
+                  className="shrink-0 text-stone-400 transition-transform duration-150 group-open:rotate-90 group-open:text-violet-600"
+                />
               </summary>
-              <div className="flex flex-wrap gap-2 border-t border-stone-100 px-3 py-2">
+              <div className="flex flex-wrap gap-2 border-t border-stone-100 px-3 py-2.5">
                 {addKinds.map((kind) => (
                   <button
                     key={kind}
