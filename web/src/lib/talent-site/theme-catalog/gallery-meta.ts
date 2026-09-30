@@ -282,6 +282,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     palettes: [
       pal("rose", "Rosé", "Rosé", ["#FCF7F7", "#FFFFFF", "#EFDFE3", "#241417", "#B3174A", "#FFFFFF"], { muted: "#7B6468", tint: "#FBE6EC" }),
       pal("blush", "Blush", "Rubor", ["#FBF4F2", "#FFFFFF", "#EEDCD7", "#2B1C1E", "#B24E69", "#FFFFFF"], { muted: "#86706F", tint: "#F7E3E4" }),
+      pal("orchid", "Orchid", "Orquídea", ["#FAF7FB", "#FFFFFF", "#E9DFEE", "#1F1624", "#7A2F8F", "#FFFFFF"], { muted: "#766A7C", tint: "#F1E4F5" }),
       pal("noir-rose", "Noir rose", "Noir rosa", ["#151012", "#1E171A", "#34282C", "#F7EEF0", "#E3487E", "#FFFFFF"], { dark: true, muted: "#B8A5A9", tint: "#3A2029" }),
       pal("porcelain", "Porcelain & Ink", "Porcelana y tinta", ["#FFFFFF", "#F4F4F2", "#E2E2DE", "#141414", "#141414", "#FFFFFF"], { highContrast: true }),
       pal("sage", "Sage & Olive", "Salvia y oliva", ["#FFFFFF", "#F1F4EE", "#DFE5D9", "#1F241C", "#4A5A34", "#FFFFFF"]),

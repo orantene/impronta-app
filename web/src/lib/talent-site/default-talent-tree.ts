@@ -67,6 +67,10 @@ export interface TalentProfileTokens {
   richBio: string;
   /** City line, e.g. "Based in Cancún" (already prefixed). */
   locationLine: string;
+  /** Hero eyebrow, "Nail Artist · Mérida": trade and city, whichever exist. Falls back to the trade. */
+  heroEyebrow?: string;
+  /** Hero proof line, "9 years of craft · Español · English · ★ 4.9 · 212 reviews" ("" when nothing is known). */
+  proofLine?: string;
   /**
    * Spoken-languages line, e.g. "Languages: Spanish · English" (already
    * prefixed). "" when none — the empty-paragraph carries no visible box.
@@ -159,6 +163,8 @@ export function hydrateTalentTree(
     bio: talent.bio,
     richBio: talent.richBio,
     locationLine: talent.locationLine,
+    heroEyebrow: talent.heroEyebrow ?? talent.primaryTypeLabel,
+    proofLine: talent.proofLine ?? "",
     languagesLine: talent.languagesLine,
     headshotUrl: talent.headshotUrl,
     profilePath: talent.profilePath,

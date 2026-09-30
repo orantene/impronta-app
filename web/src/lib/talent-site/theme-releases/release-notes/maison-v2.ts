@@ -158,3 +158,117 @@ export const MAISON_V2_RELEASE_2_4 = {
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 2.5 (v18 to v19, "look only"): a softer look, no engine changes.
+ *
+ * Automatic (token and variant defaults, reach untouched parts only):
+ *   - the soft card look (`shape.chrome`), section spacing and header bar tokens;
+ *   - the section rhythm (88px bands, raised-surface bands for the ticker, menu
+ *     and About), the ticker band, framed work cards, the hero chip link and the
+ *     header's fifth link.
+ * Opt-in (layout items, the talent chooses):
+ *   - the menu swaps from the 2.3 photo cards to two columns of raised row cards
+ *     (removal + keyed replacement = ONE item, like 2.3);
+ *   - new About actions: "See services" and "Write me".
+ * Hero eyebrow and proof line are content (`{{token}}` text), which a release
+ * never rewrites, so they reach newly applied sites only.
+ */
+export const MAISON_V2_RELEASE_2_5 = {
+  design: "maison-v2",
+  toVersion: 19,
+  /** The removal + keyed replacement of the menu catalog is ONE opt-in change. */
+  layoutKeys: ["layout:home:services/services_two_col:removed", "layout:home:services/services_row_cards"],
+  layoutGroupId: "layout:maison-v2:services-row-cards",
+  notes: {
+    en: "Maison v2 2.5: a softer look. Sections alternate between your page color and a raised band, work photos sit in framed cards, your questions and reviews become cards, and you can choose raised menu cards and new buttons under About.",
+    es: "Maison v2 2.5: un aspecto más suave. Las secciones alternan entre el color de tu página y una franja elevada, las fotos de trabajo van en tarjetas con marco, tus preguntas y reseñas pasan a tarjetas, y puedes elegir tarjetas elevadas en el menú y nuevos botones en Sobre mí.",
+  } satisfies ReleaseNote,
+  codeNotes: [] satisfies ReleaseNote[],
+  byItemId: {
+    "token-default:shape.chrome": {
+      en: "Soft cards for your questions, reviews, menu chips and header, and a friendlier look across the page (only if you have not changed the card look yourself).",
+      es: "Tarjetas suaves para tus preguntas, reseñas, etiquetas del menú y encabezado, y un aspecto más amable en toda la página (solo si no cambiaste el aspecto de las tarjetas tú).",
+    },
+    "token-default:layout.section-pad-top": {
+      en: "More space above each section on desktop (only if you have not changed the spacing yourself).",
+      es: "Más espacio sobre cada sección en escritorio (solo si no cambiaste el espacio tú).",
+    },
+    "token-default:layout.section-pad-top-phone": {
+      en: "More space above each section on phones (only if you have not changed the spacing yourself).",
+      es: "Más espacio sobre cada sección en móvil (solo si no cambiaste el espacio tú).",
+    },
+    "token-default:layout.section-pad-bottom": {
+      en: "More space below each section on desktop (only if you have not changed the spacing yourself).",
+      es: "Más espacio bajo cada sección en escritorio (solo si no cambiaste el espacio tú).",
+    },
+    "token-default:layout.section-pad-bottom-phone": {
+      en: "More space below each section on phones (only if you have not changed the spacing yourself).",
+      es: "Más espacio bajo cada sección en móvil (solo si no cambiaste el espacio tú).",
+    },
+    "token-default:layout.header-pad-y": {
+      en: "A roomier header bar on desktop (only if you have not changed the header spacing yourself).",
+      es: "Una barra de encabezado con más aire en escritorio (solo si no cambiaste el espacio del encabezado tú).",
+    },
+    "token-default:layout.header-pad-y-phone": {
+      en: "A slimmer header bar on phones (only if you have not changed the header spacing yourself).",
+      es: "Una barra de encabezado más delgada en móvil (solo si no cambiaste el espacio del encabezado tú).",
+    },
+    "variant-default:shell:header": {
+      en: "The header links now include About, and Location replaces Your visit (only if you have not edited the header yourself).",
+      es: "Los enlaces del encabezado ahora incluyen Sobre mí, y Ubicación reemplaza a Tu visita (solo si no editaste el encabezado tú).",
+    },
+    "variant-default:home:hero/container#2/next_free_chip": {
+      en: "The next free time card on your hero photo jumps to your menu when tapped (only if you have not edited it).",
+      es: "La tarjeta del próximo horario libre sobre tu foto principal lleva a tu menú al tocarla (solo si no la editaste tú).",
+    },
+    "variant-default:home:reviews": {
+      en: "The reviews section has more room above and below (only if you have not edited that section).",
+      es: "La sección de reseñas tiene más espacio arriba y abajo (solo si no editaste esa sección).",
+    },
+    "variant-default:home:gallery/marquee": {
+      en: "The ticker becomes a band on the raised surface with a little more air (only if you have not edited it).",
+      es: "La cinta de palabras pasa a ser una franja sobre la superficie elevada, con un poco más de aire (solo si no la editaste tú).",
+    },
+    "variant-default:home:gallery/portfolio": {
+      en: "Recent work shows framed cards with the name and an arrow, and up to six photos on phones (only if you have not edited that section).",
+      es: "Trabajo reciente muestra tarjetas con marco, con el nombre y una flecha, y hasta seis fotos en móvil (solo si no editaste esa sección).",
+    },
+    "variant-default:home:services": {
+      en: "The menu sits on a raised band with more room around it (only if you have not edited that section).",
+      es: "El menú queda sobre una franja elevada con más espacio alrededor (solo si no editaste esa sección).",
+    },
+    "variant-default:home:before_after": {
+      en: "Before and after has more room above and below (only if you have not edited that block).",
+      es: "Antes y después tiene más espacio arriba y abajo (solo si no editaste ese bloque).",
+    },
+    "variant-default:home:aftercare": {
+      en: "Aftercare tips have more room above and below (only if you have not edited that block).",
+      es: "Cuidados posteriores tiene más espacio arriba y abajo (solo si no editaste ese bloque).",
+    },
+    "variant-default:home:about": {
+      en: "About sits on a raised band with more room around it (only if you have not edited that section).",
+      es: "Sobre mí queda sobre una franja elevada con más espacio alrededor (solo si no editaste esa sección).",
+    },
+    "variant-default:home:visit": {
+      en: "Your visit has more room above and below (only if you have not edited that section).",
+      es: "Tu visita tiene más espacio arriba y abajo (solo si no editaste esa sección).",
+    },
+    "variant-default:home:contact": {
+      en: "Your questions become cards, two columns on desktop, with more room around them (only if you have not edited that section).",
+      es: "Tus preguntas pasan a ser tarjetas, en dos columnas en escritorio, con más espacio alrededor (solo si no editaste esa sección).",
+    },
+    "layout:home:services/services_two_col:removed": {
+      en: "Services move to two columns of raised cards with a soft button. Preview it before you choose.",
+      es: "Los servicios pasan a dos columnas de tarjetas elevadas con un botón suave. Míralo antes de elegir.",
+    },
+    "layout:home:services/services_row_cards": {
+      en: "Services move to two columns of raised cards with a soft button. Preview it before you choose.",
+      es: "Los servicios pasan a dos columnas de tarjetas elevadas con un botón suave. Míralo antes de elegir.",
+    },
+    "layout:home:about/container/about_actions": {
+      en: "New buttons under your About text: See services, and Write me, which opens the chat. Preview it before you choose.",
+      es: "Nuevos botones bajo tu texto de Sobre mí: Ver servicios, y Escríbeme, que abre el chat. Míralo antes de elegir.",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;

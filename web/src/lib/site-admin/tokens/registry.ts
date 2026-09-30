@@ -112,6 +112,19 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "#ffffff",
     group: "Brand colors",
   },
+  // DERIVED, like `color.primary-on`: the accent made readable as TEXT on the
+  // page surface (`readableAccentText`). Registered so `token:color.accent-text`
+  // is bindable; not agency-configurable because it is computed from the accent
+  // and the ground and a stored value can never win (see `designTokensToCssVars`).
+  "color.accent-text": {
+    key: "color.accent-text",
+    label: "Accent for text",
+    scope: "color",
+    agencyConfigurable: false,
+    validator: hexColor,
+    defaultValue: "#0369a1",
+    group: "Brand colors",
+  },
   "color.secondary": {
     key: "color.secondary",
     label: "Secondary",

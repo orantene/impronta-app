@@ -238,6 +238,21 @@ export function PortfolioContentInspector({
             </span>
           </span>
         </label>
+        {/* The renderer reads `cardStyle === "framed"`: raised cards with an italic name and a round arrow. */}
+        <label className="flex items-start gap-2 text-[13px] text-stone-800">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={p.cardStyle === "framed"}
+            onChange={(e) => commitPatch({ cardStyle: e.target.checked ? "framed" : "plain" })}
+          />
+          <span>
+            Framed cards
+            <span className="mt-0.5 block text-[12px] text-stone-500">
+              Each photo sits in a raised card with its name and an arrow. Needs captions on to show the name.
+            </span>
+          </span>
+        </label>
         <label className="flex items-start gap-2 text-[13px] text-stone-800">
           <input
             type="checkbox"

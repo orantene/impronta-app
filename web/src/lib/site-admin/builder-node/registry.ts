@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHIP_HREF_RE } from "./next-free-chip-href";
 import { BUILDER_ICON_NAMES } from "./icon-registry";
 import {
   isBindableTokenKey,
@@ -1074,6 +1075,7 @@ export const servicesCatalogPropsSchema = z.object({
   sort: z.enum(["catalog", "manual"]).optional(),
   manualOrderIds: z.array(z.string().max(80)).max(200).optional(),
   rowCtaVariant: z.enum(["outline", "solid", "pill"]).optional(),
+  rowStyle: z.enum(["flat", "card"]).optional(),
   contentWidth: z.enum(["contained", "full"]).optional(),
   photoRadius: z.enum(["square", "soft", "round"]).optional(),
   durationFormat: z.enum(["auto", "minutes", "hours_minutes"]).optional(),
@@ -1108,6 +1110,7 @@ export const portfolioPropsSchema = z.object({
   title: z.string().max(160).optional(),
   columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
   showCaptions: z.boolean().optional(),
+  cardStyle: z.enum(["plain", "framed"]).optional(),
   selectionMode: z.enum(["all", "ids"]).optional(),
   selectedMediaIds: z.array(z.string().max(80)).max(48).optional(),
   autoIncludeNew: z.boolean().optional(),
@@ -1275,6 +1278,7 @@ export const nextFreeChipPropsSchema = z.object({
   labelEs: z.string().max(80).optional(),
   days: z.number().int().min(1).max(30).optional(),
   variant: z.enum(["inline", "stacked"]).optional(),
+  href: z.string().max(200).regex(CHIP_HREF_RE, "Use a same-page anchor like #services or a site path").optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });

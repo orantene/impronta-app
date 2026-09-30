@@ -13,6 +13,10 @@ export const CATALOG_BOOKING_CSS = `
 .jb-sheet{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:var(--cb-surface);color:var(--cb-ink);border-radius:22px 22px 0 0;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);box-shadow:0 -24px 60px -28px rgba(36,33,38,.45);animation:jb-rise 300ms cubic-bezier(.22,1,.36,1)}
 @keyframes jb-rise{from{transform:translateY(28px);opacity:.5}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.jb-sheet,.jb-back{animation:none}}
+/* Busy ring (A-14): hidden everywhere except a soft-chrome site (motion-css.ts turns it on). */
+.cb-spinner{display:none;width:16px;height:16px;margin-right:8px;border-radius:50%;border:2.5px solid color-mix(in srgb,currentColor 18%,transparent);border-top-color:currentColor;vertical-align:-3px;animation:cb-spin 1s linear infinite}
+@keyframes cb-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.cb-spinner{animation:none}}
 .jb-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:20px 20px 16px;border-bottom:1px solid var(--cb-line)}
 .jb-head h2{margin:5px 0 0;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.5rem;letter-spacing:-.02em;line-height:1.1}
 .jb-kicker{margin:0;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--cb-primary)}

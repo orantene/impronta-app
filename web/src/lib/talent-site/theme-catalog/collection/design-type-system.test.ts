@@ -57,10 +57,13 @@ test("design defaults render as CSS vars and the type-system attribute", () => {
   const vars = designTokensToCssVars(tokens);
   assert.equal(vars["--token-button-radius"], "999px");
   assert.equal(vars["--token-type-hero-size-desktop"], "96px");
-  assert.equal(vars["--token-layout-section-pad-top"], "84px");
+  // Release 2.5 (v19): 88px bands (was 84px).
+  assert.equal(vars["--token-layout-section-pad-top"], "88px");
   const attrs = designTokensToDataAttrs(tokens);
   assert.equal(attrs["data-token-type-system"], "editorial");
   assert.equal(attrs["data-token-button-variant"], "fill");
+  // Release 2.5: the soft chrome switch rides as a data attribute next to the type system.
+  assert.equal(attrs["data-token-shape-chrome"], "soft");
 });
 
 test("overrides beat design defaults: site over design, page over site", () => {

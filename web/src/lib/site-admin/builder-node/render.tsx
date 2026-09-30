@@ -151,6 +151,7 @@ import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
@@ -5888,6 +5889,7 @@ function renderBuilderNodeElement(
           data-layout={layout}
           data-photo-radius={p.photoRadius ?? "soft"}
           data-cta-variant={p.rowCtaVariant ?? "outline"}
+          {...(p.rowStyle === "card" && layout === "rows" ? { "data-row-style": "card" } : {})}
           {...(p.nameLineClamp && p.nameLineClamp !== 2
             ? { "data-name-line-clamp": String(p.nameLineClamp) }
             : {})}
@@ -5909,6 +5911,7 @@ function renderBuilderNodeElement(
           }}
         >
           <style>{SERVICES_CATALOG_CSS}</style>
+          {p.rowStyle === "card" && layout === "rows" ? <style>{SERVICES_CATALOG_ROW_CARD_CSS}</style> : null}
           <header className="site-builder-node--services-catalog-header">
             <div>
               {eyebrow ? <p className="site-builder-node--services-catalog-eyebrow">{eyebrow}</p> : null}
@@ -5980,6 +5983,7 @@ function renderBuilderNodeElement(
                 showBadges={p.showBadges === true}
                 showModeChip={p.showModeChip === true}
                 priceInMeta={p.pricePlacement === "meta"}
+                rowCard={p.rowStyle === "card" && layout === "rows"}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}

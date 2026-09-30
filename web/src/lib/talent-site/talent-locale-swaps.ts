@@ -8,6 +8,8 @@
  * `server/talent-locale-swaps.server.ts`.
  */
 
+import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
+
 export type LocalizedMapLike = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
 export interface TalentLocaleSwapSource {
@@ -15,6 +17,12 @@ export interface TalentLocaleSwapSource {
   /** Talent-type taxonomy name maps (primary first). */
   typeNames: ReadonlyArray<LocalizedMapLike>;
   homeCity: LocalizedMapLike;
+  /**
+   * The facts behind the hero proof line. When present, the English line baked
+   * into the applied tree swaps to its Spanish form (the line has numbers and
+   * language names in it, so no exact-label map could cover it).
+   */
+  proof?: HeroProofInput;
 }
 
 /** The hero tagline length the token projection clamps to. */
@@ -80,6 +88,17 @@ export function buildTalentLocaleSwaps(
     const city = pick(src.homeCity, key, chain);
     add(cityEn, city);
     if (key === "es") add(`Based in ${cityEn}`, `Con base en ${city}`);
+  }
+  // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
+  const tradeEn = src.typeNames[0]?.en?.trim();
+  if (tradeEn && cityEn) {
+    add(
+      formatHeroEyebrow(tradeEn, cityEn),
+      formatHeroEyebrow(pick(src.typeNames[0], key, chain), pick(src.homeCity, key, chain)),
+    );
+  }
+  if (src.proof && key === "es") {
+    add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
   }
   return out;
 }

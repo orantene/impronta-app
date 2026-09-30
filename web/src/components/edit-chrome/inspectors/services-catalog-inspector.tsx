@@ -568,6 +568,18 @@ export function ServicesCatalogLayoutInspector({
           <option value="pill">Ink pill</option>
         </select>
       </div>
+      {/* The renderer reads `rowStyle === "card"` (rows layout): raised row cards, soft pill button, row click. */}
+      <div className={KIT.field}>
+        <label className={KIT.label}>Row style</label>
+        <select
+          className={KIT.input}
+          value={catalog.rowStyle ?? "flat"}
+          onChange={(e) => onPatch({ rowStyle: e.target.value })}
+        >
+          <option value="flat">Hairline rows</option>
+          <option value="card">Raised cards</option>
+        </select>
+      </div>
       <div className={KIT.field}>
         <label className={KIT.label}>Content width</label>
         <select

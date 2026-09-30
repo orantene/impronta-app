@@ -8,6 +8,7 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1, HeaderItem } from "./schema";
 import { HeaderRegionLiveCount } from "./HeaderRegionLiveCount";
+import { HeaderHeightVar } from "./HeaderHeightVar";
 import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import {
@@ -602,6 +603,7 @@ export async function SiteHeaderComponent({
           <HeaderScrollObserver thresholdPx={scrollThresholdPx ?? 40} />
         ) : null}
         {scrollSpy}
+        <HeaderHeightVar />
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>

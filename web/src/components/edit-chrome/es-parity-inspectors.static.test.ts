@@ -60,6 +60,8 @@ const CODE_VALUE_SAMPLES: ReadonlySet<string> = new Set([
   "Book talent",
   "New",
   "See the full board",
+  // A same-page anchor shown as the next-free chip's link placeholder; it is the value itself.
+  "#services",
   // A CSS token, shown as a placeholder so the operator knows a theme token is
   // accepted where a colour is expected. Translating it would break the value.
   "var(--token-color-accent)",

@@ -8,6 +8,7 @@ import {
   buildTalentLocaleSwaps,
   type LocalizedMapLike,
 } from "../talent-locale-swaps";
+import { loadHeroProofData } from "./load-hero-proof";
 
 type Row = {
   bio_i18n: LocalizedMapLike;
@@ -53,8 +54,16 @@ export async function loadTalentLocaleSwaps(
     const home = (row.talent_service_areas ?? []).find((a) => a.service_kind === "home_base");
     // F25: the drawer's saved `bios` fill locales bio_i18n lacks (same read as the site).
     const bios = (await readBlobFieldValuesFromCatalog(admin, talentProfileId)).bios;
+    // The hero proof line only needs a Spanish form; other locales skip the extra reads.
+    const spanish = (locale ?? "").trim().toLowerCase().startsWith("es");
+    const proof = spanish ? await loadProofInput(admin, talentProfileId) : undefined;
     return buildTalentLocaleSwaps(
-      { bioI18n: effectiveBioI18n(row.bio_i18n, bios), typeNames: types, homeCity: home?.locations?.display_name_i18n ?? null },
+      {
+        bioI18n: effectiveBioI18n(row.bio_i18n, bios),
+        typeNames: types,
+        homeCity: home?.locations?.display_name_i18n ?? null,
+        ...(proof ? { proof } : {}),
+      },
       locale,
       chain,
     );
@@ -62,4 +71,26 @@ export async function loadTalentLocaleSwaps(
     logServerError("talentSite.localeSwaps", err);
     return {};
   }
+}
+
+/** The same facts the token projection used, so the swap key equals the baked English line. */
+async function loadProofInput(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, talentProfileId: string) {
+  const { data: langs, error: langError } = await admin
+    .from("talent_languages")
+    .select("language_name, display_order")
+    .eq("talent_profile_id", talentProfileId)
+    .order("display_order", { ascending: true })
+    .order("language_name", { ascending: true });
+  // A failed language read only shortens the proof line, which then simply gets no Spanish swap.
+  if (langError) logServerError("talentSite.localeSwapsLanguages", langError);
+  const data = await loadHeroProofData(admin, talentProfileId);
+  return {
+    years: data.years,
+    rating: data.rating,
+    count: data.count,
+    demo: data.demo,
+    languages: (langs ?? [])
+      .map((r) => (r as { language_name: string | null }).language_name?.trim())
+      .filter((n): n is string => !!n),
+  };
 }

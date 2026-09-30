@@ -158,4 +158,21 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Preview and translate in {lang}. Untranslated blocks dim.":
     "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
   "Content language": "Idioma del contenido",
+  // Release 2.5 (Maison v2 look): row cards, framed work cards, linked next-free chip.
+  "Row style": "Estilo de las filas",
+  "Hairline rows": "Filas con línea fina",
+  "Raised cards": "Tarjetas elevadas",
+  "Framed cards": "Tarjetas con marco",
+  "Each photo sits in a raised card with its name and an arrow. Needs captions on to show the name.":
+    "Cada foto va en una tarjeta elevada con su nombre y una flecha. Activa los pies de foto para ver el nombre.",
+  "Custom accent": "Acento personalizado",
+  "One color, the rest follows": "Un color, el resto se ajusta solo",
+  "Accent color": "Color de acento",
+  "Pick one color. Buttons use it as is; the soft tint, page ground and lines are derived, and text uses a version that stays readable.":
+    "Elige un color. Los botones lo usan tal cual; el tinte suave, el fondo y las líneas se derivan, y el texto usa una versión que se lee bien.",
+  "Pick any color. Text color and tints are derived, and contrast is checked.":
+    "Elige cualquier color. El color del texto y los tintes se derivan, y se revisa el contraste.",
+  "Link to": "Enlazar a",
+  "Make the card a link, for example #services to jump to your menu. Leave empty for plain text.":
+    "Convierte la tarjeta en un enlace, por ejemplo #services para ir a tu menú. Déjalo vacío para texto simple.",
 };

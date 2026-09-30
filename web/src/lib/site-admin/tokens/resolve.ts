@@ -35,7 +35,7 @@
 
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
-import { foregroundForPrimary } from "./contrast-pair";
+import { foregroundForPrimary, readableAccentText } from "./contrast-pair";
 import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
@@ -94,6 +94,8 @@ export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   // bindable-token catalog (built from TOKEN_REGISTRY x COLOR_VAR_NAMES) offers
   // `token:color.primary-on`. The VALUE is derived below, after this loop.
   "color.primary-on": "--token-color-primary-on",
+  // Derived as well: the accent made readable as text (see `readableAccentText`).
+  "color.accent-text": "--token-color-accent-text",
   "color.secondary": "--token-color-secondary",
   "color.accent": "--token-color-accent",
   "color.neutral": "--token-color-neutral",
@@ -180,6 +182,15 @@ export function designTokensToCssVars(
     const onPrimary = foregroundForPrimary(primary);
     if (onPrimary) out["--token-color-primary-on"] = onPrimary;
   }
+
+  // DERIVED: the accent as readable TEXT on the page surface. The registry
+  // default is never painted; with no measurable accent the var stays unset so
+  // the stylesheet's own fallback (the raw accent) applies.
+  const accentSource = tokens["color.accent"] || tokens["color.primary"] || "";
+  const ground = tokens["color.surface-raised"] || tokens["color.background"] || "#ffffff";
+  const accentText = readableAccentText(accentSource, ground) ?? readableAccentText(accentSource, "#ffffff");
+  if (accentText) out["--token-color-accent-text"] = accentText;
+  else delete out["--token-color-accent-text"];
 
   return out;
 }

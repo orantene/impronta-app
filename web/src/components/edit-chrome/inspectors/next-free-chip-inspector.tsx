@@ -12,6 +12,7 @@
 
 import type { ReactNode } from "react";
 
+import { CHIP_HREF_RE } from "@/lib/site-admin/builder-node/next-free-chip-href";
 import type { BuilderNextFreeChipNode } from "@/lib/site-admin/builder-node/types";
 
 import { KIT } from "./kit";
@@ -83,6 +84,29 @@ export function NextFreeChipContentInspector({
           ))}
         </div>
       </Section>
+
+      {variant === "stacked" ? (
+        <Section
+          title="Link"
+          info="Make the card a link, for example #services to jump to your menu. Leave empty for plain text."
+        >
+          <div className={KIT.field}>
+            <label className={KIT.label}>Link to</label>
+            <input
+              className={KIT.input}
+              value={p.href ?? ""}
+              placeholder="#services"
+              maxLength={200}
+              onChange={(e) => {
+                const next = e.target.value.trim().slice(0, 200);
+                // The schema accepts only a same-page anchor or a site path, so a value
+                // that would fail validation is kept out of the draft instead of breaking the save.
+                if (next === "" || CHIP_HREF_RE.test(next)) commitPatch({ href: next || undefined });
+              }}
+            />
+          </div>
+        </Section>
+      ) : null}
 
       <Section title="Label" info="The words before the time. Leave empty for the default.">
         <div className={KIT.field}>

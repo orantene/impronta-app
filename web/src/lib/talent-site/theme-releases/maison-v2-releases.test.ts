@@ -295,3 +295,128 @@ test("Maison v2 v18: a talent who reordered her own page keeps her order", async
   assert.deepEqual(slotOrder(r.trees.home!), mine, "her order is kept");
   assert.ok(r.report.kept.some((e) => e.change === "order" || e.reason === "your_order"));
 });
+
+// ── Release 2.5 (v19, "look only"): automatic defaults + two opt-in layout items ──
+
+const V19_TOKENS = [
+  "token-default:layout.header-pad-y",
+  "token-default:layout.header-pad-y-phone",
+  "token-default:layout.section-pad-bottom",
+  "token-default:layout.section-pad-bottom-phone",
+  "token-default:layout.section-pad-top",
+  "token-default:layout.section-pad-top-phone",
+  "token-default:shape.chrome",
+];
+const V19_VARIANTS = [
+  "variant-default:home:aftercare",
+  "variant-default:home:about",
+  "variant-default:home:before_after",
+  "variant-default:home:contact",
+  "variant-default:home:gallery/marquee",
+  "variant-default:home:gallery/portfolio",
+  "variant-default:home:hero/container#2/next_free_chip",
+  "variant-default:home:reviews",
+  "variant-default:home:services",
+  "variant-default:home:visit",
+  "variant-default:shell:header",
+];
+const V19_LAYOUT_PAIR = ["layout:home:services/services_two_col:removed", "layout:home:services/services_row_cards"];
+const V19_ABOUT_ACTIONS = "layout:home:about/container/about_actions";
+
+test("Maison v2 v19 classifies: token + variant defaults are automatic, the menu swap and About actions are opt-in", () => {
+  const items = diff(maisonV2At(18), 18, maisonV2At(19), 19);
+  assert.deepEqual(
+    items.map((i) => i.id).sort(),
+    [...V19_TOKENS, ...V19_VARIANTS, ...V19_LAYOUT_PAIR, V19_ABOUT_ACTIONS].sort(),
+  );
+  assert.equal(types(items, "token-default").length, V19_TOKENS.length);
+  assert.equal(types(items, "variant-default").length, V19_VARIANTS.length);
+  assert.deepEqual(types(items, "layout").map((i) => i.layout).sort(), ["nested-new", "nested-new", "removed"]);
+  for (const t of ["new-block", "critical", "code"]) assert.equal(types(items, t).length, 0, `no ${t} in 2.5`);
+  // The soft chrome switch and the option values ride as plain defaults.
+  const byId = new Map(items.map((i) => [i.id, i]));
+  assert.deepEqual(byId.get("token-default:shape.chrome")!.detail, { from: null, to: "soft" });
+  assert.deepEqual(byId.get("variant-default:home:gallery/portfolio")!.paths, [
+    "cardStyle",
+    "style.paddingBottom",
+    "style.paddingTop",
+    "style.responsive.mobile.paddingBottom",
+    "style.responsive.mobile.paddingTop",
+  ]);
+  assert.deepEqual(byId.get("variant-default:home:hero/container#2/next_free_chip")!.paths, ["href"]);
+  assertNotesFor(items, 19);
+});
+
+test("Maison v2 v19 through the one generator: menu pair grouped into ONE item, every note EN + ES", () => {
+  const { items, notes } = generateReleaseItems(
+    "maison-v2",
+    { payload: maisonV2At(18), version: 18 },
+    { payload: maisonV2At(19), version: 19 },
+  );
+  assert.ok(notes.en && notes.es);
+  const layout = items.filter((i) => i.type === "layout");
+  assert.equal(layout.length, 2, "menu swap (one grouped item) + About actions");
+  const swap = layout.find((i) => i.id === "layout:maison-v2:services-row-cards")!;
+  assert.deepEqual([...(swap.keys ?? [])].sort(), ["home:services/services_row_cards", "home:services/services_two_col"]);
+  for (const i of items) assert.ok(i.note?.en && i.note?.es, `note for ${i.id}`);
+});
+
+async function v19Site() {
+  const prev = maisonV2At(18);
+  const next = maisonV2At(19);
+  const { base, theirs } = await siteSides(prev, 18, next, 19);
+  const items = withAuthoredNotes(diff(prev, 18, next, 19), authoredRelease("maison-v2", 19)!);
+  return { base, theirs, items };
+}
+
+const catalogOf = (home: DesignSide["trees"][string]) => propsOf(findByKind(home, "services_catalog")!);
+
+test("Maison v2 v19: an untouched site gets the automatic defaults and none of the opt-in layout items", async () => {
+  const { base, theirs, items } = await v19Site();
+  const auto = items.filter((i) => i.type === "token-default" || i.type === "variant-default");
+  const r = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: auto });
+  assert.equal(r.report.conflicts.length, 0);
+  const portfolio = propsOf(findByKind(r.trees.home!, "portfolio")!);
+  assert.equal(portfolio.cardStyle, "framed");
+  assert.equal((portfolio.style as Record<string, unknown>).paddingTop, "88px");
+  assert.equal(propsOf(findByKind(r.trees.home!, "next_free_chip")!).href, "#services");
+  // The menu is still the 2.3 cards and the About section has no actions yet.
+  assert.equal(catalogOf(r.trees.home!).layout, "cards");
+  assert.equal(catalogOf(r.trees.home!).slotKey, "services_two_col");
+  assert.equal(findBySlot(r.trees.home!, "about_actions"), undefined);
+  // The soft chrome switch is inherited (a token default), not written into the draft.
+  assert.ok(r.report.applied.some((e) => e.change === "token" && e.key === "shape.chrome"));
+});
+
+test("Maison v2 v19: choosing the menu swap and the About actions applies them, each on its own", async () => {
+  const { base, theirs, items } = await v19Site();
+  const layout = items.filter((i) => i.type === "layout");
+  const swapOnly = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: layout.filter((i) => i.id !== V19_ABOUT_ACTIONS) });
+  assert.equal(catalogOf(swapOnly.trees.home!).layout, "rows");
+  assert.equal(catalogOf(swapOnly.trees.home!).rowStyle, "card");
+  assert.equal(catalogOf(swapOnly.trees.home!).slotKey, "services_row_cards");
+  assert.equal(findBySlot(swapOnly.trees.home!, "about_actions"), undefined, "swap alone adds no About actions");
+  const actionsOnly = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: layout.filter((i) => i.id === V19_ABOUT_ACTIONS) });
+  assert.ok(findBySlot(actionsOnly.trees.home!, "about_actions"), "About actions inserted");
+  assert.equal(catalogOf(actionsOnly.trees.home!).layout, "cards", "actions alone do not swap the menu");
+});
+
+test("Maison v2 v19: a talent's own edits win over the automatic defaults", async () => {
+  const { base, theirs, items } = await v19Site();
+  const ours = siteOf(base, { "shape.chrome": "flat" });
+  propsOf(findByKind(ours.trees.home!, "portfolio")!).limit = 3;
+  const auto = items.filter((i) => i.type === "token-default" || i.type === "variant-default");
+  const r = mergeDesignUpdate({ base, ours, theirs, items: auto });
+  assert.equal(r.tokens["shape.chrome"], "flat", "her own card look wins");
+  assert.equal(propsOf(findByKind(r.trees.home!, "portfolio")!).limit, 3, "her own limit is kept");
+  assert.ok(r.report.kept.some((e) => e.key === "gallery/portfolio"));
+});
+
+test("Maison v2 v19 payload: every new option is set, tokens only, no hex", () => {
+  const home = maisonV2At(19).homeTree;
+  assert.equal(propsOf(findByKind(home, "portfolio")!).cardStyle, "framed");
+  assert.equal(propsOf(findByKind(home, "services_catalog")!).rowStyle, "card");
+  assert.equal(propsOf(findByKind(home, "next_free_chip")!).href, "#services");
+  assert.doesNotMatch(JSON.stringify(maisonV2At(19)), HEX);
+  assert.equal(maisonV2At(19).tokenDefaults!["shape.chrome"], "soft");
+});

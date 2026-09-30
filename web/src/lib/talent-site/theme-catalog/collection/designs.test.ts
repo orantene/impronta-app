@@ -57,10 +57,12 @@ test("maison-v2 services_catalog uses categoryNav rail + two-column cards", () =
   walk(maison!.buildPayload().homeTree);
   assert.equal(found.length, 1);
   assert.equal(found[0].categoryNav, "rail");
-  // Release 2.3: two-column cards under the keyed `services_two_col` node.
-  assert.equal(found[0].layout, "cards");
+  // Release 2.5: two columns of raised ROW cards under the keyed `services_row_cards` node
+  // (it replaced the 2.3 photo cards, `services_two_col`).
+  assert.equal(found[0].layout, "rows");
+  assert.equal(found[0].rowStyle, "card");
   assert.equal(found[0].columns, 2);
-  assert.equal(found[0].slotKey, "services_two_col");
+  assert.equal(found[0].slotKey, "services_row_cards");
   assert.equal(found[0].showPhoto, true);
 });
 

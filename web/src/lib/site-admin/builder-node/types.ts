@@ -1312,6 +1312,11 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
     columns?: 2 | 3 | 4;
     /** When true, show caption and/or linked service name under each shot. */
     showCaptions?: boolean;
+    /**
+     * framed = each shot is a raised card (photo, italic name, round arrow);
+     * plain (default) = bare photos. Shows up to six shots in the staggered strip.
+     */
+    cardStyle?: "plain" | "framed";
     selectionMode?: "all" | "ids";
     selectedMediaIds?: string[];
     autoIncludeNew?: boolean;
@@ -1543,6 +1548,11 @@ export interface BuilderNextFreeChipNode extends BuilderNodeBase {
     days?: number;
     /** `stacked`: dot + bold time over a small label (photo overlay card). */
     variant?: "inline" | "stacked";
+    /**
+     * Stacked card only: make the chip a link, e.g. `#services`. A same-page
+     * anchor or a site path; anything else is ignored.
+     */
+    href?: string;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -1590,6 +1600,11 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     manualOrderIds?: string[];
     /** pill = 34px ink-outline pill (Maison v2 `.pick`); request rows take the hairline alt. */
     rowCtaVariant?: "outline" | "solid" | "pill";
+    /**
+     * `rows` layout only. card = each row is a raised card (soft pill CTA,
+     * hover lift, the whole row opens the service); flat (default) = hairline rows.
+     */
+    rowStyle?: "flat" | "card";
     /** full = rail + rows span the whole section (no 1120px column). */
     contentWidth?: "contained" | "full";
     photoRadius?: "square" | "soft" | "round";

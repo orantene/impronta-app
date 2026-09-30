@@ -14,6 +14,7 @@ import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
+import { loadHeroProofData } from "./load-hero-proof";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
@@ -200,6 +201,8 @@ export async function loadTalentStarterProfileData(
     .filter((name): name is string => !!name)
     .join(" · ");
 
+  const proof = await loadHeroProofData(trusted, talentProfileId);
+
   return {
     displayName,
     profileCode: p.profile_code,
@@ -208,6 +211,10 @@ export async function loadTalentStarterProfileData(
     publicBio: richBio || null,
     richBio,
     languagesLabel,
+    experienceYears: proof.years,
+    ratingAvg: proof.rating,
+    ratingCount: proof.count,
+    isDemo: proof.demo,
     homeCity,
     serviceAreaLabels,
     serviceNames,

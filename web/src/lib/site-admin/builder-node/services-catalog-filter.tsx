@@ -23,6 +23,7 @@ import {
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
 import { catalogBarPriceLabel } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
+import { catalogDurationShort, railCount } from "./services-catalog-format";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
 import {
   EMPTY_DOCK,
@@ -105,23 +106,6 @@ function dispatchOffering(
   );
 }
 
-/** Rail pill count: a trailing muted number; other navs keep " (n)". */
-function railCount(nav: CatalogNavMode, n: number): ReactNode {
-  return nav === "rail" ? (
-    <small className="site-builder-node--services-catalog-pill-count">{n}</small>
-  ) : (
-    ` (${n})`
-  );
-}
-
-/** "2 h 30 min" / "1 h" / "50 min", without the "estimated" suffix. */
-function catalogDurationShort(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h <= 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
-}
-
 export function ServicesCatalogFilter({
   groups,
   locale,
@@ -137,6 +121,7 @@ export function ServicesCatalogFilter({
   showBadges = false,
   showModeChip = false,
   priceInMeta = false,
+  rowCard = false,
   confirmsByHand,
   usdRates,
   ctaLabel,
@@ -169,6 +154,8 @@ export function ServicesCatalogFilter({
   showModeChip?: boolean;
   /** Price inline after the duration (Maison v2 rows), not in the buy column. */
   priceInMeta?: boolean;
+  /** `rowStyle: "card"`: the whole row opens the service, the photo gets a clipped thumb wrapper. */
+  rowCard?: boolean;
   confirmsByHand: boolean;
   usdRates: UsdRates | null;
   ctaLabel?: string;
@@ -487,6 +474,7 @@ export function ServicesCatalogFilter({
                       showBadges={showBadges}
                       showModeChip={showModeChip}
                       priceInMeta={priceInMeta}
+                      rowCard={rowCard}
                       confirmsByHand={confirmsByHand}
                       bookingPosture={bookingPosture}
                       usdRates={usdRates}
@@ -590,6 +578,7 @@ export function CatalogRow({
   showBadges = false,
   showModeChip = false,
   priceInMeta = false,
+  rowCard = false,
   confirmsByHand,
   bookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
   usdRates,
@@ -611,6 +600,7 @@ export function CatalogRow({
   showBadges?: boolean;
   showModeChip?: boolean;
   priceInMeta?: boolean;
+  rowCard?: boolean;
   confirmsByHand: boolean;
   bookingPosture?: TalentBookingPosture;
   usdRates: UsdRates | null;
@@ -645,9 +635,13 @@ export function CatalogRow({
         ? "Con confirmación"
         : "Needs confirmation"
       : derived.effectiveMode === "inquiry" || quote
-        ? es
-          ? "Por cotización"
-          : "By quote"
+        ? rowCard
+          ? es
+            ? "Por evento"
+            : "By event"
+          : es
+            ? "Por cotización"
+            : "By quote"
         : null;
   // One-line price for the meta row: "Desde $650" / "$900" / "A cotizar".
   const money = minCents == null ? "" : formatMoney(minCents, item.currency, locale);
@@ -673,18 +667,32 @@ export function CatalogRow({
     if (item.reserveMode === "deposit") badges.push(es ? "Seña" : "Deposit required");
     if (where.includes("remote")) badges.push(es ? "En línea" : "Online session");
   }
+  const activate = () => {
+    if (onSelect) onSelect();
+    else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
+  };
+  const photo = cover ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
+  ) : showPhoto ? (
+    <span className="site-builder-node--services-catalog-photo" aria-hidden />
+  ) : null;
   return (
     <li
       className="site-builder-node--services-catalog-row"
       data-selected={selected ? "true" : undefined}
       data-has-photo={cover || showPhoto ? "true" : "false"}
+      // Row card: whole-card click is a pointer convenience; the button stays the accessible control.
+      onClick={
+        rowCard && !derived.hidden
+          ? (e) => {
+              if ((e.target as HTMLElement).closest("button,a")) return;
+              activate();
+            }
+          : undefined
+      }
     >
-      {cover ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={cover} alt="" className="site-builder-node--services-catalog-photo" />
-      ) : showPhoto ? (
-        <span className="site-builder-node--services-catalog-photo" aria-hidden />
-      ) : null}
+      {photo && rowCard ? <span className="site-builder-node--services-catalog-thumb">{photo}</span> : photo}
       <span className="site-builder-node--services-catalog-copy">
         <strong className="site-builder-node--services-catalog-name" title={item.title}>
           <span className="site-builder-node--services-catalog-name-text">{item.title}</span>
@@ -762,13 +770,21 @@ export function CatalogRow({
           <span className="site-builder-node--services-catalog-price" aria-hidden />
         )}
         {/* WSF-C §8: no route left for this service, no button. */}
-        {derived.hidden ? null : (
+        {derived.hidden ? (
+          rowCard ? (
+            <button
+              type="button"
+              disabled
+              data-paused="true"
+              className="site-builder-node--services-catalog-cta"
+            >
+              {es ? "En pausa" : "Paused"}
+            </button>
+          ) : null
+        ) : (
           <button
             type="button"
-            onClick={() => {
-              if (onSelect) onSelect();
-              else dispatchOffering(item, confirmsByHand, undefined, undefined, bookingPosture);
-            }}
+            onClick={activate}
             data-offering-cta={cta}
             data-offering-id={item.id}
             data-selected={selected ? "true" : undefined}
