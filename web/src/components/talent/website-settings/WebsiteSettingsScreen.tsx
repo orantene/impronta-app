@@ -83,10 +83,11 @@ export function WebsiteSettingsScreen({
 }) {
   const copy = useDashboardText();
   // Screen strings live in the lazy chunk, not the global admin map.
-  // Stable identity: the loader effect depends on `t`, and a new function each
-  // render re-ran it forever (every load set state, every render made a new t).
+  // Stable per locale: the load effect below depends on it, and a new function
+  // every render re-ran the load and wiped the unsaved draft (~3 s after a tap).
   const t = useCallback(
-    (value: string) => (copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[value] ?? copy.t(value)) : copy.t(value)),
+    (value: string) =>
+      copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[value] ?? copy.t(value)) : copy.t(value),
     [copy],
   );
   const [loadError, setLoadError] = useState<string | null>(null);
