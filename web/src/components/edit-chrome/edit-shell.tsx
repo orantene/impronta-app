@@ -16,7 +16,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useFirstPaintTipAtBottom } from "./first-paint-tip-context";
+import { useFirstPaintTipPlacement } from "./first-paint-tip-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -1223,7 +1223,7 @@ function EditShellInner({
         {/* Preview toggle: when on, links navigate normally so the
          *  operator can test menus, anchors, and click targets. */}
         {!previewing ? <CanvasLinkInterceptor /> : null}
-        <FirstPaintTip />
+        <FirstPaintTip navigatorOpen={navigatorOpen} navigatorWidth={navigatorWidth} />
         <MakeItYoursChecklist />
         <IframeBridgeParent />
         {/* 4C — canvas viewport tools: zoom transform, space-drag pan, keyboard
@@ -1326,8 +1326,8 @@ function CanvasViewportComponents({
  * pass when one lands. Per-tenant storage would require tracking
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
-function FirstPaintTip() {
-  const atBottom = useFirstPaintTipAtBottom();
+function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
+  const tipPlacement = useFirstPaintTipPlacement(p.navigatorOpen, p.navigatorWidth);
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
@@ -1380,14 +1380,14 @@ function FirstPaintTip() {
   return (
     <div
       data-edit-overlay="first-paint-tip"
-      className="pointer-events-none fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
+      className={tipPlacement.className}
       style={{
         // 2026-08-15 light unification — the tip was the last slate-dark
         // pill left over from the v1 operator chrome. It now wears the same
         // light control language as the chip / command palette / menus
         // (white surface, dark text, popover shadow) so first paint shows
         // ONE chrome voice.
-        ...(atBottom ? { bottom: 76 } : { top: 70 }),
+        ...tipPlacement.style,
         background: "rgba(255, 255, 255, 0.96)",
         color: CHROME.text,
         fontSize: 11.5,
