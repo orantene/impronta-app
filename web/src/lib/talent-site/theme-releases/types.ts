@@ -50,6 +50,8 @@ export interface ThemeRelease {
   rollout_pct: number;
   critical: boolean;
   dry_run_report: unknown | null;
+  /** Design payload at from_version; admin-only (not granted to talents). */
+  base_payload?: unknown | null;
   created_by: string | null;
   created_at: string;
   published_at: string | null;

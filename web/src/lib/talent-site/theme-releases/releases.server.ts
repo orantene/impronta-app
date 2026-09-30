@@ -42,6 +42,8 @@ export function buildDraftReleaseRow(input: {
   items?: ReleaseItem[];
   notes?: ReleaseNotes;
   createdBy?: string | null;
+  /** Design payload at fromVersion (the merge base; admin-only column). */
+  basePayload?: unknown;
 }) {
   return {
     design_slug: input.designSlug,
@@ -54,6 +56,7 @@ export function buildDraftReleaseRow(input: {
     rollout_pct: 0,
     critical: (input.items ?? []).some((i) => i.type === "critical"),
     created_by: input.createdBy ?? null,
+    ...(input.basePayload !== undefined ? { base_payload: input.basePayload } : {}),
   };
 }
 

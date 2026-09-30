@@ -18,7 +18,7 @@ export type {
   DemoTalent,
 } from "./demo-types";
 
-export const DEMO_BATCH = "demo-2026-09-28";
+export { DEMO_BATCH } from "../../src/lib/talent-site/theme-catalog/demo-account";
 
 export const DEMOS: DemoTalent[] = [
   ALBA,
