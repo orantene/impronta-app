@@ -89,15 +89,16 @@ import { InspectorInfoTip } from "./inspectors/kit";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditorLocale } from "./use-editor-locale";
+import { announceSitePublished, runPublishOnce } from "./site-published-event";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
 /** Slack over PublishPreflight's own 30s hard timeout before the gate is force-released. */
 const PREFLIGHT_STUCK_WATCHDOG_MS = 35_000;
 
-function formatPublishedAt(value: string | null): string {
+function formatPublishedAt(value: string | null, locale: string = "en"): string {
   if (!value) return "—";
-  return new Date(value).toLocaleString(undefined, {
+  return new Date(value).toLocaleString(locale === "es" ? "es" : "en", {
     hour: "numeric",
     minute: "2-digit",
     month: "short",
@@ -506,7 +507,7 @@ export function PublishDrawer() {
   // W1-L2 — same timeout + failed/retry treatment as the snapshot loader.
   useEffect(() => {
     let cancelled = false;
-    if (!publishOpen || !pageId || builderTree.length === 0) return;
+    if (!publishOpen || !pageId || builderTree.length === 0 || surfaceKind === "talent_page") return;
     setBuilderDiffLoading(true);
     setBuilderDiffFailed(false);
     void (async () => {
@@ -536,7 +537,7 @@ export function PublishDrawer() {
     return () => {
       cancelled = true;
     };
-  }, [publishOpen, pageId, builderTree.length, builderDiffRetryNonce]);
+  }, [publishOpen, pageId, builderTree.length, builderDiffRetryNonce, surfaceKind]);
 
   const summary = useMemo(() => {
     type Row = {
@@ -677,6 +678,10 @@ export function PublishDrawer() {
   }, [publishDiff.removedSectionIds, publishedRows]);
 
   async function handlePublish() {
+    await runPublishOnce(runPublish); // F104: a second click never re-publishes
+  }
+
+  async function runPublish() {
     setState({ kind: "publishing" });
     // Flush any debounced builder-tree draft save BEFORE reading the CAS version
     // and publishing — otherwise an edit still sitting in the debounce window
@@ -740,7 +745,10 @@ export function PublishDrawer() {
       },
     );
     if (res.ok) {
+      // F104: announce via a window event; the drawer can remount on refresh.
       setState({ kind: "success", publishedAt: res.publishedAt });
+      announceSitePublished(res.publishedAt);
+      if (surfaceKind === "talent_page") closePublish();
       await refreshComposition();
       return;
     }
@@ -921,7 +929,7 @@ export function PublishDrawer() {
   const headerMeta: React.ReactNode = isSuccess ? (
     <span>
       {t("Just published")} ·{" "}
-      <span style={{ color: CHROME.muted2 }}>{formatPublishedAt((state as Extract<PublishState, { kind: "success" }>).publishedAt)}</span>
+      <span style={{ color: CHROME.muted2 }}>{formatPublishedAt((state as Extract<PublishState, { kind: "success" }>).publishedAt, editorLocale)}</span>
     </span>
   ) : (
     <span>
@@ -933,7 +941,7 @@ export function PublishDrawer() {
             ? // W1-L2 — the loader failed/timed out; say so instead of the
               // never-published em-dash (retry lives in the stats card below).
               t("couldn't load")
-            : formatPublishedAt(lastPublishedAt)}
+            : formatPublishedAt(lastPublishedAt, editorLocale)}
       </span>
     </span>
   );
@@ -1336,16 +1344,16 @@ export function PublishDrawer() {
             <Card>
               <CardHead
                 icon={<CogIcon />}
-                title="Page settings"
+                title={t("Page settings")}
                 action={
                   <CardAction accent="accent" onClick={openPageSettings}>
-                    Open full
+                    {t("Open full")}
                   </CardAction>
                 }
               />
               <CardBody>
                 <Field>
-                  <FieldLabel htmlFor="pub-title" meta="Browser tab + Google">
+                  <FieldLabel htmlFor="pub-title" meta={t("Browser tab + Google")}>
                     Page title
                   </FieldLabel>
                   <input
@@ -1367,7 +1375,7 @@ export function PublishDrawer() {
                 </Field>
 
                 <Field flush>
-                  <FieldLabel htmlFor="pub-desc">Meta description</FieldLabel>
+                  <FieldLabel htmlFor="pub-desc">{t("Meta description")}</FieldLabel>
                   <textarea
                     id="pub-desc"
                     value={miniDesc}
@@ -1389,7 +1397,7 @@ export function PublishDrawer() {
 
             {/* ── Search preview ─────────────────────────────────── */}
             <Card>
-              <CardHead icon={<GlobeIcon />} title="Search preview" />
+              <CardHead icon={<GlobeIcon />} title={t("Search preview")} />
               <CardBody>
                 <SearchPreview
                   host={host}
@@ -1740,7 +1748,7 @@ export function PublishDrawer() {
                  structural diff of the draft vs published snapshot so
                  operators can see exactly which blocks will change before
                  committing to publish. Reuses RevisionsDiffPanel. */}
-            {builderTree.length > 0 && (
+            {builderTree.length > 0 && surfaceKind !== "talent_page" && (
               <Card>
                 <CardHead
                   icon={<ChangesIcon />}

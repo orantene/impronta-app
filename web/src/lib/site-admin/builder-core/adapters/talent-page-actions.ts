@@ -29,6 +29,7 @@ import { loadOwnedSiteRev, loadSiteRev } from "@/lib/talent-site/history/history
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
+import { findDuplicatePublish } from "@/lib/talent-site/server/publish-idempotency";
 import type {
   TalentPageAdapterActions,
   TalentPageRow,
@@ -345,6 +346,11 @@ export async function publishTalentPageAction(
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
     const { talentProfileId, pageId } = input;
+    // F104: same draft rev as the last publish means nothing changed since; a
+    // double submit returns the existing publish instead of publishing again.
+    const dupAdmin = createServiceRoleClient();
+    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, talentProfileId) : null;
+    if (dup) return { ok: true as const, publishedAt: dup.publishedAt, updatedAt: dup.publishedAt, draftRev: dup.draftRev };
     // F96: first publish of the site runs the canonical site publish.
     const first = await delegateFirstPublish(sb, talentProfileId);
     if (!first.ok) return { ok: false as const, error: first.error };

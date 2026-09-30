@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 
 import { CHROME, PortaledOverlay } from "./kit";
 import { usePageVersion } from "./save-cycle-bridge";
+import { SITE_PUBLISHED_EVENT } from "./site-published-event";
 import { useEditorLocale } from "./use-editor-locale";
 import {
   CHROME_COPY,
@@ -57,6 +58,7 @@ export function TalentDraftChip(): ReactElement | null {
   const [enabled] = useState(inTalentBuilder);
   const [summary, setSummary] = useState<GoLiveSummary | null>(null);
   const [open, setOpen] = useState(false);
+  const [toast, setToast] = useState(false);
 
   const load = useCallback(async () => {
     const res = await loadTalentGoLiveAction().catch(() => null);
@@ -70,8 +72,44 @@ export function TalentDraftChip(): ReactElement | null {
     return () => clearTimeout(id);
   }, [enabled, load, pageVersion]);
 
+  // F104: a publish (from the drawer) refreshes the chip at once, closes any
+  // open sheet and raises the "Site published" toast with a View site link.
+  useEffect(() => {
+    if (!enabled) return;
+    const onPublished = () => {
+      setOpen(false);
+      setToast(true);
+      void load();
+    };
+    window.addEventListener(SITE_PUBLISHED_EVENT, onPublished);
+    return () => window.removeEventListener(SITE_PUBLISHED_EVENT, onPublished);
+  }, [enabled, load]);
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(false), 6_000);
+    return () => clearTimeout(id);
+  }, [toast]);
+
   if (!enabled || !summary) return null;
   const copyOf = (k: keyof typeof CHROME_COPY) => pick(CHROME_COPY[k], locale);
+  const toastEl = toast ? (
+    <PortaledOverlay>
+      <div
+        role="status"
+        aria-live="polite"
+        data-site-published-toast
+        className="fixed bottom-6 left-1/2 z-[320] flex -translate-x-1/2 items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-semibold text-white shadow-lg"
+        style={{ background: CHROME.ink }}
+      >
+        <span>{copyOf("sitePublished")}</span>
+        {summary.siteUrl ? (
+          <a href={summary.siteUrl} target="_blank" rel="noreferrer" style={{ color: "white", textDecoration: "underline" }}>
+            {copyOf("viewSite")}
+          </a>
+        ) : null}
+      </div>
+    </PortaledOverlay>
+  ) : null;
 
   const chipStyle = {
     display: "inline-flex",
@@ -86,6 +124,8 @@ export function TalentDraftChip(): ReactElement | null {
 
   if (summary.unpublishedCount === 0 && !summary.firstPublish) {
     return (
+      <>
+      {toastEl}
       <span
         data-talent-live-chip
         className="min-h-11 sm:min-h-[26px]"
@@ -98,11 +138,13 @@ export function TalentDraftChip(): ReactElement | null {
           </a>
         ) : null}
       </span>
+      </>
     );
   }
 
   return (
     <>
+      {toastEl}
       <button
         type="button"
         data-talent-draft-chip
