@@ -106,6 +106,8 @@ type Variant = "card" | "hero" | "gallery";
 type Slot = { slot: string; variant: Variant; tag: string; size: OpenAiImageSize; hint: string; person: "required" | "optional" | "none"; service?: number; album?: string };
 
 const NO_CLIENT_FACES = new Set(["Paw", "Nest", "Clarity", "Counsel"]);
+/** A scene with someone other than the talent in it (or their mouth/teeth, for dental work). */
+const OTHER_PERSON = /\b(client|clients|patient|patients|customer|customers|child|children|kid|kids|baby|babies|toddler|infant|student|students|family|families|couple|guest|guests|owner|owners|person|people|someone|senior|seniors|elder|elderly|mother|father|parent|parents|group|mouth|teeth|tooth|face)\b|children’s|children's/i;
 function slotsFor(d: Demo, f: Fields, theme: string): Slot[] {
   const mp = f.media_plan;
   const portraitGallery = theme === "Folio";
@@ -432,7 +434,23 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
   const plan: Plan = {
     ...planned,
     shots: planned.shots.map((sh, i) => {
-      const person = slotList[i]?.person;
+      const slot = slotList[i];
+      const person = slot?.person;
+      // No-client-face themes: a work shot built around another person (a patient's open mouth, a
+      // child at a table) keeps showing them whatever the prompt says, so the scene itself becomes
+      // an objects-and-space shot of the same brief, with alt text to match.
+      if (NO_CLIENT_FACES.has(theme) && slot && slot.variant === "gallery" && OTHER_PERSON.test(sh.scene_en)) {
+        const svc = slot.service != null ? d.services[slot.service] : undefined;
+        const subjectEn = svc?.name_en ?? "the work";
+        const subjectEs = svc?.name_es ?? slot.hint.split(/[.(]/)[0].trim();
+        return {
+          ...sh,
+          shows_person: false,
+          scene_en: `Objects-and-space photo for ${svc ? `the service "${subjectEn}" (${svc.description_en ?? ""})` : `"${slot.hint}"`} by a ${d.taxonomy_slug.replace(/-/g, " ")} in ${d.city}: the tools, materials, the room or the finished result, beautifully arranged in natural light. At most the professional's hands; no other person.`,
+          alt_en: `${subjectEn}: tools and workspace`,
+          alt_es: `${subjectEs}: herramientas y espacio de trabajo`,
+        };
+      }
       if (person !== "optional" || sh.shows_person) return sh;
       const inScene = named.test(sh.scene_en) && !/\b(hands?|from behind|back view|out of frame|only their)\b/i.test(sh.scene_en);
       return inScene ? { ...sh, shows_person: true } : sh;
