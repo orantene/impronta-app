@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
+import { loadTalentClients } from "@/lib/talent/clients-actions";
+import type { TalentClientRow } from "@/lib/talent/clients-merge";
+import { agendaMoneyRows, talentOwedSummary } from "@/lib/talent/money-home";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
@@ -25,7 +28,6 @@ import {
   bookedLabel,
   durationMinutes,
   greetingFor,
-  owedFromAgenda,
   resolveQualityCardMode,
   resolveTodayMode,
   todayAppointmentAction,
@@ -206,7 +208,29 @@ export function AgendaTodayPage({
     clock,
     `${clock.getFullYear()}-${String(clock.getMonth() + 1).padStart(2, "0")}-${String(clock.getDate()).padStart(2, "0")}`,
   );
-  const owed = owedFromAgenda(items, clock);
+  // F69: same source as /talent/money. The client ledger (agency_bookings
+  // balances) plus the agenda's balances, via the one shared summary.
+  const [ledgerClients, setLedgerClients] = useState<TalentClientRow[] | null>(null);
+  const profileId = profile?.id ?? null;
+  useEffect(() => {
+    if (!profileId) return;
+    let cancelled = false;
+    void loadTalentClients(profileId)
+      .then((res) => {
+        if (!cancelled) setLedgerClients(res.ok ? res.items : []);
+      })
+      .catch(() => {
+        if (!cancelled) setLedgerClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
+  const owed = talentOwedSummary({
+    clients: ledgerClients,
+    agendaOwed: agendaMoneyRows(items, clock).owed,
+    currency: monthCollected?.currency ?? null,
+  });
   const idea = ideaDismissed ? null : rebookHint(items, clock);
 
   const firstName = profile?.displayName?.split(" ")[0] ?? "";

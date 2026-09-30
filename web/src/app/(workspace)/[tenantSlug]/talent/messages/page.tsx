@@ -7,5 +7,5 @@ export default async function LegacyTalentMessagesPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await redirectLegacyTalentPath("messages", searchParams);
+  await redirectLegacyTalentPath("inbox", searchParams);
 }

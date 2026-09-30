@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 
 import { diffDesignPayloads, type CandidateItem } from "./diff-payload";
 import { mergeDesignUpdate } from "./merge";
-import { authoredRelease, withAuthoredNotes } from "./release-notes";
+import { generateReleaseItems, releaseNotesFor as authoredRelease, withAuthoredNotes } from "./release-notes";
 import type { DesignSide } from "./types";
 import type { DesignPayload } from "../theme-catalog/types";
 import {
@@ -195,4 +195,20 @@ test("Maison v2 v17: the services layout is opt-in and needs both halves of the 
   // Choosing the layout pair swaps the catalog for the two-column one.
   const chosen = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "layout") });
   assert.deepEqual(servicesKinds(chosen.trees.home!), ["services_two_col:cards"]);
+});
+
+test("Maison v2 v17 through the one generator: layout pair grouped, notes filled, critical marked", () => {
+  const { items, notes } = generateReleaseItems(
+    "maison-v2",
+    { payload: maisonV2At(16), version: 16 },
+    { payload: maisonV2At(17), version: 17 },
+  );
+  assert.ok(notes.en && notes.es);
+  const layout = items.filter((i) => i.type === "layout");
+  assert.equal(layout.length, 1, "the pair is ONE talent-facing layout item");
+  assert.deepEqual([...(layout[0]!.keys ?? [])].sort(), ["home:services/services_catalog", "home:services/services_two_col"]);
+  assert.ok(layout[0]!.note?.en && layout[0]!.note?.es);
+  const crit = items.filter((i) => i.type === "critical");
+  assert.equal(crit.length, 2);
+  for (const c of crit) assert.ok(c.note?.en && c.note?.es && c.keys?.length);
 });

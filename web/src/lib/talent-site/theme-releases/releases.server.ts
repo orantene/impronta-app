@@ -60,6 +60,11 @@ export function buildDraftReleaseRow(input: {
   };
 }
 
+/** A release with no items has nothing to tell talents: the sync skips it. */
+export function shouldCreateDraftRelease(items: ReadonlyArray<ReleaseItem>): boolean {
+  return items.length > 0;
+}
+
 function fail<T>(scope: string, err: { code?: string; message: string }): ReleaseResult<T> {
   if (!isMissingTable(err)) logServerError(`themeReleases.${scope}`, err);
   return { ok: false, error: err.message };

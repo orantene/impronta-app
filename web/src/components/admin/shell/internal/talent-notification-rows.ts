@@ -149,7 +149,7 @@ const ICON_FOR_KIND: Record<UserNotification["kind"], TalentNotif["icon"]> = {
 const SUCCESS_KINDS: ReadonlySet<UserNotification["kind"]> = new Set(["booking", "payment"]);
 
 /** Theme-update bells written before they carried a target still deep-link. */
-function targetOf(n: UserNotification): string | null {
+export function targetOf(n: UserNotification): string | null {
   if (n.targetDrawer) return n.targetDrawer;
   return n.targetPayload?.kind === "theme_update" ? "theme-update" : null;
 }

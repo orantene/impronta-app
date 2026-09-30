@@ -39,6 +39,10 @@ export type TalentClientRow = {
   firstSeenAt?: string | null;
   /** Appointments, newest first. Optional so older callers stay valid. */
   history?: TalentClientHistoryEntry[];
+  /** Private note the talent wrote (never shown to the client). */
+  note?: string | null;
+  /** True when the talent added this person by hand (no booking or message yet). */
+  manual?: boolean;
 };
 
 /** Add history entries, dropping a booking already on file (shared-PK mirrors). */
@@ -146,4 +150,53 @@ export function upsertClient(
   if (existing.source === "inquiry" && row.source === "booking") {
     existing.source = "booking";
   }
+}
+
+function contactKeys(row: Pick<TalentClientRow, "email" | "phone">): string[] {
+  const keys: string[] = [];
+  const email = row.email?.trim().toLowerCase();
+  if (email) keys.push(`e:${email}`);
+  const digits = row.phone?.replace(/\D/g, "") ?? "";
+  if (digits.length >= 7) keys.push(`p:${digits.slice(-10)}`);
+  return keys;
+}
+
+/**
+ * One row per PERSON for pickers (Send quote, New booking). The Clients
+ * directory keys per inquiry or booking (never by name, A5), so one person with
+ * four conversations is four rows there. A picker wants one. Two rows are the
+ * same person only when they share an email or a phone number; two people who
+ * merely share a name stay separate (see `clientPickerHint`). Rows with no
+ * contact cannot be matched, so they are kept. First row of a person wins
+ * (callers pass them newest first) and borrows the contact the others carry.
+ */
+export function dedupeClientsByPerson(rows: readonly TalentClientRow[]): TalentClientRow[] {
+  const owner = new Map<string, number>();
+  const parent: number[] = rows.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i]!)));
+  rows.forEach((r, i) => {
+    for (const key of contactKeys(r)) {
+      const seen = owner.get(key);
+      if (seen === undefined) owner.set(key, i);
+      else parent[find(i)] = find(seen);
+    }
+  });
+  const out = new Map<number, TalentClientRow>();
+  rows.forEach((r, i) => {
+    const root = find(i);
+    const kept = out.get(root);
+    if (!kept) out.set(root, { ...r });
+    else {
+      if (!kept.email && r.email) kept.email = r.email;
+      if (!kept.phone && r.phone) kept.phone = r.phone;
+    }
+  });
+  return [...out.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r);
+}
+
+/** Email or phone to show next to a name that two different people share; null when the name is unique. */
+export function clientPickerHint(row: TalentClientRow, all: readonly TalentClientRow[]): string | null {
+  const name = row.name.trim().toLowerCase();
+  const shared = all.some((o) => o !== row && o.name.trim().toLowerCase() === name);
+  return shared ? row.email || row.phone || null : null;
 }

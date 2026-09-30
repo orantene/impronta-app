@@ -23,6 +23,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
+import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
 import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
@@ -653,8 +654,7 @@ async function renderMaxSiteDocument(args: {
             fontFamily: '"Inter", system-ui, sans-serif',
           }}
         >
-          Draft preview — visitors see the published version until you publish
-          again.
+          {draftPreviewBannerText(locale)}
         </div>
       ) : null}
 

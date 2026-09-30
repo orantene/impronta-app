@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { AgendaPanelFrame } from "../AgendaPanelFrame";
 import { ModalShell, PrimaryButton, SecondaryButton } from "../../../primitives";
 
 function useDesktopTaskShell() {
@@ -29,6 +30,7 @@ export function TaskShell({
   onPrimaryAction,
   secondaryActionLabel,
   onSecondaryAction,
+  panel = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -39,10 +41,37 @@ export function TaskShell({
   onPrimaryAction?: () => void;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
+  /**
+   * Render in the shared agenda panel frame (right drawer on desktop, bottom
+   * sheet on a phone, sticky actions, focus trap, Escape) instead of the modal
+   * or full-screen shell.
+   */
+  panel?: boolean;
 }) {
   const isDesktop = useDesktopTaskShell();
 
   if (!open) return null;
+
+  const actions = (
+    <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-2 pb-[max(0px,env(safe-area-inset-bottom))]">
+      <SecondaryButton onClick={onSecondaryAction ?? onClose}>
+        {secondaryActionLabel ?? "Back"}
+      </SecondaryButton>
+      {primaryActionLabel ? (
+        <PrimaryButton onClick={onPrimaryAction} disabled={!onPrimaryAction}>
+          {primaryActionLabel}
+        </PrimaryButton>
+      ) : null}
+    </div>
+  );
+
+  if (panel) {
+    return (
+      <AgendaPanelFrame title={title} subtitle={subtitle} onClose={onClose} dataAttr="data-task-panel" footer={actions}>
+        {children}
+      </AgendaPanelFrame>
+    );
+  }
 
   const content = (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--tc-canvas,#FAFAF7)]">

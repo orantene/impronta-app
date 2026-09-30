@@ -7,5 +7,5 @@ export default async function LegacyTalentPayoutsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await redirectLegacyTalentPath("settings/payouts", searchParams);
+  await redirectLegacyTalentPath("payouts", searchParams);
 }

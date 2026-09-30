@@ -178,7 +178,7 @@ export function Drawer({
   floatLabel: _floatLabel,
   floatPanelId,
   className,
-  compactBottomSheetBelowLg,
+  compactBottomSheetBelowLg = floating,
   floatSideInsetPx,
   floatingDragOptions,
   dockedToRail,
@@ -319,7 +319,7 @@ export function Drawer({
       // A modal dialog must not be aria-hidden while open; keep the hidden flag
       // only for the closed (off-screen) state of non-modal panels.
       aria-hidden={modal ? (open ? undefined : true) : !open}
-      className={`fixed flex flex-col font-sans ${className ?? ""}`}
+      className={`fixed flex max-w-full flex-col font-sans max-sm:!w-full ${className ?? ""}`}
       style={{
         top: topPx,
         bottom: 0,

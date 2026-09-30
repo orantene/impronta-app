@@ -15,6 +15,8 @@ import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { bookingIdFromTalentPath } from "./state/talent-page-segment";
 import { WorkingHoursPanelHost, openWorkingHoursPanel } from "./talent/agenda/WorkingHoursPanel";
 import { NewBookingPanelHost, openNewBookingPanel } from "./talent/agenda/NewBookingPanel";
+import { SendQuotePanelHost } from "./talent/agenda/SendQuotePanel";
+import { pinNextConversation } from "./messages/conversation-pending";
 
 // ── Page bodies load ON DEMAND (perf/talent-dev-bundle) ──
 // Every talent page body used to be a static import here, so /talent/today
@@ -338,6 +340,8 @@ function TalentRouter() {
   const [initialPage] = useState(state.talentPage);
   const navigatedAway = state.talentPage !== initialPage;
   const [everNavigated, setEverNavigated] = useState(false);
+  // Bumped when Send quote opens the new conversation, so Messages remounts on it.
+  const [threadEpoch, setThreadEpoch] = useState(0);
   useEffect(() => { if (navigatedAway) setEverNavigated(true); }, [navigatedAway]);
   const animate = everNavigated || navigatedAway;
   let page: ReactNode = null;
@@ -498,10 +502,18 @@ function TalentRouter() {
     page = <TalentRouterFallback talentPage={state.talentPage} />;
   }
   return (
-    <div key={state.talentPage} data-tulala-talent-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
+    <div key={`${state.talentPage}:${threadEpoch}`} data-tulala-talent-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
       <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
       <WorkingHoursPanelHost />
+      <SendQuotePanelHost
+        onOpenThread={(inquiryId) => {
+          pinNextConversation(inquiryId);
+          setTalentPage("messages");
+          setThreadEpoch((n) => n + 1);
+        }}
+        onFallback={() => setTalentPage("messages")}
+      />
       <NewBookingPanelHost
         onOpenRecord={(id) => openAgendaPath(`/talent/bookings/${id}`, "booking-record")}
         onFallback={() => openAgendaPath("/talent/bookings/new", "bookings-new")}

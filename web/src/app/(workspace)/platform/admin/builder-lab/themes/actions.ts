@@ -11,6 +11,7 @@ import type { ReleaseChannel, ThemeRelease } from "@/lib/talent-site/theme-relea
 import { editItemInList, type ItemEdit } from "@/lib/talent-site/theme-releases/manager/items";
 import {
   changeChannel,
+  resyncDemos,
   changeRollout,
   loadRelease,
   runDryRun,
@@ -93,6 +94,14 @@ export async function actionChangeChannel(
     }
     const res = await changeChannel(admin, release, target);
     return res.ok ? { ok: true, data: res } : res;
+  });
+}
+
+/** Re-sync demos: every demo still below to_version, any channel after draft. */
+export async function actionResyncDemos(releaseId: string): Promise<Result<{ applied: number; warnings: string[] }>> {
+  return withRelease(releaseId, async (admin, release) => {
+    const res = await resyncDemos(admin, release);
+    return res.ok ? { ok: true, data: { applied: res.applied, warnings: res.warnings } } : res;
   });
 }
 

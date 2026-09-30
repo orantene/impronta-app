@@ -11,12 +11,20 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { hashString, propsOf } from "../origin";
+import { countParts, partsOf } from "../parts";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
 import type { DesignMergeReport, ReleaseItem, ReleaseItemType, SiteUpdateState } from "../types";
 
+/**
+ * States that still offer the update: `available` (new), `previewed` (she looked
+ * at it, measurement only) and `undone` (she took it back and may want it again,
+ * F83). `applied` and `dismissed` stay quiet.
+ */
+export const OPEN_UPDATE_STATES: readonly SiteUpdateState[] = ["available", "previewed", "undone"];
+
 /** Only an open update shows the banner; every other state is quiet. */
 export function isNoticeVisible(state: SiteUpdateState | string | null | undefined): boolean {
-  return state === "available";
+  return OPEN_UPDATE_STATES.includes(state as SiteUpdateState);
 }
 
 /** Items Tulala applies on its own (untouched parts only) once a release is default. */
@@ -28,6 +36,26 @@ export function isAutoItem(item: Pick<ReleaseItem, "type">): boolean {
 
 export function autoImproveItems(items: ReadonlyArray<ReleaseItem>): ReleaseItem[] {
   return items.filter(isAutoItem);
+}
+
+/**
+ * F78: what "Apply" merges. Automatic improvements (code, token and variant
+ * defaults), critical fixes and layout changes she opts into by applying.
+ * New blocks are NEVER part of Apply: they arrive only through "Add this
+ * block" with a placement, as the sheet promises.
+ */
+export function applyItemsOf(items: ReadonlyArray<ReleaseItem>): ReleaseItem[] {
+  return items.filter((i) => i.type !== "new-block");
+}
+
+/**
+ * F87: a site with NO exact merge base (built before origin stamps, or pinned
+ * to a version with no snapshot) is only offered new blocks. The merge cannot
+ * tell her edits from the design, so automatic improvements and layout changes
+ * are hidden and Apply is unavailable.
+ */
+export function offeredItems(items: ReadonlyArray<ReleaseItem>, noBase: boolean): ReleaseItem[] {
+  return noBase ? items.filter((i) => i.type === "new-block") : [...items];
 }
 
 export type WhatsNewGroup = "auto" | "blocks" | "layout" | "critical";
@@ -73,10 +101,32 @@ export function toTalentItem(item: ReleaseItem): TalentReleaseItem {
   };
 }
 
+/**
+ * F73: releases generated before the layout grouping fix list one change as
+ * several items that share a note (the two hero-inset layout entries). Collapse
+ * items of the same type with an identical, non-empty note at READ time so the
+ * talent sees one row. Apply still merges every stored item.
+ */
+export function dedupeTalentItems(items: ReadonlyArray<TalentReleaseItem>): TalentReleaseItem[] {
+  const seen = new Set<string>();
+  const out: TalentReleaseItem[] = [];
+  for (const item of items) {
+    if (item.noteEn === "" && item.noteEs === "") {
+      out.push(item);
+      continue;
+    }
+    const sig = `${item.type}|${item.noteEn}|${item.noteEs}`;
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push(item);
+  }
+  return out;
+}
+
 export function groupItems(items: ReadonlyArray<ReleaseItem>): Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }> {
   return WHATS_NEW_GROUP_ORDER.map((group) => ({
     group,
-    items: items.filter((i) => groupOf(i.type) === group).map(toTalentItem),
+    items: dedupeTalentItems(items.filter((i) => groupOf(i.type) === group).map(toTalentItem)),
   })).filter((g) => g.items.length > 0);
 }
 
@@ -99,22 +149,21 @@ export interface UpdateSummary {
   added: number;
   kept: number;
   conflicts: number;
-  /** Distinct top-level parts she kept (for "we kept your hero, colours"). */
+  /** Distinct top-level parts she kept (for "we kept your hero, colours"), English. */
   keptLabels: string[];
+  /** The same parts as raw design keys ("hero", "colours"); localized at display (F86). */
+  keptKeys: string[];
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
-  const labels = new Set<string>();
-  for (const e of report.kept) {
-    const top = e.change === "token" ? "colours" : e.key.split("/")[0]!;
-    labels.add(top === "colours" ? top : humanKey(top));
-  }
+  const keys = partsOf(report.kept).slice(0, 6);
   return {
     applied: report.applied.length,
     added: report.added.length,
-    kept: report.kept.length,
+    kept: countParts(report.kept),
     conflicts: report.conflicts.length,
-    keptLabels: [...labels].slice(0, 6),
+    keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),
+    keptKeys: keys,
   };
 }
 
@@ -186,4 +235,9 @@ export function nextTokenOrigin(
 /** A merge that changed nothing a talent could see. */
 export function isEmptyMerge(report: Pick<DesignMergeReport, "applied" | "added" | "removed">): boolean {
   return report.applied.length === 0 && report.added.length === 0 && report.removed.length === 0;
+}
+
+/** F92: a dismissed update has no banner but keeps a quiet entry and can still be opened and applied. */
+export function isQuietEntry(state: SiteUpdateState | string | null | undefined): boolean {
+  return state === "dismissed";
 }
