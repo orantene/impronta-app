@@ -27,7 +27,7 @@
  * what distinguishes these three presets from each other.
  */
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import { FIELD_KIT } from "../field-kit";
@@ -67,6 +67,9 @@ const WIDTH_BY_MEASURE: Record<string, number> = {
 
 export function QuickStyleCards({ presets, onApply, scopeLabel }: QuickStyleCardsProps) {
   const { t } = useInspectorT();
+  // Round 3 — sticky “last applied” selection so the chosen thumb reads active
+  // until the operator picks another (presets are fire-and-forget patches).
+  const [lastAppliedId, setLastAppliedId] = useState<string | null>(null);
   if (presets.length === 0) return null;
 
   return (
@@ -93,13 +96,20 @@ export function QuickStyleCards({ presets, onApply, scopeLabel }: QuickStyleCard
           gap: FIELD_KIT.gap.control,
         }}
       >
-        {presets.map((preset) => (
+        {presets.map((preset) => {
+          const active = lastAppliedId === preset.id;
+          return (
           <button
             key={preset.id}
             type="button"
             data-builder-node-style-preset={preset.id}
+            data-active={active ? "true" : undefined}
+            aria-pressed={active}
             title={preset.hint}
-            onClick={() => onApply(preset)}
+            onClick={() => {
+              setLastAppliedId(preset.id);
+              onApply(preset);
+            }}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -108,18 +118,24 @@ export function QuickStyleCards({ presets, onApply, scopeLabel }: QuickStyleCard
               minWidth: 0,
               textAlign: "center",
               borderRadius: FIELD_KIT.radius.tile,
-              border: `1px solid ${FIELD_KIT.border}`,
-              background: FIELD_KIT.surface,
+              border: active
+                ? `1.5px solid ${FIELD_KIT.accent}`
+                : `1px solid ${FIELD_KIT.border}`,
+              background: active ? "rgba(124,58,237,0.06)" : FIELD_KIT.surface,
               cursor: "pointer",
-              boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
-              transition: `border-color ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, box-shadow ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, transform 120ms ease`,
+              boxShadow: active
+                ? "0 1px 5px rgba(124,58,237,0.16)"
+                : "0 1px 2px rgba(17,24,39,0.04)",
+              transition: `border-color ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, box-shadow ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, background-color ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, transform 120ms ease`,
             }}
             onMouseEnter={(e) => {
+              if (active) return;
               e.currentTarget.style.borderColor = FIELD_KIT.accent;
               e.currentTarget.style.boxShadow =
                 "0 2px 10px rgba(124,58,237,0.12)";
             }}
             onMouseLeave={(e) => {
+              if (active) return;
               e.currentTarget.style.borderColor = FIELD_KIT.border;
               e.currentTarget.style.boxShadow =
                 "0 1px 2px rgba(17,24,39,0.04)";
@@ -131,7 +147,7 @@ export function QuickStyleCards({ presets, onApply, scopeLabel }: QuickStyleCard
                 fontSize: FIELD_KIT.font.caption,
                 fontWeight: 650,
                 lineHeight: 1.2,
-                color: FIELD_KIT.ink,
+                color: active ? FIELD_KIT.accent : FIELD_KIT.ink,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
@@ -139,7 +155,8 @@ export function QuickStyleCards({ presets, onApply, scopeLabel }: QuickStyleCard
               {t(preset.label)}
             </span>
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

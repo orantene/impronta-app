@@ -60,25 +60,20 @@ export function Segmented<T extends string>({
   return (
     <div
       role="radiogroup"
-      className={`inline-flex p-[3px] ${className ?? ""}`}
+      data-ec-segmented=""
+      className={`inline-flex p-[3px] [&_svg]:shrink-0 ${className ?? ""}`}
       style={{
-        background: CHROME.paper,
-        // KIT-control-family retone: track edge cools from khaki
-        // `CHROME.controlBorder` (#cfc7b6) to `CHROME.lineStrong`, matching
-        // NumberUnit / InspectorSelect / SelectDropdown / kit/button.tsx's
-        // "secondary" variant.
+        // Round 3 — cooler track so white active pills pop
+        background: "rgba(24,24,27,0.05)",
         border: `1px solid ${CHROME.lineStrong}`,
         borderRadius: 10,
         display: fullWidth ? "grid" : "inline-flex",
         // QA 2026-05-13 — Page background field has 11 chips; the old
         // `minmax(0, 1fr)` grid forced them all into one row and clipped
-        // labels mid-word ("NoirChampagneNoise"). `auto-fit` + a 76px
-        // minimum lets the grid wrap to multiple rows on narrow inspector
-        // panels while still distributing space evenly when the row has
-        // room. Existing call sites with ≤4 options are unaffected — they
-        // still fit one row at any inspector width.
+        // labels mid-word ("NoirChampagneNoise"). `auto-fit` + a 64px
+        // minimum keeps ratio chips denser on narrow inspector panels.
         gridTemplateColumns: fullWidth
-          ? `repeat(auto-fit, minmax(76px, 1fr))`
+          ? `repeat(auto-fit, minmax(64px, 1fr))`
           : undefined,
         gap: fullWidth ? 2 : undefined,
         ...style,
@@ -124,7 +119,7 @@ export function Segmented<T extends string>({
               btns?.[next]?.focus();
             }}
             title={typeof opt.label === "string" ? t(opt.label) : undefined}
-            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] transition-[background-color,color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.98]"
+            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] transition-[background-color,color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.98] [&_svg]:opacity-100"
             style={{
               // `min-width: 0` lets the button shrink below its content's
               // natural width inside a grid cell; combined with the
@@ -135,16 +130,19 @@ export function Segmented<T extends string>({
               fontSize: 11.5,
               fontWeight: active ? 650 : 600,
               letterSpacing: "-0.005em",
-              // Round 2 — white raised pill + accent ink (modern app segmented)
               background: active ? CHROME.surface : "transparent",
-              color: active ? CHROME.accent : "#57534e",
+              color: active ? CHROME.accent : "#3f3f46",
               border: "none",
               boxShadow: active
-                ? `0 0 0 1px rgba(124, 58, 237, 0.35), 0 1px 2px rgba(17,24,39,0.08)`
+                ? `0 0 0 1.5px rgba(124, 58, 237, 0.45), 0 1px 3px rgba(17,24,39,0.10)`
                 : "none",
             }}
           >
-            {opt.icon ? <span aria-hidden>{opt.icon}</span> : null}
+            {opt.icon ? (
+              <span aria-hidden className="inline-flex [&_svg]:stroke-[2.25]">
+                {opt.icon}
+              </span>
+            ) : null}
             <span
               style={{
                 overflow: "hidden",
