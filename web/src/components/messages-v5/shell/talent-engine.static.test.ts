@@ -46,3 +46,11 @@ test("F38: her writes run on her own sale and refuse on an agency sale", () => {
   assert.equal(talentWriteRefusal(true), null);
   assert.equal(talentWriteRefusal(false), "not_her_sale");
 });
+
+test("talent upload accepts a talent named on a guest chat; voice mic is hidden for her", () => {
+  const signed = readFileSync(join(process.cwd(), "src/lib/server-actions/inquiry-attachment-signed.ts"), "utf8");
+  assert.match(signed, /loadOwnedTalentInquiry/);
+  assert.match(signed, /talentNamedScope/);
+  const engine = readFileSync(join(process.cwd(), "src/components/messages-v5/shell/talent-engine.ts"), "utf8");
+  assert.match(engine, /voice: false/);
+});

@@ -33,6 +33,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { loadOwnedTalentInquiry, loadTalentActor } from "@/lib/messaging/talent-actor";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -53,6 +54,24 @@ type Scope =
  * Anyone else is refused. Staff is tried first — a staff member who is
  * ALSO a client/talent should act as staff on their tenant's threads.
  */
+/**
+ * A talent named on the inquiry without an inquiry_participants row (guest
+ * chat). Same ownership rule as the messaging reply path, so upload and reply
+ * agree on who the thread is "hers" for. Anything else refuses.
+ */
+async function talentNamedScope(
+  inquiryId: string,
+  supabase: SupabaseClient,
+  userId: string,
+  refusal: string,
+): Promise<{ ok: true; scope: Scope } | { ok: false; error: string }> {
+  const actor = await loadTalentActor();
+  if (!actor.ok) return { ok: false, error: refusal };
+  const owned = await loadOwnedTalentInquiry(actor.admin, actor.talentProfileId, inquiryId);
+  if (!owned.ok) return { ok: false, error: refusal };
+  return { ok: true, scope: { kind: "talent", tenantId: owned.tenantId, userId, supabase } };
+}
+
 async function resolveScope(
   inquiryId: string,
 ): Promise<{ ok: true; scope: Scope } | { ok: false; error: string }> {
@@ -93,7 +112,7 @@ async function resolveScope(
     .select("id, tenant_id, client_user_id")
     .eq("id", inquiryId)
     .maybeSingle();
-  if (!inq) return { ok: false, error: "Inquiry not found." };
+  if (!inq) return talentNamedScope(inquiryId, supabase, user.id, "Inquiry not found.");
   const tenantId = inq.tenant_id as string;
   if ((inq.client_user_id as string | null) === user.id) {
     return {
@@ -118,13 +137,12 @@ async function resolveScope(
     .eq("talent_profile_id", tp.id as string)
     .eq("role", "talent")
     .maybeSingle<{ id: string; status: string }>();
-  if (
-    !participant ||
-    participant.status === "removed" ||
-    participant.status === "declined"
-  ) {
+  if (participant?.status === "removed" || participant?.status === "declined") {
     return { ok: false, error: "Not authorized for this inquiry." };
   }
+  // Named in the guest chat but not seated: she can already read and reply
+  // there (loadOwnedTalentInquiry), so she can attach too.
+  if (!participant) return talentNamedScope(inquiryId, supabase, user.id, "Not authorized for this inquiry.");
   return {
     ok: true,
     scope: { kind: "talent", tenantId, userId: user.id, supabase },
