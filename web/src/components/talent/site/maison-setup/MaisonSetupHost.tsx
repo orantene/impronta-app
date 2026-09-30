@@ -31,6 +31,7 @@ export function MaisonSetupHost({
   onCloseToSite,
   onPublished,
   forceScreen,
+  forceScreenReason = "restored",
   onForceScreenConsumed,
   siteLive = false,
   liveAddress,
@@ -47,6 +48,13 @@ export function MaisonSetupHost({
   onPublished?: (toast?: string) => void;
   /** Optional override (e.g. Change design / restore from the live card). */
   forceScreen?: MaisonSetupChoices["screen"] | null;
+  /**
+   * Why the screen is forced. "restored" = Design options just restored the
+   * previous design (the server already wrote it): show the Undo toast.
+   * "resume" = a surface (Today, pill, My presence) opens the flow at the
+   * talent's current step: READ-ONLY, no toast, no setup_choices write (F58).
+   */
+  forceScreenReason?: "restored" | "resume";
   onForceScreenConsumed?: () => void;
   /**
    * Site is live with Maison (manager's `maisonLive`). While live, the host
@@ -137,6 +145,7 @@ export function MaisonSetupHost({
 
   useEffect(() => {
     if (!forceScreen || !talentProfileId) return;
+    const resume = forceScreenReason === "resume";
     setChoices((prev) => {
       const merged: MaisonSetupChoices = {
         ...prev,
@@ -147,15 +156,16 @@ export function MaisonSetupHost({
           ? { contentMode: "mine" as const }
           : {}),
       };
-      persistChoices(talentProfileId, merged);
+      // Resuming is navigation only: never persist on arrival (F58).
+      if (!resume) persistChoices(talentProfileId, merged);
       return merged;
     });
     setExplicitOpen(true);
     // Restore from Design options lands on Review; the panel unmounts, so the
-    // "restored · Undo" toast lives here.
-    if (forceScreen === "review") setToast("restored");
+    // "restored · Undo" toast lives here. Never on a plain resume (F58).
+    if (forceScreen === "review" && !resume) setToast("restored");
     consumeForceScreen();
-  }, [forceScreen, talentProfileId, sitePublished]);
+  }, [forceScreen, forceScreenReason, talentProfileId, sitePublished]);
 
   useEffect(() => {
     if (!toast) return;

@@ -152,6 +152,7 @@ function ManagerBody({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
+  const [maisonForceReason, setMaisonForceReason] = useState<"restored" | "resume">("restored");
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
@@ -159,7 +160,10 @@ function ManagerBody({
   // (a chosen design resumes at review, never back at the gallery).
   const openSetup = useCallback((step: WebsiteSetupStep) => {
     setSetupOpen(true);
-    if (step === "review") setMaisonForceScreen("review");
+    if (step === "review") {
+      setMaisonForceReason("resume");
+      setMaisonForceScreen("review");
+    }
   }, []);
   useEffect(() => {
     const take = () => {
@@ -201,8 +205,14 @@ function ManagerBody({
           legacyProfileTemplate={state.legacyProfileTemplate}
           publishedAt={state.sitePublishedAt}
           contentModeLabel="mine"
-          onChangeDesign={() => setMaisonForceScreen("gallery")}
-          onRestoredToReview={() => setMaisonForceScreen("review")}
+          onChangeDesign={() => {
+            setMaisonForceReason("restored");
+            setMaisonForceScreen("gallery");
+          }}
+          onRestoredToReview={() => {
+            setMaisonForceReason("restored");
+            setMaisonForceScreen("review");
+          }}
           liveToast={liveToast}
           onLiveToastDone={() => setLiveToast(null)}
         />
@@ -213,6 +223,7 @@ function ManagerBody({
       {/* Maison Choose-a-design / Theme detail / Review. Flag-off → null. */}
       <MaisonSetupHost
         forceScreen={maisonForceScreen}
+        forceScreenReason={maisonForceReason}
         onForceScreenConsumed={() => setMaisonForceScreen(null)}
         onPublished={(toast) => {
           setLiveToast(toast ?? null);

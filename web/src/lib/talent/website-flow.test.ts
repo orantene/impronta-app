@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { websiteFlowCopy, websiteFlowState, websiteSetupStep } from "./website-flow";
+import { websiteFlowCopy, websiteFlowPending, websiteFlowState, websiteSetupStep } from "./website-flow";
 import {
   appliedThemeLabel,
   appliedThemeLine,
@@ -72,5 +72,18 @@ describe("appliedThemeLabel (one resolver for design + look names)", () => {
   it("no design is null; unknown design falls back to a title-cased slug", () => {
     assert.equal(appliedThemeLabel(null, null), null);
     assert.equal(appliedThemeLabel("some-new-design", "x")?.design, "Some New Design");
+  });
+});
+
+describe("websiteFlowPending (pill stays neutral until the site read lands)", () => {
+  it("100% and no site read yet: pending, so no 'Activate' flash", () => {
+    assert.equal(websiteFlowPending(100, false), true);
+  });
+  it("once the read lands the real state shows", () => {
+    assert.equal(websiteFlowPending(100, true), false);
+  });
+  it("under 100% the pill already knows its state (Unlock + pct)", () => {
+    assert.equal(websiteFlowPending(83, false), false);
+    assert.equal(websiteFlowPending(null, false), false);
   });
 });

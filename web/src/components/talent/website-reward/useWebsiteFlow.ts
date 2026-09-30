@@ -41,6 +41,8 @@ let storeInFlight: Promise<void> | null = null;
 let storeStale = true;
 /** A refresh asked for while one was in flight: run once more after it. */
 let storeAgain = false;
+/** A read has completed (even a failed one): the pill may stop waiting. */
+let storeAttempted = false;
 const storeListeners = new Set<() => void>();
 
 function refreshActivationStore(): Promise<void> {
@@ -56,6 +58,7 @@ function refreshActivationStore(): Promise<void> {
     .catch(() => undefined)
     .finally(() => {
       storeInFlight = null;
+      storeAttempted = true;
       for (const fn of storeListeners) fn();
       if (storeAgain) {
         storeAgain = false;
@@ -65,10 +68,17 @@ function refreshActivationStore(): Promise<void> {
   return storeInFlight;
 }
 
-function useActivationStore(pathname: string | null): TalentSiteActivationState | null {
+function useActivationStore(pathname: string | null): {
+  value: TalentSiteActivationState | null;
+  attempted: boolean;
+} {
   const [value, setValue] = useState<TalentSiteActivationState | null>(storeValue);
+  const [attempted, setAttempted] = useState(storeAttempted);
   useEffect(() => {
-    const sync = () => setValue(storeValue);
+    const sync = () => {
+      setValue(storeValue);
+      setAttempted(storeAttempted);
+    };
     storeListeners.add(sync);
     const bump = () => {
       storeStale = true;
@@ -85,7 +95,7 @@ function useActivationStore(pathname: string | null): TalentSiteActivationState 
     storeStale = true;
     void refreshActivationStore();
   }, [pathname]);
-  return value;
+  return { value, attempted };
 }
 
 /** Test seam: the store's current value. */
@@ -105,7 +115,7 @@ export function useWebsiteFlow() {
   const { setTalentPage } = useAdminShell();
   const router = useRouter();
   const pathname = usePathname();
-  const activation = useActivationStore(pathname);
+  const { value: activation, attempted } = useActivationStore(pathname);
 
   const state = websiteFlowState({
     percent: eligibility.percent,
@@ -128,5 +138,5 @@ export function useWebsiteFlow() {
     router.push("/talent/site");
   }, [router, setTalentPage, step]);
 
-  return { eligibility, activation, loaded: activation != null, state, step, theme, text, continueSetup };
+  return { eligibility, activation, loaded: activation != null || attempted, state, step, theme, text, continueSetup };
 }

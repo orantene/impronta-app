@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
+import { websiteFlowPending } from "@/lib/talent/website-flow";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
@@ -116,6 +117,9 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         ? "md:hidden mb-4 w-full"
         : "md:hidden";
 
+  // Neutral until the first site read lands: never flash "Activate" at 100%.
+  const pending = websiteFlowPending(percent, flow.loaded);
+
   const leftCount = eligibility.slices.filter((s) => s.required && s.done === false).length;
 
   return (
@@ -129,7 +133,18 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           {copy.t("Intro saved")}
         </p>
       )}
-      {isLive ? (
+      {pending ? (
+        <span
+          data-testid="website-reward-pending"
+          aria-busy="true"
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 font-admin-body ${placement === "services" ? "w-full" : ""}`}
+        >
+          <span className="min-w-0 flex-1">
+            <span aria-hidden className="block h-[13px] w-32 animate-pulse rounded bg-black/10" />
+            <span className="mt-1 block truncate text-[11px] leading-tight text-admin-ink-muted">{flow.text.pillLead}</span>
+          </span>
+        </span>
+      ) : isLive ? (
         <button
           type="button"
           onClick={onPress}
