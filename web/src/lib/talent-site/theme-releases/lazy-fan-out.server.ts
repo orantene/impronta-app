@@ -83,7 +83,7 @@ export async function reopenAppliedRows(admin: SupabaseClient, siteId: string, a
   if (aboveReleaseIds.length === 0) return 0;
   const { data, error } = await admin
     .from("talent_site_theme_updates")
-    .select("id, report")
+    .select("id, release_id, report")
     .eq("talent_site_id", siteId)
     .eq("state", "applied")
     .in("release_id", aboveReleaseIds);
@@ -92,13 +92,30 @@ export async function reopenAppliedRows(admin: SupabaseClient, siteId: string, a
     return 0;
   }
   let n = 0;
-  for (const row of (data ?? []) as Array<{ id: string; report?: Record<string, unknown> | null }>) {
-    if (row.report?.reason === "nothing_applicable") continue;
+  const applied = (data ?? []) as Array<{ id: string; release_id?: string; report?: Record<string, unknown> | null }>;
+  // F129: a row closed nothing_applicable before critical fixes could reach noBase
+  // sites is re-evaluated ONCE: reopened when its release has a critical item not yet
+  // applied. The notice check then closes it again with criticalChecked when nothing changes.
+  const itemsOf = new Map<string, ReleaseItem[]>();
+  if (applied.some((r) => r.report?.reason === "nothing_applicable" && !r.report.criticalChecked)) {
+    const { data: rels, error: rErr } = await admin.from("talent_theme_releases").select("id, items").in("id", aboveReleaseIds);
+    if (rErr) logServerError("themeUpdate.reopen.items", rErr);
+    for (const r of (rels ?? []) as Array<{ id: string; items?: ReleaseItem[] | null }>) itemsOf.set(r.id, Array.isArray(r.items) ? r.items : []);
+  }
+  for (const row of applied) {
+    if (row.report?.reason === "nothing_applicable") {
+      const added = Array.isArray(row.report.addedBlocks) ? (row.report.addedBlocks as string[]) : [];
+      if (row.report.criticalChecked || !hasCriticalCandidates(itemsOf.get(row.release_id ?? "") ?? [], added)) continue;
+    }
     const { error: upErr } = await admin
       .from("talent_site_theme_updates")
       .update({
         state: "available",
-        report: { ...(row.report ?? {}), note: "reopened_after_restore" },
+        report: (() => {
+          const { reason: _r, ...rest } = row.report ?? {};
+          void _r;
+          return { ...rest, note: row.report?.reason === "nothing_applicable" ? "reopened_for_critical" : "reopened_after_restore" };
+        })(),
         updated_at: new Date().toISOString(),
       } as never)
       .eq("id", row.id)

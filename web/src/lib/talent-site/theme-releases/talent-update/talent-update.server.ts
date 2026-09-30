@@ -219,7 +219,7 @@ export async function loadTalentUpdateNotices(
     if (verdict === false) {
       for (const r of rows) {
         await setUpdateState(admin, talentProfileId, r.id, "applied", {
-          report: { reason: "nothing_applicable", addedBlocks: addedOf(r.report) },
+          report: { reason: "nothing_applicable", criticalChecked: true, addedBlocks: addedOf(r.report) },
         });
       }
     }
@@ -228,7 +228,7 @@ export async function loadTalentUpdateNotices(
     const sorted = [...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version);
     const newestRow = sorted[sorted.length - 1]!;
     const rel = byId.get(newestRow.release_id)!;
-    const from = sorted.length > 1 && pinned !== null ? pinned : rel.from_version;
+    const from = pinned !== null ? pinned : rel.from_version; // F130: the real from-version (noBase sites too)
     return {
       updateId: newestRow.id,
       state: combinedUpdateState(sorted.map((r) => r.state as SiteUpdateState)),
@@ -517,7 +517,7 @@ export async function previewThemeUpdate(
       criticalFix: !!m.critical,
       hasApplicable: !m.noBase && applyItemsOf(items).length > 0,
       previewUrl: themeUpdatePreviewUrl(ctx.siteSlug, updateId),
-      placements: placementOptions(tree),
+      placements: placementOptions(tree, m.noBase ? undefined : m.result.trees.home),
       draftRev: ctx.draftRev,
     },
   };
