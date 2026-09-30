@@ -94,6 +94,7 @@ import {
 } from "./canvas-viewport";
 import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, resolveDeviceFrameHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
 import { useEditorLocale } from "./use-editor-locale";
+import { presenceBannerMessage } from "./presence-banner-copy";
 import { editorT, type EditorLocale } from "./editor-i18n";
 import { PendingImagesWatcher } from "./pending-images-watcher";
 
@@ -1627,6 +1628,7 @@ function MutationErrorToast() {
   const operationLabel = mutationError.operation
     ? humanizeMutationOperation(mutationError.operation, locale)
     : null;
+  const isConflict = mutationError.code === "VERSION_CONFLICT";
   const suggestion = mutationError.code
     ? mutationCodeSuggestion(mutationError.code, locale)
     : null;
@@ -1670,20 +1672,24 @@ function MutationErrorToast() {
       icon={null}
       className="max-w-[min(92vw,680px)]"
     >
-      <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
-        {t("Builder change blocked")}
-      </span>
+      {isConflict ? null : (
+        <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
+          {t("Builder change blocked")}
+        </span>
+      )}
       <span className="block" style={{ color: CHROME.text2 }}>
-        {mutationError.message}
+        {isConflict
+          ? t("This page changed in another tab. Your last change was not saved.")
+          : mutationError.message}
       </span>
-      {operationLabel || mutationError.code ? (
+      {isConflict ? null : operationLabel || mutationError.code ? (
         <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
           {[operationLabel, mutationError.code?.replaceAll("_", " ")]
             .filter(Boolean)
             .join(" · ")}
         </span>
       ) : null}
-      {suggestion ? (
+      {suggestion && !isConflict ? (
         <span
           className="mt-1 block text-[11px] font-normal"
           style={{ color: CHROME.text2 }}
@@ -1710,7 +1716,7 @@ function MutationErrorToast() {
               // explanation toast from refreshComposition).
               void reloadLatestAfterConflict();
             }}
-            title={t("Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets.")}
+            title={t("Loads the newest version. Your last change is dropped and undo starts over.")}
           >
             {t("Reload latest")}
           </Button>
@@ -1733,7 +1739,7 @@ function MutationErrorToast() {
               const ok = window.confirm(confirmMsg);
               if (ok) void keepMyVersionAfterConflict();
             }}
-            title={t("Save your copy over the change from the other tab or session. Your undo history is kept.")}
+            title={t("Saves this copy over the other tab. Undo keeps working.")}
           >
             {t("Keep editing this copy")}
           </Button>
@@ -1789,23 +1795,12 @@ function PresenceBanner() {
 }
 
 function PresenceBannerInner() {
+  const { t, locale } = useEditorLocale();
   const { editors, others } = usePagePresence();
   if (others.length === 0) return null;
   const { peopleNames, myOtherTabs } = summarizeOtherEditors(editors, others);
 
-  let message: string | null = null;
-  if (peopleNames.length > 0) {
-    const names =
-      peopleNames.length === 1
-        ? peopleNames[0]
-        : peopleNames.length === 2
-          ? `${peopleNames[0]} and ${peopleNames[1]}`
-          : `${peopleNames[0]} and ${peopleNames.length - 1} others`;
-    message = `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page`;
-    if (myOtherTabs > 0) message += " · also open in another tab of yours";
-  } else if (myOtherTabs > 0) {
-    message = `You have this page open in ${myOtherTabs === 1 ? "another tab" : `${myOtherTabs} other tabs`}, edits there can conflict`;
-  }
+  const message = presenceBannerMessage(peopleNames, myOtherTabs, locale, t);
   if (!message) return null;
 
   return (

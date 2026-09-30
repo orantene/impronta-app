@@ -64,6 +64,7 @@ import {
   InspectorSection,
 } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
+import { TalentAdvancedGroup, useSelectedNodeName } from "./layout-panel/talent-advanced-group";
 import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
 import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
 import { LockBadge, LockedFieldsBanner, layoutLockedPathsOf } from "./kit";
@@ -97,7 +98,6 @@ import {
   SPACER_SIZE_OPTIONS,
   SPLIT_RATIO_OPTIONS,
   isAdvancedEditableBuilderKind,
-  nodeKindLabel,
   type AdvancedEditableBuilderNode,
 } from "./layout-panel/node-layout-options";
 
@@ -1399,6 +1399,7 @@ export function LayoutPanel({
     if (!resolved || !isAdvancedEditableBuilderKind(resolved.kind)) return null;
     return resolved as AdvancedEditableBuilderNode;
   }, [builderTree, selectedBuilderNodeId]);
+  const { name: selectedNodeName, talent: isTalentSurface } = useSelectedNodeName(selectedBuilderNode);
   const selectedBuilderNodeFindings = useMemo(
     () =>
       selectedBuilderNode
@@ -1526,11 +1527,11 @@ export function LayoutPanel({
       {selectedBuilderNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>{t("Selected block")}</div>
+            <div className={SECTION_TITLE}>{isTalentSurface ? t("This section") : t("Selected block")}</div>
             <div className="flex items-center gap-2">
               {layoutLockedPaths.length > 0 ? <LockBadge /> : null}
-              <span className={INHERIT_HINT}>
-                {nodeKindLabel(selectedBuilderNode.kind)}
+              <span className={INHERIT_HINT} data-builder-section-name="">
+                {selectedNodeName}
               </span>
             </div>
           </div>
@@ -1541,14 +1542,22 @@ export function LayoutPanel({
                 void commitBuilderNodePatch(selectedBuilderNode.id, patch);
               }}
             />
-            <AdvancedNodeLayoutEditor
+            <TalentAdvancedGroup
+              talent={isTalentSurface}
               node={selectedBuilderNode}
-              device={device}
-              tierLabel={breakpointLabelForDevice(device, builderBreakpoints)}
               onPatch={(patch) => {
                 void commitBuilderNodePatch(selectedBuilderNode.id, patch);
               }}
-            />
+            >
+              <AdvancedNodeLayoutEditor
+                node={selectedBuilderNode}
+                device={device}
+                tierLabel={breakpointLabelForDevice(device, builderBreakpoints)}
+                onPatch={(patch) => {
+                  void commitBuilderNodePatch(selectedBuilderNode.id, patch);
+                }}
+              />
+            </TalentAdvancedGroup>
           </div>
         </section>
       ) : sectionTypeKey !== "hero" ? (
