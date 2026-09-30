@@ -511,3 +511,15 @@ test("resync demos: a failing demo update is reported", async () => {
   });
   assert.equal(r.ok, false);
 });
+
+test("siteResultFromReport: a noBase talent counts only new blocks as applied (F103)", () => {
+  const r = emptyReport();
+  r.applied.push({ seq: 1, change: "props", key: "hero", itemType: "variant-default" });
+  r.applied.push({ seq: 2, change: "props", key: "gap", itemType: "token-default" });
+  r.kept.push({ seq: 3, change: "props", key: "x", reason: "edited" });
+  const meta = { siteId: "s", profileCode: "TAL-93900", displayName: "Jorg", pinnedVersion: 1 };
+  assert.equal(siteResultFromReport({ ...meta, isDemo: false, noBase: true }, r).counts.applied, 0);
+  r.applied.push({ seq: 4, change: "insert", key: "before_after", itemType: "new-block" });
+  assert.equal(siteResultFromReport({ ...meta, isDemo: false, noBase: true }, r).counts.applied, 1);
+  assert.equal(siteResultFromReport({ ...meta, isDemo: false, noBase: false }, r).counts.applied, 3, "with a base nothing changes");
+});
