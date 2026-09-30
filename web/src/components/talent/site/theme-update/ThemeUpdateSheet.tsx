@@ -133,7 +133,7 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
             )}
           </section>
 
-          {notice.groups.map((g) => (
+          {(preview?.groups ?? []).map((g) => (
             <section key={g.group} className="mb-5" data-theme-update-group={g.group}>
               <h3 className="m-0 text-[14px] font-semibold text-admin-ink">{pick(GROUP_COPY[g.group], locale)}</h3>
               <p className="m-0 mb-2 text-[12px] text-admin-ink-muted">
@@ -168,7 +168,7 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
           ) : null}
           <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>
           <div className="flex flex-wrap gap-2">
-            {notice.hasApplicable ? (
+            {preview?.hasApplicable ? (
               <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
                 {busy ? t("applying") : applyLabel(preview ? preview.summary.applied + preview.summary.added : null, locale)}
               </button>

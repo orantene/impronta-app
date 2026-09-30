@@ -19,6 +19,7 @@ import { runAutoImprove } from "./auto-improve.server";
 import { GROUP_COPY, UPDATE_COPY, appliedToast, applyLabel, bannerTitle, keptLine } from "./copy";
 import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
 import {
+  NOTICE_RELEASE_COLUMNS,
   TALENT_RELEASE_COLUMNS,
   addThemeUpdateBlock,
   applyThemeUpdate,
@@ -179,6 +180,30 @@ test("notices: named release columns only (no base_payload, no dry_run_report)",
   assert.ok(!JSON.stringify(n).includes("others"));
 });
 
+test("F74: the banner read is lean (no items) and the sheet's preview carries the groups", async () => {
+  const db = world();
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.ok(n);
+  assert.equal("groups" in n, false, "no release body on the notice");
+  const relSelects = db.selects.filter((x) => x.table === "talent_theme_releases");
+  assert.equal(relSelects.length, 1);
+  assert.equal(relSelects[0]!.cols, NOTICE_RELEASE_COLUMNS);
+  assert.doesNotMatch(NOTICE_RELEASE_COLUMNS, /items|base_payload|dry_run_report|\*/);
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.deepEqual(res.value.groups.map((g) => g.group), ["auto", "blocks"]);
+  assert.equal(res.value.hasApplicable, true);
+});
+
+test("F74: notice load is 4 reads with the release, site and title reads in one parallel step", async () => {
+  const db = world();
+  await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.deepEqual(
+    db.selects.map((x) => x.table),
+    ["talent_site_theme_updates", "talent_theme_releases", "talent_sites", "talent_theme_catalog"],
+  );
+});
+
 test("what's new groups: important, automatic, new blocks, layout", () => {
   const groups = groupItems([...ITEMS, { type: "layout", key: "hero" }, { type: "critical", key: "footer" }]);
   assert.deepEqual(groups.map((g) => g.group), ["critical", "auto", "blocks", "layout"]);
@@ -334,8 +359,9 @@ test("F78: sheet copy states what Apply will do (EN + ES, no em dash)", () => {
 
 test("F78: a release of only new blocks has nothing for Apply", async () => {
   const db = world("available", release({ items: [ITEMS[1]!] }));
-  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
-  assert.equal(n!.hasApplicable, false);
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.hasApplicable, false);
   assert.deepEqual(applyItemsOf([ITEMS[1]!]), []);
   assert.equal(applyItemsOf(ITEMS).length, 3);
 });

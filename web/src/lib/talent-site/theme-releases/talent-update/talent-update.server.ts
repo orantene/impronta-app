@@ -52,6 +52,13 @@ import {
 export const TALENT_RELEASE_COLUMNS =
   "id, design_slug, from_version, to_version, channel, status, notes, items, critical, published_at";
 
+/**
+ * F74: the BANNER needs no item payload. `items` (the What's new list) loads
+ * with the sheet's preview call, so opening /talent/site reads a few short
+ * columns, not the release body.
+ */
+export const NOTICE_RELEASE_COLUMNS = "id, design_slug, from_version, to_version, channel, status, notes, critical";
+
 export type TalentRelease = Pick<
   ThemeRelease,
   "id" | "design_slug" | "from_version" | "to_version" | "channel" | "status" | "notes" | "items" | "critical" | "published_at"
@@ -92,9 +99,6 @@ export interface TalentUpdateNotice {
   toVersion: number;
   critical: boolean;
   notes: { en: string; es: string };
-  groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
-  /** False when the release only offers new blocks: nothing for Apply to do (F78). */
-  hasApplicable: boolean;
   draftRev: number;
 }
 
@@ -115,7 +119,13 @@ async function designTitle(admin: SupabaseClient, slug: string): Promise<string>
   return ((data as { title?: string } | null)?.title ?? "").trim() || slug;
 }
 
-/** Open update notices for one talent (state `available`, release open). */
+/**
+ * Open update notices for one talent (state available / previewed / undone,
+ * release open). F74: after the rows, the release columns, the site's draft
+ * rev and the design titles are independent reads, so they run in ONE parallel
+ * step (was four sequential round trips), and the release read is the lean
+ * banner column set.
+ */
 export async function loadTalentUpdateNotices(
   admin: SupabaseClient,
   talentProfileId: string,
@@ -131,46 +141,53 @@ export async function loadTalentUpdateNotices(
   }
   const list = (rows ?? []) as Array<{ id: string; release_id: string; talent_site_id: string; state: string }>;
   if (list.length === 0) return [];
-  const { data: rels, error: relErr } = await admin
-    .from("talent_theme_releases")
-    .select(TALENT_RELEASE_COLUMNS)
-    .in(
-      "id",
-      list.map((r) => r.release_id),
-    );
-  if (relErr) {
-    logServerError("themeUpdate.notices.releases", relErr);
+  const [relRes, siteRes] = await Promise.all([
+    admin
+      .from("talent_theme_releases")
+      .select(NOTICE_RELEASE_COLUMNS)
+      .in(
+        "id",
+        list.map((r) => r.release_id),
+      ),
+    // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
+    admin.from("talent_sites").select("draft_rev").eq("talent_profile_id", talentProfileId).maybeSingle(),
+  ]);
+  if (relRes.error) {
+    logServerError("themeUpdate.notices.releases", relRes.error);
     return [];
   }
-  const byId = new Map(((rels ?? []) as TalentRelease[]).map((r) => [r.id, r]));
-  // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
-  const { data: site } = await admin
-    .from("talent_sites")
-    .select("draft_rev")
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
+  const releases = (relRes.data ?? []) as unknown as TalentReleaseLean[];
+  const byId = new Map(releases.map((r) => [r.id, r]));
+  const site = siteRes.data;
   const draftRev = typeof (site as { draft_rev?: number } | null)?.draft_rev === "number" ? (site as { draft_rev: number }).draft_rev : 0;
-  const out: TalentUpdateNotice[] = [];
-  for (const row of list) {
+  const open = list.filter((row) => {
     const rel = byId.get(row.release_id);
-    if (!rel || rel.status !== "published" || !OPEN_CHANNELS.has(rel.channel)) continue;
-    out.push({
+    return rel && rel.status === "published" && OPEN_CHANNELS.has(rel.channel);
+  });
+  const slugs = [...new Set(open.map((row) => byId.get(row.release_id)!.design_slug))];
+  const titles = new Map(await Promise.all(slugs.map(async (slug) => [slug, await designTitle(admin, slug)] as const)));
+  const out: TalentUpdateNotice[] = open.map((row) => {
+    const rel = byId.get(row.release_id)!;
+    return {
       updateId: row.id,
       state: row.state as SiteUpdateState,
       releaseId: rel.id,
       designSlug: rel.design_slug,
-      designTitle: await designTitle(admin, rel.design_slug),
+      designTitle: titles.get(rel.design_slug) ?? rel.design_slug,
       fromVersion: rel.from_version,
       toVersion: rel.to_version,
       critical: rel.critical,
       notes: notesOf(rel.notes),
-      groups: groupItems(Array.isArray(rel.items) ? rel.items : []),
-      hasApplicable: applyItemsOf(Array.isArray(rel.items) ? rel.items : []).length > 0,
       draftRev,
-    });
-  }
+    };
+  });
   return out.sort((a, b) => b.toVersion - a.toVersion);
 }
+
+type TalentReleaseLean = Pick<
+  ThemeRelease,
+  "id" | "design_slug" | "from_version" | "to_version" | "channel" | "status" | "notes" | "critical"
+>;
 
 /** One update row + its release + the site, owner-scoped. */
 export async function loadUpdateContext(
@@ -178,42 +195,41 @@ export async function loadUpdateContext(
   talentProfileId: string,
   updateId: string,
 ): Promise<UpdateContext | null> {
-  const { data: row, error } = await admin
-    .from("talent_site_theme_updates")
-    .select("id, release_id, talent_site_id, state")
-    .eq("id", updateId)
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
-  if (error || !row) return null;
-  const u = row as { id: string; release_id: string; talent_site_id: string; state: SiteUpdateState };
-  const { data: rel, error: relErr } = await admin
-    .from("talent_theme_releases")
-    .select(TALENT_RELEASE_COLUMNS)
-    .eq("id", u.release_id)
-    .maybeSingle();
-  if (relErr || !rel) return null;
-  const release = rel as TalentRelease;
+  // F74: the update row and the profile name do not depend on each other.
+  const [rowRes, profRes] = await Promise.all([
+    admin
+      .from("talent_site_theme_updates")
+      .select("id, release_id, talent_site_id, state")
+      .eq("id", updateId)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle(),
+    // supabase-read-unchecked-ok: the name only feeds fallback hydration.
+    admin.from("talent_profiles").select("display_name").eq("id", talentProfileId).maybeSingle(),
+  ]);
+  if (rowRes.error || !rowRes.data) return null;
+  const u = rowRes.data as { id: string; release_id: string; talent_site_id: string; state: SiteUpdateState };
+  // The release and the site are independent reads keyed off the update row.
+  const [relRes, siteRes] = await Promise.all([
+    admin.from("talent_theme_releases").select(TALENT_RELEASE_COLUMNS).eq("id", u.release_id).maybeSingle(),
+    admin
+      .from("talent_sites")
+      .select("id, site_slug, draft_rev, theme_design_version, theme_token_origin")
+      .eq("id", u.talent_site_id)
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle(),
+  ]);
+  if (relRes.error || !relRes.data) return null;
+  const release = relRes.data as TalentRelease;
   if (release.status !== "published" || !OPEN_CHANNELS.has(release.channel)) return null;
-  const { data: site, error: siteErr } = await admin
-    .from("talent_sites")
-    .select("id, site_slug, draft_rev, theme_design_version, theme_token_origin")
-    .eq("id", u.talent_site_id)
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
-  if (siteErr || !site) return null;
-  const s = site as {
+  if (siteRes.error || !siteRes.data) return null;
+  const s = siteRes.data as {
     id: string;
     site_slug: string | null;
     draft_rev: number | null;
     theme_design_version: number | null;
     theme_token_origin: Record<string, string> | null;
   };
-  // supabase-read-unchecked-ok: the name only feeds fallback hydration.
-  const { data: prof } = await admin
-    .from("talent_profiles")
-    .select("display_name")
-    .eq("id", talentProfileId)
-    .maybeSingle();
+  const prof = profRes.data;
   return {
     updateId: u.id,
     state: u.state,
@@ -232,14 +248,14 @@ export async function loadUpdateContext(
 /** The real merge: catalog Design at to_version, base = her pinned version. */
 export function makeSiteMerge(admin: SupabaseClient): MergeFn {
   return async (ctx, items) => {
-    const design = await loadReleaseDesign(admin, ctx.release);
+    // F74: the target design and the merge-base payload are independent reads.
+    const [design, baseRes] = await Promise.all([
+      loadReleaseDesign(admin, ctx.release),
+      // Admin-only column, read server-side for the merge base; never returned.
+      admin.from("talent_theme_releases").select("base_payload").eq("id", ctx.release.id).maybeSingle(),
+    ]);
     if (!design) return { ok: false, error: "Design not found." };
-    // Admin-only column, read server-side for the merge base; never returned.
-    const { data, error } = await admin
-      .from("talent_theme_releases")
-      .select("base_payload")
-      .eq("id", ctx.release.id)
-      .maybeSingle();
+    const { data, error } = baseRes;
     if (error) return { ok: false, error: error.message };
     const release = {
       design_slug: ctx.release.design_slug,
@@ -283,6 +299,10 @@ export function defaultUpdateDeps(): UpdateDeps | null {
 
 export interface UpdatePreview {
   summary: UpdateSummary;
+  /** What's new list, loaded here so the banner never reads the release body (F74). */
+  groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
+  /** False when the release only offers new blocks: nothing for Apply to do (F78). */
+  hasApplicable: boolean;
   previewUrl: string | null;
   placements: PlacementOption[];
   draftRev: number;
@@ -317,14 +337,21 @@ export async function previewThemeUpdate(
 ): Promise<UpdateResult<UpdatePreview>> {
   const ctx = await loadUpdateContext(deps.admin, talentProfileId, updateId);
   if (!ctx) return NOT_FOUND;
-  const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
+  const items = Array.isArray(ctx.release.items) ? ctx.release.items : [];
+  // F74: the merge and the placement tree are independent reads.
+  const [m, tree] = await Promise.all([
+    deps.merge(ctx, applyItemsOf(items)),
+    homeTree(deps.admin, talentProfileId),
+  ]);
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   return {
     ok: true,
     value: {
       summary: summarizeReport(m.result.report),
+      groups: groupItems(items),
+      hasApplicable: applyItemsOf(items).length > 0,
       previewUrl: themeUpdatePreviewUrl(ctx.siteSlug, updateId),
-      placements: placementOptions(await homeTree(deps.admin, talentProfileId)),
+      placements: placementOptions(tree),
       draftRev: ctx.draftRev,
     },
   };
