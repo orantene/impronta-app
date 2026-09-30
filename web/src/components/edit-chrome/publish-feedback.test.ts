@@ -57,3 +57,24 @@ test("F104: ES copy", () => {
   assert.equal(editorT("Open full", "es"), "Abrir completo");
   assert.equal(editorT("Publishing…", "es"), "Publicando...");
 });
+
+test("F95b: the drawer's open-reset effect does not depend on pageMetadata (a refresh must not wipe the loaded snapshot)", () => {
+  const src = read("components/edit-chrome/publish-drawer.tsx");
+  assert.match(src, /\}, \[publishOpen, surfaceKind\]\);/);
+  assert.doesNotMatch(src, /\}, \[publishOpen, pageMetadata, surfaceKind\]\);/);
+  assert.match(src, /pageMetaRef\.current\?\.title/);
+});
+
+test("F95b: Valeria's real input shape (5 published nodes, page row) yields a loaded snapshot, not a failure", async () => {
+  const { talentPublishedSnapshotResult } = await import("../../lib/site-admin/edit-mode/talent-published-snapshot");
+  const r = talentPublishedSnapshotResult({
+    blocks_published: [{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }],
+    published_at: "2026-09-30T19:18:14.606+00:00",
+  });
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.equal(r.hasPublishedSnapshot, true);
+    assert.equal(r.publishedBuilderTree?.length, 5);
+    assert.deepEqual(r.rows, []);
+  }
+});
