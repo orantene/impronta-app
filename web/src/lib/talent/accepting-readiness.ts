@@ -20,7 +20,7 @@ export type AcceptingSwitches = Pick<TalentSiteSwitches, "acceptingBookings" | "
 // ── Readiness (§1 row 4) ────────────────────────────────────────────────────
 
 /** What an effective instant mode still needs. */
-export type ReadinessGap = "working_hours" | "duration" | "payouts";
+export type ReadinessGap = "plan" | "working_hours" | "duration" | "payouts";
 
 /**
  * What is missing before instant booking can work. Empty = ready.
@@ -37,7 +37,13 @@ export function readinessGaps(input: {
   durationMinutes?: number | null;
   takesMoneyOnline: boolean;
   payoutsReady: boolean;
+  /**
+   * F27: the talent's plan allows instant booking (the free tier caps at
+   * request). undefined = not asked, treated as allowed.
+   */
+  planAllowsInstant?: boolean;
 }): ReadinessGap[] {
+  if (input.planAllowsInstant === false) return ["plan"];
   if (input.kind === "product") {
     return input.takesMoneyOnline && !input.payoutsReady ? ["payouts"] : [];
   }
@@ -61,6 +67,7 @@ export function takesMoneyOnline(reserveMode: string | null | undefined, payInPe
 
 /** Settings copy for each gap. Translated by the settings i18n map. */
 export const READINESS_GAP_COPY: Record<ReadinessGap, string> = {
+  plan: "Instant booking comes with the Website plan",
   working_hours: "Add working hours to turn on instant booking",
   duration: "Add a duration to this service to turn on instant booking",
   // PAY-2 Option B — platform Checkout, not Connect. Connect unfinished

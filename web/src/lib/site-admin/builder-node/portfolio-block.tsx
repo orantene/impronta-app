@@ -77,7 +77,6 @@ export const PORTFOLIO_CSS = `
 @media (max-width:899px){.sb-portfolio--staggered{margin:0 -18px;padding:0 18px 6px}}
 @media (min-width:900px){
   .sb-portfolio--staggered{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;padding:0;margin:0;align-items:center}
-  .sb-portfolio--staggered .sb-portfolio-item:nth-child(n+6){display:none}
   .sb-portfolio--staggered .sb-portfolio-item:nth-child(2),.sb-portfolio--staggered .sb-portfolio-item:nth-child(4){margin-top:40px}
 }
 .sb-portfolio--grid{display:grid;gap:0.75rem;grid-template-columns:repeat(var(--sb-portfolio-cols,3),minmax(0,1fr))}
@@ -123,7 +122,11 @@ function defaultColumns(layout: PortfolioLayout, authored?: 2 | 3 | 4): number {
   return 3;
 }
 
+/** F28: the staggered strip is a 5-column row on desktop; a 6th tile collapsed to 0x0. */
+const STAGGERED_MAX = 5;
+
 function defaultLimit(layout: PortfolioLayout, authored?: number): number {
+  if (layout === "staggered") return Math.min(typeof authored === "number" ? authored : STAGGERED_MAX, STAGGERED_MAX);
   if (typeof authored === "number") return authored;
   if (layout === "chapter") return 6;
   return PORTFOLIO_DEFAULT_PROPS.limit ?? 12;

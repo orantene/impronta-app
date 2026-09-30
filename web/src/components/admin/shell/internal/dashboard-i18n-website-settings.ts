@@ -118,6 +118,7 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Inquiries paused": "Consultas en pausa",
   "Taking new bookings": "Recibiendo nuevas reservas",
   "New bookings paused": "Nuevas reservas en pausa",
+  "Instant booking comes with the Website plan": "La reserva inmediata viene con el plan Website",
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",
   "Add a duration to this service to turn on instant booking":
     "Agrega una duración a este servicio para activar la reserva inmediata",

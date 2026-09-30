@@ -181,6 +181,14 @@ test("portfolio chapter filters by albumId collection", () => {
   assert.doesNotMatch(html, /data-portfolio-media="none"/);
 });
 
+test("F28: staggered renders at most its 5 desktop columns (no 0x0 sixth tile)", () => {
+  const html = render([portfolioNode({ layout: "staggered", limit: 6 })], {
+    talentPortfolioShots: Array.from({ length: 6 }, (_, i) => shot({ id: `s${i}` })),
+  });
+  assert.equal((html.match(/data-portfolio-media=/g) ?? []).length, 5);
+  assert.doesNotMatch(html, /nth-child\(n\+6\)/);
+});
+
 test("portfolioChapterRoman maps 1..3", async () => {
   const { portfolioChapterRoman } = await import("./portfolio-defaults");
   assert.equal(portfolioChapterRoman(1), "I");
