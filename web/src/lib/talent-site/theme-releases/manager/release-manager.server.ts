@@ -6,7 +6,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
+import { flipCatalogToRelease, loadReleaseDesign } from "../release-design.server";
 import { publishDemoSite } from "@/lib/talent-site/server/demo-pipeline.server";
 import { isDemoAccount } from "@/lib/talent-site/theme-catalog/demo-account";
 import { THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
@@ -157,7 +157,7 @@ export async function runDryRun(
   admin: SupabaseClient,
   release: ThemeRelease,
 ): Promise<{ ok: true; report: DryRunReport } | { ok: false; error: string }> {
-  const design = await loadMaisonCatalogRow(admin, "design", release.design_slug);
+  const design = await loadReleaseDesign(admin, release);
   if (!design) return { ok: false, error: "Design not found in the catalog." };
   const sites = await collectSites(admin, release.design_slug);
   const resolveBase = makeBaseResolver(admin, release);
@@ -196,7 +196,7 @@ async function applyToDemos(
   admin: SupabaseClient,
   release: ThemeRelease,
 ): Promise<{ ok: true; applied: number; warnings: string[] } | { ok: false; error: string }> {
-  const design = await loadMaisonCatalogRow(admin, "design", release.design_slug);
+  const design = await loadReleaseDesign(admin, release);
   if (!design) return { ok: false, error: "Design not found in the catalog." };
   const warnings: string[] = [];
   const demos = (await collectSites(admin, release.design_slug)).filter((s) => s.isDemo);
@@ -288,6 +288,10 @@ export async function changeChannel(
   return executeChannelChange(release, target, {
     applyToDemos: () => applyToDemos(admin, release),
     fanOut: () => fanOut(admin, release),
+    flipCatalog: async () => {
+      const r = await flipCatalogToRelease(admin, release);
+      return r.ok ? { ok: true } : r;
+    },
     persist: async (channel) => {
       const r = await setChannel(admin, release.id, channel);
       return r.ok ? { ok: true } : r;

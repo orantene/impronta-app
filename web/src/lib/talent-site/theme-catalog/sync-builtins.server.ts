@@ -209,6 +209,39 @@ function validateEntry(entry: BuiltinThemeEntry, payload: unknown): string[] {
   return check.ok ? [] : check.errors.map((e) => `${entry.kind}:${entry.slug} — ${e}`);
 }
 
+export interface SyncBuiltinOptions {
+  /**
+   * Old behaviour: a design version bump also overwrites its catalog row.
+   * Default (false): the bump is HELD BACK. The snapshot + draft release are
+   * written, the catalog row stays at its current version, and the release
+   * manager's "Make default" step flips it. New applies keep getting the
+   * version production code understands until then.
+   */
+  flipCatalog?: boolean;
+}
+
+/**
+ * PURE: split the planned upserts into what may touch the catalog now and the
+ * design version bumps that wait for "Make default". Only a design that
+ * ALREADY has a row and whose version moved is held; new rows, metadata-only
+ * refreshes (same version) and looks always write.
+ */
+export function splitGatedUpserts<T extends { kind: TalentThemeKind; slug: string; version: number }>(
+  upserts: readonly T[],
+  priorVersions: ReadonlyMap<string, number>,
+  flipCatalog: boolean,
+): { catalogUpserts: T[]; held: T[] } {
+  if (flipCatalog) return { catalogUpserts: [...upserts], held: [] };
+  const held: T[] = [];
+  const catalogUpserts: T[] = [];
+  for (const u of upserts) {
+    const prior = priorVersions.get(`${u.kind}:${u.slug}`);
+    if (u.kind === "design" && prior !== undefined && u.version > prior) held.push(u);
+    else catalogUpserts.push(u);
+  }
+  return { catalogUpserts, held };
+}
+
 export type SyncBuiltinTalentThemesResult =
   | {
       ok: true;
@@ -216,6 +249,8 @@ export type SyncBuiltinTalentThemesResult =
       updated: number;
       unchanged: number;
       skippedAuthored: Array<{ kind: TalentThemeKind; slug: string }>;
+      /** `slug@version` design bumps written as snapshot + draft release only. */
+      heldBack?: string[];
     }
   | { ok: false; error: string };
 
@@ -228,6 +263,7 @@ export type SyncBuiltinTalentThemesResult =
 export async function syncBuiltinTalentThemes(
   admin: SupabaseClient,
   userId: string | null = null,
+  options: SyncBuiltinOptions = {},
 ): Promise<SyncBuiltinTalentThemesResult> {
   // Maison Design + scoped Looks sync even while the flag is off so rows are
   // ready when the owner flips TALENT_MAISON_THEME_ENABLED. loadTalentThemeCatalog
@@ -276,20 +312,28 @@ export async function syncBuiltinTalentThemes(
     };
   }
 
-  const { error: writeErr } = await admin
-    .from("talent_theme_catalog")
-    .upsert(plan.upserts as never, { onConflict: "kind,slug" });
-  if (writeErr) {
-    logServerError("talentTheme.syncBuiltins.write", writeErr);
-    return { ok: false, error: writeErr.message };
-  }
-
-  // Staged releases: a changed design payload keeps publishing to the catalog
-  // (existing previews work) but ALSO gets a DRAFT release row. Never opens
-  // to talents; missing-table tolerant (migration may not be applied yet).
   const priorVersions = new Map(
     ((data ?? []) as ExistingBuiltinRow[]).map((r) => [`${r.kind}:${r.slug}`, r.version]),
   );
+  const { catalogUpserts, held } = splitGatedUpserts(
+    plan.upserts,
+    priorVersions,
+    options.flipCatalog === true,
+  );
+  if (catalogUpserts.length > 0) {
+    const { error: writeErr } = await admin
+      .from("talent_theme_catalog")
+      .upsert(catalogUpserts as never, { onConflict: "kind,slug" });
+    if (writeErr) {
+      logServerError("talentTheme.syncBuiltins.write", writeErr);
+      return { ok: false, error: writeErr.message };
+    }
+  }
+
+  // Staged releases: a changed design payload gets a DRAFT release row and a
+  // snapshot. Held-back bumps stay OFF the catalog until "Make default"; with
+  // `flipCatalog` they also publish as before. Never opens to talents;
+  // missing-table tolerant (migration may not be applied yet).
   const drafts = planReleaseDrafts(
     plan.upserts.map((u) => ({
       kind: u.kind,
@@ -323,12 +367,18 @@ export async function syncBuiltinTalentThemes(
   }
 
   // Payload snapshot per design version (exact merge base for pinned sites).
-  await writeThemeVersionSnapshots(
-    admin,
-    plan.upserts
+  await writeThemeVersionSnapshots(admin, [
+    // Held-back designs also keep the version they are leaving (the merge base).
+    ...held.map((u) => ({
+      design: u.slug,
+      version: priorVersions.get(`design:${u.slug}`) as number,
+      payload: priorPayloads.get(`design:${u.slug}`) as DesignPayload,
+      source: "sync",
+    })),
+    ...plan.upserts
       .filter((u) => u.kind === "design" && priorVersions.get(`${u.kind}:${u.slug}`) !== u.version)
       .map((u) => ({ design: u.slug, version: u.version, payload: u.payload as DesignPayload, source: "sync" })),
-  );
+  ]);
 
   return {
     ok: true,
@@ -336,5 +386,6 @@ export async function syncBuiltinTalentThemes(
     updated: plan.updated,
     unchanged: plan.unchanged,
     skippedAuthored: plan.skippedAuthored,
+    ...(held.length > 0 ? { heldBack: held.map((u) => `${u.slug}@${u.version}`) } : {}),
   };
 }

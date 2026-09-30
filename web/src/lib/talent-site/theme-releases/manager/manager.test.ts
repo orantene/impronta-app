@@ -205,6 +205,87 @@ test("executeChannelChange: demo cache-clear warnings reach the result", async (
   assert.deepEqual((res as { warnings: string[] }).warnings, ["TAL-93003: cache not cleared (offline)"]);
 });
 
+test("executeChannelChange: Make default flips the catalog first; a failed flip touches nothing", async () => {
+  const ok = spyDeps();
+  ok.deps.flipCatalog = async () => (ok.calls.push("flip"), { ok: true as const });
+  const res = await executeChannelChange(withFreshReport({ channel: "optin", status: "published", rollout_pct: 100 }), "default", ok.deps);
+  assert.equal(res.ok, true);
+  assert.deepEqual(ok.calls, ["flip", "fanOut", "persist:default"]);
+
+  const bad = spyDeps();
+  bad.deps.flipCatalog = async () => (bad.calls.push("flip"), { ok: false as const, error: "no snapshot" });
+  const refused = await executeChannelChange(withFreshReport({ channel: "optin", status: "published", rollout_pct: 100 }), "default", bad.deps);
+  assert.equal(refused.ok, false);
+  assert.deepEqual(bad.calls, ["flip"]);
+
+  const demos = spyDeps();
+  demos.deps.flipCatalog = async () => (demos.calls.push("flip"), { ok: true as const });
+  await executeChannelChange(withFreshReport(), "demos", demos.deps);
+  assert.ok(!demos.calls.includes("flip"), "only default flips the catalog");
+});
+
+// ── gated catalog: flip from the snapshot ────────────────────────────────────
+
+function catalogRow(version: number, payload: unknown) {
+  return {
+    id: "row-1", kind: "design", slug: "maison-v2", title: "Maison v2", summary: "s", category: null, tags: [],
+    payload, preview: {}, required_talent_tier: "talent_basic", status: "published", source: "builtin", version,
+    schema_version: 1, sort_order: 1, is_new_until: null, created_by: null, updated_by: null, created_at: "", updated_at: "",
+  };
+}
+
+function flipAdmin(catalogVersion: number, snapshot: unknown | null) {
+  const updates: unknown[] = [];
+  const admin = {
+    from(table: string) {
+      const q = {
+        select: () => q,
+        eq: () => q,
+        maybeSingle: () =>
+          Promise.resolve({
+            data: table === "talent_theme_catalog" ? catalogRow(catalogVersion, { shellTree: [], homeTree: [] }) : snapshot ? { payload: snapshot } : null,
+            error: null,
+          }),
+        update: (arg: unknown) => {
+          updates.push(arg);
+          const u = { eq: () => u, select: () => Promise.resolve({ data: [{ id: "row-1" }], error: null }) };
+          return u;
+        },
+      };
+      return q;
+    },
+  };
+  return { admin: admin as never, updates };
+}
+
+test("flipCatalogToRelease: moves the row to the snapshot payload; idempotent; refuses without a snapshot", async () => {
+  const { flipCatalogToRelease, loadReleaseDesign } = await import("../release-design.server");
+  const { buildMaisonV2Payload } = await import("../../theme-catalog/collection/designs");
+  const snap = buildMaisonV2Payload();
+  const rel = { design_slug: "maison-v2", to_version: 15 };
+
+  const a = flipAdmin(14, snap);
+  const r = await flipCatalogToRelease(a.admin, rel);
+  assert.deepEqual(r, { ok: true, flipped: true });
+  const written = a.updates[0] as { version: number; payload: unknown };
+  assert.equal(written.version, 15);
+  assert.deepEqual(written.payload, snap);
+
+  const already = flipAdmin(15, snap);
+  assert.deepEqual(await flipCatalogToRelease(already.admin, rel), { ok: true, flipped: false });
+  assert.equal(already.updates.length, 0);
+
+  const none = flipAdmin(14, null);
+  const refused = await flipCatalogToRelease(none.admin, rel);
+  assert.equal(refused.ok, false);
+  assert.equal(none.updates.length, 0);
+
+  // Preview / apply read the target Design from the snapshot while the catalog is behind.
+  const view = await loadReleaseDesign(flipAdmin(14, snap).admin, rel);
+  assert.equal(view?.version, 15);
+  assert.deepEqual(view?.payload, snap);
+});
+
 // ── notification fan-out (demo sites only) ───────────────────────────────────
 
 const DEMO_SITES: Array<FanOutSite & { pinnedVersion: number | null }> = [

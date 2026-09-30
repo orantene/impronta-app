@@ -27,7 +27,7 @@ import type { HistorySnapshot } from "@/lib/talent-site/history/types";
 import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
-import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
+import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
@@ -223,7 +223,7 @@ export async function loadUpdateContext(
 /** The real merge: catalog Design at to_version, base = her pinned version. */
 export function makeSiteMerge(admin: SupabaseClient): MergeFn {
   return async (ctx, items) => {
-    const design = await loadMaisonCatalogRow(admin, "design", ctx.release.design_slug);
+    const design = await loadReleaseDesign(admin, ctx.release);
     if (!design) return { ok: false, error: "Design not found." };
     // Admin-only column, read server-side for the merge base; never returned.
     const { data, error } = await admin
