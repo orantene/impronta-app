@@ -54,9 +54,7 @@ type AddEventMode = "pick" | "work" | "block";
 // talent commits. Avoids the "I joined this and now I'm spammed" problem.
 
 export function TalentHubDetailDrawer() {
-  const { state, closeDrawer, bridgeTalentAgencies } = useAdminShell();
-  // Solo talent (no agency on the roster): the apply-to-hubs entry stays hidden.
-  const hasAgency = (bridgeTalentAgencies ?? []).length > 0;
+  const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const router = useRouter();
   const [, startApplyTransition] = useTransition();
@@ -95,7 +93,7 @@ export function TalentHubDetailDrawer() {
       width={520}
       footer={
         <>
-          {isAvailable && hasAgency && (
+          {isAvailable && (
             <PrimaryButton
               onClick={() => {
                 closeDrawer();

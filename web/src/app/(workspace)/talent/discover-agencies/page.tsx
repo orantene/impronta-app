@@ -21,8 +21,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
-import { listTalentAgencyContexts } from "@/lib/talent/active-agency-context";
-import { isSoloTalent, SOLO_TALENT_AGENCY_FALLBACK } from "@/lib/talent/solo-talent";
 import {
   loadOpenAgenciesForTalent,
   loadOpenHubsForTalent,
@@ -43,23 +41,11 @@ export default async function TalentDiscoverAgenciesPage() {
     redirect("/talent/site");
   }
 
-  const [openAgencies, openHubs, ownApplications, rosterAgencies] = await Promise.all([
+  const [openAgencies, openHubs, ownApplications] = await Promise.all([
     loadOpenAgenciesForTalent(guard.talentProfile.id),
     loadOpenHubsForTalent(guard.talentProfile.id),
     loadTalentOwnApplications(guard.talentProfile.id),
-    listTalentAgencyContexts(guard.talentProfile.id),
   ]);
-
-  // Agency surfaces are hidden for a solo talent (no roster row, no application
-  // in flight). Someone with an application keeps the page to withdraw it.
-  if (
-    isSoloTalent({
-      rosterAgencyCount: rosterAgencies.length,
-      applicationCount: ownApplications.length,
-    })
-  ) {
-    redirect(SOLO_TALENT_AGENCY_FALLBACK);
-  }
 
   return (
     <TalentApplyDiscoveryClient

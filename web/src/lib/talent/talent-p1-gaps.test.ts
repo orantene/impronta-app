@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -10,7 +10,6 @@ import {
   type ClientRecordOverlay,
 } from "./client-records";
 import type { TalentClientRow } from "./clients-merge";
-import { isSoloTalent } from "./solo-talent";
 
 const src = (rel: string) => readFileSync(join(process.cwd(), "src", rel), "utf8");
 const app = (rel: string) => src(`app/(workspace)/${rel}`);
@@ -197,23 +196,16 @@ test("Money has no refund or cash-correction entry point without a real writer",
   );
 });
 
-// ─── 4. Solo talents never see agency surfaces ───────────────────────
+// ─── 4. Agency discovery stays open to solo talents ──────────────────
 
-test("isSoloTalent: only a roster row or an application in flight makes a talent non-solo", () => {
-  assert.equal(isSoloTalent({ rosterAgencyCount: 0, applicationCount: 0 }), true);
-  assert.equal(isSoloTalent({ rosterAgencyCount: 1, applicationCount: 0 }), false);
-  assert.equal(isSoloTalent({ rosterAgencyCount: 0, applicationCount: 2 }), false);
-});
-
-test("agency surfaces are gated for solo talents", () => {
+test("discover-agencies is NOT gated: a new solo talent can still discover and apply", () => {
   const discover = app("talent/discover-agencies/page.tsx");
-  assert.match(discover, /isSoloTalent\(/);
-  assert.match(discover, /redirect\(SOLO_TALENT_AGENCY_FALLBACK\)/);
+  assert.doesNotMatch(discover, /isSoloTalent|SOLO_TALENT/);
+  assert.match(discover, /TalentApplyDiscoveryClient/);
   const events = src("components/admin/shell/internal/talent-drawers/events.tsx");
-  assert.match(events, /isAvailable && hasAgency/);
+  assert.doesNotMatch(events, /hasAgency/);
   // No talent rail, phone bar or More sheet lists an agency page.
   const fixtures = src("components/admin/shell/internal/state/fixtures.ts");
   const nav = fixtures.slice(fixtures.indexOf("export const TALENT_PAGES:"), fixtures.indexOf("export const PLAN_META"));
   assert.doesNotMatch(nav, /agenc/i);
-  assert.ok(existsSync(join(process.cwd(), "src/lib/talent/solo-talent.ts")));
 });
