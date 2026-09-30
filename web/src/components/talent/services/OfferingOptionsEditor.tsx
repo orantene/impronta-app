@@ -69,14 +69,15 @@ function RowLabel({
   disabled: boolean;
   onCommit: (next: Pick<Row, "label" | "labelI18n">) => void;
 }) {
-  const { primary, locales } = useTalentFieldLocales();
+  const { primary, locales, seeded } = useTalentFieldLocales();
   const initial: Record<string, string> = { ...toI18nMap(row.labelI18n), [primary]: row.label };
   const [draft, setDraft] = useState<Record<string, string>>(initial);
   const commit = (next: Record<string, string>) => {
     const label = (next[primary] ?? "").trim();
     if (!label) return;
     const changed = locales.some((l) => (next[l] ?? "").trim() !== (initial[l] ?? "").trim());
-    if (changed) onCommit({ label, labelI18n: next });
+    // Unseeded (languages unknown): keep the stored map untouched.
+    if (changed) onCommit(seeded ? { label, labelI18n: next } : { label, labelI18n: row.labelI18n });
   };
   return (
     <LocaleField

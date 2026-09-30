@@ -21,7 +21,7 @@ export function OfferingNameField({
   inputClass: string;
   patch: (partial: Partial<TalentOffering>) => void;
 }) {
-  const { primary, locales } = useTalentFieldLocales();
+  const { primary, locales, seeded } = useTalentFieldLocales();
   const map = { ...(item.titleI18n ?? {}), [primary]: item.title };
   return (
     <LocaleField
@@ -30,7 +30,10 @@ export function OfferingNameField({
       locales={locales}
       primary={primary}
       ai={{ field: "offering_title" }}
-      onChange={(l, v) => patch({ titleI18n: { ...map, [l]: v }, ...(l === primary ? { title: v } : {}) })}
+      onChange={(l, v) =>
+        // Unseeded (languages unknown): write the plain column only, never a map entry.
+        patch(seeded ? { titleI18n: { ...map, [l]: v }, ...(l === primary ? { title: v } : {}) } : { title: v })
+      }
       renderInput={(a) => (
         <input
           id={a.id}
@@ -57,7 +60,7 @@ export function OfferingDescriptionField({
   inputClass: string;
   patch: (partial: Partial<TalentOffering>) => void;
 }) {
-  const { primary, locales } = useTalentFieldLocales();
+  const { primary, locales, seeded } = useTalentFieldLocales();
   const map = { ...(item.descriptionI18n ?? {}), [primary]: item.description ?? "" };
   return (
     <LocaleField
@@ -67,7 +70,11 @@ export function OfferingDescriptionField({
       primary={primary}
       ai={{ field: "offering_description" }}
       onChange={(l, v) =>
-        patch({ descriptionI18n: { ...map, [l]: v }, ...(l === primary ? { description: v || null } : {}) })
+        patch(
+          seeded
+            ? { descriptionI18n: { ...map, [l]: v }, ...(l === primary ? { description: v || null } : {}) }
+            : { description: v || null },
+        )
       }
       renderInput={(a) => (
         <textarea

@@ -14,7 +14,6 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import { LocaleField } from "@/components/admin/shell/internal/primitives/locale-field";
 import { COLORS } from "@/components/admin/shell/internal/state";
 import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
-import { orderLocales } from "@/lib/i18n/locale-field-model";
 import {
   loadMaxSitePageTextAction,
   saveMaxSitePageTextAction,
@@ -105,7 +104,7 @@ export function PageRenameForm({
   }, [page.id]);
 
   const primary = text?.primary ?? store.primary;
-  const locales = orderLocales(primary, store.locales);
+  const locales = store.localesFor(primary);
   const primaryTitle = (title[primary] ?? "").trim();
   const previewSlug = page.isHome ? "" : slugifyPageTitle(primaryTitle);
 

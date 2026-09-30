@@ -12,7 +12,6 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import { LocaleField } from "@/components/admin/shell/internal/primitives/locale-field";
 import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
 import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
-import { orderLocales } from "@/lib/i18n/locale-field-model";
 import { loadMyFaqItems, saveMyFaqItems } from "@/lib/talent/faq-editor-actions";
 import { MAX_FAQ_ANSWER, MAX_FAQ_ITEMS, MAX_FAQ_QUESTION, type FaqEditorItem } from "@/lib/talent/faq-editor-model";
 
@@ -60,7 +59,7 @@ export function TalentFaqEditor() {
       <p className="font-admin-body text-[12.5px] text-admin-critical">{copy.t("Couldn't save. Try again.")}</p>
     ) : null;
   }
-  const locales = orderLocales(primary, store.locales);
+  const locales = store.localesFor(primary);
 
   const update = (i: number, part: "question" | "answer", locale: string, value: string) =>
     setRows((list) => list.map((r, j) => (j === i ? { ...r, [part]: { ...r[part], [locale]: value } } : r)));
@@ -151,7 +150,7 @@ export function TalentFaqEditor() {
         </button>
         <button
           type="button"
-          className={`${BTN} border-admin-ink bg-admin-ink text-admin-card`}
+          className="inline-flex h-[30px] cursor-pointer items-center rounded-[8px] border border-emerald-900 bg-emerald-900 px-3 font-admin-body text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           disabled={!dirty || status === "saving"}
           onClick={() => void save()}
         >
