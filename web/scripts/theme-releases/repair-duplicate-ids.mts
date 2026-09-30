@@ -8,10 +8,12 @@
  * talent_sites.shell_tree / shell_published. READ-ONLY by default: reports
  * which talents are affected (demo / qa / real).
  *
+ * Buckets come from talent_profiles.is_demo plus an explicit QA allow-list; only
+ * demo and allow-listed QA accounts can ever be rewritten.
  * With `--yes --allow TAL-93901,TAL-93900` it rewrites ids in the DRAFT only
  * (talent_pages.blocks and talent_sites.shell_tree), for the listed profile
- * codes only, after writing a backup JSON of the original trees. Published
- * trees are reported, never rewritten (Publish copies the fixed draft).
+ * codes only, after writing a backup JSON of the original trees. Add
+ * `--published` to also rewrite the published trees (backup first).
  * The first occurrence of an id keeps it; later ones get a fresh `-uN` id.
  *
  * Run (from web/):
@@ -20,7 +22,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { classify, repairTree, scanTree, type Finding } from "./repair-duplicate-ids-lib";
+import { classify, mayRepair, repairTree, scanTree, type Finding } from "./repair-duplicate-ids-lib";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
@@ -28,6 +30,7 @@ if (!url || !key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_S
 
 const args = process.argv.slice(2);
 const yes = args.includes("--yes");
+const published = args.includes("--published");
 const allowIdx = args.indexOf("--allow");
 const allow = new Set(
   (allowIdx >= 0 ? (args[allowIdx + 1] ?? "") : "").split(",").map((c) => c.trim()).filter(Boolean),
@@ -36,7 +39,7 @@ if (yes && allow.size === 0) throw new Error("--yes needs --allow <profile codes
 
 const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
-type Profile = { id: string; profile_code: string };
+type Profile = { id: string; profile_code: string; is_demo: boolean | null };
 type PageRow = { id: string; talent_profile_id: string; is_home: boolean | null; slug: string | null; blocks: unknown; blocks_published: unknown };
 type SiteRow = { id: string; talent_profile_id: string; shell_tree: unknown; shell_published: unknown };
 
@@ -51,8 +54,9 @@ async function all<T>(table: string, cols: string): Promise<T[]> {
   return out;
 }
 
-const profiles = await all<Profile>("talent_profiles", "id, profile_code");
+const profiles = await all<Profile>("talent_profiles", "id, profile_code, is_demo");
 const codeOf = new Map(profiles.map((p) => [p.id, p.profile_code]));
+const demoOf = new Map(profiles.map((p) => [p.id, p.is_demo === true]));
 const pages = await all<PageRow>("talent_pages", "id, talent_profile_id, is_home, slug, blocks, blocks_published");
 const sites = await all<SiteRow>("talent_sites", "id, talent_profile_id, shell_tree, shell_published");
 
@@ -74,7 +78,7 @@ for (const p of pages) {
     if (!f) continue;
     const h = hit(p.talent_profile_id);
     h.findings.push(f);
-    if (column === "blocks") h.fixable.push({ table: "talent_pages", id: p.id, column, tree: p.blocks });
+    if (column === "blocks" || published) h.fixable.push({ table: "talent_pages", id: p.id, column, tree: p[column] });
   }
 }
 for (const s of sites) {
@@ -83,14 +87,14 @@ for (const s of sites) {
     if (!f) continue;
     const h = hit(s.talent_profile_id);
     h.findings.push(f);
-    if (column === "shell_tree") h.fixable.push({ table: "talent_sites", id: s.id, column, tree: s.shell_tree });
+    if (column === "shell_tree" || published) h.fixable.push({ table: "talent_sites", id: s.id, column, tree: s[column] });
   }
 }
 
 console.log(`Scanned ${pages.length} talent_pages, ${sites.length} talent_sites.`);
 console.log(`${hits.size} talent(s) with duplicate node ids:`);
 for (const bucket of ["demo", "qa", "real"] as const) {
-  const rows = [...hits.values()].filter((h) => classify(h.code) === bucket);
+  const rows = [...hits.values()].filter((h) => classify(h.code, demoOf.get(h.profileId) === true) === bucket);
   console.log(`\n[${bucket}] ${rows.length}`);
   for (const h of rows) {
     console.log(`  ${h.code} (${h.profileId})`);
@@ -103,9 +107,9 @@ if (!yes) {
   process.exit(0);
 }
 
-const targets = [...hits.values()].filter((h) => allow.has(h.code) && h.fixable.length > 0);
+const targets = [...hits.values()].filter((h) => allow.has(h.code) && mayRepair(h.code, demoOf.get(h.profileId) === true) && h.fixable.length > 0);
 const skipped = [...allow].filter((c) => !targets.some((h) => h.code === c));
-if (skipped.length > 0) console.log(`\nNo fixable draft found for: ${skipped.join(", ")}`);
+if (skipped.length > 0) console.log(`\nNot repaired (no duplicates, or not a demo / allow-listed QA account):: ${skipped.join(", ")}`);
 if (targets.length === 0) process.exit(0);
 
 mkdirSync("tmp-backups", { recursive: true });
