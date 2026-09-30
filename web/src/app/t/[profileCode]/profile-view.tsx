@@ -123,6 +123,7 @@ import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { pickHeadlinePrice } from "@/lib/directory/headline-price";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { TalentIntakeSurfaces } from "./_chat/TalentIntakeSurfaces";
+import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
 import { loadTalentIntake } from "./_chat/talent-intake.server";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
@@ -2267,7 +2268,8 @@ export async function TalentProfileView({
             className={btnClass}
           />
         ) : null}
-        <TalentProfileInquireButton
+        {/* WSF §8: no new-inquiry CTA when her own switches close intake (agency pages keep it). */}
+        {hostCtx.kind === "agency" || askEntryPointsVisible(talentAskEntry) ? <TalentProfileInquireButton
           talentId={profile.id}
           talentProfileCode={profile.profile_code}
           displayName={name}
@@ -2277,7 +2279,7 @@ export async function TalentProfileView({
           sourcePage={profileSourcePage}
           locale={locale}
           className={btnClass}
-        />
+        /> : null}
       </>
     );
 
