@@ -67,15 +67,22 @@ export function useWebsiteEligibility() {
       return;
     }
     let cancelled = false;
-    void Promise.all([loadBookingHours(talentId), loadTalentOfferingsForEditor(talentId)]).then(
+    void Promise.all([
+      loadBookingHours(talentId),
+      loadTalentOfferingsForEditor(talentId),
+    ]).then(
       ([hoursRes, offeringsRes]) => {
         if (cancelled) return;
-        const nextAvail = hoursRes.ok
-          ? availabilityFromHours({
-              hours: hoursRes.hours,
-              byAgreement: hoursRes.proposal?.source === "by_agreement",
-            })
-          : null;
+        // Either writer counts: Services hours or the drawer's saved pattern.
+        const nextAvail = combineAvailability({
+          pattern: hoursRes.ok ? hoursRes.hasAvailabilityPattern : null,
+          hours: hoursRes.ok
+            ? availabilityFromHours({
+                hours: hoursRes.hours,
+                byAgreement: hoursRes.proposal?.source === "by_agreement",
+              })
+            : null,
+        });
         const nextCount = offeringsRes.ok
           ? offeringsRes.items.filter((item) => item.status !== "archived").length
           : null;

@@ -1,4 +1,5 @@
 "use client";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -1527,6 +1528,7 @@ export function TalentProfileShellDrawer() {
     startTransition(() => {
       queueShellRouterRefresh();
     });
+    invalidateWebsiteEligibility(); // free-website checklist re-reads now, not on reload
     return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : copy.t("Save failed");
@@ -4219,7 +4221,7 @@ export function TalentProfileShellDrawer() {
               onToggle={() => setActiveSection(activeSection === "availability" ? "" : "availability")}
             >
               <AvailabilityGrid
-                cells={state.availability}
+                cells={state.availability} recurring={state.recurring}
                 onToggle={(date) => {
                   const cur = state.availability.find(c => c.date === date);
                   const cycle: Record<AvailabilityStatus, AvailabilityStatus> = { open: "busy", busy: "blocked", blocked: "open" };

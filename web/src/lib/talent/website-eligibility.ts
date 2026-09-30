@@ -178,3 +178,33 @@ export function getWebsiteEligibility(input: WebsiteEligibilityInput): {
   const percent = known ? required.reduce((n, s) => n + s.earned, 0) : null;
   return { percent, slices, unlocked: percent === 100, workingMode };
 }
+
+/** Where an unticked checklist row sends the talent. */
+export type WebsiteSliceTarget =
+  | { kind: "intro" }
+  | { kind: "services" }
+  | { kind: "drawer"; section: "services" | "media" | "availability" | "location" };
+
+export function websiteSliceTarget(key: WebsiteSliceKey): WebsiteSliceTarget {
+  switch (key) {
+    case "who":
+      return { kind: "drawer", section: "services" };
+    case "photos":
+      return { kind: "drawer", section: "media" };
+    case "offer":
+      return { kind: "services" };
+    case "intro":
+      return { kind: "intro" };
+    case "when":
+      return { kind: "drawer", section: "availability" };
+    case "where":
+      return { kind: "drawer", section: "location" };
+  }
+}
+
+/** First required, not-done row in checklist order; "Continue" opens this. */
+export function firstMissingWebsiteSlice(
+  slices: Pick<WebsiteSlice, "key" | "required" | "done">[],
+): WebsiteSliceKey | null {
+  return slices.find((s) => s.required && s.done === false)?.key ?? null;
+}

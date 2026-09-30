@@ -5,8 +5,14 @@ import {
   hasAvailabilityPattern,
   hasIntroFromSources,
   homeCityFromSources,
+  recurringStatusForDow,
 } from "./website-eligibility-facts";
-import { getWebsiteEligibility, websiteSliceProgressSuffix } from "./website-eligibility";
+import {
+  firstMissingWebsiteSlice,
+  getWebsiteEligibility,
+  websiteSliceProgressSuffix,
+  websiteSliceTarget,
+} from "./website-eligibility";
 
 // Shapes below are what fresh talent TAL-93901 had in prod on 2026-09-30
 // after saving through the real profile drawer.
@@ -99,5 +105,44 @@ describe("photos + offer show how many are still needed", () => {
   it("no suffix once done or for non-count slices", () => {
     const { slices } = getWebsiteEligibility({ ...input, photoCount: 6, bookableCount: 3 });
     for (const s of slices) assert.equal(websiteSliceProgressSuffix(s), "");
+  });
+});
+
+describe("calendar preview follows the recurring pattern", () => {
+  it("weekdays-only blocks Sat/Sun only", () => {
+    const r = { kind: "weekdays-only" };
+    assert.equal(recurringStatusForDow(r, 0), "blocked");
+    assert.equal(recurringStatusForDow(r, 6), "blocked");
+    assert.equal(recurringStatusForDow(r, 3), null);
+  });
+  it("weekends-only blocks Mon-Fri", () => {
+    assert.equal(recurringStatusForDow({ kind: "weekends-only" }, 2), "blocked");
+    assert.equal(recurringStatusForDow({ kind: "weekends-only" }, 6), null);
+  });
+  it("weekly-busy marks chosen days busy; none says nothing", () => {
+    assert.equal(recurringStatusForDow({ kind: "weekly-busy", busyDays: [1] }, 1), "busy");
+    assert.equal(recurringStatusForDow({ kind: "none" }, 1), null);
+    assert.equal(recurringStatusForDow(null, 1), null);
+  });
+});
+
+describe("sheet rows open their step; Continue opens the first missing", () => {
+  it("every slice has a target", () => {
+    assert.deepEqual(websiteSliceTarget("when"), { kind: "drawer", section: "availability" });
+    assert.deepEqual(websiteSliceTarget("where"), { kind: "drawer", section: "location" });
+    assert.deepEqual(websiteSliceTarget("photos"), { kind: "drawer", section: "media" });
+    assert.deepEqual(websiteSliceTarget("offer"), { kind: "services" });
+    assert.deepEqual(websiteSliceTarget("intro"), { kind: "intro" });
+    assert.deepEqual(websiteSliceTarget("who"), { kind: "drawer", section: "services" });
+  });
+  it("TAL-93901 at 94%: Continue goes to availability, not location", () => {
+    const { slices } = getWebsiteEligibility({
+      hasNameAndWork: true, photoCount: 6, bookableCount: 3, hasIntro: true,
+      hasAvailability: false, hasPlace: true, workingMode: "bookings",
+    });
+    assert.equal(firstMissingWebsiteSlice(slices), "when");
+  });
+  it("nothing missing is null", () => {
+    assert.equal(firstMissingWebsiteSlice([{ key: "who", required: true, done: true }]), null);
   });
 });
