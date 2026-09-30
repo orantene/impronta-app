@@ -8,14 +8,14 @@ import assert from "node:assert/strict";
 
 import { diffDesignPayloads, type CandidateItem } from "./diff-payload";
 import { mergeDesignUpdate } from "./merge";
-import { authoredRelease } from "./release-notes";
+import { authoredRelease, withAuthoredNotes } from "./release-notes";
 import type { DesignSide } from "./types";
 import type { DesignPayload } from "../theme-catalog/types";
 import {
-  currentMaisonV2,
   findByKind,
+  findBySlot,
+  maisonV2At,
   propsOf,
-  revertR16,
 } from "./maison-v2-releases.fixtures";
 
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
@@ -65,8 +65,8 @@ const siteOf = (base: DesignSide, tokens: Record<string, string> = {}): DesignSi
 // ── Release 2.2 (v16, round 2): defaults only ───────────────────────────────
 
 test("Maison v2 v16 classifies as token defaults + one variant default, nothing opt-in", () => {
-  const next = currentMaisonV2();
-  const items = diff(revertR16(next), 15, next, 16);
+  const next = maisonV2At(16);
+  const items = diff(maisonV2At(15), 15, next, 16);
   assert.deepEqual(
     items.map((i) => i.id).sort(),
     ["token-default:button.padding-x", "token-default:type.display-tracking", "variant-default:home:reviews/reviews"],
@@ -79,8 +79,8 @@ test("Maison v2 v16 classifies as token defaults + one variant default, nothing 
 });
 
 test("Maison v2 v16 auto-improves untouched parts and keeps talent edits", async () => {
-  const next = currentMaisonV2();
-  const prev = revertR16(next);
+  const next = maisonV2At(16);
+  const prev = maisonV2At(15);
   const { base, theirs } = await siteSides(prev, 15, next, 16);
   const items = diff(prev, 15, next, 16);
 
@@ -101,4 +101,95 @@ test("Maison v2 v16 auto-improves untouched parts and keeps talent edits", async
   assert.equal(propsOf(findByKind(kept.trees.home!, "reviews")!).limit, 3, "her own limit wins");
   assert.ok(kept.report.kept.some((e) => e.key === "button.padding-x"));
   assert.ok(kept.report.kept.some((e) => e.key === "reviews/reviews"));
+});
+
+// ── Release 2.3 (v17, round 3): opt-in layout + critical fix ────────────────
+
+const LAYOUT_PAIR = ["layout:home:services/services_catalog:removed", "layout:home:services/services_two_col"];
+const CRITICAL_ID = "variant-default:home:contact/paragraph";
+
+test("Maison v2 v17 classifies as one opt-in layout change plus the contact fix", () => {
+  const items = diff(maisonV2At(16), 16, maisonV2At(17), 17);
+  assert.deepEqual(items.map((i) => i.id).sort(), [...LAYOUT_PAIR, CRITICAL_ID].sort());
+  assert.deepEqual(types(items, "layout").map((i) => i.layout).sort(), ["nested-new", "removed"]);
+  assert.equal(types(items, "variant-default").length, 1);
+  assert.deepEqual(types(items, "variant-default")[0]!.paths, ["style.textColor"]);
+  for (const t of ["new-block", "token-default"]) assert.equal(types(items, t).length, 0, `no ${t} in round 3`);
+  assertNotesFor(items, 17);
+});
+
+test("Maison v2 v17: the contact fix is marked critical and names the band and its eyebrow", () => {
+  const rel = authoredRelease("maison-v2", 17)!;
+  const items = withAuthoredNotes(diff(maisonV2At(16), 16, maisonV2At(17), 17), rel);
+  const crit = items.filter((i) => i.type === "critical");
+  assert.equal(crit.length, 1);
+  assert.equal(crit[0]!.id, CRITICAL_ID);
+  assert.deepEqual(crit[0]!.keys, ["contact", "contact/paragraph"]);
+  assert.ok(crit[0]!.note?.en && crit[0]!.note?.es);
+  assert.equal(items.filter((i) => i.type === "layout").length, 2, "the layout pair stays opt-in");
+});
+
+async function v17Site() {
+  const prev = maisonV2At(16);
+  const next = maisonV2At(17);
+  const { base, theirs } = await siteSides(prev, 16, next, 17);
+  const items = withAuthoredNotes(diff(prev, 16, next, 17), authoredRelease("maison-v2", 17)!);
+  return { base, theirs, items };
+}
+
+const eyebrowOf = (home: DesignSide["trees"][string]) => {
+  const contact = findBySlot(home, "contact")!;
+  const para = ((contact as { children?: Array<{ kind: string; props: Record<string, unknown> }> }).children ?? []).find((c) => c.kind === "paragraph");
+  return para ? ((para.props.style as Record<string, unknown>).textColor as string) : undefined;
+};
+
+test("Maison v2 v17: the critical fix reaches an untouched, an edited and a removed contact band", async () => {
+  const { base, theirs, items } = await v17Site();
+  const fixed = "token:color.ink";
+
+  const clean = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items });
+  assert.equal(eyebrowOf(clean.trees.home!), fixed);
+
+  // She restyled the eyebrow herself: the critical item forces the fix anyway.
+  const edited = siteOf(base);
+  const editedPara = ((findBySlot(edited.trees.home!, "contact") as unknown as { children: Array<{ kind: string; props: Record<string, unknown> }> }).children).find((c) => c.kind === "paragraph")!;
+  (editedPara.props.style as Record<string, unknown>).textColor = "token:color.muted";
+  const forced = mergeDesignUpdate({ base, ours: edited, theirs, items });
+  assert.equal(eyebrowOf(forced.trees.home!), fixed);
+  assert.ok(forced.report.applied.some((e) => e.key === "contact/paragraph" && e.reason === "critical"));
+
+  // She deleted the whole contact band: the critical item names it, so it returns with the fix.
+  const removed = siteOf(base);
+  removed.trees.home = removed.trees.home!.filter((n) => propsOf(n).slotKey !== "contact");
+  const restored = mergeDesignUpdate({ base, ours: removed, theirs, items });
+  assert.equal(eyebrowOf(restored.trees.home!), fixed, "removed band restored with the fix");
+  assert.ok(restored.report.applied.some((e) => e.change === "restore" && e.key === "contact"));
+
+  // Control: the same change as a plain (non-critical) variant default leaves a removed band removed.
+  const plain = items.map((i) => (i.id === CRITICAL_ID ? { ...i, type: "variant-default" as const, keys: undefined } : i));
+  const stays = mergeDesignUpdate({ base, ours: removed, theirs, items: plain });
+  assert.equal(findBySlot(stays.trees.home!, "contact"), undefined, "without critical it stays removed");
+});
+
+test("Maison v2 v17: the services layout is opt-in and needs both halves of the pair", async () => {
+  const { base, theirs, items } = await v17Site();
+  const servicesKinds = (home: DesignSide["trees"][string]) => {
+    const out: string[] = [];
+    const visit = (nodes: ReadonlyArray<unknown>) => {
+      for (const n of nodes as Array<{ kind: string; props: Record<string, unknown>; children?: unknown[] }>) {
+        if (n.kind === "services_catalog") out.push(`${String(n.props.slotKey ?? "catalog")}:${String(n.props.layout)}`);
+        visit(n.children ?? []);
+      }
+    };
+    visit(home);
+    return out;
+  };
+
+  // The critical fix alone does not touch the services layout.
+  const only = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "critical") });
+  assert.deepEqual(servicesKinds(only.trees.home!), ["catalog:rows"]);
+
+  // Choosing the layout pair swaps the catalog for the two-column one.
+  const chosen = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "layout") });
+  assert.deepEqual(servicesKinds(chosen.trees.home!), ["services_two_col:cards"]);
 });

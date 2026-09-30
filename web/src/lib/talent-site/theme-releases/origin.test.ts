@@ -154,7 +154,8 @@ test("Maison v2 build: stamped, all untouched, render output unchanged", () => {
   );
   const keys = designKeys(stampedBuild.homeTree);
   assert.equal(new Set(keys).size, keys.length, "keys unique");
-  assert.ok(keys.some((k) => k.endsWith("/services_catalog")));
+  // Release 2.3 keyed the catalog as the two-column layout.
+  assert.ok(keys.some((k) => k.endsWith("/services_two_col")));
 });
 
 test("Maison v2 stamps survive a second validation (a builder save)", () => {
