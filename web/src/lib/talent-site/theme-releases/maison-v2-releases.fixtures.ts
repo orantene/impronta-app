@@ -50,7 +50,7 @@ export function revertR16(p: DesignPayload): DesignPayload {
 }
 
 /** Maison v2 as it was at `version` (15 = release 2.1, 16 = release 2.2), rebuilt from code. */
-export function maisonV2At(version: 15 | 16): DesignPayload {
+export function maisonV2At(version: number): DesignPayload {
   const out = currentMaisonV2();
   return version >= 16 ? out : revertR16(out);
 }
