@@ -25,6 +25,7 @@ import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-binding
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
+  aftercareBlock,
   beforeAfterBlock,
   faqBlock,
   heroSplit,
@@ -613,11 +614,14 @@ export function buildMaisonV2Payload(): DesignPayload {
       .map((n) => maisonV2Footer(id, n)),
     homeTree: [
       maisonV2Hero(id),
+      // Release 2.4 (reorder): reviews now sit right under the hero, above the gallery.
+      maisonV2Reviews(id),
       maisonV2Work(id),
       maisonV2Menu(id),
-      maisonV2Reviews(id),
       // Release 2.1 (optional block): two-image comparison.
       padSection(beforeAfterBlock(id)),
+      // Release 2.4 (optional block): aftercare tips.
+      padSection(aftercareBlock(id)),
       maisonV2About(id),
       padSection(
         visitBlock(id, {
