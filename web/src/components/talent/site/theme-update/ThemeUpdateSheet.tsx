@@ -24,10 +24,12 @@ import {
   bannerTitle,
   changesLine,
   keptLine,
+  keptRemovedLine,
   type UpdateLocale,
 } from "@/lib/talent-site/theme-releases/talent-update/copy";
 import {
   addThemeUpdateBlockAction,
+  applyCriticalFixAction,
   previewThemeUpdateAction,
 } from "@/lib/talent-site/theme-releases/talent-update/talent-update-actions";
 import type { TalentUpdateNotice, UpdatePreview } from "@/lib/talent-site/theme-releases/talent-update/talent-update.server";
@@ -139,6 +141,11 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                   <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
                     {keptLine(preview.summary, locale)}
                   </p>
+                  {keptRemovedLine(preview.summary, locale) ? (
+                    <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept-removed>
+                      {keptRemovedLine(preview.summary, locale)}
+                    </p>
+                  ) : null}
                   {preview.previewUrl ? (
                     <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
                       {t("previewOnSite")}
@@ -187,6 +194,27 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
           ) : null}
           {preview?.noBase ? null : <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>}
           <div className="flex flex-wrap gap-2">
+            {preview?.noBase && preview.criticalFix ? (
+              <button
+                type="button"
+                className={BTN_PRIMARY}
+                disabled={busy}
+                data-theme-update-apply-fix
+                onClick={() => {
+                  void applyCriticalFixAction({ updateId: notice.updateId, expectedDraftRev: draftRev })
+                    .then((res) => {
+                      if (res.ok) {
+                        setDraftRev(res.value.draftRev);
+                        setPreview((p) => (p ? { ...p, criticalFix: false, groups: p.groups.filter((g) => g.group !== "critical") } : p));
+                        props.onBlockAdded(res.value.draftRev);
+                      } else setPreviewError(res.error);
+                    })
+                    .catch(() => setPreviewError(t("failed")));
+                }}
+              >
+                {t("applyFix")}
+              </button>
+            ) : null}
             {preview?.hasApplicable ? (
               <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>
                 {busy ? t("applying") : applyLabel(preview ? preview.summary.applied + preview.summary.added : null, locale)}

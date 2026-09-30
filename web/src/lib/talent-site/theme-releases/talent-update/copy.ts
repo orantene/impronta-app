@@ -24,6 +24,7 @@ export const UPDATE_COPY = {
     en: "You undid this update. Apply it again whenever you like. Your edits stay.",
     es: "Deshiciste esta actualización. Aplícala de nuevo cuando quieras. Tus cambios se conservan.",
   },
+  applyFix: { en: "Apply the important fix", es: "Aplicar el arreglo importante" },
   noBase: {
     en: "Your site is older than this version: you can add the new blocks.",
     es: "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.",
@@ -128,6 +129,23 @@ export function keptLine(s: UpdateSummary, locale: UpdateLocale): string {
   return locale === "es"
     ? `Conservamos ${s.kept} de tus cambios${parts}`
     : `We keep ${s.kept} of your edits${parts}`;
+}
+
+/** F122: "we kept FAQ removed, as you left it"; null when she removed nothing the update touches. */
+export function keptRemovedLine(s: UpdateSummary, locale: UpdateLocale): string | null {
+  const names = [...new Set((s.removedKeys ?? []).map((k) => keptPartLabel(k, locale)))];
+  if (names.length === 0) return null;
+  return locale === "es"
+    ? `Mantuvimos quitada${names.length > 1 ? "s las secciones" : " la sección"} ${names.join(", ")}, como la${names.length > 1 ? "s" : ""} dejaste`
+    : `We kept ${names.join(", ")} removed, as you left ${names.length > 1 ? "them" : "it"}`;
+}
+
+/** F125: history summary for an important fix applied to a site with no exact base. */
+export function criticalFixSummary(designTitle: string): Bilingual {
+  return {
+    en: `Applied an important fix from ${designTitle}`,
+    es: `Aplicaste un arreglo importante de ${designTitle}`,
+  };
 }
 
 export function changesLine(s: UpdateSummary, locale: UpdateLocale): string {

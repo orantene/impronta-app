@@ -210,8 +210,12 @@ export interface UpdateSummary {
   keptLabels: string[];
   /** The same parts as raw design keys ("hero", "colours"); localized at display (F86). */
   keptKeys: string[];
-  /** F122: fixes skipped because the block is not on her page (never "your edits"). */
-  notApplicable: number;
+  /**
+   * F122: sections she REMOVED (the base had them, her page does not) and the
+   * update left removed. Its own line, never "your edits". A block that was
+   * never on her page or not in her base produces no entry at all (silent).
+   */
+  removedKeys: string[];
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
@@ -221,7 +225,7 @@ export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "add
     applied: report.applied.length,
     added: report.added.length,
     kept: countParts(edited),
-    notApplicable: countParts(report.kept.filter((e) => e.reason === "removed")),
+    removedKeys: partsOf(report.kept.filter((e) => e.reason === "removed")).slice(0, 6),
     conflicts: report.conflicts.length,
     moved: report.applied.filter((e) => e.reason === "moved_edits").length,
     keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),

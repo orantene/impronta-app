@@ -314,9 +314,9 @@ test("F118: a site WITH a base and applicable items keeps the notice", async () 
 
 // ── F122: a fix skipped because the block is absent is not "your edit" ───────
 
-test("F122: summarizeReport keeps absent-block skips out of 'kept your edits'", async () => {
+test("F122: a section she removed gets its own line, not 'kept your edits'", async () => {
   const { summarizeReport } = await import("./view");
-  const { keptLine, keptPartLabel } = await import("./copy");
+  const { keptLine, keptPartLabel, keptRemovedLine } = await import("./copy");
   const entry = (key: string, reason: string) => ({ seq: 1, change: "props", key, reason }) as never;
   const s = summarizeReport({
     applied: [],
@@ -326,8 +326,15 @@ test("F122: summarizeReport keeps absent-block skips out of 'kept your edits'", 
   });
   assert.equal(s.kept, 0);
   assert.deepEqual(s.keptKeys, []);
-  assert.equal(s.notApplicable, 1);
+  assert.deepEqual(s.removedKeys, ["before_after"]);
   assert.match(keptLine(s, "es"), /No cambiaste nada/);
+  assert.equal(keptRemovedLine(s, "es"), "Mantuvimos quitada la sección Antes / Después, como la dejaste");
+  assert.equal(keptRemovedLine(s, "en"), "We kept Before / After removed, as you left it");
+  const faq = summarizeReport({ applied: [], added: [], conflicts: [], kept: [entry("faq", "removed")] });
+  assert.equal(keptRemovedLine(faq, "es"), "Mantuvimos quitada la sección Preguntas frecuentes, como la dejaste");
+  // never on her page / not in her base: the merge emits no entry, so nothing is said
+  const none = summarizeReport({ applied: [], added: [], conflicts: [], kept: [] });
+  assert.equal(keptRemovedLine(none, "es"), null);
   // a real edit of hers is still kept, alongside
   const both = summarizeReport({
     applied: [], added: [], conflicts: [],
@@ -335,7 +342,7 @@ test("F122: summarizeReport keeps absent-block skips out of 'kept your edits'", 
   });
   assert.equal(both.kept, 1);
   assert.deepEqual(both.keptKeys, ["hero"]);
-  assert.equal(both.notApplicable, 1);
+  assert.deepEqual(both.removedKeys, ["before_after"]);
   // localised section names
   assert.equal(keptPartLabel("before_after", "es"), "Antes / Después");
   assert.equal(keptPartLabel("before_after", "en"), "Before / After");

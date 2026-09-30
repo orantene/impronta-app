@@ -26,6 +26,7 @@ import type { BaseResolver } from "./base-resolver.server";
 import { writeThemeTokenOrigin } from "../token-origin-store";
 import { indexTree } from "../classify";
 import { mergeDesignUpdate } from "../merge";
+import { planCriticalFix, type CriticalFix } from "../critical-targeted";
 import { stampFromBase } from "../stamp-existing";
 import { seedDemoBeforeAfter } from "../demo-seed";
 import { tokenOriginMap } from "../origin";
@@ -45,7 +46,7 @@ export interface SiteRef {
 }
 
 export type SiteMergeOutcome =
-  | { ok: true; result: MergeResult; noBase: boolean; homePageId: string | null }
+  | { ok: true; result: MergeResult; noBase: boolean; homePageId: string | null; critical?: CriticalFix | null }
   | { ok: false; error: string };
 
 const asTree = (v: unknown): BuilderNode[] => (Array.isArray(v) ? (v as BuilderNode[]) : []);
@@ -133,7 +134,15 @@ export async function mergeSite(
       ? { tokenOrigin: row.theme_token_origin as Record<string, string> }
       : {}),
   });
-  return { ok: true, result, noBase: !hasBase, homePageId: (home?.id as string | undefined) ?? null };
+  // F125: no exact base = no full merge, but critical fixes still reach her by targeted key match.
+  const critical = hasBase
+    ? null
+    : planCriticalFix({
+        ours: { trees: { shell: oursShell, home: oursHome }, tokens: coerceTokenMap(row.design_tokens_draft) },
+        theirs: { trees: { shell: theirs.shellTree, home: theirs.homeTree }, tokens: design.payload.tokenDefaults ?? {} },
+        items: items ?? [],
+      });
+  return { ok: true, result, noBase: !hasBase, homePageId: (home?.id as string | undefined) ?? null, critical };
 }
 
 /**

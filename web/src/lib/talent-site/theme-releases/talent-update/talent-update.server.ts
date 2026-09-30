@@ -28,7 +28,8 @@ import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 import { ensureSiteThemeUpdates } from "../lazy-fan-out.server";
-import { offerActionableFor, withoutPresentBlocks } from "../offer-actionable.server";
+import { resolveBellsForRows } from "../theme-bells.server";
+import { noBaseOfferItems, offerActionableFor, withoutPresentBlocks } from "../offer-actionable.server";
 import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
@@ -42,7 +43,6 @@ import {
   combineReleaseItems,
   combinedUpdateState,
   groupItems,
-  offeredItems,
   toTalentItem,
   nextTokenOrigin,
   placeKeyAfter,
@@ -209,7 +209,12 @@ export async function loadTalentUpdateNotices(
   const actionable = new Map<string, boolean>();
   for (const [slug, rows] of byDesign) {
     const newest = byId.get([...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version).pop()!.release_id)!;
-    const verdict = await offerActionableFor(admin, talentProfileId, slug, pinned, rows, newest);
+    const newestRowId = [...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version).pop()!.id;
+    const verdict = await offerActionableFor(admin, talentProfileId, slug, pinned, rows, newest, async () => {
+      const ctx = await loadUpdateContext(admin, talentProfileId, newestRowId);
+      const m = ctx ? await makeSiteMerge(admin)(ctx, applyItemsOf(ctx.release.items ?? [])) : null;
+      return !!(m && m.ok && m.critical);
+    });
     actionable.set(slug, verdict !== false);
     if (verdict === false) {
       for (const r of rows) {
@@ -454,6 +459,8 @@ export interface UpdatePreview {
   noBase: boolean;
   /** What's new list, loaded here so the banner never reads the release body (F74). */
   groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
+  /** F125: a noBase site has an important fix that can be applied on its own. */
+  criticalFix: boolean;
   /** False when the release only offers new blocks: nothing for Apply to do (F78). */
   hasApplicable: boolean;
   previewUrl: string | null;
@@ -470,7 +477,7 @@ export function themeUpdatePreviewUrl(siteSlug: string | null, updateId: string)
   return base ? `${base}?preview=draft&themeUpdate=${encodeURIComponent(updateId)}` : null;
 }
 
-async function homeTree(admin: SupabaseClient, talentProfileId: string): Promise<BuilderNode[]> {
+export async function homeTree(admin: SupabaseClient, talentProfileId: string): Promise<BuilderNode[]> {
   // supabase-read-unchecked-ok: no home page yields no placement choices.
   const { data } = await admin
     .from("talent_pages")
@@ -502,7 +509,12 @@ export async function previewThemeUpdate(
     value: {
       summary: summarizeReport(m.result.report),
       noBase: m.noBase,
-      groups: groupItems(withoutPresentBlocks(offeredItems(items, m.noBase), ctx.addedBlocks, tree)),
+      groups: groupItems(
+        m.noBase
+          ? noBaseOfferItems(items, ctx.addedBlocks, tree, m.critical?.itemIds ?? [])
+          : withoutPresentBlocks(items, ctx.addedBlocks, tree),
+      ),
+      criticalFix: !!m.critical,
       hasApplicable: !m.noBase && applyItemsOf(items).length > 0,
       previewUrl: themeUpdatePreviewUrl(ctx.siteSlug, updateId),
       placements: placementOptions(tree),
@@ -564,6 +576,7 @@ export async function setUpdateState(
   if (extra.onlyFrom) q = q.in("state", extra.onlyFrom);
   const { error } = await q;
   if (error) logServerError("themeUpdate.setState", error);
+  else if (state === "applied" || state === "dismissed") await resolveBellsForRows(admin, talentProfileId, [updateId]);
   return !error;
 }
 
