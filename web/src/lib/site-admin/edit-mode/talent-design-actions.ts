@@ -37,6 +37,11 @@ import { getThemePreset } from "@/lib/site-admin/presets/theme-presets";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { CONFLICT_COPY, pick, summaryFor } from "@/lib/talent-site/history/copy";
+import { loadSiteRev } from "@/lib/talent-site/history/history.server";
+import { recordSiteHistory } from "@/lib/talent-site/history/writer";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type {
   DesignLoadResult,
   DesignPresetResult,
@@ -280,6 +285,8 @@ export async function saveTalentDesignDraftAction(input: {
   pageSlug: string;
   patch: Record<string, string>;
   expectedVersion: number;
+  /** Theme releases Phase 2 — the builder's draft_rev (same-tab adopted). */
+  expectedDraftRev?: number | null;
 }): Promise<DesignSaveResult> {
   const resolved = await resolveOwnTalentPageRow(input.pageSlug);
   if (!resolved.ok) return { ok: false, error: resolved.error, code: resolved.code };
@@ -304,18 +311,23 @@ export async function saveTalentDesignDraftAction(input: {
 
   // SITE theme: the working copy becomes the site draft (every page), and
   // the page draft layer is cleared so it no longer shadows the site.
-  const siteMode = await writeSiteDraftIfSiteMode(resolved.row.talent_profile_id, normalized);
-  if (siteMode === "failed") return { ok: false, error: "Could not save your theme." };
+  const site = await writeSiteDraftIfSiteMode(
+    resolved.row.talent_profile_id,
+    normalized,
+    input.expectedDraftRev,
+  );
+  if (site.mode === "conflict") return siteConflict();
+  if (site.mode === "failed") return { ok: false, error: "Could not save your theme." };
 
   const nextSlice: TalentDesignSlice = {
     ...current,
-    tokensDraft: siteMode === "written" ? {} : normalized,
+    tokensDraft: site.mode === "written" ? {} : normalized,
     version: current.version + 1,
   };
   try {
     const saved = await persistDesignSlice(resolved.supabase, resolved.row, nextSlice);
     if (!saved.ok) return { ok: false, error: saved.error };
-    return { ok: true, version: nextSlice.version, themeDraft: normalized };
+    return { ok: true, version: nextSlice.version, themeDraft: normalized, draftRev: site.draftRev };
   } catch (error) {
     logServerError("talent-design/save-draft", error);
     return { ok: false, error: "Could not save theme draft." };
@@ -377,6 +389,7 @@ export async function applyTalentThemePresetAction(input: {
   pageSlug: string;
   presetSlug: string;
   expectedVersion: number;
+  expectedDraftRev?: number | null;
 }): Promise<DesignPresetResult> {
   const preset = getThemePreset(input.presetSlug);
   if (!preset) {
@@ -397,14 +410,16 @@ export async function applyTalentThemePresetAction(input: {
   }
 
   const validated = validateThemePatch(preset.tokens);
-  const siteMode = await writeSiteDraftIfSiteMode(
+  const site = await writeSiteDraftIfSiteMode(
     resolved.row.talent_profile_id,
     validated.normalized,
+    input.expectedDraftRev,
   );
-  if (siteMode === "failed") return { ok: false, error: "Could not apply theme preset." };
+  if (site.mode === "conflict") return siteConflict();
+  if (site.mode === "failed") return { ok: false, error: "Could not apply theme preset." };
   const nextSlice: TalentDesignSlice = {
     ...current,
-    tokensDraft: siteMode === "written" ? {} : validated.normalized,
+    tokensDraft: site.mode === "written" ? {} : validated.normalized,
     presetSlug: preset.slug,
     version: current.version + 1,
   };
@@ -416,6 +431,7 @@ export async function applyTalentThemePresetAction(input: {
       version: nextSlice.version,
       themeDraft: validated.normalized,
       presetSlug: nextSlice.presetSlug ?? preset.slug,
+      draftRev: site.draftRev,
     };
   } catch (error) {
     logServerError("talent-design/apply-preset", error);
@@ -468,6 +484,7 @@ export async function publishTalentDesignAction(input: {
         profileCode: null,
       });
       if (!published.ok) return { ok: false, error: published.error };
+      await recordThemePublish(resolved.row.talent_profile_id);
     }
     const saved = await persistDesignSlice(resolved.supabase, resolved.row, nextSlice);
     if (!saved.ok) return { ok: false, error: saved.error };
@@ -493,8 +510,29 @@ export async function publishTalentDesignAction(input: {
 async function writeSiteDraftIfSiteMode(
   talentProfileId: string,
   tokens: Record<string, string>,
-): Promise<"written" | "legacy" | "failed"> {
-  if (!siteThemeMode()) return "legacy";
-  const ok = await writeTalentSiteDraftTokens(talentProfileId, tokens);
-  return ok ? "written" : "failed";
+  expectedDraftRev?: number | null,
+): Promise<{ mode: "written" | "legacy" | "failed" | "conflict"; draftRev?: number | null }> {
+  if (!siteThemeMode()) return { mode: "legacy" };
+  const res = await writeTalentSiteDraftTokens(talentProfileId, tokens, { expectedDraftRev });
+  if (res.ok) return { mode: "written", draftRev: res.draftRev };
+  return { mode: res.conflict ? "conflict" : "failed" };
+}
+
+/** Theme releases Phase 2 — a theme publish lands in the site history. */
+async function recordThemePublish(talentProfileId: string): Promise<void> {
+  const admin = createServiceRoleClient();
+  const site = admin ? await loadSiteRev(admin, talentProfileId) : null;
+  if (!admin || !site) return;
+  const summary = summaryFor("publish");
+  await recordSiteHistory(admin, site.siteId, {
+    kind: "publish",
+    summaryEn: summary.en,
+    summaryEs: summary.es,
+    source: "published",
+  });
+}
+
+/** Theme releases Phase 2 — another tab wrote the site draft first. */
+async function siteConflict(): Promise<{ ok: false; error: string; code: "VERSION_CONFLICT" }> {
+  return { ok: false, error: pick(CONFLICT_COPY, await getRequestLocale()), code: "VERSION_CONFLICT" };
 }

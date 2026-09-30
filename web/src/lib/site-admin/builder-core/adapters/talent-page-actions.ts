@@ -13,7 +13,7 @@
  * (talent owner + workspace staff) takes effect. NEVER writes `cms_page_sections`.
  */
 
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
@@ -22,6 +22,11 @@ import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tr
 import { stripTalentSiteSeoPatch } from "@/lib/talent-site/free-site-seo";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 import { publishTalentPageBodies } from "@/lib/talent-site/server/publish-talent-page-bodies";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { CONFLICT_COPY, editSummary, pick, summaryFor } from "@/lib/talent-site/history/copy";
+import { loadOwnedSiteRev, loadSiteRev } from "@/lib/talent-site/history/history.server";
+import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 import type {
   TalentPageAdapterActions,
@@ -56,6 +61,14 @@ const META_PATCH_KEYS = [
   "json_ld",
 ] as const;
 
+/** Theme releases Phase 2 — the editor's CAS version is the site's draft_rev. */
+async function withDraftRev(row: TalentPageRow): Promise<TalentPageRow> {
+  const admin = createServiceRoleClient();
+  if (!admin) return row;
+  const site = await loadSiteRev(admin, row.talent_profile_id);
+  return site ? { ...row, draft_rev: site.draftRev } : row;
+}
+
 export async function loadTalentPageAction(
   input: Parameters<TalentPageAdapterActions["loadPage"]>[0],
 ): Promise<TalentPageRow | null> {
@@ -70,11 +83,11 @@ export async function loadTalentPageAction(
         .eq("slug", input.slug)
         .single();
     const { data, error } = await selectRow(TALENT_PAGE_COLS);
-    if (!error && data) return data as unknown as TalentPageRow;
+    if (!error && data) return withDraftRev(data as unknown as TalentPageRow);
     // STYLE-1 graceful fallback — style columns not yet migrated.
     const fallback = await selectRow(TALENT_PAGE_BASE_COLS);
     if (fallback.error || !fallback.data) return null;
-    return fallback.data as unknown as TalentPageRow;
+    return withDraftRev(fallback.data as unknown as TalentPageRow);
   } catch (err) {
     logServerError("talentPageAdapter/loadPage", err);
     return null;
@@ -111,7 +124,7 @@ export async function ensureTalentPageAction(
         existing = base.data;
       }
     }
-    if (existing) return existing as unknown as TalentPageRow;
+    if (existing) return withDraftRev(existing as unknown as TalentPageRow);
 
     // PHASE 1 — creating a page is Web Office (`personalSitePages`). This
     // action is a `"use server"` export, so it is callable directly with any
@@ -173,7 +186,7 @@ export async function ensureTalentPageAction(
       return null;
     }
 
-    return inserted.data as unknown as TalentPageRow;
+    return withDraftRev(inserted.data as unknown as TalentPageRow);
   } catch (err) {
     logServerError("talentPageAdapter/ensurePage", err);
     return null;
@@ -198,7 +211,7 @@ export async function saveTalentPageAction(
     // adapter-core factory — its page-content contract is unchanged.)
     const { data: existing } = await sb
       .from("talent_pages")
-      .select("theme, blocks")
+      .select("theme, blocks, title")
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle();
@@ -275,6 +288,39 @@ export async function saveTalentPageAction(
       siteCaps ? siteCaps.personalSiteSeo : true,
     );
 
+    // Theme releases Phase 2 — the OWNER's page on a site writes through the
+    // atomic draft writer: CAS on draft_rev + the page body + a batched history
+    // entry in one transaction. Ownership is checked explicitly (a published
+    // page is publicly READABLE, so the RLS read above is not a write grant);
+    // workspace staff keep the RLS-scoped write below.
+    const admin = existing ? createServiceRoleClient() : null;
+    const actor = admin ? await getCachedActorSession() : null;
+    const site = admin ? await loadOwnedSiteRev(admin, talentProfileId, actor?.user?.id) : null;
+    if (admin && site) {
+      // The RPC stamps updated_at itself.
+      const pagePatch: Record<string, unknown> = { ...scopedPayload, ...stylePatch };
+      delete pagePatch.updated_at;
+      const summary = editSummary(
+        "page",
+        typeof patch.title === "string" ? patch.title : (existing as { title?: string }).title,
+      );
+      const res = await writeSiteDraft(admin, {
+        siteId: site.siteId,
+        expectedDraftRev: input.expectedDraftRev ?? null,
+        pages: [{ id: pageId, patch: pagePatch }],
+        history: { kind: "edit", summaryEn: summary.en, summaryEs: summary.es },
+      });
+      if (res.ok) return { ok: true as const, updatedAt: res.updatedAt, draftRev: res.draftRev };
+      if (res.code === "conflict") {
+        return {
+          ok: false as const,
+          code: "VERSION_CONFLICT",
+          error: pick(CONFLICT_COPY, await getRequestLocale()),
+        };
+      }
+      return { ok: false as const, error: res.error };
+    }
+
     let { data, error } = await runUpdate({ ...scopedPayload, ...stylePatch });
     // STYLE-1 graceful fallback — style columns not yet migrated → retry without.
     if (error && Object.keys(stylePatch).length > 0) {
@@ -305,10 +351,22 @@ export async function publishTalentPageAction(
     if (!result.ok) return { ok: false as const, error: result.error };
     const page = result.pages[0];
     if (!page) return { ok: false as const, error: "Talent page publish failed." };
+    const admin = createServiceRoleClient();
+    const site = admin ? await loadSiteRev(admin, talentProfileId) : null;
+    if (admin && site) {
+      const summary = summaryFor("publish");
+      await recordSiteHistory(admin, site.siteId, {
+        kind: "publish",
+        summaryEn: summary.en,
+        summaryEs: summary.es,
+        source: "published",
+      });
+    }
     return {
       ok: true as const,
       publishedAt: page.publishedAt,
       updatedAt: page.updatedAt,
+      draftRev: site?.draftRev ?? null,
     };
   } catch (err) {
     logServerError("talentPageAdapter/publishPage", err);

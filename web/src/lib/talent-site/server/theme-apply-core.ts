@@ -20,7 +20,9 @@ import {
   tokenOriginMap,
   type StampSource,
 } from "../theme-releases/origin";
-import { writeThemeTokenOrigin } from "../theme-releases/token-origin-store";
+import { designApplySummary, lookSummary } from "../history/copy";
+import type { HistoryActor } from "../history/types";
+import { writeSiteDraft } from "../history/writer";
 
 /**
  * Talent theme gallery: APPLY CORE (server-only, NOT "use server").
@@ -204,6 +206,10 @@ export interface ApplyDesignInput {
   /** Fallback wordmark when the profile cannot be loaded. */
   displayName: string;
   userId?: string | null;
+  /** Theme releases Phase 2 — CAS on talent_sites.draft_rev (omit = no race check). */
+  expectedDraftRev?: number | null;
+  /** History actor (a Tulala-run demo rebuild passes "tulala"). */
+  actor?: HistoryActor;
 }
 
 export async function applyDesign(
@@ -229,41 +235,37 @@ export async function applyDesign(
     return { ok: false, code: "server_error", error: "Could not build that design." };
   }
 
-  const now = new Date().toISOString();
-  const { error: siteErr, count: siteCount } = await admin
-    .from("talent_sites")
-    .update(
-      {
-        shell_tree: built.shellTree,
-        theme_design_slug: design.slug,
-        theme_design_version: design.version,
-        draft_updated_at: now,
-        updated_at: now,
-        ...(input.userId ? { updated_by: input.userId } : {}),
-      },
-      { count: "exact" },
-    )
-    .eq("id", input.siteId)
-    .eq("talent_profile_id", input.talentProfileId);
-  if (siteErr) {
-    logServerError("talentTheme.applyDesign.shell", siteErr);
+  // Theme releases Phase 2 — ONE atomic write (shell + home + pin + token
+  // origin + history entry), CAS on draft_rev when the caller sends it, so a
+  // publish can never land between the shell and the home page.
+  const summary = designApplySummary(design.title);
+  const res = await writeSiteDraft(admin, {
+    siteId: input.siteId,
+    expectedDraftRev: input.expectedDraftRev ?? null,
+    site: {
+      shell_tree: built.shellTree,
+      theme_design_slug: design.slug,
+      theme_design_version: design.version,
+      theme_token_origin: tokenOriginMap(design.payload.tokenDefaults),
+      ...(input.userId ? { updated_by: input.userId } : {}),
+    },
+    pages: [{ home: true, patch: { blocks: built.homeTree } }],
+    history: {
+      kind: "design_apply",
+      actor: input.actor ?? "talent",
+      summaryEn: summary.en,
+      summaryEs: summary.es,
+      report: { design: design.slug, version: design.version },
+      createdBy: input.userId ?? null,
+    },
+  });
+  if (!res.ok) {
+    if (res.code === "conflict") return { ok: false, code: "conflict", error: res.error };
+    if (res.code === "site_not_found") return { ok: false, code: "site_not_found", error: "Site not found." };
+    if (res.code === "page_not_found") return { ok: false, code: "page_not_found", error: "Home page not found." };
+    logServerError("talentTheme.applyDesign.write", res.error);
     return { ok: false, code: "server_error", error: "Could not apply the design." };
   }
-  if (!siteCount) return { ok: false, code: "site_not_found", error: "Site not found." };
-
-  const { error: homeErr, count: homeCount } = await admin
-    .from("talent_pages")
-    .update({ blocks: built.homeTree, updated_at: now }, { count: "exact" })
-    .eq("talent_profile_id", input.talentProfileId)
-    .eq("is_home", true);
-  if (homeErr) {
-    logServerError("talentTheme.applyDesign.home", homeErr);
-    return { ok: false, code: "server_error", error: "Could not apply the design home page." };
-  }
-  if (!homeCount) return { ok: false, code: "page_not_found", error: "Home page not found." };
-
-  // Token origin (theme releases): which defaults the site started from.
-  await writeThemeTokenOrigin(admin, input.siteId, tokenOriginMap(design.payload.tokenDefaults));
 
   return { ok: true, data: { designSlug: design.slug, designVersion: design.version } };
 }
@@ -272,6 +274,9 @@ export interface ApplyLookInput {
   siteId: string;
   look: TalentThemeLookRow;
   userId?: string | null;
+  /** Theme releases Phase 2 — CAS on draft_rev (omit = CAS on the rev just read). */
+  expectedDraftRev?: number | null;
+  actor?: HistoryActor;
 }
 
 export async function applyLook(
@@ -287,7 +292,7 @@ export async function applyLook(
 
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens_draft")
+    .select("design_tokens_draft, draft_rev")
     .eq("id", input.siteId)
     .maybeSingle();
   if (error) {
@@ -296,29 +301,36 @@ export async function applyLook(
   }
   if (!data) return { ok: false, code: "site_not_found", error: "Site not found." };
 
-  const draftTokens = mergeLookIntoTokens(
-    coerceTokenMap((data as { design_tokens_draft?: unknown }).design_tokens_draft),
-    look.payload.tokens,
-  );
-  const now = new Date().toISOString();
-  const { error: writeErr, count } = await admin
-    .from("talent_sites")
-    .update(
-      {
-        design_tokens_draft: draftTokens,
-        theme_look_slug: look.slug,
-        draft_updated_at: now,
-        updated_at: now,
-        ...(input.userId ? { updated_by: input.userId } : {}),
-      },
-      { count: "exact" },
-    )
-    .eq("id", input.siteId);
-  if (writeErr) {
-    logServerError("talentTheme.applyLook.write", writeErr);
+  const row = data as { design_tokens_draft?: unknown; draft_rev?: number | null };
+  const draftTokens = mergeLookIntoTokens(coerceTokenMap(row.design_tokens_draft), look.payload.tokens);
+  // Read-modify-write: CAS on the rev the tokens were read at, so a colour
+  // change in another tab between the read and the write is never lost.
+  const expected =
+    input.expectedDraftRev ?? (typeof row.draft_rev === "number" ? row.draft_rev : null);
+  const summary = lookSummary(look.title);
+  const res = await writeSiteDraft(admin, {
+    siteId: input.siteId,
+    expectedDraftRev: expected,
+    site: {
+      design_tokens_draft: draftTokens,
+      theme_look_slug: look.slug,
+      ...(input.userId ? { updated_by: input.userId } : {}),
+    },
+    history: {
+      kind: "colors",
+      actor: input.actor ?? "talent",
+      summaryEn: summary.en,
+      summaryEs: summary.es,
+      batchSeconds: 0,
+      createdBy: input.userId ?? null,
+    },
+  });
+  if (!res.ok) {
+    if (res.code === "conflict") return { ok: false, code: "conflict", error: res.error };
+    if (res.code === "site_not_found") return { ok: false, code: "site_not_found", error: "Site not found." };
+    logServerError("talentTheme.applyLook.write", res.error);
     return { ok: false, code: "server_error", error: "Could not apply the look." };
   }
-  if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
 
   return { ok: true, data: { lookSlug: look.slug, draftTokens } };
 }

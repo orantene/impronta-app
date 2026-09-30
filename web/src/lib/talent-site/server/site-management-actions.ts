@@ -65,6 +65,7 @@ import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
 import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
+import { recordSitePublish } from "../history/history.server";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -74,8 +75,7 @@ import type {
 const PAGE_COLUMNS =
   "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
 
-// Shared owner+Max gate lives in ./site-action-gate so the logo actions
-// (./site-logo-actions, a separate "use server" module) can reuse it.
+// Shared owner+Max gate lives in ./site-action-gate (reused by ./site-logo-actions).
 
 /**
  * The address the dashboard shows and links to. With the subdomain switch on the
@@ -699,7 +699,7 @@ export async function publishMaxSiteAction(): Promise<
       error: "Your pages are live, but the theme could not be published. Try again. (theme)",
     };
   }
-
+  await recordSitePublish(pre.id, g.userId); // 4b. site history (theme releases Phase 2)
   // 5. W41 — design version snapshot (Maison flag; best-effort, never fails publish).
   if (isTalentMaisonThemeEnabled(g.talentProfileId)) {
     const admin = createServiceRoleClient();

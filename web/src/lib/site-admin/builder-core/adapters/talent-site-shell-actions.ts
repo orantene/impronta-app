@@ -19,6 +19,12 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { CONFLICT_COPY, editSummary, pick, summaryFor } from "@/lib/talent-site/history/copy";
+import { loadSiteRev } from "@/lib/talent-site/history/history.server";
+import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
+
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf, assertTalentCanEditSite } from "@/lib/server/talent-self-guard";
@@ -150,11 +156,11 @@ export async function loadTalentSiteShellRow(
         .maybeSingle();
     // STYLE-1 — try with the style columns, fall back when not yet migrated.
     let { data, error } = await selectRow(
-      "id, shell_tree, shell_published, site_published_at, updated_at, style_classes, style_presets",
+      "id, shell_tree, shell_published, site_published_at, updated_at, draft_rev, style_classes, style_presets",
     );
     if (error || !data) {
       ({ data, error } = await selectRow(
-        "id, shell_tree, shell_published, site_published_at, updated_at",
+        "id, shell_tree, shell_published, site_published_at, updated_at, draft_rev",
       ));
     }
     if (error || !data) return null;
@@ -166,6 +172,7 @@ export async function loadTalentSiteShellRow(
       updated_at: string;
       style_classes?: unknown;
       style_presets?: unknown;
+      draft_rev?: number | null;
     };
     return {
       id: row.id,
@@ -175,6 +182,7 @@ export async function loadTalentSiteShellRow(
       updatedAt: row.updated_at,
       styleClasses: row.style_classes,
       stylePresets: row.style_presets,
+      draftRev: typeof row.draft_rev === "number" ? row.draft_rev : null,
     };
   } catch (err) {
     logServerError("talentSiteShell/loadShell", err);
@@ -229,6 +237,45 @@ export async function saveTalentSiteShellRow(
     }
     if (input.patch.style_presets !== undefined) {
       stylePatch.style_presets = input.patch.style_presets;
+    }
+
+    // Theme releases Phase 2 — atomic draft write: CAS on draft_rev + the shell
+    // + a batched history entry in one transaction (owner proven by gateOwner
+    // and the RLS read above). A lost race writes nothing.
+    const admin = currentRow?.id ? createServiceRoleClient() : null;
+    if (admin && currentRow?.id) {
+      const summary = editSummary("shell");
+      const res = await writeSiteDraft(admin, {
+        siteId: currentRow.id,
+        expectedDraftRev: input.expectedDraftRev ?? null,
+        site: { shell_tree: enforced, updated_by: gate.actorProfileId, ...stylePatch },
+        history: {
+          kind: "edit",
+          summaryEn: summary.en,
+          summaryEs: summary.es,
+          createdBy: gate.actorProfileId,
+        },
+      });
+      if (!res.ok) {
+        if (res.code === "conflict") {
+          return {
+            ok: false as const,
+            code: "VERSION_CONFLICT",
+            error: pick(CONFLICT_COPY, await getRequestLocale()),
+          };
+        }
+        return { ok: false as const, error: res.error };
+      }
+      await writeTalentSiteShellRevision({
+        sb,
+        talentSiteId: currentRow.id,
+        talentProfileId: gate.talentProfileId,
+        title: "Site shell",
+        shellTree: enforced,
+        kind: "draft",
+        actorProfileId: gate.actorProfileId,
+      });
+      return { ok: true as const, updatedAt: res.updatedAt, draftRev: res.draftRev };
     }
 
     const runUpdate = (payload: Record<string, unknown>) =>
@@ -329,7 +376,22 @@ export async function publishTalentSiteShellRow(
       });
     }
 
-    return { ok: true as const, publishedAt: now, updatedAt: data.updated_at as string };
+    // Theme releases Phase 2 — the publish lands in the site history.
+    const admin = currentRow?.id ? createServiceRoleClient() : null;
+    let draftRev: number | null = null;
+    if (admin && currentRow?.id) {
+      const summary = summaryFor("publish");
+      await recordSiteHistory(admin, currentRow.id, {
+        kind: "publish",
+        summaryEn: summary.en,
+        summaryEs: summary.es,
+        source: "published",
+        createdBy: gate.actorProfileId,
+      });
+      draftRev = (await loadSiteRev(admin, gate.talentProfileId))?.draftRev ?? null;
+    }
+
+    return { ok: true as const, publishedAt: now, updatedAt: data.updated_at as string, draftRev };
   } catch (err) {
     logServerError("talentSiteShell/publishShell", err);
     return { ok: false as const, error: "Unexpected error publishing your shell." };
