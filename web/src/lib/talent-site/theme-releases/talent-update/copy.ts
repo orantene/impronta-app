@@ -12,6 +12,7 @@ export function updateLocale(locale: string | null | undefined): UpdateLocale {
 }
 
 export const UPDATE_COPY = {
+  pill: { en: "Update available", es: "Actualización disponible" },
   whatsNew: { en: "What's new", es: "Novedades" },
   notNow: { en: "Not now", es: "Ahora no" },
   bannerBody: {

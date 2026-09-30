@@ -32,6 +32,17 @@ import {
 import type { TalentUpdateNotice } from "@/lib/talent-site/theme-releases/talent-update/talent-update.server";
 import { ThemeUpdateSheet } from "./ThemeUpdateSheet";
 
+/**
+ * F94 - the builder placement never sits over canvas controls (zoom HUD and the
+ * first-paint tip live bottom-left; the inline text toolbar floats on the
+ * canvas). It docks under the 60px top bar as a centred pill, and the card
+ * opens directly beneath it, on phones too.
+ */
+export const BUILDER_PILL_CLASS =
+  "fixed left-1/2 top-[68px] z-[250] inline-flex min-h-9 -translate-x-1/2 items-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[13px] font-semibold text-admin-ink shadow-lg";
+export const BUILDER_CARD_CLASS =
+  "fixed inset-x-3 top-[112px] z-[250] mx-auto max-w-[360px] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg";
+
 const TOAST_KEY = "tulala-theme-update-toast";
 const TOAST_MS = 6_000;
 
@@ -65,6 +76,7 @@ export function ThemeUpdateNotice({
   const [notice, setNotice] = useState<TalentUpdateNotice | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,12 +155,24 @@ export function ThemeUpdateNotice({
   const floating = surface === "builder";
   return (
     <>
+      {floating ? (
+        <button
+          type="button"
+          data-theme-update-pill
+          aria-expanded={cardOpen}
+          onClick={() => setCardOpen((v) => !v)}
+          className={BUILDER_PILL_CLASS}
+        >
+          {t("pill")}
+        </button>
+      ) : null}
+      {floating && !cardOpen ? null : (
       <section
         aria-label={title}
         data-theme-update-notice={surface}
         className={
           floating
-            ? "fixed inset-x-3 bottom-3 z-[250] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg sm:inset-x-auto sm:left-4 sm:w-[360px]"
+            ? BUILDER_CARD_CLASS
             : "mb-5 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
         }
       >
@@ -179,6 +203,7 @@ export function ThemeUpdateNotice({
           </button>
         </div>
       </section>
+      )}
       {open ? (
         <ThemeUpdateSheet
           notice={notice}
