@@ -50,6 +50,10 @@ export function makeFakeDb(tables: Tables): FakeDb {
         filters.push((r) => vs.includes(read(r, col)));
         return q;
       },
+      gt(col: string, v: number) {
+        filters.push((r) => typeof r[col] === "number" && (r[col] as number) > v);
+        return q;
+      },
       is(col: string, v: unknown) {
         filters.push((r) => (r[col] ?? null) === v);
         return q;

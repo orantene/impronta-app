@@ -271,3 +271,116 @@ test("F117: a block already on her page by origin key is not offered again", asy
   assert.ok(res.ok);
   assert.ok(!res.value.groups.flatMap((g) => g.items).some((i) => i.id === "new-block:gallery"));
 });
+
+// ── F118: an offer with nothing to do is invisible ───────────────────────────
+
+test("F118: isOfferActionable", async () => {
+  const { isOfferActionable } = await import("../offer-actionable.server");
+  const blocksOnly = [I_BLOCK_A];
+  const mixed = [I_BLOCK_A, I_CODE_V2];
+  assert.equal(isOfferActionable({ hasBase: false, items: mixed, addedIds: [], homeBlocks: [] }), true, "a missing block is actionable");
+  assert.equal(isOfferActionable({ hasBase: false, items: mixed, addedIds: ["new-block:gallery"], homeBlocks: [] }), false, "noBase + block added");
+  assert.equal(isOfferActionable({ hasBase: true, items: mixed, addedIds: ["new-block:gallery"], homeBlocks: [] }), true, "base + applicable items");
+  assert.equal(isOfferActionable({ hasBase: true, items: blocksOnly, addedIds: ["new-block:gallery"], homeBlocks: [] }), false, "base but only a block she has");
+  assert.equal(isOfferActionable({ hasBase: false, items: [], addedIds: [], homeBlocks: [] }), false);
+});
+
+test("F118: Jorg shape (noBase, every new block already added): no notice, rows closed as nothing_applicable", async () => {
+  const db = world(["available", "available"], 1); // no snapshot for v1, pin != newest from-version: noBase
+  db.tables.talent_site_theme_updates![0]!.report = { addedBlocks: ["new-block:gallery"] };
+  const notices = await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
+  assert.equal(notices.length, 0);
+  assert.deepEqual(states(db), ["applied", "applied"]);
+  const reason = (db.tables.talent_site_theme_updates![1]!.report as { reason?: string }).reason;
+  assert.equal(reason, "nothing_applicable");
+  // and it stays gone
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false })).length, 0);
+});
+
+test("F118: noBase but a block is still missing keeps the notice", async () => {
+  const db = world(["available", "available"], 1);
+  const notices = await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
+  assert.equal(notices.length, 1);
+  assert.deepEqual(states(db), ["available", "available"]);
+});
+
+test("F118: a site WITH a base and applicable items keeps the notice", async () => {
+  const db = world(["available", "available"], 2);
+  db.tables.talent_theme_releases![1]!.base_payload = { v: 2 }; // R3's saved base = her pin
+  const notices = await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0]!.fromVersion, 2);
+});
+
+// ── F122: a fix skipped because the block is absent is not "your edit" ───────
+
+test("F122: summarizeReport keeps absent-block skips out of 'kept your edits'", async () => {
+  const { summarizeReport } = await import("./view");
+  const { keptLine, keptPartLabel } = await import("./copy");
+  const entry = (key: string, reason: string) => ({ seq: 1, change: "props", key, reason }) as never;
+  const s = summarizeReport({
+    applied: [],
+    added: [],
+    conflicts: [],
+    kept: [entry("before_after", "removed")],
+  });
+  assert.equal(s.kept, 0);
+  assert.deepEqual(s.keptKeys, []);
+  assert.equal(s.notApplicable, 1);
+  assert.match(keptLine(s, "es"), /No cambiaste nada/);
+  // a real edit of hers is still kept, alongside
+  const both = summarizeReport({
+    applied: [], added: [], conflicts: [],
+    kept: [entry("before_after", "removed"), entry("hero/heading", "edited")],
+  });
+  assert.equal(both.kept, 1);
+  assert.deepEqual(both.keptKeys, ["hero"]);
+  assert.equal(both.notApplicable, 1);
+  // localised section names
+  assert.equal(keptPartLabel("before_after", "es"), "Antes / Después");
+  assert.equal(keptPartLabel("before_after", "en"), "Before / After");
+});
+
+// ── F124: a restore that lowers the pin reopens the rows it had closed ───────
+
+test("F124: rows applied above the new pin go back to available; rows at or below stay", async () => {
+  const { ensureSiteThemeUpdates } = await import("../lazy-fan-out.server");
+  const db = world(["applied", "applied"], 2); // restored to v2: R2 (to 2) is at the pin, R3 (to 3) is above
+  db.tables.talent_site_theme_updates![1]!.report = { addedBlocks: ["new-block:x"], kept: 1 };
+  await ensureSiteThemeUpdates(db.admin, PROFILE);
+  assert.deepEqual(states(db), ["applied", "available"]);
+  const report = db.tables.talent_site_theme_updates![1]!.report as { note?: string; addedBlocks?: string[] };
+  assert.equal(report.note, "reopened_after_restore");
+  assert.deepEqual(report.addedBlocks, ["new-block:x"], "added blocks are remembered");
+});
+
+test("F124: restored to v1, both rows reopen and the combined offer is 1 -> 3 again", async () => {
+  const db = world(["applied", "applied"], 1);
+  const notices = await loadTalentUpdateNotices(db.admin, PROFILE); // lazy step runs first
+  assert.deepEqual(states(db), ["available", "available"]);
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0]!.fromVersion, 1);
+  assert.equal(notices[0]!.toVersion, 3);
+});
+
+test("F124: a site still on the newest version keeps its applied rows", async () => {
+  const { ensureSiteThemeUpdates } = await import("../lazy-fan-out.server");
+  const db = world(["applied", "applied"], 3);
+  await ensureSiteThemeUpdates(db.admin, PROFILE);
+  assert.deepEqual(states(db), ["applied", "applied"]);
+});
+
+test("F124: rows closed as nothing_applicable are not reopened", async () => {
+  const { ensureSiteThemeUpdates } = await import("../lazy-fan-out.server");
+  const db = world(["applied", "applied"], 1);
+  db.tables.talent_site_theme_updates![0]!.report = { reason: "nothing_applicable" };
+  await ensureSiteThemeUpdates(db.admin, PROFILE);
+  assert.deepEqual(states(db), ["applied", "available"]);
+});
+
+test("F118: all blocks present by origin key also closes a noBase offer", async () => {
+  const db = world(["available", "available"], 1);
+  db.tables.talent_pages![0]!.blocks = built(1, { withGallery: true }, TOKENS).trees.home;
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false })).length, 0);
+  assert.deepEqual(states(db), ["applied", "applied"]);
+});
