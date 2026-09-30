@@ -80,7 +80,7 @@ export function DesignPanel({ open, onClose }: DesignPanelProps) {
             />
             <p
               className="m-0 mt-[8px] text-[11px] leading-snug"
-              style={{ color: CHROME.muted2 }}
+              style={{ color: CHROME.muted }}
             >
               {t("Site colours used across every page. Tema opens the full editor.")}
             </p>
