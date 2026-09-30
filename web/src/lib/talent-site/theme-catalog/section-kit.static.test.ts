@@ -11,8 +11,10 @@ import assert from "node:assert/strict";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
   TALENT_KIT_SECTION_ROLES,
+  TALENT_KIT_SECTIONS,
   TALENT_KIT_SHELL_ROLES,
   aboutBlock,
+  aftercareBlock,
   beforeAfterBlock,
   buildKitShell,
   buildKitStandardShell,
@@ -55,6 +57,7 @@ const SECTIONS: Array<[string, BuilderNode]> = [
     }),
   ],
   ["beforeAfterBlock", beforeAfterBlock(ids())],
+  ["aftercareBlock", aftercareBlock(ids())],
   ["heroCentered", heroCentered(ids())],
   ["heroCentered accent", heroCentered(ids(), { accent: true })],
   ["heroCover", heroCover(ids())],
@@ -218,4 +221,19 @@ test("the kit source files carry no hex literal at all", async () => {
     const src = readFileSync(join(here, file), "utf8");
     assert.doesNotMatch(src, /["'`][^"'`]*#[0-9a-f]{3,8}\b/i, `${file} contains a quoted hex literal`);
   }
+});
+
+test("aftercareBlock: every visible text has an ES overlay and no dash in the copy", () => {
+  const section = aftercareBlock(ids());
+  const texts: Array<{ text: string; es?: string }> = [];
+  for (const node of walk([section])) {
+    const p = node.props as { text?: string; i18n?: { es?: { text?: string } } };
+    if (typeof p.text === "string") texts.push({ text: p.text, es: p.i18n?.es?.text });
+  }
+  assert.ok(texts.length >= 8, "eyebrow, heading and three tips (title + text)");
+  for (const t of texts) {
+    assert.ok(t.es && t.es.length > 0, `"${t.text}" needs an ES overlay`);
+    assert.doesNotMatch(`${t.text} ${t.es}`, /[\u2013\u2014]/, "no en or em dash in user-facing copy");
+  }
+  assert.equal(TALENT_KIT_SECTIONS.aftercare.originRole, "talent.aftercare");
 });

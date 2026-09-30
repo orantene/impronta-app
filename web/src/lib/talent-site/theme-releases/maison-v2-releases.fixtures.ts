@@ -64,9 +64,21 @@ export function revertR17(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 17 = release 2.3), rebuilt from code. */
+/** v18 back to v17: the round 4 aftercare block and the reviews reorder. */
+export function revertR18(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  const slot = (n: BuilderNode) => propsOf(n).slotKey;
+  const rest = out.homeTree.filter((n) => slot(n) !== "aftercare" && slot(n) !== "reviews");
+  const reviews = out.homeTree.find((n) => slot(n) === "reviews")!;
+  rest.splice(rest.findIndex((n) => slot(n) === "services") + 1, 0, reviews);
+  out.homeTree = rest;
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 18 = release 2.4), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 18) out = revertR18(out);
   if (version < 17) out = revertR17(out);
   if (version < 16) out = revertR16(out);
   return out;

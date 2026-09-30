@@ -48,6 +48,7 @@ export const TALENT_KIT_SECTIONS = {
   contact: { slotKey: "contact", originRole: "talent.contact" },
   statement_footer: { slotKey: "statement_footer", originRole: "talent.statement_footer" },
   before_after: { slotKey: "before_after", originRole: "talent.before_after" },
+  aftercare: { slotKey: "aftercare", originRole: "talent.aftercare" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -736,18 +737,11 @@ export function galleryBlock(
  * W-12 / W-14 / Visit / FAQ live-bound bands live in `section-kit-bands.ts`.
  */
 export {
-  portfolioBlock,
-  portfolioChaptersBlock,
-  reviewsBlock,
-  visitBlock,
-  faqBlock,
-  contentsBlock,
-  heroMasthead,
-  statementFooterBlock,
-  compCardBlock,
-  measureStripBlock,
+  portfolioBlock, portfolioChaptersBlock, reviewsBlock, visitBlock, faqBlock, contentsBlock,
+  heroMasthead, statementFooterBlock, compCardBlock, measureStripBlock,
 } from "./section-kit-bands";
 export { beforeAfterBlock } from "./section-kit-before-after";
+export { aftercareBlock } from "./section-kit-aftercare";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 
