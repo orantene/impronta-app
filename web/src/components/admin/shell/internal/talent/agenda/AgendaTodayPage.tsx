@@ -222,8 +222,16 @@ export function AgendaTodayPage({
   const shortDate = clock.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
   const subtitle = [longDate.charAt(0).toUpperCase() + longDate.slice(1), city].filter(Boolean).join(" · ");
 
+  // Stop waiting for the offerings count after a few seconds so a failed load
+  // still resolves to the regular Today instead of a permanent loading state.
+  const [factsSettled, setFactsSettled] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setFactsSettled(true), 6000);
+    return () => window.clearTimeout(id);
+  }, []);
   const mode = resolveTodayMode({
     agendaItemCount: items.length,
+    settled: factsSettled,
     bookableCount,
     // A published directory profile is also not a new talent.
     sitePublished: sitePublished || profile?.workflowStatus === "published",
@@ -257,6 +265,16 @@ export function AgendaTodayPage({
             },
           }}
         />
+      </div>
+    );
+  }
+
+  if (mode === "loading") {
+    // Facts still in flight: a neutral header, no greeting and no body, so a
+    // new account never flashes the established Today before "Welcome".
+    return (
+      <div style={TALENT_AGENDA_VARS} className="space-y-4" aria-busy="true">
+        <PageHeader title={copy.t("Today")} subtitle={subtitle} />
       </div>
     );
   }
