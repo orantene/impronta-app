@@ -8,7 +8,6 @@ import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
-import { buildAgendaListItemFromAgendaItem } from "./talent/agenda/view-model";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
 import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
@@ -37,7 +36,7 @@ const TalentClientsPage = dynamic(() => import("./talent/pages/ClientsPage").the
 const AgendaAttentionPage = dynamic(() => import("./talent/agenda/AgendaAttentionPage").then((m) => ({ default: m.AgendaAttentionPage })), { loading: () => null });
 const AgendaCalendarPage = dynamic(() => import("./talent/agenda/AgendaCalendarPage").then((m) => ({ default: m.AgendaCalendarPage })), { loading: () => null });
 const AgendaAvailabilityPage = dynamic(() => import("./talent/agenda/AgendaAvailabilityPage").then((m) => ({ default: m.AgendaAvailabilityPage })), { loading: () => null });
-const AgendaBookingRecord = dynamic(() => import("./talent/agenda/AgendaBookingRecord").then((m) => ({ default: m.AgendaBookingRecord })), { loading: () => null });
+const BookingRecordRoute = dynamic(() => import("./talent/agenda/BookingRecordRoute").then((m) => ({ default: m.BookingRecordRoute })), { loading: () => null });
 const AgendaNewBooking = dynamic(() => import("./talent/agenda/AgendaNewBooking").then((m) => ({ default: m.AgendaNewBooking })), { loading: () => null });
 
 // ── Re-export barrel: public API preserved for external importers ──
@@ -432,33 +431,11 @@ function TalentRouter() {
         }
         return "";
       })();
-      const agendaItem = (bridgeTalentAgendaItems ?? []).find((e) => e.id === storedId);
       if (agendaV2) {
         page = (
-          <AgendaBookingRecord
-            bookingId={storedId || undefined}
-            isAgency={Boolean(agendaItem?.managedBy)}
-            refTable={agendaItem?.ref?.table}
-            refId={agendaItem?.ref?.id}
-            tradeSection={
-              agendaItem?.tradeSection
-                ? {
-                    kind: agendaItem.tradeSection.kind,
-                    payload: agendaItem.tradeSection.payload as Record<string, unknown>,
-                  }
-                : undefined
-            }
-            item={
-              agendaItem
-                ? buildAgendaListItemFromAgendaItem(agendaItem)
-                : {
-                    id: storedId || "unknown",
-                    title: "Booking",
-                    whenLabel: "-",
-                    whereLabel: "-",
-                    sourceLabel: "Direct",
-                  }
-            }
+          <BookingRecordRoute
+            bookingId={storedId}
+            snapshot={bridgeTalentAgendaItems ?? null}
             onBack={() => setTalentPage("calendar")}
             onMessage={() => setTalentPage("messages")}
           />
