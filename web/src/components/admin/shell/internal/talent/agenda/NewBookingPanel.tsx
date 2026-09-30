@@ -23,7 +23,7 @@ export function NewBookingPanelHost({
   onOpenRecord,
   onFallback,
 }: {
-  /** Soft-navigates to a booking record (the router owns this). */
+  /** Soft-navigates to a booking record (the toast's View booking link). */
   onOpenRecord: (id: string) => void;
   /** Opens the full New booking page instead. */
   onFallback: () => void;
@@ -53,15 +53,14 @@ export function NewBookingPanelHost({
         agendaItems={bridgeTalentAgendaItems ?? []}
         hours={bridgeTalentAgendaHours}
         onCancel={store.close}
-        onSaved={() => {
-          toast("Booking saved");
+        // F63: one outcome on every save. The panel closes, she stays on Today or
+        // Calendar, the toast offers View booking, and the agenda data refreshes.
+        onSaved={(id) => {
           store.close();
-          router.refresh();
-        }}
-        onOpenRecord={(id) => {
-          toast("Booking saved");
-          store.close();
-          onOpenRecord(id);
+          toast(
+            copy.t("Booking saved"),
+            id ? { action: { label: copy.t("View booking"), onClick: () => onOpenRecord(id) } } : undefined,
+          );
           router.refresh();
         }}
       />

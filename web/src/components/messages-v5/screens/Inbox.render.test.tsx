@@ -172,6 +172,15 @@ test("F54: total still unknown shows no first run", () => {
   assert.doesNotMatch(html, /data-inbox-first-run/);
 });
 
+test("F54: her own new conversation (awaiting the client) is listed under All", () => {
+  const rows = [inboxRow({ id: "a64db5b5", conversationState: "awaiting_customer", ownerUserId: "u-sofia", nextAction: null })];
+  const html = renderToStaticMarkup(
+    <Inbox {...baseProps({ rows, filter: "all", seller: true, sellerChrome: { ...SELLER, totalConversations: 1 } })} />,
+  );
+  assert.match(html, /data-inbox-row="a64db5b5"/);
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+});
+
 const SELLER_FILTERS = {
   ...SELLER,
   filters: { all: "All", needs: "Needs reply", quotes: "Quotes out", agency: "Agency" },
@@ -189,13 +198,4 @@ test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting l
   assert.match(html, /2 waiting on you/);
   assert.doesNotMatch(html, /Needs action/);
   assert.doesNotMatch(html, /data-inbox-chips/);
-});
-
-test("F54: her own new conversation (awaiting the client) is listed under All", () => {
-  const rows = [inboxRow({ id: "a64db5b5", conversationState: "awaiting_customer", ownerUserId: "u-sofia", nextAction: null })];
-  const html = renderToStaticMarkup(
-    <Inbox {...baseProps({ rows, filter: "all", seller: true, sellerChrome: { ...SELLER, totalConversations: 1 } })} />,
-  );
-  assert.match(html, /data-inbox-row="a64db5b5"/);
-  assert.doesNotMatch(html, /data-inbox-first-run/);
 });

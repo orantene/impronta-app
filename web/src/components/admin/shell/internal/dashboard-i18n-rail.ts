@@ -64,6 +64,12 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent Messages + Actions: shown when no thread is open (kept out of
   // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
   "Pick a conversation first": "Elige una conversación primero",
+  "Added by you": "Añadida por ti",
+  "Direct": "Directo",
+  "Your website": "Tu sitio web",
+  "At the counter": "En el mostrador",
+  "Booking saved": "Reserva guardada",
+  "View booking": "Ver reserva",
   "New conversation": "Nueva conversación",
   "Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation.":
     "Tus clientas te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes iniciar una con + Nueva conversación.",

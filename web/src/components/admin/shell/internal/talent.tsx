@@ -406,9 +406,14 @@ function TalentRouter() {
             agendaItems={bridgeTalentAgendaItems ?? []}
             hours={bridgeTalentAgendaHours}
             onCancel={() => setTalentPage("calendar")}
-            // F42: the agenda is layout data; refresh it so the Calendar shows the new booking.
-            onSaved={() => { toast("Booking saved"); setTalentPage("calendar"); router.refresh(); }}
-            onOpenRecord={(id) => { toast("Booking saved"); openAgendaPath(`/talent/bookings/${id}`, "booking-record"); router.refresh(); }}
+            // F63: one outcome every time. Back to where she opened New booking (Today or
+            // Calendar), a "Booking saved" toast with View booking, and fresh agenda data (F42).
+            onSaved={(id) => {
+              toast(dashboardCopy.t("Booking saved"), id ? { action: { label: dashboardCopy.t("View booking"), onClick: () => openAgendaPath(`/talent/bookings/${id}`, "booking-record") } } : undefined);
+              if (window.history.length > 1) router.back();
+              else setTalentPage("calendar");
+              router.refresh();
+            }}
           />
         )
         : <TalentTodayPage />;
