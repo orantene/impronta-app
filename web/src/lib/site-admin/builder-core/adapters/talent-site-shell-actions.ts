@@ -26,6 +26,7 @@ import { loadSiteRev } from "@/lib/talent-site/history/history.server";
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
+import { findDuplicatePublish } from "@/lib/talent-site/server/publish-idempotency";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf, assertTalentCanEditSite } from "@/lib/server/talent-self-guard";
@@ -327,6 +328,10 @@ export async function publishTalentSiteShellRow(
     const sb = await getCachedServerSupabase();
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
+    // F104: same draft rev as the last publish = nothing new; do not publish twice.
+    const dupAdmin = createServiceRoleClient();
+    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, gate.talentProfileId) : null;
+    if (dup) return { ok: true as const, publishedAt: dup.publishedAt, updatedAt: dup.publishedAt, draftRev: dup.draftRev };
     // F96: first publish of the site runs the canonical site publish.
     const first = await delegateFirstPublish(sb, gate.talentProfileId);
     if (!first.ok) return { ok: false as const, error: first.error };

@@ -146,6 +146,7 @@ export const CHROME_COPY = {
   header: { en: "Header and footer", es: "Encabezado y pie" },
   liveJustNow: { en: "Live · just now", es: "Publicado · justo ahora" },
   viewSite: { en: "View site", es: "Ver sitio" },
+  sitePublished: { en: "Site published", es: "Sitio publicado" },
   applying: { en: "Applying a design. Publish waits until it finishes.", es: "Aplicando un diseño. Publicar espera a que termine." },
 } as const satisfies Record<string, Bilingual>;
 
