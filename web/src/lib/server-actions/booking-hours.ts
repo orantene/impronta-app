@@ -285,7 +285,7 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
   const hoursTenantId = await resolveHoursTenantId(talentProfileId, auth.staffTenantId);
   // F48: her saved city first (drawer Location), then the workspace.
   const defaultTimezone =
-    (await resolveTalentTimezone(admin, talentProfileId, hoursTenantId)) ??
+    (await resolveTalentTimezone(admin, talentProfileId, hoursTenantId).catch(() => null)) ??
     (hoursTenantId ? await tenantTimezone(hoursTenantId) : "UTC");
 
   return {

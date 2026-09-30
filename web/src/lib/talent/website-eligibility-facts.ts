@@ -82,6 +82,19 @@ export function recurringStatusForDow(
   }
 }
 
+/**
+ * F84: "Things clients can book or ask about" counts every service she keeps
+ * (not archived), whatever its booking mode. Request, instant and quote all
+ * let a client book or ask; the free-plan ceiling limits instant only and
+ * must never make her services count as unavailable.
+ */
+export function countBookableOfferings(
+  items: ReadonlyArray<{ status?: string | null }> | null | undefined,
+): number | null {
+  if (!items) return null;
+  return items.filter((item) => item.status !== "archived").length;
+}
+
 export function combineAvailability(input: {
   pattern: boolean | null;
   hours: boolean | null;

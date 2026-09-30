@@ -9,7 +9,7 @@ import {
   inferWebsiteWorkingMode,
   type WebsiteEligibilityInput,
 } from "@/lib/talent/website-eligibility";
-import { combineAvailability } from "@/lib/talent/website-eligibility-facts";
+import { combineAvailability, countBookableOfferings } from "@/lib/talent/website-eligibility-facts";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 type Cache = {
@@ -67,12 +67,18 @@ export function useWebsiteEligibility() {
       return;
     }
     let cancelled = false;
-    void Promise.all([
+    // F84: allSettled, so a failed hours read can never blank the services
+    // fact (Promise.all dropped BOTH facts when one action threw).
+    void Promise.allSettled([
       loadBookingHours(talentId),
       loadTalentOfferingsForEditor(talentId),
     ]).then(
-      ([hoursRes, offeringsRes]) => {
+      ([hoursSettled, offeringsSettled]) => {
         if (cancelled) return;
+        const hoursRes =
+          hoursSettled.status === "fulfilled" ? hoursSettled.value : ({ ok: false } as const);
+        const offeringsRes =
+          offeringsSettled.status === "fulfilled" ? offeringsSettled.value : ({ ok: false } as const);
         // Either writer counts: Services hours or the drawer's saved pattern.
         const nextAvail = combineAvailability({
           pattern: hoursRes.ok ? hoursRes.hasAvailabilityPattern : null,
@@ -83,9 +89,7 @@ export function useWebsiteEligibility() {
               })
             : null,
         });
-        const nextCount = offeringsRes.ok
-          ? offeringsRes.items.filter((item) => item.status !== "archived").length
-          : null;
+        const nextCount = offeringsRes.ok ? countBookableOfferings(offeringsRes.items) : null;
         cache = { talentId, bookableCount: nextCount, hasAvailability: nextAvail };
         setBookableCount(nextCount);
         setHoursAvailability(nextAvail);
