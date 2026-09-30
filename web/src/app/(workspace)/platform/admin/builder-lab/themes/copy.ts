@@ -26,7 +26,7 @@ export const COPY = {
     itemsTitle: "What changed",
     itemsLead: "Generated from the design diff. Set the type, write the notes, add a screenshot if it helps.",
     noItems: "No items were generated for this release.",
-    noBase: "This release has no saved base version, so the dry run can only report kept edits.",
+    noBase: "sites have no exact base version (no snapshot for their pinned version). For them only new blocks can be offered.",
     type: "Type",
     typeNames: {
       code: "Code fix",
@@ -78,6 +78,7 @@ export const COPY = {
     demosDone: "demos updated",
     noticesDone: "notices created",
     bellsDone: "bell entries",
+    cacheWarn: "Warning, page cache not cleared",
   },
   es: {
     eyebrow: "Builder Lab",
@@ -103,7 +104,7 @@ export const COPY = {
     itemsTitle: "Qué cambió",
     itemsLead: "Generado a partir de la diferencia del diseño. Elige el tipo, escribe las notas y agrega una captura si ayuda.",
     noItems: "No se generaron elementos para este lanzamiento.",
-    noBase: "Este lanzamiento no tiene versión base guardada, así que la prueba solo puede informar ediciones conservadas.",
+    noBase: "sitios no tienen versión base exacta (sin instantánea de su versión fijada). Para ellos solo se pueden ofrecer bloques nuevos.",
     type: "Tipo",
     typeNames: {
       code: "Arreglo de código",
@@ -155,6 +156,7 @@ export const COPY = {
     demosDone: "demos actualizados",
     noticesDone: "avisos creados",
     bellsDone: "entradas de campana",
+    cacheWarn: "Aviso, no se limpió la caché de la página",
   },
 } as const;
 

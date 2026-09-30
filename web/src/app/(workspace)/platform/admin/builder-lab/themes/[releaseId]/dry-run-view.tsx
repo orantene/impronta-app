@@ -69,6 +69,11 @@ export function DryRunView({ report, lang, stale }: { report: DryRunReport; lang
   return (
     <div>
       {stale ? <p className="mb-2 text-sm text-white/80">{t.dryStale}</p> : null}
+      {s.noBase > 0 ? (
+        <p className="mb-2 text-sm text-white/80">
+          {s.noBase} {t.noBase}
+        </p>
+      ) : null}
       <p className="mb-2 text-xs text-white/50">
         {t.dryAt}: {new Date(report.generatedAt).toLocaleString(lang === "es" ? "es-MX" : "en-US")}
       </p>

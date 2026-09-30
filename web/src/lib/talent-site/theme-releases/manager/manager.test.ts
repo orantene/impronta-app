@@ -197,6 +197,14 @@ test("executeChannelChange: a failing demo apply does not advance the channel", 
   assert.deepEqual(calls, ["demos"]);
 });
 
+test("executeChannelChange: demo cache-clear warnings reach the result", async () => {
+  const { deps } = spyDeps();
+  deps.applyToDemos = async () => ({ ok: true as const, applied: 2, warnings: ["TAL-93003: cache not cleared (offline)"] });
+  const res = await executeChannelChange(withFreshReport(), "demos", deps);
+  assert.equal(res.ok, true);
+  assert.deepEqual((res as { warnings: string[] }).warnings, ["TAL-93003: cache not cleared (offline)"]);
+});
+
 // ── notification fan-out (demo sites only) ───────────────────────────────────
 
 const DEMO_SITES: Array<FanOutSite & { pinnedVersion: number | null }> = [

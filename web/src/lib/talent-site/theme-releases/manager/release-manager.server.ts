@@ -23,6 +23,7 @@ import {
 } from "./dry-run";
 import { fanOutWithPorts } from "./fan-out";
 import type { BellRow, UpdateRow } from "./notify";
+import { makeBaseResolver } from "./base-resolver.server";
 import { mergeSite, writeMergedDraft, type SiteRef } from "./merge-site.server";
 
 const DEMO_CODES = new Set(THEME_DEMOS.map((d) => d.profileCode));
@@ -157,6 +158,7 @@ export async function runDryRun(
   const design = await loadMaisonCatalogRow(admin, "design", release.design_slug);
   if (!design) return { ok: false, error: "Design not found in the catalog." };
   const sites = await collectSites(admin, release.design_slug);
+  const resolveBase = makeBaseResolver(admin, release);
   const results: SiteDryRunResult[] = [];
   for (const site of sites) {
     const meta = {
@@ -167,7 +169,7 @@ export async function runDryRun(
       pinnedVersion: site.pinnedVersion,
     };
     try {
-      const m = await mergeSite(admin, release, design, site, release.items);
+      const m = await mergeSite(admin, release, design, site, release.items, resolveBase);
       results.push(
         m.ok
           ? siteResultFromReport({ ...meta, noBase: m.noBase }, m.result.report)
@@ -191,10 +193,12 @@ export async function runDryRun(
 async function applyToDemos(
   admin: SupabaseClient,
   release: ThemeRelease,
-): Promise<{ ok: true; applied: number } | { ok: false; error: string }> {
+): Promise<{ ok: true; applied: number; warnings: string[] } | { ok: false; error: string }> {
   const design = await loadMaisonCatalogRow(admin, "design", release.design_slug);
   if (!design) return { ok: false, error: "Design not found in the catalog." };
+  const warnings: string[] = [];
   const demos = (await collectSites(admin, release.design_slug)).filter((s) => s.isDemo);
+  const resolveBase = makeBaseResolver(admin, release);
   const live = new Set(THEME_DEMOS.filter((d) => d.live).map((d) => d.profileCode));
   let applied = 0;
   const failures: string[] = [];
@@ -202,16 +206,17 @@ async function applyToDemos(
     if ((site.pinnedVersion ?? 0) >= release.to_version) continue;
     try {
       // Whole update (no item filter): demos take everything the merge allows.
-      const m = await mergeSite(admin, release, design, site, undefined);
+      const m = await mergeSite(admin, release, design, site, undefined, resolveBase);
       if (!m.ok) throw new Error(m.error);
       await writeMergedDraft(admin, site, m.homePageId, m.result, design, release.to_version);
       if (live.has(site.profileCode)) {
-        await publishDemoSite(admin, {
+        const pub = await publishDemoSite(admin, {
           siteId: site.siteId,
           talentProfileId: site.talentProfileId,
           profileCode: site.profileCode,
           userId: site.userId,
         });
+        if (pub.warning) warnings.push(pub.warning);
       }
       applied += 1;
     } catch (err) {
@@ -220,7 +225,7 @@ async function applyToDemos(
     }
   }
   if (failures.length > 0) return { ok: false, error: failures.join(" | ") };
-  return { ok: true, applied };
+  return { ok: true, applied, warnings };
 }
 
 async function fanOut(admin: SupabaseClient, release: ThemeRelease): Promise<{ updates: number; bells: number }> {

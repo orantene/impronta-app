@@ -25,7 +25,6 @@ interface Props {
     rolloutPct: number;
     notes: { en: string; es: string };
     items: ReleaseItem[];
-    hasBase: boolean;
   };
   report: { fresh: boolean; data: DryRunReport } | null;
 }
@@ -117,7 +116,8 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
       (d) => {
         setChannel(d.channel);
         setStatus(d.channel === "optin" || d.channel === "default" ? "published" : "draft");
-        return `${t.done} ${d.demosApplied} ${t.demosDone}, ${d.updates} ${t.noticesDone}, ${d.bells} ${t.bellsDone}.`;
+        const warn = d.warnings.length > 0 ? ` ${t.cacheWarn}: ${d.warnings.join(" | ")}` : "";
+        return `${t.done} ${d.demosApplied} ${t.demosDone}, ${d.updates} ${t.noticesDone}, ${d.bells} ${t.bellsDone}.${warn}`;
       },
     );
   }
@@ -151,7 +151,6 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
       <section>
         <h2 className="text-lg font-medium">{t.itemsTitle}</h2>
         <p className="mb-2 text-sm text-white/60">{t.itemsLead}</p>
-        {!release.hasBase ? <p className="mb-2 text-sm text-white/80">{t.noBase}</p> : null}
         {items.length === 0 ? <p className="text-sm text-white/50">{t.noItems}</p> : null}
         {missing > 0 ? (
           <p className="mb-2 text-xs text-white/60">

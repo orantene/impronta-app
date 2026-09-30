@@ -86,7 +86,7 @@ export async function actionRunDryRun(releaseId: string): Promise<Result<DryRunR
 export async function actionChangeChannel(
   releaseId: string,
   target: ReleaseChannel,
-): Promise<Result<{ channel: ReleaseChannel; demosApplied: number; updates: number; bells: number }>> {
+): Promise<Result<{ channel: ReleaseChannel; demosApplied: number; updates: number; bells: number; warnings: string[] }>> {
   return withRelease(releaseId, async (admin, release) => {
     if (target !== "demos" && target !== "optin" && target !== "default") {
       return { ok: false, error: "Unknown channel." };

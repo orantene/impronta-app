@@ -11,13 +11,13 @@ import type { ReleaseChannel, ThemeRelease } from "../types";
 import { checkChannelChange } from "./dry-run";
 
 export interface ChannelDeps {
-  applyToDemos: () => Promise<{ ok: true; applied: number } | { ok: false; error: string }>;
+  applyToDemos: () => Promise<{ ok: true; applied: number; warnings?: string[] } | { ok: false; error: string }>;
   fanOut: () => Promise<{ updates: number; bells: number }>;
   persist: (channel: ReleaseChannel) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 export type ChannelChangeResult =
-  | { ok: true; channel: ReleaseChannel; demosApplied: number; updates: number; bells: number }
+  | { ok: true; channel: ReleaseChannel; demosApplied: number; updates: number; bells: number; warnings: string[] }
   | { ok: false; error: string };
 
 export async function executeChannelChange(
@@ -36,10 +36,12 @@ export async function executeChannelChange(
   let demosApplied = 0;
   let updates = 0;
   let bells = 0;
+  let warnings: string[] = [];
   if (target === "demos") {
     const r = await deps.applyToDemos();
     if (!r.ok) return r;
     demosApplied = r.applied;
+    warnings = r.warnings ?? [];
   } else {
     const f = await deps.fanOut();
     updates = f.updates;
@@ -47,5 +49,5 @@ export async function executeChannelChange(
   }
   const saved = await deps.persist(target);
   if (!saved.ok) return saved;
-  return { ok: true, channel: target, demosApplied, updates, bells };
+  return { ok: true, channel: target, demosApplied, updates, bells, warnings };
 }

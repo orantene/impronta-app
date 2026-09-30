@@ -26,6 +26,7 @@ import { syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-bu
 import { loadTemplateHydrationTokens } from "./apply-template-core";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
+import { requestTalentSiteRevalidate } from "./revalidate-request.server";
 import { applyDesign, applyLook, buildDesignTrees, publishSiteTheme } from "./theme-apply-core";
 
 export interface DemoPipelineOptions {
@@ -182,13 +183,16 @@ async function ensureGuideServices(ctx: Ctx, code: string, talentProfileId: stri
 
 
 /**
- * Publish a LIVE demo's current draft (pages, shell, theme). Demo accounts
- * only: callers must have verified the account with `isDemoAccount`.
+ * Publish a LIVE demo's current draft (pages, shell, theme), then clear its
+ * public page cache through a real request (this code runs outside a Next
+ * request in the CLI, where revalidateTag cannot). Demo accounts only: callers
+ * must have verified the account with `isDemoAccount`. Returns the cache-bust
+ * outcome; a failed bust is a warning for the caller, the publish stands.
  */
 export async function publishDemoSite(
   admin: SupabaseClient,
   input: { siteId: string; talentProfileId: string; profileCode: string; userId: string },
-): Promise<void> {
+): Promise<{ revalidated: boolean; warning?: string }> {
   const now = new Date().toISOString();
   const pub = await publishTalentPageBodies(admin, { talentProfileId: input.talentProfileId, now });
   if (!pub.ok) throw new Error(`${input.profileCode} publish pages failed`);
@@ -212,6 +216,13 @@ export async function publishDemoSite(
   if (pubErr) throw pubErr;
   const t = await publishSiteTheme(admin, { siteId: input.siteId, profileCode: input.profileCode });
   if (!t.ok) throw new Error(`${input.profileCode} publishSiteTheme: ${t.error}`);
+  const bust = await requestTalentSiteRevalidate({
+    talentProfileId: input.talentProfileId,
+    profileCode: input.profileCode,
+  });
+  return bust.ok
+    ? { revalidated: true }
+    : { revalidated: false, warning: `${input.profileCode}: cache not cleared (${bust.error})` };
 }
 
 export async function applyThemeDemos(
@@ -378,12 +389,13 @@ export async function applyThemeDemos(
     }
 
     if (demo.live && style) {
-      await publishDemoSite(admin, {
+      const pub = await publishDemoSite(admin, {
         siteId: site.id as string,
         talentProfileId: tp.id as string,
         profileCode: demo.profileCode,
         userId: tp.user_id as string,
       });
+      if (pub.warning) log(`WARN ${pub.warning}`);
     }
     log(`wrote ${tag} ${demo.live && style ? "and published" : ""} backup ${backupFile} ${summary}`);
     results.push({ profileCode: demo.profileCode, status: "wrote" });

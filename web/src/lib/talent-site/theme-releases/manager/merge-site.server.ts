@@ -4,9 +4,11 @@ import "server-only";
  * THEME RELEASES (Phase 3): build the three merge sides for ONE site and run
  * `mergeDesignUpdate` in memory (dry run) or write the result (demos only).
  *
- *   base   the Design at the release's from_version (release.base_payload),
- *          built with the talent's own content; absent = `noBase` (the merge
- *          keeps every changed node as "no base", it never guesses)
+ *   base   the Design at the SITE'S pinned version: its `talent_theme_versions`
+ *          snapshot (or the release's saved from_version payload when the site
+ *          sits on from_version), built with the talent's own content. No exact
+ *          base = `noBase` (unknownBase: stamps read edited, only new blocks are
+ *          offered; the merge never guesses)
  *   ours   the site draft (shell_tree + home page blocks + design_tokens_draft),
  *          stamped from base first when it predates origin stamps
  *   theirs the current catalog Design (= to_version) built the same way
@@ -20,6 +22,7 @@ import {
   fallbackHydrationTokens,
 } from "@/lib/talent-site/server/theme-apply-core";
 import type { DesignPayload, TalentThemeDesignRow } from "@/lib/talent-site/theme-catalog/types";
+import type { BaseResolver } from "./base-resolver.server";
 import { writeThemeTokenOrigin } from "../token-origin-store";
 import { indexTree } from "../classify";
 import { mergeDesignUpdate } from "../merge";
@@ -60,6 +63,7 @@ export async function mergeSite(
   design: TalentThemeDesignRow,
   site: SiteRef,
   items: ReadonlyArray<ReleaseItem> | undefined,
+  resolveBase: BaseResolver,
 ): Promise<SiteMergeOutcome> {
   if (design.version !== release.to_version) {
     return { ok: false, error: `Catalog is at v${design.version}, release targets v${release.to_version}.` };
@@ -86,12 +90,9 @@ export async function mergeSite(
   });
   if (!theirs.ok) return { ok: false, error: `Target build failed: ${theirs.errors.slice(0, 2).join("; ")}` };
 
-  const basePayload =
-    release.base_payload && typeof release.base_payload === "object"
-      ? (release.base_payload as DesignPayload)
-      : null;
+  const basePayload = await resolveBase(site.pinnedVersion);
   const baseBuilt = basePayload
-    ? buildDesignTrees(basePayload, tokens, undefined, { design: design.slug, version: release.from_version })
+    ? buildDesignTrees(basePayload, tokens, undefined, { design: design.slug, version: site.pinnedVersion as number })
     : null;
   if (baseBuilt && !baseBuilt.ok) {
     return { ok: false, error: `Base build failed: ${baseBuilt.errors.slice(0, 2).join("; ")}` };

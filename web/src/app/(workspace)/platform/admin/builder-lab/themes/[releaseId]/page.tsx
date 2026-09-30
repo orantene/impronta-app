@@ -62,7 +62,6 @@ export default async function BuilderLabReleasePage({
           rolloutPct: release.rollout_pct,
           notes: { en: release.notes?.en ?? "", es: release.notes?.es ?? "" },
           items: release.items ?? [],
-          hasBase: release.base_payload != null,
         }}
         report={release.dry_run_report ? (fresh.ok ? { fresh: true, data: fresh.report } : { fresh: false, data: release.dry_run_report as DryRunReport }) : null}
       />
