@@ -14,9 +14,16 @@ import { hashString, propsOf } from "../origin";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
 import type { DesignMergeReport, ReleaseItem, ReleaseItemType, SiteUpdateState } from "../types";
 
+/**
+ * States that still offer the update: `available` (new), `previewed` (she looked
+ * at it, measurement only) and `undone` (she took it back and may want it again,
+ * F83). `applied` and `dismissed` stay quiet.
+ */
+export const OPEN_UPDATE_STATES: readonly SiteUpdateState[] = ["available", "previewed", "undone"];
+
 /** Only an open update shows the banner; every other state is quiet. */
 export function isNoticeVisible(state: SiteUpdateState | string | null | undefined): boolean {
-  return state === "available";
+  return OPEN_UPDATE_STATES.includes(state as SiteUpdateState);
 }
 
 /** Items Tulala applies on its own (untouched parts only) once a release is default. */

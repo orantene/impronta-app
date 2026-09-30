@@ -138,16 +138,18 @@ const homeSide = (db: FakeDb): DesignSide => ({
 
 // ── Notice visibility ────────────────────────────────────────────────────────
 
-test("notice shows only for state available", () => {
-  assert.equal(isNoticeVisible("available"), true);
-  for (const s of ["previewed", "applied", "dismissed", "undone", null, undefined]) assert.equal(isNoticeVisible(s), false);
+test("notice shows for available, previewed and undone (F83), not applied or dismissed", () => {
+  for (const s of ["available", "previewed", "undone"]) assert.equal(isNoticeVisible(s), true);
+  for (const s of ["applied", "dismissed", null, undefined]) assert.equal(isNoticeVisible(s), false);
 });
 
 for (const state of ["available", "previewed", "applied", "dismissed", "undone"]) {
-  test(`notices: a row in state ${state} ${state === "available" ? "shows" : "stays quiet"}`, async () => {
+  const open = state === "available" || state === "previewed" || state === "undone";
+  test(`notices: a row in state ${state} ${open ? "shows" : "stays quiet"}`, async () => {
     const db = world(state);
     const notices = await loadTalentUpdateNotices(db.admin, PROFILE);
-    assert.equal(notices.length, state === "available" ? 1 : 0);
+    assert.equal(notices.length, open ? 1 : 0);
+    if (open) assert.equal(notices[0]!.state, state);
   });
 }
 
@@ -208,7 +210,30 @@ test("preview snapshot renders her content with the update, and writes nothing",
   assert.equal(prop({ trees: { home } }, "home", "menu/services_catalog", "layout"), "grid");
   assert.equal(prop({ trees: { home } }, "home", "hero", "variant"), "split", "her edited hero kept");
   assert.equal(prop({ trees: { home } }, "home", "hero/heading", "text"), "Valeria", "her content");
-  assert.equal(db.writes.length, 0);
+  // Only the measurement row moves (F76); her site is never written.
+  assert.deepEqual(db.writes.map((w) => w.target), ["talent_site_theme_updates"]);
+});
+
+test("F76: opening the preview moves available to previewed without touching her site", async () => {
+  const db = world();
+  const before = JSON.stringify([db.tables.talent_sites, db.tables.talent_pages, db.tables.talent_site_history]);
+  const snap = await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.ok(snap);
+  assert.equal(stateOf(db), "previewed");
+  assert.equal(JSON.stringify([db.tables.talent_sites, db.tables.talent_pages, db.tables.talent_site_history]), before);
+  assert.equal(draftWrites(db).length, 0);
+  // Still offered, and a second look changes nothing.
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 1);
+  await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.equal(stateOf(db), "previewed");
+});
+
+test("F76: previewing never downgrades applied, dismissed or undone", async () => {
+  for (const state of ["applied", "dismissed", "undone"]) {
+    const db = world(state);
+    await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+    assert.equal(stateOf(db), state);
+  }
 });
 
 // ── Apply ────────────────────────────────────────────────────────────────────
@@ -273,6 +298,29 @@ test("undo this update: reverts it, keeps her later edit, state undone", async (
   assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows", "update reverted");
   assert.equal(prop(homeSide(db), "home", "about", "layout"), "stack", "later edit kept");
   assert.equal(db.tables.talent_sites![0]!.theme_design_version, 1, "re-pinned");
+});
+
+test("F83: after undo the update is offered again and re-applying works", async () => {
+  const db = world();
+  const first = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(first.ok && first.value.historyId);
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 0, "quiet while applied");
+  const undo = await undoThemeUpdateEntry(db.admin, {
+    talentProfileId: PROFILE,
+    entryId: first.value.historyId!,
+    expectedDraftRev: 8,
+    actorId: null,
+  });
+  assert.ok(undo.ok);
+  assert.equal(stateOf(db), "undone");
+  const [again] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.ok(again, "an undone update is re-offerable");
+  assert.equal(again.state, "undone");
+  const rev = db.tables.talent_sites![0]!.draft_rev as number;
+  const second = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: rev, actorId: null });
+  assert.ok(second.ok, "re-apply works");
+  assert.equal(stateOf(db), "applied");
+  assert.equal(db.tables.talent_sites![0]!.theme_design_version, 2);
 });
 
 // ── Dismiss ──────────────────────────────────────────────────────────────────

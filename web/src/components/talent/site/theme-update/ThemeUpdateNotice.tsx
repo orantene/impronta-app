@@ -22,6 +22,7 @@ import {
   UPDATE_COPY,
   appliedToast,
   bannerTitle,
+  bannerTitleAgain,
   updateLocale,
 } from "@/lib/talent-site/theme-releases/talent-update/copy";
 import {
@@ -139,7 +140,8 @@ export function ThemeUpdateNotice({
 
   if (!notice) return toastEl;
 
-  const title = bannerTitle(notice.designTitle, locale);
+  const again = notice.state === "undone";
+  const title = again ? bannerTitleAgain(notice.designTitle, locale) : bannerTitle(notice.designTitle, locale);
   const floating = surface === "builder";
   return (
     <>
@@ -153,7 +155,7 @@ export function ThemeUpdateNotice({
         }
       >
         <p className="m-0 text-[15px] font-semibold text-admin-ink">{title}</p>
-        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{t("bannerBody")}</p>
+        <p className="m-0 mt-1 text-[13px] text-admin-ink-muted">{t(again ? "againBody" : "bannerBody")}</p>
         {error ? (
           <p role="alert" className="m-0 mt-2 text-[13px] text-admin-critical">
             {error}
@@ -168,6 +170,17 @@ export function ThemeUpdateNotice({
           >
             {t("whatsNew")}
           </button>
+          {again ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void apply(notice.draftRev)}
+              className="inline-flex min-h-11 items-center rounded-lg bg-admin-ink px-4 text-[14px] font-semibold text-white disabled:opacity-60"
+              data-theme-update-apply-again
+            >
+              {busy ? t("applying") : t("applyShort")}
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={busy}

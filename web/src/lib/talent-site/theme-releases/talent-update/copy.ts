@@ -18,6 +18,11 @@ export const UPDATE_COPY = {
     en: "Preview it with your content first. Your edits are kept and nothing goes live until you publish.",
     es: "Pruébala primero con tu contenido. Tus cambios se conservan y nada se publica hasta que publiques.",
   },
+  againBody: {
+    en: "You undid this update. Apply it again whenever you like. Your edits stay.",
+    es: "Deshiciste esta actualización. Aplícala de nuevo cuando quieras. Tus cambios se conservan.",
+  },
+  applyShort: { en: "Apply", es: "Aplicar" },
   previewOnSite: { en: "Preview on my site", es: "Ver en mi sitio" },
   previewHint: {
     en: "Opens your site with the update in a new tab. Nothing is saved.",
@@ -74,6 +79,13 @@ export const GROUP_COPY: Record<WhatsNewGroup, Bilingual & { hintEn: string; hin
 
 export function bannerTitle(designTitle: string, locale: UpdateLocale): string {
   return locale === "es" ? `${designTitle} tiene una actualización` : `${designTitle} has an update`;
+}
+
+/** F83: an undone update is offered again. */
+export function bannerTitleAgain(designTitle: string, locale: UpdateLocale): string {
+  return locale === "es"
+    ? `La actualización de ${designTitle} está disponible de nuevo`
+    : `${designTitle} update is available again`;
 }
 
 /** Toast after Apply: "Update applied to your draft · we kept N of your edits". */

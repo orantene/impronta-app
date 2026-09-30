@@ -3,7 +3,7 @@ import "server-only";
 /**
  * THEME RELEASES (Phase 4): the talent update experience, server side.
  *
- *   loadTalentUpdateNotices   rows in state `available` on an open release
+ *   loadTalentUpdateNotices   rows in an open state (available, previewed, undone) on an open release
  *   previewThemeUpdate        merge in memory, return the report: NO write
  *   loadThemeUpdatePreviewSnapshot  the same merge as a snapshot for the
  *                             owner's `?preview=draft&themeUpdate=<id>` render
@@ -33,6 +33,7 @@ import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
 import { addBlockSummary } from "./copy";
 import {
+  OPEN_UPDATE_STATES,
   groupItems,
   nextTokenOrigin,
   placeKeyAfter,
@@ -80,6 +81,8 @@ export interface UpdateDeps {
 
 export interface TalentUpdateNotice {
   updateId: string;
+  /** `available`, `previewed` or `undone` (F83: shown as "available again"). */
+  state: SiteUpdateState;
   releaseId: string;
   designSlug: string;
   designTitle: string;
@@ -117,7 +120,7 @@ export async function loadTalentUpdateNotices(
     .from("talent_site_theme_updates")
     .select("id, release_id, talent_site_id, state")
     .eq("talent_profile_id", talentProfileId)
-    .eq("state", "available");
+    .in("state", [...OPEN_UPDATE_STATES]);
   if (error) {
     logServerError("themeUpdate.notices", error);
     return [];
@@ -149,6 +152,7 @@ export async function loadTalentUpdateNotices(
     if (!rel || rel.status !== "published" || !OPEN_CHANNELS.has(rel.channel)) continue;
     out.push({
       updateId: row.id,
+      state: row.state as SiteUpdateState,
       releaseId: rel.id,
       designSlug: rel.design_slug,
       designTitle: await designTitle(admin, rel.design_slug),
@@ -332,6 +336,9 @@ export async function loadThemeUpdatePreviewSnapshot(
   if (!ctx) return null;
   const m = await deps.merge(ctx, ctx.release.items);
   if (!m.ok || !m.homePageId) return null;
+  // F76: opening the preview is measurement. Record `previewed` on the update
+  // row only; her site is untouched. Never downgrades applied/dismissed/undone.
+  await setUpdateState(deps.admin, talentProfileId, updateId, "previewed", { onlyFrom: ["available"] });
   return {
     v: 1,
     source: "draft",
@@ -426,7 +433,7 @@ export async function dismissThemeUpdate(
   updateId: string,
 ): Promise<UpdateResult<null>> {
   const ok = await setUpdateState(admin, talentProfileId, updateId, "dismissed", {
-    onlyFrom: ["available", "previewed"],
+    onlyFrom: [...OPEN_UPDATE_STATES],
   });
   return ok ? { ok: true, value: null } : { ok: false, code: "error", error: "Could not save." };
 }
