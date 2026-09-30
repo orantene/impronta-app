@@ -12,7 +12,7 @@
  * Behaviour unchanged: same ids, same labels, same patches.
  */
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { InspectorLayoutPresetCards } from "../kit/inspector-mockup-primitives";
 import { ServicesCatalogLayoutInspector } from "../services-catalog-inspector";
 import type { AdvancedEditableBuilderNode } from "./node-layout-options";
@@ -244,14 +244,19 @@ export function NodeLayoutPresetGrid({
   onApply: (patch: Record<string, unknown>) => void;
 }) {
   const presets = nodeLayoutPresetsFor(kind);
+  // Round 3 — sticky last-applied so look cards show a real selected state.
+  const [lastAppliedId, setLastAppliedId] = useState<string | undefined>();
   if (presets.length === 0) return null;
 
   return (
     <InspectorLayoutPresetCards
-      value={undefined}
+      value={lastAppliedId}
       onChange={(id) => {
         const preset = presets.find((p) => p.id === id);
-        if (preset) onApply(preset.patch);
+        if (preset) {
+          setLastAppliedId(id);
+          onApply(preset.patch);
+        }
       }}
       options={presets.map((preset) => ({
         value: preset.id,

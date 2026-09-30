@@ -194,21 +194,29 @@ export function InspectorLayoutPresetCards<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             aria-pressed={active}
-            className="cursor-pointer rounded-[12px] border px-2.5 py-2 text-left transition-[border-color,box-shadow,background-color] duration-150"
+            className="relative cursor-pointer rounded-[12px] border px-2.5 py-2 text-left transition-[border-color,box-shadow,background-color] duration-150"
             style={{
               background: active ? BUILDER_VISUAL.accentBg : CHROME.surface,
-              borderColor: active ? BUILDER_VISUAL.accentBorder : CHROME.line,
+              borderColor: active ? CHROME.accent : CHROME.lineStrong,
+              borderWidth: active ? 1.5 : 1,
               boxShadow: active
-                ? "0 1px 4px rgba(124,58,237,0.14)"
+                ? "0 2px 8px rgba(124,58,237,0.16)"
                 : "0 1px 2px rgba(17,24,39,0.04)",
             }}
           >
+            {active ? (
+              <span
+                aria-hidden
+                className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+                style={{ background: CHROME.accent }}
+              />
+            ) : null}
             <span
               aria-hidden
-              className="mb-1.5 flex h-7 items-stretch gap-1 overflow-hidden rounded-md"
+              className="mb-1.5 flex h-8 items-stretch gap-1 overflow-hidden rounded-md"
               style={{
                 background: active
-                  ? "rgba(124,58,237,0.08)"
+                  ? "rgba(124,58,237,0.10)"
                   : "rgba(24,24,27,0.04)",
                 padding: 3,
               }}
@@ -218,8 +226,8 @@ export function InspectorLayoutPresetCards<T extends string>({
                   flex: leftWeight,
                   borderRadius: 4,
                   background: active
-                    ? "rgba(124,58,237,0.45)"
-                    : "rgba(24,24,27,0.18)",
+                    ? "rgba(124,58,237,0.55)"
+                    : "rgba(24,24,27,0.22)",
                 }}
               />
               <span
@@ -227,8 +235,8 @@ export function InspectorLayoutPresetCards<T extends string>({
                   flex: 1 - leftWeight,
                   borderRadius: 4,
                   background: active
-                    ? "rgba(124,58,237,0.22)"
-                    : "rgba(24,24,27,0.10)",
+                    ? "rgba(124,58,237,0.28)"
+                    : "rgba(24,24,27,0.12)",
                 }}
               />
             </span>
