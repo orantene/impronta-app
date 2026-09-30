@@ -563,23 +563,9 @@ function LayoutHealthCard({
   const recommendationCount = orderedFindings.length - blockingCount - warningCount;
 
   if (orderedFindings.length === 0) {
-    return (
-      <div
-        data-builder-node-layout-health="ok"
-        className="rounded-md px-3 py-2"
-        style={{
-          background: CHROME.greenBg,
-          border: `1px solid ${CHROME.greenLine}`,
-        }}
-      >
-        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-          {t("Layout checks")}
-        </div>
-        <p className="mt-1 text-[11px] leading-snug text-emerald-700">
-          {t("No obvious responsive layout issues found for this node.")}
-        </p>
-      </div>
-    );
+    // Empty "all clear" banner ate the first viewport for every healthy node.
+    // Only surface the card when there is something to act on.
+    return null;
   }
 
   return (
@@ -725,7 +711,10 @@ function AdvancedNodeLayoutEditor({
   if (node.kind === "split") {
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="split">
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-2">
+          <span className={HINT}>
+            {t("Pick a look, then fine-tune the columns.")}
+          </span>
           <button
             type="button"
             data-builder-node-layout-reset=""
@@ -738,12 +727,12 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            {t("Reset block")}
+            {t("Reset")}
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>Column ratio</span>
+          <span className={FIELD_LABEL}>{t("Column ratio")}</span>
           <Segmented
             fullWidth
             compact
@@ -752,22 +741,48 @@ function AdvancedNodeLayoutEditor({
             options={SPLIT_RATIO_OPTIONS}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>Gap</span>
-          <Segmented
-            fullWidth
-            compact
-            value={node.props.gap ?? "m"}
-            onChange={(next) => onPatch({ gap: next })}
-            options={NODE_GAP_OPTIONS}
-          />
-        </div>
-        <ToggleRow
-          label="Collapse on mobile"
-          hint="Stack the two columns vertically on mobile."
-          checked={node.props.collapseOnMobile !== false}
-          onChange={(next) => onPatch({ collapseOnMobile: next ? undefined : false })}
-        />
+        <details
+          className="border-t pt-2"
+          data-builder-node-layout-control="split-spacing"
+          style={{ borderColor: CHROME.line }}
+        >
+          <summary
+            className="flex cursor-pointer list-none items-center justify-between gap-2"
+            style={{ outline: "none" }}
+          >
+            <span className={FIELD_LABEL}>{t("Gap & mobile")}</span>
+            <span
+              className="text-[10px] font-medium"
+              style={{ color: CHROME.muted2 }}
+            >
+              {(node.props.gap ?? "m").toUpperCase()}
+              {" · "}
+              {node.props.collapseOnMobile === false
+                ? t("Keep side by side")
+                : t("Stack on phone")}
+            </span>
+          </summary>
+          <div className="mt-2 flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className={FIELD_LABEL}>{t("Gap")}</span>
+              <Segmented
+                fullWidth
+                compact
+                value={node.props.gap ?? "m"}
+                onChange={(next) => onPatch({ gap: next })}
+                options={NODE_GAP_OPTIONS}
+              />
+            </div>
+            <ToggleRow
+              label="Collapse on mobile"
+              hint="Stack the two columns vertically on mobile."
+              checked={node.props.collapseOnMobile !== false}
+              onChange={(next) =>
+                onPatch({ collapseOnMobile: next ? undefined : false })
+              }
+            />
+          </div>
+        </details>
       </div>
     );
   }
@@ -1859,9 +1874,14 @@ export function LayoutPanel({
       </>
       ) : null}
 
-      {/* ── Stacking & visibility ───────────────────────────────────── */}
+      {/* ── Stacking & visibility (section-level only) ────────────────
+          When a freeform node is selected, hide this: node layout already
+          owns collapse/visibility, and "Ocultar en este dispositivo" lives
+          in the shared device strip. Showing section stacking here doubled
+          the chrome under every Portada Diseño open. */}
+      {!selectedBuilderNode ? (
       <section className="flex flex-col gap-3">
-        <div className={SECTION_TITLE}>Stacking &amp; visibility</div>
+        <div className={SECTION_TITLE}>{t("Stacking & visibility")}</div>
         <InspectorControlWell>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
@@ -1870,7 +1890,7 @@ export function LayoutPanel({
                 {PRESENTATION_FIELD_LABELS.mobileStack}
               </span>
               {!mobileStackValue ? (
-                <span className={INHERIT_HINT}>Default</span>
+                <span className={INHERIT_HINT}>{t("Default")}</span>
               ) : null}
             </div>
             <Segmented
@@ -1887,7 +1907,7 @@ export function LayoutPanel({
                 {PRESENTATION_FIELD_LABELS.visibility}
               </span>
               {!visibilityValue ? (
-                <span className={INHERIT_HINT}>Always visible</span>
+                <span className={INHERIT_HINT}>{t("Always visible")}</span>
               ) : null}
             </div>
             <Segmented
@@ -1901,6 +1921,7 @@ export function LayoutPanel({
         </div>
         </InspectorControlWell>
       </section>
+      ) : null}
     </InspectorBody>
   );
 }
