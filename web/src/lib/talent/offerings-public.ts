@@ -90,11 +90,12 @@ export async function loadPublicOfferingsForProfile(
       images.set(r.offering_id, list);
     }
     // D4 — attach the public options/extras (RLS-mirrored child tables).
-    const children = await loadOfferingChildren(db, rows.map((r) => r.id));
+    const children = await loadOfferingChildren(db, rows.map((r) => r.id), { locale });
     const groups = await loadAddonGroupsForOfferings(
       db,
       talentProfileId,
       rows.map((r) => r.id),
+      { locale },
     );
     const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     // The talent's Defaults (deposit, cancellation) apply where the offering

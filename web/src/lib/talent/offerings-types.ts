@@ -13,6 +13,8 @@
  * the `inquiry_offer_line_items.pricing_unit` Postgres enum.
  */
 
+import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
+import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { inheritedInstantErrors } from "./offering-booking-rules";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import {
@@ -62,6 +64,8 @@ export type OfferingModerationState = "pending" | "approved" | "rejected";
 export type OfferingVariant = {
   id: string;
   label: string;
+  /** Per-locale label (talent_offering_variants.label_i18n); absent before the column exists. */
+  labelI18n?: LocalizedMap;
   amountCents: number | null;
 };
 
@@ -72,6 +76,8 @@ export type OfferingVariant = {
 export type OfferingAddOn = {
   id: string;
   label: string;
+  /** Per-locale label (talent_offering_addons.label_i18n); absent before the column exists. */
+  labelI18n?: LocalizedMap;
   amountCents: number;
   /** Minutes added when the guest selects this extra. Group extras carry this. */
   durationMinutes?: number | null;
@@ -94,6 +100,12 @@ export type TalentOffering = {
   kind: OfferingKind;
   title: string;
   description: string | null;
+  /**
+   * Every language of the title / description (`title_i18n` / `description_i18n`).
+   * Carried through the editor so a save keeps the languages it did not edit.
+   */
+  titleI18n?: LocalizedMap;
+  descriptionI18n?: LocalizedMap;
   priceType: ServicePricingType;
   priceDisplay: OfferingPriceDisplay;
   /** Major-unit price stored as cents. null only when quote/custom. */
@@ -230,19 +242,33 @@ function isOneOf<T extends string>(v: unknown, all: readonly T[]): v is T {
   return typeof v === "string" && (all as readonly string[]).includes(v);
 }
 
-/** Locale-aware title/description (prefer i18n map, fall back to the column). */
+/**
+ * Locale-aware title/description: the i18n map walked along `chain`
+ * (default `[locale, "en"]`), then the plain column.
+ */
 export function offeringText(
   row: Pick<TalentOfferingRow, "title" | "description" | "title_i18n" | "description_i18n">,
   field: "title" | "description",
   locale: string,
+  chain: readonly string[] = [locale, "en"],
 ): string | null {
   const map = field === "title" ? row.title_i18n : row.description_i18n;
-  const fromMap = map?.[locale] ?? map?.en ?? null;
-  return str(fromMap, field === "title" ? MAX_TITLE : MAX_DESC) ?? (field === "title" ? row.title : row.description);
+  const clean = toI18nMap(map);
+  const max = field === "title" ? MAX_TITLE : MAX_DESC;
+  for (const code of [locale, ...chain]) {
+    const hit = str(clean[code], max);
+    if (hit) return hit;
+  }
+  return field === "title" ? row.title : row.description;
 }
 
 /** DB row → app shape. Tolerant of bad data (defaults, clamps). */
-export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: string[] = []): TalentOffering {
+export function rowToOffering(
+  row: TalentOfferingRow,
+  locale = "en",
+  imageUrls: string[] = [],
+  chain: readonly string[] = [locale, "en"],
+): TalentOffering {
   const priceType = isOneOf(row.price_type, SERVICE_PRICING_TYPES) ? row.price_type : "flat_package";
   const priceDisplay = isOneOf(row.price_display, OFFERING_PRICE_DISPLAYS) ? row.price_display : "exact";
   return {
@@ -251,8 +277,10 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
     ownerKind: row.owner_kind === "workspace" ? "workspace" : "talent",
     tenantId: row.tenant_id ?? null,
     kind: isOneOf(row.kind, OFFERING_KINDS) ? row.kind : "service",
-    title: offeringText(row, "title", locale) ?? row.title,
-    description: offeringText(row, "description", locale),
+    title: offeringText(row, "title", locale, chain) ?? row.title,
+    description: offeringText(row, "description", locale, chain),
+    titleI18n: toI18nMap(row.title_i18n),
+    descriptionI18n: toI18nMap(row.description_i18n),
     priceType,
     priceDisplay,
     amountCents: clampCents(row.amount_cents),
@@ -304,9 +332,15 @@ export function rowToOffering(row: TalentOfferingRow, locale = "en", imageUrls: 
   };
 }
 
-/** App shape → DB patch (writers persist title + title_i18n.en together). */
+/**
+ * App shape → DB patch. The plain title / description are the PRIMARY-language
+ * value and are written into `title_i18n[primaryLocale]` / `description_i18n[...]`;
+ * every other language already in `o.titleI18n` / `o.descriptionI18n` survives.
+ * With no maps and the default "en" primary this is exactly `{ en: title }`.
+ */
 export function offeringToRowPatch(
   o: TalentOffering,
+  primaryLocale = "en",
 ): Omit<TalentOfferingRow, "id" | "talent_profile_id" | "inventory_qty"> {
   const title = str(o.title, MAX_TITLE) ?? "";
   const description = str(o.description, MAX_DESC);
@@ -346,9 +380,13 @@ export function offeringToRowPatch(
     is_featured: o.isFeatured === true,
     sort_order: o.sortOrder,
     attributes: o.attributes ?? {},
-    title_i18n: title ? { en: title } : null,
-    description_i18n: description ? { en: description } : null,
+    title_i18n: nullIfEmpty(i18nPair(o.titleI18n, title, primaryLocale)),
+    description_i18n: nullIfEmpty(i18nPair(o.descriptionI18n, description, primaryLocale)),
   };
+}
+
+function nullIfEmpty(map: Record<string, string>): Record<string, string> | null {
+  return Object.keys(map).length > 0 ? map : null;
 }
 
 /** The flag and its reason, always together. Mirrors the DB pairing CHECK. */

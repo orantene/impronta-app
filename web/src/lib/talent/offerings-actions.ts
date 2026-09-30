@@ -129,7 +129,9 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     const addOnsByOffering = mergeAddonGroupsIntoAddOns(children.addOns, groups);
     const items = rows.map((r) => {
       const assets = images.get(r.id) ?? [];
-      const item = rowToOffering(r, "en", assets.map((a) => a.url));
+      // The editor edits the PRIMARY-language text; the maps ride along so a
+      // save keeps every other language (offeringToRowPatch merges them).
+      const item = rowToOffering(r, auth.primaryLocale, assets.map((a) => a.url), [auth.primaryLocale]);
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = addOnsByOffering.get(r.id) ?? [];
@@ -174,7 +176,7 @@ export async function upsertTalentOffering(
     }
 
     const patch = {
-      ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }),
+      ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }, auth.primaryLocale),
       talent_profile_id: talentProfileId,
       owner_kind: "talent",
       updated_at: new Date().toISOString(),
@@ -258,7 +260,7 @@ export async function upsertTalentOffering(
     revalidatePath("/talent/services");
     return {
       ok: true,
-      item: rowToOffering(saved, "en", offering.imageUrls ?? []),
+      item: rowToOffering(saved, auth.primaryLocale, offering.imageUrls ?? [], [auth.primaryLocale]),
       bookingHoursStatus,
     };
   } catch (err) {

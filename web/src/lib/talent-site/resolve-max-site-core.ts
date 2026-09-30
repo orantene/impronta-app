@@ -21,6 +21,7 @@
  */
 
 import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
+import { readI18n } from "@/lib/i18n/i18n-columns";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
@@ -67,6 +68,13 @@ export interface MaxSitePageRow {
   canonicalUrl: string | null;
   noindex: boolean | null;
   jsonLd: unknown;
+  /**
+   * Per-locale page text (migration 20261231299520). Absent before the columns
+   * exist or while empty; the plain columns above hold the primary language.
+   */
+  titleI18n?: Record<string, string>;
+  metaTitleI18n?: Record<string, string>;
+  metaDescriptionI18n?: Record<string, string>;
 }
 
 /** A nav entry the visitor sees — one per published page of the site. */
@@ -245,11 +253,31 @@ export function maxSitePageHref(
  *   the rendered <title> exactly as it was before the column existed.
  */
 export function resolveMaxSiteTitles(
-  page: Pick<MaxSitePageRow, "title" | "metaTitle">,
+  page: Pick<MaxSitePageRow, "title" | "metaTitle" | "titleI18n" | "metaTitleI18n">,
   fallback = "",
+  locale?: string,
+  chain?: readonly string[],
 ): { pageTitle: string; seoTitle: string } {
-  const pageTitle = page.title?.trim() || fallback;
-  return { pageTitle, seoTitle: page.metaTitle?.trim() || pageTitle };
+  // With a locale, each title is one readI18n (map along the chain, then the
+  // plain primary column). Without one, the plain columns exactly as before.
+  const title = locale ? readI18n(page.titleI18n, page.title, locale, chain ?? [locale]) : page.title;
+  const metaTitle = locale
+    ? readI18n(page.metaTitleI18n, page.metaTitle, locale, chain ?? [locale])
+    : page.metaTitle;
+  const pageTitle = title?.trim() || fallback;
+  return { pageTitle, seoTitle: metaTitle?.trim() || pageTitle };
+}
+
+/** Locale-aware meta description (readI18n over the plain column); undefined when blank. */
+export function resolveMaxSiteDescription(
+  page: Pick<MaxSitePageRow, "metaDescription" | "metaDescriptionI18n">,
+  locale?: string,
+  chain?: readonly string[],
+): string | undefined {
+  const value = locale
+    ? readI18n(page.metaDescriptionI18n, page.metaDescription, locale, chain ?? [locale])
+    : page.metaDescription;
+  return value?.trim() || undefined;
 }
 
 /**

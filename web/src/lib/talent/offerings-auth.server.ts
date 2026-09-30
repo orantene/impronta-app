@@ -25,8 +25,17 @@ export type AuthResult =
       isStaff: boolean;
       defaultCurrency: string;
       tenantId: string | null;
+      /** The talent's primary content language (`preferred_locale`), "en" when unset. */
+      primaryLocale: string;
     }
   | { ok: false; error: string };
+
+/** A stored `preferred_locale` as a bare language code; "en" when unset or malformed. */
+export function normalizePrimaryLocale(raw: unknown): string {
+  if (typeof raw !== "string") return "en";
+  const code = raw.trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  return /^[a-z]{2,3}$/.test(code) ? code : "en";
+}
 
 export async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> {
   const session = await getCachedActorSession();
@@ -37,7 +46,7 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
 
   const { data: tp, error } = await supabase
     .from("talent_profiles")
-    .select("id, user_id, default_currency")
+    .select("id, user_id, default_currency, preferred_locale")
     .eq("id", talentProfileId)
     .maybeSingle();
 
@@ -96,6 +105,7 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
     isStaff,
     defaultCurrency: resolveDefaultCurrencyForUI(tp.default_currency),
     tenantId,
+    primaryLocale: normalizePrimaryLocale(tp.preferred_locale),
   };
 }
 

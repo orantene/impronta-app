@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
@@ -239,6 +240,20 @@ export async function loadTalentManagingTenantId(
   return (data as { created_by_agency_id: string | null }).created_by_agency_id ?? null;
 }
 
+type PageI18nMaps = Pick<MaxSitePageRow, "titleI18n" | "metaTitleI18n" | "metaDescriptionI18n">;
+
+/** Only non-empty maps are attached, so a pre-migration row keeps its old shape. */
+function i18nMaps(title: unknown, metaTitle: unknown, metaDescription: unknown): PageI18nMaps {
+  const out: PageI18nMaps = {};
+  const t = toI18nMap(title);
+  const mt = toI18nMap(metaTitle);
+  const md = toI18nMap(metaDescription);
+  if (Object.keys(t).length > 0) out.titleI18n = t;
+  if (Object.keys(mt).length > 0) out.metaTitleI18n = mt;
+  if (Object.keys(md).length > 0) out.metaDescriptionI18n = md;
+  return out;
+}
+
 /** Load ALL of a talent's site pages (the pure core filters for nav/render). */
 export async function loadMaxSitePages(
   talentProfileId: string,
@@ -259,7 +274,11 @@ export async function loadMaxSitePages(
   // `blocks_published` is the live body visitors see (`blocks` is the draft).
   // Selected on a graceful path: a database without the migration errors the
   // whole query, so fall back to the base list, which renders `blocks` as before.
-  let { data, error } = await selectPages(`${BASE_COLS}, blocks_published`);
+  // The page-text i18n maps (migration 20261231299520) ride on the same
+  // graceful path: a database without them drops back to the list below.
+  const I18N_COLS = "title_i18n, meta_title_i18n, meta_description_i18n";
+  let { data, error } = await selectPages(`${BASE_COLS}, blocks_published, ${I18N_COLS}`);
+  if (error) ({ data, error } = await selectPages(`${BASE_COLS}, blocks_published`));
   if (error) {
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console -- dev-only signal for a missing migration
@@ -292,6 +311,9 @@ export async function loadMaxSitePages(
     canonical_url: string | null;
     noindex: boolean | null;
     json_ld: unknown;
+    title_i18n?: unknown;
+    meta_title_i18n?: unknown;
+    meta_description_i18n?: unknown;
   };
   return ((data ?? []) as unknown as PageDb[]).map((p) => ({
     id: p.id,
@@ -312,6 +334,7 @@ export async function loadMaxSitePages(
     canonicalUrl: p.canonical_url ?? null,
     noindex: p.noindex ?? null,
     jsonLd: p.json_ld ?? null,
+    ...i18nMaps(p.title_i18n, p.meta_title_i18n, p.meta_description_i18n),
   }));
 }
 

@@ -54,6 +54,7 @@ import {
   coerceTree,
   hydrateShellNav,
   maxSitePublicGate,
+  resolveMaxSiteDescription,
   resolveMaxSiteTitles,
   scopeMaxSitePagesToPlan,
   selectMaxSitePage,
@@ -355,11 +356,8 @@ function buildMaxSiteSeo(args: {
   // rather than added to `MaxSiteSeo`, so the shared `maxSiteSeoToMetadata`
   // mapper needs no change and all three talent-site routes pick it up in
   // lockstep — including og:title, which already falls back to `title`.
-  const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(
-    page,
-    identity?.name || site.siteSlug || "",
-  );
-  const description = page.metaDescription?.trim() || undefined;
+  const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(page, identity?.name || site.siteSlug || "", locale);
+  const description = resolveMaxSiteDescription(page, locale);
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
