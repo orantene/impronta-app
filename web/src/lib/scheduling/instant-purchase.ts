@@ -44,6 +44,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { hoursRowHasWorkingHours, loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { instantReadiness, readinessGaps, takesMoneyOnline } from "@/lib/talent/accepting-readiness";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 export type InstantPurchaseInput = {
@@ -259,6 +260,12 @@ export async function placeInstantPurchase(
     staffDesk || input.agencyRouted === true
       ? null
       : await loadTalentSiteSwitches(admin, input.talentProfileId);
+  // F27: the plan ceiling is enforced here too, so a crafted request cannot
+  // book instantly on a plan whose public site only offers request.
+  const planAllowsInstant =
+    staffDesk || input.agencyRouted === true
+      ? undefined
+      : (await loadPlanAllowsInstant(admin, [input.talentProfileId])).get(input.talentProfileId);
   const readiness = staffDesk
     ? null
     : instantReadiness(
@@ -268,6 +275,7 @@ export async function placeInstantPurchase(
           durationMinutes: policy.durationMinutes,
           takesMoneyOnline: takesMoneyOnline(effective.reserveMode, input.payInPerson === true),
           payoutsReady: isPlatformCheckoutReady(),
+          planAllowsInstant,
         }),
       );
 
