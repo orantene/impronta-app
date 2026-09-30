@@ -124,22 +124,23 @@ export function Segmented<T extends string>({
               btns?.[next]?.focus();
             }}
             title={typeof opt.label === "string" ? t(opt.label) : undefined}
-            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md transition-all"
+            className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] transition-[background-color,color,box-shadow,transform] duration-150 motion-safe:active:scale-[0.98]"
             style={{
               // `min-width: 0` lets the button shrink below its content's
               // natural width inside a grid cell; combined with the
               // truncating inner span this prevents long labels (e.g.
               // "Noise (animated)") from blowing out the row.
               minWidth: 0,
-              padding: compact ? "5px 9px" : "5px 11px",
+              padding: compact ? "6px 9px" : "6px 11px",
               fontSize: 11.5,
-              fontWeight: 600,
+              fontWeight: active ? 650 : 600,
               letterSpacing: "-0.005em",
-              background: active ? "rgba(124, 58, 237, 0.08)" : "transparent",
+              // Round 2 — white raised pill + accent ink (modern app segmented)
+              background: active ? CHROME.surface : "transparent",
               color: active ? CHROME.accent : "#57534e",
               border: "none",
               boxShadow: active
-                ? `inset 0 0 0 1px ${CHROME.accent}`
+                ? `0 0 0 1px rgba(124, 58, 237, 0.35), 0 1px 2px rgba(17,24,39,0.08)`
                 : "none",
             }}
           >

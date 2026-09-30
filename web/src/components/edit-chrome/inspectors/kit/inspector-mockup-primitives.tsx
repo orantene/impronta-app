@@ -183,28 +183,65 @@ export function InspectorLayoutPresetCards<T extends string>({
 }) {
   const { t } = useInspectorT();
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {options.map((opt) => {
+    <div className="grid grid-cols-2 gap-2" data-layout-preset-cards="">
+      {options.map((opt, index) => {
         const active = opt.value === value;
+        // Schematic column weights cycle for visual variety when ids aren't ratios.
+        const leftWeight = [0.5, 0.62, 0.38, 0.55][index % 4]!;
         return (
           <button
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
             aria-pressed={active}
-            className="cursor-pointer rounded-xl border px-3 py-2.5 text-left transition-colors"
+            className="cursor-pointer rounded-[12px] border px-2.5 py-2 text-left transition-[border-color,box-shadow,background-color] duration-150"
             style={{
               background: active ? BUILDER_VISUAL.accentBg : CHROME.surface,
               borderColor: active ? BUILDER_VISUAL.accentBorder : CHROME.line,
+              boxShadow: active
+                ? "0 1px 4px rgba(124,58,237,0.14)"
+                : "0 1px 2px rgba(17,24,39,0.04)",
             }}
           >
             <span
-              className="block text-[12px] font-semibold"
+              aria-hidden
+              className="mb-1.5 flex h-7 items-stretch gap-1 overflow-hidden rounded-md"
+              style={{
+                background: active
+                  ? "rgba(124,58,237,0.08)"
+                  : "rgba(24,24,27,0.04)",
+                padding: 3,
+              }}
+            >
+              <span
+                style={{
+                  flex: leftWeight,
+                  borderRadius: 4,
+                  background: active
+                    ? "rgba(124,58,237,0.45)"
+                    : "rgba(24,24,27,0.18)",
+                }}
+              />
+              <span
+                style={{
+                  flex: 1 - leftWeight,
+                  borderRadius: 4,
+                  background: active
+                    ? "rgba(124,58,237,0.22)"
+                    : "rgba(24,24,27,0.10)",
+                }}
+              />
+            </span>
+            <span
+              className="block text-[12px] font-semibold tracking-[-0.01em]"
               style={{ color: active ? BUILDER_VISUAL.accent : CHROME.ink }}
             >
               {t(opt.title)}
             </span>
-            <span className="mt-0.5 block text-[11px]" style={{ color: BUILDER_VISUAL.textMuted }}>
+            <span
+              className="mt-0.5 block text-[10.5px] leading-snug"
+              style={{ color: BUILDER_VISUAL.textMuted }}
+            >
               {t(opt.description)}
             </span>
           </button>

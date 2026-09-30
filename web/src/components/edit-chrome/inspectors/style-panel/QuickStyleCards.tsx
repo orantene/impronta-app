@@ -103,28 +103,33 @@ export function QuickStyleCards({ presets, onApply, scopeLabel }: QuickStyleCard
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 6,
-              padding: "8px 8px 7px",
+              gap: 7,
+              padding: "7px 7px 8px",
               minWidth: 0,
               textAlign: "center",
               borderRadius: FIELD_KIT.radius.tile,
               border: `1px solid ${FIELD_KIT.border}`,
               background: FIELD_KIT.surface,
               cursor: "pointer",
-              transition: `border-color ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}`,
+              boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
+              transition: `border-color ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, box-shadow ${FIELD_KIT.motion.duration}ms ${FIELD_KIT.motion.easing}, transform 120ms ease`,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = FIELD_KIT.accent;
+              e.currentTarget.style.boxShadow =
+                "0 2px 10px rgba(124,58,237,0.12)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = FIELD_KIT.border;
+              e.currentTarget.style.boxShadow =
+                "0 1px 2px rgba(17,24,39,0.04)";
             }}
           >
             <QuickStyleThumb style={preset.style} />
             <span
               style={{
                 fontSize: FIELD_KIT.font.caption,
-                fontWeight: FIELD_KIT.weight.label,
+                fontWeight: 650,
                 lineHeight: 1.2,
                 color: FIELD_KIT.ink,
                 overflow: "hidden",
@@ -164,20 +169,26 @@ function QuickStyleThumb({ style }: { style: BuilderNodeStyleValue | undefined }
         : "rgba(24,24,27,0.26)";
 
   const frame: CSSProperties = {
-    height: 34,
-    borderRadius: 6,
-    // `radius: "pill"` on a 34px tile would read as a lozenge, not as a corner
+    height: 42,
+    borderRadius: 8,
+    // `radius: "pill"` on a small tile would read as a lozenge, not as a corner
     // treatment, so the schematic caps the bend it will draw.
-    ...(style?.radius === "pill" ? { borderRadius: 12 } : {}),
-    background: dark ? "#26262b" : onSurface ? "rgba(24,24,27,0.05)" : "rgba(24,24,27,0.03)",
-    boxShadow: style?.boxShadow ? "0 2px 5px rgba(15,18,35,0.18)" : "none",
+    ...(style?.radius === "pill" ? { borderRadius: 14 } : {}),
+    background: dark
+      ? "linear-gradient(180deg, #2a2a30 0%, #1f1f24 100%)"
+      : onSurface
+        ? "linear-gradient(180deg, rgba(124,58,237,0.06) 0%, rgba(24,24,27,0.04) 100%)"
+        : "linear-gradient(180deg, rgba(24,24,27,0.04) 0%, rgba(24,24,27,0.02) 100%)",
+    boxShadow: style?.boxShadow
+      ? "0 2px 6px rgba(15,18,35,0.18)"
+      : "inset 0 0 0 1px rgba(24,24,27,0.06)",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems:
       align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
-    gap: 3,
-    padding: "0 6px",
+    gap: 3.5,
+    padding: "0 7px",
     overflow: "hidden",
   };
 
