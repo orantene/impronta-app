@@ -1,8 +1,10 @@
 /**
  * Before / After (optional Design block): a two-image comparison under an
- * EN/ES title. Images are the talent's own gallery pair (`{{gallery2}}` /
- * `{{gallery3}}`, hydrated per site); title and captions are design copy with
- * the ES overlay seeded on the node. Token refs only, no colours.
+ * EN/ES title. F77: the two image slots are seeded EMPTY (never a random
+ * gallery pair): the builder shows "Choose your before and after photos" and
+ * the public site hides the block until both photos are set. Title and
+ * captions are design copy with the ES overlay seeded on the node. Token refs
+ * only, no colours.
  *
  * Kept out of `section-kit.ts` (800-line budget). Provenance mirrors the
  * `before_after` entry of `TALENT_KIT_SECTIONS`.
@@ -96,8 +98,8 @@ export function beforeAfterBlock(
           layerLabel: "Before and after pair",
         },
         children: [
-          pane(makeId, "{{gallery2}}", "Before", "Antes"),
-          pane(makeId, "{{gallery3}}", "After", "Después"),
+          pane(makeId, "", "Before", "Antes"),
+          pane(makeId, "", "After", "Después"),
         ],
       },
     ],
