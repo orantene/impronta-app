@@ -37,7 +37,7 @@ import { useEditContext } from "./edit-context";
 import { PrintArtboard } from "./print-artboard";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
-import { CHROME } from "./kit/tokens";
+import { CHROME, EDIT_TOPBAR_H } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   isStorefrontBodyPresent,
@@ -194,12 +194,24 @@ export function InEditorCanvasRegion({
       data-theme-canvas-root=""
       data-talent-design={canvasRenderData?.designSlug ?? undefined}
       {...tokenDataAttrs}
-      style={{ ...canvasBackground, ...(tokenCssVars as CSSProperties) }}
+      style={{
+        ...canvasBackground,
+        ...(tokenCssVars as CSSProperties),
+        // The builder top bar is fixed over the top of the page; when the site
+        // header is shown, start the canvas below the bar (and pin the sticky
+        // header there) so it is never hidden underneath it.
+        ...(shellHeader ? { paddingTop: EDIT_TOPBAR_H } : null),
+      }}
     >
       <TypeSystemStyle />
       {canvasRenderData?.headNodes ?? null}
       {shellHeader ? (
-        <div data-talent-builder-shell="header" data-talent-max-site-header="" inert>
+        <div
+          data-talent-builder-shell="header"
+          data-talent-max-site-header=""
+          style={{ top: EDIT_TOPBAR_H }}
+          inert
+        >
           {shellHeader}
         </div>
       ) : null}
