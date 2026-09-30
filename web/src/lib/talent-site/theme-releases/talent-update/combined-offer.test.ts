@@ -385,6 +385,46 @@ test("F124: rows closed as nothing_applicable are not reopened", async () => {
   assert.deepEqual(states(db), ["applied", "available"]);
 });
 
+// ── F129 / F130 ──────────────────────────────────────────────────────────────
+
+test("F130: the label shows her real pin, not the release's own from-version (noBase, one row)", async () => {
+  const db = world(["applied", "available"], 1); // one open row (R3: 2 -> 3), pin v1
+  db.tables.talent_theme_releases![1]!.items = [I_BLOCK_A]; // a missing block keeps the noBase offer alive
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
+  assert.ok(n);
+  assert.equal(n!.fromVersion, 1);
+  assert.equal(n!.toVersion, 3);
+});
+
+test("F129: a row closed nothing_applicable before critical fixes existed is reopened once when its release has a pending critical item", async () => {
+  const { ensureSiteThemeUpdates } = await import("../lazy-fan-out.server");
+  const db = world(["applied", "applied"], 1);
+  db.tables.talent_theme_releases![1]!.items = [{ type: "critical", key: "hero", detail: { props: ["variant"] } }];
+  db.tables.talent_site_theme_updates![1]!.report = { reason: "nothing_applicable", addedBlocks: [] };
+  await ensureSiteThemeUpdates(db.admin, PROFILE);
+  assert.equal(db.tables.talent_site_theme_updates![1]!.state, "available");
+  const report = db.tables.talent_site_theme_updates![1]!.report as { note?: string; reason?: string };
+  assert.equal(report.note, "reopened_for_critical");
+  assert.equal(report.reason, undefined);
+});
+
+test("F129: not reopened when already checked, when its critical item was applied, or when the release has none", async () => {
+  const { ensureSiteThemeUpdates } = await import("../lazy-fan-out.server");
+  const crit = [{ type: "critical", key: "hero" }];
+  const cases: Array<[unknown, unknown[]]> = [
+    [{ reason: "nothing_applicable", criticalChecked: true }, crit],
+    [{ reason: "nothing_applicable", addedBlocks: ["critical:hero"] }, crit],
+    [{ reason: "nothing_applicable" }, [{ type: "new-block", key: "gallery" }]],
+  ];
+  for (const [report, items] of cases) {
+    const db = world(["applied", "applied"], 1);
+    db.tables.talent_theme_releases![1]!.items = items as never;
+    db.tables.talent_site_theme_updates![1]!.report = report as never;
+    await ensureSiteThemeUpdates(db.admin, PROFILE);
+    assert.equal(db.tables.talent_site_theme_updates![1]!.state, "applied");
+  }
+});
+
 test("F118: all blocks present by origin key also closes a noBase offer", async () => {
   const db = world(["available", "available"], 1);
   db.tables.talent_pages![0]!.blocks = built(1, { withGallery: true }, TOKENS).trees.home;

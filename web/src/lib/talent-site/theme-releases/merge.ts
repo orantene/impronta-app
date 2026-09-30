@@ -428,7 +428,7 @@ function mergeList(
     ctx.report.added.push(entry(ctx, { change: "insert", key, parentKey, anchor, node: t }, allowance));
   }
 
-  return reorder(ctx, parentKey, bKids, out, tKids);
+  return reorder(ctx, parentKey, bKids, out, tKids, new Set(keyOrder(oKids)));
 }
 
 function reorder(
@@ -437,6 +437,7 @@ function reorder(
   bKids: ReadonlyArray<BuilderNode>,
   out: BuilderNode[],
   tKids: ReadonlyArray<BuilderNode>,
+  oursKeys: ReadonlySet<string>,
 ): BuilderNode[] {
   const bOrder = keyOrder(bKids);
   const tOrder = keyOrder(tKids);
@@ -457,7 +458,10 @@ function reorder(
     return out;
   }
   const rank = new Map(tOrder.map((k, i) => [k, i] as const));
-  const next = reorderByRank(out, (k) => rank.get(k));
+  // F130: a block she ADDED earlier (in her page, in the new design, but not in her
+  // base) is anchored to the section it follows: it has no design rank of its own, so it
+  // moves with that section instead of jumping to its design position.
+  const next = reorderByRank(out, (k) => (oursKeys.has(k) && !bOrder.includes(k) ? undefined : rank.get(k)));
   const afterOrder = keyOrder(next);
   if (sameList(afterOrder, current)) return out;
   ctx.report.applied.push(

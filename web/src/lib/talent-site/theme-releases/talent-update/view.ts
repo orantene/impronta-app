@@ -259,8 +259,14 @@ export function sectionLabel(node: BuilderNode): string {
 }
 
 /** Top-level sections of her page, in order: the picker's "after" choices. */
-export function placementOptions(tree: ReadonlyArray<BuilderNode>): PlacementOption[] {
-  return tree.map((n) => ({ afterId: n.id, label: sectionLabel(n) }));
+export function placementOptions(tree: ReadonlyArray<BuilderNode>, afterApply?: ReadonlyArray<BuilderNode>): PlacementOption[] {
+  // F130: when the offer reorders her page, list sections in the order she will have after Apply
+  // (only sections that exist in her draft now, so each afterId is placeable).
+  const order = new Map((afterApply ?? []).map((n, i) => [n.id, i] as const));
+  const ordered = afterApply
+    ? [...tree].sort((a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER))
+    : tree;
+  return ordered.map((n) => ({ afterId: n.id, label: sectionLabel(n) }));
 }
 
 /**
