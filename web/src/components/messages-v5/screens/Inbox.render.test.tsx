@@ -40,7 +40,7 @@ test("desktop ready: header, count, New, segments, search, chips, one grp-h with
   const html = renderToStaticMarkup(<Inbox {...baseProps({ rows })} />);
   assert.match(html, /data-inbox-pane="desktop"/);
   assert.match(html, /<h2>Inbox<\/h2>/);
-  assert.match(html, /class="cnt-txt">1 conversations/);
+  assert.match(html, /class="cnt-txt">1 conversation</);
   assert.match(html, />New<\/button>/);
   assert.match(html, /role="tablist"/);
   assert.match(html, /class="search"/);

@@ -159,7 +159,7 @@ export function Inbox(props: InboxProps) {
       <div className="ib-head">
         <div className="row">
           <h2>{title}</h2>
-          {firstRun ? null : <span className="cnt-txt">{fill(copy.inbox.threads, { count: rows.length })}</span>}
+          {firstRun ? null : <span className="cnt-txt">{fill(rows.length === 1 ? copy.inbox.threadsOne : copy.inbox.threads, { count: rows.length })}</span>}
           <Btn size="sm" icon="plus" iconSize={13} onClick={onNew}>
             {sellerChrome?.newConversation ?? copy.inbox.newConversation}
           </Btn>

@@ -98,6 +98,7 @@ export function buildKitCopy(t: Translator) {
       title: t("dashboard.messagesV5.inbox.title"),
       newConversation: t("dashboard.messagesV5.inbox.newConversation"),
       threads: t("dashboard.messagesV5.inbox.threads"),
+      threadsOne: t("dashboard.messagesV5.inbox.threadsOne"),
       visitor: t("dashboard.messagesV5.inbox.visitor"),
       unassigned: t("dashboard.messagesV5.inbox.unassigned"),
       you: t("dashboard.messagesV5.inbox.you"),
