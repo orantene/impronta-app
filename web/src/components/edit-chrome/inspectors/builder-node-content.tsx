@@ -4948,13 +4948,13 @@ function NestedBlocksCard({
                             return t(secondary);
                           })()}
                         </div>
-                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                        <div className="mt-2.5 flex items-center gap-1.5">
                           {extraActions ? extraActions(child, index) : null}
                           <button
                             type="button"
                             className={
                               KIT.primaryButton +
-                              " !h-8 !gap-1 !px-3 !py-0 !text-[12px] !shadow-[0_1px_3px_rgba(124,58,237,0.35)]"
+                              " !h-8 !shrink-0 !gap-1 !px-3 !py-0 !text-[12px] !shadow-[0_1px_3px_rgba(124,58,237,0.35)]"
                             }
                             onClick={() => onSelect(child.id)}
                           >
@@ -4966,7 +4966,7 @@ function NestedBlocksCard({
                             />
                           </button>
                           <div
-                            className="inline-flex flex-wrap items-center gap-0.5 rounded-[10px] border border-stone-200/80 bg-stone-50/90 p-0.5"
+                            className="ml-auto inline-flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-[10px] border border-stone-200/80 bg-stone-50/90 p-0.5"
                             data-nested-block-actions=""
                           >
                             <NestedBlockIconButton
