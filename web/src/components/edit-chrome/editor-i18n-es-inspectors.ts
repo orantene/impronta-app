@@ -602,6 +602,8 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "{count} nested block": "{count} bloque anidado",
   "{count} nested blocks": "{count} bloques anidados",
   "No nested blocks yet.": "Todavía no hay bloques anidados.",
+  // Contenido nested-block UX strings → editor-i18n-es-inspectors-3.ts
+  // Legacy long helpers kept so older cached trees still translate if referenced.
   "This is a layout wrapper. Add, move, and edit nested blocks in Structure, then use Layout for grid/stack behavior.":
     "Esto es un envoltorio de diseño. Agrega, mueve y edita los bloques anidados en Estructura, y luego usa Diseño para el comportamiento de cuadrícula o apilado.",
   "This split owns its child blocks. Edit the copy and media inside the split from Structure; use Layout for ratio and collapse behavior.":

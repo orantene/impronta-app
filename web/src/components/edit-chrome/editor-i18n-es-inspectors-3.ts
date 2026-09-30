@@ -158,4 +158,49 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Preview and translate in {lang}. Untranslated blocks dim.":
     "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
   "Content language": "Idioma del contenido",
+
+  // ── Contenido nested-block UX (page-builder panel cleanup) ─────────────
+  // Short helpers + NestedBlocksCard chrome. Lives here because
+  // editor-i18n-es-inspectors.ts is at the 800-line max-lines ceiling.
+  // Skip "Drag to reorder" / "Saved block pattern" — already owned elsewhere.
+  "Add and reorder the blocks inside this group.":
+    "Agrega y reordena los bloques de este grupo.",
+  "Open each column to edit its text and photos. Ratio is under Design.":
+    "Abre cada columna para editar su texto y fotos. La proporción está en Diseño.",
+  "Open each item to rename the question and edit what’s inside.":
+    "Abre cada elemento para renombrar la pregunta y editar lo que hay dentro.",
+  "Open each tab to rename it and edit what’s inside.":
+    "Abre cada pestaña para renombrarla y editar lo que hay dentro.",
+  "Add slides below. Autoplay and controls are under Design.":
+    "Agrega diapositivas abajo. La reproducción automática y los controles están en Diseño.",
+  "Add images or cards below. Columns and gap are under Design.":
+    "Agrega imágenes o tarjetas abajo. Las columnas y el espacio están en Diseño.",
+  "Edit the heading, text, image, and button blocks below.":
+    "Edita abajo los bloques de título, texto, imagen y botón.",
+  "This group holds buttons only. Add headline text as a sibling block.":
+    "Este grupo solo contiene botones. Agrega el titular como un bloque hermano.",
+  "A horizontal line. Tone is under Design; spacing under Style.":
+    "Una línea horizontal. El tono está en Diseño; el espaciado en Estilo.",
+  "Empty space. Change its size under Design.":
+    "Espacio vacío. Cambia su tamaño en Diseño.",
+  "Library & saved blocks": "Biblioteca y bloques guardados",
+  "Blocks in this group": "Bloques de este grupo",
+  "Insert at top": "Insertar arriba",
+  "Done selecting": "Listo",
+  "Select multiple": "Seleccionar varios",
+  "{count} block selected": "{count} bloque seleccionado",
+  "{count} blocks selected": "{count} bloques seleccionados",
+  "Select blocks for bulk actions": "Selecciona bloques para acciones en lote",
+  "Select all": "Seleccionar todos",
+  "Insert after": "Insertar después",
+  "Paste in group": "Pegar en el grupo",
+  "Paste the copied block into this group":
+    "Pega el bloque copiado en este grupo",
+  "Save pattern": "Guardar patrón",
+  "Block presets": "Preajustes de bloque",
+  "Add a block": "Agregar un bloque",
+  "Insert block here": "Insertar bloque aquí",
+  "Section packs": "Paquetes de sección",
+  blocks: "bloques",
+  Starter: "Inicio",
 };
