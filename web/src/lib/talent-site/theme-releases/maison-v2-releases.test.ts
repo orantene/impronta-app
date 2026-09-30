@@ -196,3 +196,67 @@ test("Maison v2 v17: the services layout is opt-in and needs both halves of the 
   const chosen = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "layout") });
   assert.deepEqual(servicesKinds(chosen.trees.home!), ["services_two_col:cards"]);
 });
+
+// ── Release 2.4 (v18, round 4): new optional block + reorder ────────────────
+
+const slotOrder = (home: DesignSide["trees"][string]) => home.map((n) => String(propsOf(n).slotKey));
+
+async function v18Site() {
+  const prev = maisonV2At(17);
+  const next = maisonV2At(18);
+  const { base, theirs } = await siteSides(prev, 17, next, 18);
+  const items = withAuthoredNotes(diff(prev, 17, next, 18), authoredRelease("maison-v2", 18)!);
+  return { base, theirs, items };
+}
+
+test("Maison v2 v18 classifies as one new block plus one reorder, nothing automatic", () => {
+  const items = diff(maisonV2At(17), 17, maisonV2At(18), 18);
+  assert.deepEqual(items.map((i) => i.id).sort(), ["layout:home:(root):order", "new-block:home:aftercare"]);
+  assert.equal(types(items, "new-block")[0]!.key, "home:aftercare");
+  assert.equal(types(items, "layout")[0]!.layout, "order");
+  // The block's own children ride with the new-block item.
+  assert.ok(!items.some((i) => i.key.startsWith("home:aftercare/")));
+  for (const t of ["token-default", "variant-default", "critical", "code"]) assert.equal(types(items, t).length, 0, `no ${t} in round 4`);
+  assertNotesFor(items, 18);
+});
+
+test("Maison v2 v18: the new block and the reorder are opt-in, each on its own", async () => {
+  const { base, theirs, items } = await v18Site();
+  const before = slotOrder(base.trees.home!);
+  assert.ok(before.indexOf("gallery") < before.indexOf("reviews"), "v17 has the gallery above reviews");
+  assert.ok(!before.includes("aftercare"));
+
+  // Nothing chosen: nothing changes.
+  const none = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: [] });
+  assert.deepEqual(slotOrder(none.trees.home!), before);
+
+  // Only the block: it is inserted, the order stays.
+  const block = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "new-block") });
+  const b = slotOrder(block.trees.home!);
+  assert.ok(b.includes("aftercare"));
+  assert.ok(b.indexOf("gallery") < b.indexOf("reviews"), "block alone does not reorder");
+  assert.ok(block.report.added.some((e) => e.key === "aftercare"));
+
+  // Only the reorder: reviews move above the gallery, no block appears.
+  const order = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "layout") });
+  const o = slotOrder(order.trees.home!);
+  assert.ok(o.indexOf("reviews") < o.indexOf("gallery"), "reviews above gallery");
+  assert.ok(!o.includes("aftercare"));
+
+  // Both: the final order matches the new design.
+  const both = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items });
+  assert.deepEqual(slotOrder(both.trees.home!), slotOrder(theirs.trees.home!));
+});
+
+test("Maison v2 v18: a talent who reordered her own page keeps her order", async () => {
+  const { base, theirs, items } = await v18Site();
+  const ours = siteOf(base);
+  // She moved the menu to the very top of her page.
+  const menuAt = ours.trees.home!.findIndex((n) => propsOf(n).slotKey === "services");
+  const [menu] = ours.trees.home!.splice(menuAt, 1);
+  ours.trees.home!.unshift(menu!);
+  const mine = slotOrder(ours.trees.home!);
+  const r = mergeDesignUpdate({ base, ours, theirs, items: items.filter((i) => i.type === "layout") });
+  assert.deepEqual(slotOrder(r.trees.home!), mine, "her order is kept");
+  assert.ok(r.report.kept.some((e) => e.change === "order" || e.reason === "your_order"));
+});

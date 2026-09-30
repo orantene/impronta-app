@@ -13,6 +13,7 @@ import {
   MAISON_V2_RELEASE_2_1,
   MAISON_V2_RELEASE_2_2,
   MAISON_V2_RELEASE_2_3,
+  MAISON_V2_RELEASE_2_4,
   type ReleaseNote,
 } from "./maison-v2";
 
@@ -31,6 +32,7 @@ const MAISON_V2: Readonly<Record<number, AuthoredRelease>> = {
   15: MAISON_V2_RELEASE_2_1,
   16: MAISON_V2_RELEASE_2_2,
   17: MAISON_V2_RELEASE_2_3,
+  18: MAISON_V2_RELEASE_2_4,
 };
 
 const REGISTRY: Readonly<Record<string, Readonly<Record<number, AuthoredRelease>>>> = {

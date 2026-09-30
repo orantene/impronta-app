@@ -118,3 +118,27 @@ export const MAISON_V2_RELEASE_2_3 = {
     "variant-default:home:before_after/paragraph": ["before_after/paragraph"],
   },
 } as const;
+
+/**
+ * Release 2.4 (v17 to v18, update round 4): one new optional block and one
+ * reorder. Both are opt-in: the block is offered with a placement picker, and
+ * the order change only applies if the talent has not reordered her page.
+ */
+export const MAISON_V2_RELEASE_2_4 = {
+  design: "maison-v2",
+  notes: {
+    en: "Maison v2 2.4: a new optional Aftercare tips block, and reviews move up to sit right under the top of your page.",
+    es: "Maison v2 2.4: un nuevo bloque opcional de Cuidados posteriores, y las reseñas suben para quedar justo debajo de la parte superior de tu página.",
+  } satisfies ReleaseNote,
+  codeNotes: [] satisfies ReleaseNote[],
+  byItemId: {
+    "new-block:home:aftercare": {
+      en: "New optional block: Aftercare tips, three short cards you can rewrite for your own work.",
+      es: "Nuevo bloque opcional: Cuidados posteriores, tres tarjetas breves que puedes reescribir para tu trabajo.",
+    },
+    "layout:home:(root):order": {
+      en: "Reviews move above your gallery so new visitors see what clients say first. Preview it before you choose.",
+      es: "Las reseñas suben sobre tu galería para que quien llega vea primero lo que dicen tus clientes. Míralo antes de elegir.",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;
