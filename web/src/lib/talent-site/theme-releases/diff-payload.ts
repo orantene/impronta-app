@@ -9,12 +9,18 @@
  *                    section, or a sibling order change
  *   code             only from the notes passed in (a renderer fix has no
  *                    payload diff)
+ *
+ * A key removed plus a key new in the same parent and slot (a layout key
+ * swap, see `swap.ts`) stays two candidates, but both carry `swap` and one
+ * `group`: the merge applies them as ONE atomic choice and the talent sees one
+ * item. An authored `layoutKeys` group can declare a pair detection missed.
  * `critical` is never generated: the admin flags it.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "../theme-catalog/types";
 import { indexTree } from "./classify";
 import { designLeaves, kidsOf, stampDesignOrigin } from "./origin";
+import { detectSwaps, swapGroupId } from "./swap";
 import { ROOT_KEY, keyOrder, sameList } from "./tree-ops";
 import type { ReleaseItem } from "./types";
 
@@ -79,6 +85,9 @@ function diffTree(tree: string, from: BuilderNode[], to: BuilderNode[], out: Can
     const next = b.get(key);
     if (next) parents.push([key, kidsOf(prev.node), kidsOf(next.node)]);
   }
+  for (const [, prevKids, nextKids] of parents) {
+    for (const pair of detectSwaps(prevKids, nextKids)) markSwap(out, tree, pair);
+  }
   for (const [parentKey, prevKids, nextKids] of parents) {
     const pa = keyOrder(prevKids);
     const pb = keyOrder(nextKids);
@@ -93,6 +102,19 @@ function diffTree(tree: string, from: BuilderNode[], to: BuilderNode[], out: Can
         detail: { layout: "order" },
       });
     }
+  }
+}
+
+/** Tag both halves of a swap pair (by candidate id) with `swap` + `group`. */
+export function markSwap(out: CandidateItem[], tree: string, pair: { from: string; to: string }): void {
+  const fromId = `layout:${tree}:${pair.from}:removed`;
+  const toIds = [`layout:${tree}:${pair.to}`, `new-block:${tree}:${pair.to}`];
+  const halves = out.filter((i) => i.id === fromId || toIds.includes(i.id ?? ""));
+  if (halves.length !== 2) return;
+  const group = swapGroupId(tree, pair);
+  for (const i of halves) {
+    i.swap = { from: pair.from, to: pair.to };
+    i.group = group;
   }
 }
 

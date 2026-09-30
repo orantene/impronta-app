@@ -65,7 +65,7 @@ export function revertR17(p: DesignPayload): DesignPayload {
 }
 
 /** Maison v2 as it was at `version` (15 = release 2.1 ... 17 = release 2.3), rebuilt from code. */
-export function maisonV2At(version: 15 | 16 | 17): DesignPayload {
+export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
   if (version < 17) out = revertR17(out);
   if (version < 16) out = revertR16(out);

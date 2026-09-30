@@ -30,6 +30,14 @@ export interface ReleaseItem {
   keys?: string[];
   /** Token keys (token-default / critical); overrides `key` for tokens. */
   tokenKeys?: string[];
+  /**
+   * Layout key swap (old key removed + new keyed node in the same parent and
+   * slot): both halves carry the same `swap` and `group`, and the merge treats
+   * them as ONE atomic choice. Keys are unqualified design keys.
+   */
+  swap?: { from: string; to: string };
+  /** Items sharing a group are one choice for the talent (What's new shows one). */
+  group?: string;
 }
 
 export interface ReleaseNotes {
@@ -106,7 +114,8 @@ export type MergeChangeKind =
   | "remove"
   | "restore"
   | "token"
-  | "restamp";
+  | "restamp"
+  | "swap";
 
 export interface LeafChange {
   path: string;
@@ -135,8 +144,10 @@ export interface MergeEntry extends MergeReportEntry {
   originBefore?: DesignOrigin;
   /** The stamp the update wrote (a restamp reverts only while it is still there). */
   originAfter?: DesignOrigin;
-  /** Node snapshot before a kind swap. */
+  /** Node snapshot before a kind swap or a layout key swap. */
   beforeNode?: BuilderNode;
+  /** Layout key swap: the old key the new node replaced. */
+  fromKey?: string;
   beforeOrder?: string[];
   afterOrder?: string[];
   /** Why it was kept / pending / conflicting. */
@@ -147,7 +158,8 @@ export interface MergeEntry extends MergeReportEntry {
     | "no_base"
     | "your_order"
     | "critical"
-    | "inherits_default";
+    | "inherits_default"
+    | "moved_edits";
   itemId?: string;
 }
 

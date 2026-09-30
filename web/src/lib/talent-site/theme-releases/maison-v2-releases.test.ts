@@ -212,3 +212,22 @@ test("Maison v2 v17 through the one generator: layout pair grouped, notes filled
   assert.equal(crit.length, 2);
   for (const c of crit) assert.ok(c.note?.en && c.note?.es && c.keys?.length);
 });
+
+test("Maison v2 v17: the generated (grouped) layout item swaps atomically, even over an edited catalog", async () => {
+  const prev = maisonV2At(16);
+  const next = maisonV2At(17);
+  const { base, theirs } = await siteSides(prev, 16, next, 17);
+  const { items } = generateReleaseItems("maison-v2", { payload: prev, version: 16 }, { payload: next, version: 17 });
+  const ours = siteOf(base);
+  propsOf(findByKind(ours.trees.home!, "services_catalog")!).eyebrow = "Mine";
+  const r = mergeDesignUpdate({ base, ours, theirs, items: items.filter((i) => i.type === "layout") });
+  let catalogs = 0;
+  const visit = (nodes: ReadonlyArray<{ kind: string; children?: unknown[] }>) => {
+    for (const n of nodes) {
+      if (n.kind === "services_catalog") catalogs += 1;
+      visit((n.children ?? []) as Array<{ kind: string; children?: unknown[] }>);
+    }
+  };
+  visit(r.trees.home as never);
+  assert.equal(catalogs, 1, "never two catalogs");
+});
