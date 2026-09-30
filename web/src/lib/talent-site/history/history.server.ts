@@ -285,6 +285,20 @@ export async function restoreHistoryEntry(
   });
 }
 
+/** Talent edits saved after `appliedAt`: the sum of edit counts of edit/colour entries since. */
+export async function countLaterEdits(admin: SupabaseClient, talentProfileId: string, appliedAt: string): Promise<number> {
+  // supabase-read-unchecked-ok: a failed read counts 0, and the summary then says "kept your later edits" without a number.
+  const { data } = await admin
+    .from("talent_site_history")
+    .select("at, kind, actor, edit_count")
+    .eq("talent_profile_id", talentProfileId)
+    .in("kind", ["edit", "colors"]);
+  const t0 = Date.parse(appliedAt);
+  return ((data ?? []) as Array<{ at: string; actor?: string; edit_count?: number | null }>)
+    .filter((r) => Date.parse(r.at) > t0 && (r.actor ?? "talent") === "talent")
+    .reduce((n, r) => n + (typeof r.edit_count === "number" && r.edit_count > 0 ? r.edit_count : 1), 0);
+}
+
 /** Undo ONE theme update (its entry's report), keeping every later edit. */
 export async function undoThemeUpdateEntry(
   admin: SupabaseClient,
@@ -305,7 +319,10 @@ export async function undoThemeUpdateEntry(
     homePageId: home.id,
     tokens: state.tokens,
   });
-  const summary = undoUpdateSummary(report.designName ?? null, plan.keptParts);
+  const later = await countLaterEdits(admin, input.talentProfileId, entry.at);
+  // A number only when history accounts for the kept parts; otherwise say so without one.
+  const certain = later > 0 && later >= plan.keptParts;
+  const summary = undoUpdateSummary(report.designName ?? null, certain ? later : null, plan.keptParts > 0 || later > 0);
   const res = await writeSiteDraft(admin, {
     siteId: state.siteId,
     expectedDraftRev: input.expectedDraftRev,

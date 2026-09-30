@@ -27,6 +27,12 @@ export const UPDATE_COPY = {
     en: "Your site is older than this version: you can add the new blocks.",
     es: "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.",
   },
+  availableBlocks: { en: "Available blocks", es: "Bloques disponibles" },
+  availableBlocksHint: {
+    en: "New blocks from updates you have already applied. Add one whenever you like and pick where it goes.",
+    es: "Bloques nuevos de actualizaciones que ya aplicaste. Agrega uno cuando quieras y elige dónde va.",
+  },
+  seeWhatsNew: { en: "See what's new", es: "Ver novedades" },
   applyShort: { en: "Apply", es: "Aplicar" },
   previewOnSite: { en: "Preview on my site", es: "Ver en mi sitio" },
   previewHint: {
@@ -151,4 +157,9 @@ export function applyLabel(changes: number | null, locale: UpdateLocale): string
   return locale === "es"
     ? `Aplicar ${changes} cambio${changes === 1 ? "" : "s"}`
     : `Apply ${changes} change${changes === 1 ? "" : "s"}`;
+}
+
+/** F92: the quiet line for a dismissed update. */
+export function quietEntryTitle(designTitle: string, locale: UpdateLocale): string {
+  return locale === "es" ? `${designTitle}: actualización disponible` : `${designTitle} update available`;
 }

@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
+import { AvailableBlocks } from "@/components/talent/site/theme-update/AvailableBlocks";
 import { ThemeUpdateNotice } from "@/components/talent/site/theme-update/ThemeUpdateNotice";
 import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetworksPanel";
@@ -86,6 +87,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           subtitle={talentSiteCopy(locale, "pageSubtitle")}
         />
         <ThemeUpdateNotice surface="presence" locale={locale} />
+        <AvailableBlocks locale={locale} />
         {settingsEntry}
         <LegacyPresence locale={locale} />
       </>
@@ -119,6 +121,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             <WebOfficeReturnBanner />
           </Suspense>
           <ThemeUpdateNotice surface="presence" locale={locale} />
+          <AvailableBlocks locale={locale} />
           <TalentMaxSiteManager locale={locale} />
           <TalentFaqEditor />
           {/* Address, logo, pages and domain live in Website settings. Flag

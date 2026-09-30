@@ -27,6 +27,7 @@ import { writeThemeTokenOrigin } from "../token-origin-store";
 import { indexTree } from "../classify";
 import { mergeDesignUpdate } from "../merge";
 import { stampFromBase } from "../stamp-existing";
+import { seedDemoBeforeAfter } from "../demo-seed";
 import { tokenOriginMap } from "../origin";
 import type { MergeResult, ReleaseItem, ThemeRelease } from "../types";
 
@@ -93,14 +94,16 @@ export async function mergeSite(
   if (hErr) return { ok: false, error: hErr.message };
 
   const tokens = hydration ?? fallbackHydrationTokens(site.displayName);
-  const theirs = buildDesignTrees(design.payload, tokens, undefined, {
+  // Demo content is ours: keep Before / After filled on demos (F77 ships it empty).
+  const seedFor = (p: DesignPayload): DesignPayload => (site.isDemo ? seedDemoBeforeAfter(p) : p);
+  const theirs = buildDesignTrees(seedFor(design.payload), tokens, undefined, {
     design: design.slug,
     version: release.to_version,
   });
   if (!theirs.ok) return { ok: false, error: `Target build failed: ${theirs.errors.slice(0, 2).join("; ")}` };
 
   const baseBuilt = basePayload
-    ? buildDesignTrees(basePayload, tokens, undefined, { design: design.slug, version: site.pinnedVersion as number })
+    ? buildDesignTrees(seedFor(basePayload), tokens, undefined, { design: design.slug, version: site.pinnedVersion as number })
     : null;
   if (baseBuilt && !baseBuilt.ok) {
     return { ok: false, error: `Base build failed: ${baseBuilt.errors.slice(0, 2).join("; ")}` };

@@ -32,12 +32,14 @@ import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
 import { countParts } from "../parts";
+import { findKeyPath } from "../tree-ops";
 import { addBlockSummary } from "./copy";
 import {
   OPEN_UPDATE_STATES,
   applyItemsOf,
   groupItems,
   offeredItems,
+  toTalentItem,
   nextTokenOrigin,
   placeKeyAfter,
   placementOptions,
@@ -75,6 +77,8 @@ export interface UpdateContext {
   pinnedVersion: number | null;
   draftRev: number;
   tokenOrigin: Record<string, string> | null;
+  /** Blocks she already added from this release (tracked so a removal is explicit). */
+  addedBlocks: string[];
   designTitle: string;
   release: TalentRelease;
 }
@@ -91,7 +95,7 @@ export interface UpdateDeps {
 
 export interface TalentUpdateNotice {
   updateId: string;
-  /** `available`, `previewed` or `undone` (F83: shown as "available again"). */
+  /** `available`, `previewed`, `undone` (F83: "available again") or `dismissed` (F92: quiet entry only). */
   state: SiteUpdateState;
   releaseId: string;
   designSlug: string;
@@ -135,7 +139,8 @@ export async function loadTalentUpdateNotices(
     .from("talent_site_theme_updates")
     .select("id, release_id, talent_site_id, state")
     .eq("talent_profile_id", talentProfileId)
-    .in("state", [...OPEN_UPDATE_STATES]);
+    // F92: dismissed rows load too, so a dismissed update stays reachable (quiet entry).
+    .in("state", [...OPEN_UPDATE_STATES, "dismissed"]);
   if (error) {
     logServerError("themeUpdate.notices", error);
     return [];
@@ -200,7 +205,7 @@ export async function loadUpdateContext(
   const [rowRes, profRes] = await Promise.all([
     admin
       .from("talent_site_theme_updates")
-      .select("id, release_id, talent_site_id, state")
+      .select("id, release_id, talent_site_id, state, report")
       .eq("id", updateId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle(),
@@ -208,7 +213,7 @@ export async function loadUpdateContext(
     admin.from("talent_profiles").select("display_name").eq("id", talentProfileId).maybeSingle(),
   ]);
   if (rowRes.error || !rowRes.data) return null;
-  const u = rowRes.data as { id: string; release_id: string; talent_site_id: string; state: SiteUpdateState };
+  const u = rowRes.data as { id: string; release_id: string; talent_site_id: string; state: SiteUpdateState; report?: { addedBlocks?: unknown } | null };
   // The release and the site are independent reads keyed off the update row.
   const [relRes, siteRes] = await Promise.all([
     admin.from("talent_theme_releases").select(TALENT_RELEASE_COLUMNS).eq("id", u.release_id).maybeSingle(),
@@ -241,6 +246,7 @@ export async function loadUpdateContext(
     pinnedVersion: typeof s.theme_design_version === "number" ? s.theme_design_version : null,
     draftRev: typeof s.draft_rev === "number" ? s.draft_rev : 0,
     tokenOrigin: s.theme_token_origin && typeof s.theme_token_origin === "object" ? s.theme_token_origin : null,
+    addedBlocks: Array.isArray(u.report?.addedBlocks) ? (u.report!.addedBlocks as unknown[]).filter((x): x is string => typeof x === "string") : [],
     designTitle: await designTitle(admin, release.design_slug),
     release,
   };
@@ -460,7 +466,7 @@ export async function applyThemeUpdate(
   });
   if (!res.ok) return writeFailure(res);
   await setUpdateState(deps.admin, ctx.talentProfileId, ctx.updateId, "applied", {
-    report: summarizeReport(m.result.report),
+    report: { ...summarizeReport(m.result.report), addedBlocks: ctx.addedBlocks },
   });
   return { ok: true, value: { draftRev: res.draftRev, kept: countParts(m.result.report.kept), historyId: res.historyId } };
 }
@@ -495,7 +501,13 @@ export async function addThemeUpdateBlock(
     (i) => i.type === "new-block" && (i.id ?? `${i.type}:${i.key}`) === input.itemId,
   );
   if (!item) return { ok: false, code: "not_found", error: "That block is not part of this update." };
-  const m = await deps.merge(ctx, [item]);
+  // A block she skipped stays on offer after Apply (the site is re-pinned past
+  // it). Merge against the release's FROM version so a never-added block reads
+  // as new, never as a block she deleted. Only an added block's removal counts.
+  const mergeCtx = ctx.state === "applied" || (ctx.pinnedVersion ?? 0) >= ctx.release.to_version
+    ? { ...ctx, pinnedVersion: ctx.release.from_version }
+    : ctx;
+  const m = await deps.merge(mergeCtx, [item]);
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
   if (!m.homePageId) return { ok: false, code: "not_found", error: "Home page not found." };
   const added = m.result.report.added;
@@ -530,5 +542,77 @@ export async function addThemeUpdateBlock(
     tokenOrigin: nextTokenOrigin(ctx.tokenOrigin, m.result.report),
   });
   if (!res.ok) return writeFailure(res);
+  await recordAddedBlock(deps.admin, ctx, input.itemId);
   return { ok: true, value: { draftRev: res.draftRev } };
+}
+
+/** Remember the block was added, so removing it later is an explicit removal. */
+async function recordAddedBlock(admin: SupabaseClient, ctx: UpdateContext, itemId: string): Promise<void> {
+  const addedBlocks = [...new Set([...ctx.addedBlocks, itemId])];
+  const { error } = await admin
+    .from("talent_site_theme_updates")
+    .update({ report: { addedBlocks }, updated_at: new Date().toISOString() } as never)
+    .eq("id", ctx.updateId)
+    .eq("talent_profile_id", ctx.talentProfileId);
+  if (error) logServerError("themeUpdate.recordAddedBlock", error);
+}
+
+// ── Available blocks (skipped new blocks stay reachable after Apply) ─────────
+
+export interface AvailableBlock {
+  updateId: string;
+  item: TalentReleaseItem;
+}
+
+export interface AvailableBlocks {
+  blocks: AvailableBlock[];
+  placements: PlacementOption[];
+  draftRev: number;
+}
+
+const stripTree = (key: string) => key.replace(/^(shell|home):/, "");
+
+/**
+ * New-block items from releases her site is ON or PAST (update row `applied`)
+ * that are not on her page and were never added by her. A block she added and
+ * later removed is an explicit removal and is not offered again.
+ */
+export async function loadAvailableBlocks(admin: SupabaseClient, talentProfileId: string): Promise<AvailableBlocks> {
+  const empty: AvailableBlocks = { blocks: [], placements: [], draftRev: 0 };
+  const { data: rows, error } = await admin
+    .from("talent_site_theme_updates")
+    .select("id, release_id, state, report")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("state", "applied");
+  if (error) {
+    logServerError("themeUpdate.availableBlocks", error);
+    return empty;
+  }
+  const list = (rows ?? []) as Array<{ id: string; release_id: string; report?: { addedBlocks?: unknown } | null }>;
+  if (list.length === 0) return empty;
+  const [relRes, tree, siteRes] = await Promise.all([
+    admin.from("talent_theme_releases").select(TALENT_RELEASE_COLUMNS).in("id", list.map((r) => r.release_id)),
+    homeTree(admin, talentProfileId),
+    // supabase-read-unchecked-ok: a missing rev only weakens the race check to "reload".
+    admin.from("talent_sites").select("draft_rev").eq("talent_profile_id", talentProfileId).maybeSingle(),
+  ]);
+  const releases = new Map(((relRes.data ?? []) as TalentRelease[]).map((r) => [r.id, r]));
+  const draftRev = (siteRes.data as { draft_rev?: number } | null)?.draft_rev ?? 0;
+  const blocks: AvailableBlock[] = [];
+  const seen = new Set<string>();
+  const ordered = [...list].sort((a, b) => (releases.get(b.release_id)?.to_version ?? 0) - (releases.get(a.release_id)?.to_version ?? 0));
+  for (const row of ordered) {
+    const rel = releases.get(row.release_id);
+    if (!rel || rel.status !== "published") continue;
+    const added = new Set(Array.isArray(row.report?.addedBlocks) ? (row.report!.addedBlocks as unknown[]) : []);
+    for (const item of Array.isArray(rel.items) ? rel.items : []) {
+      if (item.type !== "new-block") continue;
+      const view = toTalentItem(item);
+      if (seen.has(view.id) || added.has(view.id)) continue;
+      if (findKeyPath(tree, stripTree(item.key))) continue;
+      seen.add(view.id);
+      blocks.push({ updateId: row.id, item: view });
+    }
+  }
+  return { blocks, placements: placementOptions(tree), draftRev };
 }

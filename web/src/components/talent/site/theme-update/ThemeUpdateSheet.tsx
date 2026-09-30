@@ -31,7 +31,7 @@ import {
   previewThemeUpdateAction,
 } from "@/lib/talent-site/theme-releases/talent-update/talent-update-actions";
 import type { TalentUpdateNotice, UpdatePreview } from "@/lib/talent-site/theme-releases/talent-update/talent-update.server";
-import type { TalentReleaseItem } from "@/lib/talent-site/theme-releases/talent-update/view";
+import type { PlacementOption, TalentReleaseItem } from "@/lib/talent-site/theme-releases/talent-update/view";
 
 const BTN_PRIMARY =
   "inline-flex min-h-11 items-center justify-center rounded-lg bg-admin-ink px-4 text-[14px] font-semibold text-white disabled:opacity-60";
@@ -151,8 +151,8 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                     key={item.id}
                     item={item}
                     locale={locale}
-                    notice={notice}
-                    preview={preview}
+                    updateId={notice.updateId}
+                    placements={preview?.placements ?? []}
                     draftRev={draftRev}
                     disabled={busy}
                     onAdded={(rev) => {
@@ -189,11 +189,11 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
   );
 }
 
-function ItemRow(p: {
+export function ItemRow(p: {
   item: TalentReleaseItem;
   locale: UpdateLocale;
-  notice: TalentUpdateNotice;
-  preview: UpdatePreview | null;
+  updateId: string;
+  placements: PlacementOption[];
   draftRev: number;
   disabled: boolean;
   onAdded: (draftRev: number) => void;
@@ -212,7 +212,7 @@ function ItemRow(p: {
     setSaving(true);
     setMsg(null);
     const res = await addThemeUpdateBlockAction({
-      updateId: p.notice.updateId,
+      updateId: p.updateId,
       itemId: item.id,
       afterId: after === "" ? null : after,
       expectedDraftRev: p.draftRev,
@@ -242,7 +242,7 @@ function ItemRow(p: {
                   <input type="radio" className="size-5 shrink-0" name={groupName} value="" checked={after === ""} onChange={() => setAfter("")} />
                   {t("placeTop")}
                 </label>
-                {(p.preview?.placements ?? []).map((o) => (
+                {p.placements.map((o) => (
                   <label key={o.afterId} className="flex min-h-11 items-center gap-2 text-[13px] text-admin-ink">
                     <input type="radio" className="size-5 shrink-0" name={groupName} value={o.afterId} checked={after === o.afterId} onChange={() => setAfter(o.afterId)} />
                     <span className="min-w-0 break-words">{o.label}</span>

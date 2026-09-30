@@ -17,7 +17,7 @@ import { planFanOut } from "../manager/notify";
 import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 import { runAutoImprove } from "./auto-improve.server";
 import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
-import { GROUP_COPY, UPDATE_COPY, appliedToast, applyLabel, bannerTitle, keptLine } from "./copy";
+import { GROUP_COPY, UPDATE_COPY, appliedToast, quietEntryTitle, applyLabel, bannerTitle, keptLine } from "./copy";
 import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
 import {
   NOTICE_RELEASE_COLUMNS,
@@ -25,6 +25,7 @@ import {
   addThemeUpdateBlock,
   applyThemeUpdate,
   dismissThemeUpdate,
+  loadAvailableBlocks,
   loadTalentUpdateNotices,
   loadThemeUpdatePreviewSnapshot,
   previewThemeUpdate,
@@ -32,7 +33,7 @@ import {
   type TalentRelease,
   type UpdateDeps,
 } from "./talent-update.server";
-import { applyItemsOf, groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
+import { applyItemsOf, groupItems, isNoticeVisible, isQuietEntry, placeKeyAfter, summarizeReport } from "./view";
 
 const PROFILE = "11111111-1111-4111-8111-111111111111";
 const SITE = "22222222-2222-4222-8222-222222222222";
@@ -146,8 +147,8 @@ test("notice shows for available, previewed and undone (F83), not applied or dis
 });
 
 for (const state of ["available", "previewed", "applied", "dismissed", "undone"]) {
-  const open = state === "available" || state === "previewed" || state === "undone";
-  test(`notices: a row in state ${state} ${open ? "shows" : "stays quiet"}`, async () => {
+  const open = state === "available" || state === "previewed" || state === "undone" || state === "dismissed";
+  test(`notices: a row in state ${state} ${open ? "loads" : "stays out"}`, async () => {
     const db = world(state);
     const notices = await loadTalentUpdateNotices(db.admin, PROFILE);
     assert.equal(notices.length, open ? 1 : 0);
@@ -488,8 +489,73 @@ test("F82: undo summary counts what she did (parts), not nodes or props", async 
     actorId: null,
   });
   assert.ok(undo.ok);
-  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your 1 later edit");
+  // History shows no saved edit after the apply: not certain, so no number.
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your later edits");
   assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "cards", "her edit stays");
+});
+
+test("F82: the number is the edits in history between the apply and the undo", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok && res.value.historyId);
+  db.tables.talent_pages![0]!.blocks = edit(homeSide(db), "home", "menu/services_catalog", "layout", "cards").trees.home;
+  const later = new Date(Date.now() + 5000).toISOString();
+  db.tables.talent_site_history!.push(
+    { id: "e1", talent_profile_id: PROFILE, at: later, kind: "edit", actor: "talent", edit_count: 3 },
+    { id: "e0", talent_profile_id: PROFILE, at: new Date(Date.now() - 60000).toISOString(), kind: "edit", actor: "talent", edit_count: 9 },
+    { id: "e2", talent_profile_id: PROFILE, at: later, kind: "edit", actor: "tulala", edit_count: 4 },
+  );
+  const undo = await undoThemeUpdateEntry(db.admin, { talentProfileId: PROFILE, entryId: res.value.historyId!, expectedDraftRev: 8, actorId: null });
+  assert.ok(undo.ok);
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your 3 later edits");
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_es, "Deshiciste la actualización Maison v2 · conservamos tus 3 ediciones posteriores");
+});
+
+// ── Available blocks ─────────────────────────────────────────────────────────
+
+test("available blocks: a skipped block stays on offer after Apply and can be added later", async () => {
+  const db = world();
+  const seen: Array<number | null> = [];
+  const base = deps(db);
+  const spy: UpdateDeps = { ...base, merge: async (ctx, items) => { seen.push(ctx.pinnedVersion); return base.merge(ctx, items); } };
+  const applied = await applyThemeUpdate(spy, { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(applied.ok);
+  assert.equal(stateOf(db), "applied");
+  const before = await loadAvailableBlocks(db.admin, PROFILE);
+  assert.deepEqual(before.blocks.map((b) => b.item.id), ["new-block:gallery"]);
+  assert.equal(before.blocks[0]!.updateId, UPDATE);
+  assert.ok(before.placements.length > 0);
+  seen.length = 0;
+  const add = await addThemeUpdateBlock(spy, { talentProfileId: PROFILE, updateId: UPDATE, itemId: "new-block:gallery", afterId: null, expectedDraftRev: before.draftRev, actorId: null });
+  assert.ok(add.ok, "add works on an applied row");
+  assert.deepEqual(seen, [1], "merged against the FROM version, so a never-added block is new, not deleted");
+  assert.ok(topKeys(homeSide(db), "home").includes("gallery"));
+  assert.equal((await loadAvailableBlocks(db.admin, PROFILE)).blocks.length, 0);
+});
+
+test("available blocks: removing an ADDED block is explicit and is not offered again", async () => {
+  const db = world();
+  const applied = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(applied.ok);
+  const rev = db.tables.talent_sites![0]!.draft_rev as number;
+  const add = await addThemeUpdateBlock(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, itemId: "new-block:gallery", afterId: null, expectedDraftRev: rev, actorId: null });
+  assert.ok(add.ok);
+  db.tables.talent_pages![0]!.blocks = (db.tables.talent_pages![0]!.blocks as BuilderNode[]).filter((n) => topKeys({ trees: { home: [n] } }, "home")[0] !== "gallery");
+  assert.ok(!topKeys(homeSide(db), "home").includes("gallery"));
+  assert.equal((await loadAvailableBlocks(db.admin, PROFILE)).blocks.length, 0, "she removed it herself");
+});
+
+test("available blocks: design-agnostic, works for any design that ships new blocks", async () => {
+  const db = world("applied", release({ design_slug: "noir-campaign" }));
+  const out = await loadAvailableBlocks(db.admin, PROFILE);
+  assert.deepEqual(out.blocks.map((b) => b.item.id), ["new-block:gallery"]);
+});
+
+test("available blocks: nothing before Apply, dismissed rows and other talents stay out", async () => {
+  assert.equal((await loadAvailableBlocks(world().admin, PROFILE)).blocks.length, 0);
+  assert.equal((await loadAvailableBlocks(world("dismissed").admin, PROFILE)).blocks.length, 0);
+  assert.equal((await loadAvailableBlocks(world("applied").admin, "99999999-9999-4999-8999-999999999999")).blocks.length, 0);
+  assert.equal((await loadAvailableBlocks(world("applied").admin, PROFILE)).blocks.length, 1);
 });
 
 // ── Dismiss ──────────────────────────────────────────────────────────────────
@@ -500,7 +566,32 @@ test("not now: available → dismissed, no draft write", async () => {
   assert.ok(res.ok);
   assert.equal(stateOf(db), "dismissed");
   assert.equal(draftWrites(db).length, 0);
-  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 0);
+  // F92: no banner, but the update stays reachable as a quiet entry.
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.equal(n!.state, "dismissed");
+  assert.equal(isNoticeVisible("dismissed"), false);
+  assert.equal(isQuietEntry("dismissed"), true);
+});
+
+test("F92: a dismissed update can still be previewed and applied", async () => {
+  const db = world("dismissed");
+  const prev = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(prev.ok);
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok);
+  assert.equal(stateOf(db), "applied");
+});
+
+test("F92: the notice shows a quiet entry and opens the sheet for dismissed rows (EN + ES)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (p: string) => readFileSync(`${process.cwd()}/src/${p}`, "utf8");
+  assert.equal(quietEntryTitle("Maison v2", "en"), "Maison v2 update available");
+  assert.equal(quietEntryTitle("Maison v2", "es"), "Maison v2: actualización disponible");
+  assert.equal(UPDATE_COPY.seeWhatsNew.es, "Ver novedades");
+  assert.ok(!quietEntryTitle("Maison v2", "es").includes("—"));
+  const src = read("components/talent/site/theme-update/ThemeUpdateNotice.tsx");
+  assert.match(src, /data-theme-update-quiet/);
+  assert.match(src, /themeUpdate"\) === "open"\) setOpen\(true\)/, "?themeUpdate=open opens the sheet whatever the state");
 });
 
 test("not now never overrides an applied update", async () => {
