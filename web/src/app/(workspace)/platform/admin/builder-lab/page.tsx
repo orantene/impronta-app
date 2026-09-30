@@ -15,6 +15,7 @@ import {
   BuilderLabNoTenant,
 } from "@/components/builder-lab/builder-lab-intro";
 import { BuilderLabShell } from "@/components/builder-lab/builder-lab-shell";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,11 @@ export default async function PlatformBuilderLabPage() {
   return (
     <>
       <BuilderLabHeader />
+      <p style={{ margin: "0 0 12px", fontSize: 13 }}>
+        <Link href="/platform/admin/builder-lab/themes" className="underline underline-offset-4">
+          Designs and releases · Diseños y lanzamientos
+        </Link>
+      </p>
       {tenantId ? (
         <BuilderLabShell tenantId={tenantId} workspacePlan="network" locale="en" />
       ) : (

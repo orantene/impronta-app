@@ -11,6 +11,8 @@ import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
 import { TALENT_THEME_SCHEMA_VERSION, type DesignPayload, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
 import { createDraftRelease } from "../theme-releases/releases.server";
+import { diffDesignPayloads } from "../theme-releases/diff-payload";
+import type { ReleaseItem } from "../theme-releases/types";
 import { writeThemeVersionSnapshots } from "../theme-releases/theme-versions.server";
 
 /**
@@ -297,8 +299,27 @@ export async function syncBuiltinTalentThemes(
     })),
     new Set<string>(),
   );
+  const priorPayloads = new Map(
+    ((data ?? []) as ExistingBuiltinRow[]).map((r) => [`${r.kind}:${r.slug}`, r.payload]),
+  );
   for (const d of drafts) {
-    await createDraftRelease(admin, { ...d, createdBy: userId });
+    const prior = priorPayloads.get(`design:${d.designSlug}`) as DesignPayload | undefined;
+    const next = plan.upserts.find((u) => u.kind === "design" && u.slug === d.designSlug)?.payload as
+      | DesignPayload
+      | undefined;
+    let items: ReleaseItem[] = [];
+    if (prior && next) {
+      try {
+        items = diffDesignPayloads(
+          d.designSlug,
+          { payload: prior, version: d.fromVersion },
+          { payload: next, version: d.toVersion },
+        );
+      } catch (err) {
+        logServerError("talentTheme.syncBuiltins.diff", err);
+      }
+    }
+    await createDraftRelease(admin, { ...d, items, basePayload: prior, createdBy: userId });
   }
 
   // Payload snapshot per design version (exact merge base for pinned sites).
