@@ -30,7 +30,15 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { loadTalentLocaleSettings, loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
+import {
+  TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
+  talentLocaleSeedHref,
+  talentLocaleSeedPlan,
+} from "@/lib/site-admin/server/talent-locale-seed";
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
@@ -160,6 +168,27 @@ export default async function TalentPageBuilderRoute({
   const siteCapabilities = buildTalentSiteCapabilities(profile.talentPlanKey);
   const canEdit = siteCapabilities.personalSiteEdit;
   const isMax = profile.talentPlanKey === "talent_portfolio" || profile.talentTier === "max";
+
+  // F132 - the builder is mounted bare (no dashboard layout), so it reconciles
+  // the language cookie itself: a foreign or unowned cookie never overrides the
+  // talent's own primary. One hop through the seed route writes the cookie.
+  const localeState = await loadTalentLocaleState(profile.id);
+  const builderJar = await cookies();
+  const seedPlan = builderJar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value
+    ? null
+    : talentLocaleSeedPlan({
+        cookieLocale: builderJar.get(LOCALE_COOKIE)?.value ?? null,
+        cookieIsAuto: Boolean(builderJar.get(LOCALE_AUTO_COOKIE)?.value),
+        cookieOwner: builderJar.get(LOCALE_OWNER_COOKIE)?.value ?? null,
+        userId: session.user.id,
+        primary: localeState.seedPrimary,
+      });
+  if (seedPlan && (seedPlan.locale || seedPlan.stamp)) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (typeof v === "string") qs.set(k, v);
+    const query = qs.toString();
+    redirect(talentLocaleSeedHref(`/talent/page-builder${query ? `?${query}` : ""}`));
+  }
 
   const [locale, talentLocale, tenantId, siteExists] = await Promise.all([
     getRequestLocale(),

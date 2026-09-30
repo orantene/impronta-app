@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { LanguageSettings } from "@/lib/language-settings/types";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
-import { LOCALE_AUTO_COOKIE, LOCALE_COOKIE_MAX_AGE_SECONDS } from "@/i18n/locale-cookies";
+import { LOCALE_AUTO_COOKIE, LOCALE_COOKIE_MAX_AGE_SECONDS, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 
 /** Public cookie name (plan §2). */
 export const LOCALE_COOKIE = "locale";
@@ -53,6 +53,11 @@ export function clearLocaleCookieAutoMarker(res: NextResponse): void {
 export function seedTalentDashboardLocaleCookie(res: NextResponse, locale: string): void {
   res.cookies.set(LOCALE_COOKIE, locale, localeCookieOptions);
   markLocaleCookieAuto(res);
+}
+
+/** F132: record which user the `locale` cookie belongs to (see `LOCALE_OWNER_COOKIE`). */
+export function stampLocaleOwner(res: NextResponse, userId: string): void {
+  res.cookies.set(LOCALE_OWNER_COOKIE, userId, { ...localeCookieOptions, httpOnly: true });
 }
 
 /**

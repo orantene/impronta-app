@@ -23,6 +23,7 @@ import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
+import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -185,6 +186,7 @@ export async function signInWithEmail(
     : null;
 
   if (user) {
+    await resetLocaleOnSignIn(user.id);
     await claimGuestSupportOnAuth(user.id);
     await claimTulalaBriefOnAuth(supabase, user.id);
     const tenantId = await auditTenantId();
@@ -258,6 +260,7 @@ export async function signInWithEmailModal(
   }
 
   if (data.user) {
+    await resetLocaleOnSignIn(data.user.id);
     await claimGuestSupportOnAuth(data.user.id);
     await claimTulalaBriefOnAuth(supabase, data.user.id);
     const tenantId = await auditTenantId();

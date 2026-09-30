@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   safeTalentNextPath,
   talentLocaleSeedHref,
+  talentLocaleSeedPlan,
   talentLocaleSeedTarget,
 } from "./talent-locale-seed";
 
@@ -36,4 +37,38 @@ test("next path guard keeps same-origin /talent paths only", () => {
 
 test("seed href encodes the guarded next path", () => {
   assert.equal(talentLocaleSeedHref("/talent/inbox"), "/api/talent/locale-seed?next=%2Ftalent%2Finbox");
+});
+
+// F132 - another person's deliberate cookie must not decide Valeria's language.
+const V = "user-valeria";
+test("foreign deliberate cookie (admin used this browser) is replaced by her primary", () => {
+  assert.deepEqual(
+    talentLocaleSeedPlan({ cookieLocale: "en", cookieIsAuto: false, cookieOwner: "user-admin", userId: V, primary: "es" }),
+    { locale: "es", stamp: true },
+  );
+});
+
+test("unowned legacy cookie is treated as foreign and stamped, even when it already equals the primary", () => {
+  assert.deepEqual(
+    talentLocaleSeedPlan({ cookieLocale: "es", cookieIsAuto: false, cookieOwner: null, userId: V, primary: "es" }),
+    { locale: "es", stamp: true },
+  );
+});
+
+test("her own deliberate choice (owner stamp matches) is honoured", () => {
+  assert.deepEqual(
+    talentLocaleSeedPlan({ cookieLocale: "en", cookieIsAuto: false, cookieOwner: V, userId: V, primary: "es" }),
+    { locale: null, stamp: false },
+  );
+});
+
+test("her own auto cookie still re-seeds; unknown primary never writes", () => {
+  assert.deepEqual(
+    talentLocaleSeedPlan({ cookieLocale: "en", cookieIsAuto: true, cookieOwner: V, userId: V, primary: "es" }),
+    { locale: "es", stamp: false },
+  );
+  assert.deepEqual(
+    talentLocaleSeedPlan({ cookieLocale: "en", cookieIsAuto: false, cookieOwner: "x", userId: V, primary: null }),
+    { locale: null, stamp: false },
+  );
 });
