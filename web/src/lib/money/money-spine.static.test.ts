@@ -3,7 +3,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,11 +42,12 @@ describe("Money page M2 spine", () => {
     const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
     const detail = readFileSync(join(moneyDir, "PaymentDetailDrawer.tsx"), "utf8");
     const request = readFileSync(join(moneyDir, "MoneyRequestPaymentSheet.tsx"), "utf8");
-    const record = readFileSync(join(moneyDir, "MoneyRecordPaymentSheet.tsx"), "utf8");
     const refund = readFileSync(join(moneyDir, "MoneyRefundSheet.tsx"), "utf8");
     const correct = readFileSync(join(moneyDir, "MoneyCorrectRecordSheet.tsx"), "utf8");
     assert.match(page, /MoneyRequestPaymentSheet/);
-    assert.match(page, /MoneyRecordPaymentSheet/);
+    // Record payment routes to the booking record's real writer (no fake sheet).
+    assert.doesNotMatch(page, /MoneyRecordPaymentSheet/);
+    assert.match(page, /\/talent\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\?collect=1/);
     assert.match(page, /MoneyRefundSheet/);
     assert.match(page, /MoneyCorrectRecordSheet/);
     assert.match(detail, /onRefund/);
@@ -54,7 +55,6 @@ describe("Money page M2 spine", () => {
     assert.match(request, /mc_req_pick/);
     assert.match(request, /mc_req_amount/);
     assert.match(request, /mc_req_created/);
-    assert.match(record, /mc_record/);
     assert.match(refund, /mc_refund/);
     assert.match(correct, /mc_cash_correct/);
   });
@@ -125,5 +125,12 @@ describe("Money page never shows fixture figures to real talents", () => {
     const earnings = readFileSync(join(moneyDir, "MoneyHomePage.tsx"), "utf8");
     assert.match(earnings, /useResolvedTalentEarningsByCurrency/);
     assert.equal(/septemberLedgerFixture|LEDGER_CONTRACT_CLOCK/.test(earnings), false);
+  });
+
+  it("no Money surface says a payment was recorded without a write", () => {
+    for (const file of readdirSync(moneyDir).filter((f) => f.endsWith(".tsx"))) {
+      const src = readFileSync(join(moneyDir, file), "utf8");
+      assert.equal(/Recorded \{amount\}/.test(src), false, `${file} shows "Recorded" without a writer`);
+    }
   });
 });
