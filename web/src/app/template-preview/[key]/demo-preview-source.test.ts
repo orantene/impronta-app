@@ -14,6 +14,7 @@ test("a built demo-talent demo resolves to its gallery-meta profile code", () =>
     demoKey: "commercial-model",
     profileCode: "TAL-93109",
     siteSlug: "priya-shah",
+    defaultPalette: "light",
   });
 });
 

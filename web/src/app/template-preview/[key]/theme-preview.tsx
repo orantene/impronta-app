@@ -36,6 +36,7 @@ import {
   galleryDefaultLookTokens,
   getGalleryDesign,
   galleryPaletteLookTokens,
+  galleryPreviewLookSlug,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import {
@@ -204,9 +205,19 @@ export async function ThemeCatalogPreview({
   const platformDefault = await loadPlatformDefaultTheme("talent");
   // Same layering as the live render: Design defaults sit between platform and Look.
   const designDefaults = designTokenDefaults(design.slug);
+  // A demo wears its OWN saved Look (palette, fonts, shape: the site's token
+  // layer), unless the viewer picked a different palette than the demo's
+  // gallery default. F19: every Maison v2 demo rendered in Rosé.
+  const galleryDesign = getGalleryDesign(design.slug);
+  const demoDefaultLook =
+    demoSource && galleryDesign ? galleryPreviewLookSlug(galleryDesign, demoSource.defaultPalette) : null;
+  const demoOwnTokens =
+    saved && Object.keys(saved.tokens).length > 0 && (!cleanLook || cleanLook === demoDefaultLook)
+      ? saved.tokens
+      : null;
   const effectiveTokens = resolveEffectiveSiteTokens(
     {},
-    lookTokens ? mergeLookIntoTokens({}, lookTokens) : {},
+    demoOwnTokens ?? (lookTokens ? mergeLookIntoTokens({}, lookTokens) : {}),
     platformDefault.tokens,
     designDefaults,
   );
