@@ -5,9 +5,13 @@
  * `byItemId` maps a generated candidate id to its EN/ES note, and (when
  * present) `criticalIds` lists candidates the admin flags critical, with
  * `criticalKeys` naming the design keys that critical item must cover (so a
- * site that removed the block still gets the fix).
+ * site that removed the block still gets the fix). `layoutKeys` (optional
+ * override) lists candidate ids that together are ONE layout choice: a
+ * removed key plus its keyed replacement become an atomic swap even where
+ * `diffDesignPayloads` did not detect the pair itself.
  */
 import { applyItemEdit } from "../manager/items";
+import { swapGroupId } from "../swap";
 import type { ReleaseItem } from "../types";
 import {
   MAISON_V2_RELEASE_2_1,
@@ -26,6 +30,8 @@ export interface AuthoredRelease {
   criticalIds?: ReadonlyArray<string>;
   /** Candidate id to the design keys its critical item names explicitly. */
   criticalKeys?: Readonly<Record<string, ReadonlyArray<string>>>;
+  /** Groups of candidate ids that are one atomic layout choice (override for swap detection). */
+  layoutKeys?: ReadonlyArray<ReadonlyArray<string>>;
 }
 
 const MAISON_V2: Readonly<Record<number, AuthoredRelease>> = {
@@ -53,7 +59,7 @@ export function withAuthoredNotes(
   candidates: ReadonlyArray<ReleaseItem>,
   release: AuthoredRelease,
 ): ReleaseItem[] {
-  return candidates.map((item) => {
+  const noted = candidates.map((item) => {
     const id = item.id ?? `${item.type}:${item.key}`;
     const note = release.byItemId[id];
     let next: ReleaseItem = note ? { ...item, note: { en: note.en, es: note.es } } : item;
@@ -64,4 +70,33 @@ export function withAuthoredNotes(
     }
     return next;
   });
+  return applyLayoutGroups(noted, release.layoutKeys ?? []);
+}
+
+const idOf = (i: ReleaseItem) => i.id ?? `${i.type}:${i.key}`;
+
+/** The item's design key without its `tree:` prefix. */
+function bareKey(i: ReleaseItem): string {
+  return i.tree && i.key.startsWith(`${i.tree}:`) ? i.key.slice(i.tree.length + 1) : i.key;
+}
+
+/**
+ * Authored `layoutKeys` groups: members share one `group`; a removed key plus
+ * a new key also get `swap` so the merge treats them as one atomic swap.
+ */
+export function applyLayoutGroups(
+  items: ReadonlyArray<ReleaseItem>,
+  groups: ReadonlyArray<ReadonlyArray<string>>,
+): ReleaseItem[] {
+  let out = [...items];
+  for (const ids of groups) {
+    const members = out.filter((i) => ids.includes(idOf(i)));
+    if (members.length < 2) continue;
+    const removed = members.find((i) => idOf(i).endsWith(":removed"));
+    const added = members.find((i) => i !== removed && !idOf(i).endsWith(":removed"));
+    const swap = removed && added ? { from: bareKey(removed), to: bareKey(added) } : undefined;
+    const group = swap ? swapGroupId(removed!.tree ?? "home", swap) : `layout-group:${ids[0]}`;
+    out = out.map((i) => (members.includes(i) ? { ...i, group, ...(swap ? { swap } : {}) } : i));
+  }
+  return out;
 }

@@ -45,6 +45,8 @@ export const MAISON_V2_RELEASE_2_1 = {
       es: "La foto pequeña del inicio pasa abajo a la izquierda. Míralo antes de elegir.",
     },
   } satisfies Record<string, ReleaseNote>,
+  /** One atomic choice: the inset's old key and its keyed replacement. */
+  layoutKeys: [["layout:home:hero/container#2/image#2:removed", "layout:home:hero/container#2/hero_inset_bl"]],
 } as const;
 
 /**
@@ -113,6 +115,8 @@ export const MAISON_V2_RELEASE_2_3 = {
    * and after block names only its eyebrow (a removed block stays removed).
    */
   criticalIds: ["variant-default:home:contact/paragraph", "variant-default:home:before_after/paragraph"],
+  /** One atomic choice: the old services catalog and its two-column replacement. */
+  layoutKeys: [["layout:home:services/services_catalog:removed", "layout:home:services/services_two_col"]],
   criticalKeys: {
     "variant-default:home:contact/paragraph": ["contact", "contact/paragraph"],
     "variant-default:home:before_after/paragraph": ["before_after/paragraph"],

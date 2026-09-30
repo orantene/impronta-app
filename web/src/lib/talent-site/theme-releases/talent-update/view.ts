@@ -50,6 +50,8 @@ export interface TalentReleaseItem {
   noteEn: string;
   noteEs: string;
   screenshotUrl: string | null;
+  /** Release item ids behind this row (a grouped layout swap shows once). */
+  itemIds?: string[];
 }
 
 function https(v: unknown): string | null {
@@ -73,10 +75,35 @@ export function toTalentItem(item: ReleaseItem): TalentReleaseItem {
   };
 }
 
+/** Items sharing a `group` (a layout key swap) collapse into ONE row: one choice. */
+function collapseGroups(items: ReadonlyArray<ReleaseItem>): TalentReleaseItem[] {
+  const out: TalentReleaseItem[] = [];
+  const byGroup = new Map<string, TalentReleaseItem>();
+  for (const item of items) {
+    const row = toTalentItem(item);
+    const prior = item.group ? byGroup.get(item.group) : undefined;
+    if (prior) {
+      prior.itemIds = [...(prior.itemIds ?? []), row.id];
+      if (!prior.noteEn) prior.noteEn = row.noteEn;
+      if (!prior.noteEs) prior.noteEs = row.noteEs;
+      if (!prior.screenshotUrl) prior.screenshotUrl = row.screenshotUrl;
+      continue;
+    }
+    if (item.group) {
+      const grouped = { ...row, id: item.group, itemIds: [row.id] };
+      byGroup.set(item.group, grouped);
+      out.push(grouped);
+    } else {
+      out.push(row);
+    }
+  }
+  return out;
+}
+
 export function groupItems(items: ReadonlyArray<ReleaseItem>): Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }> {
   return WHATS_NEW_GROUP_ORDER.map((group) => ({
     group,
-    items: items.filter((i) => groupOf(i.type) === group).map(toTalentItem),
+    items: collapseGroups(items.filter((i) => groupOf(i.type) === group)),
   })).filter((g) => g.items.length > 0);
 }
 
@@ -99,6 +126,8 @@ export interface UpdateSummary {
   added: number;
   kept: number;
   conflicts: number;
+  /** Layout swaps that carried her edits onto the new layout ("moved your edits"). */
+  moved: number;
   /** Distinct top-level parts she kept (for "we kept your hero, colours"). */
   keptLabels: string[];
 }
@@ -114,6 +143,7 @@ export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "add
     added: report.added.length,
     kept: report.kept.length,
     conflicts: report.conflicts.length,
+    moved: report.applied.filter((e) => e.reason === "moved_edits").length,
     keptLabels: [...labels].slice(0, 6),
   };
 }

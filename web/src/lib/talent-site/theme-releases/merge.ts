@@ -15,6 +15,13 @@
  *   removed in theirs           dropped when untouched (removed), else kept
  *   new in theirs               inserted after its design neighbour (added)
  *                               when an item allows it, else pending
+ *   layout key swap             (old key removed + new key in its slot) ONE
+ *                               choice: untouched swaps cleanly; edited
+ *                               carries her edits to the new node (applied,
+ *                               moved_edits) or, when they cannot map, keeps
+ *                               hers and skips the swap (conflict); removed
+ *                               by her stays removed unless critical. Never
+ *                               both nodes.
  *   sibling order changed       applied when ours still has the base order
  *                               (talent-added nodes travel with the node
  *                               before them), else kept (your_order)
@@ -36,7 +43,8 @@ import {
   DESIGN_ORIGIN_PROP,
   type Props,
 } from "./origin";
-import { makeAllow, type AllowFn } from "./policy";
+import { makeAllow, type Allowance, type AllowFn } from "./policy";
+import { carryEdits, detectSwaps, type SwapPair } from "./swap";
 import { mergeTokenDefaults } from "./tokens-merge";
 import {
   ROOT_KEY,
@@ -62,7 +70,12 @@ interface Ctx {
   allow: AllowFn;
   report: DesignMergeReport;
   seq: () => number;
+  /** Swap pairs declared by release items (per tree), on top of detected ones. */
+  swaps: ReadonlyArray<SwapPair>;
 }
+
+export const MOVED_EDITS_NOTE = "moved your edits to the new layout";
+export const SWAP_KEPT_NOTE = "kept your version, the new layout was not applied";
 
 function entry(
   ctx: Ctx,
@@ -218,6 +231,91 @@ function anchorFor(tKids: ReadonlyArray<BuilderNode>, key: string, out: Readonly
   return null;
 }
 
+function swapAllowance(ctx: Ctx, pair: SwapPair): Allowance {
+  const r = ctx.allow("remove", pair.from, ctx.tree);
+  const n = ctx.allow("new", pair.to, ctx.tree);
+  const critical = r.critical || n.critical;
+  const pick = n.ok ? n : r;
+  return {
+    ok: (r.ok && n.ok) || critical,
+    critical,
+    explicitCritical: r.explicitCritical || n.explicitCritical,
+    ...(pick.itemId ? { itemId: pick.itemId } : {}),
+    ...(pick.itemType ? { itemType: pick.itemType } : {}),
+  };
+}
+
+/** Swap pairs for one sibling list: detected from the design plus declared by items. */
+function swapPairsFor(
+  ctx: Ctx,
+  bMap: Map<string, BuilderNode>,
+  tMap: Map<string, BuilderNode>,
+  oKids: ReadonlyArray<BuilderNode>,
+  bKids: ReadonlyArray<BuilderNode>,
+  tKids: ReadonlyArray<BuilderNode>,
+): Map<string, SwapPair> {
+  const oMap = keyedMap(oKids);
+  const out = new Map<string, SwapPair>();
+  const taken = new Set<string>();
+  for (const pair of [...ctx.swaps, ...detectSwaps(bKids, tKids)]) {
+    if (out.has(pair.from) || taken.has(pair.to)) continue;
+    if (!bMap.has(pair.from) || tMap.has(pair.from) || !tMap.has(pair.to) || bMap.has(pair.to)) continue;
+    // Already on the new layout (a re-run): nothing to swap.
+    if (oMap.has(pair.to)) continue;
+    out.set(pair.from, pair);
+    taken.add(pair.to);
+  }
+  return out;
+}
+
+/** One atomic swap of the old node `o` for the new node `t`. Returns the node to keep. */
+function mergeSwap(
+  ctx: Ctx,
+  parentKey: string | null,
+  pair: SwapPair,
+  b: BuilderNode,
+  o: BuilderNode,
+  t: BuilderNode,
+  anchor: string | null,
+): BuilderNode {
+  const allowance = swapAllowance(ctx, pair);
+  const base = { key: pair.to, fromKey: pair.from, parentKey };
+  if (!allowance.ok) {
+    ctx.report.pending.push(entry(ctx, { change: "swap", ...base, anchor, node: t, reason: "not_in_release" }));
+    return o;
+  }
+  const carried = carryEdits(b, o, t);
+  if (carried.unmappable.length > 0 && !allowance.critical) {
+    const O = designLeafValues(propsOf(o), unionCp(b, o));
+    const T = designLeafValues(propsOf(t), unionCp(t));
+    const changes = leafChanges(carried.unmappable, O, T);
+    const kept = { change: "swap" as const, ...base, key: pair.from, changes, reason: "edited" as const, note: SWAP_KEPT_NOTE };
+    ctx.report.kept.push(entry(ctx, kept, allowance));
+    ctx.report.conflicts.push(entry(ctx, kept, allowance));
+    return o;
+  }
+  const edited = carried.moved.length > 0 || carried.unmappable.length > 0;
+  ctx.report.applied.push(
+    entry(
+      ctx,
+      {
+        change: "swap",
+        ...base,
+        anchor,
+        beforeNode: o,
+        node: carried.node,
+        ...(carried.unmappable.length > 0
+          ? { reason: "critical" as const }
+          : edited
+            ? { reason: "moved_edits" as const, note: MOVED_EDITS_NOTE }
+            : {}),
+      },
+      allowance,
+    ),
+  );
+  return carried.node;
+}
+
 function mergeList(
   ctx: Ctx,
   parentKey: string | null,
@@ -229,6 +327,7 @@ function mergeList(
   const tMap = keyedMap(tKids);
   const seen = new Set<string>();
   let out: BuilderNode[] = [];
+  const swaps = swapPairsFor(ctx, bMap, tMap, oKids, bKids, tKids);
 
   for (const o of oKids) {
     const key = keyOf(o);
@@ -242,6 +341,12 @@ function mergeList(
     if (!b) {
       if (t && designDiffers(o, t)) ctx.report.kept.push(entry(ctx, { change: "props", key, reason: "no_base" }));
       out.push(o);
+      continue;
+    }
+    const pair = !t ? swaps.get(key) : undefined;
+    if (pair) {
+      seen.add(pair.to);
+      out.push(mergeSwap(ctx, parentKey, pair, b, o, tMap.get(pair.to)!, lastKey(out)));
       continue;
     }
     if (!t) {
@@ -276,6 +381,33 @@ function mergeList(
       );
     } else if (subtreeDiffers(b, t)) {
       ctx.report.kept.push(entry(ctx, { change: "props", key, reason: "removed" }));
+    }
+  }
+
+  // Swaps whose old node she removed: the new layout stays out unless critical.
+  for (const pair of swaps.values()) {
+    if (seen.has(pair.from)) continue;
+    seen.add(pair.to);
+    const allowance = swapAllowance(ctx, pair);
+    const t = tMap.get(pair.to)!;
+    const anchor = anchorFor(tKids, pair.to, out);
+    if (allowance.ok && allowance.explicitCritical) {
+      out = insertAfter(out, t, anchor);
+      ctx.report.applied.push(
+        entry(ctx, { change: "insert", key: pair.to, fromKey: pair.from, parentKey, anchor, node: t, reason: "critical" }, allowance),
+      );
+    } else {
+      ctx.report[allowance.ok ? "kept" : "pending"].push(
+        entry(ctx, {
+          change: "swap",
+          key: pair.to,
+          fromKey: pair.from,
+          parentKey,
+          anchor,
+          node: t,
+          reason: allowance.ok ? "removed" : "not_in_release",
+        }),
+      );
     }
   }
 
@@ -340,6 +472,7 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
   let n = 0;
   const seq = () => (n += 1);
   const allow = makeAllow(input.items);
+  const declared = (input.items ?? []).flatMap((i) => (i.swap ? [{ tree: i.tree, pair: i.swap }] : []));
   const trees: Record<string, BuilderNode[]> = {};
   for (const [name, ours] of Object.entries(input.ours.trees)) {
     const theirs = input.theirs.trees[name];
@@ -347,7 +480,8 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
       trees[name] = ours;
       continue;
     }
-    trees[name] = mergeList({ tree: name, allow, report, seq }, null, input.base.trees[name] ?? [], ours, theirs);
+    const swaps = declared.filter((d) => !d.tree || d.tree === name).map((d) => d.pair);
+    trees[name] = mergeList({ tree: name, allow, report, seq, swaps }, null, input.base.trees[name] ?? [], ours, theirs);
   }
   const tokens = mergeTokenDefaults({
     base: input.base.tokens ?? {},

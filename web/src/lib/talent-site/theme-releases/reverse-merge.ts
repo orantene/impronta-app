@@ -19,6 +19,7 @@ import {
   withOrigin,
   type Props,
 } from "./origin";
+import { carryContent, sameDesign } from "./swap";
 import { reverseTokenEntries } from "./tokens-merge";
 import {
   findKeyPath,
@@ -96,6 +97,26 @@ function revertKind(tree: BuilderNode[], e: MergeEntry): Outcome {
   return { tree: next, done };
 }
 
+/**
+ * A layout key swap: the new node goes back to exactly her old node (edits
+ * included), while it still shows the design the update wrote. Content she
+ * changed on the new node since rides back onto the old one.
+ */
+function revertSwap(tree: BuilderNode[], e: MergeEntry): Outcome {
+  const path = findKeyPath(tree, e.key);
+  if (!path || !e.node || !e.beforeNode || (e.fromKey && findKeyPath(tree, e.fromKey))) {
+    return { tree, done: false };
+  }
+  const after = e.node;
+  let done = false;
+  const next = updateAt(tree, path, (node) => {
+    if (!sameDesign(node, after) || hasTalentAddedDescendant(node)) return node;
+    done = true;
+    return stableStringify(node) === stableStringify(after) ? e.beforeNode! : carryContent(node, e.beforeNode!);
+  });
+  return { tree: next, done };
+}
+
 function revertInsert(tree: BuilderNode[], e: MergeEntry): Outcome {
   const path = findKeyPath(tree, e.key);
   if (!path) return { tree, done: true };
@@ -151,6 +172,9 @@ export function reverseMerge(report: DesignMergeReport, current: DesignSide): Re
         break;
       case "kind":
         outcome = revertKind(tree, e);
+        break;
+      case "swap":
+        outcome = revertSwap(tree, e);
         break;
       case "insert":
       case "restore":
