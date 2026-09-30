@@ -227,6 +227,7 @@ export type LightProfileLayoutProps = {
 
   // ── Component slots (already instantiated by page.tsx) ──────────────────
   slotPicker?: React.ReactNode;
+  askEntry?: import("@/lib/talent/chat-entry").TalentAskEntry; // WSF §8 intake state
   inquireButtonHeader: React.ReactNode;
   inquireButtonSidebar: React.ReactNode;
   inquireButtonFooter: React.ReactNode;
