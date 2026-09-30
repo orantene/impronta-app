@@ -25,7 +25,13 @@ import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/Mana
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { MaisonSetupScreen } from "@/components/talent/site/maison-setup/maison-choices";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
+import {
+  consumeWebsiteSetupRequest,
+  WEBSITE_SETUP_REQUEST_EVENT,
+} from "@/components/talent/website-reward/useWebsiteFlow";
+import type { WebsiteSetupStep } from "@/lib/talent/website-flow";
 
 /** Maison Choose-a-design chrome — lazy so flag-off / non-site routes skip the chunk. */
 const MaisonSetupHost = dynamic(
@@ -64,6 +70,8 @@ export function TalentMaxSiteManager({ locale = "en" }: Props) {
         setError(null);
         setState(res.data ?? null);
       }
+      // Design applied / published / unpublished: pill + cards re-read.
+      invalidateWebsiteEligibility();
     } catch (cause) {
       if (process.env.NODE_ENV !== "production") {
         // eslint-disable-next-line no-console -- dev-only signal for a thrown load
@@ -147,6 +155,21 @@ function ManagerBody({
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
+  // Today / pill / My presence ask for a step; open the flow AT that step
+  // (a chosen design resumes at review, never back at the gallery).
+  const openSetup = useCallback((step: WebsiteSetupStep) => {
+    setSetupOpen(true);
+    if (step === "review") setMaisonForceScreen("review");
+  }, []);
+  useEffect(() => {
+    const take = () => {
+      const step = consumeWebsiteSetupRequest();
+      if (step) openSetup(step);
+    };
+    take();
+    window.addEventListener(WEBSITE_SETUP_REQUEST_EVENT, take);
+    return () => window.removeEventListener(WEBSITE_SETUP_REQUEST_EVENT, take);
+  }, [openSetup]);
   /** P5: "✓ <Design> is live" after a live design switch. */
   const [liveToast, setLiveToast] = useState<string | null>(null);
 
@@ -184,7 +207,7 @@ function ManagerBody({
           onLiveToastDone={() => setLiveToast(null)}
         />
       ) : setupOpen ? null : (
-        <WebsiteEligibilityPanel onActivate={() => setSetupOpen(true)} />
+        <WebsiteEligibilityPanel onActivate={openSetup} />
       )}
 
       {/* Maison Choose-a-design / Theme detail / Review. Flag-off → null. */}
@@ -200,6 +223,7 @@ function ManagerBody({
         onCloseToSite={() => {
           setMaisonForceScreen(null);
           setSetupOpen(false);
+          invalidateWebsiteEligibility();
         }}
         siteLive={hostHidden}
         liveAddress={liveHost(state.publicSiteUrl)}

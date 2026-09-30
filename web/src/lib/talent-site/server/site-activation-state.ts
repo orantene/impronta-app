@@ -30,7 +30,7 @@ export async function loadTalentSiteActivationStateAction(): Promise<
 
   const capabilities = buildTalentSiteCapabilities(scope.planKey);
   if (!capabilities.personalSiteEdit) {
-    return { canManage: false, hasSite: false, isPublished: false, siteSlug: null };
+    return { canManage: false, hasSite: false, isPublished: false, siteSlug: null, themeDesignSlug: null, themeLookSlug: null };
   }
 
   const sb = await getCachedServerSupabase();
@@ -38,7 +38,7 @@ export async function loadTalentSiteActivationStateAction(): Promise<
 
   const { data, error } = await sb
     .from("talent_sites")
-    .select("site_slug, site_published_at")
+    .select("site_slug, site_published_at, theme_design_slug, theme_look_slug")
     .eq("talent_profile_id", scope.talentProfile.id)
     .maybeSingle();
   if (error) {
@@ -52,5 +52,12 @@ export async function loadTalentSiteActivationStateAction(): Promise<
   const hasSite = Boolean(slug);
   const isPublished = hasSite && Boolean(data?.site_published_at);
 
-  return { canManage: true, hasSite, isPublished, siteSlug: slug };
+  return {
+    canManage: true,
+    hasSite,
+    isPublished,
+    siteSlug: slug,
+    themeDesignSlug: (data as { theme_design_slug?: string | null } | null)?.theme_design_slug ?? null,
+    themeLookSlug: (data as { theme_look_slug?: string | null } | null)?.theme_look_slug ?? null,
+  };
 }
