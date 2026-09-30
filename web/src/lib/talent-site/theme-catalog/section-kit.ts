@@ -321,6 +321,7 @@ export function heroSplit(
             props: {
               src: "{{gallery1}}",
               alt: "",
+              priority: true,
               style: {
                 position: "absolute",
                 right: "-6px",

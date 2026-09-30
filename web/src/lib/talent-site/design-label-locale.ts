@@ -97,8 +97,8 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
   "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
   "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
-  Consultar: "Consultar",
-
+  // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
+  "Ask about this": "Consultar",
 };
 
 /**
