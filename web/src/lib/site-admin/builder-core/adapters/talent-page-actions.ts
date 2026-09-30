@@ -29,7 +29,7 @@ import { loadOwnedSiteRev, loadSiteRev } from "@/lib/talent-site/history/history
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
-import { findDuplicatePublish } from "@/lib/talent-site/server/publish-idempotency";
+import { findDuplicatePublish, pageScopeHash } from "@/lib/talent-site/server/publish-idempotency";
 import type {
   TalentPageAdapterActions,
   TalentPageRow,
@@ -349,10 +349,11 @@ export async function publishTalentPageAction(
     // F104: same draft rev as the last publish means nothing changed since; a
     // double submit returns the existing publish instead of publishing again.
     const dupAdmin = createServiceRoleClient();
-    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, talentProfileId) : null;
+    const pageHash = dupAdmin ? await pageScopeHash(dupAdmin, talentProfileId, pageId) : null;
+    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, talentProfileId, pageHash) : null;
     if (dup) return { ok: true as const, publishedAt: dup.publishedAt, updatedAt: dup.publishedAt, draftRev: dup.draftRev };
     // F96: first publish of the site runs the canonical site publish.
-    const first = await delegateFirstPublish(sb, talentProfileId);
+    const first = await delegateFirstPublish(sb, talentProfileId, { contentHash: pageHash });
     if (!first.ok) return { ok: false as const, error: first.error };
     // Publish copies the draft body (`blocks`) into the live body
     // (`blocks_published`). Saving never touches the live body, so an edit to a
@@ -371,6 +372,7 @@ export async function publishTalentPageAction(
         summaryEn: summary.en,
         summaryEs: summary.es,
         source: "published",
+        ...(pageHash ? { report: { contentHash: pageHash } } : {}),
       });
     }
     return {

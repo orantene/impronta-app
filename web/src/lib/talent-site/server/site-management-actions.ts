@@ -587,7 +587,7 @@ export async function setMaxSiteSlugAction(input: {
  * talent currently holding Max + per-page `status='published'`, so all three
  * must land for the site to serve. Owner-RLS scoped throughout.
  */
-export async function publishMaxSiteAction(): Promise<
+export async function publishMaxSiteAction(opts?: { contentHash?: string | null }): Promise<
   MaxSiteActionResult<{ publishedAt: string }>
 > {
   const g = await gate("personalSiteEdit");
@@ -694,7 +694,7 @@ export async function publishMaxSiteAction(): Promise<
       error: "Your pages are live, but the theme could not be published. Try again. (theme)",
     };
   }
-  await recordSitePublish(pre.id, g.userId); // 4b. site history (theme releases Phase 2)
+  await recordSitePublish(pre.id, g.userId, typeof opts?.contentHash === "string" ? opts.contentHash : null); // 4b. site history (theme releases Phase 2)
   // 5. W41 — design version snapshot (Maison flag; best-effort, never fails publish).
   if (isTalentMaisonThemeEnabled(g.talentProfileId)) {
     const admin = createServiceRoleClient();

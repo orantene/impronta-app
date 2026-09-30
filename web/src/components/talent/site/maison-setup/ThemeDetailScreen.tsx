@@ -488,8 +488,11 @@ export function ThemeDetailScreen({
         </div>
 
         {/* Desktop right panel */}
-        <aside className="hidden w-[360px] shrink-0 flex-col border-l border-admin-border-soft bg-white md:flex">
-          <div className="flex-1 space-y-5 overflow-auto px-4 py-4">
+        <aside
+          data-maison-inspector=""
+          className="hidden w-[300px] shrink-0 flex-col border-l border-admin-border-soft bg-white md:sticky md:top-0 md:flex md:h-[calc(100dvh-6rem)] md:self-start lg:w-[360px]"
+        >
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-ink-dim">
                 {maisonSetupT(locale, "THEME")}

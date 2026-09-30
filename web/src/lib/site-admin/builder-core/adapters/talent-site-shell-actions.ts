@@ -26,7 +26,7 @@ import { loadSiteRev } from "@/lib/talent-site/history/history.server";
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
-import { findDuplicatePublish } from "@/lib/talent-site/server/publish-idempotency";
+import { findDuplicatePublish, shellScopeHash } from "@/lib/talent-site/server/publish-idempotency";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf, assertTalentCanEditSite } from "@/lib/server/talent-self-guard";
@@ -330,10 +330,11 @@ export async function publishTalentSiteShellRow(
 
     // F104: same draft rev as the last publish = nothing new; do not publish twice.
     const dupAdmin = createServiceRoleClient();
-    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, gate.talentProfileId) : null;
+    const shellHash = dupAdmin ? await shellScopeHash(dupAdmin, gate.talentProfileId) : null;
+    const dup = dupAdmin ? await findDuplicatePublish(dupAdmin, gate.talentProfileId, shellHash) : null;
     if (dup) return { ok: true as const, publishedAt: dup.publishedAt, updatedAt: dup.publishedAt, draftRev: dup.draftRev };
     // F96: first publish of the site runs the canonical site publish.
-    const first = await delegateFirstPublish(sb, gate.talentProfileId);
+    const first = await delegateFirstPublish(sb, gate.talentProfileId, { contentHash: shellHash });
     if (!first.ok) return { ok: false as const, error: first.error };
 
     // Bake shell_tree → shell_published (publishes ONLY the shell, not the pages).
@@ -398,6 +399,7 @@ export async function publishTalentSiteShellRow(
         summaryEs: summary.es,
         source: "published",
         createdBy: gate.actorProfileId,
+        ...(shellHash ? { report: { contentHash: shellHash } } : {}),
       });
       draftRev = (await loadSiteRev(admin, gate.talentProfileId))?.draftRev ?? null;
     }
