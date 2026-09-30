@@ -242,7 +242,7 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
           <button type="button" className={btn} disabled={!canMove("optin")} onClick={() => go("optin", t.confirmOptin)}>
             {t.toOptin}
           </button>
-          <button type="button" className={btn} disabled={!canMove("default")} onClick={() => go("default", t.confirmDefault)}>
+          <button type="button" className={btn} disabled={!canMove("default")} onClick={() => go("default", t.confirmDefault(report?.data.summary.total ?? 0))}>
             {t.toDefault}
           </button>
           <button

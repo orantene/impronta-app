@@ -17,6 +17,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { applyThemeUpdateToDraft } from "@/lib/talent-site/history/history.server";
+import { dryRunIsFresh } from "../manager/dry-run";
 import type { SiteRef } from "../manager/merge-site.server";
 import { autoImproveSummary } from "./copy";
 import type { MergeFn, TalentRelease, UpdateContext } from "./talent-update.server";
@@ -26,6 +27,8 @@ export interface AutoImproveResult {
   improved: number;
   skipped: number;
   failures: string[];
+  /** Set when the run refused before touching any site. */
+  refused?: string;
 }
 
 async function alreadyImproved(admin: SupabaseClient, siteId: string, releaseId: string): Promise<boolean> {
@@ -61,7 +64,7 @@ async function siteState(
 
 export async function runAutoImprove(
   deps: { admin: SupabaseClient; merge: MergeFn },
-  release: TalentRelease,
+  release: TalentRelease & { dry_run_report?: unknown },
   designTitle: string,
   sites: ReadonlyArray<SiteRef>,
   opts: { onlyDemos?: boolean } = {},
@@ -69,8 +72,16 @@ export async function runAutoImprove(
   const out: AutoImproveResult = { improved: 0, skipped: 0, failures: [] };
   const items = autoImproveItems(Array.isArray(release.items) ? release.items : []);
   if (release.channel !== "default" || items.length === 0) return out;
+  // Server guard: no talent draft is touched without a fresh, clean dry run.
+  const fresh = dryRunIsFresh({ ...release, dry_run_report: release.dry_run_report ?? null });
+  if (!fresh.ok) return { ...out, refused: fresh.error };
+  if (fresh.report.summary.errors > 0) {
+    return { ...out, refused: `${fresh.report.summary.errors} site(s) failed the dry run.` };
+  }
   const hasCode = items.some((i) => i.type === "code");
-  for (const site of sites) {
+  // Demos first: a broken merge shows on a demo before any talent draft.
+  const ordered = [...sites].sort((a, b) => Number(b.isDemo) - Number(a.isDemo));
+  for (const site of ordered) {
     if (opts.onlyDemos && !site.isDemo) continue;
     if ((site.pinnedVersion ?? 0) >= release.to_version || (await alreadyImproved(deps.admin, site.siteId, release.id))) {
       out.skipped += 1;

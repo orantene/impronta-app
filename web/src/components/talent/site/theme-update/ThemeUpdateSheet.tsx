@@ -41,6 +41,8 @@ export interface ThemeUpdateSheetProps {
   locale: UpdateLocale;
   busy: boolean;
   error?: string | null;
+  /** Builder: "Save your changes first" while the editor has unsaved edits. */
+  blockedReason?: () => string | null;
   onClose: () => void;
   onApply: (draftRev: number) => void;
   onDismiss: () => void;
@@ -147,6 +149,7 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
                     preview={preview}
                     draftRev={draftRev}
                     disabled={busy}
+                    blockedReason={props.blockedReason ?? (() => null)}
                     onAdded={(rev) => {
                       setDraftRev(rev);
                       props.onBlockAdded(rev);
@@ -186,6 +189,7 @@ function ItemRow(p: {
   preview: UpdatePreview | null;
   draftRev: number;
   disabled: boolean;
+  blockedReason: () => string | null;
   onAdded: (draftRev: number) => void;
 }): ReactElement {
   const { item, locale } = p;
@@ -199,6 +203,11 @@ function ItemRow(p: {
   const groupName = `theme-update-place-${item.id}`;
 
   async function add(): Promise<void> {
+    const blocked = p.blockedReason();
+    if (blocked) {
+      setMsg(blocked);
+      return;
+    }
     setSaving(true);
     setMsg(null);
     const res = await addThemeUpdateBlockAction({

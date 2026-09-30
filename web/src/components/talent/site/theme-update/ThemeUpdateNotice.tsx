@@ -16,9 +16,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 
+import { getDirtySnapshot } from "@/components/edit-chrome/dirty-bridge";
+import { getSavingSnapshot } from "@/components/edit-chrome/save-cycle-bridge";
 import { pick } from "@/lib/talent-site/history/copy";
 import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import {
+  SAVE_FIRST,
   UPDATE_COPY,
   appliedToast,
   bannerTitle,
@@ -101,8 +104,19 @@ export function ThemeUpdateNotice({
     [load, surface],
   );
 
+  /** In the builder a write reloads the editor: refuse while edits are unsaved. */
+  function blockedReason(): string | null {
+    if (surface !== "builder") return null;
+    return getDirtySnapshot() || getSavingSnapshot() ? pick(SAVE_FIRST, locale) : null;
+  }
+
   async function apply(draftRev: number): Promise<void> {
     if (!notice) return;
+    const blocked = blockedReason();
+    if (blocked) {
+      setError(blocked);
+      return;
+    }
     setBusy(true);
     setError(null);
     const res = await runThemeApply(() =>
@@ -185,6 +199,7 @@ export function ThemeUpdateNotice({
           locale={locale}
           busy={busy}
           error={error}
+          blockedReason={blockedReason}
           onClose={() => setOpen(false)}
           onApply={(rev) => void apply(rev)}
           onDismiss={() => void dismiss()}

@@ -17,7 +17,7 @@ export interface ChannelDeps {
   fanOut: () => Promise<{ updates: number; bells: number }>;
   persist: (channel: ReleaseChannel) => Promise<{ ok: true } | { ok: false; error: string }>;
   /** Phase 4: runs after `default` persisted. */
-  autoImprove?: () => Promise<{ improved: number; failures: string[] }>;
+  autoImprove?: () => Promise<{ improved: number; failures: string[]; refused?: string }>;
 }
 
 export type ChannelChangeResult =
@@ -55,7 +55,11 @@ export async function executeChannelChange(
   if (!saved.ok) return saved;
   if (target === "default" && deps.autoImprove) {
     const ai = await deps.autoImprove();
-    warnings = [...warnings, ...ai.failures.map((f) => `Auto-improve ${f}`)];
+    warnings = [
+      ...warnings,
+      ...(ai.refused ? [`Auto-improve refused: ${ai.refused}`] : []),
+      ...ai.failures.map((f) => `Auto-improve ${f}`),
+    ];
   }
   return { ok: true, channel: target, demosApplied, updates, bells, warnings };
 }

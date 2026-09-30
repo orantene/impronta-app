@@ -68,7 +68,8 @@ export const COPY = {
     toDefault: "Make default",
     confirmOptin: "This notifies talents on this design. Continue?",
     confirmDemos: "This re-applies the design to every demo of this design. Continue?",
-    confirmDefault: "Make this release the default for new applies?",
+    confirmDefault: (n: number) =>
+      `Make this release the default. Improve ${n} talent${n === 1 ? "" : "s"}' drafts (untouched parts only). Each can undo it. Continue?`,
     rolloutTitle: "Rollout",
     rolloutLead: "Share of talent sites that get the notice. Raising it later notifies only the newly included sites.",
     rolloutSet: "Set rollout",
@@ -146,7 +147,8 @@ export const COPY = {
     toDefault: "Hacer predeterminado",
     confirmOptin: "Esto avisa a los talentos de este diseño. ¿Continuar?",
     confirmDemos: "Esto vuelve a aplicar el diseño a cada demo de este diseño. ¿Continuar?",
-    confirmDefault: "¿Hacer este lanzamiento el predeterminado para nuevas aplicaciones?",
+    confirmDefault: (n: number) =>
+      `Hacer este lanzamiento el predeterminado. Mejorar el borrador de ${n} talento${n === 1 ? "" : "s"} (solo partes sin cambios). Cada quien puede deshacerlo. ¿Continuar?`,
     rolloutTitle: "Despliegue",
     rolloutLead: "Porcentaje de sitios de talento que reciben el aviso. Subirlo después avisa solo a los sitios nuevos.",
     rolloutSet: "Fijar despliegue",

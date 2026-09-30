@@ -45,6 +45,9 @@ export const UPDATE_COPY = {
   screenshotAlt: { en: "Screenshot of this change", es: "Captura de este cambio" },
 } as const satisfies Record<string, Bilingual>;
 
+/** Builder guard: an apply would reload the editor and drop unsaved edits. */
+export const SAVE_FIRST: Bilingual = { en: "Save your changes first", es: "Guarda tus cambios primero" };
+
 export const GROUP_COPY: Record<WhatsNewGroup, Bilingual & { hintEn: string; hintEs: string }> = {
   critical: {
     en: "Important fixes",

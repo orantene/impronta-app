@@ -14,6 +14,7 @@ import { built, edit, prop, topKeys } from "../test-fixtures";
 import type { DesignSide, ReleaseItem } from "../types";
 import type { SiteRef } from "../manager/merge-site.server";
 import { planFanOut } from "../manager/notify";
+import { buildDryRunReport } from "../manager/dry-run";
 import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 import { runAutoImprove } from "./auto-improve.server";
 import { appliedToast, bannerTitle, keptLine } from "./copy";
@@ -49,8 +50,8 @@ const ITEMS: ReleaseItem[] = [
   { type: "token-default", key: "*", tokenKeys: ["space.row"] },
 ];
 
-function release(over: Partial<TalentRelease> = {}): TalentRelease {
-  return {
+function release(over: Partial<TalentRelease> = {}): TalentRelease & { dry_run_report: unknown } {
+  const base: TalentRelease = {
     id: RELEASE,
     design_slug: "maison-v2",
     from_version: 1,
@@ -63,6 +64,7 @@ function release(over: Partial<TalentRelease> = {}): TalentRelease {
     published_at: "2026-09-30T00:00:00Z",
     ...over,
   };
+  return { ...base, dry_run_report: buildDryRunReport(base, []) };
 }
 
 /** Her draft: v1 with the hero edited (her change) and her own colour token. */
@@ -482,4 +484,47 @@ test("static: notice mounted in My presence and the builder; sheet is an accessi
   }
   const copy = read("lib/talent-site/theme-releases/talent-update/copy.ts");
   assert.ok(!copy.includes("—"), "no em dashes");
+});
+
+test("auto-improve refuses without a fresh dry run (missing, stale items, failed sites)", async () => {
+  const db = world();
+  const d = { admin: db.admin, merge: mergeOver(db) };
+  const def = release({ channel: "default" });
+  const missing = await runAutoImprove(d, { ...def, dry_run_report: null }, "Maison v2", [siteRef(true)]);
+  assert.match(missing.refused ?? "", /dry run/i);
+  const stale = await runAutoImprove(d, { ...def, items: [...ITEMS, { type: "code", key: "x" }] }, "Maison v2", [siteRef(true)]);
+  assert.match(stale.refused ?? "", /changed after the dry run/);
+  const failed = buildDryRunReport(def, []);
+  failed.summary.errors = 2;
+  const bad = await runAutoImprove(d, { ...def, dry_run_report: failed }, "Maison v2", [siteRef(true)]);
+  assert.match(bad.refused ?? "", /failed the dry run/);
+  assert.equal(draftWrites(db).length, 0);
+});
+
+test("auto-improve runs demos before talents", async () => {
+  const db = world();
+  const order: boolean[] = [];
+  const merge: MergeFn = async (ctx, items) => {
+    order.push(ctx.siteId === SITE);
+    return mergeOver(db)(ctx, items);
+  };
+  const other = fakeId();
+  db.tables.talent_sites!.push({ ...db.tables.talent_sites![0]!, id: other });
+  await runAutoImprove({ admin: db.admin, merge }, release({ channel: "default" }), "Maison v2", [
+    siteRef(false, { siteId: other }),
+    siteRef(true),
+  ]);
+  assert.deepEqual(order, [true, false]);
+});
+
+test("builder guard: unsaved editor changes block apply and add-block (EN + ES)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { SAVE_FIRST } = await import("./copy");
+  assert.equal(SAVE_FIRST.en, "Save your changes first");
+  assert.equal(SAVE_FIRST.es, "Guarda tus cambios primero");
+  const notice = readFileSync(join(process.cwd(), "src/components/talent/site/theme-update/ThemeUpdateNotice.tsx"), "utf8");
+  assert.match(notice, /getDirtySnapshot\(\)/);
+  const sheet = readFileSync(join(process.cwd(), "src/components/talent/site/theme-update/ThemeUpdateSheet.tsx"), "utf8");
+  assert.match(sheet, /blockedReason\(\)/);
 });
