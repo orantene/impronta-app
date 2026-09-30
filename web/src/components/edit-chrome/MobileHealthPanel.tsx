@@ -32,6 +32,7 @@ import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { useMaybeEditContext } from "./edit-context";
 import { useEditorLocale } from "./use-editor-locale";
+import { localiseMobileHealthMessage } from "./mobile-health-message-es";
 import { Button } from "./kit";
 import { CHROME } from "./kit";
 
@@ -546,7 +547,7 @@ function IssueGroup({
 // ── IssueRow ──────────────────────────────────────────────────────────────────
 
 function IssueRow({ issue }: { issue: MobileHealthIssue }) {
-  const { t } = useEditorLocale();
+  const { t, locale } = useEditorLocale();
   return (
     <li
       style={{
@@ -597,7 +598,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
             color: CHROME.text,
           }}
         >
-          {issue.message}
+          {localiseMobileHealthMessage(issue.message, locale)}
         </p>
       </div>
 

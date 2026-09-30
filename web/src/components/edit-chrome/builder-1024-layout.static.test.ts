@@ -27,3 +27,12 @@ test("F81: the text toolbar positions its bottom from the HUD-aware resolver", (
   assert.match(src, /resolveTextToolbarBottom\(/);
   assert.match(src, /bottom: position\.bottom/);
 });
+
+test("F79 audit: no design-specific header CSS re-enables wrapping on the CTA", () => {
+  const css = read("app/token-presets.css");
+  const dts = read("lib/talent-site/theme-catalog/collection/design-type-system.ts");
+  for (const src of [css, dts]) {
+    const rules = src.match(/[^{}\n]*site-header__(?:cta|ritem)[^{}]*\{[^}]*\}/g) ?? [];
+    for (const r of rules) assert.doesNotMatch(r, /white-space:\s*(normal|wrap|pre-wrap)/, r.slice(0, 80));
+  }
+});
