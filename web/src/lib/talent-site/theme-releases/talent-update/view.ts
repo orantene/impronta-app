@@ -91,10 +91,32 @@ export function toTalentItem(item: ReleaseItem): TalentReleaseItem {
   };
 }
 
+/**
+ * F73: releases generated before the layout grouping fix list one change as
+ * several items that share a note (the two hero-inset layout entries). Collapse
+ * items of the same type with an identical, non-empty note at READ time so the
+ * talent sees one row. Apply still merges every stored item.
+ */
+export function dedupeTalentItems(items: ReadonlyArray<TalentReleaseItem>): TalentReleaseItem[] {
+  const seen = new Set<string>();
+  const out: TalentReleaseItem[] = [];
+  for (const item of items) {
+    if (item.noteEn === "" && item.noteEs === "") {
+      out.push(item);
+      continue;
+    }
+    const sig = `${item.type}|${item.noteEn}|${item.noteEs}`;
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push(item);
+  }
+  return out;
+}
+
 export function groupItems(items: ReadonlyArray<ReleaseItem>): Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }> {
   return WHATS_NEW_GROUP_ORDER.map((group) => ({
     group,
-    items: items.filter((i) => groupOf(i.type) === group).map(toTalentItem),
+    items: dedupeTalentItems(items.filter((i) => groupOf(i.type) === group).map(toTalentItem)),
   })).filter((g) => g.items.length > 0);
 }
 

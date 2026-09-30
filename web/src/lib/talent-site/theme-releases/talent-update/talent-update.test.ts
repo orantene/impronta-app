@@ -186,6 +186,20 @@ test("what's new groups: important, automatic, new blocks, layout", () => {
   assert.equal(groups.find((g) => g.group === "blocks")!.items[0]!.noteEs, "Nuevo bloque de galería");
 });
 
+test("F73: an old release with two hero-inset layout items shows one row", () => {
+  const note = { en: "Hero photo inset moves to the bottom-left. Preview it before you choose.", es: "La foto pequeña del inicio pasa abajo a la izquierda. Míralo antes de elegir." };
+  const items: ReleaseItem[] = [
+    { type: "layout", key: "hero/container#2/image#2:removed", tree: "home", note },
+    { type: "layout", key: "hero/container#2/hero_inset_bl", tree: "home", note },
+    { type: "layout", key: "footer", tree: "home", note: { en: "Footer spacing", es: "Espacio del pie" } },
+    { type: "code", key: "a" },
+    { type: "code", key: "b" },
+  ];
+  const layout = groupItems(items).find((g) => g.group === "layout")!;
+  assert.equal(layout.items.length, 2, "two hero-inset entries collapse, footer stays");
+  assert.equal(groupItems(items).find((g) => g.group === "auto")!.items.length, 2, "note-less items are never merged");
+});
+
 // ── Preview: no write ────────────────────────────────────────────────────────
 
 test("preview merges in memory and writes nothing", async () => {
