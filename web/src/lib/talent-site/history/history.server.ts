@@ -16,14 +16,14 @@ import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tr
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 
 import { CHROME_COPY, restoreSummary, summaryFor, themeUpdateSummary, undoUpdateSummary } from "./copy";
-import { diffDraftAgainstLive, type SectionChange } from "./draft-diff";
+import { summarizeGoLive, type SectionChange } from "./draft-diff";
 import {
   isHistorySnapshot,
   isThemeUpdateReport,
   planRestore,
   planUndoUpdate,
 } from "./restore-plan";
-import { buildTimelineResult, countUnpublishedChanges } from "./timeline";
+import { buildTimelineResult } from "./timeline";
 import type { HistoryRow, HistorySnapshot, ThemeUpdateHistoryReport } from "./types";
 import { recordSiteHistory, writeSiteDraft, type WriteSiteDraftResult } from "./writer";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -398,8 +398,11 @@ export async function recordSitePublish(siteId: string, createdBy: string | null
 
 export interface GoLiveSummary {
   draftRev: number;
+  /** Always equals the rows the sheet lists (0 on a first publish: see `firstPublish`). */
   unpublishedCount: number;
   changes: SectionChange[];
+  /** Never published: the whole site goes live; the sheet shows a summary, not rows. */
+  firstPublish: { pages: number; sections: number } | null;
   sitePublishedAt: string | null;
   lastPublishAt: string | null;
   siteUrl: string | null;
@@ -413,30 +416,29 @@ export async function loadGoLiveSummary(
 ): Promise<GoLiveSummary | null> {
   const state = await loadSiteDraftState(admin, talentProfileId);
   if (!state) return null;
-  // supabase-read-unchecked-ok: without history the count falls back to the diff.
+  // supabase-read-unchecked-ok: without history the Live chip falls back to site_published_at.
   const { data } = await admin
     .from("talent_site_history")
     .select("kind, last_at")
     .eq("site_id", state.siteId)
+    .eq("kind", "publish")
     .order("last_at", { ascending: false })
-    .limit(LIST_LIMIT);
-  const rows = (data ?? []) as Array<{ kind: HistoryRow["kind"]; last_at: string }>;
-  const changes = diffDraftAgainstLive(
-    {
-      shell: { draft: state.shell, live: state.shellPublished },
-      pages: state.pages.map((p) => ({ id: p.id, title: p.title, draft: p.blocks, live: p.blocksPublished })),
-      tokens: { draft: state.tokens, live: state.tokensLive },
-    },
+    .limit(1);
+  const lastPublish = ((data ?? []) as Array<{ last_at: string }>)[0];
+  const input = {
+    shell: { draft: state.shell, live: state.shellPublished },
+    pages: state.pages.map((p) => ({ id: p.id, title: p.title, draft: p.blocks, live: p.blocksPublished })),
+    tokens: { draft: state.tokens, live: state.tokensLive },
+  };
+  const summary = summarizeGoLive(
+    input,
     { header: CHROME_COPY.header[locale], colours: CHROME_COPY.colours[locale] },
+    locale,
+    Boolean(state.sitePublishedAt),
   );
-  const lastPublish = rows.find((r) => r.kind === "publish");
   return {
     draftRev: state.draftRev,
-    // History counts the entries; no diff means nothing to publish; a site
-    // without history yet falls back to the diff.
-    unpublishedCount:
-      changes.length === 0 ? 0 : rows.length > 0 ? Math.max(1, countUnpublishedChanges(rows)) : changes.length,
-    changes,
+    ...summary,
     sitePublishedAt: state.sitePublishedAt,
     lastPublishAt: lastPublish?.last_at ?? null,
     siteUrl: siteBasePath(state.siteSlug),

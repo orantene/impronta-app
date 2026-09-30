@@ -14,7 +14,13 @@ import type { ReactElement } from "react";
 import { CHROME, PortaledOverlay } from "./kit";
 import { usePageVersion } from "./save-cycle-bridge";
 import { useEditorLocale } from "./use-editor-locale";
-import { CHROME_COPY, pick, unpublishedChangesLabel } from "@/lib/talent-site/history/copy";
+import {
+  CHROME_COPY,
+  FIRST_PUBLISH_COPY,
+  firstPublishSummary,
+  pick,
+  unpublishedChangesLabel,
+} from "@/lib/talent-site/history/copy";
 import type { SectionChange } from "@/lib/talent-site/history/draft-diff";
 import { useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { loadTalentGoLiveAction } from "@/lib/talent-site/history/history-actions";
@@ -79,7 +85,7 @@ export function TalentDraftChip(): ReactElement | null {
     whiteSpace: "nowrap" as const,
   };
 
-  if (summary.unpublishedCount === 0) {
+  if (summary.unpublishedCount === 0 && !summary.firstPublish) {
     return (
       <span
         data-talent-live-chip
@@ -104,7 +110,9 @@ export function TalentDraftChip(): ReactElement | null {
         title={applyBusy ? copyOf("applying") : copyOf("whatWillGoLive")}
         style={{ ...chipStyle, cursor: "pointer", color: CHROME.text, background: CHROME.surface2, border: `1px solid ${CHROME.lineMid}` }}
       >
-        {pick(unpublishedChangesLabel(summary.unpublishedCount), locale)}
+        {summary.firstPublish
+          ? pick(FIRST_PUBLISH_COPY.chip, locale)
+          : pick(unpublishedChangesLabel(summary.unpublishedCount), locale)}
       </button>
       {open ? (
         <PortaledOverlay>
@@ -128,7 +136,14 @@ export function TalentDraftChip(): ReactElement | null {
                 </button>
               </header>
               {applyBusy ? <p style={{ fontSize: 12, color: CHROME.muted, margin: 0 }}>{copyOf("applying")}</p> : null}
-              {summary.changes.length === 0 ? (
+              {summary.firstPublish ? (
+                <div data-go-live-first-publish style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <strong style={{ fontSize: 13, color: CHROME.ink }}>{pick(FIRST_PUBLISH_COPY.title, locale)}</strong>
+                  <span style={{ fontSize: 12, color: CHROME.muted }}>
+                    {pick(firstPublishSummary(summary.firstPublish.pages, summary.firstPublish.sections), locale)}
+                  </span>
+                </div>
+              ) : summary.changes.length === 0 ? (
                 <p style={{ fontSize: 12, color: CHROME.muted, margin: 0 }}>{copyOf("noChanges")}</p>
               ) : (
                 <ul className="m-0 flex list-none flex-col gap-2 p-0">
@@ -164,16 +179,28 @@ function ChangeRow({ change, locale }: { change: SectionChange; locale: string }
         <strong style={{ color: CHROME.ink }}>{change.label}</strong>
         <span className="ml-auto" style={{ fontSize: 10.5, color: CHROME.muted2 }}>{change.scopeLabel}</span>
       </span>
-      {change.before !== null ? (
-        <span style={{ fontSize: 11.5, color: CHROME.muted }}>
-          {pick(CHROME_COPY.before, locale)}: {change.before || "·"}
+      {change.before !== null || change.beforeSwatch ? (
+        <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: CHROME.muted }}>
+          {pick(CHROME_COPY.before, locale)}: <Swatch value={change.beforeSwatch} /> {change.before ?? ""}
         </span>
       ) : null}
-      {change.after !== null ? (
-        <span style={{ fontSize: 11.5, color: CHROME.text }}>
-          {pick(CHROME_COPY.after, locale)}: {change.after || "·"}
+      {change.after !== null || change.afterSwatch ? (
+        <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: CHROME.text }}>
+          {pick(CHROME_COPY.after, locale)}: <Swatch value={change.afterSwatch} /> {change.after ?? ""}
         </span>
       ) : null}
     </li>
+  );
+}
+
+/** A colour token rendered as a chip (the value itself is never shown as text). */
+function Swatch({ value }: { value?: string | null }): ReactElement | null {
+  if (!value) return null;
+  return (
+    <span
+      aria-hidden
+      data-go-live-swatch
+      style={{ display: "inline-block", width: 14, height: 14, borderRadius: 4, border: `1px solid ${CHROME.lineMid}`, background: value }}
+    />
   );
 }
