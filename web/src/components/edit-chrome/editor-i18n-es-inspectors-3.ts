@@ -175,7 +175,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Link to": "Enlazar a",
   "Make the card a link, for example #services to jump to your menu. Leave empty for plain text.":
     "Convierte la tarjeta en un enlace, por ejemplo #services para ir a tu menú. Déjalo vacío para texto simple.",
-<<<<<<< HEAD
 
   // ── Header section switcher (Maison v2 2.6, H-4) ───────────────────────
   "Section switcher": "Selector de secciones",
@@ -187,7 +186,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "The two-digit number shown before the section name.": "El número de dos dígitos que aparece antes del nombre de la sección.",
   "Show the number": "Mostrar el número",
   "Name only": "Solo el nombre",
-=======
   // ── visit inspector: Location layout (2026-09-30) ─────────────────────
   Facts: "Datos",
   "Map + facts": "Mapa y datos",
@@ -203,5 +201,4 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Appears once the interactive map is available. Until then only the area drawing shows.":
     "Aparece cuando el mapa interactivo esté disponible. Mientras tanto solo se ve el dibujo de la zona.",
   "Location · zone, hours, how to arrive": "Ubicación · zona, horario, cómo llegar",
->>>>>>> 91b4f8b57 (talent/: location section (settings, visit location layout, privacy gate, confirmation address) + Maison v2 Location block)
 };

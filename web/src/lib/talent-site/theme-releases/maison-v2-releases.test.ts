@@ -487,7 +487,7 @@ async function v20Site() {
   return { base, theirs, items };
 }
 
-test("Maison v2 v20 (location) classifies as exactly one new block, nothing automatic", () => {
+test("Maison v2 v20 (location) adds exactly one new block and no other token or layout change", () => {
   const items = diff(maisonV2At(19), 19, maisonV2At(20), 20);
   assert.ok(items.some((i) => i.id === "new-block:home:location"));
   assert.equal(types(items, "new-block")[0]!.key, "home:location");
