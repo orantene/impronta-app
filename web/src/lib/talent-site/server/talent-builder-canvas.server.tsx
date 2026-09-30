@@ -87,6 +87,10 @@ export async function buildTalentBuilderCanvasData(input: {
       loadMaxSiteIsDemo(talentProfileId),
     ]);
   const siteLocale = localeCtx.locale;
+  // F93 - the preview data sources depend only on the locale, so they load
+  // alongside the CTA/swaps batch and the shell prep instead of after them.
+  const dataSourcesP = loadPreviewDataSources(talentProfileId, input.tree, siteLocale);
+  dataSourcesP.catch(() => undefined);
   const [ctaMode, swaps] = await Promise.all([
     loadTalentSiteCtaMode(talentProfileId, planKey),
     loadTalentLocaleSwaps(talentProfileId, siteLocale, localeCtx.chain),
@@ -132,7 +136,7 @@ export async function buildTalentBuilderCanvasData(input: {
     : fixed.shellTree;
   const [headerTree, footerTree] = splitShell(shell);
 
-  const dataSources = await loadPreviewDataSources(talentProfileId, input.tree, siteLocale);
+  const dataSources = await dataSourcesP;
 
   const renderShell = (roots: BuilderNode[]): ReactNode =>
     roots.length === 0 ? null : (

@@ -75,6 +75,66 @@ function mapPage(p: Record<string, unknown>): MaxSiteManagerPage {
   };
 }
 
+/** Managing agency tenant for builder scope + the section-embed preview: the
+ *  active agency context, else the profile's owning agency. */
+async function resolveBuilderTenantId(profileId: string): Promise<string | null> {
+  const activeAgency = await getActiveTalentAgencyContext(profileId);
+  if (activeAgency?.tenantId) return activeAgency.tenantId;
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data } = await admin
+    .from("talent_profiles")
+    .select("created_by_agency_id")
+    .eq("id", profileId)
+    .maybeSingle();
+  return (data as { created_by_agency_id: string | null } | null)?.created_by_agency_id ?? null;
+}
+
+/** "A site exists": Max is provisioned (idempotent, Max-gated) so it always
+ *  does; a lower tier that can edit is probed for a site slug. */
+async function resolveSiteExists(input: {
+  profileId: string;
+  isMax: boolean;
+  canEdit: boolean;
+  userId: string;
+}): Promise<boolean> {
+  if (input.isMax) {
+    await provisionTalentMaxSite(input.profileId, input.userId);
+    return true;
+  }
+  if (!input.canEdit) return false;
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { data: siteRow, error: siteError } = await admin
+    .from("talent_sites")
+    .select("site_slug")
+    .eq("talent_profile_id", input.profileId)
+    .maybeSingle();
+  // PostgREST does not throw: a denied policy and "no row yet" both arrive as
+  // data:null. Record the difference instead of reading a failed probe as
+  // "this talent has no site".
+  if (siteError) logServerError("talentPageBuilder/siteExistsProbe", siteError);
+  return !siteError && !!(siteRow as { site_slug: string | null } | null)?.site_slug;
+}
+
+/** The editor row for a slug, or the home page when `{ home: true }`. */
+async function loadEditorRow(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  profileId: string,
+  by: { slug: string } | { home: true },
+): Promise<TalentPageRow | null> {
+  const base = admin
+    .from("talent_pages")
+    .select(EDITOR_ROW_COLUMNS)
+    .eq("talent_profile_id", profileId);
+  const { data, error } =
+    "slug" in by
+      ? await base.eq("slug", by.slug).maybeSingle()
+      : await base.eq("is_home", true).order("sort_order", { ascending: true }).limit(1).maybeSingle();
+  if (error) logServerError("talentPageBuilder/editorRow", error);
+  return (data as unknown as TalentPageRow | null) ?? null;
+}
+
 export default async function TalentPageBuilderRoute({
   searchParams,
 }: {
@@ -94,82 +154,54 @@ export default async function TalentPageBuilderRoute({
   const shellMode = sp.shell === "1" || sp.shell === "true";
   const requestedPage = typeof sp.page === "string" ? sp.page : null;
 
-  const locale = await getRequestLocale();
-
-  // Phase 1 — the capability record every personal-site surface reads. While
-  // `TALENT_FREE_WEBSITE_ENABLED` is off this resolves Max-only for every key,
-  // so `canEdit` below stays byte-identical to the old `isMax` check.
+  // F93 - the independent server loads run as ONE parallel batch instead of a
+  // 6-deep serial chain (locale, provision/site probe, agency tenant, talent
+  // locales). Only provision -> (pages, editor row) is a real dependency.
   const siteCapabilities = buildTalentSiteCapabilities(profile.talentPlanKey);
   const canEdit = siteCapabilities.personalSiteEdit;
   const isMax = profile.talentPlanKey === "talent_portfolio" || profile.talentTier === "max";
 
-  // Provision the Max site (idempotent) so the page-set + shell exist before we
-  // load them. `provisionTalentMaxSite` is itself Max-gated (refuses any other
-  // plan), so it only ever runs — and only ever needs to run — for the legacy
-  // Max path. A Free-tier talent's site is created through the wizard (Phase
-  // 3), never auto-provisioned here.
-  if (isMax) {
-    await provisionTalentMaxSite(profile.id, session.user.id);
-  }
+  const [locale, talentLocale, tenantId, siteExists] = await Promise.all([
+    getRequestLocale(),
+    // PR 7: the builder's content-locale pill + inspector tabs follow the
+    // talent's own languages (primary first), not the managing agency's.
+    loadTalentLocaleSettings(profile.id),
+    resolveBuilderTenantId(profile.id),
+    resolveSiteExists({ profileId: profile.id, isMax, canEdit, userId: session.user.id }),
+  ]);
 
   // Phase 1 gate: "a site exists AND the talent can edit it" replaces the old
-  // "is Max" gate. Max is always provisioned above, so its site always
-  // exists by this point; a lower tier (switch on) may be able to edit but
-  // have no site yet — send it back to the Public page screen instead of an
-  // editor with nothing to edit.
-  let siteExists = isMax;
-  if (canEdit && !isMax) {
-    const admin = createServiceRoleClient();
-    if (admin) {
-      const { data: siteRow, error: siteError } = await admin
-        .from("talent_sites")
-        .select("site_slug")
-        .eq("talent_profile_id", profile.id)
-        .maybeSingle();
-      // PostgREST does not throw: a denied policy and "no row yet" both arrive
-      // as data:null. Record the difference instead of reading a failed probe
-      // as "this talent has no site". Either way they land on the Public page
-      // screen, which is a working surface, not an empty editor.
-      if (siteError) logServerError("talentPageBuilder/siteExistsProbe", siteError);
-      siteExists = !siteError && !!(siteRow as { site_slug: string | null } | null)?.site_slug;
-    }
-  }
+  // "is Max" gate (see resolveSiteExists). A lower tier (switch on) may be able
+  // to edit but have no site yet: send it back to the Public page screen.
   if (canEdit && !siteExists) {
     redirect("/talent/public-page");
   }
   const hasBuilderAccess = canEdit && siteExists;
 
-  // Resolve the managing agency tenant for builder scope + the in-editor
-  // section-embed preview (prefer the active agency context; fall back to the
-  // profile's owning agency).
-  const activeAgency = await getActiveTalentAgencyContext(profile.id);
-  let tenantId = activeAgency?.tenantId ?? null;
-  if (!tenantId) {
-    const admin = createServiceRoleClient();
-    if (admin) {
-      const { data } = await admin
-        .from("talent_profiles")
-        .select("created_by_agency_id")
-        .eq("id", profile.id)
-        .maybeSingle();
-      tenantId =
-        (data as { created_by_agency_id: string | null } | null)
-          ?.created_by_agency_id ?? null;
-    }
-  }
-
-  // Load the site's pages (for the switcher + to resolve the active page slug).
+  // Load the site's pages (switcher + active slug) IN PARALLEL with a
+  // speculative editor-row read (the requested page, else the home page) and
+  // the site revision. The speculation only misses when the requested slug is
+  // unknown or no page is flagged home; that one case refetches below.
   let sitePages: MaxSiteManagerPage[] = [];
-  if (hasBuilderAccess) {
-    const admin = createServiceRoleClient();
-    if (admin) {
-      const { data } = await admin
+  let editorRow: TalentPageRow | null = null;
+  let siteRev: Awaited<ReturnType<typeof loadSiteRev>> | null = null;
+  const admin = hasBuilderAccess ? createServiceRoleClient() : null;
+  let speculativeRow: TalentPageRow | null = null;
+  if (admin) {
+    const [pagesRes, row, rev] = await Promise.all([
+      admin
         .from("talent_pages")
         .select(PAGE_COLUMNS)
         .eq("talent_profile_id", profile.id)
-        .order("sort_order", { ascending: true });
-      sitePages = ((data ?? []) as Array<Record<string, unknown>>).map(mapPage);
-    }
+        .order("sort_order", { ascending: true }),
+      shellMode
+        ? Promise.resolve(null)
+        : loadEditorRow(admin, profile.id, requestedPage ? { slug: requestedPage } : { home: true }),
+      shellMode ? Promise.resolve(null) : loadSiteRev(admin, profile.id),
+    ]);
+    sitePages = ((pagesRes.data ?? []) as Array<Record<string, unknown>>).map(mapPage);
+    speculativeRow = row;
+    siteRev = rev;
   }
 
   // Resolve the page slug being edited: explicit `?page=`, else the home page,
@@ -192,27 +224,17 @@ export default async function TalentPageBuilderRoute({
   // null, and the client adapter's ensurePage creates it as before.
   let canvasRenderData = null;
   let initialComposition: CompositionData | null = null;
-  let editorRow: TalentPageRow | null = null;
-  if (hasBuilderAccess && !shellMode) {
-    const admin = createServiceRoleClient();
-    if (admin) {
-      const { data, error } = await admin
-        .from("talent_pages")
-        .select(EDITOR_ROW_COLUMNS)
-        .eq("talent_profile_id", profile.id)
-        .eq("slug", activeSlug)
-        .maybeSingle();
-      if (error) logServerError("talentPageBuilder/editorRow", error);
-      editorRow = (data as unknown as TalentPageRow | null) ?? null;
-      // Theme releases Phase 2 — the CAS version is the site's draft_rev.
-      const siteRev = editorRow ? await loadSiteRev(admin, profile.id) : null;
-      if (editorRow && siteRev) editorRow = { ...editorRow, draft_rev: siteRev.draftRev };
-      if (editorRow) initialComposition = buildEmptyTalentPageComposition(editorRow, locale);
-    }
+  if (admin && hasBuilderAccess && !shellMode) {
+    editorRow =
+      speculativeRow && speculativeRow.slug === activeSlug
+        ? speculativeRow
+        : await loadEditorRow(admin, profile.id, { slug: activeSlug });
+    // Theme releases Phase 2 — the CAS version is the site's draft_rev.
+    if (editorRow && siteRev) editorRow = { ...editorRow, draft_rev: siteRev.draftRev };
+    if (editorRow) initialComposition = buildEmptyTalentPageComposition(editorRow, locale);
   }
   if (hasBuilderAccess && !shellMode) {
     try {
-      const admin = createServiceRoleClient();
       let draftTree: BuilderNodeTree = [];
       let pageTheme: unknown = null;
       if (admin) {
@@ -232,10 +254,6 @@ export default async function TalentPageBuilderRoute({
       canvasRenderData = null;
     }
   }
-
-  // PR 7: the builder's content-locale pill + inspector tabs follow the
-  // talent's own languages (primary first), not the managing agency's.
-  const talentLocale = await loadTalentLocaleSettings(profile.id);
 
   return (
     <TalentPageBuilderScreen
