@@ -25,6 +25,7 @@ import { CONFLICT_COPY, editSummary, pick, summaryFor } from "@/lib/talent-site/
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
+import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf, assertTalentCanEditSite } from "@/lib/server/talent-self-guard";
@@ -326,6 +327,10 @@ export async function publishTalentSiteShellRow(
     const sb = await getCachedServerSupabase();
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
+    // F96: first publish of the site runs the canonical site publish.
+    const first = await delegateFirstPublish(sb, gate.talentProfileId);
+    if (!first.ok) return { ok: false as const, error: first.error };
+
     // Bake shell_tree → shell_published (publishes ONLY the shell, not the pages).
     // STYLE-1 — try with style_classes, fall back when the column is not yet migrated.
     const selectCurrent = (cols: string) =>
@@ -381,7 +386,8 @@ export async function publishTalentSiteShellRow(
     let draftRev: number | null = null;
     if (admin && currentRow?.id) {
       const summary = summaryFor("publish");
-      await recordSiteHistory(admin, currentRow.id, {
+      // The site publish already wrote the history entry when it ran.
+      if (!first.delegated) await recordSiteHistory(admin, currentRow.id, {
         kind: "publish",
         summaryEn: summary.en,
         summaryEs: summary.es,

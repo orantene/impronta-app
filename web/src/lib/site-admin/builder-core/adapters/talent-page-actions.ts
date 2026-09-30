@@ -28,6 +28,7 @@ import { CONFLICT_COPY, editSummary, pick, summaryFor } from "@/lib/talent-site/
 import { loadOwnedSiteRev, loadSiteRev } from "@/lib/talent-site/history/history.server";
 import { recordSiteHistory, writeSiteDraft } from "@/lib/talent-site/history/writer";
 
+import { delegateFirstPublish } from "@/lib/talent-site/server/first-publish-delegate";
 import type {
   TalentPageAdapterActions,
   TalentPageRow,
@@ -344,6 +345,9 @@ export async function publishTalentPageAction(
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
     const { talentProfileId, pageId } = input;
+    // F96: first publish of the site runs the canonical site publish.
+    const first = await delegateFirstPublish(sb, talentProfileId);
+    if (!first.ok) return { ok: false as const, error: first.error };
     // Publish copies the draft body (`blocks`) into the live body
     // (`blocks_published`). Saving never touches the live body, so an edit to a
     // published page stays private until this runs.
@@ -353,7 +357,8 @@ export async function publishTalentPageAction(
     if (!page) return { ok: false as const, error: "Talent page publish failed." };
     const admin = createServiceRoleClient();
     const site = admin ? await loadSiteRev(admin, talentProfileId) : null;
-    if (admin && site) {
+    // The site publish already wrote the history entry when it ran.
+    if (admin && site && !first.delegated) {
       const summary = summaryFor("publish");
       await recordSiteHistory(admin, site.siteId, {
         kind: "publish",
