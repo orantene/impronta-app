@@ -53,3 +53,15 @@ test("talent layout panel hides raw flex/grid controls behind Advanced", () => {
   assert.match(group, /<details data-builder-layout-advanced/);
   assert.match(group, /sectionLabel\(/);
 });
+
+test("undo-reset toast is plain and translated at display", () => {
+  const ctx = readFileSync(join(__dirname, "edit-context.tsx"), "utf8");
+  assert.match(ctx, /We loaded the latest version\. Undo history started fresh\./);
+  assert.doesNotMatch(ctx, /Undo history was reset/);
+  const shell = readFileSync(join(__dirname, "edit-shell.tsx"), "utf8");
+  assert.match(shell, /t\(mutationError\.message\)/);
+  assert.equal(
+    ES_TALENT_CHROME_TEXT["We loaded the latest version. Undo history started fresh."],
+    "Cargamos la versión más reciente. El historial de deshacer empezó de nuevo.",
+  );
+});

@@ -1861,8 +1861,8 @@ export function EditProvider({
           if (historyDepthRef.current > 0) {
             reportMutationError(
               opts?.undoResetReason === "conflict"
-                ? "Undo history was reset because this page changed in another tab or session."
-                : "Undo history was reset because the editor reloaded this page.",
+                ? "We loaded the latest version. Undo history started fresh."
+                : "We reloaded this page. Undo history started fresh.",
             );
           }
           setPast([]);

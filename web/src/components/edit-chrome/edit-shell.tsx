@@ -1680,7 +1680,7 @@ function MutationErrorToast() {
       <span className="block" style={{ color: CHROME.text2 }}>
         {isConflict
           ? t("This page changed in another tab. Your last change was not saved.")
-          : mutationError.message}
+          : t(mutationError.message)}
       </span>
       {isConflict ? null : operationLabel || mutationError.code ? (
         <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
