@@ -40,7 +40,7 @@ test("desktop ready: header, count, New, segments, search, chips, one grp-h with
   const html = renderToStaticMarkup(<Inbox {...baseProps({ rows })} />);
   assert.match(html, /data-inbox-pane="desktop"/);
   assert.match(html, /<h2>Inbox<\/h2>/);
-  assert.match(html, /class="cnt-txt">1 conversations/);
+  assert.match(html, /class="cnt-txt">1 conversation</);
   assert.match(html, />New<\/button>/);
   assert.match(html, /role="tablist"/);
   assert.match(html, /class="search"/);
@@ -179,4 +179,23 @@ test("F54: her own new conversation (awaiting the client) is listed under All", 
   );
   assert.match(html, /data-inbox-row="a64db5b5"/);
   assert.doesNotMatch(html, /data-inbox-first-run/);
+});
+
+const SELLER_FILTERS = {
+  ...SELLER,
+  filters: { all: "All", needs: "Needs reply", quotes: "Quotes out", agency: "Agency" },
+  waitingOnYou: "{count} waiting on you",
+};
+
+test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting line", () => {
+  const rows = [
+    inboxRow({ id: "r1", conversationState: "needs_reply", ownerUserId: null, nextAction: null }),
+    inboxRow({ id: "r2", conversationState: "needs_reply", ownerUserId: null, nextAction: null, agency: true }),
+  ];
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, seller: true, sellerChrome: SELLER_FILTERS })} />);
+  assert.match(html, /data-inbox-seller-filters/);
+  for (const label of ["All", "Needs reply", "Quotes out", "Agency"]) assert.match(html, new RegExp(">" + label));
+  assert.match(html, /2 waiting on you/);
+  assert.doesNotMatch(html, /Needs action/);
+  assert.doesNotMatch(html, /data-inbox-chips/);
 });

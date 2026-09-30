@@ -36,10 +36,15 @@ export function AgendaAvailabilityPage({
   talentProfileId,
   initialHours,
   onBack,
+  embedded = false,
+  onSaved,
 }: {
   talentProfileId: string;
   initialHours?: BookingHours | null;
   onBack: () => void;
+  /** Inside the shared Working hours panel: no page chrome, and it closes on save. */
+  embedded?: boolean;
+  onSaved?: () => void;
 }) {
   const copy = useAgendaCopy();
   const seeded = initialHours;
@@ -150,6 +155,7 @@ export function AgendaAvailabilityPage({
       } else {
         setExceptions(result.hours.exceptions ?? []);
         setMessage("Availability saved.");
+        onSaved?.();
       }
     } catch {
       setMessage("Could not save. Check your hours and try again.");
@@ -188,11 +194,15 @@ export function AgendaAvailabilityPage({
   }
 
   return (
-    <div style={TALENT_AGENDA_VARS} className="mx-auto max-w-[720px] space-y-4">
-      <button type="button" onClick={onBack} className="min-h-[44px] text-[13px] text-[var(--tc-accent)]">
-        {"<"} {copy.t("Calendar")}
-      </button>
-      <h1 className="text-[24px] font-semibold text-[var(--tc-primary)]">{copy.t("Availability")}</h1>
+    <div style={TALENT_AGENDA_VARS} className={embedded ? "space-y-4" : "mx-auto max-w-[720px] space-y-4"}>
+      {embedded ? null : (
+        <>
+          <button type="button" onClick={onBack} className="min-h-[44px] text-[13px] text-[var(--tc-accent)]">
+            {"<"} {copy.t("Calendar")}
+          </button>
+          <h1 className="text-[24px] font-semibold text-[var(--tc-primary)]">{copy.t("Availability")}</h1>
+        </>
+      )}
       <p className="text-[14px] text-[#5F6368]">
         {copy.t("Weekly hours, time off, buffer, and timezone. Travel stays on each booking.")}
       </p>

@@ -22,6 +22,10 @@ export type SellerChrome = {
   /** Inbox title: "Messages" / "Mensajes" (mockup msg_d), not the staff "Inbox". */
   readonly inboxTitle?: string;
   readonly newConversation?: string;
+  /** Her four inbox filters (mockup msg_d). When set they replace the staff segments and chips. */
+  readonly filters?: { readonly all: string; readonly needs: string; readonly quotes: string; readonly agency: string };
+  /** Under the title: "{count} waiting on you" (the inbox fills the count). */
+  readonly waitingOnYou?: string;
   /** First run (zero conversations): how clients reach her, plus a share action. */
   readonly firstRunTitle?: string;
   readonly firstRunBody?: string;

@@ -35,3 +35,16 @@ test("F60: the record route falls back to the reader, scoped to her own profile"
   assert.match(loader, /\.eq\("talent_profile_id", actor\.talentProfileId\)/);
   assert.match(loader, /loadTalentAgenda\(actor\.talentProfileId, window\)/);
 });
+
+test("F63: the New booking panel has one save outcome: close, stay, toast with View booking, refresh", () => {
+  const panel = readFileSync(join(dir, "../../components/admin/shell/internal/talent/agenda/NewBookingPanel.tsx"), "utf8");
+  const saved = panel.slice(panel.indexOf("onSaved={(id) => {"), panel.indexOf("</AgendaPanelFrame>"));
+  assert.match(saved, /store\.close\(\)/);
+  assert.match(saved, /copy\.t\("View booking"\)/);
+  assert.match(saved, /router\.refresh\(\)/);
+  assert.doesNotMatch(saved, /router\.(push|back)|openAgendaPath/);
+  assert.doesNotMatch(panel, /<AgendaNewBooking[^>]*onOpenRecord/);
+  const form = readFileSync(join(dir, "../../components/admin/shell/internal/talent/agenda/AgendaNewBooking.tsx"), "utf8");
+  assert.match(form, /onSaved\?\.\(result\.id\)/);
+  assert.doesNotMatch(form, /request_link" && onOpenRecord/);
+});

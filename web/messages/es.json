@@ -18546,6 +18546,7 @@
         "title": "Bandeja",
         "newConversation": "Nueva",
         "threads": "{count} conversaciones",
+        "threadsOne": "{count} conversación",
         "visitor": "Visitante",
         "unassigned": "sin asignar",
         "you": "Tú",

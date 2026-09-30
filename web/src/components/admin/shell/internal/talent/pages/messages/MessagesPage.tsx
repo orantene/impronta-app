@@ -67,6 +67,8 @@ function TalentMessagesV5() {
       // F37: the page is "Messages" in the rail and the mockup, not the staff "Inbox".
       inboxTitle: copy.t("Messages"),
       newConversation: copy.t("New conversation"),
+      filters: { all: copy.t("All"), needs: copy.t("Needs reply"), quotes: copy.t("Quotes out"), agency: copy.t("Agency") },
+      waitingOnYou: copy.t("{count} waiting on you"),
       firstRunTitle: copy.t("No messages yet"),
       firstRunBody: copy.t("Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation."),
       firstRunAction: <MessagesFirstRun />,

@@ -46,3 +46,19 @@ test("F38: her writes run on her own sale and refuse on an agency sale", () => {
   assert.equal(talentWriteRefusal(true), null);
   assert.equal(talentWriteRefusal(false), "not_her_sale");
 });
+
+test("talent upload accepts a talent named on a guest chat; voice notes use the same ownership check", () => {
+  const signed = readFileSync(join(process.cwd(), "src/lib/server-actions/inquiry-attachment-signed.ts"), "utf8");
+  assert.match(signed, /loadOwnedTalentInquiry/);
+  assert.match(signed, /talentNamedScope/);
+  const engine = readFileSync(join(process.cwd(), "src/components/messages-v5/shell/talent-engine.ts"), "utf8");
+  assert.doesNotMatch(engine, /voice: false/);
+  const voice = readFileSync(join(process.cwd(), "src/lib/server-actions/voice-notes.ts"), "utf8");
+  assert.match(voice, /loadNamedTalentTenant/);
+  assert.equal((voice.match(/authorizeVoice\(/g) ?? []).length >= 5, true);
+});
+
+test("the Same person? merge card never draws for a talent (seller mode)", () => {
+  const shell = readFileSync(join(process.cwd(), "src/components/messages-v5/shell/MessagesV5Shell.tsx"), "utf8");
+  assert.match(shell, /if \(props\.seller \|\| !activeId \|\| !essentials\) return;/);
+});

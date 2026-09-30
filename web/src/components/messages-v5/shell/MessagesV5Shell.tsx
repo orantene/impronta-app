@@ -363,7 +363,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     rowsRef.current = rows;
   }, [rows]);
   useEffect(() => {
-    if (!activeId || !essentials) return;
+    if (props.seller || !activeId || !essentials) return; // merge is staff chrome: her engine refuses it
     const c = essentials.customer;
     if ((c.identityLevel !== "none" && c.identityLevel !== "linked") || (!c.phone && !c.email)) return;
     if (dupeDismissed.has(activeId)) return;
@@ -379,7 +379,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeId, dupeDismissed, engine, essentials]);
+  }, [activeId, dupeDismissed, engine, essentials, props.seller]);
 
   /* ----------------------------------------------------- derived state */
   const recordChips = useMemo(() => essentials?.linked ?? activeRow?.recordChips ?? [], [essentials?.linked, activeRow?.recordChips]);

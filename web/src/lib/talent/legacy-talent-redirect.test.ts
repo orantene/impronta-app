@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveLegacyTalentPlatformPath } from "./legacy-talent-redirect";
 
@@ -48,4 +48,14 @@ test("legacy tenant talent pages redirect to /talent/*", () => {
     "utf8",
   );
   assert.match(src, /redirectLegacyTalentPath\("today"/);
+});
+
+test("every /talent/<segment> page has a tenant-branded /<slug>/talent/<segment> twin", () => {
+  const root = join(process.cwd(), "src/app/(workspace)");
+  const missing: string[] = [];
+  for (const seg of readdirSync(join(root, "talent"))) {
+    if (!existsSync(join(root, "talent", seg, "page.tsx"))) continue;
+    if (!existsSync(join(root, "[tenantSlug]/talent", seg, "page.tsx"))) missing.push(seg);
+  }
+  assert.deepEqual(missing, []);
 });

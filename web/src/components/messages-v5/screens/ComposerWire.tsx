@@ -35,6 +35,8 @@ export type ComposerActions = {
   readonly upload: (input: { inquiryId: string; file: File }) => Promise<{ ok: true } | { ok: false; error: string }>;
   /** Talent seller engine: the tray drops staff verbs (hand over, close lost) her engine refuses. */
   readonly seller?: boolean;
+  /** False when the engine has no voice-note path for this viewer (talent named on a guest chat): the mic is hidden. */
+  readonly voice?: boolean;
 };
 
 export const engineComposerActions: ComposerActions = {
@@ -307,6 +309,7 @@ export function ComposerWire(props: ComposerWireProps) {
         onPlus={() => setSheet("tray")}
         onAttach={() => setSheet("attach")}
         onVoice={() => setSheet("voice")}
+        hideVoice={actions.voice === false}
         onChannel={() => setSheet("via")}
         above={above}
         textareaId={textareaId}
