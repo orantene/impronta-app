@@ -3,6 +3,7 @@ import { resolveNextActionBy } from "./inquiry-lifecycle";
 import { anyDemoTalent } from "@/lib/talent/demo-talent";
 import { validateActorPermission } from "./inquiry-permissions";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { shouldSendWorkspaceAutoAck } from "./workspace-auto-ack";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
@@ -595,7 +596,15 @@ export async function submitInquiry(
             ? agencyRow.auto_ack_message
             : "Thanks, we'll get back to you within 4 hours.";
 
-        if (!input.guest_session_id && autoAckEnabled && (input.client_user_id || input.contact_email)) {
+        if (
+          shouldSendWorkspaceAutoAck({
+            guestSessionId: input.guest_session_id,
+            autoAckEnabled,
+            clientUserId: input.client_user_id,
+            contactEmail: input.contact_email,
+            initiatorRole: input.initiator_role,
+          })
+        ) {
           await insertSystemMessage(supabase, {
             inquiryId,
             threadType: "private",

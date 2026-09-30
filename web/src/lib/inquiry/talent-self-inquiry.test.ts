@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { inquiryIsHers, talentIdsOnInquiry } from "@/lib/messaging/talent-pov";
 
 import { talentSelfInquiryAllowed } from "./talent-self-inquiry";
+import { shouldSendWorkspaceAutoAck } from "./workspace-auto-ack";
 
 const HUB = "hub-tenant";
 const ME = "talent-me";
@@ -58,4 +59,23 @@ test("F54: a talent_self inquiry is listed in her inbox (seat and named lineup b
 test("F54: after Start the shell opens the thread and lists it under All", () => {
   const shell = readFileSync(join(dir, "..", "..", "components", "messages-v5", "shell", "MessagesV5Shell.tsx"), "utf8");
   assert.match(shell, /openThread\(r\.inquiryId\);[^\n]*\n\s*if \(segment === "all"\) await reloadInbox\(\); else setSegment\("all"\);/);
+});
+
+test("F54: the workspace auto-ack never fires on a conversation the talent started", () => {
+  const base = { guestSessionId: null, autoAckEnabled: true, clientUserId: null, contactEmail: "c@x.test" };
+  assert.equal(shouldSendWorkspaceAutoAck({ ...base, initiatorRole: "talent" }), false);
+  assert.equal(shouldSendWorkspaceAutoAck({ ...base, initiatorRole: "client" }), true);
+  assert.equal(shouldSendWorkspaceAutoAck({ ...base, initiatorRole: "admin" }), true);
+  assert.equal(shouldSendWorkspaceAutoAck({ ...base, initiatorRole: "client", guestSessionId: "g" }), false);
+  assert.equal(shouldSendWorkspaceAutoAck({ ...base, initiatorRole: "client", autoAckEnabled: false }), false);
+  assert.equal(shouldSendWorkspaceAutoAck({ ...base, initiatorRole: "client", contactEmail: null }), false);
+  const submit = readFileSync(join(dir, "inquiry-engine-submit.ts"), "utf8");
+  assert.match(submit, /shouldSendWorkspaceAutoAck\(\{[\s\S]*initiatorRole: input\.initiator_role/);
+});
+
+test("F54: seller mode loads every conversation, not only Needs action", () => {
+  // Root cause: the shell fetched the "needs" segment only (needs_reply rows), so a
+  // conversation she started (awaiting_customer) never reached her client-side filters.
+  const shell = readFileSync(join(dir, "..", "..", "components", "messages-v5", "shell", "MessagesV5Shell.tsx"), "utf8");
+  assert.match(shell, /useState<InboxSegment>\(props\.seller \? "all" : "needs"\)/);
 });
