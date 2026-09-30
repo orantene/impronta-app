@@ -10,6 +10,7 @@ import {
 } from "@/lib/money/today-money-tiles";
 import type { WebsiteSlice, WebsiteSliceKey } from "@/lib/talent/website-eligibility";
 import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
 import type { TalentSelfProfile } from "../../data-bridge";
 import { PageHeader } from "../shared/page-chrome-1";
 import { PrimaryButton, SecondaryButton } from "../../primitives";
@@ -232,6 +233,7 @@ export function AgendaTodayPage({
   const percent = eligibility?.percent ?? null;
   const qualityMode = resolveQualityCardMode({ percent, sitePublished });
   const requiredSlices = (eligibility?.slices ?? []).filter((s) => s.required);
+  const openSlice = useOpenWebsiteSlice();
   const leftCount = requiredSlices.filter((s) => s.done === false).length;
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
 
@@ -501,9 +503,20 @@ export function AgendaTodayPage({
               >
                 {slice.done ? "✓" : ""}
               </span>
-              <span className={slice.done ? `${MUTED} line-through` : "text-[var(--tc-primary)]"}>
-                {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
-              </span>
+              {slice.done === false ? (
+                <button
+                  type="button"
+                  data-testid={`agenda-website-slice-${slice.key}`}
+                  onClick={() => openSlice(slice.key)}
+                  className="text-left text-[var(--tc-primary)] underline decoration-black/20 underline-offset-2"
+                >
+                  {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
+                </button>
+              ) : (
+                <span className={slice.done ? `${MUTED} line-through` : "text-[var(--tc-primary)]"}>
+                  {copy.t(SLICE_LABEL[slice.key])}
+                </span>
+              )}
             </li>
           ))}
         </ul>

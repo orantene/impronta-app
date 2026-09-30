@@ -4210,9 +4210,7 @@ export function TalentProfileShellDrawer() {
               </ProfileAccordionSection>
             )}
 
-            {/* AVAILABILITY — moved before Rates per 2026 reset (B8). The
-                logical flow is "Are you available? At what price?" not
-                "Price first, then schedule." */}
+            {/* AVAILABILITY — before Rates (B8): "available?" comes before "price?". */}
             <ProfileAccordionSection
               id="availability" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Availability")}
               sub={copy.t("Tap a day to block it. Open by default.")}

@@ -1,9 +1,9 @@
 "use client";
 
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
 import {
   firstMissingWebsiteSlice,
   websiteSliceProgressSuffix,
-  websiteSliceTarget,
   type WebsiteSliceKey,
 } from "@/lib/talent/website-eligibility";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -74,26 +74,10 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     router.push("/talent/site");
   };
 
+  const openSliceTarget = useOpenWebsiteSlice(openIntroTask);
   const openSlice = (key: WebsiteSliceKey | null) => {
     setOpen(false);
-    const target = key ? websiteSliceTarget(key) : null;
-    if (target?.kind === "intro") {
-      openIntroTask();
-      return;
-    }
-    if (target?.kind === "services") {
-      setTalentPage("services");
-      router.push("/talent/services");
-      return;
-    }
-    const section = target?.kind === "drawer" ? target.section : "services";
-    const talentId = bridgeTalentSelfProfile?.id;
-    if (!talentId) {
-      setTalentPage("profile");
-      router.push("/talent/profile");
-      return;
-    }
-    openDrawer("talent-profile-shell", { mode: "edit-self", talentId, section });
+    openSliceTarget(key);
   };
 
   const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
