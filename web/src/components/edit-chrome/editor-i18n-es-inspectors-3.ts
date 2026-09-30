@@ -249,4 +249,10 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Section packs": "Paquetes de sección",
   blocks: "bloques",
   Starter: "Inicio",
+  // ── Estilo panel density (page-builder panel cleanup) ──────────────────
+  "Following the theme": "Sigue el tema",
+  "container name": "nombre del contenedor",
+  "Box model": "Modelo de caja",
+  "How the things inside this box sit next to each other.":
+    "Cómo se acomodan las cosas dentro de este cuadro.",
 };
