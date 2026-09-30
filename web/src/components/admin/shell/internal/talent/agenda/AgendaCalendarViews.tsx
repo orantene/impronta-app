@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import {
   blocksTime,
   freeGaps,
@@ -12,6 +12,7 @@ import { windowsForDate } from "@/lib/scheduling/hours-types";
 import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import { overnightLabel } from "@/lib/talent-agenda/overnight";
 import { AgendaRow } from "./primitives";
+import { focusMinutes } from "./calendar-focus";
 import { itemsOnDay, rowFromAgendaItem, weekChipKind } from "./present";
 import { placeLabelFor } from "./record-actions";
 import {
@@ -257,8 +258,11 @@ function TimeColumn({
 function HourRail({
   bounds,
   now,
+  focusMin,
 }: {
   bounds: { startMin: number; endMin: number };
+  /** Minute to bring into view on load (an invisible scroll anchor is drawn there). */
+  focusMin?: number | null;
   /** Set when today is in view: the gutter carries the current time in red. */
   now?: Date | null;
 }) {
@@ -266,6 +270,14 @@ function HourRail({
   const nowMin = now ? minutesOf(now) : null;
   return (
     <div className="relative h-[var(--agenda-h)]" style={{ "--agenda-h": `${height}px` }}>
+      {focusMin != null && focusMin >= bounds.startMin ? (
+        <span
+          aria-hidden
+          data-agenda-focus
+          className="pointer-events-none absolute left-0 top-[var(--agenda-top)] h-px w-px scroll-mt-[120px]"
+          style={{ "--agenda-top": `${(focusMin - bounds.startMin) * PX_PER_MIN}px` }}
+        />
+      ) : null}
       {nowMin != null && nowMin >= bounds.startMin && nowMin <= bounds.endMin ? (
         <div
           className="absolute right-1 top-[var(--agenda-top)] z-20 -translate-y-1/2 bg-white text-[10px] font-semibold tabular-nums text-[var(--agenda-now)]"
@@ -312,11 +324,18 @@ export function WeekGrid({
   onGap: (day: Date, startsAt?: Date) => void;
 }) {
   const copy = useAgendaCopy();
+  const focusMin = focusMinutes(days, items, (day) => dayWindows(hours, day));
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const weekKey = localYmd(days[0] ?? clock);
+  useEffect(() => {
+    gridRef.current?.querySelector("[data-agenda-focus]")?.scrollIntoView({ block: "start" });
+  }, [weekKey, focusMin]);
   const hasAllDay = days.some((day) =>
     itemsOnDay(items, day).some((item) => weekChipKind(item, tradeRules) === "allDay"),
   );
   return (
     <div
+      ref={gridRef}
       className="overflow-x-auto pr-[var(--agenda-fab-clear)]"
       data-agenda-fab-clearance
       style={{ "--agenda-fab-clear": `${SHELL_FAB_CLEARANCE_PX}px` }}
@@ -384,7 +403,7 @@ export function WeekGrid({
             })}
           </>
         ) : null}
-        <HourRail bounds={bounds} now={days.some((day) => sameDay(day, clock)) ? clock : null} />
+        <HourRail bounds={bounds} now={days.some((day) => sameDay(day, clock)) ? clock : null} focusMin={focusMin} />
         {days.map((day) => (
           <TimeColumn
             key={localYmd(day)}

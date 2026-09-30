@@ -385,7 +385,7 @@ export function AgendaCalendarPage({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <SecondaryButton onClick={() => setView(view === "list" ? "week" : "list")}>{copy.t("List")}</SecondaryButton>
+              <SecondaryButton onClick={() => setView(view === "list" ? "week" : "list")}>{copy.t(view === "list" ? "Schedule" : "List")}</SecondaryButton>
               {onOpenAvailability ? (
                 <SecondaryButton onClick={onOpenAvailability}>{copy.t("Working hours")}</SecondaryButton>
               ) : null}
@@ -478,15 +478,6 @@ export function AgendaCalendarPage({
           </button>
           {hours?.timezone ? <span className={`text-[13px] ${MUTED}`}>{hours.timezone}</span> : null}
           <span className="flex-1" />
-          <Segmented
-            label={copy.t("Calendar mode")}
-            value={view === "list" ? "list" : "schedule"}
-            onChange={(id) => setView(id === "list" ? "list" : "week")}
-            options={[
-              { id: "schedule", label: copy.t("Schedule") },
-              { id: "list", label: copy.t("List") },
-            ]}
-          />
           {view !== "list" ? (
             <Segmented
               label={copy.t("Calendar view")}
