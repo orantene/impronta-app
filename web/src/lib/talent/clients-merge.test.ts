@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   clientMergeKey,
+  clientPickerHint,
+  dedupeClientsByPerson,
   mergeClientHistory,
   upsertClient,
   type TalentClientRow,
@@ -180,5 +182,35 @@ describe("mergeClientHistory", () => {
         ["a", 50000],
       ],
     );
+  });
+});
+
+describe("dedupeClientsByPerson (F98)", () => {
+  it("collapses one person across conversations by email or phone", () => {
+    const rows = [
+      row({ id: "inquiry:1", name: "Lucia Prueba", email: "Lucia@x.com" }),
+      row({ id: "inquiry:2", name: "Lucia Prueba", email: "lucia@x.com", phone: "+52 998 111 2222" }),
+      row({ id: "inquiry:3", name: "Lucia P", phone: "9981112222" }),
+    ];
+    const out = dedupeClientsByPerson(rows);
+    assert.equal(out.length, 1);
+    assert.equal(out[0]!.phone, "+52 998 111 2222");
+  });
+
+  it("keeps two different people who share a name, and hints with their contact", () => {
+    const rows = [
+      row({ id: "inquiry:1", name: "Ana Prueba", email: "ana1@x.com" }),
+      row({ id: "inquiry:2", name: "Ana Prueba", email: "ana2@x.com" }),
+      row({ id: "inquiry:3", name: "Sofia", email: "s@x.com" }),
+    ];
+    const out = dedupeClientsByPerson(rows);
+    assert.equal(out.length, 3);
+    assert.equal(clientPickerHint(out[0]!, out), "ana1@x.com");
+    assert.equal(clientPickerHint(out[2]!, out), null);
+  });
+
+  it("never merges rows with no contact (a name alone is not identity)", () => {
+    const rows = [row({ id: "a", name: "Mia" }), row({ id: "b", name: "Mia" })];
+    assert.equal(dedupeClientsByPerson(rows).length, 2);
   });
 });

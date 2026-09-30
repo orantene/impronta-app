@@ -63,7 +63,7 @@ describe("Request payment panel and QR", () => {
 describe("Send quote panel", () => {
   it("creates through the inquiry funnel writer and is opened from Today and Messages", () => {
     const panel = code("SendQuotePanel.tsx");
-    assert.match(panel, /messagingTalentSendQuote\(/);
+    assert.match(panel, /messagingTalentQuoteSend\(/);
     assert.match(panel, /loadTalentClients/);
     const router = read("../../talent.tsx");
     assert.match(router, /<SendQuotePanelHost/);
@@ -84,6 +84,34 @@ describe("Money Record payment opens Finish over Money", () => {
     assert.match(money, /<AgendaFinishCollect/);
     assert.match(money, /setFinishFor\(r\)/);
     assert.doesNotMatch(money, /collect=1/);
+  });
+});
+
+describe("coordinator findings F98-F101", () => {
+  it("F98: both client pickers dedupe by person and hint shared names", () => {
+    for (const f of ["SendQuotePanel.tsx", "AgendaNewBooking.tsx"]) {
+      const src = code(f);
+      assert.match(src, /dedupeClientsByPerson\(clients\)/, f);
+      assert.match(src, /clientPickerHint\(/, f);
+    }
+  });
+  it("F99: the quote is two shown steps, each a separate action", () => {
+    const panel = code("SendQuotePanel.tsx");
+    assert.match(panel, /messagingTalentQuoteStart\(/);
+    assert.match(panel, /messagingTalentQuoteSend\(/);
+    assert.match(panel, /\(1 of 2\)/);
+    assert.match(panel, /\(2 of 2\)/);
+  });
+  it("F100: Messages reads the pinned thread without consuming it on render", () => {
+    const page = code("../pages/messages/MessagesPage.tsx");
+    assert.match(page, /peekPendingConversation\(\)/);
+    assert.match(page, /clearPendingConversation\(\)/);
+    assert.doesNotMatch(page, /consumePendingConversation/);
+  });
+  it("F101: a talent never sees the internal offer version, and the engine line is localised", () => {
+    assert.match(code("../../../../../messages-v5/screens/Thread.tsx"), /hideVersion=\{Boolean\(seller\)\}/);
+    assert.match(code("../../../../../messages-v5/screens/ThreadCards.tsx"), /showVersion=\{!hideVersion\}/);
+    assert.match(code("../../../../../messages-v5/kit/InboxRowV5.tsx"), /localiseEngineLine\(row\.lastMessagePreview/);
   });
 });
 

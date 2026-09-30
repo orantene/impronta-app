@@ -14,30 +14,55 @@ import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { messagingTalentStartConversation } from "./messaging-talent-writes";
 
 /**
- * Send quote (talent dashboard): start her own conversation through the inquiry
- * funnel, then create, price and SEND the offer so the client receives it.
- * The offer verbs are admitted only on her own talent_self inquiry
- * (inquiry-permissions.ts, talentOwnOfferAllowed). If the conversation exists
- * but a later step fails, `inquiryId` comes back so the panel can say so
- * honestly and open the thread.
+ * Send quote (talent dashboard), in two steps so the panel can show real
+ * progress and a failure after step 1 is honest about what exists:
+ *   1. `messagingTalentQuoteStart`: her own conversation through the inquiry funnel.
+ *   2. `messagingTalentQuoteSend`: create, price and SEND the offer so the client
+ *      receives it. The offer verbs are admitted only on her own talent_self
+ *      inquiry (inquiry-permissions.ts, talentOwnOfferAllowed).
  */
-export type TalentQuoteResult =
-  | { ok: true; inquiryId: string; offerId: string }
-  | { ok: false; reason: MessagingRefusal | "no_price"; inquiryId?: string };
+export type TalentQuoteStartResult = { ok: true; inquiryId: string } | { ok: false; reason: MessagingRefusal };
+export type TalentQuoteSendResult = { ok: true; offerId: string } | { ok: false; reason: MessagingRefusal | "no_price" };
 
-export async function messagingTalentSendQuote(input: {
+export async function messagingTalentQuoteStart(input: {
   name: string;
   email?: string | null;
   phone?: string | null;
   offeringId: string;
-  amountCents: number;
   note?: string | null;
-}): Promise<TalentQuoteResult> {
+}): Promise<TalentQuoteStartResult> {
   const parsed = z
     .object({
       name: z.string().trim().min(1).max(200),
       email: z.string().trim().email().nullable().optional(),
       phone: z.string().trim().max(32).nullable().optional(),
+      offeringId: z.string().uuid(),
+      note: z.string().trim().max(2000).nullable().optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  // The offering is checked against her own published catalog inside the funnel writer.
+  const started = await messagingTalentStartConversation({
+    name: parsed.data.name,
+    email: parsed.data.email ?? null,
+    phone: parsed.data.phone ?? null,
+    channel: "counter",
+    quoteOfferingId: parsed.data.offeringId,
+    quoteNote: parsed.data.note ?? null,
+  });
+  if (!started.ok) return started;
+  return { ok: true, inquiryId: started.inquiryId };
+}
+
+export async function messagingTalentQuoteSend(input: {
+  inquiryId: string;
+  offeringId: string;
+  amountCents: number;
+  note?: string | null;
+}): Promise<TalentQuoteSendResult> {
+  const parsed = z
+    .object({
+      inquiryId: z.string().uuid(),
       offeringId: z.string().uuid(),
       amountCents: z.number().int().max(100_000_000),
       note: z.string().trim().max(2000).nullable().optional(),
@@ -48,27 +73,13 @@ export async function messagingTalentSendQuote(input: {
 
   const actor = await loadTalentActor();
   if (!actor.ok) return actor;
-  const hub = await getPlatformHubTenant();
+  const [hub, own] = await Promise.all([getPlatformHubTenant(), loadTalentOfferingsForEditor(actor.talentProfileId)]);
   if (!hub?.tenantId) return fail("unavailable");
   const tenantId = hub.tenantId;
-
-  // Her own published offering: title and currency come from the catalog row.
-  const own = await loadTalentOfferingsForEditor(actor.talentProfileId);
   const offering = own.ok ? own.items.find((o) => o.id === parsed.data.offeringId && o.status === "published") : undefined;
   if (!offering) return fail("not_found");
 
-  const started = await messagingTalentStartConversation({
-    name: parsed.data.name,
-    email: parsed.data.email ?? null,
-    phone: parsed.data.phone ?? null,
-    channel: "counter",
-    quoteOfferingId: offering.id,
-    quoteNote: parsed.data.note ?? null,
-  });
-  if (!started.ok) return started;
-  const inquiryId = started.inquiryId;
-  const partial = (reason: MessagingRefusal): TalentQuoteResult => ({ ok: false, reason, inquiryId });
-
+  const { inquiryId } = parsed.data;
   const admin = actor.admin;
   const versionOf = async (table: "inquiries" | "inquiry_offers", id: string) => {
     const { data } = await tenantScopedQuery(admin, table, tenantId).select("version").eq("id", id).maybeSingle();
@@ -82,17 +93,18 @@ export async function messagingTalentSendQuote(input: {
     expectedVersion: await versionOf("inquiries", inquiryId),
     currencyCode: offering.currency,
   });
-  if (!created.success || !created.data?.offerId) return partial(created.success ? "unavailable" : created.forbidden ? "not_allowed" : "unavailable");
+  if (!created.success || !created.data?.offerId) return fail(created.success || !created.forbidden ? "unavailable" : "not_allowed");
   const offerId = created.data.offerId;
 
   const total = parsed.data.amountCents / 100;
+  const [inquiryVersion, offerVersionBefore] = await Promise.all([versionOf("inquiries", inquiryId), versionOf("inquiry_offers", offerId)]);
   const updated = await updateOfferDraft(admin, {
     inquiryId,
     tenantId,
     offerId,
     actorUserId: actor.userId,
-    inquiryExpectedVersion: await versionOf("inquiries", inquiryId),
-    offerExpectedVersion: await versionOf("inquiry_offers", offerId),
+    inquiryExpectedVersion: inquiryVersion,
+    offerExpectedVersion: offerVersionBefore,
     total_client_price: total,
     coordinator_fee: 0,
     currency_code: offering.currency,
@@ -112,25 +124,27 @@ export async function messagingTalentSendQuote(input: {
       },
     ],
   });
-  if (!updated.success) return partial(updated.forbidden ? "not_allowed" : "unavailable");
+  if (!updated.success) return fail(updated.forbidden ? "not_allowed" : "unavailable");
 
-  const offerVersion = await versionOf("inquiry_offers", offerId);
+  const [inquiryVersionNow, offerVersion] = await Promise.all([versionOf("inquiries", inquiryId), versionOf("inquiry_offers", offerId)]);
   const sent = await sendOffer(admin, {
     inquiryId,
     tenantId,
     offerId,
     actorUserId: actor.userId,
-    inquiryExpectedVersion: await versionOf("inquiries", inquiryId),
+    inquiryExpectedVersion: inquiryVersionNow,
     offerExpectedVersion: offerVersion,
   });
-  if (!sent.success) return partial(sent.forbidden ? "not_allowed" : "unavailable");
+  if (!sent.success) return fail(sent.forbidden ? "not_allowed" : "unavailable");
 
   // The offer card the client link renders (Accept / Ask for changes / Decline).
+  // The body is a neutral key-free line; the reader localises the card and
+  // never shows the internal version (F101).
   await insertMessage(admin, {
     tenantId,
     inquiryId,
     kind: "offer_review",
-    body: `Offer v${offerVersion} sent`,
+    body: "Offer sent",
     payload: {
       state: "sent",
       offerId,
@@ -141,5 +155,5 @@ export async function messagingTalentSendQuote(input: {
     },
     senderUserId: actor.userId,
   });
-  return { ok: true, inquiryId, offerId };
+  return { ok: true, offerId };
 }

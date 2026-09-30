@@ -44,6 +44,8 @@ const ES: Record<string, string> = {
   "Choose an offering": "Elige un servicio",
   "Publish a service first. Quotes are made from your services.": "Publica un servicio primero. Las cotizaciones se hacen con tus servicios.",
   "Note for the client": "Nota para la clienta",
+  "Sending quote… (2 of 2)": "Enviando cotización… (2 de 2)",
+  "Creating conversation… (1 of 2)": "Creando conversación… (1 de 2)",
   "Enter the price of the quote.": "Escribe el precio de la cotización.",
   "Quote sent": "Cotización enviada",
   "Quote not sent": "Cotización no enviada",

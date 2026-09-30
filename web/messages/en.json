@@ -18660,8 +18660,10 @@
       "offer": {
         "draft": "Draft",
         "sentV": "Sent · v{version}",
+        "sentPlain": "Sent",
         "viewedAt": "Viewed {time}",
         "acceptedV": "Accepted v{version}",
+        "acceptedPlain": "Accepted",
         "declined": "Declined",
         "expired": "Expired",
         "validUntil": "Valid until {date}",
