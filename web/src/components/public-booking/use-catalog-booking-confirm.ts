@@ -10,6 +10,7 @@ import {
   type CatalogBookFn,
 } from "./catalog-booking-confirm";
 import type { CatalogBookingMode } from "./catalog-booking-logic";
+import { catalogTakenSlotMessage, type CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
 
 type Step = "choose" | "when" | "who" | "done";
@@ -47,6 +48,8 @@ export function useCatalogBookingConfirm(input: {
   setStep: Dispatch<SetStateAction<Step>>;
   setWrote: Dispatch<SetStateAction<boolean>>;
   setSlotsRefreshKey: Dispatch<SetStateAction<number>>;
+  /** DS-4: the notice shown on the time step after a taken-slot error. */
+  setTakenNotice: Dispatch<SetStateAction<CatalogTakenSlotNotice | null>>;
 }) {
   const [busy, setBusy] = useState(false);
   const confirmInFlightRef = useRef(false);
@@ -57,7 +60,13 @@ export function useCatalogBookingConfirm(input: {
   }, []);
 
   const recoverTakenSlot = (message: string) => {
-    input.setError(message);
+    // DS-4: the visitor lands on the time step, so the message lives THERE (with
+    // alternatives), not in `error`, which only the details step renders.
+    input.setTakenNotice({
+      message: catalogTakenSlotMessage({ locale: input.locale, lostClock: input.time, serverMessage: message }),
+      lostStarts: input.liveStarts,
+    });
+    input.setError(null);
     input.setTime(null);
     input.setLiveStarts(null);
     input.setStep("when");

@@ -562,3 +562,78 @@ test("longer extras clear a start that dropped out of the list (BUF-6)", async (
   act(() => root.unmount());
   host.remove();
 });
+
+test("DS-4: a taken slot returns to the time step WITH the message and 3 alternatives", async () => {
+  let round = 0;
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  const book = Object.assign(
+    async () => ({ ok: false as const, slotTaken: true as const, error: "taken" }),
+    { calls: [] as unknown[] },
+  );
+  act(() => {
+    root.render(
+      <CatalogBookingSheet
+        locale="es"
+        mode="live"
+        tenantId="tenant-1"
+        bookFn={book as never}
+        slotsFn={async () => {
+          round += 1;
+          // After the taken-slot refetch 15:00 is gone.
+          const all = [
+            "2026-09-25T15:00:00.000Z",
+            "2026-09-25T16:00:00.000Z",
+            "2026-09-25T17:00:00.000Z",
+            "2026-09-25T18:00:00.000Z",
+            "2026-09-25T19:00:00.000Z",
+          ];
+          return { slots: round === 1 ? all : all.slice(1), timezone: "UTC" };
+        }}
+      />,
+    );
+  });
+  open(detail({ addOns: [] }), "when");
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  const first = host.querySelector<HTMLButtonElement>(".jb-times .jb-time");
+  assert.ok(first);
+  act(() => first.click());
+  const toWho = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
+  assert.ok(toWho);
+  act(() => toWho.click());
+  // React's change plugin does not fire from programmatic events in this jsdom setup:
+  // set the value, then call the onChange React wired onto the node.
+  const set = (el: HTMLInputElement, v: string) => {
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!;
+    const key = Object.keys(el).find((k) => k.startsWith("__reactProps"))!;
+    const props = (el as unknown as Record<string, { onChange: (e: { target: HTMLInputElement }) => void }>)[key];
+    act(() => {
+      setter.call(el, v);
+      props.onChange({ target: el });
+    });
+  };
+  set(host.querySelector<HTMLInputElement>('[data-testid="cb-name"]')!, "Vale Demo");
+  set(host.querySelector<HTMLInputElement>('[data-testid="cb-email"]')!, "vale@example.com");
+  const confirm = host.querySelector<HTMLButtonElement>('[data-catalog-continue="who"]');
+  assert.ok(confirm);
+  await act(async () => {
+    confirm.click();
+    await new Promise((r) => setTimeout(r, 80));
+  });
+  // Back on the time step: the alert is HERE, not only on the details step.
+  const alert = host.querySelector('[data-slot-taken][role="alert"]');
+  assert.ok(alert, "taken-slot alert renders on the time step");
+  assert.match(alert.textContent ?? "", /se acaban de ocupar/);
+  const alts = alert.querySelectorAll<HTMLButtonElement>("[data-alt-slot]");
+  assert.equal(alts.length, 3);
+  assert.equal(host.querySelector(".jb-error"), null);
+  // Picking an alternative selects it and clears the notice.
+  act(() => alts[0]!.click());
+  assert.equal(host.querySelector("[data-slot-taken]"), null);
+  assert.equal(host.querySelectorAll(".jb-time[data-on='true']").length, 1);
+  act(() => root.unmount());
+  host.remove();
+});

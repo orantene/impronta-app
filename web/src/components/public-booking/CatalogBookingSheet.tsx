@@ -49,6 +49,8 @@ import {
 } from "./catalog-booking-live-slots";
 import { CATALOG_BOOKING_CSS } from "./catalog-booking-styles";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
+import { CatalogLiveWhenPicker } from "./CatalogLiveWhenPicker";
+import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 
 type Step = "choose" | "when" | "who" | "done";
@@ -104,6 +106,7 @@ export function CatalogBookingSheet({
   const [captchaToken, setCaptchaToken] = useState("");
   const [askAttempted, setAskAttempted] = useState(false);
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+  const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
   const liveStartsRef = useRef<string | null>(null);
 
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
@@ -137,6 +140,7 @@ export function CatalogBookingSheet({
       setError(null);
       setWrote(false);
       setAskAttempted(false);
+      setTakenNotice(null);
       const needsOption = catalogNeedsOptions(d);
       setStep(d.startAt === "when" && !needsOption ? "when" : "choose");
     };
@@ -275,6 +279,7 @@ export function CatalogBookingSheet({
     setStep,
     setWrote,
     setSlotsRefreshKey,
+    setTakenNotice,
   });
 
   useEffect(() => {
@@ -285,7 +290,6 @@ export function CatalogBookingSheet({
   if (!detail) return <style>{CATALOG_BOOKING_CSS}</style>;
 
   const demoTimes = demoSlotsFor(day, bookingDurationMinutes);
-  const liveTimes = liveDays[dayIndex]?.starts ?? [];
   const isRequest = detail.intent === "request";
   // Just written, no order state yet: online-collect reads HELD, never confirmed.
   const doneStatus = deriveGuestBookingPresentation({
@@ -500,7 +504,7 @@ export function CatalogBookingSheet({
 
           {step === "when" ? (
             <>
-              <button type="button" className="jb-back-link" onClick={() => setStep("choose")}>
+              <button type="button" className="jb-back-link" onClick={() => { setTakenNotice(null); setStep("choose"); }}>
                 {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
               </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
@@ -509,58 +513,24 @@ export function CatalogBookingSheet({
                   {es ? "Cargando horarios…" : "Loading times…"}
                 </p>
               ) : mode === "live" ? (
-                <>
-                  <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>
-                    {liveDays.length === 0 ? null : liveDays.map((d, i) => (
-                      <button
-                        key={d.key}
-                        type="button"
-                        className="jb-day"
-                        data-on={i === dayIndex}
-                        onClick={() => {
-                          setDayIndex(i);
-                          setTime(null);
-                          setLiveStarts(null);
-                        }}
-                      >
-                        <span>{catalogWeekdayShort(d.date, es)}</span>
-                        <b>{d.date.getDate()}</b>
-                        <small>{catalogMonthShort(d.date, es)}</small>
-                      </button>
-                    ))}
-                  </div>
-                  {liveTimes.length === 0 ? (
-                    <div className="jb-empty">
-                      <strong>{es ? "Sin horarios disponibles." : "No times available."}</strong>
-                      <p>
-                        {es
-                          ? "No hay huecos en las próximas dos semanas. Probá otra fecha o consultá."
-                          : "Nothing is open in the next two weeks. Try another day or send a question."}
-                      </p>
-                      {emptyConsultButton}
-                    </div>
-                  ) : (
-                    <div className="jb-times" role="group" aria-label={timeGroupLabel}>
-                      {liveTimes.map((iso) => {
-                        const label = formatClock(iso, liveTz, locale);
-                        return (
-                          <button
-                            key={iso}
-                            type="button"
-                            className="jb-time"
-                            data-on={iso === liveStarts}
-                            onClick={() => {
-                              setLiveStarts(iso);
-                              setTime(label);
-                            }}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                <CatalogLiveWhenPicker
+                  es={es}
+                  locale={locale}
+                  liveDays={liveDays}
+                  dayIndex={dayIndex}
+                  liveStarts={liveStarts}
+                  liveTz={liveTz}
+                  timeGroupLabel={timeGroupLabel}
+                  emptyConsultButton={emptyConsultButton}
+                  takenNotice={takenNotice}
+                  onPickDay={(i) => { setDayIndex(i); setTime(null); setLiveStarts(null); }}
+                  onPickStart={(iso, label, i) => {
+                    if (i !== undefined && i >= 0) setDayIndex(i);
+                    setLiveStarts(iso);
+                    setTime(label);
+                    setTakenNotice(null);
+                  }}
+                />
               ) : (
                 <>
                   <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>

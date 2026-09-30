@@ -66,6 +66,9 @@ export const CATALOG_BOOKING_CSS = `
 .jb-field input:focus-visible{outline:2px solid var(--cb-primary);outline-offset:1px}
 .jb-field input[aria-invalid="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
 .jb-field em{font-style:normal;font-size:.8125rem;color:var(--cb-primary)}
+.jb-taken{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-surface)}
+.jb-taken p{margin:0;font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
+.jb-taken .jb-times{margin-top:10px}
 .jb-error{margin:0 0 12px;font-size:.875rem;color:var(--cb-primary)}
 .jb-done{text-align:center;padding:8px 0 4px}
 .jb-check{width:60px;height:60px;border-radius:99px;background:var(--cb-soft);color:var(--cb-primary);display:grid;place-items:center;font-size:1.5rem;margin:0 auto 16px}
