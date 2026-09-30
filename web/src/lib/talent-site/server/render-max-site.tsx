@@ -65,10 +65,14 @@ import {
 } from "@/lib/talent-site/resolve-max-site-core";
 import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { scrubTalentSiteSeo } from "@/lib/talent-site/free-site-seo";
+import { talentSiteShowsPlatformBadge } from "@/lib/talent-site/free-site-badge";
+import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
-  talentSiteBadgeLabel,
-  talentSiteShowsPlatformBadge,
-} from "@/lib/talent-site/free-site-badge";
+  buildSocketModel,
+  socketConsentToolingEnabled,
+  stripDesignCredits,
+} from "@/lib/talent-site/footer-socket";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { pruneUnconfirmedGuestStubs } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 import { publicPageBody } from "@/lib/talent-site/talent-page-publish-core";
@@ -529,7 +533,19 @@ async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, footerTree] = splitShell(shellTree); const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  const [headerTree, rawFooterTree] = splitShell(shellTree);
+  // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
+  const footerTree = stripDesignCredits(rawFooterTree);
+  const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  const socketModel = buildSocketModel({
+    locale,
+    publicPathPrefix,
+    supportedLocales: args.localeCtx.settings.supportedLocales,
+    switcherHrefs: args.localeCtx.switcherHrefs,
+    showCredit: showPlatformBadge,
+    whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
+    consentTooling: socketConsentToolingEnabled(),
+  });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
   // its config inline (`props.sectionProps`) and is rendered via the bespoke
@@ -725,22 +741,9 @@ async function renderMaxSiteDocument(args: {
 
       {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
 
-      {/* PHASE 1 — the free site's platform mark. Paid plans remove it. */}
-      {showPlatformBadge ? (
-        <div
-          data-talent-max-site-badge=""
-          style={{
-            padding: "16px",
-            textAlign: "center",
-            fontSize: 12,
-            color: "var(--token-color-ink-muted, rgba(11,11,13,0.45))",
-          }}
-        >
-          <a href="https://tulala.digital" rel="noopener" style={{ color: "inherit" }}>
-            {talentSiteBadgeLabel(locale)}
-          </a>
-        </div>
-      ) : null}
+      {/* Global Tulala footer socket: one shared bottom strip under every
+          design's own footer (replaces the scattered "Made with Tulala"). */}
+      <TalentSiteSocket model={socketModel} />
     </div>
   );
 }

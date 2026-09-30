@@ -37,6 +37,15 @@ import {
   loadTalentPlanKey,
   loadTalentSiteCtaMode,
 } from "./load-max-site";
+import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import {
+  buildSocketModel,
+  socketConsentToolingEnabled,
+  socketLockedHint,
+  stripDesignCredits,
+} from "@/lib/talent-site/footer-socket";
+import { talentSiteShowsPlatformBadge } from "@/lib/talent-site/free-site-badge";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 import { loadPreviewDataSources } from "./preview-my-content.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
@@ -134,7 +143,18 @@ export async function buildTalentBuilderCanvasData(input: {
   const shell = site?.siteSlug
     ? hydrateShellNav(fixed.shellTree, nav, site.siteSlug, "", "host-root")
     : fixed.shellTree;
-  const [headerTree, footerTree] = splitShell(shell);
+  const [headerTree, rawFooterTree] = splitShell(shell);
+  // The socket carries the ONE Tulala credit, so the canvas hides any design-level one too.
+  const footerTree = stripDesignCredits(rawFooterTree);
+  const socketModel = buildSocketModel({
+    locale: siteLocale,
+    publicPathPrefix: "",
+    supportedLocales: localeCtx.settings.supportedLocales,
+    switcherHrefs: localeCtx.switcherHrefs,
+    showCredit: talentSiteShowsPlatformBadge(planKey),
+    whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
+    consentTooling: socketConsentToolingEnabled(),
+  });
 
   const dataSources = await dataSourcesP;
 
@@ -174,6 +194,7 @@ export async function buildTalentBuilderCanvasData(input: {
     ),
     shellHeader: renderShell(headerTree),
     shellFooter: renderShell(footerTree),
+    shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
     labelLocale: { locale: siteLocale, ctaMode, swaps },
   };
 }
