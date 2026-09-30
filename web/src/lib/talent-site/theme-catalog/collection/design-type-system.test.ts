@@ -55,7 +55,7 @@ test("style tokens are registry tokens that default to empty (platform unchanged
 test("design defaults render as CSS vars and the type-system attribute", () => {
   const tokens = resolveEffectiveSiteTokens({}, {}, PLATFORM, MAISON_V2_TOKEN_DEFAULTS);
   const vars = designTokensToCssVars(tokens);
-  assert.equal(vars["--token-button-radius"], "20px");
+  assert.equal(vars["--token-button-radius"], "999px");
   assert.equal(vars["--token-type-hero-size-desktop"], "96px");
   assert.equal(vars["--token-layout-section-pad-top"], "84px");
   const attrs = designTokensToDataAttrs(tokens);
@@ -80,9 +80,9 @@ test("an empty style value falls through; reset returns the design default", () 
   const reset = resetStyleTokenGroup(edited, "buttons");
   for (const def of STYLE_TOKEN_DEFS.filter((d) => d.group === "buttons")) assert.equal(reset[def.key], "");
   const tokens = resolveEffectiveSiteTokens(reset, { "button.height": "" }, PLATFORM, MAISON_V2_TOKEN_DEFAULTS);
-  assert.equal(tokens["button.radius"], "20px");
+  assert.equal(tokens["button.radius"], "999px");
   assert.equal(tokens["button.height"], "48px");
-  assert.equal(designTokensToCssVars(tokens)["--token-button-radius"], "20px");
+  assert.equal(designTokensToCssVars(tokens)["--token-button-radius"], "999px");
 });
 
 test("without design defaults or site tokens the resolver is byte-identical to before", () => {

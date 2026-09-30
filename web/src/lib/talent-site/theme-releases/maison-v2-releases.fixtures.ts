@@ -44,7 +44,7 @@ export const currentMaisonV2 = (): DesignPayload => clonePayload(buildMaisonV2Pa
 export function revertR16(p: DesignPayload): DesignPayload {
   const out = clonePayload(p);
   out.tokenDefaults!["type.display-tracking"] = "-0.01em";
-  out.tokenDefaults!["button.radius"] = "999px";
+  out.tokenDefaults!["button.padding-x"] = "22px";
   Object.assign(propsOf(findByKind(out.homeTree, "reviews")!), { showArrows: false, limit: 12 });
   return out;
 }

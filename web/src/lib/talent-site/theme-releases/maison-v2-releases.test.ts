@@ -69,7 +69,7 @@ test("Maison v2 v16 classifies as token defaults + one variant default, nothing 
   const items = diff(revertR16(next), 15, next, 16);
   assert.deepEqual(
     items.map((i) => i.id).sort(),
-    ["token-default:button.radius", "token-default:type.display-tracking", "variant-default:home:reviews/reviews"],
+    ["token-default:button.padding-x", "token-default:type.display-tracking", "variant-default:home:reviews/reviews"],
   );
   assert.equal(types(items, "token-default").length, 2);
   assert.equal(types(items, "variant-default").length, 1);
@@ -87,18 +87,18 @@ test("Maison v2 v16 auto-improves untouched parts and keeps talent edits", async
   // Untouched site: tokens are inherited at render, the reviews default lands.
   const clean = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items });
   const inherited = clean.report.applied.filter((e) => e.change === "token").map((e) => e.key).sort();
-  assert.deepEqual(inherited, ["button.radius", "type.display-tracking"]);
+  assert.deepEqual(inherited, ["button.padding-x", "type.display-tracking"]);
   const reviews = findByKind(clean.trees.home!, "reviews")!;
   assert.equal(propsOf(reviews).showArrows, true);
   assert.equal(propsOf(reviews).limit, 9);
   assert.equal(clean.report.conflicts.length, 0);
 
-  // The talent set her own button radius and edited her reviews: both are kept.
-  const ours = siteOf(base, { "button.radius": "4px" });
+  // The talent set her own button padding and edited her reviews: both are kept.
+  const ours = siteOf(base, { "button.padding-x": "40px" });
   propsOf(findByKind(ours.trees.home!, "reviews")!).limit = 3;
   const kept = mergeDesignUpdate({ base, ours, theirs, items });
-  assert.equal(kept.tokens["button.radius"], "4px", "her own radius wins");
+  assert.equal(kept.tokens["button.padding-x"], "40px", "her own padding wins");
   assert.equal(propsOf(findByKind(kept.trees.home!, "reviews")!).limit, 3, "her own limit wins");
-  assert.ok(kept.report.kept.some((e) => e.key === "button.radius"));
+  assert.ok(kept.report.kept.some((e) => e.key === "button.padding-x"));
   assert.ok(kept.report.kept.some((e) => e.key === "reviews/reviews"));
 });
