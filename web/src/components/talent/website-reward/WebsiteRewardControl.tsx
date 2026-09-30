@@ -1,5 +1,6 @@
 "use client";
 
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -282,7 +283,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                             <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
                               {slice.done ? "✓" : ""}
                             </span>
-                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
+                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}</span>
                             <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
                               {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
                             </span>
@@ -293,7 +294,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                             <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
                               {slice.done ? "✓" : ""}
                             </span>
-                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
+                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}</span>
                             <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
                               {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
                             </span>

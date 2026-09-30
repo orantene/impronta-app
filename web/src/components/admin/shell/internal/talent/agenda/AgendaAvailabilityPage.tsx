@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useEffect, useMemo, useState } from "react";
 import {
   loadBookingHours,
@@ -150,6 +151,7 @@ export function AgendaAvailabilityPage({
       } else {
         setExceptions(result.hours.exceptions ?? []);
         setMessage("Availability saved.");
+        invalidateWebsiteEligibility();
       }
     } catch {
       setMessage("Could not save. Check your hours and try again.");

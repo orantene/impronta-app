@@ -31,7 +31,18 @@ export type WebsiteSlice = {
   earned: number;
   /** False when the mode treats this slice as a suggestion only. */
   required: boolean;
+  /**
+   * Count-gated slices (photos, offer) carry have/need so every surface can
+   * say "5 of 6" instead of an unexplained unticked row. null elsewhere.
+   */
+  progress: { have: number; need: number } | null;
 };
+
+/** " · 5/6" for an unfinished count-gated slice; "" otherwise. */
+export function websiteSliceProgressSuffix(slice: Pick<WebsiteSlice, "done" | "progress">): string {
+  if (slice.done || !slice.progress) return "";
+  return ` · ${slice.progress.have}/${slice.progress.need}`;
+}
 
 type ModeRule = {
   photoMin: number;
@@ -146,12 +157,19 @@ export function getWebsiteEligibility(input: WebsiteEligibilityInput): {
     const required = (rule.weights[key] ?? 0) > 0;
     const weight = required ? weights[key] : 0;
     const done = required ? sliceDone(key, input, rule) : true;
+    const progress =
+      key === "photos" && input.photoCount != null
+        ? { have: input.photoCount, need: rule.photoMin }
+        : key === "offer" && rule.requireOffer && input.bookableCount != null
+          ? { have: input.bookableCount, need: rule.offerMin }
+          : null;
     return {
       key,
       weight,
       done,
       earned: done ? weight : 0,
       required,
+      progress,
     };
   });
 

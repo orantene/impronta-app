@@ -7,6 +7,7 @@
  * Live: renders nothing (W23 — never Unlock).
  */
 
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
 import { useEffect, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
@@ -128,7 +129,7 @@ export function WebsiteTodayUnlockCard({ onActivate }: Props) {
         <ul className="mt-2 space-y-1 text-[13px] text-admin-ink">
           {required.map((slice) => (
             <li key={slice.key}>
-              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}
+              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
             </li>
           ))}
         </ul>

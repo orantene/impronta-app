@@ -9,6 +9,7 @@ import {
   type MoneyLanding,
 } from "@/lib/money/today-money-tiles";
 import type { WebsiteSlice, WebsiteSliceKey } from "@/lib/talent/website-eligibility";
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
 import type { TalentSelfProfile } from "../../data-bridge";
 import { PageHeader } from "../shared/page-chrome-1";
 import { PrimaryButton, SecondaryButton } from "../../primitives";
@@ -501,7 +502,7 @@ export function AgendaTodayPage({
                 {slice.done ? "✓" : ""}
               </span>
               <span className={slice.done ? `${MUTED} line-through` : "text-[var(--tc-primary)]"}>
-                {copy.t(SLICE_LABEL[slice.key])}
+                {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
               </span>
             </li>
           ))}

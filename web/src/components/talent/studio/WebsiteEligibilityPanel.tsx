@@ -1,5 +1,6 @@
 "use client";
 
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 
@@ -57,7 +58,7 @@ export function WebsiteEligibilityPanel({ onActivate }: { onActivate?: () => voi
           .filter((slice) => slice.required)
           .map((slice) => (
             <li key={slice.key}>
-              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}
+              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
               {slice.done == null ? ` · ${copy.t("Not available")}` : ""}
             </li>
           ))}
