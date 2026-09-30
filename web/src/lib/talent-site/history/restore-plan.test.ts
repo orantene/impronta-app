@@ -128,9 +128,10 @@ test("undo: report guard only accepts a stored merge report", () => {
 });
 
 test("summaries: theme update + undo name kept edits in EN + ES", () => {
-  const t = themeUpdateSummary("Maison v2", 3, 2);
-  assert.equal(t.en, "Maison v2 update 3 applied · kept 2 of your edits");
-  assert.equal(t.es, "Actualización Maison v2 3 aplicada · conservamos 2 de tus cambios");
+  const t = themeUpdateSummary("Maison v2", 16, 2, "2.2");
+  assert.equal(t.en, "You applied Maison v2 update 2.2 · kept 2 of your edits");
+  assert.equal(t.es, "Aplicaste la actualización 2.2 de Maison v2 · conservamos 2 de tus cambios");
+  assert.equal(themeUpdateSummary("Maison v2", 16, 0).es, "Aplicaste la actualización de Maison v2");
   const u = undoUpdateSummary("Maison v2", 1);
   assert.equal(u.en, "Undid the Maison v2 update · kept your 1 later edit");
   assert.equal(u.es, "Deshiciste la actualización Maison v2 · conservamos tu edición posterior");

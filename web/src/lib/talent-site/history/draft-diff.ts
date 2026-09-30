@@ -51,7 +51,11 @@ const SECTION_NAMES: Record<string, { en: string; es: string }> = {
   gallery: { en: "Gallery", es: "Galería" },
   work: { en: "Gallery", es: "Galería" },
   portfolio: { en: "Gallery", es: "Galería" },
-  visit: { en: "Visit", es: "Visítame" },
+  visit: { en: "Visit", es: "Tu visita" },
+  ticker: { en: "Recent work", es: "Novedades y trabajos recientes" },
+  before_after: { en: "Before and after", es: "Antes y después" },
+  "before-and-after": { en: "Before and after", es: "Antes y después" },
+  aftercare: { en: "Aftercare", es: "Cuidados posteriores" },
   location: { en: "Location", es: "Ubicación" },
   hours: { en: "Hours", es: "Horario" },
   contact: { en: "Contact", es: "Contacto" },
@@ -149,6 +153,40 @@ export function sectionNameForKey(key: string | null | undefined, locale: DiffLo
   if (!key) return null;
   const base = key.split(/[-_./]/)[0]?.toLowerCase() ?? "";
   const known = SECTION_NAMES[key.toLowerCase()] ?? SECTION_NAMES[base];
+  return known ? known[locale] : null;
+}
+
+/**
+ * Design kits label their sections in English (`layerLabel`). This maps those
+ * labels to the talent's language; unknown labels come back unchanged.
+ */
+const LABEL_NAMES: Record<string, { en: string; es: string }> = {
+  hero: { en: "Hero", es: "Portada" },
+  "ticker and recent work": { en: "Ticker and recent work", es: "Novedades y trabajos recientes" },
+  ticker: { en: "Ticker", es: "Novedades" },
+  menu: { en: "Menu", es: "Menú" },
+  services: { en: "Services", es: "Servicios" },
+  reviews: { en: "Reviews", es: "Reseñas" },
+  about: { en: "About", es: "Sobre mí" },
+  visit: { en: "Visit", es: "Tu visita" },
+  faq: { en: "FAQ", es: "Preguntas frecuentes" },
+  "visit & faq": { en: "Visit & FAQ", es: "Tu visita y preguntas frecuentes" },
+  "contact & faq": { en: "Contact & FAQ", es: "Contacto y preguntas frecuentes" },
+  contact: { en: "Contact", es: "Contacto" },
+  gallery: { en: "Gallery", es: "Galería" },
+  chapter: { en: "Chapter", es: "Capítulo" },
+  "before and after": { en: "Before and after", es: "Antes y después" },
+  aftercare: { en: "Aftercare", es: "Cuidados posteriores" },
+  header: { en: "Header", es: "Encabezado" },
+  footer: { en: "Footer", es: "Pie de página" },
+  "statement footer": { en: "Statement footer", es: "Pie con mensaje" },
+  "comp card": { en: "Comp card", es: "Comp card" },
+  contents: { en: "Contents", es: "Contenido" },
+  "the book": { en: "The book", es: "El portafolio" },
+};
+
+export function sectionNameForLabel(label: string | null | undefined, locale: DiffLocale): string | null {
+  const known = label ? LABEL_NAMES[label.trim().toLowerCase()] : undefined;
   return known ? known[locale] : null;
 }
 

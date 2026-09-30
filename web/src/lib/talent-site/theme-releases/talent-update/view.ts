@@ -10,6 +10,7 @@
  * No I/O: the server module and the tests share it.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { sectionNameForKey, sectionNameForLabel } from "@/lib/talent-site/history/draft-diff";
 import { hashString, propsOf } from "../origin";
 import { countParts, partsOf } from "../parts";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
@@ -230,6 +231,8 @@ export interface PlacementOption {
   /** Node id of the section to insert after. */
   afterId: string;
   label: string;
+  /** Same section in Spanish (the picker shows the one for the talent's language). */
+  labelEs: string;
 }
 
 function textOf(node: BuilderNode): string | null {
@@ -241,18 +244,21 @@ function textOf(node: BuilderNode): string | null {
   return null;
 }
 
-export function sectionLabel(node: BuilderNode): string {
+export function sectionLabel(node: BuilderNode, locale: "en" | "es" = "en"): string {
   const p = propsOf(node);
-  if (typeof p.layerLabel === "string" && p.layerLabel.trim()) return p.layerLabel.trim().slice(0, 40);
   const key = keyOf(node) ?? (typeof p.slotKey === "string" ? p.slotKey : null);
-  if (key) return humanKey(key);
+  if (typeof p.layerLabel === "string" && p.layerLabel.trim()) {
+    const label = p.layerLabel.trim();
+    return (locale === "es" ? sectionNameForLabel(label, "es") ?? sectionNameForKey(key, "es") : null) ?? label.slice(0, 40);
+  }
+  if (key) return (locale === "es" ? sectionNameForKey(key, "es") : null) ?? humanKey(key);
   const child = (node as { children?: BuilderNode[] }).children?.map(textOf).find(Boolean);
   return child ?? humanKey(node.kind);
 }
 
 /** Top-level sections of her page, in order: the picker's "after" choices. */
 export function placementOptions(tree: ReadonlyArray<BuilderNode>): PlacementOption[] {
-  return tree.map((n) => ({ afterId: n.id, label: sectionLabel(n) }));
+  return tree.map((n) => ({ afterId: n.id, label: sectionLabel(n), labelEs: sectionLabel(n, "es") }));
 }
 
 /**
