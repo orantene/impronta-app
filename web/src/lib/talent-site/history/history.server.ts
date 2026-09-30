@@ -15,7 +15,7 @@ import type { DesignMergeReport } from "@/lib/talent-site/theme-releases/types";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 
-import { countParts } from "@/lib/talent-site/theme-releases/parts";
+import { countParts, editedKept } from "@/lib/talent-site/theme-releases/parts";
 import { CHROME_COPY, restoreSummary, summaryFor, themeUpdateSummary, undoUpdateSummary } from "./copy";
 import { summarizeGoLive, type SectionChange } from "./draft-diff";
 import {
@@ -350,6 +350,8 @@ export async function undoThemeUpdateEntry(
       .eq("talent_profile_id", input.talentProfileId);
     if (undoErr) logServerError("themeUpdate.undoRows", undoErr);
   }
+  // F124: an undo can lower the pin below updates that were marked applied.
+  if (res.ok) await ensureSiteThemeUpdates(admin, input.talentProfileId);
   return res;
 }
 
@@ -393,7 +395,7 @@ export async function applyThemeUpdateToDraft(
     toVersion: input.toVersion,
   };
   const summary =
-    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, countParts(input.report.kept));
+    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, countParts(editedKept(input.report.kept)));
   return writeSiteDraft(admin, {
     siteId: input.siteId,
     expectedDraftRev: input.expectedDraftRev,

@@ -11,7 +11,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { hashString, propsOf } from "../origin";
-import { countParts, partsOf } from "../parts";
+import { countParts, editedKept, partsOf } from "../parts";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
 import type { DesignMergeReport, ReleaseItem, ReleaseItemType, SiteUpdateState } from "../types";
 
@@ -209,14 +209,18 @@ export interface UpdateSummary {
   keptLabels: string[];
   /** The same parts as raw design keys ("hero", "colours"); localized at display (F86). */
   keptKeys: string[];
+  /** F122: fixes skipped because the block is not on her page (never "your edits"). */
+  notApplicable: number;
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
-  const keys = partsOf(report.kept).slice(0, 6);
+  const edited = editedKept(report.kept);
+  const keys = partsOf(edited).slice(0, 6);
   return {
     applied: report.applied.length,
     added: report.added.length,
-    kept: countParts(report.kept),
+    kept: countParts(edited),
+    notApplicable: countParts(report.kept.filter((e) => e.reason === "removed")),
     conflicts: report.conflicts.length,
     moved: report.applied.filter((e) => e.reason === "moved_edits").length,
     keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),

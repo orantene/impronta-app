@@ -150,6 +150,8 @@ for (const state of ["available", "previewed", "applied", "dismissed", "undone"]
   const open = state === "available" || state === "previewed" || state === "undone" || state === "dismissed";
   test(`notices: a row in state ${state} ${open ? "loads" : "stays out"}`, async () => {
     const db = world(state);
+    // F124: an `applied` row only stays closed while her pin is at or past the release.
+    if (state === "applied") db.tables.talent_sites![0]!.theme_design_version = 2;
     const notices = await loadTalentUpdateNotices(db.admin, PROFILE);
     assert.equal(notices.length, open ? 1 : 0);
     if (open) assert.equal(notices[0]!.state, state);

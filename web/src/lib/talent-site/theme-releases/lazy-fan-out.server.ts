@@ -72,6 +72,41 @@ function adminPorts(admin: SupabaseClient): FanOutPorts {
   };
 }
 
+/**
+ * F124: rows that say `applied` for a release ABOVE her pin are stale (a
+ * restore or undo took her back). Put them back to `available`, keeping their
+ * report (added blocks) and a note. Rows closed as nothing_applicable stay closed.
+ */
+export async function reopenAppliedRows(admin: SupabaseClient, siteId: string, aboveReleaseIds: string[]): Promise<number> {
+  if (aboveReleaseIds.length === 0) return 0;
+  const { data, error } = await admin
+    .from("talent_site_theme_updates")
+    .select("id, report")
+    .eq("talent_site_id", siteId)
+    .eq("state", "applied")
+    .in("release_id", aboveReleaseIds);
+  if (error) {
+    logServerError("themeUpdate.reopen.read", error);
+    return 0;
+  }
+  let n = 0;
+  for (const row of (data ?? []) as Array<{ id: string; report?: Record<string, unknown> | null }>) {
+    if (row.report?.reason === "nothing_applicable") continue;
+    const { error: upErr } = await admin
+      .from("talent_site_theme_updates")
+      .update({
+        state: "available",
+        report: { ...(row.report ?? {}), note: "reopened_after_restore" },
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq("id", row.id)
+      .eq("state", "applied");
+    if (upErr) logServerError("themeUpdate.reopen.write", upErr);
+    else n += 1;
+  }
+  return n;
+}
+
 async function newestFromVersion(admin: SupabaseClient, releaseId: string): Promise<number | null> {
   const { data, error } = await admin.from("talent_theme_releases").select("from_version").eq("id", releaseId).maybeSingle();
   if (error) return null;
@@ -112,6 +147,8 @@ export async function ensureSiteThemeUpdates(
     }
     const releases = (rels ?? []) as OpenRelease[];
     if (releases.length === 0) return none;
+    // F124: a restore / undo that lowered the pin reopens rows it had closed.
+    await reopenAppliedRows(admin, (site as { id: string }).id, releases.map((r) => r.id));
 
     // F118: do not open an offer she could do nothing with (no bell, no row).
     const sortedRels = [...releases].sort((a, b) => a.to_version - b.to_version);
