@@ -149,7 +149,11 @@ export function AgendaCalendarPage({
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 720px)");
-    const apply = () => setPhone(media.matches);
+    const apply = () => {
+      setPhone(media.matches);
+      // The month grid has no phone layout: fall back to the agenda strip.
+      if (media.matches) setView((v) => (v === "month" ? "week" : v));
+    };
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
