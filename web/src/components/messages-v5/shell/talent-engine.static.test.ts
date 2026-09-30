@@ -54,3 +54,8 @@ test("talent upload accepts a talent named on a guest chat; voice mic is hidden 
   const engine = readFileSync(join(process.cwd(), "src/components/messages-v5/shell/talent-engine.ts"), "utf8");
   assert.match(engine, /voice: false/);
 });
+
+test("the Same person? merge card never draws for a talent (seller mode)", () => {
+  const shell = readFileSync(join(process.cwd(), "src/components/messages-v5/shell/MessagesV5Shell.tsx"), "utf8");
+  assert.match(shell, /if \(props\.seller \|\| !activeId \|\| !essentials\) return;/);
+});
