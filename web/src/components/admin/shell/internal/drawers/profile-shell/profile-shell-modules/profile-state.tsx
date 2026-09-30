@@ -136,11 +136,17 @@ export const TYPE_DEFAULTS: Record<string, TypeDefaults> = {
 };
 
 
+/** "nail-artist" -> "Nail artist": a readable label for a DB taxonomy slug the prototype TAXONOMY lacks. */
+export function typeLabelFromSlug(slug: string): string {
+  const words = slug.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function getTypeDefaults(typeId: string | null): TypeDefaults {
   if (!typeId) return { defaultSpecialties: [], bioTemplate: () => "" };
   return TYPE_DEFAULTS[typeId] ?? {
     defaultSpecialties: [],
-    bioTemplate: (v) => `${(findChild(typeId)?.child.label ?? "Talent")}${v.homeBase ? ` based in ${v.homeBase}` : ""}.`,
+    bioTemplate: (v) => `${(findChild(typeId)?.child.label ?? typeLabelFromSlug(typeId))}${v.homeBase ? ` based in ${v.homeBase}` : ""}.`,
   };
 }
 

@@ -198,7 +198,7 @@ import {
   ageString,
   computeProfileDiff,
   findChild,
-  getTypeDefaults,
+  getTypeDefaults, typeLabelFromSlug,
   makeInitialProfileState,
   profileReducer
 } from "./profile-shell-internal";
@@ -3918,7 +3918,7 @@ export function TalentProfileShellDrawer() {
                 onActivateLocale={patchBioActiveLocale}
                 onChange={patchBios}
                 onRegenerate={onBiosRegenerate}
-                primaryLabel={primaryRes?.child.label}
+                primaryLabel={primaryRes?.child.label ?? (isSelf ? bridgeTalentSelfProfile?.primaryTypeLabel : null) ?? (state.primaryType ? typeLabelFromSlug(state.primaryType) : undefined)}
                 disabled={personalProfileLocked} talentLocales={isSelf ? talentLocales : null}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
