@@ -3,7 +3,7 @@
 // Legacy Today/Calendar remain behind isAgendaV2 until Step 4 delete PR.
 
 import { notFound, redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 import {
@@ -36,7 +36,16 @@ import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSite
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
-import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
+import {
+  TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
+  talentLocaleSeedHref,
+  talentLocaleSeedTarget,
+} from "@/lib/site-admin/server/talent-locale-seed";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
+import { getRequestLocale, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadTalentPlanGrants } from "@/lib/plan-trials/talent-grants";
@@ -199,7 +208,7 @@ export default async function PlatformTalentLayout({
     talentPayoutAttention,
     profileEditorLayout,
     clientFieldSource,
-    localeSettings,
+    talentLocaleState,
     userNotifications,
     talentPageAnalytics,
     workspaceUi,
@@ -237,10 +246,10 @@ export default async function PlatformTalentLayout({
     // catalog). Null when every surface is `static` (default). `tenantId` may
     // be null for independent talent — the loader degrades to flags-only.
     loadClientFieldSource(tenantId),
-    // Tenant locale settings for the shell chrome's DashboardLocaleToggle.
-    // For independent talent (no active agency, tenantId null) the loader
-    // returns the single-locale platform fallback, so the toggle hides.
-    loadTenantLocaleSettings(tenantId ?? ""),
+    // The talent's OWN languages (primary + secondary, bounded to platform
+    // public locales) drive the shell's DashboardLocaleToggle / LanguageMenu.
+    // No secondary = single locale, so the toggle hides. Never throws.
+    loadTalentLocaleState(talentSelfProfile.id),
     // Talent-surface notifications (`user_notifications`, surface='talent').
     // Cross-agency on purpose — see the loader's comment. Without this the
     // shell's `bridgeUserNotifications` stayed null on the whole talent
@@ -267,6 +276,27 @@ export default async function PlatformTalentLayout({
   const operatingCurrency = await loadPlatformOperatingCurrency();
   const displayEarnings = applyOperatingCurrencyToEarnings(talentEarnings, operatingCurrency);
 
+  // Seed the dashboard `locale` cookie to the talent's primary when it is
+  // absent or auto-written. A deliberate choice is never overwritten. A layout
+  // cannot write cookies, so hop once through the seed route (which re-checks
+  // from the session and sets a 60 s attempt cookie so this can never loop).
+  const localeSettings = talentLocaleState.settings;
+  const jar = await cookies();
+  const seedTarget = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value || !talentLocaleState.seedPrimary
+    ? null
+    : talentLocaleSeedTarget({
+        cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
+        cookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
+        primary: talentLocaleState.seedPrimary,
+      });
+  if (seedTarget) {
+    redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
+  }
+
+  // Seed client dashboard copy with the SERVER-resolved locale so the first
+  // render is not English regardless of the cookie (use-dashboard-locale.ts).
+  const requestLocale = await getRequestLocale();
+
   const isHybrid = membership != null;
   const workspaceUnread: number | undefined = isHybrid ? workspaceUnreadRaw : undefined;
   const userPrefs: UserPrefs | null = isHybrid ? userPrefsRaw : null;
@@ -280,6 +310,7 @@ export default async function PlatformTalentLayout({
   };
 
   return (
+    <DashboardLocaleProvider locale={requestLocale}>
     <TalentSiteDashboardProvider initialLoad={talentSiteDashboardLoad}>
     <TalentShellClient
       tenantSlug={activeAgency?.slug}
@@ -354,6 +385,10 @@ export default async function PlatformTalentLayout({
           supportedLocales: localeSettings.supportedLocales,
           defaultLocale: localeSettings.defaultLocale,
         },
+        talentLocales: {
+          primary: localeSettings.defaultLocale,
+          secondary: localeSettings.secondaryLocales,
+        },
         // Bridge only the support switch: passing fabEnabled through would
         // silently un-gate the workspace FAB on the talent surface (the shell
         // renders it without a surface check).
@@ -374,5 +409,6 @@ export default async function PlatformTalentLayout({
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>
+    </DashboardLocaleProvider>
   );
 }
