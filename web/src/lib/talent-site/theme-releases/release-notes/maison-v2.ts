@@ -56,3 +56,32 @@ export const MAISON_V2_RELEASE_2_1 = {
     "layout:home:hero/container#2/hero_inset_bl",
   ],
 } as const;
+
+/**
+ * Release 2.2 (v15 to v16, update round 2): defaults only, nothing new to
+ * place. Token and variant defaults reach untouched parts on their own; a
+ * talent's own values always win.
+ */
+export const MAISON_V2_RELEASE_2_2 = {
+  design: "maison-v2",
+  toVersion: 16,
+  notes: {
+    en: "Maison v2 2.2: slightly tighter headings, roomier buttons and reviews that show arrows and up to nine quotes.",
+    es: "Maison v2 2.2: títulos un poco más juntos, botones con más espacio interior y reseñas con flechas y hasta nueve citas.",
+  } satisfies ReleaseNote,
+  codeNotes: [] satisfies ReleaseNote[],
+  byItemId: {
+    "token-default:type.display-tracking": {
+      en: "Headings sit a touch tighter (only if you have not changed the letter spacing yourself).",
+      es: "Los títulos quedan un poco más juntos (solo si no cambiaste el espaciado de letras tú).",
+    },
+    "token-default:button.padding-x": {
+      en: "Buttons have a little more room inside (only if you have not changed the button padding yourself).",
+      es: "Los botones tienen un poco más de espacio interior (solo si no cambiaste el relleno del botón tú).",
+    },
+    "variant-default:home:reviews/reviews": {
+      en: "Reviews show previous and next arrows and up to nine quotes (only if you have not edited that section).",
+      es: "Las reseñas muestran flechas y hasta nueve citas (solo si no editaste esa sección).",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;
