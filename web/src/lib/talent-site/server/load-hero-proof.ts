@@ -59,6 +59,10 @@ async function loadYears(db: Db, talentProfileId: string): Promise<number | null
 }
 
 async function loadIsDemo(db: Db, talentProfileId: string): Promise<boolean> {
-  const { data } = await db.from("talent_profiles").select("is_demo").eq("id", talentProfileId).maybeSingle();
+  const { data, error } = await db.from("talent_profiles").select("is_demo").eq("id", talentProfileId).maybeSingle();
+  if (error) {
+    logServerError("talentSite.heroProofDemo", error);
+    return false;
+  }
   return (data as { is_demo?: boolean } | null)?.is_demo === true;
 }

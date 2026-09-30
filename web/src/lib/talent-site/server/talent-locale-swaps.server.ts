@@ -75,12 +75,14 @@ export async function loadTalentLocaleSwaps(
 
 /** The same facts the token projection used, so the swap key equals the baked English line. */
 async function loadProofInput(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, talentProfileId: string) {
-  const { data: langs } = await admin
+  const { data: langs, error: langError } = await admin
     .from("talent_languages")
     .select("language_name, display_order")
     .eq("talent_profile_id", talentProfileId)
     .order("display_order", { ascending: true })
     .order("language_name", { ascending: true });
+  // A failed language read only shortens the proof line, which then simply gets no Spanish swap.
+  if (langError) logServerError("talentSite.localeSwapsLanguages", langError);
   const data = await loadHeroProofData(admin, talentProfileId);
   return {
     years: data.years,
