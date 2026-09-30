@@ -149,7 +149,7 @@ for (const { site, profile } of ordered) {
       `| shell matched ${shell.stats.matched} added ${shell.stats.unmatched} missing ${shell.stats.missing.length} edited ${cShell.counts.edited}` +
       ` | home matched ${homeRes.stats.matched} added ${homeRes.stats.unmatched} missing ${homeRes.stats.missing.length} edited ${cHome.counts.edited}` +
       (already ? ` | already stamped ${already}` : "") +
-      (homeRes.stats.missing.length ? ` | home missing: ${homeRes.stats.missing.filter((k) => !k.includes("/")).join(",") || "(children only)"}` : ""),
+      (homeRes.stats.missing.length ? ` | home missing: ${homeRes.stats.missing.join(",")}` : ""),
   );
 
   const changed = shell.stats.matched + homeRes.stats.matched > 0;
