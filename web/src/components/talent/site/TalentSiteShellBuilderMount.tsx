@@ -17,6 +17,7 @@
 
 import { useMemo } from "react";
 
+import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildSiteShellBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/talent-site-shell-adapter";
@@ -141,6 +142,7 @@ export function TalentSiteShellBuilderMount({
           </div>
         )}
 
+        <TalentAiTranslateProvider>
         <BuilderEditorMount
           surfaceConfig={surfaceConfig}
           tenantId={tenantId}
@@ -157,6 +159,7 @@ export function TalentSiteShellBuilderMount({
           }
           canInsertRawHtmlElements={false}
         />
+        </TalentAiTranslateProvider>
       </div>
     </BuilderMediaScopeProvider>
   );

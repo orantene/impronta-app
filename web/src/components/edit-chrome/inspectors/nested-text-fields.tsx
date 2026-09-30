@@ -24,6 +24,7 @@ import { useEditContext } from "../edit-context";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import { KIT } from "./kit/tokens";
 import { LocaleFieldTabs } from "./locale-field-tabs";
+import { useTalentAiTranslateEnabled } from "@/components/locale-field/talent-ai-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import { deriveNestedTextFields } from "@/lib/site-admin/builder-node/nested-text-editor-model";
 import {
@@ -36,9 +37,9 @@ import {
 } from "@/lib/site-admin/builder-node/i18n-overlay";
 
 export function BuilderNodeNestedTextFields({ node }: { node: BuilderNode }) {
-  const { availableLocales, defaultLocale, tenantLocales, patchBuilderNodeProps, surfaceKind } =
+  const { availableLocales, defaultLocale, tenantLocales, patchBuilderNodeProps } =
     useEditContext();
-  const aiOn = surfaceKind === "talent_page" || surfaceKind === "site_shell";
+  const aiOn = useTalentAiTranslateEnabled();
   const { locale: activeContentLocale } = useActiveContentLocale();
 
   // Which rows, which value per tab, which dots — all decided by the pure model

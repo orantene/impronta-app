@@ -22,6 +22,13 @@ import {
 
 export type AiTranslateState = "idle" | "loading" | "success" | "error" | "unavailable" | "quota";
 
+/** Mirrors TALENT_TRANSLATE_LOCALES (that module pulls node:crypto; not client-safe). */
+const TRANSLATE_LOCALES = ["en", "es", "fr", "pt", "de"] as const;
+type TranslateLocale = (typeof TRANSLATE_LOCALES)[number];
+function isTranslateLocale(v: string): v is TranslateLocale {
+  return (TRANSLATE_LOCALES as readonly string[]).includes(v);
+}
+
 /** A quota hit disables every AI button until the next page load. */
 let sessionQuotaHit = false;
 
@@ -48,10 +55,14 @@ export function useAiTranslate(field: TalentTranslateField) {
         setState("quota");
         return null;
       }
+      if (!isTranslateLocale(input.from) || !isTranslateLocale(input.to)) {
+        setState("error");
+        return null;
+      }
       setState("loading");
       let res;
       try {
-        res = await translateTalentField({ field, ...input });
+        res = await translateTalentField({ field, text: input.text, from: input.from, to: input.to });
       } catch {
         setState("error");
         return null;

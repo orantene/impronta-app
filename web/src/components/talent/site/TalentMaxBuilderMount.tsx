@@ -25,6 +25,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
 import { BuilderEditorMount } from "@/lib/site-admin/builder-core/mount/BuilderEditorMount";
 import { buildTalentPageBuilderConfig } from "@/lib/site-admin/builder-core/config";
 import { createBoundTalentPageAdapter } from "@/lib/site-admin/builder-core/adapters/talent-page-adapter";
@@ -207,6 +208,7 @@ export function TalentMaxBuilderMount({
         </div>
       )}
 
+      <TalentAiTranslateProvider>
       <BuilderEditorMount
         surfaceConfig={surfaceConfig}
         // tenantId = the workspace/agency managing this talent (builder scope)
@@ -227,6 +229,7 @@ export function TalentMaxBuilderMount({
         canvasRenderData={canvasRenderData}
         initialComposition={initialComposition}
       />
+      </TalentAiTranslateProvider>
     </div>
     </BuilderMediaScopeProvider>
   );
