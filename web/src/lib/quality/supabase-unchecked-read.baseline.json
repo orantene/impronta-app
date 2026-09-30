@@ -269,7 +269,6 @@
   "src/lib/server-actions/admin-user-workspaces.ts": 1,
   "src/lib/server-actions/admin-workspace-settings.ts": 2,
   "src/lib/server-actions/alternate-domain.ts": 4,
-  "src/lib/server-actions/booking-hours.ts": 3,
   "src/lib/server-actions/cancel-subscription.ts": 2,
   "src/lib/server-actions/client-guest-merge.ts": 1,
   "src/lib/server-actions/client-inquiry-attachments.ts": 4,

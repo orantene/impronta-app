@@ -108,7 +108,7 @@ export function ThemeDetailScreen({
   const demos = orderedDemos(design);
   const { demo, requested, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
   const selectedDemoKey = requested?.key ?? demo?.key ?? null;
-  const colors = effectiveColors(design, demo, choices);
+  const colors = effectiveColors(design, demo, choices, choices.contentMode);
   const usingCustom = colors.kind === "custom";
   const activeCustom = usingCustom ? choices.customPalette : null;
   const demoPaletteKey = demoDefaultPaletteKey(design, demo);

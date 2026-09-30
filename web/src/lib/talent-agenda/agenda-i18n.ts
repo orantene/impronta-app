@@ -192,6 +192,8 @@ const ES: Record<string, string> = {
   "Save availability": "Guardar disponibilidad",
   "Saving…": "Guardando…",
   "Availability saved.": "Disponibilidad guardada.",
+  "Suggested hours. Nothing is saved yet: clients cannot book until you press Save availability.":
+    "Horario sugerido. Aún no se guardó nada: nadie puede reservar hasta que pulses Guardar disponibilidad.",
   "Talent agenda": "Agenda de talento",
   "Open calendar": "Abrir calendario",
   "most urgent first": "los más urgentes primero",

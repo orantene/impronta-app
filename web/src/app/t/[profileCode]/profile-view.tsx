@@ -61,6 +61,7 @@ import {
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { withSavedBios } from "@/lib/talent/saved-bio.server";
 import {
   GUEST_CHAT_DEFAULTS,
   loadGuestChatSettings,
@@ -373,6 +374,10 @@ function primaryTalentType(
 }
 
 async function fetchTalentProfile(profileCode: string, preview: boolean) {
+  const r = await fetchTalentProfileRow(profileCode, preview);
+  return r ? { ...r, profile: await withSavedBios(r.profile) } : null;
+}
+async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
   if (preview) {
     const session = await getCachedActorSession();
     const supabase =

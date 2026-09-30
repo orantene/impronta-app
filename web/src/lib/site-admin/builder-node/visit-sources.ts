@@ -1,11 +1,15 @@
 /**
  * Load visit facts for the shared `visit` widget.
- * Sources: talent_service_areas, talent_languages, talent_booking_hours.weekly.
+ * Sources: talent_service_areas, talent_languages, talent_booking_hours.weekly,
+ * and what the profile drawer saves when those are empty (F30): the city text
+ * (drawer Location) and the open days of the availability pattern.
  * Never invents facts; returns [] when none.
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseWeeklyHours, type WeekdayIndex } from "@/lib/scheduling/hours-types";
+import { recurringFromAvailabilityData, weeklyFromAvailabilityPattern } from "@/lib/scheduling/pattern-hours";
+import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 
 import type { TalentVisitFact, TalentVisitFacts } from "./visit-types";
 
@@ -104,7 +108,7 @@ export async function loadVisitSources(
   if (!admin) return { talentVisitFacts: [] };
 
   try {
-    const [areasRes, langsRes, hoursRes, cancelRes] = await Promise.all([
+    const [areasRes, langsRes, hoursRes, cancelRes, profileRes] = await Promise.all([
       admin
         .from("talent_service_areas")
         .select("service_kind, city, locations ( display_name_i18n )")
@@ -127,6 +131,11 @@ export async function loadVisitSources(
         .eq("talent_profile_id", talentProfileId)
         .eq("status", "published")
         .not("cancellation_hours", "is", null),
+      admin
+        .from("talent_profiles")
+        .select("home_city_text, availability_data")
+        .eq("id", talentProfileId)
+        .maybeSingle(),
     ]);
 
     if (areasRes.error) logServerError("visit.loadServiceAreas", areasRes.error);
@@ -136,13 +145,21 @@ export async function loadVisitSources(
 
     const areas = (areasRes.data ?? []) as unknown as AreaRow[];
     const langs = (langsRes.data ?? []) as unknown as LangRow[];
-    const hoursRow = (hoursRes.data ?? null) as HoursRow | null;
+    if (profileRes.error) logServerError("visit.loadProfile", profileRes.error);
+    const profile = (profileRes.data ?? null) as { home_city_text: string | null; availability_data: unknown } | null;
+    // No hours row yet: the drawer pattern's open days (days only, no clock:
+    // the talent picked days, not times).
+    const savedHours = (hoursRes.data ?? null) as HoursRow | null;
+    const patternWeekly = savedHours
+      ? null
+      : weeklyFromAvailabilityPattern(recurringFromAvailabilityData(profile?.availability_data), null);
+    const hoursRow: HoursRow | null = savedHours ?? (patternWeekly ? { weekly: patternWeekly } : null);
 
     const facts: TalentVisitFact[] = [];
     const es = locale.toLowerCase().startsWith("es");
 
     const base = areas.find((a) => a.service_kind === "home_base");
-    const baseName = base ? placeName(base, locale) : null;
+    const baseName = (base ? placeName(base, locale) : null) ?? cityLabelFromPlaceText(profile?.home_city_text);
     if (baseName) {
       facts.push({
         label: es ? "Dónde" : "Where",
@@ -172,7 +189,7 @@ export async function loadVisitSources(
 
     const daysLabel = compactDayRange(openDaysFromWeekly(hoursRow?.weekly), es);
     if (daysLabel) {
-      const window = hoursWindow(hoursRow?.weekly, es);
+      const window = savedHours ? hoursWindow(hoursRow?.weekly, es) : "";
       facts.push({
         label: es ? "Horario" : "Hours",
         value: daysLabel,

@@ -47,7 +47,10 @@ export function AgendaAvailabilityPage({
   const [bufferMin, setBufferMin] = useState(
     seeded?.bufferAfterMin ?? seeded?.bufferBeforeMin ?? 15,
   );
-  const [tz, setTz] = useState(seeded?.timezone ?? "America/Cancun");
+  // F48: never a hardcoded zone; the server derives hers from her saved city.
+  const [tz, setTz] = useState(seeded?.timezone ?? "");
+  // F47: until she saves, the rows are a SUGGESTION, and the page says so.
+  const [unsaved, setUnsaved] = useState(false);
   const [rows, setRows] = useState(() =>
     LABELS.map((label, day) => {
       const idx = day as 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -112,6 +115,22 @@ export function AgendaAvailabilityPage({
         }
       } else {
         setExceptionsLoaded(true);
+        if (!seeded) {
+          setUnsaved(true);
+          setTz(res.defaultTimezone);
+          const suggested = res.suggestedWeekly;
+          if (suggested) {
+            setRows(
+              LABELS.map((label, day) => {
+                const idx = day as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+                const win = suggested[idx]?.[0];
+                return win
+                  ? { day: idx, label, open: true, start: fromMin(win.startMin), end: fromMin(win.endMin) }
+                  : { day: idx, label, open: false, start: "10:00", end: "19:00" };
+              }),
+            );
+          }
+        }
       }
     });
     return () => {
@@ -120,8 +139,8 @@ export function AgendaAvailabilityPage({
   }, [talentProfileId, seeded]);
 
   const canSave = useMemo(
-    () => rows.some((r) => r.open) && Boolean(talentProfileId),
-    [rows, talentProfileId],
+    () => rows.some((r) => r.open) && Boolean(talentProfileId) && Boolean(tz.trim()),
+    [rows, talentProfileId, tz],
   );
 
   async function save() {
@@ -150,6 +169,7 @@ export function AgendaAvailabilityPage({
         setMessage(result.error || "Could not save. Try again.");
       } else {
         setExceptions(result.hours.exceptions ?? []);
+        setUnsaved(false);
         setMessage("Availability saved.");
         invalidateWebsiteEligibility();
       }
@@ -198,6 +218,16 @@ export function AgendaAvailabilityPage({
       <p className="text-[14px] text-[#5F6368]">
         {copy.t("Weekly hours, time off, buffer, and timezone. Travel stays on each booking.")}
       </p>
+
+      {unsaved ? (
+        <p
+          role="status"
+          data-testid="availability-unsaved"
+          className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-[13px] text-amber-900"
+        >
+          {copy.t("Suggested hours. Nothing is saved yet: clients cannot book until you press Save availability.")}
+        </p>
+      ) : null}
 
       <section className="space-y-3 rounded-2xl border border-black/8 bg-white p-4">
         {rows.map((row, idx) => (

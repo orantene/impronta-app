@@ -2,6 +2,8 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
+import { effectiveBioI18n } from "@/lib/translation/bios-to-bio-i18n";
 import {
   buildTalentLocaleSwaps,
   type LocalizedMapLike,
@@ -49,8 +51,10 @@ export async function loadTalentLocaleSwaps(
       .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || (a.display_order ?? 0) - (b.display_order ?? 0))
       .map((t) => t.taxonomy_terms?.name_i18n ?? null);
     const home = (row.talent_service_areas ?? []).find((a) => a.service_kind === "home_base");
+    // F25: the drawer's saved `bios` fill locales bio_i18n lacks (same read as the site).
+    const bios = (await readBlobFieldValuesFromCatalog(admin, talentProfileId)).bios;
     return buildTalentLocaleSwaps(
-      { bioI18n: row.bio_i18n, typeNames: types, homeCity: home?.locations?.display_name_i18n ?? null },
+      { bioI18n: effectiveBioI18n(row.bio_i18n, bios), typeNames: types, homeCity: home?.locations?.display_name_i18n ?? null },
       locale,
       chain,
     );
