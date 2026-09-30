@@ -102,10 +102,19 @@ export const MAISON_V2_RELEASE_2_3 = {
       en: "Important fix: the small heading above your questions is now dark enough to read easily. It applies to every site, even if you removed or changed that section.",
       es: "Corrección importante: el título pequeño sobre tus preguntas ahora es lo bastante oscuro para leerse bien. Se aplica a todos los sitios, aunque hayas quitado o cambiado esa sección.",
     },
+    "variant-default:home:before_after/paragraph": {
+      en: "Important fix: the small heading above Before and after is now dark enough to read easily. It only touches that heading, and only on sites that have the block.",
+      es: "Corrección importante: el título pequeño sobre Antes y después ahora es lo bastante oscuro para leerse bien. Solo toca ese título, y solo en sitios que tienen el bloque.",
+    },
   } satisfies Record<string, ReleaseNote>,
-  /** Flagged critical by the admin: forced, announced, reaches edited and removed nodes. */
-  criticalIds: ["variant-default:home:contact/paragraph"],
+  /**
+   * Flagged critical by the admin: forced and announced. The contact band also
+   * names itself so a site that removed it gets it back; the optional Before
+   * and after block names only its eyebrow (a removed block stays removed).
+   */
+  criticalIds: ["variant-default:home:contact/paragraph", "variant-default:home:before_after/paragraph"],
   criticalKeys: {
     "variant-default:home:contact/paragraph": ["contact", "contact/paragraph"],
+    "variant-default:home:before_after/paragraph": ["before_after/paragraph"],
   },
 } as const;

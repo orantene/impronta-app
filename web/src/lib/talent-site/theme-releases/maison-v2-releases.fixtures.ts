@@ -58,6 +58,9 @@ export function revertR17(p: DesignPayload): DesignPayload {
   const contact = findBySlot(out.homeTree, "contact")!;
   const para = ((contact as { children?: BuilderNode[] }).children ?? []).find((c) => c.kind === "paragraph")!;
   (propsOf(para).style as Props).textColor = "token:color.accent";
+  const ba = findBySlot(out.homeTree, "before_after")!;
+  const baEyebrow = ((ba as { children?: BuilderNode[] }).children ?? []).find((c) => c.kind === "paragraph")!;
+  (propsOf(baEyebrow).style as Props).textColor = "token:color.accent";
   return out;
 }
 

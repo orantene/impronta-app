@@ -107,13 +107,14 @@ test("Maison v2 v16 auto-improves untouched parts and keeps talent edits", async
 
 const LAYOUT_PAIR = ["layout:home:services/services_catalog:removed", "layout:home:services/services_two_col"];
 const CRITICAL_ID = "variant-default:home:contact/paragraph";
+const CRITICAL_BA = "variant-default:home:before_after/paragraph";
 
 test("Maison v2 v17 classifies as one opt-in layout change plus the contact fix", () => {
   const items = diff(maisonV2At(16), 16, maisonV2At(17), 17);
-  assert.deepEqual(items.map((i) => i.id).sort(), [...LAYOUT_PAIR, CRITICAL_ID].sort());
+  assert.deepEqual(items.map((i) => i.id).sort(), [...LAYOUT_PAIR, CRITICAL_ID, CRITICAL_BA].sort());
   assert.deepEqual(types(items, "layout").map((i) => i.layout).sort(), ["nested-new", "removed"]);
-  assert.equal(types(items, "variant-default").length, 1);
-  assert.deepEqual(types(items, "variant-default")[0]!.paths, ["style.textColor"]);
+  assert.equal(types(items, "variant-default").length, 2);
+  for (const i of types(items, "variant-default")) assert.deepEqual(i.paths, ["style.textColor"]);
   for (const t of ["new-block", "token-default"]) assert.equal(types(items, t).length, 0, `no ${t} in round 3`);
   assertNotesFor(items, 17);
 });
@@ -122,10 +123,12 @@ test("Maison v2 v17: the contact fix is marked critical and names the band and i
   const rel = authoredRelease("maison-v2", 17)!;
   const items = withAuthoredNotes(diff(maisonV2At(16), 16, maisonV2At(17), 17), rel);
   const crit = items.filter((i) => i.type === "critical");
-  assert.equal(crit.length, 1);
-  assert.equal(crit[0]!.id, CRITICAL_ID);
-  assert.deepEqual(crit[0]!.keys, ["contact", "contact/paragraph"]);
-  assert.ok(crit[0]!.note?.en && crit[0]!.note?.es);
+  assert.equal(crit.length, 2);
+  const contact = crit.find((i) => i.id === CRITICAL_ID)!;
+  assert.deepEqual(contact.keys, ["contact", "contact/paragraph"]);
+  // The optional block names only its eyebrow: a removed block stays removed.
+  assert.deepEqual(crit.find((i) => i.id === CRITICAL_BA)!.keys, ["before_after/paragraph"]);
+  for (const c of crit) assert.ok(c.note?.en && c.note?.es);
   assert.equal(items.filter((i) => i.type === "layout").length, 2, "the layout pair stays opt-in");
 });
 
