@@ -545,6 +545,12 @@ test("available blocks: removing an ADDED block is explicit and is not offered a
   assert.equal((await loadAvailableBlocks(db.admin, PROFILE)).blocks.length, 0, "she removed it herself");
 });
 
+test("available blocks: design-agnostic, works for any design that ships new blocks", async () => {
+  const db = world("applied", release({ design_slug: "noir-campaign" }));
+  const out = await loadAvailableBlocks(db.admin, PROFILE);
+  assert.deepEqual(out.blocks.map((b) => b.item.id), ["new-block:gallery"]);
+});
+
 test("available blocks: nothing before Apply, dismissed rows and other talents stay out", async () => {
   assert.equal((await loadAvailableBlocks(world().admin, PROFILE)).blocks.length, 0);
   assert.equal((await loadAvailableBlocks(world("dismissed").admin, PROFILE)).blocks.length, 0);
