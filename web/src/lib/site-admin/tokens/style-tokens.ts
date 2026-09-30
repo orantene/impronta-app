@@ -118,6 +118,18 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
   { key: "button.chip-height", group: "buttons", label: L("Small buttons and chips height", "Alto de botones pequeños"), control: "length", fallback: "34px", advanced: true },
 
   // ── Shape ────────────────────────────────────────────────────────────────
+  {
+    key: "shape.chrome",
+    group: "shape",
+    label: L("Card and section look", "Aspecto de tarjetas y secciones"),
+    control: "enum",
+    options: [
+      { value: "soft", en: "Soft cards on alternating bands", es: "Tarjetas suaves sobre franjas alternas" },
+      { value: "flat", en: "Flat hairlines", es: "Líneas finas" },
+    ],
+    fallback: "flat",
+    advanced: true,
+  },
   { key: "shape.card-radius", group: "shape", label: L("Card corners", "Esquinas de tarjetas"), control: "length", fallback: "22px", bind: "radius" },
   { key: "shape.image-radius", group: "shape", label: L("Photo corners, phone", "Esquinas de fotos, móvil"), control: "length", fallback: "26px", bind: "radius" },
   { key: "shape.image-radius-desktop", group: "shape", label: L("Photo corners, desktop", "Esquinas de fotos, escritorio"), control: "length", fallback: "34px", bind: "radius" },
@@ -164,6 +176,7 @@ export function styleTokenCssVar(key: string): string {
 export const STYLE_TOKEN_DATA_ATTRS: Readonly<Record<string, string>> = {
   "type.system": "data-token-type-system",
   "button.variant": "data-token-button-variant",
+  "shape.chrome": "data-token-shape-chrome",
 };
 
 /** Keys projected as CSS vars (every non-attribute key). */

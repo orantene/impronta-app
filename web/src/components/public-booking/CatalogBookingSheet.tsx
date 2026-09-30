@@ -504,7 +504,10 @@ export function CatalogBookingSheet({
                 {es ? "← Cambiar servicio u opciones" : "← Change service or options"}
               </button>
               {mode === "live" && (slotsLoading || !slotsReady) ? (
-                <p className="jb-fixture">{es ? "Cargando horarios…" : "Loading times…"}</p>
+                <p className="jb-fixture">
+                  <span className="cb-spinner" aria-hidden="true" />
+                  {es ? "Cargando horarios…" : "Loading times…"}
+                </p>
               ) : mode === "live" ? (
                 <>
                   <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>

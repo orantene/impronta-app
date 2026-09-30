@@ -40,6 +40,15 @@ export type TalentPortfolioStarterProfile = {
    * not loaded. Optional + additive — shown as a small About line when present.
    */
   languagesLabel?: string;
+  /**
+   * Facts for the hero proof line (`formatHeroProofLine`): years of craft,
+   * published rating and review count, and whether the talent is a demo.
+   * Optional + additive; absent parts simply drop out of the line.
+   */
+  experienceYears?: number | null;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
+  isDemo?: boolean;
   /** Public phone. Used for WhatsApp when she has not published a WhatsApp link. */
   phone?: string | null;
   phoneE164?: string | null;

@@ -49,3 +49,97 @@ test("the Maison v2 variants already offered stay offered", () => {
   }
   assert.ok(read("builder-node-content.tsx").includes("startClosed: next"), "accordion start closed");
 });
+
+// ── Release 2.5 ("look only"): every NEW builder option is wired at all four layers ──────
+//
+// AGENTS.md: a capability wired at 3 of 4 layers (schema, renderer, inspector, preflight)
+// is this repo's most-repeated defect. The three node options 2.5 adds, each checked at
+// each layer, plus a guard that keeps the NEXT option the payload sets from skipping one.
+
+const LIB = "../../../lib/site-admin/builder-node/";
+const lib = (f: string) => readFileSync(resolve(THIS_DIR, LIB, f), "utf8");
+
+const OPTIONS = [
+  {
+    option: "portfolio.cardStyle",
+    schema: [["registry.ts", 'cardStyle: z.enum(["plain", "framed"])'], ["types.ts", 'cardStyle?: "plain" | "framed"']],
+    renderer: [["portfolio-block.tsx", 'p.cardStyle === "framed"']],
+    inspector: [["portfolio-inspector.tsx", 'cardStyle: e.target.checked ? "framed" : "plain"']],
+    es: ["Framed cards"],
+  },
+  {
+    option: "services_catalog.rowStyle",
+    schema: [["registry.ts", 'rowStyle: z.enum(["flat", "card"])'], ["types.ts", 'rowStyle?: "flat" | "card"']],
+    renderer: [["render.tsx", 'p.rowStyle === "card" && layout === "rows"'], ["services-catalog-filter.tsx", "rowCard"]],
+    inspector: [["services-catalog-inspector.tsx", "rowStyle: e.target.value"]],
+    es: ["Row style", "Hairline rows", "Raised cards"],
+  },
+  {
+    option: "next_free_chip.href",
+    schema: [["registry.ts", "CHIP_HREF_RE"], ["types.ts", "href?: string"]],
+    renderer: [["next-free-chip.tsx", "safeChipHref(href)"], ["next-free-chip.tsx", "href={p.href}"]],
+    inspector: [["next-free-chip-inspector.tsx", "commitPatch({ href:"], ["next-free-chip-inspector.tsx", "CHIP_HREF_RE"]],
+    es: ["Link to"],
+  },
+] as const;
+
+for (const o of OPTIONS) {
+  test(`${o.option}: schema, renderer, inspector and ES strings are all wired`, () => {
+    for (const [file, needle] of o.schema) assert.ok(lib(file).includes(needle), `schema: ${file} lacks ${needle}`);
+    for (const [file, needle] of o.renderer) assert.ok(lib(file).includes(needle), `renderer: ${file} lacks ${needle}`);
+    for (const [file, needle] of o.inspector) assert.ok(read(file).includes(needle), `inspector: ${file} lacks ${needle}`);
+    const es = readFileSync(resolve(THIS_DIR, "../editor-i18n-es-inspectors-3.ts"), "utf8");
+    for (const key of o.es) assert.ok(es.includes(`"${key}":`), `ES string missing for "${key}"`);
+  });
+}
+
+test("the preflight layer: the Maison v2 payload (with every 2.5 option) validates, and bad option values do not", async () => {
+  const { validateBuilderNodeTree } = await import("../../../lib/site-admin/builder-node/validate");
+  const { validateDesign } = await import("../../../lib/talent-site/theme-catalog/validate");
+  const { buildMaisonV2Payload } = await import("../../../lib/talent-site/theme-catalog/collection/designs");
+  const check = validateDesign(buildMaisonV2Payload());
+  assert.equal(check.ok, true, check.ok ? "" : check.errors.join("; "));
+  const bad = (kind: string, props: Record<string, unknown>) => validateBuilderNodeTree([{ id: "x1", kind, props }]).ok;
+  assert.equal(bad("portfolio", { cardStyle: "framed" }), true);
+  assert.equal(bad("portfolio", { cardStyle: "neon" }), false);
+  assert.equal(bad("services_catalog", { rowStyle: "card" }), true);
+  assert.equal(bad("services_catalog", { rowStyle: "tiles" }), false);
+  assert.equal(bad("next_free_chip", { href: "#services" }), true);
+  assert.equal(bad("next_free_chip", { href: "//evil.example" }), false);
+});
+
+test("guard: every option release 2.5 adds or changes on these widgets is reachable in the inspector", async () => {
+  // Diff the newest payload against the one before it, so the NEXT release that sets a new
+  // option on one of these widgets (and forgets its control) fails here, not in a QA session.
+  const { maisonV2At } = await import("../../../lib/talent-site/theme-releases/maison-v2-releases.fixtures");
+  const INSPECTOR: Record<string, string[]> = {
+    portfolio: ["portfolio-inspector.tsx"],
+    services_catalog: ["services-catalog-inspector.tsx"],
+    next_free_chip: ["next-free-chip-inspector.tsx"],
+  };
+  // Props that are structure, provenance or style, not options a talent edits here.
+  const NOT_AN_OPTION = new Set(["style", "slotKey", "layerLabel", "anchorId", "originRole", "__origin", "responsive"]);
+  type N = { kind: string; props?: Record<string, unknown>; children?: N[] };
+  const first = (tree: N[], kind: string): N | undefined => {
+    for (const n of tree) {
+      if (n.kind === kind) return n;
+      const hit = first(n.children ?? [], kind);
+      if (hit) return hit;
+    }
+    return undefined;
+  };
+  const before = maisonV2At(18);
+  const after = maisonV2At(19);
+  let checked = 0;
+  for (const [kind, files] of Object.entries(INSPECTOR)) {
+    const src = files.map(read).join("\n");
+    const a = first([...(before.shellTree as N[]), ...(before.homeTree as N[])], kind)!.props ?? {};
+    const b = first([...(after.shellTree as N[]), ...(after.homeTree as N[])], kind)!.props ?? {};
+    for (const key of Object.keys(b)) {
+      if (NOT_AN_OPTION.has(key) || JSON.stringify(a[key]) === JSON.stringify(b[key])) continue;
+      checked += 1;
+      assert.ok(src.includes(key), `${kind}.${key} changed in 2.5 but has no inspector control (wire it, do not allowlist it)`);
+    }
+  }
+  assert.ok(checked >= 4, "the guard saw the 2.5 options (cardStyle, rowStyle, href, layout)");
+});

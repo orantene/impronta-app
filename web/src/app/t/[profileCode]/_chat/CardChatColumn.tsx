@@ -199,6 +199,7 @@ export function CardChatPanel(props: CardChatPanelProps) {
       aria-modal="false"
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: name })}
       data-chat-variant="card"
+      data-tl-motion=""
       style={{ ...cardVars(card, accent, accentInk), ...frame(compact, keyboardInsetPx) } as CSSProperties}
     >
       <div

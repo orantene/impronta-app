@@ -9,6 +9,7 @@
  * — safe on the edge and unit-testable.
  */
 import { contactCopyForPlan, talentContactHrefs } from "./contact-channels";
+import { formatHeroEyebrow, formatHeroProofLine } from "./hero-proof-line";
 import { clampWords } from "./talent-locale-swaps";
 import {
   selectServiceFocusLabels,
@@ -95,6 +96,14 @@ export function talentProfileTokens(
     bio: profile.publicBio?.trim() || tagline || `Welcome to ${displayName}'s profile.`,
     richBio,
     locationLine: profile.homeCity ? `Based in ${profile.homeCity}` : "",
+    heroEyebrow: formatHeroEyebrow(primaryTypeLabel, profile.homeCity) || primaryTypeLabel,
+    proofLine: formatHeroProofLine({
+      years: profile.experienceYears,
+      languages: profile.languagesLabel ? profile.languagesLabel.split(" \u00b7 ") : [],
+      rating: profile.ratingAvg,
+      count: profile.ratingCount,
+      demo: profile.isDemo,
+    }),
     languagesLine,
     headshotUrl,
     profilePath,

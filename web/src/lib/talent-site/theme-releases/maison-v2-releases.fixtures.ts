@@ -75,9 +75,76 @@ export function revertR18(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 18 = release 2.4), rebuilt from code. */
+/**
+ * v19 back to v18: release 2.5 "look only". Token defaults (soft chrome, header
+ * and section spacing), the rhythm (88px bands, raised-surface bands), the
+ * header's fifth link, the ticker band, framed work cards, the hero chip link,
+ * the menu swap to row cards and the About actions.
+ */
+export function revertR19(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  const t = out.tokenDefaults!;
+  delete t["shape.chrome"];
+  Object.assign(t, {
+    "layout.section-pad-top": "84px",
+    "layout.section-pad-top-phone": "40px",
+    "layout.section-pad-bottom": "10px",
+    "layout.section-pad-bottom-phone": "8px",
+    "layout.header-pad-y": "14px",
+    "layout.header-pad-y-phone": "10px",
+  });
+  const oldPad = (style: Props) => {
+    Object.assign(style, { paddingTop: "84px", paddingBottom: "10px" });
+    const mobile = ((style.responsive ?? {}) as { mobile?: Props }).mobile;
+    if (mobile) Object.assign(mobile, { paddingTop: "40px", paddingBottom: "8px" });
+    delete style.backgroundColor;
+  };
+  const header = out.shellTree.find((n) => propsOf(n).slotKey === "header")!;
+  const sp = propsOf(header).sectionProps as Props;
+  sp.navItems = [
+    { label: "Work", href: "#gallery" },
+    { label: "Menu and prices", href: "#services" },
+    { label: "Reviews", href: "#reviews" },
+    { label: "Your visit", href: "#visit" },
+  ];
+  walkNodes(out.homeTree, (n) => {
+    const props = propsOf(n);
+    const slot = props.slotKey;
+    if (n.kind === "next_free_chip") delete props.href;
+    if (n.kind === "portfolio") {
+      delete props.cardStyle;
+      oldPad(props.style as Props);
+    }
+    if (n.kind === "marquee") props.style = { marginTopFree: "22px", marginBottomFree: "4px" };
+    if (n.kind === "services_catalog") {
+      delete props.rowStyle;
+      props.slotKey = "services_two_col";
+      props.layout = "cards";
+    }
+    if (n.kind === "paragraph" && props.text === "{{heroEyebrow}}") props.text = "{{primaryTypeLabel}}";
+    if (n.kind === "paragraph" && props.text === "{{proofLine}}") props.text = "{{locationLine}}";
+    if (slot === "services" || slot === "about" || slot === "reviews" || slot === "before_after" || slot === "aftercare" || slot === "visit") {
+      oldPad(props.style as Props);
+    }
+    if (slot === "contact") {
+      oldPad(props.style as Props);
+      (props.style as Props).maxWidthFree = "856px";
+    }
+    if (slot === "about") {
+      const copy = ((n as { children?: BuilderNode[] }).children ?? []).find((c) => propsOf(c).layerLabel === "About copy");
+      if (copy) {
+        const holder = copy as { children: BuilderNode[] };
+        holder.children = holder.children.filter((c) => propsOf(c).slotKey !== "about_actions");
+      }
+    }
+  });
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 19 = release 2.5), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 19) out = revertR19(out);
   if (version < 18) out = revertR18(out);
   if (version < 17) out = revertR17(out);
   if (version < 16) out = revertR16(out);

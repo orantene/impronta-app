@@ -44,7 +44,8 @@ test("every design is well formed", () => {
     for (const t of d.styleTags) assert.ok(GALLERY_STYLE_TAGS.includes(t));
     for (const t of d.featureTags) assert.ok(GALLERY_FEATURE_TAGS.includes(t));
     for (const c of d.categoryChips) assert.ok(GALLERY_CATEGORY_CHIPS.includes(c));
-    assert.ok(d.palettes.length >= 3 && d.palettes.length <= 5, d.slug);
+    // Maison v2 has six since release 2.5 (Orchid joined the five; none were retired).
+    assert.ok(d.palettes.length >= 3 && d.palettes.length <= (d.slug === "maison-v2" ? 6 : 5), d.slug);
     assert.ok(d.palettes.some((p) => p.highContrast), `${d.slug} needs a high-contrast palette`);
     const keys = new Set(d.palettes.map((p) => p.key));
     assert.equal(keys.size, d.palettes.length);

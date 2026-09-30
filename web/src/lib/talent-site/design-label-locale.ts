@@ -59,6 +59,9 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   // Maison v2 (the Rosé proposal copy).
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "Menu and prices": "Menú y precios",
+  // Maison v2 2.5: the header's fifth link and the About chat action.
+  Location: "Ubicación",
+  "Write me": "Escríbeme",
   "See work": "Ver trabajos",
   "What they {i}say{/i}": "Lo que {i}dicen{/i}",
   "The detail is {i}my craft{/i}.": "El detalle es {i}mi oficio{/i}.",

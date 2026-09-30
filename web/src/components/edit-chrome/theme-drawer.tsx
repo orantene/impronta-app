@@ -73,7 +73,7 @@ import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
 import { ComponentDefaultsTab } from "./component-defaults-tab";
 import { SiteStyleTab, SiteStyleTabLabel } from "./site-style-tab";
-
+import { CustomAccentCard } from "./custom-accent-card";
 import type { DesignSnapshot } from "@/lib/site-admin/edit-mode/design-actions";
 import { resolveThemeActionSet } from "./theme-action-scope";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
@@ -1063,7 +1063,7 @@ function ColorsTab({
 }) {
   return (
     <>
-      {/* ── Page background — prominent at top of Colors tab ───────────── */}
+      <CustomAccentCard draft={draft} onChange={onChange} />
       <Card>
         <CardHead icon={<BackgroundIcon />} title="Page background" />
         <CardBody>

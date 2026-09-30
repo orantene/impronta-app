@@ -17,6 +17,7 @@ import {
   type PortfolioLayout,
 } from "./portfolio-defaults";
 import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
+import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { PortfolioShotLink } from "./portfolio-shot-link";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
@@ -125,8 +126,14 @@ function defaultColumns(layout: PortfolioLayout, authored?: 2 | 3 | 4): number {
 /** F28: the staggered strip is a 5-column row on desktop; a 6th tile collapsed to 0x0. */
 const STAGGERED_MAX = 5;
 
-function defaultLimit(layout: PortfolioLayout, authored?: number): number {
-  if (layout === "staggered") return Math.min(typeof authored === "number" ? authored : STAGGERED_MAX, STAGGERED_MAX);
+/** Framed cards: six tiles on the phone strip; the sixth is hidden on the desktop row. */
+const FRAMED_STAGGERED_MAX = 6;
+
+function defaultLimit(layout: PortfolioLayout, authored?: number, framed = false): number {
+  if (layout === "staggered") {
+    const cap = framed ? FRAMED_STAGGERED_MAX : STAGGERED_MAX;
+    return Math.min(typeof authored === "number" ? authored : cap, cap);
+  }
   if (typeof authored === "number") return authored;
   if (layout === "chapter") return 6;
   return PORTFOLIO_DEFAULT_PROPS.limit ?? 12;
@@ -139,6 +146,7 @@ function ShotFigure({
   confirmsByHand,
   itemClass,
   wantLabel,
+  framed,
   magazineIndex,
 }: {
   shot: TalentPortfolioShot;
@@ -148,6 +156,8 @@ function ShotFigure({
   itemClass?: string;
   /** Staggered strip: a linked shot reads "I want this" instead of the service name. */
   wantLabel?: string;
+  /** Framed card: name + round arrow; the service label is the arrow's accessible name. */
+  framed?: boolean;
   /** Magazine: 1-based plate number shown as "01 · caption". */
   magazineIndex?: number;
 }) {
@@ -185,6 +195,18 @@ function ShotFigure({
               .filter(Boolean)
               .join(" · ")}
           </figcaption>
+        ) : showCaptions && framed && (shot.caption?.trim() || shot.offeringTitle?.trim() || shot.offeringId) ? (
+          <figcaption className="sb-portfolio-cap">
+            <span className="sb-portfolio-name">{shot.caption?.trim() || shot.offeringTitle?.trim() || null}</span>
+            {shot.offeringId ? (
+              <>
+                <span className="sb-portfolio-arrow" aria-hidden="true">
+                  {"\u2192"}
+                </span>
+                <span className="sb-portfolio-sr">{serviceLine}</span>
+              </>
+            ) : null}
+          </figcaption>
         ) : showCaptions && (shot.caption?.trim() || serviceLine) ? (
           <figcaption className="sb-portfolio-cap">
             {shot.caption?.trim() || null}
@@ -217,7 +239,8 @@ export function renderPortfolioBlock(args: {
   const p = args.node.props;
   const layout = (p.layout ?? PORTFOLIO_DEFAULT_PROPS.layout) as PortfolioLayout;
   const es = (args.locale ?? "").toLowerCase().startsWith("es");
-  const wantLabel = layout === "staggered" ? (es ? "Quiero esto" : "I want this") : undefined;
+  const framed = p.cardStyle === "framed";
+  const wantLabel = layout === "staggered" || framed ? (es ? "Quiero esto" : "I want this") : undefined;
   const showCaptions = p.showCaptions === true;
   const linkMode = p.linkMode ?? PORTFOLIO_DEFAULT_PROPS.linkMode;
   const cols = defaultColumns(layout, p.columns);
@@ -225,7 +248,7 @@ export function renderPortfolioBlock(args: {
     selectionMode: p.selectionMode,
     selectedMediaIds: p.selectedMediaIds,
     autoIncludeNew: p.autoIncludeNew,
-    limit: defaultLimit(layout, p.limit),
+    limit: defaultLimit(layout, p.limit, framed),
     shotBindings: p.shotBindings,
     albumId: p.albumId,
   }).map((shot) =>
@@ -249,6 +272,7 @@ export function renderPortfolioBlock(args: {
       confirmsByHand={args.confirmsByHand ?? true}
       itemClass={isChapter ? chapterItemClass(index) : undefined}
       wantLabel={wantLabel}
+      framed={framed}
       magazineIndex={magazine ? index + 1 : undefined}
     />
   ));
@@ -260,6 +284,7 @@ export function renderPortfolioBlock(args: {
       data-portfolio-layout={layout}
       data-portfolio-chapter={isChapter ? roman : undefined}
       data-edition={magazine ? "magazine" : undefined}
+      data-card-style={framed ? "framed" : undefined}
       {...(args.styleDataAttrs ?? {})}
       className={args.styleDataAttrs ? "site-builder-node sb-portfolio" : "sb-portfolio"}
       style={{
@@ -270,6 +295,7 @@ export function renderPortfolioBlock(args: {
     >
       <style>{PORTFOLIO_CSS}</style>
       {magazine ? <style>{PORTFOLIO_MAGAZINE_CSS}</style> : null}
+      {framed ? <style>{PORTFOLIO_FRAMED_CSS}</style> : null}
       {isChapter ? (
         <div className="sb-portfolio-chapter">
           <header className="sb-portfolio-chapter-head">
@@ -296,6 +322,11 @@ export function renderPortfolioBlock(args: {
           ) : (
             <div className={`sb-portfolio--${layout}`}>{shotNodes}</div>
           )}
+          {framed && layout === "staggered" && visible.length > 2 ? (
+            <p className="sb-portfolio-hint" aria-hidden="true">
+              {es ? "Desliza para ver más \u2192" : "Swipe to see more \u2192"}
+            </p>
+          ) : null}
         </>
       )}
     </section>
