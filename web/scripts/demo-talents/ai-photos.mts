@@ -303,18 +303,18 @@ async function slot<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// Rate lanes (measured 2026-09-29 from 429 bodies): each gpt-image model GROUP allows only
-// 5 requests ("input-images") per minute org-wide, generation or edit alike; 2.5-flare and 1.5
-// share the "gpt-image" group, 1-mini has its own "gpt-image-mini" group. So every model gets
-// its own pacer, the headshot + cover use the portrait model, and work shots are spread over
-// several work models (deterministic per shot) so more groups run in parallel. A 429 pushes back
-// only that model's lane.
+// Rate lanes (measured 2026-09-29 from 429 bodies): each gpt-image rate GROUP allows only
+// 5 requests ("input-images") per minute org-wide, generation or edit alike. 2.5-flare, 2.5-
+// sunburst, 2 and 1.5 share the "gpt-image" group; 1-mini and 1 are outside it. So pacing is per
+// GROUP, the headshot + cover use the portrait model, and work shots are spread (deterministic per
+// shot) over models in different groups, including the portrait group's spare capacity. A 429
+// pushes back only that group's lane.
 const PER_MIN = Number(opt("--per-min") ?? 4.5);
 // Work-shot edits run on the work lanes, so the face cap is off by default (a capped shot whose
 // scene still shows the talent came out as a stranger).
 const MAX_WORKING_FACES = Number(opt("--max-working-faces") ?? 99);
 const DEMO_CONCURRENCY = Number(opt("--demo-concurrency") ?? 8);
-const WORK_MODELS = (opt("--work-models") ?? "gpt-image-1-mini,gpt-image-1,gpt-image-2").split(",").map((m) => m.trim()).filter(Boolean);
+const WORK_MODELS = (opt("--work-models") ?? `gpt-image-1-mini,gpt-image-1,${MODEL}`).split(",").map((m) => m.trim()).filter(Boolean);
 /** USD per 1M tokens {textIn, imageIn, output} (OpenAI pricing page); others use the engine default. */
 const MODEL_PRICES: Record<string, ImageTokenPrices> = {
   "gpt-image-1-mini": { textIn: 2, imageIn: 2.5, output: 8 },
@@ -322,16 +322,21 @@ const MODEL_PRICES: Record<string, ImageTokenPrices> = {
 };
 const pricesFor = (model: string): ImageTokenPrices => MODEL_PRICES[model] ?? DEFAULT_IMAGE_PRICES;
 const workModelFor = (key: string) => WORK_MODELS[parseInt(sha(key).slice(0, 8), 16) % WORK_MODELS.length];
+/** Every model a file may have been made with (earlier runs used other work lanes). */
+const KNOWN_MODELS = [...new Set([MODEL, ...WORK_MODELS, "gpt-image-1-mini", "gpt-image-1", "gpt-image-2", "gpt-image-2.5-sunburst"])];
+const rateGroup = (model: string) => (model === "gpt-image-1-mini" || model === "gpt-image-1" ? model : "gpt-image");
 const nextAt = new Map<string, number>();
 async function modelTurn(model: string) {
+  const g = rateGroup(model);
   const gap = 60_000 / PER_MIN;
   const now = Date.now();
-  const at = Math.max(now, nextAt.get(model) ?? 0);
-  nextAt.set(model, at + gap);
+  const at = Math.max(now, nextAt.get(g) ?? 0);
+  nextAt.set(g, at + gap);
   if (at > now) await sleep(at - now);
 }
 function backOff(model: string) {
-  nextAt.set(model, Math.max(nextAt.get(model) ?? 0, Date.now() + 30_000));
+  const g = rateGroup(model);
+  nextAt.set(g, Math.max(nextAt.get(g) ?? 0, Date.now() + 30_000));
 }
 
 let spent = 0;
@@ -440,7 +445,7 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
     const prompt = promptFor(plan, shot, theme, !!useRef, s.person);
     const hashFor = (m: string) => sha([m, qualityFor(m), s.size, prompt, useRef ? sha(useRef) : ""].join("|")).slice(0, 12);
     // A file made earlier by ANY model for the same prompt + reference is kept (no regeneration).
-    const existing = [MODEL, ...WORK_MODELS].find((m) => fs.existsSync(path.join(dir, `${s.slot}-${hashFor(m)}.jpg`)));
+    const existing = KNOWN_MODELS.find((m) => fs.existsSync(path.join(dir, `${s.slot}-${hashFor(m)}.jpg`)));
     const usedModel = existing ?? model;
     const hash = hashFor(usedModel);
     const file = path.join(dir, `${s.slot}-${hash}.jpg`);
@@ -449,7 +454,18 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
       for (const old of fs.readdirSync(dir).filter((n) => n.startsWith(`${s.slot}-`) && (n.endsWith(".jpg") || n.endsWith(".jpg.json")))) {
         fs.renameSync(path.join(dir, old), path.join(dir, `_old-${old}`));
       }
-      const { bytes, usage } = await generate(model, prompt, s.size, quality, useRef);
+      let out: { bytes: Buffer; usage: ImageUsage | null };
+      try {
+        out = await generate(model, prompt, s.size, quality, useRef);
+      } catch (e) {
+        // A safety-system refusal would leave the set incomplete forever (only full sets are
+        // loaded), so fall back to a neutral, people-free detail of the same trade.
+        if (!(e instanceof HttpError && e.status === 400 && /safety system/i.test(e.message))) throw e;
+        const safe = [STYLE, `Scene: a tidy, well-lit detail of the tools, materials and workspace of a ${d.taxonomy_slug.replace(/-/g, " ")} in ${d.city}. No people.`, RULES].join("\n");
+        log(`${code} ${s.slot}: safety refusal, using a neutral detail shot`);
+        out = await generate(model, safe, s.size, "low", null);
+      }
+      const { bytes, usage } = out;
       fs.writeFileSync(file, bytes);
       result.generated_this_run++;
       costUsd = imageCostFromUsage(usage, pricesFor(model));

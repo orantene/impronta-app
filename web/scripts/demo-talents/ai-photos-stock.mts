@@ -32,7 +32,9 @@ const opt = (n: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const WRITE = args.includes("--yes-write");
-const ONLY = (opt("--only") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+// --only TAL-a,TAL-b or --only @codes.txt (comma/newline separated)
+const onlyArg = opt("--only") ?? "";
+const ONLY = (onlyArg.startsWith("@") ? fs.readFileSync(onlyArg.slice(1), "utf8") : onlyArg).split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
 if (!ONLY.length) throw new Error("--only <codes> is required");
 const APPROVAL = (opt("--approval") ?? "generated") as StockApproval;
 if (!["generated", "qa_passed"].includes(APPROVAL)) throw new Error("--approval must be generated or qa_passed");
@@ -90,6 +92,10 @@ for (const code of ONLY) {
   // The pack is the source of truth: only the current set, never superseded files.
   const packPhotos = pack[code]?.photos ?? [];
   if (!packPhotos.length) { console.log(`${code}: not in pack.json`); continue; }
+  if (packPhotos.some((p) => !fs.existsSync(p.file) || !fs.existsSync(`${p.file}.json`))) {
+    console.log(`${code}: set is being regenerated, skipped for now`);
+    continue;
+  }
   const metas = packPhotos.map((p) => JSON.parse(fs.readFileSync(`${p.file}.json`, "utf8")) as ImageMeta);
   for (const [i, m] of metas.entries()) {
     const { data: existing } = await admin.from("platform_stock_images").select("id, approval").contains("tags", { demo_key: m.key }).maybeSingle();
