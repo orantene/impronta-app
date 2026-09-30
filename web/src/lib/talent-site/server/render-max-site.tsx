@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
+import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -676,7 +677,7 @@ async function renderMaxSiteDocument(args: {
       ) : null}
 
       <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
-        {renderFreeformPageRootTree(blocks, {
+        {renderFreeformPageRootTree(pruneEmptyBoundSections(blocks, pricedDataSources), {
           publicPathPrefix,
           mode: "freeform",
           includeRendererStyles: false,

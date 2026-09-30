@@ -1450,7 +1450,7 @@ export function TalentProfileShellDrawer() {
       updateSelfAbout(aboutPayload),
       updateSelfLocation(locationPayload),
       updateSelfRates(ratesPayload),
-      updateSelfAvailability(availPayload),
+      updateSelfAvailability({ ...availPayload, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       saveSelfLanguages(langsPayload),
       updateSelfCredits(creditsPayload),
       updateSelfLimits(limitsPayload),

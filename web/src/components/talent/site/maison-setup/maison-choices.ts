@@ -9,8 +9,8 @@ import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/se
 import {
   MAISON_DEFAULT_PALETTE_KEY,
   MAISON_PALETTE_ORDER,
-  MAISON_PALETTES,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { designSummaryLine } from "@/lib/talent-site/maison-summary-line";
 import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
@@ -189,10 +189,6 @@ export function maisonResumeSummaryLine(
   choices: MaisonSetupChoices,
   locale: "en" | "es",
 ): string {
-  const paletteName =
-    choices.useCustomPalette && choices.customPalette
-      ? choices.customPalette.name[locale]
-      : MAISON_PALETTES[choices.paletteKey].name[locale];
   const statusLabel =
     locale === "es"
       ? choices.status === "Choices saved"
@@ -203,7 +199,15 @@ export function maisonResumeSummaryLine(
             ? "En vivo"
             : "Vista previa"
       : choices.status;
-  return `Maison · ${paletteName} · ${statusLabel}`;
+  // F33: the chosen design's own name and palette, not "Maison" for every design.
+  return designSummaryLine({
+    designSlug: choices.designSlug,
+    lookSlug: choices.designPaletteKey,
+    paletteKey: choices.paletteKey,
+    customPalette: choices.useCustomPalette ? choices.customPalette : null,
+    tail: statusLabel,
+    locale,
+  });
 }
 
 /** P4: what the gallery passes when a theme card is explored. */

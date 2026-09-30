@@ -21,6 +21,7 @@ import {
 } from "./maison-publish-readiness";
 import { isMaisonPendingUndo } from "./maison-design-snapshot";
 import { MAISON_PALETTES, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
+import { designSummaryLine } from "@/lib/talent-site/maison-summary-line";
 import {
   parseMaisonCustomPaletteStored,
   type MaisonCustomPaletteStored,
@@ -56,18 +57,13 @@ function lookSlugToPaletteKey(lookSlug: string | null): MaisonPaletteKey | null 
 }
 
 function buildSummaryLine(input: {
+  designSlug: string | null;
+  lookSlug: string | null;
   paletteKey: MaisonPaletteKey | null;
   customPalette: MaisonCustomPaletteStored | null;
   contentMode: "demo" | "mine";
   locale: "en" | "es";
 }): string {
-  const paletteName = input.customPalette
-    ? input.customPalette.name[input.locale]
-    : input.paletteKey
-      ? MAISON_PALETTES[input.paletteKey].name[input.locale]
-      : input.locale === "es"
-        ? "Colores"
-        : "Colors";
   const content =
     input.contentMode === "mine"
       ? input.locale === "es"
@@ -76,7 +72,8 @@ function buildSummaryLine(input: {
       : input.locale === "es"
         ? "Contenido demo"
         : "Demo content";
-  return `Maison · ${paletteName} · ${content}`;
+  // F33: the applied design + look from the saved row, never "Maison" by default.
+  return designSummaryLine({ ...input, tail: content });
 }
 
 export async function loadMaisonReviewStateAction(input?: {
@@ -148,6 +145,8 @@ export async function loadMaisonReviewStateAction(input?: {
       canUndo: isMaisonPendingUndo(pending),
       readiness,
       summaryLine: buildSummaryLine({
+        designSlug: row?.theme_design_slug ?? null,
+        lookSlug: row?.theme_look_slug ?? null,
         paletteKey: appliedPalette,
         customPalette: appliedCustom,
         contentMode: appliedMode,

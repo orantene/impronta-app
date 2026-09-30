@@ -134,3 +134,25 @@ describe("colors-kept rule", () => {
     assert.equal(p.useCustomPalette, false);
   });
 });
+
+describe("F32: My content never wears the last demo's palette", () => {
+  const darkDemo = maisonV2.demos.find((d) => d.defaultPalette && d.defaultPalette !== maisonV2.palettes[0]!.key)!;
+
+  it("a demo with its own palette exists (fixture sanity)", () => {
+    assert.ok(darkDemo, "expected a Maison v2 demo whose palette differs from the design default");
+  });
+
+  it("demo mode shows the demo's palette; My content falls back to the design default", () => {
+    const c = choices({ designSlug: "maison-v2", demoKey: darkDemo.key });
+    const demoColors = effectiveColors(maisonV2, darkDemo, c, "demo");
+    assert.equal(demoColors.kind === "palette" && demoColors.palette.key, darkDemo.defaultPalette);
+    const mine = effectiveColors(maisonV2, darkDemo, c, "mine");
+    assert.equal(mine.kind === "palette" && mine.palette.key, maisonV2.palettes[0]!.key);
+  });
+
+  it("an explicit pick still wins in My content", () => {
+    const c = { ...choices({ designSlug: "maison-v2", demoKey: darkDemo.key }), ...pickPalettePatch(maisonV2, "sage") };
+    const mine = effectiveColors(maisonV2, darkDemo, c, "mine");
+    assert.equal(mine.kind === "palette" && mine.palette.key, "sage");
+  });
+});

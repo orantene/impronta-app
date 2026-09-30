@@ -237,8 +237,10 @@ function maisonV2Ticker(makeId: KitIdFactory): BuilderNode {
     id: makeId(),
     kind: "marquee",
     props: {
+      // Her service names, like the demos (F26). `service1` falls back to the
+      // trade when she has no services, so the ticker never runs empty and
+      // never repeats the trade next to her real services.
       items: [
-        { text: "{{primaryTypeLabel}}" },
         { text: "{{service1}}" },
         { text: "{{service2}}" },
         { text: "{{service3}}" },

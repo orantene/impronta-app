@@ -82,14 +82,27 @@ export type EffectiveColors =
   | { kind: "custom" }
   | { kind: "palette"; palette: GalleryPalette; isDemoDefault: boolean };
 
+/** The design's own default palette (what a null saved look renders). */
+export function designDefaultPaletteKey(design: GalleryDesign): string {
+  if (isMaisonDesign(design.slug)) return MAISON_DEFAULT_PALETTE_KEY;
+  return design.palettes[0]?.key ?? "";
+}
+
+/**
+ * F32: with "My content" on screen no demo is shown, so a demo's palette
+ * must not carry over: the fallback is the DESIGN default. An explicit pick
+ * (or custom colours) still wins in both modes.
+ */
 export function effectiveColors(
   design: GalleryDesign,
   demo: GalleryDemo | null,
   choices: Pick<MaisonSetupChoices, "paletteKey" | "designPaletteKey" | "useCustomPalette" | "customPalette">,
+  contentMode: MaisonSetupChoices["contentMode"] = "demo",
 ): EffectiveColors {
   if (choices.useCustomPalette && choices.customPalette) return { kind: "custom" };
   const demoKey = demoDefaultPaletteKey(design, demo);
-  const key = chosenPaletteKey(design, choices) ?? demoKey;
+  const fallback = contentMode === "mine" ? designDefaultPaletteKey(design) : demoKey;
+  const key = chosenPaletteKey(design, choices) ?? fallback;
   const palette = design.palettes.find((p) => p.key === key) ?? design.palettes[0]!;
   return { kind: "palette", palette, isDemoDefault: palette.key === demoKey };
 }

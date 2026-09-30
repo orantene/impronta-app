@@ -36,3 +36,24 @@ export function nextBioI18n(
     Object.entries(next).every(([k, v]) => before[k] === v);
   return same ? null : next;
 }
+
+/**
+ * Read side (F25): the bio every surface shows. `bio_i18n` wins per locale;
+ * the saved `bios` field value fills any locale it lacks, so a bio saved by
+ * the talent drawer (which did not mirror to bio_i18n before) still shows.
+ */
+export function effectiveBioI18n(bioI18n: unknown, biosFieldValue: unknown): Record<string, string> {
+  const base = toI18nMap(bioI18n);
+  const rows = Array.isArray(biosFieldValue)
+    ? (biosFieldValue as Array<{ locale?: unknown; text?: unknown } | null>).map((r) => ({
+        locale: typeof r?.locale === "string" ? r.locale : "",
+        text: typeof r?.text === "string" ? r.text : "",
+      }))
+    : [];
+  return { ...biosToI18nPatch(rows), ...base };
+}
+
+/** The bio for `locale`, then English, then any saved locale. "" when none. */
+export function pickBio(map: Readonly<Record<string, string>>, locale = "en"): string {
+  return (map[locale] || map.en || Object.values(map).find((v) => v.trim()) || "").trim();
+}
