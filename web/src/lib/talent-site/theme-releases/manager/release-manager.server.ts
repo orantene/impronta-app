@@ -11,7 +11,7 @@ import { publishDemoSite, reapplyDemoDesignAtVersion } from "@/lib/talent-site/s
 import { THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import { isMissingTable, listReleases, setChannel, setRollout } from "../releases.server";
 import type { ReleaseChannel, ThemeRelease } from "../types";
-import { executeChannelChange, type ChannelChangeResult } from "./channel";
+import { executeChannelChange, executeResyncDemos, type ChannelChangeResult } from "./channel";
 import {
   buildDryRunReport,
   orderDemosFirst,
@@ -291,6 +291,11 @@ async function fanOut(admin: SupabaseClient, release: ThemeRelease): Promise<{ u
     release,
     sites,
   );
+}
+
+/** Re-run the demo update (any channel after draft; fresh dry run required). */
+export async function resyncDemos(admin: SupabaseClient, release: ThemeRelease) {
+  return executeResyncDemos(release, { applyToDemos: () => applyToDemos(admin, release) });
 }
 
 /** Guarded channel change (dry run required); effects then persist. */

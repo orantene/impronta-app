@@ -8,6 +8,7 @@ import type { ReleaseChannel, ReleaseItem, ReleaseItemType, ReleaseStatus } from
 
 import {
   actionChangeChannel,
+  actionResyncDemos,
   actionRunDryRun,
   actionSaveRelease,
   actionSetPaused,
@@ -39,7 +40,7 @@ const btn =
 export function ReleasePanel({ lang, release, report: initialReport }: Props) {
   const t = COPY[lang];
   const [items, setItems] = useState<ReleaseItem[]>(release.items);
-  const [pendingGo, setPendingGo] = useState<{ target: ReleaseChannel; message: string } | null>(null);
+  const [pendingGo, setPendingGo] = useState<{ target: ReleaseChannel | "resync"; message: string } | null>(null);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [notes, setNotes] = useState(release.notes);
   const [notesDirty, setNotesDirty] = useState(false);
@@ -111,8 +112,16 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
     );
   }
 
-  function ask(target: ReleaseChannel, message: string) {
+  function ask(target: ReleaseChannel | "resync", message: string) {
     setPendingGo({ target, message });
+  }
+
+  function resync() {
+    setPendingGo(null);
+    run(
+      () => actionResyncDemos(release.id),
+      (d) => `${t.done} ${d.applied} ${t.demosDone}.${d.warnings.length > 0 ? ` ${t.cacheWarn}: ${d.warnings.join(" | ")}` : ""}`,
+    );
   }
 
   function go(target: ReleaseChannel) {
@@ -139,7 +148,7 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
         message={pendingGo?.message ?? ""}
         confirmLabel={t.confirmYes}
         cancelLabel={t.confirmCancel}
-        onConfirm={() => pendingGo && go(pendingGo.target)}
+        onConfirm={() => (pendingGo?.target === "resync" ? resync() : pendingGo && go(pendingGo.target))}
         onCancel={() => setPendingGo(null)}
       />
       {msg ? (
@@ -258,6 +267,14 @@ export function ReleasePanel({ lang, release, report: initialReport }: Props) {
           </button>
           <button type="button" className={btn} disabled={!canMove("default")} onClick={() => ask("default", t.confirmDefault)}>
             {t.toDefault}
+          </button>
+          <button
+            type="button"
+            className={btn}
+            disabled={!fresh || pending || channel === "draft" || status === "archived" || status === "paused"}
+            onClick={() => ask("resync", t.confirmResync)}
+          >
+            {t.resync}
           </button>
           <button
             type="button"

@@ -13,6 +13,7 @@ import {
   siteResultFromReport,
   type SiteDryRunResult,
 } from "./dry-run";
+import { executeResyncDemos } from "./channel";
 import { applyDemosWithPorts, selectDemoTargets, talentSitesOnly, type DemoPorts } from "./demos";
 import { fanOutWithPorts, type FanOutPorts } from "./fan-out";
 import { applyItemEdit, cleanScreenshotUrl, editItemInList, itemsMissingNotes } from "./items";
@@ -199,7 +200,7 @@ test("executeChannelChange: demos applies then persists; optin needs rollout > 0
   const c = spyDeps();
   const open = await executeChannelChange(withFreshReport({ channel: "demos", rollout_pct: 50 }), "optin", c.deps);
   assert.equal(open.ok, true);
-  assert.deepEqual(c.calls, ["fanOut", "persist:optin"]);
+  assert.deepEqual(c.calls, ["demos", "fanOut", "persist:optin"], "demos update before talents are notified");
 });
 
 test("executeChannelChange: a failing demo apply does not advance the channel", async () => {
@@ -223,7 +224,7 @@ test("executeChannelChange: Make default flips the catalog first; a failed flip 
   ok.deps.flipCatalog = async () => (ok.calls.push("flip"), { ok: true as const });
   const res = await executeChannelChange(withFreshReport({ channel: "optin", status: "published", rollout_pct: 100 }), "default", ok.deps);
   assert.equal(res.ok, true);
-  assert.deepEqual(ok.calls, ["flip", "fanOut", "persist:default"]);
+  assert.deepEqual(ok.calls, ["flip", "demos", "fanOut", "persist:default"]);
 
   const bad = spyDeps();
   bad.deps.flipCatalog = async () => (bad.calls.push("flip"), { ok: false as const, error: "no snapshot" });
@@ -486,4 +487,27 @@ test("release manager uses an in-app ConfirmDialog, never window.confirm", async
   assert.match(dialog, /Escape/);
   assert.equal((copy.match(/confirmYes:/g) ?? []).length, 2, "EN + ES confirm labels");
   assert.equal((copy.match(/confirmCancel:/g) ?? []).length, 2);
+});
+
+// ── Re-sync demos (F68) ──────────────────────────────────────────────────────
+
+test("resync demos: any channel after draft, fresh dry run required, talents untouched", async () => {
+  const calls: string[] = [];
+  const deps = { applyToDemos: async () => (calls.push("demos"), { ok: true as const, applied: 2 }) };
+  assert.equal((await executeResyncDemos(withFreshReport({ channel: "draft" }), deps)).ok, false);
+  assert.equal((await executeResyncDemos(release({ channel: "demos" }), deps)).ok, false, "no dry run");
+  assert.equal((await executeResyncDemos(withFreshReport({ channel: "demos", status: "paused" }), deps)).ok, false);
+  assert.deepEqual(calls, []);
+  for (const channel of ["demos", "optin", "default"] as const) {
+    const r = await executeResyncDemos(withFreshReport({ channel }), deps);
+    assert.deepEqual(r, { ok: true, applied: 2, warnings: [] });
+  }
+  assert.deepEqual(calls, ["demos", "demos", "demos"]);
+});
+
+test("resync demos: a failing demo update is reported", async () => {
+  const r = await executeResyncDemos(withFreshReport({ channel: "demos" }), {
+    applyToDemos: async () => ({ ok: false as const, error: "TAL-93020: boom" }),
+  });
+  assert.equal(r.ok, false);
 });

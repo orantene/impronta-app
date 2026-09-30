@@ -10,7 +10,7 @@
  *           Tulala"); a failed auto-improve never undoes the channel change
  */
 import type { ReleaseChannel, ThemeRelease } from "../types";
-import { checkChannelChange } from "./dry-run";
+import { checkChannelChange, dryRunIsFresh } from "./dry-run";
 
 export interface ChannelDeps {
   applyToDemos: () => Promise<{ ok: true; applied: number; warnings?: string[] } | { ok: false; error: string }>;
@@ -57,6 +57,11 @@ export async function executeChannelChange(
     demosApplied = r.applied;
     warnings = r.warnings ?? [];
   } else {
+    // Demos are never behind talents: they update first, automatically.
+    const r = await deps.applyToDemos();
+    if (!r.ok) return r;
+    demosApplied = r.applied;
+    warnings = r.warnings ?? [];
     const f = await deps.fanOut();
     updates = f.updates;
     bells = f.bells;
@@ -68,4 +73,25 @@ export async function executeChannelChange(
     warnings = [...warnings, ...ai.failures.map((f) => `Auto-improve ${f}`)];
   }
   return { ok: true, channel: target, demosApplied, updates, bells, warnings };
+}
+
+/**
+ * "Re-sync demos": re-run the demo update on any channel after draft. Every
+ * demo still below `to_version` is updated; talents are never touched. Needs a
+ * fresh dry run with no failed sites, like every other channel action.
+ */
+export async function executeResyncDemos(
+  release: Pick<ThemeRelease, "id" | "to_version" | "items" | "dry_run_report" | "channel" | "status">,
+  deps: Pick<ChannelDeps, "applyToDemos">,
+): Promise<{ ok: true; applied: number; warnings: string[] } | { ok: false; error: string }> {
+  if (release.status === "archived") return { ok: false, error: "This release is archived." };
+  if (release.status === "paused") return { ok: false, error: "This release is paused. Resume it first." };
+  if (release.channel === "draft") return { ok: false, error: "Publish to demos first." };
+  const fresh = dryRunIsFresh(release);
+  if (!fresh.ok) return fresh;
+  if (fresh.report.summary.errors > 0) {
+    return { ok: false, error: `${fresh.report.summary.errors} site(s) failed the dry run. Fix or rerun.` };
+  }
+  const r = await deps.applyToDemos();
+  return r.ok ? { ok: true, applied: r.applied, warnings: r.warnings ?? [] } : r;
 }
