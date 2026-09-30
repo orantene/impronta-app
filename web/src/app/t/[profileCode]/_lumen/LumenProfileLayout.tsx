@@ -51,6 +51,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
 import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
@@ -763,12 +764,16 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
               <div style={{ color: "var(--pp-muted)", fontSize: 13 }}>
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              {props.whitelabel ? null : (
-                <span className="lm-foot__pw">Powered by <em>Tulala</em></span>
-              )}
             </div>
           </div>
         </footer>
+      ) : null}
+      {showFooter ? (
+        <ProfileFooterSocket
+          locale={locale}
+          whitelabel={props.whitelabel}
+          tokens={{ surface: "var(--pp-bg)", ink: "var(--pp-ink)", line: "var(--pp-line)" }}
+        />
       ) : null}
 
       {/* Spacer so the fixed mobile bar never covers footer content. */}

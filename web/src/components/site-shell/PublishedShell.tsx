@@ -29,6 +29,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/shell-reads";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { stripDesignCredits } from "@/lib/talent-site/footer-socket";
 import { prepareLocalizedShellTree } from "./shell-locale-hrefs";
 import { resolveShellNavData } from "./shell-nav-data";
 import {
@@ -188,12 +189,14 @@ async function renderPublishedShellSide(
   const shell = await loadShellForRender(tenantId, locale);
   if (!shell) return null;
   const slots = shell.snapshot.slots ?? [];
-  const localizedTree = await prepareLocalizedShellTree(
+  // The footer socket carries the ONE Tulala credit: strip stored design credits.
+  const preparedTree = await prepareLocalizedShellTree(
     shell.snapshot,
     slots,
     tenantId,
     locale,
   );
+  const localizedTree = side === "footer" ? stripDesignCredits(preparedTree) : preparedTree;
   const plan = resolveShellSidePlan({ tree: localizedTree, slots, side });
   if (plan.mode === "none") return null;
 
