@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { inquiryIsHers, talentIdsOnInquiry } from "@/lib/messaging/talent-pov";
 
-import { talentSelfInquiryAllowed } from "./talent-self-inquiry";
+import { talentOwnOfferAllowed, talentSelfInquiryAllowed } from "./talent-self-inquiry";
 import { shouldSendWorkspaceAutoAck } from "./workspace-auto-ack";
 
 const HUB = "hub-tenant";
@@ -78,4 +78,47 @@ test("F54: seller mode loads every conversation, not only Needs action", () => {
   // conversation she started (awaiting_customer) never reached her client-side filters.
   const shell = readFileSync(join(dir, "..", "..", "components", "messages-v5", "shell", "MessagesV5Shell.tsx"), "utf8");
   assert.match(shell, /useState<InboxSegment>\(props\.seller \? "all" : "needs"\)/);
+});
+
+const OWN_OFFER = {
+  actorUserId: "user-me",
+  ownerUserId: "user-me",
+  startedBy: "talent",
+  actorTalentProfileId: ME,
+  talentProfileIds: [ME],
+  tenantId: HUB,
+  hubTenantId: HUB,
+};
+
+test("a talent may create, edit and send an offer on her OWN talent_self inquiry", () => {
+  assert.equal(talentOwnOfferAllowed(OWN_OFFER), true);
+});
+
+test("offer verbs are refused on agency or hub inquiries she is merely named on", () => {
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, tenantId: "agency-tenant" }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, ownerUserId: "user-staff" }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, startedBy: "client" }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, startedBy: undefined }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, talentProfileIds: [ME, "talent-other"] }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, talentProfileIds: ["talent-other"] }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, actorUserId: null }), false);
+  assert.equal(talentOwnOfferAllowed({ ...OWN_OFFER, hubTenantId: null }), false);
+});
+
+test("the gate is wired: only the three offer verbs, after the coordinator branch, via the pure check", () => {
+  const perms = readFileSync(join(dir, "inquiry-permissions.ts"), "utf8");
+  assert.match(perms, /OFFER_VERBS: readonly EngineAction\[\] = \["create_offer", "update_offer", "send_offer"\]/);
+  assert.match(perms, /talentProfileId && OFFER_VERBS\.includes\(action\)/);
+  assert.match(perms, /talentOwnOfferAllowed\(\{/);
+  assert.ok(perms.indexOf("coordinatorActions.includes(action)") < perms.indexOf("talentOwnOfferAllowed({"));
+});
+
+test("Send quote writer goes funnel start, create, price, send", () => {
+  const src = readFileSync(join(dir, "..", "server-actions", "messaging-talent-quote.ts"), "utf8");
+  assert.match(src, /messagingTalentStartConversation\(/);
+  for (const verb of ["createOffer(", "updateOfferDraft(", "sendOffer("]) assert.ok(src.includes(verb), verb);
+  assert.ok(src.indexOf("messagingTalentStartConversation(") < src.indexOf("createOffer("));
+  assert.ok(src.indexOf("updateOfferDraft(") < src.indexOf("sendOffer("));
+  assert.match(src, /loadTalentOfferingsForEditor\(actor\.talentProfileId\)/);
+  assert.doesNotMatch(src, /"inquiries"\)\s*\.insert/);
 });

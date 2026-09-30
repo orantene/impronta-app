@@ -38,10 +38,11 @@ function relative(iso: string, locale: string): string {
   return rtf.format(-Math.round(h / 24), "day");
 }
 
+/** Height comes from the `HIST_BTN` class (44px under sm, 24px from sm). */
+const HIST_BTN = "min-h-11 sm:min-h-6";
 const btn = (tone: "ghost" | "primary" | "danger", disabled = false) => ({
-  height: 24,
-  padding: "0 9px",
-  fontSize: 10.5,
+  padding: "0 12px",
+  fontSize: 12,
   fontWeight: 600,
   borderRadius: 6,
   cursor: disabled ? "not-allowed" : "pointer",
@@ -96,7 +97,7 @@ export function TalentHistoryList({
   return (
     <>
       <label
-        className="mb-3 flex items-center gap-2"
+        className="mb-3 flex min-h-11 items-center gap-2 sm:min-h-0"
         style={{ fontSize: 12, color: CHROME.text, cursor: "pointer" }}
       >
         <input
@@ -112,7 +113,7 @@ export function TalentHistoryList({
         <div
           role="alert"
           className="mb-3 rounded-md px-3 py-2"
-          style={{ fontSize: 11.5, background: CHROME.roseBg, border: `1px solid ${CHROME.roseLine}`, color: CHROME.rose }}
+          style={{ fontSize: 12, background: CHROME.roseBg, border: `1px solid ${CHROME.roseLine}`, color: CHROME.rose }}
         >
           {error}
         </div>
@@ -143,7 +144,7 @@ export function TalentHistoryList({
                     padding: "10px 12px",
                   }}
                 >
-                  <header className="flex items-center gap-2" style={{ fontSize: 10.5, color: CHROME.muted2 }}>
+                  <header className="flex items-center gap-2" style={{ fontSize: 12, color: CHROME.muted2 }}>
                     <span style={{ fontWeight: 700, color: h.kind === "publish" ? CHROME.green : CHROME.muted }}>
                       {actor}
                     </span>
@@ -162,23 +163,23 @@ export function TalentHistoryList({
                   <div style={{ fontSize: 13, fontWeight: 600, color: CHROME.ink }}>
                     {summary}
                     {h.editCount > 1 ? (
-                      <span style={{ fontSize: 11, fontWeight: 500, color: CHROME.muted2 }}> · {h.editCount}</span>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: CHROME.muted2 }}> · {h.editCount}</span>
                     ) : null}
                   </div>
 
                   {confirming ? (
-                    <div className="flex flex-col gap-2" style={{ fontSize: 11.5, color: CHROME.text }}>
+                    <div className="flex flex-col gap-2" style={{ fontSize: 12, color: CHROME.text }}>
                       <span>{copyOf(confirming === "undo" ? "undoConfirm" : "restoreConfirm")}</span>
-                      <span className="flex gap-1">
+                      <span className="flex flex-wrap gap-1">
                         <button
                           type="button"
                           disabled={pending}
-                          style={btn("primary", pending)}
+                          className={HIST_BTN} style={btn("primary", pending)}
                           onClick={() => void (confirming === "undo" ? undo(row) : onRestore(row).then(() => setConfirm(null)))}
                         >
                           {copyOf(confirming === "undo" ? "undoUpdate" : "restore")}
                         </button>
-                        <button type="button" disabled={pending} style={btn("ghost", pending)} onClick={() => setConfirm(null)}>
+                        <button type="button" disabled={pending} className={HIST_BTN} style={btn("ghost", pending)} onClick={() => setConfirm(null)}>
                           {copyOf("cancel")}
                         </button>
                       </span>
@@ -186,14 +187,14 @@ export function TalentHistoryList({
                   ) : (
                     <span className="flex flex-wrap items-center gap-1">
                       {h.previewUrl ? (
-                        <button type="button" style={btn("ghost")} onClick={() => setPreviewUrl(h.previewUrl)}>
+                        <button type="button" className={HIST_BTN} style={btn("ghost")} onClick={() => setPreviewUrl(h.previewUrl)}>
                           {copyOf("preview")}
                         </button>
                       ) : null}
                       <button
                         type="button"
                         disabled={pending}
-                        style={btn("ghost", pending)}
+                        className={HIST_BTN} style={btn("ghost", pending)}
                         onClick={() => setConfirm({ id: row.id, action: "restore" })}
                       >
                         {copyOf("restore")}
@@ -202,7 +203,7 @@ export function TalentHistoryList({
                         <button
                           type="button"
                           disabled={pending}
-                          style={btn("danger", pending)}
+                          className={HIST_BTN} style={btn("danger", pending)}
                           onClick={() => setConfirm({ id: row.id, action: "undo" })}
                           data-history-undo-update
                         >
@@ -240,7 +241,7 @@ export function TalentHistoryList({
             >
               <strong>{copyOf("previewing")}</strong>
               <span className="ml-auto" />
-              <button type="button" style={btn("ghost")} onClick={() => setPreviewUrl(null)}>
+              <button type="button" className={HIST_BTN} style={btn("ghost")} onClick={() => setPreviewUrl(null)}>
                 {copyOf("close")}
               </button>
             </div>

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 
 import { diffDesignPayloads, type CandidateItem } from "./diff-payload";
 import { mergeDesignUpdate } from "./merge";
-import { authoredRelease } from "./release-notes";
+import { releaseNotesFor as authoredRelease } from "./release-notes";
 import type { DesignSide } from "./types";
 import type { DesignPayload } from "../theme-catalog/types";
 import {

@@ -77,12 +77,24 @@ export function themeUpdateSummary(
   };
 }
 
-export function undoUpdateSummary(revertedCount: number, keptCount: number): Bilingual {
-  const keptEn = keptCount > 0 ? ` · kept ${keptCount} later edits` : "";
-  const keptEs = keptCount > 0 ? ` · conservamos ${keptCount} cambios posteriores` : "";
+/**
+ * "Undid the Maison v2 update · kept your 1 later edit". `laterEdits` is the
+ * count of edits she saved after the apply (from history); null = not certain,
+ * so the line says "kept your later edits" without a number (`anyKept`).
+ */
+export function undoUpdateSummary(designName: string | null | undefined, laterEdits: number | null, anyKept = false): Bilingual {
+  const name = designName?.trim();
+  const n = laterEdits ?? 0;
+  const keptEn = n > 0 ? ` · kept your ${n} later edit${n === 1 ? "" : "s"}` : anyKept ? " · kept your later edits" : "";
+  const keptEs =
+    n > 0
+      ? ` · conservamos ${n === 1 ? "tu edición posterior" : `tus ${n} ediciones posteriores`}`
+      : anyKept
+        ? " · conservamos tus ediciones posteriores"
+        : "";
   return {
-    en: `Undid a design update (${revertedCount} changes)${keptEn}`,
-    es: `Deshiciste una actualización del diseño (${revertedCount} cambios)${keptEs}`,
+    en: `${name ? `Undid the ${name} update` : "Undid the design update"}${keptEn}`,
+    es: `${name ? `Deshiciste la actualización ${name}` : "Deshiciste la actualización del diseño"}${keptEs}`,
   };
 }
 

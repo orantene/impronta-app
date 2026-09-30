@@ -27,6 +27,7 @@ import { writeThemeTokenOrigin } from "../token-origin-store";
 import { indexTree } from "../classify";
 import { mergeDesignUpdate } from "../merge";
 import { stampFromBase } from "../stamp-existing";
+import { seedDemoBeforeAfter } from "../demo-seed";
 import { tokenOriginMap } from "../origin";
 import type { MergeResult, ReleaseItem, ThemeRelease } from "../types";
 
@@ -39,6 +40,8 @@ export interface SiteRef {
   locale: string | null;
   pinnedVersion: number | null;
   isDemo: boolean;
+  /** talent_sites.site_published_at is set. */
+  published: boolean;
 }
 
 export type SiteMergeOutcome =
@@ -68,31 +71,39 @@ export async function mergeSite(
   if (design.version !== release.to_version) {
     return { ok: false, error: `Catalog is at v${design.version}, release targets v${release.to_version}.` };
   }
-  const { data: row, error } = await admin
-    .from("talent_sites")
-    .select("shell_tree, design_tokens_draft, theme_token_origin")
-    .eq("id", site.siteId)
-    .maybeSingle();
+  // F74: the site row, the home page, the hydration tokens and the pinned-base
+  // payload are independent reads. They ran one after another; now they overlap.
+  const [rowRes, homeRes, hydration, basePayload] = await Promise.all([
+    admin
+      .from("talent_sites")
+      .select("shell_tree, design_tokens_draft, theme_token_origin")
+      .eq("id", site.siteId)
+      .maybeSingle(),
+    admin
+      .from("talent_pages")
+      .select("id, blocks")
+      .eq("talent_profile_id", site.talentProfileId)
+      .eq("is_home", true)
+      .maybeSingle(),
+    loadTemplateHydrationTokens(site.talentProfileId),
+    resolveBase(site.pinnedVersion),
+  ]);
+  const { data: row, error } = rowRes;
   if (error || !row) return { ok: false, error: error?.message ?? "Site not found." };
-  const { data: home, error: hErr } = await admin
-    .from("talent_pages")
-    .select("id, blocks")
-    .eq("talent_profile_id", site.talentProfileId)
-    .eq("is_home", true)
-    .maybeSingle();
+  const { data: home, error: hErr } = homeRes;
   if (hErr) return { ok: false, error: hErr.message };
 
-  const tokens =
-    (await loadTemplateHydrationTokens(site.talentProfileId)) ?? fallbackHydrationTokens(site.displayName);
-  const theirs = buildDesignTrees(design.payload, tokens, undefined, {
+  const tokens = hydration ?? fallbackHydrationTokens(site.displayName);
+  // Demo content is ours: keep Before / After filled on demos (F77 ships it empty).
+  const seedFor = (p: DesignPayload): DesignPayload => (site.isDemo ? seedDemoBeforeAfter(p) : p);
+  const theirs = buildDesignTrees(seedFor(design.payload), tokens, undefined, {
     design: design.slug,
     version: release.to_version,
   });
   if (!theirs.ok) return { ok: false, error: `Target build failed: ${theirs.errors.slice(0, 2).join("; ")}` };
 
-  const basePayload = await resolveBase(site.pinnedVersion);
   const baseBuilt = basePayload
-    ? buildDesignTrees(basePayload, tokens, undefined, { design: design.slug, version: site.pinnedVersion as number })
+    ? buildDesignTrees(seedFor(basePayload), tokens, undefined, { design: design.slug, version: site.pinnedVersion as number })
     : null;
   if (baseBuilt && !baseBuilt.ok) {
     return { ok: false, error: `Base build failed: ${baseBuilt.errors.slice(0, 2).join("; ")}` };

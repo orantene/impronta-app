@@ -137,7 +137,7 @@ import type {
   BuilderNodeStyleValue,
 } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
-import { isRenderableEmptySection } from "./render-prune";
+import { isIncompleteBeforeAfter, isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
@@ -4613,6 +4613,10 @@ function renderBuilderNodeElement(
       // container without one — or with a URL that failed to parse — keeps
       // byte-identical markup.
       const bgMedia = renderBackgroundMediaLayer(node.props.backgroundMedia, node.id);
+      // F77: Before / After with an empty photo slot. Public: hidden until both
+      // are set. Builder: shown, with a prompt to choose the two photos.
+      const beforeAfterIncomplete = isIncompleteBeforeAfter(node);
+      if (beforeAfterIncomplete && !options.contentLocale?.editorPreview) return null;
       return (
         <ContainerTag
           key={node.id}
@@ -4637,6 +4641,24 @@ function renderBuilderNodeElement(
           style={containerStyle(node)}
         >
           {bgMedia}
+          {beforeAfterIncomplete ? (
+            <p
+              data-before-after-prompt=""
+              style={{
+                margin: 0,
+                padding: "12px 16px",
+                border: "1px dashed rgba(24,24,27,0.28)",
+                borderRadius: 12,
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "rgba(24,24,27,0.60)",
+              }}
+            >
+              {options.contentLocale?.locale === "es"
+                ? "Elige tus fotos de antes y después"
+                : "Choose your before and after photos"}
+            </p>
+          ) : null}
           {renderDataBoundContainerChildren(node, options)}
         </ContainerTag>
       );

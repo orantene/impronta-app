@@ -220,6 +220,8 @@ export function buildKitCopy(t: Translator) {
     offer: {
       draft: t("dashboard.messagesV5.offer.draft"),
       sentV: t("dashboard.messagesV5.offer.sentV"),
+      sentPlain: t("dashboard.messagesV5.offer.sentPlain"),
+      acceptedPlain: t("dashboard.messagesV5.offer.acceptedPlain"),
       viewedAt: t("dashboard.messagesV5.offer.viewedAt"),
       acceptedV: t("dashboard.messagesV5.offer.acceptedV"),
       declined: t("dashboard.messagesV5.offer.declined"),

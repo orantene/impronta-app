@@ -166,28 +166,23 @@ export async function loadMaxSiteManagerAction(): Promise<
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
-  const { data: siteRow, error: siteErr } = await sb
-    .from("talent_sites")
-    .select(
-      "id, site_slug, logo_url, site_published_at, shell_published, theme_design_slug, theme_look_slug",
-    )
-    .eq("talent_profile_id", scope.talentProfile.id)
-    .maybeSingle();
+  // F74: site row, pages and legacy template are independent: one parallel step.
+  const cols = "id, site_slug, logo_url, site_published_at, shell_published, theme_design_slug, theme_look_slug";
+  const [siteRes, pagesRes, legacyProfileTemplate] = await Promise.all([
+    sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
+    sb.from("talent_pages").select(PAGE_COLUMNS).eq("talent_profile_id", scope.talentProfile.id).order("sort_order", { ascending: true }),
+    loadLegacyProfileTemplate(sb, scope.talentProfile.id),
+  ]);
+  const { data: siteRow, error: siteErr } = siteRes;
+  const { data: pageRows, error: pagesErr } = pagesRes;
   if (siteErr) {
     logServerError("maxSiteManager.load.site", siteErr);
     return { ok: false, code: "server_error", error: "Could not load your site." };
   }
-
-  const { data: pageRows, error: pagesErr } = await sb
-    .from("talent_pages")
-    .select(PAGE_COLUMNS)
-    .eq("talent_profile_id", scope.talentProfile.id)
-    .order("sort_order", { ascending: true });
   if (pagesErr) {
     logServerError("maxSiteManager.load.pages", pagesErr);
     return { ok: false, code: "server_error", error: "Could not load your pages." };
   }
-
 
   const site = (siteRow ?? null) as {
     id: string;
@@ -237,7 +232,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       publicSiteUrl: siteUrl(site?.site_slug ?? null),
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
-      legacyProfileTemplate: await loadLegacyProfileTemplate(sb, scope.talentProfile.id),
+      legacyProfileTemplate,
       pages,
     },
   };
