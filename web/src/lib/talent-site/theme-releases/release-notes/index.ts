@@ -13,6 +13,7 @@
 import type { DesignPayload } from "../../theme-catalog/types";
 import { applyItemEdit } from "../manager/items";
 import { diffDesignPayloads, type CandidateItem } from "../diff-payload";
+import { swapGroupId } from "../swap";
 import type { ReleaseItem, ReleaseNotes } from "../types";
 import {
   MAISON_V2_RELEASE_2_1,
@@ -114,3 +115,35 @@ export function generateReleaseItems(
   const groupNote = layoutKeys.map((k) => mod.byItemId[k]).find(Boolean);
   return { items: withAuthoredNotes(items, mod, groupNote), notes: { en: mod.notes.en, es: mod.notes.es } };
 }
+
+const idOf = (i: ReleaseItem) => i.id ?? `${i.type}:${i.key}`;
+
+/** The item's design key without its `tree:` prefix. */
+function bareKey(i: ReleaseItem): string {
+  return i.tree && i.key.startsWith(`${i.tree}:`) ? i.key.slice(i.tree.length + 1) : i.key;
+}
+
+/**
+ * Authored override for a pair `diffDesignPayloads` did not detect: members of
+ * each id group share one `group`, and a removed key plus a new key also get
+ * `swap`, so the merge treats them as one atomic swap.
+ */
+export function applyLayoutGroups(
+  items: ReadonlyArray<ReleaseItem>,
+  groups: ReadonlyArray<ReadonlyArray<string>>,
+): ReleaseItem[] {
+  let out = [...items];
+  for (const ids of groups) {
+    const members = out.filter((i) => ids.includes(idOf(i)));
+    if (members.length < 2) continue;
+    const removed = members.find((i) => idOf(i).endsWith(":removed"));
+    const added = members.find((i) => i !== removed && !idOf(i).endsWith(":removed"));
+    const swap = removed && added ? { from: bareKey(removed), to: bareKey(added) } : undefined;
+    const group = swap ? swapGroupId(removed!.tree ?? "home", swap) : `layout-group:${ids[0]}`;
+    out = out.map((i) => (members.includes(i) ? { ...i, group, ...(swap ? { swap } : {}) } : i));
+  }
+  return out;
+}
+
+/** Alias kept for callers that speak "authored release". */
+export const authoredRelease = releaseNotesFor;

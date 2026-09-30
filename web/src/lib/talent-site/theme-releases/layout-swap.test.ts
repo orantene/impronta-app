@@ -67,7 +67,20 @@ interface Case {
   unmappable: (p: Props) => void;
 }
 
-const CASES: Case[] = [
+/** True once the payload carries the v17 services swap (r17 and up). */
+const HAS_V17 = (() => {
+  let found = false;
+  const visit = (nodes: ReadonlyArray<BuilderNode>) => {
+    for (const n of nodes) {
+      if ((n.props as Props).slotKey === "services_two_col") found = true;
+      visit(((n as { children?: BuilderNode[] }).children ?? []) as BuilderNode[]);
+    }
+  };
+  visit(maisonV2At(15).homeTree);
+  return found;
+})();
+
+const ALL_CASES: Case[] = [
   {
     name: "services two-column",
     from: 16,
@@ -117,6 +130,8 @@ const CASES: Case[] = [
     },
   },
 ];
+
+const CASES: Case[] = ALL_CASES.filter((c) => c.to !== 17 || HAS_V17);
 
 async function sides(c: Case) {
   const { buildDesignTrees, fallbackHydrationTokens } = await import("../server/theme-apply-core");
@@ -314,8 +329,8 @@ for (const c of CASES) {
 }
 
 test("talent What's new shows a grouped swap as ONE layout item", async () => {
-  const [services, inset] = await Promise.all([sides(CASES[0]!), sides(CASES[1]!)]);
-  for (const [s, v] of [[services, 17], [inset, 15]] as const) {
+  const all = await Promise.all(CASES.map(async (c) => [await sides(c), c.to] as const));
+  for (const [s, v] of all) {
     const items = withAuthoredNotes(s.raw, authoredRelease("maison-v2", v)!);
     const layout = groupItems(items).find((g) => g.group === "layout")!;
     assert.equal(layout.items.length, 1, `v${v}: one row for the swap`);
@@ -324,7 +339,7 @@ test("talent What's new shows a grouped swap as ONE layout item", async () => {
   }
 });
 
-test("authored layoutKeys override declares a pair detection missed", async () => {
+test("authored layoutKeys override declares a pair detection missed", { skip: !HAS_V17 }, async () => {
   const { base, theirs, raw } = await sides(CASES[0]!);
   const bare: CandidateItem[] = raw.map((i) => {
     const rest = { ...i };
