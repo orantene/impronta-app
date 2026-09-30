@@ -3,7 +3,8 @@
  * House rule: no em dashes in user copy. Pure.
  */
 import type { Bilingual } from "@/lib/talent-site/history/copy";
-import type { UpdateSummary, WhatsNewGroup } from "./view";
+import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
+import { humanKey, type UpdateSummary, type WhatsNewGroup } from "./view";
 
 export type UpdateLocale = "en" | "es";
 
@@ -21,6 +22,10 @@ export const UPDATE_COPY = {
   againBody: {
     en: "You undid this update. Apply it again whenever you like. Your edits stay.",
     es: "Deshiciste esta actualización. Aplícala de nuevo cuando quieras. Tus cambios se conservan.",
+  },
+  noBase: {
+    en: "Your site is older than this version: you can add the new blocks.",
+    es: "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.",
   },
   applyShort: { en: "Apply", es: "Aplicar" },
   previewOnSite: { en: "Preview on my site", es: "Ver en mi sitio" },
@@ -100,12 +105,19 @@ export function appliedToast(kept: number, locale: UpdateLocale): string {
     : "Update applied to your draft";
 }
 
+/** F86: a kept part in the talent's language, from the same name map as the go-live sheet. */
+export function keptPartLabel(key: string, locale: UpdateLocale): string {
+  if (key === "colours") return locale === "es" ? "colores" : "colours";
+  return sectionNameForKey(key, locale) ?? humanKey(key);
+}
+
 /** The preview panel's "kept your edits" line. */
 export function keptLine(s: UpdateSummary, locale: UpdateLocale): string {
   if (s.kept === 0) {
     return locale === "es" ? "No cambiaste nada de lo que toca esta actualización." : "You have not changed anything this update touches.";
   }
-  const parts = s.keptLabels.length > 0 ? `: ${s.keptLabels.join(", ")}` : "";
+  const names = [...new Set((s.keptKeys ?? []).map((k) => keptPartLabel(k, locale)))];
+  const parts = names.length > 0 ? `: ${names.join(", ")}` : "";
   return locale === "es"
     ? `Conservamos ${s.kept} de tus cambios${parts}`
     : `We keep ${s.kept} of your edits${parts}`;

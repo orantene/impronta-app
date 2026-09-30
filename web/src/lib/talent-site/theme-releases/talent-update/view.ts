@@ -11,7 +11,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { hashString, propsOf } from "../origin";
-import { countParts } from "../parts";
+import { countParts, partsOf } from "../parts";
 import { findKeyPath, keyOf, updateAt } from "../tree-ops";
 import type { DesignMergeReport, ReleaseItem, ReleaseItemType, SiteUpdateState } from "../types";
 
@@ -46,6 +46,16 @@ export function autoImproveItems(items: ReadonlyArray<ReleaseItem>): ReleaseItem
  */
 export function applyItemsOf(items: ReadonlyArray<ReleaseItem>): ReleaseItem[] {
   return items.filter((i) => i.type !== "new-block");
+}
+
+/**
+ * F87: a site with NO exact merge base (built before origin stamps, or pinned
+ * to a version with no snapshot) is only offered new blocks. The merge cannot
+ * tell her edits from the design, so automatic improvements and layout changes
+ * are hidden and Apply is unavailable.
+ */
+export function offeredItems(items: ReadonlyArray<ReleaseItem>, noBase: boolean): ReleaseItem[] {
+  return noBase ? items.filter((i) => i.type === "new-block") : [...items];
 }
 
 export type WhatsNewGroup = "auto" | "blocks" | "layout" | "critical";
@@ -139,22 +149,21 @@ export interface UpdateSummary {
   added: number;
   kept: number;
   conflicts: number;
-  /** Distinct top-level parts she kept (for "we kept your hero, colours"). */
+  /** Distinct top-level parts she kept (for "we kept your hero, colours"), English. */
   keptLabels: string[];
+  /** The same parts as raw design keys ("hero", "colours"); localized at display (F86). */
+  keptKeys: string[];
 }
 
 export function summarizeReport(report: Pick<DesignMergeReport, "applied" | "added" | "kept" | "conflicts">): UpdateSummary {
-  const labels = new Set<string>();
-  for (const e of report.kept) {
-    const top = e.change === "token" ? "colours" : e.key.split("/")[0]!;
-    labels.add(top === "colours" ? top : humanKey(top));
-  }
+  const keys = partsOf(report.kept).slice(0, 6);
   return {
     applied: report.applied.length,
     added: report.added.length,
     kept: countParts(report.kept),
     conflicts: report.conflicts.length,
-    keptLabels: [...labels].slice(0, 6),
+    keptLabels: keys.map((k) => (k === "colours" ? k : humanKey(k))),
+    keptKeys: keys,
   };
 }
 

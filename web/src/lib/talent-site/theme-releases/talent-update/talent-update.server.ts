@@ -37,6 +37,7 @@ import {
   OPEN_UPDATE_STATES,
   applyItemsOf,
   groupItems,
+  offeredItems,
   nextTokenOrigin,
   placeKeyAfter,
   placementOptions,
@@ -299,6 +300,8 @@ export function defaultUpdateDeps(): UpdateDeps | null {
 
 export interface UpdatePreview {
   summary: UpdateSummary;
+  /** F87: no exact base for her site; only new blocks are offered, Apply is unavailable. */
+  noBase: boolean;
   /** What's new list, loaded here so the banner never reads the release body (F74). */
   groups: Array<{ group: WhatsNewGroup; items: TalentReleaseItem[] }>;
   /** False when the release only offers new blocks: nothing for Apply to do (F78). */
@@ -348,8 +351,9 @@ export async function previewThemeUpdate(
     ok: true,
     value: {
       summary: summarizeReport(m.result.report),
-      groups: groupItems(items),
-      hasApplicable: applyItemsOf(items).length > 0,
+      noBase: m.noBase,
+      groups: groupItems(offeredItems(items, m.noBase)),
+      hasApplicable: !m.noBase && applyItemsOf(items).length > 0,
       previewUrl: themeUpdatePreviewUrl(ctx.siteSlug, updateId),
       placements: placementOptions(tree),
       draftRev: ctx.draftRev,
@@ -429,6 +433,8 @@ export async function applyThemeUpdate(
   if (ctx.state === "applied") return { ok: false, code: "already_applied", error: "This update is already in your draft." };
   const m = await deps.merge(ctx, applyItemsOf(ctx.release.items ?? []));
   if (!m.ok) return { ok: false, code: "merge_failed", error: m.error };
+  // F87: no exact base means only new blocks can be offered; Apply never runs.
+  if (m.noBase) return { ok: false, code: "no_base", error: "Your site is older than this version. You can add the new blocks." };
   if (!m.homePageId) return { ok: false, code: "not_found", error: "Home page not found." };
   const home = m.result.trees.home ?? [];
   const refused = await deps.checkTree(ctx, await homeTree(deps.admin, ctx.talentProfileId), home);

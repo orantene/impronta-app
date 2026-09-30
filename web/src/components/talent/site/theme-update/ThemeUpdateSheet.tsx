@@ -116,18 +116,24 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
 
           <section aria-live="polite" className="mb-5 rounded-xl border border-admin-border-soft bg-admin-surface-alt p-4" data-theme-update-preview>
             {preview ? (
-              <>
-                <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
-                <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
-                  {keptLine(preview.summary, locale)}
+              preview.noBase ? (
+                <p className="m-0 text-[14px] font-semibold text-admin-ink" data-theme-update-no-base>
+                  {t("noBase")}
                 </p>
-                {preview.previewUrl ? (
-                  <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
-                    {t("previewOnSite")}
-                  </a>
-                ) : null}
-                <p className="m-0 mt-2 text-[12px] text-admin-ink-dim">{t("previewHint")}</p>
-              </>
+              ) : (
+                <>
+                  <p className="m-0 text-[14px] font-semibold text-admin-ink">{changesLine(preview.summary, locale)}</p>
+                  <p className="m-0 mt-1 text-[13px] text-admin-ink-muted" data-theme-update-kept>
+                    {keptLine(preview.summary, locale)}
+                  </p>
+                  {preview.previewUrl ? (
+                    <a href={preview.previewUrl} target="_blank" rel="noreferrer" className={`${BTN_GHOST} mt-3`} data-theme-update-preview-link>
+                      {t("previewOnSite")}
+                    </a>
+                  ) : null}
+                  <p className="m-0 mt-2 text-[12px] text-admin-ink-dim">{t("previewHint")}</p>
+                </>
+              )
             ) : (
               <p className="m-0 text-[13px] text-admin-ink-muted">{previewError ?? t("loading")}</p>
             )}
@@ -166,7 +172,7 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
               {props.error}
             </p>
           ) : null}
-          <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>
+          {preview?.noBase ? null : <p className="m-0 text-[12px] text-admin-ink-muted">{t("draftOnly")}</p>}
           <div className="flex flex-wrap gap-2">
             {preview?.hasApplicable ? (
               <button type="button" className={BTN_PRIMARY} disabled={busy} onClick={() => props.onApply(draftRev)} data-theme-update-apply>

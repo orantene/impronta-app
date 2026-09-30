@@ -16,6 +16,7 @@ import type { SiteRef } from "../manager/merge-site.server";
 import { planFanOut } from "../manager/notify";
 import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 import { runAutoImprove } from "./auto-improve.server";
+import { sectionNameForKey } from "@/lib/talent-site/history/draft-diff";
 import { GROUP_COPY, UPDATE_COPY, appliedToast, applyLabel, bannerTitle, keptLine } from "./copy";
 import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
 import {
@@ -364,6 +365,68 @@ test("F78: a release of only new blocks has nothing for Apply", async () => {
   assert.equal(res.value.hasApplicable, false);
   assert.deepEqual(applyItemsOf([ITEMS[1]!]), []);
   assert.equal(applyItemsOf(ITEMS).length, 3);
+});
+
+test("F86: the kept-your-edits line uses localized section names shared with the go-live sheet", () => {
+  const summary = summarizeReport({
+    applied: [],
+    added: [],
+    conflicts: [],
+    kept: [
+      { key: "footer", change: "props" },
+      { key: "hero/heading", change: "props" },
+      { key: "gallery", change: "props" },
+      { key: "menu/services_catalog", change: "props" },
+      { key: "contact", change: "props" },
+      { key: "color.accent", change: "token" },
+    ] as never,
+  });
+  assert.equal(
+    keptLine(summary, "es"),
+    "Conservamos 6 de tus cambios: Pie de página, Portada, Galería, Servicios, Contacto, colores",
+  );
+  assert.equal(
+    keptLine(summary, "en"),
+    "We keep 6 of your edits: Footer, Hero, Gallery, Services, Contact, colours",
+  );
+  assert.equal(sectionNameForKey("hero", "es"), "Portada");
+  assert.ok(!keptLine(summary, "es").includes("—"));
+});
+
+/** A merge that reports "no exact base" (site older than origin stamps). */
+const noBaseDeps = (db: FakeDb): UpdateDeps => {
+  const base = mergeOver(db);
+  return { ...deps(db), merge: async (ctx, items) => {
+    const out = await base(ctx, items);
+    return out.ok ? { ...out, noBase: true } : out;
+  } };
+};
+
+test("F87: a no-base site is offered only new blocks and Apply is unavailable", async () => {
+  const db = world("available", release({ items: [...ITEMS, { type: "layout", key: "hero", note: { en: "Hero inset", es: "Foto del inicio" } }] }));
+  const res = await previewThemeUpdate(noBaseDeps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.noBase, true);
+  assert.equal(res.value.hasApplicable, false);
+  assert.deepEqual(res.value.groups.map((g) => g.group), ["blocks"], "no automatic or layout items");
+  assert.equal(UPDATE_COPY.noBase.es, "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.");
+});
+
+test("F87: Apply on a no-base site is refused server-side and writes nothing", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(noBaseDeps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "no_base");
+  assert.equal(draftWrites(db).length, 0);
+  assert.equal(stateOf(db), "available");
+});
+
+test("F87: a site with an exact base is unchanged (all groups, Apply available)", async () => {
+  const db = world();
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.noBase, false);
+  assert.equal(res.value.hasApplicable, true);
 });
 
 // ── Undo ─────────────────────────────────────────────────────────────────────
