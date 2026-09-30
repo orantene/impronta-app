@@ -163,6 +163,7 @@ export function WebsiteSettingsScreen({
                 durationMinutes: o.durationMinutes ?? null,
                 takesMoneyOnline: takesMoneyOnline(o.reserveMode, o.allowPayInPerson === true),
                 payoutsReady: swReadiness.payoutsReady,
+                planAllowsInstant: swReadiness.planAllowsInstant,
               })[0];
               return gap ? t(READINESS_GAP_COPY[gap]) : null;
             })()
@@ -335,7 +336,7 @@ export function WebsiteSettingsScreen({
           .map((s) => s.title)
       : [];
   const defaultGap = swReadiness
-    ? readinessGaps({ hasWorkingHours: swReadiness.hasWorkingHours, takesMoneyOnline: false, payoutsReady: swReadiness.payoutsReady })[0]
+    ? readinessGaps({ hasWorkingHours: swReadiness.hasWorkingHours, takesMoneyOnline: false, payoutsReady: swReadiness.payoutsReady, planAllowsInstant: swReadiness.planAllowsInstant })[0]
     : undefined;
   const defaultInstantGap = defaultGap ? t(READINESS_GAP_COPY[defaultGap]) : null;
   const instantCount = Object.values(draft.services).filter((f) => f.bookingMode != null).length;
