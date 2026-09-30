@@ -56,11 +56,12 @@ export function NewBookingPanelHost({
         // F63: one outcome on every save. The panel closes, she stays on Today or
         // Calendar, the toast offers View booking, and the agenda data refreshes.
         onSaved={(id) => {
-          store.close();
+          // Toast first: it lives in the shell, so it outlives the panel that closes next.
           toast(
             copy.t("Booking saved"),
             id ? { action: { label: copy.t("View booking"), onClick: () => onOpenRecord(id) } } : undefined,
           );
+          store.close();
           router.refresh();
         }}
       />
