@@ -5,6 +5,14 @@
  */
 
 export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
+  "Policies and privacy": "Políticas y privacidad",
+  "Paying in person": "Pago en persona",
+  "Shown on your policies": "Se muestra en tus políticas",
+  Cash: "Efectivo",
+  "Bank transfer": "Transferencia",
+  "Card on your terminal": "Tarjeta con tu terminal",
+  "Cancelling, deposit and what your clients read before they book":
+    "Cancelación, anticipo y lo que leen tus clientas antes de reservar",
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
   "Services & booking": "Servicios y reservas",
