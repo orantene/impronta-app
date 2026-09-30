@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { talentPublishedSnapshotResult } from "./talent-published-snapshot";
+import { blankComments } from "../../quality/supabase-unchecked-read";
 import { editorT } from "../../../components/edit-chrome/editor-i18n";
 
 test("F95: a talent page with no live body is a normal first publish, not an error", () => {
@@ -40,11 +41,18 @@ test("F95: first-publish copy exists in EN and ES", () => {
   assert.ok(src.includes(`t("${key}")`));
 });
 
-test("F95: the snapshot action falls back to talent_pages when no agency scope", () => {
-  const src = readFileSync(
-    join(process.cwd(), "src/lib/site-admin/edit-mode/publish-diff-action.ts"),
-    "utf8",
+test("F95b: the talent lookups run BEFORE the agency scope (a rostered talent has a tenant scope too)", () => {
+  const src = blankComments(
+    readFileSync(join(process.cwd(), "src/lib/site-admin/edit-mode/publish-diff-action.ts"), "utf8"),
   );
-  assert.match(src, /from\("talent_pages"\)/);
-  assert.doesNotMatch(src, /Pick an agency workspace first/);
+  const tp = src.indexOf('from("talent_pages")');
+  const ts = src.indexOf('from("talent_sites")');
+  const scope = src.indexOf("requireEditSurfaceTenantScope()");
+  assert.ok(tp > 0 && ts > tp && scope > ts);
+  assert.match(src, /logServerError\("publishDiff\.talentPage"/);
+});
+
+test("F95b: a shell row maps to its published tree", () => {
+  const r = talentPublishedSnapshotResult({ blocks_published: [{ id: "h" }], published_at: "2026-01-01" });
+  assert.equal(r.ok && r.hasPublishedSnapshot, true);
 });
