@@ -30,7 +30,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_PRICES, imageCostFromUsage, type ImageUsage } from "../../src/lib/ai/ai-image-model";
+import { DEFAULT_IMAGE_MODEL, DEFAULT_IMAGE_PRICES, imageCostFromUsage, type ImageTokenPrices, type ImageUsage } from "../../src/lib/ai/ai-image-model";
 import { buildOpenAiImageRequestBody, type OpenAiImageQuality, type OpenAiImageSize } from "../../src/lib/ai/openai-image-request";
 
 // ── Args ─────────────────────────────────────────────────────────────────────
@@ -281,8 +281,6 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
       const status = e instanceof HttpError ? e.status : 0;
       const retryable = status === 0 || status === 429 || status >= 500;
       if (!retryable || i >= waits.length) throw e;
-      // The input-image budget is org-wide (other sessions may spend it): push the whole edit lane back.
-      if (status === 429 && /input-images/.test((e as Error).message)) nextEditAt = Math.max(nextEditAt, Date.now() + 30_000);
       await sleep(waits[i] * (1 + Math.random() * 0.3));
     }
   }
@@ -301,39 +299,54 @@ async function slot<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// The org's gpt-image limit on INPUT images is 5/min (HTTP 429 "input-images per min", 2026-09-29),
-// so reference edits are spaced globally; plain generations are not affected.
-const EDITS_PER_MIN = Number(opt("--edits-per-min") ?? 5);
+// Rate lanes (measured 2026-09-29 from 429 bodies): each gpt-image model GROUP allows only
+// 5 requests ("input-images") per minute org-wide, generation or edit alike; 2.5-flare and 1.5
+// share the "gpt-image" group, 1-mini has its own "gpt-image-mini" group. So every model gets
+// its own pacer, the headshot + cover use the portrait model, and work shots are spread over
+// several work models (deterministic per shot) so more groups run in parallel. A 429 pushes back
+// only that model's lane.
+const PER_MIN = Number(opt("--per-min") ?? 4.5);
 const MAX_WORKING_FACES = Number(opt("--max-working-faces") ?? 3);
 const DEMO_CONCURRENCY = Number(opt("--demo-concurrency") ?? 8);
-let nextEditAt = 0;
-async function editTurn() {
-  const gap = 60_000 / EDITS_PER_MIN + 500;
+const WORK_MODELS = (opt("--work-models") ?? "gpt-image-1-mini,gpt-image-1,gpt-image-2").split(",").map((m) => m.trim()).filter(Boolean);
+/** USD per 1M tokens {textIn, imageIn, output} (OpenAI pricing page); others use the engine default. */
+const MODEL_PRICES: Record<string, ImageTokenPrices> = {
+  "gpt-image-1-mini": { textIn: 2, imageIn: 2.5, output: 8 },
+  "gpt-image-1": { textIn: 5, imageIn: 10, output: 40 },
+};
+const pricesFor = (model: string): ImageTokenPrices => MODEL_PRICES[model] ?? DEFAULT_IMAGE_PRICES;
+const workModelFor = (key: string) => WORK_MODELS[parseInt(sha(key).slice(0, 8), 16) % WORK_MODELS.length];
+const nextAt = new Map<string, number>();
+async function modelTurn(model: string) {
+  const gap = 60_000 / PER_MIN;
   const now = Date.now();
-  const at = Math.max(now, nextEditAt);
-  nextEditAt = at + gap;
+  const at = Math.max(now, nextAt.get(model) ?? 0);
+  nextAt.set(model, at + gap);
   if (at > now) await sleep(at - now);
+}
+function backOff(model: string) {
+  nextAt.set(model, Math.max(nextAt.get(model) ?? 0, Date.now() + 30_000));
 }
 
 let spent = 0;
 class CapReached extends Error {}
-function estimate(size: OpenAiImageSize, quality: OpenAiImageQuality, withRef: boolean): number {
-  // Output tokens measured 2026-09-29 on gpt-image-2.5-flare: 1024² low ≈ 196; scaled by area and quality.
+function estimate(model: string, size: OpenAiImageSize, quality: OpenAiImageQuality, withRef: boolean): number {
+  // Output tokens measured 2026-09-29: flare 1024² low ≈ 196; mini 1024² low 272 / medium 1056.
   const area = size === "1024x1024" ? 1 : 1.5;
-  const q = quality === "low" ? 1 : quality === "medium" ? 2.2 : 6;
-  const out = 196 * area * q;
+  const q = quality === "low" ? 1 : quality === "medium" ? (model === MODEL ? 2.2 : 3.9) : 6;
+  const out = (model.startsWith("gpt-image-2") ? 196 : 272) * area * q;
   const refIn = withRef ? 1024 : 0;
-  return imageCostFromUsage({ input_tokens: 80 + refIn, output_tokens: out, input_tokens_details: { text_tokens: 80, image_tokens: refIn } }, DEFAULT_IMAGE_PRICES);
+  return imageCostFromUsage({ input_tokens: 80 + refIn, output_tokens: out, input_tokens_details: { text_tokens: 80, image_tokens: refIn } }, pricesFor(model));
 }
 
-async function generate(prompt: string, size: OpenAiImageSize, quality: OpenAiImageQuality, ref: Buffer | null): Promise<{ bytes: Buffer; usage: ImageUsage | null }> {
-  const est = estimate(size, quality, !!ref);
+async function generate(model: string, prompt: string, size: OpenAiImageSize, quality: OpenAiImageQuality, ref: Buffer | null): Promise<{ bytes: Buffer; usage: ImageUsage | null }> {
+  const est = estimate(model, size, quality, !!ref);
   if (spent + est > CAP) throw new CapReached(`spend cap $${CAP} reached ($${spent.toFixed(3)} spent)`);
-  // Edits wait for their turn OUTSIDE the concurrency pool, so plain generations keep flowing.
+  // Calls wait for their model's turn OUTSIDE the concurrency pool, so other lanes keep flowing.
   return withRetry(async () => {
-    if (ref) await editTurn();
+    await modelTurn(model);
     return slot(async () => {
-      const body = { ...buildOpenAiImageRequestBody({ prompt, model: MODEL, size, quality }), output_format: "jpeg", output_compression: 88 };
+      const body = { ...buildOpenAiImageRequestBody({ prompt, model, size, quality }), output_format: "jpeg", output_compression: 88 };
       let res: Response;
       if (ref) {
         const fd = new FormData();
@@ -347,11 +360,14 @@ async function generate(prompt: string, size: OpenAiImageSize, quality: OpenAiIm
           body: JSON.stringify(body),
         });
       }
-      if (!res.ok) throw new HttpError(res.status, (await res.text()).slice(0, 300));
+      if (!res.ok) {
+        if (res.status === 429) backOff(model);
+        throw new HttpError(res.status, (await res.text()).slice(0, 300));
+      }
       const json = (await res.json()) as { data?: { b64_json?: string }[]; usage?: ImageUsage };
       const b64 = json.data?.[0]?.b64_json;
       if (!b64) throw new HttpError(502, "no image in response");
-      spent += imageCostFromUsage(json.usage, DEFAULT_IMAGE_PRICES);
+      spent += imageCostFromUsage(json.usage, pricesFor(model));
       return { bytes: Buffer.from(b64, "base64"), usage: json.usage ?? null };
     });
   });
@@ -396,27 +412,35 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
   const photos: PackPhoto[] = [];
 
   const produce = async (s: Slot, shot: PlannedShot, ref: Buffer | null): Promise<string | null> => {
-    const quality = s.variant === "gallery" ? Q_WORK : Q_PORTRAIT;
     const useRef = shot.shows_person ? ref : null;
+    // Headshot + cover on the portrait model; every other shot on the work model (medium when the
+    // talent's face must match the reference, low otherwise).
+    const model = s.variant === "gallery" ? workModelFor(`${code}/${s.slot}`) : MODEL;
+    const qualityFor = (m: string): OpenAiImageQuality => (s.variant !== "gallery" ? Q_PORTRAIT : m === MODEL ? Q_WORK : useRef ? "medium" : Q_WORK);
+    const quality = qualityFor(model);
     const prompt = promptFor(plan, shot, theme, !!useRef, s.person);
-    const hash = sha([MODEL, quality, s.size, prompt, useRef ? sha(useRef) : ""].join("|")).slice(0, 12);
+    const hashFor = (m: string) => sha([m, qualityFor(m), s.size, prompt, useRef ? sha(useRef) : ""].join("|")).slice(0, 12);
+    // A file made earlier by ANY model for the same prompt + reference is kept (no regeneration).
+    const existing = [MODEL, ...WORK_MODELS].find((m) => fs.existsSync(path.join(dir, `${s.slot}-${hashFor(m)}.jpg`)));
+    const usedModel = existing ?? model;
+    const hash = hashFor(usedModel);
     const file = path.join(dir, `${s.slot}-${hash}.jpg`);
     let costUsd: number | null = null;
     if (!fs.existsSync(file)) {
       for (const old of fs.readdirSync(dir).filter((n) => n.startsWith(`${s.slot}-`) && (n.endsWith(".jpg") || n.endsWith(".jpg.json")))) {
         fs.renameSync(path.join(dir, old), path.join(dir, `_old-${old}`));
       }
-      const { bytes, usage } = await generate(prompt, s.size, quality, useRef);
+      const { bytes, usage } = await generate(model, prompt, s.size, quality, useRef);
       fs.writeFileSync(file, bytes);
       result.generated_this_run++;
-      costUsd = imageCostFromUsage(usage, DEFAULT_IMAGE_PRICES);
+      costUsd = imageCostFromUsage(usage, pricesFor(model));
       demoCost += costUsd;
     }
     // Sidecar for the platform-stock step (ai-photos-stock.mts): prompt, size, alts, cost.
     if (costUsd !== null || !fs.existsSync(`${file}.json`)) {
       const meta: ImageMeta = {
         key: `${code}/${s.slot}-${hash}`, code, demo_id: demoId, slot: s.slot, variant: s.variant, service: s.service ?? null,
-        hint: s.hint, size: s.size, quality, model: MODEL, prompt, alt_es: shot.alt_es, alt_en: shot.alt_en,
+        hint: s.hint, size: s.size, quality, model: usedModel, prompt, alt_es: shot.alt_es, alt_en: shot.alt_en,
         taxonomy_slug: d.taxonomy_slug, names: [d.display_name, d.first_name, ...d.display_name.split(/\s+/)].filter((n) => n.length > 2),
         cost_usd: costUsd, generated_at: new Date(fs.statSync(file).mtimeMs).toISOString(),
       };
@@ -426,7 +450,7 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
     for (const l of locales) alt_i18n[l] = l === "es" ? shot.alt_es : shot.alt_en;
     photos.push({
       file, variant: s.variant, alt: main === "es" ? shot.alt_es : shot.alt_en, alt_i18n, tag: s.tag, slot: s.slot,
-      source: `ai-generated:${MODEL}:${code}/${s.slot}-${hash}`, photographer: PHOTOGRAPHER,
+      source: `ai-generated:${usedModel}:${code}/${s.slot}-${hash}`, photographer: PHOTOGRAPHER,
       ...(s.album ? { album: s.album } : {}), ...(s.service != null ? { service_index: s.service } : {}),
     });
     return file;
@@ -463,7 +487,9 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
     result.cost_usd = Math.round(demoCost * 1e4) / 1e4;
     result.updated_at = new Date().toISOString();
     const galleryCount = photos.filter((p) => p.variant === "gallery").length;
-    const complete = photos.some((p) => p.variant === "card") && photos.some((p) => p.variant === "hero") && galleryCount >= 4;
+    // Only a FULL set enters the pack: the loader skips a variant that is already loaded, so a
+    // partial set would stick. Retries fill the gaps first.
+    const complete = photos.length === slots.length && result.errors.length === 0 && galleryCount >= 4;
     if (complete) mergeJson(PACK_OUT, code, { photos: photos.map(({ slot: _slot, ...p }) => p) });
     mergeJson(STATUS_OUT, demoId, result);
   }
@@ -502,7 +528,7 @@ async function dryRun() {
         slots.forEach((s, i) => {
           const withRef = i > 0 && plan.shots[i].shows_person;
           if (withRef) refCalls++;
-          cost += estimate(s.size, s.variant === "gallery" ? Q_WORK : Q_PORTRAIT, withRef);
+          cost += s.variant === "gallery" ? estimate(workModelFor(`${code}/${s.slot}`), s.size, withRef ? "medium" : Q_WORK, withRef) : estimate(MODEL, s.size, Q_PORTRAIT, false);
         });
         images += slots.length;
         perTheme[theme] = { demos: (perTheme[theme]?.demos ?? 0) + 1, images: (perTheme[theme]?.images ?? 0) + slots.length };
