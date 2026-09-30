@@ -131,7 +131,7 @@ export function ThemeUpdateNotice({
       role="status"
       aria-live="polite"
       data-theme-update-toast
-      className="fixed inset-x-4 bottom-4 z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
+      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
     >
       {toast}
     </div>
@@ -148,8 +148,8 @@ export function ThemeUpdateNotice({
         data-theme-update-notice={surface}
         className={
           floating
-            ? "fixed inset-x-3 bottom-3 z-[250] rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg sm:inset-x-auto sm:left-4 sm:w-[360px]"
-            : "mb-5 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
+            ? "fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[250] max-h-[60dvh] overflow-y-auto rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body shadow-lg sm:inset-x-auto sm:left-4 sm:w-[360px]"
+            : "mb-5 min-w-0 rounded-xl border border-admin-border-soft bg-white p-4 font-admin-body"
         }
       >
         <p className="m-0 text-[15px] font-semibold text-admin-ink">{title}</p>

@@ -77,10 +77,9 @@ export function TalentDraftChip(): ReactElement | null {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    height: 26,
     padding: "0 10px",
     borderRadius: 999,
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: 600,
     whiteSpace: "nowrap" as const,
   };
@@ -89,6 +88,7 @@ export function TalentDraftChip(): ReactElement | null {
     return (
       <span
         data-talent-live-chip
+        className="min-h-11 sm:min-h-[26px]"
         style={{ ...chipStyle, color: CHROME.green, background: CHROME.greenBg, border: `1px solid ${CHROME.greenLine}` }}
       >
         {liveLabel(summary.lastPublishAt ?? summary.sitePublishedAt, locale)}
@@ -106,6 +106,7 @@ export function TalentDraftChip(): ReactElement | null {
       <button
         type="button"
         data-talent-draft-chip
+        className="min-h-11 sm:min-h-[26px]"
         onClick={() => setOpen(true)}
         title={applyBusy ? copyOf("applying") : copyOf("whatWillGoLive")}
         style={{ ...chipStyle, cursor: "pointer", color: CHROME.text, background: CHROME.surface2, border: `1px solid ${CHROME.lineMid}` }}
@@ -118,7 +119,8 @@ export function TalentDraftChip(): ReactElement | null {
         <PortaledOverlay>
           <div
             onClick={() => setOpen(false)}
-            style={{ position: "fixed", inset: 0, zIndex: 205, background: "rgba(0,0,0,0.3)", display: "flex", justifyContent: "flex-end" }}
+            data-what-will-go-live-scrim
+            className="fixed inset-0 z-[205] flex items-end justify-center bg-black/30 sm:items-stretch sm:justify-end"
           >
             <aside
               role="dialog"
@@ -126,12 +128,13 @@ export function TalentDraftChip(): ReactElement | null {
               aria-label={copyOf("whatWillGoLive")}
               data-what-will-go-live
               onClick={(e) => e.stopPropagation()}
-              style={{ width: "min(420px, 100vw)", height: "100%", overflowY: "auto", background: CHROME.surface, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
+              className="flex max-h-[88dvh] w-full min-w-0 flex-col gap-3 overflow-y-auto rounded-t-2xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:h-full sm:max-h-none sm:w-[min(420px,100vw)] sm:rounded-none"
+              style={{ background: CHROME.surface }}
             >
               <header className="flex items-center gap-2">
                 <strong style={{ fontSize: 14, color: CHROME.ink }}>{copyOf("whatWillGoLive")}</strong>
                 <span className="ml-auto" />
-                <button type="button" onClick={() => setOpen(false)} style={{ fontSize: 12, color: CHROME.text, background: "none", border: "none", cursor: "pointer" }}>
+                <button type="button" onClick={() => setOpen(false)} className="min-h-11 min-w-11 sm:min-h-0 sm:min-w-0" style={{ fontSize: 12, color: CHROME.text, background: "none", border: "none", cursor: "pointer" }}>
                   {copyOf("close")}
                 </button>
               </header>
@@ -173,19 +176,19 @@ function ChangeRow({ change, locale }: { change: SectionChange; locale: string }
       style={{ border: `1px solid ${CHROME.line}`, borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}
     >
       <span className="flex items-center gap-2" style={{ fontSize: 12 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, color: tone.fg, background: tone.bg }}>
+        <span style={{ fontSize: 12, fontWeight: 700, padding: "1px 6px", borderRadius: 999, color: tone.fg, background: tone.bg }}>
           {pick(CHROME_COPY[change.change], locale)}
         </span>
-        <strong style={{ color: CHROME.ink }}>{change.label}</strong>
-        <span className="ml-auto" style={{ fontSize: 10.5, color: CHROME.muted2 }}>{change.scopeLabel}</span>
+        <strong className="min-w-0" style={{ color: CHROME.ink, overflowWrap: "anywhere" }}>{change.label}</strong>
+        <span className="ml-auto" style={{ fontSize: 12, color: CHROME.muted2 }}>{change.scopeLabel}</span>
       </span>
       {change.before !== null || change.beforeSwatch ? (
-        <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: CHROME.muted }}>
+        <span className="flex items-center gap-1" style={{ fontSize: 12, color: CHROME.muted, overflowWrap: "anywhere" }}>
           {pick(CHROME_COPY.before, locale)}: <Swatch value={change.beforeSwatch} /> {change.before ?? ""}
         </span>
       ) : null}
       {change.after !== null || change.afterSwatch ? (
-        <span className="flex items-center gap-1" style={{ fontSize: 11.5, color: CHROME.text }}>
+        <span className="flex items-center gap-1" style={{ fontSize: 12, color: CHROME.text, overflowWrap: "anywhere" }}>
           {pick(CHROME_COPY.after, locale)}: <Swatch value={change.afterSwatch} /> {change.after ?? ""}
         </span>
       ) : null}
