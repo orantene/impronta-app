@@ -12,6 +12,7 @@
  * Service-role only: callers prove ownership first, then pass the admin client.
  * Pure over an injected `rpc` so the unit lane drives it without a database.
  */
+import { dedupeTreeIds } from "@/lib/site-admin/builder-node/unique-ids";
 import { HISTORY_BATCH_SECONDS, type HistoryEntryInput } from "./types";
 
 /** The slice of a Supabase client this module needs (injectable in tests). */
@@ -76,12 +77,28 @@ export function historyEntryPayload(entry: HistoryEntryInput): Record<string, un
   return out;
 }
 
+/**
+ * F131 guard: never write a tree with duplicate node ids. A collision (a node
+ * inserted from a newer payload reusing a positional id) is remapped, first
+ * occurrence keeps its id, so Publish is never blocked by it.
+ */
+export function withUniqueTreeIds(input: WriteSiteDraftInput): WriteSiteDraftInput {
+  const fix = (tree: unknown): unknown => (Array.isArray(tree) ? dedupeTreeIds(tree).tree : tree);
+  const site =
+    input.site && "shell_tree" in input.site ? { ...input.site, shell_tree: fix(input.site.shell_tree) } : input.site;
+  const pages = input.pages?.map((p) =>
+    "blocks" in p.patch ? ({ ...p, patch: { ...p.patch, blocks: fix(p.patch.blocks) } } as DraftPageWrite) : p,
+  );
+  return { ...input, ...(site ? { site } : {}), ...(pages ? { pages } : {}) };
+}
+
 const CONFLICT_ERROR = "Updated in another tab · Reload";
 
 export async function writeSiteDraft(
   client: HistoryRpcClient,
-  input: WriteSiteDraftInput,
+  rawInput: WriteSiteDraftInput,
 ): Promise<WriteSiteDraftResult> {
+  const input = withUniqueTreeIds(rawInput);
   const { data, error } = await client.rpc("talent_site_write_draft", {
     p_site_id: input.siteId,
     p_expected_rev: typeof input.expectedDraftRev === "number" ? input.expectedDraftRev : null,

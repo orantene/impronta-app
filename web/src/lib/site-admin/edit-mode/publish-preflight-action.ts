@@ -166,13 +166,20 @@ function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResu
   }
   const validation = validateBuilderNodeTree(builderTree);
   if (!validation.ok) {
+    // Talents get a plain message; the technical detail is for staff (server log).
+    logServerError(
+      "publish-preflight.talentPage.builderTree",
+      new Error(
+        validation.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path}: ${issue.message}`)
+          .join("; "),
+      ),
+    );
     issues.push({
       severity: "error",
       category: "builder_payload",
-      message: `Builder tree is invalid: ${validation.issues
-        .slice(0, 2)
-        .map((issue) => `${issue.path}: ${issue.message}`)
-        .join("; ")}`,
+      message: "There is a problem with a section of your page. Save again or contact support.",
     });
     return { ok: true, issues };
   }

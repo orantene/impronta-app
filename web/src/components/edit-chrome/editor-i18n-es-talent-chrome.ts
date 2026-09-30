@@ -34,6 +34,10 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
     "El resto son avisos: revísalos antes de publicar.",
   "Advisory only, these do not block publish. Review them before going live on mobile devices.":
     "Solo son avisos, no bloquean la publicación. Revísalos antes de salir en vivo en móvil.",
+  "Something on your page needs fixing before you can publish. Fix the items marked Blocker above. Warnings do not stop publish.":
+    "Hay algo en tu página que debes corregir antes de publicar. Corrige los elementos marcados como Bloqueo arriba. Los avisos no impiden publicar.",
+  "There is a problem with a section of your page. Save again or contact support.":
+    "Hay un problema con una sección de tu página. Guarda de nuevo o contacta a soporte.",
   "Tiny text": "Texto muy pequeño",
   "Tap target": "Zona de toque",
   "Overflow": "Desbordamiento",
