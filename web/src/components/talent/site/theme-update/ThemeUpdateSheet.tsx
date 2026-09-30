@@ -85,6 +85,9 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
   }, [onClose]);
 
   const notes = (locale === "es" ? notice.notes.es : notice.notes.en) || notice.notes.en || notice.notes.es;
+  const releaseLines = (notice.releaseNotes ?? [])
+    .map((r) => ({ toVersion: r.toVersion, text: (locale === "es" ? r.es : r.en) || r.en || r.es }))
+    .filter((r) => r.text);
 
   return (
     <div className="fixed inset-0 z-[300] flex items-end justify-center bg-black/30 sm:items-stretch sm:justify-end" onClick={onClose}>
@@ -112,7 +115,17 @@ export function ThemeUpdateSheet(props: ThemeUpdateSheetProps): ReactElement {
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {notes ? <p className="m-0 mb-4 text-[14px] leading-relaxed text-admin-ink">{notes}</p> : null}
+          {releaseLines.length > 1 ? (
+            <ul className="m-0 mb-4 flex list-none flex-col gap-2 p-0" data-theme-update-release-notes>
+              {releaseLines.map((l) => (
+                <li key={l.toVersion} className="text-[14px] leading-relaxed text-admin-ink">
+                  {l.text}
+                </li>
+              ))}
+            </ul>
+          ) : notes ? (
+            <p className="m-0 mb-4 text-[14px] leading-relaxed text-admin-ink">{notes}</p>
+          ) : null}
 
           <section aria-live="polite" className="mb-5 rounded-xl border border-admin-border-soft bg-admin-surface-alt p-4" data-theme-update-preview>
             {preview ? (
@@ -245,7 +258,7 @@ export function ItemRow(p: {
                 {p.placements.map((o) => (
                   <label key={o.afterId} className="flex min-h-11 items-center gap-2 text-[13px] text-admin-ink">
                     <input type="radio" className="size-5 shrink-0" name={groupName} value={o.afterId} checked={after === o.afterId} onChange={() => setAfter(o.afterId)} />
-                    <span className="min-w-0 break-words">{o.label}</span>
+                    <span className="min-w-0 break-words">{locale === "es" ? o.labelEs : o.label}</span>
                   </label>
                 ))}
               </div>

@@ -66,14 +66,16 @@ export function themeUpdateSummary(
   designName: string | null | undefined,
   toVersion: number | null | undefined,
   keptCount: number,
+  versionLabel?: string | null,
 ): Bilingual {
+  void toVersion; // the internal design version number is not talent language
   const name = designName?.trim() || "Design";
-  const v = typeof toVersion === "number" ? ` ${toVersion}` : "";
+  const label = versionLabel?.trim();
   const keptEn = keptCount > 0 ? ` · kept ${keptCount} of your edits` : "";
   const keptEs = keptCount > 0 ? ` · conservamos ${keptCount} de tus cambios` : "";
   return {
-    en: `${name} update${v} applied${keptEn}`,
-    es: `Actualización ${name}${v} aplicada${keptEs}`,
+    en: label ? `You applied ${name} update ${label}${keptEn}` : `You applied the ${name} update${keptEn}`,
+    es: label ? `Aplicaste la actualización ${label} de ${name}${keptEs}` : `Aplicaste la actualización de ${name}${keptEs}`,
   };
 }
 

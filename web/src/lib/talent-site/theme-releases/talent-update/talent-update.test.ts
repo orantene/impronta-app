@@ -290,7 +290,7 @@ test("apply: one atomic draft write with one history entry, state applied", asyn
   assert.equal(history.length, 1);
   assert.equal(history[0]!.kind, "theme_update");
   assert.equal(history[0]!.undoable, true);
-  assert.match(history[0]!.summary_en as string, /Maison v2 update 2 applied · kept \d+ of your edits/);
+  assert.match(history[0]!.summary_en as string, /You applied the Maison v2 update · kept \d+ of your edits/);
   assert.equal(stateOf(db), "applied");
   const site = db.tables.talent_sites![0]!;
   assert.equal(site.theme_design_version, 2);

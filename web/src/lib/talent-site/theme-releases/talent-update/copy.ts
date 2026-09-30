@@ -138,11 +138,26 @@ export function changesLine(s: UpdateSummary, locale: UpdateLocale): string {
 }
 
 /** History summary for an Add this block entry. */
-export function addBlockSummary(designTitle: string, blockLabel: string): Bilingual {
+export function addBlockSummary(designTitle: string, blockLabel: string | Bilingual): Bilingual {
+  const l = typeof blockLabel === "string" ? { en: blockLabel, es: blockLabel } : blockLabel;
   return {
-    en: `Added the ${blockLabel} block from ${designTitle}`,
-    es: `Agregaste el bloque ${blockLabel} de ${designTitle}`,
+    en: `Added the ${l.en} block from ${designTitle}`,
+    es: `Agregaste el bloque ${l.es} de ${designTitle}`,
   };
+}
+
+/** "Maison v2 2.2: tighter headings" -> "2.2" (the release's own human label), else null. */
+export function releaseVersionLabel(notes: { en?: string; es?: string } | null | undefined): string | null {
+  for (const text of [notes?.en, notes?.es]) {
+    const m = typeof text === "string" ? /^.{1,60}?\s(\d+(?:\.\d+)+)\s*:/.exec(text.trim()) : null;
+    if (m) return m[1]!;
+  }
+  return null;
+}
+
+/** The note without its "Maison v2 2.2:" lead-in, for a one-line-per-release list. */
+export function releaseNoteBody(note: string): string {
+  return note.replace(/^.{1,60}?\s\d+(?:\.\d+)+\s*:\s*/, "").trim() || note;
 }
 
 /** History summary for an automatic improvement. */

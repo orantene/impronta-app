@@ -53,6 +53,7 @@ import {
   DrawerSkeleton,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 import { usePageVersion } from "./save-cycle-bridge";
 import {
   loadHomepageRevisionsAction,
@@ -154,6 +155,7 @@ function TagIcon() {
 // ── Drawer ───────────────────────────────────────────────────────────────
 
 export function RevisionsDrawer(): ReactElement | null {
+  const { t: tr } = useEditorLocale();
   const {
     revisionsOpen,
     closeRevisions,
@@ -415,21 +417,21 @@ export function RevisionsDrawer(): ReactElement | null {
       ariaLabelledBy="revisions-drawer-title"
       onRequestClose={pendingId ? undefined : closeRevisions}
       floating
-      floatLabel="Revisions"
+      floatLabel={tr("Revisions")}
       floatPanelId="revisions"
     >
       <DrawerHead
         titleId="revisions-drawer-title"
-        title={`Revisions · ${pageMetadata?.title ?? (pageSlug ? pageSlug : "Homepage")}`}
+        title={`${tr("Revisions")} · ${pageMetadata?.title ?? (pageSlug ? pageSlug : tr("Homepage"))}`}
         icon={<ClockIcon />}
         meta={
           diffPair
             ? `v${diffPair[0].version} ↔ v${diffPair[1].version}`
             : revisions === null
-              ? "Loading…"
+              ? tr("Loading…")
               : revisions.length === 0
-                ? "No revisions yet"
-                : `${revisions.length} entr${revisions.length === 1 ? "y" : "ies"}`
+                ? tr("No revisions yet")
+                : tr(revisions.length === 1 ? "{n} entry" : "{n} entries").replace("{n}", String(revisions.length))
         }
         onClose={pendingId ? undefined : closeRevisions}
       />
@@ -454,16 +456,14 @@ export function RevisionsDrawer(): ReactElement | null {
                 color: CHROME.muted,
               }}
             >
-              <strong style={{ color: CHROME.text }}>Undo / Redo</strong> (⌘Z /
-              ⌘⇧Z) depth is preserved across reloads (up to 10 steps).{" "}
-              <strong style={{ color: CHROME.text }}>Restore</strong> replaces
-              your draft with a saved snapshot, review the canvas, then
-              publish when ready.{" "}
+              <strong style={{ color: CHROME.text }}>{tr("Undo / Redo")}</strong>{" "}
+              {tr("(⌘Z / ⌘⇧Z) depth is preserved across reloads (up to 10 steps).")}{" "}
+              <strong style={{ color: CHROME.text }}>{tr("Restore")}</strong>{" "}
+              {tr("replaces your draft with a saved snapshot, review the canvas, then publish when ready.")}{" "}
               {revisions && revisions.length >= 2 && !timeline && (
                 <>
-                  Use the <DiffIcon /> button to select two revisions and see a
-                  structural diff. Use the <TagIcon /> button to name a
-                  checkpoint.
+                  {tr("Use the")} <DiffIcon /> {tr("button to select two revisions and see a structural diff. Use the")}{" "}
+                  <TagIcon /> {tr("button to name a checkpoint.")}
                 </>
               )}
             </div>

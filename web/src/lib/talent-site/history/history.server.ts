@@ -379,6 +379,8 @@ export async function applyThemeUpdateToDraft(
     actorId?: string | null;
     /** Phase 4: entry summary override (Add this block, Improved by Tulala). */
     summary?: { en: string; es: string };
+    /** The release's human version label ("2.2"), for the entry summary. */
+    versionLabel?: string | null;
     /** Phase 4: `theme_token_origin` after the merge (keys the update wrote). */
     tokenOrigin?: Record<string, string> | null;
   },
@@ -393,7 +395,7 @@ export async function applyThemeUpdateToDraft(
     toVersion: input.toVersion,
   };
   const summary =
-    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, countParts(input.report.kept));
+    input.summary ?? themeUpdateSummary(input.designName, input.toVersion, countParts(input.report.kept), input.versionLabel);
   return writeSiteDraft(admin, {
     siteId: input.siteId,
     expectedDraftRev: input.expectedDraftRev,

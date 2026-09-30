@@ -34,7 +34,7 @@ import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
 import type { ReleaseItem, ReleaseNotes, SiteUpdateState, ThemeRelease } from "../types";
 import { countParts } from "../parts";
 import { findKeyPath } from "../tree-ops";
-import { addBlockSummary } from "./copy";
+import { addBlockSummary, releaseVersionLabel } from "./copy";
 import {
   OPEN_UPDATE_STATES,
   applyItemsOf,
@@ -121,6 +121,8 @@ export interface TalentUpdateNotice {
   toVersion: number;
   critical: boolean;
   notes: { en: string; es: string };
+  /** One entry per open release, oldest first (a combined offer lists each one). */
+  releaseNotes: Array<{ toVersion: number; en: string; es: string }>;
   draftRev: number;
 }
 
@@ -216,6 +218,10 @@ export async function loadTalentUpdateNotices(
       toVersion: rel.to_version,
       critical: sorted.some((r) => byId.get(r.release_id)!.critical),
       notes: notesOf(rel.notes),
+      releaseNotes: sorted.map((r) => {
+        const x = byId.get(r.release_id)!;
+        return { toVersion: x.to_version, ...notesOf(x.notes) };
+      }),
       draftRev,
     };
   });
@@ -595,6 +601,7 @@ export async function applyThemeUpdate(
     designName: ctx.designTitle,
     fromVersion: ctx.pinnedVersion,
     toVersion: ctx.release.to_version,
+    versionLabel: releaseVersionLabel(ctx.release.notes),
     releaseId: ctx.release.id,
     updateId: ctx.updateId,
     updateIds: ctx.coveredUpdateIds,
@@ -686,7 +693,7 @@ export async function addThemeUpdateBlock(
   const refused = await deps.checkTree(ctx, prev, home);
   if (refused) return { ok: false, code: "plan_required", error: refused };
   const first = added[0]!;
-  const label = first.node ? sectionLabel(first.node) : first.key;
+  const label = first.node ? { en: sectionLabel(first.node), es: sectionLabel(first.node, "es") } : first.key;
   const res = await applyThemeUpdateToDraft(deps.admin, {
     siteId: ctx.siteId,
     homePageId: m.homePageId,
