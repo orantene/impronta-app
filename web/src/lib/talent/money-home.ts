@@ -256,3 +256,32 @@ export function agendaMoneyRows(
   const byDate = (a: MoneyAgendaRow, b: MoneyAgendaRow) => a.startsAt.localeCompare(b.startsAt);
   return { owed: owed.sort(byDate), waiting: waiting.sort(byDate) };
 }
+
+/**
+ * F69: "Owed to you" as ONE number for every surface. The Money page and the
+ * Today card both call this, so they can never disagree.
+ *
+ * Owed = the client ledger (agency_bookings balances via loadTalentClients), or
+ * the agenda's balances when those are larger (booked work the ledger has not
+ * caught up with). `count` = ledger clients plus agenda balances the ledger does
+ * not already list.
+ */
+export function talentOwedSummary(input: {
+  clients: readonly TalentClientRow[] | null;
+  agendaOwed: readonly MoneyAgendaRow[];
+  currency: string | null;
+}): { cents: number; count: number; currency: string | null } {
+  const currency = input.currency?.toUpperCase() ?? null;
+  const ledger = (input.clients ?? []).filter(
+    (c) => (c.amountOwedCents ?? 0) > 0 && (currency == null || (c.currency ?? currency).toUpperCase() === currency),
+  );
+  const ledgerCents = ledger.reduce((n, c) => n + (c.amountOwedCents ?? 0), 0);
+  const agendaCents = input.agendaOwed.reduce((n, r) => n + (r.amountCents ?? 0), 0);
+  const hrefs = new Set(ledger.map((c) => c.nextBookingHref).filter(Boolean));
+  const extra = input.agendaOwed.filter((r) => !hrefs.has(r.bookingHref)).length;
+  return {
+    cents: Math.max(ledgerCents, agendaCents),
+    count: ledger.length + extra,
+    currency: currency ?? ledger[0]?.currency?.toUpperCase() ?? input.agendaOwed[0]?.currency ?? null,
+  };
+}

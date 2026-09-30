@@ -21,6 +21,7 @@ import {
   buildMoneyHomeView,
   methodBucket,
   moneyMonths,
+  talentOwedSummary,
   type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
@@ -187,8 +188,8 @@ function MoneyHomePane(props: {
 
   // Owed = the client ledger, or the agenda's balances when those are larger (booked work
   // the ledger has not caught up with). Requests waiting are shown apart: not owed yet.
-  const agendaOwedCents = props.agenda.owed.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
-  const owedCents = Math.max(view.owedCents, agendaOwedCents);
+  const owedSummary = talentOwedSummary({ clients: props.clients, agendaOwed: props.agenda.owed, currency: cur });
+  const owedCents = owedSummary.cents;
   const waiting = props.agenda.waiting;
   const waitingPriced = waiting.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
   const endOfToday = new Date();
@@ -205,7 +206,7 @@ function MoneyHomePane(props: {
   const waitingList = waiting.filter((r) =>
     outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday,
   );
-  const outstandingCount = view.owed.length + props.agenda.owed.filter((r) => !clientHrefs.has(r.bookingHref)).length;
+  const outstandingCount = owedSummary.count;
 
   const split = (["card", "cash", "transfer", "other"] as const)
     .filter((m) => view.byMethod[m] > 0)
