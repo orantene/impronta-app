@@ -1,5 +1,6 @@
 "use server";
 
+import { logServerError } from "@/lib/server/safe-error";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
@@ -64,18 +65,26 @@ export async function loadPublishedSnapshotRowsAction(input: {
 }): Promise<LoadPublishedSnapshotResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
+  // F95/F95b - a talent's page or shell (talent_pages / talent_sites, owner RLS)
+  // is looked up BEFORE the agency scope: an agency-rostered talent also has a
+  // tenant scope, so gating on "no scope" sent her page id to cms_pages and the
+  // load failed on an already-published site. Ids are uuids, so no collision.
+  const { data: tp, error: tpErr } = await auth.supabase
+    .from("talent_pages")
+    .select("blocks_published, published_at")
+    .eq("id", input.pageId)
+    .maybeSingle<{ blocks_published: unknown; published_at: string | null }>();
+  if (tpErr) logServerError("publishDiff.talentPage", tpErr);
+  if (tp) return talentPublishedSnapshotResult(tp);
+  const { data: ts, error: tsErr } = await auth.supabase
+    .from("talent_sites")
+    .select("shell_published, site_published_at")
+    .eq("id", input.pageId)
+    .maybeSingle<{ shell_published: unknown; site_published_at: string | null }>();
+  if (tsErr) logServerError("publishDiff.talentSite", tsErr);
+  if (ts) return talentPublishedSnapshotResult({ blocks_published: ts.shell_published, published_at: ts.site_published_at });
   const scope = await requireEditSurfaceTenantScope().catch(() => null);
-  if (!scope) {
-    // F95 - a talent (no agency workspace) publishes `talent_pages`; "no live
-    // body yet" is a normal first publish, not a load failure.
-    const { data: tp, error: tpErr } = await auth.supabase
-      .from("talent_pages")
-      .select("blocks_published, published_at")
-      .eq("id", input.pageId)
-      .maybeSingle<{ blocks_published: unknown; published_at: string | null }>();
-    if (tpErr || !tp) return { ok: false, error: "Published snapshot not found." };
-    return talentPublishedSnapshotResult(tp);
-  }
+  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const { data: row, error } = await auth.supabase
     .from("cms_pages")

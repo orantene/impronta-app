@@ -29,7 +29,7 @@
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import type { ReactNode } from "react";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
@@ -39,6 +39,7 @@ import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { CHROME, EDIT_TOPBAR_H } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   isStorefrontBodyPresent,
   subscribeStorefrontBodyCanvas,
@@ -109,7 +110,15 @@ export function InEditorCanvasRegion({
   // there told a talent with a full live site that their page was blank (and
   // invited them to overwrite it). A failed load now says so, with a retry.
   const loadFailed = isEmpty && !!compositionError;
-  const showStarter = isEmpty && compositionLoaded && !compositionError;
+  // F113: the builder-tree bridge is empty in the server HTML and until the
+  // provider publishes the seeded tree after hydration, so "empty" before mount
+  // is "not known yet", never "empty page". Until then paint a skeleton, and
+  // offer the starter only when the tree is truly empty on the client.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { t } = useEditorLocale();
+  const showStarter = mounted && isEmpty && compositionLoaded && !compositionError;
+  const showSkeleton = isEmpty && !showStarter && !loadFailed;
 
   // talent_page: seeded labels follow the SITE locale + booking mode on the
   // canvas, exactly as the live render localises them (render-time only).
@@ -216,6 +225,20 @@ export function InEditorCanvasRegion({
         </div>
       ) : null}
       {showStarter ? <EmptyCanvasStarter /> : null}
+      {showSkeleton ? (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label={t("Loading your page…")}
+          data-in-editor-canvas-skeleton=""
+          className="animate-pulse"
+          style={{ margin: "72px auto", maxWidth: 960, padding: "0 24px", display: "grid", gap: 20 }}
+        >
+          {[220, 120, 160].map((h) => (
+            <div key={h} style={{ height: h, borderRadius: 14, background: CHROME.paper2 }} />
+          ))}
+        </div>
+      ) : null}
       {loadFailed ? (
         <div
           role="alert"

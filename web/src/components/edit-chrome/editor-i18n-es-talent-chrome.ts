@@ -9,6 +9,7 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "Open full": "Abrir completo",
   "Browser tab + Google": "Pestaña del navegador y Google",
   "Meta description": "Descripción para buscadores",
+  "Loading your page…": "Cargando tu página...",
   "just now": "justo ahora",
   "{n}s ago": "hace {n} s",
   "{n}m ago": "hace {n} min",
