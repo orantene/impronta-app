@@ -14,6 +14,7 @@ import {
   restoreMaisonDesignRevisionAction,
   type MaisonDesignOptionsState,
 } from "@/lib/talent-site/server/maison-options-actions";
+import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import { undoMaisonImportAction } from "@/lib/talent-site/server/maison-import-actions";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import { MaisonUndoToast } from "./MaisonUndoToast";
@@ -100,7 +101,7 @@ export function DesignOptionsPanel({
 
   function handleReapply() {
     run(
-      async () => reapplyMaisonDemoLayoutAction(),
+      async () => runThemeApply(() => reapplyMaisonDemoLayoutAction()),
       maisonSetupT(locale, "Demo layout reapplied"),
       true,
     );
@@ -125,7 +126,7 @@ export function DesignOptionsPanel({
   function handleRestore(revisionId: string) {
     startTransition(async () => {
       setError(null);
-      const res = await restoreMaisonDesignRevisionAction({ revisionId });
+      const res = await runThemeApply(() => restoreMaisonDesignRevisionAction({ revisionId }));
       if (!res.ok) {
         setError(res.error);
         return;

@@ -73,6 +73,7 @@ const NESTED_SKIP_KEYS = new Set([
   "experiment",
   "i18n",
   "layerLabel",
+  "__origin",
 ]);
 
 export interface TranslatableText {

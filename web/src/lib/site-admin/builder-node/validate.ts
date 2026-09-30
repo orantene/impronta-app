@@ -8,6 +8,7 @@ import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import { isBuilderNodeRole } from "./role-bindings";
 import { isBuilderKitSectionRole, normalizeKitSlotKey } from "./section-provenance";
 import type { BuilderNode, BuilderNodeTree } from "./types";
+import { DESIGN_ORIGIN_PROP, normalizeDesignOrigin } from "./design-origin";
 
 /**
  * OPTIONAL node-level fields that must survive tree reconstruction. Without
@@ -93,6 +94,10 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
     normalize: (value) => normalizeKitSlotKey(value),
     skipKinds: ["section"],
   },
+  // THEME RELEASES: the design origin stamp (`props.__origin`) a talent
+  // Design seeds on every node so an update can tell design-owned from
+  // talent-edited. Meaningless to the renderer; see design-origin.ts.
+  { key: DESIGN_ORIGIN_PROP, normalize: normalizeDesignOrigin },
 ];
 
 /**

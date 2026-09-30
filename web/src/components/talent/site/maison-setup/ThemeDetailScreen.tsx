@@ -14,6 +14,7 @@ import {
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
+import { isThemeApplyBusy, runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import {
   buildMaisonCustomPalette,
   defaultCustomFieldsFromPalette,
@@ -217,14 +218,14 @@ export function ThemeDetailScreen({
     // W68 — live colors-only → one Publish new colors dialog.
     startTransition(async () => {
       setApplyError(null);
-      const res = await applyMaisonDesignAction({
+      const res = await runThemeApply(() => applyMaisonDesignAction({
         paletteKey: maison && selectedPaletteKey ? selectedPaletteKey : choices.paletteKey,
         designSlug: design.slug,
         contentMode: choices.contentMode,
         customPalette: usingCustom && choices.customPalette ? choices.customPalette : null,
         // Non-Maison designs: the gallery-meta palette on screen.
         galleryPaletteKey: !maison && !usingCustom ? selectedPaletteKey : null,
-      });
+      }));
       if (!res.ok) {
         setApplyError(res.error);
         return;
@@ -264,6 +265,7 @@ export function ThemeDetailScreen({
   const handlePublishColors = () => {
     startTransition(async () => {
       setPublishColorsError(null);
+      if (isThemeApplyBusy()) return;
       const res = await publishMaxSiteAction();
       if (!res.ok) {
         setPublishColorsError(res.error);
@@ -281,6 +283,7 @@ export function ThemeDetailScreen({
     startTransition(async () => {
       setPublishDesignError(null);
       // Materializes pending_design and writes the design revision (Restore).
+      if (isThemeApplyBusy()) return;
       const res = await publishMaxSiteAction();
       if (!res.ok) {
         setPublishDesignError(res.error);

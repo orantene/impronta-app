@@ -140,6 +140,11 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // WhatsApp drawer itself is a chrome overlay, not a DrawerSwitch case, so a
   // drawer id here would resolve to the stub.
   whatsapp: { kind: "page", surface: "workspace", path: "/settings/channels" },
+
+  // lib/talent-site/theme-releases/manager/notify.ts: "Maison v2 has an update"
+  // (theme releases). My presence (/talent/site) hosts the update notice; the
+  // query opens its What's new sheet straight away.
+  "theme-update": { kind: "page", surface: "talent", path: "/talent/site?themeUpdate=open" },
 };
 
 /**

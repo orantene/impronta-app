@@ -45,6 +45,8 @@ import {
 } from "@/lib/site-admin/edit-mode/talent-design-actions";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
+import { adoptDraftRev, resolveExpectedDraftRev } from "@/lib/talent-site/history/draft-rev";
+import { getPageVersionSnapshot } from "./save-cycle-bridge";
 
 /** The five theme lifecycle moves the drawer needs, normalized across surfaces. */
 export interface ThemeActionSet {
@@ -79,12 +81,29 @@ export function resolveThemeActionSet(
   if (surfaceKind === "talent_page") {
     if (!pageSlug) return null;
     const slug = pageSlug;
+    // Theme releases Phase 2 — a colour save bumps the SITE's draft_rev, which
+    // is also this builder's CAS version. Send the editor's current rev and
+    // record the bump so the next page save does not read as a conflict.
+    const withDraftRev = async <R extends { ok: boolean; draftRev?: number | null }>(
+      run: (expectedDraftRev: number | null) => Promise<R>,
+    ): Promise<R> => {
+      const expected = resolveExpectedDraftRev(getPageVersionSnapshot());
+      const res = await run(expected);
+      if (res.ok && typeof res.draftRev === "number") adoptDraftRev(expected, res.draftRev);
+      return res;
+    };
     return {
       load: () => loadTalentDesignAction({ pageSlug: slug }),
-      saveDraft: (input) => saveTalentDesignDraftAction({ pageSlug: slug, ...input }),
+      saveDraft: (input) =>
+        withDraftRev((expectedDraftRev) =>
+          saveTalentDesignDraftAction({ pageSlug: slug, ...input, expectedDraftRev }),
+        ),
       saveComponentStyles: (input) =>
         saveTalentComponentStylesDraftAction({ pageSlug: slug, ...input }),
-      applyPreset: (input) => applyTalentThemePresetAction({ pageSlug: slug, ...input }),
+      applyPreset: (input) =>
+        withDraftRev((expectedDraftRev) =>
+          applyTalentThemePresetAction({ pageSlug: slug, ...input, expectedDraftRev }),
+        ),
       publish: (input) => publishTalentDesignAction({ pageSlug: slug, ...input }),
     };
   }

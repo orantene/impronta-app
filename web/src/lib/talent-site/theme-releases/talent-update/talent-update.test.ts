@@ -1,0 +1,485 @@
+/**
+ * Theme releases Phase 4: the talent update experience.
+ * Notice per state, preview writes nothing, apply = one history entry + state
+ * `applied`, dismiss, add-block placement, auto-improve on untouched nodes only,
+ * undo sets `undone`. Drives the real server modules over an in-memory client.
+ */
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { undoThemeUpdateEntry } from "@/lib/talent-site/history/history.server";
+import { mergeDesignUpdate } from "../merge";
+import { built, edit, prop, topKeys } from "../test-fixtures";
+import type { DesignSide, ReleaseItem } from "../types";
+import type { SiteRef } from "../manager/merge-site.server";
+import { planFanOut } from "../manager/notify";
+import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
+import { runAutoImprove } from "./auto-improve.server";
+import { appliedToast, bannerTitle, keptLine } from "./copy";
+import { fakeId, makeFakeDb, type FakeDb } from "./fake-db.test-helper";
+import {
+  TALENT_RELEASE_COLUMNS,
+  addThemeUpdateBlock,
+  applyThemeUpdate,
+  dismissThemeUpdate,
+  loadTalentUpdateNotices,
+  loadThemeUpdatePreviewSnapshot,
+  previewThemeUpdate,
+  type MergeFn,
+  type TalentRelease,
+  type UpdateDeps,
+} from "./talent-update.server";
+import { groupItems, isNoticeVisible, placeKeyAfter, summarizeReport } from "./view";
+
+const PROFILE = "11111111-1111-4111-8111-111111111111";
+const SITE = "22222222-2222-4222-8222-222222222222";
+const HOME = "33333333-3333-4333-8333-333333333333";
+const RELEASE = "44444444-4444-4444-8444-444444444444";
+const UPDATE = "55555555-5555-4555-8555-555555555555";
+
+const TOKENS_V1 = { "space.row": "8px" };
+const TOKENS_V2 = { "space.row": "12px" };
+const THEIRS = (): DesignSide => built(2, { heroVariant: "stacked", menuLayout: "grid", withGallery: true }, TOKENS_V2);
+
+const ITEMS: ReleaseItem[] = [
+  { type: "variant-default", key: "*", note: { en: "Menu rows breathe more", es: "Más aire en el menú" } },
+  { type: "new-block", key: "gallery", tree: "home", note: { en: "New gallery block", es: "Nuevo bloque de galería" } },
+  { type: "code", key: "price-wrap", note: { en: "Prices wrap cleanly", es: "Los precios se ajustan bien" } },
+  { type: "token-default", key: "*", tokenKeys: ["space.row"] },
+];
+
+function release(over: Partial<TalentRelease> = {}): TalentRelease {
+  return {
+    id: RELEASE,
+    design_slug: "maison-v2",
+    from_version: 1,
+    to_version: 2,
+    channel: "optin",
+    status: "published",
+    notes: { en: "Spring polish", es: "Pulido de primavera" },
+    items: ITEMS,
+    critical: false,
+    published_at: "2026-09-30T00:00:00Z",
+    ...over,
+  };
+}
+
+/** Her draft: v1 with the hero edited (her change) and her own colour token. */
+function world(state = "available", rel: TalentRelease = release()): FakeDb {
+  const ours = edit(built(1, {}, TOKENS_V1), "home", "hero", "style.paddingY", "xl");
+  return makeFakeDb({
+    talent_site_theme_updates: [
+      { id: UPDATE, release_id: RELEASE, talent_site_id: SITE, talent_profile_id: PROFILE, state },
+    ],
+    talent_theme_releases: [{ ...rel, base_payload: { secret: true }, dry_run_report: { others: 3 } }],
+    talent_sites: [
+      {
+        id: SITE,
+        talent_profile_id: PROFILE,
+        site_slug: "valeria",
+        draft_rev: 7,
+        theme_design_slug: "maison-v2",
+        theme_design_version: 1,
+        theme_token_origin: null,
+        shell_tree: ours.trees.shell,
+        shell_published: ours.trees.shell,
+        design_tokens_draft: { ...TOKENS_V1 },
+        design_tokens: { ...TOKENS_V1 },
+        site_published_at: null,
+      },
+    ],
+    talent_pages: [
+      {
+        id: HOME,
+        talent_profile_id: PROFILE,
+        slug: "home",
+        title: "Home",
+        is_home: true,
+        sort_order: 0,
+        blocks: ours.trees.home,
+        blocks_published: ours.trees.home,
+      },
+    ],
+    talent_profiles: [{ id: PROFILE, display_name: "Valeria", user_id: "u-1" }],
+    talent_theme_catalog: [{ kind: "design", slug: "maison-v2", title: "Maison v2" }],
+    talent_site_history: [],
+  });
+}
+
+function mergeOver(db: FakeDb, theirs: () => DesignSide = THEIRS): MergeFn {
+  return async (ctx, items) => {
+    const site = db.tables.talent_sites!.find((s) => s.id === ctx.siteId)!;
+    const home = db.tables.talent_pages!.find((p) => p.talent_profile_id === ctx.talentProfileId && p.is_home)!;
+    const result = mergeDesignUpdate({
+      base: built(1, {}, TOKENS_V1),
+      ours: {
+        trees: { shell: site.shell_tree as BuilderNode[], home: home.blocks as BuilderNode[] },
+        tokens: site.design_tokens_draft as Record<string, string>,
+      },
+      theirs: theirs(),
+      ...(items ? { items } : {}),
+    });
+    return { ok: true, result, noBase: false, homePageId: home.id as string };
+  };
+}
+
+const deps = (db: FakeDb, theirs?: () => DesignSide): UpdateDeps => ({
+  admin: db.admin,
+  merge: mergeOver(db, theirs),
+  checkTree: async () => null,
+});
+
+const draftWrites = (db: FakeDb) => db.writes.filter((w) => w.kind === "rpc" && w.target === "talent_site_write_draft");
+const stateOf = (db: FakeDb) => db.tables.talent_site_theme_updates![0]!.state;
+const homeSide = (db: FakeDb): DesignSide => ({
+  trees: { home: db.tables.talent_pages![0]!.blocks as BuilderNode[] },
+});
+
+// ── Notice visibility ────────────────────────────────────────────────────────
+
+test("notice shows only for state available", () => {
+  assert.equal(isNoticeVisible("available"), true);
+  for (const s of ["previewed", "applied", "dismissed", "undone", null, undefined]) assert.equal(isNoticeVisible(s), false);
+});
+
+for (const state of ["available", "previewed", "applied", "dismissed", "undone"]) {
+  test(`notices: a row in state ${state} ${state === "available" ? "shows" : "stays quiet"}`, async () => {
+    const db = world(state);
+    const notices = await loadTalentUpdateNotices(db.admin, PROFILE);
+    assert.equal(notices.length, state === "available" ? 1 : 0);
+  });
+}
+
+test("notices: a release not open to talents stays quiet", async () => {
+  for (const rel of [release({ channel: "demos", status: "draft" }), release({ status: "paused" })]) {
+    const db = world("available", rel);
+    assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 0);
+  }
+});
+
+test("notices: another talent's row never shows", async () => {
+  const db = world();
+  assert.equal((await loadTalentUpdateNotices(db.admin, "99999999-9999-4999-8999-999999999999")).length, 0);
+});
+
+test("notices: named release columns only (no base_payload, no dry_run_report)", async () => {
+  const db = world();
+  const [n] = await loadTalentUpdateNotices(db.admin, PROFILE);
+  assert.ok(n);
+  assert.equal(n.designTitle, "Maison v2");
+  assert.equal(n.draftRev, 7);
+  assert.doesNotMatch(TALENT_RELEASE_COLUMNS, /\*|base_payload|dry_run_report/);
+  for (const s of db.selects.filter((x) => x.table === "talent_theme_releases")) {
+    assert.notEqual(s.cols.trim(), "*");
+  }
+  assert.ok(!JSON.stringify(n).includes("secret"));
+  assert.ok(!JSON.stringify(n).includes("others"));
+});
+
+test("what's new groups: important, automatic, new blocks, layout", () => {
+  const groups = groupItems([...ITEMS, { type: "layout", key: "hero" }, { type: "critical", key: "footer" }]);
+  assert.deepEqual(groups.map((g) => g.group), ["critical", "auto", "blocks", "layout"]);
+  assert.equal(groups.find((g) => g.group === "auto")!.items.length, 3);
+  assert.equal(groups.find((g) => g.group === "blocks")!.items[0]!.noteEs, "Nuevo bloque de galería");
+});
+
+// ── Preview: no write ────────────────────────────────────────────────────────
+
+test("preview merges in memory and writes nothing", async () => {
+  const db = world();
+  const before = JSON.stringify(db.tables);
+  const res = await previewThemeUpdate(deps(db), PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(res.value.previewUrl, `/t/site/valeria?preview=draft&themeUpdate=${UPDATE}`);
+  assert.ok(res.value.summary.kept >= 1, "her hero edit is kept");
+  assert.ok(res.value.summary.keptLabels.includes("Hero"));
+  assert.ok(res.value.placements.length >= 4);
+  assert.equal(db.writes.length, 0);
+  assert.equal(JSON.stringify(db.tables), before);
+  assert.equal(stateOf(db), "available");
+});
+
+test("preview snapshot renders her content with the update, and writes nothing", async () => {
+  const db = world();
+  const snap = await loadThemeUpdatePreviewSnapshot(PROFILE, UPDATE, deps(db));
+  assert.ok(snap);
+  const home = snap.pages![HOME]!;
+  assert.equal(prop({ trees: { home } }, "home", "menu/services_catalog", "layout"), "grid");
+  assert.equal(prop({ trees: { home } }, "home", "hero", "variant"), "split", "her edited hero kept");
+  assert.equal(prop({ trees: { home } }, "home", "hero/heading", "text"), "Valeria", "her content");
+  assert.equal(db.writes.length, 0);
+});
+
+// ── Apply ────────────────────────────────────────────────────────────────────
+
+test("apply: one atomic draft write with one history entry, state applied", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: "u-1" });
+  assert.ok(res.ok);
+  assert.equal(res.value.draftRev, 8);
+  assert.ok(res.value.kept >= 1);
+  assert.equal(draftWrites(db).length, 1);
+  const history = db.tables.talent_site_history!;
+  assert.equal(history.length, 1);
+  assert.equal(history[0]!.kind, "theme_update");
+  assert.equal(history[0]!.undoable, true);
+  assert.match(history[0]!.summary_en as string, /Maison v2 update 2 applied · kept \d+ of your edits/);
+  assert.equal(stateOf(db), "applied");
+  const site = db.tables.talent_sites![0]!;
+  assert.equal(site.theme_design_version, 2);
+  assert.equal((site.design_tokens_draft as Record<string, string>)["space.row"], "12px");
+  assert.equal(prop(homeSide(db), "home", "hero/heading", "text"), "Valeria");
+  assert.equal(prop(homeSide(db), "home", "hero", "style.paddingY"), "xl", "her edit kept");
+  // Nothing goes live until she publishes.
+  assert.equal(prop({ trees: { home: db.tables.talent_pages![0]!.blocks_published as BuilderNode[] } }, "home", "menu/services_catalog", "layout"), "rows");
+  assert.equal((site.design_tokens as Record<string, string>)["space.row"], "8px");
+});
+
+test("apply: a stale draft_rev writes nothing and leaves the state", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 3, actorId: null });
+  assert.equal(res.ok, false);
+  assert.equal(!res.ok && res.code, "VERSION_CONFLICT");
+  assert.equal(db.tables.talent_site_history!.length, 0);
+  assert.equal(stateOf(db), "available");
+});
+
+test("apply: toast copy says how many edits were kept (EN + ES, no em dash)", () => {
+  assert.equal(appliedToast(3, "en"), "Update applied to your draft · we kept 3 of your edits");
+  assert.equal(appliedToast(3, "es"), "Actualización aplicada a tu borrador · conservamos 3 de tus cambios");
+  assert.equal(bannerTitle("Maison v2", "es"), "Maison v2 tiene una actualización");
+  const line = keptLine(summarizeReport({ applied: [], added: [], kept: [], conflicts: [] }), "en");
+  for (const s of [appliedToast(1, "en"), appliedToast(1, "es"), line]) assert.ok(!s.includes("—"));
+});
+
+// ── Undo ─────────────────────────────────────────────────────────────────────
+
+test("undo this update: reverts it, keeps her later edit, state undone", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok && res.value.historyId);
+  // A later edit of her own.
+  const page = db.tables.talent_pages![0]!;
+  page.blocks = edit(homeSide(db), "home", "about", "layout", "stack").trees.home;
+  const undo = await undoThemeUpdateEntry(db.admin, {
+    talentProfileId: PROFILE,
+    entryId: res.value.historyId!,
+    expectedDraftRev: 8,
+    actorId: null,
+  });
+  assert.ok(undo.ok);
+  assert.equal(stateOf(db), "undone");
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows", "update reverted");
+  assert.equal(prop(homeSide(db), "home", "about", "layout"), "stack", "later edit kept");
+  assert.equal(db.tables.talent_sites![0]!.theme_design_version, 1, "re-pinned");
+});
+
+// ── Dismiss ──────────────────────────────────────────────────────────────────
+
+test("not now: available → dismissed, no draft write", async () => {
+  const db = world();
+  const res = await dismissThemeUpdate(db.admin, PROFILE, UPDATE);
+  assert.ok(res.ok);
+  assert.equal(stateOf(db), "dismissed");
+  assert.equal(draftWrites(db).length, 0);
+  assert.equal((await loadTalentUpdateNotices(db.admin, PROFILE)).length, 0);
+});
+
+test("not now never overrides an applied update", async () => {
+  const db = world("applied");
+  await dismissThemeUpdate(db.admin, PROFILE, UPDATE);
+  assert.equal(stateOf(db), "applied");
+});
+
+test("pinned version still renders when she ignores the update", async () => {
+  const db = world("dismissed");
+  const site = db.tables.talent_sites![0]!;
+  assert.equal(site.theme_design_version, 1);
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows");
+  assert.equal(draftWrites(db).length, 0);
+});
+
+// ── Add this block ───────────────────────────────────────────────────────────
+
+test("placeKeyAfter: top, after a section, unknown anchor leaves it", () => {
+  const home = THEIRS().trees.home!;
+  const aboutId = home.find((n) => topKeys({ trees: { home: [n] } }, "home")[0] === "about")!.id;
+  assert.deepEqual(topKeys({ trees: { home: placeKeyAfter(home, "gallery", null) } }, "home")[0], "gallery");
+  const after = topKeys({ trees: { home: placeKeyAfter(home, "gallery", aboutId) } }, "home");
+  assert.equal(after[after.indexOf("about") + 1], "gallery");
+  assert.deepEqual(placeKeyAfter(home, "gallery", "nope"), home);
+});
+
+test("add this block: inserted after the picked section, one history entry, no re-pin", async () => {
+  const db = world();
+  const hero = (db.tables.talent_pages![0]!.blocks as BuilderNode[])[0]!;
+  const res = await addThemeUpdateBlock(deps(db), {
+    talentProfileId: PROFILE,
+    updateId: UPDATE,
+    itemId: "new-block:gallery",
+    afterId: hero.id,
+    expectedDraftRev: 7,
+    actorId: null,
+  });
+  assert.ok(res.ok);
+  assert.deepEqual(topKeys(homeSide(db), "home"), ["hero", "gallery", "menu", "about", "faq"]);
+  assert.equal(db.tables.talent_site_history!.length, 1);
+  assert.match(db.tables.talent_site_history![0]!.summary_en as string, /^Added the Gallery block from Maison v2$/);
+  assert.equal(db.tables.talent_sites![0]!.theme_design_version, 1, "rest of the update still on offer");
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows", "only the block landed");
+  assert.equal(stateOf(db), "available");
+});
+
+test("add this block: unknown item or a non-block item is refused", async () => {
+  const db = world();
+  for (const itemId of ["new-block:nope", "code:price-wrap"]) {
+    const res = await addThemeUpdateBlock(deps(db), {
+      talentProfileId: PROFILE,
+      updateId: UPDATE,
+      itemId,
+      afterId: null,
+      expectedDraftRev: 7,
+      actorId: null,
+    });
+    assert.equal(res.ok, false);
+  }
+  assert.equal(db.writes.length, 0);
+});
+
+// ── Auto improve ─────────────────────────────────────────────────────────────
+
+function siteRef(isDemo: boolean, over: Partial<SiteRef> = {}): SiteRef {
+  return {
+    siteId: SITE,
+    talentProfileId: PROFILE,
+    userId: "u-1",
+    profileCode: isDemo ? "TAL-DEMO" : "TAL-REAL",
+    displayName: "Valeria",
+    locale: "es",
+    pinnedVersion: 1,
+    isDemo,
+    ...over,
+  };
+}
+
+test("auto-improve: only untouched nodes change; one Improved by Tulala entry (demos only)", async () => {
+  const db = world();
+  const res = await runAutoImprove(
+    { admin: db.admin, merge: mergeOver(db) },
+    release({ channel: "default" }),
+    "Maison v2",
+    [siteRef(true)],
+    { onlyDemos: true },
+  );
+  assert.equal(res.improved, 1);
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "grid", "untouched node improved");
+  assert.equal(prop(homeSide(db), "home", "hero", "variant"), "split", "her edited hero untouched");
+  assert.ok(!topKeys(homeSide(db), "home").includes("gallery"), "new blocks stay opt-in");
+  const h = db.tables.talent_site_history!;
+  assert.equal(h.length, 1);
+  assert.equal(h[0]!.kind, "auto_improve");
+  assert.equal(h[0]!.actor, "tulala");
+  assert.equal(h[0]!.undoable, true);
+  assert.match(h[0]!.summary_en as string, /^Improved by Tulala/);
+  assert.match(h[0]!.summary_es as string, /^Mejorado por Tulala/);
+  assert.equal(db.tables.talent_sites![0]!.theme_design_version, 1, "pinned version unchanged");
+});
+
+test("auto-improve: idempotent, demos-only skips real sites, needs channel default", async () => {
+  const db = world();
+  const d = { admin: db.admin, merge: mergeOver(db) };
+  const def = release({ channel: "default" });
+  assert.equal((await runAutoImprove(d, def, "Maison v2", [siteRef(false)], { onlyDemos: true })).improved, 0);
+  assert.equal((await runAutoImprove(d, release(), "Maison v2", [siteRef(true)])).improved, 0);
+  assert.equal(draftWrites(db).length, 0);
+  assert.equal((await runAutoImprove(d, def, "Maison v2", [siteRef(true)])).improved, 1);
+  const again = await runAutoImprove(d, def, "Maison v2", [siteRef(true)]);
+  assert.equal(again.improved, 0);
+  assert.equal(again.skipped, 1);
+  assert.equal(draftWrites(db).length, 1);
+  assert.equal((await runAutoImprove(d, def, "Maison v2", [siteRef(true, { siteId: fakeId(), pinnedVersion: 2 })])).skipped, 1);
+});
+
+test("auto-improve undo sets nothing on update rows and reverts only its changes", async () => {
+  const db = world();
+  await runAutoImprove({ admin: db.admin, merge: mergeOver(db) }, release({ channel: "default" }), "Maison v2", [siteRef(true)]);
+  const entry = db.tables.talent_site_history![0]!;
+  const undo = await undoThemeUpdateEntry(db.admin, { talentProfileId: PROFILE, entryId: entry.id as string, expectedDraftRev: 8, actorId: null });
+  assert.ok(undo.ok);
+  assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "rows");
+  assert.equal(stateOf(db), "available");
+});
+
+// ── Bell deep link ───────────────────────────────────────────────────────────
+
+test("bell entry deep-links to My presence with the sheet open", () => {
+  const { bells } = planFanOut({ id: RELEASE, design_slug: "maison-v2", to_version: 2, rollout_pct: 100 }, [
+    { siteId: SITE, talentProfileId: PROFILE, userId: "u-1", designTitle: "Maison v2", locale: "es" },
+  ]);
+  assert.equal(bells[0]!.target_drawer, "theme-update");
+  assert.equal(bells[0]!.title, "Maison v2 tiene una actualización");
+  assert.deepEqual(resolveNotificationDrawerTarget("theme-update"), {
+    kind: "page",
+    surface: "talent",
+    path: "/talent/site?themeUpdate=open",
+  });
+});
+
+// ── Make default triggers auto-improve; the UI is mounted and accessible ─────
+
+test("channel default runs auto-improve after persisting; other channels never do", async () => {
+  const { executeChannelChange } = await import("../manager/channel");
+  const { buildDryRunReport } = await import("../manager/dry-run");
+  const calls: string[] = [];
+  const rel = {
+    id: RELEASE,
+    to_version: 2,
+    items: ITEMS,
+    dry_run_report: buildDryRunReport({ id: RELEASE, to_version: 2, items: ITEMS }, []),
+    channel: "optin" as const,
+    status: "published" as const,
+    rollout_pct: 100,
+  };
+  const depsFor = () => ({
+    applyToDemos: async () => ({ ok: true as const, applied: 0 }),
+    fanOut: async () => ({ updates: 0, bells: 0 }),
+    persist: async (c: string) => {
+      calls.push(`persist:${c}`);
+      return { ok: true as const };
+    },
+    autoImprove: async () => {
+      calls.push("auto");
+      return { improved: 1, failures: [] };
+    },
+  });
+  const res = await executeChannelChange(rel, "default", depsFor());
+  assert.ok(res.ok);
+  assert.deepEqual(calls, ["persist:default", "auto"]);
+  calls.length = 0;
+  await executeChannelChange({ ...rel, channel: "demos", status: "draft" }, "optin", depsFor());
+  assert.ok(!calls.includes("auto"));
+});
+
+test("static: notice mounted in My presence and the builder; sheet is an accessible dialog", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const src = join(process.cwd(), "src");
+  const read = (p: string) => readFileSync(join(src, p), "utf8");
+  assert.match(read("components/admin/shell/internal/talent/pages/PublicPageEditor.tsx"), /<ThemeUpdateNotice surface="presence"/);
+  assert.match(read("components/talent/site/TalentPageBuilderScreen.tsx"), /<ThemeUpdateNotice surface="builder"/);
+  const sheet = read("components/talent/site/theme-update/ThemeUpdateSheet.tsx");
+  assert.match(sheet, /role="dialog"/);
+  assert.match(sheet, /aria-modal="true"/);
+  assert.match(sheet, /aria-labelledby=/);
+  assert.match(sheet, /useFocusTrap/);
+  assert.match(sheet, /Escape/);
+  assert.match(sheet, /rounded-t-2xl/, "bottom sheet on phones");
+  assert.match(sheet, /<legend/, "placement picker is a labelled group");
+  for (const f of ["ThemeUpdateSheet.tsx", "ThemeUpdateNotice.tsx"]) {
+    const s = read(`components/talent/site/theme-update/${f}`);
+    assert.doesNotMatch(s, /#[0-9a-fA-F]{3,8}\b/, `${f}: no hex literals`);
+  }
+  const copy = read("lib/talent-site/theme-releases/talent-update/copy.ts");
+  assert.ok(!copy.includes("—"), "no em dashes");
+});

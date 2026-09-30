@@ -36,6 +36,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { buildTalentBuilderCanvasData } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { provisionTalentMaxSite } from "@/lib/talent-site/server/provision-max-site";
+import { loadSiteRev } from "@/lib/talent-site/history/history.server";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
@@ -203,6 +204,9 @@ export default async function TalentPageBuilderRoute({
         .maybeSingle();
       if (error) logServerError("talentPageBuilder/editorRow", error);
       editorRow = (data as unknown as TalentPageRow | null) ?? null;
+      // Theme releases Phase 2 — the CAS version is the site's draft_rev.
+      const siteRev = editorRow ? await loadSiteRev(admin, profile.id) : null;
+      if (editorRow && siteRev) editorRow = { ...editorRow, draft_rev: siteRev.draftRev };
       if (editorRow) initialComposition = buildEmptyTalentPageComposition(editorRow, locale);
     }
   }

@@ -11,6 +11,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
+import { summaryFor } from "@/lib/talent-site/history/copy";
+import type { HistoryEntryInput } from "@/lib/talent-site/history/types";
+import { writeSiteDraft } from "@/lib/talent-site/history/writer";
 
 export type MaisonDraftSnapshot = {
   shell_tree: unknown;
@@ -104,6 +107,8 @@ export async function restoreMaisonDraftSnapshot(
     userId?: string | null;
     /** Default true. PR8 restore keeps live `pending_design` after writing draft. */
     clearPending?: boolean;
+    /** Theme releases Phase 2 — the history entry (default: a restore entry). */
+    history?: HistoryEntryInput;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const now = new Date().toISOString();
@@ -145,6 +150,20 @@ export async function restoreMaisonDraftSnapshot(
     return { ok: false, error: "Could not undo the home page." };
   }
   if (!homeCount) return { ok: false, error: "Home page not found." };
+
+  // Theme releases Phase 2 — bump draft_rev (other tabs see the change) and
+  // record the entry. Best-effort: the snapshot already landed.
+  const summary = summaryFor("restore");
+  const stamped = await writeSiteDraft(admin, {
+    siteId: input.siteId,
+    history: input.history ?? {
+      kind: "restore",
+      summaryEn: summary.en,
+      summaryEs: summary.es,
+      createdBy: input.userId ?? null,
+    },
+  });
+  if (!stamped.ok) logServerError("maison.snapshot.historyStamp", stamped.error);
 
   return { ok: true };
 }

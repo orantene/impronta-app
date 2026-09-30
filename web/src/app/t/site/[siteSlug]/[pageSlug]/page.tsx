@@ -67,11 +67,11 @@ export default async function TalentMaxSiteInnerPage({
   searchParams,
 }: {
   params: Promise<{ siteSlug: string; pageSlug: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; history?: string; themeUpdate?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const { siteSlug, pageSlug } = await params;
-  const { preview } = await searchParams;
+  const { preview, history, themeUpdate } = await searchParams;
 
   // Same permanent move as the home route — see its comment. The inner page
   // lands on `<slug>.tulala.digital/<pageSlug>`.
@@ -96,6 +96,8 @@ export default async function TalentMaxSiteInnerPage({
     publicPathPrefix,
     hrefMode: "path",
     previewDraft: preview === "draft",
+    previewHistoryEntryId: history ?? null,
+    previewThemeUpdateId: themeUpdate ?? null,
     canonicalOrigin: publicSiteMetadataBase().origin,
     canonicalPath: innerPath(siteSlug, pageSlug),
   });

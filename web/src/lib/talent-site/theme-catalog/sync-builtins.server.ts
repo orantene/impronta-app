@@ -8,8 +8,12 @@ import type { BuiltinDesignEntry, BuiltinLookEntry } from "./builtins/types";
 import { MAISON_BUILTIN_DESIGN, MAISON_BUILTIN_LOOKS } from "./maison/builtins";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
-import { TALENT_THEME_SCHEMA_VERSION, type TalentThemeKind } from "./types";
+import { TALENT_THEME_SCHEMA_VERSION, type DesignPayload, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
+import { createDraftRelease } from "../theme-releases/releases.server";
+import { diffDesignPayloads } from "../theme-releases/diff-payload";
+import type { ReleaseItem } from "../theme-releases/types";
+import { writeThemeVersionSnapshots } from "../theme-releases/theme-versions.server";
 
 /**
  * Talent theme gallery: BUILT-IN SYNC. Code (`./builtins`) → published
@@ -168,6 +172,38 @@ export function planBuiltinSync(
   return { upserts, skippedAuthored, created, updated, unchanged };
 }
 
+export interface ReleaseDraftCandidate {
+  kind: TalentThemeKind;
+  slug: string;
+  version: number;
+  /** Stored version before this sync, or null when the row is new. */
+  priorVersion: number | null;
+}
+
+/**
+ * Pure: which DESIGN rows need a DRAFT release row. Only designs whose
+ * version moved past an existing prior version; `existing` holds
+ * `${slug}:${toVersion}` keys already released (idempotence).
+ */
+export function planReleaseDrafts(
+  candidates: ReleaseDraftCandidate[],
+  existing: ReadonlySet<string>,
+): Array<{ designSlug: string; fromVersion: number; toVersion: number }> {
+  return candidates
+    .filter(
+      (c) =>
+        c.kind === "design" &&
+        c.priorVersion !== null &&
+        c.version > c.priorVersion &&
+        !existing.has(`${c.slug}:${c.version}`),
+    )
+    .map((c) => ({
+      designSlug: c.slug,
+      fromVersion: c.priorVersion as number,
+      toVersion: c.version,
+    }));
+}
+
 function validateEntry(entry: BuiltinThemeEntry, payload: unknown): string[] {
   const check = entry.kind === "design" ? validateDesign(payload) : validateLook(payload);
   return check.ok ? [] : check.errors.map((e) => `${entry.kind}:${entry.slug} — ${e}`);
@@ -247,6 +283,52 @@ export async function syncBuiltinTalentThemes(
     logServerError("talentTheme.syncBuiltins.write", writeErr);
     return { ok: false, error: writeErr.message };
   }
+
+  // Staged releases: a changed design payload keeps publishing to the catalog
+  // (existing previews work) but ALSO gets a DRAFT release row. Never opens
+  // to talents; missing-table tolerant (migration may not be applied yet).
+  const priorVersions = new Map(
+    ((data ?? []) as ExistingBuiltinRow[]).map((r) => [`${r.kind}:${r.slug}`, r.version]),
+  );
+  const drafts = planReleaseDrafts(
+    plan.upserts.map((u) => ({
+      kind: u.kind,
+      slug: u.slug,
+      version: u.version,
+      priorVersion: priorVersions.get(`${u.kind}:${u.slug}`) ?? null,
+    })),
+    new Set<string>(),
+  );
+  const priorPayloads = new Map(
+    ((data ?? []) as ExistingBuiltinRow[]).map((r) => [`${r.kind}:${r.slug}`, r.payload]),
+  );
+  for (const d of drafts) {
+    const prior = priorPayloads.get(`design:${d.designSlug}`) as DesignPayload | undefined;
+    const next = plan.upserts.find((u) => u.kind === "design" && u.slug === d.designSlug)?.payload as
+      | DesignPayload
+      | undefined;
+    let items: ReleaseItem[] = [];
+    if (prior && next) {
+      try {
+        items = diffDesignPayloads(
+          d.designSlug,
+          { payload: prior, version: d.fromVersion },
+          { payload: next, version: d.toVersion },
+        );
+      } catch (err) {
+        logServerError("talentTheme.syncBuiltins.diff", err);
+      }
+    }
+    await createDraftRelease(admin, { ...d, items, basePayload: prior, createdBy: userId });
+  }
+
+  // Payload snapshot per design version (exact merge base for pinned sites).
+  await writeThemeVersionSnapshots(
+    admin,
+    plan.upserts
+      .filter((u) => u.kind === "design" && priorVersions.get(`${u.kind}:${u.slug}`) !== u.version)
+      .map((u) => ({ design: u.slug, version: u.version, payload: u.payload as DesignPayload, source: "sync" })),
+  );
 
   return {
     ok: true,

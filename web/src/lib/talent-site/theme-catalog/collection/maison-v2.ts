@@ -25,6 +25,7 @@ import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-binding
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
+  beforeAfterBlock,
   faqBlock,
   heroSplit,
   portfolioBlock,
@@ -210,13 +211,18 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       });
     }
     if (node.kind === "image" && p.src === "{{gallery1}}") {
-      const { bottom: _b, maxWidthFree: _m, aspectRatio: _a, ...rest } = unrounded(styleOf(node));
+      const { bottom: _b, right: _r, maxWidthFree: _m, aspectRatio: _a, ...rest } = unrounded(styleOf(node));
       void _b;
+      void _r;
       void _m;
       void _a;
+      // Release 2.1: the inset sits bottom-left (above the next-free chip).
+      // Its own slotKey makes it a new keyed node, so existing sites take the
+      // move as an opt-in layout item rather than an automatic prop change.
       return withProps(node, {
+        slotKey: "hero_inset_bl",
         layerLabel: "Hero inset",
-        style: { ...rest, right: "-26px", top: "38px", width: "34%", aspectRatioFree: "3 / 4", borderWidth: "6px" },
+        style: { ...rest, left: "-22px", bottom: "92px", width: "32%", aspectRatioFree: "3 / 4", borderWidth: "6px" },
       });
     }
     return kids.length ? withProps(node, {}, kids) : node;
@@ -602,6 +608,8 @@ export function buildMaisonV2Payload(): DesignPayload {
       maisonV2Work(id),
       maisonV2Menu(id),
       maisonV2Reviews(id),
+      // Release 2.1 (optional block): two-image comparison.
+      padSection(beforeAfterBlock(id)),
       maisonV2About(id),
       padSection(
         visitBlock(id, {

@@ -139,6 +139,7 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
   { key: "layout.header-pad-y", group: "spacing", label: L("Header height padding, desktop", "Relleno del encabezado, escritorio"), control: "length", fallback: "14px", advanced: true },
   { key: "layout.header-pad-y-phone", group: "spacing", label: L("Header height padding, phone", "Relleno del encabezado, móvil"), control: "length", fallback: "10px", advanced: true },
   { key: "layout.menu-rail-width", group: "spacing", label: L("Menu rail width", "Ancho del menú lateral"), control: "length", fallback: "240px", advanced: true },
+  { key: "layout.menu-row-gap", group: "spacing", label: L("Menu row spacing", "Espacio entre filas del menú"), control: "length", fallback: "13px", advanced: true },
 ];
 
 export const STYLE_TOKEN_KEYS: ReadonlySet<string> = new Set(STYLE_TOKEN_DEFS.map((d) => d.key));

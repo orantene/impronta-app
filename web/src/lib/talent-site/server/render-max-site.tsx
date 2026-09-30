@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { ReactNode } from "react";
+import { loadHistoryPreviewSnapshot } from "../history/history.server";
+import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
@@ -126,6 +128,10 @@ export interface RenderTalentMaxSiteInput {
   hrefMode?: "path" | "host-root";
   /** Owner draft preview (`?preview=draft`). Renders draft shell + draft pages. */
   previewDraft?: boolean;
+  /** With `previewDraft`: render one history entry's snapshot, read-only (`&history=<id>`). */
+  previewHistoryEntryId?: string | null;
+  /** Phase 4: owner preview of a theme update merged in memory (`?themeUpdate=<id>`). */
+  previewThemeUpdateId?: string | null;
   /**
    * SEO-2 — the absolute origin this page is served from, for the canonical URL.
    * `/t/site/[siteSlug]` routes pass the app origin (NEXT_PUBLIC_SITE_URL); the
@@ -235,8 +241,15 @@ export async function renderTalentMaxSite(
     });
     if (!gateOpen) return NOT_FOUND;
 
+    // Theme releases Phase 2 — the owner's read-only preview of a saved version.
+    const snap = isOwnerDraftPreview && input.previewHistoryEntryId
+      ? await loadHistoryPreviewSnapshot(talentProfileId, input.previewHistoryEntryId)
+      : isOwnerDraftPreview && input.previewThemeUpdateId
+        ? await loadThemeUpdatePreviewSnapshot(talentProfileId, input.previewThemeUpdateId)
+        : null;
+
     // ── Pick the shell + page set for this view ─────────────────────────────
-    const shellSource = isOwnerDraftPreview ? site.shellTree : site.shellPublished;
+    const shellSource = snap?.shell ?? (isOwnerDraftPreview ? site.shellTree : site.shellPublished);
     const shellTree = coerceTree(shellSource);
 
     const allPages = await loadMaxSitePages(talentProfileId);
@@ -257,7 +270,8 @@ export async function renderTalentMaxSite(
     if (!page) return NOT_FOUND;
 
     // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
-    const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
+    const snapBlocks = snap?.pages?.[page.id];
+    const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
     const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
@@ -289,7 +303,7 @@ export async function renderTalentMaxSite(
     const isDemo = await loadMaxSiteIsDemo(talentProfileId);
 
     // Site theme tokens + Design slug (token defaults).
-    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview });
+    const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
 
     const node = await renderMaxSiteDocument({

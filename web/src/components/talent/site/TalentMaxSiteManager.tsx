@@ -50,6 +50,7 @@ import {
   publishMaxSiteAction,
 } from "@/lib/talent-site/server/site-management-actions";
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
+import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 
 type Props = { locale?: "en" | "es" };
 
@@ -181,7 +182,9 @@ function ManagerBody({
   const maisonLive = Boolean(state.sitePublishedAt);
   const hostHidden = maisonLive || !setupOpen;
 
+  const applyBusy = useThemeApplyBusy();
   function handlePublish() {
+    if (isThemeApplyBusy()) return;
     startTransition(async () => {
       setActionError(null);
       const res = await publishMaxSiteAction();
@@ -258,7 +261,7 @@ function ManagerBody({
           />
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <PrimaryButton onClick={handlePublish} disabled={pending}>
+              <PrimaryButton onClick={handlePublish} disabled={pending || applyBusy}>
                 {pending ? copy.t("Publishing…") : copy.t("Publish site")}
               </PrimaryButton>
               <button type="button" onClick={() => setSetupOpen(false)} style={linkButton}>

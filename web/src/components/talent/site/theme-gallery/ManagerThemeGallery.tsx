@@ -25,6 +25,7 @@ import {
 import { ThemeGallery } from "./ThemeGallery";
 import { themeGalleryCopy, type ThemeGalleryCopyKey, type ThemeGalleryLocale } from "./theme-gallery-i18n";
 import type { ThemeGalleryApplyInput, ThemeGalleryApplyResult } from "./types";
+import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
 
 /** Localized copy for an action error code (the action's `error` string is an
  * English developer fallback and is never shown). */
@@ -88,12 +89,12 @@ export function ManagerThemeGallery({
       return { ok: false, cancelled: true };
     }
     if (designToApply) {
-      const res = await applySiteDesignAction({ designSlug: designToApply });
+      const res = await runThemeApply(() => applySiteDesignAction({ designSlug: designToApply }));
       if (!res.ok) return fail(res.code);
       setBootstrap({ ...current, currentDesignSlug: designToApply });
     }
     if (lookSlug) {
-      const res = await applySiteLookAction({ lookSlug });
+      const res = await runThemeApply(() => applySiteLookAction({ lookSlug }));
       if (!res.ok) return fail(res.code);
       setBootstrap((prev) => (prev?.enabled ? { ...prev, currentLookSlug: lookSlug } : prev));
     }

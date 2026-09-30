@@ -62,6 +62,7 @@ import {
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import { RevisionsDiffPanel } from "./revisions-diff-panel";
 import { RevisionCard } from "./revisions-card";
+import { TalentHistoryList, isTimelineRows } from "./talent-history-list";
 
 // Named-version labels live on `cms_page_revisions.label`. The localStorage
 // map is a one-session import + fallback for talent-site-shell revisions
@@ -399,6 +400,9 @@ export function RevisionsDrawer(): ReactElement | null {
     setDiffAnchor(null);
   }, [diffAnchor]);
 
+  // Theme releases Phase 2 — talent surfaces list the SITE history timeline.
+  const timeline = isTimelineRows(revisions);
+
   // pageId used for the diff query — falls back to "" (homepage diff is
   // scoped via both revisions carrying the same page_id in the DB).
   const effectivePageId = pageId ?? "";
@@ -455,7 +459,7 @@ export function RevisionsDrawer(): ReactElement | null {
               <strong style={{ color: CHROME.text }}>Restore</strong> replaces
               your draft with a saved snapshot, review the canvas, then
               publish when ready.{" "}
-              {revisions && revisions.length >= 2 && (
+              {revisions && revisions.length >= 2 && !timeline && (
                 <>
                   Use the <DiffIcon /> button to select two revisions and see a
                   structural diff. Use the <TagIcon /> button to name a
@@ -465,7 +469,7 @@ export function RevisionsDrawer(): ReactElement | null {
             </div>
 
             {/* ── #19 Named-version search filter ── */}
-            {revisions && revisions.length > 3 ? (
+            {revisions && revisions.length > 3 && !timeline ? (
               <div className="mb-3">
                 <input
                   type="search"
@@ -528,7 +532,16 @@ export function RevisionsDrawer(): ReactElement | null {
               <EmptyState />
             ) : null}
 
-            {revisions && revisions.length > 0 ? (() => {
+            {revisions && timeline ? (
+              <TalentHistoryList
+                rows={revisions}
+                pendingId={pendingId}
+                onRestore={handleRestore}
+                onDone={closeRevisions}
+              />
+            ) : null}
+
+            {revisions && revisions.length > 0 && !timeline ? (() => {
               // #19 — apply the name filter if set. Match against: assigned
               // label, kind chip label, page title at revision, version number.
               const q = nameFilter.trim().toLowerCase();

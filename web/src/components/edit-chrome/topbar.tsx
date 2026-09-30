@@ -78,6 +78,7 @@ import {
   SaveChip,
 } from "./kit";
 import { usePagePresence } from "./presence-provider";
+import { TalentDraftChip, useTalentPublishGate } from "./talent-draft-chip";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { useEditContext } from "./edit-context";
@@ -2957,6 +2958,7 @@ export function TopBar({
   labHeaderActions,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
+  const gatedPublish = useTalentPublishGate(onPublish); // no Publish while a design applies
   const { t } = useEditorLocale();
   // Workspace slug for the dashboard quick-links menu. Null on Builder Lab and
   // platform surfaces, where `/{slug}/admin/*` would not resolve.
@@ -3253,16 +3255,13 @@ export function TopBar({
         onSaveDraft={onSaveDraft}
       />
       <TopBarPresence />
-
+      <TalentDraftChip />
       {/* ── Publish split (primary CTA) ── */}
-      {/* Perf spine — no `disabled={saving}` here: the button and its menu
-          only OPEN surfaces (publish drawer, schedule, revisions, settings) or
-          fire actions that ride the coalesced save queue (save-draft opens the
-          named-checkpoint modal, which has its own pending state; pull-from-live
-          rides the optimistic tree lane). Greying the primary CTA during
-          routine autosaves was pure friction. */}
+      {/* Perf spine — no `disabled={saving}` here: the button and its menu only
+          OPEN surfaces or ride the coalesced save queue (named checkpoint has its
+          own pending state). Greying the CTA during autosaves was pure friction. */}
       <PublishSplitButton
-        onPublish={onPublish}
+        onPublish={gatedPublish}
         onMenuSelect={handleMenuSelect}
       />
       </div>
