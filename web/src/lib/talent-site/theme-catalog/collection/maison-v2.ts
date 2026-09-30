@@ -318,6 +318,12 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
       kidsOf(section).map((n) =>
         n.kind === "services_catalog"
           ? withProps(n, {
+              // Release 2.3 (opt-in layout): two-column cards. The own slotKey
+              // makes it a new keyed node, so existing sites take the move as
+              // a layout item rather than an automatic prop change.
+              slotKey: "services_two_col",
+              layout: "cards",
+              columns: 2,
               showModeChip: true,
               categoryShowAll: true,
               categoryShowCounts: true,
@@ -406,7 +412,9 @@ function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
         letterSpacing: "0.18em",
         size: "sm",
         lineHeight: "1.2",
-        textColor: styleTokenRef("color.accent"),
+        // Release 2.3 (critical, accessibility): the small uppercase eyebrow
+        // on the contact band read too faint in the accent colour.
+        textColor: styleTokenRef("color.ink"),
       },
     },
   } as BuilderNode;

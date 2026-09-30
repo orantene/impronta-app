@@ -49,8 +49,25 @@ export function revertR16(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1, 16 = release 2.2), rebuilt from code. */
+/** v17 back to v16: the round 3 opt-in services layout and the contact eyebrow contrast fix. */
+export function revertR17(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  const catalog = findByKind(out.homeTree, "services_catalog")!;
+  delete propsOf(catalog).slotKey;
+  propsOf(catalog).layout = "rows";
+  const contact = findBySlot(out.homeTree, "contact")!;
+  const para = ((contact as { children?: BuilderNode[] }).children ?? []).find((c) => c.kind === "paragraph")!;
+  (propsOf(para).style as Props).textColor = "token:color.accent";
+  const ba = findBySlot(out.homeTree, "before_after")!;
+  const baEyebrow = ((ba as { children?: BuilderNode[] }).children ?? []).find((c) => c.kind === "paragraph")!;
+  (propsOf(baEyebrow).style as Props).textColor = "token:color.accent";
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 17 = release 2.3), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
-  const out = currentMaisonV2();
-  return version >= 16 ? out : revertR16(out);
+  let out = currentMaisonV2();
+  if (version < 17) out = revertR17(out);
+  if (version < 16) out = revertR16(out);
+  return out;
 }

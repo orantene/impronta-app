@@ -18,6 +18,7 @@ import type { ReleaseItem, ReleaseNotes } from "../types";
 import {
   MAISON_V2_RELEASE_2_1,
   MAISON_V2_RELEASE_2_2,
+  MAISON_V2_RELEASE_2_3,
   type ReleaseNote,
 } from "./maison-v2";
 
@@ -37,7 +38,11 @@ export interface ReleaseNoteModule {
   criticalKeys?: Readonly<Record<string, ReadonlyArray<string>>>;
 }
 
-const MODULES: ReadonlyArray<ReleaseNoteModule> = [MAISON_V2_RELEASE_2_1, MAISON_V2_RELEASE_2_2];
+const MODULES: ReadonlyArray<ReleaseNoteModule> = [
+  MAISON_V2_RELEASE_2_1,
+  MAISON_V2_RELEASE_2_2,
+  MAISON_V2_RELEASE_2_3,
+];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
   return MODULES.find((m) => m.design === design && m.toVersion === toVersion) ?? null;

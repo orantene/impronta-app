@@ -74,7 +74,7 @@ export function beforeAfterBlock(
         props: {
           text: opts.eyebrow ?? "The difference",
           i18n: { es: { text: "La diferencia" } },
-          style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", textColor: "token:color.accent" },
+          style: { textTransform: "uppercase", letterSpacing: "0.18em", size: "sm", textColor: "token:color.ink" },
         },
       },
       {

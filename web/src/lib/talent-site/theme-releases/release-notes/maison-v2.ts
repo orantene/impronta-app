@@ -85,3 +85,51 @@ export const MAISON_V2_RELEASE_2_2 = {
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 2.3 (v16 to v17, update round 3): one opt-in layout change and one
+ * critical accessibility fix. The services catalog moves to two-column cards
+ * under its own key (old key removed + keyed replacement = ONE opt-in change).
+ * The critical item names the contact band AND its eyebrow explicitly, so a
+ * site that removed the whole band still gets it back with the fix.
+ */
+export const MAISON_V2_RELEASE_2_3 = {
+  design: "maison-v2",
+  toVersion: 17,
+  /** The removal + keyed replacement of the services catalog is ONE opt-in change. */
+  layoutKeys: ["layout:home:services/services_catalog:removed", "layout:home:services/services_two_col"],
+  layoutGroupId: "layout:maison-v2:services-two-col",
+  notes: {
+    en: "Maison v2 2.3: an optional two-column layout for your services and an important readability fix on the contact section.",
+    es: "Maison v2 2.3: un diseño opcional de dos columnas para tus servicios y una corrección importante de legibilidad en la sección de contacto.",
+  } satisfies ReleaseNote,
+  codeNotes: [] satisfies ReleaseNote[],
+  byItemId: {
+    "layout:home:services/services_catalog:removed": {
+      en: "Services move to two columns of cards. Preview it before you choose.",
+      es: "Los servicios pasan a dos columnas de tarjetas. Míralo antes de elegir.",
+    },
+    "layout:home:services/services_two_col": {
+      en: "Services move to two columns of cards. Preview it before you choose.",
+      es: "Los servicios pasan a dos columnas de tarjetas. Míralo antes de elegir.",
+    },
+    "variant-default:home:contact/paragraph": {
+      en: "Important fix: the small heading above your questions is now dark enough to read easily. It applies to every site, even if you removed or changed that section.",
+      es: "Corrección importante: el título pequeño sobre tus preguntas ahora es lo bastante oscuro para leerse bien. Se aplica a todos los sitios, aunque hayas quitado o cambiado esa sección.",
+    },
+    "variant-default:home:before_after/paragraph": {
+      en: "Important fix: the small heading above Before and after is now dark enough to read easily. It only touches that heading, and only on sites that have the block.",
+      es: "Corrección importante: el título pequeño sobre Antes y después ahora es lo bastante oscuro para leerse bien. Solo toca ese título, y solo en sitios que tienen el bloque.",
+    },
+  } satisfies Record<string, ReleaseNote>,
+  /**
+   * Flagged critical by the admin: forced and announced. The contact band also
+   * names itself so a site that removed it gets it back; the optional Before
+   * and after block names only its eyebrow (a removed block stays removed).
+   */
+  criticalIds: ["variant-default:home:contact/paragraph", "variant-default:home:before_after/paragraph"],
+  criticalKeys: {
+    "variant-default:home:contact/paragraph": ["contact", "contact/paragraph"],
+    "variant-default:home:before_after/paragraph": ["before_after/paragraph"],
+  },
+} as const;

@@ -86,6 +86,9 @@ function styleMenu(menu: BuilderNode, style: MaisonV2DemoStyle): BuilderNode {
   return mapTree(menu, (n) =>
     n.kind === "services_catalog"
       ? withProps(n, {
+          // Demos keep the approved rows menu; the design's own two-column
+          // cards layout (release 2.3) is an opt-in for talents, not a demo look.
+          layout: "rows",
           showPhoto: style.menu.thumbnails,
           stylePreset: style.menu.thumbnails ? "image_led" : "clean",
           categoryNav: style.menu.categoryNav,
