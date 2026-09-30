@@ -65,6 +65,12 @@ export function maxSiteSeoToMetadata(
     },
   };
 
+  // PR 5 — the talent's OWN language set wins: self-canonical per language +
+  // reciprocal hreflang, on whichever host serves the page.
+  if (seo.alternates) {
+    return { ...base, alternates: { canonical: seo.alternates.canonical, languages: seo.alternates.languages } };
+  }
+
   // /t/site/... routes → shared canonical + EN/ES hreflang.
   if (opts.localePathWithoutLocale && opts.locale) {
     const alternates = buildMarketingLocaleAlternates(

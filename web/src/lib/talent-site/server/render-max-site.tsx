@@ -166,6 +166,8 @@ export interface MaxSiteSeo {
   canonical?: string;
   /** Structured-data (JSON-LD) document emitted in a `<script type="application/ld+json">`. */
   jsonLd?: unknown;
+  /** PR 5 — canonical + hreflang (two or more talent languages only). */
+  alternates?: { canonical: string; languages: Record<string, string> };
 }
 
 export type RenderTalentMaxSiteResult =
@@ -322,6 +324,7 @@ export async function renderTalentMaxSite(
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
       canonicalPath: input.canonicalPath,
+      locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
     return { kind: "render", node, seo };

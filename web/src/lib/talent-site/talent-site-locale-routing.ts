@@ -15,6 +15,7 @@
  * A language outside the talent's set never renders on their site.
  */
 
+import { buildLocaleAlternates } from "@/i18n/alternates";
 import { localeUrlSettings, withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 
 export interface TalentSiteLocaleInput {
@@ -114,4 +115,35 @@ export function talentSiteSwitcherHrefs(
   const out: Record<string, string> = {};
   for (const code of supported) out[code] = withLocalePath(pagePath || "/", code, grammar);
   return out;
+}
+
+/**
+ * Sitemap entries for one talent page (PR 5): one `<url>` per language the
+ * talent publishes, each self-canonical with the reciprocal hreflang set.
+ * A single-language talent gets exactly one entry and no alternates.
+ */
+export function talentProfileSitemapEntries(input: {
+  origin: string;
+  path: string;
+  /** The locale served unprefixed in this URL grammar. */
+  urlDefault: string;
+  /** The talent's languages, primary first. */
+  locales: readonly string[];
+  lastModified: Date;
+}): Array<{ url: string; lastModified: Date; alternates?: { languages: Record<string, string> } }> {
+  const locales = input.locales.length > 0 ? input.locales : [input.urlDefault];
+  return locales.map((locale) => {
+    const alt = buildLocaleAlternates({
+      origin: input.origin,
+      pathnameWithoutLocale: input.path,
+      currentLocale: locale,
+      defaultLocale: input.urlDefault,
+      supportedLocales: locales,
+    });
+    return {
+      url: alt.canonical,
+      lastModified: input.lastModified,
+      ...(alt.languages ? { alternates: { languages: alt.languages } } : {}),
+    };
+  });
 }

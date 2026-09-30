@@ -1,5 +1,6 @@
 import "server-only";
 
+import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import {
@@ -31,6 +32,13 @@ export function buildMaxSiteSeo(args: {
   noindex: boolean;
   canonicalOrigin?: string;
   canonicalPath?: string;
+  /**
+   * PR 5 — the talent's languages. With two or more, every language version
+   * is self-canonical (primary unprefixed, each secondary prefixed) with
+   * reciprocal hreflang + x-default on the unprefixed URL. One language: no
+   * hreflang at all (`buildLocaleAlternates` rule 2).
+   */
+  locales?: { primary: string; urlDefault: string; supported: readonly string[] };
 }): MaxSiteSeo {
   const { site, page, identity, locale, noindex } = args;
 
@@ -48,8 +56,20 @@ export function buildMaxSiteSeo(args: {
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
     .replace(/\/$/, "");
   const path = args.canonicalPath?.trim() || "/";
-  const builtCanonical = `${origin}${path.startsWith("/") ? path : `/${path}`}`;
-  const canonical = page.canonicalUrl?.trim() || builtCanonical;
+  const alt = args.locales
+    ? buildLocaleAlternates({
+        origin,
+        pathnameWithoutLocale: path.startsWith("/") ? path : `/${path}`,
+        currentLocale: locale,
+        defaultLocale: args.locales.urlDefault,
+        supportedLocales: args.locales.supported,
+      })
+    : null;
+  const builtCanonical = alt?.canonical ?? `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+  // An operator's explicit canonical_url describes the primary-language page;
+  // a translated version stays self-canonical so its hreflang is honoured.
+  const isPrimary = !args.locales || locale === args.locales.primary;
+  const canonical = (isPrimary ? page.canonicalUrl?.trim() : "") || builtCanonical;
 
   // JSON-LD — operator override wins; else the SHARED profile builder, keyed to
   // the SITE canonical. `name` falls back through identity → title.
@@ -87,6 +107,7 @@ export function buildMaxSiteSeo(args: {
       : {}),
     ...(page.ogImageUrl?.trim() ? { ogImageUrl: page.ogImageUrl.trim() } : {}),
     ...(canonical ? { canonical } : {}),
+    ...(alt?.languages ? { alternates: { canonical, languages: alt.languages } } : {}),
     ...(jsonLd ? { jsonLd } : {}),
   };
 }
