@@ -11,19 +11,16 @@ import {
 import type { WebsiteSlice, WebsiteSliceKey } from "@/lib/talent/website-eligibility";
 import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
 import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
+import { WebsiteSetupToday, WebsiteTodayHero } from "@/components/talent/website-reward/WebsiteTodayHero";
 import type { TalentSelfProfile } from "../../data-bridge";
 import { PageHeader } from "../shared/page-chrome-1";
 import { PrimaryButton, SecondaryButton } from "../../primitives";
 import { MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
-import { AgendaFirstDay } from "./AgendaFirstDay";
 import { AgendaPayRequest } from "./AgendaPayRequest";
 import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from "./present";
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
-import {
-  firstDayCompletedStepIds,
-  hasBookingHoursWindows,
-} from "@/lib/talent-agenda/first-day";
+import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
 import {
   bookedLabel,
   durationMinutes,
@@ -38,7 +35,6 @@ import {
   type AttentionTone,
 } from "@/lib/talent-agenda/today-view";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
-import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
@@ -130,8 +126,6 @@ export function AgendaTodayPage({
   onNewBooking,
   onSendQuote,
   onOpenRecord,
-  onOpenAvailability,
-  onOpenServices,
   onOpenSite,
   onOpenProfile,
   onOpenMoney,
@@ -139,7 +133,6 @@ export function AgendaTodayPage({
   now,
   loadError,
   hours,
-  completionMissingKeys,
   eligibility,
   bookableCount = null,
   sitePublished = false,
@@ -239,10 +232,10 @@ export function AgendaTodayPage({
 
   const open = (id: string) => (onOpenRecord ? () => onOpenRecord(id) : undefined);
 
-  // W75 / AUD-023 — Continue your website when Maison setup is mid-flow.
-  // Must mount on Agenda V2 Today (incl. first run); classic Today alone is not enough.
-  const resumeCard =
-    profile && onOpenSite ? <MaisonWebsiteResumeCard onContinue={onOpenSite} /> : null;
+  // F23 / F34: ONE website card on Today, driven by the same state as the
+  // pill and My presence (useWebsiteFlow). It replaced the Maison resume card,
+  // which read setup_choices and named a palette the talent never picked.
+  const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
 
   if (loadError) {
     return (
@@ -265,15 +258,8 @@ export function AgendaTodayPage({
   }
 
   if (mode === "first_run") {
-    const completedStepIds = firstDayCompletedStepIds({
-      missingKeys: completionMissingKeys,
-      portfolioCount: profile?.portfolioCount,
-      primaryTypeLabel: profile?.primaryTypeLabel,
-      homeCity: profile?.homeCity,
-      profileCode: profile?.profileCode,
-      workflowStatus: profile?.workflowStatus,
-      hours,
-    });
+    // tc_new / tc_new_saved / tc_new_ready: one number (the website checklist)
+    // and one next step, same state as the pill (F34).
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4">
         <PageHeader
@@ -285,17 +271,7 @@ export function AgendaTodayPage({
             </SecondaryButton>
           }
         />
-        {resumeCard}
-        <AgendaFirstDay
-          completedStepIds={completedStepIds}
-          hasAvailability={hasBookingHoursWindows(hours)}
-          liveSiteUrl={siteUrl}
-          onOpenAvailability={onOpenAvailability ?? onOpenCalendar}
-          onOpenServices={onOpenServices ?? (() => undefined)}
-          onOpenSite={onOpenSite ?? (() => undefined)}
-          onOpenProfile={onOpenProfile}
-          onEditSite={onOpenSite}
-        />
+        <WebsiteSetupToday canBook={hasBookingHoursWindows(hours)} />
       </div>
     );
   }
@@ -467,14 +443,8 @@ export function AgendaTodayPage({
       </section>
     );
   } else if (qualityMode === "ready") {
-    qualityCard = (
-      <section className={`${CARD} p-4`}>
-        <div className="text-[15px] font-semibold text-[var(--tc-primary)]">{copy.t("Your free website is ready")}</div>
-        <div className="mt-3">
-          <ActionButton label={copy.t("Create my website")} onClick={onOpenSite} />
-        </div>
-      </section>
-    );
+    // Rendered by WebsiteTodayHero at the top (same state as the pill).
+    qualityCard = null;
   } else if (qualityMode === "checklist" && percent != null) {
     qualityCard = (
       <section className={`${CARD} p-4`} data-testid="today-profile-quality">
