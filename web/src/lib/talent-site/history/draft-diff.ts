@@ -336,6 +336,10 @@ export function summarizeGoLive(
   labels: { header: string; colours: string },
   locale: DiffLocale,
   published: boolean,
+  /** False when the site publish cannot carry theme tokens live (theme gallery
+   *  off): a draft-token difference is then not a change Publish could clear,
+   *  so it must not show as "1 unpublished change" right after a publish. */
+  tokensPublishable = true,
 ): {
   unpublishedCount: number;
   changes: SectionChange[];
@@ -347,6 +351,9 @@ export function summarizeGoLive(
       input.pages.reduce((n, p) => n + sectionsOf(p.draft).length, 0);
     return { unpublishedCount: 0, changes: [], firstPublish: { pages: input.pages.length, sections } };
   }
-  const changes = diffDraftAgainstLive(input, labels, locale);
+  const effective = tokensPublishable
+    ? input
+    : { ...input, tokens: { draft: input.tokens.live, live: input.tokens.live } };
+  const changes = diffDraftAgainstLive(effective, labels, locale);
   return { unpublishedCount: changes.length, changes, firstPublish: null };
 }

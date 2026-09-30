@@ -28,7 +28,12 @@ import type { BuilderContextConfig } from "@/lib/site-admin/builder-core/config"
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 
+import { useSearchParams } from "next/navigation";
+
 import { EditShell } from "@/components/edit-chrome/edit-shell";
+import { IframeChild } from "@/components/edit-chrome/iframe-child";
+import { InEditorCanvasRegion } from "@/components/edit-chrome/in-editor-canvas-region";
+import { isDeviceFrameRequest, deviceFromFrameParam } from "./device-frame-request";
 
 export interface BuilderEditorMountProps {
   /**
@@ -113,6 +118,29 @@ export function BuilderEditorMount({
   labHeaderActions,
   children,
 }: BuilderEditorMountProps) {
+  // F133: the editor's Tablet/Phone frame loads THIS route again with
+  // `?iframe=1`. Render only the site canvas there, never the editor chrome.
+  const searchParams = useSearchParams();
+  if (isDeviceFrameRequest(searchParams)) {
+    return (
+      <IframeChild
+        tenantId={tenantId}
+        workspacePlan={workspacePlan}
+        locale={locale}
+        pageSlug={pageSlug}
+        availableLocales={availableLocales}
+        defaultLocale={defaultLocale}
+        initialComposition={initialComposition}
+        tenantSiteLabel={tenantSiteLabel}
+        workspaceMembershipSlug={workspaceMembershipSlug}
+        canInsertRawHtmlElements={canInsertRawHtmlElements}
+        surfaceConfig={surfaceConfig}
+        initialDevice={deviceFromFrameParam(searchParams)}
+      >
+        <InEditorCanvasRegion canvasRenderData={canvasRenderData} />
+      </IframeChild>
+    );
+  }
   return (
     <EditShell
       tenantId={tenantId}
