@@ -221,11 +221,12 @@ test("footer-editorial is a freeform site-shell footer: editable columns, EN/ES 
     all.some((n) => n.kind === "social_links"),
     "editable social row",
   );
-  // "Powered by Tulala" attribution is read-only on tenant surfaces.
-  const tulala = all.find(
-    (n) => n.kind === "rich_text" && (n.lockedProps ?? []).includes("text"),
+  // The Tulala credit is the global socket's job: the preset carries none.
+  assert.equal(
+    all.some((n) => n.kind === "rich_text" && (n.lockedProps ?? []).includes("text")),
+    false,
+    "no design-level Tulala credit",
   );
-  assert.ok(tulala, "locked Tulala attribution");
   // EN/ES seeded on the wordmark/tagline/eyebrows.
   assert.ok(
     all.filter((n) => n.i18n?.es).length >= 4,

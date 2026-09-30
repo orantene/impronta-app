@@ -45,7 +45,7 @@ import type {
 } from "@/lib/talent/profile-embeds/types";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { LightProfileFooter } from "../_shared/LightProfileFooter";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import type { TalentServiceAreaRow } from "../profile-view";
@@ -362,6 +362,7 @@ export function LightProfileLayout({
   profileSourcePage,
   resolvedPreview,
   showFooter,
+  whitelabel,
   inquireButtonHeader,
   inquireButtonSidebar,
   inquireButtonFooter,
@@ -753,19 +754,7 @@ export function LightProfileLayout({
       ) : null}
 
       {/* ── 7. Footer (agency host only) ─────────────────────────────────── */}
-      {showFooter ? (
-        <footer
-          className="border-t px-4 py-8 sm:px-6 lg:px-8"
-          style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg-deep)" }}
-        >
-          <div
-            className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center text-sm"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            <PublicCmsFooterNav locale={locale} />
-          </div>
-        </footer>
-      ) : null}
+      {showFooter ? <LightProfileFooter locale={locale} whitelabel={whitelabel} /> : null}
 
       {/* Spacer so the fixed mobile bar never covers the footer content. */}
       <div className="h-20 lg:hidden" aria-hidden="true" />

@@ -68,7 +68,9 @@ export function TalentSiteSocket({
     >
       <style dangerouslySetInnerHTML={{ __html: STRIP_CSS }} />
       <div className="tulala-socket__inner">
-        <LinkGroup label={model.siteGroupLabel} links={model.siteLinks} />
+        {model.siteLinks.length > 0 ? (
+          <LinkGroup label={model.siteGroupLabel} links={model.siteLinks} />
+        ) : null}
         <LinkGroup label={model.tulalaGroupLabel} links={model.tulalaLinks} />
         {model.languages.length >= 2 ? (
           <nav aria-label={model.langGroupLabel} data-socket-languages="">
