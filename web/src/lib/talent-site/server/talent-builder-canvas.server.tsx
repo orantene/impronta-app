@@ -38,7 +38,8 @@ import {
   loadTalentSiteCtaMode,
 } from "./load-max-site";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
-import { loadPreviewDataSources, resolveMyContentPreviewLocale } from "./preview-my-content.server";
+import { loadPreviewDataSources } from "./preview-my-content.server";
+import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 
 /**
@@ -71,20 +72,24 @@ export async function buildTalentBuilderCanvasData(input: {
   const { talentProfileId } = input;
   const galleryOn = isTalentThemeGalleryEnabled();
 
-  const [site, pages, designSlug, siteTokens, platformDefault, siteLocale, planKey, isDemo] =
+  const [site, pages, designSlug, siteTokens, platformDefault, localeCtx, planKey, isDemo] =
     await Promise.all([
       loadMaxSiteByProfileId(talentProfileId),
       loadMaxSitePages(talentProfileId),
       loadMaxSiteDesignSlug(talentProfileId),
       loadMaxSiteThemeTokens(talentProfileId, { draft: true }),
       loadPlatformDefaultTheme("talent"),
-      resolveMyContentPreviewLocale(talentProfileId, null),
+      // The talent's languages; the canvas previews the primary, and a
+      // translated node reads through its `node.i18n` overlay (dimmed when it
+      // falls back, editor only).
+      loadTalentSiteLocaleContext({ talentProfileId, requestedLocale: null, hrefMode: "host-root", editorPreview: true }),
       loadTalentPlanKey(talentProfileId),
       loadMaxSiteIsDemo(talentProfileId),
     ]);
+  const siteLocale = localeCtx.locale;
   const [ctaMode, swaps] = await Promise.all([
     loadTalentSiteCtaMode(talentProfileId, planKey),
-    loadTalentLocaleSwaps(talentProfileId, siteLocale),
+    loadTalentLocaleSwaps(talentProfileId, siteLocale, localeCtx.chain),
   ]);
 
   // Page layer: with the site theme on, the Theme drawer edits the SITE
@@ -119,6 +124,7 @@ export async function buildTalentBuilderCanvasData(input: {
     shellTree: coerceTree(site?.shellTree),
     body: [],
     ctaMode,
+    chain: localeCtx.chain,
   });
   const nav = buildMaxSiteNav(pages.map((p) => ({ ...p, status: "published" })));
   const shell = site?.siteSlug
@@ -131,7 +137,7 @@ export async function buildTalentBuilderCanvasData(input: {
   const renderShell = (roots: BuilderNode[]): ReactNode =>
     roots.length === 0 ? null : (
       <>
-        {roots.map((root) => renderShellRoot(root, siteLocale, isDemo))}
+        {roots.map((root) => renderShellRoot(root, localeCtx, isDemo))}
       </>
     );
 
@@ -169,13 +175,15 @@ export async function buildTalentBuilderCanvasData(input: {
 }
 
 /** One shell root, as `renderMaxSiteDocument` renders it (read-only). */
-function renderShellRoot(root: BuilderNode, locale: string, isDemo: boolean): ReactNode {
+function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
+  const locale = localeCtx.locale;
   const opts = {
     publicPathPrefix: "",
     mode: "freeform" as const,
     includeRendererStyles: false,
     includeFontLinks: false,
     visitorLocale: locale,
+    contentLocale: localeCtx.contentLocale,
   };
   if (
     root.kind === "section" &&
@@ -185,7 +193,7 @@ function renderShellRoot(root: BuilderNode, locale: string, isDemo: boolean): Re
     const schema = entry?.schemasByVersion[entry.currentVersion];
     const localised = localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale);
     const parsed = schema?.safeParse(
-      withHeaderSiteChrome(localised, root.props.sectionTypeKey, isDemo),
+      withHeaderSiteChrome(localised, root.props.sectionTypeKey, isDemo, localeCtx.settings.supportedLocales, localeCtx.switcherHrefs),
     );
     if (!entry || !parsed?.success) return null;
     const Comp = entry.Component;

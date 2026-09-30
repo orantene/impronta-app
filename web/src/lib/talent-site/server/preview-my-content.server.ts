@@ -6,8 +6,8 @@ import {
 } from "@/components/home/homepage-cms-data-sources";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node/render";
-import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
-import { loadTalentPreferredLocale } from "@/lib/site-admin/server/talent-locale";
+import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
+import { boundTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { pruneEmptyMyContentBlocks } from "@/lib/talent-site/my-content-prune";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
@@ -20,21 +20,17 @@ import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates";
 
 /**
- * Theme gallery "My content" preview: the talent's site locale. The talent's
- * own preference when the platform publishes it, else the explicit `?locale=`,
- * else the platform default (what the vanity host serves a first visitor).
+ * Theme gallery "My content" preview: the talent's site locale. An explicit
+ * `?locale=` inside the talent's own languages wins (so a bilingual talent can
+ * preview either); anything else reads as their primary, which is what the
+ * vanity host serves a first visitor.
  */
 export async function resolveMyContentPreviewLocale(
   talentProfileId: string,
   requested: string | null | undefined,
 ): Promise<string> {
-  const [preferred, settings] = await Promise.all([
-    loadTalentPreferredLocale(talentProfileId),
-    getLanguageSettingsPublicCached(),
-  ]);
-  if (preferred && settings.publicLocales.includes(preferred)) return preferred;
-  if (requested === "es" || requested === "en") return requested;
-  return settings.defaultLocale ?? "en";
+  const settings = await loadTalentLocaleSettings(talentProfileId);
+  return boundTalentSiteLocale(requested, settings.defaultLocale, settings.supportedLocales);
 }
 
 /**

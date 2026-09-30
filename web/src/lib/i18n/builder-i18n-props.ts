@@ -120,6 +120,10 @@ export const LOCALIZABLE_PROPS_BY_KIND: Partial<
   sticky_scroll: ["eyebrow", "headline"],
   reveal: [],
   stats: ["eyebrow", "headline"],
+  // Talent site services block: its renderer already resolves these four via
+  // `resolveNodeLocalizedText`, so the overlay must be registered or a stored
+  // translation never appears (2026-09-29).
+  services_catalog: ["title", "eyebrow", "subtitle", "emptyMessage"],
   before_after: [
     "eyebrow",
     "headline",

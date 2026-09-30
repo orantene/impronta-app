@@ -25,6 +25,7 @@ type Row = {
 export async function loadTalentLocaleSwaps(
   talentProfileId: string,
   locale: string | null | undefined,
+  chain: readonly string[] = [],
 ): Promise<Record<string, string>> {
   const admin = createServiceRoleClient();
   if (!admin) return {};
@@ -51,6 +52,7 @@ export async function loadTalentLocaleSwaps(
     return buildTalentLocaleSwaps(
       { bioI18n: row.bio_i18n, typeNames: types, homeCity: home?.locations?.display_name_i18n ?? null },
       locale,
+      chain,
     );
   } catch (err) {
     logServerError("talentSite.localeSwaps", err);

@@ -36,7 +36,9 @@ test("platform sitemap branch reads publicly listed talent PROFILES", () => {
 
   assert.match(SITEMAP_SRC, /\.limit\(5000\)/);
   assert.match(SITEMAP_SRC, /https:\/\/\$\{TULALA_APEX_HOST\}/);
-  assert.match(SITEMAP_SRC, /withLocalePath\(`\/t\/\$\{code\}`, "es"\)/);
+  // Per-talent languages (PR 5), not a hard-coded EN + ES pair.
+  assert.match(SITEMAP_SRC, /preferred_locale, secondary_locales/);
+  assert.match(SITEMAP_SRC, /talentProfileSitemapEntries\(/);
 });
 
 test("the sitemap does NOT gate profile URLs on the microsite table", () => {

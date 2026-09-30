@@ -56,7 +56,19 @@ export function MaxSiteDemoFooter({ locale }: { locale: string }) {
  * The header carries the site chrome: the Demo pill (demo talents, the only
  * demo marker) and the talent site's ES / EN switch. Site header only.
  */
-export function withHeaderSiteChrome(sectionProps: unknown, sectionTypeKey: unknown, isDemo: boolean): unknown {
+export function withHeaderSiteChrome(
+  sectionProps: unknown,
+  sectionTypeKey: unknown,
+  isDemo: boolean,
+  /** The TALENT's languages, primary first. One language: no switch. */
+  locales: readonly string[] = [],
+  /** Each code -> this page in that language (talent URL grammar). */
+  hrefs?: Readonly<Record<string, string>>,
+): unknown {
   if (sectionTypeKey !== "site_header" || !sectionProps || typeof sectionProps !== "object") return sectionProps;
-  return { ...(sectionProps as Record<string, unknown>), siteChrome: { demo: isDemo, locales: ["es", "en"] } };
+  const list = locales.length > 1 ? locales.slice(0, 4) : [];
+  return {
+    ...(sectionProps as Record<string, unknown>),
+    siteChrome: { demo: isDemo, locales: list, ...(list.length > 1 && hrefs ? { hrefs } : {}) },
+  };
 }

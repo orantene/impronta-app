@@ -529,6 +529,12 @@ type Ctx = {
   /** Talent surface only: the talent's own language pair; `null` elsewhere. */
   talentLocales: { primary: string; secondary: readonly string[] } | null;
   /**
+   * Talent surface only: the signed-in talent's own language pair
+   * (`talent_profiles.preferred_locale` + `secondary_locales`), bridged from
+   * the platform talent layout. `null` on every non-talent surface.
+   */
+  talentLocales: { primary: string; secondary: readonly string[] } | null;
+  /**
    * Platform-wide switch for the floating "+" quick-action button
    * (BottomActionFab). Set by HQ on /platform/admin/settings; false (the
    * default, incl. standalone/mock mode) hides the FAB everywhere.
