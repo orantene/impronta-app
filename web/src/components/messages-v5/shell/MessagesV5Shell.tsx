@@ -115,7 +115,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const variant = variantForLayout(layout);
   const placement = contextPlacement(layout);
 
-  const [segment, setSegment] = useState<InboxSegment>("needs");
+  const [segment, setSegment] = useState<InboxSegment>(props.seller ? "all" : "needs"); // F54: her inbox loads every conversation; her filters narrow on the client
   const [chips, setChips] = useState<InboxFilterKey[]>([]);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<InboxRow[]>([]);

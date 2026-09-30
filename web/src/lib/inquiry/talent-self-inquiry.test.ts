@@ -72,3 +72,10 @@ test("F54: the workspace auto-ack never fires on a conversation the talent start
   const submit = readFileSync(join(dir, "inquiry-engine-submit.ts"), "utf8");
   assert.match(submit, /shouldSendWorkspaceAutoAck\(\{[\s\S]*initiatorRole: input\.initiator_role/);
 });
+
+test("F54: seller mode loads every conversation, not only Needs action", () => {
+  // Root cause: the shell fetched the "needs" segment only (needs_reply rows), so a
+  // conversation she started (awaiting_customer) never reached her client-side filters.
+  const shell = readFileSync(join(dir, "..", "..", "components", "messages-v5", "shell", "MessagesV5Shell.tsx"), "utf8");
+  assert.match(shell, /useState<InboxSegment>\(props\.seller \? "all" : "needs"\)/);
+});
