@@ -593,6 +593,36 @@ function EditShellInner({
     if (brandPanelOpen) setEverOpenedDesignPanel(true);
   }, [brandPanelOpen]);
 
+  // Canvas / empty chrome click dismisses site Design + Theme so the page
+  // yields space (Oran: click-around while panel open). Ignore clicks on
+  // topbar, drawers, overlays, and the command / inspector rails.
+  useEffect(() => {
+    if (!brandPanelOpen && !themeOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(
+          [
+            "[data-edit-topbar]",
+            "[data-edit-drawer]",
+            "[data-edit-overlay]",
+            "[data-command-dock]",
+            "[data-inspector-command-rail]",
+            "button.ec-rail-item",
+          ].join(", "),
+        )
+      ) {
+        return;
+      }
+      if (brandPanelOpen) closeBrandPanel();
+      if (themeOpen) closeTheme();
+    }
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [brandPanelOpen, themeOpen, closeBrandPanel, closeTheme]);
+
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;
     if (pageSlug == null) return;

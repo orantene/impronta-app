@@ -262,4 +262,7 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Keep side by side": "Mantener lado a lado",
   "Stack on phone": "Apilar en el teléfono",
   "Stacking & visibility": "Apilado y visibilidad",
+  // ── Site Diseño Marca / Tema entry (page-builder panel cleanup) ────────
+  "Site colours used across every page. Tema opens the full editor.":
+    "Colores del sitio en todas las páginas. Tema abre el editor completo.",
 };
