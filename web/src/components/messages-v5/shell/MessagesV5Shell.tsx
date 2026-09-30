@@ -586,7 +586,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onNew={() => dispatch("new_conversation")}
       currentUserId={props.currentUserId}
       copy={copy.kit}
-      variant={variant} seller={Boolean(props.seller)}
+      variant={variant} seller={Boolean(props.seller)} sellerChrome={props.seller ?? null}
     />
   );
 

@@ -160,10 +160,6 @@ export async function messagingTalentThreadLink(input: { inquiryId: string }) {
   return { ok: true as const, token, url };
 }
 
-export async function messagingTalentNote() {
-  return fail("not_allowed");
-}
-
 export async function messagingTalentInvitation(input: { inquiryId: string }) {
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");

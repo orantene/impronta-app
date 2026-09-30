@@ -62,10 +62,12 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent Messages + Actions: shown when no thread is open (kept out of
   // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
   "Pick a conversation first": "Elige una conversación primero",
+  "New conversation": "Nueva conversación",
+  "Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation.":
+    "Tus clientas te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes iniciar una con + Nueva conversación.",
+  "Copy your link": "Copiar tu enlace",
+  "Open your page": "Abrir tu página",
   "Pick services, add extras.": "Elige servicios y extras.",
-  "Not available yet. Paste a link in the message for now.":
-    "Aún no disponible. Por ahora pega un enlace en el mensaje.",
-  "Not available yet. Private notes are coming.": "Aún no disponible. Las notas privadas vienen pronto.",
   "The client sees the services, the total and one Accept button.":
     "El cliente ve los servicios, el total y un botón de Aceptar.",
   "What the client pays": "Lo que paga el cliente",

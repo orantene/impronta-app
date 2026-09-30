@@ -40,6 +40,15 @@ export function defaultTrayGroups(copy: KitCopy): TrayGroup[] {
   ];
 }
 
+/** F38: a solo talent has nobody to hand over to and no staff close-lost; her engine refuses both. */
+const SELLER_HIDDEN: ReadonlySet<TrayItemKey> = new Set(["handover", "close_lost"]);
+
+export function sellerTrayGroups(t: KitCopy): TrayGroup[] {
+  return defaultTrayGroups(t)
+    .map((group) => ({ ...group, items: group.items.filter((item) => !SELLER_HIDDEN.has(item.key)) }))
+    .filter((group) => group.items.length > 0);
+}
+
 export type TrayProps = {
   readonly groups: readonly TrayGroup[];
   readonly variant?: "desktop" | "mobile";

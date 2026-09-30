@@ -121,3 +121,37 @@ test("segment counts prefer the shell's counts over the computed fallback", () =
   const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, counts: { needs: 99 } })} />);
   assert.match(html, /Needs action<span class="n">99<\/span>/);
 });
+
+const SELLER = {
+  quoteSubtitle: "q",
+  summaryTitle: "s",
+  summaryTotal: "t",
+  summaryDeposit: "d",
+  summaryBalance: "b",
+  inboxTitle: "Messages",
+  newConversation: "New conversation",
+  firstRunTitle: "No messages yet",
+  firstRunBody: "Share your link.",
+  firstRunAction: <span data-share-link>link</span>,
+};
+
+test("F35/F37: seller with zero conversations gets a first run and no filters", () => {
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows: [], seller: true, sellerChrome: SELLER })} />);
+  assert.match(html, /<h2>Messages<\/h2>/);
+  assert.match(html, />New conversation<\/button>/);
+  assert.match(html, /data-inbox-first-run/);
+  assert.match(html, /No messages yet/);
+  assert.match(html, /data-share-link/);
+  assert.doesNotMatch(html, /Nothing needs you/);
+  assert.doesNotMatch(html, /data-inbox-chips/);
+  assert.doesNotMatch(html, /role="tablist"/);
+});
+
+test("F35: seller with conversations keeps segments, without team chips", () => {
+  const rows = [inboxRow({ id: "r1", conversationState: "needs_reply", ownerUserId: "u-1", nextAction: null })];
+  const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, seller: true, sellerChrome: SELLER })} />);
+  assert.match(html, /role="tablist"/);
+  assert.doesNotMatch(html, /data-inbox-first-run/);
+  assert.doesNotMatch(html, />Mine</);
+  assert.doesNotMatch(html, />Unassigned</);
+});

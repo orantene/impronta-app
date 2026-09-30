@@ -12,6 +12,7 @@ import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine"
 import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
 
 import { TalentMessagesShellLazy, useKeyboardInset } from "../../shared/client-threads-1";
+import { MessagesFirstRun } from "./MessagesFirstRun";
 import { TalentDecisionBar } from "./TalentDecisionBar";
 import {
   TalentSellerActions,
@@ -50,6 +51,12 @@ function TalentMessagesV5() {
       summaryTotal: copy.t("Services total"),
       summaryDeposit: copy.t("Deposit to hold the time"),
       summaryBalance: copy.t("Paid at the appointment"),
+      // F37: the page is "Messages" in the rail and the mockup, not the staff "Inbox".
+      inboxTitle: copy.t("Messages"),
+      newConversation: copy.t("New conversation"),
+      firstRunTitle: copy.t("No messages yet"),
+      firstRunBody: copy.t("Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation."),
+      firstRunAction: <MessagesFirstRun />,
     }),
     [copy],
   );

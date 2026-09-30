@@ -4,9 +4,9 @@
  * action whose writer refuses on the talent engine is shown disabled with a
  * plain note, never as a button that always fails.
  *
- * Not wired on the talent engine (2026-09-28):
- *  - file: `talentShellEngine.composer.upload` refuses (no talent upload writer).
- *  - note: `messagingTalentNote` returns not_allowed (no talent private-note writer).
+ * F38 (2026-09-30): all six run on the talent engine. File goes through the
+ * signed attachment pipeline (talent participant scope); note through
+ * `messagingTalentPrivateNote`. `NOT_YET` stays for a verb that loses its writer.
  */
 
 export const TALENT_SELLER_ACTIONS = [
@@ -20,10 +20,7 @@ export const TALENT_SELLER_ACTIONS = [
 
 export type TalentSellerActionId = (typeof TALENT_SELLER_ACTIONS)[number]["id"];
 
-const NOT_YET: Partial<Record<TalentSellerActionId, string>> = {
-  file: "Not available yet. Paste a link in the message for now.",
-  note: "Not available yet. Private notes are coming.",
-};
+const NOT_YET: Partial<Record<TalentSellerActionId, string>> = {};
 
 /** English reason the action cannot run, or null when it can. Translated at render. */
 export function talentSellerActionBlock(id: TalentSellerActionId, hasThread: boolean): string | null {
