@@ -7,6 +7,7 @@
  * (booking_terms.directBookingOptIn). Owner or workspace staff.
  */
 
+import { hasAvailabilityPattern } from "@/lib/talent/website-eligibility-facts";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -244,6 +245,8 @@ type LoadHoursResult =
       defaultTimezone: string;
       directBookingOptIn: boolean;
       canEditHours: boolean;
+      /** Profile drawer's saved availability (pattern or day cells) says something. */
+      hasAvailabilityPattern: boolean;
     }
   | { ok: false; error: string };
 
@@ -267,7 +270,7 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
       .maybeSingle(),
     admin
       .from("talent_profiles")
-      .select("booking_terms")
+      .select("booking_terms, availability_data")
       .eq("id", talentProfileId)
       .maybeSingle(),
     admin
@@ -312,6 +315,7 @@ export async function loadBookingHours(talentProfileId: string): Promise<LoadHou
     defaultTimezone,
     directBookingOptIn: terms.directBookingOptIn === true,
     canEditHours: auth.canEditHours,
+    hasAvailabilityPattern: hasAvailabilityPattern(tp?.availability_data),
   };
 }
 

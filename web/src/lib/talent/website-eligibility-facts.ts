@@ -62,6 +62,26 @@ export function hasAvailabilityPattern(availabilityData: unknown): boolean {
  * drawer pattern or bookable hours from Services. Unknown only while hours
  * are still loading and the pattern says nothing.
  */
+export function recurringStatusForDow(
+  recurring: { kind?: string; busyDays?: number[] } | null | undefined,
+  dow: number,
+): "busy" | "blocked" | null {
+  // What a recurring pattern implies for one weekday (0 = Sunday), so the
+  // drawer's calendar preview shows the pattern just picked. Explicit day
+  // cells still win; null = the pattern says nothing about this day.
+  const weekend = dow === 0 || dow === 6;
+  switch (recurring?.kind) {
+    case "weekdays-only":
+      return weekend ? "blocked" : null;
+    case "weekends-only":
+      return weekend ? null : "blocked";
+    case "weekly-busy":
+      return recurring.busyDays?.includes(dow) ? "busy" : null;
+    default:
+      return null;
+  }
+}
+
 export function combineAvailability(input: {
   pattern: boolean | null;
   hours: boolean | null;
