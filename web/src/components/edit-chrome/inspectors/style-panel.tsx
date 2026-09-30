@@ -4917,22 +4917,33 @@ export function StylePanel({
               selectedStandaloneStyleNode.kind,
             ) ? (
               <details
-                className="border-t pt-3"
+                className="rounded-[10px] border px-2.5 py-1.5"
                 data-builder-node-style-control="containerQueries"
                 open={Boolean(
                   selectedStandaloneFullStyle?.containerType ||
                     selectedStandaloneFullStyle?.containerName,
                 )}
-                style={{ borderColor: CHROME.line }}
+                style={{
+                  borderColor: CHROME.lineStrong,
+                  background: CHROME.surface,
+                  boxShadow: "0 1px 2px rgba(17,24,39,0.03)",
+                }}
               >
                 <summary
-                  className="flex cursor-pointer list-none items-center justify-between gap-2"
+                  className="flex cursor-pointer list-none items-center justify-between gap-2 py-1"
                   style={{ outline: "none" }}
                 >
                   <span className={FIELD_LABEL}>{t("Query container")}</span>
                   <span
-                    className="text-[10px] font-medium"
-                    style={{ color: CHROME.muted2 }}
+                    className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      color: selectedStandaloneFullStyle?.containerType
+                        ? CHROME.accent
+                        : CHROME.muted,
+                      background: selectedStandaloneFullStyle?.containerType
+                        ? "rgba(124,58,237,0.08)"
+                        : "rgba(24,24,27,0.05)",
+                    }}
                   >
                     {(() => {
                       const active = BUILDER_NODE_CONTAINER_TYPE_OPTIONS.find(
