@@ -85,7 +85,6 @@ const ES: Record<string, string> = {
   "Try again": "Intentar de nuevo",
   Address: "Dirección",
   Design: "Diseño",
-  "No trial, plan, or price in this flow.": "Sin prueba, plan ni precio en este flujo.",
   "Publish new colors?": "¿Publicar colores nuevos?",
   "Publish changes": "Publicar cambios",
   "Keep editing": "Seguir editando",

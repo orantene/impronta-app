@@ -237,9 +237,6 @@ export function ReviewWebsiteScreen({
           )}
         </p>
 
-        {/* W72 — never show trial / plan / price in this flow */}
-        <p className="sr-only">{maisonSetupT(locale, "No trial, plan, or price in this flow.")}</p>
-
         {publishError ? (
           <div
             data-testid="maison-publish-failure"

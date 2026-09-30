@@ -106,7 +106,8 @@ test("W37–W42: Review + Publish + failure banner wired", () => {
   assert.match(review, /publishMaxSiteAction/);
   assert.match(review, /maison-publish-failure/);
   assert.match(review, /maison-undo-design/);
-  assert.match(review, /No trial, plan, or price/);
+  // F97: internal guidance wording must never ship as talent-facing copy.
+  assert.doesNotMatch(review, /No trial, plan, or price/);
 });
 
 test("W40: My website card has Live + View / Change / Design options", () => {
