@@ -156,11 +156,15 @@ export async function loadTalentTimeline(
   talentProfileId: string,
   opts: { pageSlug?: string | null } = {},
 ): Promise<RevisionsLoadResult> {
-  const { data: site } = await admin
+  const { data: site, error: siteErr } = await admin
     .from("talent_sites")
     .select("id, draft_rev, site_slug")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
+  if (siteErr) {
+    logServerError("talentSiteHistory.timeline.site", siteErr);
+    return { ok: false, error: "Failed to load history" };
+  }
   const s = site as { id: string; draft_rev: number | null; site_slug: string | null } | null;
   if (!s) return { ok: false, error: "Personal site not found.", code: "NOT_FOUND" };
   const { data, error } = await admin
@@ -177,6 +181,7 @@ export async function loadTalentTimeline(
   const ids = [...new Set(rows.map((r) => r.created_by).filter((v): v is string => !!v))];
   const names = new Map<string, string | null>();
   if (ids.length > 0) {
+    // supabase-read-unchecked-ok: author names are decoration; a failed read shows no name.
     const { data: profiles } = await admin.from("profiles").select("id, display_name").in("id", ids);
     for (const p of (profiles ?? []) as Array<{ id: string; display_name: string | null }>) {
       names.set(p.id, p.display_name);
@@ -408,6 +413,7 @@ export async function loadGoLiveSummary(
 ): Promise<GoLiveSummary | null> {
   const state = await loadSiteDraftState(admin, talentProfileId);
   if (!state) return null;
+  // supabase-read-unchecked-ok: without history the count falls back to the diff.
   const { data } = await admin
     .from("talent_site_history")
     .select("kind, last_at")

@@ -69,7 +69,7 @@ export function TalentHistoryList({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const t = (k: keyof typeof CHROME_COPY) => pick(CHROME_COPY[k], locale);
+  const copyOf = (k: keyof typeof CHROME_COPY) => pick(CHROME_COPY[k], locale);
 
   const shown = publishedOnly ? filterPublishedOnly(rows) : rows;
   const latestPublishId = rows.find((r) => r.history?.kind === "publish")?.id ?? null;
@@ -105,7 +105,7 @@ export function TalentHistoryList({
           onChange={(e) => setPublishedOnly(e.target.checked)}
           data-history-published-only
         />
-        {t("publishedOnly")}
+        {copyOf("publishedOnly")}
       </label>
 
       {error ? (
@@ -120,14 +120,14 @@ export function TalentHistoryList({
 
       {shown.length === 0 ? (
         <div className="rounded-md px-3 py-6 text-center" style={{ fontSize: 12, color: CHROME.muted }}>
-          {t("empty")}
+          {copyOf("empty")}
         </div>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0" data-talent-history-list>
           {shown.map((row) => {
             const h = row.history!;
             const summary = locale === "es" ? h.summaryEs || h.summaryEn : h.summaryEn;
-            const actor = h.actor === "tulala" ? t("byTulala") : h.actor === "system" ? t("bySystem") : t("byTalent");
+            const actor = h.actor === "tulala" ? copyOf("byTulala") : h.actor === "system" ? copyOf("bySystem") : copyOf("byTalent");
             const pending = pendingId === row.id || busy === row.id;
             const confirming = confirm?.id === row.id ? confirm.action : null;
             return (
@@ -152,7 +152,7 @@ export function TalentHistoryList({
                         className="rounded-full px-2 py-[1px]"
                         style={{ fontWeight: 700, color: CHROME.green, background: CHROME.greenBg, border: `1px solid ${CHROME.greenLine}` }}
                       >
-                        {t("live")}
+                        {copyOf("live")}
                       </span>
                     ) : null}
                     <span className="ml-auto" title={new Date(row.createdAt).toLocaleString()}>
@@ -168,7 +168,7 @@ export function TalentHistoryList({
 
                   {confirming ? (
                     <div className="flex flex-col gap-2" style={{ fontSize: 11.5, color: CHROME.text }}>
-                      <span>{t(confirming === "undo" ? "undoConfirm" : "restoreConfirm")}</span>
+                      <span>{copyOf(confirming === "undo" ? "undoConfirm" : "restoreConfirm")}</span>
                       <span className="flex gap-1">
                         <button
                           type="button"
@@ -176,10 +176,10 @@ export function TalentHistoryList({
                           style={btn("primary", pending)}
                           onClick={() => void (confirming === "undo" ? undo(row) : onRestore(row).then(() => setConfirm(null)))}
                         >
-                          {t(confirming === "undo" ? "undoUpdate" : "restore")}
+                          {copyOf(confirming === "undo" ? "undoUpdate" : "restore")}
                         </button>
                         <button type="button" disabled={pending} style={btn("ghost", pending)} onClick={() => setConfirm(null)}>
-                          {t("cancel")}
+                          {copyOf("cancel")}
                         </button>
                       </span>
                     </div>
@@ -187,7 +187,7 @@ export function TalentHistoryList({
                     <span className="flex flex-wrap items-center gap-1">
                       {h.previewUrl ? (
                         <button type="button" style={btn("ghost")} onClick={() => setPreviewUrl(h.previewUrl)}>
-                          {t("preview")}
+                          {copyOf("preview")}
                         </button>
                       ) : null}
                       <button
@@ -196,7 +196,7 @@ export function TalentHistoryList({
                         style={btn("ghost", pending)}
                         onClick={() => setConfirm({ id: row.id, action: "restore" })}
                       >
-                        {t("restore")}
+                        {copyOf("restore")}
                       </button>
                       {h.undoable ? (
                         <button
@@ -206,7 +206,7 @@ export function TalentHistoryList({
                           onClick={() => setConfirm({ id: row.id, action: "undo" })}
                           data-history-undo-update
                         >
-                          {t("undoUpdate")}
+                          {copyOf("undoUpdate")}
                         </button>
                       ) : null}
                     </span>
@@ -223,7 +223,7 @@ export function TalentHistoryList({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={t("previewing")}
+            aria-label={copyOf("previewing")}
             data-history-preview
             style={{
               position: "fixed",
@@ -238,15 +238,15 @@ export function TalentHistoryList({
               className="flex items-center gap-3"
               style={{ padding: "10px 16px", borderBottom: `1px solid ${CHROME.line}`, fontSize: 12.5, color: CHROME.text }}
             >
-              <strong>{t("previewing")}</strong>
+              <strong>{copyOf("previewing")}</strong>
               <span className="ml-auto" />
               <button type="button" style={btn("ghost")} onClick={() => setPreviewUrl(null)}>
-                {t("close")}
+                {copyOf("close")}
               </button>
             </div>
             {/* Read-only: the snapshot renders through the owner-gated public
                 renderer; nothing in the frame can write the draft. */}
-            <iframe title={t("previewing")} src={previewUrl} style={{ flex: 1, border: 0, width: "100%" }} />
+            <iframe title={copyOf("previewing")} src={previewUrl} style={{ flex: 1, border: 0, width: "100%" }} />
           </div>
         </PortaledOverlay>
       ) : null}

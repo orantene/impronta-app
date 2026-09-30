@@ -28,9 +28,9 @@ function inTalentBuilder(): boolean {
 }
 
 /** Publish handler that does nothing while an apply runs (and says so). */
-export function useTalentPublishGate(onPublish: (() => void) | undefined): (() => void) | undefined {
+export function useTalentPublishGate<F extends () => void>(onPublish: F): F {
   const busy = useThemeApplyBusy();
-  return busy ? undefined : onPublish;
+  return busy ? ((() => {}) as F) : onPublish;
 }
 
 function liveLabel(iso: string | null, locale: string): string {
@@ -65,7 +65,7 @@ export function TalentDraftChip(): ReactElement | null {
   }, [enabled, load, pageVersion]);
 
   if (!enabled || !summary) return null;
-  const t = (k: keyof typeof CHROME_COPY) => pick(CHROME_COPY[k], locale);
+  const copyOf = (k: keyof typeof CHROME_COPY) => pick(CHROME_COPY[k], locale);
 
   const chipStyle = {
     display: "inline-flex",
@@ -88,7 +88,7 @@ export function TalentDraftChip(): ReactElement | null {
         {liveLabel(summary.lastPublishAt ?? summary.sitePublishedAt, locale)}
         {summary.siteUrl ? (
           <a href={summary.siteUrl} target="_blank" rel="noreferrer" style={{ color: CHROME.green, textDecoration: "underline" }}>
-            {t("viewSite")}
+            {copyOf("viewSite")}
           </a>
         ) : null}
       </span>
@@ -101,7 +101,7 @@ export function TalentDraftChip(): ReactElement | null {
         type="button"
         data-talent-draft-chip
         onClick={() => setOpen(true)}
-        title={applyBusy ? t("applying") : t("whatWillGoLive")}
+        title={applyBusy ? copyOf("applying") : copyOf("whatWillGoLive")}
         style={{ ...chipStyle, cursor: "pointer", color: CHROME.text, background: CHROME.surface2, border: `1px solid ${CHROME.lineMid}` }}
       >
         {pick(unpublishedChangesLabel(summary.unpublishedCount), locale)}
@@ -115,21 +115,21 @@ export function TalentDraftChip(): ReactElement | null {
             <aside
               role="dialog"
               aria-modal="true"
-              aria-label={t("whatWillGoLive")}
+              aria-label={copyOf("whatWillGoLive")}
               data-what-will-go-live
               onClick={(e) => e.stopPropagation()}
               style={{ width: "min(420px, 100vw)", height: "100%", overflowY: "auto", background: CHROME.surface, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
             >
               <header className="flex items-center gap-2">
-                <strong style={{ fontSize: 14, color: CHROME.ink }}>{t("whatWillGoLive")}</strong>
+                <strong style={{ fontSize: 14, color: CHROME.ink }}>{copyOf("whatWillGoLive")}</strong>
                 <span className="ml-auto" />
                 <button type="button" onClick={() => setOpen(false)} style={{ fontSize: 12, color: CHROME.text, background: "none", border: "none", cursor: "pointer" }}>
-                  {t("close")}
+                  {copyOf("close")}
                 </button>
               </header>
-              {applyBusy ? <p style={{ fontSize: 12, color: CHROME.muted, margin: 0 }}>{t("applying")}</p> : null}
+              {applyBusy ? <p style={{ fontSize: 12, color: CHROME.muted, margin: 0 }}>{copyOf("applying")}</p> : null}
               {summary.changes.length === 0 ? (
-                <p style={{ fontSize: 12, color: CHROME.muted, margin: 0 }}>{t("noChanges")}</p>
+                <p style={{ fontSize: 12, color: CHROME.muted, margin: 0 }}>{copyOf("noChanges")}</p>
               ) : (
                 <ul className="m-0 flex list-none flex-col gap-2 p-0">
                   {summary.changes.map((c) => (
