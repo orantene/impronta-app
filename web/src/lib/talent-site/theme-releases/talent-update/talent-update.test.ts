@@ -25,6 +25,7 @@ import {
   addThemeUpdateBlock,
   applyThemeUpdate,
   dismissThemeUpdate,
+  loadAvailableBlocks,
   loadTalentUpdateNotices,
   loadThemeUpdatePreviewSnapshot,
   previewThemeUpdate,
@@ -488,8 +489,67 @@ test("F82: undo summary counts what she did (parts), not nodes or props", async 
     actorId: null,
   });
   assert.ok(undo.ok);
-  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your 1 later edit");
+  // History shows no saved edit after the apply: not certain, so no number.
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your later edits");
   assert.equal(prop(homeSide(db), "home", "menu/services_catalog", "layout"), "cards", "her edit stays");
+});
+
+test("F82: the number is the edits in history between the apply and the undo", async () => {
+  const db = world();
+  const res = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(res.ok && res.value.historyId);
+  db.tables.talent_pages![0]!.blocks = edit(homeSide(db), "home", "menu/services_catalog", "layout", "cards").trees.home;
+  const later = new Date(Date.now() + 5000).toISOString();
+  db.tables.talent_site_history!.push(
+    { id: "e1", talent_profile_id: PROFILE, at: later, kind: "edit", actor: "talent", edit_count: 3 },
+    { id: "e0", talent_profile_id: PROFILE, at: new Date(Date.now() - 60000).toISOString(), kind: "edit", actor: "talent", edit_count: 9 },
+    { id: "e2", talent_profile_id: PROFILE, at: later, kind: "edit", actor: "tulala", edit_count: 4 },
+  );
+  const undo = await undoThemeUpdateEntry(db.admin, { talentProfileId: PROFILE, entryId: res.value.historyId!, expectedDraftRev: 8, actorId: null });
+  assert.ok(undo.ok);
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_en, "Undid the Maison v2 update · kept your 3 later edits");
+  assert.equal(db.tables.talent_site_history!.at(-1)!.summary_es, "Deshiciste la actualización Maison v2 · conservamos tus 3 ediciones posteriores");
+});
+
+// ── Available blocks ─────────────────────────────────────────────────────────
+
+test("available blocks: a skipped block stays on offer after Apply and can be added later", async () => {
+  const db = world();
+  const seen: Array<number | null> = [];
+  const base = deps(db);
+  const spy: UpdateDeps = { ...base, merge: async (ctx, items) => { seen.push(ctx.pinnedVersion); return base.merge(ctx, items); } };
+  const applied = await applyThemeUpdate(spy, { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(applied.ok);
+  assert.equal(stateOf(db), "applied");
+  const before = await loadAvailableBlocks(db.admin, PROFILE);
+  assert.deepEqual(before.blocks.map((b) => b.item.id), ["new-block:gallery"]);
+  assert.equal(before.blocks[0]!.updateId, UPDATE);
+  assert.ok(before.placements.length > 0);
+  seen.length = 0;
+  const add = await addThemeUpdateBlock(spy, { talentProfileId: PROFILE, updateId: UPDATE, itemId: "new-block:gallery", afterId: null, expectedDraftRev: before.draftRev, actorId: null });
+  assert.ok(add.ok, "add works on an applied row");
+  assert.deepEqual(seen, [1], "merged against the FROM version, so a never-added block is new, not deleted");
+  assert.ok(topKeys(homeSide(db), "home").includes("gallery"));
+  assert.equal((await loadAvailableBlocks(db.admin, PROFILE)).blocks.length, 0);
+});
+
+test("available blocks: removing an ADDED block is explicit and is not offered again", async () => {
+  const db = world();
+  const applied = await applyThemeUpdate(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, expectedDraftRev: 7, actorId: null });
+  assert.ok(applied.ok);
+  const rev = db.tables.talent_sites![0]!.draft_rev as number;
+  const add = await addThemeUpdateBlock(deps(db), { talentProfileId: PROFILE, updateId: UPDATE, itemId: "new-block:gallery", afterId: null, expectedDraftRev: rev, actorId: null });
+  assert.ok(add.ok);
+  db.tables.talent_pages![0]!.blocks = (db.tables.talent_pages![0]!.blocks as BuilderNode[]).filter((n) => topKeys({ trees: { home: [n] } }, "home")[0] !== "gallery");
+  assert.ok(!topKeys(homeSide(db), "home").includes("gallery"));
+  assert.equal((await loadAvailableBlocks(db.admin, PROFILE)).blocks.length, 0, "she removed it herself");
+});
+
+test("available blocks: nothing before Apply, dismissed rows and other talents stay out", async () => {
+  assert.equal((await loadAvailableBlocks(world().admin, PROFILE)).blocks.length, 0);
+  assert.equal((await loadAvailableBlocks(world("dismissed").admin, PROFILE)).blocks.length, 0);
+  assert.equal((await loadAvailableBlocks(world("applied").admin, "99999999-9999-4999-8999-999999999999")).blocks.length, 0);
+  assert.equal((await loadAvailableBlocks(world("applied").admin, PROFILE)).blocks.length, 1);
 });
 
 // ── Dismiss ──────────────────────────────────────────────────────────────────

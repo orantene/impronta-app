@@ -78,16 +78,20 @@ export function themeUpdateSummary(
 }
 
 /**
- * "Undid the Maison v2 update · kept your 1 later edit". `keptParts` is the
- * talent-level count (sections/blocks she changed since), never nodes or props.
+ * "Undid the Maison v2 update · kept your 1 later edit". `laterEdits` is the
+ * count of edits she saved after the apply (from history); null = not certain,
+ * so the line says "kept your later edits" without a number (`anyKept`).
  */
-export function undoUpdateSummary(designName: string | null | undefined, keptParts: number): Bilingual {
+export function undoUpdateSummary(designName: string | null | undefined, laterEdits: number | null, anyKept = false): Bilingual {
   const name = designName?.trim();
-  const keptEn = keptParts > 0 ? ` · kept your ${keptParts} later edit${keptParts === 1 ? "" : "s"}` : "";
+  const n = laterEdits ?? 0;
+  const keptEn = n > 0 ? ` · kept your ${n} later edit${n === 1 ? "" : "s"}` : anyKept ? " · kept your later edits" : "";
   const keptEs =
-    keptParts > 0
-      ? ` · conservamos ${keptParts === 1 ? "tu edición posterior" : `tus ${keptParts} ediciones posteriores`}`
-      : "";
+    n > 0
+      ? ` · conservamos ${n === 1 ? "tu edición posterior" : `tus ${n} ediciones posteriores`}`
+      : anyKept
+        ? " · conservamos tus ediciones posteriores"
+        : "";
   return {
     en: `${name ? `Undid the ${name} update` : "Undid the design update"}${keptEn}`,
     es: `${name ? `Deshiciste la actualización ${name}` : "Deshiciste la actualización del diseño"}${keptEs}`,

@@ -27,6 +27,11 @@ export const UPDATE_COPY = {
     en: "Your site is older than this version: you can add the new blocks.",
     es: "Tu sitio es anterior a esta versión: puedes agregar los bloques nuevos.",
   },
+  availableBlocks: { en: "Available blocks", es: "Bloques disponibles" },
+  availableBlocksHint: {
+    en: "New blocks from updates you have already applied. Add one whenever you like and pick where it goes.",
+    es: "Bloques nuevos de actualizaciones que ya aplicaste. Agrega uno cuando quieras y elige dónde va.",
+  },
   applyShort: { en: "Apply", es: "Aplicar" },
   previewOnSite: { en: "Preview on my site", es: "Ver en mi sitio" },
   previewHint: {
