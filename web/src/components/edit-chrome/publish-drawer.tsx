@@ -377,7 +377,6 @@ export function PublishDrawer() {
   const [publishedBuilderTree, setPublishedBuilderTree] =
     useState<BuilderNodeTree | null>(null);
   const [hasPublishedSnapshot, setHasPublishedSnapshot] = useState(false);
-  const [reloadCompositionBusy, setReloadCompositionBusy] = useState(false);
   // #19 — builder-tree diff: revision IDs for the draft vs published snapshot.
   const [builderDiffIds, setBuilderDiffIds] = useState<{
     draftRevisionId: string;
@@ -606,7 +605,7 @@ export function PublishDrawer() {
     // W1-L2 — honest tri-state. While loading OR after a failure the counters
     // must never claim "0 changes" (that read as "nothing to publish" on a
     // page with real edits during the audit's degraded state).
-    if (publishedRowsLoading) {
+    if (publishedRowsLoading || (publishedRows === null && !publishedRowsFailed)) {
       return { loading: true, failed: false, ...emptyDiff };
     }
     if (publishedRowsFailed || publishedRows === null) {
@@ -1176,7 +1175,7 @@ export function PublishDrawer() {
                       count={effectiveSectionsReady}
                       label={
                         editorLocale === "es"
-                          ? `sección${effectiveSectionsReady === 1 ? "" : "es"} lista${effectiveSectionsReady === 1 ? "" : "s"}`
+                          ? `${effectiveSectionsReady === 1 ? "sección lista" : "secciones listas"}`
                           : `section${effectiveSectionsReady === 1 ? "" : "s"} ready`
                       }
                       tone="ink"
@@ -1264,62 +1263,13 @@ export function PublishDrawer() {
                     !publishDiff.failed &&
                     publishDiff.summary.total === 0 ? (
                       <p className="sr-only" role="status" aria-live="polite">
-                        Publish diff shows zero changes versus the last published
-                        snapshot. If the canvas or mobile preview still looks wrong,
-                        scroll the page, try Preview mode, review publish checks in this drawer,
-                        or wait for autosave before trusting Publish.
+                        {t("No changes since your last publish.")}
                       </p>
                     ) : null}
                     {!publishDiff.loading && publishedRows && publishDiff.summary.total === 0 ? (
-                      <div className="mt-2">
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: 11,
-                            lineHeight: 1.45,
-                            color: CHROME.muted2,
-                          }}
-                        >
-                          Diff shows no section changes vs last publish. The canvas or device
-                          preview can still lag your saved draft. Use Preview, review checks below,
-                          wait for autosave, or reload composition if the tree looks stale.
-                        </p>
-                        <button
-                          type="button"
-                          disabled={reloadCompositionBusy || saving || state.kind === "publishing"}
-                          onClick={() => {
-                            setReloadCompositionBusy(true);
-                            void (async () => {
-                              try {
-                                await refreshComposition();
-                              } finally {
-                                setReloadCompositionBusy(false);
-                              }
-                            })();
-                          }}
-                          style={{
-                            marginTop: 8,
-                            height: 28,
-                            padding: "0 10px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: CHROME.text2,
-                            background: CHROME.surface,
-                            border: `1px solid ${CHROME.lineMid}`,
-                            borderRadius: 7,
-                            cursor:
-                              reloadCompositionBusy || saving || state.kind === "publishing"
-                                ? "not-allowed"
-                                : "pointer",
-                            opacity:
-                              reloadCompositionBusy || saving || state.kind === "publishing"
-                                ? 0.55
-                                : 1,
-                          }}
-                        >
-                          {reloadCompositionBusy ? "Reloading…" : "Reload composition"}
-                        </button>
-                      </div>
+                      <p className="mt-2" style={{ margin: 0, fontSize: 11, lineHeight: 1.45, color: CHROME.muted2 }}>
+                        {t("No changes since your last publish.")}
+                      </p>
                     ) : null}
                     <div
                       style={{
