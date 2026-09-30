@@ -18,6 +18,12 @@ import {
 } from "./talent-approvals";
 import { loadCoordinatorInquiriesForUser } from "./talent-coordinator-inquiries";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
+import {
+  hasAvailabilityPattern,
+  hasIntroFromSources,
+  homeCityFromSources,
+} from "@/lib/talent/website-eligibility-facts";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -58,8 +64,10 @@ export type TalentSelfProfile = {
   agencyName: string;
   /** Public URL of the talent's "card" variant media asset, or null */
   headshotUrl: string | null;
-  /** True if short_bio or the English published bio is non-empty */
+  /** True when any saved intro exists: short_bio, bio_i18n, or the `bios` catalog value. */
   hasBio: boolean;
+  /** Drawer availability (talent_profiles.availability_data) holds a pattern or day cells. */
+  hasAvailabilityPattern: boolean;
   /** True if height_cm is non-null */
   hasHeight: boolean;
   /** Contact policy — which client trust tiers can initiate inbound contact */
@@ -99,6 +107,8 @@ export async function loadTalentSelfProfile(
         bio_i18n,
         height_cm,
         contact_policy,
+        home_city_text,
+        availability_data,
         talent_profile_taxonomy (
           relationship_type,
           taxonomy_terms ( name_i18n )
@@ -129,6 +139,8 @@ export async function loadTalentSelfProfile(
       bio_i18n: Record<string, string | null> | null;
       height_cm: number | null;
       contact_policy: Record<string, boolean> | null;
+      home_city_text: string | null;
+      availability_data: unknown;
       talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null }[] | null;
       talent_service_areas: { service_kind: string | null; locations: { display_name_i18n: Record<string, string | null> | null } | null }[] | null;
     };
@@ -182,10 +194,15 @@ export async function loadTalentSelfProfile(
         .find((t) => t.relationship_type === "primary_role")
         ?.taxonomy_terms?.name_i18n?.en ?? null;
 
-    const homeCity =
-      (p.talent_service_areas ?? [])
-        .find((a) => a.service_kind === "home_base")
-        ?.locations?.display_name_i18n?.en ?? null;
+    const homeCity = homeCityFromSources({
+      serviceAreaHomeCity:
+        (p.talent_service_areas ?? [])
+          .find((a) => a.service_kind === "home_base")
+          ?.locations?.display_name_i18n?.en ?? null,
+      homeCityText: p.home_city_text,
+    });
+    // About writes bios to the catalog field value, not the legacy columns.
+    const blobValues = await readBlobFieldValuesFromCatalog(mediaClient, p.id);
     const membership = buildTalentMembershipState(p.talent_plan_key);
 
     return {
@@ -202,7 +219,12 @@ export async function loadTalentSelfProfile(
       talentCapabilities: membership.capabilities,
       agencyName: agencyRow?.display_name ?? "Agency",
       headshotUrl,
-      hasBio: !!(p.short_bio?.trim() || p.bio_i18n?.en?.trim()),
+      hasBio: hasIntroFromSources({
+        shortBio: p.short_bio,
+        bioI18n: p.bio_i18n,
+        biosFieldValue: blobValues.bios,
+      }),
+      hasAvailabilityPattern: hasAvailabilityPattern(p.availability_data),
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
       portfolioCount: galleryCount ?? 0,
@@ -240,6 +262,8 @@ export async function loadTalentSelfProfileByUser(
         bio_i18n,
         height_cm,
         contact_policy,
+        home_city_text,
+        availability_data,
         talent_profile_taxonomy (
           relationship_type,
           taxonomy_terms ( name_i18n )
@@ -270,6 +294,8 @@ export async function loadTalentSelfProfileByUser(
       bio_i18n: Record<string, string | null> | null;
       height_cm: number | null;
       contact_policy: Record<string, boolean> | null;
+      home_city_text: string | null;
+      availability_data: unknown;
       talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_i18n: Record<string, string | null> | null } | null }[] | null;
       talent_service_areas: { service_kind: string | null; locations: { display_name_i18n: Record<string, string | null> | null } | null }[] | null;
     };
@@ -300,10 +326,15 @@ export async function loadTalentSelfProfileByUser(
         .find((t) => t.relationship_type === "primary_role")
         ?.taxonomy_terms?.name_i18n?.en ?? null;
 
-    const homeCity =
-      (p.talent_service_areas ?? [])
-        .find((a) => a.service_kind === "home_base")
-        ?.locations?.display_name_i18n?.en ?? null;
+    const homeCity = homeCityFromSources({
+      serviceAreaHomeCity:
+        (p.talent_service_areas ?? [])
+          .find((a) => a.service_kind === "home_base")
+          ?.locations?.display_name_i18n?.en ?? null,
+      homeCityText: p.home_city_text,
+    });
+    // About writes bios to the catalog field value, not the legacy columns.
+    const blobValues = await readBlobFieldValuesFromCatalog(trusted, p.id);
     const membership = buildTalentMembershipState(p.talent_plan_key);
 
     return {
@@ -320,7 +351,12 @@ export async function loadTalentSelfProfileByUser(
       talentCapabilities: membership.capabilities,
       agencyName: "Tulala",
       headshotUrl,
-      hasBio: !!(p.short_bio?.trim() || p.bio_i18n?.en?.trim()),
+      hasBio: hasIntroFromSources({
+        shortBio: p.short_bio,
+        bioI18n: p.bio_i18n,
+        biosFieldValue: blobValues.bios,
+      }),
+      hasAvailabilityPattern: hasAvailabilityPattern(p.availability_data),
       hasHeight: p.height_cm !== null,
       contactPolicy: p.contact_policy ?? { basic: true, verified: true, silver: true, gold: true },
       portfolioCount: galleryCount ?? 0,

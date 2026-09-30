@@ -1,4 +1,5 @@
 "use client";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -198,7 +199,7 @@ import {
   ageString,
   computeProfileDiff,
   findChild,
-  getTypeDefaults,
+  getTypeDefaults, typeLabelFromSlug,
   makeInitialProfileState,
   profileReducer
 } from "./profile-shell-internal";
@@ -1527,6 +1528,7 @@ export function TalentProfileShellDrawer() {
     startTransition(() => {
       queueShellRouterRefresh();
     });
+    invalidateWebsiteEligibility(); // free-website checklist re-reads now, not on reload
     return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : copy.t("Save failed");
@@ -3918,7 +3920,7 @@ export function TalentProfileShellDrawer() {
                 onActivateLocale={patchBioActiveLocale}
                 onChange={patchBios}
                 onRegenerate={onBiosRegenerate}
-                primaryLabel={primaryRes?.child.label}
+                primaryLabel={primaryRes?.child.label ?? (isSelf ? bridgeTalentSelfProfile?.primaryTypeLabel : null) ?? (state.primaryType ? typeLabelFromSlug(state.primaryType) : undefined)}
                 disabled={personalProfileLocked} talentLocales={isSelf ? talentLocales : null}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
@@ -4208,9 +4210,7 @@ export function TalentProfileShellDrawer() {
               </ProfileAccordionSection>
             )}
 
-            {/* AVAILABILITY — moved before Rates per 2026 reset (B8). The
-                logical flow is "Are you available? At what price?" not
-                "Price first, then schedule." */}
+            {/* AVAILABILITY — before Rates (B8): "available?" comes before "price?". */}
             <ProfileAccordionSection
               id="availability" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Availability")}
               sub={copy.t("Tap a day to block it. Open by default.")}
@@ -4219,7 +4219,7 @@ export function TalentProfileShellDrawer() {
               onToggle={() => setActiveSection(activeSection === "availability" ? "" : "availability")}
             >
               <AvailabilityGrid
-                cells={state.availability}
+                cells={state.availability} recurring={state.recurring}
                 onToggle={(date) => {
                   const cur = state.availability.find(c => c.date === date);
                   const cycle: Record<AvailabilityStatus, AvailabilityStatus> = { open: "busy", busy: "blocked", blocked: "open" };
@@ -4714,7 +4714,7 @@ export function TalentProfileShellDrawer() {
                 file,
                 variantKind: kind,
                 talentProfileId: payload.talentId!,
-                sourceMediaAssetId: sourceMediaAssetId ?? null,
+                sourceMediaAssetId: sourceMediaAssetId ?? null, metadata: kind === "gallery" ? { albumId: stateRef.current.albumsPro[0]?.id ?? "main" } : undefined,
               });
               if (fast.ok) {
                 return {
@@ -4732,7 +4732,7 @@ export function TalentProfileShellDrawer() {
 
               const fd = new FormData();
               fd.append("file", file);
-              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, {}, sourceMediaAssetId ?? null);
+              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, kind === "gallery" ? { albumId: stateRef.current.albumsPro[0]?.id ?? "main" } : {}, sourceMediaAssetId ?? null);
               if (!res.ok) return { ok: false, error: res.error };
               return {
                 ok: true,

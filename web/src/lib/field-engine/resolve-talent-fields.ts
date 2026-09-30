@@ -773,7 +773,10 @@ export async function resolveTalentFields(
       brought_in_by = { kind: "tier" };
     } else {
       const r = recsByField.get(d.id);
-      if (r) {
+      // Trade gate: a field in a group her parent categories do not enable
+      // (physical-casting for a Nail Artist) stays out unless required.
+      const offTrade = !!d.field_group_id && !groupMetaById.has(d.field_group_id) && r?.relationship !== "required";
+      if (r && !offTrade) {
         include = true;
         relationship = r.relationship;
         display_order = r.display_order || d.display_order || 100;

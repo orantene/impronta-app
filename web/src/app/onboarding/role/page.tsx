@@ -3,6 +3,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   getSiteUrl,
+  isTalentSurfaceNext,
   normalizeOptionalNextPath,
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
@@ -102,6 +103,11 @@ export default async function OnboardingRolePage({
   }
   if (nextPath && isWorkspaceOnboardingPath(nextPath)) {
     redirect(nextPath);
+  }
+  // "Join as Talent" already answered the role question: skip the chooser and
+  // go straight to the talent profile step, carrying `next` along.
+  if (nextPath && isTalentSurfaceNext(nextPath)) {
+    redirect(`/onboarding/talent-location?next=${encodeURIComponent(nextPath)}`);
   }
 
   return (

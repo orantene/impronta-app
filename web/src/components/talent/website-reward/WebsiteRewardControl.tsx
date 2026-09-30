@@ -1,5 +1,11 @@
 "use client";
 
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
+import {
+  firstMissingWebsiteSlice,
+  websiteSliceProgressSuffix,
+  type WebsiteSliceKey,
+} from "@/lib/talent/website-eligibility";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -10,22 +16,6 @@ import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/Tale
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
-const MISSING_SECTION: Record<string, string> = {
-  display_name: "identity",
-  first_name: "identity",
-  last_name: "identity",
-  phone: "identity",
-  gender: "identity",
-  date_of_birth: "identity",
-  origin: "location",
-  location: "location",
-  short_bio: "about",
-  taxonomy: "services",
-  media: "media",
-  fields_required: "profile_fields",
-  fields_recommended: "profile_fields",
-};
-
 const SLICE_LABEL = {
   who: "Your name and what you do",
   photos: "Photos of your work",
@@ -35,24 +25,8 @@ const SLICE_LABEL = {
   where: "Where you work",
 } as const;
 
-const MISSING_TIME: Record<string, string> = {
-  display_name: "30 seconds",
-  first_name: "30 seconds",
-  last_name: "30 seconds",
-  phone: "30 seconds",
-  gender: "30 seconds",
-  date_of_birth: "30 seconds",
-  origin: "30 seconds",
-  location: "30 seconds",
-  short_bio: "about 2 min",
-  taxonomy: "about 1 min",
-  media: "about 2 min",
-  fields_required: "about 2 min",
-  fields_recommended: "about 2 min",
-};
-
 export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mobile" | "services" }) {
-  const { bridgeTalentCompletion, bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
+  const { bridgeTalentSelfProfile, openDrawer, setTalentPage, state } = useAdminShell();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const copy = useDashboardText();
   const router = useRouter();
@@ -100,33 +74,10 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
     router.push("/talent/site");
   };
 
-  const missing = bridgeTalentCompletion?.missing ?? [];
-  const openMissing = (key: string | null) => {
+  const openSliceTarget = useOpenWebsiteSlice(openIntroTask);
+  const openSlice = (key: WebsiteSliceKey | null) => {
     setOpen(false);
-    if (key === "short_bio") {
-      openIntroTask();
-      return;
-    }
-    const section = key ? MISSING_SECTION[key] ?? "identity" : "identity";
-    const talentId = bridgeTalentSelfProfile?.id;
-    if (!talentId) {
-      setTalentPage("profile");
-      router.push("/talent/profile");
-      return;
-    }
-    openDrawer("talent-profile-shell", { mode: "edit-self", talentId, section });
-    const focusFirst = (attempt: number) => {
-      const root = document.querySelector(`[data-tulala-pshell] #pshell-${section}`);
-      const fields = root
-        ? Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-            "input:not([type=hidden]):not([disabled]), textarea:not([disabled])",
-          ))
-        : [];
-      const target = fields.find((f) => !f.value) ?? fields[0];
-      if (target) target.focus({ preventScroll: false });
-      else if (attempt < 8) setTimeout(() => focusFirst(attempt + 1), 150);
-    };
-    setTimeout(() => focusFirst(0), 350);
+    openSliceTarget(key);
   };
 
   const siteUrl = siteLoad?.ok ? siteLoad.state.publicSiteUrl : null;
@@ -273,19 +224,16 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   .filter((slice) => slice.required)
                   .map((slice) => (
                       <li key={slice.key}>
-                        {slice.key === "intro" ? (
+                        {slice.done === false ? (
                           <button
                             type="button"
-                            onClick={openIntroTask}
+                            data-testid={`website-slice-${slice.key}`}
+                            onClick={() => openSlice(slice.key)}
                             className="flex w-full items-center gap-2.5 rounded-md py-1.5 text-left text-[13.5px] text-admin-ink hover:bg-black/[0.03]"
                           >
-                            <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white text-center text-[11px] leading-4">
-                              {slice.done ? "✓" : ""}
-                            </span>
-                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}</span>
-                            <span className="shrink-0 text-[11.5px] text-admin-ink-dim">
-                              {slice.done == null ? copy.t("Not available") : `${slice.weight}`}
-                            </span>
+                            <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-admin-border-soft bg-white" />
+                            <span className="min-w-0 flex-1">{copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}</span>
+                            <span className="shrink-0 text-[11.5px] text-admin-ink-dim">{`${slice.weight}`}</span>
                             {chevron}
                           </button>
                         ) : (
@@ -309,7 +257,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
             <div className="border-t border-admin-border-soft px-5 py-4">
               <button
                 type="button"
-                onClick={() => openMissing(missing[0]?.key ?? null)}
+                onClick={() => openSlice(firstMissingWebsiteSlice(eligibility.slices))}
                 className="w-full rounded-lg bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white"
               >
                 {copy.t("Continue your profile")}

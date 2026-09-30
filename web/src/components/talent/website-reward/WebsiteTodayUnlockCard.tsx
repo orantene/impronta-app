@@ -7,7 +7,9 @@
  * Live: renders nothing (W23 — never Unlock).
  */
 
-import { useEffect, useState } from "react";
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
+import { useCallback, useEffect, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { FinishWithAiPanel } from "./FinishWithAiPanel";
@@ -45,6 +47,8 @@ export function WebsiteTodayUnlockCard({ onActivate }: Props) {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const eligibility = useWebsiteEligibility();
   const [aiOpen, setAiOpen] = useState(false);
+  const openAi = useCallback(() => setAiOpen(true), []);
+  const openSlice = useOpenWebsiteSlice(openAi);
   const [toast, setToast] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
@@ -128,7 +132,18 @@ export function WebsiteTodayUnlockCard({ onActivate }: Props) {
         <ul className="mt-2 space-y-1 text-[13px] text-admin-ink">
           {required.map((slice) => (
             <li key={slice.key}>
-              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}
+              {slice.done === false ? (
+                <button
+                  type="button"
+                  data-testid={`today-website-slice-${slice.key}`}
+                  onClick={() => openSlice(slice.key)}
+                  className="text-left underline decoration-black/20 underline-offset-2 hover:decoration-black/60"
+                >
+                  · {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
+                </button>
+              ) : (
+                <>{slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}</>
+              )}
             </li>
           ))}
         </ul>

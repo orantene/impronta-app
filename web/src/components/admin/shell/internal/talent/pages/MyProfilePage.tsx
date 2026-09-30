@@ -100,7 +100,7 @@ export function MyProfilePage() {
     <>
       <PageHeader
         title={bridgeTalentSelfProfile?.displayName ?? p.name}
-        subtitle={`${bridgeTalentSelfProfile?.primaryTypeLabel ?? roleSummary}${p.measurementsSummary ? ` · ${p.measurementsSummary}` : ""}${(bridgeTalentSelfProfile?.homeCity ?? p.city) ? ` · ${bridgeTalentSelfProfile?.homeCity ?? p.city}` : ""}`}
+        subtitle={`${bridgeTalentSelfProfile ? (bridgeTalentSelfProfile.primaryTypeLabel ?? t("dashboard.talentMyProfile.chooseTrade")) : roleSummary}${p.measurementsSummary ? ` · ${p.measurementsSummary}` : ""}${(bridgeTalentSelfProfile?.homeCity ?? p.city) ? ` · ${bridgeTalentSelfProfile?.homeCity ?? p.city}` : ""}`}
         actions={
           // Header actions are intentionally compact (size="sm"). The
           // md size is for body-level CTAs; in a header alongside the
