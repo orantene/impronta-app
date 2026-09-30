@@ -451,6 +451,13 @@ async function runDemo(demoId: string, status: StatusRow): Promise<DemoResult> {
           alt_es: `${subjectEs}: herramientas y espacio de trabajo`,
         };
       }
+      // Same for the cover: the talent stays (it is their banner) but works alone.
+      if (NO_CLIENT_FACES.has(theme) && slot?.variant === "hero" && OTHER_PERSON.test(sh.scene_en)) {
+        return {
+          ...sh,
+          scene_en: `Wide cover photo of ${d.first_name} alone at work in their real setting in ${d.city} (${slot.hint}): their tools, the space, natural light. Nobody else is in the frame, no other person or figure even in the distance.`,
+        };
+      }
       if (person !== "optional" || sh.shows_person) return sh;
       const inScene = named.test(sh.scene_en) && !/\b(hands?|from behind|back view|out of frame|only their)\b/i.test(sh.scene_en);
       return inScene ? { ...sh, shows_person: true } : sh;
