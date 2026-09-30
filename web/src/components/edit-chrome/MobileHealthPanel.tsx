@@ -126,6 +126,7 @@ interface Props {
 }
 
 export function MobileHealthPanel({ builderTree }: Props) {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
   const bodyId = useId();
 
@@ -194,7 +195,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
             color: allClear ? "#15803d" : CHROME.ink,
           }}
         >
-          Mobile health
+          {t("Mobile health")}
         </span>
         {allClear ? (
           <span
@@ -204,7 +205,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
               fontWeight: 600,
             }}
           >
-            All clear
+            {t("All clear")}
           </span>
         ) : blockingCount > 0 ? (
           <span
@@ -215,8 +216,8 @@ export function MobileHealthPanel({ builderTree }: Props) {
               marginRight: 4,
             }}
           >
-            {blockingCount} block{blockingCount === 1 ? "s" : ""} publish
-            {total > blockingCount ? ` · ${total - blockingCount} advisory` : ""}
+            {t(blockingCount === 1 ? "{n} block publish" : "{n} blocks publish").replace("{n}", String(blockingCount))}
+            {total > blockingCount ? ` · ${t("{n} advisory").replace("{n}", String(total - blockingCount))}` : ""}
           </span>
         ) : (
           <span
@@ -226,7 +227,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
               marginRight: 4,
             }}
           >
-            {total} advisor{total === 1 ? "y" : "ies"}
+            {t(total === 1 ? "{n} advisory" : "{n} advisories").replace("{n}", String(total))}
           </span>
         )}
         <span style={{ color: CHROME.muted2 }}>
@@ -252,8 +253,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
                 lineHeight: 1.5,
               }}
             >
-              No mobile issues detected in the builder tree. Tap targets,
-              font sizes, and layout widths all look fine.
+              {t("No mobile issues detected in the builder tree. Tap targets, font sizes, and layout widths all look fine.")}
             </p>
           ) : (
             <>
@@ -268,15 +268,13 @@ export function MobileHealthPanel({ builderTree }: Props) {
                 {blockingCount > 0 ? (
                   <>
                     <strong style={{ color: "#b91c1c" }}>
-                      Rows marked “Blocks publish” force horizontal scrolling on
-                      phones and must be fixed before you can publish.
+                      {t("Rows marked “Blocks publish” force horizontal scrolling on phones and must be fixed before you can publish.")}
                     </strong>{" "}
-                    The rest are advisory, review them before going live.
+                    {t("The rest are advisory, review them before going live.")}
                   </>
                 ) : (
                   <>
-                    Advisory only, these do not block publish. Review them before
-                    going live on mobile devices.
+                    {t("Advisory only, these do not block publish. Review them before going live on mobile devices.")}
                   </>
                 )}
               </p>
@@ -475,6 +473,7 @@ function IssueGroup({
   issues: MobileHealthIssue[];
 }) {
   const color = KIND_COLOR[kind];
+  const { t } = useEditorLocale();
 
   return (
     <div
@@ -515,7 +514,7 @@ function IssueGroup({
             color,
           }}
         >
-          {KIND_LABEL[kind]}
+          {t(KIND_LABEL[kind])}
         </span>
         <span
           style={{
@@ -524,7 +523,7 @@ function IssueGroup({
             color: CHROME.muted2,
           }}
         >
-          {issues.length} item{issues.length === 1 ? "" : "s"}
+          {t(issues.length === 1 ? "{n} item" : "{n} items").replace("{n}", String(issues.length))}
         </span>
       </div>
 
@@ -547,6 +546,7 @@ function IssueGroup({
 // ── IssueRow ──────────────────────────────────────────────────────────────────
 
 function IssueRow({ issue }: { issue: MobileHealthIssue }) {
+  const { t } = useEditorLocale();
   return (
     <li
       style={{
@@ -584,7 +584,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
                 letterSpacing: "0.04em",
               }}
             >
-              Blocks publish
+              {t("Blocks publish")}
             </span>
           ) : null}
         </div>
@@ -605,7 +605,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
       <button
         type="button"
         onClick={() => locateCanvasNode(issue.nodeId)}
-        title={`Scroll canvas to ${issue.nodeId}`}
+        title={t("Scroll canvas to {id}").replace("{id}", issue.nodeId)}
         style={{
           flexShrink: 0,
           marginTop: 2,
@@ -625,7 +625,7 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
         }}
       >
         <LocateIcon />
-        Show
+        {t("Show")}
       </button>
     </li>
   );

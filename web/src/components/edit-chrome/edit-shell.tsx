@@ -1327,7 +1327,7 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
-  const tipPlacement = useFirstPaintTipPlacement(p.navigatorOpen, p.navigatorWidth);
+  const tipPlacement = useFirstPaintTipPlacement(p.navigatorOpen, p.navigatorWidth); const { t } = useEditorLocale();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
@@ -1413,11 +1413,11 @@ function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
         <path d="M12 20h9" />
         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
-      <span>Click any section to edit · Press ⌘K for quick actions</span>
+      <span>{t("Click any section to edit · Press ⌘K for quick actions")}</span>
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Dismiss tip"
+        aria-label={t("Dismiss tip")}
         className="pointer-events-auto ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-black/5"
         style={{
           color: CHROME.muted,

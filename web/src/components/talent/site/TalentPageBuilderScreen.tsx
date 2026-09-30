@@ -28,6 +28,7 @@ import type { TalentSiteCapabilities } from "@/lib/access/talent-membership";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
+import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { ThemeUpdateNotice } from "./theme-update/ThemeUpdateNotice";
 
 type Props = {
@@ -206,6 +207,7 @@ export function TalentPageBuilderScreen({
   }
 
   return (
+    <DashboardLocaleProvider locale={locale ?? ""}>
     <div
       data-talent-page-builder-screen=""
       // Light "desk" behind the editor canvas (modern 2026 builder). The canvas
@@ -245,5 +247,6 @@ export function TalentPageBuilderScreen({
         />
       )}
     </div>
+    </DashboardLocaleProvider>
   );
 }

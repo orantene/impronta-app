@@ -771,12 +771,11 @@ function PagePicker({
 
 // ── #18 — relative "Saved Xs ago" formatter ─────────────────────────────────
 
-function formatSavedAgo(isoOrEpoch: string): string {
+function formatSavedAgo(isoOrEpoch: string, t: (k: string) => string = (k) => k): string {
   const ms = Date.now() - new Date(isoOrEpoch).getTime();
-  if (ms < 5_000) return "just now";
-  if (ms < 60_000) return `${Math.floor(ms / 1_000)}s ago`;
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
-  return `${Math.floor(ms / 3_600_000)}h ago`;
+  if (ms < 5_000) return t("just now");
+  const [n, unit] = ms < 60_000 ? [Math.floor(ms / 1_000), "s"] : ms < 3_600_000 ? [Math.floor(ms / 60_000), "m"] : [Math.floor(ms / 3_600_000), "h"];
+  return t(`{n}${unit} ago`).replace("{n}", String(n));
 }
 
 /**
@@ -808,7 +807,7 @@ function SaveStatusButton({
   liveSitePublishedAt?: string | null;
   onSaveDraft?: () => void | Promise<unknown>;
 }) {
-  const saving = useSaving();
+  const saving = useSaving(); const { t } = useEditorLocale();
   const lastDraftSavedAt = useLastDraftSavedAt();
   const { mutationError } = useEditContext();
   const saveFailed =
@@ -857,18 +856,18 @@ function SaveStatusButton({
       ? "dirty"
       : "saved";
   const publishNote = hasUnpublishedChanges
-    ? " Visitors still see the last published version until you publish."
+    ? ` ${t("Visitors still see the last published version until you publish.")}`
     : "";
   const words =
     state === "saving"
-      ? "Saving…"
+      ? t("Saving…")
       : state === "dirty"
-        ? "Unsaved draft"
+        ? t("Unsaved draft")
         : lastDraftSavedAt
-          ? `Draft saved · ${formatSavedAgo(lastDraftSavedAt)}`
-          : "Draft saved";
+          ? `${t("Draft saved")} · ${formatSavedAgo(lastDraftSavedAt, t)}`
+          : t("Draft saved");
   const title = onSaveDraft
-    ? `${words}.${publishNote} Click to save now (⌘S).`
+    ? `${words}.${publishNote} ${t("Click to save now (⌘S).")}`
     : `${words}.${publishNote}`;
   const color =
     state === "saving"
@@ -1744,7 +1743,7 @@ function PublishSplitButton({
   onPublish: () => void;
   onMenuSelect: (opt: PublishMenuOption) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); const { t } = useEditorLocale();
   const publishMenuId = useId();
   const publishMenuTriggerId = useId();
   // Ref on the caret trigger so we can anchor the menu with position:fixed,
@@ -1784,7 +1783,7 @@ function PublishSplitButton({
       <div
         className="inline-flex items-stretch overflow-hidden rounded-[10px]"
         role="group"
-        aria-label="Publish"
+        aria-label={t("Publish")}
         style={{
           height: TB_CONTROL_H,
           background: CHROME.accent,
@@ -1794,7 +1793,7 @@ function PublishSplitButton({
         <button
           type="button"
           onClick={onPublish}
-          title="Review publish checks in the drawer, then publish your draft to the live site"
+          title={t("Review publish checks in the drawer, then publish your draft to the live site")}
           className="inline-flex cursor-pointer items-center gap-[8px] border-none text-[14px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ padding: "0 18px 0 20px", background: "transparent" }}
         >
@@ -1813,7 +1812,7 @@ function PublishSplitButton({
             <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
             <path d="m8 17 4-4 4 4" />
           </svg>
-          Publish
+          {t("Publish")}
         </button>
         <span
           aria-hidden
@@ -1848,7 +1847,7 @@ function PublishSplitButton({
               return next;
             });
           }}
-          aria-label="Publish options"
+          aria-label={t("Publish options")}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           aria-controls={publishMenuId}
@@ -1901,8 +1900,8 @@ function PublishSplitButton({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             }
-            title="Schedule publish…"
-            description="Choose a date and time"
+            title={t("Schedule publish…")}
+            description={t("Choose a date and time")}
             onClick={() => { onMenuSelect("schedule"); setMenuOpen(false); }}
           />
           <div
@@ -1918,8 +1917,8 @@ function PublishSplitButton({
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             }
-            title="Pull from live: Replace"
-            description="Replace your draft with the live homepage"
+            title={t("Pull from live: Replace")}
+            description={t("Replace your draft with the live homepage")}
             onClick={() => { onMenuSelect("pull-from-live:replace"); setMenuOpen(false); }}
           />
           {/* Pull from live: Add above */}
@@ -1930,8 +1929,8 @@ function PublishSplitButton({
                 <polyline points="5 12 12 5 19 12" />
               </svg>
             }
-            title="Pull from live: Add above"
-            description="Add the live homepage blocks above your draft"
+            title={t("Pull from live: Add above")}
+            description={t("Add the live homepage blocks above your draft")}
             onClick={() => { onMenuSelect("pull-from-live:above"); setMenuOpen(false); }}
           />
           {/* Pull from live: Add below */}
@@ -1942,8 +1941,8 @@ function PublishSplitButton({
                 <polyline points="19 12 12 19 5 12" />
               </svg>
             }
-            title="Pull from live: Add below"
-            description="Add the live homepage blocks below your draft"
+            title={t("Pull from live: Add below")}
+            description={t("Add the live homepage blocks below your draft")}
             onClick={() => { onMenuSelect("pull-from-live:below"); setMenuOpen(false); }}
           />
           <div
@@ -1961,8 +1960,8 @@ function PublishSplitButton({
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
               </svg>
             }
-            title="Unpublish / Archive"
-            description="Take this page offline"
+            title={t("Unpublish / Archive")}
+            description={t("Take this page offline")}
             onClick={() => { onMenuSelect("unpublish"); setMenuOpen(false); }}
           />
           <MenuItem
@@ -1972,8 +1971,8 @@ function PublishSplitButton({
                 <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
               </svg>
             }
-            title="Discard draft"
-            description="Reset this draft to the live published version"
+            title={t("Discard draft")}
+            description={t("Reset this draft to the live published version")}
             onClick={() => { onMenuSelect("discard"); setMenuOpen(false); }}
           />
         </div>
@@ -2428,14 +2427,14 @@ function WorkspaceMenu({ slug }: { slug: string }) {
 }
 
 function ExitButton() {
-  const { pending } = useFormStatus();
+  const { pending } = useFormStatus(); const { t } = useEditorLocale();
   return (
     <TbTextBtn
       type="submit"
       disabled={pending}
       iconOnly
-      title={pending ? "Exiting…" : "Exit to live site"}
-      ariaLabel={pending ? "Exiting…" : "Exit to live site"}
+      title={pending ? t("Exiting…") : t("Exit to live site")}
+      ariaLabel={pending ? t("Exiting…") : t("Exit to live site")}
     >
       <svg
         width={TB_ICON_PX}

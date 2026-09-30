@@ -16,6 +16,7 @@
 import type React from "react";
 
 import { CHROME } from "./kit/tokens";
+import { useEditorLocale } from "./use-editor-locale";
 
 /** Glyph size for every topbar icon. */
 export const TB_ICON_PX = 18;
@@ -53,6 +54,9 @@ export function TbIconBtn({
   label,
   children,
 }: TbIconBtnProps) {
+  const { t } = useEditorLocale();
+  title = t(title);
+  ariaLabel = ariaLabel === undefined ? undefined : t(ariaLabel);
   return (
     <button
       type="button"
