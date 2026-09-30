@@ -131,7 +131,7 @@ export function FloatingPanelHeader({
       <div
         data-floating-drag-handle=""
         onPointerDown={onPointerDown}
-        className="flex items-center gap-2.5 px-[18px] py-[14px]"
+        className="flex items-center gap-2 px-[16px] py-[11px]"
         style={{
           cursor: dragging ? "grabbing" : "grab",
           touchAction: "none",
@@ -145,8 +145,8 @@ export function FloatingPanelHeader({
         <FloatingDragGrip dragging={dragging} />
         <h2
           id={titleId}
-          className="m-0 min-w-0 truncate font-semibold tracking-[-0.01em]"
-          style={{ color: CHROME.ink, fontSize: 15, fontWeight: 600 }}
+          className="m-0 min-w-0 truncate tracking-[-0.015em]"
+          style={{ color: CHROME.ink, fontSize: 15, fontWeight: 650 }}
         >
           {title}
         </h2>
@@ -159,9 +159,10 @@ export function FloatingPanelHeader({
       </div>
       {meta ? (
         <div
-          className={`px-[18px] pb-[14px] ${metaWrap ? "" : "truncate"}`}
+          className={`px-[16px] pb-[10px] ${metaWrap ? "" : "truncate"}`}
           style={{
             fontSize: 11,
+            fontWeight: 550,
             color: CHROME.muted,
             borderBottom: titleRowBorder ? `1px solid ${CHROME.line}` : undefined,
           }}
