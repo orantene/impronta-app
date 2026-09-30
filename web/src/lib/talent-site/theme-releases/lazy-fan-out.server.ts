@@ -15,7 +15,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { fanOutWithPorts, type FanOutPorts } from "./manager/fan-out";
 import type { BellRow, FanOutSite, UpdateRow } from "./manager/notify";
-import type { ThemeRelease } from "./types";
+import { isOfferActionable, pinnedBaseKnown } from "./offer-actionable.server";
+import { combineReleaseItems } from "./talent-update/view";
+import type { ReleaseItem, ThemeRelease } from "./types";
 
 export type OpenRelease = Pick<ThemeRelease, "id" | "design_slug" | "to_version" | "rollout_pct" | "channel" | "status">;
 
@@ -70,6 +72,13 @@ function adminPorts(admin: SupabaseClient): FanOutPorts {
   };
 }
 
+async function newestFromVersion(admin: SupabaseClient, releaseId: string): Promise<number | null> {
+  const { data, error } = await admin.from("talent_theme_releases").select("from_version").eq("id", releaseId).maybeSingle();
+  if (error) return null;
+  const v = (data as { from_version?: number } | null)?.from_version;
+  return typeof v === "number" ? v : null;
+}
+
 export async function ensureSiteThemeUpdates(
   admin: SupabaseClient,
   talentProfileId: string,
@@ -103,6 +112,29 @@ export async function ensureSiteThemeUpdates(
     }
     const releases = (rels ?? []) as OpenRelease[];
     if (releases.length === 0) return none;
+
+    // F118: do not open an offer she could do nothing with (no bell, no row).
+    const sortedRels = [...releases].sort((a, b) => a.to_version - b.to_version);
+    const newest = sortedRels[sortedRels.length - 1]!;
+    const [itemsRes, homeRes, known] = await Promise.all([
+      admin.from("talent_theme_releases").select("to_version, items, from_version").in("id", releases.map((r) => r.id)),
+      admin.from("talent_pages").select("blocks").eq("talent_profile_id", talentProfileId).eq("is_home", true).maybeSingle(),
+      pinnedBaseKnown(admin, {
+        designSlug: slug,
+        pinned: pinnedVersion,
+        releaseId: newest.id,
+        baseFromVersion: (await newestFromVersion(admin, newest.id)) ?? 0,
+      }),
+    ]);
+    if (!itemsRes.error && !homeRes.error && known !== null && Array.isArray(itemsRes.data)) {
+      const items = combineReleaseItems(
+        [...(itemsRes.data as Array<{ to_version: number; items?: ReleaseItem[] | null }>)].sort((a, b) => a.to_version - b.to_version),
+      );
+      const blocks = (homeRes.data as { blocks?: unknown } | null)?.blocks;
+      if (!isOfferActionable({ hasBase: known, items, addedIds: [], homeBlocks: Array.isArray(blocks) ? (blocks as never) : [] })) {
+        return none;
+      }
+    }
 
     const [profRes, titleRes] = await Promise.all([
       admin

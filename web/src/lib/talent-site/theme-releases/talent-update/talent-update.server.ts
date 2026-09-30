@@ -28,6 +28,7 @@ import type { WriteSiteDraftResult } from "@/lib/talent-site/history/writer";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
 import { loadTalentSiteSaveCapabilities } from "@/lib/talent-site/server/free-site-save-guard";
 import { ensureSiteThemeUpdates } from "../lazy-fan-out.server";
+import { offerActionableFor, withoutPresentBlocks } from "../offer-actionable.server";
 import { loadReleaseDesign } from "../release-design.server";
 import { makeBaseResolver } from "../manager/base-resolver.server";
 import { mergeSite, type SiteMergeOutcome } from "../manager/merge-site.server";
@@ -157,7 +158,7 @@ export async function loadTalentUpdateNotices(
   if (opts.lazyFanOut !== false) await ensureSiteThemeUpdates(admin, talentProfileId);
   const { data: rows, error } = await admin
     .from("talent_site_theme_updates")
-    .select("id, release_id, talent_site_id, state")
+    .select("id, release_id, talent_site_id, state, report")
     .eq("talent_profile_id", talentProfileId)
     // F92: dismissed rows load too, so a dismissed update stays reachable (quiet entry).
     .in("state", [...OPEN_UPDATE_STATES, "dismissed"]);
@@ -165,7 +166,7 @@ export async function loadTalentUpdateNotices(
     logServerError("themeUpdate.notices", error);
     return [];
   }
-  const list = (rows ?? []) as Array<{ id: string; release_id: string; talent_site_id: string; state: string }>;
+  const list = (rows ?? []) as Array<{ id: string; release_id: string; talent_site_id: string; state: string; report?: { addedBlocks?: unknown } | null }>;
   if (list.length === 0) return [];
   const [relRes, siteRes] = await Promise.all([
     admin
@@ -201,7 +202,22 @@ export async function loadTalentUpdateNotices(
   }
   const slugs = [...byDesign.keys()];
   const titles = new Map(await Promise.all(slugs.map(async (slug) => [slug, await designTitle(admin, slug)] as const)));
-  const out: TalentUpdateNotice[] = [...byDesign.entries()].map(([slug, rows]) => {
+  // F118: an offer with nothing to do (no base and every new block already on
+  // her page, or all added) shows no banner, no quiet entry; its rows close.
+  const actionable = new Map<string, boolean>();
+  for (const [slug, rows] of byDesign) {
+    const newest = byId.get([...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version).pop()!.release_id)!;
+    const verdict = await offerActionableFor(admin, talentProfileId, slug, pinned, rows, newest);
+    actionable.set(slug, verdict !== false);
+    if (verdict === false) {
+      for (const r of rows) {
+        await setUpdateState(admin, talentProfileId, r.id, "applied", {
+          report: { reason: "nothing_applicable", addedBlocks: addedOf(r.report) },
+        });
+      }
+    }
+  }
+  const out: TalentUpdateNotice[] = [...byDesign.entries()].filter(([slug]) => actionable.get(slug) !== false).map(([slug, rows]) => {
     const sorted = [...rows].sort((a, b) => byId.get(a.release_id)!.to_version - byId.get(b.release_id)!.to_version);
     const newestRow = sorted[sorted.length - 1]!;
     const rel = byId.get(newestRow.release_id)!;
@@ -458,23 +474,6 @@ async function homeTree(admin: SupabaseClient, talentProfileId: string): Promise
     .maybeSingle();
   const b = (data as { blocks?: unknown } | null)?.blocks;
   return Array.isArray(b) ? (b as BuilderNode[]) : [];
-}
-
-/**
- * F117: a new block she already added (recorded on any covered row) or that is
- * already on her page by origin key is never offered again.
- */
-export function withoutPresentBlocks(
-  items: ReadonlyArray<ReleaseItem>,
-  addedIds: ReadonlyArray<string>,
-  homeBlocks: BuilderNode[],
-): ReleaseItem[] {
-  const added = new Set(addedIds);
-  return items.filter((i) => {
-    if (i.type !== "new-block") return true;
-    if (added.has(i.id ?? `${i.type}:${i.key}`)) return false;
-    return !findKeyPath(homeBlocks, i.key.replace(/^(shell|home):/, ""));
-  });
 }
 
 /** READ-ONLY: what applying would do to her draft. Writes nothing. */

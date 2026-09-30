@@ -187,7 +187,8 @@ test("F74: the banner read is lean (no items) and the sheet's preview carries th
   const [n] = await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
   assert.ok(n);
   assert.equal("groups" in n, false, "no release body on the notice");
-  const relSelects = db.selects.filter((x) => x.table === "talent_theme_releases");
+  // F118 adds an actionability check (its own `items` read); the BANNER read stays lean.
+  const relSelects = db.selects.filter((x) => x.table === "talent_theme_releases" && x.cols === NOTICE_RELEASE_COLUMNS);
   assert.equal(relSelects.length, 1);
   assert.equal(relSelects[0]!.cols, NOTICE_RELEASE_COLUMNS);
   assert.doesNotMatch(NOTICE_RELEASE_COLUMNS, /items|base_payload|dry_run_report|\*/);
@@ -200,10 +201,9 @@ test("F74: the banner read is lean (no items) and the sheet's preview carries th
 test("F74: notice load is 4 reads with the release, site and title reads in one parallel step", async () => {
   const db = world();
   await loadTalentUpdateNotices(db.admin, PROFILE, { lazyFanOut: false });
-  assert.deepEqual(
-    db.selects.map((x) => x.table),
-    ["talent_site_theme_updates", "talent_theme_releases", "talent_sites", "talent_theme_catalog"],
-  );
+  const tables = db.selects.map((x) => x.table);
+  assert.deepEqual(tables.slice(0, 3), ["talent_site_theme_updates", "talent_theme_releases", "talent_sites"]);
+  assert.equal(tables.filter((t) => t === "talent_theme_catalog").length, 1);
 });
 
 test("what's new groups: important, automatic, new blocks, layout", () => {
