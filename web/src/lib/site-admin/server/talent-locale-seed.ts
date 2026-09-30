@@ -37,6 +37,39 @@ export function talentLocaleSeedTarget(input: {
 }
 
 /**
+ * F132 - what the talent surface should write for THIS signed-in user.
+ *
+ * The `locale` cookie is per browser, so a platform admin's deliberate English
+ * made Valeria (preferred_locale es) see English. A cookie only counts as the
+ * talent's own choice when its owner stamp equals her user id. Otherwise it is
+ * foreign: re-seed her primary (marked auto) and stamp her as owner, so her
+ * own later switch is honoured and nobody else's ever is.
+ *   - `primary` null (degraded read)  -> nothing, never guess
+ *   - owner is this user              -> the existing deliberate/auto rule
+ *   - owner absent or someone else    -> primary + stamp
+ */
+export function talentLocaleSeedPlan(input: {
+  cookieLocale: string | null | undefined;
+  cookieIsAuto: boolean;
+  cookieOwner: string | null | undefined;
+  userId: string;
+  primary: string | null | undefined;
+}): { locale: string | null; stamp: boolean } {
+  if (!input.primary) return { locale: null, stamp: false };
+  if (!input.userId || input.cookieOwner !== input.userId) {
+    return { locale: input.primary, stamp: true };
+  }
+  return {
+    locale: talentLocaleSeedTarget({
+      cookieLocale: input.cookieLocale,
+      cookieIsAuto: input.cookieIsAuto,
+      primary: input.primary,
+    }),
+    stamp: false,
+  };
+}
+
+/**
  * Same-origin `/talent` path guard for the seed route's `next` parameter.
  * Anything else (absolute URLs, protocol-relative, backslashes, other
  * surfaces) collapses to `/talent/today`.

@@ -40,10 +40,10 @@ import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-set
 import {
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
   talentLocaleSeedHref,
-  talentLocaleSeedTarget,
+  talentLocaleSeedPlan,
 } from "@/lib/site-admin/server/talent-locale-seed";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
-import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
+import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { getRequestLocale, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadTalentPageAnalytics } from "@/lib/analytics/talent-analytics";
@@ -282,14 +282,16 @@ export default async function PlatformTalentLayout({
   // from the session and sets a 60 s attempt cookie so this can never loop).
   const localeSettings = talentLocaleState.settings;
   const jar = await cookies();
-  const seedTarget = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value || !talentLocaleState.seedPrimary
+  const seedPlan = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value
     ? null
-    : talentLocaleSeedTarget({
+    : talentLocaleSeedPlan({
         cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
         cookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
+        cookieOwner: jar.get(LOCALE_OWNER_COOKIE)?.value ?? null,
+        userId: session.user.id,
         primary: talentLocaleState.seedPrimary,
       });
-  if (seedTarget) {
+  if (seedPlan && (seedPlan.locale || seedPlan.stamp)) {
     redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
   }
 

@@ -51,6 +51,15 @@
 /** Companion marker: "the `locale` cookie next to me was written by machinery, not by a person." */
 export const LOCALE_AUTO_COOKIE = "locale_auto";
 
+/**
+ * Owner stamp (F132): the user id the `locale` cookie belongs to. A locale
+ * cookie is per BROWSER; this makes a deliberate choice per USER. Stamped at
+ * sign-in and by the talent locale-seed route. On talent surfaces a cookie
+ * whose owner is not the signed-in user is foreign (another person used this
+ * browser) and never overrides that talent's own language.
+ */
+export const LOCALE_OWNER_COOKIE = "locale_owner";
+
 /** ~13 months. The locale cookie and its marker must expire together or the marker outlives its subject. */
 export const LOCALE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 
