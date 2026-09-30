@@ -9,7 +9,14 @@
 import { resolveAttentionCta } from "./attention-cta";
 import type { TalentAgendaItem } from "./types";
 
-export type TodayMode = "first_run" | "established";
+/**
+ * `loading` is the honest answer while the facts are still in flight: it used
+ * to collapse into `established`, so a brand-new account first painted the
+ * regular "Good morning" Today and only flipped to the "Welcome" launch view
+ * when offerings resolved (or never, when that call failed). Callers give up
+ * waiting after a short window by passing `settled: true`.
+ */
+export type TodayMode = "first_run" | "established" | "loading";
 
 export type TodayModeFacts = {
   /** Loaded agenda items (any state). */
@@ -18,6 +25,11 @@ export type TodayModeFacts = {
   bookableCount: number | null;
   /** Public website is published. */
   sitePublished: boolean;
+  /**
+   * True once the caller stopped waiting for `bookableCount` (load failed or
+   * timed out). Defaults to true so pure callers keep the old behavior.
+   */
+  settled?: boolean;
 };
 
 /**
@@ -27,7 +39,7 @@ export type TodayModeFacts = {
 export function resolveTodayMode(facts: TodayModeFacts): TodayMode {
   if (facts.sitePublished) return "established";
   if (facts.agendaItemCount > 0) return "established";
-  if (facts.bookableCount == null) return "established";
+  if (facts.bookableCount == null) return facts.settled === false ? "loading" : "established";
   return facts.bookableCount > 0 ? "established" : "first_run";
 }
 

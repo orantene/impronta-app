@@ -199,7 +199,7 @@ import {
   ageString,
   computeProfileDiff,
   findChild,
-  getTypeDefaults,
+  getTypeDefaults, typeLabelFromSlug,
   makeInitialProfileState,
   profileReducer
 } from "./profile-shell-internal";
@@ -3920,7 +3920,7 @@ export function TalentProfileShellDrawer() {
                 onActivateLocale={patchBioActiveLocale}
                 onChange={patchBios}
                 onRegenerate={onBiosRegenerate}
-                primaryLabel={primaryRes?.child.label}
+                primaryLabel={primaryRes?.child.label ?? (isSelf ? bridgeTalentSelfProfile?.primaryTypeLabel : null) ?? (state.primaryType ? typeLabelFromSlug(state.primaryType) : undefined)}
                 disabled={personalProfileLocked} talentLocales={isSelf ? talentLocales : null}
               />
               <PersonalityEditor value={state.personality} onChange={patchPersonality} />
@@ -4714,7 +4714,7 @@ export function TalentProfileShellDrawer() {
                 file,
                 variantKind: kind,
                 talentProfileId: payload.talentId!,
-                sourceMediaAssetId: sourceMediaAssetId ?? null,
+                sourceMediaAssetId: sourceMediaAssetId ?? null, metadata: kind === "gallery" ? { albumId: stateRef.current.albumsPro[0]?.id ?? "main" } : undefined,
               });
               if (fast.ok) {
                 return {
@@ -4732,7 +4732,7 @@ export function TalentProfileShellDrawer() {
 
               const fd = new FormData();
               fd.append("file", file);
-              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, {}, sourceMediaAssetId ?? null);
+              const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, kind === "gallery" ? { albumId: stateRef.current.albumsPro[0]?.id ?? "main" } : {}, sourceMediaAssetId ?? null);
               if (!res.ok) return { ok: false, error: res.error };
               return {
                 ok: true,

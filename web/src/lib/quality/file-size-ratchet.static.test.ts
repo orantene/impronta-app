@@ -609,7 +609,7 @@ const BUDGETS: Record<string, number> = {
   // talent-document actions with one dual-auth helper (staff OR profile owner),
   // so the helper and its doc comment cost more lines than the four blocks it
   // deleted returned.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2421,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2417,
   // +16 — loads + passes the Pro/Portfolio embeds and press bands (the render
   // chrome itself lives in _shared/TalentExtrasBands.tsx, not here).
   // +17 — the agency-surface roster gate, called in generateMetadata AND the
