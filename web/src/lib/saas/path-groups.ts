@@ -99,6 +99,10 @@ export const SHARED_API_PREFIXES = [
   // the fetch gets the branded HTML 404, and the picker renders no times at
   // all on every host.
   "/api/public/booking",
+  // Policy sheet over the booking: published policy text for a talent (or the
+  // platform default). Public by design, host-independent (talent hosts,
+  // agency hosts and the platform path all open the same sheet).
+  "/api/public/talent-policy",
   // Tulala Agent intake + Account Strategist. Anonymous-first on marketing
   // (/get-started/agent) and authenticated on app (/account/brief/agent). Own
   // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`

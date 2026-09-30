@@ -325,6 +325,7 @@ export async function createPurchase(
         source_page: input.sourcePage ?? null,
         payout_release_rule: "immediate",
         created_by: input.actorUserId,
+        ...(input.policyVersionId ? { policy_version_id: input.policyVersionId } : {}),
         // The age gate as it was at the moment of sale, and what the buyer said
         // about it. Stored on the ORDER rather than derived later because both
         // halves can move: a venue can lower the gate next week, and the
@@ -615,6 +616,7 @@ export async function createPurchase(
       subtotalCents: priced.subtotalCents,
       currency: orderCurrency,
       contact: input.contact,
+      policyVersionId: input.policyVersionId ?? null,
     });
     if (!anchor.ok) {
       await unwind("booking insert failed");
