@@ -158,4 +158,12 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Preview and translate in {lang}. Untranslated blocks dim.":
     "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
   "Content language": "Idioma del contenido",
+
+  // ── Portada Diseño density (page-builder panel cleanup) ────────────────
+  "Pick a look, then fine-tune the columns.":
+    "Elige un aspecto y luego ajusta las columnas.",
+  "Gap & mobile": "Espacio y móvil",
+  "Keep side by side": "Mantener lado a lado",
+  "Stack on phone": "Apilar en el teléfono",
+  "Stacking & visibility": "Apilado y visibilidad",
 };
