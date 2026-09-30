@@ -56,10 +56,15 @@ function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
-    const keys = Object.keys(record).sort();
+    // Undefined-valued keys vanish in a jsonb round trip; hash them as absent
+    // or a stored payload never equals the freshly built one (spurious bump).
+    const keys = Object.keys(record)
+      .filter((k) => record[k] !== undefined)
+      .sort();
     return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(record[k])}`).join(",")}}`;
   }
-  return JSON.stringify(value);
+  // undefined / functions inside arrays become null (as JSON does); NaN too.
+  return JSON.stringify(value) ?? "null";
 }
 
 /** Stable sha256 of a Design/Look payload. Same payload in → same hash out, key order irrelevant. */
@@ -95,8 +100,43 @@ export interface BuiltinUpsertRow {
   updated_by: string | null;
 }
 
+/** Stored history of one Design: insert-only snapshots + released to-versions. */
+export interface DesignHistory {
+  snapshots: ReadonlyArray<{ version: number; payload: unknown }>;
+  releaseToVersions: ReadonlyArray<number>;
+}
+
+/** A design payload change that needs a snapshot and (maybe) a draft release. */
+export interface DesignChange {
+  slug: string;
+  fromVersion: number;
+  toVersion: number;
+  /** Payload at fromVersion (the latest known one, not the lagging catalog row). */
+  basePayload: unknown;
+}
+
+/** Highest version the design has EVER had: catalog row, snapshots, releases. */
+export function highestKnownVersion(catalogVersion: number, history: DesignHistory | undefined): number {
+  let max = catalogVersion;
+  for (const s of history?.snapshots ?? []) if (s.version > max) max = s.version;
+  for (const v of history?.releaseToVersions ?? []) if (v > max) max = v;
+  return max;
+}
+
+/** The newest payload on record (catalog row wins a version tie). */
+export function latestDesignState(
+  prior: { version: number; payload: unknown },
+  history: DesignHistory | undefined,
+): { version: number; payload: unknown } {
+  let best = { version: prior.version, payload: prior.payload };
+  for (const s of history?.snapshots ?? []) if (s.version > best.version) best = s;
+  return best;
+}
+
 export interface BuiltinSyncPlan {
   upserts: BuiltinUpsertRow[];
+  /** Design payload changes (snapshot + draft release), one per changed design. */
+  designChanges: DesignChange[];
   /** (kind, slug) pairs a built-in wanted to write but an authored row already owns. */
   skippedAuthored: Array<{ kind: TalentThemeKind; slug: string }>;
   created: number;
@@ -116,10 +156,12 @@ export function planBuiltinSync(
   built: ReadonlyArray<{ entry: BuiltinThemeEntry; payload: unknown }>,
   existing: readonly ExistingBuiltinRow[],
   userId: string | null = null,
+  history: ReadonlyMap<string, DesignHistory> = new Map(),
 ): BuiltinSyncPlan {
   const bySlug = new Map(existing.map((row) => [`${row.kind}:${row.slug}`, row]));
   const upserts: BuiltinUpsertRow[] = [];
   const skippedAuthored: BuiltinSyncPlan["skippedAuthored"] = [];
+  const designChanges: DesignChange[] = [];
   let created = 0;
   let updated = 0;
   let unchanged = 0;
@@ -134,7 +176,26 @@ export function planBuiltinSync(
 
     const newHash = hashBuiltinPayload(payload);
     let version = 1;
-    if (prior) {
+    if (prior && entry.kind === "design") {
+      // A gated sync leaves the catalog row behind, so the truth is the
+      // newest snapshot, not the row. Same payload as that = nothing to do.
+      const h = history.get(entry.slug);
+      const latest = latestDesignState(prior, h);
+      if (hashBuiltinPayload(latest.payload) === newHash) {
+        unchanged += 1;
+        if (latest.version > prior.version) continue; // held state: no write
+        version = prior.version;
+      } else {
+        version = highestKnownVersion(prior.version, h) + 1;
+        updated += 1;
+        designChanges.push({
+          slug: entry.slug,
+          fromVersion: latest.version,
+          toVersion: version,
+          basePayload: latest.payload,
+        });
+      }
+    } else if (prior) {
       const priorHash = hashBuiltinPayload(prior.payload);
       version = priorHash === newHash ? prior.version : prior.version + 1;
       if (priorHash === newHash) unchanged += 1;
@@ -169,7 +230,7 @@ export function planBuiltinSync(
     });
   }
 
-  return { upserts, skippedAuthored, created, updated, unchanged };
+  return { upserts, designChanges, skippedAuthored, created, updated, unchanged };
 }
 
 export interface ReleaseDraftCandidate {
@@ -242,6 +303,42 @@ export function splitGatedUpserts<T extends { kind: TalentThemeKind; slug: strin
   return { catalogUpserts, held };
 }
 
+const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
+
+/** Read-only: snapshots + released to-versions per design. Missing tables read as empty. */
+async function loadDesignHistories(
+  admin: SupabaseClient,
+  slugs: string[],
+): Promise<Map<string, DesignHistory>> {
+  const out = new Map<string, { snapshots: Array<{ version: number; payload: unknown }>; releaseToVersions: number[] }>();
+  const slot = (slug: string) => {
+    let h = out.get(slug);
+    if (!h) out.set(slug, (h = { snapshots: [], releaseToVersions: [] }));
+    return h;
+  };
+  const snaps = await admin.from("talent_theme_versions").select("design, version, payload").in("design", slugs);
+  if (snaps.error) {
+    if (!(snaps.error.code && MISSING_TABLE_CODES.has(snaps.error.code))) {
+      logServerError("talentTheme.syncBuiltins.history", snaps.error);
+    }
+  } else {
+    for (const r of (snaps.data ?? []) as Array<{ design: string; version: number; payload: unknown }>) {
+      slot(r.design).snapshots.push({ version: r.version, payload: r.payload });
+    }
+  }
+  const rels = await admin.from("talent_theme_releases").select("design_slug, to_version").in("design_slug", slugs);
+  if (rels.error) {
+    if (!(rels.error.code && MISSING_TABLE_CODES.has(rels.error.code))) {
+      logServerError("talentTheme.syncBuiltins.history", rels.error);
+    }
+  } else {
+    for (const r of (rels.data ?? []) as Array<{ design_slug: string; to_version: number }>) {
+      slot(r.design_slug).releaseToVersions.push(r.to_version);
+    }
+  }
+  return out;
+}
+
 export type SyncBuiltinTalentThemesResult =
   | {
       ok: true;
@@ -296,7 +393,11 @@ export async function syncBuiltinTalentThemes(
     return { ok: false, error: error.message };
   }
 
-  const plan = planBuiltinSync(built, (data ?? []) as ExistingBuiltinRow[], userId);
+  const history = await loadDesignHistories(
+    admin,
+    entries.filter((e) => e.kind === "design").map((e) => e.slug),
+  );
+  const plan = planBuiltinSync(built, (data ?? []) as ExistingBuiltinRow[], userId, history);
   if (plan.skippedAuthored.length > 0) {
     logServerError("talentTheme.syncBuiltins.authoredShadowed", {
       skipped: plan.skippedAuthored,
@@ -333,27 +434,29 @@ export async function syncBuiltinTalentThemes(
   // Staged releases: a changed design payload gets a DRAFT release row and a
   // snapshot. Held-back bumps stay OFF the catalog until "Make default"; with
   // `flipCatalog` they also publish as before. Never opens to talents;
-  // missing-table tolerant (migration may not be applied yet).
+  // missing-table tolerant (migration may not be applied yet). The release
+  // runs from the LATEST snapshot (not the lagging catalog row) to the new
+  // version, so release 15 -> 16 exists even while the catalog sits at 14.
+  const released = new Set<string>();
+  for (const [slug, h] of history) for (const v of h.releaseToVersions) released.add(`${slug}:${v}`);
   const drafts = planReleaseDrafts(
-    plan.upserts.map((u) => ({
-      kind: u.kind,
-      slug: u.slug,
-      version: u.version,
-      priorVersion: priorVersions.get(`${u.kind}:${u.slug}`) ?? null,
+    plan.designChanges.map((c) => ({
+      kind: "design" as const,
+      slug: c.slug,
+      version: c.toVersion,
+      priorVersion: c.fromVersion,
     })),
-    new Set<string>(),
-  );
-  const priorPayloads = new Map(
-    ((data ?? []) as ExistingBuiltinRow[]).map((r) => [`${r.kind}:${r.slug}`, r.payload]),
+    released,
   );
   for (const d of drafts) {
-    const prior = priorPayloads.get(`design:${d.designSlug}`) as DesignPayload | undefined;
+    const change = plan.designChanges.find((c) => c.slug === d.designSlug)!;
+    const prior = change.basePayload as DesignPayload;
     const next = plan.upserts.find((u) => u.kind === "design" && u.slug === d.designSlug)?.payload as
       | DesignPayload
       | undefined;
     let items: ReleaseItem[] = [];
     let notes: ReleaseNotes = {};
-    if (prior && next) {
+    if (next) {
       try {
         const gen = generateReleaseItems(
           d.designSlug,
@@ -373,16 +476,22 @@ export async function syncBuiltinTalentThemes(
   }
 
   // Payload snapshot per design version (exact merge base for pinned sites).
+  // Insert-only: the from-version row already exists after the first gated
+  // sync, and the new version always lands as a fresh row.
   await writeThemeVersionSnapshots(admin, [
-    // Held-back designs also keep the version they are leaving (the merge base).
-    ...held.map((u) => ({
-      design: u.slug,
-      version: priorVersions.get(`design:${u.slug}`) as number,
-      payload: priorPayloads.get(`design:${u.slug}`) as DesignPayload,
+    ...plan.designChanges.map((c) => ({
+      design: c.slug,
+      version: c.fromVersion,
+      payload: c.basePayload as DesignPayload,
       source: "sync",
     })),
     ...plan.upserts
-      .filter((u) => u.kind === "design" && priorVersions.get(`${u.kind}:${u.slug}`) !== u.version)
+      .filter(
+        (u) =>
+          u.kind === "design" &&
+          (!priorVersions.has(`${u.kind}:${u.slug}`) ||
+            plan.designChanges.some((c) => c.slug === u.slug)),
+      )
       .map((u) => ({ design: u.slug, version: u.version, payload: u.payload as DesignPayload, source: "sync" })),
   ]);
 
