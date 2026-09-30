@@ -28,6 +28,7 @@ import { buildTimelineResult } from "./timeline";
 import type { HistoryRow, HistorySnapshot, ThemeUpdateHistoryReport } from "./types";
 import { recordSiteHistory, writeSiteDraft, type WriteSiteDraftResult } from "./writer";
 import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fan-out.server";
+import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const LIST_COLS =
@@ -478,6 +479,7 @@ export async function loadGoLiveSummary(
     { header: CHROME_COPY.header[locale], colours: CHROME_COPY.colours[locale] },
     locale,
     Boolean(state.sitePublishedAt),
+    isTalentThemeGalleryEnabled(),
   );
   return {
     draftRev: state.draftRev,

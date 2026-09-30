@@ -77,6 +77,12 @@ export function buildSocketModel(input: {
   /** Agency whitelabel hides the credit whatever the plan. */
   whitelabel: boolean;
   consentTooling: boolean;
+  /**
+   * Replaces the talent-host policy links. Legacy `/t/[profileCode]` pages pass
+   * `[]` (no talent policy routes there); agency storefronts pass their own
+   * policy pages. Omit for the talent-site default.
+   */
+  siteLinks?: readonly SocketLink[];
 }): SocketModel {
   const { locale } = input;
   const prefix = input.publicPathPrefix.replace(/\/+$/, "");
@@ -95,7 +101,10 @@ export function buildSocketModel(input: {
       external: false,
     },
   ];
-  if (input.consentTooling) {
+  if (input.siteLinks) {
+    siteLinks.length = 0;
+    siteLinks.push(...input.siteLinks);
+  } else if (input.consentTooling) {
     siteLinks.push({
       key: "privacy-choices",
       label: pickLocale(locale, { en: "Your privacy choices", es: "Tus opciones de privacidad" }),
@@ -154,10 +163,49 @@ export function buildSocketModel(input: {
  * text is the old per-design credit (any locale), so the socket hides it at
  * RENDER time without a payload edit (payload changes ship as theme releases).
  */
+const POLICY_HREF = /(terms|privacy|polic|legal|cookies|terminos|privacidad|politica|aviso)/i;
+
+/** Agency footer nav links that are policy pages (terms, privacy, policies). */
+export function pickPolicyLinks(
+  links: readonly { href: string; label: string }[],
+): SocketLink[] {
+  return links
+    .filter((l) => POLICY_HREF.test(l.href) || POLICY_HREF.test(l.label))
+    .slice(0, 4)
+    .map((l, i) => ({
+      key: `agency-policy-${i}`,
+      label: l.label,
+      href: l.href,
+      external: /^https?:\/\//i.test(l.href),
+    }));
+}
+
+/** Pure: the agency socket model (policy pages if any, whitelabel hides credit). */
+export function buildAgencySocketModel(input: {
+  locale: string;
+  whitelabel: boolean;
+  footerLinks: readonly { href: string; label: string }[];
+}): SocketModel {
+  return buildSocketModel({
+    locale: input.locale,
+    publicPathPrefix: "",
+    supportedLocales: [],
+    showCredit: true,
+    whitelabel: input.whitelabel,
+    consentTooling: false,
+    siteLinks: pickPolicyLinks(input.footerLinks),
+  });
+}
+
 const DESIGN_CREDIT_TEXTS = new Set(["hecho con tulala", "made with tulala", "powered by tulala"]);
 
 export function isDesignCreditText(text: unknown): boolean {
-  return typeof text === "string" && DESIGN_CREDIT_TEXTS.has(text.trim().toLowerCase());
+  if (typeof text !== "string") return false;
+  const plain = text
+    .replace(/\{\/?[a-z]\}|<\/?[a-z]+>/gi, "")
+    .trim()
+    .toLowerCase();
+  return DESIGN_CREDIT_TEXTS.has(plain);
 }
 
 interface TreeNodeLike {

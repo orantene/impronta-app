@@ -42,6 +42,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
+import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { MAISON_DEFAULT_TOKENS } from "./maison-tokens";
 import {
@@ -564,6 +565,13 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             </small>
           </div>
         </footer>
+      ) : null}
+      {showFooter ? (
+        <ProfileFooterSocket
+          locale={locale}
+          whitelabel={props.whitelabel}
+          tokens={{ surface: "var(--mn-white)", ink: "var(--mn-ink)", line: "var(--mn-line)" }}
+        />
       ) : null}
 
       {slotPicker}

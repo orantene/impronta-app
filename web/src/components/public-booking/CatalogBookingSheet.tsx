@@ -19,6 +19,7 @@ import {
 } from "@/lib/talent/who-step-payment-copy";
 
 import type { CatalogBookFn } from "./catalog-booking-confirm";
+import { PolicyLinkSheet } from "./PolicyLinkSheet";
 import {
   openCatalogBookingChat,
   type CatalogBookingChatHandoff,
@@ -731,6 +732,7 @@ export function CatalogBookingSheet({
           ) : null}
         </div>
 
+        {step === "who" ? <div style={{ textAlign: "center", padding: "6px 0" }}><PolicyLinkSheet talentProfileId={detail.talentProfileId} locale={locale} /></div> : null}
         <footer className="jb-foot">
           {step !== "done" ? (
             <div className="jb-total">

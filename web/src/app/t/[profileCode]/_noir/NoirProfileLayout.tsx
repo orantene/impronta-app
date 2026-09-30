@@ -43,6 +43,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import { NoirBookbarAutoHide, NoirReveal } from "./NoirReveal";
 import { NOIR_CSS } from "./noir-css";
 import { NoirStatRail, type NoirDetailRow } from "./NoirStatRail";
@@ -614,8 +615,14 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       {showFooter && !isModal ? (
         <footer className="nf-wrap nf-foot">
           <div style={{ color: "rgba(236,228,211,0.6)", fontSize: 13, letterSpacing: 0, textTransform: "none" }}><PublicCmsFooterNav locale={locale} /></div>
-          {props.whitelabel ? null : <span>Powered by <em>Tulala</em></span>}
         </footer>
+      ) : null}
+      {showFooter && !isModal ? (
+        <ProfileFooterSocket
+          locale={locale}
+          whitelabel={props.whitelabel}
+          tokens={{ surface: "var(--nf-bg)", ink: "var(--nf-ink)", line: "var(--nf-line-soft)" }}
+        />
       ) : null}
 
       {/* ── STICKY BAR (phone) ── */}

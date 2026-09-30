@@ -18,6 +18,7 @@ import { formatOfferingPrice } from "@/lib/talent/offerings-types";
 import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
+import { PolicyLinkSheet } from "@/components/public-booking/PolicyLinkSheet";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import {
   catalogCollectNowCents,
@@ -514,6 +515,9 @@ export function CatalogPurchaseMount({
           >
             {pickLocale(locale, { en: "Cancel", es: "Cancelar" })}
           </button>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 10, color: MUTED }}>
+          <PolicyLinkSheet talentProfileId={d.talentProfileId} locale={locale} />
         </div>
       </div>
     </div>

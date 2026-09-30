@@ -92,6 +92,8 @@ import {
 import { buildMaxSiteSeo } from "./max-site-seo.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
+import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
+import { policyDocForSlug } from "@/lib/talent-policies/public";
 
 /**
  * Talent Max Site — REUSABLE public render.
@@ -268,8 +270,11 @@ export async function renderTalentMaxSite(
     // Owner draft preview renders draft pages too; the public path requires
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
+    // `/politicas` and `/privacidad` are platform pages: they take the site's
+    // shell and theme (the home page supplies both) and swap only the body.
+    const policyDoc = policyDocForSlug(input.pageSlug);
     const page = selectMaxSitePage(pages, {
-      pageSlug: input.pageSlug,
+      pageSlug: policyDoc ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
@@ -279,7 +284,7 @@ export async function renderTalentMaxSite(
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
     const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -311,7 +316,9 @@ export async function renderTalentMaxSite(
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
 
+    const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
     const node = await renderMaxSiteDocument({
+      mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
       siteTokens,
       designSlug,
       shellTree: hydratedShell,
@@ -347,7 +354,7 @@ export async function renderTalentMaxSite(
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
-    return { kind: "render", node, seo };
+    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;
@@ -362,6 +369,8 @@ export async function renderTalentMaxSite(
  * page in place of `PublicHeader`.
  */
 async function renderMaxSiteDocument(args: {
+  /** Replaces the page body (policy pages); the shell still wraps it. */
+  mainOverride?: ReactNode;
   /** Site-level theme tokens (theme gallery); `{}` = today's cascade. */
   siteTokens: Readonly<Record<string, string>>;
   designSlug?: string | null;
@@ -707,7 +716,7 @@ async function renderMaxSiteDocument(args: {
       ) : null}
 
       <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
-        {renderFreeformPageRootTree(pruneEmptyBoundSections(blocks, pricedDataSources), {
+        {args.mainOverride ?? renderFreeformPageRootTree(pruneEmptyBoundSections(blocks, pricedDataSources), {
           publicPathPrefix,
           mode: "freeform",
           includeRendererStyles: false,
