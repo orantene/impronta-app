@@ -24,10 +24,13 @@ import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
 import { MONEY_ES_TEXT } from "./dashboard-i18n-money";
 import { MONEY_HOME_ES_TEXT } from "./dashboard-i18n-money-home";
+import { TALENT_CLIENT_PANELS_ES_TEXT } from "./dashboard-i18n-talent-client-panels";
 import { TALENT_GAPS_ES_TEXT } from "./dashboard-i18n-talent-gaps";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
+  // First, so a generic key already translated elsewhere keeps its wording.
+  ...TALENT_CLIENT_PANELS_ES_TEXT,
   ...LINKS_ES_TEXT,
   ...WEBSITE_ES_TEXT,
   ...MONEY_ES_TEXT,

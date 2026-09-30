@@ -7,5 +7,5 @@ export default async function LegacyTalentPresencePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await redirectLegacyTalentPath("presence", searchParams);
+  await redirectLegacyTalentPath("site", searchParams);
 }

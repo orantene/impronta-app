@@ -39,6 +39,10 @@ export type TalentClientRow = {
   firstSeenAt?: string | null;
   /** Appointments, newest first. Optional so older callers stay valid. */
   history?: TalentClientHistoryEntry[];
+  /** Private note the talent wrote (never shown to the client). */
+  note?: string | null;
+  /** True when the talent added this person by hand (no booking or message yet). */
+  manual?: boolean;
 };
 
 /** Add history entries, dropping a booking already on file (shared-PK mirrors). */
