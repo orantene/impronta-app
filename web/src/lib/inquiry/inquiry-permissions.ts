@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { talentSelfInquiryAllowed } from "./talent-self-inquiry";
+
 export type EngineAction =
   | "submit_inquiry"
   | "move_to_coordination"
@@ -103,7 +105,11 @@ export async function validateActorPermission(
   inquiryId: string,
   actorUserId: string | null,
   action: EngineAction,
-  opts?: { guestSessionId?: string | null },
+  opts?: {
+    guestSessionId?: string | null;
+    /** submit_inquiry only: a talent opening a conversation for herself (see talent-self-inquiry.ts). */
+    selfInquiry?: { talentProfileIds: readonly string[]; tenantId: string; hubTenantId: string | null };
+  },
 ): Promise<PermissionResult> {
   // ── Guest-sender branch ─────────────────────────────────────────────────
   // No auth user, but a resolved guest session that owns the inquiry. The
@@ -135,6 +141,19 @@ export async function validateActorPermission(
   if (action === "submit_inquiry" && !inquiryId) {
     if (profile?.app_role === "client") {
       return { ok: true, isStaff: false, talentProfileId: null };
+    }
+    if (opts?.selfInquiry) {
+      const own = await loadTalentProfileIdForUser(supabase, actorUserId);
+      if (
+        talentSelfInquiryAllowed({
+          actorTalentProfileId: own,
+          talentProfileIds: opts.selfInquiry.talentProfileIds,
+          tenantId: opts.selfInquiry.tenantId,
+          hubTenantId: opts.selfInquiry.hubTenantId,
+        })
+      ) {
+        return { ok: true, isStaff: false, talentProfileId: own };
+      }
     }
     return { ok: false, reason: "forbidden" };
   }

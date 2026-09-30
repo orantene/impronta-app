@@ -2,6 +2,8 @@
 
 import { z } from "zod";
 
+import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
+import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { insertMessage } from "@/lib/messaging/insert-message";
 import { fail } from "@/lib/messaging/refusals";
 import { loadOwnedTalentInquiry, loadTalentActor } from "@/lib/messaging/talent-actor";
@@ -10,7 +12,7 @@ import { signThreadToken } from "@/lib/messaging/thread-token";
 import type { MessagingChannel } from "@/lib/messaging/types";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 
 /**
  * F38: the talent's own Messages writers (mockup msg_d / msg_actions). A
@@ -19,11 +21,9 @@ import { resolveTalentOwnWorkTenant } from "@/lib/talent-agenda/own-work-tenant"
  * threads. On an agency sale the agency owns the thread and these refuse
  * (the seller-mode chrome does not show them there).
  *
- * New conversations follow the talent Agenda writers (create-quote,
- * convert-hold): the hub tenant from `resolveTalentOwnWorkTenant`, rows
- * written with the service client after the actor is resolved from the
- * session. `submitInquiry` refuses a talent actor (`submit_inquiry` is
- * client/staff only), so the funnel cannot seat her own conversation.
+ * New conversations go through the inquiry funnel (createInquiryFromIntent
+ * → submitInquiry) on the hub tenant, as a `talent_self` initiator: the
+ * permission gate admits a talent only for her own profile on the hub.
  */
 
 const uuid = z.string().uuid();
@@ -61,58 +61,39 @@ export async function messagingTalentStartConversation(input: {
   if (!email && !phone) return fail("invalid");
   const actor = await loadTalentActor();
   if (!actor.ok) return actor;
-  const hub = await resolveTalentOwnWorkTenant();
-  if (!hub.ok) return fail("unavailable");
+  const hub = await getPlatformHubTenant();
+  if (!hub?.tenantId) return fail("unavailable");
   const tenantId = hub.tenantId;
   const admin = actor.admin;
 
-  const { data: inquiry, error } = await tenantScopedQuery(admin, "inquiries", tenantId)
-    .insert({
-      tenant_id: tenantId,
-      owner_user_id: actor.userId,
-      contact_name: parsed.data.name,
-      contact_email: email,
-      contact_phone: phone,
-      message: parsed.data.firstMessage || "Conversation started from Messages",
-      source_type: "manual",
-      status: "coordination",
-      uses_new_engine: true,
-      channel: parsed.data.channel,
-      location_slug: "default",
-      source_context: {
-        talent_ids: [actor.talentProfileId],
-        channel: parsed.data.channel,
-        started_by: "talent",
-        acting_talent_user_id: actor.userId,
-      },
-    })
-    .select("id, version")
-    .single();
-  if (error || !inquiry) {
-    logServerError("messaging-talent.start.inquiry", error);
-    return fail("unavailable");
-  }
-  const inquiryId = (inquiry as { id: string }).id;
-
-  // The participant row is what the attachment pipeline and the thread
-  // readers key on; the default requirement group must exist first (M5.6 trigger).
-  const { data: group, error: groupErr } = await tenantScopedQuery(admin, "inquiry_requirement_groups", tenantId)
-    .insert({ inquiry_id: inquiryId, tenant_id: tenantId, role_key: "talent", quantity_required: 1, sort_order: 0 })
-    .select("id")
-    .single();
-  if (groupErr) logServerError("messaging-talent.start.group", groupErr);
-  const { error: partErr } = await tenantScopedQuery(admin, "inquiry_participants", tenantId).insert({
-    inquiry_id: inquiryId,
+  // Inquiry funnel: the one creation path. `talent_self` lets the engine
+  // admit her only for her own profile on the hub (talent-self-inquiry.ts).
+  const intent: InquiryIntent = {
+    source: "admin_created",
+    source_context: { started_by: "talent", acting_talent_user_id: actor.userId, channel: parsed.data.channel },
+    requester: { name: parsed.data.name, email: email ?? undefined, phone: phone ?? undefined },
+    talent: { selected_ids: [actor.talentProfileId] },
+    brief: { summary: parsed.data.firstMessage || "Conversation started from Messages" },
+    location: { status: "not_sure" },
+    date: { status: "not_sure" },
+  };
+  const created = await createInquiryFromIntent(admin, intent, {
     tenant_id: tenantId,
-    user_id: actor.userId,
-    talent_profile_id: actor.talentProfileId,
-    role: "talent",
-    status: "active",
-    sort_order: 0,
-    added_by_user_id: actor.userId,
-    requirement_group_id: (group as { id?: string } | null)?.id ?? null,
+    actor_user_id: actor.userId,
+    client_user_id: null,
+    talent_self: true,
   });
-  if (partErr) logServerError("messaging-talent.start.participant", partErr);
+  if (!created.ok) return fail(created.reason === "forbidden" ? "not_allowed" : "unavailable");
+  const inquiryId = created.inquiryId;
+  await tenantScopedQuery(admin, "inquiries", tenantId)
+    .update({ channel: parsed.data.channel, location_slug: "default", owner_user_id: actor.userId })
+    .eq("id", inquiryId);
+  // She started it: her own seat is active, not an invitation to accept.
+  await tenantScopedQuery(admin, "inquiry_participants", tenantId)
+    .update({ status: "active" })
+    .eq("inquiry_id", inquiryId)
+    .eq("talent_profile_id", actor.talentProfileId)
+    .eq("role", "talent");
 
   if (parsed.data.firstMessage) {
     await insertMessage(admin, {
