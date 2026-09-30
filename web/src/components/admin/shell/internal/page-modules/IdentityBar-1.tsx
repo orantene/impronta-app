@@ -396,6 +396,8 @@ export function TulalaIdentityBar() {
               />
             )}
 
+            {/* PR 7: talent language switch (ES | EN pill); also seeds the content locale. */}
+            {inTalent ? <LanguageMenu /> : null}
             <NotificationsBell />
 
             {/* Preview. Studio v2 opens the talent's own public page.
