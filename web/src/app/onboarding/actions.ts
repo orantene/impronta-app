@@ -350,6 +350,16 @@ export async function completeTalentLocationOnboarding(
     await scheduleRebuildAiSearchDocument(supabase, tp.id);
   }
 
+  // The middleware caches the access profile; without this nudge the redirect
+  // below hits /talent with the pre-onboarding profile (no role), which sends
+  // the browser straight back to a blank /onboarding/role. Same nudge as
+  // chooseClientRole.
+  (await cookies()).set(ACCESS_PROFILE_REFRESH_COOKIE, ACCESS_PROFILE_REFRESH_VALUE, {
+    path: "/",
+    maxAge: 60,
+    httpOnly: true,
+    sameSite: "lax",
+  });
   revalidatePath("/", "layout");
   const rosterResult = tp?.id
     ? await ensureTalentRosterForNext(user.id, tp.id, nextPath)
