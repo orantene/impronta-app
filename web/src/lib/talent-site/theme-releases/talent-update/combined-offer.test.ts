@@ -211,3 +211,63 @@ test("F111: Not now dismisses both rows; the quiet entry stays; partial dismissa
   assert.equal(h!.state, "available");
   assert.equal(isNoticeVisible(h!.state), true);
 });
+
+// ── F116: noBase survives the combined offer ─────────────────────────────────
+
+test("F116: the combined context keeps the newest release's own from-version for the base", async () => {
+  const { makeBaseResolver } = await import("../manager/base-resolver.server");
+  const db = world(["available", "available"], 1);
+  const ctx = (await loadUpdateContext(db.admin, PROFILE, U3))!;
+  assert.equal(ctx.release.from_version, 1, "label = her pin");
+  assert.equal(ctx.baseFromVersion, 2, "base_payload belongs to the newest release's own from-version");
+  // No snapshot for v1: the saved v2 payload must NOT be taken as her v1 base.
+  const resolve = makeBaseResolver(db.admin, {
+    design_slug: "maison-v2",
+    from_version: ctx.baseFromVersion,
+    base_payload: { v: 2 } as never,
+  });
+  assert.equal(await resolve(1), null);
+  assert.deepEqual(await resolve(2), { v: 2 });
+});
+
+test("F116: a noBase combined offer lists only new blocks, no Apply, and apply is refused", async () => {
+  const db = world(["available", "available"], 1);
+  const base = deps(db);
+  const noBaseDeps: UpdateDeps = {
+    ...base,
+    merge: async (ctx, items) => {
+      const m = await base.merge(ctx, items);
+      return m.ok ? { ...m, noBase: true } : m;
+    },
+  };
+  const res = await previewThemeUpdate(noBaseDeps, PROFILE, U3);
+  assert.ok(res.ok);
+  assert.equal(res.value.noBase, true);
+  assert.equal(res.value.hasApplicable, false);
+  assert.deepEqual(res.value.groups.map((g) => g.group), ["blocks"]);
+  const apply = await applyThemeUpdate(noBaseDeps, { talentProfileId: PROFILE, updateId: U3, expectedDraftRev: 7, actorId: "u-1" });
+  assert.equal(apply.ok, false);
+  assert.equal(!apply.ok && apply.code, "no_base");
+  assert.deepEqual(states(db), ["available", "available"]);
+});
+
+// ── F117: never offer a block she already has ────────────────────────────────
+
+test("F117: a block recorded as added on ANY covered row is not offered again", async () => {
+  const db = world();
+  db.tables.talent_site_theme_updates![0]!.report = { addedBlocks: ["new-block:gallery"] }; // the 2.1 row
+  const res = await previewThemeUpdate(deps(db), PROFILE, U3);
+  assert.ok(res.ok);
+  const ids = res.value.groups.flatMap((g) => g.items).map((i) => i.id);
+  assert.ok(!ids.includes("new-block:gallery"));
+  assert.ok(ids.includes("layout:hero"), "the rest of the offer is intact");
+});
+
+test("F117: a block already on her page by origin key is not offered again", async () => {
+  const db = world();
+  const withGallery = built(1, { withGallery: true }, TOKENS);
+  db.tables.talent_pages![0]!.blocks = withGallery.trees.home;
+  const res = await previewThemeUpdate(deps(db), PROFILE, U3);
+  assert.ok(res.ok);
+  assert.ok(!res.value.groups.flatMap((g) => g.items).some((i) => i.id === "new-block:gallery"));
+});

@@ -92,6 +92,12 @@ export interface UpdateContext {
   release: TalentRelease;
   /** Every update row this offer covers (`updateId` = the newest release's row). */
   coveredUpdateIds: string[];
+  /**
+   * The newest release's OWN from-version. `release.from_version` is her pin on a
+   * combined offer, but the release's saved `base_payload` belongs to THIS
+   * version: pairing it with her pin would merge from the wrong base (F116).
+   */
+  baseFromVersion: number;
 }
 
 export type MergeFn = (ctx: UpdateContext, items: ReadonlyArray<ReleaseItem> | undefined) => Promise<SiteMergeOutcome>;
@@ -268,6 +274,7 @@ export async function loadUpdateContext(
     updateId: combined.updateId,
     state: combined.state,
     coveredUpdateIds: combined.coveredUpdateIds,
+    baseFromVersion: combined.baseFromVersion,
     siteId: s.id,
     siteSlug: s.site_slug,
     talentProfileId,
@@ -341,10 +348,11 @@ async function combineCoveredUpdates(
   updateId: string;
   state: SiteUpdateState;
   coveredUpdateIds: string[];
+  baseFromVersion: number;
   addedBlocks: string[];
   release: TalentRelease;
 }> {
-  const single = { updateId: u.id, state: u.state, coveredUpdateIds: [u.id], addedBlocks: addedOf(u.report), release };
+  const single = { updateId: u.id, state: u.state, coveredUpdateIds: [u.id], baseFromVersion: release.from_version, addedBlocks: addedOf(u.report), release };
   if (u.state === "applied" || (pinned ?? 0) >= release.to_version) return single;
   const covered = await loadOpenCovered(admin, siteId, release.design_slug, pinned);
   if (covered.length < 2 || !covered.some((c) => c.row.id === u.id)) return single;
@@ -353,6 +361,7 @@ async function combineCoveredUpdates(
     updateId: newest.row.id,
     state: combinedUpdateState(covered.map((c) => c.row.state)),
     coveredUpdateIds: covered.map((c) => c.row.id),
+    baseFromVersion: newest.release.from_version,
     addedBlocks: [...new Set(covered.flatMap((c) => addedOf(c.row.report)))],
     release: {
       ...newest.release,
@@ -377,7 +386,8 @@ export function makeSiteMerge(admin: SupabaseClient): MergeFn {
     if (error) return { ok: false, error: error.message };
     const release = {
       design_slug: ctx.release.design_slug,
-      from_version: ctx.release.from_version,
+      // The saved base_payload is the newest release's own from-version payload (F116).
+      from_version: ctx.baseFromVersion,
       to_version: ctx.release.to_version,
       base_payload: (data as { base_payload?: unknown } | null)?.base_payload ?? null,
     };
@@ -450,6 +460,23 @@ async function homeTree(admin: SupabaseClient, talentProfileId: string): Promise
   return Array.isArray(b) ? (b as BuilderNode[]) : [];
 }
 
+/**
+ * F117: a new block she already added (recorded on any covered row) or that is
+ * already on her page by origin key is never offered again.
+ */
+export function withoutPresentBlocks(
+  items: ReadonlyArray<ReleaseItem>,
+  addedIds: ReadonlyArray<string>,
+  homeBlocks: BuilderNode[],
+): ReleaseItem[] {
+  const added = new Set(addedIds);
+  return items.filter((i) => {
+    if (i.type !== "new-block") return true;
+    if (added.has(i.id ?? `${i.type}:${i.key}`)) return false;
+    return !findKeyPath(homeBlocks, i.key.replace(/^(shell|home):/, ""));
+  });
+}
+
 /** READ-ONLY: what applying would do to her draft. Writes nothing. */
 export async function previewThemeUpdate(
   deps: UpdateDeps,
@@ -470,7 +497,7 @@ export async function previewThemeUpdate(
     value: {
       summary: summarizeReport(m.result.report),
       noBase: m.noBase,
-      groups: groupItems(offeredItems(items, m.noBase)),
+      groups: groupItems(withoutPresentBlocks(offeredItems(items, m.noBase), ctx.addedBlocks, tree)),
       hasApplicable: !m.noBase && applyItemsOf(items).length > 0,
       previewUrl: themeUpdatePreviewUrl(ctx.siteSlug, updateId),
       placements: placementOptions(tree),
