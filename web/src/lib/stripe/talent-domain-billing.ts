@@ -179,11 +179,15 @@ export async function fulfillTalentDomainPurchase(opts: {
   const sessionId = opts.sessionId;
 
   // Idempotency: already fulfilled for this Checkout session.
-  const { data: existingBySession } = await sb
+  const { data: existingBySession, error: existingBySessionError } = await sb
     .from("talent_site_domains")
     .select("id, vercel_order_id, status, failure_reason")
     .eq("stripe_checkout_session_id", sessionId)
     .maybeSingle();
+  if (existingBySessionError) {
+    logServerError("talent-domain-billing.fulfill.bySession", existingBySessionError);
+    return { ok: false, error: "Could not look up domain purchase." };
+  }
 
   if (existingBySession?.vercel_order_id) {
     return { ok: true, data: { orderId: existingBySession.vercel_order_id as string } };
@@ -233,12 +237,16 @@ export async function fulfillTalentDomainPurchase(opts: {
       ? attach.errorMessage ?? attach.skippedReason ?? "Vercel attach failed after purchase."
       : null;
 
-  const { data: existingDomain } = await sb
+  const { data: existingDomain, error: existingDomainError } = await sb
     .from("talent_site_domains")
     .select("id")
     .eq("talent_profile_id", opts.talentProfileId)
     .eq("domain", domain)
     .maybeSingle();
+  if (existingDomainError) {
+    logServerError("talent-domain-billing.fulfill.byDomain", existingDomainError);
+    return { ok: false, error: "Could not look up domain row after purchase." };
+  }
 
   const row = {
     talent_profile_id: opts.talentProfileId,
@@ -286,19 +294,29 @@ async function upsertPurchaseErrorRow(
     failureReason: string;
   },
 ): Promise<void> {
-  const { data: bySession } = await sb
+  const { data: bySession, error: bySessionError } = await sb
     .from("talent_site_domains")
     .select("id")
     .eq("stripe_checkout_session_id", opts.sessionId)
     .maybeSingle();
-  const { data: byDomain } = bySession
-    ? { data: null }
-    : await sb
-        .from("talent_site_domains")
-        .select("id")
-        .eq("talent_profile_id", opts.talentProfileId)
-        .eq("domain", opts.domain)
-        .maybeSingle();
+  if (bySessionError) {
+    logServerError("talent-domain-billing.fulfill.errorRow.bySession", bySessionError);
+    return;
+  }
+  let byDomain: { id: string } | null = null;
+  if (!bySession) {
+    const { data, error: byDomainError } = await sb
+      .from("talent_site_domains")
+      .select("id")
+      .eq("talent_profile_id", opts.talentProfileId)
+      .eq("domain", opts.domain)
+      .maybeSingle();
+    if (byDomainError) {
+      logServerError("talent-domain-billing.fulfill.errorRow.byDomain", byDomainError);
+      return;
+    }
+    byDomain = data as { id: string } | null;
+  }
   const existingId = (bySession?.id ?? byDomain?.id) as string | undefined;
 
   const row = {

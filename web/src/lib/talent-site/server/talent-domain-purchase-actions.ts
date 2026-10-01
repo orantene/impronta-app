@@ -84,15 +84,17 @@ async function guardUnlockedDomainOwner(): Promise<
   }
 
   let siteSlug: string | null = null;
-  try {
-    const { data } = await scope.session.supabase
-      .from("talent_sites")
-      .select("site_slug")
-      .eq("talent_profile_id", scope.talentProfile.id)
-      .maybeSingle();
-    siteSlug = (data?.site_slug as string | undefined) ?? null;
-  } catch {
+  const { data: siteRow, error: siteError } = await scope.session.supabase
+    .from("talent_sites")
+    .select("site_slug")
+    .eq("talent_profile_id", scope.talentProfile.id)
+    .maybeSingle();
+  if (siteError) {
+    // Non-fatal: checkout metadata can omit the slug; registrar buy still works.
+    logServerError("talent-domain-purchase.siteSlug", siteError);
     siteSlug = null;
+  } else {
+    siteSlug = (siteRow?.site_slug as string | undefined) ?? null;
   }
 
   return {

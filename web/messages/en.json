@@ -3149,8 +3149,6 @@
         "kitContent4": "Your starting rate, when you publish one",
         "kitContent5": "Up to six photos from your gallery",
         "kitContent6": "A booking link to your live Tulala profile",
-        "domainTitle": "Custom domain",
-        "domainDesc": "Point your own domain at your Tulala personal page. Visitors see yourname.com; Tulala handles SSL + redirects.",
         "domainLabel": "Domain",
         "domainHint": "Use the apex (yourname.com) or a subdomain (page.yourname.com).",
         "dnsConfig": "DNS configuration",
