@@ -416,3 +416,34 @@ export const MAISON_V2_RELEASE_2_7 = {
     ...Object.fromEntries(FOOTER_BAND_PARTS.map((id) => [id, FOOTER_RICH_NOTE])),
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 2.8 (v21 to v22, "order", G-3): the default page order is the proposal's,
+ * Hero, Work, Menu, Reviews, About, FAQ, Location. Opt-in: a talent's page is never
+ * reordered silently, so the new order is ONE layout item she previews and chooses.
+ *
+ * Before and after and Aftercare tips are not in the proposal: they leave the default page
+ * and stay available as optional blocks (`DesignPayload.optionalBlocks`). Their removal is
+ * NOT an item (`dropIdPrefixes`): a talent who has them keeps them, and choosing the new
+ * order moves only the sections the design still lists.
+ *
+ * This module is the "order" slice of v22. Other v22 slices (location, socket) add their
+ * own items and notes to `byItemId` below; keep each slice's notes under its own comment.
+ */
+export const MAISON_V2_RELEASE_2_8 = {
+  design: "maison-v2",
+  toVersion: 22,
+  dropIdPrefixes: ["layout:home:before_after", "layout:home:aftercare"],
+  notes: {
+    en: "Maison v2 2.8: the page order now follows the design: top section, work, menu, reviews, about, questions, location. You choose whether to switch; nothing moves until you do.",
+    es: "Maison v2 2.8: el orden de la página ahora sigue al diseño: portada, trabajo, menú, reseñas, sobre mí, preguntas, ubicación. Tú eliges si cambiarlo; nada se mueve hasta que lo hagas.",
+  } satisfies ReleaseNote,
+  codeNotes: [] satisfies ReleaseNote[],
+  byItemId: {
+    // Order slice.
+    "layout:home:(root):order": {
+      en: "Your page order follows the design: work and menu first, then reviews, about, questions and location. Sections you added stay where they are. Preview it before you choose.",
+      es: "El orden de tu página sigue al diseño: primero trabajo y menú, luego reseñas, sobre mí, preguntas y ubicación. Las secciones que agregaste se quedan donde están. Míralo antes de elegir.",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;

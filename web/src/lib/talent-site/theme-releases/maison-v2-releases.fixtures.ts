@@ -231,9 +231,24 @@ export function revertR21(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6, 21 = release 2.7), rebuilt from code. */
+/**
+ * v22 back to v21 (release 2.8, "order"): the home page order before the proposal's, with
+ * Before and after and Aftercare tips on the default page (they are optional blocks now).
+ */
+export function revertR22(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  const all = [...out.homeTree, ...(out.optionalBlocks ?? [])];
+  const bySlot = new Map(all.map((n) => [String(propsOf(n).slotKey), n] as const));
+  const order = ["hero", "reviews", "gallery", "services", "before_after", "aftercare", "about", "location", "contact"];
+  out.homeTree = order.map((s) => bySlot.get(s)).filter((n): n is BuilderNode => !!n);
+  delete out.optionalBlocks;
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6, 21 = release 2.7, 22 = release 2.8), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 22) out = revertR22(out);
   if (version < 21) out = revertR21(out);
   if (version < 20) out = revertR20(out);
   if (version < 19) out = revertR19(out);

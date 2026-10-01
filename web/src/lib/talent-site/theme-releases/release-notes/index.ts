@@ -23,6 +23,7 @@ import {
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
   MAISON_V2_RELEASE_2_7,
+  MAISON_V2_RELEASE_2_8,
   type ReleaseNote,
 } from "./maison-v2";
 
@@ -54,6 +55,12 @@ export interface ReleaseNoteModule {
   criticalIds?: ReadonlyArray<string>;
   /** Candidate id to the design keys its critical item names explicitly. */
   criticalKeys?: Readonly<Record<string, ReadonlyArray<string>>>;
+  /**
+   * Candidate ids (by prefix) the release never offers. A block the design stops putting on
+   * its default page (Maison v2 2.8: Before and after, Aftercare tips) must not be removed from
+   * a talent who has it, so its removal is not an item: it stays out of the release entirely.
+   */
+  dropIdPrefixes?: ReadonlyArray<string>;
 }
 
 const MODULES: ReadonlyArray<ReleaseNoteModule> = [
@@ -64,6 +71,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
   MAISON_V2_RELEASE_2_7,
+  MAISON_V2_RELEASE_2_8,
 ];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
@@ -164,6 +172,8 @@ export function generateReleaseItems(
   const mod = releaseNotesFor(design, to.version);
   let items: CandidateItem[] = diffDesignPayloads(design, from, to, mod?.codeNotes ?? []);
   if (!mod) return { items, notes: {} };
+  const dropped = mod.dropIdPrefixes ?? [];
+  if (dropped.length > 0) items = items.filter((i) => !dropped.some((p) => (i.id ?? "").startsWith(p)));
   const layoutKeys = mod.layoutKeys ?? [];
   const groupId = mod.layoutGroupId ?? `layout:${design}:hero-inset`;
   if (layoutKeys.length > 0) items = groupLayoutItems(items, layoutKeys, groupId);
