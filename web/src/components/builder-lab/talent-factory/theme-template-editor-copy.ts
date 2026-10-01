@@ -10,8 +10,8 @@ export const EDITOR_COPY: Record<
     tabShell: string;
     tabsAria: string;
     publish: string;
-    publishSoon: string;
     exit: string;
+    releaseManager: string;
     draftUnavailable: (reason: string) => string;
     disabled: string;
     back: string;
@@ -24,8 +24,8 @@ export const EDITOR_COPY: Record<
     tabShell: "Shell",
     tabsAria: "Design tree",
     publish: "Publish as new version",
-    publishSoon: "Publishing a new version is not wired in this editor yet.",
     exit: "Exit editor",
+    releaseManager: "Open release manager",
     draftUnavailable: (reason) => `This design draft could not be opened: ${reason}`,
     disabled: "The talent design editor is turned off.",
     back: "Back to the Talent Template Factory",
@@ -37,8 +37,8 @@ export const EDITOR_COPY: Record<
     tabShell: "Estructura",
     tabsAria: "Árbol del diseño",
     publish: "Publicar como nueva versión",
-    publishSoon: "Publicar una nueva versión aún no está conectado en este editor.",
     exit: "Salir del editor",
+    releaseManager: "Abrir gestor de versiones",
     draftUnavailable: (reason) => `No se pudo abrir el borrador de este diseño: ${reason}`,
     disabled: "El editor de diseños de talento está desactivado.",
     back: "Volver a la Fábrica de plantillas de talento",

@@ -3262,10 +3262,12 @@ export function TopBar({
       {/* Perf spine — no `disabled={saving}` here: the button and its menu only
           OPEN surfaces or ride the coalesced save queue (named checkpoint has its
           own pending state). Greying the CTA during autosaves was pure friction. */}
-      <PublishSplitButton
-        onPublish={gatedPublish}
-        onMenuSelect={handleMenuSelect}
-      />
+      {editCtx?.surfaceKind === "theme_template" ? null : (
+        <PublishSplitButton
+          onPublish={gatedPublish}
+          onMenuSelect={handleMenuSelect}
+        />
+      )}
       </div>
 
       {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Portaled to
