@@ -67,3 +67,6 @@ tmp-*
 .worktree-owner
 docs/plans/impronta-lumina/sweep/*.png
 docs/plans/impronta-lumina/mockup/preset/preset-*.png
+
+# Vercel protection-bypass secret: never commit (rotate if it was ever tracked)
+.bypass.secret
