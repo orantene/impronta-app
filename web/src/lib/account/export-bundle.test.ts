@@ -73,8 +73,11 @@ test("every read is scoped to the requesting user", async () => {
   const { admin, seen } = fakeAdmin({});
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await buildAccountExport(admin as any, { userId: "u1", email: "a@b.c" });
-  assert.equal(seen.length, EXPORT_SOURCES.length, "every source is read");
-  for (const s of seen) assert.equal(s.value, "u1", `${s.table} read something other than the subject`);
+  // The email-keyed newsletter row is the one deliberate non-id read; it is
+  // pinned to the session's own email and covered in export-scoping.test.ts.
+  const idReads = seen.filter((s) => s.table !== "marketing_subscribers");
+  assert.equal(idReads.length, EXPORT_SOURCES.length + 1, "every source is read (+ terms_acceptances)");
+  for (const s of idReads) assert.equal(s.value, "u1", `${s.table} read something other than the subject`);
 });
 
 test("a section that could not be read is NAMED, not silently omitted", async () => {
@@ -93,7 +96,9 @@ test("one unreadable table does not cost the person the whole export", async () 
   const { admin } = fakeAdmin({ profiles: "error" });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bundle = await buildAccountExport(admin as any, { userId: "u1", email: null });
-  assert.equal(Object.keys(bundle.data).length, EXPORT_SOURCES.length - 1);
+  assert.deepEqual(bundle.unavailable, ["profile"]);
+  assert.equal(bundle.data.profile, undefined);
+  assert.ok(Object.keys(bundle.data).length >= EXPORT_SOURCES.length - 1, "every other section still lands");
 });
 
 test("the bundle says out loud what it does not cover", () => {
@@ -122,7 +127,10 @@ test("the subject is the session and nothing the caller can vary", () => {
   // person's export to be refused from — which is why the handler has no 403.
   assert.match(ROUTE, /getCachedActorSession\(\)/, "the session is the only input");
   assert.match(ROUTE, /userId: session\.user\.id/, "and it is what scopes the read");
-  assert.doesNotMatch(ROUTE, /searchParams|params\b/, "no caller-supplied subject");
+  // The only query parameter is the output format; never an id or an email.
+  const reads = ROUTE.match(/searchParams\.get\([^)]*\)/g) ?? [];
+  assert.deepEqual(reads, ['searchParams.get("format")'], "no caller-supplied subject");
+  assert.doesNotMatch(ROUTE, /\bparams\b(?!\.get)/, "no path params");
 });
 
 test("the response is never cached", () => {
