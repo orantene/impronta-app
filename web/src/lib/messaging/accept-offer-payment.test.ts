@@ -13,6 +13,7 @@ function fakeStore(policy: { lines: AcceptPolicyLine[]; talentDefaults: unknown 
   const links = new Map<string, { code: string; amountCents: number }>();
   const cards: Array<{ kind: string; body: string; payload: Record<string, unknown> }> = [];
   let created = 0;
+  const bookingCalls: Array<string | null> = [];
   const store: AcceptPaymentStore = {
     loadPolicy: async () => ({ ok: true, ...policy }),
     findOfferOrder: async (key) => orders.get(key) ?? null,
@@ -33,8 +34,12 @@ function fakeStore(policy: { lines: AcceptPolicyLine[]; talentDefaults: unknown 
     postCard: async (card) => {
       cards.push(card);
     },
+    ensureBooking: async ({ orderId }) => {
+      bookingCalls.push(orderId);
+      return { ok: true, bookingId: `booking-for-${orderId ?? "none"}`, scheduled: true };
+    },
   };
-  return { store, orders, links, cards, createdCount: () => created };
+  return { store, orders, links, cards, bookingCalls, createdCount: () => created };
 }
 
 describe("planAcceptCollection: offer term first, then the talent policy chain", () => {
@@ -152,5 +157,44 @@ describe("runAcceptOfferPayment: accept -> order -> pay card", () => {
     const res = await runAcceptOfferPayment(f.store, OFFER);
     assert.equal(res.ok, true);
     if (res.ok) assert.equal(res.orderId, "order-raced");
+  });
+});
+
+describe("runAcceptOfferPayment: the booking behind the order (P0 2026-10-01)", () => {
+  it("the booking is written for the order BEFORE any link is minted", async () => {
+    const f = fakeStore({ lines: [], talentDefaults: {} });
+    const order: string[] = [];
+    const realMint = f.store.mintLink;
+    const realBook = f.store.ensureBooking;
+    f.store.ensureBooking = async (i) => (order.push("booking"), realBook(i));
+    f.store.mintLink = async (i) => (order.push("mint"), realMint(i));
+    const res = await runAcceptOfferPayment(f.store, OFFER);
+    assert.equal(res.ok, true);
+    assert.deepEqual(order, ["booking", "mint"]);
+    assert.deepEqual(f.bookingCalls, ["order-1"]);
+    if (res.ok) assert.equal(res.bookingId, "booking-for-order-1");
+    assert.equal(f.cards[0]!.payload.bookingId, "booking-for-order-1");
+  });
+
+  it("no booking = no link: checkout must never fall back to a talentless shell", async () => {
+    const f = fakeStore({ lines: [], talentDefaults: {} });
+    f.store.ensureBooking = async () => ({ ok: false });
+    let minted = 0;
+    f.store.mintLink = async () => (minted++, { ok: false, reason: "x" });
+    const res = await runAcceptOfferPayment(f.store, OFFER);
+    assert.equal(res.ok, false);
+    if (!res.ok) assert.equal(res.reason, "booking_unavailable");
+    assert.equal(minted, 0);
+    assert.deepEqual(f.cards.map((c) => c.kind), ["booking_status"]);
+  });
+
+  it("pay in person without an agreed time is not called confirmed", async () => {
+    const f = fakeStore({ lines: [{ reserveMode: "free", depositPct: null, sellingDefaults: {} }], talentDefaults: null });
+    f.store.ensureBooking = async () => ({ ok: true, bookingId: "b-1", scheduled: false });
+    const res = await runAcceptOfferPayment(f.store, OFFER);
+    assert.equal(res.ok, true);
+    if (res.ok) assert.equal(res.scheduled, false);
+    assert.equal(f.cards[0]!.payload.needsTime, true);
+    assert.doesNotMatch(f.cards[0]!.body, /^Confirmed/);
   });
 });

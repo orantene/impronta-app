@@ -110,3 +110,22 @@ test("accepted, unpaid, no open link: the visitor can ask for the payment link",
     "pay_link_ask",
   );
 });
+
+test("pay copy: deposit only when the link is below the total, else in full", async () => {
+  const { guestPayKind } = await import("./guest-next-step");
+  assert.equal(guestPayKind(30_000, 150_000), "deposit");
+  assert.equal(guestPayKind(150_000, 150_000), "full");
+  assert.equal(guestPayKind(null, 150_000), null);
+  const accepted = offer({ status: "accepted", depositPct: 20 });
+  const dep = deriveGuestNextStep(base({ offers: [accepted], payCode: "c1", payAmountCents: 30_000 }));
+  assert.equal(dep?.payKind, "deposit");
+  // The offer names a 20% deposit, but the link really charges the total: that is paying in full.
+  const full = deriveGuestNextStep(base({ offers: [accepted], payCode: "c1", payAmountCents: 150_000 }));
+  assert.equal(full?.payKind, "full");
+});
+
+test("before accept: a single offer shows no version, never an internal v3", () => {
+  const step = deriveGuestNextStep(base({ offers: [offer({ version: 3 })] }));
+  assert.equal(step?.kind, "accept_offer");
+  assert.equal(step?.values.version, "");
+});
