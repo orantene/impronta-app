@@ -83,6 +83,7 @@ import {
   collectBuilderNodeFontUsage,
 } from "./fonts-registry";
 import { buildGoogleFontsHrefFromUsage } from "./fonts-catalog";
+import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
@@ -9128,9 +9129,7 @@ export function BuilderNodeFontLinks({
   if (!href) return null;
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link rel="stylesheet" href={href} data-builder-node-fonts="" />
+      <link rel="stylesheet" href={toFontProxyHref(href)} data-builder-node-fonts="" />
     </>
   );
 }

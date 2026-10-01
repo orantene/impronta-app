@@ -485,11 +485,9 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
   return (
     <main id="main-content" className="flex-1" style={noirVars as React.CSSProperties} data-profile-shell data-profile-theme="noir" data-profile-variant={variant} data-bookbar="idle">
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       {/* Page-scoped on purpose: Cormorant/Jost load only on Noir profiles. */}
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+      <link href="/api/fonts/css?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{ __html: NOIR_CSS }} />
       <noscript>
         <style>{`[data-profile-theme="noir"] [data-nf-reveal]{opacity:1!important;transform:none!important}[data-profile-theme="noir"][data-bookbar="idle"] .nf-rail,[data-profile-theme="noir"][data-bookbar="idle"] .nf-bar{transform:none!important}`}</style>
