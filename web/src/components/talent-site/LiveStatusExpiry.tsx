@@ -12,7 +12,9 @@ import {
 /** Calls `onExpire` at `until` (re-checked on tab focus: timers stall in sleep). */
 function useExpiry(until: string | null, onExpire: () => void) {
   const cb = useRef(onExpire);
-  cb.current = onExpire;
+  useEffect(() => {
+    cb.current = onExpire;
+  }, [onExpire]);
   useEffect(() => {
     if (!until) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -54,7 +56,8 @@ export function LiveStatusExpiry({ until }: { until: string | null }) {
 /** For client widgets (e.g. the dock): true until the context expires. */
 export function useEmergenciesToday(ctx: LiveStatusRenderContext | null | undefined): boolean {
   const [on, setOn] = useState(() => liveStatusOnAt(ctx, Date.now()));
-  useEffect(() => setOn(liveStatusOnAt(ctx, Date.now())), [ctx?.emergenciesToday, ctx?.emergenciesUntil]); // eslint-disable-line react-hooks/exhaustive-deps
+  // setOn bails out when the boolean is unchanged, so a new ctx object each render is cheap.
+  useEffect(() => setOn(liveStatusOnAt(ctx, Date.now())), [ctx]);
   useExpiry(on ? ctx?.emergenciesUntil ?? null : null, () => setOn(false));
   return on;
 }
