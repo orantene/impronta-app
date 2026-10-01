@@ -79,8 +79,6 @@ export function buildMaxSiteSeo(args: {
       ? buildTalentProfileJsonLd({
           canonicalUrl: canonical,
           name,
-          givenName: identity?.firstName ?? null,
-          familyName: identity?.lastName ?? null,
           description: description ?? page.ogDescription?.trim() ?? null,
           imageUrl: page.ogImageUrl?.trim() ?? site.logoUrl ?? null,
           inLanguage: locale,

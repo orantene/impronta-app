@@ -115,7 +115,7 @@ export const INDUSTRY_FACT_KEYS: readonly FactKeyDef[] = [
     key: "industry.certifications",
     type: "string_list",
     category: "industry",
-    label: "Training and certifications",
+    label: "Training and certifications (self-declared, not verified by Tulala)",
   },
   {
     key: "industry.equipment_provided",
