@@ -65,6 +65,7 @@ export function TalentSiteSocket({
     <div
       className="tulala-socket"
       data-tulala-socket=""
+      data-parity-key="socket"
       data-clear-dock={clearDock ? "true" : "false"}
       {...(hint ? { "data-socket-locked": "" } : {})}
     >

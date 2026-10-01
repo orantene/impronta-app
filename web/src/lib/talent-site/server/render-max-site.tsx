@@ -79,6 +79,10 @@ import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens"
 import { pruneUnconfirmedGuestStubs } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 import { publicPageBody } from "@/lib/talent-site/talent-page-publish-core";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { DEFAULT_TALENT_LIVE_STATUS, loadTalentLiveStatus } from "@/lib/talent/live-status";
+import { LIVE_STATUS_CSS, liveStatusRootAttrs, toLiveStatusRenderContext } from "@/lib/talent/live-status-render";
+import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
 
 import {
   loadMaxSiteByProfileId,
@@ -460,7 +464,7 @@ async function renderMaxSiteDocument(args: {
   // resolve captcha even if the tree scan missed a nested catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
@@ -491,7 +495,15 @@ async function renderMaxSiteDocument(args: {
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
       // the talent's own site, not an agency storefront.
       loadPublicOfferingsForProfile(talentProfileId, locale, null),
+      // G3b: "Atiendo emergencias hoy", read PER REQUEST (this route is
+      // force-dynamic). Service role: the table has no anon read by design.
+      (async () => {
+        const admin = createServiceRoleClient();
+        return admin ? loadTalentLiveStatus(admin, talentProfileId) : { ...DEFAULT_TALENT_LIVE_STATUS };
+      })(),
     ]);
+  // Expiry is applied here, at render time: a lapsed flag renders as off.
+  const liveStatus = toLiveStatusRenderContext(liveStatusRow, new Date());
   const usdRates = await loadUsdRatesForSitePrices([
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
@@ -512,6 +524,7 @@ async function renderMaxSiteDocument(args: {
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
     onlineCollectReady: isPlatformCheckoutReady(),
+    liveStatus,
   };
 
   const captchaConfig = pageCaptcha
@@ -604,6 +617,7 @@ async function renderMaxSiteDocument(args: {
                 mode: "freeform",
                 includeRendererStyles: false,
                 includeFontLinks: false,
+                dataSources: { liveStatus },
                 captcha: captchaConfig,
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
@@ -620,6 +634,7 @@ async function renderMaxSiteDocument(args: {
           mode: "freeform",
           includeRendererStyles: false,
           includeFontLinks: false,
+          dataSources: { liveStatus },
           captcha: captchaConfig,
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
@@ -649,6 +664,7 @@ async function renderMaxSiteDocument(args: {
       data-theme-canvas-root=""
       data-talent-design={args.designSlug ?? undefined}
       {...dataAttrs}
+      {...liveStatusRootAttrs(liveStatus)}
       style={{
         ...(cssVars as React.CSSProperties),
         backgroundColor: "var(--token-color-background, #ffffff)",
@@ -659,6 +675,10 @@ async function renderMaxSiteDocument(args: {
     >
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
       <SkipToContent />
+      {/* G3b: hide the variant the root's live status does not match; the
+          island flips the root to "off" at local midnight in an open tab. */}
+      <style data-live-status-css="">{LIVE_STATUS_CSS}</style>
+      {liveStatus.emergenciesToday ? <LiveStatusExpiry until={liveStatus.emergenciesUntil} /> : null}
       {/* ANALYTICS-2 — first-party page-view for the talent Max site, feeding the
           SAME view_site_page stream + admin loader as storefront/talent-profile.
           Suppressed in the owner draft preview so previews aren't counted. */}
@@ -720,6 +740,7 @@ async function renderMaxSiteDocument(args: {
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
+              dataSources: { liveStatus },
               captcha: captchaConfig,
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
@@ -751,7 +772,7 @@ async function renderMaxSiteDocument(args: {
         <footer data-talent-max-site-footer="">
           {renderBuilderNodes(liveFooterTree, {
             publicPathPrefix,
-            mode: "freeform", dataSources: { socialLinks: footerSocialLinks }, // her own links
+            mode: "freeform", dataSources: { socialLinks: footerSocialLinks, liveStatus }, // her own links
             includeRendererStyles: false,
             includeFontLinks: false,
             captcha: captchaConfig,

@@ -6,8 +6,9 @@ import {
   emergenciesOn,
   isValidTimeZone,
   loadTalentLiveStatus,
-  saveTalentEmergencies,
+  toggleTalentEmergencies,
 } from "@/lib/talent/live-status";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 
 export type LiveStatusSnapshot = { emergenciesOn: boolean; emergenciesUntil: string | null };
 
@@ -50,13 +51,19 @@ export async function setEmergenciesTodayAction(
   const id = scope.talentProfile.id;
   const timeZone = (await hoursTimeZone(admin, id)) ?? (isValidTimeZone(browserTimeZone) ? browserTimeZone : null);
   const now = new Date();
-  const res = await saveTalentEmergencies(admin, {
-    talentProfileId: id,
-    userId: scope.session.user.id,
-    on: on === true,
-    now,
-    timeZone,
-  });
+  // G3b: save, then bust the public site cache so the page flips next request.
+  const res = await toggleTalentEmergencies(
+    admin,
+    {
+      talentProfileId: id,
+      profileCode: scope.talentProfile.profileCode,
+      userId: scope.session.user.id,
+      on: on === true,
+      now,
+      timeZone,
+    },
+    bustTalentSiteCache,
+  );
   if (!res.ok) return res;
   return {
     ok: true,
