@@ -152,7 +152,7 @@ test("location layout: types, validation, renderer, inspector and add gallery ar
   // 1. types + validation
   assert.ok(libAt("site-admin/builder-node/types.ts").includes('layout?: "facts" | "split" | "location"'));
   const registry = libAt("site-admin/builder-node/registry.ts");
-  assert.ok(registry.includes('layout: z.enum(["facts", "split", "location"])'));
+  assert.ok(registry.includes('layout: z.enum(["facts", "split", "location", "area"])'));
   for (const k of ["mapSide:", "mapSize:", "showMapButton:"]) assert.ok(registry.includes(k), `schema ${k}`);
   // 2. renderer
   assert.ok(libAt("site-admin/builder-node/visit-block.tsx").includes('layout === "location"'));

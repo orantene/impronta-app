@@ -60,6 +60,7 @@ export type BuilderNodeKind =
   | "statement_footer"
   /** Comp card — live measure strip from public profile fields + visibility. */
   | "comp_card"
+  | "spec_table"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1311,7 +1312,7 @@ export interface BuilderQrCodeNode extends BuilderNodeBase {
 export interface BuilderPortfolioNode extends BuilderNodeBase {
   kind: "portfolio";
   props: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered";
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered" | "work_order";
     eyebrow?: string;
     title?: string;
     columns?: 2 | 3 | 4;
@@ -1386,7 +1387,7 @@ export interface BuilderReviewsNode extends BuilderNodeBase {
 export interface BuilderVisitNode extends BuilderNodeBase {
   kind: "visit";
   props: {
-    layout?: "facts" | "split" | "location";
+    layout?: "facts" | "split" | "location" | "area";
     /** location layout: which side the map sits on (desktop). */
     mapSide?: "left" | "right";
     /** location layout: map height (sm 16/8, md 16/10, lg 4/3). */
@@ -1506,6 +1507,22 @@ export interface BuilderStatementFooterNode extends BuilderNodeBase {
     /** Magazine: primary CTA under the statement. */
     ctaLabel?: string;
     ctaHref?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Spec table — authored key/value rows (voltage, warranty, price rule...).
+ * Phone: stacked label/value rows. Desktop (container >= 900px): a strip,
+ * one column per row. Hidden when no row has both a label and a value.
+ */
+export interface BuilderSpecTableNode extends BuilderNodeBase {
+  kind: "spec_table";
+  props: {
+    eyebrow?: string;
+    title?: string;
+    rows?: Array<{ label: string; value: string }>;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -2619,6 +2636,7 @@ export type BuilderNode =
   | BuilderMastheadNode
   | BuilderStatementFooterNode
   | BuilderCompCardNode
+  | BuilderSpecTableNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

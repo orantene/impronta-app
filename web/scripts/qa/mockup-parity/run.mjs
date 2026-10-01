@@ -7,15 +7,23 @@
  *     [--widths 390,360,1440] [--locale es|en] [--states static,chat,dock,booking]
  *     [--base-url http://localhost:3001] [--mockup-url http://localhost:3099/]
  *     [--include-drafts] [--storage-state file.json] [--out dir]
+ *     [--design maison-v2] [--source live|code] [--sections menu,hero] [--compact] [--no-report]
+ *
+ * Alba (the reference demo) also gets a pixel diff per section; every failing check is
+ * classified into a delta (classify.mjs) and compared with design-references/<design>/parity-baseline.json.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 import { loadEnvLocal } from "../../load-env-local.mjs";
 import { analyze } from "./analyze.mjs";
-import { writeReport } from "./report.mjs";
+import { fitImages, writeReport } from "./report.mjs";
+import { createImageTool, preparePage } from "./pixel.mjs";
+import { pixelThresholdFor } from "./pixel-thresholds.mjs";
+import { SECTION_UNITS, classify, compactTable, findingsOf } from "./classify.mjs";
+import { applyBaseline, loadBaseline } from "./baseline.mjs";
 import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, loadDesignMap } from "./section-map.mjs";
 
 loadEnvLocal();
@@ -24,7 +32,7 @@ const WEB = join(HERE, "..", "..", "..");
 
 // ---------------------------------------------------------------- args
 function parseArgs(argv) {
-  const o = { design: "maison-v2", talents: [], all: false, widths: [390], locale: "es", states: ["static", "chat", "dock", "booking"], baseUrl: "http://localhost:3001", mockupUrl: "http://localhost:3099/", drafts: false, storageState: null, out: null, public: false, apex: "tulala.digital", allowActions: false };
+  const o = { talents: [], all: false, widths: [390], locale: "es", states: ["static", "chat", "dock", "booking"], baseUrl: "http://localhost:3001", mockupUrl: "http://localhost:3099/", drafts: false, storageState: null, out: null, public: false, apex: "tulala.digital", allowActions: false, design: "maison-v2", source: "live", sections: [], compact: false, noReport: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = () => argv[++i];
@@ -42,13 +50,20 @@ function parseArgs(argv) {
     else if (a === "--public") o.public = true;
     else if (a === "--apex") o.apex = v();
     else if (a === "--allow-server-actions") o.allowActions = true;
+    else if (a === "--design") o.design = v();
+    else if (a === "--source") o.source = v();
+    else if (a === "--sections") o.sections = v().split(",").map((x) => x.trim()).filter(Boolean);
+    else if (a === "--compact") o.compact = true;
+    else if (a === "--no-report") o.noReport = true;
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
+  if (!["live", "code"].includes(o.source)) { console.error("--source must be live or code"); process.exit(2); }
   if (!["es", "en"].includes(o.locale)) { console.error("--locale must be es or en"); process.exit(2); }
   return o;
 }
 const opts = parseArgs(process.argv.slice(2));
+let tool = null; // canvas image tool (pixel diff, downscaled JPEGs)
 
 // The design map (web/design-references/<slug>/parity-map.json) drives sections, order, the mockup
 // driver and the reference demo (the demo whose content equals the mockup; see demos/registry.ts).
@@ -60,6 +75,15 @@ const ORDER = MAP.order;
 const REF_CODE = MAP.referenceDemo.profileCode;
 if (!opts.talents.length && !opts.all) opts.talents = [REF_CODE];
 if (!opts.mockupUrlSet) opts.mockupUrl = MAP.mockup.defaultUrl || opts.mockupUrl;
+// The classifier'"'"'s unit table follows the selected design'"'"'s map (key -> mockup data-w unit and kit slot).
+for (const k of Object.keys(SECTION_UNITS)) delete SECTION_UNITS[k];
+for (const sec of SECTIONS) {
+  const shell = /^(header|footer|footer_rich|socket)$/.test(sec.parityKey || "") ? sec.parityKey.replace("footer_rich", "footer") : null;
+  SECTION_UNITS[sec.key] = { wType: sec.unit || sec.key, ...(shell ? { shell } : { slot: sec.parityKey || null }) };
+}
+for (const k of opts.sections) if (!SECTIONS.some((x) => x.key === k)) { console.error(`--sections: unknown section "${k}" (have ${SECTIONS.map((x) => x.key).join(", ")})`); process.exit(2); }
+const ACTIVE = opts.sections.length ? SECTIONS.filter((x) => opts.sections.includes(x.key)) : SECTIONS;
+const ACTIVE_ORDER = ORDER.filter((k) => ACTIVE.some((x) => x.key === k));
 
 // Read-only guard: agents QA on local servers only (web/AGENTS.md, Verification).
 for (const u of [opts.baseUrl, opts.mockupUrl]) {
@@ -126,7 +150,15 @@ function identities() {
 }
 
 const liveUrl = (id) => `${opts.baseUrl}/template-preview/live?kind=live-site&talent=${id}&locale=${opts.locale}`;
-const siteUrl = (t) => (t.viaPublic ? `http://${t.slug}.${opts.apex}:${new URL(opts.baseUrl).port || 80}/` : liveUrl(t.id));
+const codeUrl = (t) => `${opts.baseUrl}/template-preview/${opts.design}?kind=talent-theme&demo=${opts.design}:${t.demoKey}&source=code&locale=${opts.locale}`;
+const probeUrl = (t) => (opts.source === "code" ? codeUrl(t) : liveUrl(t.id));
+const siteUrl = (t) => (t.viaPublic ? `http://${t.slug}.${opts.apex}:${new URL(opts.baseUrl).port || 80}/` : probeUrl(t));
+/** A code-source page that did not hydrate the demo silently shows another persona; refuse that. */
+const hydratedFor = async (r, t) => {
+  if (opts.source !== "code") return true;
+  const first = (t.name || "").split(/\s+/)[0];
+  return !!first && (await r.text().catch(() => "")).includes(first);
+};
 const analyses = []; // raw per-width product analyses (analysis.json)
 const stateCache = new Map(); // identity name -> storageState | null
 
@@ -153,9 +185,10 @@ async function stateFor(browser, ident) {
 async function pickSession(browser, talent) {
   if (opts.storageState) {
     const ctx = await browser.newContext({ storageState: opts.storageState });
-    const r = await ctx.request.get(liveUrl(talent.id), { maxRedirects: 0 }).catch(() => null);
+    const r = await ctx.request.get(probeUrl(talent), { maxRedirects: 0 }).catch(() => null);
+    const okSess = r && r.status() === 200 && (await hydratedFor(r, talent));
     await ctx.close();
-    return r && r.status() === 200 ? { name: "storage-state", state: opts.storageState } : null;
+    return okSess ? { name: "storage-state", state: opts.storageState } : null;
   }
   const idents = identities();
   const ordered = [...idents].sort((a, b) => (talent.demo ? (b.admin ? 1 : 0) - (a.admin ? 1 : 0) : (a.admin ? 1 : 0) - (b.admin ? 1 : 0)));
@@ -163,18 +196,19 @@ async function pickSession(browser, talent) {
     const st = await stateFor(browser, ident);
     if (!st) continue;
     const ctx = await browser.newContext({ storageState: st });
-    const r = await ctx.request.get(liveUrl(talent.id), { maxRedirects: 0 }).catch(() => null);
+    const r = await ctx.request.get(probeUrl(talent), { maxRedirects: 0 }).catch(() => null);
+    const okSess = r && r.status() === 200 && (await hydratedFor(r, talent));
     await ctx.close();
-    if (r && r.status() === 200) return { name: ident.name, state: st };
+    if (okSess) return { name: ident.name, state: st };
   }
   return null;
 }
 
 // ---------------------------------------------------------------- helpers
-const safeShot = async (loc, quality = 55) => {
+const safeShot = async (loc, quality) => {
   try {
     await loc.first().scrollIntoViewIfNeeded({ timeout: 4000 }).catch(() => {});
-    return await loc.first().screenshot({ type: "jpeg", quality, timeout: 8000, animations: "disabled" });
+    return await loc.first().screenshot({ ...(quality ? { type: "jpeg", quality } : { type: "png" }), timeout: 8000, animations: "disabled" });
   } catch {
     return null;
   }
@@ -194,7 +228,7 @@ async function lazyScroll(page) {
   });
   await page.waitForTimeout(400);
 }
-const analyzeArgs = (side, extra = {}) => ({ sections: SECTIONS, order: ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: MAP.mockup.root || "#site", ...extra });
+const analyzeArgs = (side, extra = {}) => ({ sections: ACTIVE, order: ACTIVE_ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: MAP.mockup.root || "#site", ...extra });
 const failed = (checks) => (checks || []).filter((c) => !c.ok).map((c) => `${c.name}${c.detail ? `: ${c.detail}` : ""}`);
 
 function colorDiff(a, b) {
@@ -205,24 +239,34 @@ function colorDiff(a, b) {
 }
 function styleDiffs(prod, mock) {
   const out = [];
+  const add = (k, prop, evidence) => out.push({ kind: "style", check: `style ${k} ${prop}`, evidence });
   for (const [k, ps] of Object.entries(prod || {})) {
     const ms = mock?.[k];
-    if (!ps || !ms) { if (ps && !ms) out.push(`style ${k}: mockup has none`); if (!ps && ms) out.push(`style ${k}: product element missing`); continue; }
-    if (ps.ff !== ms.ff) out.push(`${k} font-family "${ps.ff}" vs mockup "${ms.ff}"`);
-    if (Math.abs(ps.fs - ms.fs) > Math.max(2, ms.fs * 0.08)) out.push(`${k} font-size ${ps.fs}px vs mockup ${ms.fs}px`);
-    if (Math.abs(ps.fw - ms.fw) > 100) out.push(`${k} font-weight ${ps.fw} vs mockup ${ms.fw}`);
-    if (colorDiff(ps.color, ms.color) > 16) out.push(`${k} color ${ps.color} vs mockup ${ms.color}`);
-    if (k === "button" && colorDiff(ps.bg, ms.bg) > 16) out.push(`${k} background ${ps.bg} vs mockup ${ms.bg}`);
+    if (!ps || !ms) { if (ps && !ms) add(k, "presence", `mockup has no ${k}`); if (!ps && ms) add(k, "presence", `product element missing (${k})`); continue; }
+    if (ps.ff !== ms.ff) add(k, "font-family", `${k} font-family "${ps.ff}" vs mockup "${ms.ff}"`);
+    if (Math.abs(ps.fs - ms.fs) > Math.max(2, ms.fs * 0.08)) add(k, "font-size", `${k} font-size ${ps.fs}px vs mockup ${ms.fs}px`);
+    if (Math.abs(ps.fw - ms.fw) > 100) add(k, "font-weight", `${k} font-weight ${ps.fw} vs mockup ${ms.fw}`);
+    if (colorDiff(ps.color, ms.color) > 16) add(k, "color", `${k} color ${ps.color} vs mockup ${ms.color}`);
+    if (k === "button" && colorDiff(ps.bg, ms.bg) > 16) add(k, "background", `${k} background ${ps.bg} vs mockup ${ms.bg}`);
   }
   return out;
 }
+const checkFindings = (kind, checks) => (checks || []).filter((c) => !c.ok).map((c) => ({ kind, check: c.name, evidence: c.detail || "" }));
+/** Record structured findings on a row and mirror them into its human-readable reasons. */
+const addFindings = (r, list) => {
+  for (const f of list) {
+    r.findings.push(f);
+    r.reasons.push(f.evidence && f.kind !== "style" ? `${f.check}: ${f.evidence}` : f.evidence || f.check);
+  }
+};
 
 // ---------------------------------------------------------------- mockup capture
 async function captureMockup(browser, width) {
   const big = width >= 1000;
   const ctx = await browser.newContext({ viewport: { width: big ? 1800 : 1280, height: big ? 1000 : 940 } });
   const page = await ctx.newPage();
-  const out = { shots: {}, analysis: null, selfCheck: [], ok: true };
+  const out = { shots: {}, png: {}, analysis: null, selfCheck: [], ok: true };
+  const wantStates = opts.states.some((x) => x !== "static");
   try {
     await page.goto(opts.mockupUrl, { waitUntil: "load", timeout: 20000 });
     const drv = MAP.mockup;
@@ -233,28 +277,39 @@ async function captureMockup(browser, width) {
       await page.evaluate(fn);
       await page.waitForTimeout(500);
     };
-    await page.locator(devBtn).click();
+    // The step jump can reset the mockup's device mode (Folio does), so jump first, THEN pick the device.
     if (drv.stepButton) await page.locator(drv.stepButton).click();
+    await page.locator(devBtn).click();
     await page.waitForTimeout(600);
+    // Capture self-check: the mockup lays out inside a container (@container site), so the device
+    // switch alone is not enough. The measured container must really be this wide.
+    const rootSel = drv.root || "#site";
+    const cw = await page.evaluate((sel) => document.querySelector(sel)?.clientWidth || 0, rootSel);
+    out.containerWidth = cw;
+    const okWidth = width >= 1000 ? cw >= 1200 : Math.abs(cw - width) <= 4;
+    if (!okWidth) { out.containerOk = false; throw new Error(`mockup container ${cw}px does not match the ${width}px device mode (need ${width >= 1000 ? ">= 1200" : width})`); }
+    out.containerOk = true;
     await page.evaluate(() => { const v = document.getElementById("vp"); if (v) { v.style.scrollBehavior = "auto"; } });
+    await preparePage(page);
     out.analysis = await page.evaluate(analyze, analyzeArgs("mockup"));
-    for (const sec of SECTIONS) out.shots[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`)) : null;
-    for (const sec of SECTIONS) {
+    for (const sec of ACTIVE) {
+      out.png[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`)) : null;
+      out.shots[sec.key] = out.png[sec.key] ? await tool.jpeg(out.png[sec.key]) : null;
+    }
+    for (const sec of ACTIVE) {
       const r = out.analysis.sections[sec.key];
       if (!r?.present) { if (!SECTIONS.find((x) => x.key === sec.key)?.productOnly) out.selfCheck.push(`${sec.key}: not found on mockup (${[sec.unit ? "data-w=" + sec.unit : null, ...(sec.mockup || [])].filter(Boolean).join(" | ")})`); continue; }
       for (const f of failed(r.structure)) out.selfCheck.push(`${sec.key}: ${f}`);
     }
     if (width <= 480 && (out.analysis.page.headerRows || 0) > 1) out.selfCheck.push(`header: mockup itself is on ${out.analysis.page.headerRows} rows (header-row rule needs tuning)`);
-    if (drv.states) {
-      // only the maison-v2 mockup exposes the scripted chat / dock / booking states
-      const site = page.locator(drv.root || "#site");
-      await prime(() => { reset(); openService("lash4d"); S.draft.x = ["ret"]; chatOpen(S.draft); });
-      out.shots.chat = await safeShot(site);
-      await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }]; render(); });
-      out.shots.dock = await safeShot(site);
-      await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }, { id: "mrusa", v: "liso", x: [] }]; S.sheet = "summary"; render(); });
-      out.shots.booking = await safeShot(site);
-    }
+    const site = page.locator(drv.root || "#site");
+    if (!wantStates || !drv.states) { await ctx.close(); return out; }
+    await prime(() => { reset(); openService("lash4d"); S.draft.x = ["ret"]; chatOpen(S.draft); });
+    out.shots.chat = await safeShot(site, 55);
+    await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }]; render(); });
+    out.shots.dock = await safeShot(site, 55);
+    await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }, { id: "mrusa", v: "liso", x: [] }]; S.sheet = "summary"; render(); });
+    out.shots.booking = await safeShot(site, 55);
   } catch (e) {
     out.ok = false;
     out.error = String(e.message || e).split("\n")[0];
@@ -275,7 +330,7 @@ async function loadProduct(ctx, talent, width) {
   return { page };
 }
 
-const row = (talent, width, key, label) => ({ talent: talent.name, code: talent.code, width, section: key, label, status: "PASS", reasons: [], warnings: [], product: null, mockup: null });
+const row = (talent, width, key, label) => ({ talent: talent.name, code: talent.code, width, section: key, label, status: "PASS", reasons: [], warnings: [], findings: [], product: null, mockup: null, diff: null, pixel: null });
 const finish = (r) => { r.status = r.status === "BLOCKED" ? "BLOCKED" : r.reasons.length ? "FAIL" : "PASS"; return r; };
 
 async function scanStatic(ctx, talent, width, mock, rows) {
@@ -283,40 +338,62 @@ async function scanStatic(ctx, talent, width, mock, rows) {
   const isAlba = talent.code === REF_CODE; // the reference demo: its content equals the mockup
   if (error) {
     const r = row(talent, width, "page", "Page render");
-    r.reasons.push(`site did not render (${error})`);
+    addFindings(r, [{ kind: "page", check: "page renders", evidence: `site did not render (${error})` }]);
     r.status = "FAIL";
     rows.push(r);
     await page.close();
     return;
   }
   await lazyScroll(page);
+  await preparePage(page);
   const res = await page.evaluate(analyze, analyzeArgs("product"));
   analyses.push({ code: talent.code, name: talent.name, width, keyed: res.page.keyed, sections: res.sections, page: res.page });
   const pr = row(talent, width, "page", "Page (global checks)");
   const pg = res.page;
-  if (opts.locale === "es" && !/^es/i.test(pg.lang)) pr.reasons.push(`<html lang="${pg.lang}"> on locale=es`);
-  if (pg.docOverflow) pr.reasons.push(`page scrolls horizontally (${pg.docOverflowDetail})`);
-  if (pg.brokenAnchors.length) pr.reasons.push(`anchors without a target: ${pg.brokenAnchors.join(", ")}`);
-  if (width <= 480 && (pg.headerRows || 0) > 1) pr.reasons.push(`header is on ${pg.headerRows} rows at ${width}px`);
-  if (pg.fixedBottomBars.length > 1) pr.reasons.push(`${pg.fixedBottomBars.length} fixed bottom bars: ${pg.fixedBottomBars.join(" | ")}`);
-  if (pg.chatLaunchers.length > 1) pr.reasons.push(`${pg.chatLaunchers.length} chat launchers: ${pg.chatLaunchers.join(" | ")}`);
-  if (pg.fixedOverlaps?.length) pr.reasons.push(`fixed layers overlap: ${pg.fixedOverlaps.join(" | ")}`);
+  const pf = (check, evidence) => ({ kind: "page", check, evidence });
+  const pageFindings = [];
+  if (opts.locale === "es" && !/^es/i.test(pg.lang)) pageFindings.push(pf("html lang matches locale", `<html lang="${pg.lang}"> on locale=es`));
+  if (pg.docOverflow) pageFindings.push(pf("no horizontal page scroll", `page scrolls horizontally (${pg.docOverflowDetail})`));
+  if (pg.brokenAnchors.length) pageFindings.push({ kind: "anchor", check: "anchors have a target", evidence: `anchors without a target: ${pg.brokenAnchors.join(", ")}` });
+  if (width <= 480 && (pg.headerRows || 0) > 1) pageFindings.push(pf("header on one row", `header is on ${pg.headerRows} rows at ${width}px`));
+  if (pg.fixedBottomBars.length > 1) pageFindings.push(pf("one fixed bottom bar", `${pg.fixedBottomBars.length} fixed bottom bars: ${pg.fixedBottomBars.join(" | ")}`));
+  if (pg.chatLaunchers.length > 1) pageFindings.push(pf("one chat launcher", `${pg.chatLaunchers.length} chat launchers: ${pg.chatLaunchers.join(" | ")}`));
+  if (pg.fixedOverlaps?.length) pageFindings.push(pf("fixed layers do not overlap", `fixed layers overlap: ${pg.fixedOverlaps.join(" | ")}`));
   if (pg.keyed === false) pr.warnings.push("no data-parity-key on this page (the build predates the contract): matched through the map fallback selectors");
+  addFindings(pr, pageFindings);
   if (pg.extraSections?.length) pr.warnings.push(`sections not in the mockup: ${pg.extraSections.join(", ")}`);
   if (talent.viaPublic) pr.warnings.push("rendered through the public host (no preview session)");
   pr.product = await page.screenshot({ type: "jpeg", quality: 50, fullPage: false }).catch(() => null);
-  rows.push(finish(pr));
-  for (const sec of SECTIONS) {
+  // a targeted pass (--sections) looks at those sections only; page-level checks belong to the full run
+  if (!opts.sections.length) rows.push(finish(pr));
+  for (const sec of ACTIVE) {
     const r = row(talent, width, sec.key, sec.label);
     const a = res.sections[sec.key];
     if (!a?.present) {
       if ((sec.optional && !isAlba) || sec.productOnly) r.warnings.push("absent (optional: hidden without data)");
-      else r.reasons.push(`section not found (tried ${sec.parityKey ? "[data-parity-key=" + sec.parityKey + "] / " : ""}${(sec.fallback || []).join(" | ")})`);
+      else addFindings(r, [{ kind: "missing", check: "section present", evidence: `section not found (tried ${sec.parityKey ? "[data-parity-key=" + sec.parityKey + "] / " : ""}${(sec.fallback || []).join(" | ")})` }]);
     } else {
-      r.reasons.push(...failed(a.structure), ...failed(a.layout), ...failed(a.i18n));
-      if (a.order && !a.order.ok) r.reasons.push(`order: ${a.order.detail}`);
-      if (isAlba) r.reasons.push(...styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
-      r.product = await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`));
+      addFindings(r, [
+        ...checkFindings("structure", a.structure),
+        ...checkFindings("layout", a.layout),
+        ...checkFindings("i18n", a.i18n),
+      ]);
+      if (a.order && !a.order.ok) addFindings(r, [{ kind: "order", check: "section order", evidence: `order: ${a.order.detail}` }]);
+      if (isAlba) addFindings(r, styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
+      const png = await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`));
+      const mpng = mock.png?.[sec.key];
+      if (png) {
+        // Pixel diff on the reference demo only: its content is exact, so every mismatch is the design's.
+        if (isAlba && mpng) {
+          const d = await tool.diff(png, mpng);
+          const threshold = pixelThresholdFor(sec.key, sec.pixelThreshold);
+          r.pixel = { ratio: d.ratio, threshold, ok: d.ratio <= threshold, heightDelta: d.heightDelta, heightDeltaRatio: d.heightB ? d.heightDelta / d.heightB : 0 };
+          r.diff = await tool.jpeg(d.diffPng);
+          r.keep = { diff: d.diffPng, product: png, mockup: mpng };
+          if (!r.pixel.ok) addFindings(r, [{ kind: "pixel", check: "pixel diff", evidence: `mismatch ${(d.ratio * 100).toFixed(1)}% > ${(threshold * 100).toFixed(1)}% (height ${d.heightDelta >= 0 ? "+" : ""}${d.heightDelta}px vs mockup)`, pixel: r.pixel }]);
+        }
+        r.product = await tool.jpeg(png);
+      }
     }
     r.mockup = mock.shots[sec.key];
     if (mock.ok === false) r.warnings.push(`mockup unavailable: ${mock.error}`);
@@ -456,19 +533,26 @@ async function scanState(ctx, talent, width, state, mock, rows) {
 // ---------------------------------------------------------------- main
 async function main() {
   const ts = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
-  const outDir = opts.out || join(WEB, "qa-evidence", "mockup-parity", ts);
+  const outDir = opts.out || join(WEB, "qa-evidence", "mockup-parity", opts.compact ? `loop-${opts.design}` : ts);
   mkdirSync(outDir, { recursive: true });
   const { talents, skippedDrafts } = await resolveTalents();
   if (!talents.length) { console.error("No talents to check."); process.exit(2); }
+  for (const t of talents) t.demoKey = t.code === REF_CODE ? MAP.referenceDemo.demoKey || null : null; // gallery-meta demo key, for --source code
+  if (opts.source === "code") {
+    const missing = talents.filter((t) => !t.demoKey);
+    if (missing.length) { console.error(`--source code needs a gallery demo key for ${missing.map((t) => t.code).join(", ")} in ${opts.design} (DEMO_KEYS in run.mjs).`); process.exit(2); }
+  }
+  const baseline = loadBaseline(opts.design);
   // The host-resolver rule only maps the platform apex to this machine (public-host fallback).
   const browser = await chromium.launch({ args: [`--host-resolver-rules=MAP *.${opts.apex} 127.0.0.1`] });
+  tool = await createImageTool(browser);
   const rows = [];
   const mockups = {};
   for (const w of opts.widths) mockups[w] = await captureMockup(browser, w);
   const noSession = [];
   for (const t of talents) {
     let sess = opts.public ? null : await pickSession(browser, t);
-    if (!sess && t.status === "published" && t.slug) {
+    if (!sess && t.status === "published" && t.slug && opts.source !== "code") {
       // No preview session: render the same published site through its public host, mapped to this machine.
       t.viaPublic = true;
       sess = { name: "public host", state: undefined };
@@ -478,7 +562,9 @@ async function main() {
       for (const w of opts.widths) {
         const r = row(t, w, "page", "Page render");
         r.status = "BLOCKED";
-        r.reasons.push("no signed-in session can view this site (404). Set QA_PLATFORM_ADMIN_PASSWORD for demos, or the owner's QA_*_EMAIL/QA_*_PASSWORD, or pass --storage-state.");
+        r.reasons.push(opts.source === "code"
+          ? "no signed-in platform admin can render this demo from code. Set QA_PLATFORM_ADMIN_PASSWORD, and run against a server that has the ?source=code route."
+          : "no signed-in session can view this site (404). Set QA_PLATFORM_ADMIN_PASSWORD for demos, or the owner's QA_*_EMAIL/QA_*_PASSWORD, or pass --storage-state.");
         rows.push(r);
       }
       continue;
@@ -494,10 +580,17 @@ async function main() {
     }
     process.stdout.write(`  ${t.code} ${t.name}: done (${sess.name})\n`);
   }
-  await browser.close();
 
+  // ---- deltas, baseline, verdict
+  const deltas = classify(rows, { design: opts.design });
+  const stale = applyBaseline(deltas, baseline);
+  for (const r of rows) r.known = r.status === "FAIL" && r.findings.length > 0 && r.findings.every((f) => f.delta?.accepted);
+  const open = deltas.filter((d) => !d.accepted);
+  const captureBad = Object.values(mockups).some((m) => m.containerOk !== true);
   const summary = {
     timestamp: ts,
+    design: opts.design,
+    source: opts.source,
     baseUrl: opts.baseUrl,
     design: opts.design,
     referenceDemo: MAP.referenceDemo,
@@ -505,37 +598,90 @@ async function main() {
     locale: opts.locale,
     widths: opts.widths,
     states: opts.states,
+    sections: ACTIVE.map((x) => x.key),
     talents: talents.length,
     pass: rows.filter((r) => r.status === "PASS").length,
-    fail: rows.filter((r) => r.status === "FAIL").length,
+    fail: rows.filter((r) => r.status === "FAIL" && !r.known).length,
+    known: rows.filter((r) => r.known).length,
     blocked: rows.filter((r) => r.status === "BLOCKED").length,
+    deltas: deltas.length,
+    openDeltas: open.length,
+    deltasByLayer: Object.fromEntries(["token", "payload", "kit", "platform", "new-capability"].map((l) => [l, deltas.filter((d) => d.layer === l && !d.accepted).length])),
+    baseline: { file: baseline.file, missing: baseline.missing, accepted: baseline.accepted.length, stale: stale.map((a) => `${a.section} / ${a.check} (${a.ticket})`) },
+    pixel: rows.filter((r) => r.pixel).map((r) => ({ width: r.width, section: r.section, ratio: +r.pixel.ratio.toFixed(4), threshold: r.pixel.threshold, ok: r.pixel.ok, heightDelta: r.pixel.heightDelta })),
     skippedDrafts: skippedDrafts.map((t) => `${t.code} ${t.name}`),
     noSession: noSession.map((t) => `${t.code} ${t.name}`),
+    mockupContainer: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, { containerWidth: m.containerWidth ?? null, ok: m.containerOk === true }])),
     mockupSelfCheck: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, m.ok ? m.selfCheck : [`mockup unavailable: ${m.error}`]])),
     talentsChecked: talents.map((t) => ({ code: t.code, name: t.name, demo: t.demo, status: t.status })),
-    failures: rows.filter((r) => r.status !== "PASS").map((r) => ({ talent: r.code, width: r.width, section: r.section, status: r.status, reasons: r.reasons })),
+    failures: rows.filter((r) => r.status !== "PASS").map((r) => ({ talent: r.code, width: r.width, section: r.section, status: r.known ? "KNOWN" : r.status, reasons: r.reasons })),
   };
+  summary.verdict = summary.fail || summary.blocked ? "RED" : "GREEN";
+
+  // previous pass (fix loop): what got fixed, what is new
+  const deltasFile = join(outDir, "deltas.json");
+  let prevIds = null;
+  if (opts.compact && existsSync(deltasFile)) { try { prevIds = new Set(JSON.parse(readFileSync(deltasFile, "utf8")).deltas.map((d) => d.id)); } catch { prevIds = null; } }
+  const strip = (d) => { const { pixel, ...rest } = d; return { ...rest, ...(pixel ? { pixelRatio: +pixel.ratio.toFixed(4), pixelThreshold: pixel.threshold } : {}) }; };
+  writeFileSync(deltasFile, JSON.stringify({ meta: { timestamp: ts, design: opts.design, source: opts.source, widths: opts.widths, sections: summary.sections }, deltas: deltas.map(strip), staleBaseline: stale }, null, 2));
   writeFileSync(join(outDir, "summary.json"), JSON.stringify(summary, null, 2));
   // raw in-page analyses: input of the delta classifier (gap.mjs)
   writeFileSync(join(outDir, "analysis.json"), JSON.stringify({ design: opts.design, referenceDemo: MAP.referenceDemo, widths: opts.widths, mockup: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, m.analysis ? { sections: m.analysis.sections, page: m.analysis.page } : null])), product: analyses }));
-  writeReport(join(outDir, "report.html"), { meta: summary, rows, summary });
+
+  // images for the report / the loop
   mkdirSync(join(outDir, "img"), { recursive: true });
   for (const r of rows) {
     const base = `${r.code}-${r.width}-${r.section.replace(/[^a-z0-9]+/gi, "_")}`;
-    if (r.product) writeFileSync(join(outDir, "img", `${base}.product.jpg`), r.product);
-    if (r.mockup) writeFileSync(join(outDir, "img", `${base}.mockup.jpg`), r.mockup);
+    if (opts.compact && r.keep) {
+      writeFileSync(join(outDir, "img", `${base}.product.png`), r.keep.product);
+      writeFileSync(join(outDir, "img", `${base}.mockup.png`), r.keep.mockup);
+      writeFileSync(join(outDir, "img", `${base}.diff.png`), r.keep.diff);
+    } else {
+      if (r.product) writeFileSync(join(outDir, "img", `${base}.product.jpg`), r.product);
+      if (r.mockup) writeFileSync(join(outDir, "img", `${base}.mockup.jpg`), r.mockup);
+      if (r.diff) writeFileSync(join(outDir, "img", `${base}.diff.jpg`), r.diff);
+    }
+    delete r.keep;
+  }
+  let reportBytes = 0;
+  if (!opts.noReport && !opts.compact) {
+    const budget = await fitImages(rows, tool);
+    reportBytes = writeReport(join(outDir, "report.html"), { meta: summary, rows, summary, deltas, staleBaseline: stale, budget });
+  }
+  await tool.close();
+  await browser.close();
+
+  if (opts.compact) {
+    const head = `parity-loop ${opts.design} ${talents.map((t) => t.code).join(",")} widths ${opts.widths.join(",")} sections ${summary.sections.join(",")} source ${opts.source}`;
+    console.log(`\n${head}`);
+    for (const p of summary.pixel) console.log(`  pixel ${p.section}@${p.width}: ${(p.ratio * 100).toFixed(1)}% (max ${(p.threshold * 100).toFixed(1)}%) ${p.ok ? "ok" : "OVER"}, height ${p.heightDelta >= 0 ? "+" : ""}${p.heightDelta}px`);
+    console.log(compactTable(open));
+    if (prevIds) {
+      const nowIds = new Set(deltas.map((d) => d.id));
+      const fixed = [...prevIds].filter((i) => !nowIds.has(i)).length;
+      const added = [...nowIds].filter((i) => !prevIds.has(i)).length;
+      console.log(`since last pass: ${fixed} fixed, ${added} new`);
+    }
+    console.log(`${summary.verdict}: ${open.length} open deltas (${Object.entries(summary.deltasByLayer).filter(([, n]) => n).map(([l, n]) => `${l} ${n}`).join(", ") || "none"}), ${deltas.length - open.length} known. images: ${join(outDir, "img")}`);
+    console.log(`mockup container: ${Object.entries(summary.mockupContainer).map(([w, c]) => `${w}px -> ${c.containerWidth}px ${c.ok ? "ok" : "MISMATCH"}`).join(", ")}`);
+    process.exit(summary.verdict === "GREEN" && !captureBad ? 0 : 1);
   }
 
-  console.log(`\nmockup-parity  ${summary.talents} talents · widths ${opts.widths.join(",")} · locale ${opts.locale} · states ${opts.states.join(",")}`);
-  console.log(`PASS ${summary.pass}   FAIL ${summary.fail}   BLOCKED ${summary.blocked}`);
+  console.log(`\nmockup-parity  ${summary.talents} talents · ${opts.design} · source ${opts.source} · widths ${opts.widths.join(",")} · locale ${opts.locale} · states ${opts.states.join(",")}`);
+  console.log(`PASS ${summary.pass}   FAIL ${summary.fail}   KNOWN ${summary.known}   BLOCKED ${summary.blocked}   -> ${summary.verdict}`);
+  console.log(`deltas: ${summary.deltas} (${summary.openDeltas} outside the baseline)  by layer: ${Object.entries(summary.deltasByLayer).map(([l, n]) => `${l} ${n}`).join(", ")}`);
   const byReason = new Map();
-  for (const f of summary.failures) for (const reason of f.reasons) { const k = reason.replace(/\d+/g, "N").slice(0, 90); byReason.set(k, (byReason.get(k) || 0) + 1); }
+  for (const f of summary.failures) if (f.status !== "KNOWN") for (const reason of f.reasons) { const k = reason.replace(/\d+/g, "N").slice(0, 90); byReason.set(k, (byReason.get(k) || 0) + 1); }
   [...byReason.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).forEach(([k, n]) => console.log(`  ${String(n).padStart(3)} x ${k}`));
+  if (baseline.missing) console.log(`baseline: none at ${baseline.file} (every delta counts)`);
+  if (stale.length) console.log(`baseline entries that no longer fail (remove them): ${summary.baseline.stale.join("; ")}`);
   if (skippedDrafts.length) console.log(`skipped (draft, unpublished): ${summary.skippedDrafts.join(", ")} (use --include-drafts)`);
+  console.log(`mockup container: ${Object.entries(summary.mockupContainer).map(([w, c]) => `${w}px device -> ${c.containerWidth}px ${c.ok ? "ok" : "MISMATCH"}`).join(", ")}`);
   const mc = Object.values(summary.mockupSelfCheck).flat();
   if (mc.length) console.log(`mockup self-check notes: ${mc.length} (see summary.json; rules that fail on the mockup need tuning)`);
-  console.log(`report: ${join(outDir, "report.html")}`);
-  process.exit(summary.fail || summary.blocked ? 1 : 0);
+  console.log(`deltas: ${deltasFile}`);
+  if (reportBytes) console.log(`report: ${join(outDir, "report.html")} (${(reportBytes / 1048576).toFixed(1)} MB, self-contained)`);
+  process.exit(summary.verdict === "GREEN" && !captureBad ? 0 : 1);
 }
 
 main().catch((e) => { console.error(e); process.exit(2); });

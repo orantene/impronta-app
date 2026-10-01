@@ -137,9 +137,26 @@ export interface GoogleFontUsageRequest {
   weights?: ReadonlyArray<number>;
   /** True when the page uses genuine italics of this family. */
   italic?: boolean;
+  /** Load the `wdth` axis (wide headings via `font-stretch`). Ignored for families without one. */
+  stretch?: boolean;
 }
 
 const DEFAULT_USAGE_WEIGHTS = [400, 700];
+
+/**
+ * Families whose css2 stylesheet offers a `wdth` (width) axis, with the range
+ * the themes use. The catalogue JSON only records `wght`, so the width axis is
+ * declared here. Requested ONLY when a usage asks for `stretch`: every request
+ * without it is byte-identical to before.
+ */
+export const WIDTH_AXIS_FAMILIES: Readonly<Record<string, { min: number; max: number }>> = {
+  archivo: { min: 100, max: 125 },
+};
+
+/** Width axis range for a family, or null when it has none. */
+export function widthAxisForFamily(family: string): { min: number; max: number } | null {
+  return WIDTH_AXIS_FAMILIES[normalize(family)] ?? null;
+}
 /** The weight set assumed for theme-token families (usage unknown site-wide). */
 export const THEME_TOKEN_FONT_WEIGHTS = [400, 500, 600, 700];
 
@@ -180,11 +197,18 @@ export function buildGoogleFontsHrefFromUsage(
     const encoded = encodeURIComponent(meta.family).replace(/%20/g, "+");
 
     let axis: string;
+    const width = request.stretch && meta.vf ? widthAxisForFamily(meta.family) : null;
     if (meta.vf) {
       const min = clamped[0];
       const max = clamped[clamped.length - 1];
       const range = min === max ? `${min}` : `${min}..${max}`;
-      axis = italic ? `ital,wght@0,${range};1,${range}` : `wght@${range}`;
+      if (width) {
+        // css2 wants axes alphabetical: ital, wdth, wght.
+        const w = `${width.min}..${width.max}`;
+        axis = italic ? `ital,wdth,wght@0,${w},${range};1,${w},${range}` : `wdth,wght@${w},${range}`;
+      } else {
+        axis = italic ? `ital,wght@0,${range};1,${range}` : `wght@${range}`;
+      }
     } else if (italic) {
       const italicClamped = [
         ...new Set(

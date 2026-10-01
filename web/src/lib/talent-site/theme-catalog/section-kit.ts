@@ -50,6 +50,8 @@ export const TALENT_KIT_SECTIONS = {
   before_after: { slotKey: "before_after", originRole: "talent.before_after" },
   aftercare: { slotKey: "aftercare", originRole: "talent.aftercare" },
   location: { slotKey: "location", originRole: "talent.location" },
+  proof: { slotKey: "proof", originRole: "talent.proof" },
+  area: { slotKey: "area", originRole: "talent.area" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -744,6 +746,7 @@ export {
 export { beforeAfterBlock } from "./section-kit-before-after";
 export { aftercareBlock } from "./section-kit-aftercare";
 export { locationBlock } from "./section-kit-location";
+export { areaBlock, proofBlock } from "./section-kit-proof";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

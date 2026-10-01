@@ -35,7 +35,7 @@
 
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
-import { foregroundForFill, foregroundForPrimary, readableAccentText } from "./contrast-pair";
+import { contrastRatio, foregroundForFill, foregroundForPrimary, readableAccentText } from "./contrast-pair";
 import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
@@ -188,7 +188,13 @@ export function designTokensToCssVars(
   // the stylesheet's own fallback (the raw accent) applies.
   const accentSource = tokens["color.accent"] || tokens["color.primary"] || "";
   const ground = tokens["color.surface-raised"] || tokens["color.background"] || "#ffffff";
-  const accentText = readableAccentText(accentSource, ground) ?? readableAccentText(accentSource, "#ffffff");
+  let accentText = readableAccentText(accentSource, ground) ?? readableAccentText(accentSource, "#ffffff");
+  // The page ground can be darker than the raised surface (Gridline orange: white cards on a
+  // grey page). Text in the accent also sits on the page, so it must clear AA there too.
+  const page = tokens["color.background"];
+  if (accentText && page && page !== ground && (contrastRatio(accentText, page) ?? 5) < 4.5) {
+    accentText = readableAccentText(accentSource, page) ?? accentText;
+  }
   if (accentText) out["--token-color-accent-text"] = accentText;
   else delete out["--token-color-accent-text"];
 
@@ -293,6 +299,8 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "profile.reviews-visibility": "data-token-profile-reviews",
   // Site style switches (type system, main button variant); style-tokens.ts.
   ...STYLE_TOKEN_DATA_ATTRS,
+  // Also an attribute (the var is still emitted): the highlighter style swaps a rule set, not a value.
+  "type.accent-style": "data-token-type-accent-style",
 };
 
 /**

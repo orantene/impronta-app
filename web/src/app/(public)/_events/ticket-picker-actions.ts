@@ -25,6 +25,7 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPurchase } from "@/lib/orders/purchase";
+import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { commitCapacity } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
@@ -588,6 +589,7 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       successUrl: `${origin}/r/${order.receipt_code}?paid=1`,
       cancelUrl: `${origin}/events`,
       description: "Tickets",
+      payeeName: await resolvePayeeName(admin, d.tenantId),
       locale: d.locale ?? null,
     });
     if (!res.ok) { logServerError("events.pay.checkout", res.error); return { ok: false, reason: "engine_error", detail: res.error }; }

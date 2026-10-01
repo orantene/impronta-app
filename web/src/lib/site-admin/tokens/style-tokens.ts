@@ -52,12 +52,15 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
     options: [
       { value: "editorial", en: "Editorial", es: "Editorial" },
       { value: "magazine", en: "Magazine", es: "Revista" },
+      { value: "utility", en: "Utility spec sheet", es: "Ficha técnica" },
       { value: "off", en: "Plain", es: "Simple" },
     ],
     fallback: "",
     advanced: true,
   },
   { key: "type.display-weight", group: "typography", label: L("Heading weight", "Peso de títulos"), control: "number", fallback: "450" },
+  // Width axis (font-stretch, percent). Only fonts with a `wdth` axis (Archivo) respond; 100% is normal.
+  { key: "type.stretch", group: "typography", label: L("Heading width", "Ancho de títulos"), control: "length", fallback: "100%", advanced: true },
   {
     key: "type.accent-style",
     group: "typography",
@@ -66,6 +69,7 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
     options: [
       { value: "italic", en: "Italic", es: "Cursiva" },
       { value: "normal", en: "Upright", es: "Recta" },
+      { value: "highlight", en: "Highlighter", es: "Resaltador" },
     ],
     fallback: "italic",
   },

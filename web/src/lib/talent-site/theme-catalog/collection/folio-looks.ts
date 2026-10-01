@@ -6,6 +6,7 @@
  * labels use Archivo Narrow, loaded by the magazine widgets). The accent
  * stays ink so the photography carries the colour.
  */
+import { GRIDLINE_DEFAULT_LOOK } from "./gridline-looks";
 import type { BuiltinLookEntry } from "../builtins/types";
 import type { LookPayload } from "../types";
 import {
@@ -109,6 +110,7 @@ export const FOLIO_BUILTIN_LOOKS: readonly FolioBuiltinLookEntry[] = FOLIO_PALET
 /** The Look a Design opens in when the preview names none. */
 export const COLLECTION_DEFAULT_LOOK: Readonly<Record<string, string>> = {
   folio: "folio-stone",
+  gridline: GRIDLINE_DEFAULT_LOOK,
 };
 
 /** Resolve a Folio Look from code (never DB). Used by theme-preview. */

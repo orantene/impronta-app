@@ -1,3 +1,5 @@
+import { ConsentEmbed } from "@/components/consent/consent-embed";
+import { bookingProviderFromUrl } from "@/components/consent/consent-embed-logic";
 /**
  * Phase E (Final Batch 3) — head-only migration.
  * Container + SectionHead are placed as a sibling to site-booking__inner (not
@@ -380,14 +382,17 @@ export function BookingWidgetComponent({
                 : { aspectRatio: ratio }
             }
           >
-            <iframe
+            <ConsentEmbed
               className="site-booking__iframe"
               src={url}
+              provider={bookingProviderFromUrl(url)}
               title="Booking widget"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
-              allow="clipboard-write; payment"
+              iframeProps={{
+                loading: "lazy",
+                referrerPolicy: "no-referrer-when-downgrade",
+                sandbox: "allow-scripts allow-same-origin allow-popups allow-forms allow-presentation",
+                allow: "clipboard-write; payment",
+              }}
             />
           </div>
         ) : (

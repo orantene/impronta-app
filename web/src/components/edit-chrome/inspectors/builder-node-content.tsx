@@ -93,6 +93,7 @@ import { StatementFooterContentInspector } from "./statement-footer-inspector";
 import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
 import { LiveTextToggle } from "./live-text-toggle";
 import { CompCardContentInspector } from "./comp-card-inspector";
+import { SpecTableContentInspector } from "./spec-table-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1613,6 +1614,9 @@ function BuilderNodeContentInspectorBody({
     return (
       <StatementFooterContentInspector node={node} commitPatch={commitPatch} />
     );
+  }
+  if (node.kind === "spec_table") {
+    return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "comp_card") {
     return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
@@ -5382,6 +5386,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Masthead · stacked words";
     case "statement_footer":
       return "Statement footer · credit and contact";
+    case "spec_table":
+      return "Spec table · key and value rows";
     case "comp_card":
       return "Comp card · measure strip";
     case "next_free_chip":

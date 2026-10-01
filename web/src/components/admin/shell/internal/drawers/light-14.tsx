@@ -36,6 +36,8 @@ import {
   useSaveAndClose
 } from "./drawer-shared";
 import { useDashboardText } from "../dashboard-i18n";
+import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { AccountExportLinks, accountExportCopy } from "@/components/account/AccountExportLinks";
 
 // Phase 1d (remediation §4): 7 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -271,6 +273,12 @@ export function DangerZoneDrawer() {
             toast(tt("Opening ownership support email"));
           }}
         />
+      </Section>
+      <Section title={accountExportCopy(copy.isSpanish).title}>
+        <AccountExportLinks es={copy.isSpanish} />
+      </Section>
+      <Section title={tt("Delete my account")} description={tt("Your personal sign-in and profile. The workspace itself is not deleted; transfer it first if others use it.")}>
+        <AccountDeletionCard surface="workspace" es={copy.isSpanish} />
       </Section>
       <Section title={tt("Delete workspace")} description={tt("Permanent deletion requires support review and a final export.")}>
         <ConfirmTypedAction

@@ -1,6 +1,7 @@
 import type { AddGalleryItem } from "./types";
 import { connected, section } from "./registry-helpers";
-import { LOCATION_DEFAULT_PROPS } from "../builder-node/visit-defaults";
+import { AREA_DEFAULT_PROPS, LOCATION_DEFAULT_PROPS } from "../builder-node/visit-defaults";
+import { PORTFOLIO_DEFAULT_PROPS } from "../builder-node/portfolio-defaults";
 
 export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Sections / Hero ─────────────────────────────────────────────────────
@@ -578,6 +579,36 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     sourceType: "native-freeform",
     connectedSource: "Your profile",
     searchTerms: ["location", "ubicacion", "address", "map", "where", "studio", "directions", "find me"],
+  }),
+  connected({
+    id: "conn-area-native",
+    label: "Area card",
+    description:
+      "An approximate service area: a drawn grid, the places you travel to as chips and your arrival note. Never an address. Hidden when empty.",
+    category: "dynamic",
+    icon: "about",
+    insertMethod: "nativeNode",
+    nativeKind: "visit",
+    // Same node kind as `conn-visit-native`; this card starts in the area layout.
+    defaultProps: { ...AREA_DEFAULT_PROPS },
+    sourceType: "native-freeform",
+    connectedSource: "Your profile",
+    searchTerms: ["area", "zona", "service area", "municipalities", "travel", "radius", "coverage", "where i work"],
+  }),
+  connected({
+    id: "conn-portfolio-work-order-native",
+    label: "Job cards",
+    description:
+      "Your photos as work-order job cards: the job on the first caption line, the order detail on the second. No faces, no client names.",
+    category: "dynamic",
+    icon: "gallery",
+    insertMethod: "nativeNode",
+    nativeKind: "portfolio",
+    // Same node kind as `conn-portfolio-native`; this card starts in the work_order layout.
+    defaultProps: { ...PORTFOLIO_DEFAULT_PROPS, layout: "work_order", title: "Recent jobs", limit: 6 },
+    sourceType: "native-freeform",
+    connectedSource: "Your media",
+    searchTerms: ["jobs", "work order", "job cards", "trabajos", "orden de trabajo", "portfolio", "recent work"],
   }),
   connected({
     id: "conn-comp-card-native",

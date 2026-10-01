@@ -1,6 +1,7 @@
 /**
  * Portfolio block renderer (W-12) — live-bound talent media.
- * Layouts: filmstrip · grid · masonry · contact_sheet · chapter.
+ * Layouts: filmstrip · grid · masonry · contact_sheet · chapter · staggered · work_order
+ * (work_order lives in portfolio-work-order.tsx).
  * Kept out of render.tsx to avoid growing the god file.
  *
  * Budget note: chapter layout adds ~1.4 KB of token-only CSS (sticky head,
@@ -20,6 +21,7 @@ import { MAGAZINE_ROOT_VARS } from "./magazine-edition";
 import { PORTFOLIO_FRAMED_CSS } from "./portfolio-framed-css";
 import { filterShotsForPortfolio } from "./portfolio-selection";
 import { PortfolioShotLink } from "./portfolio-shot-link";
+import { PORTFOLIO_WORK_ORDER_CSS, WorkOrderFigure } from "./portfolio-work-order";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
 import type { BuilderPortfolioNode } from "./types";
@@ -120,6 +122,7 @@ function defaultColumns(layout: PortfolioLayout, authored?: 2 | 3 | 4): number {
   if (layout === "staggered") return 5;
   if (layout === "masonry") return 2;
   if (layout === "chapter") return 2;
+  if (layout === "work_order") return 2;
   return 3;
 }
 
@@ -135,7 +138,7 @@ function defaultLimit(layout: PortfolioLayout, authored?: number, framed = false
     return Math.min(typeof authored === "number" ? authored : cap, cap);
   }
   if (typeof authored === "number") return authored;
-  if (layout === "chapter") return 6;
+  if (layout === "chapter" || layout === "work_order") return 6;
   return PORTFOLIO_DEFAULT_PROPS.limit ?? 12;
 }
 
@@ -263,7 +266,10 @@ export function renderPortfolioBlock(args: {
   const isChapter = layout === "chapter";
   const magazine = isChapter && p.edition === "magazine";
 
-  const shotNodes = visible.map((shot, index) => (
+  const workOrder = layout === "work_order";
+  const shotNodes = visible.map((shot, index) => workOrder ? (
+    <WorkOrderFigure key={shot.id} shot={shot} />
+  ) : (
     <ShotFigure
       key={shot.id}
       shot={shot}
@@ -296,6 +302,7 @@ export function renderPortfolioBlock(args: {
       <style>{PORTFOLIO_CSS}</style>
       {magazine ? <style>{PORTFOLIO_MAGAZINE_CSS}</style> : null}
       {framed ? <style>{PORTFOLIO_FRAMED_CSS}</style> : null}
+      {workOrder ? <style>{PORTFOLIO_WORK_ORDER_CSS}</style> : null}
       {isChapter ? (
         <div className="sb-portfolio-chapter">
           <header className="sb-portfolio-chapter-head">

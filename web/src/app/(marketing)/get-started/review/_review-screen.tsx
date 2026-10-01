@@ -237,7 +237,7 @@ export function ReviewScreen(props: {
                   style={{ borderBottom: "1px solid var(--plt-hairline)" }}
                 >
                   <dt className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-                    {factLabel(fact.factKey)}
+                    {factLabel(fact.factKey, locale)}
                   </dt>
                   <dd
                     className="text-[0.8125rem] font-medium"

@@ -83,6 +83,7 @@ import {
   collectBuilderNodeFontUsage,
 } from "./fonts-registry";
 import { buildGoogleFontsHrefFromUsage } from "./fonts-catalog";
+import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
@@ -163,6 +164,7 @@ import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
+import { renderSpecTableBlock } from "./spec-table-block";
 import { NextFreeChipView } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -6063,6 +6065,12 @@ function renderBuilderNodeElement(
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
+    case "spec_table": {
+      return renderSpecTableBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
     case "comp_card": {
       return renderCompCardBlock({
         node,
@@ -9160,9 +9168,7 @@ export function BuilderNodeFontLinks({
   if (!href) return null;
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link rel="stylesheet" href={href} data-builder-node-fonts="" />
+      <link rel="stylesheet" href={toFontProxyHref(href)} data-builder-node-fonts="" />
     </>
   );
 }

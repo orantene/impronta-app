@@ -8,6 +8,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { TalentLocationPublic } from "@/lib/talent/location-settings";
 
+import { renderAreaBlock } from "./area-block";
 import { renderLocationBlock } from "./location-block";
 import { VISIT_DEFAULT_PROPS, type VisitLayout } from "./visit-defaults";
 import type { TalentVisitFact, TalentVisitFactIcon } from "./visit-types";
@@ -108,6 +109,9 @@ export function renderVisitBlock(args: {
   const layout = (p.layout ?? VISIT_DEFAULT_PROPS.layout ?? "facts") as VisitLayout;
   if (layout === "location") {
     return renderLocationBlock({ node, location: args.location, facts, locale: args.locale, styleAttr, policyHref: args.policyHref });
+  }
+  if (layout === "area") {
+    return renderAreaBlock({ node, location: args.location, facts, locale: args.locale, styleAttr });
   }
   const band = p.band !== false;
   const showMap = p.showMap !== false;

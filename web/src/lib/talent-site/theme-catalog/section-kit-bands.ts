@@ -79,7 +79,7 @@ function stampBand(
 export function portfolioBlock(
   makeId: KitIdFactory,
   opts: {
-    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered";
+    layout?: "filmstrip" | "grid" | "masonry" | "contact_sheet" | "chapter" | "staggered" | "work_order";
     columns?: 2 | 3 | 4;
     heading?: string;
     eyebrow?: string;

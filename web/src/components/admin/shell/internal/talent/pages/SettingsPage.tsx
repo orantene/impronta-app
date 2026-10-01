@@ -9,6 +9,7 @@ import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/setti
 import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
+import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
@@ -236,6 +237,14 @@ export function SettingsPage() {
       sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
       onOpen: () => openSection("admin"),
     },
+    {
+      key: "download-data",
+      label: tx("Download my data"),
+      sub: tx("A copy of the information Tulala holds about you, as a file."),
+      onOpen: () => {
+        window.location.assign("/api/account/export");
+      },
+    },
     bridgeTalentSelfProfile
       ? {
           key: "plan",
@@ -305,10 +314,10 @@ export function SettingsPage() {
     key: "close",
     label: tx("Close your account"),
     sub: tx(
-      "Everything goes: pages, clients, history, money records. Not possible while a booking is unfinished or money is owed to you.",
+      "Your profile, pages and sign-in are removed after 14 days. Bookings and payment records are kept, anonymized.",
     ),
-    tag: { text: tx("Cannot be undone"), tone: "risk" },
-    onOpen: () => openDrawer("help"),
+    tag: { text: tx("Cancellable for 14 days"), tone: "risk" },
+    panel: <AccountDeletionCard surface="talent" es={copy.isSpanish} />,
   });
 
   // Only relationships that exist. A solo talent has none, so the group hides.

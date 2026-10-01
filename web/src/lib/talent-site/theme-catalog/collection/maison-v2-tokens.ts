@@ -6,6 +6,7 @@
 export const MAISON_V2_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "type.system": "editorial",
   "type.display-weight": "450",
+  "type.stretch": "100%",
   "type.accent-style": "italic",
   "type.accent-weight": "400",
   "type.display-tracking": "-0.015em",

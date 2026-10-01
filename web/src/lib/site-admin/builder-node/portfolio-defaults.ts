@@ -27,6 +27,7 @@ export const PORTFOLIO_LAYOUTS: readonly PortfolioLayout[] = [
   "contact_sheet",
   "chapter",
   "staggered",
+  "work_order",
 ] as const;
 
 /** Roman numeral for chapter index (clamped 1–20). Shared, not Folio-only. */

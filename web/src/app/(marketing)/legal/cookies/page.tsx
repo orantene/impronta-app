@@ -4,6 +4,7 @@ import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { CookiesEs } from "./cookies-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). The table mirrors section 5 of the
@@ -72,7 +73,8 @@ function CookieTable({ rows }: { rows: readonly Row[] }) {
   );
 }
 
-export default function CookiesPage() {
+export default async function CookiesPage() {
+  if ((await getRequestLocale()) === "es") return <CookiesEs />;
   return (
     <LegalPage
       eyebrow="Legal"

@@ -28,9 +28,13 @@ import type { DemoPreviewSource } from "./demo-preview-source";
  */
 export async function resolveDemoPreviewHydration(
   source: DemoPreviewSource,
+  /** The caller already verified a platform admin (`?source=code`): no talent session needed. */
+  opts: { platformAdminVerified?: boolean } = {},
 ): Promise<(TemplatePreviewHydration & { demoTalentProfileId: string }) | null> {
-  const scope = await requireTalentSelf();
-  if (!scope.ok) return null;
+  if (!opts.platformAdminVerified) {
+    const scope = await requireTalentSelf();
+    if (!scope.ok) return null;
+  }
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data, error } = await admin
