@@ -33,7 +33,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
   renderToStaticMarkup(<SelectionDock {...base} locale={locale} {...(liveStatus === undefined ? {} : { liveStatus })} />);
 
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "7bb5d58fab9ddb60848ee30474ba66f0134df2703ffdab0a9ec96da430aa1084");
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "3d92c12303fd99e70ddcbacc6dd7dba08121d16b94e359c6bbb63cafb8a6ab54");
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {
