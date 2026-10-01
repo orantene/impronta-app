@@ -101,11 +101,12 @@ export default async function TermsPage() {
                 {"The talent is the merchant of record for each card payment they receive, through their own Stripe Connect account. Chargebacks, lost disputes, and tax invoicing (for example, the CFDI in Mexico) are the talent\u2019s responsibility."}
               </p>
               <p>
-                {PLATFORM_BRAND.name} collects card payments for bookings on behalf of the
-                talent or workspace that provides the service, using Stripe Connect. Card
-                details are entered with Stripe and never touch {PLATFORM_BRAND.name}. We pay
-                out to the talent or workspace once they have completed payout onboarding.
+                The talent or workspace is the seller. {PLATFORM_BRAND.name} provides the
+                platform and the payment processing tools, using Stripe Connect. Card details
+                are entered with Stripe and never touch {PLATFORM_BRAND.name}. Funds go to the
+                talent or workspace once they have completed payout onboarding.
               </p>
+              <p className="text-xs opacity-70">Pending legal review</p>
               <p>
                 Refunds follow the refund policy the talent selected for the booking, and{" "}
                 {PLATFORM_BRAND.name} processes them. If a customer disputes a charge with their

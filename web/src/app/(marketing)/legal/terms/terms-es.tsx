@@ -83,12 +83,13 @@ export function TermsEs() {
                 El talento es el comerciante registrado de cada pago con tarjeta que recibe, mediante su cuenta de Stripe Connect. Los contracargos, las disputas perdidas y la facturación fiscal (por ejemplo, el CFDI en México) corresponden al talento.
               </p>
               <p>
-                {PLATFORM_BRAND.name} cobra los pagos con tarjeta de las reservaciones en
-                nombre del talento o espacio de trabajo que presta el servicio, mediante
-                Stripe Connect. Los datos de la tarjeta se ingresan en Stripe y nunca pasan
-                por {PLATFORM_BRAND.name}. Pagamos al talento o espacio de trabajo una vez que
-                completa el registro para recibir pagos.
+                El talento o espacio de trabajo es el vendedor. {PLATFORM_BRAND.name} ofrece la
+                plataforma y las herramientas de procesamiento de pagos, mediante Stripe
+                Connect. Los datos de la tarjeta se ingresan en Stripe y nunca pasan por{" "}
+                {PLATFORM_BRAND.name}. Los fondos van al talento o espacio de trabajo una vez
+                que completa el registro para recibir pagos.
               </p>
+              <p className="text-xs opacity-70">Pendiente de revisión legal</p>
               <p>
                 Los reembolsos siguen la política de reembolso que el talento eligió para la
                 reservación, y {PLATFORM_BRAND.name} los procesa. Si un cliente disputa un cargo

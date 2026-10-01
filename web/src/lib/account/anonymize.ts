@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *     user is the client, or where their email was used as the guest contact;
  *   - scrubs the payer email and cached receiver/talent names on money rows,
  *     WITHOUT deleting any of them (bookings + payment records are kept for
- *     5 years, anonymized);
+ *     3 years after last activity, anonymized);
  *   - keeps message bodies (they are the other party's record too) but
  *     removes files the user uploaded (inquiry attachments + voice notes) and
  *     the voice payload on their messages. Sender names are resolved from

@@ -48,7 +48,7 @@ function completedCopy(l: "en" | "es"): Block {
       heading: "Tu cuenta fue eliminada",
       paras: [
         "Quitamos tu nombre, fotos, datos de contacto y perfil, y ya no puedes iniciar sesión.",
-        "Los registros de reservas y pagos se conservan por 5 años sin tu nombre ni tus datos de contacto, porque la ley nos obliga a guardarlos.",
+        "Los registros de reservas y pagos se conservan por 3 años después de la última actividad sin tu nombre ni tus datos de contacto, porque la ley nos obliga a guardarlos.",
       ],
     };
   }
@@ -57,7 +57,7 @@ function completedCopy(l: "en" | "es"): Block {
     heading: "Your account has been deleted",
     paras: [
       "We removed your name, photos, contact details and profile, and you can no longer sign in.",
-      "Booking and payment records are kept for 5 years with your name and contact details removed, because the law requires us to keep them.",
+      "Booking and payment records are kept for 3 years after the last activity with your name and contact details removed, because the law requires us to keep them.",
     ],
   };
 }

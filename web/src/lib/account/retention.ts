@@ -1,13 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { RETENTION_PERIODS } from "@/lib/legal/retention-config";
+
 import { ANONYMIZED_EMAIL_DOMAIN, DELETED_USER_LABEL } from "./anonymize";
 
 /**
- * Data retention (legal plan 3.4). PROPOSED periods, from the working
- * defaults Oran set on 2026-09-30:
- *   - guest contact data on inquiries: anonymized 12 months after last activity;
- *   - unbooked inquiries and their messages: deleted 24 months after last activity;
- *   - bookings and payment records: kept (5 years), never touched here.
+ * Data retention (legal plan 3.4). periods are the owner
+ * decisions of 2026-10-01 (src/lib/legal/retention-config.ts):
+ *   - guest contact data on inquiries: anonymized 3 years after last activity;
+ *   - unbooked inquiries and their messages: deleted 3 years after last activity;
+ *   - bookings and payment records: kept 3 years after last activity; this job
+ *     never touches them (no booking purge exists yet).
  * Deleted media (30 days) is the media reaper's job, still behind
  * MEDIA_REAPER_ENABLED, which this module does NOT flip.
  *
@@ -20,8 +23,8 @@ import { ANONYMIZED_EMAIL_DOMAIN, DELETED_USER_LABEL } from "./anonymize";
  * link referencing it keeps it forever (under this job).
  */
 
-export const GUEST_CONTACT_RETENTION_MONTHS = 12;
-export const UNBOOKED_INQUIRY_RETENTION_MONTHS = 24;
+export const GUEST_CONTACT_RETENTION_MONTHS = RETENTION_PERIODS.messagesAndBookingsYears * 12;
+export const UNBOOKED_INQUIRY_RETENTION_MONTHS = RETENTION_PERIODS.messagesAndBookingsYears * 12;
 export const RETENTION_BATCH = 200;
 /** Upper bound on pages scanned per run, so one cron call stays bounded. */
 export const MAX_RETENTION_PAGES = 25;
@@ -89,7 +92,7 @@ export async function runRetention(
   const batch = opts.batch ?? RETENTION_BATCH;
   const errors: string[] = [];
 
-  // ── 1. guest contact data, 12 months ────────────────────────────────────
+  // ── 1. guest contact data, 3 years ────────────────────────────────────
   const guestCutoff = monthsBefore(now, GUEST_CONTACT_RETENTION_MONTHS);
   const guest = { cutoff: guestCutoff.toISOString(), matched: 0, anonymized: 0 };
   try {
@@ -122,7 +125,7 @@ export async function runRetention(
     errors.push(`guest_contact: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  // ── 2. unbooked inquiries + messages, 24 months ─────────────────────────
+  // ── 2. unbooked inquiries + messages, 3 years ─────────────────────────
   const purgeCutoff = monthsBefore(now, UNBOOKED_INQUIRY_RETENTION_MONTHS);
   const purge = { cutoff: purgeCutoff.toISOString(), scanned: 0, purgeable: 0, deleted: 0, kept: 0 };
   try {

@@ -209,13 +209,17 @@ export default async function PrivacyPage() {
         {
           heading: "Payments",
           body: (
-            <p>
-              Card payments are processed by Stripe. {PLATFORM_BRAND.name} collects the
-              payment on behalf of the talent or workspace that provides the service, then
-              pays it out to them after deducting any fees. Card details are entered with
-              Stripe and never touch {PLATFORM_BRAND.name}. We keep the payment records
-              described above for accounting, tax, and dispute purposes.
-            </p>
+            <>
+              <p>
+                Card payments are processed by Stripe. The talent or workspace that provides
+                the service is the seller and merchant for the payment; {PLATFORM_BRAND.name}{" "}
+                provides the platform and the payment processing tools, and fees are
+                deducted as described in the plans. Card details are entered with Stripe and
+                never touch {PLATFORM_BRAND.name}. We keep the payment records described
+                above for accounting, tax, and dispute purposes.
+              </p>
+              <p className="text-xs opacity-70">Pending legal review</p>
+            </>
           ),
         },
         {
