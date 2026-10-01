@@ -13,7 +13,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state/context";
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
-import { loadMaisonDesignOptionsStateAction } from "@/lib/talent-site/server/maison-options-actions";
+import { loadTalentGoLiveAction } from "@/lib/talent-site/history/history-actions";
+import { goLiveHasPending } from "./go-live-pending";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
 import { legacyPaletteLabel, liveCardDesignLabel } from "./maison-live-summary";
@@ -103,9 +104,10 @@ export function MyWebsiteCard({
   useEffect(() => {
     if (optionsOpen) return;
     let alive = true;
-    void loadMaisonDesignOptionsStateAction()
+    // F137: the SAME go-live summary the builder chip uses, so the two agree.
+    void loadTalentGoLiveAction()
       .then((res) => {
-        if (alive) setHasPending(res.ok ? res.data.hasLivePending : null);
+        if (alive) setHasPending(res.ok ? goLiveHasPending(res.summary) : null);
       })
       .catch(() => {
         if (alive) setHasPending(null);

@@ -64,6 +64,7 @@ import { publishSiteThemeForTalent } from "./theme-publish-hook";
 import { isTalentMaisonThemeEnabled } from "@/lib/access/talent-maison-theme";
 import { writeMaisonDesignPublishedRevision } from "./maison-design-revision";
 import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
+import { siteScaffoldComplete } from "./site-scaffold-complete";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
 import { recordSitePublish } from "../history/history.server";
 import type {
@@ -160,19 +161,22 @@ export async function loadMaxSiteManagerAction(): Promise<
     };
   }
 
-  // Provision on open (idempotent) so the manager is never empty for a Max talent.
-  await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
-
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
-  // F74: site row, pages and legacy template are independent: one parallel step.
-  const cols = "id, site_slug, logo_url, site_published_at, shell_published, theme_design_slug, theme_look_slug";
-  const [siteRes, pagesRes, legacyProfileTemplate] = await Promise.all([
-    sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
-    sb.from("talent_pages").select(PAGE_COLUMNS).eq("talent_profile_id", scope.talentProfile.id).order("sort_order", { ascending: true }),
-    loadLegacyProfileTemplate(sb, scope.talentProfile.id),
-  ]);
+  // F74 + F137: parallel reads first; provision only if the scaffold is incomplete.
+  const cols = "id, site_slug, logo_url, site_published_at, shell_published, shell_tree, theme_design_slug, theme_look_slug";
+  const readAll = () =>
+    Promise.all([
+      sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
+      sb.from("talent_pages").select(PAGE_COLUMNS).eq("talent_profile_id", scope.talentProfile.id).order("sort_order", { ascending: true }),
+      loadLegacyProfileTemplate(sb, scope.talentProfile.id),
+    ]);
+  let [siteRes, pagesRes, legacyProfileTemplate] = await readAll();
+  if (!siteScaffoldComplete(siteRes, pagesRes)) {
+    await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
+    [siteRes, pagesRes, legacyProfileTemplate] = await readAll();
+  }
   const { data: siteRow, error: siteErr } = siteRes;
   const { data: pageRows, error: pagesErr } = pagesRes;
   if (siteErr) {
