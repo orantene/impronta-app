@@ -560,12 +560,12 @@ export function ThemeDetailScreen({
               <ColorSwatches {...colorsProps} />
               <p className="mt-2 text-[13px] font-semibold text-admin-ink" data-testid="maison-palette-name">
                 {usingCustom
-                  ? `${detailT(locale, "Custom colors")} · ${detailT(locale, "My colors")} · ${detailT(locale, "kept when you switch demos")}`
+                  ? `${detailT(locale, "Custom colors")} · ${detailT(locale, "My colors")} · ${detailT(locale, "the same when you switch demos")}`
                   : paletteName}
               </p>
               {colorsKept && !usingCustom ? (
                 <p className="mt-1 text-[12px] text-admin-ink-dim" data-testid="maison-colors-kept-note">
-                  {detailT(locale, "Switching demo changes photos, sample text and sections. Your colors are kept.")}
+                  {detailT(locale, "Switching demo changes photos, sample text and sections. Colors change only when you pick a palette.")}
                 </p>
               ) : null}
             </div>
@@ -659,7 +659,7 @@ export function ThemeDetailScreen({
           data-testid="maison-colors-kept-toast"
           className="fixed bottom-[110px] left-1/2 z-[80] -translate-x-1/2 rounded-full bg-admin-ink px-4 py-2 text-[13px] font-semibold text-white md:bottom-6"
         >
-          {detailT(locale, "✓ Your colors are kept")}
+          {detailT(locale, "✓ Colors unchanged")}
         </div>
       ) : null}
 
