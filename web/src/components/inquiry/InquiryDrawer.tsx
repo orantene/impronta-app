@@ -48,6 +48,7 @@ import {
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { endForStart, sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
 import { SearchTalentField } from "./SearchTalentField";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -101,6 +102,8 @@ export type InquiryDrawerProps = {
   tenantSlug: string;
   /** Agency display name for header copy. */
   agencyName: string;
+  /** Set on a solo talent page: sent copy names the talent, no coordinator. */
+  soloTalentName?: string | null;
   /**
    * Does this workspace represent people? From `preset.representsPeople`.
    *
@@ -156,6 +159,7 @@ export function InquiryDrawer({
   initialIntent,
   tenantSlug,
   agencyName,
+  soloTalentName = null,
   client,
   roster = [],
   enableDraftAutosave,
@@ -253,6 +257,8 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  const sentKeys = sentCopyKeys(soloTalentName);
+  const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 
   // B2 — once the inquiry is submitted, empty the inquiry cart so the next
   // inquiry doesn't pre-load this one's now-consumed shortlist. Runs once.
@@ -436,7 +442,7 @@ export function InquiryDrawer({
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
               {submitted
-                ? interpolate(t("public.inquiryDrawer.leadSent"), { agency: agencyName })
+                ? interpolate(t(sentKeys.lead), sentVars)
                 : step === "compose"
                   ? interpolate(
                       t(bookableOffering ? "public.inquiryDrawer.leadComposeAppointment"
@@ -482,7 +488,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (
@@ -514,6 +520,27 @@ export function InquiryDrawer({
         </div>
 
         {/* Footer */}
+        {submitState.kind === "slot_taken" && submitState.nextFreeTimes.length > 0 && !submitted ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 22px", borderTop: `1px solid ${C.borderSoft}`, background: "#fff" }}>
+            {submitState.nextFreeTimes.map((iso) => (
+              <button
+                key={iso}
+                type="button"
+                onClick={() => {
+                  applySlot({
+                    startsAt: iso,
+                    endsAt: endForStart(iso, submitState.durationMinutes),
+                    timezone: submitState.timezone,
+                  });
+                  setStep("review");
+                }}
+                style={ghostBtn}
+              >
+                {formatSlotChip(iso, submitState.timezone)}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <footer
           style={{
             display: "flex",
@@ -528,9 +555,11 @@ export function InquiryDrawer({
         >
           <div style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.35, maxWidth: 320 }}>
             {submitted
-              ? interpolate(t("public.inquiryDrawer.footerSent"), { agency: agencyName })
+              ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
                 ? t("public.inquiryDrawer.footerNeedMore")
+                : submitState.kind === "slot_taken"
+                  ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
                   ? <span style={{ color: C.amber }}>{submitState.message}</span>
                   : interpolate(t("public.inquiryDrawer.footerReady"), { agency: agencyName })
@@ -1837,10 +1866,11 @@ function AttachmentStatus({
 type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 
 function SubmittedView({
-  state, agencyName,
+  state, agencyName, soloTalentName = null,
 }: {
   state: SubmittedState;
   agencyName: string;
+  soloTalentName?: string | null;
 }) {
   const t = useT();
   const messagesHref =
@@ -1897,7 +1927,7 @@ function SubmittedView({
           {t("public.inquiryDrawer.submittedTitle")}
         </div>
         <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
-          {interpolate(t("public.inquiryDrawer.submittedBody"), { agency: agencyName })}
+          {interpolate(t(sentCopyKeys(soloTalentName).body), { agency: agencyName, talent: soloTalentName ?? agencyName })}
         </p>
       </div>
 
@@ -2379,4 +2409,19 @@ export function InquiryDrawerShell({
       </div>
     </div>
   );
+}
+
+function formatSlotChip(iso: string, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
 }

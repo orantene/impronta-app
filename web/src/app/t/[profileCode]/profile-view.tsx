@@ -2492,6 +2492,7 @@ export async function TalentProfileView({
               tenantSlug={slotTenantSlug}
               tenantId={slotTenantId}
               agencyName={tenantBrand ?? "the studio"}
+              soloTalentName={platformChrome ? name : null}
               locationLabel={livesIn}
               bookingMode={booking.mode}
             />

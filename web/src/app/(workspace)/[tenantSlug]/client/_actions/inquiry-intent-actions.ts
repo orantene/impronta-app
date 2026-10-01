@@ -35,6 +35,8 @@ import {
   type CreateInquiryFromIntentResult,
 } from "@/lib/inquiry/inquiry-intent-engine";
 import { logServerError } from "@/lib/server/safe-error";
+import { buildSlotTakenState, type SlotTakenState } from "@/lib/inquiry/reserve-slot-taken";
+import { nextFreeTimesForTalent } from "@/lib/scheduling/next-free-times";
 import { guestDrawerFallbackAllowed, isPublicTenantStatus } from "@/lib/inquiry/guest-drawer-tenant";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ export type InquiryIntentActionState =
       /** Email the guest submitted with — used for the magic-link CTA. */
       guestEmail?: string | null;
     }
+  | SlotTakenState
   | { kind: "error"; message: string; missingFields?: string[] };
 
 const GUEST_HEADER = "x-impronta-guest";
@@ -357,6 +360,27 @@ export async function submitInquiryNowAction(
         logServerError("inquiry-intent-actions.retireCarriedDraft", retireErr);
       }
     }
+  }
+
+  // Taken slot: no inquiry was created (the engine refuses before any write).
+  // Answer with the next free times from the same helper the guest chat uses.
+  if (!result.ok && result.reason === "slot_taken") {
+    const writer = ctx.writeClient;
+    return buildSlotTakenState(
+      {
+        talentIdForOffering: async (offeringId) => {
+          const { data } = await writer
+            .from("talent_offerings")
+            .select("talent_profile_id")
+            .eq("id", offeringId)
+            .maybeSingle();
+          return typeof data?.talent_profile_id === "string" ? data.talent_profile_id : null;
+        },
+        nextFreeTimes: (talentId) => nextFreeTimesForTalent(writer, talentId),
+      },
+      intent.source_context,
+      result.error,
+    );
   }
 
   return finalizeSubmit(result, tenantSlug, {

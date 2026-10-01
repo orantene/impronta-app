@@ -8,6 +8,7 @@ export async function ProfileSlotPickerChrome({
   tenantSlug,
   tenantId,
   agencyName,
+  soloTalentName = null,
   locationLabel,
   bookingMode = "request",
 }: {
@@ -15,6 +16,7 @@ export async function ProfileSlotPickerChrome({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
+  soloTalentName?: string | null;
   locationLabel?: string | null;
   bookingMode?: TalentBookingMode;
 }) {
@@ -25,6 +27,7 @@ export async function ProfileSlotPickerChrome({
       tenantSlug={tenantSlug}
       tenantId={tenantId}
       agencyName={agencyName}
+      soloTalentName={soloTalentName}
       locationLabel={locationLabel}
       bookingMode={bookingMode}
       signedIn={chrome.signedIn}
