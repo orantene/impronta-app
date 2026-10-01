@@ -1,70 +1,28 @@
 /**
- * S7 stand-ins for pieces parallel slices own. Every export here is replaced
- * at integration by a re-export of the real module; keep the signatures.
- *
- *   S2 -> theme-releases/origin.ts: freezeDesignKeys / ensureDesignKeys / designKeyIssues
- *   S3 -> theme-template/drafts.server.ts: loadThemeDraft
+ * Integration seams for S7 (publish). Drafts are frozen on open and re-keyed
+ * on save by the drafts store (S2 helpers via canonical.ts), so the tree-level
+ * freeze/ensure here are identity; key validation and draft loading are the
+ * real S2 / S3 modules.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "../theme-catalog/types";
-import { kidsOf, propsOf } from "../theme-releases/origin";
-import type { ThemeDraft, ThemeDraftResult } from "./types";
+import { designKeyIssues as designKeyIssueRows } from "../theme-releases/design-keys";
 
-// PLACEHOLDER: replaced at integration (S2 origin.ts ensureDesignKeys)
+export { loadThemeDraft } from "./drafts.server";
+
+/** Draft trees already carry stable keys (drafts store); nothing to add here. */
 export function ensureDesignKeys(tree: ReadonlyArray<BuilderNode>): BuilderNode[] {
   return [...tree];
 }
 
-// PLACEHOLDER: replaced at integration (S2 origin.ts freezeDesignKeys)
+/** Draft trees are frozen when the draft is opened (drafts store). */
 export function freezeDesignKeys(tree: ReadonlyArray<BuilderNode>): BuilderNode[] {
   return [...tree];
 }
 
-// PLACEHOLDER: replaced at integration (S2 origin.ts designKeyIssues)
-/** Two siblings with the same explicit slotKey would get order-dependent keys. */
+/** Duplicate design keys within a sibling list, as plain preflight messages. */
 export function designKeyIssues(payload: DesignPayload): string[] {
-  const issues: string[] = [];
-  const walk = (nodes: ReadonlyArray<BuilderNode>, where: string) => {
-    const seen = new Set<string>();
-    for (const n of nodes) {
-      const k = propsOf(n).slotKey;
-      if (typeof k === "string" && k) {
-        if (seen.has(k)) issues.push(`${where}: design key "${k}" is used twice.`);
-        seen.add(k);
-      }
-      walk(kidsOf(n), `${where}/${typeof k === "string" && k ? k : n.kind}`);
-    }
-  };
-  walk(payload.shellTree, "shell");
-  walk(payload.homeTree, "home");
-  return issues;
-}
-
-// PLACEHOLDER: replaced at integration (S3 drafts.server.ts loadThemeDraft)
-export async function loadThemeDraft(admin: SupabaseClient, design: string): Promise<ThemeDraftResult<ThemeDraft>> {
-  const { data, error } = await admin
-    .from("talent_theme_drafts")
-    .select("id, design, base_version, payload, preview, rev, status, published_version, release_id, updated_at")
-    .eq("design", design)
-    .eq("status", "open")
-    .maybeSingle();
-  if (error) return { ok: false, code: "error", error: error.message };
-  if (!data) return { ok: false, code: "not_found", error: "No open draft for this design." };
-  const r = data as Record<string, unknown>;
-  return {
-    ok: true,
-    value: {
-      id: r.id as string,
-      design: r.design as string,
-      baseVersion: r.base_version as number,
-      payload: r.payload as DesignPayload,
-      preview: (r.preview as ThemeDraft["preview"]) ?? {},
-      rev: r.rev as number,
-      status: r.status as ThemeDraft["status"],
-      publishedVersion: (r.published_version as number | null) ?? null,
-      releaseId: (r.release_id as string | null) ?? null,
-      updatedAt: r.updated_at as string,
-    },
-  };
+  return designKeyIssueRows(payload).map(
+    (i) => `${i.tree}${i.parentKey ? `/${i.parentKey}` : ""}: design key "${i.key}" is used by ${i.nodeIds.length} blocks.`,
+  );
 }

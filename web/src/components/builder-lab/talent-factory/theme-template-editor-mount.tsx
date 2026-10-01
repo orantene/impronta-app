@@ -8,6 +8,7 @@
  * builder, never the agency Studio.
  */
 
+import { PublishDesignButton } from "./publish-design-button";
 import { ThemeTemplateSubjectPicker } from "@/lib/talent-site/theme-template/subject-picker";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -69,15 +70,7 @@ export function ThemeTemplateEditorMount({
         </Link>
       </nav>
       <ThemeTemplateSubjectPicker design={design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
-      <button
-        type="button"
-        disabled
-        title={t.publishSoon}
-        className="rounded-full bg-black/10 px-3 py-1 text-xs text-black/40"
-        data-publish-new-version
-      >
-        {t.publish}
-      </button>
+      <PublishDesignButton design={design} lang={lang} />
     </div>
   );
 
