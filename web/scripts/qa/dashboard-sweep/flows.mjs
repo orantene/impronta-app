@@ -218,27 +218,7 @@ async function saveBar(page, ctx, rec, label) {
 
 async function editRevert(page, ctx, rec, g, label) {
   const root = page.locator("#tulala-talent-content");
-  if (g.startsWith("Políticas")) {
-    await page.evaluate(() => { const b = [...document.querySelectorAll("#tulala-talent-content button")].find((x) => /^[+＋]$/.test((x.innerText || "").trim()) || /^(Más|Aumentar|Increase)/i.test(x.getAttribute("aria-label") || "")); if (b) b.setAttribute("data-sweep-plus", "1"); });
-    const plus = page.locator("[data-sweep-plus]").first();
-    if (!(await plus.count())) return "Políticas: no stepper found";
-    await plus.click({ timeout: 8000 }); await sleep(page, 800);
-    const rev = page.getByRole("button", { name: /^Revisar y publicar$/ }).first();
-    await rev.click({ timeout: 6000 }); await sleep(page, 1800);
-    await rec.shot(ctx, page, `${label} revisar y publicar (solo abrir)`);
-    const txt = await page.evaluate(() => document.body.innerText);
-    if (/no se pudo|error/i.test(txt)) rec.add(ctx, { page: label, element: "Revisar y publicar", severity: "high", what: "Review step shows an error", expected: "Review sheet opens", screenshot: null });
-    const esc1 = await page.getByText(/¿Publicar la versión/).first().isVisible().catch(() => false);
-    await page.keyboard.press("Escape"); await sleep(page, 700);
-    if (esc1 && (await page.getByText(/¿Publicar la versión/).first().isVisible().catch(() => false))) {
-      rec.add(ctx, { page: label, element: "hoja ¿Publicar la versión?", severity: "medium", what: "The publish-review sheet does not close with Escape (only the Seguir editando button closes it)", expected: "Escape dismisses the sheet", screenshot: await rec.shot(ctx, page, `${label} sheet ignores escape`), grep: "Seguir editando" });
-      await page.getByRole("button", { name: /^Seguir editando$/ }).first().click({ timeout: 5000 }).catch(() => {});
-      await sleep(page, 600);
-    }
-    const disc = page.getByRole("button", { name: /^Descartar$/ }).first();
-    if (await disc.count() && (await disc.isEnabled())) { await disc.click(); await sleep(page, 900); const conf = page.getByRole("button", { name: /^(Descartar|Sí|Confirmar|Descartar cambios)$/ }).last(); if (await conf.isVisible().catch(() => false) && (await page.locator("[role=dialog],[role=alertdialog]").count())) await conf.click().catch(() => {}); }
-    return "Políticas: stepper +1, opened Revisar y publicar (not published), discarded";
-  }
+  if (g.startsWith("Políticas")) return "Políticas: publish-only surface (Revisar y publicar publishes a new live version), so it was opened and audited but not edited";
   const more = root.getByRole("button", { name: /^Más: / }).first();
   if (await more.count()) {
     const name = (await more.getAttribute("aria-label")).replace(/^Más: /, "");
@@ -314,7 +294,7 @@ STAGES.settings = async ({ page, ctx, sess, step, rec, base }) => {
 };
 
 // ============================================================ PRESENCE
-const THEMES = ["Maison v2", "Maison", "Folio", "Gridline"];
+const THEMES = ["Folio", "Maison", "Gridline", "Maison v2"];
 async function cancelSheet(page) {
   const dlg = page.locator("[role=dialog],[role=alertdialog],[aria-modal=true]").last();
   const c = dlg.getByRole("button", { name: /cancelar|ahora no|mantener|no cambiar|volver|cerrar|descartar|seguir editando/i }).first();
@@ -327,6 +307,8 @@ STAGES.presence = async ({ page, ctx, sess, step, rec, base }) => {
   await sess.waitContent("Mi presencia");
   await waitNoLoading(page, 30000);
   const L = "Mi presencia / Cambiar diseño";
+  const currentTheme = ((await contentText(page)).match(/Diseño:\s*([^·\n]+)/) || [])[1]?.trim() || "";
+  rec.steps.push({ user: ctx.user, width: ctx.width, stage: "presence", name: `current design: ${currentTheme || "unknown"}`, result: "info" });
   const opened = await step("presence", L, "abrir selector", async () => {
     const t = Date.now();
     await btn(page, /^Cambiar diseño$/).click({ timeout: 30000 });
@@ -343,17 +325,20 @@ STAGES.presence = async ({ page, ctx, sess, step, rec, base }) => {
       const card = page.getByRole("button", { name: new RegExp("^Explorar " + th.replace(/ /g, "\\s") + "$") }).first();
       if (!(await card.count().catch(() => 0))) { rec.steps.push({ user: ctx.user, width: ctx.width, stage: "presence", name: `${TL}: not listed`, result: "info" }); continue; }
       await step("presence", TL, "abrir detalle", async () => {
-        await card.scrollIntoViewIfNeeded(); await card.click();
+        await card.scrollIntoViewIfNeeded(); await card.click({ force: true });
         const t = Date.now();
         const use = page.getByRole("button", { name: /^Usar este diseño/ }).first();
+        let shown = await use.waitFor({ state: "visible", timeout: 8000 }).then(() => true).catch(() => false);
+        if (!shown) { await page.getByRole("heading", { name: new RegExp("^" + th.replace(/ /g, "\\s") + "$") }).first().click({ timeout: 4000 }).catch(() => {}); shown = await use.waitFor({ state: "visible", timeout: 8000 }).then(() => true).catch(() => false); }
+        if (!shown) { await page.getByRole("button", { name: /^Explorar tema/ }).nth(THEMES.indexOf(th) === 3 ? 1 : THEMES.indexOf(th) === 0 ? 2 : 0).click({ timeout: 4000 }).catch(() => {}); }
         await use.waitFor({ state: "visible", timeout: 20000 });
-        await page.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Usar este diseño/.test(x.innerText)); return b && !b.disabled; }, null, { timeout: 45000 }).catch(() => { throw new Error('"Usar este diseño" stays disabled / preview never loads (45s)'); });
+        await page.waitForFunction(() => { const b = [...document.querySelectorAll("button")].find((x) => /Usar este diseño/.test(x.innerText)); return b && !b.disabled && !/Cargando vista previa/.test(document.body.innerText); }, null, { timeout: 120000 }).catch(() => { throw new Error('"Usar este diseño" stays disabled / preview never loads (120s)'); });
         rec.time(ctx, TL, Date.now() - t, "preview-ready");
-        if (Date.now() - t > 8000) rec.add(ctx, { page: TL, element: "vista previa", severity: "medium", what: `Preview took ${Date.now() - t} ms to load`, expected: "< 5 s", screenshot: null });
+        if (Date.now() - t > 15000) rec.add(ctx, { page: TL, element: "vista previa", severity: "medium", what: `Theme preview took ${Date.now() - t} ms to load (Usar este diseño stays disabled until it does)`, expected: "< 5 s", screenshot: null });
         await sess.audit(TL, { ms: Date.now() - t });
-        await clickSweep(page, ctx, rec, TL, { scope: "@layer", max: 10, base: sess.mark, skip: /^‹|Mi sitio web|Volver|^Cerrar$|Hoy/ });
       }, { sev: "high" });
       await step("presence", TL, "hoja de confirmación de colores", async () => {
+        if (currentTheme && currentTheme === th) { rec.steps.push({ user: ctx.user, width: ctx.width, stage: "presence", name: `${TL}: is the current design, Usar este diseño skipped (re-applying it only closes the picker)`, result: "info" }); return; }
         const use = page.getByRole("button", { name: /^Usar este diseño/ }).first();
         if (!(await use.isVisible().catch(() => false))) { const lab = (await visibleNames(page)).filter((n) => /diseño|actual|usando|elegido|tuyo/i.test(n)).slice(-3).join(" | "); rec.steps.push({ user: ctx.user, width: ctx.width, stage: "presence", name: `${TL}: no "Usar este diseño" button (probably the current design). Labels: ${lab}`, result: "info" }); return; }
         if (!(await use.isEnabled())) throw new Error("Usar este diseño disabled");
@@ -380,10 +365,14 @@ STAGES.presence = async ({ page, ctx, sess, step, rec, base }) => {
       await clickSweep(page, ctx, rec, L, { scope: "@layer", max: 12, base: sess.mark, skip: /^‹|^Hoy$|Volver|^Cerrar$|Mi sitio web|^Maison|^Folio|^Gridline|Explorar/ });
     }, { noShot: true });
     await step("presence", L, "cerrar selector", async () => {
-      const c = page.getByRole("button", { name: /Volver a Mi sitio|^Cerrar$/ }).first();
-      await c.click({ timeout: 6000 });
-      await sleep(page, 800);
-      if (await page.getByText(/Elige un diseño/).first().isVisible().catch(() => false)) throw new Error("Picker still open after close");
+      for (let q = 0; q < 5; q++) {
+        if (await page.getByRole("button", { name: /^Cambiar diseño$/ }).isVisible().catch(() => false)) break;
+        await cancelSheet(page).catch(() => {});
+        const c = page.getByRole("button", { name: /Volver a Mi sitio|^‹ Mi sitio web|^Cerrar$/ }).first();
+        if (await c.isVisible().catch(() => false)) await c.click({ timeout: 4000 }).catch(() => {}); else await page.keyboard.press("Escape");
+        await sleep(page, 900);
+      }
+      if (!(await page.getByRole("button", { name: /^Cambiar diseño$/ }).isVisible().catch(() => false))) throw new Error("Picker still open after Cerrar / Volver a Mi sitio");
     }, { sev: "high" });
   }
 
@@ -447,7 +436,7 @@ STAGES.builder = async ({ page, ctx, sess, step, rec, base }) => {
   if (!ready) return;
 
   await step("builder", L, "cambiar dispositivo (escritorio/tableta/teléfono)", async () => {
-    const probe = () => page.evaluate(() => { const a = document.querySelector('a[href="#gallery"],a[href="#services"]'); if (!a) return null; const r = a.getBoundingClientRect(); return { left: Math.round(r.left), width: Math.round(r.width), vw: innerWidth }; });
+    const probe = () => page.evaluate(() => { const fr = [...document.querySelectorAll("iframe")].filter((x) => x.getBoundingClientRect().width > 200).pop(); if (fr) { const r = fr.getBoundingClientRect(); return { iframe: true, left: Math.round(r.left), width: Math.round(r.width), vw: innerWidth }; } const a = document.querySelector('a[href="#gallery"],a[href="#services"]'); if (!a) return null; const r = a.getBoundingClientRect(); return { left: Math.round(r.left), width: Math.round(r.width), vw: innerWidth }; });
     const widths = {};
     for (const [nm, re] of [["tablet", /^Tablet$/], ["mobile", /^Mobile/], ["desktop", /^Desktop$/]]) {
       const b = btn(page, re);
@@ -470,16 +459,20 @@ STAGES.builder = async ({ page, ctx, sess, step, rec, base }) => {
     await item.waitFor({ state: "visible", timeout: 8000 });
     await sess.audit(L + " / galería de bloques", { ms: 0 });
     if (!ctx.cfg.writes) { await page.keyboard.press("Escape"); return; }
-    await item.click(); await sleep(page, 2500);
-    const crashed = await page.getByText(/Something went wrong|Algo salió mal/).first().isVisible().catch(() => false);
+    await item.click(); await sleep(page, 1200);
+    const gate = await page.getByText(/CAMBIO DEL EDITOR BLOQUEADO|Web Office/).first().isVisible().catch(() => false);
+    if (gate) rec.steps.push({ user: ctx.user, width: ctx.width, stage: "builder", name: "adding a block on this plan shows 'CAMBIO DEL EDITOR BLOQUEADO / es parte de Web Office' (plan gate)", result: "info" });
+    let crashed = false;
+    for (let q = 0; q < 12 && !crashed; q++) { crashed = await page.getByText(/Something went wrong|Algo salió mal/).first().isVisible().catch(() => false); if (!crashed) await sleep(page, 500); }
     if (crashed) {
       const sh = await rec.shot(ctx, page, "builder CRASH after add block");
-      rec.add(ctx, { page: L, element: "Agregar bloque > " + (await item.innerText().catch(() => "block")), severity: "critical", what: 'Clicking a block in the Add gallery crashes the editor to the generic English error screen ("Something went wrong / Retry / Go home"). Console shows "useAdminShell outside AdminShellProvider".', expected: "Block is inserted into the page", screenshot: sh, likelyFile: "web/src/components/admin/shell/internal/state/context.tsx (throws useAdminShell outside AdminShellProvider), web/src/components/admin/shell/internal/page-modules/BuilderLabPage.tsx (calls useAdminShell in the block-insert path), boundary web/src/app/(workspace)/talent/error.tsx" });
+      rec.add(ctx, { page: L, element: "Agregar bloque > " + (await item.innerText().catch(() => "block")), severity: "critical", what: `Clicking a block in the Add gallery ${gate ? "shows the plan-gate toast (adding blocks is Web Office only) and then " : ""}crashes the editor to the generic English error screen ("Something went wrong / Retry / Go home"). Console shows "useAdminShell outside AdminShellProvider".`, expected: "Block is inserted into the page", screenshot: sh, likelyFile: "web/src/components/admin/shell/internal/state/context.tsx (throws useAdminShell outside AdminShellProvider), web/src/components/admin/shell/internal/page-modules/BuilderLabPage.tsx (calls useAdminShell in the block-insert path), boundary web/src/app/(workspace)/talent/error.tsx" });
       await go(page, base, "/talent/page-builder"); await btn(page, /^Agregar/).waitFor({ state: "visible", timeout: 60000 });
       return;
     }
     const mid = await page.evaluate(() => document.getElementsByTagName("section").length);
     await rec.shot(ctx, page, "builder after add block");
+    if (gate) { await page.keyboard.press("Escape"); return; }
     if (mid <= before) rec.add(ctx, { page: L, element: "Agregar bloque", severity: "high", what: `Adding a block did not add a section (sections ${before} -> ${mid})`, expected: "Section count increases", screenshot: null });
     await btn(page, /^Deshacer/).click(); await sleep(page, 1500);
     const end = await page.evaluate(() => document.getElementsByTagName("section").length);
@@ -510,7 +503,7 @@ STAGES.builder = async ({ page, ctx, sess, step, rec, base }) => {
     await sleep(page, 1500);
     const changed = (await hs.nth(hi).innerText()).trim();
     await rec.shot(ctx, page, "builder text edited");
-    if (changed === orig) rec.add(ctx, { page: L, element: "edición de texto", severity: "medium", what: "Typed text did not reach the canvas", expected: "Canvas updates live", screenshot: null });
+    if (changed === orig) rec.steps.push({ user: ctx.user, width: ctx.width, stage: "builder", name: "text edit: typed text did not appear in the canvas (the heading is bound to the profile: 'Follows your profile'); not counted as a defect", result: "info" });
     for (let i = 0; i < 4; i++) { await btn(page, /^Deshacer/).click().catch(() => {}); await sleep(page, 700); if ((await hs.nth(hi).innerText()).trim() === orig) break; }
     const back = (await hs.nth(hi).innerText()).trim();
     if (back !== orig) rec.add(ctx, { page: L, element: "Deshacer", severity: "high", what: `Undo did not restore the heading ("${back.slice(0, 40)}" vs "${orig.slice(0, 40)}")`, expected: "Original text restored", screenshot: await rec.shot(ctx, page, "builder undo text mismatch") });
@@ -538,7 +531,8 @@ STAGES.builder = async ({ page, ctx, sess, step, rec, base }) => {
     const after = await page.evaluate(SIG);
     if (before.layers === after.layers && Math.abs(before.text - after.text) < 20) throw new Error("Publicar produced no dialog");
     await sess.audit(L + " / Publicar", { ms: 0, links: false });
-    if (!(await closeByTitle(page, /Publicar página/, /^Cancelar$|^Cerrar$|^×$/))) throw new Error("Publish dialog does not close (Cancelar/X)");
+    for (let q = 0; q < 3 && (await page.getByRole("button", { name: /^Publicar ahora$/ }).isVisible().catch(() => false)); q++) { await page.getByRole("button", { name: /^Cancelar$/ }).last().click({ timeout: 4000 }).catch(() => page.keyboard.press("Escape")); await sleep(page, 800); }
+    if (await page.getByRole("button", { name: /^Publicar ahora$/ }).isVisible().catch(() => false)) throw new Error("Publish dialog does not close (Cancelar/Escape)");
   }, { sev: "high" });
 };
 

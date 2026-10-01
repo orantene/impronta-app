@@ -88,6 +88,7 @@ export class Recorder {
   write(meta) {
     const fs = [...this.findings].sort((a, b) => SEV[a.severity] - SEV[b.severity]);
     writeFileSync(join(this.outDir, "findings.json"), JSON.stringify(fs, null, 2));
+    writeFileSync(join(this.outDir, "meta.json"), JSON.stringify({ stamp: meta.stamp, summary: meta.summary }));
     writeFileSync(join(this.outDir, "run-data.json"), JSON.stringify({ timings: this.timings, steps: this.steps, invalidated: this.invalidated }, null, 1));
     writeFileSync(join(this.outDir, "report.html"), renderReport(fs, this.timings, this.steps, { ...meta, invalidated: this.invalidated }));
   }
@@ -236,7 +237,7 @@ export const TAG_CANDIDATES = ([scopeSel, max, inDialog]) => {
 // names we never click in the generic sweep (write / irreversible / money / identity)
 export const DENY = /eliminar|borrar|delete|remove|quitar|publicar|publish|enviar|send|pagar|pay|cobrar|charge|sign out|log ?out|cerrar sesi|upgrade|mejorar|comprar|buy|suscri|checkout|guardar|save|aplicar|apply|importar|import|generar|generate|regenerar|duplicar|archivar|desconectar|disconnect|conectar|connect|invitar|invite|reembols|refund|confirmar|confirm|aceptar|accept|rechazar|decline|reject|cancelar cita|cancel booking|marcar|mark|restaurar|restore|revertir|revert|^es$|^en$|español|english|idioma|language|subir|bajar|mover|✦|\bai\b|\bia\b|usar este dise|colores propios|ver sitio|editar sitio|vista previa|crear|create|nueva cita|new booking|cotizaci|quote|activar|desactivar|enable|disable|renovar|descargar|download|exportar|export|subir|upload|verificar|verify/i;
 
-const NOCHANGE_OK = /^(hoy|today|anterior|siguiente|previous|next)$/i;
+const NOCHANGE_OK = /^(hoy|today|anterior|siguiente|previous|next|todas|todos|all)$/i;
 // ---------------------------------------------------------------- generic click sweep
 export async function clickSweep(page, ctx, rec, label, { scope = "#tulala-talent-content", max = 24, base, inDialog = false, skip = null } = {}) {
   const cands = await page.evaluate(TAG_CANDIDATES, [scope, max * 3, inDialog]).catch(() => []);
@@ -325,7 +326,7 @@ export async function closeLayers(page, baselineLayers) {
 
 // ---------------------------------------------------------------- report
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-function renderReport(fs, timings, steps, meta) {
+export function renderReport(fs, timings, steps, meta) {
   const counts = fs.reduce((a, f) => ((a[f.severity] = (a[f.severity] || 0) + 1), a), {});
   const rows = fs.map((f, i) => `<tr class="${f.severity}"><td>${i + 1}</td><td><b>${esc(f.severity)}</b></td><td>${esc(f.page)}</td><td>${esc(f.element)}</td><td>${esc(f.user)} @${f.width}</td><td>${esc(f.what)}<div class="x">Expected: ${esc(f.expected)}</div></td><td>${f.screenshot ? `<a href="${esc(f.screenshot)}"><img loading="lazy" src="${esc(f.screenshot)}" width="120"></a>` : ""}</td><td class="x">${esc(f.likelyFile)}</td></tr>`).join("\n");
   const slow = [...timings].sort((a, b) => b.ms - a.ms).slice(0, 40).map((t) => `<tr><td>${esc(t.page)}</td><td>${esc(t.kind)}</td><td>${esc(t.user)} @${t.width}</td><td>${t.ms} ms</td></tr>`).join("");

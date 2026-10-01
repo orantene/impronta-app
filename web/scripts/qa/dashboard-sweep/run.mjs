@@ -42,7 +42,8 @@ const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const outDir = o.out || join(WEB, "qa-evidence", "dashboard-sweep", stamp);
 mkdirSync(outDir, { recursive: true });
 const rec = new Recorder(outDir, WEB);
-const browser = await chromium.launch();
+let browser = await chromium.launch();
+async function relaunch() { try { await browser.close(); } catch { /* already gone */ } browser = await chromium.launch(); }
 
 async function login(name) {
   const u = USERS[name];
@@ -83,7 +84,7 @@ export function makeSession(page, ctx) {
     events, mark: () => events.length,
     drain(label, since, shot) {
       for (const e of events.slice(since)) {
-        const sev = e.k === "5xx" || e.k === "pageerror" ? "high" : e.k === "console" ? "medium" : "medium";
+        const sev = e.k === "5xx" || e.k === "pageerror" || (e.k === "404" && /_next\/static\/chunks\/.*\.js/.test(e.text)) ? "high" : "medium";
         rec.add(ctx, { page: label, element: e.k, severity: sev, what: `${e.k}: ${e.text}`, expected: "No console errors, uncaught exceptions or server errors", screenshot: shot, grep: e.k === "console" ? e.text.slice(0, 40) : "" });
       }
     },
@@ -104,8 +105,19 @@ export function makeSession(page, ctx) {
       await rej.click().catch(() => {});
       await page.waitForTimeout(400);
     },
+    async ensureEs() {
+      const txt = await page.evaluate(() => document.body.innerText).catch(() => "");
+      if (!(/\b(Messages|Calendar|Settings|Reviews|Today)\b/.test(txt) && !/Mensajes|Ajustes|Reseñas/.test(txt))) return;
+      if (!ctx.langFlipSeen) {
+        ctx.langFlipSeen = true;
+        rec.add(ctx, { page: "Shell / idioma", element: "ES / EN", severity: "medium", what: `The dashboard rendered in English for ${ctx.user} although Spanish was selected (cookie locale=es / ES toggle); the stored profile language wins on a later navigation`, expected: "The language the user picked sticks across navigations", screenshot: await rec.shot(ctx, page, "language flipped to English"), grep: "locale" });
+      }
+      const es = page.getByRole("button", { name: /^(Español|Spanish|ES)$/ }).first();
+      if (await es.isVisible().catch(() => false)) { await es.click().catch(() => {}); await page.waitForFunction(() => /Mensajes|Hoy/.test(document.body.innerText), null, { timeout: 20000 }).catch(() => {}); }
+    },
     async waitContent(label, t0 = Date.now()) {
       await s.dismissCookies();
+      await s.ensureEs();
       let ok = true;
       await page.waitForFunction(() => { const m = document.querySelector("#tulala-talent-content") || document.querySelector("main") || document.body; const t = m.innerText.trim(); return t.length > 30 && !/^(cargando|loading)/i.test(t) && !/Cargando tu sitio/.test(t); }, null, { timeout: 25000 }).catch(() => { ok = false; });
       const ms = Date.now() - t0;
@@ -200,34 +212,55 @@ for (const name of o.users) {
   for (let i = 0; i < 3 && !state; i++) { await waitStable(); try { state = await login(name); } catch (e) { lastErr = e; } }
   try { if (!state) throw lastErr; } catch (e) { console.error(`LOGIN FAILED ${name}: ${e.message}`); rec.add({ user: name, width: 0 }, { page: "Login", element: "login", severity: "critical", what: `Login failed: ${e.message}`, expected: "QA user can sign in" }); continue; }
   for (const width of o.widths) {
-    const bctx = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"], storageState: state, viewport: { width, height: width < 600 ? 844 : 900 }, locale: "es-MX", isMobile: width < 600, hasTouch: width < 600 });
-    await bctx.addCookies([{ name: "locale", value: "es", url: o.baseUrl }]);
-    const page = await bctx.newPage();
-    page.setDefaultTimeout(15000);
-    page.setDefaultNavigationTimeout(60000);
-    const ctx = { user: name, width, pw: bctx, base: o.baseUrl, cfg: USERS[name] };
-    const sess = makeSession(page, ctx);
-    const step = makeStep(ctx, page, sess);
+    const open = async () => {
+      const bctx = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"], storageState: state, viewport: { width, height: width < 600 ? 844 : 900 }, locale: "es-MX", isMobile: width < 600, hasTouch: width < 600 });
+      await bctx.addCookies([{ name: "locale", value: "es", url: o.baseUrl }]);
+      const page = await bctx.newPage();
+      page.setDefaultTimeout(15000);
+      page.setDefaultNavigationTimeout(60000);
+      const ctx = { user: name, width, pw: bctx, base: o.baseUrl, cfg: USERS[name] };
+      const sess = makeSession(page, ctx);
+      return { bctx, page, ctx, sess, step: makeStep(ctx, page, sess) };
+    };
+    const ensureSpanish = async (S2) => {
+      try {
+        await S2.page.goto(`${o.baseUrl}/talent/today`, { waitUntil: "domcontentloaded" });
+        await S2.page.waitForFunction(() => document.body.innerText.length > 80, null, { timeout: 40000 }).catch(() => {});
+        await S2.sess.dismissCookies();
+        const txt = await S2.page.evaluate(() => document.body.innerText);
+        if (/\b(Messages|Calendar|Owed to you|Open calendar|New appointment)\b/.test(txt) && !/Mensajes/.test(txt)) {
+          const sh = await rec.shot(S2.ctx, S2.page, "UI in English despite ES cookie");
+          rec.add(S2.ctx, { page: "Shell / idioma", element: "cookie locale=es", severity: "medium", what: `The dashboard renders in English for ${name} although the locale cookie is es (the stored user language wins); the ES toggle is needed to get Spanish`, expected: "UI follows the language the user just chose (ES toggle / cookie)", screenshot: sh, grep: "locale" });
+          const es = S2.page.getByRole("button", { name: /^(Español|Spanish|ES)$/ }).first();
+          if (await es.isVisible().catch(() => false)) { await es.click(); await S2.page.waitForFunction(() => /Mensajes|Hoy/.test(document.body.innerText), null, { timeout: 30000 }).catch(() => {}); }
+        }
+      } catch { /* best effort */ }
+    };
+    let S = await open();
+    await ensureSpanish(S);
+    const alive = () => browser.isConnected() && !S.page.isClosed();
     const stageList = o.stages.flatMap((s) => (s === "nav" ? Object.keys(STAGES).filter((k) => k.startsWith("nav:")) : [s]));
     for (const st of stageList) {
       if (!STAGES[st]) continue;
       for (let attempt = 1; attempt <= 3; attempt++) {
         await waitStable();
+        if (!alive()) { console.log("  browser/page was lost; relaunching"); await relaunch(); S = await open(); await ensureSpanish(S); }
         const b0 = buildState(SDIR);
         const sn = rec.snapshot();
         console.log(`[${((Date.now() - t00) / 1000).toFixed(0)}s] ${name}@${width} ${st} (attempt ${attempt}, build ${b0.id})`);
-        try { await STAGES[st]({ page, ctx, sess, step, rec, base: o.baseUrl }); }
-        catch (e) { rec.add(ctx, { page: st, element: "stage", severity: "high", what: `Stage crashed: ${String(e.message).split("\n")[0]}`, expected: "Stage completes" }); }
+        try { await STAGES[st]({ page: S.page, ctx: S.ctx, sess: S.sess, step: S.step, rec, base: o.baseUrl }); }
+        catch (e) { rec.add(S.ctx, { page: st, element: "stage", severity: "high", what: `Stage crashed: ${String(e.message).split("\n")[0]}`, expected: "Stage completes" }); }
         const b1 = buildState(SDIR);
-        if (b1.id === b0.id && !b1.building) { if (attempt > 1) rec.invalidated.push(`${name}@${width} ${st}: re-run ${attempt - 1}x because the server build changed mid-stage`); break; }
-        console.log(`  build changed/running during stage (${b0.id} -> ${b1.id}); discarding and retrying`);
+        const lost = !alive();
+        if (b1.id === b0.id && !b1.building && !lost) { if (attempt > 1) rec.invalidated.push(`${name}@${width} ${st}: re-run ${attempt - 1}x (server rebuilt or the headless browser crashed mid-stage)`); break; }
+        console.log(lost ? "  headless browser crashed during stage; discarding and retrying" : `  build changed/running during stage (${b0.id} -> ${b1.id}); discarding and retrying`);
         rec.rollback(sn);
-        if (attempt === 3) { rec.invalidated.push(`${name}@${width} ${st}: server build kept changing; results from the last attempt kept and may include rebuild artifacts`); }
-        await page.goto("about:blank").catch(() => {});
+        if (attempt === 3) rec.invalidated.push(`${name}@${width} ${st}: kept failing to complete cleanly; last attempt kept and may include artifacts`);
+        if (lost) { await relaunch(); S = await open(); await ensureSpanish(S); } else await S.page.goto("about:blank").catch(() => {});
       }
       rec.write({ stamp, summary: "partial (in progress)" });
     }
-    await bctx.close();
+    await S.bctx.close().catch(() => {});
   }
 }
 await browser.close();
