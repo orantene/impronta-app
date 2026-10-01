@@ -4,10 +4,8 @@
  * the mockup's sizes, the cover carries the italic serif line, the comp card is a compact dark
  * strip, the rate card stays stacked, and About is an optional block instead of a default page.
  *
- * `toVersion: 0` is the UNPINNED marker: `releaseNotesFor` falls back to it for the next Folio
- * release until the integrator pins the catalog version the sync assigned (replace 0 with it).
+ * Version 16 = max(catalog 14, snapshots 14/15, releases none) + 1, read from the live catalog 2026-10-01.
  */
-import type { DesignPayload } from "../../theme-catalog/types";
 import type { ReleaseNote } from "./maison-v2";
 
 export const FOLIO_PARITY_NOTE = {
@@ -17,12 +15,7 @@ export const FOLIO_PARITY_NOTE = {
 
 export const FOLIO_RELEASE_PARITY = {
   design: "folio",
-  toVersion: 0,
-  /** The parity payload: About is no longer on the default page but ships as an optional block. */
-  appliesTo: (to: DesignPayload) =>
-    JSON.stringify(to.optionalBlocks ?? []).includes('"slotKey":"about"') &&
-    !JSON.stringify(to.homeTree).includes('"slotKey":"about"') &&
-    JSON.stringify(to.homeTree).includes('"coverStatement"'),
+  toVersion: 16,
   /** Drop the About removal: a talent who has About keeps it. */
   dropIdPrefixes: ["layout:home:about"],
   notes: FOLIO_PARITY_NOTE,

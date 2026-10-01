@@ -38,10 +38,10 @@ function render(nodes: BuilderNode[]): string {
 
 test("type scale defaults are the mockup's, as editable style tokens", () => {
   const t = FOLIO_STYLE_TOKEN_DEFAULTS;
-  assert.equal(t["type.hero-size-desktop"], "105px");
-  assert.equal(t["type.section-title-size-desktop"], "44px");
-  assert.equal(t["type.group-title-size-desktop"], "38px");
-  assert.equal(t["type.footer-title-size-desktop"], "64px");
+  assert.equal(t["type.hero-size-desktop"], "clamp(84px,19cqi,300px)");
+  assert.equal(t["type.section-title-size-desktop"], "64px");
+  assert.equal(t["type.group-title-size-desktop"], "56px");
+  assert.equal(t["type.footer-title-size-desktop"], "140px");
   assert.equal(t["type.footer-title-size"], "64px");
 });
 
@@ -62,27 +62,25 @@ test("other designs keep their pages (only Maison v2 and Folio ship optional blo
   }
 });
 
-test("magazine CSS: desktop sizes come from tokens, no fixed 273/56/140px scale, no hex", () => {
+test("magazine CSS: desktop sizes come from tokens with the TH02 desktop defaults, no hex", () => {
   for (const css of [MASTHEAD_MAGAZINE_CSS, COMP_CARD_MAGAZINE_CSS, PORTFOLIO_MAGAZINE_CSS, STATEMENT_FOOTER_MAGAZINE_CSS]) {
     assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/);
   }
-  assert.match(MASTHEAD_MAGAZINE_CSS, /var\(--token-type-hero-size-desktop,105px\)/);
-  assert.doesNotMatch(MASTHEAD_MAGAZINE_CSS, /19cqi/);
-  assert.match(PORTFOLIO_MAGAZINE_CSS, /var\(--token-type-group-title-size-desktop,38px\)/);
-  assert.match(STATEMENT_FOOTER_MAGAZINE_CSS, /var\(--token-type-footer-title-size-desktop,64px\)/);
-  assert.doesNotMatch(STATEMENT_FOOTER_MAGAZINE_CSS, /140px/);
-  assert.match(MASTHEAD_MAGAZINE_CSS, /aspect-ratio:var\(--sb-mag-cover-aspect-d,3\/4\)/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /var\(--token-type-hero-size-desktop,clamp\(84px,19cqi,300px\)\)/);
+  assert.match(PORTFOLIO_MAGAZINE_CSS, /var\(--token-type-group-title-size-desktop,56px\)/);
+  assert.match(STATEMENT_FOOTER_MAGAZINE_CSS, /var\(--token-type-footer-title-size-desktop,140px\)/);
+  assert.match(MASTHEAD_MAGAZINE_CSS, /aspect-ratio:var\(--sb-mag-cover-aspect-d,4\/3\.4\)/);
 });
 
-test("comp strip stays compact at every width and the keyed section is the dark box", () => {
-  assert.doesNotMatch(COMP_CARD_MAGAZINE_CSS, /260px/);
-  assert.doesNotMatch(COMP_CARD_MAGAZINE_CSS, /font-size:54px/);
+test("comp strip keeps the TH02 desktop grid and the keyed section is the dark box", () => {
+  assert.match(COMP_CARD_MAGAZINE_CSS, /grid-template-columns:260px/);
+  assert.match(COMP_CARD_MAGAZINE_CSS, /var\(--token-type-stat-size-desktop,54px\)/);
   assert.match(COMP_CARD_MAGAZINE_CSS, /data-parity-key="comp_card"\]\[data-builder-node-kind="container"\]:has/);
   assert.match(COMP_CARD_MAGAZINE_CSS, /background:var\(--token-color-ink\)/);
 });
 
-test("rate card stays stacked on desktop and its title is a token; phone header is one row", () => {
-  assert.doesNotMatch(MAGAZINE_TYPE_SYSTEM_CSS, /grid-template-columns:320px/);
+test("rate card is two columns on desktop with a token title; phone header is one row", () => {
+  assert.match(MAGAZINE_TYPE_SYSTEM_CSS, /grid-template-columns:320px/);
   assert.doesNotMatch(MAGAZINE_TYPE_SYSTEM_CSS, /services-catalog-title\{font-size:64px\}/);
   assert.match(MAGAZINE_TYPE_SYSTEM_CSS, /services-catalog-title\{font-size:var\(--token-type-section-title-size-desktop,/);
   assert.match(MAGAZINE_TYPE_SYSTEM_CSS, /\.site-header__inner\{[^}]*flex-wrap:nowrap!important/);
@@ -114,11 +112,12 @@ test("release: Folio parity has EN/ES notes, About removal is not offered, token
     homeTree: [...to.homeTree.slice(0, -2), aboutNode, ...to.homeTree.slice(-2)],
     tokenDefaults: { ...to.tokenDefaults, "type.section-title-size": "40px", "type.section-title-size-desktop": "72px" },
   };
-  const { items, notes } = generateReleaseItems("folio", { payload: from, version: 3 }, { payload: to, version: 4 });
+  const { items, notes } = generateReleaseItems("folio", { payload: from, version: 15 }, { payload: to, version: 16 });
   assert.ok(notes.en && notes.es);
   assert.ok(!items.some((i) => (i.id ?? "").startsWith("layout:home:about")), "a talent who has About keeps it");
   for (const i of items) assert.ok(i.note?.en && i.note?.es, `missing note for ${i.id}`);
   assert.ok(items.some((i) => i.type === "code"));
   assert.ok(items.some((i) => i.id === "token-default:type.section-title-size-desktop"));
-  assert.equal(releaseNotesFor("maison-v2", 99), null, "the unpinned Folio module never leaks to other designs");
+  assert.ok(releaseNotesFor("folio", 16));
+  assert.equal(releaseNotesFor("maison-v2", 16)?.design === "folio", false);
 });

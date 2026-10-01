@@ -35,7 +35,7 @@ export const STATEMENT_FOOTER_MAGAZINE_CSS = `
 ${MAGAZINE_BUTTON_CSS}
 @media (min-width:900px){
   .sb-statement-footer[data-edition="magazine"]{margin:90px 40px 0;padding:40px 0 120px}
-  .sb-statement-footer[data-edition="magazine"] h2{font-size:var(--token-type-footer-title-size-desktop,64px)}
+  .sb-statement-footer[data-edition="magazine"] h2{font-size:var(--token-type-footer-title-size-desktop,140px)}
 }
 @supports selector(:has(*)){[data-parity-key="statement_footer"][data-builder-node-kind="container"]:has(>.sb-statement-footer[data-edition="magazine"]){display:block}}
 `;

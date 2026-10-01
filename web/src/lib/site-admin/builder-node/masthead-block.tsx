@@ -56,20 +56,20 @@ export const MASTHEAD_MAGAZINE_CSS = `
 ${MAGAZINE_BUTTON_CSS}
 @media (min-width:900px){
   .sb-masthead[data-edition="magazine"] .sb-mag-mast{padding:16px 40px 8px}
-  .sb-masthead[data-edition="magazine"] .sb-mag-name{padding:0 32px;font-size:min(var(--token-type-hero-size-desktop,105px),var(--sb-fit-d,999px));white-space:nowrap}
+  .sb-masthead[data-edition="magazine"] .sb-mag-name{padding:0 32px;font-size:min(var(--token-type-hero-size-desktop,clamp(84px,19cqi,300px)),var(--sb-fit-d,999px));white-space:nowrap}
   .sb-masthead[data-edition="magazine"] .sb-mag-name span{display:inline}
   .sb-masthead[data-edition="magazine"] .sb-mag-spread{display:grid;grid-template-columns:1.25fr 1fr;gap:32px;padding:18px 40px 0;align-items:start}
-  .sb-masthead[data-edition="magazine"] .sb-mag-cover{margin:0;aspect-ratio:var(--sb-mag-cover-aspect-d,3/4)}
+  .sb-masthead[data-edition="magazine"] .sb-mag-cover{margin:0;aspect-ratio:var(--sb-mag-cover-aspect-d,4/3.4)}
   .sb-masthead[data-edition="magazine"] .sb-mag-tag{padding:0 0 6px}
   .sb-masthead[data-edition="magazine"] .sb-mag-tag p{font-size:34px;line-height:1.25}
   .sb-masthead[data-edition="magazine"] .sb-mag-side .sb-mag-toc{margin:0}
 }
 @container sbmag (min-width:900px){
   .sb-mag-mast{padding:16px 40px 8px}
-  .sb-mag-name{padding:0 32px;font-size:min(var(--token-type-hero-size-desktop,105px),var(--sb-fit-d,999px))}
+  .sb-mag-name{padding:0 32px;font-size:min(var(--token-type-hero-size-desktop,clamp(84px,19cqi,300px)),var(--sb-fit-d,999px))}
   .sb-mag-name span{display:inline}
   .sb-mag-spread{display:grid;grid-template-columns:1.25fr 1fr;gap:32px;padding:18px 40px 0;align-items:start}
-  .sb-mag-cover{margin:0;aspect-ratio:var(--sb-mag-cover-aspect-d,3/4)}
+  .sb-mag-cover{margin:0;aspect-ratio:var(--sb-mag-cover-aspect-d,4/3.4)}
   .sb-mag-tag{padding:0 0 6px}
   .sb-mag-tag p{font-size:34px;line-height:1.25}
   .sb-mag-side .sb-mag-toc{margin:0}

@@ -36,8 +36,9 @@ export const COMP_CARD_MAGAZINE_CSS = `
 .sb-comp[data-edition="magazine"] .sb-comp-cell dd small{font-family:var(--sb-mag-label);font-size:0.35em;opacity:.7;margin-left:0.15em}
 .sb-comp[data-edition="magazine"] .sb-comp-cell dd{margin:0;font:400 30px/1 var(--sb-mag-serif);letter-spacing:0;color:inherit;display:flex;align-items:baseline;gap:0.15em;flex-wrap:wrap}
 @media (min-width:900px){
-  .sb-comp[data-edition="magazine"]{margin:90px 40px 0}
-  .sb-comp[data-edition="magazine"] .sb-comp-cell dd{font-size:var(--token-type-stat-size-desktop,30px)}
+  .sb-comp[data-edition="magazine"]{margin:90px 40px 0;padding:32px}
+  .sb-comp[data-edition="magazine"] .sb-comp-inner{grid-template-columns:260px minmax(0,1fr);align-items:end}
+  .sb-comp[data-edition="magazine"] .sb-comp-cell dd{font-size:var(--token-type-stat-size-desktop,54px)}
 }
 /* The kit section (the keyed wrapper) is the dark strip, like TH02's .fo-comp: margins and fill live on it. */
 @supports selector(:has(*)){
