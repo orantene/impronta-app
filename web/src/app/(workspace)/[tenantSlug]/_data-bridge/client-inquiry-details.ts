@@ -19,6 +19,7 @@
  * gate by RLS.
  */
 
+import { policyChangedSinceRequest } from "@/lib/legal/acceptances.core";
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -197,6 +198,8 @@ export type ClientInquiryDetails = {
      * honest "awaiting the other parties" state instead.
      */
     myApprovalStatus: "pending" | "accepted" | "rejected" | null;
+    /** Legal 2.4: the talent policy on this offer differs from the one on the request. */
+    termsUpdatedSinceRequest?: boolean;
     /** W6a — negotiated booking terms (deposit/balance/refund). Null if unset. Client-safe. */
     commercialTerms: {
       depositPct: number;
@@ -330,7 +333,7 @@ export async function loadClientInquiryDetails(
         event_date, event_location, quantity, message,
         source_channel, source_context, source_pitch_id, interpreted_query,
         coordinator_id, coordinator_assigned_at,
-        current_offer_id
+        current_offer_id, policy_version_id
       `,
       )
       .eq("id", inquiryId)
@@ -399,6 +402,7 @@ export async function loadClientInquiryDetails(
                notes, valid_until, sent_at,
                rejection_reason, rejection_reason_text,
                deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key,
+               policy_version_id,
                inquiry_offer_line_items (
                  id, label, pricing_unit, units, unit_price, total_price,
                  sort_order, source_service_id, talent_profile_id,
@@ -645,6 +649,10 @@ export async function loadClientInquiryDetails(
               service_name: resolveServiceName(ln.source_service_id, ln.talent_profiles?.services_menu),
             })),
           myApprovalStatus: clientApprovalStatus,
+          termsUpdatedSinceRequest: policyChangedSinceRequest(
+            (inq as { policy_version_id?: string | null }).policy_version_id,
+            (offerRow as { policy_version_id?: string | null }).policy_version_id,
+          ),
           commercialTerms: offerRow.balance_collection_method
             ? {
                 depositPct: normalizeDepositPct(offerRow.balance_collection_method, Number(offerRow.deposit_pct ?? 0)),

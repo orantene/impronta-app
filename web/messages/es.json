@@ -95,7 +95,11 @@
         "claimEyebrow": "Reclamar perfil",
         "inviteEyebrow": "Invitación",
         "operatorEyebrow": "Abre tu workspace",
-        "claimAgencyFallback": "Tu agencia"
+        "claimAgencyFallback": "Tu agencia",
+        "ageTermsPrefix": "Tengo 18 años o más y acepto los",
+        "ageTermsTerms": "Términos",
+        "ageTermsAnd": "y la",
+        "ageTermsPrivacy": "Política de privacidad"
       },
       "roleRegister": {
         "talentTitle": "Unirse como Talento",
@@ -145,7 +149,8 @@
         "signInGeneric": "No pudimos iniciar sesión. Revisa tus datos e inténtalo de nuevo.",
         "confirmPassword": "Escribe y confirma tu nueva contraseña.",
         "passwordMismatch": "La contraseña y la confirmación no coinciden.",
-        "generic": "Algo salió mal. Inténtalo de nuevo."
+        "generic": "Algo salió mal. Inténtalo de nuevo.",
+        "ageTermsRequired": "Confirma que tienes 18 años o más y que aceptas los Términos y la Política de privacidad."
       },
       "errors": {
         "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
@@ -217,6 +222,11 @@
         "resendIn": "Reenviar en {seconds}s",
         "resending": "Enviando",
         "changeEmail": "Cambiar correo"
+      },
+      "acceptTerms": {
+        "title": "Un último paso",
+        "description": "Tulala es solo para adultos. Confirma tu edad y acepta nuestros Términos y Política de privacidad para continuar.",
+        "submit": "Continuar"
       }
     },
     "profile": {
@@ -956,7 +966,8 @@
       "cardBookingsAria": "Mis citas",
       "cardSendOrder": "Enviar pedido · {count}",
       "helpBubbleTitle": "¿Te ayudo a elegir?",
-      "helpBubbleDismiss": "Cerrar aviso",
+      "helpBubbleDismiss": "Cerrar",
+      "helpBubbleOpenAria": "Abrir chat con {name}",
       "cardBackToBooking": "Volver a mi reserva",
       "cardBrowseBack": "Volver al chat",
       "cardBrowseAdd": "Agregar",
@@ -2530,7 +2541,9 @@
         "version_conflict": "La oferta cambió mientras la revisabas. Actualiza para ver la última versión.",
         "forbidden": "No tienes permiso para aprobar esta oferta.",
         "unavailable": "No se pudo aprobar ahora. Inténtalo de nuevo."
-      }
+      },
+      "termsUpdatedTitle": "Las condiciones cambiaron desde tu solicitud.",
+      "termsUpdatedBody": "La política de reservas de esta oferta es distinta a la que viste cuando enviaste tu solicitud. Revisa las condiciones antes de aprobarla."
     },
     "clientStatus": {
       "submitted": "Enviada",

@@ -109,6 +109,21 @@ export function foregroundForPrimary(primary: string): string | null {
   return onDark >= onLight ? CONTRAST_ON_DARK : CONTRAST_ON_LIGHT;
 }
 
+/**
+ * The foreground for a FILL that must carry text at WCAG AA (4.5:1): the brand pair
+ * (`foregroundForPrimary`) when it already reads, otherwise pure white or black, whichever wins.
+ * Some mid-tones (a #777777 accent) only reach 4.5:1 with a pure extreme. Null when the fill is
+ * not a colour we can measure.
+ */
+export function foregroundForFill(fill: string): string | null {
+  const brand = foregroundForPrimary(fill);
+  if (brand === null) return null;
+  if ((contrastRatio(fill, brand) ?? 0) >= 4.5) return brand;
+  const white = contrastRatio(fill, "#ffffff") ?? 0;
+  const black = contrastRatio(fill, "#000000") ?? 0;
+  return white >= black ? "#ffffff" : "#000000";
+}
+
 /** `#rrggbb`, uppercase not required; channels are clamped to 0..255. */
 function toHex(rgb: readonly [number, number, number]): string {
   return `#${rgb.map((c) => Math.max(0, Math.min(255, Math.round(c * 255))).toString(16).padStart(2, "0")).join("")}`;

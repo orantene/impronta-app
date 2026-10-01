@@ -41,7 +41,8 @@ test("facts: deposit and window come from selling_defaults through the resolver"
   assert.deepEqual(f.where, ["studio", "remote"]);
   // D4: the approximate zone is a city only, never an address.
   assert.equal(f.zone, "Ciudad de México");
-  assert.deepEqual(f.contact, { chat: true, whatsapp: true, email: false });
+  // A phone alone never implies WhatsApp (privacy): only an explicit link does.
+  assert.deepEqual(f.contact, { chat: true, whatsapp: false, email: false });
 });
 
 test("facts: no stored defaults means the platform 24 h window and no deposit", () => {

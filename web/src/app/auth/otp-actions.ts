@@ -61,6 +61,8 @@ import {
   otpSendErrorKey,
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
+import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 
 /** `sent` drives the form's step; `email` is echoed back into the code screen. */
 export type EmailCodeState =
@@ -148,6 +150,21 @@ export async function requestEmailCode(
 
   if (!email || !isValidAuthEmail(email)) {
     return { step: "email", error: t("public.auth.actions.invalidEmail"), email };
+  }
+
+  // Legal 2.2: the create path (signup) requires 18+ and Terms/Privacy,
+  // checked server side for the signup form (`terms_form=1`). The login path
+  // (create=0) never creates an account. Server callers that build their own
+  // FormData (onboarding module, storefront portal) do not send the marker
+  // and are unchanged.
+  if (
+    String(formData.get("create") ?? "1") !== "0" &&
+    String(formData.get("terms_form") ?? "") === "1" &&
+    !isAgeAndTermsConfirmed(formData.get("age_terms"))
+  ) {
+    return resent
+      ? { step: "code", error: t("public.auth.actions.ageTermsRequired"), email }
+      : { step: "email", error: t("public.auth.actions.ageTermsRequired"), email };
   }
 
   const ip = await requestIp();
@@ -288,6 +305,11 @@ export async function submitEmailCode(
     // emailed-link route runs, so a booker who types the code keeps the
     // conversation they started as a guest. Best-effort + non-fatal.
     await relinkFirstConfirmedClaim(user.id);
+    // Legal 2.2: the create path confirmed 18+ and Terms/Privacy at step 1.
+    // Idempotent per revision; best effort, never blocks sign-in.
+    if (String(formData.get("create") ?? "") === "1" && isAgeAndTermsConfirmed(formData.get("age_terms"))) {
+      await recordSignupAcceptance(user.id);
+    }
   }
 
   const profileData = user ? await loadAccessProfile(supabase, user.id) : null;
