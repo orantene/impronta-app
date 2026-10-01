@@ -5,7 +5,7 @@
  * business starters are a different product and never appear here.
  */
 
-export type FactoryStatus = "up_to_date" | "code_ahead" | "not_synced";
+export type FactoryStatus = "up_to_date" | "code_ahead" | "not_synced" | "authored_pending";
 
 /** The newest local mockup-parity run for one design (summary.json subset). */
 export interface FactoryMockupRun {
@@ -49,8 +49,11 @@ export interface FactoryOverview {
 export function deriveFactoryStatus(input: {
   catalogVersion: number | null;
   codeDiffers: boolean;
+  /** Latest snapshot is editor-authored and the code has not reflected it yet. */
+  authoredPending?: boolean;
 }): FactoryStatus {
   if (input.catalogVersion === null) return "not_synced";
+  if (input.authoredPending) return "authored_pending";
   return input.codeDiffers ? "code_ahead" : "up_to_date";
 }
 

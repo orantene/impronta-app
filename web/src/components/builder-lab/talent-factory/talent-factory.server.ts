@@ -13,6 +13,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { FINISHED_GALLERY_SLUGS } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { hashBuiltinPayload, syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-builtins.server";
+import { isAuthoredReflected } from "@/lib/talent-site/theme-catalog/authored-sync-rule";
+import { authoredOverlayVersion } from "@/lib/talent-site/theme-catalog/collection/authored";
 import { demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
@@ -62,7 +64,7 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
   const overview = new Map((await loadDesignsOverview(admin)).map((d) => [d.slug, d] as const));
   const [{ data: catalog }, { data: snaps }] = await Promise.all([
     admin.from("talent_theme_catalog").select("slug, version, payload").eq("kind", "design"),
-    admin.from("talent_theme_versions").select("design, version, payload"),
+    admin.from("talent_theme_versions").select("design, version, payload, source"),
   ]);
   const catalogBySlug = new Map((catalog ?? []).map((c) => [c.slug as string, c] as const));
   const mockupMode = isProduction() ? "production" : "local";
@@ -72,8 +74,14 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
     const row = catalogBySlug.get(slug);
     const ov = overview.get(slug);
     const mine = (snaps ?? []).filter((s) => s.design === slug);
-    let latest = row ? { version: row.version as number, payload: row.payload as unknown } : null;
-    for (const s of mine) if (!latest || (s.version as number) > latest.version) latest = { version: s.version as number, payload: s.payload };
+    let latest: { version: number; payload: unknown; source: string | null } | null = row
+      ? { version: row.version as number, payload: row.payload as unknown, source: null }
+      : null;
+    for (const s of mine) {
+      if (!latest || (s.version as number) > latest.version) {
+        latest = { version: s.version as number, payload: s.payload, source: (s.source as string | null) ?? null };
+      }
+    }
     const releaseTo = (ov?.openReleases ?? []).map((r) => r.to_version);
     const highest = Math.max(latest?.version ?? 0, ...releaseTo);
     const codeDiffers = !latest || hashBuiltinPayload(entry.buildPayload()) !== hashBuiltinPayload(latest.payload);
@@ -86,7 +94,11 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
       title: ov?.title ?? entry.title,
       catalogVersion,
       codeVersion: codeVersionOf(highest, codeDiffers),
-      status: deriveFactoryStatus({ catalogVersion, codeDiffers }),
+      status: deriveFactoryStatus({
+        catalogVersion,
+        codeDiffers,
+        authoredPending: codeDiffers && !!latest && !isAuthoredReflected(latest, authoredOverlayVersion(slug)),
+      }),
       demoCount,
       galleryVisible: FINISHED_GALLERY_SLUGS.includes(slug),
       latestReleaseId: newestRelease?.id ?? null,
