@@ -95,7 +95,11 @@
         "claimEyebrow": "Profile claim",
         "inviteEyebrow": "Invitation",
         "operatorEyebrow": "Open your workspace",
-        "claimAgencyFallback": "Your agency"
+        "claimAgencyFallback": "Your agency",
+        "ageTermsPrefix": "I am 18 or older and agree to the",
+        "ageTermsTerms": "Terms",
+        "ageTermsAnd": "and the",
+        "ageTermsPrivacy": "Privacy Policy"
       },
       "roleRegister": {
         "talentTitle": "Join as Talent",
@@ -145,7 +149,8 @@
         "signInGeneric": "We couldn't sign you in. Check your details and try again.",
         "confirmPassword": "Enter and confirm your new password.",
         "passwordMismatch": "Password and confirmation do not match.",
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "ageTermsRequired": "Please confirm you are 18 or older and agree to the Terms and Privacy Policy."
       },
       "errors": {
         "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
@@ -217,6 +222,11 @@
         "resendIn": "Resend in {seconds}s",
         "resending": "Sending",
         "changeEmail": "Change email"
+      },
+      "acceptTerms": {
+        "title": "One last step",
+        "description": "Tulala is for adults only. Confirm your age and agree to our Terms and Privacy Policy to continue.",
+        "submit": "Continue"
       }
     },
     "profile": {
@@ -2530,7 +2540,9 @@
         "version_conflict": "The offer changed while you were reviewing. Refresh to see the latest.",
         "forbidden": "You don't have permission to approve this offer.",
         "unavailable": "Could not approve right now. Try again."
-      }
+      },
+      "termsUpdatedTitle": "Terms updated since your request.",
+      "termsUpdatedBody": "The booking policy on this offer is different from the one you saw when you sent your request. Review the booking terms before you approve."
     },
     "clientStatus": {
       "submitted": "Submitted",
