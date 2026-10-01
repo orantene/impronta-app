@@ -803,7 +803,9 @@
       "backToThread": "Retour a la conversation",
       "smsPlain": "La meme commande et la meme page securisee, en texte. Ce canal n affiche pas de cartes.",
       "talentView": "Vous voyez le client, le service et les notes de poste. Pas la conversation ni les autres prix.",
-      "payBy": "Payez avant cette heure pour garder le creneau."
+      "payBy": "Payez avant cette heure pour garder le creneau.",
+      "payByNoTime": "Payez quand vous etes pret. L heure est convenue avec le talent.",
+      "closedMaybePaid": "Cette page de paiement est fermee. Si vous avez deja paye, le talent vous remboursera."
     }
   },
   "dashboard": {

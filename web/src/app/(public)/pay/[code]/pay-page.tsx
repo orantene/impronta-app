@@ -10,6 +10,7 @@ import { publicThreadPath, signThreadToken } from "@/lib/messaging/thread-token"
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 
+import { moneyMayHaveMoved } from "@/lib/payments/pay-closed-money";
 import { CheckoutView } from "./CheckoutView";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 
@@ -221,10 +222,13 @@ export async function PayByCodePage({
     orderRow?.status === "cancelled" ||
     (slotBooking as { status?: string | null } | null)?.status === "cancelled";
   if (loaded.status !== "open" || orderCancelled) {
+    const moneyMoved =
+      loaded.status === "cancelled" || orderCancelled ? await moneyMayHaveMoved(admin, loaded.orderId) : false;
     return (
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        moneyMayHaveMoved={moneyMoved}
         slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}

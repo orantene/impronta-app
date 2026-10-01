@@ -157,6 +157,7 @@ export function cancelConsequenceKeys(
   paymentState: AgendaPaymentState | undefined,
   cancelledBy: CancelledBy,
   ledgerPaidCents?: number | null,
+  paymentInFlight?: boolean,
 ): string[] {
   void cancelledBy;
   const rest = [
@@ -168,6 +169,7 @@ export function cancelConsequenceKeys(
     return [clientPaidSomething(paymentState) ? manual : "Checking what the client paid…", ...rest];
   }
   if (ledgerPaidCents > 0) return [manual, ...rest];
+  if (paymentInFlight) return ["A card payment may be arriving. If it lands, refund the client by hand from Money.", ...rest];
   return ["No payment was taken, so there is nothing to refund. The payment link is closed.", ...rest];
 }
 

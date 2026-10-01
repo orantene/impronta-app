@@ -17,7 +17,10 @@ export type SlotTakenState = {
 
 export type SlotTakenDeps = {
   talentIdForOffering: (offeringId: string) => Promise<string | null>;
-  nextFreeTimes: (talentProfileId: string) => Promise<string[]>;
+  nextFreeTimes: (
+    talentProfileId: string,
+    near?: { startsAt: string; timeZone?: string },
+  ) => Promise<string[]>;
 };
 
 export async function buildSlotTakenState(
@@ -31,7 +34,7 @@ export async function buildSlotTakenState(
     try {
       const talentId = await deps.talentIdForOffering(stamp.offering_id);
       if (talentId) {
-        const times = await deps.nextFreeTimes(talentId);
+        const times = await deps.nextFreeTimes(talentId, { startsAt: stamp.starts_at, timeZone: stamp.timezone });
         nextFreeTimes = times.filter((s) => s !== stamp.starts_at).slice(0, 3);
       }
     } catch {

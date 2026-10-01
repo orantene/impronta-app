@@ -1753,6 +1753,8 @@
       "smsPlain": "Same order and the same secure page, in plain text. This channel cannot show cards.",
       "talentView": "You see the client, the service and the chair notes. Not the conversation or other prices.",
       "payBy": "Pay by this time to keep the slot.",
+      "payByNoTime": "Pay when you are ready. The time is agreed with the talent.",
+      "closedMaybePaid": "This payment page is closed. If you already paid, the talent will refund you.",
       "replaced": "This payment link was replaced. Ask for the new one."
     },
     "storefront": {

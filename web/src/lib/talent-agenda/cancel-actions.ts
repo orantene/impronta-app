@@ -14,7 +14,7 @@ import { requireOwnBooking } from "./booking-actions";
 import { talentBookingMirrorEq } from "./ownership";
 import { logServerError } from "@/lib/server/safe-error";
 import type { AgendaActionResult } from "./booking-actions";
-import { ledgerPaidCents, settleMoneyOnCancel } from "./cancel-money";
+import { ledgerPaidCents, paymentInFlightForOrder, settleMoneyOnCancel } from "./cancel-money";
 
 export type CancelWithRefundResult =
   | {
@@ -36,7 +36,7 @@ export type CancelWithRefundResult =
  */
 export async function cancelPaymentPreview(
   bookingId: string,
-): Promise<{ ok: true; paidCents: number } | { ok: false; reason: string }> {
+): Promise<{ ok: true; paidCents: number; paymentInFlight: boolean } | { ok: false; reason: string }> {
   const own = await requireOwnBooking(bookingId);
   if (!own.ok) return { ok: false, reason: own.reason };
   const admin = createServiceRoleClient();
@@ -52,7 +52,11 @@ export async function cancelPaymentPreview(
   }
   const paid = await ledgerPaidCents(admin, row?.order_id ? String(row.order_id) : null);
   if (paid === null) return { ok: false, reason: "unavailable" };
-  return { ok: true, paidCents: paid };
+  // A completed Checkout session that is not in the ledger yet is money
+  // arriving: the dialog must not say "nothing was paid" (same detection the
+  // post-cancel path uses). Unknown counts as in flight: never claim "nothing".
+  const inFlight = await paymentInFlightForOrder(admin, row?.order_id ? String(row.order_id) : null);
+  return { ok: true, paidCents: paid, paymentInFlight: inFlight !== false };
 }
 
 export async function cancelBookingWithRefund(input: {

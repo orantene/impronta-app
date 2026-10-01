@@ -1753,6 +1753,8 @@
       "smsPlain": "El mismo pedido y la misma pagina segura, en texto. Este canal no muestra tarjetas.",
       "talentView": "Ves al cliente, el servicio y las notas de silla. No la conversacion ni otros precios.",
       "payBy": "Paga a esta hora para guardar el horario.",
+      "payByNoTime": "Paga cuando estés listo. La hora se acuerda con la talento.",
+      "closedMaybePaid": "Esta página de pago está cerrada. Si ya pagaste, la talento te reembolsará.",
       "replaced": "Este enlace de pago fue reemplazado. Pide el nuevo."
     },
     "storefront": {

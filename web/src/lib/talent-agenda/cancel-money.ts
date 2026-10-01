@@ -21,6 +21,8 @@
  */
 
 import { logServerError } from "@/lib/server/safe-error";
+import { boundSessionIsComplete } from "@/lib/payments/link-checkout";
+import { retrieveCheckoutSessionLink } from "@/lib/payments/stripe-checkout";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = { from: (table: string) => any; rpc?: (fn: string, args: Record<string, unknown>) => any };
@@ -54,6 +56,37 @@ export async function ledgerPaidCents(admin: Admin, orderId: string | null): Pro
     }
   }
   return paid;
+}
+
+/**
+ * Read-only: does an open pay link of this order have a Checkout session that
+ * already completed (card payment arriving, not settled in the ledger yet)?
+ * The same condition the post-cancel path reports as `paymentInFlight`.
+ * null when it cannot be read.
+ */
+export async function paymentInFlightForOrder(
+  admin: Admin,
+  orderId: string | null,
+  retrieve: Parameters<typeof boundSessionIsComplete>[2] = retrieveCheckoutSessionLink,
+): Promise<boolean | null> {
+  if (!orderId) return false;
+  const { data, error } = await admin
+    .from("payment_links")
+    .select("reservation_id")
+    .eq("order_id", orderId)
+    .eq("status", "open");
+  if (error) {
+    logServerError("agenda.cancelMoney.inFlight", error);
+    return null;
+  }
+  let unknown = false;
+  for (const row of (data ?? []) as Array<{ reservation_id: string | null }>) {
+    if (!row.reservation_id) continue;
+    const done = await boundSessionIsComplete(admin, row.reservation_id, retrieve);
+    if (done === true) return true;
+    if (done === null) unknown = true;
+  }
+  return unknown ? null : false;
 }
 
 export type CancelMoneyResult = {

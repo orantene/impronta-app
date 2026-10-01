@@ -69,6 +69,7 @@ export function AgendaBookingRecord({
   const [showHold, setShowHold] = useState(false);
   // Ledger-read money for the cancel dialog (undefined = loading, null = unknown).
   const [cancelPaidCents, setCancelPaidCents] = useState<number | null | undefined>(undefined);
+  const [cancelInFlight, setCancelInFlight] = useState(false);
   // The record flips to Cancelled the moment the server says so, not on reload.
   const [cancelledHere, setCancelledHere] = useState(false);
   const bookingState: AgendaListItem["bookingState"] = cancelledHere ? "cancelled" : item.bookingState;
@@ -126,10 +127,12 @@ export function AgendaBookingRecord({
   function handleCancelRequest() {
     if (!bookingId) return;
     setCancelPaidCents(undefined);
+    setCancelInFlight(false);
     setConfirmCancel(true);
     startTransition(async () => {
       const preview = await cancelPaymentPreview(bookingId);
       setCancelPaidCents(preview.ok ? preview.paidCents : null);
+      setCancelInFlight(preview.ok && preview.paymentInFlight);
     });
   }
 
@@ -744,7 +747,7 @@ export function AgendaBookingRecord({
             </p>
           ) : null}
           <ul className="list-disc space-y-1 pl-5 text-[var(--tc-muted)]">
-            {cancelConsequenceKeys(item.paymentState, cancelledBy, cancelPaidCents).map((k) => (
+            {cancelConsequenceKeys(item.paymentState, cancelledBy, cancelPaidCents, cancelInFlight).map((k) => (
               <li key={k}>{copy.t(k)}</li>
             ))}
             <li>{copy.t("This cannot be undone.")}</li>

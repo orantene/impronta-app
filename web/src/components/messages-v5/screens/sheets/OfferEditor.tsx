@@ -53,8 +53,8 @@ import {
   addCustomLine,
   draftDepositCents,
   draftLineCount,
-  draftPlatformFeeCents,
-  draftTalentNetCents,
+  draftInternalSplit,
+  visibleRevisionNumber,
   draftTotalCents,
   lineTotalCents,
   removeLine,
@@ -199,8 +199,9 @@ export function OfferEditorView(props: OfferEditorViewProps) {
   const c = copy.kit.offer;
   const formatCentsUSD = (cents: number) => formatOrderMoney(cents, draft?.currencyCode ?? "USD");
   const sheetVariant = variant === "mobile" ? "mobile-full" : "desktop";
+  const revision = draft ? visibleRevisionNumber(props.versions, draft.offerId ?? "") : 1;
   const title = draft
-    ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${draft.version}`).replace("{name}", clientName)}`
+    ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${revision}`).replace("{name}", clientName)}`
     : copy.kit.offer.editorTitle.replace("v{version}", "").replace(" · {name}", clientName ? ` · ${clientName}` : "").replace("{name}", clientName ?? "").trim();
 
   if (phase === "refused" && refusalCode) {
@@ -225,8 +226,10 @@ export function OfferEditorView(props: OfferEditorViewProps) {
 
   const lineCount = draftLineCount(draft);
   const totalCents = draftTotalCents(draft);
-  const talentNet = draftTalentNetCents(draft);
-  const platformFee = draftPlatformFeeCents(draft);
+  // Talent seller mode = a solo talent selling her own service (she is the merchant).
+  const split = draftInternalSplit(draft, { soloTalent: Boolean(props.seller) });
+  const talentNet = split.talentNetCents;
+  const platformFee = split.platformFeeCents;
   const saveLabel =
     props.saveState.status === "saving"
       ? c.saving
@@ -273,7 +276,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
             data-offer-send
             title={sendGate.ok ? undefined : sendGate.reasonKey}
           >
-            {c.sendV.replace("{version}", String(draft.version))}
+            {c.sendV.replace("{version}", String(revision))}
           </Btn>
         </>
       }
@@ -293,7 +296,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
                 }}
                 data-offer-version-chip={v.version}
               >
-                v{v.version}
+                v{visibleRevisionNumber(props.versions, v.id, v.version)}
               </span>
             ))}
           </div>
@@ -456,7 +459,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
           </div>
           <div className="offer-internal-row">
             <span>{c.internalAgencyFee}</span>
-            <b>{formatCentsUSD(draft.coordinatorFeeCents)}</b>
+            <b>{formatCentsUSD(split.coordinatorFeeCents)}</b>
           </div>
           <div className="offer-internal-row">
             <span>{c.internalPlatformFee}</span>

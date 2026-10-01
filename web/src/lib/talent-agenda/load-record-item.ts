@@ -39,16 +39,16 @@ export async function loadTalentAgendaRecordItem(bookingId: string): Promise<Tal
  * reads what exists: the booking's own title, else the first order line's
  * label. Null when the booking is not hers.
  */
-export async function loadTalentTimelessBookingStub(bookingId: string): Promise<{ title: string; service: string | null } | null> {
+export async function loadTalentTimelessBookingStub(bookingId: string): Promise<{ title: string; service: string | null; clientName: string | null } | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const actor = await loadTalentActor();
   if (!actor.ok) return null;
   const { data } = await actor.admin
     .from("agency_bookings")
-    .select("order_id, tenant_id")
+    .select("order_id, tenant_id, contact_name")
     .eq("id", bookingId)
     .maybeSingle();
-  const row = data as { order_id?: string | null; tenant_id?: string | null } | null;
+  const row = data as { order_id?: string | null; tenant_id?: string | null; contact_name?: string | null } | null;
   const { data: own } = await actor.supabase
     .from("talent_bookings")
     .select("title")
@@ -68,5 +68,5 @@ export async function loadTalentTimelessBookingStub(bookingId: string): Promise<
     service = ((line as { label?: string | null } | null)?.label ?? "").trim() || null;
   }
   if (!own && !row) return null;
-  return { title: service ?? "", service };
+  return { title: service ?? "", service, clientName: (row?.contact_name ?? "").trim() || null };
 }

@@ -288,6 +288,8 @@ const ES: Record<string, string> = {
     "No se cobró ningún pago, así que no hay nada que reembolsar. El enlace de pago queda cerrado.",
   "Refunds are not automatic. Refund the client by hand from Money.":
     "Los reembolsos no son automáticos. Reembolsa al cliente a mano desde Dinero.",
+  "A card payment may be arriving. If it lands, refund the client by hand from Money.":
+    "Puede estar llegando un pago con tarjeta. Si llega, reembolsa al cliente a mano desde Dinero.",
   "Checking what the client paid…": "Revisando lo que pagó el cliente…",
   "The client paid": "El cliente pagó",
   "Cancelled. The client paid": "Cancelado. El cliente pagó",

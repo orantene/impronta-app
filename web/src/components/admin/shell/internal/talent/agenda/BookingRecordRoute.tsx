@@ -28,7 +28,7 @@ export function BookingRecordRoute({
 }) {
   const fromSnapshot = agendaItemFromSnapshot(snapshot, bookingId);
   const copy = useAgendaCopy();
-  const [loaded, setLoaded] = useState<{ id: string; item: TalentAgendaItem | null; service?: string | null } | null>(null);
+  const [loaded, setLoaded] = useState<{ id: string; item: TalentAgendaItem | null; service?: string | null; clientName?: string | null } | null>(null);
   useEffect(() => {
     if (fromSnapshot || !bookingId) return;
     let cancelled = false;
@@ -36,7 +36,7 @@ export function BookingRecordRoute({
       const item = await loadTalentAgendaRecordItem(bookingId);
       // No time yet: read the service from the booking / order line.
       const stub = item ? null : await loadTalentTimelessBookingStub(bookingId).catch(() => null);
-      if (!cancelled) setLoaded({ id: bookingId, item, service: stub?.service ?? null });
+      if (!cancelled) setLoaded({ id: bookingId, item, service: stub?.service ?? null, clientName: stub?.clientName ?? null });
     })();
     return () => {
       cancelled = true;
@@ -63,7 +63,8 @@ export function BookingRecordRoute({
           ? buildAgendaListItemFromAgendaItem(agendaItem)
           : {
               id: bookingId || "unknown",
-              title: copy.t("Booking"),
+              // The client is the name on the record; "Booking" only when none is known.
+              title: loaded?.clientName || copy.t("Booking"),
               subtitle: loaded?.service ?? undefined,
               whenLabel: copy.t("No time assigned"),
               whereLabel: "-",

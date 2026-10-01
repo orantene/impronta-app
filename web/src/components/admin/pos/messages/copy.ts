@@ -216,6 +216,8 @@ const KEYS = [
   "public.thread.smsPlain",
   "public.thread.talentView",
   "public.thread.payBy",
+  "public.thread.payByNoTime",
+  "public.thread.closedMaybePaid",
 ] as const;
 
 export function messagesCopy(t: Translator) {

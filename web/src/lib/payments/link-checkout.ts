@@ -446,3 +446,31 @@ export async function expireBoundSession(
   const expired = await expire(sessionId);
   return expired.ok ? { ok: true } : { ok: false, reason: expired.reason };
 }
+
+/**
+ * Read-only twin of `expireBoundSession`: has the Checkout session this claim
+ * is bound to already completed (money arriving, not yet settled in the
+ * ledger)? Nothing is expired or written. null when it cannot be read.
+ */
+export async function boundSessionIsComplete(
+  admin: Admin,
+  reservationId: string,
+  retrieve: (sessionId: string) => Promise<{ ok: true; status: string | null } | { ok: false }>,
+): Promise<boolean | null> {
+  const claim = await loadClaim(admin, reservationId);
+  if (claim === false) return null;
+  if (!claim?.transaction_id) return false;
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("status, metadata")
+    .eq("id", claim.transaction_id)
+    .maybeSingle();
+  if (error) return null;
+  const txn = data as { status: string; metadata: unknown } | null;
+  if (!txn) return false;
+  if (SETTLED_TXN_STATUSES.has(txn.status)) return true;
+  const sessionId = paymentRequestIdFromMetadata(txn.metadata);
+  if (!sessionId || sessionId.startsWith("mock_")) return false;
+  const res = await retrieve(sessionId);
+  return res.ok ? res.status === "complete" : null;
+}

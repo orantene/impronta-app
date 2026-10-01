@@ -376,7 +376,7 @@ export async function submitInquiryNowAction(
             .maybeSingle();
           return typeof data?.talent_profile_id === "string" ? data.talent_profile_id : null;
         },
-        nextFreeTimes: (talentId) => nextFreeTimesForTalent(writer, talentId),
+        nextFreeTimes: (talentId, near) => nextFreeTimesForTalent(writer, talentId, new Date(), near),
       },
       intent.source_context,
       result.error,
