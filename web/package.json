@@ -237,7 +237,7 @@
     "typecheck:incremental": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
     "qa:mockup-parity": "node scripts/qa/mockup-parity/run.mjs",
     "qa:parity-gap": "node scripts/qa/mockup-parity/gap.mjs",
-    "theme:pull-authored": "NODE_PATH=scripts/demo-talents/stubs tsx --tsconfig scripts/demo-talents/tsconfig.json scripts/theme-authoring/pull-authored.mts",
+    "theme:pull-authored": "NODE_PATH=scripts/demo-talents/stubs tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=.env.local scripts/theme-authoring/pull-authored.mts",
     "qa:parity-loop": "node scripts/qa/mockup-parity/loop.mjs",
     "qa:appointments": "node scripts/qa-appointments.mjs",
     "qa:links": "node scripts/qa-links.mjs",
