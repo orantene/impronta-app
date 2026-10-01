@@ -34,7 +34,18 @@ export function toFontProxyHref(googleHref: string): string {
  * charset, and display=swap are accepted.
  */
 export function buildUpstreamCssUrl(search: string): string | null {
-  const params = search.replace(/^\?/, "").split("&").filter(Boolean);
+  // Next's request layer (proxy rewrite, edge/CDN) may hand the route a
+  // percent-encoded query (`:`->%3A, `@`->%40, `;`->%3B). Normalise those
+  // three delimiters back before validating, or every family with an axis
+  // tuple (all theme fonts) is rejected with 400 and the page falls to Georgia.
+  const params = search
+    .replace(/^\?/, "")
+    .replace(/%3A/gi, ":")
+    .replace(/%40/g, "@")
+    .replace(/%3B/gi, ";")
+    .replace(/%2C/gi, ",")
+    .split("&")
+    .filter(Boolean);
   const out: string[] = [];
   let families = 0;
   let display = false;

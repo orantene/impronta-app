@@ -88,3 +88,30 @@ test("rewritten css never leaves a gstatic host behind", () => {
   const css = "@font-face{src:url(https://fonts.gstatic.com/s/figtree/v9/a.woff2)} @font-face{src:url(https://fonts.gstatic.com/s/bodonimoda/v1/b.woff2)}";
   assert.ok(!rewriteFontCss(css).includes("gstatic"));
 });
+
+test("proxy accepts a percent-encoded query (what the route sees behind the proxy layer)", () => {
+  const plain = "family=Instrument+Serif:ital,wght@0,400;1,400&family=Archivo+Narrow:wght@400..700&display=swap";
+  const encoded = plain.replace(/:/g, "%3A").replace(/@/g, "%40").replace(/;/g, "%3B").replace(/,/g, "%2C");
+  assert.ok(buildUpstreamCssUrl(plain));
+  assert.equal(buildUpstreamCssUrl(encoded), buildUpstreamCssUrl(plain));
+});
+
+test("GoogleFontsLink output for folio / maison-v2 / gridline is a proxy URL the proxy accepts", async () => {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const React = await import("react");
+  const { GoogleFontsLink } = await import("@/app/google-fonts-link");
+  for (const slug of ["folio", "maison-v2", "gridline"]) {
+    const fonts = GALLERY_DESIGNS.find((d) => d.slug === slug)?.fonts;
+    assert.ok(fonts, `${slug}: no gallery fonts`);
+    const tokens: Record<string, string> = {
+      "typography.heading-font-family": fonts.heading,
+      "typography.body-font-family": fonts.body,
+    };
+    const html = renderToStaticMarkup(React.createElement(GoogleFontsLink, { tokens }));
+    const m = html.match(/href="([^"]+)"/);
+    assert.ok(m, `${slug}: no font link rendered`);
+    const href = m[1].replace(/&amp;/g, "&");
+    assert.ok(href.startsWith("/api/fonts/css?"), `${slug}: not proxied: ${href}`);
+    assert.ok(buildUpstreamCssUrl(href.split("?")[1]), `${slug}: proxy rejects ${href}`);
+  }
+});
