@@ -77,6 +77,7 @@ const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
   designs: "Add Designs",
   data: "Add Data",
   shell: "Add Shell",
+  apps: "Add Apps",
 };
 
 interface AddGalleryPanelProps {

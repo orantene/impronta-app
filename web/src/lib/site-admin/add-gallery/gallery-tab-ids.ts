@@ -2,7 +2,7 @@
  * Canonical insert-gallery tab ids (A3: 6 tabs → 4) plus the legacy-id map
  * so older allow-lists / structure rows / Lab views still resolve.
  *
- * UI tabs: Blocks / Designs / Data / Shell.
+ * UI tabs: Blocks / Designs / Data / Shell, plus Apps (talent builder only).
  * `page_templates` is not a UI tab (those cards live on Designs) but remains
  * an allow-list GATE so page-builder surfaces that listed it still receive
  * DB page templates, while shell surfaces that never listed it still don't.
@@ -15,6 +15,7 @@ export const GALLERY_TAB_IDS: ReadonlyArray<AddGalleryTab> = [
   "designs",
   "data",
   "shell",
+  "apps",
 ];
 
 export const CODE_TAB_LABELS: Record<AddGalleryTab, string> = {
@@ -22,6 +23,7 @@ export const CODE_TAB_LABELS: Record<AddGalleryTab, string> = {
   designs: "Designs",
   data: "Data",
   shell: "Shell",
+  apps: "Apps",
 };
 
 /**
@@ -38,6 +40,7 @@ const LEGACY_GALLERY_TAB_TO_CANONICAL: Record<string, AddGalleryTab> = {
   blocks: "blocks",
   designs: "designs",
   data: "data",
+  apps: "apps",
 };
 
 /** Structure-row fallbacks when `tab:<canonical>` is missing. Do NOT fall
@@ -51,6 +54,7 @@ export const LEGACY_TAB_STRUCTURE_FALLBACKS: Record<
   designs: ["sections"],
   data: ["connected"],
   shell: [],
+  apps: [],
 };
 
 export function canonicalGalleryTab(

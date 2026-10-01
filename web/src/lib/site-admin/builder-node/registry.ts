@@ -84,6 +84,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "utility_bar",
   "alert_band",
   "task_picker",
+  "app_nail_designer",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1322,6 +1323,20 @@ export const taskPickerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/** Apps: Nail Designer. Option lists hold catalog ids (nail-designer-model). */
+export const appNailDesignerPropsSchema = z.object({
+  title: z.string().max(120).optional(),
+  intro: z.string().max(400).optional(),
+  shapes: z.array(z.string().max(24)).max(12).optional(),
+  colors: z.array(z.string().max(24)).max(40).optional(),
+  arts: z.array(z.string().max(24)).max(12).optional(),
+  finishes: z.array(z.string().max(24)).max(12).optional(),
+  charms: z.array(z.string().max(24)).max(12).optional(),
+  ctaLabel: z.string().max(60).optional(),
+  sendWithBooking: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 export const compCardPropsSchema = z.object({
   layout: z.enum(["strip", "strip_with_details"]).optional(),
   eyebrow: z.string().max(80).optional(),
@@ -2431,6 +2446,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "What is happening, in the visitor's words. Each task recommends one of your services with its price, time and the right action.",
       children: { type: "none" },
       propsSchema: taskPickerPropsSchema,
+    },
+    app_nail_designer: {
+      kind: "app_nail_designer",
+      label: "Nail Designer",
+      description:
+        "An interactive nail design tool. Visitors pick shapes, colours, finishes and art, then send the design with their booking request.",
+      children: { type: "none" },
+      propsSchema: appNailDesignerPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

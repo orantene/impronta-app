@@ -1,6 +1,11 @@
 import type { BuilderNode, BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
 
-export type AddGalleryTab = "blocks" | "designs" | "data" | "shell";
+/**
+ * `apps` is the talent-builder-only tab for interactive mini-tools (Nail
+ * Designer first). It is offered only where a surface lists it in
+ * `allowedTabs` (talent page + theme template), never on the agency Studio.
+ */
+export type AddGalleryTab = "blocks" | "designs" | "data" | "shell" | "apps";
 
 /**
  * Allow-list tokens for a surface's gallery. The four UI tabs plus the
@@ -121,6 +126,8 @@ export interface AddGalleryItem {
   nativeVariant?: AddGalleryNativeVariant;
   sectionEmbedKey?: string;
   sectionTemplateId?: string;
+  /** Apps tab: key of the card thumbnail (see `apps-registry.ts`). */
+  appThumbnail?: string;
   /** Optional preview image URL for section image cards. */
   previewImageUrl?: string;
   /** DB-backed template id (insertMethod === "dbTemplate"). */

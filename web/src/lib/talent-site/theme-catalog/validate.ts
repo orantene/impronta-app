@@ -84,6 +84,7 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "utility_bar",
   "alert_band",
   "task_picker",
+  "app_nail_designer",
   "next_free_chip",
   // Maison v2 ticker (serif variant of the shared marquee).
   "marquee",

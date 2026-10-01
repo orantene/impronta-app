@@ -40,6 +40,7 @@ import { AddGalleryIcon } from "./add-gallery-icons";
 import { GalleryPreviewTrigger } from "./add-gallery-preview-modal";
 import { galleryLockedHint } from "@/lib/site-admin/add-gallery/structural-lock";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
+import { AppThumbnail } from "./add-gallery-app-thumbnails";
 import { useEditorLocale } from "../use-editor-locale";
 
 function useGalleryCardPointerDrag(
@@ -165,6 +166,14 @@ function ElementCard({
  * small and already sized for a 96px strip, so the optimizer buys nothing here.
  */
 function GalleryCardPreview({ item }: { item: AddGalleryItem }) {
+  // Apps tab: a registry-keyed thumbnail of what the app is.
+  if (item.appThumbnail) {
+    return (
+      <div className="flex size-full items-center justify-center p-[10px]" style={{ color: CHROME.accent }}>
+        <AppThumbnail name={item.appThumbnail} />
+      </div>
+    );
+  }
   const previewUrl = item.previewImageUrl;
   if (!previewUrl) return <AddGallerySectionPreview itemId={item.id} />;
   return (
@@ -458,8 +467,8 @@ export function GalleryCard(props: {
   armed?: boolean;
   locked?: boolean;
 }) {
-  // Designs / Data / Shell use the richer template-card look; Blocks uses icon cards.
-  if (props.tab === "designs" || props.tab === "shell") {
+  // Designs / Shell / Apps use the richer preview-card look; Blocks uses icon cards.
+  if (props.tab === "designs" || props.tab === "shell" || props.tab === "apps") {
     return <SectionCard {...props} />;
   }
   if (props.tab === "data") {
