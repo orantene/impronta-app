@@ -481,7 +481,13 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
   const report = emptyReport();
   let n = 0;
   const seq = () => (n += 1);
-  const allow = makeAllow(input.items);
+  const itemAllow = makeAllow(input.items);
+  const allow: AllowFn = input.forceDesign
+    ? (scope, key, tree) => {
+        const a = itemAllow(scope, key, tree);
+        return a.ok ? { ...a, critical: true } : a;
+      }
+    : itemAllow;
   const declared = (input.items ?? []).flatMap((i) => (i.swap ? [{ tree: i.tree, pair: i.swap }] : []));
   const trees: Record<string, BuilderNode[]> = {};
   for (const [name, ours] of Object.entries(input.ours.trees)) {

@@ -182,6 +182,12 @@ export interface MergeInput {
   items?: ReadonlyArray<ReleaseItem>;
   /** `talent_sites.theme_token_origin` (key → hash of the default as applied). */
   tokenOrigin?: Readonly<Record<string, string>>;
+  /**
+   * Demo sites (`is_demo`): demo content is ours, so a design change the
+   * items allow is FORCED like a critical item, even where the node no longer
+   * hashes to its stamp (seeded demo copy reads as an edit). Talents: never.
+   */
+  forceDesign?: boolean;
 }
 
 export interface MergeResult {
