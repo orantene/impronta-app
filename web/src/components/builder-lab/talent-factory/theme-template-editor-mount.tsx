@@ -60,7 +60,7 @@ export function ThemeTemplateEditorMount({
     `rounded-full px-3 py-1 text-xs ${active ? "bg-black/80 text-white" : "bg-black/5 text-black/70"}`;
 
   const headerActions = (
-    <div className="flex items-center gap-2" data-theme-template-header>
+    <div className="flex flex-wrap items-center gap-3 text-black/80" data-theme-template-header>
       <nav aria-label={t.tabsAria} className="flex items-center gap-1" data-tree-tabs>
         <Link href={tabHref("home")} className={tabClass(tree === "home")} aria-current={tree === "home" ? "page" : undefined}>
           {t.tabHome}
@@ -71,6 +71,13 @@ export function ThemeTemplateEditorMount({
       </nav>
       <ThemeTemplateSubjectPicker design={design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
       <PublishDesignButton design={design} lang={lang} />
+      <Link
+        href="/platform/admin/builder-lab/themes"
+        className="text-xs text-black/70 underline hover:text-black"
+        data-release-manager-link
+      >
+        {t.releaseManager}
+      </Link>
     </div>
   );
 

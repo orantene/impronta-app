@@ -11,6 +11,10 @@ const COPY = {
   es: { subject: "Vista previa con", look: "Aspecto", reference: "referencia" },
 } as const;
 
+const LABEL = "flex items-center gap-1.5 text-xs";
+const SELECT =
+  "rounded-md border border-black/30 bg-white px-2 py-1 text-xs text-black/90 opacity-100";
+
 /**
  * Subject + look pickers for the Template Factory editor header. Writes
  * `?subject=` and `?look=` into the URL (the page re-renders server side with
@@ -42,10 +46,10 @@ export function ThemeTemplateSubjectPicker({
   };
 
   return (
-    <div data-theme-template-picker="" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-      <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-        <span>{t.subject}</span>
-        <select value={subject ?? ""} onChange={(e) => set("subject", e.target.value)} aria-label={t.subject}>
+    <div data-theme-template-picker="" className="flex flex-wrap items-center gap-3">
+      <label className={LABEL}>
+        <span className="text-black/80">{t.subject}</span>
+        <select value={subject ?? ""} onChange={(e) => set("subject", e.target.value)} aria-label={t.subject} className={SELECT}>
           {demos.map((d) => (
             <option key={d.profileCode} value={d.profileCode}>
               {d.profileCode}
@@ -55,9 +59,9 @@ export function ThemeTemplateSubjectPicker({
         </select>
       </label>
       {palettes.length > 0 ? (
-        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-          <span>{t.look}</span>
-          <select value={look ?? palettes[0]?.key ?? ""} onChange={(e) => set("look", e.target.value)} aria-label={t.look}>
+        <label className={LABEL}>
+          <span className="text-black/80">{t.look}</span>
+          <select value={look ?? palettes[0]?.key ?? ""} onChange={(e) => set("look", e.target.value)} aria-label={t.look} className={SELECT}>
             {palettes.map((p) => (
               <option key={p.key} value={p.key}>
                 {p.name[lang]}
