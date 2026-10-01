@@ -14,6 +14,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildThemeTemplateCanvasData } from "@/lib/talent-site/theme-template/canvas.server";
+import { resolveDesignSource } from "@/lib/talent-site/theme-template/design-lineage.server";
 import { findDemo, demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { openThemeDraft } from "@/lib/talent-site/theme-template/drafts.server";
@@ -69,8 +70,9 @@ export default async function TalentDesignEditPage({
   const tenantId = (hub?.id as string | undefined) ?? null;
   if (!tenantId) notFound();
 
+  const sourceDesign = await resolveDesignSource(slug);
   // Preview subject: ?subject=, else this design's reference demo.
-  const referenceCode = demosFor(slug as DemoDesign).find((d) => d.reference)?.profileCode ?? null;
+  const referenceCode = demosFor(sourceDesign as DemoDesign).find((d) => d.reference)?.profileCode ?? null;
   const requested = first(sp.subject);
   const subjectCode = requested && findDemo(requested) ? requested : referenceCode;
   let subjectLabel: string | null = null;
@@ -108,7 +110,8 @@ export default async function TalentDesignEditPage({
         subjectCode={subjectCode}
         subjectLabel={subjectLabel}
         look={look}
-        canvasRenderData={{ ...canvas, designSlug: slug }}
+        sourceDesign={sourceDesign}
+        canvasRenderData={{ ...canvas, designSlug: sourceDesign }}
       />
     </div>
   );
