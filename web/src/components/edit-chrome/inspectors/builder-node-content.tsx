@@ -1622,6 +1622,7 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "alert_band") {
     return <AlertBandContentInspector node={node} commitPatch={commitPatch} />;
+  }
   if (node.kind === "task_picker") {
     return <TaskPickerContentInspector node={node} commitPatch={commitPatch} />;
   }
