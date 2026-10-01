@@ -1,7 +1,8 @@
 /**
  * The card chat's quick-question chips fill the composer (never send), with the
  * service name when a context card is set, and focus it. Rendered through the
- * real CardChatPanel with a stateful draft, like MiniChatPanel drives it.
+ * real CardDockAskFooter (the merged dock draws it above the composer) with a
+ * stateful draft and the same fill-and-focus handler the dock column passes.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,7 +19,7 @@ g.IS_REACT_ACT_ENVIRONMENT = true;
 /* eslint-disable import/first -- jsdom globals must exist before react-dom loads */
 import { act, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { CardChatPanel } from "./CardChatColumn";
+import { CardDockAskFooter } from "./CardDockChatExtras";
 import { clearPendingOffering, setPendingOffering } from "./pending-offering-store";
 import { createTranslator } from "@/i18n/messages";
 /* eslint-enable import/first */
@@ -28,25 +29,23 @@ let sent = 0;
 
 function Harness() {
   const [draft, setDraft] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const props = {
-    card: {
-      replyLabel: null, city: null, customGreeting: null, browseServices: true,
-      colors: { background: null, surface: null, ink: null, muted: null, line: null, accent: null, onAccent: null }, bodyFont: null,
-    },
-    compact: false,
-    keyboardInsetPx: 0,
-    brand: { locale: "es", agencyName: "Alba", talentDisplayName: "Alba Rivas" },
-    accent: "x", accentInk: "y", talentFirst: "Alba",
-    rows: [], scrollRef, stage: "intro", draft, onDraftChange: setDraft,
-    honeypot: "", onHoneypotChange: () => undefined, onSubmit: () => void sent++,
-    sending: false, inCooldown: false, sendDisabled: false, error: null, captchaRequired: false,
-    onClose: () => undefined, textareaRef,
-    firstName: "", lastName: "", email: "", onFirstNameChange: () => undefined, onLastNameChange: () => undefined, onEmailChange: () => undefined,
-    onFirstSend: () => undefined, offerings: [],
-  };
-  return <CardChatPanel {...(props as unknown as React.ComponentProps<typeof CardChatPanel>)} />;
+  return (
+    <>
+      <CardDockAskFooter
+        t={es}
+        threadEmpty
+        onPick={(q) => {
+          setDraft(q);
+          textareaRef.current?.focus();
+        }}
+      />
+      <textarea ref={textareaRef} value={draft} onChange={(e) => setDraft(e.target.value)} />
+      <button type="button" data-send="" onClick={() => void sent++}>
+        send
+      </button>
+    </>
+  );
 }
 
 function mount() {

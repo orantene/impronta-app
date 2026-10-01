@@ -10,7 +10,7 @@
  * MiniChatPanelColumn. No logic changes.
  */
 
-import { useMemo, type RefObject } from "react";
+import { useMemo, type ReactNode, type RefObject } from "react";
 
 import type {
   GuestIdentityTier,
@@ -76,6 +76,8 @@ export type GuestConversationBodyProps = {
   cardModel: GuestClientCardsModel;
   /** L13: the column's clock (ticks while a hold counts down). */
   now: Date;
+  /** Card skin: replaces the greeting bubble (note line + her greeting). */
+  cardIntro?: ReactNode;
 };
 
 export function GuestConversationBody({
@@ -104,6 +106,7 @@ export function GuestConversationBody({
   sendBarActive = false,
   cardModel,
   now,
+  cardIntro,
 }: GuestConversationBodyProps) {
   // L13: the card model + clock come from the column (it also feeds the
   // next-step block above the composer, so both act through one model).
@@ -165,7 +168,8 @@ export function GuestConversationBody({
         // whose only rows are SYSTEM notes (e.g. "Lineup · 3 talent") should
         // still show the greeting, so the panel opens alive instead of blank.
         // So: show while every row is a system note; hide once any
-        // guest/coordinator message lands.
+        // guest/coordinator message lands. The card skin supplies its own.
+        cardIntro ?? (
         <div
           style={{
             alignSelf: "flex-start",
@@ -207,6 +211,7 @@ export function GuestConversationBody({
                   name: brand.talentDisplayName.trim() || talentFirst,
                 })}
         </div>
+        )
       ) : null}
 
       {/* W1-1 — fold consecutive system notes into ONE quiet caption cluster

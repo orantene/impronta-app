@@ -179,19 +179,36 @@ export function CardChatServiceBrowser({
   onAdd,
   onAsk,
   onBack,
+  heading,
+  priceFor,
+  addLabel,
 }: {
   offerings: ChatOffering[];
   locale: string;
   t: Translator;
   onAdd: (o: ChatOffering) => void;
   onAsk: (o: ChatOffering) => void;
-  onBack: () => void;
+  /** Absent: no back button (the list sits inside a tab that has its own way back). */
+  onBack?: () => void;
+  /** Section label above the list (e.g. "Lo más pedido"). */
+  heading?: string;
+  /** Overrides the price line (the dock menu's "$500 MXN · ≈ US$28"). */
+  priceFor?: (o: ChatOffering) => string | null;
+  /** Overrides the add button label (the brief says "Guardar"). */
+  addLabel?: string;
 }) {
   return (
     <div data-card-chat-browser="" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <button type="button" onClick={onBack} className={a11y.focusRing} style={{ ...PILL_BTN, alignSelf: "flex-start" }}>
-        ← {t("public.guestChat.cardBrowseBack")}
-      </button>
+      {heading ? (
+        <small data-card-dock-heading="" style={{ color: "var(--cc-muted)", fontSize: 10.5, letterSpacing: "0.14em", fontWeight: 700, textTransform: "uppercase" }}>
+          {heading}
+        </small>
+      ) : null}
+      {onBack ? (
+        <button type="button" onClick={onBack} className={a11y.focusRing} style={{ ...PILL_BTN, alignSelf: "flex-start" }}>
+          ← {t("public.guestChat.cardBrowseBack")}
+        </button>
+      ) : null}
       {offerings.length === 0 ? (
         <p style={{ fontSize: 13, color: "var(--cc-muted)", margin: 0 }}>{t("public.guestChat.cardBrowseEmpty")}</p>
       ) : (
@@ -207,7 +224,7 @@ export function CardChatServiceBrowser({
             ) : null}
             <div style={{ minWidth: 0, flex: 1 }}>
               <b style={{ display: "block", fontSize: 14, fontWeight: 600 }}>{o.title}</b>
-              <small style={{ color: "var(--cc-muted)", fontSize: 12 }}>{priceLine(o, locale, t)}</small>
+              <small style={{ color: "var(--cc-muted)", fontSize: 12 }}>{priceFor?.(o) ?? priceLine(o, locale, t)}</small>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto" }}>
               <button
@@ -218,7 +235,7 @@ export function CardChatServiceBrowser({
                 className={a11y.focusRing}
                 style={{ ...PILL_BTN, background: "var(--cc-accent)", color: "var(--cc-on)", borderColor: "var(--cc-accent)" }}
               >
-                {t("public.guestChat.cardBrowseAdd")}
+                {addLabel ?? t("public.guestChat.cardBrowseAdd")}
               </button>
               <button
                 type="button"
