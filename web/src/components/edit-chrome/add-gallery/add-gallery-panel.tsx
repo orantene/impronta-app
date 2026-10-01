@@ -123,7 +123,7 @@ function CategoryRail({
               <AddGalleryIcon name={cat.icon} size="sm" tone="accent" />
             </span>
             <span className="min-w-0 leading-snug [overflow-wrap:anywhere]">
-              {cat.label}
+              {t(cat.label)}
             </span>
           </button>
         );
