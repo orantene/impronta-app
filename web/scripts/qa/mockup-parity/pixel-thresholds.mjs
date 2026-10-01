@@ -26,5 +26,13 @@ export const PIXEL_THRESHOLDS = {
 
 export const DEFAULT_PIXEL_THRESHOLD = 0.15;
 
-export const pixelThresholdFor = (key, override) =>
-  typeof override === "number" ? override : PIXEL_THRESHOLDS[key] ?? DEFAULT_PIXEL_THRESHOLD;
+/**
+ * Threshold for a map section. Order: the section's `pixel.maxMismatch` in parity-map.json,
+ * the legacy `pixelThreshold`, the per-key table above, the default.
+ */
+export const pixelThresholdFor = (key, sec) => {
+  const o = sec && typeof sec === "object" ? sec : { pixelThreshold: sec };
+  if (typeof o.pixel?.maxMismatch === "number") return o.pixel.maxMismatch;
+  if (typeof o.pixelThreshold === "number") return o.pixelThreshold;
+  return PIXEL_THRESHOLDS[key] ?? DEFAULT_PIXEL_THRESHOLD;
+};

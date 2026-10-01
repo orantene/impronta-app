@@ -77,7 +77,10 @@
         }
       ],
       "parityKey": "header",
-      "fallback": []
+      "fallback": [],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "urgency",
@@ -118,7 +121,10 @@
         "#emergency",
         "[data-anchor-id='emergency']"
       ],
-      "optionalOnReference": true
+      "optionalOnReference": true,
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "hero",
@@ -165,7 +171,10 @@
         "[data-slot-key='hero']",
         "[data-anchor-id='hero']"
       ],
-      "parityKey": "hero"
+      "parityKey": "hero",
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "tasks",
@@ -203,7 +212,10 @@
       "fallback": [
         "#task-picker",
         "[data-anchor-id='task-picker']"
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "services",
@@ -251,7 +263,10 @@
       "fallback": [
         "#services",
         "[data-slot-key='services']"
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "proof",
@@ -296,7 +311,10 @@
       "fallback": [
         "#proof",
         "[data-anchor-id='proof']"
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "area",
@@ -338,7 +356,10 @@
       "fallback": [
         "#location",
         "[data-slot-key='location']"
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "faq",
@@ -372,7 +393,10 @@
       "fallback": [
         "#faq",
         "[data-slot-key='faq']"
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "footer",
@@ -402,7 +426,10 @@
         }
       ],
       "parityKey": "footer",
-      "fallback": []
+      "fallback": [],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "socket",
@@ -432,7 +459,10 @@
       "fallback": [
         ".tulala-socket"
       ],
-      "parityKey": "socket"
+      "parityKey": "socket",
+      "pixel": {
+        "maxMismatch": 0.1
+      }
     }
   ],
   "order": [
