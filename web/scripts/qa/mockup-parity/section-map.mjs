@@ -35,7 +35,7 @@ export const LOCALE_TEXT = {
   where: "(dónde|donde|where|ubicaci|location|visita|visit)",
   contact: "(contacto|contact|instagram|escrib|message)",
   policy: "(pol[ií]ticas|privacidad|t[eé]rminos|cookies|policies|privacy|terms)",
-  consult: "(consult|escrib|reserv|book|inquir|cotiz)",
+  consult: "(consult|escrib|reserv|book|inquir|enquir|request|contact|solicit|cotiz)",
   navCta: "(men[uú]|servicios|reserv|book|citas|services)",
   langSwitch: "(\\bES\\b[\\s\\S]*\\bEN\\b|\\bEN\\b[\\s\\S]*\\bES\\b)",
 };
