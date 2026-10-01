@@ -425,13 +425,22 @@ export const MAISON_V2_RELEASE_2_7 = {
  * heading's eyebrow follows the default ("Tu visita") instead of staying empty
  * (only if the talent has not written her own), and the footer line takes the
  * mockup's size (40px phone, 64px desktop; only if she has not set her own).
+ *
+ * ONE release, two slices. Location + footer size (above) are automatic defaults. The page
+ * order is OPT-IN and arrives as ONE layout item: the default page order is the proposal's,
+ * Hero, Work, Menu, Reviews, About, FAQ, Location. A talent's page is never reordered silently.
+ * Before and after and Aftercare tips are not in the proposal: they leave the default page and
+ * stay available as optional blocks (`DesignPayload.optionalBlocks`). Their removal is NOT an
+ * item (`dropIdPrefixes`): a talent who has them keeps them, and choosing the new order moves
+ * only the sections the design still lists.
  */
 export const MAISON_V2_RELEASE_2_8 = {
   design: "maison-v2",
   toVersion: 22,
+  dropIdPrefixes: ["layout:home:before_after", "layout:home:aftercare"],
   notes: {
-    en: "Maison v2 2.8: your Location section now sits side by side on desktop (map card left, details right) with the heading Where to find me, a zone drawing, and clear rows for zone, address and hours. The bar at the bottom shows your name, adds Cookies and moves the Tulala credit to the right.",
-    es: "Maison v2 2.8: tu sección de Ubicación ahora va en dos columnas en escritorio (el mapa a la izquierda y los detalles a la derecha), con el título Dónde encontrarme, un dibujo de tu zona y filas claras de zona, dirección y horario. La barra de abajo muestra tu nombre, suma Cookies y lleva el crédito de Tulala a la derecha.",
+    en: "Maison v2 2.8: your Location section now sits side by side on desktop (map card left, details right) with the heading Where to find me, a zone drawing, and clear rows for zone, address and hours. The bar at the bottom shows your name, adds Cookies and moves the Tulala credit to the right. You can also choose the new page order (work, menu, reviews, about, questions, location); nothing moves until you do.",
+    es: "Maison v2 2.8: tu sección de Ubicación ahora va en dos columnas en escritorio (el mapa a la izquierda y los detalles a la derecha), con el título Dónde encontrarme, un dibujo de tu zona y filas claras de zona, dirección y horario. La barra de abajo muestra tu nombre, suma Cookies y lleva el crédito de Tulala a la derecha. También puedes elegir el nuevo orden de la página (trabajo, menú, reseñas, sobre mí, preguntas, ubicación); nada se mueve hasta que lo hagas.",
   } satisfies ReleaseNote,
   codeNotes: [
     {
@@ -444,6 +453,12 @@ export const MAISON_V2_RELEASE_2_8 = {
     },
   ] satisfies ReleaseNote[],
   byItemId: {
+    // Order slice (opt-in).
+    "layout:home:(root):order": {
+      en: "Your page order follows the design: work and menu first, then reviews, about, questions and location. Sections you added stay where they are. Preview it before you choose.",
+      es: "El orden de tu página sigue al diseño: primero trabajo y menú, luego reseñas, sobre mí, preguntas y ubicación. Las secciones que agregaste se quedan donde están. Míralo antes de elegir.",
+    },
+    // Location + footer size slice (automatic).
     "token-default:type.footer-title-size": {
       en: "The big footer line is 40px on phones, as in the proposal (only if you have not set your own size).",
       es: "La frase grande del pie de página mide 40px en teléfonos, como en la propuesta (solo si no pusiste tu propio tamaño).",

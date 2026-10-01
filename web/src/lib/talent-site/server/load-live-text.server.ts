@@ -18,6 +18,9 @@ import { loadProofInput } from "./talent-locale-swaps.server";
 type Row = {
   display_name: string | null;
   first_name: string | null;
+  profile_code: string | null;
+  short_bio: string | null;
+  preferred_locale: string | null;
   home_city_text: string | null;
   talent_profile_taxonomy:
     | Array<{
@@ -50,7 +53,7 @@ export async function loadTalentLiveText(
     const { data, error } = await admin
       .from("talent_profiles")
       .select(`
-        display_name, first_name, home_city_text,
+        display_name, first_name, profile_code, short_bio, preferred_locale, home_city_text,
         talent_profile_taxonomy ( is_primary, display_order, taxonomy_terms ( kind, name_i18n ) ),
         talent_service_areas ( service_kind, locations ( display_name_i18n ) )
       `)
@@ -86,6 +89,11 @@ export async function loadTalentLiveText(
       cityLabel,
       headline: scalars.headline ?? null,
       tagline: scalars.tagline ?? null,
+      headlineI18n: scalars.headline_i18n ?? null,
+      taglineI18n: scalars.tagline_i18n ?? null,
+      shortBio: row.short_bio,
+      primaryLocale: row.preferred_locale,
+      seedKey: row.profile_code,
       // `years_total` from the profile editor wins; the proof loader's read is the fallback.
       proof: { ...proof, years: scalars.years_total ?? proof.years },
       // The same public zone the Location section shows ("García Ginerés, Mérida"), never the address.

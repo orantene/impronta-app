@@ -35,6 +35,13 @@ export interface DesignPayload {
   shellTree: BuilderNode[];
   homeTree: BuilderNode[];
   /**
+   * Sections the Design ships but does NOT put on the default page: kit sections a
+   * talent can add (Maison v2: Before and after, Aftercare tips). Never applied, never
+   * diffed into a release (a release only reads `shellTree`, `homeTree` and tokens), so
+   * they can never change an existing page. Same rules as `homeTree` sections.
+   */
+  optionalBlocks?: BuilderNode[];
+  /**
    * The Design's DEFAULT site style tokens (type roles, buttons, shape,
    * spacing; keys from `style-tokens.ts`). Defaults only: the talent's site
    * and per-block values always win. A template a user saves carries the same
