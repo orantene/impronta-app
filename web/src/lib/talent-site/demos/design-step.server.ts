@@ -10,6 +10,7 @@ import "server-only";
  * Callers own the safety check (`assertDemoTarget` / `isDemoAccount`); nothing
  * here decides whether a talent may be written.
  */
+import { withPaletteOverrides } from "@/lib/talent-site/theme-catalog/design-palettes";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { galleryPaletteLookTokens, getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
@@ -221,7 +222,11 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
       ? ((site.design_tokens_draft as Record<string, string> | null) ?? {})
       : mergeLookIntoTokens(
           (site.design_tokens_draft as Record<string, string> | null) ?? {},
-          catalogLook ? catalogLook.payload.tokens : galleryTokens!,
+          withPaletteOverrides(
+            catalogLook ? catalogLook.payload.tokens : galleryTokens!,
+            design.payload,
+            styled ? null : spec.palette,
+          ),
         )),
     ...demoStyleTokens(style),
   };
@@ -282,7 +287,7 @@ export async function writeDemoDraft(
   const { error } = await admin
     .from("talent_sites")
     .update({
-      ...(galleryTokens || keepLook ? { design_tokens_draft: nextTokens, theme_look_slug: lookSlug ?? null } : {}),
+      ...(galleryTokens || keepLook || catalogLook ? { design_tokens_draft: nextTokens, theme_look_slug: lookSlug ?? null } : {}),
       ...(style || copied ? { shell_tree: trees.shellTree } : {}),
       custom_palette: nextCustom,
       pending_design: null,

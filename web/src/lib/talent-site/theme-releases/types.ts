@@ -188,6 +188,16 @@ export interface MergeInput {
    * hashes to its stamp (seeded demo copy reads as an edit). Talents: never.
    */
   forceDesign?: boolean;
+  /**
+   * The site's palette (from `theme_look_slug`) at the pinned and target
+   * versions: effective look tokens (code palette + `DesignPayload.palettes`).
+   * Omitted = the site is on no palette of this design; colours are not merged.
+   */
+  palette?: {
+    key: string;
+    base: Readonly<Record<string, string>>;
+    theirs: Readonly<Record<string, string>>;
+  };
 }
 
 export interface MergeResult {

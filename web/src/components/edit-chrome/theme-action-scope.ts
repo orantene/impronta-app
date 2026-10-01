@@ -47,7 +47,7 @@ import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/compo
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
 import { adoptDraftRev, resolveExpectedDraftRev } from "@/lib/talent-site/history/draft-rev";
 import { getPageVersionSnapshot } from "./save-cycle-bridge";
-import { createThemeTemplateActionSet } from "./theme-template-action-set";
+import { createThemeTemplateActionSet, editorLookFromLocation } from "./theme-template-action-set";
 import {
   loadThemeTemplateDesignAction,
   saveThemeTemplateDesignAction,
@@ -90,6 +90,7 @@ export function resolveThemeActionSet(
     return createThemeTemplateActionSet(pageSlug, {
       load: loadThemeTemplateDesignAction,
       save: saveThemeTemplateDesignAction,
+      getLook: editorLookFromLocation,
     });
   }
 

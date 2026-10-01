@@ -10,6 +10,8 @@
  *   - ours differs           the talent's value: kept
  * A critical item forces theirs. Pure.
  */
+import { isPaletteTokenKey } from "../theme-catalog/look-layer";
+import { paletteItemKey, parsePaletteItemKey } from "./palette-keys";
 import { hashString } from "./origin";
 import type { AllowFn } from "./policy";
 import type { MergeEntry, DesignMergeReport } from "./types";
@@ -90,6 +92,70 @@ export function mergeTokenDefaults(input: TokenMergeInput): Record<string, strin
   return out;
 }
 
+export interface PaletteMergeInput {
+  key: string;
+  base: Readonly<Record<string, string>>;
+  theirs: Readonly<Record<string, string>>;
+  tokens: Readonly<Record<string, string>>;
+  allow: AllowFn;
+  report: DesignMergeReport;
+  nextSeq: () => number;
+}
+
+/**
+ * Palette colour edits for a site on palette `key`. Per colour the release
+ * changed: no own value or still the old palette colour = untouched, the new
+ * colour is written; any other value is the talent's (custom colours, kept).
+ * The allow key is the release item key `palette:<key>:<token>`. Pure.
+ */
+export function mergePaletteTokens(input: PaletteMergeInput): Record<string, string> {
+  const { key: palette, base, theirs, tokens, allow, report, nextSeq } = input;
+  const out: Record<string, string> = { ...tokens };
+  const keys = [...new Set([...Object.keys(base), ...Object.keys(theirs)])].filter((k) => isPaletteTokenKey(k)).sort();
+  for (const key of keys) {
+    if (base[key] === theirs[key]) continue;
+    const itemKey = paletteItemKey(palette, key);
+    const allowance = allow("token", itemKey);
+    const entry = (extra: Partial<MergeEntry>): MergeEntry => ({
+      seq: nextSeq(),
+      change: "token",
+      key: itemKey,
+      ...(allowance.itemId ? { itemId: allowance.itemId } : {}),
+      ...(allowance.itemType ? { itemType: allowance.itemType } : {}),
+      ...extra,
+    });
+    if (!allowance.ok) {
+      report.pending.push(entry({ reason: "not_in_release" }));
+      continue;
+    }
+    const hasOurs = key in out;
+    const untouched = !hasOurs || out[key] === base[key];
+    if (!untouched && !allowance.critical) {
+      report.kept.push(entry({ reason: "edited" }));
+      continue;
+    }
+    const hasTheirs = key in theirs;
+    const before = out[key];
+    if (hasTheirs) out[key] = theirs[key]!;
+    else delete out[key];
+    report.applied.push(
+      entry({
+        ...(untouched ? {} : { reason: "critical" }),
+        changes: [
+          {
+            path: key,
+            hadBefore: hasOurs,
+            ...(hasOurs ? { before } : {}),
+            hasAfter: hasTheirs,
+            ...(hasTheirs ? { after: theirs[key] } : {}),
+          },
+        ],
+      }),
+    );
+  }
+  return out;
+}
+
 /** Undo token entries whose value is still what the update wrote. */
 export function reverseTokenEntries(
   entries: ReadonlyArray<MergeEntry>,
@@ -101,14 +167,16 @@ export function reverseTokenEntries(
   for (const entry of entries) {
     const change = entry.changes?.[0];
     if (entry.change !== "token" || !change) continue;
-    const has = entry.key in out;
-    const still = change.hasAfter ? has && out[entry.key] === change.after : !has;
+    // Palette entries are keyed `palette:<p>:<token>`; the site token is the change path.
+    const tk = parsePaletteItemKey(entry.key) ? change.path : entry.key;
+    const has = tk in out;
+    const still = change.hasAfter ? has && out[tk] === change.after : !has;
     if (!still) {
       kept.push(entry);
       continue;
     }
-    if (change.hadBefore && typeof change.before === "string") out[entry.key] = change.before;
-    else delete out[entry.key];
+    if (change.hadBefore && typeof change.before === "string") out[tk] = change.before;
+    else delete out[tk];
     reverted.push(entry);
   }
   return { tokens: out, reverted, kept };

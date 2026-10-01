@@ -23,6 +23,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "../../types";
 import { freezeDesignKeys } from "../../../theme-releases/design-keys";
+import { canonicalPalettes } from "../../palettes-canonical";
 import { hasKids, isPlainObject, kidsOf, siblingLocalKeys, stripDesignOrigin } from "../../../theme-releases/origin";
 
 type Json = unknown;
@@ -52,6 +53,11 @@ export interface AuthoredOverlayFile {
   /** publish-core payloadHash of the authored snapshot (meta.payload_hash). */
   payloadHash: string;
   tokenDefaults: Record<string, { from?: string; to?: string }>;
+  /**
+   * Palette colour overrides (`DesignPayload.palettes`), per palette key then
+   * token key. Optional: overlays written before palette edits have none.
+   */
+  palettes?: Record<string, Record<string, { from?: string; to?: string }>>;
   props: Record<string, LeafChange[]>;
   removed: string[];
   added: AddedNode[];
@@ -79,6 +85,7 @@ export function canonicalOverlayPayload(payload: DesignPayload): DesignPayload {
     homeTree: stripDesignOrigin(payload.homeTree ?? []),
     ...(payload.optionalBlocks ? { optionalBlocks: stripDesignOrigin(payload.optionalBlocks) } : {}),
     ...(payload.tokenDefaults ? { tokenDefaults: sortedRecord(payload.tokenDefaults) } : {}),
+    ...(canonicalPalettes(payload.palettes) ? { palettes: canonicalPalettes(payload.palettes) } : {}),
   };
   // Like the editor: shell + home are frozen; optionalBlocks keep computed keys.
   const frozen = freezeDesignKeys(out);
@@ -185,6 +192,7 @@ export function emptyOverlay(authoredVersion: number, codeHash: string, payloadH
 export function isEmptyOverlay(o: AuthoredOverlayFile): boolean {
   return (
     Object.keys(o.tokenDefaults).length === 0 &&
+    Object.keys(o.palettes ?? {}).length === 0 &&
     Object.keys(o.props).length === 0 &&
     o.removed.length === 0 &&
     o.added.length === 0 &&
@@ -215,6 +223,17 @@ export function diffToOverlay(rawCodePayload: DesignPayload, authoredPayload: De
   }
   if (!C.tokenDefaults !== !P.tokenDefaults && Object.keys(o.tokenDefaults).length === 0) {
     throw new AuthoredOverlayError("tokenDefaults presence differs with no key change; not supported");
+  }
+
+  const cPal = C.palettes ?? {};
+  const pPal = P.palettes ?? {};
+  for (const pk of [...new Set([...Object.keys(cPal), ...Object.keys(pPal)])].sort()) {
+    const a = cPal[pk] ?? {};
+    const b = pPal[pk] ?? {};
+    for (const k of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
+      if (a[k] === b[k]) continue;
+      ((o.palettes ??= {})[pk] ??= {})[k] = { ...(k in a ? { from: a[k] } : {}), ...(k in b ? { to: b[k] } : {}) };
+    }
   }
 
   const ci = indexPayload(C);
@@ -324,6 +343,25 @@ export function applyAuthoredOverlay(rawCodePayload: DesignPayload, overlay: Aut
     else tok[k] = ch.to;
   }
 
+  // 1b. Palette colour overrides (same strict rule as token defaults).
+  const pal: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(C.palettes ?? {}));
+  for (const [pk, changes] of Object.entries(overlay.palettes ?? {})) {
+    for (const [k, ch] of Object.entries(changes)) {
+      const cur = pal[pk] ?? {};
+      const has = Object.prototype.hasOwnProperty.call(cur, k);
+      const wantHas = ch.from !== undefined;
+      if (has !== wantHas || (has && cur[k] !== ch.from)) {
+        throw new AuthoredOverlayError(
+          `palette "${pk}" ${k} is ${show(cur[k], has)} in code, the overlay expects ${show(ch.from, wantHas)}`,
+        );
+      }
+      if (ch.to === undefined) delete cur[k];
+      else cur[k] = ch.to;
+      pal[pk] = cur;
+    }
+  }
+  const palettes = canonicalPalettes(pal);
+
   // 2. Leaf props on existing nodes (mutate clones held in a map).
   const patched = new Map<string, Record<string, unknown>>();
   for (const [key, changes] of Object.entries(overlay.props ?? {})) {
@@ -387,8 +425,20 @@ export function applyAuthoredOverlay(rawCodePayload: DesignPayload, overlay: Aut
     homeTree: build(rootOf("homeTree")),
     ...(C.optionalBlocks ? { optionalBlocks: build(rootOf("optionalBlocks")) } : {}),
     ...(C.tokenDefaults || Object.keys(tok).length > 0 ? { tokenDefaults: sortedRecord(tok) } : {}),
+    ...(palettes ? { palettes } : {}),
   };
   return JSON.parse(JSON.stringify(out)) as DesignPayload;
+}
+
+/** Overlay palette overrides as `paletteKey -> token -> value` (only set values). */
+export function overlayPaletteOverrides(o: Pick<AuthoredOverlayFile, "palettes"> | null): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const [pk, changes] of Object.entries(o?.palettes ?? {})) {
+    for (const [k, ch] of Object.entries(changes)) {
+      if (ch.to !== undefined) (out[pk] ??= {})[k] = ch.to;
+    }
+  }
+  return out;
 }
 
 /** Overlay token defaults as a `key -> value` patch (absent `to` = removed). */

@@ -5,6 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { loadThemeVersionPayload } from "@/lib/talent-site/theme-releases/theme-versions.server";
 import type { DesignPayload } from "@/lib/talent-site/theme-catalog/types";
+import { editorPaletteKey } from "@/lib/talent-site/theme-catalog/design-palettes";
 import { canonicalDesignPayload, freezeDesignKeysHook, rekeyOnSave } from "./canonical";
 import {
   THEME_DRAFT_COLUMNS,
@@ -126,7 +127,7 @@ export async function saveThemeDraftTokens(
   admin: SupabaseClient,
   input: ThemeDraftSaveTokens,
 ): Promise<ThemeDraftResult<ThemeDraft>> {
-  const split = splitTokenPatch(input.patch);
+  const split = splitTokenPatch(input.patch, editorPaletteKey(input.design, input.look ?? null));
   if (split.invalid.length > 0) return fail("invalid", `Invalid token keys or values: ${split.invalid.join(", ")}`);
   const cur = await readOpen(admin, input.design);
   if (!cur.ok) return cur;

@@ -1,5 +1,5 @@
 import type { DesignPayload } from "@/lib/talent-site/theme-catalog/types";
-import { isLookOwnedTokenKey } from "@/lib/talent-site/theme-catalog/look-layer";
+import { isLookOwnedTokenKey, isPaletteTokenKey, isValidPaletteValue } from "@/lib/talent-site/theme-catalog/look-layer";
 import { STYLE_TOKEN_BY_KEY, styleTokenValidator } from "@/lib/site-admin/tokens/style-tokens";
 import type { ThemeDraft, ThemeDraftPreview, ThemeDraftResult, ThemeDraftStatus } from "./types";
 
@@ -38,15 +38,34 @@ export function mapDraftRow(row: ThemeDraftRow): ThemeDraft {
 export interface TokenPatchSplit {
   /** Style tokens: key -> value, null removes. */
   style: Record<string, string | null>;
+  /**
+   * Colour edits for the palette the editor is on (`payload.palettes[palette]`):
+   * key -> value, null removes the override. Empty when no palette is known.
+   */
+  palette?: Record<string, string | null>;
+  /** Gallery palette key the colour edits belong to (null = preview only). */
+  paletteKey?: string | null;
   /** Look-owned tokens (preview only): key -> value, null removes. */
   look: Record<string, string | null>;
   invalid: string[];
 }
 
-/** Route each patch key: look-owned first, then validated style tokens; anything else is invalid. */
-export function splitTokenPatch(patch: Record<string, string | null>): TokenPatchSplit {
-  const out: TokenPatchSplit = { style: {}, look: {}, invalid: [] };
+/**
+ * Route each patch key: colours to the edited palette (when `paletteKey` is
+ * known), other look-owned keys to preview, then validated style tokens;
+ * anything else is invalid.
+ */
+export function splitTokenPatch(
+  patch: Record<string, string | null>,
+  paletteKey: string | null = null,
+): TokenPatchSplit {
+  const out: TokenPatchSplit = { style: {}, palette: {}, paletteKey, look: {}, invalid: [] };
   for (const [key, value] of Object.entries(patch)) {
+    if (paletteKey && isPaletteTokenKey(key)) {
+      if (value === null || isValidPaletteValue(key, value)) out.palette![key] = value;
+      else out.invalid.push(key);
+      continue;
+    }
     if (isLookOwnedTokenKey(key)) {
       out.look[key] = value;
       continue;
@@ -76,15 +95,34 @@ export function applyTokenSplit(
   preview: ThemeDraftPreview,
   split: TokenPatchSplit,
 ): { payload: DesignPayload; preview: ThemeDraftPreview } {
+  let nextPayload =
+    Object.keys(split.style).length > 0 ? { ...payload, tokenDefaults: applyPatch(payload.tokenDefaults, split.style) } : payload;
+  const paletteEdits = split.palette ?? {};
+  if (split.paletteKey && Object.keys(paletteEdits).length > 0) {
+    const palettes = { ...(nextPayload.palettes ?? {}) };
+    const next = applyPatch(palettes[split.paletteKey], paletteEdits);
+    if (Object.keys(next).length > 0) palettes[split.paletteKey] = next;
+    else delete palettes[split.paletteKey];
+    const { palettes: _drop, ...rest } = nextPayload;
+    void _drop;
+    nextPayload = Object.keys(palettes).length > 0 ? { ...rest, palettes } : rest;
+  }
+  // A colour now saved on the palette must not linger as a preview-only value.
+  const previewTokens = { ...(preview.previewTokens ?? {}) };
+  let previewChanged = false;
+  for (const k of split.paletteKey ? Object.keys(paletteEdits) : []) {
+    if (k in previewTokens) {
+      delete previewTokens[k];
+      previewChanged = true;
+    }
+  }
+  const basePreview = previewChanged ? { ...preview, previewTokens } : preview;
   return {
-    payload:
-      Object.keys(split.style).length > 0
-        ? { ...payload, tokenDefaults: applyPatch(payload.tokenDefaults, split.style) }
-        : payload,
+    payload: nextPayload,
     preview:
       Object.keys(split.look).length > 0
-        ? { ...preview, previewTokens: applyPatch(preview.previewTokens, split.look) }
-        : preview,
+        ? { ...basePreview, previewTokens: applyPatch(basePreview.previewTokens, split.look) }
+        : basePreview,
   };
 }
 
