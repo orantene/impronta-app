@@ -192,4 +192,19 @@ export const ES_BUILDER_2027_TEXT: Record<string, string> = {
   "Anchor name": "Nombre del ancla",
   "Link to this block from elsewhere on the page":
     "Enlaza a este bloque desde otra parte de la página",
+  // Dashboard sweep 2026-10-01: topbar + panel chrome attributes that were
+  // English literals (titles and aria labels), now routed through t().
+  "Open live page in a new tab": "Abrir la página en vivo en una pestaña nueva",
+  "Open live page": "Abrir página en vivo",
+  "Show canvas helpers: hints and tips on the canvas": "Mostrar ayudas del lienzo: pistas y consejos sobre el lienzo",
+  "Hide canvas helpers: the double-click hint, the replace-image pill and the tips. Editing gestures keep working.":
+    "Ocultar ayudas del lienzo: la pista de doble clic, la etiqueta de reemplazar imagen y los consejos. Los gestos de edición siguen funcionando.",
+  "Show canvas helpers": "Mostrar ayudas del lienzo",
+  "Hide canvas helpers": "Ocultar ayudas del lienzo",
+  "Close panel": "Cerrar panel",
+  "Close drawer": "Cerrar cajón",
+  "Snap back to home position": "Volver a la posición original",
+  "Snap panel back to home position": "Volver el panel a su posición original",
+  "Conversion band with headline and actions.": "Banda de conversión con titular y acciones.",
+  "Service cards in a responsive grid.": "Tarjetas de servicio en una cuadrícula adaptable.",
 };

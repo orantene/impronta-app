@@ -122,6 +122,7 @@ import { CarouselSettingsPanel } from "./carousel";
 import { FormNodeContentInspector } from "./form-node-content";
 import { BuilderNodeNestedTextFields } from "./nested-text-fields";
 import { ResponsiveImageSourceField } from "./responsive-image-source-field";
+import { stripInlineMarkers } from "@/lib/site-admin/builder-node/freeform-layer-name";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -5289,20 +5290,20 @@ function dataSourceHelper(sourceKey: string): string {
 function childPrimaryLabel(node: BuilderNode): string {
   switch (node.kind) {
     case "heading":
-      return node.props.text;
+      return stripInlineMarkers(node.props.text);
     case "paragraph":
-      return truncate(node.props.text, 72);
+      return truncate(stripInlineMarkers(node.props.text), 72);
     case "rich_text":
-      return truncate(node.props.text, 72);
+      return truncate(stripInlineMarkers(node.props.text), 72);
     case "button":
-      return node.props.label;
+      return stripInlineMarkers(node.props.label);
     case "image":
       return node.props.alt?.trim() || "Image block";
     case "icon":
       return node.props.label || BUILDER_NODE_REGISTRY[node.kind].label;
     case "accordion_item":
     case "tab_panel":
-      return node.props.title;
+      return stripInlineMarkers(node.props.title);
     default:
       return BUILDER_NODE_REGISTRY[node.kind].label;
   }

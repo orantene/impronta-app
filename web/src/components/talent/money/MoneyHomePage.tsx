@@ -337,7 +337,7 @@ function MoneyHomePane(props: {
               aria-label={t("Search client or service")}
               className="h-11 w-full rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] text-admin-ink sm:h-9 sm:w-[280px]"
             />
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex flex-wrap gap-2">
               {(["all", "card", "cash", "transfer"] as const).map((m) => (
                 <button
                   key={m}
@@ -405,7 +405,7 @@ function MoneyHomePane(props: {
 
       {tab === "outstanding" ? (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex flex-wrap gap-2">
             {(
               [
                 ["all", t("All")],

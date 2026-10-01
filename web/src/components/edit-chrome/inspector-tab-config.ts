@@ -13,6 +13,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 
 import { resolveStandaloneBuilderNodeForContent } from "./inspectors/builder-node-content-utils";
+import { stripInlineMarkers } from "@/lib/site-admin/builder-node/freeform-layer-name";
 
 export type InspectorTabKey = "content" | "layout" | "style" | "data" | "motion";
 
@@ -187,18 +188,18 @@ export function builderNodeDisplayTitle(
 ): string {
   switch (node.kind) {
     case "heading":
-      return node.props.text || "Heading";
+      return stripInlineMarkers(node.props.text) || "Heading";
     case "paragraph":
-      return node.props.text.length > 64
-        ? `${node.props.text.slice(0, 63).trimEnd()}…`
-        : node.props.text || "Paragraph";
+      return stripInlineMarkers(node.props.text).length > 64
+        ? `${stripInlineMarkers(node.props.text).slice(0, 63).trimEnd()}…`
+        : stripInlineMarkers(node.props.text) || "Paragraph";
     case "button":
-      return node.props.label || "Button";
+      return stripInlineMarkers(node.props.label) || "Button";
     case "image":
       return node.props.alt?.trim() || "Image";
     case "accordion_item":
     case "tab_panel":
-      return node.props.title || BUILDER_NODE_REGISTRY[node.kind].label;
+      return stripInlineMarkers(node.props.title) || BUILDER_NODE_REGISTRY[node.kind].label;
     default:
       return BUILDER_NODE_REGISTRY[node.kind].label;
   }

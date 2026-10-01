@@ -34,6 +34,7 @@ import {
   BLUE, BLUE_RGB, CANVAS_CHROME_RADIUS, DROP_LINE_HEIGHT, DROP_LINE_RADIUS,
 } from "./selection-layer-canvas-tokens";
 import type { Rect } from "./selection-layer-geometry";
+import { stripInlineMarkers } from "@/lib/site-admin/builder-node/freeform-layer-name";
 
 export function CanvasNodeChildrenPanel({
   selectedRect,
@@ -696,20 +697,20 @@ function CanvasMiniButton({
 export function canvasChildPrimaryLabel(node: BuilderNode): string {
   switch (node.kind) {
     case "heading":
-      return node.props.text;
+      return stripInlineMarkers(node.props.text);
     case "paragraph":
-      return truncateNodeLabel(node.props.text, 56);
+      return truncateNodeLabel(stripInlineMarkers(node.props.text), 56);
     case "rich_text":
-      return truncateNodeLabel(node.props.text, 56);
+      return truncateNodeLabel(stripInlineMarkers(node.props.text), 56);
     case "button":
-      return node.props.label;
+      return stripInlineMarkers(node.props.label);
     case "image":
       return node.props.alt?.trim() || "Image block";
     case "icon":
       return node.props.label || BUILDER_NODE_REGISTRY[node.kind].label;
     case "accordion_item":
     case "tab_panel":
-      return node.props.title;
+      return stripInlineMarkers(node.props.title);
     case "container":
       // Unified with the layers tree (resolveLayerDisplayName): borrow the
       // wrapped section heading, else a structural Row/Stack/Grid name — so the
