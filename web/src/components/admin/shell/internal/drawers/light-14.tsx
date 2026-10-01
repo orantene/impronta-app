@@ -273,10 +273,7 @@ export function DangerZoneDrawer() {
           }}
         />
       </Section>
-      <Section
-        title={tt("Delete my account")}
-        description={tt("Your personal sign-in and profile. The workspace itself is not deleted; transfer it first if others use it.")}
-      >
+      <Section title={tt("Delete my account")} description={tt("Your personal sign-in and profile. The workspace itself is not deleted; transfer it first if others use it.")}>
         <AccountDeletionCard surface="workspace" es={copy.isSpanish} />
       </Section>
       <Section title={tt("Delete workspace")} description={tt("Permanent deletion requires support review and a final export.")}>
