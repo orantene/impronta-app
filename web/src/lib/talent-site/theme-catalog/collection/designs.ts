@@ -40,6 +40,7 @@ import {
   shell,
   tuneHeading,
 } from "./design-parts";
+import { buildWithAuthoredOverlay } from "./authored";
 import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
@@ -399,7 +400,8 @@ function entry(
     sort_order: sort,
     is_new_until: null,
     preview: {},
-    buildPayload,
+    buildPayloadRaw: buildPayload,
+    buildPayload: () => buildWithAuthoredOverlay(slug, buildPayload),
   };
 }
 
