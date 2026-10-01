@@ -18,7 +18,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GuestConversationItems, GuestThreadV5Extras } from "@/lib/inquiry/guest-chat-contract";
-import { loadClientOfferSummaries, loadOpenPaymentCode } from "@/lib/messaging/client-link";
+import { loadClientOfferSummaries, loadOpenPaymentLink } from "@/lib/messaging/client-link";
 import { resolveThreadTokenExpiry, signThreadToken } from "@/lib/messaging/thread-token";
 import { decorateHoldChips } from "@/lib/messages-v5/guest-hold-rows";
 
@@ -28,10 +28,10 @@ export async function loadGuestThreadV5Extras(
   input: { tenantId: string; inquiryId: string },
 ): Promise<GuestThreadV5Extras> {
   const nowMs = Date.now();
-  const [expMs, offers, payCode, items] = await Promise.all([
+  const [expMs, offers, payLink, items] = await Promise.all([
     resolveThreadTokenExpiry(admin, input.inquiryId, nowMs),
     loadClientOfferSummaries(admin, input),
-    loadOpenPaymentCode(admin, input),
+    loadOpenPaymentLink(admin, input),
     loadGuestConversationItems(admin, input),
   ]);
   const threadToken = signThreadToken(input.inquiryId, input.tenantId, nowMs, expMs);
@@ -39,7 +39,8 @@ export async function loadGuestThreadV5Extras(
     threadToken,
     threadTokenExpiresAt: threadToken ? new Date(expMs).toISOString() : null,
     offers,
-    payCode,
+    payCode: payLink?.code ?? null,
+    payAmountCents: payLink?.amountCents ?? null,
     items,
   };
 }

@@ -655,7 +655,18 @@
       "presenceViewing": "{name} regarde",
       "payCardFullAction": "Payer",
       "payCardFullDetail": "Payez par carte pour confirmer votre rendez-vous.",
-      "confirmedPayInPerson": "Confirmé. Vous payez sur place."
+      "confirmedPayInPerson": "Confirmé. Vous payez sur place.",
+      "payCashPaid": "Payé en espèces.",
+      "payTransferPaid": "Payé par virement.",
+      "payDepositPaidLine": "Acompte payé. Le solde reste dû.",
+      "payDepositKicker": "Payer l'acompte",
+      "payDepositDetail": "La carte règle l'acompte. Espèces et virement sont notés par le studio.",
+      "payLinkFailed": "Nous n'avons pas pu créer le lien de paiement. Nous vous écrivons bientôt.",
+      "payLinkAskTitle": "Lien de paiement en attente",
+      "payLinkAsk": "Obtenir le lien de paiement",
+      "payLinkAsking": "Envoi de votre lien...",
+      "payLinkAskFailed": "Nous n'avons pas pu obtenir le lien. Réessayez dans un instant.",
+      "payLinkAskSub": "Votre offre est acceptée. Demandez le lien pour payer."
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",

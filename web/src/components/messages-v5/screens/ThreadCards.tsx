@@ -100,7 +100,7 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
       const totalCents = typeof o.totalCents === "number" ? o.totalCents : Number.isFinite(legacyCents) ? legacyCents : null;
       return (
         <OfferCard
-          title={model.title}
+          title={kit.card.cat.offer}
           state={offerState(cardKind, message.kind === "offer_event" ? { ...p, state: o.status === "accepted" ? "selected" : o.status ?? "sent" } : message.payload)}
           version={typeof o.version === "number" ? o.version : 1}
           showVersion={!hideVersion}

@@ -1402,7 +1402,18 @@
       "presenceViewing": "{name} is looking",
       "payCardFullAction": "Pay",
       "payCardFullDetail": "Pay by card to confirm your booking.",
-      "confirmedPayInPerson": "Confirmed. You pay in person."
+      "confirmedPayInPerson": "Confirmed. You pay in person.",
+      "payCashPaid": "Paid in cash.",
+      "payTransferPaid": "Paid by transfer.",
+      "payDepositPaidLine": "Deposit paid. The balance is still due.",
+      "payDepositKicker": "Pay the deposit",
+      "payDepositDetail": "The card pays the deposit. Cash and transfer are recorded by the studio.",
+      "payLinkFailed": "We could not create the payment link. We will write to you soon.",
+      "payLinkAskTitle": "Payment link pending",
+      "payLinkAsk": "Get payment link",
+      "payLinkAsking": "Getting your link...",
+      "payLinkAskFailed": "We could not get the link. Try again in a moment.",
+      "payLinkAskSub": "Your offer is accepted. Ask for the link to pay."
     },
     "inquiryDrawer": {
       "dialogAria": "New inquiry",

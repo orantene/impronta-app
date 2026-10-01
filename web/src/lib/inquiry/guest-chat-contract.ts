@@ -51,6 +51,8 @@ export type GuestThreadV5Extras = {
   offers: ClientOfferSummary[];
   /** The open payment-link code, if any (the offer card's Pay button). */
   payCode: string | null;
+  /** What that open link charges (deposit or full), for the next-step title. */
+  payAmountCents?: number | null;
   /**
    * L13 wave 2: the non-talent items of this conversation, for the dock's
    * Items tab. Lines are the POS shared draft (`orders` draft on this inquiry,

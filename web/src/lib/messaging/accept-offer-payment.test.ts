@@ -130,12 +130,16 @@ describe("runAcceptOfferPayment: accept -> order -> pay card", () => {
     assert.equal(f.cards[0]!.payload.amountKind, "full");
   });
 
-  it("a failed link mint reports link_unavailable and posts nothing", async () => {
+  it("a failed link mint reports link_unavailable and posts one clear notice card", async () => {
     const f = fakeStore({ lines: [], talentDefaults: {} });
     f.store.mintLink = async () => ({ ok: false, reason: "provider_unavailable" });
     const res = await runAcceptOfferPayment(f.store, OFFER);
     assert.equal(res.ok, false);
-    assert.equal(f.cards.length, 0);
+    assert.deepEqual(f.cards.map((c) => c.kind), ["booking_status"]);
+    assert.equal(f.cards[0]!.payload.payLinkFailed, true);
+    // A retry does not stack a second notice.
+    await runAcceptOfferPayment(f.store, OFFER);
+    assert.equal(f.cards.length, 1);
   });
 
   it("a lost create race finds the order the other accept created", async () => {

@@ -76,8 +76,8 @@ test("a pending offer asks for acceptance, newest version first", () => {
   assert.equal(step?.values.total, "USD 1500");
 });
 
-test("an accepted or expired offer no longer asks", () => {
-  assert.equal(deriveGuestNextStep(base({ offers: [offer({ status: "accepted" })] })), null);
+test("an accepted-and-paid or expired offer no longer asks", () => {
+  assert.equal(deriveGuestNextStep(base({ offers: [offer({ status: "accepted" })], messages: [{ kind: "payment_paid", payload: null }] }))?.kind, "paid");
   assert.equal(deriveGuestNextStep(base({ offers: [offer({ validUntil: "2026-09-01T00:00:00Z" })] })), null);
 });
 
@@ -92,4 +92,21 @@ test("a confirmed record reads as booked with its date", () => {
   const step = deriveGuestNextStep(base({ records: [{ fulfilmentState: "confirmed", recordDate: "2026-11-21T20:00:00Z" }] }));
   assert.equal(step?.kind, "booked");
   assert.equal(step?.values.date, "2026-11-21");
+});
+
+test("the pay title uses the amount the open link charges, not the offer total", () => {
+  const step = deriveGuestNextStep(base({ payCode: "abc", payAmountCents: 30000, offers: [offer({ status: "accepted", depositPct: null })] }));
+  assert.equal(step?.kind, "pay");
+  assert.equal(step?.values.amount, "USD 300");
+});
+
+test("accepted, unpaid, no open link: the visitor can ask for the payment link", () => {
+  const accepted = offer({ status: "accepted" });
+  assert.equal(deriveGuestNextStep(base({ offers: [accepted] }))?.kind, "pay_link_ask");
+  assert.equal(deriveGuestNextStep(base({ offers: [accepted], payCode: "abc" }))?.kind, "pay");
+  assert.notEqual(deriveGuestNextStep(base({ offers: [accepted], messages: [{ kind: "payment_paid", payload: null }] }))?.kind, "pay_link_ask");
+  assert.notEqual(
+    deriveGuestNextStep(base({ offers: [accepted], messages: [{ kind: "booking_confirmed", payload: { payInPerson: true } }] }))?.kind,
+    "pay_link_ask",
+  );
 });

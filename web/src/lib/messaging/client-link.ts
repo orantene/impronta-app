@@ -68,6 +68,11 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
 
 /** The newest OPEN payment link on this conversation, so "Accept and pay" and "Pay" can go straight to /pay/<code>. */
 export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<string | null> {
+  return (await loadOpenPaymentLink(admin, input))?.code ?? null;
+}
+
+/** The open link's code AND the amount it actually charges (single source for the dock title). */
+export async function loadOpenPaymentLink(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<{ code: string; amountCents: number | null } | null> {
   // `status` stays "open" after the link's own expiry passes (the sweeper
   // flips it later), so the expiry is checked here too: an expired link is
   // not a Pay button and not a next step. Found live 2026-09-18: the card
@@ -75,7 +80,7 @@ export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: strin
   const nowIso = (input.now ?? new Date()).toISOString();
   const { data, error } = await admin
     .from("payment_links")
-    .select("code, status, created_at, expires_at")
+    .select("code, amount_cents, status, created_at, expires_at")
     .eq("tenant_id", input.tenantId)
     .eq("inquiry_id", input.inquiryId)
     .eq("status", "open")
@@ -84,8 +89,10 @@ export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: strin
     .limit(1)
     .maybeSingle();
   if (error || !data) return null;
-  const code = (data as { code?: string | null }).code;
-  return code ? String(code) : null;
+  const row = data as { code?: string | null; amount_cents?: number | string | null };
+  if (!row.code) return null;
+  const cents = row.amount_cents == null ? NaN : Number(row.amount_cents);
+  return { code: String(row.code), amountCents: Number.isFinite(cents) && cents > 0 ? Math.round(cents) : null };
 }
 
 export type ClientLinkBusiness = {

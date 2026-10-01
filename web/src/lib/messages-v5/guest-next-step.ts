@@ -30,7 +30,8 @@ export type GuestNextStepKind =
   | "paid"
   | "refunded"
   | "declined"
-  | "pay_failed";
+  | "pay_failed"
+  | "pay_link_ask";
 
 export type GuestNextStep = {
   readonly kind: GuestNextStepKind;
@@ -46,6 +47,8 @@ export type GuestNextStepInput = {
   readonly threadStatus: string;
   readonly offers: readonly ClientOfferSummary[];
   readonly payCode: string | null;
+  /** What the open link really charges; wins over any offer-derived guess. */
+  readonly payAmountCents?: number | null;
   /** The `professional_times` payloads in the thread (a pick holds a slot). */
   readonly timesPayloads: readonly (Record<string, unknown> | null)[];
   readonly records: readonly { readonly fulfilmentState: string | null; readonly recordDate: string | null }[];
@@ -122,12 +125,22 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
     // a bare "Pay" because only the pending offer was consulted.
     const about = offer ?? latestAccepted(input.offers);
     const deposit = about ? offerDepositCents(about) : null;
-    const amount = about ? (deposit ?? about.totalCents) : null;
+    const amount = input.payAmountCents ?? (about ? (deposit ?? about.totalCents) : null);
     return {
       kind: "pay",
       payCode: input.payCode,
-      values: { amount: amount != null && about ? input.money(amount, about.currency) : "" },
+      values: { amount: amount != null && about ? input.money(amount, about.currency) : amount != null ? input.money(amount, "USD") : "" },
     };
+  }
+  if (!offer) {
+    // Accepted, money still due, and no open link (minting failed or it expired):
+    // the visitor can ask for one. Never when paid or when the visit is pay-in-person.
+    const accepted = latestAccepted(input.offers);
+    const cards = input.messages ?? [];
+    const settled = cards.some((m) => m.kind === "payment_paid" || m.payload?.state === "paid" || (m.kind === "booking_confirmed" && m.payload?.payInPerson === true));
+    if (accepted && accepted.totalCents > 0 && !settled) {
+      return { kind: "pay_link_ask", offer: accepted, values: {} };
+    }
   }
   if (offer) {
     return {

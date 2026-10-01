@@ -33,13 +33,16 @@ export type AcceptPaymentStore = {
   mintLink(input: { orderId: string; amountCents: number; idempotencyKey: string }): Promise<
     { ok: true; code: string; amountCents: number; expiresAt: string; already: boolean } | { ok: false; reason: string }
   >;
-  hasCardFor(kind: "booking_confirmed" | "payment_request", offerId: string): Promise<boolean>;
-  postCard(input: { kind: "booking_confirmed" | "payment_request"; body: string; payload: Record<string, unknown> }): Promise<void>;
+  hasCardFor(kind: "booking_confirmed" | "payment_request" | "booking_status", offerId: string): Promise<boolean>;
+  postCard(input: { kind: "booking_confirmed" | "payment_request" | "booking_status"; body: string; payload: Record<string, unknown> }): Promise<void>;
 };
 
 export type AcceptPaymentResult =
   | { ok: true; collection: AcceptCollection; payCode: string | null; orderId: string | null; cardPosted: boolean }
   | { ok: false; reason: "policy_unavailable" | "order_unavailable" | "link_unavailable"; collection?: AcceptCollection };
+
+/** English fallback body; the guest dock localises from `payload.payLinkFailed`. */
+export const PAY_LINK_FAILED_BODY = "We could not create the payment link. We will write to you soon.";
 
 export function offerOrderKey(offerId: string): string {
   return `offer_accept:${offerId}`;
@@ -87,7 +90,17 @@ export async function runAcceptOfferPayment(store: AcceptPaymentStore, offer: Ac
   }
 
   const minted = await store.mintLink({ orderId, amountCents: collection.amountCents, idempotencyKey: offerLinkKey(offer.id, offer.version) });
-  if (!minted.ok) return { ok: false, reason: "link_unavailable", collection };
+  if (!minted.ok) {
+    // The accept stands; the visitor is told, never left with silence. One card per offer.
+    if (!(await store.hasCardFor("booking_status", offer.id))) {
+      await store.postCard({
+        kind: "booking_status",
+        body: PAY_LINK_FAILED_BODY,
+        payload: { state: "sent", offerId: offer.id, version: offer.version, payLinkFailed: true, orderId },
+      });
+    }
+    return { ok: false, reason: "link_unavailable", collection };
+  }
 
   let cardPosted = false;
   if (!minted.already || !(await store.hasCardFor("payment_request", offer.id))) {

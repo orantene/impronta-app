@@ -172,7 +172,7 @@ export function MiniChatMessageBubble({
               {labelForKind(m.kind, t)}
             </span>
             <br />
-            {payInPersonLine(m, t) ?? (m.body || t("public.guestChat.openFullToView"))}
+            {payInPersonLine(m, t) ?? payLinkFailedLine(m, t) ?? (m.body || t("public.guestChat.openFullToView"))}
             {offerLines.length > 0 && (
               <span
                 style={{
@@ -268,6 +268,13 @@ function payInPersonLine(m: StreamRow, t: Translator): string | null {
   return t("public.guestChat.confirmedPayInPerson");
 }
 
+/** The pay link could not be minted after an accept: say so, in the visitor's language. */
+function payLinkFailedLine(m: StreamRow, t: Translator): string | null {
+  if (m.kind !== "booking_status") return null;
+  const raw = m.cardPayload && typeof m.cardPayload === "object" ? (m.cardPayload as Record<string, unknown>) : {};
+  return raw.payLinkFailed === true ? t("public.guestChat.payLinkFailed") : null;
+}
+
 function readPayStamp(m: StreamRow, locale: string, t: Translator): {
   paid: boolean;
   kicker: string;
@@ -285,24 +292,24 @@ function readPayStamp(m: StreamRow, locale: string, t: Translator): {
   const code = typeof raw.paymentLinkCode === "string" ? raw.paymentLinkCode : typeof raw.code === "string" ? raw.code : "";
   const method = typeof raw.method === "string" ? raw.method : "";
   const methodLine = method === "cash"
-    ? (es ? "Pagado en efectivo." : "Paid in cash.")
+    ? t("public.guestChat.payCashPaid")
     : method === "transfer" || method === "wire"
-      ? (es ? "Pagado por transferencia." : "Paid by transfer.")
+      ? t("public.guestChat.payTransferPaid")
       : deposit
-        ? (es ? "Seña pagada. El saldo sigue pendiente." : "Deposit paid. The balance is still due.")
+        ? t("public.guestChat.payDepositPaidLine")
         : (es ? "Pagado. Nada pendiente." : "Paid. Nothing left.");
   return {
     paid,
     kicker: paid
       ? (deposit ? (es ? "Seña pagada" : "Deposit paid") : (es ? "Pagado" : "Paid"))
-      : (deposit ? (es ? "Pagar la seña" : "Pay the deposit") : (es ? "Pago" : "Payment")),
+      : (deposit ? t("public.guestChat.payDepositKicker") : (es ? "Pago" : "Payment")),
     title: amount || (es ? "Tu cita" : "Your booking"),
     detail: paid
       ? methodLine
       : deposit
-        ? (es ? "La tarjeta cobra la seña. El efectivo y la transferencia los anota el estudio." : "The card pays the deposit. Cash and transfer are recorded by the studio.")
+        ? t("public.guestChat.payDepositDetail")
         : t("public.guestChat.payCardFullDetail"),
     href: !paid && code ? `/pay/${code}` : null,
-    action: deposit ? (es ? "Pagar la seña" : "Pay the deposit") : t("public.guestChat.payCardFullAction"),
+    action: deposit ? t("public.guestChat.payDepositKicker") : t("public.guestChat.payCardFullAction"),
   };
 }

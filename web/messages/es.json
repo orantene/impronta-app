@@ -1402,7 +1402,18 @@
       "presenceViewing": "{name} lo está viendo",
       "payCardFullAction": "Pagar",
       "payCardFullDetail": "Paga con tarjeta para confirmar tu cita.",
-      "confirmedPayInPerson": "Confirmado. Pagas en persona."
+      "confirmedPayInPerson": "Confirmado. Pagas en persona.",
+      "payCashPaid": "Pagado en efectivo.",
+      "payTransferPaid": "Pagado por transferencia.",
+      "payDepositPaidLine": "Seña pagada. El saldo sigue pendiente.",
+      "payDepositKicker": "Pagar la seña",
+      "payDepositDetail": "La tarjeta cobra la seña. El efectivo y la transferencia los anota el estudio.",
+      "payLinkFailed": "No pudimos generar el enlace de pago. Te escribimos pronto.",
+      "payLinkAskTitle": "Enlace de pago pendiente",
+      "payLinkAsk": "Pedir enlace de pago",
+      "payLinkAsking": "Pidiendo tu enlace...",
+      "payLinkAskFailed": "No pudimos obtener el enlace. Intenta de nuevo en un momento.",
+      "payLinkAskSub": "Tu oferta está aceptada. Pide el enlace para pagar."
     },
     "inquiryDrawer": {
       "dialogAria": "Nueva solicitud",
