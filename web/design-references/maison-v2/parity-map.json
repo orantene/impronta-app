@@ -244,7 +244,7 @@
       "key": "faq",
       "label": "FAQ",
       "unit": "faq",
-      "parityKey": null,
+      "parityKey": "contact",
       "mockup": [
         "#s-faq"
       ],

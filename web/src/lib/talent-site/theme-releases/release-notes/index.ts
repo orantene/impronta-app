@@ -24,6 +24,7 @@ import {
   MAISON_V2_RELEASE_2_6,
   MAISON_V2_RELEASE_2_7,
   MAISON_V2_RELEASE_2_8,
+  MAISON_V2_RELEASE_2_9,
   type ReleaseNote,
 } from "./maison-v2";
 import { FOLIO_RELEASE_PARITY } from "./folio";
@@ -73,6 +74,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_6,
   MAISON_V2_RELEASE_2_7,
   MAISON_V2_RELEASE_2_8,
+  MAISON_V2_RELEASE_2_9,
   FOLIO_RELEASE_PARITY,
 ];
 

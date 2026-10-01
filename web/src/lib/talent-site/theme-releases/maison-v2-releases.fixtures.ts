@@ -255,9 +255,26 @@ export function revertR22(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 21 = release 2.7, 22 = release 2.8), rebuilt from code. */
+/**
+ * v23 back to v22 (release 2.9, "desktop parity"): the hero lede width was 462px on every
+ * screen before the proposal's 40ch (desktop) / 34ch (phone).
+ */
+export function revertR23(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  walkNodes(out.homeTree, (n) => {
+    if (n.kind === "paragraph" && propsOf(n).liveText === "hero_tagline") {
+      const st = propsOf(n).style as Props;
+      st.maxWidthFree = "462px";
+      delete ((st.responsive as { mobile?: Props } | undefined)?.mobile ?? {}).maxWidthFree;
+    }
+  });
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 22 = release 2.8, 23 = release 2.9), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 23) out = revertR23(out);
   if (version < 22) out = revertR22(out);
   if (version < 21) out = revertR21(out);
   if (version < 20) out = revertR20(out);
