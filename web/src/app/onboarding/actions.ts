@@ -11,10 +11,7 @@ import { applyRegistrationPolicy, ensurePlatformHubRoster } from "@/lib/saas/reg
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyGuestCookie } from "@/lib/guest-cookie";
-import {
-  ACCESS_PROFILE_REFRESH_COOKIE,
-  ACCESS_PROFILE_REFRESH_VALUE,
-} from "@/lib/auth/access-profile-refresh";
+import { buildAccessProfileRefreshCookie } from "@/lib/auth/access-profile-refresh";
 import { backfillCartFromClaimedInquiries } from "@/lib/inquiry/cart-selected-ids-projection";
 import { claimInquiriesByConfirmedEmail } from "@/lib/inquiry/claim-by-email";
 import {
@@ -238,12 +235,10 @@ export async function chooseClientRole(formData?: FormData): Promise<void> {
     await backfillCartFromClaimedInquiries({ admin: claimAdmin, clientUserId: user.id });
   }
   const jar = await cookies();
-  jar.set(ACCESS_PROFILE_REFRESH_COOKIE, ACCESS_PROFILE_REFRESH_VALUE, {
-    path: "/",
-    maxAge: 60,
-    httpOnly: true,
-    sameSite: "lax",
-  });
+  {
+    const refresh = buildAccessProfileRefreshCookie((await headers()).get("host"));
+    jar.set(refresh.name, refresh.value, refresh.options);
+  }
   // Welcome the new client. The copy and template have existed since the
   // notification engine shipped, but nothing ever dispatched them — no catalog
   // entry referenced "client.welcome", so no client has ever been welcomed.
@@ -396,12 +391,10 @@ export async function completeTalentLocationOnboarding(
   // below hits /talent with the pre-onboarding profile (no role), which sends
   // the browser straight back to a blank /onboarding/role. Same nudge as
   // chooseClientRole.
-  (await cookies()).set(ACCESS_PROFILE_REFRESH_COOKIE, ACCESS_PROFILE_REFRESH_VALUE, {
-    path: "/",
-    maxAge: 60,
-    httpOnly: true,
-    sameSite: "lax",
-  });
+  {
+    const refresh = buildAccessProfileRefreshCookie((await headers()).get("host"));
+    (await cookies()).set(refresh.name, refresh.value, refresh.options);
+  }
   revalidatePath("/", "layout");
   const rosterResult = tp?.id
     ? await ensureTalentRosterForNext(user.id, tp.id, nextPath)
