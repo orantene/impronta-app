@@ -312,7 +312,7 @@ test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
 
   const ask = host.querySelector<HTMLButtonElement>("[data-catalog-ask]");
   assert.ok(ask);
-  assert.match(ask.textContent ?? "", /Preguntá antes de reservar/);
+  assert.match(ask.textContent ?? "", /Pregunta antes de reservar/);
   act(() => ask.click());
   // Nombre + WhatsApp required — no handoff, sheet stays open.
   assert.equal(handoffs.length, 0);
@@ -333,7 +333,7 @@ test("request-intent who primary is Chat now", () => {
   if (when && !when.disabled) act(() => when.click());
   const cta = host.querySelector<HTMLButtonElement>('[data-catalog-chat="primary"]');
   assert.ok(cta);
-  assert.match(cta.textContent ?? "", /Chateá ahora/);
+  assert.match(cta.textContent ?? "", /Chatea ahora/);
   unmount();
 });
 
