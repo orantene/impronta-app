@@ -659,6 +659,7 @@ const ES: Record<string, string> = {
   "Working hours are over for this day": "Tu horario de este día ya terminó",
   "Fully booked": "Todo reservado",
   "No service set": "Sin servicio",
+  "No time assigned": "Sin hora asignada",
   "Not set yet": "Aún sin definir",
   "Price not set": "Precio sin definir",
   "Agree a price with the client, then send a payment link.": "Acuerda un precio con la clienta y luego envía un link de pago.",

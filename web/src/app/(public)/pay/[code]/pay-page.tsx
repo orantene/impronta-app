@@ -120,8 +120,17 @@ export async function PayByCodePage({
     .eq("order_id", loaded.orderId)
     .limit(1)
     .maybeSingle();
-  const slotKind: "appointment" | "pickup" | null = slotBooking
-    ? "appointment"
+  // A booking made from an accepted offer has no time yet: it keeps no slot, so
+  // the page must not say the appointment time is kept.
+  const slotBookingId = (slotBooking as { id?: string } | null)?.id ?? null;
+  const { data: slotTime } = slotBookingId
+    ? await admin.from("talent_bookings").select("starts_at").eq("id", slotBookingId).maybeSingle()
+    : { data: null };
+  const bookingHasTime = Boolean((slotTime as { starts_at?: string | null } | null)?.starts_at);
+  const slotKind: "appointment" | "appointment_no_time" | "pickup" | null = slotBooking
+    ? bookingHasTime
+      ? "appointment"
+      : "appointment_no_time"
     : orderRow?.hold_expires_at
       ? "pickup"
       : null;

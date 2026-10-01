@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { loadTalentAgendaRecordItem } from "@/lib/talent-agenda/load-record-item";
+import { loadTalentAgendaRecordItem, loadTalentTimelessBookingStub } from "@/lib/talent-agenda/load-record-item";
 import { agendaItemFromSnapshot } from "@/lib/talent-agenda/record-item";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 
+import { useAgendaCopy } from "./use-agenda-copy";
 import { AgendaBookingRecord } from "./AgendaBookingRecord";
 import { buildAgendaListItemFromAgendaItem } from "./view-model";
 
@@ -26,13 +27,17 @@ export function BookingRecordRoute({
   onMessage: () => void;
 }) {
   const fromSnapshot = agendaItemFromSnapshot(snapshot, bookingId);
-  const [loaded, setLoaded] = useState<{ id: string; item: TalentAgendaItem | null } | null>(null);
+  const copy = useAgendaCopy();
+  const [loaded, setLoaded] = useState<{ id: string; item: TalentAgendaItem | null; service?: string | null } | null>(null);
   useEffect(() => {
     if (fromSnapshot || !bookingId) return;
     let cancelled = false;
-    void loadTalentAgendaRecordItem(bookingId).then((item) => {
-      if (!cancelled) setLoaded({ id: bookingId, item });
-    });
+    void (async () => {
+      const item = await loadTalentAgendaRecordItem(bookingId);
+      // No time yet: read the service from the booking / order line.
+      const stub = item ? null : await loadTalentTimelessBookingStub(bookingId).catch(() => null);
+      if (!cancelled) setLoaded({ id: bookingId, item, service: stub?.service ?? null });
+    })();
     return () => {
       cancelled = true;
     };
@@ -56,7 +61,14 @@ export function BookingRecordRoute({
       item={
         agendaItem
           ? buildAgendaListItemFromAgendaItem(agendaItem)
-          : { id: bookingId || "unknown", title: "Booking", whenLabel: "-", whereLabel: "-", sourceLabel: "Direct" }
+          : {
+              id: bookingId || "unknown",
+              title: copy.t("Booking"),
+              subtitle: loaded?.service ?? undefined,
+              whenLabel: copy.t("No time assigned"),
+              whereLabel: "-",
+              sourceLabel: "Direct",
+            }
       }
       onBack={onBack}
       onMessage={onMessage}

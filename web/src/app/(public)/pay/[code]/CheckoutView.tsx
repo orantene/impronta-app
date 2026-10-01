@@ -11,7 +11,7 @@ export type CheckoutViewProps = {
   /** Presentation path; defaults to branded `/pay`. */
   readonly pathPrefix?: PayLinkPathPrefix;
   /** What the kept time is: drives the "kept while valid" wording. */
-  readonly slotKind?: "appointment" | "pickup" | null;
+  readonly slotKind?: "appointment" | "appointment_no_time" | "pickup" | null;
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
@@ -30,7 +30,9 @@ export function CheckoutView(props: CheckoutViewProps) {
   const keepSlotKey =
     props.slotKind === "appointment"
       ? "public.thread.keepSlotAppointment"
-      : props.slotKind === "pickup"
+      : props.slotKind === "appointment_no_time"
+        ? "public.thread.keepSlotNoTime"
+        : props.slotKind === "pickup"
         ? "public.thread.keepSlot"
         : "public.thread.keepSlotGeneric";
   const total = `${props.currency} ${(props.amountCents / 100).toFixed(2)}`.trim();

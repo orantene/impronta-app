@@ -86,15 +86,27 @@ export async function messagingTalentQuoteSend(input: {
     return Number((data as { version?: number } | null)?.version ?? 1);
   };
 
-  const created = await createOffer(admin, {
-    inquiryId,
-    tenantId,
-    actorUserId: actor.userId,
-    expectedVersion: await versionOf("inquiries", inquiryId),
-    currencyCode: offering.currency,
-  });
-  if (!created.success || !created.data?.offerId) return fail(created.success || !created.forbidden ? "unavailable" : "not_allowed");
-  const offerId = created.data.offerId;
+  // Reuse this conversation's open draft (a stuck earlier attempt, or one the
+  // offer drawer opened) instead of stacking another version and order on it.
+  const { data: draftRow } = await tenantScopedQuery(admin, "inquiry_offers", tenantId)
+    .select("id")
+    .eq("inquiry_id", inquiryId)
+    .eq("status", "draft")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let offerId = (draftRow as { id?: string } | null)?.id ?? null;
+  if (!offerId) {
+    const created = await createOffer(admin, {
+      inquiryId,
+      tenantId,
+      actorUserId: actor.userId,
+      expectedVersion: await versionOf("inquiries", inquiryId),
+      currencyCode: offering.currency,
+    });
+    if (!created.success || !created.data?.offerId) return fail(created.success || !created.forbidden ? "unavailable" : "not_allowed");
+    offerId = created.data.offerId;
+  }
 
   const total = parsed.data.amountCents / 100;
   const [inquiryVersion, offerVersionBefore] = await Promise.all([versionOf("inquiries", inquiryId), versionOf("inquiry_offers", offerId)]);

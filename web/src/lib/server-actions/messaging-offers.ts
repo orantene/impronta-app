@@ -130,6 +130,21 @@ async function seedOfferFromSharedDraft(g: OfferGuardOk, inquiryId: string, offe
   });
 }
 
+/**
+ * Re-opening the editor after "Add from catalog": the picker writes the lines
+ * to the shared draft order, but an offer that already exists was only seeded
+ * at creation. Seeds again when the offer is still empty or $0 placeholders
+ * (a no-op otherwise), so the picked service lands as a priced line.
+ */
+export async function messagingSeedOfferFromShared(input: { inquiryId: string; offerId: string }) {
+  const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  if (!g.ok) return g;
+  await seedOfferFromSharedDraft(g, parsed.data.inquiryId, parsed.data.offerId);
+  return { ok: true as const };
+}
+
 /** L6: the full draft (header + lines) for the editor sheet. */
 export async function messagingLoadOfferForEditor(input: { inquiryId: string; offerId: string }) {
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);

@@ -1734,6 +1734,7 @@
       "configure": "Configure",
       "keepSlot": "The pickup time is kept while this payment link is valid. Nothing is charged until you pay.",
       "keepSlotAppointment": "The appointment time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "keepSlotNoTime": "Your booking is confirmed once paid. The time is agreed with the talent. Nothing is charged until you pay.",
       "keepSlotGeneric": "Your reserved time is kept while this payment link is valid. Nothing is charged until you pay.",
       "waitlist": "This session is full. Join the waitlist.",
       "dateMismatch": "That date is not available. Another date is offered below.",
