@@ -75,7 +75,7 @@ const ONLY = process.env.ONB_ONLY ?? "";
 const STAMP = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "").replace("T", "-");
 const EVID_ROOT = process.env.ONB_EVIDENCE_ROOT ?? path.join(WEB, "qa-evidence/onboarding-e2e");
 const OUT = path.join(EVID_ROOT, STAMP);
-fs.mkdirSync(OUT, { recursive: true });
+if (process.argv[2] !== "--report") fs.mkdirSync(OUT, { recursive: true });
 
 const MARKETING = "https://tulala.digital";
 const APP = "https://app.tulala.digital";
@@ -795,7 +795,7 @@ async function stageChat(page, run, rec) {
   await page.goto(`https://${run.siteHost}/`, { waitUntil: "domcontentloaded", timeout: 90_000 });
   await sleep(5000);
   await declineCookies(page);
-  const btn = page.locator('button[aria-label*="chat" i], button[aria-label*="message" i], button[aria-label*="mensaje" i], button[aria-label*="Ask" i], [data-clear-dock] button').first();
+  const btn = page.locator('button[aria-label*="chat" i]:visible, button[aria-label*="message" i]:visible, button[aria-label*="mensaje" i]:visible').first();
   const found = await btn.waitFor({ timeout: 30_000 }).then(() => true).catch(() => false);
   if (!found) {
     const labels = await page.locator("button:visible").evaluateAll((es) => es.map((e) => (e.getAttribute("aria-label") || e.textContent || "").trim().slice(0, 24)).filter(Boolean).slice(0, 25).join(" ; "));
@@ -924,6 +924,14 @@ async function stageSwitch(page, run, rec, fromSlug, toSlug) {
 
 // ---------- findings: likely code locations per failing step -------------------
 const LOCATIONS = {
+  today: ["web/src/app/api/onboarding/build/route.ts lines 58-62 (the access-profile refresh cookie is set without a domain, so it stays on tulala.digital and never reaches app.tulala.digital)", "web/src/lib/supabase/middleware.ts (60s ACCESS_PROFILE_TTL_MS memo; forgetAccessProfileMemo only clears the route's own copy)", "web/src/app/(workspace)/talent/page.tsx + web/src/app/onboarding/role/page.tsx (the /talent <-> /onboarding/role bounce)", "web/src/components/onboarding/steps/arrival-step.tsx (CTA is an absolute app-host link)"],
+  "register-email": ["web/src/app/auth/otp-actions.ts (requestEmailCode: SEND_PER_EMAIL / SEND_PER_IP budgets)", "Supabase project Auth > Rate limits (email sends per hour)"],
+  "register-ai": ["web/src/lib/onboarding/understand.server.ts", "web/src/components/onboarding/onboarding-module.tsx (UNDERSTAND_CEILING_MS)"],
+  "content-hours": ["web/src/components/talent/studio/MoreScreen.tsx (More > Working hours row only navigates to the calendar)", "web/src/components/admin/shell/internal/talent/agenda/AgendaCalendarPage.tsx (no phone control for the working-hours panel)", "web/src/components/admin/shell/internal/talent/pages/SettingsPage.tsx (the only phone entry)"],
+  "content-services": ["web/src/components/talent/services/TalentOfferingsManager.tsx", "web/src/lib/talent/offerings-types.ts"],
+  "content-bio": ["web/src/components/admin/shell/internal/talent (profile drawer About panel, autosave)"],
+  "content-photos": ["web/src/components/talent/media-gallery-drawer.tsx"],
+  "close-account-ui": ["web/src/app/(workspace)/talent settings: Close your account (14-day scheduled removal)"],
   register: ["web/src/components/onboarding/onboarding-module.tsx (state machine, understand ceiling)", "web/src/components/onboarding/steps/*.tsx (screen that stalled)", "web/src/lib/server-actions/onboarding-module.ts", "web/src/app/auth/otp-actions.ts (email code verify)", "web/src/app/api/onboarding/build + web/src/lib/onboarding/build.server.ts"],
   "register-ai": ["web/src/lib/onboarding/understand.server.ts (model call / KV fail-closed)", "web/src/components/onboarding/onboarding-module.tsx UNDERSTAND_CEILING_MS"],
   profile: ["web/src/lib/onboarding/talent-writer.server.ts (writeTalentProfileFromBrief)", "web/src/lib/onboarding/type-chip.server.ts"],
@@ -937,24 +945,25 @@ const LOCATIONS = {
   socket: ["web/src/lib/talent-site/footer-socket.ts", "web/src/components/talent-site/talent-site-socket.tsx", "web/src/lib/talent-site/theme-catalog/collection/maison-v2-footer.ts"],
   policies: ["web/src/lib/talent-site/server/policy-main.tsx", "web/src/lib/talent-site/footer-socket.ts (TALENT_BOOKING_POLICY_PATH, TALENT_PRIVACY_PATH)"],
   chat: ["web/src/app/%5Ftalent-site/TalentSiteMessagesDock.tsx", "web/src/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx"],
-  booking: ["web/src/components/public-booking/*", "web/src/app/%5Ftalent-site/TalentOfferingIntentQuery.tsx"],
-  leaks: ["web/src/lib/talent-site/demos/fixture-plan.ts", "web/src/lib/talent-site/theme-catalog/** (demo content seeding)", "web/src/lib/talent-site/server/preview-data.ts"],
+  booking: ["web/src/lib/scheduling/booking-surface.ts (resolveTalentBooking returns 'inquire' for a talent sold through the platform hub tenant, even with working hours saved and an instant-booking service)", "web/src/app/api/public/booking/slots/route.ts line 204 (reason inquiry_only)", "web/src/components/public-booking/CatalogLiveWhenPicker.tsx (empty state says 'Nothing is open in the next two weeks' instead of explaining the site is inquiry-only)", "Folio: selecting a service shows no Continue dock (web/src/lib/talent-site/theme-catalog folio sections)", "web/src/components/public-booking/*"],
+  leaks: ["Folio default section copy is written for fashion models and MXN: web/design-references/folio/content.json + the Folio theme catalog entry under web/src/lib/talent-site/theme-catalog/", "web/src/lib/talent-site/demos/fixture-plan.ts", "web/src/lib/talent-site/server/preview-data.ts"],
   locale: ["web/src/lib/talent-site/live-text.ts", "web/src/lib/talent-site/server/render-max-site.tsx", "web/src/lib/i18n/pick-locale.ts"],
   switch: ["web/src/lib/site-admin/builder-core/templates/apply-shell-variant-action.ts", "web/src/components/talent/site/maison-setup/live-design-change.ts", "web/src/components/talent/site/maison-setup/PublishDesignDialog.tsx"],
-  cleanup: ["web/src/app/(workspace)/platform/admin/users/actions-tier3.ts (deletePlatformUserAccount: the only deletion path, platform-admin only)", "supabase/migrations (FK cascade from profiles/talent_profiles)"],
+  cleanup: ["web/src/app/(workspace)/platform/admin/users/actions-tier3.ts (deletePlatformUserAccount: delete profiles row, then auth user; platform-admin only)", "supabase/migrations: the talent_pages delete path writes a talent_page_revisions row with created_by = the user being deleted (23503 FK violation), and talent_profiles is not removed by deleting profiles", "talent self-serve Close your account is a 14-day schedule, not a delete"],
 };
 
 // ---------- report --------------------------------------------------------------
 const esc = (x) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-function writeReport(runs, meta) {
+function writeReport(runs, meta) { writeReportTo(OUT, runs, meta); }
+function writeReportTo(outDir, runs, meta) {
   const badge = (st) => `<span class="b ${st}">${st}</span>`;
-  const worst = (r) => (r.steps.some((x) => x.status === "FAIL") ? "FAIL" : r.steps.some((x) => x.status === "WARN") ? "WARN" : "PASS");
+  const worst = (r) => (r.steps.every((x) => x.status === "SKIP") ? "SKIP" : r.steps.some((x) => x.status === "FAIL") ? "FAIL" : r.steps.some((x) => x.status === "WARN") ? "WARN" : "PASS");
   const findings = [];
   for (const r of runs) {
     for (const st of r.steps) if (st.status === "FAIL" || st.status === "WARN") findings.push({ run: r.id, id: st.id, title: st.title, status: st.status, reason: st.reason });
     for (const n of r.notes) findings.push({ run: r.id, id: "note", title: "Observation", status: "NOTE", reason: n });
   }
-  const locFor = (id) => LOCATIONS[id.split(":")[0]] ?? LOCATIONS[id.split("-")[0]] ?? [];
+  const locFor = (id) => LOCATIONS[id] ?? LOCATIONS[id.split(":")[0]] ?? LOCATIONS[id.split("-")[0]] ?? [];
   const html = `<!doctype html><meta charset="utf-8"><title>Onboarding e2e ${esc(meta.stamp)}</title>
 <style>body{font:14px/1.5 system-ui,sans-serif;margin:24px;color:#1b1b1b;max-width:1200px}h1{font-size:22px}h2{font-size:18px;margin-top:32px;border-top:1px solid #ddd;padding-top:16px}
 table{border-collapse:collapse;width:100%;margin:8px 0}td,th{border:1px solid #ddd;padding:6px 8px;vertical-align:top;text-align:left}th{background:#f5f5f5}
@@ -972,8 +981,9 @@ ${runs.map((r) => `<h2>${esc(r.design)} @ ${r.width}</h2>
 ${r.steps.map((st) => `<tr><td>${esc(st.id)}<br><small>${esc(st.title)}</small></td><td>${badge(st.status)}</td><td>${esc(st.reason)}${st.details.length ? `<br><small>${st.details.map(esc).join("<br>")}</small>` : ""}<br><small>${st.ms ?? 0} ms</small></td><td class="shots">${st.shots.filter(Boolean).map((sh) => `<a href="${esc(sh)}"><img src="${esc(sh)}" loading="lazy"></a>`).join("")}</td></tr>`).join("")}</table>
 ${r.cleanup ? `<p><small>Cleanup: user ${esc(r.cleanup.userId)}; deleted=${r.cleanup.deleted}; leftovers=${esc(JSON.stringify(r.cleanup.leftovers))}; ${esc(r.cleanup.log.join(" | "))}</small></p>` : ""}`).join("")}
 ${meta.extra ?? ""}`;
-  fs.writeFileSync(path.join(OUT, "report.html"), html);
-  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(runs.map((r) => ({ id: r.id, design: r.design, width: r.width, email: r.email, steps: r.steps, notes: r.notes, cleanup: r.cleanup })), null, 1));
+  fs.writeFileSync(path.join(outDir, "report.html"), html);
+  fs.writeFileSync(path.join(outDir, "meta.json"), JSON.stringify({ ...meta, extra: undefined }));
+  fs.writeFileSync(path.join(outDir, "results.json"), JSON.stringify(runs.map((r) => ({ id: r.id, design: r.design, width: r.width, email: r.email, steps: r.steps, notes: r.notes, cleanup: r.cleanup })), null, 1));
 }
 
 
@@ -1163,6 +1173,33 @@ async function main() {
   const fails = runs.flatMap((r) => r.steps.filter((x) => x.status === "FAIL").map((x) => `${r.id}:${x.id}`));
   console.log(`\nreport: ${path.join(OUT, "report.html")}\nfailures: ${fails.length ? fails.join(", ") : "none"}`);
   process.exit(fails.length ? 1 : 0);
+}
+
+/** node run.mjs --report <outDir> <runDir> [<runDir>...]: rebuild report.html from saved results.json files (later dirs win per run id). */
+function reportFromDirs(outDir, dirs) {
+  const byId = new Map();
+  let meta = null;
+  for (const d of dirs) {
+    const res = JSON.parse(fs.readFileSync(path.join(d, "results.json"), "utf8"));
+    try { meta = { ...(meta ?? {}), ...JSON.parse(fs.readFileSync(path.join(d, "meta.json"), "utf8")) }; } catch { /* old run dir */ }
+    const rel = path.relative(outDir, d);
+    for (const r of res) {
+      for (const st of r.steps) st.shots = (st.shots ?? []).map((x) => path.join(rel, x));
+      byId.set(r.id, { ...r, details: undefined });
+    }
+  }
+  fs.mkdirSync(outDir, { recursive: true });
+  const prevOut = OUT;
+  const runs = [...byId.values()];
+  const m = { stamp: path.basename(outDir), port: BASE_PORT, sha: sha(), designs: [...new Set(runs.map((r) => r.design))], viewports: [...new Set(runs.map((r) => r.width))], ...(meta ?? {}), extra: `<h2>Sources</h2><p><small>${dirs.map((d) => esc(path.basename(d))).join(", ")}</small></p>` };
+  m.stamp = path.basename(outDir);
+  writeReportTo(outDir, runs, m);
+  console.log("report:", path.join(outDir, "report.html"));
+}
+
+if (process.argv[2] === "--report") {
+  reportFromDirs(path.resolve(process.argv[3]), process.argv.slice(4).map((d) => path.resolve(d)));
+  process.exit(0);
 }
 
 if (import.meta.url === new URL(process.argv[1], "file://").href || process.argv[1] === fileURLToPath(import.meta.url)) {
