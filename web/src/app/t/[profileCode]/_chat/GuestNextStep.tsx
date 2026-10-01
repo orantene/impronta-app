@@ -112,6 +112,22 @@ export function GuestNextStep({
   if (!step) return notice;
 
   const values = { ...step.values, business: businessName };
+  // Deposit vs full follows the link's real amount against the total; the
+  // version is the guest's own count, hidden when there is only one offer.
+  const titleKey =
+    step.kind === "pay" && step.payKind === "deposit"
+      ? "public.guestChat.nextPayDepositTitle"
+      : step.kind === "pay" && step.payKind === "full"
+        ? "public.guestChat.nextPayFullTitle"
+        : step.kind === "accept_offer" && !step.values.version
+          ? "public.guestChat.nextAcceptTitleNoVersion"
+          : TITLE_KEY[step.kind];
+  const subKey =
+    step.kind === "pay" && step.payKind === "deposit"
+      ? "public.guestChat.nextPayDepositSub"
+      : step.kind === "pay" && step.payKind === "full"
+        ? "public.guestChat.nextPayFullSub"
+        : SUB_KEY[step.kind];
   const busy =
     step.kind === "accept_offer" && step.offer
       ? model.actions.activity[step.offer.id]?.phase === "busy"
@@ -152,8 +168,8 @@ export function GuestNextStep({
       style={{ padding: "10px 14px 8px", borderTop: `1px solid ${C.borderSoft}`, background: C.surface, display: "flex", flexDirection: "column", gap: 3, fontFamily: FONT }}
     >
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkMuted }}>{t("public.guestChat.nextLabel")}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>{interpolate(t(TITLE_KEY[step.kind]), values)}</div>
-      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton ? 6 : 0 }}>{interpolate(t(step.kind === "pay_link_ask" && askPhase === "failed" ? "public.guestChat.payLinkAskFailed" : SUB_KEY[step.kind]), values)}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>{interpolate(t(titleKey), values)}</div>
+      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton ? 6 : 0 }}>{interpolate(t(step.kind === "pay_link_ask" && askPhase === "failed" ? "public.guestChat.payLinkAskFailed" : subKey), values)}</div>
       {showButton && onClick && buttonKey && (
         <button
           type="button"

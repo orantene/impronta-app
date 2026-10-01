@@ -15,7 +15,7 @@
  */
 
 import type { ClientOfferSummary } from "./client-thread-view";
-import { offerCardState, offerDepositCents } from "./client-thread-view";
+import { guestVisibleOfferVersion, offerCardState, offerDepositCents } from "./client-thread-view";
 import {
   deriveGuestOutcomeFromMessages,
   type GuestOutcomeKind,
@@ -41,7 +41,21 @@ export type GuestNextStep = {
   readonly offer?: ClientOfferSummary;
   /** The pay code, for `pay`. */
   readonly payCode?: string;
+  /**
+   * For `pay`: what the link collects. `deposit` only when the amount is
+   * below the order total; `full` otherwise; null when no total is known.
+   */
+  readonly payKind?: GuestPayKind | null;
 };
+
+export type GuestPayKind = "deposit" | "full";
+
+/** PURE: a deposit is a link for LESS than the total. Anything else is paying in full. */
+export function guestPayKind(amountCents: number | null | undefined, totalCents: number | null | undefined): GuestPayKind | null {
+  if (amountCents == null || !Number.isFinite(amountCents) || amountCents <= 0) return null;
+  if (totalCents == null || !Number.isFinite(totalCents) || totalCents <= 0) return null;
+  return amountCents < totalCents ? "deposit" : "full";
+}
 
 export type GuestNextStepInput = {
   readonly threadStatus: string;
@@ -105,6 +119,12 @@ function threadOutcome(input: GuestNextStepInput): GuestOutcomeKind | null {
   return legacyOutcomeFromKinds(input.messageKinds ?? []);
 }
 
+function visibleVersion(offer: ClientOfferSummary, offers: readonly ClientOfferSummary[]): string {
+  const visible = offers.filter((o) => o.status !== "draft");
+  const n = guestVisibleOfferVersion(offer, visible);
+  return n == null ? "" : String(n);
+}
+
 export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | null {
   const { now } = input;
   if (input.threadStatus === "draft" || input.threadStatus === "closed") return null;
@@ -129,6 +149,7 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
     return {
       kind: "pay",
       payCode: input.payCode,
+      payKind: guestPayKind(amount, about?.totalCents ?? null),
       values: { amount: amount != null && about ? input.money(amount, about.currency) : amount != null ? input.money(amount, "USD") : "" },
     };
   }
@@ -146,7 +167,8 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
     return {
       kind: "accept_offer",
       offer,
-      values: { version: String(offer.version), total: input.money(offer.totalCents, offer.currency) },
+      // The guest's own count (internal drafts never show as "v3"); "" = no version shown.
+      values: { version: visibleVersion(offer, input.offers), total: input.money(offer.totalCents, offer.currency) },
     };
   }
   if (heldTime(input.timesPayloads, now)) return { kind: "waiting_confirm", values: {} };
