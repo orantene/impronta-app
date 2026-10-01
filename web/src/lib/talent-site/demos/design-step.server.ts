@@ -102,7 +102,7 @@ export interface DemoPlan {
   style: (typeof MAISON_V2_DEMO_STYLES)[string] | undefined;
   catalogLook: CatalogLook;
   galleryTokens: Record<string, string> | null;
-  lookSlug: string | undefined;
+  lookSlug: string | null | undefined;
   trees: Trees;
   nextTokens: Record<string, string>;
   nextCustom: unknown;
