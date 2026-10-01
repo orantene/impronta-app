@@ -153,6 +153,7 @@ function ManagerBody({
   const [liveToast, setLiveToast] = useState<string | null>(null);
 
   // Return from domain Checkout → open Domain setup in provisioning state.
+  // Param strip happens in TalentCustomDomainDrawer once it opens.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).get("domainCheckout") !== "done") return;

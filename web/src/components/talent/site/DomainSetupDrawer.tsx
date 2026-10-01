@@ -6,7 +6,7 @@
  * Buy path: search + quote in-app via Registrar API, pay exact quote via Stripe.
  */
 
-import { useMemo, useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useTransition, type CSSProperties } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -54,6 +54,11 @@ export function DomainSetupDrawerBody({
   const [contact, setContact] = useState<ContactForm>(EMPTY_CONTACT);
   const [helpHost, setHelpHost] = useState("");
   const [helpNote, setHelpNote] = useState("");
+
+  // Parent may flip provisioning after mount (Checkout return). Keep path in sync.
+  useEffect(() => {
+    if (provisioning) setPath("provisioning");
+  }, [provisioning]);
 
   const priceLabel = useMemo(() => {
     if (!quote?.priceCents) return null;
@@ -125,16 +130,19 @@ export function DomainSetupDrawerBody({
         <PathCard
           title={copy.t("Buy domain")}
           body={copy.t("Search here, pay the registrar price, we register it for you.")}
+          mark="1"
           onClick={() => go("search")}
         />
         <PathCard
           title={copy.t("Connect existing")}
           body={copy.t("Point a domain you already own at your website.")}
+          mark="2"
           onClick={() => go("connect")}
         />
         <PathCard
           title={copy.t("Get help")}
           body={copy.t("Ask Tulala to help finish domain setup.")}
+          mark="3"
           onClick={() => go("help")}
         />
       </div>
@@ -144,15 +152,24 @@ export function DomainSetupDrawerBody({
   if (path === "provisioning") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <p style={lead}>
-          {copy.t("Payment received. We are registering and attaching your domain.")}
-        </p>
-        <p style={{ margin: 0, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-          {copy.t("This usually finishes within a few minutes. You can close this drawer and check the Custom domain row.")}
-        </p>
-        <SecondaryButton onClick={() => go("connect")}>
-          {copy.t("View domain status")}
-        </SecondaryButton>
+        <div
+          style={{
+            borderRadius: 14,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: COLORS.surfaceAlt,
+            padding: "14px 16px",
+          }}
+        >
+          <p style={{ ...lead, color: COLORS.ink, fontWeight: 650 }}>
+            {copy.t("Payment received. We are registering and attaching your domain.")}
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            {copy.t(
+              "This usually finishes within a few minutes. You can close this drawer and check the Custom domain row.",
+            )}
+          </p>
+        </div>
+        <PrimaryButton onClick={() => go("connect")}>{copy.t("View domain status")}</PrimaryButton>
         <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
       </div>
     );
@@ -162,7 +179,7 @@ export function DomainSetupDrawerBody({
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
-        <TalentSiteDomainPanel canManage />
+        <TalentSiteDomainPanel canManage embedded />
       </div>
     );
   }
@@ -200,7 +217,9 @@ export function DomainSetupDrawerBody({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
-      <p style={lead}>{copy.t("Search for a domain. The price shown is the Vercel Registrar quote.")}</p>
+      <p style={lead}>
+        {copy.t("Search for a domain. The price shown is the Vercel Registrar quote.")}
+      </p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
           value={query}
@@ -223,13 +242,13 @@ export function DomainSetupDrawerBody({
         <div
           style={{
             border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            padding: 12,
-            background: "#fff",
+            borderRadius: 14,
+            padding: "14px 16px",
+            background: COLORS.card,
           }}
         >
-          <div style={{ fontWeight: 650, color: COLORS.ink }}>{quote.domain}</div>
-          <div style={{ marginTop: 4, fontSize: 12.5, color: COLORS.inkMuted }}>
+          <div style={{ fontWeight: 650, color: COLORS.ink, fontSize: 15 }}>{quote.domain}</div>
+          <div style={{ marginTop: 6, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
             {quote.available
               ? priceLabel
                 ? copy.t("Available · {price} (Vercel price)").replace("{price}", priceLabel)
@@ -247,20 +266,62 @@ export function DomainSetupDrawerBody({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
               gap: 8,
             }}
           >
-            <Field label={copy.t("First name")} value={contact.firstName} onChange={(v) => setContact({ ...contact, firstName: v })} />
-            <Field label={copy.t("Last name")} value={contact.lastName} onChange={(v) => setContact({ ...contact, lastName: v })} />
-            <Field label={copy.t("Email")} value={contact.email} onChange={(v) => setContact({ ...contact, email: v })} />
-            <Field label={copy.t("Phone (E.164)")} value={contact.phone} onChange={(v) => setContact({ ...contact, phone: v })} placeholder="+15551234567" />
-            <Field label={copy.t("Address")} value={contact.address1} onChange={(v) => setContact({ ...contact, address1: v })} />
-            <Field label={copy.t("Address line 2")} value={contact.address2 ?? ""} onChange={(v) => setContact({ ...contact, address2: v })} />
-            <Field label={copy.t("City")} value={contact.city} onChange={(v) => setContact({ ...contact, city: v })} />
-            <Field label={copy.t("State")} value={contact.state} onChange={(v) => setContact({ ...contact, state: v })} />
-            <Field label={copy.t("ZIP")} value={contact.zip} onChange={(v) => setContact({ ...contact, zip: v })} />
-            <Field label={copy.t("Country (ISO)")} value={contact.country} onChange={(v) => setContact({ ...contact, country: v })} placeholder="US" />
+            <Field
+              label={copy.t("First name")}
+              value={contact.firstName}
+              onChange={(v) => setContact({ ...contact, firstName: v })}
+            />
+            <Field
+              label={copy.t("Last name")}
+              value={contact.lastName}
+              onChange={(v) => setContact({ ...contact, lastName: v })}
+            />
+            <Field
+              label={copy.t("Email")}
+              value={contact.email}
+              onChange={(v) => setContact({ ...contact, email: v })}
+            />
+            <Field
+              label={copy.t("Phone (E.164)")}
+              value={contact.phone}
+              onChange={(v) => setContact({ ...contact, phone: v })}
+              placeholder="+15551234567"
+            />
+            <Field
+              label={copy.t("Address")}
+              value={contact.address1}
+              onChange={(v) => setContact({ ...contact, address1: v })}
+            />
+            <Field
+              label={copy.t("Address line 2")}
+              value={contact.address2 ?? ""}
+              onChange={(v) => setContact({ ...contact, address2: v })}
+            />
+            <Field
+              label={copy.t("City")}
+              value={contact.city}
+              onChange={(v) => setContact({ ...contact, city: v })}
+            />
+            <Field
+              label={copy.t("State")}
+              value={contact.state}
+              onChange={(v) => setContact({ ...contact, state: v })}
+            />
+            <Field
+              label={copy.t("ZIP")}
+              value={contact.zip}
+              onChange={(v) => setContact({ ...contact, zip: v })}
+            />
+            <Field
+              label={copy.t("Country (ISO)")}
+              value={contact.country}
+              onChange={(v) => setContact({ ...contact, country: v })}
+              placeholder="US"
+            />
           </div>
           <PrimaryButton
             onClick={checkout}
@@ -288,30 +349,58 @@ export function DomainSetupDrawerBody({
 function PathCard({
   title,
   body,
+  mark,
   onClick,
 }: {
   title: string;
   body: string;
+  mark: string;
   onClick: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
         textAlign: "left",
-        padding: "12px 14px",
-        borderRadius: 10,
-        border: `1px solid ${COLORS.borderSoft}`,
-        background: "#fff",
+        padding: "14px 16px",
+        borderRadius: 14,
+        border: `1px solid ${hovered ? COLORS.border : COLORS.borderSoft}`,
+        background: hovered ? COLORS.surfaceAlt : COLORS.card,
         cursor: "pointer",
         fontFamily: FONTS.body,
+        transition: "background 120ms ease, border-color 120ms ease",
       }}
     >
-      <div style={{ fontWeight: 650, fontSize: 14, color: COLORS.ink }}>{title}</div>
-      <div style={{ marginTop: 4, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-        {body}
-      </div>
+      <span
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          display: "grid",
+          placeItems: "center",
+          background: COLORS.ink,
+          color: COLORS.card,
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        {mark}
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 650, fontSize: 14, color: COLORS.ink }}>{title}</div>
+        <div style={{ marginTop: 4, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+          {body}
+        </div>
+      </span>
     </button>
   );
 }
@@ -367,11 +456,12 @@ const labelStyle: CSSProperties = {
 };
 
 const inputStyle: CSSProperties = {
-  padding: "8px 10px",
-  borderRadius: 8,
+  padding: "9px 11px",
+  borderRadius: 10,
   border: `1px solid ${COLORS.borderSoft}`,
   fontSize: 13,
   color: COLORS.ink,
   fontFamily: FONTS.body,
   fontWeight: 500,
+  background: COLORS.card,
 };

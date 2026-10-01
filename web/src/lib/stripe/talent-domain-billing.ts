@@ -94,7 +94,8 @@ export async function createTalentDomainPurchaseCheckoutSession(opts: {
         ],
         success_url: `${opts.appBaseUrl}${returnPath}?domainCheckout=done`,
         cancel_url: `${opts.appBaseUrl}${returnPath}?domainCheckout=cancel`,
-        allow_promotion_codes: true,
+        // Pass-through: charge must equal Registrar quote. Promo codes would
+        // under-collect vs the buy price and are not allowed on this Checkout.
         metadata: {
           checkout_type: TALENT_DOMAIN_CHECKOUT_TYPE,
           talent_id: opts.talentProfileId,

@@ -49,6 +49,7 @@ export function CustomDomainRow({
   const unlocked = canManage && !trialOn;
 
   const [domains, setDomains] = useState<TalentSiteDomainView[]>(initialDomains ?? []);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     if (!unlocked) return;
@@ -88,6 +89,8 @@ export function CustomDomainRow({
     <button
       type="button"
       onClick={onOpen}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       data-testid="talent-custom-domain-row"
       data-unlocked={unlocked ? "true" : "false"}
       style={{
@@ -96,55 +99,94 @@ export function CustomDomainRow({
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
-        padding: "14px 16px",
-        background: COLORS.card,
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 12,
+        padding: "16px 18px",
+        background: hovered ? COLORS.surfaceAlt : COLORS.card,
+        border: `1px solid ${hovered ? COLORS.border : COLORS.borderSoft}`,
+        borderRadius: 14,
         fontFamily: FONTS.body,
         textAlign: "left",
         cursor: "pointer",
+        transition: "background 120ms ease, border-color 120ms ease",
       }}
     >
-      <span style={{ minWidth: 0 }}>
+      <span style={{ minWidth: 0, display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span
+          aria-hidden
           style={{
-            display: "block",
-            fontSize: 14,
-            fontWeight: 650,
-            color: COLORS.ink,
+            flexShrink: 0,
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            display: "grid",
+            placeItems: "center",
+            background: unlocked ? COLORS.ink : COLORS.surfaceAlt,
+            color: unlocked ? COLORS.card : COLORS.inkMuted,
+            fontSize: 15,
+            fontWeight: 700,
+            lineHeight: 1,
           }}
         >
-          {copy.t("Custom domain")}
-          {!unlocked ? (
+          @
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
             <span
               style={{
-                marginLeft: 8,
-                fontSize: 11,
-                fontWeight: 700,
-                color: COLORS.inkMuted,
-                textTransform: "uppercase",
-                letterSpacing: 0.3,
+                fontSize: 14,
+                fontWeight: 650,
+                color: COLORS.ink,
               }}
             >
-              {copy.t("Locked")}
+              {copy.t("Custom domain")}
             </span>
-          ) : null}
-        </span>
-        <span
-          style={{
-            display: "block",
-            marginTop: 3,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {summary}
+            {!unlocked ? (
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: COLORS.inkMuted,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  background: COLORS.surfaceAlt,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                }}
+              >
+                {copy.t("Locked")}
+              </span>
+            ) : null}
+          </span>
+          <span
+            style={{
+              display: "block",
+              marginTop: 3,
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {summary}
+          </span>
         </span>
       </span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, flexShrink: 0 }}>
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: COLORS.ink,
+          flexShrink: 0,
+        }}
+      >
         {affordance} ›
       </span>
     </button>

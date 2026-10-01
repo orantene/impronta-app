@@ -39,6 +39,8 @@ test("domain checkout charges exact registrar quote cents (no markup)", () => {
   );
   assert.match(billing, /unit_amount: opts\.expectedPriceCents/);
   assert.match(billing, /Pass-through only/);
+  // Promo codes would under-collect vs Registrar buy price.
+  assert.doesNotMatch(billing, /allow_promotion_codes:\s*true/);
   // No product markup / wallet layer in code (doc comment may say "no prepaid…").
   assert.doesNotMatch(billing, /markupPercent|priceMarkup|domainWallet|prepaidBalance/);
   // Re-quote before Checkout so the client cannot underpay or invent a price.

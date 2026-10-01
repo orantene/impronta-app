@@ -717,10 +717,15 @@ export function TalentCustomDomainDrawer() {
   const [provisioning, setProvisioning] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setProvisioning(
-      new URLSearchParams(window.location.search).get("domainCheckout") === "done",
-    );
+    if (typeof window === "undefined" || !open) return;
+    const params = new URLSearchParams(window.location.search);
+    const done = params.get("domainCheckout") === "done";
+    setProvisioning(done);
+    if (!done) return;
+    params.delete("domainCheckout");
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", next);
   }, [open]);
 
   return (
@@ -734,7 +739,11 @@ export function TalentCustomDomainDrawer() {
         <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
       }
     >
-      <DomainSetupDrawerBody provisioning={provisioning} />
+      {/* Remount when provisioning flips so return-from-Checkout lands on the right step. */}
+      <DomainSetupDrawerBody
+        key={provisioning ? "domain-provisioning" : "domain-setup"}
+        provisioning={provisioning}
+      />
     </DrawerShell>
   );
 }
