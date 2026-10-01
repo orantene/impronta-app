@@ -39,14 +39,15 @@ export const MASTHEAD_CSS = `
  * cover beside a serif bio, square CTAs and the "In this issue" index.
  */
 export const MASTHEAD_MAGAZINE_CSS = `
-.sb-masthead[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};container:sbmag/inline-size;color:var(--sb-mag-ink);min-height:0;padding:0 0 8px}
+.sb-masthead[data-edition="magazine"]{${MAGAZINE_ROOT_VARS};container:sbmag/inline-size;color:var(--sb-mag-ink);min-height:0;padding:0 0 8px;overflow-x:clip}
 .sb-mag-mast{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:14px 16px 10px;font:600 10.5px/1.2 var(--sb-mag-label);letter-spacing:.2em;text-transform:uppercase;color:var(--sb-mag-mute)}
-.sb-mag-name{margin:0;padding:0 12px;font:400 clamp(84px,27cqi,330px)/.8 var(--sb-mag-serif);letter-spacing:-.045em;text-transform:uppercase;white-space:nowrap;color:var(--sb-mag-ink)}
+.sb-mag-name{margin:0;padding:0 12px;font:400 clamp(48px,27cqi,330px)/.8 var(--sb-mag-serif);font-size:min(clamp(48px,27cqi,330px),var(--sb-fit-m,999px));max-width:100%;box-sizing:border-box;letter-spacing:-.045em;text-transform:uppercase;white-space:nowrap;color:var(--sb-mag-ink)}
 .sb-mag-name span{display:block}
 .sb-mag-cover{position:relative;margin:12px 16px 0;aspect-ratio:3/4;overflow:hidden;background:var(--sb-mag-tint)}
 .sb-mag-cover img{display:block;width:100%;height:100%;object-fit:cover}
 .sb-masthead[data-masthead-filter="bw"] .sb-mag-cover img{filter:grayscale(1) contrast(1.05)}
 .sb-mag-lines{position:absolute;left:14px;right:14px;bottom:14px;display:grid;gap:8px;color:white}
+.sb-mag-lines p{margin:0;font:italic 400 30px/1 var(--sb-mag-serif);text-shadow:0 2px 20px color-mix(in srgb,black 35%,transparent);max-width:12ch}
 .sb-mag-lines small{font:600 10.5px/1.2 var(--sb-mag-label);letter-spacing:.2em;text-transform:uppercase;text-shadow:0 1px 12px color-mix(in srgb,black 45%,transparent)}
 .sb-mag-tag{padding:16px 16px 0;display:grid;gap:14px}
 .sb-mag-tag p{margin:0;font:400 21px/1.3 var(--sb-mag-serif);color:var(--sb-mag-ink)}
@@ -55,20 +56,20 @@ export const MASTHEAD_MAGAZINE_CSS = `
 ${MAGAZINE_BUTTON_CSS}
 @media (min-width:900px){
   .sb-masthead[data-edition="magazine"] .sb-mag-mast{padding:16px 40px 8px}
-  .sb-masthead[data-edition="magazine"] .sb-mag-name{padding:0 32px;font-size:clamp(84px,19cqi,300px);white-space:nowrap}
+  .sb-masthead[data-edition="magazine"] .sb-mag-name{padding:0 32px;font-size:min(var(--token-type-hero-size-desktop,105px),var(--sb-fit-d,999px));white-space:nowrap}
   .sb-masthead[data-edition="magazine"] .sb-mag-name span{display:inline}
   .sb-masthead[data-edition="magazine"] .sb-mag-spread{display:grid;grid-template-columns:1.25fr 1fr;gap:32px;padding:18px 40px 0;align-items:start}
-  .sb-masthead[data-edition="magazine"] .sb-mag-cover{margin:0;aspect-ratio:4/3.4}
+  .sb-masthead[data-edition="magazine"] .sb-mag-cover{margin:0;aspect-ratio:var(--sb-mag-cover-aspect-d,3/4)}
   .sb-masthead[data-edition="magazine"] .sb-mag-tag{padding:0 0 6px}
   .sb-masthead[data-edition="magazine"] .sb-mag-tag p{font-size:34px;line-height:1.25}
   .sb-masthead[data-edition="magazine"] .sb-mag-side .sb-mag-toc{margin:0}
 }
 @container sbmag (min-width:900px){
   .sb-mag-mast{padding:16px 40px 8px}
-  .sb-mag-name{padding:0 32px;font-size:clamp(84px,19cqi,300px)}
+  .sb-mag-name{padding:0 32px;font-size:min(var(--token-type-hero-size-desktop,105px),var(--sb-fit-d,999px))}
   .sb-mag-name span{display:inline}
   .sb-mag-spread{display:grid;grid-template-columns:1.25fr 1fr;gap:32px;padding:18px 40px 0;align-items:start}
-  .sb-mag-cover{margin:0;aspect-ratio:4/3.4}
+  .sb-mag-cover{margin:0;aspect-ratio:var(--sb-mag-cover-aspect-d,3/4)}
   .sb-mag-tag{padding:0 0 6px}
   .sb-mag-tag p{font-size:34px;line-height:1.25}
   .sb-mag-side .sb-mag-toc{margin:0}
@@ -109,6 +110,13 @@ function renderMagazine(args: {
   const name = words.join(" ");
   const bio = (p.bio ?? "").trim();
   const coverLine = (p.coverLine ?? p.subline ?? "").trim();
+  const coverStatement = (p.coverStatement ?? "").trim();
+  // Fit the name to the frame: the longest word on a phone, the whole name on one desktop line.
+  const longest = Math.max(1, ...words.map((w) => w.length));
+  const fitVars = {
+    "--sb-fit-m": `calc((100cqi - 24px) / ${(longest * 0.64).toFixed(2)})`,
+    "--sb-fit-d": `calc((100cqi - 64px) / ${(Math.max(1, name.length) * 0.6).toFixed(2)})`,
+  } as CSSProperties;
   const mastRight = (p.mastRight ?? "").trim();
   const ctaLabel = (p.ctaLabel ?? "").trim();
   const ctaHref = (p.ctaHref ?? "").trim();
@@ -136,7 +144,7 @@ function renderMagazine(args: {
         {mastRight ? <span>{mastRight}</span> : null}
       </div>
       {words.length > 0 ? (
-        <h1 className="sb-mag-name">
+        <h1 className="sb-mag-name" style={fitVars}>
           {words.map((w, i) => (
             <span key={`${i}:${w}`}>
               {w}
@@ -150,9 +158,10 @@ function renderMagazine(args: {
           <figure className="sb-mag-cover">
             {/* eslint-disable-next-line @next/next/no-img-element -- token-hydrated cover URL */}
             <img src={coverSrc} alt={name} />
-            {coverLine ? (
+            {coverLine || coverStatement ? (
               <figcaption className="sb-mag-lines">
-                <small>{coverLine}</small>
+                {coverLine ? <small>{coverLine}</small> : null}
+                {coverStatement ? <p>{coverStatement}</p> : null}
               </figcaption>
             ) : null}
           </figure>

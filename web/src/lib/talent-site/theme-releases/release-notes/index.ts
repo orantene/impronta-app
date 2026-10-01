@@ -26,6 +26,7 @@ import {
   MAISON_V2_RELEASE_2_8,
   type ReleaseNote,
 } from "./maison-v2";
+import { FOLIO_RELEASE_PARITY } from "./folio";
 
 export interface ReleaseNoteModule {
   design: string;
@@ -61,6 +62,11 @@ export interface ReleaseNoteModule {
    * a talent who has it, so its removal is not an item: it stays out of the release entirely.
    */
   dropIdPrefixes?: ReadonlyArray<string>;
+  /**
+   * Unpinned module (`toVersion: 0`): the catalog version is assigned by the sync, so the module
+   * applies to the release whose target payload satisfies this test, until the version is pinned.
+   */
+  appliesTo?: (to: DesignPayload) => boolean;
 }
 
 const MODULES: ReadonlyArray<ReleaseNoteModule> = [
@@ -72,6 +78,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_6,
   MAISON_V2_RELEASE_2_7,
   MAISON_V2_RELEASE_2_8,
+  FOLIO_RELEASE_PARITY,
 ];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
@@ -169,7 +176,10 @@ export function generateReleaseItems(
   from: { payload: DesignPayload; version: number },
   to: { payload: DesignPayload; version: number },
 ): { items: ReleaseItem[]; notes: ReleaseNotes } {
-  const mod = releaseNotesFor(design, to.version);
+  const mod =
+    releaseNotesFor(design, to.version) ??
+    MODULES.find((m) => m.design === design && m.toVersion === 0 && m.appliesTo?.(to.payload)) ??
+    null;
   let items: CandidateItem[] = diffDesignPayloads(design, from, to, mod?.codeNotes ?? []);
   if (!mod) return { items, notes: {} };
   const dropped = mod.dropIdPrefixes ?? [];

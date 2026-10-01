@@ -73,6 +73,7 @@ for (const w of A.widths) {
       const q = p.sections[sec.key];
       const base = { section: sec.key, width: w, demo };
       if (sec.productOnly) {
+        if (sec.baseline) continue; // accepted in the design's baseline (owner rule / required shell role)
         if (isRef && q?.present) add({ ...base, check: "section not in the mockup", layer: "payload", evidence: `${sec.label}: ${q.metrics.h}px tall, not part of TH02` });
         continue;
       }

@@ -31,8 +31,16 @@ export const FOLIO_STYLE_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "type.label-tracking": "0.18em",
   "type.display-weight": "400",
   "type.display-tracking": "-0.02em",
-  "type.section-title-size": "40px",
-  "type.section-title-size-desktop": "72px",
+  // Type scale (TH02): every size is an editable token and the default is the mockup's.
+  // Section / rate card titles 44px; hero name 105px on desktop (capped so it always fits
+  // the frame); chapter titles 38px; closing statement 64px at every width.
+  "type.section-title-size": "44px",
+  "type.section-title-size-desktop": "44px",
+  "type.hero-size-desktop": "105px",
+  "type.group-title-size": "38px",
+  "type.group-title-size-desktop": "38px",
+  "type.footer-title-size": "64px",
+  "type.footer-title-size-desktop": "64px",
 };
 
 /** Non-style registry defaults (radius / spacing / shadow / shell). */

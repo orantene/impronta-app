@@ -256,6 +256,8 @@
         "footer"
       ],
       "productOnly": true,
+      "baseline": true,
+      "baselineNote": "Baseline (ticket FOLIO-PARITY-1): the shell footer is a required kit shell role, so it is part of the Folio baseline, not a delta.",
       "optional": true,
       "expects": []
     },
@@ -269,6 +271,8 @@
         ".tulala-socket"
       ],
       "productOnly": true,
+      "baseline": true,
+      "baselineNote": "Baseline (ticket FOLIO-PARITY-1): the global Tulala footer socket is REQUIRED on every design by owner rule.",
       "optional": true,
       "expects": [
         {

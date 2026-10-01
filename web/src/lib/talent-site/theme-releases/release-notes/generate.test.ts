@@ -67,7 +67,7 @@ test("Maison v2 2.1: code item appears, notes are prefilled, hero inset is ONE l
 
 test("no module and no diff: no items, no notes", () => {
   const p = buildMaisonV2Payload();
-  const out = generateReleaseItems("folio", { payload: p, version: 1 }, { payload: p, version: 2 });
+  const out = generateReleaseItems("solace", { payload: p, version: 1 }, { payload: p, version: 2 });
   assert.deepEqual(out, { items: [], notes: {} });
 });
 
