@@ -785,6 +785,7 @@
       "configure": "Configurer",
       "keepSlot": "L heure de retrait est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
       "keepSlotAppointment": "L heure du rendez-vous est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
+      "keepSlotNoTime": "Votre reservation est confirmee une fois payee. L heure est convenue avec le talent. Rien n est debite avant le paiement.",
       "keepSlotGeneric": "Votre créneau est tenu tant que ce lien est valable. Rien n est debite avant le paiement.",
       "waitlist": "Cette seance est complete. Rejoignez la liste d attente.",
       "dateMismatch": "Cette date n est pas disponible. Une autre date est proposee ci-dessous.",

@@ -82,28 +82,43 @@ export async function seedTalentOfferingDraft(
     variantLabel,
     addonLabels,
   });
-  const created = await createDraftOrder(admin, {
-    tenantId: input.tenantId,
-    actorUserId: talentUserId,
-    currency: off.currency || "USD",
-    context: "messages",
-    sourceChannel: "messages",
-  });
-  if (!created.ok) return { ok: false, reason: "unavailable" };
-
-  const { error: linkErr } = await admin
+  // One shared draft per conversation: reuse the open one (the offer drawer or
+  // an earlier pick may have opened it) instead of creating a second order.
+  const { data: existing } = await admin
     .from("orders")
-    .update({ inquiry_id: input.inquiryId, source_channel: "messages" })
-    .eq("id", created.orderId)
-    .eq("tenant_id", input.tenantId);
-  if (linkErr) {
-    logServerError("messages.seedTalentOffering/order", linkErr);
-    return { ok: false, reason: "unavailable" };
+    .select("id")
+    .eq("tenant_id", input.tenantId)
+    .eq("inquiry_id", input.inquiryId)
+    .eq("status", "draft")
+    .eq("source_channel", "messages")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  let orderId = (existing as { id?: string } | null)?.id ?? null;
+  if (!orderId) {
+    const created = await createDraftOrder(admin, {
+      tenantId: input.tenantId,
+      actorUserId: talentUserId,
+      currency: off.currency || "USD",
+      context: "messages",
+      sourceChannel: "messages",
+    });
+    if (!created.ok) return { ok: false, reason: "unavailable" };
+    orderId = created.orderId;
+    const { error: linkErr } = await admin
+      .from("orders")
+      .update({ inquiry_id: input.inquiryId, source_channel: "messages" })
+      .eq("id", orderId)
+      .eq("tenant_id", input.tenantId);
+    if (linkErr) {
+      logServerError("messages.seedTalentOffering/order", linkErr);
+      return { ok: false, reason: "unavailable" };
+    }
   }
 
   const added = await addLine(admin, {
     tenantId: input.tenantId,
-    orderId: created.orderId,
+    orderId,
     proposedBy: "client",
     line: {
       offeringId: off.id,
@@ -118,7 +133,7 @@ export async function seedTalentOfferingDraft(
     tenantId: input.tenantId,
     inquiryId: input.inquiryId,
     kind: "order",
-    recordId: created.orderId,
+    recordId: orderId,
     linkedBy: talentUserId,
   });
 

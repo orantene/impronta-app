@@ -72,6 +72,10 @@ export function AgendaBookingRecord({
   // The record flips to Cancelled the moment the server says so, not on reload.
   const [cancelledHere, setCancelledHere] = useState(false);
   const bookingState: AgendaListItem["bookingState"] = cancelledHere ? "cancelled" : item.bookingState;
+  // The NOW card follows the same flip: it said "Confirmed" until a reload.
+  const nowTitle = cancelledHere ? "Cancelled" : item.nowTitle;
+  const nowBodyRaw = cancelledHere ? "This booking was cancelled." : item.nowBody;
+  const nowTone = cancelledHere ? "risk" : item.nowTone;
   const depositQrSvg = useMemo(() => {
     if (!depositLink) return null;
     try {
@@ -484,20 +488,20 @@ export function AgendaBookingRecord({
           </dl>
         </section>
 
-        {item.nowTitle ? (
+        {nowTitle ? (
           <NowBox
             tone={
-              item.nowTone === "ok"
+              nowTone === "ok"
                 ? "success"
-                : item.nowTone === "warn"
+                : nowTone === "warn"
                   ? "attention"
-                  : item.nowTone === "risk"
+                  : nowTone === "risk"
                     ? "danger"
                     : "info"
             }
-            title={copy.t(item.nowTitle)}
+            title={copy.t(nowTitle ?? "")}
             body={(() => {
-              const rawBody = nowBodyForRecord(item.nowBody, isAgency);
+              const rawBody = nowBodyForRecord(nowBodyRaw, isAgency);
               const body = rawBody ? copy.t(rawBody) : "";
               const hold = bookingState === "hold" ? holdEndsParts(item.holdUntilIso, now) : null;
               if (!hold) return body;
@@ -521,10 +525,10 @@ export function AgendaBookingRecord({
                       : nowStep === "hold"
                         ? { label: copy.t("Confirm or release hold"), onClick: () => setShowHold(true) }
                         : show.talentOwnsActions
-                          ? item.primaryAction
+                          ? (cancelledHere ? undefined : item.primaryAction)
                           : undefined
             }
-            secondaryAction={show.talentOwnsActions ? item.secondaryAction : undefined}
+            secondaryAction={show.talentOwnsActions && !cancelledHere ? item.secondaryAction : undefined}
           />
         ) : null}
 
@@ -557,7 +561,7 @@ export function AgendaBookingRecord({
         {/* Collect deposit — mint pay link + WhatsApp share (criterion 3) */}
         {needsDepositCollect && !showFinish ? (
           <div className="space-y-2">
-            {nowStep !== "deposit" || !item.nowTitle ? (
+            {nowStep !== "deposit" || !nowTitle ? (
               <button
                 type="button"
                 onClick={handleCollectDeposit}
@@ -622,7 +626,7 @@ export function AgendaBookingRecord({
         ) : null}
 
         {/* Finish and collect */}
-        {show.finishCollect && !showFinish && (nowStep !== "finish" || !item.nowTitle) ? (
+        {show.finishCollect && !showFinish && (nowStep !== "finish" || !nowTitle) ? (
           <button
             type="button"
             onClick={() => setShowFinish(true)}
@@ -647,7 +651,7 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
-        {transferPending && !item.nowTitle ? (
+        {transferPending && !nowTitle ? (
           <button
             type="button"
             onClick={handleTransferReceived}

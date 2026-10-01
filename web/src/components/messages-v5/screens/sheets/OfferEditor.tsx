@@ -41,6 +41,7 @@ import { messagingSendOffer } from "@/lib/server-actions/messaging-engine";
 import {
   messagingCounterOffer,
   messagingCreateOffer,
+  messagingSeedOfferFromShared,
   messagingListOffers,
   messagingLoadOfferForEditor,
   messagingReopenOfferForAmendment,
@@ -598,6 +599,7 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
         }
       }
 
+      if (existing) await messagingSeedOfferFromShared({ inquiryId, offerId }).catch(() => null);
       const loaded = await messagingLoadOfferForEditor({ inquiryId, offerId });
       if (!loaded.ok) {
         setRefusalCode(loaded.reason);

@@ -97,7 +97,9 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
   const talentProfileId = talentOwned && context.talentIds.length === 1 ? context.talentIds[0] : null;
 
   const [talent, offerings, sessions, tables] = await Promise.all([
-    loadTalentRows(admin, input.tenantId, window, now),
+    // A solo talent sells only their own services: the hub roster lists other
+    // talents, so the Talent tab is not offered at all.
+    talentProfileId ? Promise.resolve([] as CatalogRow[]) : loadTalentRows(admin, input.tenantId, window, now),
     talentProfileId ? loadTalentProfileOfferingRows(admin, input.tenantId, talentProfileId) : loadOfferingRows(admin, input.tenantId),
     loadSessionRows(admin, input.tenantId, now),
     date && preset.features.reservations ? loadTableRows(input.tenantId, date) : Promise.resolve([] as CatalogRow[]),
