@@ -67,6 +67,8 @@ export default async function AdminInquiryThreadPage({
   // Staff access log: a platform admin reading a thread they are not a party
   // to leaves a platform_audit_log row. Fire-and-await; never blocks the page.
   if (viewerId) {
+    // supabase-read-unchecked-ok: audit-only lookup; a failed read means "not a
+    // platform admin", so no log row is written and the page renders unchanged.
     const { data: viewerProfile } = await supabase
       .from("profiles")
       .select("app_role")
@@ -81,6 +83,8 @@ export default async function AdminInquiryThreadPage({
       isParticipant: async (iqId, userId) => {
         const svc = createServiceRoleClient();
         if (!svc) return false;
+        // supabase-read-unchecked-ok: a failed read counts as "not a participant",
+        // which only adds an extra audit row; it never grants or hides access.
         const [{ data: asClient }, { data: asParticipant }] = await Promise.all([
           svc.from("inquiries").select("id").eq("id", iqId).eq("client_user_id", userId).maybeSingle(),
           svc
