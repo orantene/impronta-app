@@ -5469,6 +5469,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return (
         builder2027SecondaryLabel(node) ?? BUILDER_NODE_REGISTRY[node.kind].label
       );
+    case "app_nail_designer":
+      return BUILDER_NODE_REGISTRY[node.kind].label;
   }
 }
 
