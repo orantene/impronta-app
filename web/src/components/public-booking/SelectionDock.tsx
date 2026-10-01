@@ -48,6 +48,16 @@ export function ChatIcon({ size }: { size: number }) {
   );
 }
 
+/** Category-neutral service glyph: the thumbnail fallback when a service has no photo. */
+function ServiceGlyph({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+      <path d="M18.5 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
+    </svg>
+  );
+}
+
 export function SelectionDock({
   items,
   show,
@@ -71,7 +81,7 @@ export function SelectionDock({
   onUndo: () => void;
 }) {
   const copy = selectionDockCopy(locale);
-  // DK-1: the chat button wears her photo when the chat is live on this page.
+  // The chat button shows online / unread dots when the chat is live on this page.
   const presence = useSyncExternalStore(subscribeChatPresence, peekChatPresence, () => null);
   const front = items[0] ?? null;
   const { name, line } = dockSummary(items, locale, formatPrice);
@@ -83,7 +93,6 @@ export function SelectionDock({
     <button
       type="button"
       className="cb-dock-x"
-      data-inline={frontHasThumb ? undefined : "true"}
       aria-label={copy.remove(front.title)}
       onClick={onRemoveFront}
     >
@@ -104,37 +113,36 @@ export function SelectionDock({
         aria-hidden={show && items.length > 0 ? undefined : true}
         inert={show && items.length > 0 ? undefined : true}
       >
-        {frontHasThumb ? (
-          <div className="cb-dock-stack">
-            {thumbs.map((t) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={t.id} src={t.imageUrl} alt="" className="cb-dock-th" />
-            ))}
-            {removeBtn}
-            {items.length > 1 ? <span className="cb-dock-count">{items.length}</span> : null}
-          </div>
-        ) : (
-          removeBtn
-        )}
-        <div className="cb-dock-info">
-          <b>{name}</b>
-          <span>{line}</span>
-        </div>
+        {/* The chat button: always the speech-bubble icon, never a photo (a photo next to the
+            selected service reads as the service's image). Dots show online and unread. */}
         <button
           type="button"
           className="cb-dock-ask"
           aria-label={items.length > 1 ? copy.askMany : copy.ask}
           onClick={onAsk}
         >
-          {presence?.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- tenant avatar URL, small
-            <img src={presence.photoUrl} alt="" className="cb-dock-avatar" data-dock-avatar="" />
-          ) : (
-            <ChatIcon size={20} />
-          )}
-          <span className="cb-dock-dot" aria-hidden />
+          <ChatIcon size={20} />
+          {presence ? <span className="cb-dock-dot" aria-hidden /> : null}
           {presence?.unread ? <span className="cb-dock-unread" data-dock-unread="" aria-hidden /> : null}
         </button>
+        <div className="cb-dock-stack" data-dock-thumb={frontHasThumb ? "photo" : "icon"}>
+          {frontHasThumb ? (
+            thumbs.map((t) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={t.id} src={t.imageUrl} alt="" className="cb-dock-th" />
+            ))
+          ) : (
+            <span className="cb-dock-th cb-dock-th-icon" aria-hidden>
+              <ServiceGlyph size={18} />
+            </span>
+          )}
+          {removeBtn}
+          {items.length > 1 ? <span className="cb-dock-count">{items.length}</span> : null}
+        </div>
+        <div className="cb-dock-info">
+          <b>{name}</b>
+          <span>{line}</span>
+        </div>
         <button type="button" className="cb-dock-go" onClick={onContinue}>
           {copy.continueLabel} <span className="cb-dock-arr" aria-hidden>→</span>
         </button>

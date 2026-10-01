@@ -198,14 +198,15 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .cb-island .cb-bar[data-bar-style="pill"] .cb-bar-go{background:${ACCENT};color:var(--token-color-primary-on,var(--token-color-background));font-weight:${v("button.font-weight")};font-family:var(--site-body-font,inherit)}`,
   // Active: chat first, then the summary, then Continue, in the same capsule.
   `${S} .cb-island .cb-dock{left:12px;right:12px;bottom:14px;gap:8px;padding:6px;border-radius:${v("button.radius")};${frosted}}`,
-  `${S} .cb-island .cb-dock-stack{display:none}`,
+  // The service thumbnail sits right of the chat button, inside the summary; one small rounded tile.
+  `${S} .cb-island .cb-dock-th{width:40px;height:40px;border-width:0;border-radius:${v("shape.thumb-radius")};margin-left:0;transform:none}`,
+  `${S} .cb-island .cb-dock-th-icon{background:var(--token-color-blush,var(--token-color-surface-raised));color:${ACCENT}}`,
+  `${S} .cb-island .cb-dock-count{display:none}`,
   `${S} .cb-island .cb-dock-ask{order:-1;width:${v("button.height")};height:${v("button.height")};border:0;background:var(--token-color-blush,var(--token-color-surface-raised));color:${ACCENT}}`,
   `${S} .cb-island .cb-dock-info{padding:0 4px}`,
   `${S} .cb-island .cb-dock-go{height:${v("button.height")};border-radius:${v("button.radius")};padding:0 ${v("button.padding-x")};background:${ACCENT};font-weight:${v("button.font-weight")}}`,
   `${S} .cb-island .cb-dock-go::after,${S} .cb-island .cb-dock-arr{display:none}`,
   `${MQ_DESK}{${S} .cb-island .cb-dock{left:50%;right:auto;transform:translateX(-50%);width:560px;bottom:22px}}`,
-  // Chat button wears her photo (DK-1); the avatar fills the round button.
-  `${S} .cb-island .cb-dock-ask:has(.cb-dock-avatar){padding:0;border:0}`,
   // Toast (TO-1): dark pill, radius 14, 10/12/10/14 padding, rises in .2s; sits above the dock.
   `${S} .cb-island .cb-dock-toast{border-radius:14px;padding:10px 12px 10px 14px;bottom:calc(84px + env(safe-area-inset-bottom));transition:opacity .2s ease,transform .2s ease}`,
   `${MQ_DESK}{${S} .cb-island .cb-dock-toast{bottom:96px}}`,
