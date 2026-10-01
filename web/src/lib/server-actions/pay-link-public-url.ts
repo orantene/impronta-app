@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 
+import { loadPaymentLinkByCode } from "@/lib/payments/links";
 import { paymentLinkPublicUrl } from "@/lib/payments/pay-link-url";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
@@ -16,8 +17,9 @@ export async function resolvePayLinkPublicUrl(input: { code: string }): Promise<
   if (!/^[a-z0-9]{8,64}$/i.test(code)) return { url: null };
   const admin = createServiceRoleClient();
   if (!admin) return { url: null };
-  const { data } = await admin.from("payment_links").select("tenant_id").eq("code", code).maybeSingle();
-  const tenantId = (data as { tenant_id?: string } | null)?.tenant_id;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
+  const link = await loadPaymentLinkByCode(admin as any, code);
+  const tenantId = link.ok ? link.tenantId : null;
   if (!tenantId) return { url: null };
   let requested = "";
   try {
