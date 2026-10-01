@@ -37,6 +37,8 @@ export const UTILITY_TYPE_SYSTEM_CSS = [
   `${U} :is(h1,h2,h3){${displayType};text-wrap:balance}`,
   `${U} h2{font-size:${v("type.section-title-size")}}`,
   `${U} :is(${TITLE_HOOKS}){margin:4px 0 0;${displayType};font-size:${v("type.section-title-size")};color:var(--token-color-ink)}`,
+  // The FAQ band heading is a size-xl heading block; it follows the section-title tokens like every other Gridline title.
+  `${U} #faq .site-builder-node--heading{font-size:${v("type.section-title-size")}}`,
   `${U} #hero h1{margin:10px 0 0;font-size:${v("type.hero-size")};line-height:${v("type.hero-line-height")}}`,
   `${U} p.site-builder-node--paragraph{color:var(--token-color-muted)}`,
   // Label role: eyebrows and uppercase paragraphs read as mono spec labels.
@@ -48,7 +50,7 @@ export const UTILITY_TYPE_SYSTEM_CSS = [
   `${U} .site-builder-node--button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:${v("button.height")};padding:0 ${v("button.padding-x")};border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);font-size:${v("button.font-size")};font-weight:${v("button.font-weight")};font-family:var(--site-body-font,inherit);white-space:nowrap;text-decoration:none;text-transform:none;letter-spacing:0}`,
   `${U} :is(.site-builder-node--button[data-builder-button-tone="primary"],.site-builder-node--button-primary){background:${ACCENT};color:${ACCENT_ON}}`,
   `${U} :is(.site-builder-node--button[data-builder-button-tone="secondary"],.site-builder-node--button-secondary){background:transparent;color:var(--token-color-ink)}`,
-  `${MQ_DESK}{${U} #hero h1{font-size:${v("type.hero-size-desktop")};line-height:${v("type.hero-line-height-desktop")}}${U} h2,${U} :is(${TITLE_HOOKS}){font-size:${v("type.section-title-size-desktop")}}}`,
+  `${MQ_DESK}{${U} #hero h1{font-size:${v("type.hero-size-desktop")};line-height:${v("type.hero-line-height-desktop")}}${U} h2,${U} :is(${TITLE_HOOKS}){font-size:${v("type.section-title-size-desktop")}}${U} #faq .site-builder-node--heading{font-size:${v("type.section-title-size-desktop")}}}`,
 ].join("\n");
 
 /**

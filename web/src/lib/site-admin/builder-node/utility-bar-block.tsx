@@ -34,7 +34,7 @@ export const UTILITY_BAR_CSS = `
 .sb-ub-cta{display:none;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:6px;background:var(--token-color-accent,var(--token-color-primary));color:var(--token-color-on-accent,var(--token-color-ink));font-weight:700;font-size:14px;text-decoration:none;white-space:nowrap}
 .sb-ub-tel{flex:0 0 auto;width:44px;height:44px;border-radius:99px;border:1.5px solid color-mix(in srgb,var(--token-color-background) 28%,transparent);color:var(--token-color-background);display:grid;place-items:center;text-decoration:none;box-sizing:border-box}
 .sb-ub-tel svg{width:18px;height:18px}
-@container sbub (max-width:370px){.sb-ub-nm small{display:none}.sb-ub-pill{padding:0 10px}.sb-ub-pill span{display:none}}
+@container sbub (max-width:330px){.sb-ub-nm small{display:none}.sb-ub-pill{padding:0 10px}.sb-ub-pill span{display:none}}
 @container sbub (min-width:900px){.sb-ub{padding:12px 40px;gap:14px}.sb-ub-cta{display:inline-flex}}
 `;
 
