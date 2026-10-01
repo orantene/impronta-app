@@ -106,22 +106,27 @@ export async function loadSiteDraftState(
   admin: SupabaseClient,
   talentProfileId: string,
 ): Promise<SiteDraftState | null> {
-  const { data: site, error } = await admin
-    .from("talent_sites")
-    .select(
-      "id, draft_rev, site_slug, site_published_at, shell_tree, shell_published, design_tokens_draft, design_tokens, theme_design_slug, theme_design_version",
-    )
-    .eq("talent_profile_id", talentProfileId)
-    .maybeSingle();
+  // Independent reads: one parallel step (the pages query needs no site id).
+  const [siteRes, pagesRes] = await Promise.all([
+    admin
+      .from("talent_sites")
+      .select(
+        "id, draft_rev, site_slug, site_published_at, shell_tree, shell_published, design_tokens_draft, design_tokens, theme_design_slug, theme_design_version",
+      )
+      .eq("talent_profile_id", talentProfileId)
+      .maybeSingle(),
+    admin
+      .from("talent_pages")
+      .select("id, slug, title, is_home, sort_order, blocks, blocks_published")
+      .eq("talent_profile_id", talentProfileId)
+      .order("sort_order", { ascending: true }),
+  ]);
+  const { data: site, error } = siteRes;
+  const { data: pages, error: pagesErr } = pagesRes;
   if (error || !site) {
     if (error) logServerError("talentSiteHistory.loadState.site", error);
     return null;
   }
-  const { data: pages, error: pagesErr } = await admin
-    .from("talent_pages")
-    .select("id, slug, title, is_home, sort_order, blocks, blocks_published")
-    .eq("talent_profile_id", talentProfileId)
-    .order("sort_order", { ascending: true });
   if (pagesErr) {
     logServerError("talentSiteHistory.loadState.pages", pagesErr);
     return null;
