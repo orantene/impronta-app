@@ -45,6 +45,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "utility_bar",
   "alert_band",
   "task_picker",
+  "app_nail_designer",
 ];
 
 /**
@@ -125,6 +126,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     utility_bar: "structure",
     alert_band: "structure",
     task_picker: "actions",
+    app_nail_designer: "actions",
     reserve_table: "actions",
     next_free_chip: "actions",
     session_picker: "actions",
@@ -227,6 +229,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   utility_bar: "utility bar header status pill emergencies call phone tap to call llamar urgencias",
   alert_band: "alert band emergency hazard tape urgent same day banner urgencia emergencia",
   spec_table: "spec table specifications key value rows voltage warranty price payment facts ficha tecnica datos",
+  app_nail_designer: "nail designer app manicure nails polish colour shape finish design disenador de unas manicura esmalte",
   task_picker: "task picker what is happening problem recommend service help me choose tareas que pasa recomendar servicio",
   comp_card: "comp card measure strip measurements height bust waist hips vitals details ficha profile fields",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
@@ -325,6 +328,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "utility_bar",
     "alert_band",
     "task_picker",
+    "app_nail_designer",
     "next_free_chip",
     "reserve_table",
     "session_picker",

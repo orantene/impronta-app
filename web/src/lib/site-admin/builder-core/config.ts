@@ -460,7 +460,7 @@ export function buildTalentPageBuilderConfig(
       canInsertRawHtmlElements: false,
     },
     galleryPolicy: {
-      allowedTabs: ["blocks", "designs", "data", "page_templates"],
+      allowedTabs: ["blocks", "designs", "data", "page_templates", "apps"],
       allowDbTemplates: true,
       // X4 — the talent PROFILE page surface (distinct toggle from the talent
       // Max-site shell, which is the site_shell surface).
@@ -732,7 +732,7 @@ export function buildThemeTemplateBuilderConfig(
       canInsertRawHtmlElements: false,
     },
     galleryPolicy: {
-      allowedTabs: ["blocks", "designs", "data", "page_templates"],
+      allowedTabs: ["blocks", "designs", "data", "page_templates", "apps"],
       allowDbTemplates: true,
       surfaceKey: "talent_profile",
     },

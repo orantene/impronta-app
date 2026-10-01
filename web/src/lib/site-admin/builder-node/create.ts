@@ -6,6 +6,7 @@ import type {
 import { createBuilderSectionEmbed } from "./section-embed-presets";
 import { makeId, randomUuid } from "./make-id";
 import { createGridlineNode } from "./create-gridline";
+import { cloneNailDesignerDefaultProps } from "./nail-designer-model";
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
 // randomUuid is the secure-context-safe raw-id generator (see make-id.ts).
@@ -258,6 +259,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
     case "ticket_picker": return { id: makeId("ticket_picker"), kind: "ticket_picker", props: { eventId: "", title: "" } };
     // No eventId on purpose: a linked page binds itself (dataSources.linkedEventId).
     case "event_program": return { id: makeId("event_program"), kind: "event_program", props: { layout: "timeline", groupBy: "auto" } };
+    case "app_nail_designer":
+      return { id: makeId("app_nail_designer"), kind: "app_nail_designer", props: cloneNailDesignerDefaultProps() };
     case "session_picker":
       return { id: makeId("session_picker"), kind: "session_picker", props: { offeringId: "", title: "" } };
     case "reserve_table":

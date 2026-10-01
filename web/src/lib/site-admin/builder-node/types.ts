@@ -66,6 +66,8 @@ export type BuilderNodeKind =
   /** Gridline same-day emergency band; renders only while the flag is on. */
   | "alert_band"
   | "task_picker"
+  /** Apps: interactive mini-tools (registry-driven; first app = Nail Designer). */
+  | "app_nail_designer"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1578,6 +1580,24 @@ export interface BuilderAlertBandNode extends BuilderNodeBase {
  * in EN with an optional ES twin per row. References only: no offering data
  * is copied into the node.
  */
+export interface BuilderAppNailDesignerNode extends BuilderNodeBase {
+  kind: "app_nail_designer";
+  props: {
+    title?: string;
+    intro?: string;
+    /** Offered option ids per group. Absent = all offered; empty = group off. */
+    shapes?: string[];
+    colors?: string[];
+    arts?: string[];
+    finishes?: string[];
+    charms?: string[];
+    ctaLabel?: string;
+    /** Show the CTA that hands the design summary to booking / inquiry. Default on. */
+    sendWithBooking?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderTaskPickerNode extends BuilderNodeBase {
   kind: "task_picker";
   props: {
@@ -2716,6 +2736,7 @@ export type BuilderNode =
   | BuilderUtilityBarNode
   | BuilderAlertBandNode
   | BuilderTaskPickerNode
+  | BuilderAppNailDesignerNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

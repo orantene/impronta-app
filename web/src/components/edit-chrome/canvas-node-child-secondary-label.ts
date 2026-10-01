@@ -105,6 +105,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Utility bar · status and call";
     case "alert_band":
       return "Alert band · same-day emergency";
+    case "app_nail_designer":
+      return "Nail Designer · interactive app";
     case "task_picker":
       return "Task picker · tasks and recommended services";
     case "spec_table":

@@ -96,6 +96,7 @@ import { CompCardContentInspector } from "./comp-card-inspector";
 import { SpecTableContentInspector } from "./spec-table-inspector";
 import { UtilityBarContentInspector, AlertBandContentInspector } from "./utility-bar-inspector";
 import { TaskPickerContentInspector } from "./task-picker-inspector";
+import { NailDesignerContentInspector } from "./nail-designer-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1626,6 +1627,29 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "task_picker") {
     return <TaskPickerContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "app_nail_designer") {
+    const nailProps = node.props as Record<string, unknown>;
+    return (
+      <NailDesignerContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        renderText={(prop, label, kind, placeholder) => (
+          <BuilderNodeLocalizableTextField
+            node={node}
+            prop={prop}
+            tenantId={tenantId}
+            fieldKind={kind}
+            baseValue={typeof nailProps[prop] === "string" ? (nailProps[prop] as string) : ""}
+            ariaLabel={label}
+            className={kind === "textarea" ? KIT.textarea : KIT.input}
+            placeholder={placeholder}
+            onCommitBase={(next) => commitPatch({ [prop]: next })}
+            patch={commitPatch}
+          />
+        )}
+      />
+    );
   }
   if (node.kind === "spec_table") {
     return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
