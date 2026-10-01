@@ -36,7 +36,7 @@ import { interpolate } from "@/i18n/interpolate";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
-import { CardChatPanel } from "./CardChatColumn";
+import { CardDockFrame } from "./CardDockFrame";
 import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
@@ -765,8 +765,8 @@ export function MiniChatPanel({
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
-  // `chat.variant = card`: same engine + props, the one-to-one card chrome.
-  if (chatCard) return <CardChatPanel {...columnProps} card={chatCard} compact={compactSheet} keyboardInsetPx={keyboardInsetPx} />;
+  // `chat.variant = card`: the SAME dock column inside the card frame (tabs, rail, views all live).
+  if (chatCard) return <CardDockFrame card={chatCard} accent={accent} accentInk={accentInk} compact={compactSheet} expanded={expanded} keyboardInsetPx={keyboardInsetPx} onClose={onClose} ariaLabel={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.talentDisplayName || brand.agencyName })}><MiniChatPanelColumn {...columnProps} card={chatCard} /></CardDockFrame>;
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
   if (expanded) {
     return (

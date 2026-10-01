@@ -236,7 +236,8 @@ test("CH-4 asking the page to add a service is one event the catalog island owns
 });
 
 test("CH wiring: the card chat no longer closes itself to scroll to #services", () => {
-  const col = src("CardChatColumn.tsx");
+  // The card is a skin on the ONE dock now: the pieces live in the Card* files.
+  const col = [src("CardDockServicesView.tsx"), src("CardDockChatExtras.tsx"), src("CardDockHeader.tsx"), src("GuestDockChrome.tsx"), src("MiniChatPanelColumn.tsx")].join("\n");
   assert.doesNotMatch(col, /getElementById\("services"\)/);
   assert.doesNotMatch(col, /seeServices/);
   assert.match(col, /<CardChatServiceBrowser/);

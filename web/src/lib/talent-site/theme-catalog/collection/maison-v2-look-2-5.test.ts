@@ -296,7 +296,7 @@ test("motion: the booking sheet, scrim, chat panel and busy ring take the mockup
   assert.match(CATALOG_BOOKING_CSS, /animation:jb-fade 200ms cubic-bezier\(\.22,1,\.36,1\)/);
   assert.match(CATALOG_BOOKING_CSS, /animation:jb-rise 300ms cubic-bezier\(\.22,1,\.36,1\)/);
   // The chat panel is marked, and carries no inline animation of its own.
-  const chat = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../../../app/t/[profileCode]/_chat/CardChatColumn.tsx"), "utf8");
+  const chat = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../../../app/t/[profileCode]/_chat/CardDockFrame.tsx"), "utf8");
   assert.match(chat, /data-tl-motion=""/);
   assert.doesNotMatch(chat, /tl-rise/);
 });
