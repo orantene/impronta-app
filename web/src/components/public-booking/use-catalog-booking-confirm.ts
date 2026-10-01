@@ -12,6 +12,7 @@ import {
 import type { CatalogBookingMode } from "./catalog-booking-logic";
 import { catalogTakenSlotMessage, type CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
 type Step = "choose" | "when" | "who" | "done";
 
@@ -27,6 +28,8 @@ export function useCatalogBookingConfirm(input: {
   allowPayInPerson: boolean;
   variantId: string | null;
   addOnIds: string[];
+  /** G9b: task-picker brief, sent only on confirm. */
+  brief?: OfferingTaskBrief | null;
   liveStarts: string | null;
   liveTz: string;
   liveDays: Array<{ starts: string[] }>;
@@ -115,6 +118,7 @@ export function useCatalogBookingConfirm(input: {
         contactPhone: input.phone.trim() || null,
         variantId: input.variantId,
         addOnIds: input.addOnIds,
+        brief: input.brief ?? null,
         liveStarts: input.liveStarts,
         liveTz: input.liveTz,
         bookingDurationMinutes: input.bookingDurationMinutes,
