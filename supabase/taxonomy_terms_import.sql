@@ -238,7 +238,7 @@ VALUES
   ('location_country', 'fr', 'France', 'Francia', ARRAY[]::text[], 50),
   ('location_country', 'ae', 'United Arab Emirates', 'Emiratos Arabes Unidos', ARRAY[]::text[], 60),
 
-  ('location_city', 'cancun', 'Cancun', 'Cancun', ARRAY[]::text[], 10),
+  ('location_city', 'cancun', 'Cancún', 'Cancún', ARRAY[]::text[], 10),
   ('location_city', 'playa-del-carmen', 'Playa del Carmen', 'Playa del Carmen', ARRAY[]::text[], 20),
   ('location_city', 'ibiza', 'Ibiza', 'Ibiza', ARRAY[]::text[], 30),
   ('location_city', 'tulum', 'Tulum', 'Tulum', ARRAY[]::text[], 40),

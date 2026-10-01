@@ -8,20 +8,18 @@
 BEGIN;
 
 -- Ensure the canonical seeded locations used by this pack exist.
+-- Names keep their accents, and a seed must never overwrite a curated name
+-- (an ASCII "Cancun" here once clobbered the real "Cancún" row).
 INSERT INTO public.locations (
   country_code,
   city_slug,
-  display_name_en,
-  display_name_es
+  display_name_i18n
 )
 VALUES
-  ('MX', 'cancun', 'Cancun', 'Cancun'),
-  ('MX', 'playa-del-carmen', 'Playa del Carmen', 'Playa del Carmen'),
-  ('ES', 'ibiza', 'Ibiza', 'Ibiza')
-ON CONFLICT (country_code, city_slug) DO UPDATE
-SET display_name_en = EXCLUDED.display_name_en,
-    display_name_es = EXCLUDED.display_name_es,
-    updated_at = now();
+  ('MX', 'cancun', '{"en":"Cancún","es":"Cancún"}'::jsonb),
+  ('MX', 'playa-del-carmen', '{"en":"Playa del Carmen","es":"Playa del Carmen"}'::jsonb),
+  ('ES', 'ibiza', '{"en":"Ibiza","es":"Ibiza"}'::jsonb)
+ON CONFLICT (country_code, city_slug) DO NOTHING;
 
 WITH seed_talent (
   profile_code,
