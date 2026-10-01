@@ -200,7 +200,10 @@ export async function createCheckoutSessionForTransaction(
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      payment_method_types: ["card"],
+      // No `payment_method_types`: Stripe's dynamic payment methods use the
+      // Dashboard payment-method configuration (Link, wallets, installments,
+      // crypto, and delayed methods such as OXXO/SPEI once enabled). Delayed
+      // methods settle via `checkout.session.async_payment_*` (webhook-routing).
       line_items: [
         {
           quantity: 1,
