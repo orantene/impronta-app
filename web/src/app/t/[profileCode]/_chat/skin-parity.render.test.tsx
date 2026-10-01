@@ -52,7 +52,7 @@ function column(card: ChatCardConfig | null, over: Partial<MiniChatPanelColumnPr
     open: true,
     expanded: false,
     inquiryId: "i1",
-    rows: [row("m1", "guest", "Hola, quiero una cita"), row("m2", "coordinator", "Claro, tengo hueco el viernes")],
+    rows: [row("m1", "guest", "Hola, quiero una cita"), row("m2", "staff", "Claro, tengo hueco el viernes")],
     scrollRef: createRef<HTMLDivElement>(),
     stage: "thread",
     threadStatus: "open",
@@ -164,7 +164,7 @@ for (const { name, card } of SKINS) {
 
   test(`[${name}] typed cards (offers, receipts) still render through the shared bubble`, () => {
     const html = renderToStaticMarkup(
-      <MiniChatMessageBubble m={row("m3", "coordinator", "Tu oferta") as StreamRow} accent="#2b8a63" locale="es" surfaceMode={card ? "card" : "light"} />,
+      <MiniChatMessageBubble m={row("m3", "staff", "Tu oferta") as StreamRow} accent="#2b8a63" locale="es" surfaceMode={card ? "card" : "light"} />,
     );
     assert.match(html, /Tu oferta/);
   });
