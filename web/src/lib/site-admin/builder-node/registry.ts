@@ -1323,17 +1323,11 @@ export const taskPickerPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
-/** Apps: Nail Designer. Option lists hold catalog ids (nail-designer-model). */
+/** Apps: Nail Designer. Zero config; only optional text overrides. */
 export const appNailDesignerPropsSchema = z.object({
   title: z.string().max(120).optional(),
   intro: z.string().max(400).optional(),
-  shapes: z.array(z.string().max(24)).max(12).optional(),
-  colors: z.array(z.string().max(24)).max(40).optional(),
-  arts: z.array(z.string().max(24)).max(12).optional(),
-  finishes: z.array(z.string().max(24)).max(12).optional(),
-  charms: z.array(z.string().max(24)).max(12).optional(),
   ctaLabel: z.string().max(60).optional(),
-  sendWithBooking: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -2451,7 +2445,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "app_nail_designer",
       label: "Nail Designer",
       description:
-        "An interactive nail design tool. Visitors pick shapes, colours, finishes and art, then send the design with their booking request.",
+        "An interactive nail design tool. Visitors style a manicure nail by nail, then send the design with their booking request. Nothing to set up.",
       children: { type: "none" },
       propsSchema: appNailDesignerPropsSchema,
     },

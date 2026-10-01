@@ -1582,18 +1582,11 @@ export interface BuilderAlertBandNode extends BuilderNodeBase {
  */
 export interface BuilderAppNailDesignerNode extends BuilderNodeBase {
   kind: "app_nail_designer";
+  /** Zero-config drop-in: every prop is an optional text override. */
   props: {
     title?: string;
     intro?: string;
-    /** Offered option ids per group. Absent = all offered; empty = group off. */
-    shapes?: string[];
-    colors?: string[];
-    arts?: string[];
-    finishes?: string[];
-    charms?: string[];
     ctaLabel?: string;
-    /** Show the CTA that hands the design summary to booking / inquiry. Default on. */
-    sendWithBooking?: boolean;
     style?: BuilderNodeStyle;
   };
 }
