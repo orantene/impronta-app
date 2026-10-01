@@ -16,10 +16,24 @@
  */
 import { notFound } from "next/navigation";
 
+import { isPlatformAdmin } from "@/lib/access/platform-role";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "@/app/%5Ftalent-site/TalentSiteMessagesDock";
+
+async function isAdminViewingDemo(talentProfileId: string): Promise<boolean> {
+  const session = await getCachedActorSession();
+  if (!isPlatformAdmin(session.profile)) return false;
+  const { data } = await createServiceRoleClient()
+    .from("talent_profiles")
+    .select("is_demo")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  return data?.is_demo === true;
+}
 
 export async function LiveSitePreview({
   talentProfileId,
@@ -31,7 +45,9 @@ export async function LiveSitePreview({
   const id = talentProfileId?.trim();
   if (!id) notFound();
   const scope = await requireTalentSelf();
-  if (!scope.ok || scope.talentProfile.id !== id) notFound();
+  const isOwner = scope.ok && scope.talentProfile.id === id;
+  // Platform admins may preview DEMO talents' live sites (theme release QA).
+  if (!isOwner && !(await isAdminViewingDemo(id))) notFound();
 
   const result = await renderTalentMaxSite({
     talentProfileId: id,
