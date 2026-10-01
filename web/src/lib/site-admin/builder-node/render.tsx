@@ -151,6 +151,7 @@ import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
+import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
@@ -5873,7 +5874,7 @@ function renderBuilderNodeElement(
         : [{ name: null, items: visible }];
 
       const navMode =
-        layout === "featured"
+        layout === "featured" || layout === "matrix"
           ? "flat"
           : !showCategoryNav && !accordionNav
             ? "flat"
@@ -5908,7 +5909,7 @@ function renderBuilderNodeElement(
           data-density={p.density ?? "comfortable"}
           data-category-nav={categoryNav}
           data-show-photo={
-            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
               ? "true"
               : "false"
           }
@@ -5956,7 +5957,7 @@ function renderBuilderNodeElement(
             <ServicesCatalogLoadingSkeleton
               locale={locale}
               showPhoto={
-                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
               }
               rows={Math.min(Math.max(visible.length, 4), 6)}
             />
@@ -5969,7 +5970,7 @@ function renderBuilderNodeElement(
                   groups={groups}
                   locale={locale}
                   showPhoto={
-                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
                   }
                   showDuration={p.showDuration !== false}
                   showUsdEquivalent={p.showUsdEquivalent !== false}
@@ -5982,7 +5983,7 @@ function renderBuilderNodeElement(
                 locale={locale}
                 nav={navMode}
                 showPhoto={
-                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
                 }
                 showDescription={p.showDescription !== false}
                 showCategory={p.showCategory === true}
@@ -6013,6 +6014,8 @@ function renderBuilderNodeElement(
                 captcha={options.captcha ?? null}
                 bookingSettings={options.dataSources.talentOfferingsBookingSettings}
                 onlineCollectReady={options.dataSources.onlineCollectReady}
+                matrix={layout === "matrix"}
+                liveStatus={options.dataSources.liveStatus ?? null}
               />
             </CatalogIslandBoundary>
           )}
@@ -8706,6 +8709,9 @@ function renderBuilderNodeElement(
       const items = p.items ?? [];
       const eyebrow = text("eyebrow", p.eyebrow);
       const headline = text("headline", p.headline);
+      if (p.variant === "spec") {
+        return renderStatsSpecBlock({ node, styleAttr: sharedNodeStyle(p.style) });
+      }
       const animate = p.animate !== false;
       return (
         <section

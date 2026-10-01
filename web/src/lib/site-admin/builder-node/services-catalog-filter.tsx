@@ -24,6 +24,8 @@ import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchas
 import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
+import { CatalogMatrix } from "./services-catalog-matrix";
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
 import {
   EMPTY_DOCK,
@@ -141,6 +143,8 @@ export function ServicesCatalogFilter({
   captcha = null,
   bookingSettings = DEFAULT_SHEET_BOOKING_SETTINGS,
   onlineCollectReady,
+  matrix = false,
+  liveStatus = null,
 }: {
   groups: CatalogGroup[];
   locale: string;
@@ -179,6 +183,9 @@ export function ServicesCatalogFilter({
   bookingSettings?: CatalogSheetBookingSettings;
   /** PAY-2 B — platform Checkout ready; omit → sheet default true. */
   onlineCollectReady?: boolean;
+  /** layout "matrix": one comparison table (wide) / stacked cards (narrow). */
+  matrix?: boolean;
+  liveStatus?: LiveStatusRenderContext | null;
 }) {
   const named = groups.filter((g) => g.name);
   const first = named[0]?.name ?? null;
@@ -412,7 +419,7 @@ export function ServicesCatalogFilter({
       ) : null}
 
       <div className="site-builder-node--services-catalog-groups">
-      {groups.map((g) => {
+      {matrix ? <CatalogMatrix items={groups.flatMap((g) => g.items.filter(matchesSearch))} locale={locale} confirmsByHand={confirmsByHand} bookingPosture={bookingPosture} ctaLabel={ctaLabel} liveStatus={liveStatus} selectedIds={dock.picked.map((p) => p.id)} onSelect={(item) => onRowAction(item)} /> : groups.map((g) => {
         // Changing filter must not clear selectedId / booking sheet state (brief §7).
         const hidden =
           filterNav && active !== null && Boolean(g.name) && active !== g.name;

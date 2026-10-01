@@ -42,6 +42,8 @@ export const UTILITY_TYPE_SYSTEM_CSS = [
   // Label role: eyebrows and uppercase paragraphs read as mono spec labels.
   `${U} p.site-builder-node--paragraph[style*="text-transform:uppercase"]{${labelType}}`,
   `${U} :is(${EYEBROW_HOOKS}){margin:0 0 4px;${labelType};text-transform:uppercase;color:${ACCENT_TEXT}}`,
+  // Hero spec block (G7): the kicker and badges carry a letter-spacing signature, read as the mono label role.
+  `${U} p.site-builder-node--paragraph[style*="letter-spacing:.02em"]{font-family:${UTILITY_LABEL_FACE}}`,
   // Buttons: ink-ruled, the accent fill carries accent-on.
   `${U} .site-builder-node--button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:${v("button.height")};padding:0 ${v("button.padding-x")};border-radius:${v("button.radius")};border:${RULE} solid var(--token-color-ink);font-size:${v("button.font-size")};font-weight:${v("button.font-weight")};font-family:var(--site-body-font,inherit);white-space:nowrap;text-decoration:none;text-transform:none;letter-spacing:0}`,
   `${U} :is(.site-builder-node--button[data-builder-button-tone="primary"],.site-builder-node--button-primary){background:${ACCENT};color:${ACCENT_ON}}`,

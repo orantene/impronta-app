@@ -2,6 +2,7 @@ import type { AddGalleryItem } from "./types";
 import { connected, section } from "./registry-helpers";
 import { AREA_DEFAULT_PROPS, LOCATION_DEFAULT_PROPS } from "../builder-node/visit-defaults";
 import { PORTFOLIO_DEFAULT_PROPS } from "../builder-node/portfolio-defaults";
+import { SERVICES_CATALOG_DEFAULT_PROPS } from "../builder-node/services-catalog-defaults";
 
 export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem> = [
   // ── Sections / Hero ─────────────────────────────────────────────────────
@@ -499,6 +500,21 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     sourceType: "native-freeform",
     connectedSource: "Your services",
     searchTerms: ["services", "menu", "prices", "catalog", "offerings"],
+  }),
+  connected({
+    id: "conn-services-matrix-native",
+    label: "Services comparison",
+    description:
+      "Your services side by side: price, length, how it is booked, materials, warranty and response. A table on desktop, stacked cards on a phone.",
+    category: "booking",
+    icon: "booking",
+    insertMethod: "nativeNode",
+    nativeKind: "services_catalog",
+    // Same node kind as `conn-services-catalog-native`; this card starts in the matrix layout.
+    defaultProps: { ...SERVICES_CATALOG_DEFAULT_PROPS, layout: "matrix", categoryNav: "none", showStats: false },
+    sourceType: "native-freeform",
+    connectedSource: "Your services",
+    searchTerms: ["comparison", "compare", "matrix", "table", "servicios", "comparar", "garantia", "warranty", "materials"],
   }),
   connected({
     id: "conn-portfolio-native",

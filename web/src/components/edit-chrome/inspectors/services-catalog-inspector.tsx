@@ -487,7 +487,7 @@ export function ServicesCatalogLayoutInspector({
   const layout = catalog.layout ?? "rows";
   const showColumns = layout === "cards" || layout === "grid" || layout === "editorial";
   const showPhotoCorners =
-    layout !== "compact_list" && layout !== "rate_card" && catalog.showPhoto !== false;
+    layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix" && catalog.showPhoto !== false;
   return (
     <div className="flex flex-col gap-3" data-builder-node-layout-panel="services_catalog">
       <div className={KIT.field}>
@@ -504,6 +504,7 @@ export function ServicesCatalogLayoutInspector({
           <option value="rate_card">Rate card (hairline)</option>
           <option value="editorial">Editorial cards</option>
           <option value="featured">Featured offering</option>
+          <option value="matrix">Comparison matrix</option>
         </select>
         <p className="text-xs text-black/50">
           Suggested from your catalog: photo-led → cards; many items without photos → compact list;

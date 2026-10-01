@@ -1591,8 +1591,8 @@ export interface BuilderNextFreeChipNode extends BuilderNodeBase {
 export interface BuilderServicesCatalogNode extends BuilderNodeBase {
   kind: "services_catalog";
   props: {
-    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; rate_card = hairline name/duration/price; featured = one hero + rest */
-    layout?: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured";
+    /** rows = service list (mockup default); cards/grid/editorial = image cards; compact_list = price menu; rate_card = hairline name/duration/price; featured = one hero + rest; matrix = comparison table (wide) / stacked cards (narrow) */
+    layout?: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured" | "matrix";
     /** rail = sticky desktop side filter + phone chips (Maison v2 menu). */
     categoryNav?: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
     eyebrow?: string;
@@ -2306,7 +2306,8 @@ export interface BuilderStatsNode extends BuilderNodeBase {
       prefix?: string;
       suffix?: string;
     }>;
-    variant?: "row" | "grid" | "split";
+    /** spec = bordered typed spec cells (label over value, no count-up). */
+    variant?: "row" | "grid" | "split" | "spec";
     align?: "start" | "center";
     columns?: number;
     /** Count up from zero when the band scrolls into view. */

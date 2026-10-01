@@ -33,6 +33,7 @@ import {
   heroCover,
   heroMasthead,
   heroSplit,
+  heroSpecBlock,
   servicesBlock,
 } from "./section-kit";
 
@@ -57,6 +58,15 @@ const SECTIONS: Array<[string, BuilderNode]> = [
       accent: true,
     }),
   ],
+  [
+    "heroSpecBlock",
+    heroSpecBlock(ids(), {
+      specs: [{ label: "Respuesta", value: "24 h" }],
+      badges: ["12 años"],
+      ctaRow: { primaryLabel: "Ver horarios", primaryHref: "#services", secondaryLabel: "Pregunta", secondaryHref: "#pick" },
+    }),
+  ],
+  ["heroSpecBlock empty", heroSpecBlock(ids())],
   ["beforeAfterBlock", beforeAfterBlock(ids())],
   ["aftercareBlock", aftercareBlock(ids())],
   ["locationBlock", locationBlock(ids())],

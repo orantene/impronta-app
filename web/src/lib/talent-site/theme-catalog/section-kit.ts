@@ -747,6 +747,7 @@ export { beforeAfterBlock } from "./section-kit-before-after";
 export { aftercareBlock } from "./section-kit-aftercare";
 export { locationBlock } from "./section-kit-location";
 export { areaBlock, proofBlock } from "./section-kit-proof";
+export { heroSpecBlock } from "./section-kit-hero-spec";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

@@ -225,6 +225,12 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Area card": "Tarjeta de zona",
   "An approximate area: a drawn grid, the places you travel to as chips and your arrival note. It never shows an address.":
     "Una zona aproximada: una cuadrícula dibujada, los lugares a los que viajas como etiquetas y tu nota de llegada. Nunca muestra una dirección.",
+  // ── Gridline G7/G8: spec grid stats variant, services comparison matrix ──
+  "Spec grid": "Cuadrícula de datos",
+  "Comparison matrix": "Matriz de comparación",
+  "Services comparison": "Comparación de servicios",
+  "Your services side by side: price, length, how it is booked, materials, warranty and response. A table on desktop, stacked cards on a phone.":
+    "Tus servicios lado a lado: precio, duración, cómo se agenda, materiales, garantía y respuesta. Una tabla en escritorio, tarjetas apiladas en el celular.",
 // ── Contenido nested-block UX (page-builder panel cleanup) ─────────────
   // Short helpers + NestedBlocksCard chrome. Lives here because
   // editor-i18n-es-inspectors.ts is at the 800-line max-lines ceiling.

@@ -1047,7 +1047,7 @@ const menuBoardPropsSchema = z.object({
 
 export const servicesCatalogPropsSchema = z.object({
   layout: z
-    .enum(["rows", "cards", "grid", "compact_list", "rate_card", "editorial", "featured"])
+    .enum(["rows", "cards", "grid", "compact_list", "rate_card", "editorial", "featured", "matrix"])
     .optional(),
   categoryNav: z
     .enum(["pills", "tabs", "rail", "jump_strip", "sections", "accordion", "none"])
@@ -1730,7 +1730,7 @@ const statsPropsSchema = z.object({
     )
     .max(6)
     .optional(),
-  variant: z.enum(["row", "grid", "split"]).optional(),
+  variant: z.enum(["row", "grid", "split", "spec"]).optional(),
   align: z.enum(["start", "center"]).optional(),
   columns: z.number().int().min(1).max(6).optional(),
   animate: z.boolean().optional(),
