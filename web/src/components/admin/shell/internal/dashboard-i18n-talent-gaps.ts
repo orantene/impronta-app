@@ -26,5 +26,12 @@ export const TALENT_GAPS_ES_TEXT: Record<string, string> = {
     "La frase grande al inicio de tu sitio. Corta y sobre lo que recibe tu clienta o cliente.",
   "e.g. Hands that speak for you.": "p. ej., Manos que hablan por ti.",
   "Years of experience": "Años de experiencia",
+  "Write them in another language": "Escríbelos en otro idioma",
+  "Headline (English)": "Titular (inglés)",
+  "Headline (Spanish)": "Titular (español)",
+  "Tagline (English)": "Lema (inglés)",
+  "Tagline (Spanish)": "Lema (español)",
+  "Shown to visitors who read your site in that language. Leave empty to show your main language.":
+    "Se muestra a quien lee tu sitio en ese idioma. Déjalo vacío para mostrar tu idioma principal.",
   "Shown in the line under your hero buttons.": "Se muestra en la línea bajo los botones de tu portada.",
 };

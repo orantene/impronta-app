@@ -36,6 +36,8 @@ export interface TalentLocaleSwapSource {
    * language names in it, so no exact-label map could cover it).
    */
   proof?: HeroProofInput;
+  /** Her profile code: picks the same seeded headline variant the token projection used. */
+  seedKey?: string | null;
 }
 
 /** The hero tagline length the token projection clamps to. */
@@ -118,7 +120,7 @@ export function buildTalentLocaleSwaps(
     }
   }
   // The hero headline seeded from her trade ("Hands that {i}speak{/i} for you.") has a Spanish form.
-  const seed = seedHeadlineFor(tradeEn);
+  const seed = seedHeadlineFor(tradeEn, src.seedKey);
   if (seed && key === "es") add(accentHeadline(seed.en), accentHeadline(seed.es));
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
