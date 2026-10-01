@@ -11,11 +11,13 @@ type Props = {
   eyebrow: string;
   title: string;
   lastUpdated: string;
+  /** "Last updated" in the page's language. */
+  lastUpdatedLabel?: string;
   intro: React.ReactNode;
   sections: LegalSection[];
 };
 
-export function LegalPage({ eyebrow, title, lastUpdated, intro, sections }: Props) {
+export function LegalPage({ eyebrow, title, lastUpdated, lastUpdatedLabel = "Last updated", intro, sections }: Props) {
   return (
     <MarketingSection spacing="tight" className="pt-12 sm:pt-16">
       <MarketingContainer size="default">
@@ -31,7 +33,7 @@ export function LegalPage({ eyebrow, title, lastUpdated, intro, sections }: Prop
             className="mt-4 plt-mono text-[0.75rem] uppercase tracking-[0.22em]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Last updated · {lastUpdated}
+            {lastUpdatedLabel} · {lastUpdated}
           </p>
           <div
             className="mt-6 text-[1rem] leading-[1.65]"
