@@ -266,7 +266,11 @@ async function openOnce(
   if (!transactionId || !bookingId) return { ok: false, reason: "unavailable" };
 
   // ── 5. The session, for that row, dying with the claim.
-  const payeeName = await resolvePayeeName(admin, link.tenant_id);
+  // Same service-role client; the POS Admin type is narrower than SupabaseClient.
+  const payeeName = await resolvePayeeName(
+    admin as unknown as Parameters<typeof resolvePayeeName>[0],
+    link.tenant_id,
+  );
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents,
