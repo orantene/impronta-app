@@ -47,7 +47,7 @@ function asPublishedRow(
   } as TalentThemeCatalogRow;
 }
 
-function maisonBuiltinRow<K extends TalentThemeKind>(
+export function maisonBuiltinRow<K extends TalentThemeKind>(
   kind: K,
   slug: string,
 ): Extract<TalentThemeCatalogRow, { kind: K }> | null {
