@@ -85,6 +85,9 @@ export const PROTOTYPE_PREFIX = "/prototypes" as const;
  */
 export const SHARED_API_PREFIXES = [
   "/api/cron",
+  // Template Factory demo rebuild + restore. Platform-admin session or CRON_SECRET
+  // bearer (scripts/demo-talents/rebuild.mjs); the handler is the gate.
+  "/api/platform/demos",
   "/api/analytics/events",
   "/api/stripe",
   "/api/health",

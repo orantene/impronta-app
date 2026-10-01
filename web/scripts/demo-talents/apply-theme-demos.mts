@@ -1,3 +1,5 @@
+// SUPERSEDED by `npm run demos:rebuild` (scripts/demo-talents/rebuild.mjs): one command, backup + restore, dry run by default.
+console.error("[demo-talents] superseded: use `npm run demos:rebuild` (dry run by default, --write to apply).");
 /**
  * Build the Maison v2 and Folio demo talents as real sites (2026-09-30).
  *

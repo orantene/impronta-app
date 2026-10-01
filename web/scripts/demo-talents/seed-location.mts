@@ -1,3 +1,5 @@
+// SUPERSEDED by `npm run demos:rebuild` (scripts/demo-talents/rebuild.mjs): one command, backup + restore, dry run by default.
+console.error("[demo-talents] superseded: use `npm run demos:rebuild` (dry run by default, --write to apply).");
 /**
  * Seed ONLY the Location settings (talent_location_settings) of the demo
  * talents that define `location` (Alba today). A one-row, idempotent upsert:
