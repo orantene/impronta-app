@@ -5,7 +5,7 @@
  * business starters are a different product and never appear here.
  */
 
-export type FactoryStatus = "up_to_date" | "code_ahead" | "not_synced";
+export type FactoryStatus = "up_to_date" | "code_ahead" | "not_synced" | "authored_hidden";
 
 /** The newest local mockup-parity run for one design (summary.json subset). */
 export interface FactoryMockupRun {
@@ -38,6 +38,10 @@ export interface FactoryDesignRow {
   /** Profile code of the design's reference demo (from the demos registry), if any. */
   referenceDemoCode: string | null;
   mockupRun: FactoryMockupRun | null;
+  /** Authored in the editor (no code builtin). Absent = a code design. */
+  authored?: boolean;
+  /** Editor href for an authored design. */
+  editHref?: string | null;
 }
 
 export interface FactoryOverview {
@@ -49,7 +53,10 @@ export interface FactoryOverview {
 export function deriveFactoryStatus(input: {
   catalogVersion: number | null;
   codeDiffers: boolean;
+  /** Authored design still hidden from talents (catalog status draft). */
+  authoredHidden?: boolean;
 }): FactoryStatus {
+  if (input.authoredHidden) return "authored_hidden";
   if (input.catalogVersion === null) return "not_synced";
   return input.codeDiffers ? "code_ahead" : "up_to_date";
 }

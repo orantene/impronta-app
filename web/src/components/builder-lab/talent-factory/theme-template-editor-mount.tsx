@@ -8,6 +8,7 @@
  * builder, never the agency Studio.
  */
 
+import { SaveAsNewDesignDialog } from "./save-as-new-design-dialog";
 import { PublishDesignButton } from "./publish-design-button";
 import { ThemeTemplateSubjectPicker } from "@/lib/talent-site/theme-template/subject-picker";
 import Link from "next/link";
@@ -70,6 +71,7 @@ export function ThemeTemplateEditorMount({
         </Link>
       </nav>
       <ThemeTemplateSubjectPicker design={design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
+      <SaveAsNewDesignDialog sourceDesign={design} lang={lang} />
       <PublishDesignButton design={design} lang={lang} />
     </div>
   );

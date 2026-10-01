@@ -13,6 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
 import { FINISHED_GALLERY_SLUGS } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { hashBuiltinPayload, syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-builtins.server";
+import { themeTemplateEditHref } from "@/lib/talent-site/theme-template/types";
 import { demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
@@ -61,7 +62,7 @@ function readMockupRuns(slug: string): FactoryMockupRun[] {
 export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryOverview> {
   const overview = new Map((await loadDesignsOverview(admin)).map((d) => [d.slug, d] as const));
   const [{ data: catalog }, { data: snaps }] = await Promise.all([
-    admin.from("talent_theme_catalog").select("slug, version, payload").eq("kind", "design"),
+    admin.from("talent_theme_catalog").select("slug, title, version, payload, status, source").eq("kind", "design"),
     admin.from("talent_theme_versions").select("design, version, payload"),
   ]);
   const catalogBySlug = new Map((catalog ?? []).map((c) => [c.slug as string, c] as const));
@@ -98,5 +99,33 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
       mockupRun: mockupMode === "local" ? newestRun(readMockupRuns(slug)) : null,
     };
   });
+  // Authored designs (Save as new design): no code builtin, so no code diff,
+  // demos or mockup. Hidden until released.
+  const codeSlugs = new Set(COLLECTION_DESIGNS.map((d) => d.slug));
+  for (const c of catalog ?? []) {
+    const slug = c.slug as string;
+    if (c.source !== "authored" || codeSlugs.has(slug)) continue;
+    const hidden = c.status !== "published";
+    const ov = overview.get(slug);
+    const catalogVersion = c.version as number;
+    rows.push({
+      slug,
+      title: ov?.title ?? (c.title as string),
+      catalogVersion,
+      codeVersion: catalogVersion,
+      status: deriveFactoryStatus({ catalogVersion, codeDiffers: false, authoredHidden: hidden }),
+      demoCount: 0,
+      galleryVisible: !hidden,
+      latestReleaseId: [...(ov?.openReleases ?? [])].sort((a, b) => b.to_version - a.to_version)[0]?.id ?? null,
+      previewHref: `/template-preview/${encodeURIComponent(slug)}?kind=talent-theme&source=authored`,
+      mockupPath: mockupPathFor(slug),
+      parityMapPresent: false,
+      canRebuild: false,
+      referenceDemoCode: null,
+      mockupRun: null,
+      authored: true,
+      editHref: themeTemplateEditHref(slug),
+    });
+  }
   return { rows, mockupMode };
 }
