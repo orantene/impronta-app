@@ -3,8 +3,8 @@
  *
  * base = defaults at the pinned version, theirs = defaults at the target,
  * ours = `design_tokens_draft`. Per key the release changed:
- *   - ours has no value      the site inherits the default at render: applied
- *                            (nothing written; reason `inherits_default`)
+ *   - ours has no value      untouched: theirs is WRITTEN (render-time defaults
+ *                            come from code, so authored versions must land)
  *   - ours equals the base   (or hashes to `theme_token_origin`) untouched:
  *                            take theirs (a removed default removes the key)
  *   - ours differs           the talent's value: kept
@@ -47,7 +47,20 @@ export function mergeTokenDefaults(input: TokenMergeInput): Record<string, strin
     }
     const hasOurs = key in ours;
     if (!hasOurs) {
-      report.applied.push(entry({ reason: "inherits_default" }));
+      // Untouched (no own value). Write the new default explicitly: render-time
+      // design defaults come from CODE, so an editor-authored version would
+      // otherwise never reach this site. A removed default stays absent.
+      if (hasTheirs) {
+        out[key] = theirs[key]!;
+        report.applied.push(
+          entry({
+            reason: "inherits_default",
+            changes: [{ path: key, hadBefore: false, hasAfter: true, after: theirs[key] }],
+          }),
+        );
+      } else {
+        report.applied.push(entry({ reason: "inherits_default" }));
+      }
       continue;
     }
     const untouched =
