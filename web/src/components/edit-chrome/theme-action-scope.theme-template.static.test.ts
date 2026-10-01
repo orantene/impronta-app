@@ -24,7 +24,7 @@ test("theme_template branch exists and precedes the tenant fallthrough", () => {
 
 test("theme_template branch uses no tenant theme action", () => {
   const start = src.indexOf('surfaceKind === "theme_template"');
-  const end = src.indexOf("homepage / cms_page / platform_lab");
+  const end = src.indexOf('if (surfaceKind === "talent_page")', start);
   const body = src.slice(start, end);
   for (const tenantAction of [
     "loadDesignAction",
@@ -35,5 +35,5 @@ test("theme_template branch uses no tenant theme action", () => {
   ]) {
     assert.ok(!body.includes(tenantAction), `${tenantAction} leaked into theme_template`);
   }
-  assert.match(body, /unsupported/);
+  assert.match(body, /createThemeTemplateActionSet/);
 });
