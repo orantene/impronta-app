@@ -96,10 +96,10 @@ test("maison-v2 hero has inset, italic accent name, next_free_chip, and no revea
 
   assert.ok(!kinds.includes("reveal"), "hero must stay visible at rest (no reveal wrapper)");
   assert.ok(kinds.includes("next_free_chip"), "next free chip in hero copy");
-  assert.ok(
-    texts.some((t) => t.includes("{i}") && t.includes("{{displayName}}")),
-    "display name uses italic marker",
-  );
+  // Release 2.7: the big line is her headline token (one italic accent word; the name in
+  // italics when she has no headline and her trade has no seed), a live hero line.
+  assert.ok(texts.includes("{{headline}}"), "the hero headline is the headline token");
+  assert.match(JSON.stringify(hero), /"liveText":"hero_headline"/);
   assert.ok(
     kinds.filter((k) => k === "image").length >= 2,
     "main headshot + inset gallery1",

@@ -69,6 +69,13 @@ export interface TalentProfileTokens {
   locationLine: string;
   /** Hero eyebrow, "Nail Artist · Mérida": trade and city, whichever exist. Falls back to the trade. */
   heroEyebrow?: string;
+  /**
+   * Hero headline with its accent word, "Manos que {i}hablan{/i} por ti.": her own
+   * (`identity.headline`), else seeded from her trade, else her name in italics.
+   */
+  headline?: string;
+  /** Menu intro line, "Prices in MXN." ("" when she has no priced service). */
+  menuSubtitle?: string;
   /** Hero proof line, "9 years of craft · Español · English · ★ 4.9 · 212 reviews" ("" when nothing is known). */
   proofLine?: string;
   /**
@@ -164,6 +171,8 @@ export function hydrateTalentTree(
     richBio: talent.richBio,
     locationLine: talent.locationLine,
     heroEyebrow: talent.heroEyebrow ?? talent.primaryTypeLabel,
+    headline: talent.headline ?? `{i}${talent.displayName}{/i}`,
+    menuSubtitle: talent.menuSubtitle ?? "",
     proofLine: talent.proofLine ?? "",
     languagesLine: talent.languagesLine,
     headshotUrl: talent.headshotUrl,

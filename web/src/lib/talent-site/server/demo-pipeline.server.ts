@@ -20,7 +20,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { galleryPaletteLookTokens, getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { mergeLookIntoTokens } from "@/lib/talent-site/theme-catalog/look-layer";
 import { isDemoAccount } from "@/lib/talent-site/theme-catalog/demo-account";
-import { styleLook, styleTrees, type MediaUrls } from "@/lib/talent-site/theme-catalog/demo-style-build";
+import { demoStyleTokens, styleLook, styleTrees, type MediaUrls } from "@/lib/talent-site/theme-catalog/demo-style-build";
 import { MAISON_V2_DEMO_STYLES, THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import { syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-builtins.server";
 import { loadTemplateHydrationTokens } from "./apply-template-core";
@@ -309,7 +309,7 @@ export async function applyThemeDemos(
         (site.design_tokens_draft as Record<string, string> | null) ?? {},
         catalogLook ? catalogLook.payload.tokens : galleryTokens!,
       ),
-      ...(style?.tokens ?? {}),
+      ...demoStyleTokens(style),
     };
     const nextCustom = styled?.customPalette ?? null;
     const draftSame =
@@ -445,7 +445,7 @@ export async function reapplyDemoDesignAtVersion(
     .from("talent_sites")
     .update({
       shell_tree: trees.shellTree,
-      design_tokens_draft: { ...((site?.design_tokens_draft as Record<string, string> | null) ?? {}), ...(style.tokens ?? {}) },
+      design_tokens_draft: { ...((site?.design_tokens_draft as Record<string, string> | null) ?? {}), ...demoStyleTokens(style) },
       draft_updated_at: now,
       updated_at: now,
     })

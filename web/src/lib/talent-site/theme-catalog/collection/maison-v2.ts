@@ -18,7 +18,8 @@
  *   about     split portrait (arched crop in the skin) + copy
  *   visit     visit facts, 4-up tiles in the skin
  *   faq       accordion bound to talent_faq_items
- *   footer    dark statement band
+ *   footer    rich footer (`footer_rich`): big line, intro, booking button, Where and
+ *             Contact columns from her profile, light by default (`footer.tone`)
  *
  * Release 2.5 ("look only", v19): section rhythm (page and raised-surface bands,
  * 88px / 48px), header polish, ticker band, framed work cards, menu row cards,
@@ -26,6 +27,11 @@
  * Automatic items are token and variant defaults; the menu swap and the About
  * actions are opt-in layout items under their own keys. The matching CSS is the
  * soft chrome (`design-type-system-soft.ts`, switched on by `shape.chrome`).
+ *
+ * Release 2.7 (hero + footer): the hero headline, eyebrow, lede and proof line are
+ * LIVE lines (`liveText`, see `live-text.ts`) that follow her profile at render time,
+ * the menu gets its currency intro line, and the footer becomes the light rich footer
+ * (`maison-v2-footer.ts`), an opt-in layout swap for sites on the 2.5 dark band.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
@@ -43,6 +49,7 @@ import {
   type KitIdFactory,
 } from "../section-kit";
 import { seqIds, servicesSection, shell, tuneHeading } from "./design-parts";
+import { maisonV2RichFooter } from "./maison-v2-footer";
 import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
 
 export { MAISON_V2_TOKEN_DEFAULTS };
@@ -176,13 +183,24 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
         kids.length ? kids : undefined,
       );
     }
+    if (node.kind === "heading" && p.level === 1) {
+      // Release 2.7 (HE-1): her value proposition, "Manos que {i}hablan{/i} por ti.": her own headline,
+      // else seeded from her trade, else her name. Live, so a change in her profile shows up.
+      return withProps(node, { text: "{{headline}}", liveText: "hero_headline" });
+    }
     if (node.kind === "paragraph" && p.text === "{{primaryTypeLabel}}") {
-      // Release 2.5 (HE-2): "Nail Artist · Mérida", the trade and the city.
-      return withProps(node, { text: "{{heroEyebrow}}", layerLabel: "Hero eyebrow", style: { ...styleOf(node), lineHeight: "1.2" } });
+      // Release 2.5 (HE-2): "Nail Artist · Mérida", the trade and the city. Live since 2.7.
+      return withProps(node, {
+        text: "{{heroEyebrow}}",
+        liveText: "hero_eyebrow",
+        layerLabel: "Hero eyebrow",
+        style: { ...styleOf(node), lineHeight: "1.2" },
+      });
     }
     if (node.kind === "paragraph" && p.text === "{{tagline}}") {
-      // `.lede`: 22px under the heading (12px on the phone), 1.5 leading.
+      // `.lede`: 22px under the heading (12px on the phone), 1.5 leading. Release 2.7: her tagline, live.
       return withProps(node, {
+        liveText: "hero_tagline",
         layerLabel: "Hero lede",
         style: {
           ...styleOf(node),
@@ -201,6 +219,8 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
         kind: "paragraph",
         props: {
           text: "{{proofLine}}",
+          // Release 2.7: live (years of craft, languages, rating, reviews), hidden when she has none.
+          liveText: "hero_proof",
           layerLabel: "Hero proof",
           style: { size: "sm", tone: "muted", lineHeight: "1.5", marginTopFree: "16px" },
         },
@@ -340,6 +360,8 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
     showPhoto: true,
     showDescription: false,
     columns: 2,
+    // Release 2.7 (MN-11): the currency intro line, "Prices in MXN.", editable.
+    subtitle: "{{menuSubtitle}}",
   });
   // The band carries the section rhythm: the catalog follows the website
   // theme, which paints its own ground and ignores node padding.
@@ -514,94 +536,6 @@ function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
   );
 }
 
-/**
- * Footer: the proposal's dark band (ink ground, page-colour text) with the
- * big italic line and a "See services" pill. Token refs only.
- */
-function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
-  const props = propsOf(node);
-  if (props.slotKey !== "footer" || node.kind !== "container") return node;
-  return {
-    ...node,
-    props: {
-      ...props,
-      anchorId: "site-footer",
-      align: "start",
-      style: {
-        ...((props.style as object) ?? {}),
-        backgroundColor: styleTokenRef("color.ink"),
-        textColor: styleTokenRef("color.background"),
-        maxWidth: "full",
-        paddingY: "xl",
-        paddingX: "l",
-        paddingTop: "70px",
-        paddingBottom: "120px",
-        // Children carry their own rhythm (`.foot` has no gap).
-        gap: "0px",
-        responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
-      },
-    },
-    children: [
-      {
-        id: makeId(),
-        kind: "heading",
-        props: { text: "See you soon.", level: 2, layerLabel: "Footer line", style: { lineHeight: "1" } },
-      } as BuilderNode,
-      {
-        id: makeId(),
-        kind: "button",
-        props: {
-          label: "See services",
-          href: "#services",
-          tone: "primary",
-          layerLabel: "Footer CTA",
-          style: { marginTopFree: "18px" },
-        },
-      } as BuilderNode,
-      // Fine print (`.fine`): social names left, "Hecho con Tulala" right.
-      {
-        id: makeId(),
-        kind: "container",
-        props: {
-          layout: "row",
-          gap: "s",
-          align: "center",
-          layerLabel: "Footer fine print",
-          responsive: { mobile: { layout: "row" } },
-          style: {
-            width: "100%",
-            maxWidth: "full",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            marginTopFree: "28px",
-            gap: "10px",
-          },
-        },
-        children: [
-          // Her published links (Instagram, WhatsApp, ...) as names, from the
-          // profile; the row hides itself when she has none.
-          {
-            id: makeId(),
-            kind: "social_links",
-            props: {
-              links: [],
-              display: "text",
-              ariaLabel: "Social links",
-              dataBinding: { sourceKey: "workspace_social_links" },
-              layerLabel: "Footer links",
-            },
-          } as BuilderNode,
-          {
-            id: makeId(),
-            kind: "paragraph",
-            props: { text: "Hecho con Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
-          } as BuilderNode,
-        ],
-      } as BuilderNode,
-    ],
-  } as unknown as BuilderNode;
-}
-
 /** Header: brand line under the name, booking-mode CTA pill to the menu. */
 function maisonV2Header(node: BuilderNode): BuilderNode {
   const props = propsOf(node);
@@ -677,7 +611,7 @@ export function buildMaisonV2Payload(): DesignPayload {
       ],
     })
       .map(maisonV2Header)
-      .map((n) => maisonV2Footer(id, n)),
+      .map((n) => maisonV2RichFooter(id, n)),
     homeTree: [
       maisonV2Hero(id),
       // Release 2.4 (reorder): reviews now sit right under the hero, above the gallery.

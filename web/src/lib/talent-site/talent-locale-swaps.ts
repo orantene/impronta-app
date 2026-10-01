@@ -8,6 +8,7 @@
  * `server/talent-locale-swaps.server.ts`.
  */
 
+import { accentHeadline, seedHeadlineFor } from "./hero-headline";
 import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
 
 export type LocalizedMapLike = Readonly<Record<string, string | null | undefined>> | null | undefined;
@@ -44,7 +45,7 @@ export const TAGLINE_MAX = 160;
  * The value for `locale`, walking the talent's fallback `chain` (visitor,
  * primary, ...) and then English, the language the seed was baked in.
  */
-function pick(map: LocalizedMapLike, locale: string, chain: readonly string[] = []): string {
+export function pick(map: LocalizedMapLike, locale: string, chain: readonly string[] = []): string {
   for (const code of [locale, ...chain]) {
     const v = map?.[localeKey(code)]?.trim();
     if (v) return v;
@@ -116,6 +117,9 @@ export function buildTalentLocaleSwaps(
       add(formatHeroEyebrow(tradeEn, name), formatHeroEyebrow(pick(src.typeNames[0], key, chain), city));
     }
   }
+  // The hero headline seeded from her trade ("Hands that {i}speak{/i} for you.") has a Spanish form.
+  const seed = seedHeadlineFor(tradeEn);
+  if (seed && key === "es") add(accentHeadline(seed.en), accentHeadline(seed.es));
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
   }

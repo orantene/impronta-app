@@ -46,6 +46,8 @@ import {
   stripDesignCredits,
 } from "@/lib/talent-site/footer-socket";
 import { talentSiteShowsPlatformBadge } from "@/lib/talent-site/free-site-badge";
+import { treeHasLiveCandidates } from "../live-text";
+import { loadTalentLiveText } from "./load-live-text.server";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 import { loadPreviewDataSources } from "./preview-my-content.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
@@ -100,10 +102,13 @@ export async function buildTalentBuilderCanvasData(input: {
   // alongside the CTA/swaps batch and the shell prep instead of after them.
   const dataSourcesP = loadPreviewDataSources(talentProfileId, input.tree, siteLocale);
   dataSourcesP.catch(() => undefined);
+  // Lines that follow her profile load alongside the batch below (only when the page has any).
+  const liveP = treeHasLiveCandidates(input.tree) ? loadTalentLiveText(talentProfileId, siteLocale, localeCtx.chain) : Promise.resolve(null);
   const [ctaMode, swaps] = await Promise.all([
     loadTalentSiteCtaMode(talentProfileId, planKey),
     loadTalentLocaleSwaps(talentProfileId, siteLocale, localeCtx.chain),
   ]);
+  const live = await liveP;
 
   // Page layer: with the site theme on, the Theme drawer edits the SITE
   // draft and keeps the page draft layer as the per-page override, so the
@@ -195,7 +200,7 @@ export async function buildTalentBuilderCanvasData(input: {
     shellHeader: renderShell(headerTree),
     shellFooter: renderShell(footerTree),
     shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
-    labelLocale: { locale: siteLocale, ctaMode, swaps },
+    labelLocale: { locale: siteLocale, ctaMode, swaps, ...(live ? { live } : {}) },
   };
 }
 

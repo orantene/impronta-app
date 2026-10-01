@@ -24,6 +24,7 @@
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { STYLE_TOKEN_BY_KEY, styleTokenCssVar } from "@/lib/site-admin/tokens/style-tokens";
+import { EDITORIAL_RICH_FOOTER_CSS } from "./design-type-system-foot";
 import { EDITORIAL_SOFT_CHROME_CSS } from "./design-type-system-soft";
 
 /** `var(--token-<key>, <baseline>)` for a site style token. */
@@ -211,6 +212,9 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
 
   // Section rhythm on desktop: display titles and subtitles.
   `${MQ_DESK}{${S} h2{font-size:${v("type.section-title-size-desktop")}}${S} :is(${TITLE_HOOKS}){font-size:${v("type.section-title-size-desktop")}}${S} .site-builder-node--services-catalog-subtitle{font-size:${v("type.body-size")}}}`,
+
+  // Release 2.7: the rich footer band (`#s-foot`), light by default, dark by token.
+  EDITORIAL_RICH_FOOTER_CSS,
 
   // Release 2.5: the soft chrome (shape.chrome = soft). Appended last so its rules win equal-scope ties.
   EDITORIAL_SOFT_CHROME_CSS,

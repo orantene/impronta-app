@@ -3,6 +3,8 @@ import "server-only";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
 import { localiseSeededDesignLabels, type SiteCtaMode } from "../design-label-locale";
+import { applyTalentLiveText, treeHasLiveCandidates } from "../live-text";
+import { loadTalentLiveText } from "./load-live-text.server";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 
 /**
@@ -10,6 +12,9 @@ import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
  * read-only projections of the saved trees, so live sites are fixed without a
  * reapply and anything the talent edited is left alone:
  *  - seeded labels + profile copy (bio, trade, city) in the site locale;
+ *  - live text (hero headline, eyebrow, tagline, proof line, footer columns)
+ *    read from the profile at render time (`live-text.ts`), also on sites
+ *    applied before the release;
  *  - the site logo in a `site_header` that has none (it was dropped by apply).
  */
 export async function prepareTalentSiteTrees(input: {
@@ -22,11 +27,16 @@ export async function prepareTalentSiteTrees(input: {
   /** The talent's fallback chain for `locale` ([visitor, primary, ...]). */
   chain?: readonly string[];
 }): Promise<{ shellTree: BuilderNode[]; body: BuilderNode[] }> {
-  const swaps = await loadTalentLocaleSwaps(input.talentProfileId, input.locale, input.chain ?? []);
-  const shell = localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps);
+  const wantsLive = treeHasLiveCandidates([...input.shellTree, ...input.body]);
+  const [swaps, live] = await Promise.all([
+    loadTalentLocaleSwaps(input.talentProfileId, input.locale, input.chain ?? []),
+    wantsLive ? loadTalentLiveText(input.talentProfileId, input.locale, input.chain ?? []) : Promise.resolve(null),
+  ]);
+  const withLive = (tree: BuilderNode[]) => (live ? applyTalentLiveText(tree, live) : tree);
+  const shell = withLive(localiseSeededDesignLabels(input.shellTree, input.locale, input.ctaMode ?? null, swaps));
   return {
     shellTree: input.logoUrl ? shell.map((n) => withHeaderLogo(n, input.logoUrl!)) : shell,
-    body: localiseSeededDesignLabels(input.body, input.locale, input.ctaMode ?? null, swaps),
+    body: withLive(localiseSeededDesignLabels(input.body, input.locale, input.ctaMode ?? null, swaps)),
   };
 }
 

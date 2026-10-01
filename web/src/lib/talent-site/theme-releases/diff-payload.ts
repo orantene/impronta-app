@@ -115,6 +115,14 @@ export function markSwap(out: CandidateItem[], tree: string, pair: { from: strin
   for (const i of halves) {
     i.swap = { from: pair.from, to: pair.to };
     i.group = group;
+    // The new half of a TOP-LEVEL swap is a layout change, not a new block: the talent
+    // chooses one "layout" row (the same as a nested swap), never a block plus a removal.
+    if (i.type === "new-block") {
+      i.id = `layout:${tree}:${pair.to}`;
+      i.type = "layout";
+      i.layout = "nested-new";
+      i.detail = { layout: "nested-new" };
+    }
   }
 }
 

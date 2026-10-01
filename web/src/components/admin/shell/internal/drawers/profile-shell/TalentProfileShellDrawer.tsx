@@ -88,7 +88,6 @@ import {
   TaxonomyChild,
   TaxonomyParent,
   TaxonomyParentId,
-  TextInput,
   Toggle,
   ToggleControl,
   WORKSPACE_TAXONOMY_DEFAULT,
@@ -209,6 +208,7 @@ import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercia
 import { DirectBookingRosterSwitch } from "@/components/appointments/DirectBookingRosterSwitch";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
+import { ProfileHeroTextRows } from "./profile-shell-modules/profile-hero-text-rows";
 import {
   ProfileShellSaveErrorBanner,
   ProfileShellSectionSaveHint,
@@ -3432,9 +3432,8 @@ export function TalentProfileShellDrawer() {
                 workspaceScopeTenantId={workspaceScopeTenantId}
                 disabled={personalProfileLocked}
               />
-              <FieldRow label={copy.t("Tagline")} optional hint={copy.t("One line clients see at a glance.")} catalogId="identity.tagline" tenantId={workspaceScopeTenantId}>
-                <TextInput placeholder={copy.t("e.g. Editorial fashion model · Madrid")} value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
-              </FieldRow>
+              <ProfileHeroTextRows tagline={state.tagline} onTagline={(v) => patch({ tagline: v })} talentProfileId={payload.talentId} isSelf={isSelf}
+                workspaceScopeTenantId={workspaceScopeTenantId} disabled={personalProfileLocked} />
               <FieldRow
                 label={copy.t("Show me on Tulala Discover")}
                 recommended

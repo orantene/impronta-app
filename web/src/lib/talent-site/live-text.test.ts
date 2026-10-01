@@ -1,0 +1,236 @@
+/**
+ * Live text (Maison v2 2.7): the headline rules, the values built from profile
+ * facts in both locales, and the render-time transform (explicit bindings,
+ * hidden-when-empty, footer columns, the pre-2.7 eyebrow and proof line).
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+
+import { accentHeadline, resolveHeadline, seedHeadlineFor } from "./hero-headline";
+import { applyTalentLiveText, treeHasLiveCandidates, type TalentLiveText } from "./live-text";
+import { buildTalentLiveText, instagramHandle } from "./live-text-values";
+import { stampDesignOrigin } from "./theme-releases/origin";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const read = (rel: string) => readFileSync(resolve(HERE, rel), "utf8");
+
+const p = (id: string, text: string, extra: Record<string, unknown> = {}): BuilderNode =>
+  ({ id, kind: "paragraph", props: { text, ...extra } }) as unknown as BuilderNode;
+const h = (id: string, text: string, extra: Record<string, unknown> = {}): BuilderNode =>
+  ({ id, kind: "heading", props: { text, level: 1, ...extra } }) as unknown as BuilderNode;
+const box = (id: string, children: BuilderNode[], extra: Record<string, unknown> = {}): BuilderNode =>
+  ({ id, kind: "container", props: { layout: "stack", ...extra }, children }) as unknown as BuilderNode;
+const textOf = (n: BuilderNode) => (n.props as { text?: string }).text;
+
+// ── Headline ────────────────────────────────────────────────────────────────
+
+test("headline: the middle word takes the accent, punctuation stays outside, her own markup is kept", () => {
+  assert.equal(accentHeadline("Manos que hablan por ti."), "Manos que {i}hablan{/i} por ti.");
+  assert.equal(accentHeadline("Hands that speak for you."), "Hands that {i}speak{/i} for you.");
+  assert.equal(accentHeadline("Uñas con alma"), "Uñas {i}con{/i} alma");
+  assert.equal(accentHeadline("Uñas perfectas."), "Uñas {i}perfectas{/i}.");
+  assert.equal(accentHeadline("Hola"), "Hola");
+  assert.equal(accentHeadline("Mi {i}propio{/i} estilo"), "Mi {i}propio{/i} estilo");
+});
+
+test("headline: her own wins, then a line seeded from her trade (both locales), then her name", () => {
+  assert.equal(resolveHeadline({ headline: "Mi estilo es tuyo", tradeEn: "Nail Artist", displayName: "Alba" }).source, "own");
+  const seed = resolveHeadline({ tradeEn: "Nail Artist", displayName: "Alba" }, "es");
+  assert.equal(seed.source, "seed");
+  assert.equal(seed.text, "Manos que {i}hablan{/i} por ti.");
+  assert.equal(resolveHeadline({ tradeEn: "Nail Artist", displayName: "Alba" }, "en").text, "Hands that {i}speak{/i} for you.");
+  const name = resolveHeadline({ tradeEn: "Taxidermist", displayName: "Alba" });
+  assert.deepEqual(name, { text: "{i}Alba{/i}", source: "name" });
+  assert.equal(seedHeadlineFor(""), null);
+  for (const trade of ["Lash Artist", "Brow Artist", "Makeup Artist", "Hair Stylist", "Barber", "Massage Therapist", "Private Chef"]) {
+    assert.ok(seedHeadlineFor(trade), `a seeded headline for ${trade}`);
+  }
+});
+
+test("headline seeds never use an em dash or a hex colour", () => {
+  for (const trade of ["Nail Artist", "Lash Artist", "Hair Stylist", "Private Chef", "DJ", "Personal Trainer"]) {
+    const s = seedHeadlineFor(trade);
+    assert.ok(s, trade);
+    assert.doesNotMatch(`${s.en} ${s.es}`, /—|–|#[0-9a-f]{3,8}\b/i);
+  }
+});
+
+// ── Values ──────────────────────────────────────────────────────────────────
+
+const SRC = {
+  displayName: "Alba",
+  trade: { en: "Nail Artist", es: "Manicurista" },
+  city: { en: "Merida", es: "Mérida" },
+  headline: null,
+  tagline: "Un estudio privado donde cada cita es solo tuya.",
+  proof: { years: 9, languages: ["Spanish", "English"], rating: 4.9, count: 212, demo: false },
+  place: "Centro, Mérida",
+  hoursDays: "Lun a sáb",
+  instagramHref: "https://www.instagram.com/alba.unas.demo/",
+};
+
+test("live values: Spanish and English come from real facts, empty parts drop out", () => {
+  const es = buildTalentLiveText(SRC, "es").values;
+  assert.equal(es.hero_eyebrow, "Manicurista · Mérida");
+  assert.equal(es.hero_proof, "9 años de oficio · Español · English · ★ 4.9 · 212 reseñas");
+  assert.equal(es.hero_headline, "Manos que {i}hablan{/i} por ti.");
+  assert.equal(es.hero_tagline, "Un estudio privado donde cada cita es solo tuya.");
+  assert.equal(es.footer_intro, "Manicurista en Mérida.");
+  assert.equal(es.footer_where, "Centro, Mérida");
+  assert.equal(es.footer_hours, "Con cita, lun a sáb");
+  assert.equal(es.footer_contact, "Instagram · @alba.unas.demo");
+  const en = buildTalentLiveText(SRC, "en").values;
+  assert.equal(en.hero_eyebrow, "Nail Artist · Merida");
+  assert.equal(en.hero_proof, "9 years of craft · Español · English · ★ 4.9 · 212 reviews");
+  assert.equal(en.footer_hours, "By appointment, Lun a sáb");
+
+  const bare = buildTalentLiveText({ displayName: "Zoe", trade: null, city: null, proof: {} }, "es").values;
+  assert.equal(bare.hero_headline, "", "the name fallback is the stored text");
+  for (const k of ["hero_eyebrow", "hero_proof", "hero_tagline", "footer_intro", "footer_where", "footer_hours", "footer_contact"] as const) {
+    assert.equal(bare[k], "", `${k} is empty without data`);
+  }
+});
+
+test("live values: a demo's reviews are labelled, her own headline is not reworded", () => {
+  const demo = buildTalentLiveText({ ...SRC, proof: { ...SRC.proof, demo: true } }, "es").values;
+  assert.match(demo.hero_proof ?? "", /212 reseñas de demo$/);
+  const own = buildTalentLiveText({ ...SRC, headline: "Cada cita es solo tuya" }, "es").values;
+  assert.equal(own.hero_headline, "Cada cita {i}es{/i} solo tuya");
+});
+
+test("instagramHandle reads the handle from a profile URL and refuses anything else", () => {
+  assert.equal(instagramHandle("https://www.instagram.com/alba.unas.demo/"), "@alba.unas.demo");
+  assert.equal(instagramHandle("https://instagram.com/@alba"), "@alba");
+  assert.equal(instagramHandle("https://example.com/alba"), "");
+  assert.equal(instagramHandle("not a url"), "");
+  assert.equal(instagramHandle(null), "");
+});
+
+// ── The transform ───────────────────────────────────────────────────────────
+
+const LIVE: TalentLiveText = buildTalentLiveText(SRC, "es");
+
+test("explicit live lines take the profile value; eyebrow and headline keep their text when empty, proof and footer lines hide", () => {
+  const tree = [
+    box("hero", [
+      h("h", "{i}Alba{/i}", { liveText: "hero_headline" }),
+      p("e", "Nail Artist", { liveText: "hero_eyebrow" }),
+      p("pr", "x", { liveText: "hero_proof" }),
+    ]),
+  ];
+  const out = applyTalentLiveText(tree, LIVE);
+  const kids = (out[0] as unknown as { children: BuilderNode[] }).children;
+  assert.equal(textOf(kids[0]!), "Manos que {i}hablan{/i} por ti.");
+  assert.equal(textOf(kids[1]!), "Manicurista · Mérida");
+  assert.match(textOf(kids[2]!) ?? "", /9 años de oficio/);
+
+  const none = applyTalentLiveText(tree, { values: {} });
+  const left = (none[0] as unknown as { children: BuilderNode[] }).children;
+  assert.equal(left.length, 2, "the proof line is hidden when there is nothing to say");
+  assert.equal(textOf(left[0]!), "{i}Alba{/i}");
+  assert.equal(textOf(left[1]!), "Nail Artist");
+});
+
+test("a footer column with no live line disappears whole; the contact column keeps its button", () => {
+  const col = (slot: string, lines: BuilderNode[]) => box(slot, [h(`${slot}-h`, "x", {}), ...lines, p(`${slot}-l`, "link")], { slotKey: slot });
+  const footer = box("f", [
+    box("cols", [
+      col("footer_where", [p("w", "​", { liveText: "footer_where" }), p("hr", "​", { liveText: "footer_hours" })]),
+      col("footer_contact", [p("c", "​", { liveText: "footer_contact" })]),
+    ]),
+  ]);
+  const full = applyTalentLiveText([footer], LIVE);
+  assert.equal(JSON.stringify(full).includes("footer_where"), true);
+
+  const empty = applyTalentLiveText([footer], { values: {} });
+  const cols = ((empty[0] as unknown as { children: BuilderNode[] }).children[0] as unknown as { children: BuilderNode[] }).children;
+  assert.equal(cols.length, 1, "only the contact column is left");
+  assert.equal((cols[0]!.props as { slotKey?: string }).slotKey, "footer_contact");
+  assert.equal(((cols[0] as unknown as { children: BuilderNode[] }).children).length, 2, "heading + link, the Instagram line is gone");
+
+  const nothing = applyTalentLiveText([box("f2", [box("cols", [col("footer_where", [p("w", "​", { liveText: "footer_where" })])])])], { values: {} });
+  assert.equal(nothing.length, 0, "an empty row of nothing goes too");
+});
+
+function stampedHero(eyebrow: string, proof: string, headline = "{i}Alba{/i}") {
+  const tree = [
+    {
+      ...box("hero", [
+        box("c", [h("h", headline), p("e", eyebrow), p("l", "lede"), p("pr", proof)]),
+      ], { slotKey: "hero" }),
+    },
+  ];
+  return stampDesignOrigin(tree, { design: "maison-v2", version: 19 });
+}
+
+test("sites applied before 2.7: the eyebrow and proof line follow the profile while they still hold the baked text", () => {
+  // Stamps key the hero's children as hero/container/{paragraph, heading, paragraph#2, paragraph#3}; the
+  // fixture above nests one container, so the keys are hero/container/*.
+  const tree = stampedHero("Nail Artist", "Based in Merida");
+  const out = applyTalentLiveText(tree, LIVE);
+  const c = (out[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+  assert.equal(textOf(c[1]!), "Manicurista · Mérida");
+  assert.match(textOf(c[3]!) ?? "", /9 años de oficio/);
+  assert.equal(textOf(c[0]!), "{i}Alba{/i}", "the headline is her copy: it does not change on a published page");
+  assert.equal(textOf(c[2]!), "lede", "neither does the tagline");
+});
+
+test("sites applied before 2.7: a line she rewrote is never overruled", () => {
+  const tree = stampedHero("Nails, lashes and brows", "Mérida, since 2016");
+  const out = applyTalentLiveText(tree, LIVE);
+  const c = (out[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+  assert.equal(textOf(c[1]!), "Nails, lashes and brows");
+  assert.equal(textOf(c[3]!), "Mérida, since 2016");
+});
+
+test("an untouched tree comes back identical, and only live candidates ask for the profile reads", () => {
+  const plain = [box("a", [h("h", "Hola"), p("p", "Texto")])];
+  assert.equal(applyTalentLiveText(plain, LIVE), plain);
+  assert.equal(treeHasLiveCandidates(plain), false);
+  assert.equal(treeHasLiveCandidates([box("a", [p("p", "x", { liveText: "footer_intro" })])]), true);
+  assert.equal(treeHasLiveCandidates(stampedHero("a", "b")), true);
+});
+
+// ── Wiring: schema, renderer transform, inspector, ES ───────────────────────
+
+test("liveText is wired at schema, render transform, inspector and ES", () => {
+  const registry = read("../site-admin/builder-node/registry.ts");
+  assert.equal((registry.match(/liveText: z\.enum\(LIVE_TEXT_KEYS\)\.optional\(\)/g) ?? []).length, 2, "heading and paragraph schemas");
+  const types = read("../site-admin/builder-node/types.ts");
+  assert.equal((types.match(/liveText\?: LiveTextKey/g) ?? []).length, 2);
+  assert.ok(read("./server/talent-site-render-fixups.server.ts").includes("applyTalentLiveText"), "render transform");
+  assert.ok(read("../site-admin/builder-node/operations.ts").includes("delete mergedProps.liveText"), "typing new text hands the line back");
+  const content = read("../../components/edit-chrome/inspectors/builder-node-content.tsx");
+  assert.equal((content.match(/<LiveTextToggle liveText=\{node\.props\.liveText\}/g) ?? []).length, 2, "heading and paragraph inspectors");
+  const es = read("../../components/edit-chrome/editor-i18n-es-inspectors-3.ts");
+  assert.ok(es.includes('"Follows your profile":'), "ES for the switch");
+  assert.ok(read("../../components/edit-chrome/inspectors/live-text-toggle.tsx").includes("Follows your profile"));
+});
+
+test("headline, years and the footer tone are wired at schema, renderer, editor and ES", () => {
+  // Profile fields: catalog definition (migration), scalar read/write, live loader, Identity editor, ES.
+  const migration = read("../../../../supabase/migrations/20261231299620_talent_headline_field.sql");
+  assert.ok(migration.includes("'identity.headline'") && migration.includes("ON CONFLICT (field_key) DO NOTHING"), "additive, idempotent");
+  assert.doesNotMatch(migration, /ALTER TABLE|DROP |DELETE |UPDATE /i, "no column, no destructive statement");
+  const scalars = read("../talent/scalar-field-values-catalog.ts");
+  for (const needle of ['headline: "identity.headline"', 'years_total: "experience.years_total"']) assert.ok(scalars.includes(needle), needle);
+  assert.ok(read("./server/load-live-text.server.ts").includes("scalars.headline"), "the live loader reads her headline");
+  assert.ok(read("./server/load-starter-data.ts").includes("headline: scalars.headline"), "new applies seed from her headline");
+  const drawer = read("../../components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx");
+  assert.ok(drawer.includes("<ProfileHeroTextRows"), "Identity editor mounts the rows");
+  const rows = read("../../components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-hero-text-rows.tsx");
+  for (const label of ["Website headline", "Years of experience", "Tagline"]) assert.ok(rows.includes(`copy.t("${label}")`), label);
+  const es = read("../../components/admin/shell/internal/dashboard-i18n-talent-gaps.ts");
+  for (const label of ["Website headline", "Years of experience"]) assert.ok(es.includes(`"${label}":`), `ES for ${label}`);
+  // Footer tone: token definition with both locales, drawer projection, stylesheet, payload default.
+  const tokens = read("../site-admin/tokens/style-tokens.ts");
+  assert.ok(tokens.includes('key: "footer.tone"') && tokens.includes('"footer.tone": "data-token-footer-tone"'));
+  assert.ok(tokens.includes("Color del pie de página"), "ES label");
+  assert.ok(read("./theme-catalog/collection/design-type-system-foot.ts").includes('data-token-footer-tone="dark"'), "dark option styled");
+  assert.ok(read("./theme-catalog/collection/maison-v2-tokens.ts").includes('"footer.tone": "light"'), "light by default");
+});
