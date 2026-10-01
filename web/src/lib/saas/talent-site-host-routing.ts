@@ -38,6 +38,10 @@ const TALENT_SITE_PASSTHROUGH_PREFIXES = [
   // Branded free-website checkout (GAP-JOR-3 / pay-link host rules).
   "/pay/",
   "/link/",
+  // Generated booking policy + privacy notice for this talent
+  // (`/policies/booking`, `/policies/privacy`). Reserved so a talent page slug
+  // can never shadow them.
+  "/policies/",
 ] as const;
 
 const TALENT_SITE_STATIC_PATHS = ["/sitemap.xml", "/robots.txt", "/favicon.ico"] as const;
@@ -81,6 +85,7 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
   // bare `/pay` or `/link` must not render as a talent page slug.
   "pay",
   "link",
+  "policies",
 ]);
 
 export type TalentSiteHostPath =

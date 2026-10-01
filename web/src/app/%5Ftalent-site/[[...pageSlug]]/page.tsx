@@ -26,7 +26,7 @@
  */
 
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -42,6 +42,7 @@ import {
   maxSiteSeoToMetadata,
 } from "@/lib/talent-site/server/site-metadata";
 import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
+import { PrivacyChoicesBridge } from "@/components/policies/PrivacyChoicesBridge";
 import { TalentOfferingIntentQuery } from "../TalentOfferingIntentQuery";
 import { TalentSiteMessagesDock } from "../TalentSiteMessagesDock";
 
@@ -159,7 +160,13 @@ export default async function TalentSiteHostPage({
     canonicalOrigin,
     canonicalPath: apexPath(seg),
   });
-  if (result.kind !== "render") notFound();
+  if (result.kind !== "render") {
+    // Legacy footer default linked "/privacy". A talent's own published
+    // "privacy" page wins (we only get here when there is none); otherwise
+    // send the visitor to the generated privacy notice.
+    if (seg === "privacy") redirect("/policies/privacy");
+    notFound();
+  }
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (
     <>
@@ -171,6 +178,7 @@ export default async function TalentSiteHostPage({
       ) : null}
       {result.node}
       <TalentOfferingIntentQuery />
+      <PrivacyChoicesBridge />
       <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={locale} />
     </>
   );

@@ -24,6 +24,8 @@
 
 import { useState } from "react";
 
+import { BookingPolicyAgreeLine } from "@/components/policies/BookingPolicyAgreeLine";
+
 import type { Translator } from "@/i18n/interpolate";
 import {
   EMAIL_RE,
@@ -170,6 +172,7 @@ export function ContactEditor({
       <p style={{ margin: 0, fontSize: 11, color: C.inkDim }}>
         {t("public.guestChat.contactPrivacy")}
       </p>
+      <BookingPolicyAgreeLine style={{ color: C.inkDim }} />
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
         <button

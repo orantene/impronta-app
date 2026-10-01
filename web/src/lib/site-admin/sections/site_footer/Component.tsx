@@ -8,6 +8,8 @@ import {
 } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { SiteFooterV1 } from "./schema";
+import { PrivacyChoicesBridge } from "@/components/policies/PrivacyChoicesBridge";
+import { PRIVACY_CHOICES_HREF } from "@/lib/policies/footer-links";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 
@@ -295,6 +297,9 @@ export async function SiteFooterComponent({
         ) : null}
         {hasLegal ? (
           <div className="site-footer__legal">
+            {legal.links.some((l) => l.href === PRIVACY_CHOICES_HREF) ? (
+              <PrivacyChoicesBridge />
+            ) : null}
             {legal.copyright ? (
               <span className="site-footer__copyright">{legal.copyright}</span>
             ) : null}

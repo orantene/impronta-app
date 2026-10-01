@@ -430,6 +430,13 @@ export const CANONICAL_RECEIPT_PREFIX = "/r" as const;
 export const CANONICAL_PAY_PREFIX = "/pay" as const;
 
 /**
+ * Generated booking policy + privacy notice (`/policies/booking`,
+ * `/policies/privacy`). Agency and hub via the surface gate; talent_site hosts
+ * via passthrough. The page speaks for whoever owns the host.
+ */
+export const CANONICAL_POLICIES_PREFIX = "/policies" as const;
+
+/**
  * Platform payment-link fallback (`/link/<code>` on `pay.tulala.digital`).
  * Same engine as `/pay/<code>`; agency and hub via the surface gate (and
  * talent_site passthrough). Distinct from `CANONICAL_LINK_PREFIX` (`/q`)

@@ -32,6 +32,7 @@
  * All four rules are enforced by `shell-variant-seeds.test.ts`.
  */
 
+import { defaultFooterLegalLinks } from "@/lib/policies/footer-links";
 import type {
   BuilderContainerNode,
   BuilderNode,
@@ -461,8 +462,7 @@ export function footerSlimLine(): BuilderNode[] {
         ),
         container(
           [
-            textLink("Privacy", "/privacy", { fontSize: "0.78rem" }),
-            textLink("Terms", "/terms", { fontSize: "0.78rem" }),
+            ...defaultFooterLegalLinks().map((l) => textLink(l.label, l.href, { fontSize: "0.78rem" })),
           ],
           {
             layerLabel: "Footer Links",
@@ -700,8 +700,7 @@ export function footerEditorialWordmark(): BuilderNode[] {
             ),
             container(
               [
-                textLink("Privacy", "/privacy", { fontSize: "0.72rem" }),
-                textLink("Terms", "/terms", { fontSize: "0.72rem" }),
+                ...defaultFooterLegalLinks().map((l) => textLink(l.label, l.href, { fontSize: "0.72rem" })),
               ],
               {
                 layerLabel: "Legal Links",
