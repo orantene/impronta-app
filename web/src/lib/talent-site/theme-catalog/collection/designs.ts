@@ -222,6 +222,8 @@ export function buildFolioPayload(): DesignPayload {
             props: {
               ...(k.props as Record<string, unknown>),
               coverLine: "{{primaryTypeLabel}}",
+              // TH02: the italic serif line over the cover photo (30px, the cover's first body text).
+              coverStatement: "Editorial, runway and campaigns.",
               mastRight: "{{locationLine}}",
               bio: "{{bio}}",
               // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
@@ -331,7 +333,6 @@ export function buildFolioPayload(): DesignPayload {
           }),
         ),
       ),
-      aboutBlock(id, { align: "start", accent: false }),
       faqBlock(id, { heading: "Questions", ask: true }),
       magazine(
         fullBleed(
@@ -350,6 +351,9 @@ export function buildFolioPayload(): DesignPayload {
         ? withFooterCta(n)
         : n,
     ),
+    // Release (Folio parity): TH02 has no About page. It leaves the default page and stays a block
+    // a talent can add; a talent who already has it keeps it (see the release note module).
+    optionalBlocks: [aboutBlock(id, { align: "start", accent: false })],
   };
 }
 

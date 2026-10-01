@@ -1467,6 +1467,8 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     mastRight?: string;
     /** Magazine: small caps line on the cover (trade). */
     coverLine?: string;
+    /** Magazine: the italic serif line over the cover (TH02 "Editorial, runway and campaigns"). */
+    coverStatement?: string;
     /** Magazine: serif bio beside the cover. */
     bio?: string;
     /** Magazine: primary CTA. */

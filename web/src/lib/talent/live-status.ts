@@ -126,3 +126,32 @@ export async function saveTalentEmergencies(
   }
   return { ok: true, status: { emergenciesUntil: until } };
 }
+
+/**
+ * G3b: save the toggle, then bust the talent's public site cache so the next
+ * request renders the new state. The bust is injected (next/cache cannot run
+ * under node:test); a failed write busts nothing.
+ */
+export async function toggleTalentEmergencies(
+  admin: Client,
+  input: {
+    talentProfileId: string;
+    profileCode: string | null;
+    userId: string | null;
+    on: boolean;
+    now: Date;
+    timeZone: string | null | undefined;
+  },
+  bust: (talentProfileId: string, profileCode: string | null) => void,
+): Promise<{ ok: true; status: TalentLiveStatus } | { ok: false; error: string }> {
+  const res = await saveTalentEmergencies(admin, input);
+  if (!res.ok) return res;
+  try {
+    bust(input.talentProfileId, input.profileCode);
+  } catch (err) {
+    // The row is saved and public pages read it per request; a failed bust
+    // only delays tagged caches, so the toggle still reports success.
+    logServerError("talent.liveStatus.bust", err);
+  }
+  return res;
+}

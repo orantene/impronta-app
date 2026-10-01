@@ -26,6 +26,7 @@ import {
   MAISON_V2_RELEASE_2_8,
   type ReleaseNote,
 } from "./maison-v2";
+import { FOLIO_RELEASE_PARITY } from "./folio";
 
 export interface ReleaseNoteModule {
   design: string;
@@ -72,6 +73,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_6,
   MAISON_V2_RELEASE_2_7,
   MAISON_V2_RELEASE_2_8,
+  FOLIO_RELEASE_PARITY,
 ];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
