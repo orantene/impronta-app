@@ -60,6 +60,7 @@ import {
 } from "./kit";
 import { LayoutFlattenToast } from "./layout-flatten-toast";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
+import { useCanvasHelpers } from "./canvas-helpers-mode";
 import { MakeItYoursChecklist } from "./launch-checklist-panel";
 import { SelectionLayer } from "./selection-layer";
 import { CarouselEditModeBinding } from "./carousel-edit-mode-binding";
@@ -1358,27 +1359,21 @@ function CanvasViewportComponents({
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
 function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
-  const tipPlacement = useFirstPaintTipPlacement(p.navigatorOpen, p.navigatorWidth); const { t } = useEditorLocale();
+  const tipPlacement = useFirstPaintTipPlacement(
+    p.navigatorOpen,
+    p.navigatorWidth,
+  );
+  // Same ON/OFF as coachmarks — default OFF so returning operators never see
+  // the always-on "Click any section…" pill unless they opt in via (i).
+  const { helpers } = useCanvasHelpers();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
   // first hover, so it genuinely subscribes; other edit-shell consumers that
   // don't read hover no longer re-render on a sweep).
   const hoveredSectionId = useHoveredSectionId();
-  // Session-scoped — once dismissed, stays dismissed across in-session
-  // navigations (page swap, locale switch, viewport-mode toggle that
-  // forces a remount). Without this, navigating to a different page
-  // re-mounted FirstPaintTip with fresh `dismissed=false` and the
-  // operator saw the tip again 5 seconds into their session.
-  //
-  // QA 2026-05-13 — read sessionStorage in a post-mount effect rather
-  // than in `useState` initializer. SSR has no sessionStorage so the
-  // initializer always returned false on server; on the client, after
-  // a prior dismissal it would return true, and the tree shape
-  // (rendered vs returned-null) differed between SSR and CSR → React
-  // hydration mismatch error in console. Both passes now render the
-  // tip initially; the effect dismisses it on the next tick if the
-  // session flag is set, which doesn't trip the hydration check.
+  // Persistent dismiss (coachmark + session) so once cleared it never returns
+  // for this tenant, even if helpers are turned back on briefly.
   const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
     try {
@@ -1407,7 +1402,7 @@ function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
   useEffect(() => {
     if (selectedSectionId || hoveredSectionId) dismiss();
   }, [selectedSectionId, hoveredSectionId, dismiss]);
-  if (dismissed) return null;
+  if (!helpers || dismissed) return null;
   return (
     <div
       data-edit-overlay="first-paint-tip"
