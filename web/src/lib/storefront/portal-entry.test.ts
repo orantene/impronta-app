@@ -50,11 +50,29 @@ test("read: signed out points at /me; signed in lists bookings, tickets by holde
 
 test("act request_code: feeds the OTP flow's own form; its refusal sentence is kept", async () => {
   const { deps } = setup();
-  const sent = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "Ana@Example.com" });
+  const sent = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "Ana@Example.com", ageTerms: true });
   assert.deepEqual(sent, { ok: true, op: "request_code", email: "ana@example.com", notice: "Check your inbox." });
-  const bad = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "nope" });
+  const bad = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "nope", ageTerms: true });
   assert.ok(!bad.ok && bad.code === "invalid");
   const { deps: limited } = setup({ requestCode: async () => ({ step: "email", error: "Too many codes. Wait a minute." }) });
-  const r = await actPortalEntryCore(limited, { op: "request_code", tenantId: TENANT, email: "ana@example.com" });
+  const r = await actPortalEntryCore(limited, { op: "request_code", tenantId: TENANT, email: "ana@example.com", ageTerms: true });
   assert.ok(!r.ok && r.reason === "refused" && r.message === "Too many codes. Wait a minute.");
+});
+
+test("act request_code: refuses without the 18+/Terms confirmation, sends the marker when given (EN + ES)", async () => {
+  let sentForm: FormData | null = null;
+  const { deps } = setup({ requestCode: async (form) => { sentForm = form; return { step: "sent", email: "ana@example.com", notice: "ok" }; } });
+  for (const input of [undefined, false]) {
+    const r = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "ana@example.com", ageTerms: input });
+    assert.ok(!r.ok && r.code === "age_terms_required" && /18/.test(r.message));
+  }
+  assert.equal(sentForm, null, "no code is sent before the confirmation");
+  const { deps: es } = setup({ locale: "es" });
+  const refusedEs = await actPortalEntryCore(es, { op: "request_code", tenantId: TENANT, email: "ana@example.com" });
+  assert.ok(!refusedEs.ok && /Confirma que tienes 18/.test(refusedEs.message));
+  const ok = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "ana@example.com", ageTerms: true });
+  assert.ok(ok.ok);
+  const form = sentForm as FormData | null;
+  assert.equal(form?.get("age_terms"), "on");
+  assert.equal(form?.get("terms_form"), "1");
 });

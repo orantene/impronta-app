@@ -64,3 +64,19 @@ test("es copy: tú form, no voseo, no em dashes", () => {
     assert.doesNotMatch(s, /\b(tenés|aceptás|confirmá|revisá|podés|sos)\b/i, s);
   }
 });
+
+test("the two OTP signup paths (onboarding account step, storefront portal_entry) carry the 18+ confirmation", () => {
+  const onboarding = read("src/lib/server-actions/onboarding-account.ts");
+  const request = onboarding.slice(onboarding.indexOf("export async function requestOnboardingCode"), onboarding.indexOf("export type VerifyCodeResult"));
+  assert.match(request, /isAgeAndTermsConfirmed\(input\.ageTerms/);
+  assert.ok(request.indexOf("isAgeAndTermsConfirmed") < request.indexOf("requestEmailCode("), "checked before the code is sent");
+  assert.match(request, /form\.set\("age_terms", "on"\)/);
+  const verify = onboarding.slice(onboarding.indexOf("export async function verifyOnboardingCode"));
+  assert.match(verify, /recordSignupAcceptance\(user\.id\)/, "acceptance recorded in terms_acceptances");
+  assert.match(read("src/components/onboarding/steps/save-step.tsx"), /ageTermsPrefix/);
+  assert.match(read("src/components/onboarding/steps/save-step.tsx"), /disabled=\{busy \|\| !email\.trim\(\) \|\| !ageTerms\}/);
+
+  const portal = read("src/lib/storefront/portal-entry.core.ts");
+  assert.ok(portal.indexOf("isAgeAndTermsConfirmed") < portal.indexOf("deps.requestCode(form)"), "checked before the code is sent");
+  assert.match(portal, /form\.set\("age_terms", "on"\)/);
+});

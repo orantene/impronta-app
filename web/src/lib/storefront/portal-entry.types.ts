@@ -47,7 +47,10 @@ export type PortalEntryData =
       portalPath: "/me";
     };
 
-export type PortalEntryInput = { op: "request_code"; tenantId: string; email: string; nextPath?: string | null; locale?: string | null };
+export type PortalEntryInput = { op: "request_code"; tenantId: string; email: string; nextPath?: string | null; locale?: string | null;
+  /** The 18+ and Terms/Privacy checkbox (Legal 2.2). Required: a new address gets an account. */
+  ageTerms?: boolean;
+};
 
 export type PortalEntryDone = { ok: true; op: "request_code"; email: string; notice: string };
 

@@ -9,6 +9,8 @@
  * the customer rows that carry this user.
  */
 
+import { createTranslator } from "@/i18n/messages";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import type { MeData } from "@/lib/me/shape-me";
 
 import type { StorefrontAdmin } from "./admin";
@@ -111,11 +113,24 @@ export async function actPortalEntryCore(deps: PortalEntryDeps, input: PortalEnt
   if (!input || !UUID.test(input.tenantId ?? "") || input.op !== "request_code") return mapEngineRefusal("invalid_request", deps.locale);
   const email = (input.email ?? "").trim().toLowerCase();
   if (!email.includes("@")) return mapEngineRefusal("invalid", deps.locale);
+  // Legal 2.2: a new address gets an account here, so the sheet carries the
+  // same 18+ and Terms/Privacy confirmation as the signup form. Checked on the
+  // server; the island's checkbox is only a convenience.
+  if (!isAgeAndTermsConfirmed(input.ageTerms ? "on" : null)) {
+    return {
+      ok: false,
+      reason: "refused",
+      code: "age_terms_required",
+      message: createTranslator(deps.locale)("public.auth.actions.ageTermsRequired"),
+    };
+  }
   try {
     const form = new FormData();
     form.set("email", email);
     form.set("next", input.nextPath && input.nextPath.startsWith("/") ? input.nextPath : "/me");
     form.set("create", "1");
+    form.set("terms_form", "1");
+    form.set("age_terms", "on");
     form.set("locale", deps.locale);
     const state = await deps.requestCode(form);
     if (state && state.step === "sent") return { ok: true, op: "request_code", email: state.email, notice: state.notice };
