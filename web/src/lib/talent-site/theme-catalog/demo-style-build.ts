@@ -132,16 +132,17 @@ export function styleTrees(
   const byLabel = new Map(built.homeTree.map((n) => [label(n) ?? "", n]));
   const hero = byLabel.get("Hero");
   if (!hero) throw new Error(`${code}: design tree has no Hero`);
-  const wanted = new Set(Object.values(MAISON_V2_SECTION_LABELS));
+  // After 2.6 the Location block replaces the Visit band; a tree built from an older Design still has "Visit".
+  const wanted = new Set([...Object.values(MAISON_V2_SECTION_LABELS), "Visit"]);
   const ordered = style.order.map((key) => {
-    const n = byLabel.get(MAISON_V2_SECTION_LABELS[key]);
+    const n = byLabel.get(MAISON_V2_SECTION_LABELS[key]) ?? (key === "visit" ? byLabel.get("Visit") : undefined);
     if (!n) throw new Error(`${code}: design tree has no ${MAISON_V2_SECTION_LABELS[key]}`);
     if (key === "work") return styleWork(n, style);
     if (key === "menu") return styleMenu(n, style);
     if (key === "about" && style.hero.photo) return styleAbout(n, media);
     return n;
   });
-  if (new Set(style.order).size !== wanted.size) throw new Error(`${code}: order must list all six sections once`);
+  if (new Set(style.order).size !== Object.keys(MAISON_V2_SECTION_LABELS).length) throw new Error(`${code}: order must list all six sections once`);
   const rest = built.homeTree.filter((n) => n !== hero && !wanted.has(label(n) ?? ""));
   return {
     shellTree: built.shellTree.map((n) => styleFooter(n, style)),

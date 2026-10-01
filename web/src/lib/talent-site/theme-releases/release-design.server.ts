@@ -74,6 +74,8 @@ export function pickApplyDesign(
 export async function loadApplyDesignRow(
   admin: SupabaseClient,
   slug: string,
+  /** Release channels that count as "released". Demos also build from the `demos` channel. */
+  channels: ReadonlyArray<string> = ["optin", "default"],
 ): Promise<TalentThemeDesignRow | null> {
   const row = await loadMaisonCatalogRow(admin, "design", slug);
   if (!row) return null;
@@ -82,13 +84,21 @@ export async function loadApplyDesignRow(
     .select("to_version")
     .eq("design_slug", slug)
     .eq("status", "published")
-    .in("channel", ["optin", "default"])
+    .in("channel", [...channels])
     .order("to_version", { ascending: false })
     .limit(1);
   if (error) return row; // tables missing / unreadable: the catalog row
   const top = (data as Array<{ to_version?: number }> | null)?.[0]?.to_version;
   if (typeof top !== "number" || top <= row.version) return row;
   return pickApplyDesign(row, top, await loadThemeVersionPayload(admin, slug, top));
+}
+
+/**
+ * The Design a DEMO is built from: the newest version released to demos, talents
+ * or everyone (never the gated catalog row). Same source as a talent's apply.
+ */
+export function loadDemoDesignRow(admin: SupabaseClient, slug: string): Promise<TalentThemeDesignRow | null> {
+  return loadApplyDesignRow(admin, slug, ["demos", "optin", "default"]);
 }
 
 export async function loadReleaseDesign(
