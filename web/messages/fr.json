@@ -210,6 +210,8 @@
       "cardGreeting": "Bonjour, je suis {name} 👋 Comment puis-je vous aider ?",
       "cardPlaceholder": "Écrivez un message",
       "cardServicesAria": "Voir les services",
+      "cardMostRequested": "Les plus demandés",
+      "cardSave": "Garder",
       "cardBookingsAria": "Mes rendez-vous",
       "cardTabServices": "Services",
       "cardSendOrder": "Envoyer la demande · {count}",

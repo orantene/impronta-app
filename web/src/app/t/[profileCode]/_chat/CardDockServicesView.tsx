@@ -23,6 +23,9 @@ import type { ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
 import a11y from "./mini-chat-a11y.module.css";
 
+/** "Lo más pedido": her first services in her own order (no booking counts are read here). */
+const FEATURED = 3;
+
 const TRAY: CSSProperties = {
   flex: "0 0 auto",
   padding: "10px 12px 12px",
@@ -39,6 +42,7 @@ export function CardDockServicesView({
   onSend,
   onBackToChat,
   onAdded,
+  menu = [],
   children,
 }: {
   offerings: ChatOffering[];
@@ -52,6 +56,8 @@ export function CardDockServicesView({
   onBackToChat: () => void;
   /** Agregar was tapped: the booking sheet takes over, so the chat steps aside. */
   onAdded: () => void;
+  /** The dock's service menu: its price line carries the honest "≈ US$" part. */
+  menu?: readonly { title: string; priceLabel?: string | null }[];
   children?: ReactNode;
 }) {
   return (
@@ -59,10 +65,12 @@ export function CardDockServicesView({
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
         {offerings.length > 0 ? (
           <CardChatServiceBrowser
-            offerings={offerings}
+            offerings={offerings.slice(0, FEATURED)}
             locale={locale}
             t={t}
-            onBack={onBackToChat}
+            heading={t("public.guestChat.cardMostRequested")}
+            addLabel={t("public.guestChat.cardSave")}
+            priceFor={(o) => menu.find((m) => m.title === o.title)?.priceLabel ?? o.priceLabel ?? null}
             onAdd={(o) => {
               requestChatAddService(o.offeringId);
               onAdded();

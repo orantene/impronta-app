@@ -942,6 +942,8 @@
       "cardGreeting": "Hola, soy {name} 👋 ¿En qué te ayudo?",
       "cardPlaceholder": "Escribe un mensaje",
       "cardServicesAria": "Ver servicios",
+      "cardMostRequested": "Lo más pedido",
+      "cardSave": "Guardar",
       "cardBookingsAria": "Mis citas",
       "cardTabServices": "Servicios",
       "cardSendOrder": "Enviar pedido · {count}",

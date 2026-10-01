@@ -339,7 +339,7 @@ test("copy and colours: new strings in en, es, fr; no hex and no dashes in the n
   const read = (lang: string) => JSON.parse(readFileSync(join(here, `../../../../../messages/${lang}.json`), "utf8")) as { public: { guestChat: Record<string, string> } };
   for (const lang of ["en", "es", "fr"]) {
     const gc = read(lang).public.guestChat;
-    for (const k of ["cardBookingsAria", "cardTabServices", "cardSendOrder"]) {
+    for (const k of ["cardBookingsAria", "cardTabServices", "cardSendOrder", "cardMostRequested", "cardSave"]) {
       assert.ok(gc[k], `${lang}.${k}`);
       assert.doesNotMatch(gc[k]!, /[–—]/, `${lang}.${k} has no dashes`);
     }
@@ -348,4 +348,33 @@ test("copy and colours: new strings in en, es, fr; no hex and no dashes in the n
     assert.doesNotMatch(src(f), /#[0-9a-fA-F]{3,8}\b/, `${f} has no hex`);
     assert.doesNotMatch(src(f), /[–—]/, `${f} has no em or en dashes`);
   }
+});
+
+test("Servicios: 'Lo más pedido' shows her first three, with the menu's price line and Guardar", () => {
+  const events: string[] = [];
+  const onEvent = (e: Event) => events.push((e as CustomEvent<{ offeringId: string }>).detail.offeringId);
+  dom.window.addEventListener(CHAT_ADD_SERVICE_EVENT, onEvent);
+  const many = ["a", "b", "c", "d"].map((id) => ({ ...OFFERING, offeringId: id, title: `Servicio ${id}` }));
+  const { host, unmount } = render(
+    <CardDockServicesView
+      offerings={many}
+      locale="es"
+      t={es}
+      selectionCount={0}
+      sending={false}
+      onSend={() => undefined}
+      onBackToChat={() => undefined}
+      onAdded={() => undefined}
+      menu={[{ title: "Servicio a", priceLabel: "$500 MXN \u00b7 \u2248 US$28" }]}
+    />,
+  );
+  assert.match(host.querySelector("[data-card-dock-heading]")?.textContent ?? "", /Lo más pedido/);
+  assert.equal(host.querySelectorAll("[data-card-chat-service]").length, 3);
+  assert.match(host.textContent ?? "", /\$500 MXN \u00b7 \u2248 US\$28/);
+  const save = host.querySelector<HTMLButtonElement>("[data-card-chat-add]")!;
+  assert.equal(save.textContent, "Guardar");
+  act(() => save.click());
+  assert.deepEqual(events, ["a"]);
+  dom.window.removeEventListener(CHAT_ADD_SERVICE_EVENT, onEvent);
+  unmount();
 });

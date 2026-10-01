@@ -65,9 +65,20 @@ dock column renders.
 `MiniChatPanelColumn.tsx` was at 799 lines. The legacy chip block and the captcha/error notices moved verbatim into
 `GuestLegacyDetailChips.tsx` and `GuestComposerNotices.tsx`.
 
-## Not in this pass (needs backend or product input, not presentation)
+## Servicios tab content (second pass)
 
-- "LO MÁS PEDIDO" shelf, per-service Guardar, and the "≈US$" line: no reader or currency-conversion helper for them
-  exists in the codebase on this base (the brief only). The service list shows the existing price line.
-- Servicios badge counts her selection, not a services count, because that is the number the dock tracks.
+The dock already had the data: `brand.dockServiceMenu` carries category pills and the price line
+`guestDockServicePriceLabel` builds ("$500 MXN · ≈ US$28", via `lib/pricing/usd-equivalent`; no rate, no USD line).
+The card Servicios tab now shows, top to bottom:
+
+1. "LO MÁS PEDIDO": her first three services (her own order) as cards with the menu's price line and a Guardar button.
+   Guardar fires the same add-service event Agregar did (adds to the booking selection) and Preguntar stays.
+2. The dock catalog unchanged: category pills (Pestañas, Uñas, ...), service rows with price and CTA.
+3. The dock's selection shelves, then the "Enviar pedido · N" tray.
+
+## Not in this pass
+
+- "Lo más pedido" is her order, not ranked by booking counts: no per-offering booking count is loaded into the dock.
+- The tray counts the inquiry lineup (the dock's selection). A service picked in the booking selection dock lives in
+  that page-level component and is not readable from the chat yet.
 - Expanded mode on desktop is a taller card, not the 2-pane list used by the standard dock.

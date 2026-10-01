@@ -535,7 +535,7 @@ export function MiniChatPanelColumn({
             onRemoveCartTalent={onRemoveCartTalent}
             onStartInquiry={card ? undefined : startInquiryInChat}
             {...dock.lineupItemsProps}
-            catalog={card && offerings.length > 0 ? null : dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
+            catalog={dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
           />
         );
         return card ? (
@@ -548,6 +548,7 @@ export function MiniChatPanelColumn({
             onSend={onSendToAgency ?? startInquiryInChat}
             onBackToChat={() => onDockViewChange?.("chat")}
             onAdded={onClose}
+            menu={brand.dockServiceMenu}
           >
             {lineup}
           </CardDockServicesView>
