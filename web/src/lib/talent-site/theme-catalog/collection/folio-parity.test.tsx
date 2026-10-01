@@ -19,6 +19,15 @@ import { buildFolioPayload, COLLECTION_DESIGNS } from "./designs";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
+const PINS = {
+  editorial: "a3ebd9640804e556",
+  utility: "9ca94a7f74bd99fc",
+  highlight: "f6ed134ba4b1cd9e",
+  booking: "8f87f1ae1e51bc17",
+  maison: "bb197b26f7793574",
+  gridline: "7270486cd38db80b",
+};
+
 function kinds(nodes: BuilderNode[]): string[] {
   const out: string[] = [];
   const walk = (n: BuilderNode) => {
@@ -120,4 +129,33 @@ test("release: Folio parity has EN/ES notes, About removal is not offered, token
   assert.ok(items.some((i) => i.id === "token-default:type.section-title-size-desktop"));
   assert.ok(releaseNotesFor("folio", 16));
   assert.equal(releaseNotesFor("maison-v2", 16)?.design === "folio", false);
+});
+
+test("Folio gap fixes: dock stays on rate cards, one-row phone header, uncapped hero name, scoped to magazine", () => {
+  const css = MAGAZINE_TYPE_SYSTEM_CSS;
+  const M = `[data-theme-canvas-root][data-token-type-system="magazine"]`;
+  assert.ok(!/rate_card"\] \.cb-dock/.test(css), "rate-card rules no longer hide the selection dock");
+  assert.ok(css.includes(`[data-layout="rate_card"] .site-builder-node--services-catalog-mobile-bar{display:none!important}`));
+  assert.ok(css.includes(`${M} .site-header__mobile-panel{display:none!important}`));
+  assert.ok(css.includes(`${M} h1.sb-mag-name{font-size:clamp(84px,27cqi,330px)!important}`));
+  assert.ok(css.includes(`${M} h1.sb-mag-name{font-size:var(--token-type-hero-size-desktop`) || /h1\.sb-mag-name\{font-size:[^}]*hero-size-desktop[^}]*!important/.test(css));
+});
+
+test("Maison v2 and Gridline output is pinned (Folio-only changes leave it byte-identical)", async () => {
+  const { createHash } = await import("node:crypto");
+  const h = (x: string) => createHash("sha256").update(x).digest("hex").slice(0, 16);
+  const mod = await import("./design-type-system");
+  const util = await import("./design-type-system-utility");
+  const book = await import("./design-type-system-utility-booking");
+  const { buildMaisonV2Payload } = await import("./maison-v2");
+  const { buildGridlinePayload } = await import("./gridline");
+  const got = {
+    editorial: h(mod.EDITORIAL_TYPE_SYSTEM_CSS),
+    utility: h(util.UTILITY_TYPE_SYSTEM_CSS),
+    highlight: h(util.HIGHLIGHT_ACCENT_CSS),
+    booking: h(book.UTILITY_BOOKING_CSS),
+    maison: h(JSON.stringify(buildMaisonV2Payload())),
+    gridline: h(JSON.stringify(buildGridlinePayload())),
+  };
+  assert.deepEqual(got, PINS);
 });
