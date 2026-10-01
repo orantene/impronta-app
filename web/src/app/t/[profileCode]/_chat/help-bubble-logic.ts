@@ -94,3 +94,24 @@ export function findHelpBubbleAnchor(doc: Document): HelpBubbleAnchor | null {
   if (visible(fab)) return { el: fab, side: "right" };
   return null;
 }
+
+/** Fixed bottom bars the bubble must clear (the booking bar / selection dock). */
+export function findHelpBubbleBarTops(doc: Document): number[] {
+  const out: number[] = [];
+  doc.querySelectorAll<HTMLElement>(".cb-bar[data-show='true'], .cb-dock[data-show='true']").forEach((el) => {
+    if (!visible(el)) return;
+    out.push(el.getBoundingClientRect().top);
+  });
+  return out;
+}
+
+/** The bubble's CSS `bottom`: 12px above the highest of the anchor and any bottom bar, so it never overlaps one. */
+export function helpBubbleBottom(viewportH: number, anchorTop: number, barTops: number[]): number {
+  const top = Math.min(anchorTop, ...barTops.filter((n) => n > 0));
+  return viewportH - top + 12;
+}
+
+/** True when a bubble from another instance is already on the page: only one may render. */
+export function otherHelpBubbleShown(doc: Document, own: Element | null): boolean {
+  return Array.from(doc.querySelectorAll("[data-help-bubble]")).some((el) => el !== own);
+}

@@ -7,6 +7,9 @@ import { interpolate, type Translator } from "@/i18n/interpolate";
 import {
   HELP_BUBBLE_VISIBLE_MS,
   findHelpBubbleAnchor,
+  findHelpBubbleBarTops,
+  helpBubbleBottom,
+  otherHelpBubbleShown,
   helpBubbleBlocked,
   helpBubbleInitials,
   helpBubbleSessionKey,
@@ -25,7 +28,7 @@ function locate(): Placement | null {
   return {
     side: a.side,
     offset: a.side === "left" ? Math.max(8, r.left) : Math.max(8, window.innerWidth - r.right),
-    bottom: window.innerHeight - r.top + 12,
+    bottom: helpBubbleBottom(window.innerHeight, r.top, findHelpBubbleBarTops(document)),
   };
 }
 
@@ -88,6 +91,7 @@ export function ChatHelpBubble({
       if (!shouldShowHelpBubble({ scrollY: window.scrollY, seen: readHelpBubbleSeen(storage, key), blocked: blockedRef.current })) return;
       const at = locate();
       if (!at) return; // no chat button on screen: nothing to point at
+      if (otherHelpBubbleShown(document, null)) return; // one bubble only
       shownRef.current = true;
       markHelpBubbleSeen(storage, key);
       setPlace(at);

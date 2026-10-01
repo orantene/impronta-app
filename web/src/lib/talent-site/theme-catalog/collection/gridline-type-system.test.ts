@@ -88,3 +88,18 @@ test("Archivo requests the wdth axis only when a usage asks for stretch", () => 
   ])!;
   assert.match(both, /family=JetBrains\+Mono:wght@400\.\.700/);
 });
+
+test("Gridline FAQ heading follows the section-title tokens (25px phone, 40px desktop) and only the utility system", () => {
+  assert.match(UTILITY_TYPE_SYSTEM_CSS, /#faq \.site-builder-node--heading\{font-size:var\(--token-type-section-title-size[^)]*\)\}/);
+  assert.match(UTILITY_TYPE_SYSTEM_CSS, /#faq \.site-builder-node--heading\{font-size:var\(--token-type-section-title-size-desktop/);
+  assert.equal(GRIDLINE_STYLE_TOKEN_DEFAULTS["type.section-title-size"], "25px");
+  assert.equal(GRIDLINE_STYLE_TOKEN_DEFAULTS["type.section-title-size-desktop"], "40px");
+  assert.ok(!EDITORIAL_TYPE_SYSTEM_CSS.includes("#faq"), "other type systems are untouched");
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(UTILITY_TYPE_SYSTEM_CSS.replace(/#(hero|faq)\b/g, "")), "no hex");
+});
+
+test("Gridline utility bar keeps subtitle and status text down to a 330px bar", async () => {
+  const { UTILITY_BAR_CSS } = await import("@/lib/site-admin/builder-node/utility-bar-block");
+  assert.match(UTILITY_BAR_CSS, /@container sbub \(max-width:330px\)\{\.sb-ub-nm small\{display:none\}/);
+  assert.ok(!UTILITY_BAR_CSS.includes("max-width:370px"));
+});
