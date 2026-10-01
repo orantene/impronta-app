@@ -10,6 +10,7 @@
  */
 
 export const SWEEP_R1_ES_TEXT: Record<string, string> = {
+  "A talent accepted the invitation.": "Una talento aceptó la invitación.",
   // Services hub + first run + selling patterns
   "Manage your services, packages and products": "Administra tus servicios, paquetes y productos",
   "From the camera": "Desde la cámara",

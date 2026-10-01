@@ -48,7 +48,8 @@ import {
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { endForStart, sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
+import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
+import { SlotTakenChips } from "./SlotTakenChips";
 import { SearchTalentField } from "./SearchTalentField";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -60,36 +61,8 @@ import type { BookableOffering } from "@/components/public-booking/pick-bookable
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
-const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY =
-  'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-const C = {
-  ink: "#0B0B0D",
-  inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
-  border: "rgba(24,24,27,0.10)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  surface: "#FAFAF7",
-  surfaceAlt: "#F7F7F2",
-  card: "#FFFFFF",
-  accent: "#1D4ED8",
-  accentSoft: "rgba(29,78,216,0.08)",
-  success: "#0F5132",
-  successSoft: "rgba(15,81,50,0.08)",
-  amber: "#92400E",
-  amberSoft: "rgba(146,64,14,0.08)",
-} as const;
-
-// ─── Talent picker option ────────────────────────────────────────────────────
-export type RosterLiteItem = {
-  id: string;
-  name: string;
-  primaryTypeLabel?: string;
-  city?: string;
-  /** Public card-thumbnail URL — renders the talent's face in the picker. */
-  photoUrl?: string | null;
-};
+import { C, FONT, FONT_DISPLAY } from "./inquiry-drawer-tokens";
+import { SubmittedView } from "./InquirySubmittedView";
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
 export type InquiryDrawerProps = {
@@ -520,26 +493,16 @@ export function InquiryDrawer({
         </div>
 
         {/* Footer */}
-        {submitState.kind === "slot_taken" && submitState.nextFreeTimes.length > 0 && !submitted ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 22px", borderTop: `1px solid ${C.borderSoft}`, background: "#fff" }}>
-            {submitState.nextFreeTimes.map((iso) => (
-              <button
-                key={iso}
-                type="button"
-                onClick={() => {
-                  applySlot({
-                    startsAt: iso,
-                    endsAt: endForStart(iso, submitState.durationMinutes),
-                    timezone: submitState.timezone,
-                  });
-                  setStep("review");
-                }}
-                style={ghostBtn}
-              >
-                {formatSlotChip(iso, submitState.timezone)}
-              </button>
-            ))}
-          </div>
+        {submitState.kind === "slot_taken" && !submitted ? (
+          <SlotTakenChips
+            times={submitState.nextFreeTimes}
+            timezone={submitState.timezone}
+            durationMinutes={submitState.durationMinutes}
+            borderColor={C.borderSoft}
+            background={C.surface}
+            buttonStyle={ghostBtn}
+            onPick={(slot) => { applySlot(slot); setStep("review"); }}
+          />
         ) : null}
         <footer
           style={{
@@ -1863,120 +1826,7 @@ function AttachmentStatus({
   );
 }
 
-type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 
-function SubmittedView({
-  state, agencyName, soloTalentName = null,
-}: {
-  state: SubmittedState;
-  agencyName: string;
-  soloTalentName?: string | null;
-}) {
-  const t = useT();
-  const messagesHref =
-    `/${state.tenantSlug}/client/messages`
-    + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
-
-  // Guest follow-up CTA. The route is activation-dependent so the visitor
-  // never lands on a dead end:
-  //  • created  → a fresh account with no password yet → set-password flow.
-  //  • matched  → an existing account → password sign-in.
-  //  • unlinked → no account was linked → let them register.
-  const guestEmailQuery = state.guestEmail
-    ? `?email=${encodeURIComponent(state.guestEmail)}`
-    : "";
-  const guestCta =
-    state.guestActivation === "matched"
-      ? { href: `/login${guestEmailQuery}`, label: t("public.inquiryDrawer.guestCtaSignIn") }
-      : state.guestActivation === "created"
-        ? {
-            href: `/forgot-password${guestEmailQuery}`,
-            label: t("public.inquiryDrawer.guestCtaSetPassword"),
-          }
-        : { href: `/register${guestEmailQuery}`, label: t("public.inquiryDrawer.guestCtaCreate") };
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        textAlign: "center",
-        gap: 14,
-        padding: "28px 12px",
-        fontFamily: FONT,
-      }}
-    >
-      <div
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 999,
-          background: C.successSoft,
-          color: C.success,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 26,
-        }}
-      >
-        ✓
-      </div>
-      <div>
-        <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-          {t("public.inquiryDrawer.submittedTitle")}
-        </div>
-        <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
-          {interpolate(t(sentCopyKeys(soloTalentName).body), { agency: agencyName, talent: soloTalentName ?? agencyName })}
-        </p>
-      </div>
-
-      {state.isGuest ? (
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 420,
-            background: C.card,
-            border: `1px solid ${C.borderSoft}`,
-            borderRadius: 10,
-            padding: "14px 16px",
-            textAlign: "left",
-          }}
-        >
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
-            {state.guestActivation === "matched"
-              ? t("public.inquiryDrawer.submittedGuestMatchedTitle")
-              : state.guestActivation === "created"
-                ? t("public.inquiryDrawer.submittedGuestCreatedTitle")
-                : t("public.inquiryDrawer.submittedGuestTrackTitle")}
-          </div>
-          <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-            {state.guestActivation === "created"
-              ? state.guestEmail
-                ? interpolate(t("public.inquiryDrawer.submittedGuestCreatedBodyEmail"), { email: state.guestEmail })
-                : t("public.inquiryDrawer.submittedGuestCreatedBodyNoEmail")
-              : state.guestActivation === "matched"
-                ? state.guestEmail
-                  ? interpolate(t("public.inquiryDrawer.submittedGuestMatchedBodyEmail"), { email: state.guestEmail })
-                  : t("public.inquiryDrawer.submittedGuestMatchedBodyNoEmail")
-                : state.guestEmail
-                  ? interpolate(t("public.inquiryDrawer.submittedGuestUnlinkedBodyEmail"), { email: state.guestEmail })
-                  : t("public.inquiryDrawer.submittedGuestUnlinkedBodyNoEmail")}
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-            <a href={guestCta.href} style={primaryLinkStyle}>
-              {guestCta.label}
-            </a>
-          </div>
-        </div>
-      ) : (
-        <a href={messagesHref} style={primaryLinkStyle}>
-          {t("public.inquiryDrawer.viewInMessages")}
-        </a>
-      )}
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitives
@@ -2411,17 +2261,3 @@ export function InquiryDrawerShell({
   );
 }
 
-function formatSlotChip(iso: string, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      timeZone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
