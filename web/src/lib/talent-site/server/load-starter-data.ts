@@ -15,6 +15,7 @@ import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadHeroProofData } from "./load-hero-proof";
+import { canonicalCityLabel } from "./city-label.server";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
@@ -136,11 +137,13 @@ export async function loadTalentStarterProfileData(
   })();
 
   // Service-area home base first, else the city the drawer saved (F30).
-  const homeCity =
+  const homeCityRaw =
     (p.talent_service_areas ?? [])
       .find((a) => a.service_kind === "home_base")
       ?.locations?.display_name_i18n?.en?.trim() ||
     cityLabelFromPlaceText(p.home_city_text);
+  // Place text can be ASCII-folded ("Cancun"); restore the location's accent.
+  const homeCity = homeCityRaw ? await canonicalCityLabel(trusted, homeCityRaw, "en") : homeCityRaw;
 
   const serviceAreaLabels = (p.talent_service_areas ?? [])
     .map((a) => a.locations?.display_name_i18n?.en?.trim())

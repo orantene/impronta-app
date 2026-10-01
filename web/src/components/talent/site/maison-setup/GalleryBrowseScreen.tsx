@@ -106,7 +106,12 @@ export function GalleryBrowseScreen({
     restoredScroll.current = true;
     if (state.scrollY > 0 && typeof window !== "undefined") {
       const y = state.scrollY;
-      window.requestAnimationFrame(() => window.scrollTo(0, y));
+      window.requestAnimationFrame(() => {
+        // Inside the setup overlay the dialog scrolls, never the window.
+        const box = document.querySelector<HTMLElement>("[data-maison-setup-overlay]");
+        if (box) box.scrollTop = y;
+        else window.scrollTo(0, y);
+      });
     }
   }, [hydrated, state.scrollY]);
 
@@ -139,7 +144,10 @@ export function GalleryBrowseScreen({
     setState((s) => resetFilters(s));
   };
   const explore = (r: GallerySearchResult) => {
-    const scrollY = typeof window !== "undefined" ? window.scrollY : 0;
+    const scrollY =
+      typeof window !== "undefined"
+        ? (document.querySelector<HTMLElement>("[data-maison-setup-overlay]")?.scrollTop ?? window.scrollY)
+        : 0;
     const next = { ...state, lastViewed: r.design.slug, scrollY };
     setState(next);
     saveGalleryBrowseState(next);
