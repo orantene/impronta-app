@@ -277,9 +277,18 @@ async function captureMockup(browser, width) {
       await page.evaluate(fn);
       await page.waitForTimeout(500);
     };
-    await page.locator(devBtn).click();
+    // The step jump can reset the mockup's device mode (Folio does), so jump first, THEN pick the device.
     if (drv.stepButton) await page.locator(drv.stepButton).click();
+    await page.locator(devBtn).click();
     await page.waitForTimeout(600);
+    // Capture self-check: the mockup lays out inside a container (@container site), so the device
+    // switch alone is not enough. The measured container must really be this wide.
+    const rootSel = drv.root || "#site";
+    const cw = await page.evaluate((sel) => document.querySelector(sel)?.clientWidth || 0, rootSel);
+    out.containerWidth = cw;
+    const okWidth = width >= 1000 ? cw >= 1200 : Math.abs(cw - width) <= 4;
+    if (!okWidth) { out.containerOk = false; throw new Error(`mockup container ${cw}px does not match the ${width}px device mode (need ${width >= 1000 ? ">= 1200" : width})`); }
+    out.containerOk = true;
     await page.evaluate(() => { const v = document.getElementById("vp"); if (v) { v.style.scrollBehavior = "auto"; } });
     await preparePage(page);
     out.analysis = await page.evaluate(analyze, analyzeArgs("mockup"));
@@ -577,6 +586,7 @@ async function main() {
   const stale = applyBaseline(deltas, baseline);
   for (const r of rows) r.known = r.status === "FAIL" && r.findings.length > 0 && r.findings.every((f) => f.delta?.accepted);
   const open = deltas.filter((d) => !d.accepted);
+  const captureBad = Object.values(mockups).some((m) => m.containerOk !== true);
   const summary = {
     timestamp: ts,
     design: opts.design,
@@ -601,6 +611,7 @@ async function main() {
     pixel: rows.filter((r) => r.pixel).map((r) => ({ width: r.width, section: r.section, ratio: +r.pixel.ratio.toFixed(4), threshold: r.pixel.threshold, ok: r.pixel.ok, heightDelta: r.pixel.heightDelta })),
     skippedDrafts: skippedDrafts.map((t) => `${t.code} ${t.name}`),
     noSession: noSession.map((t) => `${t.code} ${t.name}`),
+    mockupContainer: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, { containerWidth: m.containerWidth ?? null, ok: m.containerOk === true }])),
     mockupSelfCheck: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, m.ok ? m.selfCheck : [`mockup unavailable: ${m.error}`]])),
     talentsChecked: talents.map((t) => ({ code: t.code, name: t.name, demo: t.demo, status: t.status })),
     failures: rows.filter((r) => r.status !== "PASS").map((r) => ({ talent: r.code, width: r.width, section: r.section, status: r.known ? "KNOWN" : r.status, reasons: r.reasons })),
@@ -652,7 +663,8 @@ async function main() {
       console.log(`since last pass: ${fixed} fixed, ${added} new`);
     }
     console.log(`${summary.verdict}: ${open.length} open deltas (${Object.entries(summary.deltasByLayer).filter(([, n]) => n).map(([l, n]) => `${l} ${n}`).join(", ") || "none"}), ${deltas.length - open.length} known. images: ${join(outDir, "img")}`);
-    process.exit(summary.verdict === "GREEN" ? 0 : 1);
+    console.log(`mockup container: ${Object.entries(summary.mockupContainer).map(([w, c]) => `${w}px -> ${c.containerWidth}px ${c.ok ? "ok" : "MISMATCH"}`).join(", ")}`);
+    process.exit(summary.verdict === "GREEN" && !captureBad ? 0 : 1);
   }
 
   console.log(`\nmockup-parity  ${summary.talents} talents · ${opts.design} · source ${opts.source} · widths ${opts.widths.join(",")} · locale ${opts.locale} · states ${opts.states.join(",")}`);
@@ -664,11 +676,12 @@ async function main() {
   if (baseline.missing) console.log(`baseline: none at ${baseline.file} (every delta counts)`);
   if (stale.length) console.log(`baseline entries that no longer fail (remove them): ${summary.baseline.stale.join("; ")}`);
   if (skippedDrafts.length) console.log(`skipped (draft, unpublished): ${summary.skippedDrafts.join(", ")} (use --include-drafts)`);
+  console.log(`mockup container: ${Object.entries(summary.mockupContainer).map(([w, c]) => `${w}px device -> ${c.containerWidth}px ${c.ok ? "ok" : "MISMATCH"}`).join(", ")}`);
   const mc = Object.values(summary.mockupSelfCheck).flat();
   if (mc.length) console.log(`mockup self-check notes: ${mc.length} (see summary.json; rules that fail on the mockup need tuning)`);
   console.log(`deltas: ${deltasFile}`);
   if (reportBytes) console.log(`report: ${join(outDir, "report.html")} (${(reportBytes / 1048576).toFixed(1)} MB, self-contained)`);
-  process.exit(summary.verdict === "GREEN" ? 0 : 1);
+  process.exit(summary.verdict === "GREEN" && !captureBad ? 0 : 1);
 }
 
 main().catch((e) => { console.error(e); process.exit(2); });
