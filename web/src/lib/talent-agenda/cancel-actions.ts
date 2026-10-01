@@ -11,6 +11,8 @@ import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { requireOwnBooking } from "./booking-actions";
+import { talentBookingMirrorEq } from "./ownership";
+import { logServerError } from "@/lib/server/safe-error";
 import type { AgendaActionResult } from "./booking-actions";
 
 export type CancelWithRefundResult =
@@ -56,6 +58,20 @@ export async function cancelBookingWithRefund(input: {
       reason: (result && "reason" in result && result.reason) || "unavailable",
     };
   }
+
+  // cancel_booking_set only syncs the calendar mirror by source_inquiry_id. A
+  // booking added from the agenda has no inquiry; its talent_bookings copy
+  // shares the booking id, so without this it stayed "confirmed" and kept the
+  // slot blocked on the public profile (QA on Jor, 2026-10-01). Same shared-id
+  // sync as no-show / complete. Idempotent, so it also heals an "already" row.
+  const mirror = talentBookingMirrorEq(input.bookingId, own.talentId);
+  const { error: mirrorErr } = await admin
+    .from("talent_bookings")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("id", mirror.id)
+    .eq("talent_profile_id", mirror.talent_profile_id)
+    .neq("status", "cancelled");
+  if (mirrorErr) logServerError("agenda.cancelBookingWithRefund.mirror", mirrorErr);
 
   if (!result.already) {
     await logBookingActivity(admin, {

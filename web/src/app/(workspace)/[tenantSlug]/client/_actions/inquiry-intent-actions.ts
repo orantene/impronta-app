@@ -35,6 +35,7 @@ import {
   type CreateInquiryFromIntentResult,
 } from "@/lib/inquiry/inquiry-intent-engine";
 import { logServerError } from "@/lib/server/safe-error";
+import { guestDrawerFallbackAllowed, isPublicTenantStatus } from "@/lib/inquiry/guest-drawer-tenant";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Action result shape — flat object compatible with useActionState.
@@ -65,11 +66,26 @@ const GUEST_HEADER = "x-impronta-guest";
 // Shared resolver: pull tenant + actor session + supabase client.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function resolveSubmitContext(tenantSlug: string) {
-  const scope = await getTenantPortalScopeBySlug(tenantSlug);
+async function resolveSubmitContext(
+  tenantSlug: string,
+  opts: { guestSelectedTalentIds?: readonly unknown[] } = {},
+) {
+  const session = await getCachedActorSession();
+  let scope: { tenantId: string } | null = await getTenantPortalScopeBySlug(tenantSlug);
+  // A guest on the platform talent profile has no host/tenant relationship;
+  // when they name a talent the submit's roster gate scopes the write, exactly
+  // like the guest chat on the same page (lib/inquiry/guest-drawer-tenant.ts).
+  if (
+    !scope &&
+    guestDrawerFallbackAllowed({
+      hasUser: Boolean(session.user),
+      selectedTalentIds: opts.guestSelectedTalentIds,
+    })
+  ) {
+    scope = await resolvePublicTenantBySlug(tenantSlug);
+  }
   if (!scope) return { ok: false as const, error: "tenant_not_found" };
 
-  const session = await getCachedActorSession();
   // Note: session.user is NULL on guest path. That's OK — submitInquiry +
   // createInquiryFromIntent both handle the guest case.
   const supabase = await createSupabaseServerClient();
@@ -109,6 +125,24 @@ async function resolveSubmitContext(tenantSlug: string) {
     actorEmail: session.user?.email ?? null,
     guestSessionId,
   };
+}
+
+async function resolvePublicTenantBySlug(slug: string): Promise<{ tenantId: string } | null> {
+  const normalized = slug.trim().toLowerCase();
+  const admin = createServiceRoleClient();
+  if (!normalized || !admin) return null;
+  const { data, error } = await admin
+    .from("agencies")
+    .select("id, status")
+    .eq("slug", normalized)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logServerError("inquiry-intent-actions.resolvePublicTenantBySlug", error);
+    return null;
+  }
+  if (!data || !isPublicTenantStatus(data.status as string | null)) return null;
+  return { tenantId: data.id as string };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,7 +242,9 @@ export async function submitInquiryNowAction(
     return { kind: "error", message: "Malformed intent payload." };
   }
 
-  const ctx = await resolveSubmitContext(tenantSlug);
+  const ctx = await resolveSubmitContext(tenantSlug, {
+    guestSelectedTalentIds: intent.talent?.selected_ids ?? [],
+  });
   if (!ctx.ok) return { kind: "error", message: ctx.error };
 
   // SECURITY (L1-F1): intent.talent.selected_ids is client-supplied and the
