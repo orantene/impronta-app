@@ -5,7 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { loadThemeVersionPayload } from "@/lib/talent-site/theme-releases/theme-versions.server";
 import type { DesignPayload } from "@/lib/talent-site/theme-catalog/types";
-import { canonicalDesignPayload, freezeDesignKeysHook } from "./canonical";
+import { canonicalDesignPayload, freezeDesignKeysHook, rekeyOnSave } from "./canonical";
 import {
   THEME_DRAFT_COLUMNS,
   applyTokenSplit,
@@ -118,7 +118,7 @@ export async function saveThemeDraftTree(
   if (!cur.ok) return cur;
   if (cur.value.rev !== input.expectedRev) return fail("stale_rev", STALE);
   const key = input.tree === "shell" ? "shellTree" : "homeTree";
-  const payload = freezeDesignKeysHook(canonicalDesignPayload({ ...cur.value.payload, [key]: input.nodes }));
+  const payload = rekeyOnSave(cur.value.payload, canonicalDesignPayload({ ...cur.value.payload, [key]: input.nodes }));
   return casUpdate(admin, cur.value, input.expectedRev, { payload }, input.actorId);
 }
 
