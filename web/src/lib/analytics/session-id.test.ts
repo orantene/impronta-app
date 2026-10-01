@@ -15,9 +15,12 @@ class MemoryStorage {
   setItem(k: string, v: string) { this.m.set(k, v); }
 }
 
-function setup(storage: unknown = new MemoryStorage()) {
+function setup(storage: unknown = new MemoryStorage(), consent: "granted" | "denied" | null = "granted") {
   (globalThis as Record<string, unknown>).window = {};
   (globalThis as Record<string, unknown>).sessionStorage = storage;
+  const local = new MemoryStorage();
+  if (consent) local.setItem("impronta_analytics_consent", consent);
+  (globalThis as Record<string, unknown>).localStorage = local;
 }
 
 async function fresh() {
@@ -26,7 +29,7 @@ async function fresh() {
 
 describe("analytics session id", () => {
   beforeEach(() => {
-    for (const k of ["window", "sessionStorage"]) {
+    for (const k of ["window", "sessionStorage", "localStorage"]) {
       delete (globalThis as Record<string, unknown>)[k];
     }
   });
@@ -56,6 +59,16 @@ describe("analytics session id", () => {
     let id: string | null = "unset";
     assert.doesNotThrow(() => { id = getSessionId(); });
     assert.equal(id, null, "unstitched is acceptable; a thrown error on a marketing page is not");
+  });
+
+  test("no id without analytics consent, and nothing is stored", async () => {
+    for (const c of [null, "denied"] as const) {
+      const storage = new MemoryStorage();
+      setup(storage, c);
+      const { getSessionId } = await fresh();
+      assert.equal(getSessionId(), null);
+      assert.equal(storage.getItem("tulala.session.v1"), null);
+    }
   });
 
   test("returns null on the server", async () => {

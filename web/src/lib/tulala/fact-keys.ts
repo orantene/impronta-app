@@ -100,6 +100,8 @@ export type FactKeyDef = {
   category: FactCategory;
   /** Settings-surface label. Sentence case, no trailing colon. */
   label: string;
+  /** Spanish (Mexican, tú) label where one exists; `factLabel` falls back to `label`. */
+  labelEs?: string;
   /**
    * Allowed values for enum-ish string facts. Enforced by `validateFactValue`,
    * so a model that invents a fifth answer is rejected rather than stored.
@@ -575,8 +577,10 @@ export function isKnownFactKey(key: string): boolean {
  * vocabulary version still renders. A restored snapshot from before a key was
  * renamed must not blank out the review screen.
  */
-export function factLabel(key: string): string {
-  return BY_KEY.get(key)?.label ?? key;
+export function factLabel(key: string, locale: "en" | "es" = "en"): string {
+  const def = BY_KEY.get(key);
+  if (locale === "es" && def?.labelEs) return def.labelEs;
+  return def?.label ?? key;
 }
 
 export function factKeysInCategory(category: FactCategory): FactKeyDef[] {
