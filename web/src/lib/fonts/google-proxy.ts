@@ -21,7 +21,11 @@ const GSTATIC_PATH_RE = /^\/s\/[a-z0-9]+\/[A-Za-z0-9_.\-/]{1,200}\.(woff2|woff|t
 export function toFontProxyHref(googleHref: string): string {
   const q = googleHref.indexOf("?");
   if (q < 0 || !googleHref.startsWith(GOOGLE_CSS_ORIGIN)) return googleHref;
-  return `${FONT_CSS_PROXY_PATH}?${googleHref.slice(q + 1)}`;
+  const query = googleHref.slice(q + 1);
+  // Fail safe: a family or parameter the proxy would reject keeps the Google
+  // URL, so a theme font outside the catalogue still renders.
+  if (buildUpstreamCssUrl(query) === null) return googleHref;
+  return `${FONT_CSS_PROXY_PATH}?${query}`;
 }
 
 /**

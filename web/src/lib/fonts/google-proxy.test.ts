@@ -40,3 +40,8 @@ test("font proxy: rewrites gstatic urls in css", () => {
   assert.ok(out.includes("/api/fonts/file?p=%2Fs%2Fjost%2Fv15%2Fa.woff2"));
   assert.ok(!out.includes("gstatic"));
 });
+
+test("toFontProxyHref keeps the Google URL for a family the proxy would reject", () => {
+  const href = "https://fonts.googleapis.com/css2?family=Definitely+Not+A+Font&display=swap";
+  assert.equal(toFontProxyHref(href), href);
+});

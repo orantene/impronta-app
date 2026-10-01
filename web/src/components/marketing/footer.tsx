@@ -29,6 +29,7 @@ const FOOTER_HREFS = {
     "/network",
     "/legal/privacy",
     "/legal/terms",
+    "/legal/cookies",
   ],
 };
 
