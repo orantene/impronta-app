@@ -61,6 +61,7 @@ export type BuilderNodeKind =
   /** Comp card — live measure strip from public profile fields + visibility. */
   | "comp_card"
   | "spec_table"
+  | "task_picker"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1529,6 +1530,38 @@ export interface BuilderSpecTableNode extends BuilderNodeBase {
 }
 
 /**
+ * Task picker (Gridline W-11): a grid of "what is happening" tasks, each
+ * pointing at one offering by id, with a recommendation card that reads the
+ * offering's live price, duration, booking mode and action. Text is authored
+ * in EN with an optional ES twin per row. References only: no offering data
+ * is copied into the node.
+ */
+export interface BuilderTaskPickerNode extends BuilderNodeBase {
+  kind: "task_picker";
+  props: {
+    eyebrow?: string;
+    title?: string;
+    tasks?: Array<{
+      id: string;
+      label: string;
+      labelEs?: string;
+      icon?: BuilderIconName;
+      offeringId?: string;
+      hint?: string;
+      hintEs?: string;
+    }>;
+    /** Offering recommended while no task is picked (the inspection). */
+    defaultOfferingId?: string;
+    defaultKicker?: string;
+    defaultKickerEs?: string;
+    defaultHint?: string;
+    defaultHintEs?: string;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Comp card — live measure strip bound to public profile field values.
  * Inspector controls which measures show, labels, and full-details disclosure.
  * Hidden when empty; never invents measurements. Designs stamp via `compCardBlock`.
@@ -2637,6 +2670,7 @@ export type BuilderNode =
   | BuilderStatementFooterNode
   | BuilderCompCardNode
   | BuilderSpecTableNode
+  | BuilderTaskPickerNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode
