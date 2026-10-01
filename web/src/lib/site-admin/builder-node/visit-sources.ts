@@ -173,7 +173,7 @@ export async function loadVisitSources(
     const base = areas.find((a) => a.service_kind === "home_base");
     // Place text can arrive ASCII-folded ("Cancun"); the locations row has the accent.
     const baseRaw = (base ? placeName(base, locale) : null) ?? cityLabelFromPlaceText(profile?.home_city_text);
-    const baseName = baseRaw ? await canonicalCityLabel(admin, baseRaw, locale) : null;
+    const baseName = baseRaw ? await canonicalCityLabel(admin, baseRaw, locale, [cityLabelFromPlaceText(profile?.home_city_text)]) : null;
     const locationSettings = parseLocationSettings(locationRes.data ?? null);
     const talentLocation = toPublicLocation(locationSettings, baseName ?? "");
     // The note follows the talent's address setting (it used to always promise

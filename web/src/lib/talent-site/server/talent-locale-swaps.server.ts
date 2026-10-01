@@ -66,7 +66,7 @@ export async function loadTalentLocaleSwaps(
     const cityMap = home?.locations?.display_name_i18n ?? null;
     const rawCity = cityMap?.en?.trim() || cityLabelFromPlaceText(row.home_city_text) || "";
     const lang = (locale ?? "en").trim().toLowerCase().slice(0, 2) || "en";
-    const canon = rawCity ? await canonicalCityLabel(admin, rawCity, lang) : "";
+    const canon = rawCity ? await canonicalCityLabel(admin, rawCity, lang, [cityLabelFromPlaceText(row.home_city_text)]) : "";
     const homeCity: LocalizedMapLike = rawCity
       ? { ...(cityMap ?? {}), en: cityMap?.en?.trim() || rawCity, ...(canon ? { [lang]: canon } : {}) }
       : cityMap;

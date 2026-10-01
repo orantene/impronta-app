@@ -24,21 +24,24 @@ type NameMap = Readonly<Record<string, string | null | undefined>> | null | unde
 
 /**
  * The best spelling of `label` in `locale` among the canonical location maps
- * that share its slug: the locale's own name, then any accented variant, then
- * the label unchanged. Never returns a different city.
+ * that share its slug (or the hints): an accented spelling if any exists,
+ * else the label unchanged. Never returns a different city.
  */
-export function canonicalCityName(label: string, maps: ReadonlyArray<NameMap>, locale: string): string {
+export function canonicalCityName(
+  label: string,
+  maps: ReadonlyArray<NameMap>,
+  locale: string,
+  /** Other spellings of the same city (the drawer's place text). */
+  hints: ReadonlyArray<string | null | undefined> = [],
+): string {
   const text = label.trim();
   if (!text) return text;
   const lang = locale.trim().toLowerCase().slice(0, 2) || "en";
   const slug = citySlug(text);
   const same = (n: string | null | undefined): n is string => !!n?.trim() && citySlug(n) === slug;
-  for (const m of maps) {
-    const own = m?.[lang];
-    if (same(own)) return own.trim();
-  }
-  for (const m of maps) {
-    for (const n of Object.values(m ?? {})) if (same(n) && hasAccent(n)) return n.trim();
-  }
-  return text;
+  // A location row can itself be ASCII-folded ("Cancun" in both languages) while
+  // the talent's place text has the accent, so an accented spelling anywhere wins.
+  const all = [...maps.map((m) => m?.[lang]), ...maps.flatMap((m) => Object.values(m ?? {})), ...hints];
+  const accented = all.find((n) => same(n) && hasAccent(n!));
+  return accented ? accented.trim() : text;
 }

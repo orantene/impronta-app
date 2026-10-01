@@ -144,7 +144,7 @@ export async function loadTalentStarterProfileData(
       ?.locations?.display_name_i18n?.en?.trim() ||
     cityLabelFromPlaceText(p.home_city_text);
   // Place text can be ASCII-folded ("Cancun"); restore the location's accent.
-  const homeCity = homeCityRaw ? await canonicalCityLabel(trusted, homeCityRaw, "en") : homeCityRaw;
+  const homeCity = homeCityRaw ? await canonicalCityLabel(trusted, homeCityRaw, "en", [cityLabelFromPlaceText(p.home_city_text)]) : homeCityRaw;
 
   const serviceAreaLabels = (p.talent_service_areas ?? [])
     .map((a) => a.locations?.display_name_i18n?.en?.trim())

@@ -21,6 +21,13 @@ test("it never returns a different city, and no match keeps the text", () => {
   assert.equal(canonicalCityName("", [{ es: "Cancún" }], "es"), "");
 });
 
+test("Valeria's data: the location row is ASCII in both languages, the place text has the accent (data)", () => {
+  const rowMap = { en: "Cancun", es: "Cancun" };
+  assert.equal(canonicalCityName("Cancun", [rowMap], "es", ["Cancún"]), "Cancún");
+  assert.equal(canonicalCityName("Cancun", [rowMap], "en", ["Cancún"]), "Cancún");
+  assert.equal(canonicalCityName("Cancun", [rowMap], "es", ["Tulum"]), "Cancun", "a hint for another city is ignored");
+});
+
 test("hasAccent", () => {
   assert.ok(hasAccent("Cancún"));
   assert.ok(!hasAccent("Cancun"));

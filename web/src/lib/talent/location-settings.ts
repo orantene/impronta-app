@@ -132,7 +132,11 @@ export function toPublicLocation(settings: LocationSettings, city: string): Tale
 
 /** The zone as one line: "Centro, Mérida". Empty when there is no zone. */
 export function zoneLabel(loc: Pick<TalentLocationPublic, "city" | "neighbourhood">): string {
-  return [loc.neighbourhood, loc.city].filter(Boolean).join(", ");
+  // "Centro, Cancún (cerca del Parque)" already names the city: do not append it again.
+  const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const city = loc.city?.trim() ?? "";
+  const named = city !== "" && fold(loc.neighbourhood ?? "").includes(fold(city));
+  return [loc.neighbourhood, named ? "" : city].filter(Boolean).join(", ");
 }
 
 /** Plain external link, opened by the visitor. No embed, no request before a click. */

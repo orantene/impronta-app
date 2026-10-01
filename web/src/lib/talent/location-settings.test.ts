@@ -113,6 +113,13 @@ test("zone label joins neighbourhood and city", () => {
   assert.equal(zoneLabel({ city: "Mérida", neighbourhood: "Centro" }), "Centro, Mérida");
   assert.equal(zoneLabel({ city: "Mérida", neighbourhood: "" }), "Mérida");
   assert.equal(zoneLabel({ city: "", neighbourhood: "" }), "");
+  // A neighbourhood that already names the city is not given the city again (accent-insensitive).
+  assert.equal(
+    zoneLabel({ city: "Cancún", neighbourhood: "Centro, Cancún (cerca del Parque de las Palapas)" }),
+    "Centro, Cancún (cerca del Parque de las Palapas)",
+  );
+  assert.equal(zoneLabel({ city: "Cancun", neighbourhood: "Centro, Cancún" }), "Centro, Cancún");
+  assert.equal(zoneLabel({ city: "Cancún", neighbourhood: "Centro" }), "Centro, Cancún");
 });
 
 test("links: zone search and embed query never contain the address unless public", () => {

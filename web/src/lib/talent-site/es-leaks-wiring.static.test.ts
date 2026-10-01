@@ -13,7 +13,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), "src/lib", p), "utf
 test("the visit block localizes language names and restores the city accent (platform)", () => {
   const src = read("site-admin/builder-node/visit-sources.ts");
   assert.match(src, /localizedLanguageName\(\{ name: l\.language_name, code: l\.language_code \}, locale\)/);
-  assert.match(src, /canonicalCityLabel\(admin, baseRaw, locale\)/);
+  assert.match(src, /canonicalCityLabel\(admin, baseRaw, locale, \[cityLabelFromPlaceText\(profile\?\.home_city_text\)\]\)/);
   assert.match(src, /canonicalCityLabel\(admin, x, locale\)/);
 });
 

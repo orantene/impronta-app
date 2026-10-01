@@ -12,7 +12,7 @@ type Admin = Pick<SupabaseClient, "from">;
  * is when it already carries an accent, matches no location, or the read
  * fails, so this can only improve a city, never change it.
  */
-export async function canonicalCityLabel(admin: Admin, label: string | null | undefined, locale: string): Promise<string> {
+export async function canonicalCityLabel(admin: Admin, label: string | null | undefined, locale: string, hints: ReadonlyArray<string | null | undefined> = []): Promise<string> {
   const text = label?.trim() ?? "";
   if (!text || hasAccent(text)) return text;
   const slug = citySlug(text);
@@ -23,5 +23,5 @@ export async function canonicalCityLabel(admin: Admin, label: string | null | un
     return text;
   }
   const maps = ((data ?? []) as { display_name_i18n: Record<string, string | null> | null }[]).map((r) => r.display_name_i18n);
-  return canonicalCityName(text, maps, locale);
+  return canonicalCityName(text, maps, locale, hints);
 }
