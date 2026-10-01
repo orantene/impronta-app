@@ -187,7 +187,10 @@ export async function PayByCodePage({
     );
   }
 
-  if (loaded.status !== "open") {
+  // A cancelled booking voids its order: an open link on it is no longer
+  // payable, whatever the link row still says.
+  const orderCancelled = orderRow?.status === "cancelled";
+  if (loaded.status !== "open" || orderCancelled) {
     return (
       <CheckoutView
         code={code}
@@ -196,7 +199,7 @@ export async function PayByCodePage({
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
         status={
-          loaded.status === "cancelled"
+          loaded.status === "cancelled" || orderCancelled
             ? "cancelled"
             : loaded.status === "replaced"
               ? "replaced"

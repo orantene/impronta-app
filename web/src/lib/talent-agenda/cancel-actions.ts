@@ -14,10 +14,46 @@ import { requireOwnBooking } from "./booking-actions";
 import { talentBookingMirrorEq } from "./ownership";
 import { logServerError } from "@/lib/server/safe-error";
 import type { AgendaActionResult } from "./booking-actions";
+import { ledgerPaidCents, settleMoneyOnCancel } from "./cancel-money";
 
 export type CancelWithRefundResult =
-  | { ok: true; refundableCents: number; already?: boolean; refundFailed?: boolean }
+  | {
+      ok: true;
+      refundableCents: number;
+      already?: boolean;
+      refundFailed?: boolean;
+      /** Settled money on the booking's order, read from the ledger. */
+      paidCents: number;
+      /** A Checkout session completed while the cancel ran: money is arriving. */
+      paymentInFlight?: boolean;
+    }
   | AgendaActionResult & { ok: false };
+
+/**
+ * What the client has paid on this booking, from the ledger, for the cancel
+ * dialog. null when it cannot be read: the dialog then never claims "nothing
+ * was paid".
+ */
+export async function cancelPaymentPreview(
+  bookingId: string,
+): Promise<{ ok: true; paidCents: number } | { ok: false; reason: string }> {
+  const own = await requireOwnBooking(bookingId);
+  if (!own.ok) return { ok: false, reason: own.reason };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+  const { data: row, error } = await admin
+    .from("agency_bookings")
+    .select("order_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (error) {
+    logServerError("agenda.cancelPaymentPreview", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const paid = await ledgerPaidCents(admin, row?.order_id ? String(row.order_id) : null);
+  if (paid === null) return { ok: false, reason: "unavailable" };
+  return { ok: true, paidCents: paid };
+}
 
 export async function cancelBookingWithRefund(input: {
   bookingId: string;
@@ -33,7 +69,7 @@ export async function cancelBookingWithRefund(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, status")
+    .select("id, tenant_id, status, order_id")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error || !row?.tenant_id) {
@@ -73,6 +109,20 @@ export async function cancelBookingWithRefund(input: {
     .neq("status", "cancelled");
   if (mirrorErr) logServerError("agenda.cancelBookingWithRefund.mirror", mirrorErr);
 
+  // The money around the booking: open pay links come down (their Checkout
+  // sessions expire first), an unpaid order is voided, a paid one is left for
+  // a manual refund from Money. Runs on "already" too, so a retry heals a
+  // cancel whose money step failed.
+  const { cancelPaymentLink } = await import("@/lib/payments/links");
+  const money = await settleMoneyOnCancel(
+    admin,
+    { tenantId: String(row.tenant_id), orderId: row.order_id ? String(row.order_id) : null },
+    { cancelPaymentLink },
+  );
+  if (!money.ok) {
+    logServerError("agenda.cancelBookingWithRefund.money", `booking ${input.bookingId}: payment cleanup incomplete`);
+  }
+
   if (!result.already) {
     await logBookingActivity(admin, {
       bookingId: input.bookingId,
@@ -84,6 +134,9 @@ export async function cancelBookingWithRefund(input: {
         surface: "talent_agenda",
         cancelledBy: input.cancelledBy,
         refundableCents: Number(result.refundableCents) || 0,
+        paidCents: money.paidCents,
+        linksVoided: money.linksVoided,
+        orderVoided: money.orderVoided,
       },
     });
   }
@@ -92,5 +145,7 @@ export async function cancelBookingWithRefund(input: {
     ok: true,
     refundableCents: Number(result.refundableCents) || 0,
     already: result.already === true,
+    paidCents: money.paidCents,
+    paymentInFlight: money.paymentInFlight,
   };
 }

@@ -19,7 +19,7 @@ export {
 } from "./booking-actions";
 export type { CreateAgendaPayLinkResult } from "./booking-actions";
 export { proposeReschedule, respondToReschedule } from "./reschedule-actions";
-export { cancelBookingWithRefund } from "./cancel-actions";
+export { cancelBookingWithRefund, cancelPaymentPreview } from "./cancel-actions";
 export type { CancelWithRefundResult } from "./cancel-actions";
 // loadTalentAgenda stays in ./load (server-only) — import from there, not this barrel.
 export { tradeCalendarRules } from "./trade-calendar";
