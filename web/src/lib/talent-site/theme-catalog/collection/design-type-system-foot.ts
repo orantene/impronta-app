@@ -69,6 +69,15 @@ export const EDITORIAL_RICH_FOOTER_CSS = [
   `${DARK} #s-foot-cols h3{color:${mix(62, PAGE)}}`,
   `${F} #s-foot-cols p.site-builder-node--paragraph{margin:0;font-size:14px;line-height:1.45}`,
 
+  // ── Desktop parity (release 2.8, 1440 harness). The Location heading follows the section
+  // title tokens like every other section heading (its own `clamp()` capped it at 44px against
+  // the proposal's 58px), and the About text is 15px / 17px.
+  `${ED} .sb-loc .sb-loc-title{font-size:${v("type.section-title-size")};line-height:1.02;font-weight:${v("type.display-weight")}}`,
+  `${MQ_DESK}{${ED} .sb-loc .sb-loc-title{font-size:${v("type.section-title-size-desktop")}}}`,
+  `${MQ_TINY}{${ED} .sb-loc .sb-loc-title{font-size:30px}}`,
+  `${ED} #about p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){font-size:15px;line-height:1.5}`,
+  `${MQ_DESK}{${ED} #about p.site-builder-node--paragraph:not([style*="text-transform:uppercase"]){font-size:17px}}`,
+
   // ── Column links: plain underlined text, not buttons (36px tap height).
   `${F} #s-foot-cols .site-builder-node--button{display:inline-flex;align-items:center;min-height:32px;height:auto;margin-top:8px;padding:0;border:0;border-radius:0;background:none;color:inherit;font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}`,
 ].join("\n");

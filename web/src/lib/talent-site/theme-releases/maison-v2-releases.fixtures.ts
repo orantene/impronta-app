@@ -246,6 +246,14 @@ export function revertR22(p: DesignPayload): DesignPayload {
   walkNodes(out.homeTree, (n) => {
     if (n.kind === "visit" && propsOf(n).layout === "location") propsOf(n).eyebrow = "";
   });
+  // Hero lede width (HE-9): 462px, phone and desktop, before the proposal's 40ch / 34ch.
+  walkNodes(out.homeTree, (n) => {
+    if (n.kind === "paragraph" && propsOf(n).liveText === "hero_tagline") {
+      const st = propsOf(n).style as Props;
+      st.maxWidthFree = "462px";
+      delete ((st.responsive as { mobile?: Props } | undefined)?.mobile ?? {}).maxWidthFree;
+    }
+  });
   // Order.
   const all = [...out.homeTree, ...(out.optionalBlocks ?? [])];
   const bySlot = new Map(all.map((n) => [String(propsOf(n).slotKey), n] as const));

@@ -206,8 +206,9 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
           ...styleOf(node),
           lineHeight: "1.5",
           marginTopFree: "22px",
-          maxWidthFree: "462px",
-          responsive: { mobile: { marginTopFree: "12px" } },
+          // `.lede`: 40ch on desktop, 34ch on the phone (HE-9); a px width made the text wrap differently.
+          maxWidthFree: "40ch",
+          responsive: { mobile: { marginTopFree: "12px", maxWidthFree: "34ch" } },
         },
       });
     }

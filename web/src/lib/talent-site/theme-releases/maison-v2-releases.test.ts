@@ -617,10 +617,15 @@ test("Maison v2 v22 classifies: the Location eyebrow and footer sizes are automa
       "layout:home:(root):order",
       "token-default:type.footer-title-size",
       "token-default:type.footer-title-size-desktop",
+      "variant-default:home:hero/container/paragraph#2",
       "variant-default:home:location/visit",
     ],
   );
-  assert.deepEqual(types(items, "variant-default")[0]!.paths, ["eyebrow"]);
+  assert.deepEqual(items.find((i) => i.id === "variant-default:home:location/visit")!.paths, ["eyebrow"]);
+  assert.deepEqual(items.find((i) => i.id === "variant-default:home:hero/container/paragraph#2")!.paths, [
+    "style.maxWidthFree",
+    "style.responsive.mobile.maxWidthFree",
+  ]);
   assert.deepEqual(
     types(items, "token-default").map((i) => (i.detail as { to: string }).to).sort(),
     ["40px", "64px"],

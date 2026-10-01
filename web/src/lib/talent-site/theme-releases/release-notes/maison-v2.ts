@@ -458,6 +458,11 @@ export const MAISON_V2_RELEASE_2_8 = {
       en: "Your page order follows the design: work and menu first, then reviews, about, questions and location. Sections you added stay where they are. Preview it before you choose.",
       es: "El orden de tu página sigue al diseño: primero trabajo y menú, luego reseñas, sobre mí, preguntas y ubicación. Las secciones que agregaste se quedan donde están. Míralo antes de elegir.",
     },
+    // Desktop parity slice (automatic): the hero lede width.
+    "variant-default:home:hero/container/paragraph#2": {
+      en: "The short line under your headline wraps at the proposal's width, narrower on phones (only if you have not edited it).",
+      es: "La línea corta bajo tu titular se corta al ancho de la propuesta, más angosto en teléfonos (solo si no la editaste tú).",
+    },
     // Location + footer size slice (automatic).
     "token-default:type.footer-title-size": {
       en: "The big footer line is 40px on phones, as in the proposal (only if you have not set your own size).",
