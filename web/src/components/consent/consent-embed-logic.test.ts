@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { embedCopy, embedsConsented, privacyEmbedSrc } from "./consent-embed-logic";
+import { bookingProviderFromUrl, embedCopy, embedsConsented, privacyEmbedSrc } from "./consent-embed-logic";
 
 test("embedsConsented: false with no signals", () => {
   assert.equal(embedsConsented({ cookieHeader: "", analyticsConsent: null }), false);
@@ -25,4 +25,16 @@ test("privacyEmbedSrc uses youtube-nocookie", () => {
 test("embedCopy localizes en/es", () => {
   assert.equal(embedCopy("en", "youtube").load, "Load content from YouTube");
   assert.equal(embedCopy("es-MX", "maps").load, "Cargar contenido de Google Maps");
+});
+
+test("booking placeholder names the provider from the url host", () => {
+  const name = (u: string) => embedCopy("en", bookingProviderFromUrl(u)).name;
+  assert.equal(name("https://calendly.com/x/intro"), "Calendly");
+  assert.equal(name("https://app.cal.com/x"), "Cal.com");
+  assert.equal(name("https://acme.as.me.acuityscheduling.com/x"), "Acuity Scheduling");
+  assert.equal(name("https://x.squarespacescheduling.com/"), "Squarespace Scheduling");
+  assert.equal(name("https://x.square.site/book"), "Square");
+  assert.equal(name("https://youcanbook.me/x"), "booking provider");
+  assert.equal(name("not a url"), "booking provider");
+  assert.equal(embedCopy("es-MX", "booking_provider").load, "Cargar contenido de proveedor de reservas");
 });

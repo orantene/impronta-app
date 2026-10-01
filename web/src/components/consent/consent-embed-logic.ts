@@ -37,6 +37,12 @@ const PROVIDER_NAMES: Record<string, string> = {
   spotify: "Spotify",
   soundcloud: "SoundCloud",
   calendly: "Calendly",
+  cal_com: "Cal.com",
+  acuity: "Acuity Scheduling",
+  squarespace_scheduling: "Squarespace Scheduling",
+  square: "Square",
+  savvycal: "SavvyCal",
+  booking_provider: "booking provider",
   instagram: "Instagram",
   tiktok: "TikTok",
   maps: "Google Maps",
@@ -45,6 +51,29 @@ const PROVIDER_NAMES: Record<string, string> = {
 
 export function providerDisplayName(provider: string): string {
   return PROVIDER_NAMES[provider.toLowerCase()] ?? provider;
+}
+
+const BOOKING_HOSTS: ReadonlyArray<[string, string]> = [
+  ["calendly.com", "calendly"],
+  ["cal.com", "cal_com"],
+  ["acuityscheduling.com", "acuity"],
+  ["squarespacescheduling.com", "squarespace_scheduling"],
+  ["squareup.com", "square"],
+  ["square.site", "square"],
+  ["savvycal.com", "savvycal"],
+];
+
+/** Provider key for a booking widget url, from its host. Unknown hosts are the generic "booking_provider". */
+export function bookingProviderFromUrl(url: string | null | undefined): string {
+  try {
+    const host = new URL(url ?? "").hostname.toLowerCase();
+    for (const [h, key] of BOOKING_HOSTS) {
+      if (host === h || host.endsWith(`.${h}`)) return key;
+    }
+  } catch {
+    /* fall through */
+  }
+  return "booking_provider";
 }
 
 const COPY = {
@@ -60,6 +89,6 @@ const COPY = {
 
 export function embedCopy(locale: string | null | undefined, provider: string) {
   const l: EmbedLocale = (locale ?? "").toLowerCase().startsWith("es") ? "es" : "en";
-  const name = providerDisplayName(provider);
+  const name = provider === "booking_provider" && l === "es" ? "proveedor de reservas" : providerDisplayName(provider);
   return { name, load: COPY[l].load(name), note: COPY[l].note(name) };
 }

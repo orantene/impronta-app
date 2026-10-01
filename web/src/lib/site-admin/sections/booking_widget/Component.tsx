@@ -1,4 +1,5 @@
 import { ConsentEmbed } from "@/components/consent/consent-embed";
+import { bookingProviderFromUrl } from "@/components/consent/consent-embed-logic";
 /**
  * Phase E (Final Batch 3) — head-only migration.
  * Container + SectionHead are placed as a sibling to site-booking__inner (not
@@ -384,7 +385,7 @@ export function BookingWidgetComponent({
             <ConsentEmbed
               className="site-booking__iframe"
               src={url}
-              provider="calendly"
+              provider={bookingProviderFromUrl(url)}
               title="Booking widget"
               iframeProps={{
                 loading: "lazy",
