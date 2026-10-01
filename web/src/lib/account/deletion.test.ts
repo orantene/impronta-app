@@ -184,7 +184,7 @@ test("processing is re-claimable only once stale (crashed run)", () => {
 // ── migration pins ───────────────────────────────────────────────────────────
 
 const MIGRATION = readFileSync(
-  join(process.cwd(), "..", "supabase", "migrations", "20261231299700_account_deletion_requests.sql"),
+  join(process.cwd(), "..", "supabase", "migrations", "20261231299900_account_deletion_requests.sql"),
   "utf8",
 );
 
