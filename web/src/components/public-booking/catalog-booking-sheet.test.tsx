@@ -694,3 +694,16 @@ test("CH-3: leaving for the chat stashes the booking; 'back to my booking' re-op
   act(() => root.unmount());
   host.remove();
 });
+
+test("ES: the booking sheet renders no English UI chrome on the choose step", () => {
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  open(detail());
+  const text = host.textContent ?? "";
+  assert.match(text, /Continuar/);
+  assert.doesNotMatch(
+    text,
+    /\b(Continue|Your booking|Loading times|Change service|Book now|Next free|Today at|Choose an option|Designs and extras|Estimated duration)\b/,
+  );
+  unmount();
+});

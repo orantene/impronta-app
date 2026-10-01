@@ -138,6 +138,9 @@ export const CATALOG_BOOKING_CSS = `
 .cb-dock-x:focus-visible,.cb-dock-ask:focus-visible,.cb-dock-go:focus-visible,.cb-dock-toast button:focus-visible{outline:2px solid var(--cb-primary);outline-offset:2px}
 .cb-dock-toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:82;background:var(--cb-ink);color:var(--cb-surface);border-radius:999px;padding:9px 8px 9px 16px;font-size:13px;display:flex;gap:10px;align-items:center;opacity:0;pointer-events:none;white-space:nowrap;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);transition:opacity .35s var(--cb-ease,ease),transform .35s cubic-bezier(.2,.9,.25,1.15)}
 .cb-dock-toast[data-show="true"]{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.cb-dock .cb-dock-toast[data-in-dock="true"]{position:absolute!important;left:50%!important;right:auto!important;bottom:calc(100% + 10px)!important}
+/* One bar at the bottom: the consent banner steps aside while the booking dock or bar is up. */
+body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data-show="true"]) [data-consent-banner]{display:none}
 .cb-dock-toast button{appearance:none;background:color-mix(in srgb,var(--cb-surface) 14%,transparent);color:var(--cb-surface);border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .cb-dock-th-icon{display:grid;place-items:center;background:var(--cb-blush);color:var(--cb-primary)}
 .cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}

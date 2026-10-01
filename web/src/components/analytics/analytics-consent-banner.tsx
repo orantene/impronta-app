@@ -107,6 +107,7 @@ export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
     <div
       role="dialog"
       aria-label={t("public.consent.ariaLabel")}
+      data-consent-banner=""
       // G.11 - mobile: slim auto-height row, non-blocking close affordance,
       // lower z so drawer modals win, safe-area padding.
       className="fixed inset-x-2 bottom-2 z-40 rounded-2xl border border-border bg-background/95 px-3 py-2.5 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:inset-x-4 sm:bottom-4 sm:px-4 md:px-6"

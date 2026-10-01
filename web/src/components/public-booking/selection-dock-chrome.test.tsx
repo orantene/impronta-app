@@ -244,3 +244,61 @@ test("CH-3 a service picked in the dock (sheet never opened) is offered back, an
   act(() => root.unmount());
   host.remove();
 });
+
+// one bar at the bottom
+
+test("one bar: while the dock is up the toast lives INSIDE it, never as a second fixed layer", () => {
+  const added = mountDock({ kind: "added", name: "Gel pedicure" });
+  const dock = added.host.querySelector(".cb-dock")!;
+  const toast = added.host.querySelector(".cb-dock-toast")!;
+  assert.ok(dock.contains(toast), "the toast is a child of the dock");
+  assert.equal(toast.getAttribute("data-in-dock"), "true");
+  assert.equal(added.host.querySelectorAll(".cb-dock-toast").length, 1);
+  added.unmount();
+});
+
+test("one bar: with no dock (Undo after removing the last service) the toast stands alone", () => {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() =>
+    root.render(
+      <SelectionDock
+        items={[]}
+        show={false}
+        locale="es"
+        formatPrice={(c) => `$${c / 100}`}
+        onRemoveFront={() => undefined}
+        onAsk={() => undefined}
+        onContinue={() => undefined}
+        toast={{ kind: "removed", name: "Gel" }}
+        onUndo={() => undefined}
+      />,
+    ),
+  );
+  const toast = host.querySelector(".cb-dock-toast")!;
+  assert.equal(toast.getAttribute("data-in-dock"), null);
+  assert.equal(host.querySelector(".cb-dock")!.contains(toast), false);
+  assert.equal(toast.getAttribute("data-show"), "true");
+  act(() => root.unmount());
+  host.remove();
+});
+
+test("one bar: the in-dock toast rule and the consent-banner yield rule exist in the booking CSS", () => {
+  const css = readFileSync(join(here, "catalog-booking-styles.ts"), "utf8");
+  assert.match(css, /\.cb-dock \.cb-dock-toast\[data-in-dock="true"\]\{position:absolute!important/);
+  assert.match(css, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-consent-banner\][^{]*\{display:none\}/);
+  const banner = readFileSync(join(here, "../analytics/analytics-consent-banner.tsx"), "utf8");
+  assert.match(banner, /data-consent-banner/);
+});
+
+test("ES: the dock renders no English UI chrome", () => {
+  const { host, unmount } = mountDock({ kind: "added", name: "Gel pedicure" });
+  const text = host.textContent ?? "";
+  assert.match(text, /Continuar/);
+  assert.match(text, /en tu cita/);
+  assert.doesNotMatch(text, /\b(Continue|Book|Next|Today at|Services|Prices|in your booking|Remove|Ask)\b/);
+  const labels = [...host.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? "").join(" | ");
+  assert.doesNotMatch(labels, /\b(Continue|Remove|Ask|Chat with|Close|Your booking)\b/);
+  unmount();
+});
