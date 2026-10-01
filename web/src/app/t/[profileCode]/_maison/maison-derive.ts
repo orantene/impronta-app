@@ -67,7 +67,7 @@ export const COPY = {
     visitRemote: "En línea",
     faqTitle: "Antes de tu cita",
     stepsTitle: "Cómo reservar",
-    askLead: "¿No encontrás tu respuesta? Escribime y lo vemos juntas.",
+    askLead: "¿No encuentras tu respuesta? Escríbeme y lo vemos juntas.",
     askCta: "Hacer una pregunta",
     contactEmail: "Correo",
     reviews: "Reseñas",

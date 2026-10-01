@@ -456,7 +456,7 @@ export function CatalogBookingSheet({
               {needsVariant ? (
                 <fieldset className="jb-group">
                   <legend>
-                    {es ? "Elegí una opción" : "Choose an option"}{" "}
+                    {es ? "Elige una opción" : "Choose an option"}{" "}
                     <span className="jb-req">{es ? "obligatorio" : "required"}</span>
                   </legend>
                   {(detail.variants ?? []).map((v) => (
@@ -562,7 +562,7 @@ export function CatalogBookingSheet({
                 />
               ) : (
                 <>
-                  <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>
+                  <div className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
                     {days.map((d, i) => {
                       const closed = d.getDay() === 0;
                       return (
@@ -587,7 +587,7 @@ export function CatalogBookingSheet({
                   {demoTimes.length === 0 ? (
                     <div className="jb-empty">
                       <strong>{es ? "Sin horarios disponibles ese día." : "No times that day."}</strong>
-                      <p>{es ? "Elegí otra fecha." : "Pick another date."}</p>
+                      <p>{es ? "Elige otra fecha." : "Pick another date."}</p>
                       {emptyConsultButton}
                     </div>
                   ) : (
@@ -631,7 +631,7 @@ export function CatalogBookingSheet({
                   data-testid="cb-name"
                 />
                 {touched && !nameValid ? (
-                  <em>{es ? "Escribí tu nombre para confirmar." : "Enter your name to confirm."}</em>
+                  <em>{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em>
                 ) : null}
               </label>
               <label className="jb-field">
@@ -648,7 +648,7 @@ export function CatalogBookingSheet({
                   aria-invalid={touched && !phoneValid}
                   data-testid="cb-phone"
                 />
-                {touched && !phoneValid ? <em>{es ? "Revisá el número." : "Check the number."}</em> : null}
+                {touched && !phoneValid ? <em>{es ? "Revisa el número." : "Check the number."}</em> : null}
                 {askAttempted && !chatPhoneValid ? (
                   <em>{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em>
                 ) : null}
@@ -688,7 +688,7 @@ export function CatalogBookingSheet({
                   onClick={() => startChat()}
                 >
                   {es
-                    ? "¿Tenés una duda? Preguntá antes de reservar →"
+                    ? "¿Tienes una duda? Pregunta antes de reservar →"
                     : "Have a question? Ask before booking →"}
                 </button>
               ) : null}

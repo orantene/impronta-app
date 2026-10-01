@@ -21,12 +21,14 @@ const STRIP_CSS = `
 .tulala-socket__label{font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ts-muted);margin-right:6px}
 .tulala-socket a{color:var(--ts-ink);text-underline-offset:3px;display:inline-flex;align-items:center;min-height:32px;padding:0 6px}
 .tulala-socket a[aria-current="true"]{font-weight:600;text-decoration:none}
-.tulala-socket__credit a{color:var(--ts-muted)}
+.tulala-socket__credit{color:var(--ts-muted);font-size:12.5px;display:inline-flex;align-items:center;gap:4px;min-height:32px}
+.tulala-socket__credit a{color:var(--ts-muted);padding:0 2px}
 .tulala-socket__hint{margin:0;font-size:12px;color:var(--ts-muted)}
 @media (min-width:768px){
 .tulala-socket{padding:14px 48px 18px}
 .tulala-socket[data-clear-dock="true"]{padding-bottom:132px}
 .tulala-socket__inner{grid-auto-flow:column;justify-content:space-between;align-items:center;gap:8px 28px}
+.tulala-socket__credit{margin-left:auto;text-align:right}
 }
 `;
 
@@ -90,6 +92,7 @@ export function TalentSiteSocket({
         ) : null}
         {model.credit ? (
           <span className="tulala-socket__credit" data-socket-credit="">
+            {model.credit.prefix}
             <a href={model.credit.href} target="_blank" rel="noopener">
               {model.credit.label}
             </a>

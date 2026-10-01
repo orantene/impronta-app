@@ -6037,6 +6037,7 @@ function renderBuilderNodeElement(
         facts: options.dataSources?.talentVisitFacts ?? [],
         location: options.dataSources?.talentLocation,
         locale: options.visitorLocale ?? options.contentLocale?.locale,
+        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

@@ -100,12 +100,14 @@ export function renderVisitBlock(args: {
   /** Public-safe location for the "location" layout (see location-block.tsx). */
   location?: TalentLocationPublic | null;
   locale?: string;
+  /** Booking policy page of this host (the location layout's "Pagos, cambios..." link). */
+  policyHref?: string;
 }): ReactNode {
   const { node, facts, styleAttr } = args;
   const p = node.props;
   const layout = (p.layout ?? VISIT_DEFAULT_PROPS.layout ?? "facts") as VisitLayout;
   if (layout === "location") {
-    return renderLocationBlock({ node, location: args.location, facts, locale: args.locale, styleAttr });
+    return renderLocationBlock({ node, location: args.location, facts, locale: args.locale, styleAttr, policyHref: args.policyHref });
   }
   const band = p.band !== false;
   const showMap = p.showMap !== false;

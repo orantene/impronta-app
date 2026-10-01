@@ -80,7 +80,7 @@ export function VisitContentInspector({
           <input
             className={KIT.input}
             value={p.eyebrow ?? ""}
-            placeholder="Optional"
+            placeholder={layout === "location" ? "Your visit (empty uses the default)" : "Optional"}
             onChange={(e) => commitPatch({ eyebrow: e.target.value })}
           />
         </div>
@@ -93,17 +93,15 @@ export function VisitContentInspector({
             onChange={(e) => commitPatch({ title: e.target.value })}
           />
         </div>
-        {layout === "location" ? null : (
-          <div className={KIT.field}>
-            <label className={KIT.label}>Italic accent</label>
-            <input
-              className={KIT.input}
-              value={p.titleAccent ?? VISIT_DEFAULT_PROPS.titleAccent ?? ""}
-              placeholder="visit"
-              onChange={(e) => commitPatch({ titleAccent: e.target.value })}
-            />
-          </div>
-        )}
+        <div className={KIT.field}>
+          <label className={KIT.label}>Italic accent</label>
+          <input
+            className={KIT.input}
+            value={layout === "location" ? (p.titleAccent ?? "") : (p.titleAccent ?? VISIT_DEFAULT_PROPS.titleAccent ?? "")}
+            placeholder={layout === "location" ? "Italic word of your own heading" : "visit"}
+            onChange={(e) => commitPatch({ titleAccent: e.target.value })}
+          />
+        </div>
       </Section>
 
       <Section title="Layout">

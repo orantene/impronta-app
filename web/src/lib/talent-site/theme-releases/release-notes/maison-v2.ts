@@ -416,3 +416,45 @@ export const MAISON_V2_RELEASE_2_7 = {
     ...Object.fromEntries(FOOTER_BAND_PARTS.map((id) => [id, FOOTER_RICH_NOTE])),
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 2.8 (v21 to v22, "desktop location + strip"): the Location section is
+ * two columns on desktop with the mockup's heading, rows and generated zone
+ * illustration, and the Tulala strip matches the mockup. All of it ships as
+ * platform code for every design; the one payload change is that the Location
+ * heading's eyebrow follows the default ("Tu visita") instead of staying empty
+ * (only if the talent has not written her own), and the footer line takes the
+ * mockup's size (40px phone, 64px desktop; only if she has not set her own).
+ */
+export const MAISON_V2_RELEASE_2_8 = {
+  design: "maison-v2",
+  toVersion: 22,
+  notes: {
+    en: "Maison v2 2.8: your Location section now sits side by side on desktop (map card left, details right) with the heading Where to find me, a zone drawing, and clear rows for zone, address and hours. The bar at the bottom shows your name, adds Cookies and moves the Tulala credit to the right.",
+    es: "Maison v2 2.8: tu sección de Ubicación ahora va en dos columnas en escritorio (el mapa a la izquierda y los detalles a la derecha), con el título Dónde encontrarme, un dibujo de tu zona y filas claras de zona, dirección y horario. La barra de abajo muestra tu nombre, suma Cookies y lleva el crédito de Tulala a la derecha.",
+  } satisfies ReleaseNote,
+  codeNotes: [
+    {
+      en: "Location on desktop: two columns, a street-grid drawing of your zone with a dashed circle, rows with icons (zone, exact address, hours, arrival) and a long arrival note folded to two lines with Read more.",
+      es: "Ubicación en escritorio: dos columnas, un dibujo de calles de tu zona con un círculo punteado, filas con iconos (zona, dirección exacta, horario, llegada) y una nota de llegada larga plegada a dos líneas con Ver más.",
+    },
+    {
+      en: "The bottom bar names your site with your name, has a Cookies link in the Tulala group, shows Site made with Tulala.digital on the right, and drops its Language group when your header already has the language switch.",
+      es: "La barra de abajo nombra tu sitio con tu nombre, tiene un enlace de Cookies en el grupo de Tulala, muestra Sitio creado con Tulala.digital a la derecha y quita su grupo de Idioma cuando tu encabezado ya tiene el selector de idioma.",
+    },
+  ] satisfies ReleaseNote[],
+  byItemId: {
+    "token-default:type.footer-title-size": {
+      en: "The big footer line is 40px on phones, as in the proposal (only if you have not set your own size).",
+      es: "La frase grande del pie de página mide 40px en teléfonos, como en la propuesta (solo si no pusiste tu propio tamaño).",
+    },
+    "token-default:type.footer-title-size-desktop": {
+      en: "The big footer line is 64px on desktop, as in the proposal (only if you have not set your own size).",
+      es: "La frase grande del pie de página mide 64px en escritorio, como en la propuesta (solo si no pusiste tu propio tamaño).",
+    },
+    "variant-default:home:location/visit": {
+      en: "The small line above your Location heading reads Your visit by default (only if you have not written your own).",
+      es: "La línea pequeña sobre el título de Ubicación dice Tu visita por defecto (solo si no escribiste la tuya).",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;

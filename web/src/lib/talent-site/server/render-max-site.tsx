@@ -71,6 +71,7 @@ import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
+  headerShowsLanguageSwitch,
   socketConsentToolingEnabled,
   stripDesignCredits,
 } from "@/lib/talent-site/footer-socket";
@@ -336,6 +337,7 @@ export async function renderTalentMaxSite(
       // removes it (same predicate as the /t/[code] profile footer).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
+      talentName: identity?.name ?? null,
     });
 
     const seo = buildMaxSiteSeo({
@@ -390,6 +392,8 @@ async function renderMaxSiteDocument(args: {
   showPlatformBadge: boolean;
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
+  /** The talent's display name: labels the first group of the Tulala strip. */
+  talentName?: string | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -549,7 +553,10 @@ async function renderMaxSiteDocument(args: {
   // Footer links to Location / Visit are decided against the sections this page really renders
   // (an override page, such as a policy page, renders neither, so those links drop).
   const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
-  const liveFooterTree = pruneDeadSectionLinks(footerTree, args.mainOverride ? [] : renderedBlocks);
+  const liveFooterTree = pruneDeadSectionLinks(footerTree, args.mainOverride ? [] : renderedBlocks, [headerTree]);
+  // The header's section links get the same treatment on the home page (a talent with no
+  // reviews has no #reviews band, so the link goes). Override pages keep their header as is.
+  const liveHeaderTree = args.mainOverride ? headerTree : pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree]);
   const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
   const socketModel = buildSocketModel({
     locale,
@@ -559,6 +566,8 @@ async function renderMaxSiteDocument(args: {
     showCredit: showPlatformBadge,
     whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
+    talentName: args.talentName,
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
   });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
@@ -620,7 +629,7 @@ async function renderMaxSiteDocument(args: {
     );
   };
 
-  const headerLandmark = headerTree.find(
+  const headerLandmark = liveHeaderTree.find(
     (n) => n.kind === "section" && n.props.sectionTypeKey === "site_header",
   );
   const headerHasLandmark = Boolean(headerLandmark);
@@ -699,14 +708,14 @@ async function renderMaxSiteDocument(args: {
             data-talent-max-site-header=""
             {...(headerScrollThreshold != null ? { "data-scrolled": "false" } : {})}
           >
-            {headerTree.map((root) => renderShellRoot(root))}
+            {liveHeaderTree.map((root) => renderShellRoot(root))}
             {headerScrollThreshold != null ? (
               <HeaderScrollObserver thresholdPx={headerScrollThreshold} />
             ) : null}
           </div>
         ) : (
           <header data-talent-max-site-header="">
-            {renderBuilderNodes(headerTree, {
+            {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",
               includeRendererStyles: false,

@@ -37,6 +37,8 @@ export default function PrivacyPage() {
       sections={[
         {
           heading: "What we collect",
+          // The Tulala strip's "Cookies" link lands here until a standalone cookies page exists.
+          id: "cookies",
           body: (
             <>
               <p>

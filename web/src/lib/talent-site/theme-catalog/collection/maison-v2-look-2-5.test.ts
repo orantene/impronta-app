@@ -205,6 +205,9 @@ test("FQ-1: each question is a raised card, '+' in a 32px tint circle that turns
   assert.match(soft, /summary::after\{[^}]*width:32px;height:32px;border-radius:50%;background:var\(--token-color-blush/);
   assert.match(soft, /\[open\] > summary::after\{content:"\+";transform:rotate\(45deg\)\}/);
   assert.match(soft, /accordion\{grid-template-columns:1fr 1fr!important/);
+  // From 900px, and an opened card never stretches its row mates (measured in Chromium: the
+  // neighbour keeps its 64px and the next row simply moves down, as in the mockup).
+  assert.match(soft, /@media \(min-width:900px\)\{[^}]*accordion\{grid-template-columns:1fr 1fr!important;align-items:start;gap:14px!important\}/);
   assert.match(soft, /\[open\]\{box-shadow:0 14px 30px -22px/);
   const faq = slot(buildMaisonV2Payload().homeTree, "contact");
   assert.equal(styleOf(faq).maxWidthFree, undefined, "no 856px column: two columns need the width");

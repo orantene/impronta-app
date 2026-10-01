@@ -83,7 +83,8 @@ test("zone only: shows the zone and a dashed area, never the address, never Como
   assert.match(html, /data-location-mode="zone_only"/);
   assert.match(html, /Centro, M(é|&#xE9;)rida/);
   assert.match(html, /stroke-dasharray/);
-  assert.match(html, /Only the area is shown/);
+  assert.match(html, /Approximate area/);
+  assert.match(html, /Not published/);
   assert.doesNotMatch(html, /Get directions|C(ó|&#xF3;)mo llegar/);
   assert.match(html, /google\.com\/maps\/search\/\?api=1&amp;query=Centro/);
   assert.ok(!html.includes(SECRET) && !html.includes("Privada") && !html.includes("Calle%20Privada"));
@@ -91,7 +92,7 @@ test("zone only: shows the zone and a dashed area, never the address, never Como
 
 test("exact address after booking: says so, shows no address", () => {
   const html = render("after_booking");
-  assert.match(html, /comes with your booking confirmation/);
+  assert.match(html, /once the booking is confirmed/);
   assert.ok(!html.includes("Privada") && !html.includes("Piso"));
   assert.doesNotMatch(html, /Get directions/);
 });
@@ -118,36 +119,94 @@ test("NO LEAK: across every non-public mode nothing the talent typed as private 
   }
 });
 
-test("title follows the studio kind, EN and ES; an authored title wins", () => {
-  assert.match(render("zone_only", { kind: "studio" }), /Where to find me/);
-  assert.match(render("zone_only", { kind: "home_visits" }), /I come to you/);
-  assert.match(render("zone_only", { kind: "both" }), /Where I work/);
-  assert.match(render("zone_only", { kind: "studio", locale: "es" }), /D(ó|&#xF3;)nde encontrarme/);
-  assert.match(render("zone_only", { kind: "home_visits", locale: "es" }), /Voy a donde est(é|&#xE9;)s/);
-  assert.match(render("zone_only", { kind: "both", locale: "es" }), /D(ó|&#xF3;)nde trabajo/);
-  assert.match(render("zone_only", { node: locNode({ title: "Find the studio" }) }), /Find the studio/);
+test("heading: eyebrow 'Tu visita' and 'Donde encontrarme' with an italic accent, EN and ES; editable", () => {
+  const es = render("zone_only", { kind: "studio", locale: "es" });
+  assert.match(es, /sb-loc-eyebrow[^>]*>Tu visita</);
+  assert.match(es, /<h2[^>]*>D(ó|&#xF3;)nde <em>encontrarme<\/em><\/h2>/);
+  const en = render("zone_only", { kind: "studio" });
+  assert.match(en, /sb-loc-eyebrow[^>]*>Your visit</);
+  assert.match(en, /<h2[^>]*>Where to <em>find me<\/em><\/h2>/);
+  // "both" has a studio too, so it reads like the mockup's studio title; home visits only is "Voy a donde estes".
+  assert.match(render("zone_only", { kind: "both", locale: "es" }), /encontrarme<\/em>/);
+  assert.match(render("zone_only", { kind: "home_visits", locale: "es" }), /Voy a <em>donde est(é|&#xE9;)s<\/em>/);
+  assert.match(render("zone_only", { kind: "home_visits" }), /I come <em>to you<\/em>/);
+  // Editable: an authored heading (with its own italic word) and eyebrow win.
+  const own = render("zone_only", { node: locNode({ title: "Find the studio", titleAccent: "studio", eyebrow: "Come by" }) });
+  assert.match(own, /Find the <em>studio<\/em>/);
+  assert.match(own, /sb-loc-eyebrow[^>]*>Come by</);
+  // Sites seeded with an empty eyebrow still read "Tu visita".
+  assert.match(render("zone_only", { locale: "es", node: locNode({ eyebrow: "" }) }), /sb-loc-eyebrow[^>]*>Tu visita</);
+  // Design typography hooks: Maison v2 styles the shared visit classes.
+  assert.match(es, /sb-visit-eyebrow/);
+  assert.match(es, /sb-visit-title/);
 });
 
-test("rows: hours link (from the live facts), address line, arrival note and photo", () => {
+test("details: the kind eyebrow, the zone as the title, 'Zona aproximada', then divided rows with icons", () => {
   const html = render("zone_only", {
-    facts: [{ label: "Hours", value: "Mon to Fri", icon: "hours", note: "9:00 to 18:00, by appointment" }],
+    locale: "es",
+    kind: "studio",
+    facts: [{ label: "Hours", value: "Lun a sáb", icon: "hours", note: "9:00 a 20:00, con cita" }],
   });
-  assert.match(html, /Mon to Fri/);
-  assert.match(html, /href="#services"/);
-  assert.match(html, /Puerta verde/);
-  assert.match(html, /src="https:\/\/photos\.test\/door\.jpg"/);
+  assert.match(html, /sb-loc-kind">Estudio</);
+  assert.match(html, /sb-loc-where">Centro, M(é|&#xE9;)rida<small>Zona aproximada<\/small>/);
+  // Rows: Zona / Direccion exacta / Horario / Al llegar, each with a lucide icon (svg), two lines.
+  for (const title of ["Zona", "Dirección exacta", "Horario", "Al llegar"]) {
+    assert.match(html.replace(/&#x([0-9A-F]+);/g, (_m, h) => String.fromCharCode(parseInt(h, 16))), new RegExp(`<b>${title}</b>`));
+  }
+  assert.equal((html.match(/class="sb-loc-row"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="lucide lucide-(map-pin|lock|clock|door-open)/g) ?? []).length, 4, "four real icons");
+  assert.doesNotMatch(html, /[◷◉○]/, "no glyph stand-ins");
+  assert.match(html, /Lun a sáb · 9:00 a 20:00, con cita|Lun a s(á|&#xE1;)b · 9:00 a 20:00, con cita/);
+  assert.match(html, /\(aproximada\)/);
+  // Actions: the outlined map button and the policy link, nothing else.
+  assert.match(html, /sb-loc-btn"[^>]*>Ver zona en el mapa</);
+  assert.doesNotMatch(html, /Escribir/);
+  const withPolicy = renderToStaticMarkup(
+    renderLocationBlock({
+      node: locNode() as BuilderVisitNode,
+      location: toPublicLocation(settings("zone_only"), "Mérida"),
+      facts: [],
+      locale: "es",
+      policyHref: "/politicas",
+    }) as ReactElement,
+  );
+  assert.match(withPolicy, /href="\/politicas">Pagos, cambios y cancelaciones</);
 });
 
-test("actions: Escribir opens Messages on the page", () => {
-  assert.match(render("zone_only", { locale: "es" }), /href="#talent-ask"[^>]*>Escribir</);
-  assert.match(render("zone_only"), /href="#talent-ask"[^>]*>Message</);
-  assert.match(render("public", { locale: "es" }), /C(ó|&#xF3;)mo llegar/);
+test("the arrival note is its own row, clamped to two lines with 'Ver mas' when it is long", () => {
+  const long = "Estudio privado en la planta alta, entra por el portón verde y toca el timbre dos veces. ".repeat(2);
+  const loc = (note: string) =>
+    renderToStaticMarkup(
+      renderLocationBlock({
+        node: locNode() as BuilderVisitNode,
+        location: toPublicLocation(settings("zone_only", { arrivalNote: note, arrivalPhotoUrl: "" }), "Mérida"),
+        facts: [],
+        locale: "es",
+      }) as ReactElement,
+    );
+  const longHtml = loc(long);
+  assert.match(longHtml, /sb-loc-note-t" data-clamp="1"/);
+  assert.match(longHtml, /Ver m(á|&#xE1;)s/);
+  assert.match(longHtml, /Ver menos/);
+  assert.match(LOCATION_CSS, /-webkit-line-clamp:2/);
+  assert.match(LOCATION_CSS, /\.sb-loc-note:has\(\.sb-loc-more-c:checked\)/);
+  const shortHtml = loc("Timbre verde.");
+  assert.doesNotMatch(shortHtml, /Ver m(á|&#xE1;)s|sb-loc-more"/);
+  assert.match(shortHtml, /Timbre verde\./);
+  assert.doesNotMatch(loc(""), /Al llegar/);
 });
 
-test("the zone map placeholder is generated from the zone: stable, and different per zone", () => {
+test("responsive: two columns from 900px (1.2fr / 1fr, gap 40, map min 360), stacked on phones", () => {
+  assert.match(LOCATION_CSS, /\.sb-loc \.sb-loc-grid\{display:grid;grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(LOCATION_CSS, /@media \(min-width:900px\)\{[^@]*grid-template-columns:minmax\(0,1\.2fr\) minmax\(0,1fr\);gap:40px/);
+  assert.match(LOCATION_CSS, /@media \(min-width:900px\)\{[^@]*\.sb-loc \.sb-loc-map\{aspect-ratio:auto;min-height:360px\}/);
+  assert.match(LOCATION_CSS, /border-radius:18px/);
+  assert.match(LOCATION_CSS, /\.sb-loc\[data-map-side="right"\] \.sb-loc-map\{order:2\}/);
+});
+
+test("the zone illustration is generated from the zone: stable, differs per zone, a street grid with the dashed zone and label", () => {
   const a1 = render("zone_only");
-  const a2 = render("zone_only");
-  assert.equal(a1, a2);
+  assert.equal(a1, render("zone_only"));
   const other = renderToStaticMarkup(
     renderBuilderNodes([locNode()], {
       mode: "freeform",
@@ -156,17 +215,26 @@ test("the zone map placeholder is generated from the zone: stable, and different
       dataSources: { talentLocation: toPublicLocation(settings("zone_only", { zoneNeighbourhood: "Norte" }), "Oaxaca") },
     }),
   );
-  const path = (h: string) => h.match(/<svg[\s\S]*?<\/svg>/)![0];
-  assert.notEqual(path(a1), path(other));
+  const svg = (h: string) => h.match(/<svg[\s\S]*?<\/svg>/)![0];
+  assert.notEqual(svg(a1), svg(other));
   assert.match(a1, /role="img"/);
-  assert.doesNotMatch(a1, /M(é|&#xE9;)rida Centro Historico|Paseo de Montejo/);
+  // Street grid: tinted ground, a green patch and white (surface) roads; the dashed circle; the zone label.
+  assert.ok((svg(a1).match(/<path /g) ?? []).length >= 6, "a grid of roads");
+  assert.match(svg(a1), /stroke-dasharray="6 6"/);
+  assert.match(svg(a1), /<text[^>]*>Centro, M(é|&#xE9;)rida<\/text>/);
+  assert.match(svg(a1), /MÉRIDA|M&#xC9;RIDA/);
+  // Generic: no street or neighbourhood names that were not the talent's own, no fictional demo data.
+  assert.doesNotMatch(svg(a1), /Paseo de Montejo|PASEO DE MONTEJO|Itzimn|Altabrisa|Garc(í|&#xED;)a Giner/);
+  assert.doesNotMatch(svg(a1), /#[0-9a-fA-F]{3,8}\b/);
+  // The tag chip names the zone and says it is not the address.
+  assert.match(a1, /sb-loc-map-tag"><b>Centro, M(é|&#xE9;)rida<\/b>Approximate area, not the address/);
 });
 
 test("LIVE MAP slot: empty slot present; the View map button does not exist while the flag is off", () => {
   assert.equal(LOCATION_LIVE_MAP_ENABLED, false, "consent tooling has not shipped");
   const html = render("zone_only");
   assert.match(html, /data-location-map-slot/);
-  assert.doesNotMatch(html, /data-location-map-open|Ver mapa|View map/);
+  assert.doesNotMatch(html, /data-location-map-open|Abrir mapa|Open interactive map/);
 });
 
 test("LIVE MAP slot: with the flag on the button shows (and follows the inspector switch)", () => {
@@ -175,7 +243,7 @@ test("LIVE MAP slot: with the flag on the button shows (and follows the inspecto
     renderLocationBlock({ node: locNode() as BuilderVisitNode, location: loc, facts: [], locale: "es", liveMapEnabled: true }) as ReactElement,
   );
   assert.match(on, /data-location-map-open/);
-  assert.match(on, /Ver mapa/);
+  assert.match(on, /Abrir mapa interactivo/);
   const off = renderToStaticMarkup(
     renderLocationBlock({
       node: locNode({ showMapButton: false }) as BuilderVisitNode,
@@ -191,6 +259,11 @@ test("map side and size are data attributes the CSS reads", () => {
   const html = render("zone_only", { node: locNode({ mapSide: "right", mapSize: "lg" }) });
   assert.match(html, /data-map-side="right"/);
   assert.match(html, /data-map-size="lg"/);
+});
+
+test("the map card's pill sits top-right and the tag bottom-left", () => {
+  assert.match(LOCATION_CSS, /\.sb-loc-map-open\{position:absolute;right:10px;top:10px/);
+  assert.match(LOCATION_CSS, /\.sb-loc-map-tag\{position:absolute;left:10px;bottom:10px/);
 });
 
 test("the facts and split layouts are untouched by the location data", () => {

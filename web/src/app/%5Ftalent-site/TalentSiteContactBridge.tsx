@@ -44,14 +44,30 @@ export function TalentSiteContactBridge({
       event.preventDefault();
       window.dispatchEvent(new Event("tulala:open-guest-chat"));
     };
+    // A cold load or a pasted `...#talent-ask` link opens the chat too (the click above only
+    // covers links followed on the page).
+    const onHash = () => {
+      if (window.location.hash === "#talent-ask") window.dispatchEvent(new Event("tulala:open-guest-chat"));
+    };
     document.addEventListener("click", onClick, true);
+    window.addEventListener("hashchange", onHash);
     setShowFallback(!pageAlreadyHasContactChrome());
-    return () => document.removeEventListener("click", onClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("hashchange", onHash);
+    };
   }, []);
 
-  if (!showFallback) return null;
+  // `#talent-ask` is a real target on every talent page: the chat entry this bridge belongs to.
+  // The click handler above opens the chat; this id keeps the link from being a dead anchor
+  // (no-script visitors, crawlers and link checkers) and gives the hash somewhere to land.
+  const askTarget = <span id="talent-ask" data-talent-ask-target="" aria-hidden="true" />;
+
+  if (!showFallback) return askTarget;
 
   return (
+    <>
+    {askTarget}
     <section data-talent-contact-fallback="" className="talent-contact-fallback">
       <style>{FALLBACK_CSS}</style>
       <p className="talent-contact-fallback__heading">{heading}</p>
@@ -70,6 +86,7 @@ export function TalentSiteContactBridge({
         {emailHref ? <a href={emailHref}>{emailLabel}</a> : null}
       </div>
     </section>
+    </>
   );
 }
 
