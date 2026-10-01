@@ -4,6 +4,7 @@
  */
 
 import type { OfferingTaskRef } from "./offering-task-brief";
+import type { IntakeAnswers, IntakeQuestion } from "./offering-intake";
 
 /** Delivery / location values stored on `talent_offerings.attributes.where`. */
 export type OfferingDeliveryWhere = "studio" | "client" | "remote" | "agreed";
@@ -51,6 +52,10 @@ export type OfferingRequestDetail = {
   task?: OfferingTaskRef | null;
   /** Editable brief note, pre-filled from `task`. Sent only on submit. */
   note?: string | null;
+  /** Gridline G13: the service's intake questions (`attributes.intake`). Absent = none. */
+  intake?: IntakeQuestion[];
+  /** The visitor's answers so far (kept on detail so the CH-3 resume keeps them). */
+  answers?: IntakeAnswers;
 };
 
 /** Read `attributes.where` without inventing schema. Unknown entries are dropped. */

@@ -8,7 +8,7 @@
  */
 import {
   TASK_NOTE_MAX,
-  taskBriefFrom,
+  briefFromDetail,
   taskNoteHint,
   taskNoteLabel,
   type OfferingTaskBrief,
@@ -41,8 +41,7 @@ export function CatalogTaskNote({
   );
 }
 
-/** What the sheet's confirm sends (null when not opened from a task). */
+/** What the sheet's confirm sends: the task (G9b) and intake answers (G13); null when neither. */
 export function catalogTaskBrief(detail: CatalogBookingDetail | null): OfferingTaskBrief | null {
-  if (!detail?.task) return null;
-  return taskBriefFrom(detail.task, detail.note);
+  return briefFromDetail(detail, true);
 }

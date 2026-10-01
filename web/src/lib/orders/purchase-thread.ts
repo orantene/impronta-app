@@ -20,6 +20,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { attachReservationHoldToInquiry } from "@/lib/scheduling/reservation-hold";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
 import { clampTaskBrief, type OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
+import { formatIntakeBlock } from "@/lib/talent/offering-intake";
 
 export type OpenPurchaseThreadInput = {
   readonly tenantId: string;
@@ -37,6 +38,8 @@ export type OpenPurchaseThreadInput = {
   readonly transactionId: string | null;
   /** Gridline G9b: task-picker brief → `source_context.brief` (clamped). */
   readonly brief?: OfferingTaskBrief | null;
+  /** Buyer locale, for the intake answers' heading (G13). */
+  readonly locale?: string | null;
 };
 
 export async function openPurchaseThread(
@@ -87,6 +90,23 @@ export async function openPurchaseThread(
     card_payload: { order_id: input.orderId },
   });
   if (cardErr) logServerError("orders.createPurchase/thread-card", cardErr);
+
+  // G13: the service's intake answers, as a readable buyer message next to the
+  // order card (the structured copy is source_context.brief.intake). Same
+  // sender columns a guest or client send writes. Best-effort like the card.
+  const intakeBlock = formatIntakeBlock(brief?.intake ?? [], input.locale ?? "es");
+  if (intakeBlock) {
+    const { error: intakeErr } = await admin.from("inquiry_messages").insert({
+      inquiry_id: inquiryId,
+      tenant_id: input.tenantId,
+      thread_type: "private",
+      sender_user_id: input.actorUserId,
+      guest_session_id: input.actorUserId ? null : input.guestSessionId,
+      body: intakeBlock,
+      metadata: { intake: true },
+    });
+    if (intakeErr) logServerError("orders.createPurchase/thread-intake", intakeErr);
+  }
 
   for (const holdId of input.holdIds) {
     const attached = await attachReservationHoldToInquiry(admin, holdId, inquiryId);

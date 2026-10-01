@@ -8,6 +8,7 @@
  * is missing from dataSources, falls back to scrolling to #servicios.
  */
 
+import { intakeDetail } from "@/lib/talent/offering-intake";
 import type { CSSProperties, ReactNode } from "react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
@@ -90,6 +91,7 @@ export function PortfolioShotLink({
       intent: instant ? "instant" : "request",
       description: offering.description,
       where: where.length ? where : undefined,
+      ...intakeDetail(offering.attributes),
     };
     const eventName =
       instant || (confirmsByHand && raw !== "ask_quote")

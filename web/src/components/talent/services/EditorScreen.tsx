@@ -23,6 +23,7 @@ import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { MatrixFields } from "./MatrixFields";
+import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
 
@@ -437,6 +438,10 @@ export function EditorScreen({
 
             {kind !== "product" && (
               <MatrixFields attributes={item.attributes} onChange={(next) => patch({ attributes: next })} />
+            )}
+
+            {kind !== "product" && (
+              <IntakeFields attributes={item.attributes} onChange={(next) => patch({ attributes: next })} />
             )}
 
             <div className="border-t border-admin-border-soft pt-5">
