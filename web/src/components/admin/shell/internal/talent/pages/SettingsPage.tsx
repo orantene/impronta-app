@@ -235,6 +235,14 @@ export function SettingsPage() {
       sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
       onOpen: () => openSection("admin"),
     },
+    {
+      key: "download-data",
+      label: tx("Download my data"),
+      sub: tx("A copy of the information Tulala holds about you, as a file."),
+      onOpen: () => {
+        window.location.assign("/api/account/export");
+      },
+    },
     bridgeTalentSelfProfile
       ? {
           key: "plan",
