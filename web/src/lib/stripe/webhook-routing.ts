@@ -26,6 +26,7 @@ import type Stripe from "stripe";
  * (no I/O), so the routing can be proven exhaustively in tests.
  *
  *   client_verification / client_balance_topup — client-trust economics (one-time)
+ *   talent_domain_purchase                      — talent custom-domain one-time buy
  *   booking_payment                             — booking invoice via Checkout
  *   checkout_session_closed                     — a Checkout session that can never be paid (expired / async failed)
  *   booking_deposit                             — booking deposit via PaymentIntent
@@ -53,6 +54,14 @@ export type StripeAction =
       tenantId: string;
       amountCents: number;
       paymentIntentId: string | null;
+    }
+  | {
+      kind: "talent_domain_purchase";
+      sessionId: string;
+      talentProfileId: string;
+      domain: string;
+      expectedPriceCents: number;
+      userId: string | null;
     }
   | {
       kind: "booking_payment";
@@ -239,6 +248,33 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
             tenantId,
             amountCents,
             paymentIntentId: refId(session.payment_intent),
+          };
+        }
+
+        if (checkoutType === "talent_domain_purchase") {
+          const talentProfileId =
+            session.metadata?.talent_id?.trim() ||
+            session.metadata?.talent_profile_id?.trim() ||
+            null;
+          const domain = session.metadata?.domain?.trim().toLowerCase() || null;
+          const expectedPriceCents = parseInt(
+            session.metadata?.expected_price_cents ?? "0",
+            10,
+          );
+          if (!talentProfileId || !domain || !expectedPriceCents) {
+            return {
+              kind: "invalid",
+              reason: "talent_domain_purchase missing talent_id/domain/expected_price_cents",
+            };
+          }
+          if (session.payment_status === "unpaid") return { kind: "ignore" };
+          return {
+            kind: "talent_domain_purchase",
+            sessionId: session.id,
+            talentProfileId,
+            domain,
+            expectedPriceCents,
+            userId,
           };
         }
 

@@ -122,6 +122,43 @@ test("checkout payment: client_balance_topup with zero amount → invalid", () =
   expectKind(a, "invalid");
 });
 
+test("checkout payment: talent_domain_purchase → talent_domain_purchase", () => {
+  const a = classifyStripeEvent(
+    evt("checkout.session.completed", {
+      id: "cs_domain_1",
+      mode: "payment",
+      payment_status: "paid",
+      metadata: {
+        checkout_type: "talent_domain_purchase",
+        talent_id: "tal_abc",
+        domain: "MySite.COM",
+        expected_price_cents: "1999",
+        user_id: "u9",
+      },
+    }),
+  );
+  const action = expectKind(a, "talent_domain_purchase");
+  assert.equal(action.talentProfileId, "tal_abc");
+  assert.equal(action.domain, "mysite.com");
+  assert.equal(action.expectedPriceCents, 1999);
+  assert.equal(action.sessionId, "cs_domain_1");
+});
+
+test("checkout payment: talent_domain_purchase missing domain → invalid", () => {
+  const a = classifyStripeEvent(
+    evt("checkout.session.completed", {
+      id: "cs_domain_bad",
+      mode: "payment",
+      metadata: {
+        checkout_type: "talent_domain_purchase",
+        talent_id: "tal_abc",
+        expected_price_cents: "1999",
+      },
+    }),
+  );
+  expectKind(a, "invalid");
+});
+
 test("checkout payment: BOOKING invoice via client_reference_id → booking_payment (folded from route B)", () => {
   const a = classifyStripeEvent(
     evt("checkout.session.completed", {
@@ -619,6 +656,21 @@ test("all revenue flows are reachable (none silently ignored on happy path)", ()
         metadata: { checkout_type: "client_balance_topup", user_id: "u", tenant_id: "t", amount_cents: "100" },
       }),
       "client_balance_topup",
+    ],
+    [
+      evt("checkout.session.completed", {
+        id: "cs_domain",
+        mode: "payment",
+        payment_status: "paid",
+        metadata: {
+          checkout_type: "talent_domain_purchase",
+          talent_id: "tal_1",
+          domain: "example.com",
+          expected_price_cents: "1400",
+          user_id: "u",
+        },
+      }),
+      "talent_domain_purchase",
     ],
     [
       evt("checkout.session.completed", { id: "cs", mode: "payment", client_reference_id: "txn" }),

@@ -26,7 +26,7 @@ import type {
   MaxSiteManagerState,
   MaxSiteManagerPage,
 } from "@/lib/talent-site/server/site-management-types";
-import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
+import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
 import { uploadTalentMaxSiteLogo } from "@/lib/client/signed-upload";
 import { removeMaxSiteLogoAction } from "@/lib/talent-site/server/site-logo-actions";
 import {
@@ -112,8 +112,8 @@ export function MaxSiteSettingsPanels() {
           <Link href="/talent/page-builder?shell=1" style={linkButton}>Edit shell →</Link>
         </div>
       </Card>
-      {/* Custom domain reads the capability RECORD (Web Office), not canManage. */}
-      <TalentSiteDomainPanel canManage={state.capabilities.personalSiteCustomDomain} />
+      {/* Custom domain: compact row opens Domain setup drawer (Web Office). */}
+      <CustomDomainRow canManage={state.capabilities.personalSiteCustomDomain} />
     </div>
   );
 }

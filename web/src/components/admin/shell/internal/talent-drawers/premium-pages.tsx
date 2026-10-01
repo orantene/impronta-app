@@ -9,7 +9,7 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
@@ -45,6 +45,7 @@ import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settin
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
+import { DomainSetupDrawerBody } from "@/components/talent/site/DomainSetupDrawer";
 
 /**
  * The compare drawer's paid tier → the plan key checkout understands.
@@ -532,55 +533,6 @@ export function TalentPageTemplateDrawer() {
 }
 
 
-// Honest read-only banner for the Phase 1.5 STRIP drawers (save CTA removed).
-// Without it these drawers looked editable but silently discarded everything.
-function ReadOnlyStripNotice() {
-  const copy = useDashboardText();
-  return (
-    <div
-      role="note"
-      className="mb-3 rounded-[9px] border border-[rgba(91,107,160,0.25)] bg-[rgba(91,107,160,0.10)] px-3 py-2 text-[12px] leading-[1.5] text-admin-indigo-deep"
-    >
-      {copy.t("Read-only preview. Edit your page content from Public page.")}
-    </div>
-  );
-}
-
-/**
- * W14 — the strip drawers (embeds / press / custom domain / media kit) used to
- * render `MY_TALENT_PROFILE.subscription`, a fixture belonging to a demo talent.
- * Every real talent saw someone else's embeds, press clippings and domain, none
- * of it editable. There is no per-talent store for embeds or press yet, and the
- * one concept that IS wired (custom domain) already has a working manager on the
- * Public page. So these drawers now explain what lives where and hand the talent
- * a single real route instead of fake content.
- */
-function ManageOnPublicPage({ blurb }: { blurb: string }) {
-  const copy = useDashboardText();
-  const { closeDrawer, setTalentPage } = useAdminShell();
-  return (
-    <>
-      <ReadOnlyStripNotice />
-      <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink">
-        {blurb}
-      </p>
-      <div style={{ marginTop: 14 }}>
-        <PrimaryButton
-          onClick={() => {
-            closeDrawer();
-            setTalentPage("public-page");
-          }}
-        >
-          {copy.t("Open Public page")}
-        </PrimaryButton>
-      </div>
-    </>
-  );
-}
-
-// ─── Media embeds ──────────────────────────────────────────────────
-
-
 // ─── Media embeds ──────────────────────────────────────────────────
 
 export function TalentMediaEmbedsDrawer() {
@@ -644,9 +596,6 @@ export function TalentMediaEmbedsDrawer() {
 
 // ─── Press / clippings ──────────────────────────────────────────────
 
-
-// ─── Press / clippings ──────────────────────────────────────────────
-
 export function TalentPressDrawer() {
   // Phase 1.5 STRIP: Pro+ only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
@@ -672,9 +621,6 @@ export function TalentPressDrawer() {
     </DrawerShell>
   );
 }
-
-// ─── Media kit / EPK ────────────────────────────────────────────────
-
 
 // ─── Media kit / EPK ────────────────────────────────────────────────
 
@@ -763,33 +709,32 @@ export function TalentMediaKitDrawer() {
 
 // ─── Custom domain ──────────────────────────────────────────────────
 
-
-// ─── Custom domain ──────────────────────────────────────────────────
-
 export function TalentCustomDomainDrawer() {
-  // Phase 1.5 STRIP: Max only — save CTA removed; drawer kept for Phase 2 re-wiring
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
-  const open = state.drawer.drawerId === "talent-custom-domain";
   const copy = useDashboardText();
+  const open = state.drawer.drawerId === "talent-custom-domain";
+  const [provisioning, setProvisioning] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setProvisioning(
+      new URLSearchParams(window.location.search).get("domainCheckout") === "done",
+    );
+  }, [open]);
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title={t("dashboard.talentDrawers.premiumPages.domainTitle")}
-      description={t("dashboard.talentDrawers.premiumPages.domainDesc")}
+      title={copy.t("Domain setup")}
+      description={copy.t("Buy a domain at the registrar price, connect one you own, or get help.")}
       width={580}
       footer={
-        // Phase 1.5 STRIP: save removed — Max-only feature, not wired for Free
         <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
       }
     >
-      <ManageOnPublicPage
-        blurb={copy.t(
-          "Connect a custom domain from Public page. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.",
-        )}
-      />
+      <DomainSetupDrawerBody provisioning={provisioning} />
     </DrawerShell>
   );
 }
