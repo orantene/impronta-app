@@ -16,6 +16,10 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import { loadMaisonCatalogRow } from "../../src/lib/talent-site/server/maison-catalog-row";
+import { loadDemoDesignRow } from "../../src/lib/talent-site/theme-releases/release-design.server";
+import { galleryPaletteLookTokens } from "../../src/lib/talent-site/theme-catalog/gallery-meta";
+import { mergeLookIntoTokens } from "../../src/lib/talent-site/theme-catalog/look-layer";
+import { DEMOS } from "./demos";
 import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
 import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
@@ -49,7 +53,8 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
 };
 if (manifest.targetRef !== targetRef) throw new Error(`manifest is for ${manifest.targetRef}`);
 
-const design = await loadMaisonCatalogRow(admin, "design", designSlug);
+// The newest released version (v21 today), never the gated catalog row.
+const design = await loadDemoDesignRow(admin, designSlug);
 if (!design) throw new Error(`design ${designSlug} not found`);
 
 const entries = Object.values(manifest.entries)
@@ -82,8 +87,13 @@ for (const [i, e] of entries.entries()) {
   const paletteKey = ["TAL-93002", "TAL-93003"].includes(e.profileCode)
     ? MAISON_PALETTE_ORDER[0]
     : MAISON_PALETTE_ORDER[(i % (MAISON_PALETTE_ORDER.length - 1)) + 1];
-  const look = keepLook ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
-  if (!keepLook && !look) throw new Error(`look maison-${paletteKey} not found`);
+  // Maison v2 wears its OWN gallery palette (Alba = rose), never a Maison v1 look.
+  const v2Palette = designSlug === "maison-v2" ? DEMOS.find((x) => x.profileCode === e.profileCode)?.palette : undefined;
+  if (designSlug === "maison-v2" && !v2Palette) throw new Error(`${e.profileCode} has no maison-v2 palette in demos.ts`);
+  const v2Tokens = v2Palette ? galleryPaletteLookTokens("maison-v2", v2Palette) : null;
+  if (v2Palette && !v2Tokens) throw new Error(`maison-v2 has no gallery palette ${v2Palette}`);
+  const look = keepLook || v2Tokens ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
+  if (!keepLook && !v2Tokens && !look) throw new Error(`look maison-${paletteKey} not found`);
 
   const d = await applyDesign(admin, {
     talentProfileId: e.talentProfileId,
@@ -96,6 +106,14 @@ for (const [i, e] of entries.entries()) {
   if (look) { const l = await applyLook(admin, { siteId: site.id, look, userId: e.userId }); if (!l.ok) throw new Error(`${e.profileCode} applyLook: ${l.error}`); }
 
   const now = new Date().toISOString();
+  if (v2Tokens) {
+    const { data: cur } = await admin.from("talent_sites").select("design_tokens_draft").eq("id", site.id).single();
+    const { error: tokErr } = await admin
+      .from("talent_sites")
+      .update({ design_tokens_draft: mergeLookIntoTokens((cur?.design_tokens_draft as Record<string, string> | null) ?? {}, v2Tokens) })
+      .eq("id", site.id);
+    if (tokErr) throw tokErr;
+  }
   const { error: metaErr } = await admin
     .from("talent_sites")
     .update({
@@ -122,6 +140,6 @@ for (const [i, e] of entries.entries()) {
   if (pubErr) throw pubErr;
   const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: e.profileCode });
   if (!t.ok) throw new Error(`${e.profileCode} publishSiteTheme: ${t.error}`);
-  console.log(designSlug, e.profileCode, tp.display_name, `palette ${paletteKey}`, "published");
+  console.log(designSlug, e.profileCode, tp.display_name, `palette ${v2Palette ?? paletteKey}`, "published");
 }
 console.log("done");

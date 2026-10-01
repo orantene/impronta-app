@@ -13,6 +13,8 @@ export interface LiveTextSource {
   /** Primary trade name map ({ en, es }) and home city name map. */
   trade: LocalizedMapLike;
   city: LocalizedMapLike;
+  /** The city as it should read (accented, from the locations table); wins over the name maps. */
+  cityLabel?: string | null;
   /** `identity.headline` and `identity.tagline`, as she wrote them. */
   headline?: string | null;
   tagline?: string | null;
@@ -50,7 +52,7 @@ export function buildTalentLiveText(
   const key = es ? "es" : "en";
   const tradeEn = src.trade?.en?.trim() ?? "";
   const tradeNow = pick(src.trade, key, chain);
-  const cityNow = pick(src.city, key, chain);
+  const cityNow = src.cityLabel?.trim() || pick(src.city, key, chain);
   const cityEn = src.city?.en?.trim() ?? "";
 
   const headline = resolveHeadline({ headline: src.headline, tradeEn, displayName: src.displayName }, key);
@@ -78,6 +80,7 @@ export function buildTalentLiveText(
 
   const currency = src.menuCurrency?.trim().toUpperCase();
   return {
+    trades: [tradeEn, tradeEs].filter(Boolean),
     menuSubtitle: currency ? (es ? `Precios en ${currency}.` : `Prices in ${currency}.`) : "",
     values: {
       // Her own words win; a seeded line follows the locale; the name fallback is the stored text.

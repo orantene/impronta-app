@@ -24,6 +24,7 @@ import { demoStyleTokens, styleLook, styleTrees, type MediaUrls } from "@/lib/ta
 import { MAISON_V2_DEMO_STYLES, THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import { syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-builtins.server";
 import { loadTemplateHydrationTokens } from "./apply-template-core";
+import { loadDemoDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
 import { requestTalentSiteRevalidate } from "./revalidate-request.server";
@@ -284,7 +285,8 @@ export async function applyThemeDemos(
       throw new Error(`REFUSE: ${demo.profileCode} is published but listed as a new (unpublished) demo`);
     }
 
-    const design = await loadMaisonCatalogRow(admin, "design", demo.design);
+    // The newest RELEASED version (never the gated catalog row), like a talent's apply.
+    const design = await loadDemoDesignRow(admin, demo.design);
     if (!design) throw new Error(`design ${demo.design} not found`);
     const gallery = getGalleryDesign(demo.design);
     if (!gallery?.palettes.some((p) => p.key === demo.palette)) {

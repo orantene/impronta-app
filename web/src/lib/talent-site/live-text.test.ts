@@ -282,3 +282,55 @@ test("the footer zone and the menu currency come from the same sources as the Lo
   assert.ok(loader.includes("zoneLabel(visit.talentLocation)"), "public zone label, never the address");
   assert.ok(loader.includes("loadMenuCurrency"), "currency of her services");
 });
+
+// ── Valeria's exact hero (TAL-93901, v20, read from the database): one proof line, a localised eyebrow ──
+
+function valeriaHero(stamped: boolean) {
+  const tree = [
+    box("hero", [
+      box("copy", [
+        p("e", "Nail Artist · Cancun", { layerLabel: "Hero eyebrow" }),
+        h("h", "{i}Valeria Uñas{/i}"),
+        p("l", "I started painting my cousins' nails in Cancún and now I have seven years of craft behind me.", { layerLabel: "Hero lede" }),
+        box("act", [p("b1", "See services"), p("b2", "See work")], { layerLabel: "Hero actions" }),
+        p("pr", "7 years of craft · Español · English", { layerLabel: "Hero proof" }),
+      ]),
+      box("media", [p("m", "photo")], { layerLabel: "Hero media" }),
+    ], { slotKey: "hero" }),
+  ];
+  return stamped ? stampDesignOrigin(tree, { design: "maison-v2", version: 20 }) : tree;
+}
+const VALERIA = buildTalentLiveText(
+  {
+    displayName: "Valeria Uñas",
+    trade: { en: "Nail Artist", es: "Manicurista" },
+    city: { en: "Cancun" },
+    cityLabel: "Cancún",
+    proof: { years: 7, languages: ["Spanish", "English"], rating: null, count: null },
+  },
+  "es",
+);
+const paragraphs = (n: BuilderNode, out: string[] = []): string[] => {
+  if (n.kind === "paragraph") out.push(textOf(n) ?? "");
+  for (const k of ((n as unknown as { children?: BuilderNode[] }).children ?? [])) paragraphs(k, out);
+  return out;
+};
+
+test("Valeria's hero: exactly ONE proof line, bound to her facts, and the eyebrow reads Manicurista · Cancún", () => {
+  for (const stamped of [true, false]) {
+    const out = applyTalentLiveText(valeriaHero(stamped), VALERIA);
+    const texts = paragraphs(out[0]!);
+    assert.equal(texts.filter((t) => /^7 (años de oficio|years of craft)/.test(t)).length, 1, `one proof line (stamped=${stamped})`);
+    assert.ok(texts.includes("7 años de oficio · Español · Inglés"));
+    assert.ok(texts.includes("Manicurista · Cancún"), "locale trade and accented city");
+  }
+});
+
+test("a hero that has a proof line she wrote herself never gets a second one", () => {
+  const tree = valeriaHero(true);
+  const copy = ((tree[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!);
+  copy.children[4] = p("pr", "Nueve años creando uñas", { layerLabel: "Hero proof", ...(copy.children[4]!.props as object) } as Record<string, unknown>);
+  (copy.children[4]!.props as { text: string }).text = "Nueve años creando uñas";
+  const out = applyTalentLiveText(tree, VALERIA);
+  assert.equal(paragraphs(out[0]!).filter((t) => /oficio|Nueve años/.test(t)).length, 1);
+});
