@@ -3,6 +3,8 @@
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { sendDeletionEmail } from "./deletion-email";
 import {
   DELETION_TABLE,
   OPEN_DELETION_STATUSES,
@@ -113,7 +115,20 @@ export async function requestAccountDeletion(input: {
       }
       throw new Error(error.message);
     }
-    return { ok: true, request: toView(data as RequestRow), blockers };
+    const view = toView(data as RequestRow);
+    // Best effort, never blocks: a failed email does not undo the request.
+    try {
+      const session = await getCachedActorSession();
+      const locale = await getRequestLocale();
+      await sendDeletionEmail("requested", {
+        to: session.user?.email ?? null,
+        locale: locale === "es" ? "es" : "en",
+        scheduledFor: view.scheduledFor,
+      });
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, request: view, blockers };
   } catch (e) {
     logServerError("account/deletion.request", e);
     return { ok: false, error: "request_failed" };

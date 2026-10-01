@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { sendDeletionEmail } from "./deletion-email";
+
 import {
   anonymizeUserData,
   firstFailure,
@@ -217,6 +219,8 @@ export type ExecutorDeps = {
   loadBlockers(subject: AnonymizeSubject, now: Date): Promise<DeletionBlocker[]>;
   anonymize(subject: AnonymizeSubject, now: Date): Promise<AnonymizeReport>;
   deleteAuthUser(userId: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Best-effort "your account was deleted" email. Never throws, never blocks. */
+  notifyCompleted?(subject: AnonymizeSubject): Promise<void>;
   finish(
     req: DeletionRequestRow,
     patch: { status: DeletionStatus; blockers?: DeletionBlocker[]; last_error?: string | null; completed_at?: string },
@@ -268,6 +272,11 @@ export async function executeDeletionRequest(
     }
 
     await deps.finish(req, { status: "completed", blockers: [], last_error: null, completed_at: now.toISOString() });
+    try {
+      await deps.notifyCompleted?.(subject);
+    } catch {
+      // Best effort: the deletion is done whether or not the email goes out.
+    }
     return { kind: "completed", alreadyGone: false };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -322,6 +331,9 @@ export function createExecutorDeps(admin: SupabaseClient): ExecutorDeps {
       const { error } = await admin.auth.admin.deleteUser(userId);
       if (error && !isNotFound(error.message)) return { ok: false, error: error.message };
       return { ok: true };
+    },
+    async notifyCompleted(subject) {
+      await sendDeletionEmail("completed", { to: subject.email, locale: "both" });
     },
     async finish(req, patch) {
       const { error } = await admin.from(DELETION_TABLE).update(patch).eq("id", req.id);

@@ -204,3 +204,16 @@ test("migration never changes booking_transactions or agency_bookings deletion s
   assert.equal(/ALTER TABLE public\.(booking_transactions|agency_bookings)/i.test(MIGRATION), false);
   assert.equal(/fk_set_null\('public\.(booking_transactions|agency_bookings)'/.test(MIGRATION), false);
 });
+
+test("completed deletion calls notifyCompleted with the subject; a throwing notifier does not fail it", async () => {
+  const seen: Array<string | null> = [];
+  const { d } = deps({
+    notifyCompleted: async (subject) => {
+      seen.push(subject.email);
+      throw new Error("resend down");
+    },
+  });
+  const out = await executeDeletionRequest(req(), d, NOW);
+  assert.deepEqual(out, { kind: "completed", alreadyGone: false });
+  assert.deepEqual(seen, ["a@b.com"]);
+});
