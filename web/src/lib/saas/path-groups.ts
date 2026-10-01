@@ -93,6 +93,10 @@ export const SHARED_API_PREFIXES = [
   "/api/health",
   "/api/dev/reset-guest",
   "/api/media/asset",
+  // Same-origin Google Fonts proxy (css + file). Every talent site, agency site
+  // and the builder canvas load theme fonts through it; without this prefix the
+  // request gets the branded HTML 404 and every theme falls back to Georgia.
+  "/api/fonts",
   // Public booking slots. The slot picker runs on EVERY public surface an
   // appointment can be booked from -- an agency storefront, a talent site, the
   // platform host -- so it cannot belong to one host kind. It derives its
