@@ -23,6 +23,10 @@ import { ANONYMIZED_EMAIL_DOMAIN, DELETED_USER_LABEL } from "./anonymize";
 export const GUEST_CONTACT_RETENTION_MONTHS = 12;
 export const UNBOOKED_INQUIRY_RETENTION_MONTHS = 24;
 export const RETENTION_BATCH = 200;
+/** Upper bound on pages scanned per run, so one cron call stays bounded. */
+export const MAX_RETENTION_PAGES = 25;
+
+type InquiryScanRow = { id: string; status: string; booked_at: string | null; updated_at: string };
 export const GUEST_ANON_EMAIL = `guest@${ANONYMIZED_EMAIL_DOMAIN}`;
 
 export function retentionEnforced(env: Record<string, string | undefined> = process.env): boolean {
@@ -122,15 +126,32 @@ export async function runRetention(
   const purgeCutoff = monthsBefore(now, UNBOOKED_INQUIRY_RETENTION_MONTHS);
   const purge = { cutoff: purgeCutoff.toISOString(), scanned: 0, purgeable: 0, deleted: 0, kept: 0 };
   try {
-    const { data, error } = await admin
-      .from("inquiries")
-      .select("id, status, booked_at, updated_at")
-      .is("booked_at", null)
-      .lt("updated_at", purge.cutoff)
-      .order("updated_at", { ascending: true })
-      .limit(batch);
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as Array<{ id: string; status: string; booked_at: string | null; updated_at: string }>;
+    // Keyset cursor over (updated_at, id): inquiries kept because bookings or
+    // payments hang off them are skipped over, never rescanned, so later idle
+    // inquiries are reached. Bounded pages per run.
+    let cursor: { updated_at: string; id: string } | null = null;
+    let rows: InquiryScanRow[] = [];
+    for (let page = 0; page < MAX_RETENTION_PAGES; page++) {
+      let query = admin
+        .from("inquiries")
+        .select("id, status, booked_at, updated_at")
+        .is("booked_at", null)
+        .lt("updated_at", purge.cutoff)
+        .order("updated_at", { ascending: true })
+        .order("id", { ascending: true });
+      if (cursor) {
+        query = query.or(
+          `updated_at.gt.${cursor.updated_at},and(updated_at.eq.${cursor.updated_at},id.gt.${cursor.id})`,
+        );
+      }
+      const { data, error } = await query.limit(batch);
+      if (error) throw new Error(error.message);
+      const pageRows = (data ?? []) as InquiryScanRow[];
+      rows = rows.concat(pageRows);
+      if (pageRows.length < batch) break;
+      const last = pageRows[pageRows.length - 1];
+      cursor = { updated_at: last.updated_at, id: last.id };
+    }
     purge.scanned = rows.length;
 
     for (const row of rows) {
