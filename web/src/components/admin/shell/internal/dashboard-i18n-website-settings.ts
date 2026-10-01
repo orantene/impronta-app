@@ -134,4 +134,19 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
     "Agrega una duración a este servicio para activar la reserva inmediata",
   // PAY-2 Option B — platform Checkout readiness, not Connect.
   "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
+  // G3a / G4 — emergencies today + public call number.
+  "Taking emergencies today": "Atiendo emergencias hoy",
+  "Shows on your website right away and turns itself off at the end of your day.":
+    "Se muestra en tu sitio al instante y se apaga solo al final de tu día.",
+  "Could not update. Try again.": "No se pudo actualizar. Inténtalo de nuevo.",
+  "A public number for the call button on your website":
+    "Un número público para el botón de llamar de tu sitio",
+  "Show a call button": "Mostrar un botón de llamar",
+  "Enter a number clients can call from your website. Leave it empty to hide the call button. Your private phone is never shown.":
+    "Escribe un número al que tus clientes puedan llamar desde tu sitio. Déjalo vacío para ocultar el botón de llamar. Tu teléfono privado nunca se muestra.",
+  "Use the full international number, starting with + and the country code.":
+    "Usa el número internacional completo, empezando con + y el código de país.",
+  "Could not save. Try again.": "No se pudo guardar. Inténtalo de nuevo.",
+  "Call button is on.": "El botón de llamar está activo.",
+  "Call button is off.": "El botón de llamar está apagado.",
 };

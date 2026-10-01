@@ -64,6 +64,7 @@ test("WhatsApp uses her number or a published link; email is a mailto only", () 
   assert.deepEqual(talentContactHrefs({ phone: "+52 998 111 2233", phoneE164: "+529981112233" }), {
     whatsappHref: "",
     emailHref: "",
+    callHref: "",
   });
   assert.equal(
     talentContactHrefs({
