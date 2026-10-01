@@ -232,6 +232,7 @@
     "test:taxonomy-guard": "bash scripts/gate-queue.sh test 2 -- node scripts/check-taxonomy-consistency.mjs --selftest && NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/talent/skill-term-validation.test.ts src/lib/quality/settings-path-copy.static.test.ts src/lib/taxonomy/tenant-talent-type-options.test.ts",
     "gates": "npm run typecheck && npm run lint && npm run test:size-ratchet && npm run test:phase1-i18n",
     "typecheck:incremental": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo",
+    "qa:mockup-parity": "node scripts/qa/mockup-parity/run.mjs",
     "qa:appointments": "node scripts/qa-appointments.mjs",
     "qa:links": "node scripts/qa-links.mjs",
     "worktree:claim": "node scripts/worktree-guard.mjs claim",
