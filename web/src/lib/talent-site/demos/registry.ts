@@ -25,9 +25,16 @@ const REFERENCES: DemoRegistryEntry[] = [
   { design: "folio", profileCode: MATEO_CODE, palette: "stone", reference: true, contentFixture: "folio" },
 ];
 
+/** Live demos outside THEME_DEMOS: rebuilt to the newest design but always in their CURRENT look. */
+const EXTRAS: DemoRegistryEntry[] = [
+  { design: "maison-v2", profileCode: "TAL-93006", palette: "current", reference: false, keepLook: true },
+  { design: "folio", profileCode: "TAL-93007", palette: "current", reference: false, keepLook: true },
+];
+
 export const DEMO_REGISTRY: readonly DemoRegistryEntry[] = [
   ...REFERENCES,
-  ...FROM_THEME_DEMOS.filter((d) => !REFERENCES.some((r) => r.profileCode === d.profileCode)),
+  ...EXTRAS.filter((d) => !REFERENCES.some((r) => r.profileCode === d.profileCode)),
+  ...FROM_THEME_DEMOS.filter((d) => ![...REFERENCES, ...EXTRAS].some((r) => r.profileCode === d.profileCode)),
 ];
 
 /** Demos of one design (all designs when omitted). */

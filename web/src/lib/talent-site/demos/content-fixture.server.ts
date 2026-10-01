@@ -12,6 +12,9 @@ import "server-only";
  * contract change; the services hook is the integration seam.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { applyReferenceContent } from "./content-state.server";
+import { loadDemoContentFixture } from "./content-fixture";
+import { fixtureHeroFacts, fixtureLocation } from "./fixture-plan";
 import { applyHeroFacts, HERO_FACTS, type HeroFacts } from "./hero-facts";
 import { applyDemoLocation, DEMO_LOCATIONS, type DemoLocation } from "./location";
 import type { DemoRegistryEntry, DemoStepId } from "./types";
@@ -59,6 +62,13 @@ export interface ContentFixtureResult {
 
 /** The fixture a demo gets when none is supplied: what the codebase already knows about it. */
 export function defaultFixtureFor(entry: DemoRegistryEntry): DemoContentFixture {
+  if (entry.reference && entry.contentFixture) {
+    // A reference demo takes its hero facts and Location from the mockup fixture itself.
+    const f = loadDemoContentFixture(entry.contentFixture);
+    const heroFacts = fixtureHeroFacts(f, HERO_FACTS[entry.profileCode]);
+    const location = fixtureLocation(f);
+    return { ...(heroFacts ? { heroFacts } : {}), ...(location ? { location } : {}) };
+  }
   const heroFacts = HERO_FACTS[entry.profileCode];
   const location = DEMO_LOCATIONS[entry.profileCode];
   return { ...(heroFacts ? { heroFacts } : {}), ...(location ? { location } : {}) };
@@ -110,8 +120,16 @@ export async function applyContentFixture(
       if (await hook(admin, entry, fixture.services, opts.write)) changed.push("content");
     } else skipped.push("services");
   }
-  if (fixture.bio) skipped.push("bio");
-  if (fixture.tagline) skipped.push("tagline");
-  if (fixture.stats?.length) skipped.push("stats");
+  if (entry.reference && entry.contentFixture) {
+    // Mockup content of a reference demo: tagline, bio, city, languages, services, FAQ, height.
+    const hub = await resolveHubTenantId(admin);
+    const res = await applyReferenceContent(admin, entry, { write: opts.write, hubTenantId: hub });
+    for (const step of res.changed) if (!changed.includes(step)) changed.push(step);
+    skipped.push(...res.skipped);
+  } else {
+    if (fixture.bio) skipped.push("bio");
+    if (fixture.tagline) skipped.push("tagline");
+    if (fixture.stats?.length) skipped.push("stats");
+  }
   return { changed, skipped };
 }

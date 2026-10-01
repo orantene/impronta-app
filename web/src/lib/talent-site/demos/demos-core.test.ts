@@ -30,6 +30,18 @@ test("registry: exactly one reference per design, codes unique", () => {
   assert.equal(findDemo("TAL-93011")?.design, "folio");
 });
 
+test("registry: Andres and Sofia are rebuilt in their current look, never recoloured", () => {
+  const andres = findDemo("TAL-93006");
+  const sofia = findDemo("TAL-93007");
+  assert.equal(andres?.design, "maison-v2");
+  assert.equal(sofia?.design, "folio");
+  for (const d of [andres, sofia]) {
+    assert.equal(d?.keepLook, true);
+    assert.equal(d?.reference, false);
+  }
+  assert.equal(DEMO_REGISTRY.filter((d) => d.keepLook).length, 2);
+});
+
 test("registry: every THEME_DEMOS entry is present", () => {
   for (const d of THEME_DEMOS) assert.ok(findDemo(d.profileCode), d.profileCode);
 });
