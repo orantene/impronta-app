@@ -191,7 +191,7 @@ async function rebuildOne(
 export async function rebuildDemos(
   admin: Admin,
   req: DemoRebuildRequest = {},
-  actorId?: string,
+  actorId?: string | null,
   ports: RebuildPorts = DEFAULT_PORTS,
 ): Promise<DemoRebuildResult> {
   const startedAt = new Date().toISOString();
