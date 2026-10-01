@@ -31,8 +31,11 @@ export function themeTemplatePaletteTokens(
   look: string | null | undefined,
   payload: Pick<ThemeDraft["payload"], "palettes"> | null | undefined,
 ): Tokens {
-  const base = (look ? galleryPaletteLookTokens(design, look) : null) ?? galleryDefaultLookTokens(design) ?? {};
-  return withPaletteOverrides(base, payload, editorPaletteKey(design, look));
+  // `look` may be a prefixed Look slug ("folio-stone"): resolve it to the
+  // gallery palette key so display and save use the SAME palette.
+  const key = editorPaletteKey(design, look);
+  const base = (key ? galleryPaletteLookTokens(design, key) : null) ?? galleryDefaultLookTokens(design) ?? {};
+  return withPaletteOverrides(base, payload, key);
 }
 
 /**
