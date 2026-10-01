@@ -264,6 +264,14 @@ export type TrackingTag = {
   /** How an external script loads. Every provider here is fire-and-forget
    *  telemetry, so no tag is ever emitted as a blocking synchronous script. */
   loading?: "async" | "defer";
+  /**
+   * How the tag relates to visitor consent.
+   *   - "none":    cookieless, may always load (Plausible).
+   *   - "mode":    Google tags; load under Consent Mode with everything denied
+   *                until the visitor accepts (the `consent-default` tag below).
+   *   - "granted": ad pixels; not loaded at all until the visitor accepts.
+   */
+  consent: "none" | "mode" | "granted";
   /** Extra data-* attributes. A value may carry a VALIDATED tenant ID; it is
    *  rendered as a React attribute, so React escapes it normally. */
   attrs?: Readonly<Record<string, string>>;
@@ -293,6 +301,32 @@ function jsLiteral(id: string): string {
   return JSON.stringify(id);
 }
 
+/** Consent Mode v2 default, run before any Google tag. Reads the shared
+ *  localStorage choice; absent or "denied" means everything stays denied. */
+export const CONSENT_DEFAULT_CODE =
+  `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}` +
+  `window.gtag=window.gtag||gtag;var c='denied';` +
+  `try{if(localStorage.getItem('impronta_analytics_consent')==='granted')c='granted';}catch(e){}` +
+  `gtag('consent','default',{analytics_storage:c,ad_storage:c,ad_user_data:c,ad_personalization:c,wait_for_update:500});`;
+
+const CONSENT_DEFAULT_TAG: TrackingTag = {
+  key: "consent-default",
+  provider: "ga4",
+  consent: "none",
+  code: CONSENT_DEFAULT_CODE,
+};
+
+/** Split selected tags by how they must be delivered. Pure. */
+export function partitionTagsByConsent(tags: readonly TrackingTag[]): {
+  immediate: TrackingTag[];
+  afterConsent: TrackingTag[];
+} {
+  return {
+    immediate: tags.filter((t) => t.consent !== "granted"),
+    afterConsent: tags.filter((t) => t.consent === "granted"),
+  };
+}
+
 function tagsForProvider(provider: TrackingProviderId, id: string): TrackingTag[] {
   switch (provider) {
     case "ga4":
@@ -300,12 +334,14 @@ function tagsForProvider(provider: TrackingProviderId, id: string): TrackingTag[
         {
           key: "ga4-lib",
           provider,
+          consent: "mode",
           src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`,
           loading: "async",
         },
         {
           key: "ga4-config",
           provider,
+          consent: "mode",
           code:
             `window.dataLayer=window.dataLayer||[];` +
             `function gtag(){dataLayer.push(arguments);}` +
@@ -323,6 +359,7 @@ function tagsForProvider(provider: TrackingProviderId, id: string): TrackingTag[
         {
           key: "gtm-loader",
           provider,
+          consent: "mode",
           code:
             `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});` +
             `var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';` +
@@ -335,6 +372,7 @@ function tagsForProvider(provider: TrackingProviderId, id: string): TrackingTag[
         {
           key: "meta-pixel",
           provider,
+          consent: "granted",
           code:
             `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?` +
             `n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;` +
@@ -349,6 +387,7 @@ function tagsForProvider(provider: TrackingProviderId, id: string): TrackingTag[
         {
           key: "plausible",
           provider,
+          consent: "none",
           src: "https://plausible.io/js/script.js",
           loading: "defer",
           attrs: { "data-domain": id },
@@ -400,6 +439,7 @@ export function selectTrackingForRender(
     }
     tags.push(...tagsForProvider(id, stored));
   }
+  if (tags.some((t) => t.consent === "mode")) tags.unshift(CONSENT_DEFAULT_TAG);
   return { tags, dropped: { otherTenant: 0, invalid } };
 }
 
