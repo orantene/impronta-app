@@ -75,7 +75,10 @@ export function cardFrameStyle(compact: boolean, expanded: boolean, keyboardInse
     right: expanded ? 16 : 24,
     bottom: expanded ? 16 : 24,
     width: expanded ? "min(560px, calc(100vw - 32px))" : "min(400px, calc(100vw - 32px))",
-    height: expanded ? "calc(100dvh - 32px)" : "min(640px, calc(100dvh - 48px))",
+    // Grows with content: about 420 when nearly empty, never past 640.
+    ...(expanded
+      ? { height: "calc(100dvh - 32px)" }
+      : { height: "auto", minHeight: "min(420px, calc(100dvh - 48px))", maxHeight: "min(640px, calc(100dvh - 48px))" }),
     borderRadius: 24,
     border: "1px solid var(--cc-line)",
     boxShadow: "0 30px 70px -30px color-mix(in srgb, var(--cc-ink) 50%, transparent)",

@@ -535,7 +535,7 @@ export function MiniChatPanelColumn({
             onRemoveCartTalent={onRemoveCartTalent}
             onStartInquiry={card ? undefined : startInquiryInChat}
             {...dock.lineupItemsProps}
-            catalog={card && (offerings.length > 0 || (brand.dockServiceMenu?.length ?? 0) > 0) ? null : dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
+            catalog={card && (brand.dockServiceMenu?.length ?? 0) > 0 ? null : dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
           />
         );
         return card ? (
@@ -543,7 +543,7 @@ export function MiniChatPanelColumn({
             offerings={offerings}
             locale={brand.locale ?? "en"}
             t={t}
-            selectionCount={cartTalentNames.length}
+            selectionCount={cartTalentNames.length + (v5?.items?.lines.length ?? 0)}
             sending={sending || inCooldown}
             onSend={onSendToAgency ?? startInquiryInChat}
             onBackToChat={() => onDockViewChange?.("chat")}
@@ -720,7 +720,7 @@ export function MiniChatPanelColumn({
         offerPreview={offerPreview}
         threadStatus={threadStatus}
         offerings={offerings}
-        onPickOffering={onPickOffering}
+        onPickOffering={card ? undefined : onPickOffering}
         onDraftChange={onDraftChange}
         draft={draft}
         locale={brand.locale ?? "en"}

@@ -42,6 +42,15 @@ export function CardDockFrame({
     return () => window.removeEventListener("tulala:maison-sheet", onSheet);
   }, [onClose]);
 
+  // Esc already closes (the panel listens on window); on close, focus goes back to
+  // whatever opened the chat (the launcher or the dock's chat button).
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, []);
+
   // Phone sheet: about 85% tall with the site visible above; full height only
   // while she is typing (focus inside an input), back down on blur.
   const [typing, setTyping] = useState(false);

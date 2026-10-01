@@ -208,6 +208,8 @@
       "messageBrandAria": "Écrire à {brand}",
       "cardGreeting": "Bonjour, je suis {name} 👋 Comment puis-je vous aider ?",
       "cardServicesAria": "Voir les services",
+      "cardServicesTip": "Services",
+      "cardBookingsTip": "Mes rendez-vous",
       "cardPillTop": "Les plus demandés",
       "cardPricesIn": "Prix en {currency}",
       "cardAskQuote": "Demander un devis",

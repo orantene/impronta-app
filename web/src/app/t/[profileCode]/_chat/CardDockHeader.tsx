@@ -55,11 +55,12 @@ export function CardDockBack({ label, onBack }: { label: string; onBack: () => v
   );
 }
 
-/** One compact line once she has a selection ("1 servicio · falta el día"); nothing before. */
+/** One compact line: "1 servicio · falta el día" with a selection, the rail label alone before. */
 export function CardDockRail({ count, label, t, onOpenDetails }: { count: number; label: string | null; t: Translator; onOpenDetails: (() => void) | null }) {
-  if (count <= 0) return null;
+  // With nothing chosen yet the line is just the rail's own label: it stays the
+  // way into the details sheet, as it is in the default skin.
   const tail = label ? label.charAt(0).toLowerCase() + label.slice(1) : "";
-  const text = interpolate(t(count === 1 ? "public.guestChat.cardRailOne" : "public.guestChat.cardRailMany"), { count, label: tail }).replace(/ \u00b7 $/, "");
+  const text = count <= 0 ? (label ?? "") : interpolate(t(count === 1 ? "public.guestChat.cardRailOne" : "public.guestChat.cardRailMany"), { count, label: tail }).replace(/ \u00b7 $/, "");
   return (
     <button
       type="button"
@@ -206,7 +207,7 @@ export function CardDockHeader({
       <CardDockAvatar photo={photo} name={name} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <b style={{ display: "block", fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</b>
-        {threadState !== "new" ? (
+        {threadState !== "new" || onOpenSwitcher ? (
           <StatusLine threadState={threadState} syncState={syncState} onRetrySync={onRetrySync} onOpenSwitcher={onOpenSwitcher} C={CARD_PALETTE} t={t} />
         ) : subline ? (
           <small style={{ fontSize: 12, color: "var(--cc-muted)" }}>{subline}</small>
@@ -218,6 +219,7 @@ export function CardDockHeader({
           onClick={() => toggle("lineup")}
           aria-pressed={activeView === "lineup"}
           aria-label={t("public.guestChat.cardServicesAria")}
+          title={t("public.guestChat.cardServicesTip")}
           data-card-dock-services=""
           className={a11y.focusRing}
           style={ROUND_BTN}
@@ -232,6 +234,7 @@ export function CardDockHeader({
           onClick={() => toggle("projects")}
           aria-pressed={activeView === "projects"}
           aria-label={t("public.guestChat.cardBookingsAria")}
+          title={t("public.guestChat.cardBookingsTip")}
           data-card-dock-bookings=""
           className={a11y.focusRing}
           style={ROUND_BTN}
@@ -245,6 +248,7 @@ export function CardDockHeader({
           type="button"
           onClick={onToggleExpand}
           aria-label={expanded ? t("public.guestChat.menuCollapse") : t("public.guestChat.menuExpand")}
+          title={expanded ? t("public.guestChat.menuCollapse") : t("public.guestChat.menuExpand")}
           data-card-dock-expand=""
           className={a11y.focusRing}
           style={ROUND_BTN}
@@ -252,7 +256,7 @@ export function CardDockHeader({
           <Expand size={16} strokeWidth={1.8} aria-hidden />
         </button>
       ) : null}
-      <button type="button" onClick={onClose} aria-label={t("public.guestChat.closeAria")} className={a11y.focusRing} style={ROUND_BTN}>
+      <button type="button" onClick={onClose} aria-label={t("public.guestChat.closeAria")} title={t("public.guestChat.closeAria")} className={a11y.focusRing} style={ROUND_BTN}>
         <XIcon />
       </button>
     </div>

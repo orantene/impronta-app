@@ -940,6 +940,8 @@
       "messageBrandAria": "Escribir a {brand}",
       "cardGreeting": "Hola, soy {name} 👋 ¿En qué te ayudo?",
       "cardServicesAria": "Ver servicios",
+      "cardServicesTip": "Servicios",
+      "cardBookingsTip": "Mis citas",
       "cardPillTop": "Más pedido",
       "cardPricesIn": "Precios en {currency}",
       "cardAskQuote": "Pedir cotización",
