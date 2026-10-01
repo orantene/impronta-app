@@ -51,5 +51,5 @@ if [[ "$MODE" == "all" || "$MODE" == "start" ]]; then
     exit 1
   fi
   echo "[qa-prod] serving build $(cat .next/BUILD_ID) on http://localhost:${PORT}"
-  exec env NODE_OPTIONS="--max-old-space-size=2048" npx next start -p "$PORT"
+  exec env NODE_OPTIONS="--max-old-space-size=${QA_HEAP_MB:-2048}" npx next start -p "$PORT"
 fi
