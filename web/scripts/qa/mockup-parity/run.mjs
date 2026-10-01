@@ -23,7 +23,7 @@ import { fitImages, writeReport } from "./report.mjs";
 import { createImageTool, preparePage } from "./pixel.mjs";
 import { pixelThresholdFor } from "./pixel-thresholds.mjs";
 import { SECTION_UNITS, classify, compactTable, findingsOf } from "./classify.mjs";
-import { applyBaseline, loadBaseline } from "./baseline.mjs";
+import { applyBaseline, loadBaseline, writeBaseline } from "./baseline.mjs";
 import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, loadDesignMap } from "./section-map.mjs";
 
 loadEnvLocal();
@@ -55,6 +55,8 @@ function parseArgs(argv) {
     else if (a === "--sections") o.sections = v().split(",").map((x) => x.trim()).filter(Boolean);
     else if (a === "--compact") o.compact = true;
     else if (a === "--no-report") o.noReport = true;
+    else if (a === "--update-baseline") o.updateBaseline = true;
+    else if (a === "--ticket") o.ticket = v();
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
@@ -79,7 +81,7 @@ if (!opts.mockupUrlSet) opts.mockupUrl = MAP.mockup.defaultUrl || opts.mockupUrl
 for (const k of Object.keys(SECTION_UNITS)) delete SECTION_UNITS[k];
 for (const sec of SECTIONS) {
   const shell = /^(header|footer|footer_rich|socket)$/.test(sec.parityKey || "") ? sec.parityKey.replace("footer_rich", "footer") : null;
-  SECTION_UNITS[sec.key] = { wType: sec.unit || sec.key, ...(shell ? { shell } : { slot: sec.parityKey || null }) };
+  SECTION_UNITS[sec.key] = { wType: sec.unit || sec.key, ...(sec.missing ? { missing: true } : {}), ...(shell ? { shell } : { slot: sec.parityKey || null }) };
 }
 for (const k of opts.sections) if (!SECTIONS.some((x) => x.key === k)) { console.error(`--sections: unknown section "${k}" (have ${SECTIONS.map((x) => x.key).join(", ")})`); process.exit(2); }
 const ACTIVE = opts.sections.length ? SECTIONS.filter((x) => opts.sections.includes(x.key)) : SECTIONS;
@@ -388,7 +390,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
         // Pixel diff on the reference demo only: its content is exact, so every mismatch is the design's.
         if (isAlba && mpng) {
           const d = await tool.diff(png, mpng);
-          const threshold = pixelThresholdFor(sec.key, sec.pixelThreshold);
+          const threshold = pixelThresholdFor(sec.key, sec);
           r.pixel = { ratio: d.ratio, threshold, ok: d.ratio <= threshold, heightDelta: d.heightDelta, heightDeltaRatio: d.heightB ? d.heightDelta / d.heightB : 0 };
           r.diff = await tool.jpeg(d.diffPng);
           r.keep = { diff: d.diffPng, product: png, mockup: mpng };
@@ -589,7 +591,12 @@ async function main() {
   const deltas = classify(rows, { design: opts.design });
   const stale = applyBaseline(deltas, baseline);
   for (const r of rows) r.known = r.status === "FAIL" && r.findings.length > 0 && r.findings.every((f) => f.delta?.accepted);
-  const open = deltas.filter((d) => !d.accepted);
+  if (opts.updateBaseline) {
+    if (!opts.ticket) { console.error("--update-baseline needs --ticket <id> (every accepted delta needs a ticket)"); process.exit(2); }
+    const res = writeBaseline(opts.design, deltas, baseline, opts.ticket, { scoped: opts.sections.length > 0 });
+    console.log(`baseline updated: ${res.file} (+${res.added} added, -${res.removed} stale removed, ${res.total} total)`);
+  }
+  const open = opts.updateBaseline ? [] : deltas.filter((d) => !d.accepted);
   const captureBad = Object.values(mockups).some((m) => m.containerOk !== true);
   const summary = {
     timestamp: ts,

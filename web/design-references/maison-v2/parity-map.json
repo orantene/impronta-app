@@ -57,7 +57,10 @@
           "kind": "text",
           "re": "langSwitch"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "hero",
@@ -114,7 +117,10 @@
           "optional": true,
           "reason": "talent data: no cover photo uploaded"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "work",
@@ -144,7 +150,10 @@
           "sel": "img",
           "min": 3
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.22
+      }
     },
     {
       "key": "menu",
@@ -183,7 +192,10 @@
           "kind": "text",
           "re": "price"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "reviews",
@@ -211,7 +223,10 @@
           "sel": "q, blockquote, figure",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.16
+      }
     },
     {
       "key": "about",
@@ -246,7 +261,10 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "faq",
@@ -274,7 +292,10 @@
           "sel": "details, [aria-expanded]",
           "min": 2
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "location",
@@ -310,7 +331,10 @@
         }
       ],
       "optional": true,
-      "notes": "Absent when the talent shows no location (privacy or no address): expected."
+      "notes": "Absent when the talent shows no location (privacy or no address): expected.",
+      "pixel": {
+        "maxMismatch": 0.16
+      }
     },
     {
       "key": "footer",
@@ -347,7 +371,10 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "socket",
@@ -373,7 +400,10 @@
           "kind": "text",
           "re": "(Tulala)"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.1
+      }
     }
   ]
 }

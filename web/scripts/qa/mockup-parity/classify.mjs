@@ -90,6 +90,7 @@ export function findingsOf(row) {
 function layerFor(row, f, ctx) {
   const unit = SECTION_UNITS[row.section];
   const text = `${f.check} ${f.evidence}`;
+  if (unit?.missing) return ["new-capability", "the design map marks this section as missing from the kit"];
   switch (f.kind) {
     case "missing": {
       if (unit?.slot && kitSlots().has(unit.slot)) return ["payload", `kit slot "${unit.slot}" exists, the node is absent or hidden on this site`];
