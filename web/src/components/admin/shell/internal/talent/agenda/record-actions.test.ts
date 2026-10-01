@@ -154,9 +154,15 @@ describe("booking record mockup helpers", () => {
     assert.equal(showMoreMenu({ bookingState: "no_show" }), false);
   });
   it("cancel consequences lead with money", () => {
-    assert.match(cancelConsequenceKeys("not_requested", "talent")[0]!, /No payment/);
-    assert.match(cancelConsequenceKeys("deposit_paid", "talent")[0]!, /always goes back/);
-    assert.match(cancelConsequenceKeys("deposit_paid", "client")[0]!, /terms decide/);
+    // Ledger answered: it decides, whatever the chip says.
+    assert.match(cancelConsequenceKeys("not_requested", "talent", 0)[0]!, /No payment/);
+    assert.match(cancelConsequenceKeys("not_requested", "talent", 30000)[0]!, /not automatic.*Money/);
+    assert.match(cancelConsequenceKeys("deposit_paid", "client", 5000)[0]!, /not automatic/);
+    // Ledger not answered yet: never claim "No payment".
+    assert.match(cancelConsequenceKeys("not_requested", "talent")[0]!, /Checking/);
+    assert.match(cancelConsequenceKeys("not_requested", "talent", null)[0]!, /Checking/);
+    assert.match(cancelConsequenceKeys("deposit_paid", "talent")[0]!, /not automatic/);
+    for (const k of cancelConsequenceKeys("paid", "talent", 30000)) assert.doesNotMatch(k, /No payment|always goes back/);
   });
   it("no-show money line is honest", () => {
     assert.match(noShowMoneyKey("paid"), /stays as paid/);

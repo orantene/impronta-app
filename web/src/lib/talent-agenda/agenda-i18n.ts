@@ -284,6 +284,16 @@ const ES: Record<string, string> = {
   "What the client paid is refunded by your cancellation terms. The amount shows after you confirm.":
     "Lo que pagó el cliente se reembolsa según tus condiciones de cancelación. El monto se muestra al confirmar.",
   "No payment was taken, so there is nothing to refund.": "No se cobró ningún pago, así que no hay nada que reembolsar.",
+  "No payment was taken, so there is nothing to refund. The payment link is closed.":
+    "No se cobró ningún pago, así que no hay nada que reembolsar. El enlace de pago queda cerrado.",
+  "Refunds are not automatic. Refund the client by hand from Money.":
+    "Los reembolsos no son automáticos. Reembolsa al cliente a mano desde Dinero.",
+  "Checking what the client paid…": "Revisando lo que pagó el cliente…",
+  "The client paid": "El cliente pagó",
+  "Cancelled. The client paid": "Cancelado. El cliente pagó",
+  "Refund it by hand from Money.": "Reembolsa a mano desde Dinero.",
+  "A card payment is still arriving. Check Money and refund it by hand.":
+    "Un pago con tarjeta todavía está llegando. Revisa Dinero y reembolsa a mano.",
   Day: "Día",
   List: "Lista",
   "Calendar view": "Vista de calendario",

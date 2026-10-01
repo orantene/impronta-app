@@ -1732,7 +1732,7 @@
       "processing": "El pago sigue abierto para verificar. No se tomo nada extra.",
       "declined": "No se tomo nada. El horario se guarda un rato mas.",
       "expired": "Esta pagina de pago esta cerrada. Pide un enlace nuevo al negocio.",
-      "cancelled": "Este pago se cancelo. No se tomo nada.",
+      "cancelled": "Este pago ya no está disponible. No se tomó nada.",
       "unknown": "El estado del pago es desconocido. No pagues de nuevo. El negocio lo confirma.",
       "paid": "Pagado",
       "refunded": "Reembolsado. El dinero esta en camino de vuelta.",

@@ -1732,7 +1732,7 @@
       "processing": "Payment is still open for verification. Nothing extra was taken.",
       "declined": "Nothing was taken. The slot is still held for a short time.",
       "expired": "This payment page is closed. Ask the business for a new link.",
-      "cancelled": "This payment was cancelled. Nothing was taken.",
+      "cancelled": "This payment is no longer available. Nothing was taken.",
       "unknown": "Payment status is unknown. Do not pay again. The business will confirm.",
       "paid": "Paid",
       "refunded": "Refunded. The money is on its way back.",

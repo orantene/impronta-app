@@ -148,7 +148,7 @@ async function openOnce(
 
   const { data: orderData, error: orderErr } = await admin
     .from("orders")
-    .select("id, tenant_id, currency, customer_id, policy_version_id, total_cents")
+    .select("id, tenant_id, currency, customer_id, policy_version_id, total_cents, status")
     .eq("id", link.order_id)
     .maybeSingle();
   if (orderErr) {
@@ -157,6 +157,9 @@ async function openOnce(
   }
   const order = orderData as { id: string; tenant_id: string; currency: string; customer_id: string | null; policy_version_id?: string | null; total_cents?: number | null } | null;
   if (!order || order.tenant_id !== link.tenant_id) return { ok: false, reason: "not_found" };
+  // A cancelled sale (the booking was cancelled) takes no more money, even
+  // when its link was not taken down: the customer sees "no longer available".
+  if ((order as { status?: string | null }).status === "cancelled") return { ok: false, reason: "not_open" };
   const currency = link.currency || order.currency;
   const amountCents = Number(link.amount_cents);
 
