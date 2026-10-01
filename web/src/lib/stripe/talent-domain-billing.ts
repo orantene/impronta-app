@@ -31,6 +31,53 @@ export const TALENT_DOMAIN_CHECKOUT_TYPE = "talent_domain_purchase" as const;
 
 export type TalentDomainContactDraft = RegistrarContactInformation;
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const E164_RE = /^\+[1-9]\d{7,14}$/;
+const ISO2_RE = /^[A-Z]{2}$/;
+
+/** Shared contact validator for Checkout start + webhook reconstruct. */
+export function validateTalentDomainContact(
+  contact: TalentDomainContactDraft,
+): { ok: true; contact: TalentDomainContactDraft } | { ok: false; error: string } {
+  const firstName = contact.firstName?.trim() ?? "";
+  const lastName = contact.lastName?.trim() ?? "";
+  const email = contact.email?.trim() ?? "";
+  const phone = contact.phone?.trim() ?? "";
+  const address1 = contact.address1?.trim() ?? "";
+  const address2 = contact.address2?.trim() || undefined;
+  const city = contact.city?.trim() ?? "";
+  const state = contact.state?.trim() ?? "";
+  const zip = contact.zip?.trim() ?? "";
+  const country = (contact.country?.trim() ?? "").toUpperCase();
+
+  if (!firstName || !lastName) return { ok: false, error: "Enter your first and last name." };
+  if (!EMAIL_RE.test(email)) return { ok: false, error: "Enter a valid email for the registrant." };
+  if (!E164_RE.test(phone)) {
+    return { ok: false, error: "Phone must be E.164 (e.g. +15551234567)." };
+  }
+  if (!address1 || !city || !state || !zip) {
+    return { ok: false, error: "Enter a full registrant address." };
+  }
+  if (!ISO2_RE.test(country)) {
+    return { ok: false, error: "Country must be a 2-letter ISO code (e.g. US)." };
+  }
+  return {
+    ok: true,
+    contact: {
+      firstName,
+      lastName,
+      email,
+      phone,
+      address1,
+      address2,
+      city,
+      state,
+      zip,
+      country,
+    },
+  };
+}
+
 export async function createTalentDomainPurchaseCheckoutSession(opts: {
   userId: string;
   talentProfileId: string;
@@ -49,6 +96,9 @@ export async function createTalentDomainPurchaseCheckoutSession(opts: {
     return { ok: false, error: "Invalid domain quote." };
   }
 
+  const validated = validateTalentDomainContact(opts.contact);
+  if (!validated.ok) return { ok: false, error: validated.error };
+
   const stripe = getStripe()!;
   const customerResult = await getOrCreateTalentStripeCustomer(
     opts.userId,
@@ -59,18 +109,19 @@ export async function createTalentDomainPurchaseCheckoutSession(opts: {
 
   const domain = opts.domain.trim().toLowerCase();
   const returnPath = opts.returnPath ?? "/talent/site";
+  const contact = validated.contact;
 
   const contactMeta = {
-    contact_first_name: opts.contact.firstName,
-    contact_last_name: opts.contact.lastName,
-    contact_email: opts.contact.email,
-    contact_phone: opts.contact.phone,
-    contact_address1: opts.contact.address1,
-    contact_address2: opts.contact.address2 ?? "",
-    contact_city: opts.contact.city,
-    contact_state: opts.contact.state,
-    contact_zip: opts.contact.zip,
-    contact_country: opts.contact.country,
+    contact_first_name: contact.firstName,
+    contact_last_name: contact.lastName,
+    contact_email: contact.email,
+    contact_phone: contact.phone,
+    contact_address1: contact.address1,
+    contact_address2: contact.address2 ?? "",
+    contact_city: contact.city,
+    contact_state: contact.state,
+    contact_zip: contact.zip,
+    contact_country: contact.country,
   };
 
   try {
@@ -94,8 +145,8 @@ export async function createTalentDomainPurchaseCheckoutSession(opts: {
         ],
         success_url: `${opts.appBaseUrl}${returnPath}?domainCheckout=done`,
         cancel_url: `${opts.appBaseUrl}${returnPath}?domainCheckout=cancel`,
-        // Pass-through: charge must equal Registrar quote. Promo codes would
-        // under-collect vs the buy price and are not allowed on this Checkout.
+        // Pass-through: charge must equal Registrar quote. No promo codes and
+        // no adaptive pricing (those can diverge from expected_price_cents).
         metadata: {
           checkout_type: TALENT_DOMAIN_CHECKOUT_TYPE,
           talent_id: opts.talentProfileId,
@@ -114,10 +165,11 @@ export async function createTalentDomainPurchaseCheckoutSession(opts: {
             expected_price_cents: String(opts.expectedPriceCents),
           },
         },
-        adaptive_pricing: { enabled: true },
       },
       {
-        idempotencyKey: `cs_talent_domain_${opts.talentProfileId}_${domain}_${opts.expectedPriceCents}`,
+        // Nonce so cancel/retry opens a fresh session (do not pin forever to
+        // talent+domain+price alone).
+        idempotencyKey: `cs_talent_domain_${opts.talentProfileId}_${domain}_${opts.expectedPriceCents}_${randomBytes(4).toString("hex")}`,
       },
     );
 
@@ -135,42 +187,62 @@ function contactFromMetadata(
   metadata: Record<string, string | undefined> | null | undefined,
 ): RegistrarContactInformation | null {
   if (!metadata) return null;
-  const firstName = metadata.contact_first_name?.trim();
-  const lastName = metadata.contact_last_name?.trim();
-  const email = metadata.contact_email?.trim();
-  const phone = metadata.contact_phone?.trim();
-  const address1 = metadata.contact_address1?.trim();
-  const city = metadata.contact_city?.trim();
-  const state = metadata.contact_state?.trim();
-  const zip = metadata.contact_zip?.trim();
-  const country = metadata.contact_country?.trim();
-  if (!firstName || !lastName || !email || !phone || !address1 || !city || !state || !zip || !country) {
-    return null;
-  }
-  return {
-    firstName,
-    lastName,
-    email,
-    phone,
-    address1,
-    address2: metadata.contact_address2?.trim() || undefined,
-    city,
-    state,
-    zip,
-    country,
+  const draft: TalentDomainContactDraft = {
+    firstName: metadata.contact_first_name ?? "",
+    lastName: metadata.contact_last_name ?? "",
+    email: metadata.contact_email ?? "",
+    phone: metadata.contact_phone ?? "",
+    address1: metadata.contact_address1 ?? "",
+    address2: metadata.contact_address2 ?? undefined,
+    city: metadata.contact_city ?? "",
+    state: metadata.contact_state ?? "",
+    zip: metadata.contact_zip ?? "",
+    country: metadata.contact_country ?? "",
   };
+  const validated = validateTalentDomainContact(draft);
+  return validated.ok ? validated.contact : null;
+}
+
+async function refundDomainPaymentIntent(
+  paymentIntentId: string | null | undefined,
+  reason: string,
+): Promise<void> {
+  if (!paymentIntentId || !isStripeConfigured()) return;
+  try {
+    const stripe = getStripe()!;
+    await stripe.refunds.create(
+      {
+        payment_intent: paymentIntentId,
+        reason: "requested_by_customer",
+        metadata: {
+          checkout_type: TALENT_DOMAIN_CHECKOUT_TYPE,
+          refund_reason: reason.slice(0, 400),
+        },
+      },
+      { idempotencyKey: `rf_talent_domain_${paymentIntentId}` },
+    );
+  } catch (err) {
+    logServerError("talent-domain-billing.refund", err);
+  }
 }
 
 /**
  * Fulfill a paid talent domain Checkout session: Registrar buy → Vercel attach
  * → upsert `talent_site_domains`. Idempotent on stripe_checkout_session_id /
  * vercel_order_id. Buy ONLY runs from this post-payment path.
+ *
+ * Permanent fail paths (amount mismatch, registrar reject after pay) refund the
+ * PaymentIntent when possible, write an error row, and return ok so Stripe does
+ * not retry forever.
  */
 export async function fulfillTalentDomainPurchase(opts: {
   sessionId: string;
   talentProfileId: string;
   domain: string;
   expectedPriceCents: number;
+  amountTotal?: number | null;
+  currency?: string | null;
+  paymentIntentId?: string | null;
   metadata: Record<string, string | undefined> | null | undefined;
 }): Promise<BillingResult<{ orderId: string | null }>> {
   const sb = createServiceRoleClient();
@@ -194,16 +266,37 @@ export async function fulfillTalentDomainPurchase(opts: {
     return { ok: true, data: { orderId: existingBySession.vercel_order_id as string } };
   }
 
-  const contact = contactFromMetadata(opts.metadata);
-  if (!contact) {
+  const charged = opts.amountTotal;
+  const currency = (opts.currency ?? "usd").toLowerCase();
+  if (
+    charged == null ||
+    charged !== opts.expectedPriceCents ||
+    currency !== "usd"
+  ) {
+    const reason = `Checkout amount mismatch (charged=${charged ?? "null"} ${currency}, expected=${opts.expectedPriceCents} usd).`;
+    await refundDomainPaymentIntent(opts.paymentIntentId, reason);
     await upsertPurchaseErrorRow(sb, {
       talentProfileId: opts.talentProfileId,
       domain,
       sessionId,
       registrantEmail: opts.metadata?.contact_email ?? null,
-      failureReason: "Missing registrant contact on paid Checkout session.",
+      failureReason: reason,
     });
-    return { ok: false, error: "Missing registrant contact." };
+    return { ok: true, data: { orderId: null } };
+  }
+
+  const contact = contactFromMetadata(opts.metadata);
+  if (!contact) {
+    const reason = "Missing or invalid registrant contact on paid Checkout session.";
+    await refundDomainPaymentIntent(opts.paymentIntentId, reason);
+    await upsertPurchaseErrorRow(sb, {
+      talentProfileId: opts.talentProfileId,
+      domain,
+      sessionId,
+      registrantEmail: opts.metadata?.contact_email ?? null,
+      failureReason: reason,
+    });
+    return { ok: true, data: { orderId: null } };
   }
 
   const expectedPrice = opts.expectedPriceCents / 100;
@@ -220,14 +313,16 @@ export async function fulfillTalentDomainPurchase(opts: {
       buy.errorMessage ??
       buy.errorCode ??
       "Registrar buy failed after payment.";
+    await refundDomainPaymentIntent(opts.paymentIntentId, reason);
     await upsertPurchaseErrorRow(sb, {
       talentProfileId: opts.talentProfileId,
       domain,
       sessionId,
       registrantEmail: contact.email,
-      failureReason: reason,
+      failureReason: `${reason} (payment refunded when possible).`,
     });
-    return { ok: false, error: reason };
+    // Permanent: refund attempted + error row. Acknowledge so Stripe stops retrying.
+    return { ok: true, data: { orderId: null } };
   }
 
   // Attach to the tulala project (best-effort; DNS may still need settle).

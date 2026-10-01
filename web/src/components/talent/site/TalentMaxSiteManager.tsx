@@ -6,12 +6,12 @@
  * `/t/<code>` discovery profile).
  *
  * P1 mockup:
- *   - LIVE (any published design slug): exactly one card, MyWebsiteCard.
+ *   - LIVE (any published design slug): MyWebsiteCard + Custom domain row.
  *   - Before live: the unlock state (WebsiteEligibilityPanel). "Activate your
  *     free website" opens the design gallery (MaisonSetupHost, or the theme
  *     gallery when the Maison flag is off).
- *   - Site address, logo, pages, shell and custom domain live in Website
- *     settings (TalentMaxSiteSettingsPanels), not on this tab.
+ *   - Site address, logo, pages and shell live in Website settings
+ *     (TalentMaxSiteSettingsPanels). Custom domain stays on this tab.
  *
  * A non-editing tier sees an upsell card (not a 404). All writes are
  * owner-gated server actions; RLS independently backs them.

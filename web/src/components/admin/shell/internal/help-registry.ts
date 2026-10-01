@@ -1253,11 +1253,11 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Connect your own domain (yourname.com) to your personal page, Portfolio tier only.",
+      "Set up a custom domain for your website (Web Office): buy at the registrar price, connect a domain you own, or get help from Tulala.",
     youCanHere: [
-      "Add a domain and see the DNS records",
-      "Verify the domain and switch your page to it",
-      "Configure SSL (auto-renewing)",
+      "Search and buy a domain at the exact Vercel Registrar quote",
+      "Connect a domain you already own and see DNS records",
+      "Open a support ticket if you need help finishing setup",
     ],
     relatedDrawers: ["talent-personal-page", "talent-tier-compare"],
     ticketCategory: "Public site & domains",

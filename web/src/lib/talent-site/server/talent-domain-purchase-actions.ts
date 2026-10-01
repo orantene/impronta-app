@@ -24,8 +24,11 @@ import { createSupportTicketAction } from "@/lib/support/actions";
 import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
 import {
   createTalentDomainPurchaseCheckoutSession,
+  validateTalentDomainContact,
   type TalentDomainContactDraft,
 } from "@/lib/stripe/talent-domain-billing";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { randomBytes } from "node:crypto";
 
 export type TalentDomainSearchResult =
   | { ok: true; quote: DomainSearchQuote }
@@ -135,7 +138,17 @@ export async function searchTalentDomainAction(
       error: result.errorMessage ?? "Could not check that domain.",
     };
   }
-  return { ok: true, quote: result.quotes[0] };
+  const quote = result.quotes[0];
+  if (quote.available && quote.priceCents != null) {
+    const currency = (quote.currency ?? "usd").toLowerCase();
+    if (currency !== "usd") {
+      return {
+        ok: false,
+        error: "Only USD registrar quotes are supported right now. Try Connect or Get help.",
+      };
+    }
+  }
+  return { ok: true, quote };
 }
 
 export async function startTalentDomainPurchaseCheckoutAction(input: {
@@ -154,9 +167,16 @@ export async function startTalentDomainPurchaseCheckoutAction(input: {
 
   // Re-quote so the client cannot underpay.
   const quote = await searchDomainQuote(normalized.hostname);
-  const liveCents = quote.quotes[0]?.priceCents ?? null;
-  if (!quote.quotes[0]?.available || liveCents == null) {
+  const live = quote.quotes[0];
+  const liveCents = live?.priceCents ?? null;
+  if (!live?.available || liveCents == null) {
     return { ok: false, error: "That domain is no longer available at this price." };
+  }
+  if ((live.currency ?? "usd").toLowerCase() !== "usd") {
+    return {
+      ok: false,
+      error: "Only USD registrar quotes are supported right now. Try Connect or Get help.",
+    };
   }
   if (liveCents !== input.expectedPriceCents) {
     return {
@@ -164,6 +184,9 @@ export async function startTalentDomainPurchaseCheckoutAction(input: {
       error: "The price changed. Search again before checkout.",
     };
   }
+
+  const contactCheck = validateTalentDomainContact(input.contact);
+  if (!contactCheck.ok) return { ok: false, error: contactCheck.error };
 
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
@@ -177,7 +200,7 @@ export async function startTalentDomainPurchaseCheckoutAction(input: {
     displayName: guard.displayName,
     domain: normalized.hostname,
     expectedPriceCents: liveCents,
-    contact: input.contact,
+    contact: contactCheck.contact,
     appBaseUrl,
     returnPath: "/talent/site",
   });
@@ -192,8 +215,14 @@ export async function requestTalentDomainHelpAction(input: {
   const guard = await guardUnlockedDomainOwner();
   if (!guard.ok) return { ok: false, error: guard.error };
 
-  const hostname = input.hostname?.trim() || "";
+  const hostnameRaw = input.hostname?.trim() || "";
   const note = input.note?.trim() || "";
+  let hostname = "";
+  if (hostnameRaw) {
+    const normalized = normalizeCustomDomainHostname(hostnameRaw);
+    if (!normalized.ok) return { ok: false, error: normalized.message };
+    hostname = normalized.hostname;
+  }
   const subject = "Domain setup help";
   const body = [
     "I need help setting up a custom domain for my website.",
@@ -209,11 +238,43 @@ export async function requestTalentDomainHelpAction(input: {
       tenantSlug: null,
       surface: "talent",
       subject,
-      category: "domain-setup",
+      category: "Public site & domains",
       body,
       originSlug: "talent-domain-setup",
     });
     if (!result.ok) return { ok: false, error: result.error };
+
+    if (hostname) {
+      const admin = createServiceRoleClient() ?? guard.supabase;
+      const { data: existing } = await admin
+        .from("talent_site_domains")
+        .select("id")
+        .eq("talent_profile_id", guard.talentProfileId)
+        .eq("domain", hostname)
+        .maybeSingle();
+      const assistedRow = {
+        talent_profile_id: guard.talentProfileId,
+        domain: hostname,
+        acquisition: "assisted",
+        registrant_email: guard.email,
+        status: "pending",
+        verification_token: `impronta-assist-${randomBytes(8).toString("hex")}`,
+      };
+      if (existing?.id) {
+        const { error } = await admin
+          .from("talent_site_domains")
+          .update({
+            acquisition: "assisted",
+            registrant_email: guard.email,
+          })
+          .eq("id", existing.id);
+        if (error) logServerError("talentDomain.help.assistedUpdate", error);
+      } else {
+        const { error } = await admin.from("talent_site_domains").insert(assistedRow);
+        if (error) logServerError("talentDomain.help.assistedInsert", error);
+      }
+    }
+
     return {
       ok: true,
       ticketId: result.ticketId,

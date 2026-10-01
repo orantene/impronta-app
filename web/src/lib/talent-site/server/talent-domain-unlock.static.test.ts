@@ -39,13 +39,19 @@ test("domain checkout charges exact registrar quote cents (no markup)", () => {
   );
   assert.match(billing, /unit_amount: opts\.expectedPriceCents/);
   assert.match(billing, /Pass-through only/);
-  // Promo codes would under-collect vs Registrar buy price.
+  // Promo codes / adaptive pricing would diverge from Registrar quote.
   assert.doesNotMatch(billing, /allow_promotion_codes:\s*true/);
+  assert.doesNotMatch(billing, /adaptive_pricing/);
+  assert.match(billing, /validateTalentDomainContact/);
+  assert.match(billing, /refunds\.create|refundDomainPaymentIntent/);
   // No product markup / wallet layer in code (doc comment may say "no prepaid…").
   assert.doesNotMatch(billing, /markupPercent|priceMarkup|domainWallet|prepaidBalance/);
   // Re-quote before Checkout so the client cannot underpay or invent a price.
   assert.match(actions, /liveCents !== input\.expectedPriceCents/);
   assert.match(actions, /searchDomainQuote/);
+  assert.match(actions, /validateTalentDomainContact/);
+  assert.match(actions, /Public site & domains/);
+  assert.match(actions, /acquisition:\s*"assisted"/);
 });
 
 test("TalentMaxSiteManager mounts CustomDomainRow on My website", () => {

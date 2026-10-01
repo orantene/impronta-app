@@ -128,6 +128,9 @@ test("checkout payment: talent_domain_purchase → talent_domain_purchase", () =
       id: "cs_domain_1",
       mode: "payment",
       payment_status: "paid",
+      amount_total: 1999,
+      currency: "usd",
+      payment_intent: "pi_domain_1",
       metadata: {
         checkout_type: "talent_domain_purchase",
         talent_id: "tal_abc",
@@ -142,8 +145,11 @@ test("checkout payment: talent_domain_purchase → talent_domain_purchase", () =
   assert.equal(action.domain, "mysite.com");
   assert.equal(action.expectedPriceCents, 1999);
   assert.equal(action.sessionId, "cs_domain_1");
+  assert.deepEqual(
+    { amountTotal: action.amountTotal, currency: action.currency, paymentIntentId: action.paymentIntentId },
+    { amountTotal: 1999, currency: "usd", paymentIntentId: "pi_domain_1" },
+  );
 });
-
 test("checkout payment: talent_domain_purchase missing domain → invalid", () => {
   const a = classifyStripeEvent(
     evt("checkout.session.completed", {
@@ -158,7 +164,6 @@ test("checkout payment: talent_domain_purchase missing domain → invalid", () =
   );
   expectKind(a, "invalid");
 });
-
 test("checkout payment: BOOKING invoice via client_reference_id → booking_payment (folded from route B)", () => {
   const a = classifyStripeEvent(
     evt("checkout.session.completed", {
@@ -171,7 +176,6 @@ test("checkout payment: BOOKING invoice via client_reference_id → booking_paym
   const action = expectKind(a, "booking_payment");
   assert.equal(action.transactionId, "txn_abc");
 });
-
 test("checkout payment: BOOKING invoice via metadata.transaction_id → booking_payment", () => {
   const a = classifyStripeEvent(
     evt("checkout.session.completed", {

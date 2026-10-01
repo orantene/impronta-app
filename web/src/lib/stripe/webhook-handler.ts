@@ -310,6 +310,9 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
           talentProfileId: action.talentProfileId,
           domain: action.domain,
           expectedPriceCents: action.expectedPriceCents,
+          amountTotal: action.amountTotal,
+          currency: action.currency,
+          paymentIntentId: action.paymentIntentId,
           metadata: meta,
         }),
       );

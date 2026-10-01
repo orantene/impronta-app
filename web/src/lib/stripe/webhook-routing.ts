@@ -62,6 +62,10 @@ export type StripeAction =
       domain: string;
       expectedPriceCents: number;
       userId: string | null;
+      /** Stripe Checkout `amount_total` (cents charged). Guard vs Registrar quote. */
+      amountTotal: number | null;
+      currency: string | null;
+      paymentIntentId: string | null;
     }
   | {
       kind: "booking_payment";
@@ -275,6 +279,10 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
             domain,
             expectedPriceCents,
             userId,
+            amountTotal:
+              typeof session.amount_total === "number" ? session.amount_total : null,
+            currency: typeof session.currency === "string" ? session.currency : null,
+            paymentIntentId: refId(session.payment_intent),
           };
         }
 

@@ -98,6 +98,9 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Buy": "Comprar",
   "DNS": "DNS",
   "Help": "Ayuda",
+  "Enter a valid email for the registrant.": "Ingresa un email válido para el titular.",
+  "Phone must be E.164 (e.g. +15551234567).": "El teléfono debe ser E.164 (ej. +15551234567).",
+  "Country must be a 2-letter ISO code (e.g. US).": "El país debe ser un código ISO de 2 letras (ej. US).",
   // Connect panel (Domain setup drawer + standalone)
   "Enter a domain to continue.": "Ingresa un dominio para continuar.",
   "Connect domain": "Conectar dominio",

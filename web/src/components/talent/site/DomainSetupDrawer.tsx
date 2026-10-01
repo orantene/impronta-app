@@ -90,10 +90,25 @@ export function DomainSetupDrawerBody({
     if (!quote?.available || !quote.priceCents) return;
     startTransition(async () => {
       setError(null);
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim());
+      const phoneOk = /^\+[1-9]\d{7,14}$/.test(contact.phone.trim());
+      const countryOk = /^[A-Z]{2}$/.test(contact.country.trim().toUpperCase());
+      if (!emailOk) {
+        setError(copy.t("Enter a valid email for the registrant."));
+        return;
+      }
+      if (!phoneOk) {
+        setError(copy.t("Phone must be E.164 (e.g. +15551234567)."));
+        return;
+      }
+      if (!countryOk) {
+        setError(copy.t("Country must be a 2-letter ISO code (e.g. US)."));
+        return;
+      }
       const result = await startTalentDomainPurchaseCheckoutAction({
         domain: quote.domain,
         expectedPriceCents: quote.priceCents!,
-        contact,
+        contact: { ...contact, country: contact.country.trim().toUpperCase() },
       });
       if (!result.ok) {
         setError(result.error);
