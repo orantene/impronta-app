@@ -103,7 +103,7 @@ import { talentPlanRemovesPlatformBadge } from "@/lib/access/talent-membership";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
-import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
+import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -1827,7 +1827,7 @@ export async function TalentProfileView({
   );
 
   // Storefront — offerings catalog, USD line for non-USD prices, Offer JSON-LD.
-  const { storefrontOfferings, usdRates, offerJsonLd } = await loadProfileStorefrontPayload(
+  const { storefrontOfferings, usdRates } = await loadProfileStorefrontPayload(
     profile.id,
     locale,
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
@@ -2308,6 +2308,10 @@ export async function TalentProfileView({
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
+    // Real catalog data only: published, publicly visible services
+    // (Offer -> Service, provider = this Person). Replaces the old standalone
+    // Offer ItemList, which carried no provider link.
+    services: offeringsToJsonLdServices(storefrontOfferings),
   });
 
   // ── Profile template dispatch ─────────────────────────────────────────
@@ -2549,13 +2553,6 @@ export async function TalentProfileView({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
-      {offerJsonLd && offerJsonLd.itemListElement.length > 0 ? (
-        <script
-          type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(offerJsonLd) }}
-        />
-      ) : null}
       {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
       {slotTenantId ? (
         <ProfileInstantBookingMount

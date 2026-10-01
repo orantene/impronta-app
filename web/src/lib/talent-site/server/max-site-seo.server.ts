@@ -1,7 +1,7 @@
 import "server-only";
 
 import { buildLocaleAlternates } from "@/i18n/alternates";
-import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
+import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import {
   resolveMaxSiteDescription,
@@ -31,6 +31,8 @@ export function buildMaxSiteSeo(args: {
   identity: TalentSiteIdentity | null;
   locale: string;
   noindex: boolean;
+  /** Published catalog services for the Person's `makesOffer` (real data only). */
+  services?: TalentJsonLdService[];
   canonicalOrigin?: string;
   canonicalPath?: string;
   /**
@@ -86,6 +88,7 @@ export function buildMaxSiteSeo(args: {
           inLanguage: locale,
           createdAt: identity?.createdAt ?? null,
           updatedAt: identity?.updatedAt ?? null,
+          services: args.services ?? null,
         })
       : null;
   const jsonLd =

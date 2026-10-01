@@ -23,6 +23,23 @@ import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-lan
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { talentProfileSitemapEntries } from "@/lib/talent-site/talent-site-locale-routing";
 
+import { headers } from "next/headers";
+import {
+  HOST_CONTEXT_HEADER,
+  HOST_TALENT_PROFILE_HEADER,
+} from "@/lib/saas/host-context";
+import { resolveGatedTalentProfileId } from "@/lib/talent-site/server/talent-site-host-gate";
+import {
+  loadMaxSiteByProfileId,
+  loadMaxSitePages,
+  loadTalentPlanKey,
+} from "@/lib/talent-site/server/load-max-site";
+import {
+  maxSitePublicGate,
+  scopeMaxSitePagesToPlan,
+} from "@/lib/talent-site/resolve-max-site-core";
+import { talentSiteSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
+
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
 /**
@@ -133,6 +150,77 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
       lastModified,
     });
   });
+}
+
+/**
+ * Sitemap for a talent site HOST (`<name>.<apex>` / talent custom domain): the
+ * site's own published pages at the host's origin. Gated the same way the page
+ * route is (published site + plan gate + plan page scoping), AND on the
+ * talent's public-listing predicates used for the platform sitemap, so a
+ * hidden / unlisted / deleted talent advertises nothing.
+ */
+async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRoute.Sitemap> {
+  const admin = createServiceRoleClient();
+  if (!admin) return [];
+  let talentProfileId: string | null = null;
+  try {
+    const h = await headers();
+    talentProfileId = resolveGatedTalentProfileId({
+      hostContext: h.get(HOST_CONTEXT_HEADER),
+      talentProfileId: h.get(HOST_TALENT_PROFILE_HEADER),
+    });
+  } catch {
+    return [];
+  }
+  if (!talentProfileId) return [];
+
+  const { data: profile } = await admin
+    .from("talent_profiles")
+    .select("updated_at, created_at, preferred_locale, secondary_locales")
+    .eq("id", talentProfileId)
+    .is("deleted_at", null)
+    .eq("is_publicly_hidden", false)
+    .eq("is_publicly_listed", true)
+    .eq("visibility", "public")
+    .neq("profile_kind", "resource")
+    .maybeSingle();
+  if (!profile) return [];
+
+  const [site, planKey] = await Promise.all([
+    loadMaxSiteByProfileId(talentProfileId),
+    loadTalentPlanKey(talentProfileId),
+  ]);
+  if (!site || !maxSitePublicGate({ sitePublishedAt: site.sitePublishedAt, planKey })) return [];
+
+  const pages = scopeMaxSitePagesToPlan(await loadMaxSitePages(talentProfileId), planKey);
+  const paths = talentSiteSitemapPaths(pages);
+  if (paths.length === 0) return [];
+
+  const row = profile as {
+    updated_at: string | null;
+    created_at: string | null;
+    preferred_locale: string | null;
+    secondary_locales: string[] | null;
+  };
+  const lastModified = row.updated_at || row.created_at
+    ? new Date(row.updated_at ?? row.created_at!)
+    : new Date();
+  const platform = await getLanguageSettingsPublicCached().catch(() => FALLBACK_LANGUAGE_SETTINGS);
+  const pair = normalizeTalentLocalePair(
+    row.preferred_locale,
+    row.secondary_locales,
+    platform.publicLocales,
+    platform.defaultLocale,
+  );
+  return paths.flatMap((path) =>
+    talentProfileSitemapEntries({
+      origin: base.origin,
+      path,
+      urlDefault: platform.defaultLocale,
+      locales: [pair.primary, ...pair.secondary],
+      lastModified,
+    }),
+  );
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -271,6 +359,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
   if (isTalentProfilePlatformHost(hostContext.kind)) {
     return platformTalentEntries;
+  }
+  if (hostContext.kind === "talent_site") {
+    return loadTalentSiteHostSitemapEntries(base);
   }
   if (hostContext.kind !== "agency") {
     return [];

@@ -82,6 +82,7 @@ import {
   loadTalentSiteIdentity,
 } from "./load-max-site";
 import { buildMaxSiteSeo } from "./max-site-seo.server";
+import { offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
 
@@ -310,7 +311,14 @@ export async function renderTalentMaxSite(
       isDemo,
     });
 
+    // Published, publicly visible catalog services -> Person.makesOffer. A load
+    // failure degrades to no services, never to a failed render.
+    const jsonLdServices = offeringsToJsonLdServices(
+      await loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []),
+    );
+
     const seo = buildMaxSiteSeo({
+      services: jsonLdServices,
       site,
       // PHASE 1 — SEO is Web Office. A talent without `personalSiteSeo` renders
       // with their stored SEO IGNORED (never deleted), so a lapsed Web Office
