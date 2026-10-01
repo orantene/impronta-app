@@ -49,7 +49,10 @@ describe("TalentFactoryTab render", () => {
     assert.match(html, /token 1, payload 1/);
     assert.match(html, /npm run qa:mockup-parity -- --design folio/);
     assert.match(html, /data-how-to-add/);
-    assert.match(html, /Sync catalog/);
+    assert.match(html, /Publish and update demos/);
+    assert.match(html, /theme:pull-authored/);
+    assert.match(html, /how-to-make-a-new-theme\.md/);
+    assert.doesNotMatch(html, /COLLECTION_DESIGNS/);
   });
   it("lists no agency starters and states the open-in-builder limits", () => {
     assert.doesNotMatch(html, /builtin-|Site Starter Kit|Sync built-in starters/);
@@ -60,7 +63,7 @@ describe("TalentFactoryTab render", () => {
     const es = renderToStaticMarkup(<TalentFactoryTab locale="es" initial={DATA} onOpenBuilder={() => {}} />);
     assert.match(es, /Fábrica de plantillas de talento/);
     assert.match(es, /Editar diseño en el editor/);
-    assert.match(es, /Sincronizar catálogo/);
+    assert.match(es, /Publica y actualiza las demos/);
     assert.doesNotMatch(es, /—/);
   });
   it("production mode shows only the local hint", () => {

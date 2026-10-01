@@ -37,17 +37,26 @@ type DesignTab = "brand" | "theme";
 export function DesignPanel({ open, onClose }: DesignPanelProps) {
   const { canEditTheme, openTheme, surfaceKind } = useEditContext();
   const { t } = useEditorLocale();
+  // Talent design editor: agency Brand is never shown; open straight on Theme.
+  const isThemeTemplate = surfaceKind === "theme_template";
   const [tab, setTab] = useState<DesignTab>("brand");
 
   // Reset to the Brand section each time the panel is re-opened so the entry
   // point is predictable.
   useEffect(() => {
-    if (open) setTab("brand");
-  }, [open]);
+    if (!open) return;
+    if (isThemeTemplate) {
+      // Talent design editor: no agency Brand tab; go straight to Theme.
+      openTheme();
+      onClose();
+      return;
+    }
+    setTab("brand");
+  }, [open, isThemeTemplate, openTheme, onClose]);
 
-  if (!open) return null;
+  if (!open || isThemeTemplate) return null;
 
-  const showThemeTab = canEditTheme;
+  const showThemeTab = canEditTheme && !isThemeTemplate;
 
   return (
     <DockFloatingPanel

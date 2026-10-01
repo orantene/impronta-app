@@ -103,6 +103,7 @@ export function TalentFactoryTab({
             <li key={s}>{t.steps[s]}</li>
           ))}
         </ol>
+        <p className="mt-2 text-xs text-white/50">{t.fullGuide}</p>
       </section>
     </div>
   );
