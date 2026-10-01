@@ -28,9 +28,7 @@ import { ES_SHORTCUT_TEXT } from "./editor-i18n-es-shortcuts";
 export const ES_TEXT: Record<string, string> = {
   "Device": "Dispositivo",
   ...ES_SECTION_CATALOG_TEXT,
-  // WAVE 4.5 — the per-section Editor panel bodies + shared field primitives.
-  // Spread BEFORE the canvas/explicit keys so a hand-tuned chrome string still
-  // wins on a collision (the section-catalog parity guard pins that ordering).
+  // WAVE 4.5: section Editor panel bodies; spread BEFORE canvas keys so chrome wins (parity guard).
   ...ES_SECTION_PANEL_TEXT,
   ...ES_SECTION_PANEL_TEXT_2,
   // WAVE 4 (canvas bars, preflight, AI panels) — split out for the line cap.
@@ -46,9 +44,7 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_ICON_TEXT,
   // ── Animation tab (2026-08-20 rebuild of the entrance-motion surface) ──
   ...ES_ANIMATION_TEXT,
-  // WAVE 4.6 (builder registry: node-kind labels + descriptions, element
-  // library, "My blocks" / "Component library"). Disjoint from every other
-  // catalog by construction, enforced by the cross-file duplicate guard.
+  // WAVE 4.6 builder registry (disjoint; cross-file duplicate guard).
   ...ES_BUILDER_REGISTRY_TEXT,
   // ── Media surfaces (picker locks, MediaField, Assets library) ─────────
   ...ES_MEDIA_TEXT,

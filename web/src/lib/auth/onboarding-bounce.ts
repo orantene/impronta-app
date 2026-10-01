@@ -56,3 +56,8 @@ export function onboardingHoldCopy(locale: string | null | undefined): Onboardin
     cta: "Try again now",
   };
 }
+
+/** Request-time clock for the bounce guard (kept out of the render body for the purity lint). */
+export function onboardingBounceNow(): number {
+  return Date.now();
+}
