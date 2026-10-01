@@ -1,0 +1,193 @@
+{
+  "design": "gridline",
+  "mockup": "design-references/gridline/index.html",
+  "referenceDemo": { "profileCode": "TAL-93030", "name": "Alex Treviño", "fixture": "design-references/gridline/content.json" },
+  "locale": "es",
+  "shape": "Serialised form of SECTIONS / ORDER / LOCALE_TEXT in scripts/qa/mockup-parity/section-map.mjs. Section keys are the data-w units of the mockup; `mockup` selectors address them by that attribute. `expects` are shared by both sides (the mockup is self-tested with the same rules). Product selectors use the anchors the Gridline design is planned to stamp (see ~/.claude/plans/gridline-build-plan.md, slice S3 to S7) and `data-parity-key` once the stable matching contract (5c) lands; until then a section whose anchor does not exist yet reports BLOCKED, never PASS.",
+  "state": "planned: the Gridline design does not exist yet, so every product selector is a contract for the build slices, not an observed anchor.",
+  "defaultState": { "emergenciesToday": true, "note": "The mockup renders with the talent setting ON (alert band visible). A second pass with it OFF checks that the band and the highlighted emergency column disappear (see `stateChecks`)." },
+  "localeText": {
+    "nextFree": "(hoy|mañana|today|tomorrow|pr[oó]xim|next|libre|available|disponible)",
+    "price": "(\\$|MXN|USD|desde|from|cotizar|quote)",
+    "where": "(dónde|donde|where|ubicaci|location|zona|visita|visit)",
+    "policy": "(pol[ií]ticas|privacidad|t[eé]rminos|cookies|policies|privacy|terms)",
+    "langSwitch": "(\\bES\\b[\\s\\S]*\\bEN\\b|\\bEN\\b[\\s\\S]*\\bES\\b)",
+    "urgencyStatus": "(emergencias hoy|sin emergencias hoy|emergencies today)",
+    "safetyNote": "(corta la luz|interruptor principal|main switch)",
+    "specLabels": "(respuesta|garant[ií]a|precio|revisi[oó]n)",
+    "recommend": "(te conviene|no sabes qu[eé] es|best fit|not sure)",
+    "matrixLabels": "(c[oó]mo se agenda|materiales|garant[ií]a|respuesta|how it.s booked)",
+    "areaNote": "(traslado|aproximada|travel|approximate)",
+    "attribution": "(Tulala)"
+  },
+  "sections": [
+    {
+      "key": "header",
+      "unit": "Header shell · utility bar (phone + urgency)",
+      "label": "Utility top bar",
+      "mockup": ["[data-w^='Header shell']", ".gl-top"],
+      "product": ["[data-parity-key='header']", "fn:header"],
+      "expects": [
+        { "name": "name and trade line", "kind": "sel", "sel": "b, small, h1, h2, span", "min": 2 },
+        { "name": "tap-to-call control", "kind": "sel", "sel": "a[href^='tel:'], button[aria-label='Llamar']", "min": 1 },
+        { "name": "emergencies-today status", "kind": "text", "re": "urgencyStatus" },
+        { "name": "primary booking action", "kind": "sel", "sel": "a, button", "min": 2 }
+      ]
+    },
+    {
+      "key": "urgency",
+      "unit": "Section preset · alert band (urgency mode)",
+      "label": "Alert band (emergencies today)",
+      "mockup": ["[data-w^='Section preset · alert band']", ".gl-emg"],
+      "product": ["#emergency", "[data-parity-key='urgency']", "[data-anchor-id='emergency']"],
+      "optional": true,
+      "notes": "Rendered only while the talent's own setting is on. Absent when off, by design.",
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "safety note (cut the main switch)", "kind": "text", "re": "safetyNote" },
+        { "name": "action to the emergency service", "kind": "sel", "sel": "a, button", "min": 1 }
+      ]
+    },
+    {
+      "key": "hero",
+      "unit": "hero · spec block",
+      "label": "Hero (spec block)",
+      "mockup": ["[data-w^='hero · spec block']", ".gl-hero"],
+      "product": ["#hero", "[data-slot-key='hero']", "[data-anchor-id='hero']"],
+      "expects": [
+        { "name": "kicker line", "kind": "text", "re": "(Agenda abierta|Disponible|Monterrey)" },
+        { "name": "headline (h1)", "kind": "sel", "sel": "h1", "min": 1 },
+        { "name": "spec cells (>= 4 label/value pairs)", "kind": "text", "re": "specLabels" },
+        { "name": "CTA pair (2 actions)", "kind": "ctaPair" },
+        { "name": "who-card photo", "kind": "sel", "sel": "img", "min": 1 }
+      ]
+    },
+    {
+      "key": "tasks",
+      "unit": "W-11 Category explorer · task picker (tasks → services)",
+      "label": "Task picker",
+      "mockup": ["[data-w^='W-11']", "#gl-pick"],
+      "product": ["#task-picker", "[data-parity-key='tasks']", "[data-anchor-id='task-picker']"],
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "task buttons (>= 6, pressable)", "kind": "sel", "sel": "button[aria-pressed]", "min": 6 },
+        { "name": "recommendation card (empty state or picked service)", "kind": "text", "re": "recommend" },
+        { "name": "price on the recommendation", "kind": "text", "re": "price" }
+      ]
+    },
+    {
+      "key": "services",
+      "unit": "W-01 Services · comparison matrix (new layout)",
+      "label": "Services matrix",
+      "mockup": ["[data-w^='W-01']", "#gl-mx"],
+      "product": ["#services", "[data-parity-key='services']", "[data-slot-key='services']"],
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "currency line", "kind": "text", "re": "(MXN|pesos|precios)" },
+        { "name": "matrix header cells (desktop) or stacked cards (phone), >= 4", "kind": "sel", "sel": "table thead th, article", "min": 4 },
+        { "name": "matrix row labels", "kind": "text", "re": "matrixLabels" },
+        { "name": "prices", "kind": "text", "re": "price" }
+      ]
+    },
+    {
+      "key": "proof",
+      "unit": "Section preset · spec table + W-12 Portfolio grid (jobs)",
+      "label": "Spec table + job cards",
+      "mockup": ["[data-w^='Section preset · spec table']"],
+      "product": ["#proof", "[data-parity-key='proof']", "[data-anchor-id='proof']"],
+      "notes": "One container in the design wraps the spec_table section and the work-order portfolio, so the mockup unit stays 1:1.",
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "spec rows (>= 5)", "kind": "sel", "sel": "tr", "min": 5 },
+        { "name": "job cards with captions (>= 6)", "kind": "sel", "sel": "figure img", "min": 6 },
+        { "name": "work-order captions", "kind": "text", "re": "OT-\\d{4}" }
+      ]
+    },
+    {
+      "key": "area",
+      "unit": "W-13 Location · area card (approximate)",
+      "label": "Area card",
+      "mockup": ["[data-w^='W-13']"],
+      "product": ["#location", "[data-parity-key='area']", "[data-slot-key='location']"],
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "area chips (>= 6 municipalities)", "kind": "sel", "sel": "li", "min": 6 },
+        { "name": "travel note", "kind": "text", "re": "areaNote" },
+        { "name": "no street address (approximate only)", "kind": "text", "re": "where" }
+      ]
+    },
+    {
+      "key": "faq",
+      "unit": "W-02 FAQ · accordion",
+      "label": "FAQ",
+      "mockup": ["[data-w^='W-02']"],
+      "product": ["#faq", "[data-parity-key='faq']", "[data-slot-key='faq']", "fn:faq"],
+      "optional": true,
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "questions (>= 4)", "kind": "sel", "sel": "details, [aria-expanded]", "min": 4 }
+      ]
+    },
+    {
+      "key": "footer",
+      "unit": "footer",
+      "label": "Footer",
+      "mockup": [".gl-foot"],
+      "product": ["[data-parity-key='footer']", "fn:footer"],
+      "expects": [
+        { "name": "site address", "kind": "text", "re": "(tulala\\.digital)" },
+        { "name": "attribution", "kind": "text", "re": "attribution" }
+      ]
+    },
+    {
+      "key": "socket",
+      "unit": null,
+      "label": "Footer socket",
+      "mockup": [],
+      "product": [".tulala-socket", "fn:socket"],
+      "productOnly": true,
+      "notes": "The mockup has no legal strip; the product always renders one. Checked on the product side only.",
+      "expects": [
+        { "name": "policy links (>= 3)", "kind": "countText", "re": "policy", "min": 3, "sel": "a, button" },
+        { "name": "Tulala attribution", "kind": "text", "re": "attribution" }
+      ]
+    }
+  ],
+  "order": ["header", "urgency", "hero", "tasks", "services", "proof", "area", "faq", "footer", "socket"],
+  "stateKeys": ["chat", "dock", "booking"],
+  "stateChecks": [
+    {
+      "key": "urgency-off",
+      "description": "With the talent's emergencies-today setting OFF: no alert band, status reads 'Sin emergencias hoy', the emergency matrix column/card is not highlighted, the dock offers the inspection (Ver horarios).",
+      "expects": [
+        { "name": "alert band gone", "section": "urgency", "present": false },
+        { "name": "status text", "section": "header", "kind": "text", "text": "Sin emergencias hoy" },
+        { "name": "dock action", "section": "dock", "kind": "text", "text": "Ver horarios" }
+      ]
+    },
+    {
+      "key": "urgency-on",
+      "description": "Setting ON (default): alert band, status 'Emergencias hoy', dock action Consultar.",
+      "expects": [
+        { "name": "dock action", "section": "dock", "kind": "text", "text": "Consultar" }
+      ]
+    },
+    {
+      "key": "booking-wizard",
+      "description": "Tapping a service CTA opens the centred modal step wizard (3 step dots), not a bottom sheet, at 1440; at 390 the same wizard fills the screen.",
+      "expects": [
+        { "name": "dialog with step indicator", "kind": "sel", "sel": "[role='dialog']", "min": 1 }
+      ]
+    }
+  ],
+  "units": {
+    "Header shell · utility bar (phone + urgency)": "header",
+    "Section preset · alert band (urgency mode)": "urgency",
+    "hero · spec block": "hero",
+    "W-11 Category explorer · task picker (tasks → services)": "tasks",
+    "W-01 Services · comparison matrix (new layout)": "services",
+    "Section preset · spec table + W-12 Portfolio grid (jobs)": "proof",
+    "W-13 Location · area card (approximate)": "area",
+    "W-02 FAQ · accordion": "faq"
+  }
+}
