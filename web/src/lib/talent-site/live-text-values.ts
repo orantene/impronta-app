@@ -22,6 +22,8 @@ export interface LiveTextSource {
   hoursDays?: string | null;
   /** Published Instagram URL, when she has one. */
   instagramHref?: string | null;
+  /** Currency of her published services ("MXN"). */
+  menuCurrency?: string | null;
 }
 
 /** "@handle" from a profile Instagram URL; "" when it does not parse. */
@@ -74,7 +76,9 @@ export function buildTalentLiveText(
     ].filter(Boolean),
   );
 
+  const currency = src.menuCurrency?.trim().toUpperCase();
   return {
+    menuSubtitle: currency ? (es ? `Precios en ${currency}.` : `Prices in ${currency}.`) : "",
     values: {
       // Her own words win; a seeded line follows the locale; the name fallback is the stored text.
       hero_headline: headline.source === "name" ? "" : headline.text,

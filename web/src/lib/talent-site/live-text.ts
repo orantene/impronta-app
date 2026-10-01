@@ -34,6 +34,32 @@ export interface TalentLiveText {
   values: Partial<Record<LiveTextKey, string>>;
   /** Stored texts that still mean "the seed" per key (legacy binding only). */
   seeds?: Partial<Record<LiveTextKey, ReadonlyArray<string>>>;
+  /** The menu intro line ("Prices in MXN."), a default for a Maison v2 menu that never had one. */
+  menuSubtitle?: string;
+}
+
+/** Design origin of a Maison v2 node, else null. */
+const maisonKey = (node: BuilderNode): string | null => {
+  const origin = readOrigin(node);
+  return origin?.design === "maison-v2" ? origin.key : null;
+};
+
+/**
+ * The proof line of a hero whose page never got one: it was left out at apply time while she
+ * had no years, languages or reviews (an empty line is dropped then), so nothing was there to
+ * fill in the day she added them. Same look as the payload's line.
+ */
+function proofParagraph(heroId: string): BuilderNode {
+  return {
+    id: `live-proof-${heroId}`,
+    kind: "paragraph",
+    props: {
+      text: "\u200b",
+      liveText: "hero_proof",
+      layerLabel: "Hero proof",
+      style: { size: "sm", tone: "muted", lineHeight: "1.5", marginTopFree: "16px" },
+    },
+  } as unknown as BuilderNode;
 }
 
 /**
@@ -77,6 +103,11 @@ export function liveKeyOf(node: BuilderNode, live: TalentLiveText): LiveTextKey 
   return isSeedText(props.text, live.seeds?.[key]) ? key : null;
 }
 
+function applyOne(node: BuilderNode, live: TalentLiveText): BuilderNode {
+  const value = live.values.hero_proof?.trim() ?? "";
+  return { ...node, props: { ...propsOf(node), text: value } } as BuilderNode;
+}
+
 /** Resolve every live node of a tree (see the rules above). */
 export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): BuilderNode[] {
   const visit = (node: BuilderNode): BuilderNode | null => {
@@ -90,13 +121,28 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
       }
       return LIVE_TEXT_KEEPS_FALLBACK.has(key) ? node : null;
     }
+    // A Maison v2 menu with no intro line gets the currency sentence (once she writes one, it is hers).
+    if (node.kind === "services_catalog" && live.menuSubtitle && maisonKey(node)?.startsWith("services")) {
+      const props = propsOf(node);
+      if (typeof props.subtitle !== "string" || props.subtitle.trim() === "") {
+        return { ...node, props: { ...props, subtitle: live.menuSubtitle } } as BuilderNode;
+      }
+    }
     const kids = (node as AnyNode).children;
     if (!Array.isArray(kids) || kids.length === 0) return node;
     const hadFooterLine = kids.some((k) => {
       const k2 = propsOf(k).liveText;
       return typeof k2 === "string" && k2.startsWith("footer_");
     });
-    const next = kids.map(visit).filter((k): k is BuilderNode => k !== null);
+    let next = kids.map(visit).filter((k): k is BuilderNode => k !== null);
+    // The hero without a proof line: put one under the buttons when she has facts to show.
+    if (maisonKey(node) === "hero/container" && live.values.hero_proof?.trim()) {
+      const hasProof = next.some((k) => propsOf(k).liveText === "hero_proof");
+      const at = next.findIndex((k) => maisonKey(k) === "hero/container/container");
+      if (!hasProof && at >= 0) {
+        next = [...next.slice(0, at + 1), applyOne(proofParagraph(node.id), live), ...next.slice(at + 1)];
+      }
+    }
     const unchanged = next.length === kids.length && next.every((k, i) => k === kids[i]);
     if (hadFooterLine) {
       const slot = propsOf(node).slotKey;
@@ -122,6 +168,8 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
  */
 export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
   return tree.some((n) => {
+    if (n.kind === "services_catalog" && maisonKey(n)?.startsWith("services")) return true;
+    if (maisonKey(n) === "hero/container") return true;
     if (n.kind === "heading" || n.kind === "paragraph") {
       if (isLiveTextKey(propsOf(n).liveText)) return true;
       const origin = readOrigin(n);
