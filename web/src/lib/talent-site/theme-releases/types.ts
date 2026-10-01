@@ -35,7 +35,7 @@ export interface ReleaseItem {
    * slot): both halves carry the same `swap` and `group`, and the merge treats
    * them as ONE atomic choice. Keys are unqualified design keys.
    */
-  swap?: { from: string; to: string };
+  swap?: { from: string; to: string; ensure?: boolean };
   /** Items sharing a group are one choice for the talent (What's new shows one). */
   group?: string;
 }

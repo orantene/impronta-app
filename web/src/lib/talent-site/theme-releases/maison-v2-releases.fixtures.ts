@@ -6,6 +6,8 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { buildMaisonV2Payload } from "../theme-catalog/collection/designs";
+import { seqIds } from "../theme-catalog/collection/design-parts";
+import { legacyMaisonV2VisitBand } from "../theme-catalog/collection/maison-v2";
 import type { DesignPayload } from "../theme-catalog/types";
 
 type Props = Record<string, unknown>;
@@ -161,6 +163,14 @@ export function revertR20(p: DesignPayload): DesignPayload {
  */
 export function revertR21(p: DesignPayload): DesignPayload {
   const out = clonePayload(p);
+  // Location REPLACED the "Before you come" visit band in this release: v20 had the visit
+  // band (before Location, which was an optional block) and the header link pointed at it.
+  const locAt = out.homeTree.findIndex((n) => propsOf(n).slotKey === "location");
+  out.homeTree.splice(locAt < 0 ? out.homeTree.length : locAt, 0, legacyMaisonV2VisitBand(seqIds("maison-v2-legacy-visit")));
+  walkNodes(out.shellTree, (n) => {
+    const nav = (propsOf(n).sectionProps as { navItems?: Array<{ href?: string }> } | undefined)?.navItems;
+    for (const i of nav ?? []) if (i.href === "#location") i.href = "#visit";
+  });
   delete out.tokenDefaults!["footer.tone"];
   walkNodes(out.homeTree, (n) => {
     const props = propsOf(n);

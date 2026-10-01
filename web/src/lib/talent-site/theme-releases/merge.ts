@@ -262,8 +262,11 @@ function swapPairsFor(
   const taken = new Set<string>();
   for (const pair of [...ctx.swaps, ...detectSwaps(bKids, tKids)]) {
     if (out.has(pair.from) || taken.has(pair.to)) continue;
-    if (!bMap.has(pair.from) || tMap.has(pair.from) || !tMap.has(pair.to) || bMap.has(pair.to)) continue;
-    // Already on the new layout (a re-run): nothing to swap.
+    if (!bMap.has(pair.from) || tMap.has(pair.from) || !tMap.has(pair.to)) continue;
+    // `ensure` pairs name a `to` the base already had (an optional block shipped earlier).
+    if (bMap.has(pair.to) && !pair.ensure) continue;
+    // Already on the new layout (a re-run), or an `ensure` pair whose `to` she already
+    // has: nothing to insert, so `from` goes through the ordinary removal path.
     if (oMap.has(pair.to)) continue;
     out.set(pair.from, pair);
     taken.add(pair.to);

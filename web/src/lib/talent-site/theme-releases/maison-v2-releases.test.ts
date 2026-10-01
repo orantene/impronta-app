@@ -519,3 +519,102 @@ test("Maison v2 v20: the Location block is opt-in and carries no place or addres
   assert.doesNotMatch(json, /Mérida|Calle|Ejemplo|exactAddress|exact_address/);
   assert.doesNotMatch(json, HEX);
 });
+
+// ── Release 21 (parity): Location replaces the visit band ───────────────────
+
+async function v21Site() {
+  const prev = maisonV2At(20);
+  const next = maisonV2At(21);
+  const { base, theirs } = await siteSides(prev, 20, next, 21);
+  const { items } = generateReleaseItems("maison-v2", { payload: prev, version: 20 }, { payload: next, version: 21 });
+  return { base, theirs, items };
+}
+
+const SWAP_ID = "layout:maison-v2:visit-to-location";
+const hrefOf = (trees: DesignSide["trees"][string] | undefined, shell: DesignSide["trees"][string] | undefined) => {
+  void trees;
+  const header = shell!.find((n) => propsOf(n).slotKey === "header")!;
+  return (propsOf(header).sectionProps as { navItems: Array<{ label: string; href: string }> }).navItems.find((i) => i.label === "Location")!.href;
+};
+
+test("Maison v2 v21: the visit-to-Location swap is ONE grouped item that folds in the header link, notes EN + ES", async () => {
+  const { items } = await v21Site();
+  const swap = items.find((i) => i.id === SWAP_ID)!;
+  assert.ok(swap, "the grouped swap item exists");
+  assert.equal(swap.type, "layout");
+  assert.deepEqual(swap.swap, { from: "visit", to: "location", ensure: true });
+  assert.ok(!swap.tree, "it spans the page and the header");
+  assert.deepEqual(
+    [...(swap.keys ?? [])].sort(),
+    ["home:location", "home:visit", "home:visit/visit", "shell:header"],
+  );
+  assert.ok(!items.some((i) => i.id === "variant-default:shell:header"), "the header link is not a separate choice");
+  for (const i of items) {
+    assert.ok(i.note?.en && i.note?.es, `note for ${i.id}`);
+    assert.doesNotMatch(`${i.note.en} ${i.note.es}`, /\u2014|\u2013/);
+  }
+  const rel = authoredRelease("maison-v2", 21)!;
+  assert.ok(rel.notes.en.includes("Location replaces") && rel.notes.es.includes("reemplaza"));
+  assert.ok(swap.note?.en?.includes("never lose your visit info") && swap.note?.es?.includes("nunca pierdes"));
+  assert.ok(rel.codeNotes.length >= 3);
+});
+
+test("Maison v2 v21: choosing the swap, Location already on her page, just removes the visit band", async () => {
+  const { base, theirs, items } = await v21Site();
+  assert.ok(slotOrder(base.trees.home!).includes("visit") && slotOrder(base.trees.home!).includes("location"));
+  const none = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: [] });
+  assert.ok(slotOrder(none.trees.home!).includes("visit"), "nothing chosen, the band stays");
+  const ours = siteOf(base);
+  // Compared without the origin stamp (a merge re-stamps the version, nothing else).
+  const plain = (n: unknown) => JSON.stringify(n, (k, v) => (k === "__origin" ? undefined : v));
+  const locationBefore = plain(findBySlot(ours.trees.home as never, "location"));
+  const r = mergeDesignUpdate({ base, ours, theirs, items: items.filter((i) => i.id === SWAP_ID) });
+  const order = slotOrder(r.trees.home!);
+  assert.ok(!order.includes("visit"), "the visit band is gone");
+  assert.equal(order.filter((k) => k === "location").length, 1, "exactly one Location band");
+  assert.equal(plain(findBySlot(r.trees.home as never, "location")), locationBefore, "her Location is untouched");
+  assert.equal(hrefOf(r.trees.home, r.trees.shell), "#location", "the header link follows in the same apply");
+});
+
+test("Maison v2 v21: a site that never added Location gets it at the visit band's position, never neither", async () => {
+  const { base, theirs, items } = await v21Site();
+  const ours = siteOf(base);
+  ours.trees.home = ours.trees.home!.filter((n) => propsOf(n).slotKey !== "location");
+  const before = slotOrder(ours.trees.home!);
+  assert.ok(before.includes("visit") && !before.includes("location"));
+  const at = before.indexOf("visit");
+  const r = mergeDesignUpdate({ base, ours, theirs, items: items.filter((i) => i.id === SWAP_ID) });
+  const order = slotOrder(r.trees.home!);
+  assert.ok(!order.includes("visit"), "the visit band is gone");
+  assert.equal(order.indexOf("location"), at, "Location sits where the visit band was");
+  assert.equal(order.filter((k) => k === "location").length, 1);
+  assert.equal(hrefOf(r.trees.home, r.trees.shell), "#location", "the header link is never dead");
+  // Not choosing it changes nothing: she keeps her visit band and the old link.
+  const none = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: [] });
+  assert.equal(hrefOf(none.trees.home, none.trees.shell), "#visit");
+});
+
+test("Maison v2 v21: an edited visit band is kept, and nothing is lost", async () => {
+  const { base, theirs, items } = await v21Site();
+  const ours = siteOf(base);
+  ours.trees.home = ours.trees.home!.filter((n) => propsOf(n).slotKey !== "location");
+  const visit = findBySlot(ours.trees.home as never, "visit")!;
+  const heading = findByKind([visit], "visit")!;
+  propsOf(heading).title = "Her own heading";
+  const r = mergeDesignUpdate({ base, ours, theirs, items: items.filter((i) => i.id === SWAP_ID) });
+  const order = slotOrder(r.trees.home!);
+  assert.ok(order.includes("visit") || order.includes("location"), "never neither");
+});
+
+test("Maison v2 v21 payload: Location replaces the visit band and the header link follows", () => {
+  const now = maisonV2At(21);
+  const slots = now.homeTree.map((n) => String(propsOf(n).slotKey));
+  assert.ok(slots.includes("location") && !slots.includes("visit"));
+  const before = maisonV2At(20);
+  assert.ok(before.homeTree.some((n) => propsOf(n).slotKey === "visit"));
+  const nav = (p: DesignPayload) =>
+    (propsOf(p.shellTree.find((n) => propsOf(n).slotKey === "header")!).sectionProps as { navItems: Array<{ label: string; href: string }> }).navItems;
+  assert.equal(nav(now).find((i) => i.label === "Location")!.href, "#location");
+  assert.equal(nav(before).find((i) => i.label === "Location")!.href, "#visit");
+  assert.equal(propsOf(findBySlot(now.homeTree, "location")!).anchorId, "location");
+});

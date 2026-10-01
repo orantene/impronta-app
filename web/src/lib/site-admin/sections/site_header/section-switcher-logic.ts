@@ -26,6 +26,21 @@ export function switcherLinksFrom(links: ReadonlyArray<SwitcherLink>): SwitcherL
   return links.filter((l) => l.label.trim().length > 0 && hashTargetOf(l.href) !== null);
 }
 
+/** The anchor the hero band carries (`stampHero` in the section kit). */
+export const SWITCHER_HOME_ANCHOR = "hero";
+
+/**
+ * The first entry of the switcher is the top of the page ("01 Inicio" / "01
+ * Home"), so the bar names the hero at scroll 0 instead of the first menu
+ * section. Skipped when a link already points at the hero. The SectionSwitcher
+ * drops it again on pages that have no `#hero` anchor.
+ */
+export function withSwitcherHome(links: ReadonlyArray<SwitcherLink>, homeLabel: string): SwitcherLink[] {
+  const homeHref = `#${SWITCHER_HOME_ANCHOR}`;
+  if (links.some((l) => l.href === homeHref)) return [...links];
+  return [{ label: homeLabel, href: homeHref }, ...links];
+}
+
 /**
  * Scroll-spy: the active section is the LAST one whose top has reached the
  * reading line; before the first one does, nothing is active (the switcher then

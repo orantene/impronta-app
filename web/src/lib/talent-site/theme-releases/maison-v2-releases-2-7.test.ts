@@ -27,6 +27,9 @@ const FOOTER_PARTS = [
   "layout:shell:footer/container/social_links:removed",
   "layout:shell:footer/heading:removed",
 ];
+/** Release 21 also makes Location replace the visit band (one swap, with the header link folded in). */
+const VISIT_SWAP = ["layout:home:visit:removed", "layout:home:visit/visit:removed"];
+const HEADER_LINK = "variant-default:shell:header";
 const HERO_LINES = [
   "variant-default:home:hero/container/heading",
   "variant-default:home:hero/container/paragraph",
@@ -37,17 +40,17 @@ const TONE = "token-default:footer.tone";
 
 test("Maison v2 v21 classifies: live hero lines + footer tone are automatic, the rich footer is ONE opt-in layout swap", () => {
   const items = diff(maisonV2At(20), maisonV2At(21));
-  assert.deepEqual(items.map((i) => i.id).sort(), [...FOOTER_PAIR, ...FOOTER_PARTS, ...HERO_LINES, TONE].sort());
+  assert.deepEqual(items.map((i) => i.id).sort(), [...FOOTER_PAIR, ...FOOTER_PARTS, ...VISIT_SWAP, HEADER_LINK, ...HERO_LINES, TONE].sort());
   const byType = (t: string) => items.filter((i) => i.type === t);
-  assert.equal(byType("variant-default").length, 4);
+  assert.equal(byType("variant-default").length, 5, "four hero lines + the header link");
   assert.equal(byType("token-default").length, 1);
-  assert.equal(byType("layout").length, 2 + FOOTER_PARTS.length, "the dark band removal, its parts and the rich footer");
+  assert.equal(byType("layout").length, 2 + FOOTER_PARTS.length + VISIT_SWAP.length, "the dark band removal, its parts, the rich footer and the visit band removal");
   for (const t of ["new-block", "critical", "code"]) assert.equal(byType(t).length, 0, `no ${t} in 2.7`);
   // The two footer halves are one atomic swap (the new half is a layout change, not a new block).
   const pair = byType("layout").filter((i) => FOOTER_PAIR.includes(i.id ?? ""));
   assert.equal(new Set(pair.map((i) => i.group)).size, 1);
   assert.ok(pair.every((i) => i.swap?.from === "footer" && i.swap?.to === "footer_rich"));
-  for (const i of byType("variant-default")) assert.deepEqual((i as CandidateItem).paths, ["liveText"]);
+  for (const i of byType("variant-default").filter((x) => x.id !== HEADER_LINK)) assert.deepEqual((i as CandidateItem).paths, ["liveText"]);
   assert.deepEqual((items.find((i) => i.id === TONE)!.detail), { from: null, to: "light" });
 });
 
@@ -72,7 +75,8 @@ test("Maison v2 v21 through the one generator: the footer pair becomes ONE item 
     { payload: maisonV2At(21), version: 21 },
   );
   assert.ok(notes.en && notes.es);
-  const layout = items.filter((i) => i.type === "layout");
+  const layout = items.filter((i) => i.id === "layout:maison-v2:footer-rich");
+  assert.equal(items.filter((i) => i.type === "layout").length, 2, "the footer swap and the visit-to-Location swap");
   assert.equal(layout.length, 1);
   assert.equal(layout[0]!.id, "layout:maison-v2:footer-rich");
   const keys = layout[0]!.keys ?? [];
@@ -132,7 +136,7 @@ test("Maison v2 v21: an untouched site gets the live hero lines and none of the 
 
 test("Maison v2 v21: choosing the footer applies it whole, with its columns, and leaves nothing of the old band", async () => {
   const { base, theirs, items } = await v21Site();
-  const layout = items.filter((i) => i.type === "layout");
+  const layout = items.filter((i) => i.id === "layout:maison-v2:footer-rich");
   assert.equal(layout.length, 1);
   const r = mergeDesignUpdate({ base, ours: ours(base), theirs, items: layout });
   assert.equal(r.report.conflicts.length, 0);
@@ -184,7 +188,7 @@ test("Maison v2 v21 payload: live lines, light footer default, menu intro, no he
   assert.doesNotMatch(JSON.stringify(p.shellTree), /Hecho con Tulala|Made with Tulala|Powered by Tulala/);
   // Footer copy: the big line, the booking button, both columns with their links.
   const footer = JSON.stringify(p.shellTree);
-  for (const s of ["See you {i}soon.{/i}", "Book an appointment", "See location", "Write from this site", "#talent-ask", "#visit"]) {
+  for (const s of ["See you {i}soon.{/i}", "Book an appointment", "See location", "Write from this site", "#talent-ask", "#location"]) {
     assert.ok(footer.includes(s), `footer has ${s}`);
   }
 });

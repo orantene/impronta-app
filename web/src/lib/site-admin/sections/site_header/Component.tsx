@@ -1,6 +1,6 @@
 import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
 import { SectionSwitcher } from "./SectionSwitcher";
-import { switcherLinksFrom } from "./section-switcher-logic";
+import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import {
@@ -569,7 +569,8 @@ export async function SiteHeaderComponent({
           ) : null;
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
-          const hashLinks = switcherLinksFrom(navLinks);
+          const own = switcherLinksFrom(navLinks);
+          const hashLinks = own.length > 0 ? withSwitcherHome(own, pickLocale(locale, { en: "Home", es: "Inicio" })) : own;
           return hashLinks.length > 1 ? (
             <SectionSwitcher key={key} links={hashLinks} showIndex={item.showIndex !== false} label={pickLocale(locale, { en: "Sections", es: "Secciones" })} attrs={attrs} />
           ) : null;

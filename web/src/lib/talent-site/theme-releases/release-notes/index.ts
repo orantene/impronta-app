@@ -36,6 +36,20 @@ export interface ReleaseNoteModule {
   layoutKeys?: ReadonlyArray<string>;
   /** Id of the collapsed layout item (default `layout:<design>:hero-inset`). */
   layoutGroupId?: string;
+  /**
+   * More collapsed layout items in the same release. Each group collapses its
+   * candidate ids into ONE item (`groupId`); `foldIds` pulls other candidates
+   * (for example the header link) into that same item so they apply or not
+   * together, `alsoKeys` adds keys the item must cover, and `swap` declares the
+   * atomic replacement the merge performs (see `SwapPair.ensure`).
+   */
+  extraGroups?: ReadonlyArray<{
+    keys: ReadonlyArray<string>;
+    groupId: string;
+    foldIds?: ReadonlyArray<string>;
+    alsoKeys?: ReadonlyArray<string>;
+    swap?: { from: string; to: string; ensure?: boolean };
+  }>;
   /** Candidate ids the admin marks critical (forced, announced). */
   criticalIds?: ReadonlyArray<string>;
   /** Candidate id to the design keys its critical item names explicitly. */
@@ -95,6 +109,31 @@ export function groupLayoutItems(
 }
 
 /**
+ * Pull `foldIds` candidates into the collapsed group item, extend what it
+ * covers, and declare its atomic swap. The folded candidates disappear as their
+ * own items (one choice, never half applied). The item then spans trees, so it
+ * carries no single `tree`.
+ */
+export function foldLayoutGroup(
+  items: CandidateItem[],
+  g: NonNullable<ReleaseNoteModule["extraGroups"]>[number],
+): CandidateItem[] {
+  const group = items.find((i) => i.id === g.groupId);
+  if (!group) return items;
+  const folded = items.filter((i) => i.id && g.foldIds?.includes(i.id));
+  const keys = [...(group.keys ?? [group.key]), ...folded.flatMap((i) => i.keys ?? [i.key]), ...(g.alsoKeys ?? [])];
+  const { tree: _tree, ...rest } = group;
+  void _tree;
+  const next: CandidateItem = {
+    ...rest,
+    keys: [...new Set(keys)],
+    ...(g.swap ? { swap: g.swap } : {}),
+    detail: { ...(group.detail as object), folded: folded.map((i) => i.id) } as CandidateItem["detail"],
+  };
+  return items.filter((i) => !folded.includes(i)).map((i) => (i === group ? next : i));
+}
+
+/**
  * Attach the authored notes and apply the critical marks to candidate items.
  * Unknown ids pass through untouched.
  */
@@ -128,8 +167,14 @@ export function generateReleaseItems(
   const layoutKeys = mod.layoutKeys ?? [];
   const groupId = mod.layoutGroupId ?? `layout:${design}:hero-inset`;
   if (layoutKeys.length > 0) items = groupLayoutItems(items, layoutKeys, groupId);
+  for (const g of mod.extraGroups ?? []) items = foldLayoutGroup(groupLayoutItems(items, g.keys, g.groupId), g);
   const groupNote = layoutKeys.map((k) => mod.byItemId[k]).find(Boolean);
-  return { items: withAuthoredNotes(items, mod, groupNote), notes: { en: mod.notes.en, es: mod.notes.es } };
+  const noted = withAuthoredNotes(items, mod, groupNote).map((i) => {
+    const g = (mod.extraGroups ?? []).find((x) => x.groupId === i.id);
+    const note = g ? g.keys.map((k) => mod.byItemId[k]).find(Boolean) : undefined;
+    return g && note && !i.note ? { ...i, note: { en: note.en, es: note.es } } : i;
+  });
+  return { items: noted, notes: { en: mod.notes.en, es: mod.notes.es } };
 }
 
 const idOf = (i: ReleaseItem) => i.id ?? `${i.type}:${i.key}`;

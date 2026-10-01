@@ -445,3 +445,18 @@ test("DK-3 wiring: token registry, projection, theme drawer, launcher, mount and
   assert.match(src("TalentProfileChatLauncherMount.tsx"), /helpBubble=\{helpBubble\}/);
   assert.match(read("app/%5Ftalent-site/TalentSiteMessagesDock.tsx"), /helpBubble=\{resolveChatHelpBubble\(siteChrome\.tokens, siteChrome\.designSlug, siteChrome\.designVersion\)\}/);
 });
+
+test("ONE dock: the round launcher is hidden by CSS whenever the dock carries a chat button", () => {
+  const launcher = src("TalentProfileChatLauncher.tsx");
+  const css = launcher.slice(launcher.indexOf("export const GUEST_CHAT_FAB_CSS"));
+  // Pill capsule (cb-bar-chat) and selection dock both own a chat button.
+  assert.match(css, /body:has\(\.cb-bar\[data-show="true"\] \.cb-bar-chat,\.cb-dock\[data-show="true"\]\) \.tl-fab\{visibility:hidden;pointer-events:none\}/);
+  // The same markup the rule keys on really exists in the dock.
+  const root = join(here, "../../../..");
+  const bar = readFileSync(join(root, "lib/site-admin/builder-node/services-catalog-filter.tsx"), "utf8");
+  assert.match(bar, /className="cb-bar-chat"/);
+  assert.match(bar, /className="cb-bar"[\s\S]{0,200}data-show=/);
+  // No second launcher mount exists for the talent site (the dock is the only chat entry besides the FAB).
+  const mounts = readFileSync(join(root, "app/%5Ftalent-site/TalentSiteMessagesDock.tsx"), "utf8").match(/<TalentProfileChatLauncherMount/g) ?? [];
+  assert.equal(mounts.length, 1);
+});

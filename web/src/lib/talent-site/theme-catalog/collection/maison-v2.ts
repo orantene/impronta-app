@@ -596,6 +596,22 @@ function maisonV2Reviews(makeId: KitIdFactory): BuilderNode {
   );
 }
 
+/**
+ * The v20 "Before you come" visit band, kept only so the release fixtures can
+ * rebuild v20 from code (release 21 swapped it for the Location band).
+ */
+export function legacyMaisonV2VisitBand(makeId: KitIdFactory): BuilderNode {
+  return padSection(
+    visitBlock(makeId, {
+      layout: "facts",
+      heading: "Before you come",
+      titleAccent: "come",
+      eyebrow: "Your visit",
+      band: false,
+    }),
+  );
+}
+
 export function buildMaisonV2Payload(): DesignPayload {
   const id = seqIds("maison-v2");
   return {
@@ -607,7 +623,8 @@ export function buildMaisonV2Payload(): DesignPayload {
         { label: "Menu and prices", href: "#services" },
         { label: "Reviews", href: "#reviews" },
         { label: "About", href: "#about" },
-        { label: "Location", href: "#visit" },
+        // Release 21: Location replaces the Your visit band, so the link follows it.
+        { label: "Location", href: "#location" },
       ],
     })
       .map(maisonV2Header)
@@ -623,16 +640,9 @@ export function buildMaisonV2Payload(): DesignPayload {
       // Release 2.4 (optional block): aftercare tips.
       padSection(aftercareBlock(id)),
       maisonV2About(id),
-      padSection(
-        visitBlock(id, {
-          layout: "facts",
-          heading: "Before you come",
-          titleAccent: "come",
-          eyebrow: "Your visit",
-          band: false,
-        }),
-      ),
-      // Release 2.5 (optional block): Location, driven by the talent's address setting.
+      // Release 21: Location (driven by the talent's address setting) REPLACES the
+      // old "Before you come" visit band, as in the mockup: one place for zone,
+      // hours and how to arrive. The visit kit block stays for other designs.
       padSection(locationBlock(id, { band: false })),
       maisonV2Faq(id),
     ],

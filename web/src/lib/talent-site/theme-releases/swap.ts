@@ -34,6 +34,13 @@ import { hasTalentAddedDescendant, keyOf, keyOrder, keyedMap } from "./tree-ops"
 export interface SwapPair {
   from: string;
   to: string;
+  /**
+   * `to` already exists in the base design (it shipped earlier as an optional
+   * block) and `from` is going away. The swap then guarantees a replacement:
+   * if her site has `to`, `from` is just removed; if not, `to` is inserted at
+   * `from`'s position in the same apply. She can never end up with neither.
+   */
+  ensure?: boolean;
 }
 
 /** Swap pairs in one sibling list (`a` = older design, `b` = newer design). */

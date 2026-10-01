@@ -50,7 +50,7 @@ export const MAISON_V2_SECTION_LABELS: Readonly<Record<MaisonV2SectionKey, strin
   menu: "Menu",
   reviews: "Reviews",
   about: "About",
-  visit: "Visit",
+  visit: "Location",
   faq: "FAQ",
 };
 

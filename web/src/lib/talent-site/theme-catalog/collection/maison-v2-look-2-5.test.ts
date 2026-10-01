@@ -100,7 +100,7 @@ test("H-3: the header has the mockup's five links; H-5: the demo pill is not in 
   const header = buildMaisonV2Payload().shellTree.find((n) => propsOf(n).slotKey === "header")!;
   const links = (propsOf(header).sectionProps as { navItems: Array<{ label: string; href: string }> }).navItems;
   assert.deepEqual(links.map((l) => l.label), ["Work", "Menu and prices", "Reviews", "About", "Location"]);
-  assert.deepEqual(links.map((l) => l.href), ["#gallery", "#services", "#reviews", "#about", "#visit"]);
+  assert.deepEqual(links.map((l) => l.href), ["#gallery", "#services", "#reviews", "#about", "#location"]);
   assert.doesNotMatch(JSON.stringify(header), /demo/i);
 });
 
@@ -109,7 +109,7 @@ test("H-3: the header has the mockup's five links; H-5: the demo pill is not in 
 test("G-2: sections have 88px / 48px bands, the ticker, menu and About sit on the raised surface, the rest on the page", () => {
   const home = buildMaisonV2Payload().homeTree;
   const surface = "token:color.surface-raised";
-  for (const key of ["reviews", "before_after", "aftercare", "visit", "contact"]) {
+  for (const key of ["reviews", "before_after", "aftercare", "location", "contact"]) {
     const s = styleOf(slot(home, key));
     assert.equal(s.paddingTop, "88px", key);
     assert.equal(s.paddingBottom, "88px", key);
@@ -272,7 +272,7 @@ test("motion: smooth anchor scroll only when motion is welcome, with a header-aw
   const css = MOTION_SOFT_CSS.join("\n");
   assert.match(css, /@media \(prefers-reduced-motion:no-preference\)\{html:has\([^)]*shape-chrome="soft"\][^)]*\)[^{]*\{scroll-behavior:smooth\}/);
   assert.match(css, /scroll-margin-top:calc\(var\(--site-header-h,0px\) \+ 8px\)/);
-  for (const id of ["#hero", "#gallery", "#services", "#reviews", "#about", "#contact", "#visit"]) assert.ok(css.includes(id), id);
+  for (const id of ["#hero", "#gallery", "#services", "#reviews", "#about", "#contact", "#visit", "#location"]) assert.ok(css.includes(id), id);
   assert.doesNotMatch(css, HEX);
 });
 

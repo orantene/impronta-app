@@ -345,6 +345,11 @@ const FOOTER_BAND_PARTS = [
   "layout:shell:footer/container/paragraph:removed",
 ] as const;
 
+const VISIT_TO_LOCATION_NOTE: ReleaseNote = {
+  en: "Location replaces the Your visit section, so your zone and hours show once. If you do not have the Location section yet it is added in the same step, so you never lose your visit info. The header link follows it. Preview it before you choose.",
+  es: "Ubicación reemplaza la sección Tu visita, así tu zona y tu horario se muestran una sola vez. Si aún no tienes la sección de Ubicación, se agrega en el mismo paso, así nunca pierdes la información de tu visita. El enlace del encabezado la sigue. Míralo antes de elegir.",
+};
+
 export const MAISON_V2_RELEASE_2_7 = {
   design: "maison-v2",
   toVersion: 21,
@@ -352,10 +357,33 @@ export const MAISON_V2_RELEASE_2_7 = {
   layoutKeys: ["layout:shell:footer:removed", "layout:shell:footer_rich", ...FOOTER_BAND_PARTS],
   layoutGroupId: "layout:maison-v2:footer-rich",
   notes: {
-    en: "Maison v2 2.7: your top section follows your profile. The big line, the trade and city, the short line and the proof line (years, languages, reviews) are filled in from your profile and stay up to date. You can also choose a new light footer with your zone, hours and Instagram.",
-    es: "Maison v2 2.7: tu portada sigue tu perfil. La frase grande, el oficio y la ciudad, la línea corta y la línea de confianza (años, idiomas, reseñas) se llenan desde tu perfil y se mantienen al día. También puedes elegir un pie de página claro con tu zona, horario e Instagram.",
+    en: "Maison v2 2.7: your top section follows your profile. The big line, the trade and city, the short line and the proof line (years, languages, reviews) are filled in from your profile and stay up to date. You can also choose a new light footer with your zone, hours and Instagram. Also, Location replaces Your visit so your zone and hours show once, and the phone section switcher starts with Home.",
+    es: "Maison v2 2.7: tu portada sigue tu perfil. La frase grande, el oficio y la ciudad, la línea corta y la línea de confianza (años, idiomas, reseñas) se llenan desde tu perfil y se mantienen al día. También puedes elegir un pie de página claro con tu zona, horario e Instagram. Además, Ubicación reemplaza a Tu visita para que tu zona y tu horario se muestren una sola vez, y el selector de secciones en teléfonos empieza con Inicio.",
   } satisfies ReleaseNote,
-  codeNotes: [] satisfies ReleaseNote[],
+  codeNotes: [
+    {
+      en: "The phone section switcher now starts with Home (01 Home) before your other sections.",
+      es: "El selector de secciones en teléfonos ahora empieza con Inicio (01 Inicio) antes de tus otras secciones.",
+    },
+    {
+      en: "On phones the header stays on one row: a long name is shortened with an ellipsis instead of pushing the section switcher down.",
+      es: "En teléfonos el encabezado se queda en una sola fila: un nombre largo se acorta con puntos suspensivos en lugar de empujar el selector de secciones.",
+    },
+    {
+      en: "One dock for booking and chat: when the bottom bar has its own chat button, the round chat button no longer shows on top of it.",
+      es: "Un solo dock para reservar y chatear: cuando la barra inferior tiene su propio botón de chat, el botón redondo de chat ya no aparece encima.",
+    },
+  ] satisfies ReleaseNote[],
+  /** Location REPLACES the visit band: ONE atomic opt-in swap that also carries the header link. */
+  extraGroups: [
+    {
+      keys: ["layout:home:visit:removed", "layout:home:visit/visit:removed"],
+      groupId: "layout:maison-v2:visit-to-location",
+      foldIds: ["variant-default:shell:header"],
+      alsoKeys: ["home:location"],
+      swap: { from: "visit", to: "location", ensure: true },
+    },
+  ],
   byItemId: {
     "variant-default:home:hero/container/heading": {
       en: "Your big hero line can follow the headline in your profile, or a line for your trade, or your name. Write your own and it stays yours (only if you have not edited that line).",
@@ -376,6 +404,12 @@ export const MAISON_V2_RELEASE_2_7 = {
     "token-default:footer.tone": {
       en: "A new footer color option in your theme: light on the page surface, or a dark band. It only affects the new footer.",
       es: "Una nueva opción de color del pie de página en tu tema: claro sobre la superficie de la página, o una franja oscura. Solo afecta al pie de página nuevo.",
+    },
+    "layout:home:visit:removed": VISIT_TO_LOCATION_NOTE,
+    "layout:home:visit/visit:removed": VISIT_TO_LOCATION_NOTE,
+    "variant-default:shell:header": {
+      en: "The header link to Location points at the Location section (applied together with the swap).",
+      es: "El enlace Ubicación del encabezado lleva a la sección de Ubicación (se aplica junto con el cambio).",
     },
     "layout:shell:footer:removed": FOOTER_RICH_NOTE,
     "layout:shell:footer_rich": FOOTER_RICH_NOTE,

@@ -58,7 +58,7 @@ export function maisonV2RichFooter(makeId: KitIdFactory, node: BuilderNode): Bui
     heading3(makeId, "Where", "Footer where heading"),
     live(makeId, "footer_where", "footerWhere", "Footer zone"),
     live(makeId, "footer_hours", "footerHours", "Footer hours"),
-    link(makeId, "See location", "#visit", "Footer location link"),
+    link(makeId, "See location", "#location", "Footer location link"),
   ]);
   const contact = col(makeId, "footer_contact", "s-foot-contact", [
     heading3(makeId, "Contact", "Footer contact heading"),

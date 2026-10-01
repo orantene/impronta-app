@@ -33,6 +33,7 @@ import {
   sectionIndexLabel,
   switchDirection,
   switcherLinksFrom,
+  withSwitcherHome,
 } from "./section-switcher-logic";
 import { siteHeaderSchemaV1 } from "./schema";
 import { HEADER_ITEM_KINDS, defaultItemForKind } from "./regions-editing";
@@ -285,4 +286,37 @@ test("Maison v2: the header carries the switcher, and every menu link has an anc
     for (const i of items ?? []) if (i.href?.startsWith("#")) navLinks.push(i.href.slice(1));
   });
   for (const id of navLinks) assert.ok(anchors.has(id), `nav link #${id} has no section anchor`);
+});
+
+// ── Home entry ("01 Inicio") ─────────────────────────────────────────────────
+
+test("the switcher starts with the top of the page, and the numbers start from it", () => {
+  const withHome = withSwitcherHome(LINKS, "Inicio");
+  assert.deepEqual(withHome[0], { label: "Inicio", href: "#hero" });
+  assert.equal(withHome.length, LINKS.length + 1);
+  // At scroll 0 the hero's top is at or above the reading line, so Home (index 0, "01") is active.
+  const tops = [{ id: "hero", top: 0 }, ...LINKS.map((l, i) => ({ id: l.href.slice(1), top: 700 + i * 600 }))];
+  assert.equal(pickActiveSection(tops, 0.3 * 800), "hero");
+  assert.equal(sectionIndexLabel(withHome.findIndex((l) => l.href === "#hero")), "01");
+  assert.equal(pickActiveSection([{ id: "hero", top: -500 }, { id: "gallery", top: 100 }], 240), "gallery");
+});
+
+test("a link that already points at the hero is not duplicated", () => {
+  const own = [{ label: "Top", href: "#hero" }, ...LINKS];
+  assert.equal(withSwitcherHome(own, "Home").length, own.length);
+});
+
+test("the header Component builds the switcher with a localized Home entry", () => {
+  assert.ok(read("Component.tsx").includes('withSwitcherHome(own, pickLocale(locale, { en: "Home", es: "Inicio" }))'));
+});
+
+test("the phone header stays on ONE row: no wrap, the lockup gives way with an ellipsis", () => {
+  const css = readFileSync(join(here, "../../../../app/token-presets.css"), "utf8");
+  assert.match(css, /\.site-header\[data-variant="freeform"\] \.site-header__inner--freeform \{ flex-wrap: nowrap; \}/);
+  assert.match(css, /site-header__brand-label, \.site-header\[data-variant="freeform"\] \.site-header__brand-tagline \{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; \}/);
+  const phone = css.slice(css.indexOf("/* One row, always"));
+  assert.match(phone, /data-region="left"\] \{ flex: 1 1 0; \}/);
+  assert.match(phone, /data-region="right"\] \{ flex: 0 0 auto; \}/);
+  // The switcher button never takes more than 44% of a 360 to 390 screen.
+  assert.match(phone, /\.site-header__secsw-btn \{ max-width: min\(190px, 44vw\); \}/);
 });
