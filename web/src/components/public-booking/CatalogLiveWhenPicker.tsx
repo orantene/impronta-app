@@ -49,7 +49,7 @@ export function CatalogLiveWhenPicker({
           onPick={(iso, i) => onPickStart(iso, formatClock(iso, liveTz, locale), i)}
         />
       ) : null}
-      <div className="jb-days" role="group" aria-label={es ? "Elegí una fecha" : "Pick a date"}>
+      <div className="jb-days" role="group" aria-label={es ? "Elige una fecha" : "Pick a date"}>
         {liveDays.map((d, i) => (
           <button key={d.key} type="button" className="jb-day" data-on={i === dayIndex} onClick={() => onPickDay(i)}>
             <span>{catalogWeekdayShort(d.date, es)}</span>
@@ -63,7 +63,7 @@ export function CatalogLiveWhenPicker({
           <strong>{es ? "Sin horarios disponibles." : "No times available."}</strong>
           <p>
             {es
-              ? "No hay huecos en las próximas dos semanas. Probá otra fecha o consultá."
+              ? "No hay huecos en las próximas dos semanas. Prueba otra fecha o consulta."
               : "Nothing is open in the next two weeks. Try another day or send a question."}
           </p>
           {emptyConsultButton}

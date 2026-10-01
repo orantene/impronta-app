@@ -418,32 +418,58 @@ export const MAISON_V2_RELEASE_2_7 = {
 } as const;
 
 /**
- * Release 2.8 (v21 to v22, "order", G-3): the default page order is the proposal's,
- * Hero, Work, Menu, Reviews, About, FAQ, Location. Opt-in: a talent's page is never
- * reordered silently, so the new order is ONE layout item she previews and chooses.
+ * Release 2.8 (v21 to v22, "desktop location + strip"): the Location section is
+ * two columns on desktop with the mockup's heading, rows and generated zone
+ * illustration, and the Tulala strip matches the mockup. All of it ships as
+ * platform code for every design; the one payload change is that the Location
+ * heading's eyebrow follows the default ("Tu visita") instead of staying empty
+ * (only if the talent has not written her own), and the footer line takes the
+ * mockup's size (40px phone, 64px desktop; only if she has not set her own).
  *
- * Before and after and Aftercare tips are not in the proposal: they leave the default page
- * and stay available as optional blocks (`DesignPayload.optionalBlocks`). Their removal is
- * NOT an item (`dropIdPrefixes`): a talent who has them keeps them, and choosing the new
- * order moves only the sections the design still lists.
- *
- * This module is the "order" slice of v22. Other v22 slices (location, socket) add their
- * own items and notes to `byItemId` below; keep each slice's notes under its own comment.
+ * ONE release, two slices. Location + footer size (above) are automatic defaults. The page
+ * order is OPT-IN and arrives as ONE layout item: the default page order is the proposal's,
+ * Hero, Work, Menu, Reviews, About, FAQ, Location. A talent's page is never reordered silently.
+ * Before and after and Aftercare tips are not in the proposal: they leave the default page and
+ * stay available as optional blocks (`DesignPayload.optionalBlocks`). Their removal is NOT an
+ * item (`dropIdPrefixes`): a talent who has them keeps them, and choosing the new order moves
+ * only the sections the design still lists.
  */
 export const MAISON_V2_RELEASE_2_8 = {
   design: "maison-v2",
   toVersion: 22,
   dropIdPrefixes: ["layout:home:before_after", "layout:home:aftercare"],
   notes: {
-    en: "Maison v2 2.8: the page order now follows the design: top section, work, menu, reviews, about, questions, location. You choose whether to switch; nothing moves until you do.",
-    es: "Maison v2 2.8: el orden de la página ahora sigue al diseño: portada, trabajo, menú, reseñas, sobre mí, preguntas, ubicación. Tú eliges si cambiarlo; nada se mueve hasta que lo hagas.",
+    en: "Maison v2 2.8: your Location section now sits side by side on desktop (map card left, details right) with the heading Where to find me, a zone drawing, and clear rows for zone, address and hours. The bar at the bottom shows your name, adds Cookies and moves the Tulala credit to the right. You can also choose the new page order (work, menu, reviews, about, questions, location); nothing moves until you do.",
+    es: "Maison v2 2.8: tu sección de Ubicación ahora va en dos columnas en escritorio (el mapa a la izquierda y los detalles a la derecha), con el título Dónde encontrarme, un dibujo de tu zona y filas claras de zona, dirección y horario. La barra de abajo muestra tu nombre, suma Cookies y lleva el crédito de Tulala a la derecha. También puedes elegir el nuevo orden de la página (trabajo, menú, reseñas, sobre mí, preguntas, ubicación); nada se mueve hasta que lo hagas.",
   } satisfies ReleaseNote,
-  codeNotes: [] satisfies ReleaseNote[],
+  codeNotes: [
+    {
+      en: "Location on desktop: two columns, a street-grid drawing of your zone with a dashed circle, rows with icons (zone, exact address, hours, arrival) and a long arrival note folded to two lines with Read more.",
+      es: "Ubicación en escritorio: dos columnas, un dibujo de calles de tu zona con un círculo punteado, filas con iconos (zona, dirección exacta, horario, llegada) y una nota de llegada larga plegada a dos líneas con Ver más.",
+    },
+    {
+      en: "The bottom bar names your site with your name, has a Cookies link in the Tulala group, shows Site made with Tulala.digital on the right, and drops its Language group when your header already has the language switch.",
+      es: "La barra de abajo nombra tu sitio con tu nombre, tiene un enlace de Cookies en el grupo de Tulala, muestra Sitio creado con Tulala.digital a la derecha y quita su grupo de Idioma cuando tu encabezado ya tiene el selector de idioma.",
+    },
+  ] satisfies ReleaseNote[],
   byItemId: {
-    // Order slice.
+    // Order slice (opt-in).
     "layout:home:(root):order": {
       en: "Your page order follows the design: work and menu first, then reviews, about, questions and location. Sections you added stay where they are. Preview it before you choose.",
       es: "El orden de tu página sigue al diseño: primero trabajo y menú, luego reseñas, sobre mí, preguntas y ubicación. Las secciones que agregaste se quedan donde están. Míralo antes de elegir.",
+    },
+    // Location + footer size slice (automatic).
+    "token-default:type.footer-title-size": {
+      en: "The big footer line is 40px on phones, as in the proposal (only if you have not set your own size).",
+      es: "La frase grande del pie de página mide 40px en teléfonos, como en la propuesta (solo si no pusiste tu propio tamaño).",
+    },
+    "token-default:type.footer-title-size-desktop": {
+      en: "The big footer line is 64px on desktop, as in the proposal (only if you have not set your own size).",
+      es: "La frase grande del pie de página mide 64px en escritorio, como en la propuesta (solo si no pusiste tu propio tamaño).",
+    },
+    "variant-default:home:location/visit": {
+      en: "The small line above your Location heading reads Your visit by default (only if you have not written your own).",
+      es: "La línea pequeña sobre el título de Ubicación dice Tu visita por defecto (solo si no escribiste la tuya).",
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;

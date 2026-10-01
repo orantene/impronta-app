@@ -1,42 +1,34 @@
 /**
- * One mount-time server action for the "My presence" page.
- *
- * Next runs a client's server actions one at a time, so six independent loads
- * on mount (website-settings flag, manager state, Maison bootstrap, go-live
- * summary, available blocks, theme-update notice) queued into a waterfall that
- * held the first paint for 10 to 20 seconds. `PublicPageEditor` now starts ONE
- * bundled action; each consumer reads its slice here, once, and falls back to
- * its own action for every later refresh (so behaviour after a change is
- * identical: a re-read is always fresh).
+ * Client store for the "My presence" first-paint data. The `/talent/site`
+ * server route loads it (`loadPublicPageBootstrap`) and seeds it through
+ * `PublicPageBootstrapSeed`, so mounting fires ZERO server actions: Next queues
+ * a client's server actions one at a time, and six of them on mount were a
+ * 10 to 20 second waterfall (a server action called during render is refused
+ * outright). Each consumer reads its slice once; every later refresh calls the
+ * consumer's own action, so a re-read is always fresh.
  */
-import type { PublicPageBootstrap } from "@/lib/talent-site/server/public-page-bootstrap-action";
-import { loadPublicPageBootstrapAction } from "@/lib/talent-site/server/public-page-bootstrap-action";
+import type { PublicPageBootstrap } from "@/lib/talent-site/server/public-page-bootstrap.server";
 
 export type BootstrapSlot = keyof PublicPageBootstrap;
 
-const FRESH_MS = 20_000;
-const DEDUP_MS = 1_000;
+const FRESH_MS = 30_000;
 
-let inflight: Promise<PublicPageBootstrap | null> | null = null;
-let startedAt = 0;
+let seeded: PublicPageBootstrap | null = null;
+let seededAt = 0;
 let taken = new Set<string>();
 
-/** Start the bundled load (idempotent for a second, so a double render shares it). */
-export function prefetchPublicPageBootstrap(
-  load: () => Promise<PublicPageBootstrap> = loadPublicPageBootstrapAction,
-): void {
-  if (inflight && Date.now() - startedAt < DEDUP_MS) return;
-  startedAt = Date.now();
+/** Seed from the server render. Idempotent for the same bundle object. */
+export function seedPublicPageBootstrap(bundle: PublicPageBootstrap | null): void {
+  // Browser only: module state on the server would outlive the request.
+  if (typeof window === "undefined" || bundle === seeded) return;
+  seeded = bundle;
+  seededAt = Date.now();
   taken = new Set();
-  inflight = load().then(
-    (bundle) => bundle,
-    () => null,
-  );
 }
 
 /**
- * The prefetched slice for `slot`, once per consumer; otherwise (no prefetch,
- * stale, already read, or the slice failed) the consumer's own `fallback`.
+ * The seeded slice for `slot`, once per consumer; otherwise (not seeded, stale,
+ * already read, or the slice failed) the consumer's own `fallback`.
  */
 export async function takeOr<S extends BootstrapSlot>(
   slot: S,
@@ -44,10 +36,9 @@ export async function takeOr<S extends BootstrapSlot>(
   fallback: () => Promise<NonNullable<PublicPageBootstrap[S]>>,
 ): Promise<NonNullable<PublicPageBootstrap[S]>> {
   const key = `${slot}:${consumer}`;
-  if (inflight && !taken.has(key) && Date.now() - startedAt < FRESH_MS) {
+  if (seeded && !taken.has(key) && Date.now() - seededAt < FRESH_MS) {
     taken.add(key);
-    const bundle = await inflight;
-    const value = bundle?.[slot];
+    const value = seeded[slot];
     if (value != null) return value as NonNullable<PublicPageBootstrap[S]>;
   }
   return fallback();
@@ -55,7 +46,7 @@ export async function takeOr<S extends BootstrapSlot>(
 
 /** Test seam. */
 export function resetPublicPageBootstrap(): void {
-  inflight = null;
-  startedAt = 0;
+  seeded = null;
+  seededAt = 0;
   taken = new Set();
 }

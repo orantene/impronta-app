@@ -1068,17 +1068,12 @@ export function InspectorDock() {
     }
     return (
       <div className="flex min-w-0 flex-col gap-1">
-        {/* W2-C5: the block/section NAME (sectionTitle) already renders once
-            via DrawerHead's own `title`. This sub-line only adds the kind
-            label, so the header never repeats the name a second (or third)
-            time. */}
+        {/* W2-C5: DrawerHead's `title` already shows the section name; this
+            sub-line adds only the kind label. */}
         {sectionMeta ? (
           <span
             className="inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
-            style={{
-              color: CHROME.accent,
-              background: "rgba(124, 58, 237, 0.08)",
-            }}
+            style={{ color: CHROME.accent, background: "rgba(124, 58, 237, 0.08)" }}
           >
             {sectionMeta}
           </span>

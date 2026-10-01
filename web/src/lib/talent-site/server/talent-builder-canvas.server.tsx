@@ -34,6 +34,7 @@ import {
   loadMaxSiteDesignSlug,
   loadMaxSitePages,
   loadMaxSiteThemeTokens,
+  loadTalentSiteIdentity,
   loadTalentPlanKey,
   loadTalentSiteCtaMode,
 } from "./load-max-site";
@@ -41,6 +42,7 @@ import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
   buildSocketModel,
+  headerShowsLanguageSwitch,
   socketConsentToolingEnabled,
   socketLockedHint,
   stripDesignCredits,
@@ -159,6 +161,8 @@ export async function buildTalentBuilderCanvasData(input: {
     showCredit: talentSiteShowsPlatformBadge(planKey),
     whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
     consentTooling: socketConsentToolingEnabled(),
+    talentName: (await loadTalentSiteIdentity(talentProfileId))?.name ?? null,
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
   });
 
   const dataSources = await dataSourcesP;

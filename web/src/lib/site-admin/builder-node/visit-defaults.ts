@@ -20,7 +20,7 @@ export const VISIT_LAYOUTS: readonly VisitLayout[] = ["facts", "split", "locatio
 /** Defaults the "Location" layout starts from (title is derived from the kind when empty). */
 export const LOCATION_DEFAULT_PROPS: BuilderVisitNode["props"] = {
   layout: "location",
-  eyebrow: "",
+  // `eyebrow` is left unset on purpose: unset reads as the mockup's "Tu visita" / "Your visit".
   title: "",
   titleAccent: "",
   band: true,

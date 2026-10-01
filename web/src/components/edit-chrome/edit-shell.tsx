@@ -61,6 +61,7 @@ import {
 import { LayoutFlattenToast } from "./layout-flatten-toast";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import { useCanvasHelpers } from "./canvas-helpers-mode";
+import { useDismissPanelsOnCanvasClick } from "./use-dismiss-panels-on-canvas-click";
 import { MakeItYoursChecklist } from "./launch-checklist-panel";
 import { SelectionLayer } from "./selection-layer";
 import { CarouselEditModeBinding } from "./carousel-edit-mode-binding";
@@ -594,35 +595,7 @@ function EditShellInner({
     if (brandPanelOpen) setEverOpenedDesignPanel(true);
   }, [brandPanelOpen]);
 
-  // Canvas / empty chrome click dismisses site Design + Theme so the page
-  // yields space (Oran: click-around while panel open). Ignore clicks on
-  // topbar, drawers, overlays, and the command / inspector rails.
-  useEffect(() => {
-    if (!brandPanelOpen && !themeOpen) return;
-    function onPointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (
-        target.closest(
-          [
-            "[data-edit-topbar]",
-            "[data-edit-drawer]",
-            "[data-edit-overlay]",
-            "[data-command-dock]",
-            "[data-inspector-command-rail]",
-            "button.ec-rail-item",
-          ].join(", "),
-        )
-      ) {
-        return;
-      }
-      if (brandPanelOpen) closeBrandPanel();
-      if (themeOpen) closeTheme();
-    }
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [brandPanelOpen, themeOpen, closeBrandPanel, closeTheme]);
+  useDismissPanelsOnCanvasClick(brandPanelOpen, themeOpen, closeBrandPanel, closeTheme);
 
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;

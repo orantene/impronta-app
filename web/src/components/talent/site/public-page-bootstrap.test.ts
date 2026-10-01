@@ -3,36 +3,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import {
-  prefetchPublicPageBootstrap,
-  resetPublicPageBootstrap,
-  takeOr,
-} from "./public-page-bootstrap";
+import { resetPublicPageBootstrap, seedPublicPageBootstrap, takeOr } from "./public-page-bootstrap";
 
 const bundle = {
   settingsEnabled: true,
   manager: { ok: true, data: null },
   maison: { enabled: false },
   goLive: { ok: false, error: "x" },
-  availableBlocks: { ok: false, error: "x" },
-  themeNotices: { ok: false, error: "x" },
 } as never;
 
-test("page mount: one server action serves all six loads", async () => {
+// seedPublicPageBootstrap is browser-only; give the test a window.
+(globalThis as { window?: unknown }).window ??= {};
+
+test("first paint: zero server actions, every slice comes from the server seed", async () => {
   resetPublicPageBootstrap();
+  seedPublicPageBootstrap(bundle);
   let actions = 0;
-  prefetchPublicPageBootstrap(async () => {
-    actions += 1;
-    return bundle;
-  });
-  // A double render shares the same call.
-  prefetchPublicPageBootstrap(async () => {
-    actions += 1;
-    return bundle;
-  });
-  let fallbacks = 0;
   const fb = async () => {
-    fallbacks += 1;
+    actions += 1;
     return undefined as never;
   };
   await Promise.all([
@@ -41,52 +29,52 @@ test("page mount: one server action serves all six loads", async () => {
     takeOr("maison", "host", fb),
     takeOr("maison", "card", fb),
     takeOr("goLive", "card", fb),
-    takeOr("availableBlocks", "blocks", fb),
-    takeOr("themeNotices", "notice", fb),
   ]);
-  assert.equal(actions, 1);
-  assert.equal(fallbacks, 0);
+  assert.equal(actions, 0);
 });
 
-test("a later re-read by the same consumer is fresh (falls back to its own action)", async () => {
+test("re-seeding the same bundle (a parent re-render) does not reset reads", async () => {
   resetPublicPageBootstrap();
-  prefetchPublicPageBootstrap(async () => bundle);
-  let fallbacks = 0;
+  seedPublicPageBootstrap(bundle);
+  let actions = 0;
   const fb = async () => {
-    fallbacks += 1;
+    actions += 1;
     return { ok: true, data: null } as never;
   };
   await takeOr("manager", "manager", fb);
+  seedPublicPageBootstrap(bundle);
   await takeOr("manager", "manager", fb);
-  assert.equal(fallbacks, 1);
+  assert.equal(actions, 1);
 });
 
-test("a failed bundle or slice falls back; no prefetch falls back", async () => {
+test("a later re-read, a failed slice and an unseeded page fall back to the consumer's action", async () => {
   resetPublicPageBootstrap();
-  let fallbacks = 0;
+  let actions = 0;
   const fb = async () => {
-    fallbacks += 1;
+    actions += 1;
     return false as never;
   };
   await takeOr("settingsEnabled", "editor", fb);
-  prefetchPublicPageBootstrap(async () => {
-    throw new Error("boom");
-  });
+  seedPublicPageBootstrap({ ...(bundle as object), settingsEnabled: null } as never);
   await takeOr("settingsEnabled", "editor", fb);
-  assert.equal(fallbacks, 2);
+  assert.equal(actions, 2);
 });
 
-test("every mount-time loader on the page reads through takeOr", () => {
-  const read = (f: string) => readFileSync(join(process.cwd(), "src/components", f), "utf8");
-  assert.match(read("admin/shell/internal/talent/pages/PublicPageEditor.tsx"), /prefetchPublicPageBootstrap\(\)/);
+test("the route loads the bundle on the server; nothing calls a server action during render", () => {
+  const root = process.cwd();
+  const read = (f: string) => readFileSync(join(root, "src", f), "utf8");
+  const page = read("app/(workspace)/talent/site/page.tsx");
+  assert.match(page, /await loadPublicPageBootstrap\(\)/);
+  assert.match(page, /<PublicPageBootstrapSeed bundle=\{bundle\}/);
+  const store = read("components/talent/site/public-page-bootstrap.ts");
+  assert.doesNotMatch(store, /Action/, "the client store must not import or call a server action");
+  assert.match(read("lib/talent-site/server/public-page-bootstrap.server.ts"), /Promise\.all\(/);
   const wired: Array<[string, RegExp]> = [
-    ["admin/shell/internal/talent/pages/PublicPageEditor.tsx", /takeOr\("settingsEnabled"/],
-    ["talent/site/TalentMaxSiteManager.tsx", /takeOr\("manager"/],
-    ["talent/site/maison-setup/MaisonSetupHost.tsx", /takeOr\("maison", "host"/],
-    ["talent/site/maison-setup/MyWebsiteCard.tsx", /takeOr\("maison", "card"/],
-    ["talent/site/maison-setup/MyWebsiteCard.tsx", /takeOr\("goLive"/],
-    ["talent/site/theme-update/AvailableBlocks.tsx", /takeOr\("availableBlocks"/],
-    ["talent/site/theme-update/ThemeUpdateNotice.tsx", /takeOr\("themeNotices"/],
+    ["components/admin/shell/internal/talent/pages/PublicPageEditor.tsx", /takeOr\("settingsEnabled"/],
+    ["components/talent/site/TalentMaxSiteManager.tsx", /takeOr\("manager"/],
+    ["components/talent/site/maison-setup/MaisonSetupHost.tsx", /takeOr\("maison", "host"/],
+    ["components/talent/site/maison-setup/MyWebsiteCard.tsx", /takeOr\("maison", "card"/],
+    ["components/talent/site/maison-setup/MyWebsiteCard.tsx", /takeOr\("goLive"/],
   ];
   for (const [f, re] of wired) assert.match(read(f), re, f);
 });

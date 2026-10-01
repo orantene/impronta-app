@@ -120,7 +120,7 @@ test("dock: chat button first, then the service thumbnail, title, price and Cont
 
 test("DK-1 the launcher publishes presence only while it is mounted", () => {
   const launcher = readFileSync(join(here, "../../app/t/[profileCode]/_chat/TalentProfileChatLauncher.tsx"), "utf8");
-  assert.match(launcher, /setChatPresence\(\{ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply \}\)/);
+  assert.match(launcher, /setChatPresence\(\{ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply, open \}\)/);
   assert.match(launcher, /return \(\) => setChatPresence\(null\)/);
 });
 

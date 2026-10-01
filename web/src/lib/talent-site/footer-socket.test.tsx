@@ -16,6 +16,8 @@ import { FOLIO_BUILTIN_LOOKS } from "@/lib/talent-site/theme-catalog/collection/
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
 import {
   buildSocketModel,
+  headerShowsLanguageSwitch,
+  shortTalentName,
   socketLockedHint,
   stripDesignCredits,
   TULALA_LEGAL_PRIVACY_URL,
@@ -53,7 +55,7 @@ for (const d of DESIGNS) {
     const out = html();
     assert.match(out, /data-tulala-socket/);
     assert.match(out, /Políticas de reserva/);
-    assert.match(out, /Hecho con Tulala/);
+    assert.match(out, /Sitio creado con\s*<a[^>]*>Tulala\.digital/);
     // No design keeps its own credit once the socket strips it at render time.
     assert.equal(JSON.stringify(stripDesignCredits(payload.shellTree)).toLowerCase().includes("hecho con tulala"), false);
     assert.equal(JSON.stringify(stripDesignCredits(payload.shellTree)).toLowerCase().includes("made with tulala"), false);
@@ -118,15 +120,15 @@ test("ink and derived muted ink reach 4.5:1 on every look's strip surface", () =
 
 test("whitelabel hides the credit but keeps the Tulala document links", () => {
   const out = html({ whitelabel: true });
-  assert.equal(out.includes("Hecho con Tulala"), false);
+  assert.equal(out.includes("Sitio creado con"), false);
   assert.equal(out.includes("data-socket-credit"), false);
   assert.ok(out.includes(TULALA_LEGAL_TERMS_URL));
   assert.ok(out.includes(TULALA_LEGAL_PRIVACY_URL));
 });
 
 test("a plan that removes the badge hides the credit too", () => {
-  assert.equal(html({ showCredit: false }).includes("Hecho con Tulala"), false);
-  assert.equal(html({ showCredit: true, locale: "en" }).includes("Powered by Tulala"), true);
+  assert.equal(html({ showCredit: false }).includes("Sitio creado con"), false);
+  assert.equal(html({ showCredit: true, locale: "en" }).includes("Site made with"), true);
 });
 
 test("links: talent policies on the talent host, Tulala documents off-host", () => {
@@ -180,7 +182,11 @@ test("layout: stacked on phone, one row from 768px, room for the dock", () => {
 test("Maison v2 credit is hidden at render time, not by a payload edit", () => {
   const maison = DESIGNS.find((d) => d.slug === "maison-v2")!;
   const tree = maison.buildPayload().shellTree;
-  assert.ok(JSON.stringify(tree).includes("Hecho con Tulala"), "payload still carries it (theme release removes it)");
+  // Release 2.7's rich footer already dropped the design-level credit; stripDesignCredits still
+  // covers sites seeded before it (a stored credit paragraph is hidden at render time).
+  const legacy = [{ kind: "paragraph", props: { text: "Hecho con Tulala" } }];
+  assert.ok(JSON.stringify(legacy).includes("Hecho con Tulala"));
+  assert.equal(JSON.stringify(stripDesignCredits(legacy)).includes("Hecho con Tulala"), false);
   assert.equal(JSON.stringify(stripDesignCredits(tree)).includes("Hecho con Tulala"), false);
 });
 
@@ -193,4 +199,48 @@ test("renderers wire the socket and the old badge div is gone", () => {
   assert.equal(render.includes("data-talent-max-site-badge"), false);
   assert.match(canvas, /shellSocket/);
   assert.equal(stmt.includes("Hecho con Tulala"), false);
+});
+
+// ── Desktop parity round: the strip matches the mockup's `.bstrip` ───────────
+
+test("the first group carries the talent's name, not 'Este sitio'", () => {
+  assert.match(html({ talentName: "Alba" }), /<span class="tulala-socket__label">Alba<\/span>/);
+  assert.match(html({}), /Este sitio/);
+  assert.match(html({ locale: "en" }), /This site/);
+  // A long display name is shortened to its first word.
+  assert.equal(shortTalentName("Valeria Gómez Ramírez de la Torre"), "Valeria");
+  assert.equal(shortTalentName("  "), null);
+  assert.equal(shortTalentName("Jorg Beauty"), "Jorg Beauty");
+});
+
+test("the Tulala group has Cookies, pointing at the platform privacy page's #cookies anchor", () => {
+  const m = model();
+  assert.deepEqual(m.tulalaLinks.map((l) => l.key), ["tulala-terms", "tulala-privacy", "tulala-cookies"]);
+  const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
+  assert.equal(cookies.label, "Cookies");
+  assert.equal(cookies.href, "https://tulala.digital/legal/privacy#cookies");
+  assert.equal(cookies.external, true);
+  assert.match(html(), /data-socket-link="tulala-cookies"/);
+});
+
+test("the credit reads 'Sitio creado con Tulala.digital' (EN 'Site made with'), linked, on the right, whitelabel-aware", () => {
+  const es = html({ locale: "es" });
+  assert.match(es, /data-socket-credit[^>]*>Sitio creado con<a href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital<\/a>/);
+  assert.match(html({ locale: "en" }), />Site made with<a href="https:\/\/tulala\.digital"[^>]*>Tulala\.digital</);
+  assert.equal(html({ whitelabel: true }).includes("data-socket-credit"), false);
+  assert.equal(html({ showCredit: false }).includes("data-socket-credit"), false);
+  assert.ok(!html().includes("Hecho con Tulala"));
+  assert.match(html(), /\.tulala-socket__credit\{margin-left:auto;text-align:right\}/);
+});
+
+test("the language group is dropped when the header already has a language switch, kept otherwise", () => {
+  const two = { supportedLocales: ["es", "en"], switcherHrefs: { es: "/", en: "/en" } };
+  assert.match(html(two), /data-socket-languages/);
+  assert.equal(html({ ...two, headerHasLanguageSwitch: true }).includes("data-socket-languages"), false);
+  assert.equal(html({ ...two, headerHasLanguageSwitch: true }).includes("Idioma"), false);
+  const withSwitch = [{ kind: "section", props: { sectionProps: { regions: { left: [], center: [], right: [{ type: "cta" }, { type: "language" }] } } } }];
+  const without = [{ kind: "section", props: { sectionProps: { regions: { right: [{ type: "cta" }] } } } }];
+  assert.equal(headerShowsLanguageSwitch(withSwitch), true);
+  assert.equal(headerShowsLanguageSwitch(without), false);
+  assert.equal(headerShowsLanguageSwitch([]), false);
 });

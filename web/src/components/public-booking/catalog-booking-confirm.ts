@@ -20,13 +20,13 @@ export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<Instant
 
 export function catalogSlotLostMessage(locale: string): string {
   return locale.toLowerCase().startsWith("es")
-    ? "Ese horario ya no está disponible. Elegí otro."
+    ? "Ese horario ya no está disponible. Elige otro."
     : "That time is no longer available. Pick another.";
 }
 
 export function catalogConfirmNetworkError(locale: string): string {
   return locale.toLowerCase().startsWith("es")
-    ? "No se pudo guardar. Probá de nuevo."
+    ? "No se pudo guardar. Prueba de nuevo."
     : "Could not save. Please try again.";
 }
 

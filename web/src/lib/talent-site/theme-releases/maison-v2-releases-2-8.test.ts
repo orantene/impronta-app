@@ -34,10 +34,13 @@ test("the default page is the mockup order, and the two extra blocks are optiona
 });
 
 test("v22 order: ONE opt-in layout item with EN + ES notes; removing the optional blocks is not an item", () => {
-  const { items, notes } = gen();
+  const { items: all, notes } = gen();
+  const items = all.filter((i) => i.type !== "code"); // code notes ship with the deploy
   assert.ok(notes.en && notes.es);
-  assert.deepEqual(items.map((i) => i.id), ["layout:home:(root):order"]);
-  assert.equal(items[0]!.type, "layout");
+  // One opt-in layout item (the order); the Location eyebrow and footer sizes are the automatic ones.
+  const layout = items.filter((i) => i.type === "layout");
+  assert.deepEqual(layout.map((i) => i.id), ["layout:home:(root):order"]);
+  assert.ok(!items.some((i) => (i.id ?? "").includes("before_after") || (i.id ?? "").includes("aftercare")), "no removal item for the optional blocks");
   const rel = authoredRelease("maison-v2", 22)!;
   for (const i of items) {
     const n = rel.byItemId[i.id ?? ""];

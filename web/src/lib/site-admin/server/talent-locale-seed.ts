@@ -69,15 +69,24 @@ export function talentLocaleSeedPlan(input: {
   };
 }
 
+/** Dashboard routes the seed hop may run on. Everything else (template-preview, public sites) is excluded. */
+export function isLocaleSeedablePath(pathname: string | null | undefined): boolean {
+  if (!pathname || typeof pathname !== "string") return false;
+  return pathname === "/talent" || pathname.startsWith("/talent/");
+}
+
 /**
- * Same-origin `/talent` path guard for the seed route's `next` parameter.
- * Anything else (absolute URLs, protocol-relative, backslashes, other
- * surfaces) collapses to `/talent/today`.
+ * Same-origin relative return-URL guard for the seed route's `next` parameter.
+ * Parses with `new URL()` against a sentinel origin (never trusts a bare
+ * `startsWith("/")`), rejects absolute, protocol-relative, backslash and
+ * control-character forms and the seed route itself (loop), and otherwise
+ * returns the EXACT original path + query so the hop is invisible. Invalid
+ * input collapses to `/talent/today`.
  */
 export function safeTalentNextPath(next: string | null | undefined): string {
   const fallback = "/talent/today";
   if (!next || typeof next !== "string") return fallback;
-  if (!next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return fallback;
+  if (!next.startsWith("/") || next.startsWith("//") || /[\\\u0000-\u001f]/.test(next)) return fallback;
   let parsed: URL;
   try {
     parsed = new URL(next, "http://seed.invalid");
@@ -85,11 +94,13 @@ export function safeTalentNextPath(next: string | null | undefined): string {
     return fallback;
   }
   if (parsed.origin !== "http://seed.invalid") return fallback;
-  if (parsed.pathname !== "/talent" && !parsed.pathname.startsWith("/talent/")) return fallback;
+  if (parsed.pathname === TALENT_LOCALE_SEED_ROUTE || parsed.pathname.startsWith(`${TALENT_LOCALE_SEED_ROUTE}/`)) {
+    return fallback;
+  }
   return `${parsed.pathname}${parsed.search}`;
 }
 
-/** Build the seed route URL that returns the talent to `next`. */
+/** Build the seed route URL that returns the visitor to `next`. */
 export function talentLocaleSeedHref(next: string): string {
   return `${TALENT_LOCALE_SEED_ROUTE}?next=${encodeURIComponent(safeTalentNextPath(next))}`;
 }

@@ -33,6 +33,7 @@ import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { SentAirlock } from "./SentAirlock";
 import { TrustGateNudge } from "./TrustGateNudge";
+import { CARD_SOLID_BG } from "./card-dock-skin";
 import { FONT_DISPLAY, type Palette, type SurfaceMode } from "./mini-chat-styles";
 import type {
   AddClaimEmailCallback,
@@ -128,11 +129,11 @@ export function GuestConversationBody({
           overflowY: "auto",
           // P0-4b: keep wheel/touch scroll inside the thread, never the page.
           overscrollBehavior: "contain",
-          padding: "14px 14px 6px",
+          padding: cardIntro ? "12px 16px 8px" : "14px 14px 6px",
           display: "flex",
           flexDirection: "column",
-          gap: 9,
-          background: C.surface,
+          gap: cardIntro ? 12 : 9,
+          background: cardIntro ? CARD_SOLID_BG : C.surface,
         }}
       >
       {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}

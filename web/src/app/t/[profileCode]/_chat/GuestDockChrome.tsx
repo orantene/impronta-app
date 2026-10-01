@@ -12,7 +12,7 @@ import type { UnifiedSyncState } from "./use-unified-inquiry";
 
 import type { GuestDockView } from "./guest-dock-view";
 import type { GuestHeaderThreadState } from "./guest-thread-state";
-import { CardDockHeader } from "./CardDockHeader";
+import { CardDockBack, CardDockHeader, CardDockRail } from "./CardDockHeader";
 import { GuestDockNav } from "./GuestDockNav";
 import { GuestJourneyProgress, type JourneySeg } from "./GuestJourneyProgress";
 import { GuestPanelHeader } from "./GuestPanelHeader";
@@ -76,7 +76,6 @@ export function GuestDockChrome({
   onClose,
   card = null,
 }: GuestDockChromeProps) {
-  const cardNavLabel = card ? t("public.guestChat.cardTabServices") : null;
   return (
     <>
       {card ? (
@@ -121,7 +120,15 @@ export function GuestDockChrome({
       />
       )}
 
-      {dockEnabled && journeySegs.length > 0 && railLabel && (
+      {card && dockEnabled && onDockViewChange && (activeDockView === "lineup" || activeDockView === "projects") ? (
+        <CardDockBack label={t("public.guestChat.cardBrowseBack")} onBack={() => onDockViewChange("chat")} />
+      ) : null}
+
+      {card && dockEnabled && activeDockView === "chat" && journeySegs.length > 0 && railLabel ? (
+        <CardDockRail count={lineupCount || journeySegs.filter((s) => s.on).length} label={railLabel} t={t} onOpenDetails={onOpenDetails} />
+      ) : null}
+
+      {!card && dockEnabled && journeySegs.length > 0 && railLabel && (
         <GuestJourneyProgress
           segs={journeySegs}
           railLabel={railLabel}
@@ -132,7 +139,7 @@ export function GuestDockChrome({
         />
       )}
 
-      {dockEnabled && onDockViewChange && (!card || (activeDockView !== "chat" && activeDockView !== "home")) && (
+      {dockEnabled && onDockViewChange && !card && (
         <GuestDockNav
           active={activeDockView}
           onChange={onDockViewChange}
@@ -141,8 +148,8 @@ export function GuestDockChrome({
           t={t}
           lineupCount={lineupCount}
           projectsCount={projectsCount}
-          itemsTab={card ? brand.dockItemsTab !== false || card.browseServices : brand.dockItemsTab !== false}
-          itemsLabel={cardNavLabel ?? brand.dockItemsLabel ?? null}
+          itemsTab={brand.dockItemsTab !== false}
+          itemsLabel={brand.dockItemsLabel ?? null}
           projectsLabel={brand.dockProjectsLabel ?? null}
         />
       )}

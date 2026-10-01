@@ -4,6 +4,8 @@
  * dropped when neither does. It is never a dead anchor.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -64,4 +66,62 @@ test("Maison v2: the real footer link follows the real page (empty Location is p
   const noZone = pruneEmptyBoundSections(p.homeTree, {});
   assert.ok(!has(pruneDeadSectionLinks(p.shellTree, noZone)), "no zone: no Location band, no link");
   assert.ok(!hrefs(pruneDeadSectionLinks(p.shellTree, noZone)).includes("#visit"));
+});
+
+// ── Header nav, strict anchors, and #talent-ask ──────────────────────────────
+
+const header = (hrefsIn: string[]): BuilderNode[] =>
+  [
+    {
+      id: "hdr",
+      kind: "section",
+      props: {
+        sectionTypeKey: "site_header",
+        sectionProps: {
+          navItems: hrefsIn.map((href) => ({ label: href, href })),
+          regions: { right: [{ type: "language" }, { type: "cta", label: "Menu", href: "#services" }] },
+        },
+      },
+    } as unknown as BuilderNode,
+  ];
+const navHrefs = (tree: BuilderNode[]) =>
+  ((tree[0]!.props as { sectionProps: { navItems: Array<{ href: string }> } }).sectionProps.navItems).map((i) => i.href);
+
+test("header nav: a #reviews link goes when the talent renders no Reviews band, the rest stay", () => {
+  const page = [section("gallery"), section("services"), section("about")];
+  const out = pruneDeadSectionLinks(header(["#gallery", "#services", "#reviews", "#about", "/blog"]), page);
+  assert.deepEqual(navHrefs(out), ["#gallery", "#services", "#about", "/blog"]);
+  // With reviews on the page the link stays.
+  assert.deepEqual(navHrefs(pruneDeadSectionLinks(header(["#reviews"]), [section("reviews")])), ["#reviews"]);
+});
+
+test("header nav: Location and Visit retarget each other; region items (the CTA) are checked too", () => {
+  assert.deepEqual(navHrefs(pruneDeadSectionLinks(header(["#location"]), [section("visit")])), ["#visit"]);
+  assert.deepEqual(navHrefs(pruneDeadSectionLinks(header(["#visit"]), [section("location")])), ["#location"]);
+  const noMenu = pruneDeadSectionLinks(header(["#about"]), [section("about")]);
+  const right = (noMenu[0]!.props as { sectionProps: { regions: { right: Array<{ type: string }> } } }).sectionProps.regions.right;
+  assert.deepEqual(right.map((i) => i.type), ["language"], "the Menu CTA points at #services, which is not on the page");
+});
+
+test("the shell's own anchors count (a link to #site-footer is not dead)", () => {
+  const foot = [{ id: "f", kind: "container", props: { anchorId: "site-footer" } }] as unknown as BuilderNode[];
+  const hdr = [{ id: "h", kind: "button", props: { label: "Contact", href: "#site-footer" } }] as unknown as BuilderNode[];
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(hdr, [], [foot])), ["#site-footer"]);
+});
+
+test("#talent-ask is never pruned: it is a real target on every talent page", () => {
+  assert.deepEqual(hrefs(pruneDeadSectionLinks(footer("#talent-ask"), [])), ["#talent-ask"]);
+  const src = readFileSync(join(process.cwd(), "src/app/%5Ftalent-site/TalentSiteContactBridge.tsx"), "utf8");
+  assert.match(src, /<span id="talent-ask" data-talent-ask-target=""/);
+  assert.match(src, /if \(!showFallback\) return askTarget;/);
+  // The click still opens the chat, and so does landing on the hash.
+  assert.match(src, /dispatchEvent\(new Event\("tulala:open-guest-chat"\)\)/);
+  assert.match(src, /window\.location\.hash === "#talent-ask"/);
+});
+
+test("the home page renders the header and footer through the pruner", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
+  assert.match(src, /pruneDeadSectionLinks\(headerTree, renderedBlocks, \[footerTree\]\)/);
+  assert.match(src, /pruneDeadSectionLinks\(footerTree, args\.mainOverride \? \[\] : renderedBlocks, \[headerTree\]\)/);
+  assert.match(src, /renderBuilderNodes\(liveHeaderTree/);
 });

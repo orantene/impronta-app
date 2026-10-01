@@ -606,6 +606,42 @@ test("Maison v2 v21: an edited visit band is kept, and nothing is lost", async (
   assert.ok(order.includes("visit") || order.includes("location"), "never neither");
 });
 
+// ── Release 2.8 (v22): the Location eyebrow follows the default; the rest is platform code ──
+
+test("Maison v2 v22 classifies: the Location eyebrow and footer sizes are automatic, the page order is the one opt-in item", () => {
+  // The generator drops the removal of the two optional blocks (a talent who has them keeps them).
+  const items = generateReleaseItems("maison-v2", { payload: maisonV2At(21), version: 21 }, { payload: maisonV2At(22), version: 22 }).items.filter((i) => i.type !== "code");
+  assert.deepEqual(
+    items.map((i) => i.id).sort(),
+    [
+      "layout:home:(root):order",
+      "token-default:type.footer-title-size",
+      "token-default:type.footer-title-size-desktop",
+      "variant-default:home:location/visit",
+    ],
+  );
+  assert.deepEqual(types(items, "variant-default")[0]!.paths, ["eyebrow"]);
+  assert.deepEqual(
+    types(items, "token-default").map((i) => (i.detail as { to: string }).to).sort(),
+    ["40px", "64px"],
+  );
+  for (const t of ["new-block", "critical"]) assert.equal(types(items, t).length, 0, `no ${t}`);
+  assert.equal(types(items, "layout").length, 1, "only the order is opt-in");
+  assertNotesFor(items as CandidateItem[], 22);
+  const rel = authoredRelease("maison-v2", 22)!;
+  assert.ok(rel.notes.en && rel.notes.es && rel.codeNotes.length >= 2);
+  for (const n of rel.codeNotes) {
+    assert.ok(n.en && n.es);
+    assert.doesNotMatch(`${n.en} ${n.es}`, /—|–/);
+  }
+});
+
+test("Maison v2 v22: the payload leaves the eyebrow unset (it reads 'Tu visita'); v21 carried an empty one", () => {
+  const visit = (v: number) => findByKind([findBySlot(maisonV2At(v).homeTree, "location")!], "visit")!;
+  assert.equal(propsOf(visit(22)).eyebrow, undefined);
+  assert.equal(propsOf(visit(21)).eyebrow, "");
+});
+
 test("Maison v2 v21 payload: Location replaces the visit band and the header link follows", () => {
   const now = maisonV2At(21);
   const slots = now.homeTree.map((n) => String(propsOf(n).slotKey));

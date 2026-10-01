@@ -12,6 +12,8 @@ export type ChatPresence = {
   name: string;
   /** A reply the visitor has not seen yet. */
   unread: boolean;
+  /** The chat panel is open: the catalog dock steps aside so there is one entry point. */
+  open?: boolean;
 };
 
 let presence: ChatPresence | null = null;
@@ -22,7 +24,7 @@ function notify(): void {
 }
 
 function same(a: ChatPresence | null, b: ChatPresence | null): boolean {
-  return a === b || (a !== null && b !== null && a.photoUrl === b.photoUrl && a.name === b.name && a.unread === b.unread);
+  return a === b || (a !== null && b !== null && a.photoUrl === b.photoUrl && a.name === b.name && a.unread === b.unread && a.open === b.open);
 }
 
 export function setChatPresence(next: ChatPresence | null): void {

@@ -6,7 +6,7 @@
  * dock column inside it is the same one every other site mounts.
  */
 
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { CARD_CHAT_CSS } from "./CardChatExtras";
 import { cardFrameStyle, cardVars } from "./card-dock-skin";
@@ -42,8 +42,35 @@ export function CardDockFrame({
     return () => window.removeEventListener("tulala:maison-sheet", onSheet);
   }, [onClose]);
 
+  // Esc already closes (the panel listens on window); on close, focus goes back to
+  // whatever opened the chat (the launcher or the dock's chat button).
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, []);
+
+  // Phone sheet: about 85% tall with the site visible above; full height only
+  // while she is typing (focus inside an input), back down on blur.
+  const [typing, setTyping] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !compact) return;
+    const isField = (t: EventTarget | null) => ["TEXTAREA", "INPUT"].includes((t as HTMLElement | null)?.tagName ?? "");
+    const on = (e: Event) => isField(e.target) && setTyping(true);
+    const off = (e: Event) => isField(e.target) && setTyping(false);
+    el.addEventListener("focusin", on);
+    el.addEventListener("focusout", off);
+    return () => {
+      el.removeEventListener("focusin", on);
+      el.removeEventListener("focusout", off);
+    };
+  }, [compact]);
   return (
     <div
+      ref={ref}
       role="dialog"
       aria-modal="false"
       aria-label={ariaLabel}
@@ -51,9 +78,12 @@ export function CardDockFrame({
       data-chat-expanded={expanded ? "true" : "false"}
       data-chat-compact={compact ? "true" : "false"}
       data-tl-motion=""
-      style={{ ...cardVars(card, accent, accentInk), ...cardFrameStyle(compact, expanded, keyboardInsetPx) } as CSSProperties}
+      style={{ ...cardVars(card, accent, accentInk), ...cardFrameStyle(compact, expanded || typing, keyboardInsetPx) } as CSSProperties}
     >
       <style>{CARD_CHAT_CSS}</style>
+      {compact && !expanded && !typing ? (
+        <span aria-hidden data-card-dock-handle="" style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 999, margin: "8px 0 0", background: "var(--cc-line)", flex: "0 0 auto" }} />
+      ) : null}
       {children}
     </div>
   );

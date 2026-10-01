@@ -535,7 +535,7 @@ export function MiniChatPanelColumn({
             onRemoveCartTalent={onRemoveCartTalent}
             onStartInquiry={card ? undefined : startInquiryInChat}
             {...dock.lineupItemsProps}
-            catalog={dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
+            catalog={card && (brand.dockServiceMenu?.length ?? 0) > 0 ? null : dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
           />
         );
         return card ? (
@@ -543,7 +543,7 @@ export function MiniChatPanelColumn({
             offerings={offerings}
             locale={brand.locale ?? "en"}
             t={t}
-            selectionCount={cartTalentNames.length}
+            selectionCount={cartTalentNames.length + (v5?.items?.lines.length ?? 0)}
             sending={sending || inCooldown}
             onSend={onSendToAgency ?? startInquiryInChat}
             onBackToChat={() => onDockViewChange?.("chat")}
@@ -570,6 +570,7 @@ export function MiniChatPanelColumn({
             onDockViewChange?.("chat");
           }}
           onBookAgain={dock.onBookAgainInquiry}
+          onBrowseServices={card ? () => onDockViewChange?.("lineup") : undefined}
         />
       )}
 
@@ -613,7 +614,7 @@ export function MiniChatPanelColumn({
         cardModel={dock.cardModel}
         now={dock.now}
         sendBarActive={sendBarActive}
-        cardIntro={card ? <CardDockIntro t={t} name={talentFirst || brand.talentDisplayName || brand.agencyName} greeting={card.customGreeting?.trim() || interpolate(t("public.guestChat.cardGreeting"), { name: talentFirst || brand.talentDisplayName || brand.agencyName })} /> : undefined}
+        cardIntro={card ? <CardDockIntro greeting={card.customGreeting?.trim() || interpolate(t("public.guestChat.cardGreeting"), { name: talentFirst || brand.talentDisplayName || brand.agencyName })} /> : undefined}
       />
       )}
 
@@ -719,7 +720,7 @@ export function MiniChatPanelColumn({
         offerPreview={offerPreview}
         threadStatus={threadStatus}
         offerings={offerings}
-        onPickOffering={onPickOffering}
+        onPickOffering={card ? undefined : onPickOffering}
         onDraftChange={onDraftChange}
         draft={draft}
         locale={brand.locale ?? "en"}
@@ -727,6 +728,7 @@ export function MiniChatPanelColumn({
         accent={accent}
         surfaceMode={surfaceMode}
         v5={v5}
+        hideAskCard={Boolean(card)}
       />
 
       {card && !showGate ? <CardDockAskFooter t={t} threadEmpty={rows.every((m) => m.authorRole === "system")} onPick={(q) => { onDraftChange(q); textareaRef.current?.focus(); }} /> : null}
@@ -740,7 +742,7 @@ export function MiniChatPanelColumn({
           honeypot={honeypot}
           onHoneypotChange={onHoneypotChange}
           onSubmit={onSubmit}
-          placeholder={card && !inquiryId ? t("public.guestChat.cardPlaceholder") : guestComposerPlaceholder(t, {
+          placeholder={card && !inquiryId ? t("public.guestChat.cardComposerPlaceholder") : guestComposerPlaceholder(t, {
             frontDoorChrome,
             agencyPublicSurface: Boolean(brand.agencyPublicSurface),
             inquiryId,
