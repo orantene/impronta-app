@@ -15,6 +15,7 @@ import { useAdminShellOptional } from "@/components/admin/shell/internal/state/c
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { loadTalentGoLiveAction } from "@/lib/talent-site/history/history-actions";
 import { goLiveHasPending } from "./go-live-pending";
+import { takeOr } from "../public-page-bootstrap";
 import { DesignOptionsPanel } from "./DesignOptionsPanel";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
 import { legacyPaletteLabel, liveCardDesignLabel } from "./maison-live-summary";
@@ -91,7 +92,7 @@ export function MyWebsiteCard({
   useEffect(() => {
     if (hasNamedPalette) return;
     let alive = true;
-    void loadMaisonSetupBootstrapAction()
+    void takeOr("maison", "card", loadMaisonSetupBootstrapAction)
       .then((boot) => {
         if (alive && boot.enabled) setCustomPalette(boot.customPalette);
       })
@@ -105,7 +106,7 @@ export function MyWebsiteCard({
     if (optionsOpen) return;
     let alive = true;
     // F137: the SAME go-live summary the builder chip uses, so the two agree.
-    void loadTalentGoLiveAction()
+    void takeOr("goLive", "card", loadTalentGoLiveAction)
       .then((res) => {
         if (alive) setHasPending(res.ok ? goLiveHasPending(res.summary) : null);
       })
