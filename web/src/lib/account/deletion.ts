@@ -219,6 +219,12 @@ export type ExecutorDeps = {
   loadBlockers(subject: AnonymizeSubject, now: Date): Promise<DeletionBlocker[]>;
   anonymize(subject: AnonymizeSubject, now: Date): Promise<AnonymizeReport>;
   deleteAuthUser(userId: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * Suspend the workspaces this user solely owned (blockers guarantee none has
+   * another active member). Runs before the auth user is deleted, while the
+   * membership rows still resolve. Best effort: a failure never blocks.
+   */
+  suspendSoloWorkspaces?(userId: string): Promise<void>;
   /** Best-effort "your account was deleted" email. Never throws, never blocks. */
   notifyCompleted?(subject: AnonymizeSubject): Promise<void>;
   finish(
@@ -265,6 +271,12 @@ export async function executeDeletionRequest(
       return { kind: "failed", error: failure };
     }
 
+    try {
+      await deps.suspendSoloWorkspaces?.(req.user_id);
+    } catch {
+      // Best effort: the account is deleted either way.
+    }
+
     const del = await deps.deleteAuthUser(req.user_id);
     if (!del.ok) {
       await deps.finish(req, { status: "failed", last_error: `auth.delete: ${del.error}`.slice(0, 500) });
@@ -291,6 +303,50 @@ export async function executeDeletionRequest(
 
 function isNotFound(message: string): boolean {
   return /not.?found/i.test(message);
+}
+
+/** Live statuses that become suspended. Terminal and already-suspended rows are left alone. */
+const SUSPENDABLE_WORKSPACE_STATUSES = ["draft", "onboarding", "trial", "active", "past_due", "restricted"];
+export const OWNER_DELETED_SUSPEND_REASON = "owner_account_deleted";
+
+/**
+ * Mark workspaces whose only active member is the deleted owner as suspended
+ * (existing `agencies.status` + `suspended_at` + `suspended_reason`, the same
+ * columns platform admin sets). Reversible from platform admin; nothing is
+ * deleted. A workspace that still has another active member is skipped.
+ */
+export async function suspendSoloOwnedWorkspaces(admin: SupabaseClient, userId: string, now: Date = new Date()): Promise<number> {
+  const { data: owned, error } = await admin
+    .from("agency_memberships")
+    .select("tenant_id")
+    .eq("profile_id", userId)
+    .eq("role", "owner")
+    .eq("status", "active");
+  if (error) throw new Error(`agency_memberships.owner: ${error.message}`);
+  let suspended = 0;
+  for (const row of (owned ?? []) as Array<{ tenant_id: string }>) {
+    const { count, error: cErr } = await admin
+      .from("agency_memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", row.tenant_id)
+      .eq("status", "active")
+      .neq("profile_id", userId);
+    if (cErr) throw new Error(`agency_memberships.team: ${cErr.message}`);
+    if ((count ?? 0) > 0) continue;
+    const { error: uErr } = await admin
+      .from("agencies")
+      .update({
+        status: "suspended",
+        suspended_at: now.toISOString(),
+        suspended_reason: OWNER_DELETED_SUSPEND_REASON,
+        updated_at: now.toISOString(),
+      })
+      .eq("id", row.tenant_id)
+      .in("status", SUSPENDABLE_WORKSPACE_STATUSES);
+    if (uErr) throw new Error(`agencies.suspend: ${uErr.message}`);
+    suspended += 1;
+  }
+  return suspended;
 }
 
 export function createExecutorDeps(admin: SupabaseClient): ExecutorDeps {
@@ -331,6 +387,9 @@ export function createExecutorDeps(admin: SupabaseClient): ExecutorDeps {
       const { error } = await admin.auth.admin.deleteUser(userId);
       if (error && !isNotFound(error.message)) return { ok: false, error: error.message };
       return { ok: true };
+    },
+    async suspendSoloWorkspaces(userId) {
+      await suspendSoloOwnedWorkspaces(admin, userId);
     },
     async notifyCompleted(subject) {
       await sendDeletionEmail("completed", { to: subject.email, locale: "both" });

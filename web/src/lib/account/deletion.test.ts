@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   deriveBlockers,
   executeDeletionRequest,
+  suspendSoloOwnedWorkspaces,
   isDeletionConfirmation,
   isExecutable,
   scheduledForFrom,
@@ -216,4 +217,60 @@ test("completed deletion calls notifyCompleted with the subject; a throwing noti
   const out = await executeDeletionRequest(req(), d, NOW);
   assert.deepEqual(out, { kind: "completed", alreadyGone: false });
   assert.deepEqual(seen, ["a@b.com"]);
+});
+
+test("suspendSoloOwnedWorkspaces suspends only workspaces with no other active member", async () => {
+  const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  const admin = {
+    from(table: string) {
+      return {
+        select: (_c: string, o?: { head?: boolean }) => {
+          const b: Record<string, unknown> = {};
+          let tenant = "";
+          for (const m of ["neq"]) b[m] = () => b;
+          b.eq = (col: string, v: string) => {
+            if (col === "tenant_id") tenant = v;
+            return b;
+          };
+          b.then = (res: (v: unknown) => unknown) =>
+            Promise.resolve(
+              o?.head
+                ? { data: null, count: tenant === "team-ws" ? 2 : 0, error: null }
+                : { data: [{ tenant_id: "solo-ws" }, { tenant_id: "team-ws" }], error: null },
+            ).then(res);
+          return b;
+        },
+        update: (patch: Record<string, unknown>) => {
+          const b: Record<string, unknown> = {};
+          let id = "";
+          b.eq = (_c: string, v: string) => {
+            id = v;
+            return b;
+          };
+          b.in = () => b;
+          b.then = (res: (v: unknown) => unknown) => {
+            if (table === "agencies") updates.push({ id, patch });
+            return Promise.resolve({ error: null }).then(res);
+          };
+          return b;
+        },
+      };
+    },
+  };
+  const n = await suspendSoloOwnedWorkspaces(admin as never, USER, NOW);
+  assert.equal(n, 1);
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].id, "solo-ws");
+  assert.equal(updates[0].patch.status, "suspended");
+  assert.equal(updates[0].patch.suspended_reason, "owner_account_deleted");
+});
+
+test("a failing workspace suspension never fails the deletion", async () => {
+  const { d } = deps({
+    suspendSoloWorkspaces: async () => {
+      throw new Error("db down");
+    },
+  });
+  const out = await executeDeletionRequest(req(), d, NOW);
+  assert.deepEqual(out, { kind: "completed", alreadyGone: false });
 });
