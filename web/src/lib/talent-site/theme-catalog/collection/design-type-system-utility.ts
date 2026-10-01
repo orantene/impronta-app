@@ -17,7 +17,7 @@ function v(key: string): string {
   return `var(${styleTokenCssVar(key)},${def.fallback})`;
 }
 
-const U =
+export const U =
   '[data-theme-canvas-root]:where([data-token-type-system="utility"],[data-token-type-system="utility"] *)';
 const ACCENT = "var(--token-color-accent,var(--token-color-primary))";
 const ACCENT_ON = "var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)))";
@@ -29,8 +29,8 @@ const RULE = v("shape.rule-width");
 const MQ_DESK = "@media (min-width:900px)";
 const TITLE_HOOKS = ".sb-portfolio-title,.sb-reviews-title,.sb-visit-title,.site-builder-node--services-catalog-title";
 const EYEBROW_HOOKS = ".sb-portfolio-eyebrow,.sb-reviews-eyebrow,.sb-visit-eyebrow,.site-builder-node--services-catalog-eyebrow";
-const labelType = `font-family:${UTILITY_LABEL_FACE};font-size:${v("type.label-size")};font-weight:${v("type.label-weight")};letter-spacing:${v("type.label-tracking")}`;
-const displayType = `font-family:var(--site-heading-font,system-ui,sans-serif);font-weight:${v("type.display-weight")};font-stretch:${v("type.stretch")};letter-spacing:${v("type.display-tracking")};line-height:${v("type.display-line-height")}`;
+export const labelType = `font-family:${UTILITY_LABEL_FACE};font-size:${v("type.label-size")};font-weight:${v("type.label-weight")};letter-spacing:${v("type.label-tracking")}`;
+export const displayType = `font-family:var(--site-heading-font,system-ui,sans-serif);font-weight:${v("type.display-weight")};font-stretch:${v("type.stretch")};letter-spacing:${v("type.display-tracking")};line-height:${v("type.display-line-height")}`;
 
 export const UTILITY_TYPE_SYSTEM_CSS = [
   `${U}{font-family:var(--site-body-font,system-ui,sans-serif);color:var(--token-color-ink);background:var(--token-color-background);font-size:${v("type.body-size")};line-height:${v("type.body-line-height")}}`,

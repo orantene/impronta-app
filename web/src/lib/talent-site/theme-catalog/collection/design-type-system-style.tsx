@@ -1,5 +1,6 @@
 import { EDITORIAL_TYPE_SYSTEM_CSS, MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 import { HIGHLIGHT_ACCENT_CSS, UTILITY_TYPE_SYSTEM_CSS } from "./design-type-system-utility";
+import { UTILITY_BOOKING_CSS } from "./design-type-system-utility-booking";
 import { MOTION_CSS } from "./motion-css";
 
 /**
@@ -14,6 +15,7 @@ export function TypeSystemStyle() {
       <style data-type-system-style="editorial">{EDITORIAL_TYPE_SYSTEM_CSS}</style>
       <style data-type-system-style="magazine">{MAGAZINE_TYPE_SYSTEM_CSS}</style>
       <style data-type-system-style="utility">{UTILITY_TYPE_SYSTEM_CSS}</style>
+      <style data-type-system-style="utility-booking">{UTILITY_BOOKING_CSS}</style>
       <style data-type-system-style="highlight">{HIGHLIGHT_ACCENT_CSS}</style>
       <style data-type-system-style="motion">{MOTION_CSS.join("\n")}</style>
     </>

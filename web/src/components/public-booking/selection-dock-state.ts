@@ -136,6 +136,8 @@ export type DockCopy = {
   ask: string;
   askMany: string;
   continueLabel: string;
+  /** Gridline: the dock action while "Atiendo emergencias hoy" is on (G12). */
+  liveLabel: string;
 };
 
 const EN: DockCopy = {
@@ -149,6 +151,7 @@ const EN: DockCopy = {
   ask: "Ask about this service",
   askMany: "Ask about these services",
   continueLabel: "Continue",
+  liveLabel: "Ask now",
 };
 
 const ES: DockCopy = {
@@ -162,6 +165,7 @@ const ES: DockCopy = {
   ask: "Preguntar por este servicio",
   askMany: "Preguntar por estos servicios",
   continueLabel: "Continuar",
+  liveLabel: "Consultar",
 };
 
 export function selectionDockCopy(locale: string): DockCopy {

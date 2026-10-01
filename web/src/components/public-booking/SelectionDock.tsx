@@ -12,6 +12,9 @@
 
 import { useSyncExternalStore } from "react";
 
+import { useEmergenciesToday } from "@/components/talent-site/LiveStatusExpiry";
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
+
 import { peekChatPresence, subscribeChatPresence } from "./chat-presence-store";
 import {
   dockSummary,
@@ -68,6 +71,7 @@ export function SelectionDock({
   onContinue,
   toast,
   onUndo,
+  liveStatus = null,
 }: {
   items: SelectionDockItem[];
   show: boolean;
@@ -79,8 +83,15 @@ export function SelectionDock({
   /** TO-1: the toast to show (added, updated, removed, switched), else null. */
   toast: DockToast | null;
   onUndo: () => void;
+  /**
+   * G12: the talent's live status. Only while "emergencias hoy" is on does the
+   * action carry a second label (hidden, shown by the utility type system' CSS
+   * alone), so every other design and the off state render the original markup.
+   */
+  liveStatus?: LiveStatusRenderContext | null;
 }) {
   const copy = selectionDockCopy(locale);
+  const emergenciesOn = useEmergenciesToday(liveStatus);
   // The chat button shows online / unread dots when the chat is live on this page.
   const presence = useSyncExternalStore(subscribeChatPresence, peekChatPresence, () => null);
   const front = items[0] ?? null;
@@ -170,7 +181,15 @@ export function SelectionDock({
           <span>{line}</span>
         </div>
         <button type="button" className="cb-dock-go" onClick={onContinue}>
-          {copy.continueLabel} <span className="cb-dock-arr" aria-hidden>→</span>
+          {emergenciesOn ? (
+            <>
+              <span className="cb-dock-lbl-off">{copy.continueLabel}</span>
+              <span className="cb-dock-lbl-on" data-dock-live="on" hidden>{copy.liveLabel}</span>
+            </>
+          ) : (
+            copy.continueLabel
+          )}{" "}
+          <span className="cb-dock-arr" aria-hidden>→</span>
         </button>
         {dockShown ? toastEl : null}
       </div>

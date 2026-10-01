@@ -550,6 +550,7 @@ export function ServicesCatalogFilter({
         onContinue={continueFromBar}
         toast={toast}
         onUndo={undoRemove}
+        liveStatus={liveStatus}
       />
 
       {/* showAsk flag only — chat handoff serialization owned by sibling sheet/chat PR */}
