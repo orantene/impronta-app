@@ -83,6 +83,15 @@ export interface InEditorCanvasRenderData {
     locale: string;
     ctaMode: "instant" | "request" | "inquiry" | null;
     swaps: Record<string, string>;
+    /**
+     * Lines that follow her profile (hero headline, eyebrow, proof line...), resolved for
+     * the site locale: the canvas shows them the way the live page does, so an edit never
+     * flips the hero back to its stored text until a reload.
+     */
+    live?: {
+      values: Partial<Record<string, string>>;
+      seeds?: Partial<Record<string, ReadonlyArray<string>>>;
+    };
   } | null;
 }
 

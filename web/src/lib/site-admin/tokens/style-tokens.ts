@@ -130,6 +130,17 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
     fallback: "flat",
     advanced: true,
   },
+  {
+    key: "footer.tone",
+    group: "shape",
+    label: L("Footer color", "Color del pie de página"),
+    control: "enum",
+    options: [
+      { value: "light", en: "Light, on the page surface", es: "Claro, sobre la superficie de la página" },
+      { value: "dark", en: "Dark band", es: "Franja oscura" },
+    ],
+    fallback: "light",
+  },
   { key: "shape.card-radius", group: "shape", label: L("Card corners", "Esquinas de tarjetas"), control: "length", fallback: "22px", bind: "radius" },
   { key: "shape.image-radius", group: "shape", label: L("Photo corners, phone", "Esquinas de fotos, móvil"), control: "length", fallback: "26px", bind: "radius" },
   { key: "shape.image-radius-desktop", group: "shape", label: L("Photo corners, desktop", "Esquinas de fotos, escritorio"), control: "length", fallback: "34px", bind: "radius" },
@@ -177,6 +188,7 @@ export const STYLE_TOKEN_DATA_ATTRS: Readonly<Record<string, string>> = {
   "type.system": "data-token-type-system",
   "button.variant": "data-token-button-variant",
   "shape.chrome": "data-token-shape-chrome",
+  "footer.tone": "data-token-footer-tone",
 };
 
 /** Keys projected as CSS vars (every non-attribute key). */

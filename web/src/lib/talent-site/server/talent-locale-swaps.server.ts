@@ -101,7 +101,7 @@ export async function loadTalentLocaleSwaps(
 }
 
 /** The same facts the token projection used, so the swap key equals the baked English line. */
-async function loadProofInput(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, talentProfileId: string) {
+export async function loadProofInput(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, talentProfileId: string) {
   const { data: langs, error: langError } = await admin
     .from("talent_languages")
     .select("language_name, display_order")

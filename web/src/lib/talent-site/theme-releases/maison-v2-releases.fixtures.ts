@@ -154,9 +154,77 @@ export function revertR20(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6), rebuilt from code. */
+/**
+ * v21 back to v20 (release 2.7, "hero + footer"): the live hero lines, the menu intro
+ * line and the rich footer swap back to the 2.5 shapes (heading = her name in italics,
+ * no `liveText`, no subtitle, the dark `footer` band with its fine print).
+ */
+export function revertR21(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  delete out.tokenDefaults!["footer.tone"];
+  walkNodes(out.homeTree, (n) => {
+    const props = propsOf(n);
+    if (n.kind === "heading" && props.liveText === "hero_headline") props.text = "{i}{{displayName}}{/i}";
+    if (n.kind === "heading" || n.kind === "paragraph") delete props.liveText;
+    if (n.kind === "services_catalog") delete props.subtitle;
+  });
+  let seq = 0;
+  const id = () => `rev21-${(seq += 1)}`;
+  out.shellTree = out.shellTree.map((node) => {
+    const props = propsOf(node);
+    if (props.slotKey !== "footer_rich") return node;
+    const style = { ...(props.style as Props) };
+    Object.assign(style, {
+      backgroundColor: "token:color.ink",
+      textColor: "token:color.background",
+      paddingY: "xl",
+      paddingTop: "70px",
+      paddingBottom: "120px",
+      responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
+    });
+    const fine: Props = {
+      layout: "row",
+      gap: "s",
+      align: "center",
+      layerLabel: "Footer fine print",
+      responsive: { mobile: { layout: "row" } },
+      style: { width: "100%", maxWidth: "full", justifyContent: "space-between", flexWrap: "wrap", marginTopFree: "28px", gap: "10px" },
+    };
+    return {
+      ...node,
+      props: { ...props, slotKey: "footer", anchorId: "site-footer", style },
+      children: [
+        { id: id(), kind: "heading", props: { text: "See you soon.", level: 2, layerLabel: "Footer line", style: { lineHeight: "1" } } },
+        { id: id(), kind: "button", props: { label: "See services", href: "#services", tone: "primary", layerLabel: "Footer CTA", style: { marginTopFree: "18px" } } },
+        {
+          id: id(),
+          kind: "container",
+          props: fine,
+          children: [
+            {
+              id: id(),
+              kind: "social_links",
+              props: {
+                links: [],
+                display: "text",
+                ariaLabel: "Social links",
+                dataBinding: { sourceKey: "workspace_social_links" },
+                layerLabel: "Footer links",
+              },
+            },
+            { id: id(), kind: "paragraph", props: { text: "Hecho con Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } } },
+          ],
+        },
+      ],
+    } as unknown as BuilderNode;
+  });
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6, 21 = release 2.7), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 21) out = revertR21(out);
   if (version < 20) out = revertR20(out);
   if (version < 19) out = revertR19(out);
   if (version < 18) out = revertR18(out);

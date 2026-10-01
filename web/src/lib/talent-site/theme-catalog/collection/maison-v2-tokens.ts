@@ -53,6 +53,8 @@ export const MAISON_V2_TOKEN_DEFAULTS: Readonly<Record<string, string>> = {
   "shape.feature-radius": "140px",
   // Release 2.5: soft cards on alternating bands (design-type-system-soft.ts).
   "shape.chrome": "soft",
+  // Release 2.7 (FT-3): the rich footer is light on the page surface; "dark" is a builder option.
+  "footer.tone": "light",
   "layout.section-pad-top": "88px",
   "layout.section-pad-top-phone": "48px",
   "layout.section-pad-bottom": "88px",

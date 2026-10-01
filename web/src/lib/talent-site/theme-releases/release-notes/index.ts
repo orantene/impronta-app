@@ -22,6 +22,7 @@ import {
   MAISON_V2_RELEASE_2_4,
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
+  MAISON_V2_RELEASE_2_7,
   type ReleaseNote,
 } from "./maison-v2";
 
@@ -48,6 +49,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_4,
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
+  MAISON_V2_RELEASE_2_7,
 ];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
@@ -63,6 +65,10 @@ export function groupLayoutItems(
   const hits = items.filter((i) => i.type === "layout" && i.id && layoutKeys.includes(i.id));
   if (hits.length < 2) return [...items];
   const tree = hits.every((h) => h.tree === hits[0]!.tree) ? hits[0]!.tree : undefined;
+  // A detected key swap stays ONE atomic choice in the merge (see `swap.ts`). The nodes
+  // inside a swapped block (a footer band's children) ride along in `keys` without a swap
+  // of their own, so ANY hit that carries the swap makes the grouped item the swap.
+  const swapped = hits.find((h) => h.swap);
   const grouped: CandidateItem = {
     id: groupId,
     type: "layout",
@@ -71,8 +77,7 @@ export function groupLayoutItems(
     ...(tree ? { tree } : {}),
     layout: "nested-new",
     detail: { layout: "nested-new", grouped: hits.map((h) => h.id) },
-    // A detected key swap stays ONE atomic choice in the merge (see `swap.ts`).
-    ...(hits.every((h) => h.swap) ? { swap: hits[0]!.swap, ...(hits[0]!.group ? { group: hits[0]!.group } : {}) } : {}),
+    ...(swapped ? { swap: swapped.swap, ...(swapped.group ? { group: swapped.group } : {}) } : {}),
   };
   const out: CandidateItem[] = [];
   let placed = false;

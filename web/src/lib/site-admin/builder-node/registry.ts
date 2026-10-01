@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CHIP_HREF_RE } from "./next-free-chip-href";
+import { LIVE_TEXT_KEYS } from "./live-text-keys";
 import { BUILDER_ICON_NAMES } from "./icon-registry";
 import {
   isBindableTokenKey,
@@ -782,6 +783,8 @@ const headingPropsSchema = z.object({
   href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
+  /** Follows a profile value at render time (see live-text-keys.ts). */
+  liveText: z.enum(LIVE_TEXT_KEYS).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -790,6 +793,8 @@ const paragraphPropsSchema = z.object({
   href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
+  /** Follows a profile value at render time (see live-text-keys.ts). */
+  liveText: z.enum(LIVE_TEXT_KEYS).optional(),
   style: builderNodeStyleSchema,
 });
 

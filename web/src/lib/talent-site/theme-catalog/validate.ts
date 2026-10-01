@@ -36,6 +36,7 @@ import {
 import { getGoogleFontMeta } from "@/lib/site-admin/builder-node/fonts-catalog";
 import { TOKEN_REGISTRY } from "@/lib/site-admin/tokens/registry";
 import { contrastRatio } from "@/lib/site-admin/tokens/contrast-pair";
+import { TALENT_KIT_ALT_SLOTS } from "./section-kit-alt-slots";
 import {
   TALENT_KIT_SECTIONS,
   TALENT_KIT_SECTION_ROLES,
@@ -236,7 +237,7 @@ function checkTopLevel(
       errors.push(`${path}: originRole "${originRole}" is not a kit section.`);
       return;
     }
-    if (KIT_SLOT_BY_ROLE.get(originRole) !== slotKey) {
+    if (KIT_SLOT_BY_ROLE.get(originRole) !== slotKey && !TALENT_KIT_ALT_SLOTS[originRole]?.includes(slotKey)) {
       errors.push(`${path}: slotKey "${slotKey}" does not match kit role "${originRole}".`);
     }
     if (slots.has(slotKey)) errors.push(`${path}: duplicate slotKey "${slotKey}".`);

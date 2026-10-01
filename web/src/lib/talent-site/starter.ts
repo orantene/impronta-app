@@ -46,6 +46,12 @@ export type TalentPortfolioStarterProfile = {
    * Optional + additive; absent parts simply drop out of the line.
    */
   experienceYears?: number | null;
+  /** `identity.headline`: the talent's own hero headline. */
+  headline?: string | null;
+  /** `identity.tagline`: the short line under the headline. */
+  tagline?: string | null;
+  /** Currency of her published services ("MXN"), for the menu's "Prices in MXN." line. */
+  menuCurrency?: string | null;
   ratingAvg?: number | null;
   ratingCount?: number | null;
   isDemo?: boolean;
