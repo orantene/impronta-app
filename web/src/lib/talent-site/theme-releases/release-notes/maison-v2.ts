@@ -458,11 +458,6 @@ export const MAISON_V2_RELEASE_2_8 = {
       en: "Your page order follows the design: work and menu first, then reviews, about, questions and location. Sections you added stay where they are. Preview it before you choose.",
       es: "El orden de tu página sigue al diseño: primero trabajo y menú, luego reseñas, sobre mí, preguntas y ubicación. Las secciones que agregaste se quedan donde están. Míralo antes de elegir.",
     },
-    // Desktop parity slice (automatic): the hero lede width.
-    "variant-default:home:hero/container/paragraph#2": {
-      en: "The short line under your headline wraps at the proposal's width, narrower on phones (only if you have not edited it).",
-      es: "La línea corta bajo tu titular se corta al ancho de la propuesta, más angosto en teléfonos (solo si no la editaste tú).",
-    },
     // Location + footer size slice (automatic).
     "token-default:type.footer-title-size": {
       en: "The big footer line is 40px on phones, as in the proposal (only if you have not set your own size).",
@@ -475,6 +470,33 @@ export const MAISON_V2_RELEASE_2_8 = {
     "variant-default:home:location/visit": {
       en: "The small line above your Location heading reads Your visit by default (only if you have not written your own).",
       es: "La línea pequeña sobre el título de Ubicación dice Tu visita por defecto (solo si no escribiste la tuya).",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;
+
+/**
+ * Release 2.9 (v22 to v23, "desktop parity", 1440 harness): the hero lede wraps at the
+ * proposal's width (40ch on desktop, 34ch on phones) instead of a fixed 462px. The other
+ * 2.9 fixes (the Location heading on the section title size, the About text size) are
+ * stylesheet code for every Maison v2 site, so they ship with the deploy, not as items.
+ */
+export const MAISON_V2_RELEASE_2_9 = {
+  design: "maison-v2",
+  toVersion: 23,
+  notes: {
+    en: "Maison v2 2.9: small desktop touches. The short line under your headline wraps at the proposal's width, the Location heading matches the other section titles, and your About text is a little larger.",
+    es: "Maison v2 2.9: pequeños ajustes de escritorio. La línea corta bajo tu titular se corta al ancho de la propuesta, el título de Ubicación coincide con los de las demás secciones y tu texto de Sobre mí es un poco más grande.",
+  } satisfies ReleaseNote,
+  codeNotes: [
+    {
+      en: "The Location heading uses the same size as the other section titles, and the About text is 15px on phones and 17px on desktop.",
+      es: "El título de Ubicación tiene el mismo tamaño que los de las demás secciones, y el texto de Sobre mí mide 15px en teléfonos y 17px en escritorio.",
+    },
+  ] satisfies ReleaseNote[],
+  byItemId: {
+    "variant-default:home:hero/container/paragraph#2": {
+      en: "The short line under your headline wraps at the proposal's width, narrower on phones (only if you have not edited it).",
+      es: "La línea corta bajo tu titular se corta al ancho de la propuesta, más angosto en teléfonos (solo si no la editaste tú).",
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;

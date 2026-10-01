@@ -97,31 +97,3 @@ test("Alba follows the default: no custom order and no extra blocks for her", ()
   }
   void propsOf;
 });
-
-// ── 1440 harness fixes: FAQ parity key, Location heading size, hero lede width, About text ──
-
-import { readFileSync } from "node:fs";
-import { EDITORIAL_TYPE_SYSTEM_CSS } from "../theme-catalog/collection/design-type-system";
-
-test("the parity map finds the FAQ by the slot the Maison v2 FAQ really has", () => {
-  const map = JSON.parse(readFileSync("design-references/maison-v2/parity-map.json", "utf8")) as {
-    sections: Array<{ key: string; parityKey: string | null }>;
-  };
-  const faq = map.sections.find((s) => s.key === "faq")!;
-  assert.equal(faq.parityKey, "contact");
-  assert.ok(slots(maisonV2At(22).homeTree).includes(faq.parityKey!), "the payload carries that slot key");
-});
-
-test("the Location heading takes the section title tokens (58px on desktop), and About text is 15 / 17px", () => {
-  assert.match(EDITORIAL_TYPE_SYSTEM_CSS, /\.sb-loc \.sb-loc-title\{font-size:var\(--token-type-section-title-size-desktop,58px\)\}/);
-  assert.match(EDITORIAL_TYPE_SYSTEM_CSS, /\.sb-loc \.sb-loc-title\{font-size:30px\}/);
-  assert.match(EDITORIAL_TYPE_SYSTEM_CSS, /#about p\.site-builder-node--paragraph:not\(\[style\*="text-transform:uppercase"\]\)\{font-size:17px\}/);
-});
-
-test("the hero lede is 40ch on desktop and 34ch on the phone, as in the proposal", () => {
-  const lede = JSON.stringify(maisonV2At(22).homeTree[0]);
-  assert.match(lede, /"maxWidthFree":"40ch"/);
-  assert.match(lede, /"maxWidthFree":"34ch"/);
-  assert.doesNotMatch(lede, /462px/);
-  assert.match(JSON.stringify(maisonV2At(21).homeTree[1] ? maisonV2At(21).homeTree : []), /462px/, "v21 carried the px width");
-});
