@@ -1,0 +1,309 @@
+{
+  "design": "folio",
+  "profileCode": "TAL-93011",
+  "locale": "es",
+  "talent": {
+    "displayName": "Mateo Ferrer",
+    "tagline": "Editorial, runway y campañas. 1.88 m, CDMX.",
+    "bio": "Modelo con siete años entre pasarela y editorial. Llego puntual, con el cabello y la piel listos para cámara.",
+    "trade": "fashion model",
+    "city": "CDMX",
+    "languages": [
+      "ES",
+      "EN"
+    ],
+    "yearsOfCraft": 7
+  },
+  "hero": {
+    "eyebrow": "Modelo · CDMX",
+    "headline": "Mateo Ferrer",
+    "lines": [
+      "Editorial, runway y campañas."
+    ],
+    "mastheadLeft": "Vol. 07 · Otoño 2026",
+    "mastheadRight": "CDMX · ES / EN",
+    "ctas": [
+      "Consultar",
+      "Ver el libro"
+    ],
+    "imageKey": "f-hero",
+    "imageAlt": "Mateo Ferrer, retrato de estudio"
+  },
+  "menu": {
+    "eyebrow": null,
+    "title": "Contratación",
+    "subtitle": "Tarifas base en MXN. El uso en pauta y los viajes se cotizan aparte."
+  },
+  "portfolio": {
+    "eyebrow": null,
+    "title": null,
+    "items": [
+      {
+        "group": "Editorial",
+        "numeral": "I",
+        "contents": "Estudio, luz dura",
+        "imageKey": "f-hero",
+        "caption": "01 · Luz dura"
+      },
+      {
+        "group": "Editorial",
+        "numeral": "I",
+        "imageKey": "f-d-knit",
+        "caption": "02 · Punto"
+      },
+      {
+        "group": "Editorial",
+        "numeral": "I",
+        "imageKey": "f-d-quilt",
+        "caption": "03 · Textura"
+      },
+      {
+        "group": "Runway",
+        "numeral": "II",
+        "contents": "Salidas y detalles",
+        "imageKey": "f-d-stride",
+        "caption": "Salida 1"
+      },
+      {
+        "group": "Runway",
+        "numeral": "II",
+        "imageKey": "f-d-feet",
+        "caption": "Fitting"
+      },
+      {
+        "group": "Runway",
+        "numeral": "II",
+        "imageKey": "f-d-shirt",
+        "caption": "Salida 3"
+      }
+    ]
+  },
+  "services": [
+    {
+      "id": "ed",
+      "category": "Editorial",
+      "name": "Editorial shoot, half day",
+      "durationLabel": "4 h",
+      "durationMinutes": 240,
+      "priceLabel": "$9,500",
+      "priceAmount": 9500,
+      "currency": "MXN",
+      "mode": "inquiry",
+      "ctaLabel": "Consultar",
+      "description": "Media jornada para revista o editorial de marca. Llego con cabello y piel listos para cámara y trabajo con tu estilista.",
+      "includes": [
+        "Hasta 4 h en set, incluido el fitting",
+        "Uso editorial por 12 meses",
+        "Uso en pauta: se cotiza aparte"
+      ],
+      "imageKey": "f-d-knit",
+      "flow": {
+        "title": "Consultar editorial",
+        "intro": "Cuéntame del proyecto. Te respondo con disponibilidad y tarifa final.",
+        "submit": "Enviar consulta",
+        "brief": [
+          {
+            "key": "brand",
+            "label": "Marca o revista",
+            "placeholder": "Ej. Revista Código"
+          },
+          {
+            "key": "date",
+            "label": "Fecha o fechas",
+            "placeholder": "Ej. 14 o 15 de octubre"
+          },
+          {
+            "key": "use",
+            "label": "Uso de las imágenes",
+            "type": "chips",
+            "options": [
+              "Editorial",
+              "Redes",
+              "Pauta digital",
+              "Impreso"
+            ]
+          },
+          {
+            "key": "msg",
+            "label": "Mensaje",
+            "placeholder": "Concepto, fotógrafo, locación…",
+            "type": "area"
+          }
+        ]
+      }
+    },
+    {
+      "id": "run",
+      "category": "Runway",
+      "name": "Runway show booking",
+      "durationLabel": "Por show",
+      "durationMinutes": null,
+      "priceLabel": "Desde $7,000",
+      "priceAmount": 7000,
+      "currency": "MXN",
+      "priceFrom": true,
+      "mode": "request",
+      "ctaLabel": "Solicitar fecha",
+      "description": "Pasarela para semanas de moda, presentaciones de marca o showrooms. Incluye fitting el día anterior.",
+      "includes": [
+        "Fitting el día previo",
+        "Hasta 3 salidas por show",
+        "Viáticos fuera de CDMX aparte"
+      ],
+      "imageKey": "f-d-stride",
+      "flow": {
+        "title": "Solicitar fecha",
+        "intro": "Esto es una solicitud: Mateo confirma la fecha antes de que quede apartada.",
+        "brief": [
+          {
+            "key": "event",
+            "label": "Show o evento",
+            "placeholder": "Ej. Fashion Week México"
+          },
+          {
+            "key": "date",
+            "label": "Fecha",
+            "placeholder": "Ej. 22 de octubre"
+          },
+          {
+            "key": "looks",
+            "label": "Salidas",
+            "type": "chips",
+            "options": [
+              "1",
+              "2",
+              "3",
+              "Más de 3"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "look",
+      "category": "E-commerce",
+      "name": "Lookbook / e-commerce day",
+      "durationLabel": "8 h",
+      "durationMinutes": 480,
+      "priceLabel": "$16,000",
+      "priceAmount": 16000,
+      "currency": "MXN",
+      "mode": "request",
+      "ctaLabel": "Solicitar fecha",
+      "description": "Jornada completa de catálogo o lookbook. Ritmo rápido y cambios de look sin perder consistencia.",
+      "includes": [
+        "Hasta 8 h, con una hora de comida",
+        "Hasta 40 looks",
+        "Uso en tienda en línea por 12 meses"
+      ],
+      "imageKey": "f-d-quilt",
+      "flow": {
+        "title": "Solicitar fecha",
+        "intro": "Esto es una solicitud: Mateo confirma la fecha antes de que quede apartada.",
+        "brief": [
+          {
+            "key": "brand",
+            "label": "Marca",
+            "placeholder": "Ej. Casa Norte"
+          },
+          {
+            "key": "date",
+            "label": "Fecha",
+            "placeholder": "Ej. 3 de noviembre"
+          },
+          {
+            "key": "n",
+            "label": "Número de looks",
+            "placeholder": "Ej. 30"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cast",
+      "category": "Casting",
+      "name": "Casting en persona",
+      "durationLabel": "30 min",
+      "durationMinutes": 30,
+      "priceLabel": "Sin costo",
+      "priceAmount": 0,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Ver horarios",
+      "description": "Mis horarios libres para castings y go-sees en CDMX. Eliges la hora, llego con book, polaroids y medidas al día.",
+      "includes": [
+        "Book impreso y polaroids sin retoque",
+        "Medidas actualizadas",
+        "Prueba de vestuario si la necesitas"
+      ],
+      "imageKey": "f-hero",
+      "free": true,
+      "flow": {
+        "brief": [
+          {
+            "key": "where",
+            "label": "Dirección del casting",
+            "placeholder": "Estudio o agencia"
+          }
+        ]
+      },
+      "slots": [
+        "10:00",
+        "11:30",
+        "13:00",
+        "16:00",
+        "17:30"
+      ],
+      "slotNote": "Horarios en CDMX. Para castings fuera de la ciudad, usa Consultar.",
+      "policy": "Si cambia el casting, avísame 12 h antes."
+    }
+  ],
+  "reviews": {
+    "items": []
+  },
+  "about": null,
+  "faq": {
+    "items": []
+  },
+  "stats": [
+    {
+      "label": "Estatura cm",
+      "value": "188"
+    },
+    {
+      "label": "Saco",
+      "value": "40L"
+    },
+    {
+      "label": "Calzado MX",
+      "value": "28.5"
+    },
+    {
+      "label": "Idiomas",
+      "value": "ES/EN"
+    }
+  ],
+  "statsTitle": "Medidas · Comp card",
+  "location": null,
+  "footer": {
+    "headline": "Siguiente número.",
+    "line": "Para editoriales, runway y campañas. Respondo en el día.",
+    "cta": "Consultar",
+    "columns": []
+  },
+  "suggestions": [
+    "¿Tienes disponible en octubre?",
+    "¿Incluye derechos de uso?",
+    "¿Viajas fuera de CDMX?"
+  ],
+  "mockupOnly": {
+    "note": "Fictional mockup data. Never written to the database by the demo rebuild.",
+    "domain": "mateoferrer.tulala.digital",
+    "credits": [
+      "Créditos ficticios de demo · Estudio en CDMX",
+      "Show ficticio de demo · 3 salidas"
+    ],
+    "sampleReply": "Gracias. ¿Me compartes el moodboard y el uso de las imágenes? Con eso te paso fecha y tarifa hoy.",
+    "footerFine": "Hecho con Tulala"
+  }
+}

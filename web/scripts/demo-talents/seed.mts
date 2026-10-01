@@ -44,7 +44,7 @@ import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-prese
 import { randomBytes } from "node:crypto";
 import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
 import { ALBA_PHOTO_SOURCES } from "./alba";
-import { applyHeroFacts } from "./hero-facts";
+import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();

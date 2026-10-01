@@ -17,6 +17,9 @@ import { dryRunIsFresh, type DryRunReport } from "@/lib/talent-site/theme-releas
 import { loadRelease } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 
 import { COPY, langOf } from "../copy";
+import { DemoRebuildPanel } from "../demo-rebuild-panel";
+import { demosFor } from "@/lib/talent-site/demos/registry";
+import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { ReleasePanel } from "./release-panel";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +68,11 @@ export default async function BuilderLabReleasePage({
         }}
         report={release.dry_run_report ? (fresh.ok ? { fresh: true, data: fresh.report } : { fresh: false, data: release.dry_run_report as DryRunReport }) : null}
       />
+      {demosFor(release.design_slug as DemoDesign).length > 0 ? (
+        <section className="mt-8 rounded-lg border border-white/10 bg-white/5 p-4">
+          <DemoRebuildPanel design={release.design_slug} lang={lang} />
+        </section>
+      ) : null}
     </div>
   );
 }

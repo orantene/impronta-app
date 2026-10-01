@@ -14,7 +14,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { ALBA } from "./alba";
+import { sameStable } from "./stable";
+
+
+/** Alba's tagline (Maison v2 proposal, word for word). */
+export const ALBA_TAGLINE =
+  "Manicura rusa, pestañas hechas a mano y cejas con diseño. Un estudio privado donde cada cita es solo tuya.";
 
 export interface HeroFacts {
   /** `identity.headline`: the big line (the site puts one italic accent word in it). */
@@ -33,7 +38,7 @@ export const HERO_FACTS: Readonly<Record<string, HeroFacts>> = {
   // Alba (proposal): nothing but the Instagram existed.
   "TAL-93020": {
     headline: "Manos que hablan por ti.",
-    tagline: ALBA.tagline,
+    tagline: ALBA_TAGLINE,
     years: 9,
     languages: ["Spanish", "English"],
     instagram: "alba.unas.demo",
@@ -69,9 +74,9 @@ export interface HeroFactsResult {
  */
 export async function applyHeroFacts(
   admin: Db,
-  input: { profileCode: string; hubTenantId: string; write: boolean },
+  input: { profileCode: string; hubTenantId: string; write: boolean; /** Override the built-in table (a content fixture). */ facts?: HeroFacts },
 ): Promise<HeroFactsResult | null> {
-  const facts = HERO_FACTS[input.profileCode];
+  const facts = input.facts ?? HERO_FACTS[input.profileCode];
   if (!facts) return null;
   const { data: tp, error } = await admin
     .from("talent_profiles")
@@ -92,15 +97,15 @@ export async function applyHeroFacts(
   for (const [key, value] of values) {
     const defId = defs.get(key);
     if (!defId) throw new Error(`field definition ${key} is missing (is migration 20261231299620 applied?)`);
-    if (key !== "identity.headline") {
-      const { data: have } = await admin
-        .from("talent_profile_field_values")
-        .select("id")
-        .eq("talent_profile_id", profile.id)
-        .eq("field_definition_id", defId)
-        .maybeSingle();
-      if (have) continue; // already set: never overwrite a demo's own tagline or years
-    }
+    const { data: have, error: haveErr } = await admin
+      .from("talent_profile_field_values")
+      .select("id, value")
+      .eq("talent_profile_id", profile.id)
+      .eq("field_definition_id", defId)
+      .maybeSingle();
+    if (haveErr) throw haveErr;
+    if (key !== "identity.headline" && have) continue; // already set: never overwrite a demo's own tagline or years
+    if (have && sameStable((have as { value: unknown }).value, value)) continue; // headline already current
     wrote.push(key);
     if (!input.write) continue;
     const { error: upErr } = await admin.from("talent_profile_field_values").upsert(

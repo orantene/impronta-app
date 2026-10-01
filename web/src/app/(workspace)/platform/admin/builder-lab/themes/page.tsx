@@ -16,6 +16,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 
 import { COPY, langOf } from "./copy";
+import { DemoRebuildPanel } from "./demo-rebuild-panel";
+import { demosFor } from "@/lib/talent-site/demos/registry";
+import type { DemoDesign } from "@/lib/talent-site/demos/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -104,6 +107,7 @@ export default async function BuilderLabThemesPage({
                 )}
               </div>
             </div>
+            {demosFor(d.slug as DemoDesign).length > 0 ? <DemoRebuildPanel design={d.slug} lang={lang} /> : null}
           </section>
         ))}
       </div>

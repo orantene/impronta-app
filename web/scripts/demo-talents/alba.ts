@@ -13,6 +13,8 @@
  */
 import type { DemoTalent } from "./demo-types";
 import { ALBA_PHOTO_SOURCES } from "./alba-photos";
+import { ALBA_TAGLINE } from "../../src/lib/talent-site/demos/hero-facts";
+import { ALBA_LOCATION } from "../../src/lib/talent-site/demos/location";
 
 export { ALBA_PHOTO_SOURCES };
 
@@ -30,14 +32,8 @@ export const ALBA: DemoTalent = {
   hours: { timezone: "America/Merida", days: [1, 2, 3, 4, 5, 6], startMin: 9 * 60, endMin: 20 * 60, slotMinutes: 30 },
   // The Location section: zone only (no address is stored), a private studio.
   // Hours come from `hours` above (Lun a sáb, con cita).
-  location: {
-    addressMode: "zone_only",
-    studioKind: "studio",
-    neighbourhood: "García Ginerés",
-    arrivalNote: "Estudio privado, solo con cita. Hay lugar para estacionarte en la calle.",
-  },
-  tagline:
-    "Manicura rusa, pestañas hechas a mano y cejas con diseño. Un estudio privado donde cada cita es solo tuya.",
+  location: ALBA_LOCATION,
+  tagline: ALBA_TAGLINE,
   bio: "Empecé haciendo uñas a mis amigas en la prepa. Nueve años después sigo con la misma obsesión: que salgas sintiéndote tú, pero mejor. Trabajo sola, con cita, y solo con productos que yo misma uso.",
   services: [
     {
