@@ -1,0 +1,101 @@
+import type { DesignPayload } from "@/lib/talent-site/theme-catalog/types";
+import { isLookOwnedTokenKey } from "@/lib/talent-site/theme-catalog/look-layer";
+import { STYLE_TOKEN_BY_KEY, styleTokenValidator } from "@/lib/site-admin/tokens/style-tokens";
+import type { ThemeDraft, ThemeDraftPreview, ThemeDraftResult, ThemeDraftStatus } from "./types";
+
+/** Raw row of public.talent_theme_drafts. */
+export interface ThemeDraftRow {
+  id: string;
+  design: string;
+  base_version: number;
+  payload: DesignPayload;
+  preview: ThemeDraftPreview | null;
+  rev: number;
+  status: ThemeDraftStatus;
+  published_version: number | null;
+  release_id: string | null;
+  updated_at: string;
+}
+
+export const THEME_DRAFT_COLUMNS =
+  "id, design, base_version, payload, preview, rev, status, published_version, release_id, updated_at";
+
+export function mapDraftRow(row: ThemeDraftRow): ThemeDraft {
+  return {
+    id: row.id,
+    design: row.design,
+    baseVersion: row.base_version,
+    payload: row.payload,
+    preview: row.preview ?? {},
+    rev: row.rev,
+    status: row.status,
+    publishedVersion: row.published_version ?? null,
+    releaseId: row.release_id ?? null,
+    updatedAt: row.updated_at,
+  };
+}
+
+export interface TokenPatchSplit {
+  /** Style tokens: key -> value, null removes. */
+  style: Record<string, string | null>;
+  /** Look-owned tokens (preview only): key -> value, null removes. */
+  look: Record<string, string | null>;
+  invalid: string[];
+}
+
+/** Route each patch key: look-owned first, then validated style tokens; anything else is invalid. */
+export function splitTokenPatch(patch: Record<string, string | null>): TokenPatchSplit {
+  const out: TokenPatchSplit = { style: {}, look: {}, invalid: [] };
+  for (const [key, value] of Object.entries(patch)) {
+    if (isLookOwnedTokenKey(key)) {
+      out.look[key] = value;
+      continue;
+    }
+    const def = STYLE_TOKEN_BY_KEY.get(key);
+    if (!def) {
+      out.invalid.push(key);
+      continue;
+    }
+    if (value === null || styleTokenValidator(def).safeParse(value).success) out.style[key] = value;
+    else out.invalid.push(key);
+  }
+  return out;
+}
+
+function applyPatch(base: Record<string, string> | undefined, patch: Record<string, string | null>) {
+  const next: Record<string, string> = { ...(base ?? {}) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) delete next[k];
+    else next[k] = v;
+  }
+  return next;
+}
+
+export function applyTokenSplit(
+  payload: DesignPayload,
+  preview: ThemeDraftPreview,
+  split: TokenPatchSplit,
+): { payload: DesignPayload; preview: ThemeDraftPreview } {
+  return {
+    payload:
+      Object.keys(split.style).length > 0
+        ? { ...payload, tokenDefaults: applyPatch(payload.tokenDefaults, split.style) }
+        : payload,
+    preview:
+      Object.keys(split.look).length > 0
+        ? { ...preview, previewTokens: applyPatch(preview.previewTokens, split.look) }
+        : preview,
+  };
+}
+
+/** Map the rows returned by a CAS update (`.eq("rev", expected)`) to a result. */
+export function mapCasResult(
+  rows: ThemeDraftRow[] | null,
+  error: { message: string } | null,
+): ThemeDraftResult<ThemeDraft> {
+  if (error) return { ok: false, code: "error", error: error.message };
+  if (!rows || rows.length === 0) {
+    return { ok: false, code: "stale_rev", error: "The draft changed since it was loaded." };
+  }
+  return { ok: true, value: mapDraftRow(rows[0]) };
+}
