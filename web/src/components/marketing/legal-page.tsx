@@ -3,6 +3,8 @@ import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./contai
 export type LegalSection = {
   heading: string;
   body: React.ReactNode;
+  /** Optional anchor (for links such as the Tulala strip's Cookies link). */
+  id?: string;
 };
 
 type Props = {
@@ -60,6 +62,7 @@ export function LegalPage({ eyebrow, title, lastUpdated, intro, sections }: Prop
             {sections.map((s, i) => (
               <section
                 key={s.heading}
+                id={s.id}
                 className={i > 0 ? "mt-10 border-t pt-10" : ""}
                 style={i > 0 ? { borderColor: "var(--plt-hairline)" } : undefined}
               >

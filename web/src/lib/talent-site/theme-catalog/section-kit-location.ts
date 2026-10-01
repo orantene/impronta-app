@@ -38,7 +38,7 @@ export function locationBlock(
           ...LOCATION_DEFAULT_PROPS,
           // Empty heading = derived from the studio kind ("Where to find me" ...).
           title: opts.heading ?? "",
-          eyebrow: opts.eyebrow ?? "",
+          ...(opts.eyebrow !== undefined ? { eyebrow: opts.eyebrow } : {}),
           band: opts.band !== false,
           mapSide: opts.mapSide ?? "left",
         },

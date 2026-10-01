@@ -17,6 +17,8 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 export const TULALA_LEGAL_TERMS_URL = "https://tulala.digital/legal/terms";
 export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
 export const TULALA_HOME_URL = "https://tulala.digital";
+/** No standalone cookies page exists yet: the platform privacy page's `#cookies` anchor stands in. */
+export const TULALA_LEGAL_COOKIES_URL = `${TULALA_LEGAL_PRIVACY_URL}#cookies`;
 
 /** Talent-host policy routes (served by the policy-pages work). */
 export const TALENT_BOOKING_POLICY_PATH = "/politicas";
@@ -57,8 +59,44 @@ export interface SocketModel {
   siteLinks: SocketLink[];
   tulalaLinks: SocketLink[];
   languages: SocketLanguage[];
-  /** null when whitelabel / paid plan hides the credit. */
-  credit: { label: string; href: string } | null;
+  /** null when whitelabel / paid plan hides the credit. `prefix` + linked `label`. */
+  credit: { prefix: string; label: string; href: string } | null;
+}
+
+/**
+ * The talent's short name for the strip's first group ("ALBA"): her display name
+ * when it is short, otherwise its first word. Null when there is no usable name.
+ */
+export function shortTalentName(name: string | null | undefined): string | null {
+  const full = (name ?? "").replace(/\s+/g, " ").trim();
+  if (!full) return null;
+  if (full.length <= 14) return full;
+  const first = full.split(" ")[0] ?? "";
+  return first.length > 0 ? first.slice(0, 14) : null;
+}
+
+interface HeaderLike {
+  props?: { sectionProps?: { regions?: Record<string, unknown> } };
+  children?: unknown;
+}
+
+/**
+ * True when the header already carries a language switch (a `language` item in
+ * its regions). The strip then drops its own language group: the language lives
+ * in the header, never twice.
+ */
+export function headerShowsLanguageSwitch(headerTree: readonly unknown[]): boolean {
+  for (const raw of headerTree) {
+    const n = raw as HeaderLike;
+    const regions = n?.props?.sectionProps?.regions;
+    if (regions && typeof regions === "object") {
+      for (const items of Object.values(regions)) {
+        if (Array.isArray(items) && items.some((i) => (i as { type?: unknown })?.type === "language")) return true;
+      }
+    }
+    if (Array.isArray(n?.children) && headerShowsLanguageSwitch(n.children as unknown[])) return true;
+  }
+  return false;
 }
 
 const LANGUAGE_LABELS: Record<string, string> = {
@@ -83,6 +121,10 @@ export function buildSocketModel(input: {
    * policy pages. Omit for the talent-site default.
    */
   siteLinks?: readonly SocketLink[];
+  /** The talent's display name: the first group is labelled with it ("Alba"). */
+  talentName?: string | null;
+  /** The header already has a language switch, so the strip does not repeat it. */
+  headerHasLanguageSwitch?: boolean;
 }): SocketModel {
   const { locale } = input;
   const prefix = input.publicPathPrefix.replace(/\/+$/, "");
@@ -126,11 +168,17 @@ export function buildSocketModel(input: {
       href: TULALA_LEGAL_PRIVACY_URL,
       external: true,
     },
+    {
+      key: "tulala-cookies",
+      label: "Cookies",
+      href: TULALA_LEGAL_COOKIES_URL,
+      external: true,
+    },
   ];
 
   const hrefs = input.switcherHrefs;
   const languages: SocketLanguage[] =
-    input.supportedLocales.length >= 2 && hrefs
+    !input.headerHasLanguageSwitch && input.supportedLocales.length >= 2 && hrefs
       ? input.supportedLocales
           .filter((l) => typeof hrefs[l] === "string")
           .map((l) => ({
@@ -142,7 +190,7 @@ export function buildSocketModel(input: {
       : [];
 
   return {
-    siteGroupLabel: pickLocale(locale, { en: "This site", es: "Este sitio" }),
+    siteGroupLabel: shortTalentName(input.talentName) ?? pickLocale(locale, { en: "This site", es: "Este sitio" }),
     tulalaGroupLabel: "Tulala",
     langGroupLabel: pickLocale(locale, { en: "Language", es: "Idioma" }),
     siteLinks,
@@ -151,7 +199,8 @@ export function buildSocketModel(input: {
     credit:
       input.showCredit && !input.whitelabel
         ? {
-            label: pickLocale(locale, { en: "Powered by Tulala", es: "Hecho con Tulala" }),
+            prefix: pickLocale(locale, { en: "Site made with", es: "Sitio creado con" }),
+            label: "Tulala.digital",
             href: TULALA_HOME_URL,
           }
         : null,

@@ -79,7 +79,7 @@ export function useCatalogBookingConfirm(input: {
     if (input.captchaRequired && !input.captchaToken.trim()) {
       input.setError(
         input.locale.toLowerCase().startsWith("es")
-          ? "Completá la verificación."
+          ? "Completa la verificación."
           : "Complete the verification.",
       );
       return;

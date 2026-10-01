@@ -128,7 +128,7 @@ export function CatalogPurchaseMount({
     if (paymentSetupBlocksBuy) {
       return pickLocale(locale, {
         en: "Online payment is not available right now. Send an inquiry to continue.",
-        es: "El pago en línea no está disponible por ahora. Enviá una consulta para continuar.",
+        es: "El pago en línea no está disponible por ahora. Envía una consulta para continuar.",
       });
     }
     if (d.reserveMode === "free") {

@@ -231,9 +231,23 @@ export function revertR21(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6, 21 = release 2.7), rebuilt from code. */
+/**
+ * v22 back to v21: the Location heading's eyebrow was an explicit empty string (it now reads
+ * "Tu visita" by default), and the footer line was 44px phone / 88px desktop (the mockup: 40 / 64).
+ */
+export function revertR22(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  Object.assign(out.tokenDefaults!, { "type.footer-title-size": "44px", "type.footer-title-size-desktop": "88px" });
+  walkNodes(out.homeTree, (n) => {
+    if (n.kind === "visit" && propsOf(n).layout === "location") propsOf(n).eyebrow = "";
+  });
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 21 = release 2.7, 22 = release 2.8), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 22) out = revertR22(out);
   if (version < 21) out = revertR21(out);
   if (version < 20) out = revertR20(out);
   if (version < 19) out = revertR19(out);

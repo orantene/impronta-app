@@ -130,7 +130,7 @@ export function whoStepPrimaryLabel(input: {
     return whoPrimaryCtaLabel(input.whoPrimaryCta, input.locale);
   }
   const es = input.locale.toLowerCase().startsWith("es");
-  return es ? "Chateá ahora" : "Chat now";
+  return es ? "Chatea ahora" : "Chat now";
 }
 
 /**
@@ -145,7 +145,7 @@ export function whenStepTimeGroupLabel(input: {
   if (input.action === "chat") {
     return es ? "Horario preferido" : "Preferred time";
   }
-  return es ? "Elegí un horario" : "Pick a time";
+  return es ? "Elige un horario" : "Pick a time";
 }
 
 /** Choose-step CTA when advancing to the when step. */
@@ -156,7 +156,7 @@ export function chooseStepContinueLabel(input: {
 }): string {
   const es = input.locale.toLowerCase().startsWith("es");
   if (input.needsOption) {
-    return es ? "Elegí una opción" : "Choose an option";
+    return es ? "Elige una opción" : "Choose an option";
   }
   if (input.action === "chat") {
     return es ? "Continuar: horario preferido" : "Continue: preferred time";
