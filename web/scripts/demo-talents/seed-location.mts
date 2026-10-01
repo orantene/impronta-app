@@ -3,8 +3,10 @@
  * talents that define `location` (Alba today). A one-row, idempotent upsert:
  * unlike seed.mts it does not touch offerings, photos, reviews or the site.
  *
- * Safety: the target project is named explicitly, only TAL-93xxx profile codes
- * are touched, and demos are written in "zone only" mode with NO exact address
+ * Safety: the target project is named explicitly, and a row is written ONLY
+ * when `talent_profiles.is_demo = true`. The TAL-93xxx code check is an extra
+ * filter, never the guard: QA users (TAL-93900, TAL-93901) share that range and
+ * are NOT demos. Demos are written in "zone only" mode with NO exact address
  * (nothing private exists to leak). Add --dry-run to print what would change.
  *
  * Run (from web/):
@@ -30,12 +32,16 @@ for (const d of DEMOS) {
   if (!/^TAL-93\d{3}$/.test(d.profileCode)) throw new Error(`REFUSE: ${d.profileCode} is not a demo code`);
   const { data: profile, error } = await admin
     .from("talent_profiles")
-    .select("id")
+    .select("id, is_demo")
     .eq("profile_code", d.profileCode)
     .maybeSingle();
   if (error) throw error;
   if (!profile) {
     console.warn(`  ${d.profileCode} (${d.displayName}): not seeded on this project, skipped`);
+    continue;
+  }
+  if ((profile as { is_demo?: boolean | null }).is_demo !== true) {
+    console.warn(`  ${d.profileCode} (${d.displayName}): is_demo is not true, REFUSED (not a demo)`);
     continue;
   }
   const row = {
