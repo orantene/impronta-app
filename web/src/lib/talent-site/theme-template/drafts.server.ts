@@ -5,6 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { loadThemeVersionPayload } from "@/lib/talent-site/theme-releases/theme-versions.server";
 import type { DesignPayload } from "@/lib/talent-site/theme-catalog/types";
+import { galleryPaletteLookTokens } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { editorPaletteKey } from "@/lib/talent-site/theme-catalog/design-palettes";
 import { canonicalDesignPayload, freezeDesignKeysHook, rekeyOnSave } from "./canonical";
 import {
@@ -14,6 +15,7 @@ import {
   mapDraftRow,
   splitTokenPatch,
   type ThemeDraftRow,
+  minimizePaletteEdits,
 } from "./drafts-pure";
 import type {
   ThemeDraft,
@@ -127,12 +129,15 @@ export async function saveThemeDraftTokens(
   admin: SupabaseClient,
   input: ThemeDraftSaveTokens,
 ): Promise<ThemeDraftResult<ThemeDraft>> {
-  const split = splitTokenPatch(input.patch, editorPaletteKey(input.design, input.look ?? null));
+  const paletteKey = editorPaletteKey(input.design, input.look ?? null);
+  const split = splitTokenPatch(input.patch, paletteKey);
   if (split.invalid.length > 0) return fail("invalid", `Invalid token keys or values: ${split.invalid.join(", ")}`);
   const cur = await readOpen(admin, input.design);
   if (!cur.ok) return cur;
   if (cur.value.rev !== input.expectedRev) return fail("stale_rev", STALE);
-  const next = applyTokenSplit(cur.value.payload, cur.value.preview, split);
+  const code = paletteKey ? galleryPaletteLookTokens(input.design, paletteKey) : null;
+  const minimal = minimizePaletteEdits(split, cur.value.payload.palettes?.[paletteKey ?? ""], code);
+  const next = applyTokenSplit(cur.value.payload, cur.value.preview, minimal);
   return casUpdate(admin, cur.value, input.expectedRev, next, input.actorId);
 }
 

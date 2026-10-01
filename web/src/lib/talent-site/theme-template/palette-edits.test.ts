@@ -20,7 +20,7 @@ import type { DesignPayload } from "../theme-catalog/types";
 import { validateDesign } from "../theme-catalog/validate";
 import { mergeDesignUpdate } from "../theme-releases/merge";
 import { reverseTokenEntries } from "../theme-releases/tokens-merge";
-import { applyTokenSplit, splitTokenPatch } from "./drafts-pure";
+import { applyTokenSplit, minimizePaletteEdits, splitTokenPatch } from "./drafts-pure";
 import { canonicalDesign, planPublish, type DesignHistoryView, type PublishPorts } from "./publish-core";
 import { themeTemplateCanvasTokens, themeTemplateDrawerTokens } from "./theme-template-tokens";
 import type { ThemeDraft } from "./types";
@@ -170,4 +170,26 @@ test("canvas and drawer show the edited palette for the chosen look", () => {
   assert.equal(themeTemplateDrawerTokens(d, null, "dark")["color.background"], NEW_BG);
   // Another palette is unaffected.
   assert.equal(themeTemplateDrawerTokens(d, null, "stone")["color.background"], STONE_BG);
+});
+
+test("one-colour edit with the whole palette sent stores exactly one key", () => {
+  const code = galleryPaletteLookTokens("folio", "stone")!;
+  const split = splitTokenPatch({ ...code, "color.background": NEW_BG }, "stone");
+  const min = minimizePaletteEdits(split, undefined, code);
+  assert.deepEqual(min.palette, { "color.background": NEW_BG });
+  const { payload } = applyTokenSplit(BASE, {}, min);
+  assert.deepEqual(payload.palettes?.stone, { "color.background": NEW_BG });
+});
+
+test("editing back to the code value removes the override", () => {
+  const code = galleryPaletteLookTokens("folio", "stone")!;
+  const split = splitTokenPatch({ "color.background": code["color.background"]! }, "stone");
+  const min = minimizePaletteEdits(split, { "color.background": NEW_BG }, code);
+  assert.deepEqual(min.palette, { "color.background": null });
+});
+
+test("drawer shows the code muted for a prefixed look slug", () => {
+  const code = galleryPaletteLookTokens("folio", "stone")!;
+  const shown = themeTemplateDrawerTokens(draft(BASE), null, "folio-stone");
+  assert.equal(shown["color.muted"], code["color.muted"]);
 });

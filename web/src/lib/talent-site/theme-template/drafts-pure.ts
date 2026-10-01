@@ -81,6 +81,33 @@ export function splitTokenPatch(
   return out;
 }
 
+/**
+ * Palette edits store ONLY real changes: a value equal to the current stored
+ * override (or, with none, the code palette) is a no-op; a value equal to the
+ * code palette removes the override (null). The drawer sends its whole
+ * working copy, so untouched colours must never become overrides.
+ */
+export function minimizePaletteEdits(
+  split: TokenPatchSplit,
+  stored: Record<string, string> | undefined,
+  code: Record<string, string> | null,
+): TokenPatchSplit {
+  const edits = split.palette ?? {};
+  const palette: Record<string, string | null> = {};
+  for (const [k, v] of Object.entries(edits)) {
+    const eq = (a: string | undefined, b: string) => a !== undefined && a.toLowerCase() === b.toLowerCase();
+    const effective = stored?.[k] ?? code?.[k];
+    if (v === null) {
+      if (stored && k in stored) palette[k] = null;
+    } else if (eq(code?.[k], v)) {
+      if (stored && k in stored) palette[k] = null;
+    } else if (!eq(effective, v)) {
+      palette[k] = v;
+    }
+  }
+  return { ...split, palette };
+}
+
 function applyPatch(base: Record<string, string> | undefined, patch: Record<string, string | null>) {
   const next: Record<string, string> = { ...(base ?? {}) };
   for (const [k, v] of Object.entries(patch)) {
