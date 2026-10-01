@@ -37,16 +37,16 @@ import { useDockToast } from "./use-dock-toast";
 /* eslint-enable import/first */
 
 const here = dirname(fileURLToPath(import.meta.url));
-const ITEM = { id: "o1", title: "Gel pedicure", imageUrl: null, bits: null, totalCents: 30000, priceLabel: null };
+const ITEM: { id: string; title: string; imageUrl: string | null; bits: string | null; totalCents: number; priceLabel: string | null } = { id: "o1", title: "Gel pedicure", imageUrl: null, bits: null, totalCents: 30000, priceLabel: null };
 
-function mountDock(toast: DockToast | null = null) {
+function mountDock(toast: DockToast | null = null, item: typeof ITEM = ITEM) {
   const host = dom.window.document.createElement("div");
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   act(() =>
     root.render(
       <SelectionDock
-        items={[ITEM]}
+        items={[item]}
         show
         locale="es"
         formatPrice={(c) => `$${c / 100}`}
@@ -69,35 +69,52 @@ function mountDock(toast: DockToast | null = null) {
 
 // ── DK-1 ─────────────────────────────────────────────────────────────────────
 
-test("DK-1 without a live chat the button keeps the generic icon", () => {
+test("dock: the chat button is always the speech-bubble icon, never the talent photo", () => {
+  for (const presence of [null, { photoUrl: "https://example.test/alba.jpg", name: "Alba", unread: false }]) {
+    setChatPresence(presence);
+    const { host, unmount } = mountDock();
+    const ask = host.querySelector(".cb-dock-ask")!;
+    assert.ok(ask.querySelector("svg"), "chat icon");
+    assert.equal(ask.querySelector("img"), null, "no photo on the chat button");
+    assert.equal(host.querySelector("[data-dock-avatar]"), null);
+    unmount();
+  }
   setChatPresence(null);
-  const { host, unmount } = mountDock();
-  assert.equal(host.querySelector("[data-dock-avatar]"), null);
-  assert.ok(host.querySelector(".cb-dock-ask svg"));
-  unmount();
 });
 
-test("DK-1 with a live chat the button wears her photo, with the online dot", () => {
+test("dock: online and unread are small dots on the icon, only while the chat is live", () => {
+  setChatPresence(null);
+  const off = mountDock();
+  assert.equal(off.host.querySelector(".cb-dock-ask .cb-dock-dot"), null, "no live chat, no online dot");
+  off.unmount();
   setChatPresence({ photoUrl: "https://example.test/alba.jpg", name: "Alba", unread: false });
-  const { host, unmount } = mountDock();
-  const img = host.querySelector<HTMLImageElement>("[data-dock-avatar]")!;
-  assert.equal(img.getAttribute("src"), "https://example.test/alba.jpg");
-  assert.equal(img.getAttribute("alt"), "", "decorative: the button keeps its own label");
-  assert.equal(host.querySelector(".cb-dock-ask svg"), null);
-  assert.ok(host.querySelector(".cb-dock-ask .cb-dock-dot"), "online dot");
-  assert.equal(host.querySelector("[data-dock-unread]"), null);
-  unmount();
+  const on = mountDock();
+  assert.ok(on.host.querySelector(".cb-dock-ask .cb-dock-dot"), "online dot");
+  assert.equal(on.host.querySelector("[data-dock-unread]"), null);
+  act(() => setChatPresence({ photoUrl: null, name: "Alba", unread: true }));
+  assert.ok(on.host.querySelector(".cb-dock-ask [data-dock-unread]"), "unread dot follows the chat");
+  on.unmount();
   setChatPresence(null);
 });
 
-test("DK-1 an unseen reply shows the unread dot, and it follows the chat as it changes", () => {
-  setChatPresence({ photoUrl: null, name: "Alba", unread: true });
-  const { host, unmount } = mountDock();
-  assert.ok(host.querySelector("[data-dock-unread]"));
-  assert.equal(host.querySelector("[data-dock-avatar]"), null, "no photo: the icon stays");
-  act(() => setChatPresence({ photoUrl: null, name: "Alba", unread: false }));
-  assert.equal(host.querySelector("[data-dock-unread]"), null);
-  unmount();
+test("dock: chat button first, then the service thumbnail, title, price and Continuar", () => {
+  const withPhoto = mountDock(null, { ...ITEM, imageUrl: "https://example.test/lift.jpg" });
+  const kids = [...withPhoto.host.querySelector(".cb-dock")!.children].map((c) => c.className.split(" ")[0]);
+  assert.deepEqual(kids.slice(0, 4), ["cb-dock-ask", "cb-dock-stack", "cb-dock-info", "cb-dock-go"]);
+  const thumb = withPhoto.host.querySelector<HTMLImageElement>(".cb-dock-stack img.cb-dock-th")!;
+  assert.equal(thumb.getAttribute("src"), "https://example.test/lift.jpg", "the service photo, not hers");
+  assert.equal(withPhoto.host.querySelector(".cb-dock-stack")!.getAttribute("data-dock-thumb"), "photo");
+  assert.match(withPhoto.host.querySelector(".cb-dock-info")!.textContent ?? "", /Gel pedicure/);
+  withPhoto.unmount();
+  // No photo: a rounded icon tile stands in, never the talent photo.
+  setChatPresence({ photoUrl: "https://example.test/alba.jpg", name: "Alba", unread: false });
+  const noPhoto = mountDock();
+  const stack = noPhoto.host.querySelector(".cb-dock-stack")!;
+  assert.equal(stack.getAttribute("data-dock-thumb"), "icon");
+  assert.ok(stack.querySelector(".cb-dock-th-icon svg"));
+  assert.equal(noPhoto.host.querySelector('img[src="https://example.test/alba.jpg"]'), null);
+  assert.ok(stack.querySelector(".cb-dock-x"), "remove stays reachable");
+  noPhoto.unmount();
   setChatPresence(null);
 });
 
@@ -179,7 +196,8 @@ test("TO-1 look and motion: Maison dark pill radius 14, 84px, rises in .2s; ever
   assert.match(css, /prefers-reduced-motion:reduce\)\{\.cb-dock,\.cb-dock \*,\.cb-dock-toast,\.cb-dock-go::after\{transition:none!important;animation:none!important\}\}/);
   const dockCss = css.slice(css.indexOf("/* AUD-044"));
   assert.doesNotMatch(dockCss, /#[0-9a-fA-F]{3,8}\b/);
-  assert.match(dockCss, /\.cb-dock-avatar\{/);
+  assert.doesNotMatch(dockCss, /cb-dock-avatar/);
+  assert.match(dockCss, /\.cb-dock-th-icon\{/);
   assert.match(dockCss, /\.cb-dock-unread\{/);
 });
 
