@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
+import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
@@ -253,6 +254,8 @@ export default async function RootLayout({
         {/* SPA page_view — GA4/pixel parity for client-side navigations
             (gtag config above uses send_page_view:false; this owns it). */}
         <SpaPageViewTracker />
+        {/* Consent banner + reopen target for the footer "Privacy choices" link. */}
+        <AnalyticsConsentBanner locale={locale} />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}

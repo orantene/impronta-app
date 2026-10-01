@@ -2020,6 +2020,16 @@
         "changeLater": "El estilo, los colores y las fotos se cambian en el editor.",
         "continue": "Continuar"
       }
+    },
+    "consent": {
+      "ariaLabel": "Opciones de cookies y analítica",
+      "message": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
+      "privacyLink": "Política de privacidad",
+      "cookiesLink": "Política de cookies",
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "closeLabel": "Cerrar y decidir después",
+      "privacyChoices": "Opciones de privacidad"
     }
   },
   "dashboard": {
