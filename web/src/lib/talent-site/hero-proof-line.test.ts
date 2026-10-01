@@ -16,7 +16,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 test("the proof line: years, languages by their own names, rating and reviews", () => {
   const input = { years: 9, languages: ["Spanish", "English"], rating: 4.86, count: 212 };
   assert.equal(formatHeroProofLine(input, "en"), "9 years of craft · Español · English · ★ 4.9 · 212 reviews");
-  assert.equal(formatHeroProofLine(input, "es"), "9 años de oficio · Español · English · ★ 4.9 · 212 reseñas");
+  assert.equal(formatHeroProofLine(input, "es"), "9 años de oficio · Español · Inglés · ★ 4.9 · 212 reseñas");
 });
 
 test("every part drops out when unknown, and a new profile gets a shorter line, never a placeholder", () => {
@@ -108,7 +108,7 @@ test("the Spanish swap maps the baked English eyebrow and proof line; English an
   assert.equal(es["Nail Artist · Merida"], "Manicurista · Mérida");
   assert.equal(
     es["9 years of craft · Español · English · ★ 4.9 · 212 reviews"],
-    "9 años de oficio · Español · English · ★ 4.9 · 212 reseñas",
+    "9 años de oficio · Español · Inglés · ★ 4.9 · 212 reseñas",
   );
   const en = buildTalentLocaleSwaps(src, "en");
   assert.equal(en["9 years of craft · Español · English · ★ 4.9 · 212 reviews"], undefined);

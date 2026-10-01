@@ -18,6 +18,18 @@ export interface TalentLocaleSwapSource {
   typeNames: ReadonlyArray<LocalizedMapLike>;
   homeCity: LocalizedMapLike;
   /**
+   * Other spellings the baked English copy may carry for the home city (the
+   * ASCII-folded place text, "Cancun"). Each swaps to the localized city the
+   * same way `homeCity.en` does, so an older applied tree gains its accent.
+   */
+  cityAliases?: ReadonlyArray<string>;
+  /**
+   * Published service titles. The marquee, the service cards and every other
+   * baked list carry the English title; it swaps to the title for the locale
+   * (`title_i18n`), walking the same chain as the bio.
+   */
+  offerings?: ReadonlyArray<{ title: string | null; titleI18n: LocalizedMapLike }>;
+  /**
    * The facts behind the hero proof line. When present, the English line baked
    * into the applied tree swaps to its Spanish form (the line has numbers and
    * language names in it, so no exact-label map could cover it).
@@ -84,18 +96,25 @@ export function buildTalentLocaleSwaps(
     if (en) add(en, pick(names, key, chain));
   }
   const cityEn = src.homeCity?.en?.trim();
-  if (cityEn) {
-    const city = pick(src.homeCity, key, chain);
-    add(cityEn, city);
-    if (key === "es") add(`Based in ${cityEn}`, `Con base en ${city}`);
+  const cityNames = [cityEn, ...(src.cityAliases ?? [])].map((c) => c?.trim() ?? "").filter(Boolean);
+  if (cityEn || cityNames.length) {
+    const city = pick(src.homeCity, key, chain) || cityNames[0]!;
+    for (const name of new Set(cityNames)) {
+      add(name, city);
+      if (key === "es") add(`Based in ${name}`, `Con base en ${city}`);
+    }
+  }
+  for (const o of src.offerings ?? []) {
+    const en = (o.titleI18n?.en ?? o.title ?? "").trim();
+    if (en) add(en, pick(o.titleI18n, key, chain));
   }
   // The hero eyebrow is the trade and the city joined ("Nail Artist · Mérida"): a value of its own.
   const tradeEn = src.typeNames[0]?.en?.trim();
-  if (tradeEn && cityEn) {
-    add(
-      formatHeroEyebrow(tradeEn, cityEn),
-      formatHeroEyebrow(pick(src.typeNames[0], key, chain), pick(src.homeCity, key, chain)),
-    );
+  if (tradeEn) {
+    const city = pick(src.homeCity, key, chain) || cityNames[0] || "";
+    for (const name of new Set(cityNames)) {
+      add(formatHeroEyebrow(tradeEn, name), formatHeroEyebrow(pick(src.typeNames[0], key, chain), city));
+    }
   }
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));

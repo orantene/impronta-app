@@ -8,10 +8,13 @@ import {
   buildTalentLocaleSwaps,
   type LocalizedMapLike,
 } from "../talent-locale-swaps";
+import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import { loadHeroProofData } from "./load-hero-proof";
+import { canonicalCityLabel } from "./city-label.server";
 
 type Row = {
   bio_i18n: LocalizedMapLike;
+  home_city_text: string | null;
   talent_profile_taxonomy:
     | Array<{
         is_primary: boolean | null;
@@ -37,6 +40,7 @@ export async function loadTalentLocaleSwaps(
       .from("talent_profiles")
       .select(`
         bio_i18n,
+        home_city_text,
         talent_profile_taxonomy ( is_primary, display_order, taxonomy_terms ( kind, name_i18n ) ),
         talent_service_areas ( service_kind, locations ( display_name_i18n ) )
       `)
@@ -57,11 +61,34 @@ export async function loadTalentLocaleSwaps(
     // The hero proof line only needs a Spanish form; other locales skip the extra reads.
     const spanish = (locale ?? "").trim().toLowerCase().startsWith("es");
     const proof = spanish ? await loadProofInput(admin, talentProfileId) : undefined;
+    // The city as baked (the location's English name, else the drawer's place
+    // text) and its accented form for this locale: "Cancun" reads "Cancún".
+    const cityMap = home?.locations?.display_name_i18n ?? null;
+    const rawCity = cityMap?.en?.trim() || cityLabelFromPlaceText(row.home_city_text) || "";
+    const lang = (locale ?? "en").trim().toLowerCase().slice(0, 2) || "en";
+    const canon = rawCity ? await canonicalCityLabel(admin, rawCity, lang) : "";
+    const homeCity: LocalizedMapLike = rawCity
+      ? { ...(cityMap ?? {}), en: cityMap?.en?.trim() || rawCity, ...(canon ? { [lang]: canon } : {}) }
+      : cityMap;
+    const { data: offerRows, error: offerError } = await admin
+      .from("talent_offerings")
+      .select("title, title_i18n")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("status", "published")
+      .limit(60);
+    // A failed read only leaves service titles unswapped (English), never blocks the page.
+    if (offerError) logServerError("talentSite.localeSwapsOfferings", offerError);
+    const offerings = ((offerRows ?? []) as { title: string | null; title_i18n: LocalizedMapLike }[]).map((o) => ({
+      title: o.title,
+      titleI18n: o.title_i18n,
+    }));
     return buildTalentLocaleSwaps(
       {
         bioI18n: effectiveBioI18n(row.bio_i18n, bios),
         typeNames: types,
-        homeCity: home?.locations?.display_name_i18n ?? null,
+        homeCity,
+        cityAliases: rawCity ? [rawCity] : [],
+        offerings,
         ...(proof ? { proof } : {}),
       },
       locale,
