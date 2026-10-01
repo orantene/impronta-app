@@ -1,0 +1,417 @@
+{
+  "slug": "maison-v2",
+  "label": "Maison v2",
+  "reference": {
+    "code": "TAL-93020",
+    "token": "alba",
+    "note": "Alba is the exact-content reference: style checks apply to her only."
+  },
+  "defaultTalents": [
+    "alba"
+  ],
+  "productExtras": ["#before-after", "#aftercare", "#contact", "#visit", "#comp_card"],
+  "mockup": {
+    "path": "maison-v2/",
+    "rootSel": "#site",
+    "readySel": "#devseg button",
+    "deviceSel": "#devseg button[data-d=\"{w}\"]",
+    "startSel": "#steps button[data-step=\"0\"]",
+    "scrollerSel": "#vp"
+  },
+  "stateEvals": {
+    "chat": "reset(); openService('lash4d'); S.draft.x = ['ret']; chatOpen(S.draft);",
+    "dock": "reset(); S.sel = [{ id: 'lash4d', v: 'vol', x: ['ret'] }]; render();",
+    "booking": "reset(); S.sel = [{ id: 'lash4d', v: 'vol', x: ['ret'] }, { id: 'mrusa', v: 'liso', x: [] }]; S.sheet = 'summary'; render();"
+  },
+  "order": [
+    "header",
+    "hero",
+    "work",
+    "menu",
+    "reviews",
+    "about",
+    "faq",
+    "location",
+    "footer",
+    "socket"
+  ],
+  "sections": [
+    {
+      "key": "header",
+      "label": "Header",
+      "mockup": [
+        ".m-hdr",
+        "#m-hdr"
+      ],
+      "product": [
+        "fn:header"
+      ],
+      "expects": [
+        {
+          "name": "section links (>= 3) or section menu",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3,
+          "alt": "[aria-haspopup], [aria-expanded]"
+        },
+        {
+          "name": "booking-mode CTA pill (desktop)",
+          "kind": "text",
+          "re": "navCta",
+          "minWidth": 1000
+        },
+        {
+          "name": "ES/EN switch",
+          "kind": "text",
+          "re": "langSwitch"
+        }
+      ]
+    },
+    {
+      "key": "hero",
+      "label": "Hero",
+      "mockup": [
+        "section.hero",
+        "#hero"
+      ],
+      "product": [
+        "#hero",
+        "[data-slot-key='hero']",
+        "[data-anchor-id='hero']"
+      ],
+      "expects": [
+        {
+          "name": "eyebrow",
+          "kind": "eyebrow"
+        },
+        {
+          "name": "headline (h1)",
+          "kind": "sel",
+          "sel": "h1",
+          "min": 1
+        },
+        {
+          "name": "lede paragraph",
+          "kind": "sel",
+          "sel": "p",
+          "min": 1
+        },
+        {
+          "name": "CTA pair (2 actions)",
+          "kind": "ctaPair"
+        },
+        {
+          "name": "proof line",
+          "kind": "text",
+          "re": "proof"
+        },
+        {
+          "name": "next-free chip",
+          "kind": "text",
+          "re": "nextFree"
+        },
+        {
+          "name": "hero photo",
+          "kind": "sel",
+          "sel": "img",
+          "min": 1
+        }
+      ],
+      "style": [
+        {
+          "name": "eyebrow",
+          "pick": "eyebrow"
+        },
+        {
+          "name": "headline",
+          "sel": "h1"
+        },
+        {
+          "name": "button",
+          "pick": "solidButton"
+        }
+      ]
+    },
+    {
+      "key": "work",
+      "label": "Work / portfolio",
+      "mockup": [
+        "#s-work"
+      ],
+      "product": [
+        "#gallery",
+        "#work",
+        "#portfolio",
+        "[data-slot-key='gallery']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2, h3",
+          "min": 1
+        },
+        {
+          "name": "photos (>= 3)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 3
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "menu",
+      "label": "Menu (#services)",
+      "mockup": [
+        "#s-menu"
+      ],
+      "product": [
+        "#services",
+        "[data-slot-key='services']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "menu intro line (currency)",
+          "kind": "text",
+          "re": "menuIntro"
+        },
+        {
+          "name": "row cards (>= 3 thumbs)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 3
+        },
+        {
+          "name": "prices on rows",
+          "kind": "text",
+          "re": "price"
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "reviews",
+      "label": "Reviews",
+      "mockup": [
+        "#s-revs"
+      ],
+      "product": [
+        "#reviews",
+        "[data-slot-key='reviews']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "review cards (>= 1)",
+          "kind": "sel",
+          "sel": "q, blockquote, figure",
+          "min": 1
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "about",
+      "label": "About",
+      "mockup": [
+        "#s-about"
+      ],
+      "product": [
+        "#about",
+        "[data-slot-key='about']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "portrait",
+          "kind": "sel",
+          "sel": "img",
+          "min": 1
+        },
+        {
+          "name": "actions (>= 1)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "faq",
+      "label": "FAQ",
+      "mockup": [
+        "#s-faq"
+      ],
+      "product": [
+        "#faq",
+        "[data-slot-key='faq']",
+        "fn:faq"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "questions (>= 2)",
+          "kind": "sel",
+          "sel": "details, [aria-expanded]",
+          "min": 2
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "location",
+      "label": "Location (#location)",
+      "mockup": [
+        "#s-loc"
+      ],
+      "product": [
+        "#location",
+        "#visit",
+        "[data-slot-key='location']",
+        "[data-slot-key='visit']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "location rows (text)",
+          "kind": "text",
+          "re": "where"
+        },
+        {
+          "name": "actions (directions / chat)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "footer",
+      "label": "Footer",
+      "mockup": [
+        "#s-foot"
+      ],
+      "product": [
+        "#s-foot",
+        "fn:footer"
+      ],
+      "expects": [
+        {
+          "name": "big line (h2)",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "Where column",
+          "kind": "text",
+          "re": "where"
+        },
+        {
+          "name": "Contact column",
+          "kind": "text",
+          "re": "contact"
+        },
+        {
+          "name": "booking button",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ],
+      "style": [
+        {
+          "name": "heading",
+          "sel": "h2"
+        }
+      ]
+    },
+    {
+      "key": "socket",
+      "label": "Footer socket",
+      "mockup": [
+        ".bstrip"
+      ],
+      "product": [
+        ".tulala-socket",
+        "fn:socket"
+      ],
+      "expects": [
+        {
+          "name": "policy links (>= 3)",
+          "kind": "countText",
+          "re": "policy",
+          "min": 3,
+          "sel": "a, button"
+        },
+        {
+          "name": "Tulala attribution",
+          "kind": "text",
+          "re": "(Tulala)"
+        }
+      ]
+    }
+  ]
+}

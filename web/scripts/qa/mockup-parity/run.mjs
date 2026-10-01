@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Mockup parity: headless visual + structural comparison of a talent's published
- * Maison v2 site against the approved mockup. Read-only (see docs/qa/mockup-parity.md).
+ * site (any design with a parity-map.json) against its approved mockup. Read-only (see docs/qa/mockup-parity.md).
  *
  *   npm run qa:mockup-parity -- [--talents alba,valeria,TAL-93020|--all-maison-v2]
  *     [--widths 390,360,1440] [--locale es|en] [--states static,chat,dock,booking]
@@ -16,21 +16,22 @@ import { chromium } from "playwright";
 import { loadEnvLocal } from "../../load-env-local.mjs";
 import { analyze } from "./analyze.mjs";
 import { writeReport } from "./report.mjs";
-import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, ORDER, SECTIONS } from "./section-map.mjs";
+import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, STATE_KEYS, loadDesign } from "./section-map.mjs";
 
 loadEnvLocal();
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB = join(HERE, "..", "..", "..");
-const ALBA_CODE = "TAL-93020";
+
 
 // ---------------------------------------------------------------- args
 function parseArgs(argv) {
-  const o = { talents: [], all: false, widths: [390], locale: "es", states: ["static", "chat", "dock", "booking"], baseUrl: "http://localhost:3001", mockupUrl: "http://localhost:3099/", drafts: false, storageState: null, out: null, public: false, apex: "tulala.digital", allowActions: false };
+  const o = { design: "maison-v2", talents: [], all: false, widths: [390], locale: "es", states: null, baseUrl: "http://localhost:3001", mockupUrl: null, drafts: false, storageState: null, out: null, public: false, apex: "tulala.digital", allowActions: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = () => argv[++i];
     if (a === "--talents") o.talents = v().split(",").map((s) => s.trim()).filter(Boolean);
-    else if (a === "--all-maison-v2") o.all = true;
+    else if (a === "--design") o.design = v();
+    else if (/^--all(-.+)?$/.test(a)) { o.all = true; if (a !== "--all") o.allDesign = a.slice(6); } // --all-<design>, e.g. --all-maison-v2, --all-folio
     else if (a === "--widths") o.widths = v().split(",").map(Number).filter(Boolean);
     else if (a === "--locale") o.locale = v();
     else if (a === "--states") o.states = v().split(",").map((s) => s.trim());
@@ -45,11 +46,21 @@ function parseArgs(argv) {
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
-  if (!o.talents.length && !o.all) o.talents = ["alba"];
+  if (o.allDesign) o.design = o.allDesign; // --all-folio implies --design folio
   if (!["es", "en"].includes(o.locale)) { console.error("--locale must be es or en"); process.exit(2); }
   return o;
 }
 const opts = parseArgs(process.argv.slice(2));
+let DESIGN;
+try { DESIGN = loadDesign(opts.design); } catch (e) { console.error(String(e.message || e)); process.exit(2); }
+const SECTIONS = DESIGN.sections;
+const ORDER = DESIGN.order;
+if (!opts.talents.length && !opts.all) opts.talents = DESIGN.defaultTalents || [DESIGN.reference.token];
+if (!opts.mockupUrl) opts.mockupUrl = `http://localhost:3098/${DESIGN.mockup.path}`;
+const SUPPORTED_STATES = ["static", ...(DESIGN.states || ["chat", "dock", "booking"])];
+const requested = opts.states || ["static", "chat", "dock", "booking"];
+const skippedStates = requested.filter((s) => !SUPPORTED_STATES.includes(s));
+opts.states = requested.filter((s) => SUPPORTED_STATES.includes(s));
 
 // Read-only guard: agents QA on local servers only (web/AGENTS.md, Verification).
 for (const u of [opts.baseUrl, opts.mockupUrl]) {
@@ -72,14 +83,15 @@ async function rest(path) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolveTalents() {
-  const siteRows = await rest("talent_sites?select=talent_profile_id,status,site_slug,theme_design_slug&theme_design_slug=eq.maison-v2");
+  const siteRows = await rest(`talent_sites?select=talent_profile_id,status,site_slug,theme_design_slug&theme_design_slug=eq.${opts.design}`);
   const siteBy = new Map(siteRows.map((s) => [s.talent_profile_id, s]));
   let profiles = [];
   if (opts.all) {
     const ids = siteRows.map((s) => s.talent_profile_id);
     if (ids.length) profiles = await rest(`talent_profiles?select=id,profile_code,display_name,is_demo&id=in.(${ids.join(",")})`);
   }
-  for (const tok of opts.talents) {
+  for (const tok0 of opts.talents) {
+    const tok = tok0.toLowerCase() === String(DESIGN.reference.token).toLowerCase() ? DESIGN.reference.code : tok0; // "alba" / "mateo" -> the design's reference demo
     const filters = [`profile_code.ilike.*${tok}*`, `display_name.ilike.*${tok}*`];
     if (UUID.test(tok)) filters.push(`id.eq.${tok}`);
     const hit = await rest(`talent_profiles?select=id,profile_code,display_name,is_demo&or=(${filters.join(",")})`);
@@ -100,7 +112,7 @@ async function resolveTalents() {
     if (opts.all && !opts.talents.length && t.status !== "published" && !opts.drafts) { skippedDrafts.push(t); continue; }
     out.push(t);
   }
-  out.sort((a, b) => (a.code === ALBA_CODE ? -1 : b.code === ALBA_CODE ? 1 : a.code.localeCompare(b.code)));
+  out.sort((a, b) => (a.code === DESIGN.reference.code ? -1 : b.code === DESIGN.reference.code ? 1 : a.code.localeCompare(b.code)));
   return { talents: out, skippedDrafts };
 }
 
@@ -129,7 +141,7 @@ async function stateFor(browser, ident) {
     await page.getByLabel(/email/i).fill(ident.email);
     await page.getByLabel(/password/i).fill(ident.password);
     await page.getByRole("button", { name: /sign in|log in|iniciar/i }).click();
-    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 });
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 60000 });
     st = await ctx.storageState();
   } catch {
     st = null;
@@ -183,7 +195,7 @@ async function lazyScroll(page) {
   });
   await page.waitForTimeout(400);
 }
-const analyzeArgs = (side, extra = {}) => ({ sections: SECTIONS, order: ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: "#site", ...extra });
+const analyzeArgs = (side, extra = {}) => ({ sections: SECTIONS, order: ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: DESIGN.mockup.rootSel, extraSels: DESIGN.productExtras || [], ...extra });
 const failed = (checks) => (checks || []).filter((c) => !c.ok).map((c) => `${c.name}${c.detail ? `: ${c.detail}` : ""}`);
 
 function colorDiff(a, b) {
@@ -214,16 +226,20 @@ async function captureMockup(browser, width) {
   const out = { shots: {}, analysis: null, selfCheck: [], ok: true };
   try {
     await page.goto(opts.mockupUrl, { waitUntil: "load", timeout: 20000 });
-    await page.waitForSelector("#devseg button", { timeout: 8000 });
-    const prime = async (fn) => {
-      await page.locator(`#devseg button[data-d="${width}"]`).click();
-      await page.evaluate(fn);
+    const M = DESIGN.mockup;
+    const devSel = M.deviceSel.replace("{w}", String(width));
+    await page.waitForSelector(M.readySel, { timeout: 8000 });
+    const prime = async (code) => {
+      await page.locator(devSel).click();
+      await page.evaluate(code);
       await page.waitForTimeout(500);
     };
-    await page.locator(`#devseg button[data-d="${width}"]`).click();
-    await page.locator('#steps button[data-step="0"]').click();
+    // Maison: device first, then the first journey step. Folio: its first step resets the device to 390, so the step goes first (`startFirst`).
+    if (M.startFirst) await page.locator(M.startSel).click();
+    await page.locator(devSel).click();
+    if (!M.startFirst) await page.locator(M.startSel).click();
     await page.waitForTimeout(600);
-    await page.evaluate(() => { const v = document.getElementById("vp"); if (v) { v.style.scrollBehavior = "auto"; } });
+    await page.evaluate((sel) => { const v = document.querySelector(sel); if (v) { v.style.scrollBehavior = "auto"; } }, M.scrollerSel);
     out.analysis = await page.evaluate(analyze, analyzeArgs("mockup"));
     for (const sec of SECTIONS) out.shots[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-key="${sec.key}"]`)) : null;
     for (const sec of SECTIONS) {
@@ -232,13 +248,12 @@ async function captureMockup(browser, width) {
       for (const f of failed(r.structure)) out.selfCheck.push(`${sec.key}: ${f}`);
     }
     if (width <= 480 && (out.analysis.page.headerRows || 0) > 1) out.selfCheck.push(`header: mockup itself is on ${out.analysis.page.headerRows} rows (header-row rule needs tuning)`);
-    const site = page.locator("#site");
-    await prime(() => { reset(); openService("lash4d"); S.draft.x = ["ret"]; chatOpen(S.draft); });
-    out.shots.chat = await safeShot(site);
-    await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }]; render(); });
-    out.shots.dock = await safeShot(site);
-    await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }, { id: "mrusa", v: "liso", x: [] }]; S.sheet = "summary"; render(); });
-    out.shots.booking = await safeShot(site);
+    const site = page.locator(M.rootSel);
+    for (const st of STATE_KEYS) {
+      if (!opts.states.includes(st) || !DESIGN.stateEvals[st]) continue;
+      await prime(DESIGN.stateEvals[st]); // a JS string evaluated in the mockup page (the mockup's own state functions)
+      out.shots[st] = await safeShot(site);
+    }
   } catch (e) {
     out.ok = false;
     out.error = String(e.message || e).split("\n")[0];
@@ -250,7 +265,7 @@ async function captureMockup(browser, width) {
 // ---------------------------------------------------------------- product capture
 async function loadProduct(ctx, talent, width) {
   const page = await ctx.newPage();
-  const resp = await page.goto(siteUrl(talent), { waitUntil: "load", timeout: 30000 }).catch((e) => ({ err: e }));
+  const resp = await page.goto(siteUrl(talent), { waitUntil: "load", timeout: 120000 }).catch((e) => ({ err: e }));
   if (!resp || resp.err) return { page, error: `navigation failed: ${String(resp?.err?.message || "").split("\n")[0]}` };
   if (resp.status() !== 200) return { page, error: `HTTP ${resp.status()}` };
   await page.waitForLoadState("networkidle", { timeout: 9000 }).catch(() => {});
@@ -264,7 +279,7 @@ const finish = (r) => { r.status = r.status === "BLOCKED" ? "BLOCKED" : r.reason
 
 async function scanStatic(ctx, talent, width, mock, rows) {
   const { page, error } = await loadProduct(ctx, talent, width);
-  const isAlba = talent.code === ALBA_CODE;
+  const isRef = talent.code === DESIGN.reference.code;
   if (error) {
     const r = row(talent, width, "page", "Page render");
     r.reasons.push(`site did not render (${error})`);
@@ -292,16 +307,18 @@ async function scanStatic(ctx, talent, width, mock, rows) {
     const r = row(talent, width, sec.key, sec.label);
     const a = res.sections[sec.key];
     if (!a?.present) {
-      if (sec.optional && !isAlba) r.warnings.push("absent (optional: hidden without data)");
-      else r.reasons.push(`section not found (tried ${sec.product.join(" | ")})`);
+      if (sec.optional && !isRef) r.warnings.push("absent (optional: hidden without data)");
+      else if (sec.missing) r.reasons.push(`not in the product: ${sec.missing}${sec.layer ? ` [layer: ${sec.layer}]` : ""}`);
+      else r.reasons.push(`section not found (tried ${sec.product.join(" | ")})${sec.layer ? ` [layer: ${sec.layer}]` : ""}`);
     } else {
       r.reasons.push(...failed(a.structure), ...failed(a.layout), ...failed(a.i18n));
       if (a.order && !a.order.ok) r.reasons.push(`order: ${a.order.detail}`);
-      if (isAlba) r.reasons.push(...styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
+      if (isRef) r.reasons.push(...styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
       r.product = await safeShot(page.locator(`[data-parity-key="${sec.key}"]`));
     }
     r.mockup = mock.shots[sec.key];
     if (mock.ok === false) r.warnings.push(`mockup unavailable: ${mock.error}`);
+    if (sec.layerHint && r.reasons.length) r.warnings.push(`likely layer: ${sec.layerHint}`);
     rows.push(finish(r));
   }
   await page.close();
@@ -480,6 +497,8 @@ async function main() {
 
   const summary = {
     timestamp: ts,
+    design: opts.design,
+    skippedStates,
     baseUrl: opts.baseUrl,
     mockupUrl: opts.mockupUrl,
     locale: opts.locale,
@@ -509,6 +528,7 @@ async function main() {
   const byReason = new Map();
   for (const f of summary.failures) for (const reason of f.reasons) { const k = reason.replace(/\d+/g, "N").slice(0, 90); byReason.set(k, (byReason.get(k) || 0) + 1); }
   [...byReason.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).forEach(([k, n]) => console.log(`  ${String(n).padStart(3)} x ${k}`));
+  if (skippedStates.length) console.log(`states not defined for ${opts.design}, skipped: ${skippedStates.join(", ")}`);
   if (skippedDrafts.length) console.log(`skipped (draft, unpublished): ${summary.skippedDrafts.join(", ")} (use --include-drafts)`);
   const mc = Object.values(summary.mockupSelfCheck).flat();
   if (mc.length) console.log(`mockup self-check notes: ${mc.length} (see summary.json; rules that fail on the mockup need tuning)`);

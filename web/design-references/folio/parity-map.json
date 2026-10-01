@@ -1,0 +1,140 @@
+{
+  "slug": "folio",
+  "label": "Folio (TH02)",
+  "reference": { "code": "TAL-93011", "token": "mateo", "note": "Mateo Ferrer is the exact-content reference: style checks apply to him only." },
+  "defaultTalents": ["mateo"],
+  "productExtras": ["#about", "#contact", ".tulala-socket"],
+  "states": [],
+  "mockup": {
+    "path": "folio/",
+    "rootSel": "#site",
+    "readySel": "#rv-dev button",
+    "deviceSel": "#rv-dev button[data-d=\"{w}\"]",
+    "startSel": "#rv-steps button[data-i=\"0\"]",
+    "startFirst": true,
+    "scrollerSel": "#vp"
+  },
+  "order": ["header", "cover", "spread", "contents", "chapter1", "chapter2", "comp", "rates", "end"],
+  "sections": [
+    {
+      "key": "header",
+      "label": "Header (masthead bar)",
+      "mockup": [".fo-hdr"],
+      "product": ["fn:header"],
+      "layerHint": "kit (header shell) or token",
+      "expects": [
+        { "name": "nav links (>= 3, desktop)", "kind": "sel", "sel": "nav a", "min": 3, "minWidth": 1000 },
+        { "name": "inquiry CTA pill (desktop)", "kind": "text", "re": "inquiryCta", "minWidth": 1000 }
+      ]
+    },
+    {
+      "key": "cover",
+      "label": "Cover name (hero · magazine-cover)",
+      "mockup": [".fo-name"],
+      "product": ["#hero .sb-mag-name", "[data-slot-key='hero'] .sb-mag-name"],
+      "layerHint": "kit (magazine-cover) or token (clamp size)",
+      "expects": [
+        { "name": "name stacked over lines (>= 2 spans)", "kind": "sel", "sel": "span", "min": 2 }
+      ],
+      "style": [{ "name": "name", "sel": ":self" }]
+    },
+    {
+      "key": "spread",
+      "label": "Cover spread (image + tagline + actions)",
+      "mockup": [".fo-spread"],
+      "product": ["#hero .sb-mag-spread", "[data-slot-key='hero'] .sb-mag-spread"],
+      "layerHint": "payload (hero lines/tagline) or kit",
+      "expects": [
+        { "name": "cover photo", "kind": "sel", "sel": "img", "min": 1 },
+        { "name": "cover caption (small line)", "kind": "sel", "sel": "figcaption, .fo-lines", "min": 1 },
+        { "name": "tagline paragraph", "kind": "sel", "sel": ".fo-tag p, .sb-mag-tag p", "min": 1 },
+        { "name": "action pair (2 buttons)", "kind": "sel", "sel": ".k-btn, .sb-mag-btn", "min": 2 }
+      ],
+      "style": [
+        { "name": "tagline", "sel": ".fo-tag p, .sb-mag-tag p" },
+        { "name": "button", "sel": ".k-btn, .sb-mag-btn" }
+      ]
+    },
+    {
+      "key": "contents",
+      "label": "Contents (.fo-toc)",
+      "mockup": [".fo-toc"],
+      "product": ["#contents .sb-mag-toc", "#hero .sb-mag-toc", ".sb-mag-toc"],
+      "layerHint": "kit (section preset)",
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "entries (>= 3)", "kind": "sel", "sel": "li, button", "min": 3 },
+        { "name": "roman numerals", "kind": "text", "re": "\\bI+\\b" }
+      ],
+      "style": [{ "name": "heading", "sel": "h2" }]
+    },
+    {
+      "key": "chapter1",
+      "label": "Chapter I (portfolio · chapter-sequence)",
+      "mockup": ["#ch1"],
+      "product": ["#chapter-1", "[data-slot-key='gallery'] .sb-portfolio:first-of-type"],
+      "layerHint": "kit (chapter-sequence) or payload (captions)",
+      "expects": [
+        { "name": "chapter heading", "kind": "sel", "sel": "h2, h3", "min": 1 },
+        { "name": "chapter numeral (I)", "kind": "text", "re": "\\bI\\b" },
+        { "name": "sequence photos (>= 3)", "kind": "sel", "sel": "img", "min": 3 },
+        { "name": "photo captions (>= 3)", "kind": "sel", "sel": "figcaption", "min": 3 }
+      ],
+      "style": [{ "name": "chapter title", "sel": "h2, h3" }]
+    },
+    {
+      "key": "chapter2",
+      "label": "Chapter II (portfolio · chapter-sequence)",
+      "mockup": ["#ch2"],
+      "product": ["#chapter-2"],
+      "layerHint": "kit (chapter-sequence) or payload (captions)",
+      "expects": [
+        { "name": "chapter heading", "kind": "sel", "sel": "h2, h3", "min": 1 },
+        { "name": "chapter numeral (II)", "kind": "text", "re": "\\bII\\b" },
+        { "name": "sequence photos (>= 3)", "kind": "sel", "sel": "img", "min": 3 },
+        { "name": "photo captions (>= 3)", "kind": "sel", "sel": "figcaption", "min": 3 }
+      ],
+      "style": [{ "name": "chapter title", "sel": "h2, h3" }]
+    },
+    {
+      "key": "comp",
+      "label": "Comp card (stats · measure-strip)",
+      "mockup": [".fo-comp"],
+      "product": ["#comp-card .sb-comp", "#comp-card"],
+      "layerHint": "payload (measures) or kit",
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2, h3", "min": 1 },
+        { "name": "measure cells (>= 4)", "kind": "sel", "sel": ".fo-stats > div, .sb-comp-cell", "min": 4 },
+        { "name": "measure labels", "kind": "text", "re": "measures" }
+      ],
+      "style": [{ "name": "heading", "sel": "h2, h3" }]
+    },
+    {
+      "key": "rates",
+      "label": "Rate card (services_catalog · rate-card)",
+      "mockup": ["#rates"],
+      "product": ["#services", ".site-builder-node--services-catalog[data-layout='rate_card']"],
+      "layerHint": "kit (rate-card layout) or payload",
+      "expects": [
+        { "name": "heading", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "rate rows (>= 3)", "kind": "sel", "sel": ".fo-rate, [class*='services-catalog-row']", "min": 3 },
+        { "name": "prices on rows", "kind": "text", "re": "price" },
+        { "name": "actions on rows (>= 3)", "kind": "sel", "sel": "button, a", "min": 3 }
+      ],
+      "style": [{ "name": "heading", "sel": "h2" }]
+    },
+    {
+      "key": "end",
+      "label": "Statement footer (.fo-end)",
+      "mockup": [".fo-end"],
+      "product": ["#statement-footer .sb-statement-footer", "#statement-footer"],
+      "layerHint": "kit (statement footer) or payload",
+      "expects": [
+        { "name": "statement (h2)", "kind": "sel", "sel": "h2", "min": 1 },
+        { "name": "action button", "kind": "sel", "sel": "a, button", "min": 1 },
+        { "name": "Tulala attribution / domain line", "kind": "text", "re": "(tulala)" }
+      ],
+      "style": [{ "name": "statement", "sel": "h2" }]
+    }
+  ]
+}

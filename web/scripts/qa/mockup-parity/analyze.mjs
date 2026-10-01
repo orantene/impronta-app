@@ -180,19 +180,19 @@ export function analyze(args) {
     const cs = getComputedStyle(el);
     return { ff: cs.fontFamily.split(",")[0].replace(/["']/g, "").trim().toLowerCase(), fs: parseFloat(cs.fontSize), fw: parseInt(cs.fontWeight, 10) || 400, color: cs.color, bg: cs.backgroundColor, ls: cs.letterSpacing, tt: cs.textTransform };
   }
-  function styleSample(key, el) {
+  /** Style samples named by the section's `style` list: {name, sel} (":self" = the section element) or {name, pick: eyebrow | solidButton}. */
+  function styleSample(styleSpec, el) {
     const s = {};
-    if (key === "hero") {
-      const h1 = el.querySelector("h1");
-      let eb = null;
-      if (h1) for (const l of qsa(el, "*").filter((e) => visible(e) && e.children.length === 0 && /\S/.test(e.textContent))) { if (l === h1 || h1.contains(l)) break; if (!l.closest("a, button") && txt(l).length >= 3 && txt(l).length <= 90) eb = l; }
-      s.eyebrow = styleOf(eb);
-      s.headline = styleOf(h1);
-      const btns = vis(el, "a, button").filter((a) => txt(a).length > 2 && txt(a).length < 40 && !/(hoy|today|pr[oó]xim|next)/i.test(txt(a)));
-      const solid = btns.find((b) => { const bg = getComputedStyle(b).backgroundColor; return bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent"; });
-      s.button = styleOf(solid || btns[0]);
-    } else if (key !== "header" && key !== "socket") {
-      s.heading = styleOf(el.querySelector("h2"));
+    for (const spec of styleSpec || []) {
+      let t = null;
+      if (spec.pick === "eyebrow") {
+        const h1 = el.querySelector("h1");
+        if (h1) for (const l of qsa(el, "*").filter((e) => visible(e) && e.children.length === 0 && /\S/.test(e.textContent))) { if (l === h1 || h1.contains(l)) break; if (!l.closest("a, button") && txt(l).length >= 3 && txt(l).length <= 90) t = l; }
+      } else if (spec.pick === "solidButton") {
+        const btns = vis(el, "a, button").filter((a) => txt(a).length > 2 && txt(a).length < 40 && !/(hoy|today|pr[oó]xim|next)/i.test(txt(a)));
+        t = btns.find((b) => { const bg = getComputedStyle(b).backgroundColor; return bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent"; }) || btns[0];
+      } else t = spec.sel === ":self" ? el : el.querySelector(spec.sel);
+      s[spec.name] = styleOf(t);
     }
     return s;
   }
@@ -229,7 +229,7 @@ export function analyze(args) {
       structure: structureChecks(el, sec.expects),
       layout: layoutChecks(el),
       i18n,
-      style: styleSample(sec.key, el),
+      style: styleSample(sec.style, el),
     };
   }
   // order: document order must follow `order`
@@ -292,6 +292,6 @@ export function analyze(args) {
       if (inter(fixedTop[i].getBoundingClientRect(), fixedTop[j].getBoundingClientRect()) > 16) page.fixedOverlaps.push(`${label(fixedTop[i])} x ${label(fixedTop[j])}`);
     }
   }
-  page.extraSections = ["before-after", "aftercare", "contact", "visit", "comp_card"].filter((id) => document.getElementById(id));
+  page.extraSections = (args.extraSels || []).filter((s) => document.querySelector(s)).map((s) => s.replace(/^#/, ""));
   return res;
 }
