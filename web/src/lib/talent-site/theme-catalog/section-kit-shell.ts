@@ -142,7 +142,7 @@ export function buildKitShell(
     ? ({
         id: makeId(),
         kind: "container",
-        props: { layout: "stack", align: "stretch", gap: "none", layerLabel: "Header" },
+        props: { layout: "stack", align: "stretch", gap: "s", layerLabel: "Header", style: { gap: "0px" } },
         children: [
           {
             id: makeId(),

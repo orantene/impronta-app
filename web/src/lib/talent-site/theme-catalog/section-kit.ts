@@ -53,6 +53,7 @@ export const TALENT_KIT_SECTIONS = {
   proof: { slotKey: "proof", originRole: "talent.proof" },
   area: { slotKey: "area", originRole: "talent.area" },
   emergency: { slotKey: "emergency", originRole: "talent.emergency" },
+  tasks: { slotKey: "tasks", originRole: "talent.tasks" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -750,6 +751,7 @@ export { locationBlock } from "./section-kit-location";
 export { areaBlock, proofBlock } from "./section-kit-proof";
 export { heroSpecBlock } from "./section-kit-hero-spec";
 export { emergencyBlock } from "./section-kit-emergency";
+export { taskPickerBlock } from "./section-kit-tasks";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

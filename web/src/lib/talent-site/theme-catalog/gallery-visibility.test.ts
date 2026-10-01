@@ -25,20 +25,20 @@ test("default gallery shows exactly the three finished designs", () => {
   assert.deepEqual(out.results.map((r) => r.design.slug), THREE);
   assert.equal(out.themeCount, 3);
   // Hidden designs stay in code for previews and saved sites.
-  assert.equal(GALLERY_DESIGNS.length, 6);
+  assert.equal(GALLERY_DESIGNS.length, 7);
   assert.equal(searchGallery({ query: "solace" }).themeCount, 0);
 });
 
-test("flag on shows all six designs", () => {
+test("flag on shows all seven designs", () => {
   process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
   try {
-    assert.equal(visibleGalleryDesigns().length, 6);
-    assert.equal(searchGallery().themeCount, 6);
+    assert.equal(visibleGalleryDesigns().length, 7);
+    assert.equal(searchGallery().themeCount, 7);
     assert.deepEqual(suggestedDesignsForTrade("Personal Trainer"), ["mono", "solace"]);
   } finally {
     delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
   }
-  assert.equal(searchGallery({ showExtra: true }).themeCount, 6);
+  assert.equal(searchGallery({ showExtra: true }).themeCount, 7);
   assert.equal(searchGallery({ showExtra: false }).themeCount, 3);
 });
 

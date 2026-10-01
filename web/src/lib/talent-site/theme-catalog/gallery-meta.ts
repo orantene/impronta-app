@@ -19,6 +19,8 @@
  * Everything else is `planned` (Preview planned tile).
  */
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
+import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
+import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
 import {
   MAISON_PALETTES,
@@ -88,7 +90,8 @@ export type GalleryProfession =
   | "interior_designer"
   | "tattoo"
   | "tutor"
-  | "guide";
+  | "guide"
+  | "electrician";
 
 /** Same colour shape as a Maison palette, plus gallery flags. */
 export type GalleryPalette = Pick<
@@ -165,6 +168,7 @@ export const GALLERY_PROFESSIONS: Record<
   interior_designer: { label: { en: "Interior Designer", es: "Diseñador de interiores" }, chip: "home_local", synonyms: ["interior", "interiors", "interiorismo", "interiorista", "decorador", "decoradora"] },
   tattoo: { label: { en: "Tattoo Artist", es: "Tatuador" }, chip: "creative", synonyms: ["tattoo", "tattoos", "tatuador", "tatuadora", "tatuaje"] },
   tutor: { label: { en: "Tutor", es: "Tutor" }, chip: "home_local", synonyms: ["tutor", "teacher", "teaching", "maestro", "maestra", "profesor", "profesora", "clases"] },
+  electrician: { label: { en: "Electrician", es: "Electricista" }, chip: "home_local", synonyms: ["electrician", "electric", "electrical", "electricista", "electricidad", "luz", "tablero"] },
   guide: { label: { en: "Local Guide", es: "Guía local" }, chip: "events", synonyms: ["guide", "tour", "host", "guía", "guia", "anfitriona", "acompañante"] },
 };
 
@@ -198,6 +202,33 @@ function pal(
 
 /** Maison v2 (Rosé proposal) type: Bodoni Moda display, Figtree body. */
 const FOLIO_FONTS = { heading: "Instrument Serif, Didot, Georgia, serif", body: "Archivo, system-ui, sans-serif" } as const;
+
+/** Gridline palettes come from its Looks (`gridline-looks.ts`), so hex lives in one file. */
+function gridlineGalleryPalettes(): GalleryPalette[] {
+  const lum = (hex: string) => {
+    const n = Number.parseInt(hex.replace("#", ""), 16);
+    const ch = [16, 8, 0].map((s) => {
+      const v = ((n >> s) & 255) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  };
+  const ratio = (a: string, b: string) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  return GRIDLINE_PALETTES.map((p) =>
+    pal(
+      p.key,
+      p.en,
+      p.es,
+      [p.bg, p.surface, p.line, p.ink, p.accent, ratio(p.accent, p.ink) >= ratio(p.accent, p.surface) ? p.ink : p.surface],
+      { muted: p.mute, tint: p.tint, ...(p.key === "dark" ? { dark: true } : {}), ...(p.key === "light" ? { highContrast: true } : {}) },
+    ),
+  );
+}
+
+const GRIDLINE_FONTS: GalleryFonts = { heading: GRIDLINE_HEADING_FONT, body: GRIDLINE_BODY_FONT };
 
 const MAISON_V2_FONTS: GalleryFonts = {
   heading: '"Bodoni Moda", Didot, "Bodoni 72", Georgia, serif',
@@ -367,6 +398,15 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
       planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "stone"),
       planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "light"),
     ],
+  }),
+  design({
+    ...collection("gridline"),
+    fonts: GRIDLINE_FONTS,
+    styleTags: ["Bold", "Minimal"],
+    featureTags: ["Service menu", "Booking-ready", "Quote requests", "Service list"],
+    palettes: gridlineGalleryPalettes(),
+    // The reference demo (Alex Treviño) and the other seven land with the demo slice (G15).
+    demos: [planned("electrician", { en: "Electrician", es: "Electricista" }, ["electrician"], "default")],
   }),
 ];
 
@@ -599,7 +639,7 @@ const CHIP_SUGGESTIONS: Record<GalleryCategoryChip, string[]> = {
   wellness: ["solace", "mono"],
   creative: ["frame", "folio"],
   events: ["solace", "frame"],
-  home_local: ["mono", "solace"],
+  home_local: ["gridline", "mono"],
   tech: ["mono", "folio"],
 };
 

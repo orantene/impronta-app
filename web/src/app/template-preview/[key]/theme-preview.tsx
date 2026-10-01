@@ -47,6 +47,7 @@ import {
   COLLECTION_DEFAULT_LOOK,
   folioLookTokensFromCode,
 } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
+import { gridlineLookTokensFromCode } from "@/lib/talent-site/theme-catalog/collection/gridline-looks";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
@@ -163,7 +164,11 @@ export async function ThemeCatalogPreview({
   //     collection designs: first gallery palette + fonts). The platform's
   //     generic default is never the whole answer for a catalog design.
   const effectiveLookSlug = resolveFolioLookSlug(design.slug, lookSlug);
-  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
+  // Folio and Gridline resolve their Looks from code (never DB); `?look=green` or `gridline-green` both work.
+  const folioTokens =
+    design.slug === "gridline"
+      ? gridlineLookTokensFromCode(effectiveLookSlug)
+      : folioLookTokensFromCode(effectiveLookSlug);
   const codeDemo = codeSource ? resolveDemoPreviewSource(designSlug, demo) : null;
   const codeDemoGallery = codeDemo ? getGalleryDesign(design.slug) : null;
   const cleanLook =

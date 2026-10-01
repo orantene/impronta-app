@@ -53,7 +53,7 @@ export type CatalogOpts = {
   label: string;
   eyebrow: string;
   title: string;
-  layout: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured";
+  layout: "rows" | "cards" | "grid" | "compact_list" | "rate_card" | "editorial" | "featured" | "matrix";
   categoryNav: "pills" | "tabs" | "rail" | "jump_strip" | "sections" | "accordion" | "none";
   stylePreset: "clean" | "editorial" | "compact" | "image_led";
   photoRadius: "square" | "soft" | "round";

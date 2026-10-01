@@ -28,10 +28,10 @@ export function emergencyBlock(
     kind: "container",
     props: {
       layout: "stack",
-      gap: "none",
+      gap: "s",
       align: "stretch",
       layerLabel: "Emergency",
-      style: { maxWidth: "wide", paddingY: "none", paddingX: "none" },
+      style: { maxWidth: "wide", paddingY: "none", paddingX: "none", gap: "0px" },
       ...EMERGENCY,
       anchorId: EMERGENCY.slotKey,
     },
