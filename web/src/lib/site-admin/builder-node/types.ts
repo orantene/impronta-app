@@ -61,6 +61,10 @@ export type BuilderNodeKind =
   /** Comp card — live measure strip from public profile fields + visibility. */
   | "comp_card"
   | "spec_table"
+  /** Gridline utility header bar (status pill + tap-to-call). */
+  | "utility_bar"
+  /** Gridline same-day emergency band; renders only while the flag is on. */
+  | "alert_band"
   | "task_picker"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
@@ -1530,6 +1534,44 @@ export interface BuilderSpecTableNode extends BuilderNodeBase {
 }
 
 /**
+ * Utility bar: the dark sticky header (logo tile, name + mono subtitle,
+ * emergencies pill, desktop action, tap-to-call). The status flag and the call
+ * link come from the page, never from props; `callHref` here is only a
+ * design-token fallback and must be a `tel:` link.
+ */
+export interface BuilderUtilityBarNode extends BuilderNodeBase {
+  kind: "utility_bar";
+  props: {
+    name?: string;
+    subtitle?: string;
+    logoUrl?: string;
+    showStatus?: boolean;
+    statusOnLabel?: string;
+    statusOffLabel?: string;
+    showCall?: boolean;
+    callLabel?: string;
+    callHref?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/** Alert band: hazard tape + headline + safety note + action; flag-gated. */
+export interface BuilderAlertBandNode extends BuilderNodeBase {
+  kind: "alert_band";
+  props: {
+    title?: string;
+    body?: string;
+    safetyLabel?: string;
+    safetyNote?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
  * Task picker (Gridline W-11): a grid of "what is happening" tasks, each
  * pointing at one offering by id, with a recommendation card that reads the
  * offering's live price, duration, booking mode and action. Text is authored
@@ -2671,6 +2713,8 @@ export type BuilderNode =
   | BuilderStatementFooterNode
   | BuilderCompCardNode
   | BuilderSpecTableNode
+  | BuilderUtilityBarNode
+  | BuilderAlertBandNode
   | BuilderTaskPickerNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode

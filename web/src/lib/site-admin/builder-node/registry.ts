@@ -81,6 +81,8 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "statement_footer",
   "comp_card",
   "spec_table",
+  "utility_bar",
+  "alert_band",
   "task_picker",
   "next_free_chip",
   "reserve_table",
@@ -1268,6 +1270,31 @@ export const specTablePropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+export const utilityBarPropsSchema = z.object({
+  name: z.string().max(120).optional(),
+  subtitle: z.string().max(120).optional(),
+  logoUrl: z.string().max(2000).optional(),
+  showStatus: z.boolean().optional(),
+  statusOnLabel: z.string().max(60).optional(),
+  statusOffLabel: z.string().max(60).optional(),
+  showCall: z.boolean().optional(),
+  callLabel: z.string().max(40).optional(),
+  callHref: z.string().max(40).optional(),
+  ctaLabel: z.string().max(40).optional(),
+  ctaHref: z.string().max(500).optional(),
+  style: builderNodeStyleSchema,
+});
+
+export const alertBandPropsSchema = z.object({
+  title: z.string().max(120).optional(),
+  body: z.string().max(300).optional(),
+  safetyLabel: z.string().max(60).optional(),
+  safetyNote: z.string().max(300).optional(),
+  ctaLabel: z.string().max(40).optional(),
+  ctaHref: z.string().max(500).optional(),
+  style: builderNodeStyleSchema,
+});
+
 /** Task picker (W-11): authored tasks pointing at offerings by id. */
 export const taskPickerPropsSchema = z.object({
   eyebrow: z.string().max(80).optional(),
@@ -2380,6 +2407,22 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Key and value rows (voltage, warranty, how you price). A strip on desktop, stacked rows on a phone.",
       children: { type: "none" },
       propsSchema: specTablePropsSchema,
+    },
+    utility_bar: {
+      kind: "utility_bar",
+      label: "Utility bar",
+      description:
+        "A dark header bar with your name, an emergencies status pill and a tap-to-call button. The call button shows only when you set a public number.",
+      children: { type: "none" },
+      propsSchema: utilityBarPropsSchema,
+    },
+    alert_band: {
+      kind: "alert_band",
+      label: "Alert band",
+      description:
+        "A hazard-tape band for same-day emergencies with a safety note. Shown only while emergencies today is on.",
+      children: { type: "none" },
+      propsSchema: alertBandPropsSchema,
     },
     task_picker: {
       kind: "task_picker",

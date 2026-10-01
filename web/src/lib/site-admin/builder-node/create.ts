@@ -14,6 +14,7 @@ import { cloneMastheadDefaultProps } from "./masthead-defaults";
 import { cloneStatementFooterDefaultProps } from "./statement-footer-defaults";
 import { cloneCompCardDefaultProps } from "./comp-card-defaults";
 import { cloneSpecTableDefaultProps } from "./spec-table-defaults";
+import { cloneAlertBandDefaultProps, cloneUtilityBarDefaultProps } from "./utility-bar-defaults";
 import { cloneTaskPickerDefaultProps } from "./task-picker-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
@@ -263,6 +264,10 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return { id: makeId("masthead"), kind: "masthead", props: cloneMastheadDefaultProps() };
     case "statement_footer":
       return { id: makeId("statement_footer"), kind: "statement_footer", props: cloneStatementFooterDefaultProps() };
+    case "utility_bar":
+      return { id: makeId("utility_bar"), kind: "utility_bar", props: cloneUtilityBarDefaultProps() };
+    case "alert_band":
+      return { id: makeId("alert_band"), kind: "alert_band", props: cloneAlertBandDefaultProps() };
     case "task_picker":
       return { id: makeId("task_picker"), kind: "task_picker", props: cloneTaskPickerDefaultProps() };
     case "spec_table":

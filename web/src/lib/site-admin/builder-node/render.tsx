@@ -166,6 +166,8 @@ import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
 import { renderSpecTableBlock } from "./spec-table-block";
+import { renderUtilityBarBlock } from "./utility-bar-block";
+import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { NextFreeChipView } from "./next-free-chip";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
@@ -329,6 +331,8 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
+  callHref?: string;
   /** Public-safe location (exact address present only in "public" mode). */
   talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
@@ -6073,6 +6077,21 @@ function renderBuilderNodeElement(
     case "statement_footer": {
       return renderStatementFooterBlock({
         node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "utility_bar": {
+      return renderUtilityBarBlock({
+        node,
+        liveStatus: options.dataSources?.liveStatus,
+        callHref: options.dataSources?.callHref,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "alert_band": {
+      return renderAlertBandBlock({
+        node,
+        liveStatus: options.dataSources?.liveStatus,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
