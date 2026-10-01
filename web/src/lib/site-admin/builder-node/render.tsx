@@ -163,6 +163,7 @@ import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
+import { renderSpecTableBlock } from "./spec-table-block";
 import { NextFreeChipView } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -6059,6 +6060,12 @@ function renderBuilderNodeElement(
     }
     case "statement_footer": {
       return renderStatementFooterBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "spec_table": {
+      return renderSpecTableBlock({
         node,
         styleAttr: sharedNodeStyle(node.props.style),
       });

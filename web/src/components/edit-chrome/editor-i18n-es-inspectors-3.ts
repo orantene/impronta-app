@@ -205,6 +205,26 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Appears once the interactive map is available. Until then only the area drawing shows.":
     "Aparece cuando el mapa interactivo esté disponible. Mientras tanto solo se ve el dibujo de la zona.",
   "Location · zone, hours, how to arrive": "Ubicación · zona, horario, cómo llegar",
+  // ── Gridline G10/G11: spec table, work-order portfolio, area card ──────
+  "Spec table": "Ficha técnica",
+  "Spec table · key and value rows": "Ficha técnica · filas de dato y valor",
+  "A short table of facts. On a phone it is stacked rows; on a desktop it becomes one strip with a column per row.":
+    "Una tabla corta de datos. En el celular son filas apiladas; en escritorio se vuelve una franja con una columna por fila.",
+  "Rows with an empty label or value are not shown.": "Las filas sin etiqueta o sin valor no se muestran.",
+  "Row label": "Etiqueta de la fila",
+  "Row value": "Valor de la fila",
+  "Label (Warranty)": "Etiqueta (Garantía)",
+  "Value (6 months, in writing)": "Valor (6 meses, por escrito)",
+  "Add row": "Agregar fila",
+  "Key and value rows (voltage, warranty, how you price). A strip on desktop, stacked rows on a phone.":
+    "Filas de dato y valor (voltaje, garantía, cómo cotizas). Una franja en escritorio, filas apiladas en el celular.",
+  "Work orders": "Órdenes de trabajo",
+  "Job cards. Write each photo caption on two lines: the job on the first, the work order detail on the second. No faces or client names.":
+    "Tarjetas de trabajo. Escribe cada pie de foto en dos líneas: el trabajo en la primera, el detalle de la orden en la segunda. Sin caras ni nombres de clientes.",
+  "Job cards": "Tarjetas de trabajo",
+  "Area card": "Tarjeta de zona",
+  "An approximate area: a drawn grid, the places you travel to as chips and your arrival note. It never shows an address.":
+    "Una zona aproximada: una cuadrícula dibujada, los lugares a los que viajas como etiquetas y tu nota de llegada. Nunca muestra una dirección.",
 // ── Contenido nested-block UX (page-builder panel cleanup) ─────────────
   // Short helpers + NestedBlocksCard chrome. Lives here because
   // editor-i18n-es-inspectors.ts is at the 800-line max-lines ceiling.

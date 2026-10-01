@@ -64,6 +64,7 @@ const FOLIO_MAGAZINE_KINDS = new Set([
   "contents",
   "portfolio",
   "comp_card",
+  "spec_table",
   "statement_footer",
 ]);
 

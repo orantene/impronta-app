@@ -209,6 +209,7 @@ export async function loadVisitSources(
         label: es ? "Va a" : "Travels to",
         value: travel.join(" · "),
         icon: "travel",
+        chips: travel,
       });
     } else if (areas.some((a) => a.service_kind === "remote_only") && !baseName) {
       facts.push({

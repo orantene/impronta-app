@@ -93,7 +93,7 @@ export const LOCATION_CSS = `
 
 /* ---------- zone illustration (generated, never geographic) ---------- */
 
-function hash32(s: string): number {
+export function hash32(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i += 1) {
     h ^= s.charCodeAt(i);
@@ -102,7 +102,7 @@ function hash32(s: string): number {
   return h >>> 0;
 }
 
-function seeded(seed: number): () => number {
+export function seeded(seed: number): () => number {
   let a = seed || 1;
   return () => {
     a = (a + 0x6d2b79f5) | 0;

@@ -20,6 +20,8 @@ export type TalentVisitFact = {
   icon: TalentVisitFactIcon;
   /** Optional small second line under the value. */
   note?: string;
+  /** Travel facts: the same places as separate names (the area card renders chips). */
+  chips?: string[];
 };
 
 export type TalentVisitFacts = {
