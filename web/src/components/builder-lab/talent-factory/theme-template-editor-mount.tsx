@@ -25,6 +25,8 @@ import { EDITOR_COPY, type EditorLang } from "./theme-template-editor-copy";
 
 export interface ThemeTemplateEditorMountProps {
   design: string;
+  /** Code design whose demos/palettes this design inherits (== design for code designs). */
+  sourceDesign?: string;
   tree: ThemeDraftTree;
   tenantId: string;
   lang: EditorLang;
@@ -36,6 +38,7 @@ export interface ThemeTemplateEditorMountProps {
 
 export function ThemeTemplateEditorMount({
   design,
+  sourceDesign,
   tree,
   tenantId,
   lang,
@@ -70,7 +73,7 @@ export function ThemeTemplateEditorMount({
           {t.tabShell}
         </Link>
       </nav>
-      <ThemeTemplateSubjectPicker design={design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
+      <ThemeTemplateSubjectPicker design={sourceDesign ?? design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
       <SaveAsNewDesignDialog sourceDesign={design} lang={lang} />
       <PublishDesignButton design={design} lang={lang} />
       <Link

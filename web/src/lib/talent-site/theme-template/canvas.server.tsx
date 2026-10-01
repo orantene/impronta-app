@@ -31,6 +31,7 @@ import { loadTalentSiteLocaleContext } from "@/lib/talent-site/server/talent-sit
 import { readableButtonDefaults } from "@/lib/talent-site/server/talent-site-render-fixups.server";
 import { renderShellRoot } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
+import { resolveDesignSource } from "./design-lineage.server";
 import { hydratePlaceholders } from "./hydrate-placeholders";
 import { themeTemplatePaletteTokens } from "./theme-template-tokens";
 import type { ThemeDraft, ThemeDraftTree } from "./types";
@@ -72,7 +73,9 @@ export async function buildThemeTemplateCanvasData(input: {
   tree?: ThemeDraftTree;
   lang?: "en" | "es" | null;
 }): Promise<InEditorCanvasRenderData & { subjectCode: string | null; placeholders: Record<string, string> }> {
-  const { design, draft } = input;
+  const { draft } = input;
+  // An authored design inherits its source for everything code-keyed.
+  const design = await resolveDesignSource(input.design);
   const tree = input.tree ?? "home";
   const subjectCode = input.subjectCode?.trim() || defaultSubjectFor(design);
   const profileId = subjectCode ? await profileIdForCode(subjectCode) : null;
