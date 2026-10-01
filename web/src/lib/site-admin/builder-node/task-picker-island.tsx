@@ -8,13 +8,16 @@
  * Each button carries `aria-pressed`. The recommendation card sits in a polite
  * live region; with nothing picked it shows the fallback (the inspection).
  * Actions reuse the services catalog entry: the same `tulala:offering-*`
- * window events the catalog rows dispatch, with the same detail. The bridge
- * that pre-fills the brief with the task is a later slice.
+ * window events the catalog rows dispatch, with the same detail. G9b: with a
+ * task picked, the detail also carries `task` + a `note` pre-fill, which the
+ * booking sheet / chat / inquiry form show as an editable "¿Qué pasa?" field.
+ * Nothing is sent until the visitor submits there.
  */
 import { useState } from "react";
 
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { taskNotePrefill } from "@/lib/talent/offering-task-brief";
 
 import { BuilderIconSvg } from "./builder-icon-svg";
 import { detailFor } from "./services-catalog-filter";
@@ -50,9 +53,10 @@ export function TaskPickerIsland({ model, locale, confirmsByHand, bookingPosture
 
   const dispatch = (eventName: string) => {
     if (!offering) return;
-    window.dispatchEvent(
-      new CustomEvent(eventName, { detail: detailFor(offering, confirmsByHand, bookingPosture) }),
-    );
+    const base = detailFor(offering, confirmsByHand, bookingPosture);
+    const ref = task ? { id: task.id, label: task.label } : null;
+    const detail = ref ? { ...base, task: ref, note: taskNotePrefill(ref) } : base;
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
 
   return (

@@ -43,6 +43,7 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { assertAcceptingNewContact, isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { verifyTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
+import { clampTaskBrief } from "@/lib/talent/offering-task-brief";
 import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -654,7 +655,10 @@ export async function startGuestChatInquiry(
   // Storefront carry: when the guest clicked a specific offering, make the
   // request VISIBLE in the thread (coordinator + guest both see exactly what
   // was asked for) and persist the structured payload in source_context below.
-  const offering = input.offeringIntent ? null : (input.offering ?? null);
+  const rawOffering = input.offeringIntent ? null : (input.offering ?? null);
+  // G9b: the task-picker brief is visitor text; re-clamp, drop when empty.
+  const offeringBrief = clampTaskBrief(rawOffering?.brief);
+  const offering = rawOffering ? { ...rawOffering, brief: offeringBrief ?? undefined } : null;
   const rawFirstMessage = input.firstMessage?.trim() ?? "";
   // Skip server prefix when the client already stamped one (picker / booking-sheet
   // chat handoff). Avoids "Requesting: …\n\nQuestion about …" double headers.

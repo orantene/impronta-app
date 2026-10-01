@@ -63,7 +63,8 @@ export const CATALOG_BOOKING_CSS = `
 .jb-field span{font-size:.875rem;font-weight:600;display:flex;align-items:center;gap:8px}
 .jb-field span i{font-style:normal;font-size:.6875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--cb-muted);background:var(--cb-soft);border-radius:99px;padding:3px 8px}
 .jb-field input{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
-.jb-field input:focus-visible{outline:2px solid var(--cb-primary);outline-offset:1px}
+.jb-field textarea{min-height:64px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:12px 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink);resize:vertical}
+.jb-field textarea:focus-visible,.jb-field input:focus-visible{outline:2px solid var(--cb-primary);outline-offset:1px}
 .jb-field input[aria-invalid="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
 .jb-field em{font-style:normal;font-size:.8125rem;color:var(--cb-primary)}
 .jb-taken{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-surface)}

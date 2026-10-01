@@ -16,6 +16,7 @@
  */
 
 import type { OfferingRequestDetail } from "../_shared/OfferingCta";
+import { taskBriefFrom, type OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
 /** Options / slot / total chosen in CatalogBookingSheet before Chat now. */
 export type PendingOfferingSelection = {
@@ -68,10 +69,17 @@ export function pendingOfferingPayload():
       slot_label?: string | null;
       starts_at?: string | null;
       total_cents?: number | null;
+      brief?: OfferingTaskBrief;
     }
   | undefined {
   if (!pending) return undefined;
   const sel = pending.selection;
+  // G9b: the task-picker brief rides on the detail. The note is kept only when
+  // it came through the sheet (which has a selection and an editable note
+  // field); a direct open pre-fills the composer, so the message is the note.
+  const brief = pending.task
+    ? taskBriefFrom(pending.task, pending.selection ? pending.note : null)
+    : null;
   const total =
     sel?.totalCents != null && Number.isFinite(sel.totalCents) ? sel.totalCents : null;
   return {
@@ -89,5 +97,6 @@ export function pendingOfferingPayload():
     ...(sel?.slotLabel ? { slot_label: sel.slotLabel } : {}),
     ...(sel?.startsAt ? { starts_at: sel.startsAt } : {}),
     ...(total != null ? { total_cents: total } : {}),
+    ...(brief ? { brief } : {}),
   };
 }

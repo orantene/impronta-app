@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { attachReservationHoldToInquiry } from "@/lib/scheduling/reservation-hold";
 import { enrichBookingFromReservation } from "@/lib/scheduling/reservation-convert";
+import { clampTaskBrief, type OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
 export type OpenPurchaseThreadInput = {
   readonly tenantId: string;
@@ -34,12 +35,16 @@ export type OpenPurchaseThreadInput = {
   readonly holdIds: readonly string[];
   readonly bookingId: string | null;
   readonly transactionId: string | null;
+  /** Gridline G9b: task-picker brief → `source_context.brief` (clamped). */
+  readonly brief?: OfferingTaskBrief | null;
 };
 
 export async function openPurchaseThread(
   admin: SupabaseClient,
   input: OpenPurchaseThreadInput,
 ): Promise<string | null> {
+  // Re-clamped here: the brief is visitor text from a public form.
+  const brief = clampTaskBrief(input.brief);
   const { data: inqRow, error: inqErr } = await admin
     .from("inquiries")
     .insert({
@@ -53,6 +58,7 @@ export async function openPurchaseThread(
       // gates on guest_session_id === cookie; clearing it when the buyer
       // happens to be signed in is how a confirmed instant book 404s.
       guest_session_id: input.guestSessionId,
+      ...(brief ? { source_context: { brief } } : {}),
     })
     .select("id")
     .single();
