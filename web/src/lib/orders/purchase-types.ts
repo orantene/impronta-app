@@ -13,6 +13,7 @@
  * reintroduce a bug it already has, and deleting it to buy lines is paying the
  * wrong debt.
  */
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { CapacityRefusalReason } from "@/lib/capacity/types";
 import type { PaymentChoice } from "@/lib/orders/purchase-policy";
 
@@ -99,6 +100,11 @@ export type PurchaseInput = {
    * `guestSessionId: null` once an email is known.
    */
   guestSessionId?: string | null;
+  /**
+   * Gridline G9b: the visitor's task-picker brief. Stamped on the thread
+   * inquiry as `source_context.brief` when `openThread` creates one.
+   */
+  brief?: OfferingTaskBrief | null;
   /** Talent policy version in force at checkout; stamped on the order and its booking. */
   policyVersionId?: string | null;
   /**

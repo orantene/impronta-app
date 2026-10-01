@@ -42,6 +42,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "masthead",
   "statement_footer",
   "spec_table",
+  "task_picker",
 ];
 
 /**
@@ -119,6 +120,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     statement_footer: "structure",
     comp_card: "media",
     spec_table: "structure",
+    task_picker: "actions",
     reserve_table: "actions",
     next_free_chip: "actions",
     session_picker: "actions",
@@ -219,6 +221,7 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   masthead: "masthead stacked words giant name cover magazine hero editorial bw black white",
   statement_footer: "statement footer credit contact colophon closing editorial magazine inquire",
   spec_table: "spec table specifications key value rows voltage warranty price payment facts ficha tecnica datos",
+  task_picker: "task picker what is happening problem recommend service help me choose tareas que pasa recomendar servicio",
   comp_card: "comp card measure strip measurements height bust waist hips vitals details ficha profile fields",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
   next_free_chip: "next free time slot availability booking chip calendar open",
@@ -313,6 +316,7 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "statement_footer",
     "comp_card",
     "spec_table",
+    "task_picker",
     "next_free_chip",
     "reserve_table",
     "session_picker",

@@ -59,7 +59,7 @@ function deriveFor(
   return deriveOfferingCta({ offering, defaults: { bookingPosture }, confirmsByHand });
 }
 
-function detailFor(
+export function detailFor(
   offering: TalentOffering,
   confirmsByHand: boolean,
   bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,

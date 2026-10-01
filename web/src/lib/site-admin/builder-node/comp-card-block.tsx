@@ -38,8 +38,14 @@ export const COMP_CARD_MAGAZINE_CSS = `
 @media (min-width:900px){
   .sb-comp[data-edition="magazine"]{margin:90px 40px 0;padding:32px}
   .sb-comp[data-edition="magazine"] .sb-comp-inner{grid-template-columns:260px minmax(0,1fr);align-items:end}
-  .sb-comp[data-edition="magazine"] .sb-comp-cell dd{font-size:54px}
+  .sb-comp[data-edition="magazine"] .sb-comp-cell dd{font-size:var(--token-type-stat-size-desktop,54px)}
 }
+/* The kit section (the keyed wrapper) is the dark strip, like TH02's .fo-comp: margins and fill live on it. */
+@supports selector(:has(*)){
+  [data-parity-key="comp_card"][data-builder-node-kind="container"]:has(.sb-comp[data-edition="magazine"]){margin:52px 16px 0;background:var(--token-color-ink);color:var(--token-color-background)}
+  [data-parity-key="comp_card"][data-builder-node-kind="container"] .sb-comp[data-edition="magazine"]{margin:0;background:transparent}
+}
+@media (min-width:900px){@supports selector(:has(*)){[data-parity-key="comp_card"][data-builder-node-kind="container"]:has(.sb-comp[data-edition="magazine"]){margin:90px 40px 0}}}
 @media (max-width:540px){.sb-comp[data-edition="magazine"] .sb-comp-rail{grid-template-columns:repeat(4,minmax(0,1fr))}}
 `;
 

@@ -81,6 +81,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "statement_footer",
   "comp_card",
   "spec_table",
+  "task_picker",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1219,6 +1220,7 @@ export const mastheadPropsSchema = z.object({
   edition: z.enum(["cover", "magazine"]).optional(),
   mastRight: z.string().max(160).optional(),
   coverLine: z.string().max(160).optional(),
+  coverStatement: z.string().max(160).optional(),
   bio: z.string().max(600).optional(),
   ctaLabel: z.string().max(60).optional(),
   ctaHref: z.string().max(500).optional(),
@@ -1262,6 +1264,33 @@ export const specTablePropsSchema = z.object({
     .array(z.object({ label: z.string().max(60), value: z.string().max(200) }))
     .max(8)
     .optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+/** Task picker (W-11): authored tasks pointing at offerings by id. */
+export const taskPickerPropsSchema = z.object({
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  tasks: z
+    .array(
+      z.object({
+        id: z.string().max(40),
+        label: z.string().max(80),
+        labelEs: z.string().max(80).optional(),
+        icon: z.enum(BUILDER_ICON_NAMES).optional(),
+        offeringId: z.string().max(64).optional(),
+        hint: z.string().max(240).optional(),
+        hintEs: z.string().max(240).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
+  defaultOfferingId: z.string().max(64).optional(),
+  defaultKicker: z.string().max(60).optional(),
+  defaultKickerEs: z.string().max(60).optional(),
+  defaultHint: z.string().max(240).optional(),
+  defaultHintEs: z.string().max(240).optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -2351,6 +2380,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Key and value rows (voltage, warranty, how you price). A strip on desktop, stacked rows on a phone.",
       children: { type: "none" },
       propsSchema: specTablePropsSchema,
+    },
+    task_picker: {
+      kind: "task_picker",
+      label: "Task picker",
+      description:
+        "What is happening, in the visitor's words. Each task recommends one of your services with its price, time and the right action.",
+      children: { type: "none" },
+      propsSchema: taskPickerPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

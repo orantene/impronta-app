@@ -26,6 +26,7 @@ import {
   type InquiryFormFieldError,
   type InquiryFormLine,
 } from "@/lib/talent/inquiry-form-payload";
+import { taskBriefFrom } from "@/lib/talent/offering-task-brief";
 import { submitTalentInquiryForm } from "../_actions/talent-inquiry-form-action";
 import { inquiryFormCopy, type InquiryFormCopyKey } from "./inquiry-form-copy";
 import {
@@ -51,7 +52,14 @@ function lineFromDetail(d: PendingOfferingDetail): InquiryFormLine {
     addOnLabels: d.selection?.addOnLabels ?? [],
     slotLabel: d.selection?.slotLabel ?? null,
     totalCents: d.selection?.totalCents ?? null,
+    // G9b: the task travels as context; its note pre-fills the message box.
+    brief: d.task ? taskBriefFrom(d.task, null) : null,
   };
+}
+
+/** G9b: the task-picker note, used to pre-fill an empty message box. */
+function notePrefillFrom(d: PendingOfferingDetail | null | undefined): string {
+  return d?.task ? (d.note ?? "").trim() : "";
 }
 
 /**
@@ -98,8 +106,10 @@ export function TalentInquiryFormSheet({
   const tx = (k: InquiryFormCopyKey, vars?: Record<string, string>) =>
     inquiryFormCopy(locale, k, vars);
 
-  const openWith = useCallback((next: InquiryFormLine[]) => {
+  const openWith = useCallback((next: InquiryFormLine[], prefill = "") => {
     setLines(next);
+    // Pre-fill only an empty box: never overwrite what the visitor typed.
+    if (prefill) setMessage((m) => (m.trim() ? m : prefill));
     setErrors([]);
     setPhase((p) => (p === "sent" ? "edit" : p === "sending" ? p : "edit"));
     setOpen(true);
@@ -116,7 +126,7 @@ export function TalentInquiryFormSheet({
         | null;
       if (d?.demo === true) return;
       const fromStore = linesFromPending();
-      if (fromStore.length > 0) return openWith(fromStore);
+      if (fromStore.length > 0) return openWith(fromStore, notePrefillFrom(peekPendingOffering()));
       openWith(
         d?.offeringId && d.offeringTitle
           ? [{ offeringId: d.offeringId, title: d.offeringTitle }]
@@ -133,7 +143,8 @@ export function TalentInquiryFormSheet({
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         if (sheetOpenRef.current) return; // the catalog sheet owns this click
-        openWith(d && typeof d === "object" && d.offeringId ? [lineFromDetail(d)] : []);
+        const ok = d && typeof d === "object" && d.offeringId;
+        openWith(ok ? [lineFromDetail(d)] : [], ok ? notePrefillFrom(d) : "");
       }, SHEET_CLAIM_MS);
     };
     window.addEventListener("tulala:maison-sheet", onSheet);

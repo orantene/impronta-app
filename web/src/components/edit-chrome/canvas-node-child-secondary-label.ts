@@ -101,6 +101,8 @@ export function canvasChildSecondaryLabel(node: BuilderNode): string {
       return "Masthead · stacked words";
     case "statement_footer":
       return "Statement footer · credit and contact";
+    case "task_picker":
+      return "Task picker · tasks and recommended services";
     case "spec_table":
       return "Spec table · key and value rows";
     case "comp_card":

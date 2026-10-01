@@ -735,6 +735,7 @@ export async function createPurchase(
         holdIds: placedHoldIds,
         bookingId,
         transactionId: createdTransactionId,
+        brief: input.brief ?? null,
       });
     }
 

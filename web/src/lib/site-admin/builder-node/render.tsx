@@ -166,6 +166,7 @@ import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
 import { renderSpecTableBlock } from "./spec-table-block";
+import { renderTaskPickerBlock } from "./task-picker-block";
 import { NextFreeChipView } from "./next-free-chip";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -6072,6 +6073,16 @@ function renderBuilderNodeElement(
     case "statement_footer": {
       return renderStatementFooterBlock({
         node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "task_picker": {
+      return renderTaskPickerBlock({
+        node,
+        offerings: options.dataSources.talentOfferings ?? [],
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        confirmsByHand: options.dataSources.talentOfferingsConfirmsByHand ?? true,
+        bookingPosture: options.dataSources.talentOfferingsBookingSettings?.bookingPosture,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

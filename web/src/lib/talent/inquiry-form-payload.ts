@@ -10,6 +10,7 @@
  * (→ source_context.lines).
  */
 import type { StartGuestChatInput } from "@/lib/inquiry/guest-chat-contract";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
 export type InquiryFormLine = {
   offeringId: string;
@@ -24,6 +25,8 @@ export type InquiryFormLine = {
   totalCents?: number | null;
   /** Display only: the selection dock's "Asking about" names (#2385). */
   label?: string | null;
+  /** Gridline G9b: the task-picker task (→ source_context.offering.brief). */
+  brief?: OfferingTaskBrief | null;
 };
 
 export type InquiryFormFields = {
@@ -111,6 +114,7 @@ export function buildInquiryFormPayload(
             : {}),
           ...(first.slotLabel ? { slot_label: first.slotLabel } : {}),
           ...(first.totalCents != null ? { total_cents: first.totalCents } : {}),
+          ...(first.brief ? { brief: first.brief } : {}),
         }
       : null,
     ...(lines.length > 1

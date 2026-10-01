@@ -61,6 +61,7 @@ export type BuilderNodeKind =
   /** Comp card — live measure strip from public profile fields + visibility. */
   | "comp_card"
   | "spec_table"
+  | "task_picker"
   /** Next free slot chip — bound to public booking slots; hidden when empty. */
   | "next_free_chip"
   | "reserve_table"
@@ -1466,6 +1467,8 @@ export interface BuilderMastheadNode extends BuilderNodeBase {
     mastRight?: string;
     /** Magazine: small caps line on the cover (trade). */
     coverLine?: string;
+    /** Magazine: the italic serif line over the cover (TH02 "Editorial, runway and campaigns"). */
+    coverStatement?: string;
     /** Magazine: serif bio beside the cover. */
     bio?: string;
     /** Magazine: primary CTA. */
@@ -1521,6 +1524,38 @@ export interface BuilderSpecTableNode extends BuilderNodeBase {
     eyebrow?: string;
     title?: string;
     rows?: Array<{ label: string; value: string }>;
+    useWebsiteTheme?: boolean;
+    style?: BuilderNodeStyle;
+  };
+}
+
+/**
+ * Task picker (Gridline W-11): a grid of "what is happening" tasks, each
+ * pointing at one offering by id, with a recommendation card that reads the
+ * offering's live price, duration, booking mode and action. Text is authored
+ * in EN with an optional ES twin per row. References only: no offering data
+ * is copied into the node.
+ */
+export interface BuilderTaskPickerNode extends BuilderNodeBase {
+  kind: "task_picker";
+  props: {
+    eyebrow?: string;
+    title?: string;
+    tasks?: Array<{
+      id: string;
+      label: string;
+      labelEs?: string;
+      icon?: BuilderIconName;
+      offeringId?: string;
+      hint?: string;
+      hintEs?: string;
+    }>;
+    /** Offering recommended while no task is picked (the inspection). */
+    defaultOfferingId?: string;
+    defaultKicker?: string;
+    defaultKickerEs?: string;
+    defaultHint?: string;
+    defaultHintEs?: string;
     useWebsiteTheme?: boolean;
     style?: BuilderNodeStyle;
   };
@@ -2636,6 +2671,7 @@ export type BuilderNode =
   | BuilderStatementFooterNode
   | BuilderCompCardNode
   | BuilderSpecTableNode
+  | BuilderTaskPickerNode
   | BuilderNextFreeChipNode
   | BuilderReserveTableNode
   | BuilderSessionPickerNode

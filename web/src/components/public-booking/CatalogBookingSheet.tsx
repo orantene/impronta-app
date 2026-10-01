@@ -43,6 +43,7 @@ import {
 } from "./catalog-booking-logic";
 import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
 import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
+import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
 import {
   fetchLiveSlots,
   shouldSkipGuestCaptchaOnHost,
@@ -130,8 +131,7 @@ export function CatalogBookingSheet({
     const open = (e: Event) => {
       const d = (e as CustomEvent).detail as CatalogBookingDetail | undefined;
       if (!d) return;
-      // PKG-2: products / untimed packages use CatalogPurchaseMount (live + demo preview).
-      // Skip only when that rail handles the event so demo Buy never dispatches to nowhere.
+      // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       setDetail(d);
       setVariantId(null);
@@ -156,8 +156,7 @@ export function CatalogBookingSheet({
     return () => names.forEach((n) => window.removeEventListener(n, open));
   }, []);
 
-  // CH-3: the chat's "back to my booking" re-opens the sheet with every pick kept
-  // (this component's state survives a close; only a fresh open resets it).
+  // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {
     const resume = () => {
       const snap = peekBookingResume();
@@ -279,6 +278,7 @@ export function CatalogBookingSheet({
     allowPayInPerson: detail?.allowPayInPerson !== false,
     variantId,
     addOnIds,
+    brief: catalogTaskBrief(detail),
     liveStarts,
     liveTz,
     liveDays,
@@ -452,6 +452,7 @@ export function CatalogBookingSheet({
                   locale={locale}
                 />
               </div>
+              <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
 
               {needsVariant ? (
                 <fieldset className="jb-group">
