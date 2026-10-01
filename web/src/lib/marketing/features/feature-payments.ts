@@ -76,7 +76,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "Where the money lands",
         body: [
           [
-            "Payouts go to the bank account you connect, on the standard schedule, once your account is verified. You are the merchant of record for your own work, not a balance in somebody else's wallet waiting to be released.",
+            "Payouts go to the bank account you connect, on the standard schedule, once your account is verified. Tulala collects the card payment on your behalf and then pays it out to that bank account, so the money is yours to withdraw on the payout schedule once it clears.",
           ],
         ],
       },

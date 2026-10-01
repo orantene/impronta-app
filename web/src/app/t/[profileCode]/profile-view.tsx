@@ -2291,8 +2291,6 @@ export async function TalentProfileView({
   const jsonLd = buildTalentProfileJsonLd({
     canonicalUrl: canonicalShareUrl,
     name,
-    givenName: profile.first_name ?? null,
-    familyName: profile.last_name ?? null,
     // null when every category is hidden for this tenant — buildTalentProfileJsonLd
     // OMITS the jobTitle key rather than emitting an empty string.
     jobTitle:
