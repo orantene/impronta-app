@@ -40,14 +40,14 @@ import { useInspectorT } from "./kit/use-inspector-t";
  * silently as "a tile that does nothing on hover".
  */
 const GALLERY_CHROME_CSS = `
-.bnag-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.bnag-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px 7px;border-radius:9px;border:1px solid ${CHROME.line};background:${CHROME.surface};color:${CHROME.muted};cursor:pointer;transition:border-color 120ms,background 120ms,color 120ms}
-.bnag-card:hover{border-color:${CHROME.lineStrong};color:${CHROME.text}}
+.bnag-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.bnag-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 5px 8px;border-radius:11px;border:1px solid ${CHROME.line};background:${CHROME.surface};color:${CHROME.muted};cursor:pointer;box-shadow:0 1px 2px rgba(17,24,39,0.04);transition:border-color 140ms,background 140ms,color 140ms,box-shadow 140ms,transform 120ms}
+.bnag-card:hover{border-color:rgba(124,58,237,0.35);color:${CHROME.text};box-shadow:0 2px 8px rgba(124,58,237,0.10)}
 .bnag-card:focus-visible{outline:2px solid ${CHROME.accent};outline-offset:1px}
-.bnag-card[aria-checked="true"]{border-color:${CHROME.accent};background:${CHROME.selectHalo};color:${CHROME.accentInk};font-weight:600}
-.bnag-stage{position:relative;width:100%;height:34px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:6px;background:${CHROME.paper2}}
-.bnag-shape{width:22px;height:13px;border-radius:3px;background:currentColor;opacity:0.75}
-.bnag-label{font-size:10px;line-height:1.15;text-align:center}
+.bnag-card[aria-checked="true"]{border-color:${CHROME.accent};background:rgba(124,58,237,0.10);color:${CHROME.accent};font-weight:650;box-shadow:0 1px 4px rgba(124,58,237,0.16)}
+.bnag-stage{position:relative;width:100%;height:40px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:linear-gradient(180deg,rgba(24,24,27,0.04) 0%,rgba(24,24,27,0.02) 100%);box-shadow:inset 0 0 0 1px rgba(24,24,27,0.05)}
+.bnag-shape{width:22px;height:13px;border-radius:3px;background:currentColor;opacity:0.8}
+.bnag-label{font-size:10.5px;line-height:1.15;text-align:center;font-weight:600;letter-spacing:-0.01em}
 .bnag-card:hover .bnag-shape,.bnag-card:focus-visible .bnag-shape{animation-duration:0.9s;animation-timing-function:cubic-bezier(0.34,1.56,0.64,1);animation-fill-mode:both}
 .bnag-card[data-preset="none"] .bnag-shape{opacity:0.28}
 .bnag-card[data-preset="none"] .bnag-stage::after{content:"";position:absolute;left:22%;right:22%;top:50%;height:1px;background:currentColor;opacity:0.45}
