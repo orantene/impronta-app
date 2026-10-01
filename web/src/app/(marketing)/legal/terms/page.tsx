@@ -5,6 +5,10 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
+// DRAFT PENDING LEGAL REVIEW (2026-10-01). Payment, refund, and chargeback
+// wording follows the working defaults decided by Oran. Do not ship to
+// production until reviewed.
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
   return {
@@ -22,7 +26,7 @@ export default function TermsPage() {
     <LegalPage
       eyebrow="Legal"
       title="Terms of Service"
-      lastUpdated="2026-04-01"
+      lastUpdated="2026-10-01"
       intro={
         <p>
           By using {PLATFORM_BRAND.name}{" "}you agree to these terms. We&rsquo;ve kept them short
@@ -37,8 +41,8 @@ export default function TermsPage() {
             <>
               <p>
                 You&rsquo;re responsible for keeping your account credentials secure and for
-                actions taken under your account. You must be 18+ to sign up. You can close
-                your account at any time.
+                actions taken under your account. Everyone who uses {PLATFORM_BRAND.name}, talents and clients alike, must
+                be 18 or older. To close your account, contact support and we will help you.
               </p>
             </>
           ),
@@ -80,6 +84,51 @@ export default function TermsPage() {
                 current period. Taxes and currency localization apply by region.
               </p>
             </>
+          ),
+        },
+        {
+          heading: "Payments",
+          body: (
+            <>
+              <p>
+                {PLATFORM_BRAND.name} collects card payments for bookings on behalf of the
+                talent or workspace that provides the service, using Stripe Connect. Card
+                details are entered with Stripe and never touch {PLATFORM_BRAND.name}. We pay
+                out to the talent or workspace once they have completed payout onboarding.
+              </p>
+              <p>
+                Refunds follow the refund policy the talent selected for the booking, and{" "}
+                {PLATFORM_BRAND.name} processes them. If a customer disputes a charge with their
+                bank, the cost of a lost dispute comes from the talent&rsquo;s share. If that
+                cannot be recovered, {PLATFORM_BRAND.name} covers it and may deduct the amount
+                from future payouts.
+              </p>
+              <p>
+                There is currently no separate booking fee for customers. Commission and
+                fees are disclosed in the plans.
+              </p>
+            </>
+          ),
+        },
+        {
+          heading: "Talent responsibilities",
+          body: (
+            <p>
+              Talents set their own prices, availability, and booking policies, and provide
+              their services themselves. Licences, certifications, and other credentials shown
+              on a profile are declared by the talent. {PLATFORM_BRAND.name} does not verify
+              them, and talents are responsible for holding any licence their work requires.
+            </p>
+          ),
+        },
+        {
+          heading: "Marketplace",
+          body: (
+            <p>
+              {PLATFORM_BRAND.name} provides the platform that connects clients with talents
+              and agencies. We are not the provider of talent services and are not a party to
+              the agreement between a client and a talent.
+            </p>
           ),
         },
         {

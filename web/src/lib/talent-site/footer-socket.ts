@@ -17,8 +17,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 export const TULALA_LEGAL_TERMS_URL = "https://tulala.digital/legal/terms";
 export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
 export const TULALA_HOME_URL = "https://tulala.digital";
-/** No standalone cookies page exists yet: the platform privacy page's `#cookies` anchor stands in. */
-export const TULALA_LEGAL_COOKIES_URL = `${TULALA_LEGAL_PRIVACY_URL}#cookies`;
+export const TULALA_LEGAL_COOKIES_URL = "https://tulala.digital/legal/cookies";
 
 /** Talent-host policy routes (served by the policy-pages work). */
 export const TALENT_BOOKING_POLICY_PATH = "/politicas";

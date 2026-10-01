@@ -213,12 +213,12 @@ test("the first group carries the talent's name, not 'Este sitio'", () => {
   assert.equal(shortTalentName("Jorg Beauty"), "Jorg Beauty");
 });
 
-test("the Tulala group has Cookies, pointing at the platform privacy page's #cookies anchor", () => {
+test("the Tulala group has Cookies, pointing at the platform cookies page", () => {
   const m = model();
   assert.deepEqual(m.tulalaLinks.map((l) => l.key), ["tulala-terms", "tulala-privacy", "tulala-cookies"]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
   assert.equal(cookies.label, "Cookies");
-  assert.equal(cookies.href, "https://tulala.digital/legal/privacy#cookies");
+  assert.equal(cookies.href, "https://tulala.digital/legal/cookies");
   assert.equal(cookies.external, true);
   assert.match(html(), /data-socket-link="tulala-cookies"/);
 });
