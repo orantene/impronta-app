@@ -172,6 +172,7 @@ async function rebuildOne(
   const spec: DemoSpec = {
     design: entry.design,
     palette: entry.palette,
+    ...(entry.keepLook ? { keepLook: true } : {}),
     profileCode: entry.profileCode,
     live: Array.isArray(rows.site.shell_published) || !!rows.site.site_published_at,
   };

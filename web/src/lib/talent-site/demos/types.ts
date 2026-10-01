@@ -25,6 +25,12 @@ export interface DemoRegistryEntry {
   reference: boolean;
   /** Content fixture key (design-references/<design>/content.json) for references. */
   contentFixture?: DemoDesign;
+  /**
+   * Published demos whose colours the rebuild must NEVER change (Andres, Sofia):
+   * the design step keeps the site's current look slug, tokens and custom
+   * palette, and the gallery palette check is skipped. `palette` is a placeholder.
+   */
+  keepLook?: boolean;
 }
 
 export type DemoStepId =

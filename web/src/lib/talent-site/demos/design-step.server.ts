@@ -29,6 +29,8 @@ export interface DemoSpec {
   profileCode: string;
   /** Has a published site today (callers decide what that implies). */
   live: boolean;
+  /** Keep the site's current look slug, tokens and custom palette (registry `keepLook`). */
+  keepLook?: boolean;
 }
 
 type Row = Record<string, unknown> & { id: string };
@@ -103,6 +105,8 @@ export interface DemoPlan {
   catalogLook: CatalogLook;
   galleryTokens: Record<string, string> | null;
   lookSlug: string | undefined;
+  /** The design is rebuilt but the site's colours stay exactly as they are. */
+  keepLook: boolean;
   trees: Trees;
   nextTokens: Record<string, string>;
   nextCustom: unknown;
@@ -131,14 +135,17 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
   const design = await loadDemoDesignRow(admin, spec.design);
   if (!design) throw new Error(`design ${spec.design} not found`);
   const gallery = getGalleryDesign(spec.design);
-  if (!gallery?.palettes.some((p) => p.key === spec.palette)) {
+  const keepLook = spec.keepLook === true;
+  if (!keepLook && !gallery?.palettes.some((p) => p.key === spec.palette)) {
     throw new Error(`${spec.design} has no palette ${spec.palette}`);
   }
   const style = spec.design === "maison-v2" ? MAISON_V2_DEMO_STYLES[spec.profileCode] : undefined;
-  const catalogLook = spec.design === "folio" ? await loadMaisonCatalogRow(admin, "look", `folio-${spec.palette}`) : null;
-  const styled = style ? styleLook(style, spec.palette, spec.profileCode) : null;
-  const galleryTokens = catalogLook ? null : (styled?.look ?? galleryPaletteLookTokens(spec.design, spec.palette));
-  const lookSlug = catalogLook?.slug ?? (styled ? styled.lookSlug : spec.palette);
+  const catalogLook = keepLook ? null : spec.design === "folio" ? await loadMaisonCatalogRow(admin, "look", `folio-${spec.palette}`) : null;
+  const styled = style && !keepLook ? styleLook(style, spec.palette, spec.profileCode) : null;
+  const galleryTokens = keepLook ? null : catalogLook ? null : (styled?.look ?? galleryPaletteLookTokens(spec.design, spec.palette));
+  const lookSlug = keepLook
+    ? ((site.theme_look_slug as string | null) ?? undefined)
+    : (catalogLook?.slug ?? (styled ? styled.lookSlug : spec.palette));
 
   const tokens = await loadTemplateHydrationTokens(tp.id);
   if (!tokens) throw new Error(`${spec.profileCode}: hydration tokens unavailable`);
@@ -148,13 +155,15 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
     ? styleTrees(built, style, await loadMedia(admin, tp.id), spec.profileCode)
     : { shellTree: built.shellTree, homeTree: built.homeTree };
   const nextTokens = {
-    ...mergeLookIntoTokens(
-      (site.design_tokens_draft as Record<string, string> | null) ?? {},
-      catalogLook ? catalogLook.payload.tokens : galleryTokens!,
-    ),
+    ...(keepLook
+      ? ((site.design_tokens_draft as Record<string, string> | null) ?? {})
+      : mergeLookIntoTokens(
+          (site.design_tokens_draft as Record<string, string> | null) ?? {},
+          catalogLook ? catalogLook.payload.tokens : galleryTokens!,
+        )),
     ...demoStyleTokens(style),
   };
-  const nextCustom = styled?.customPalette ?? null;
+  const nextCustom = keepLook ? (site.custom_palette ?? null) : (styled?.customPalette ?? null);
   const draftSame =
     site.theme_design_slug === spec.design &&
     site.theme_design_version === design.version &&
@@ -175,6 +184,7 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
     catalogLook,
     galleryTokens,
     lookSlug,
+    keepLook,
     trees,
     nextTokens,
     nextCustom,
@@ -192,7 +202,7 @@ export async function writeDemoDraft(
   plan: DemoPlan,
 ): Promise<void> {
   const { tp, site, home } = rows;
-  const { design, catalogLook, galleryTokens, lookSlug, style, trees, nextTokens, nextCustom } = plan;
+  const { design, catalogLook, galleryTokens, lookSlug, keepLook, style, trees, nextTokens, nextCustom } = plan;
   const d = await applyDesign(admin, {
     talentProfileId: tp.id,
     siteId: site.id,
@@ -209,7 +219,7 @@ export async function writeDemoDraft(
   const { error } = await admin
     .from("talent_sites")
     .update({
-      ...(galleryTokens ? { design_tokens_draft: nextTokens, theme_look_slug: lookSlug } : {}),
+      ...(galleryTokens || keepLook ? { design_tokens_draft: nextTokens, theme_look_slug: lookSlug ?? null } : {}),
       ...(style ? { shell_tree: trees.shellTree } : {}),
       custom_palette: nextCustom,
       pending_design: null,
