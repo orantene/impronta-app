@@ -10,8 +10,15 @@ import {
 import type { AccessProfile } from "@/lib/auth-flow";
 import {
   ACCESS_PROFILE_REFRESH_COOKIE,
+  ACCESS_PROFILE_REFRESH_VALUE,
+  isAccessProfileMemoUsable,
   wantsAccessProfileRefresh,
 } from "@/lib/auth/access-profile-refresh";
+import {
+  ONBOARDING_BOUNCE_COOKIE,
+  ONBOARDING_BOUNCE_WINDOW_S,
+  shouldRereadBeforeOnboardingBounce,
+} from "@/lib/auth/onboarding-bounce";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
 import {
   GUEST_COOKIE_NAME,
@@ -141,20 +148,31 @@ const ACCESS_PROFILE_TTL_MS = 60_000;
 const ACCESS_PROFILE_MAX_ENTRIES = 512;
 const accessProfileMemo = new Map<string, { at: number; profile: AccessProfile | null }>();
 
-async function loadAccessProfileMemo(
+/**
+ * `refreshCookie` is the `tulala_access_profile_refresh` value: a stamp
+ * versions the memo (entries recorded before it are stale on every instance),
+ * so a profile created by onboarding on another host or instance is never
+ * shadowed by a pre-onboarding entry. `fromMemo` lets the caller re-read
+ * before acting on a memoised "no role yet" profile.
+ */
+export async function loadAccessProfileMemo(
   supabase: ReturnType<typeof createServerClient>,
   userId: string,
-): Promise<AccessProfile | null> {
+  refreshCookie?: string | null,
+  load: typeof loadAccessProfile = loadAccessProfile,
+): Promise<{ profile: AccessProfile | null; fromMemo: boolean }> {
   const hit = accessProfileMemo.get(userId);
-  if (hit && Date.now() - hit.at < ACCESS_PROFILE_TTL_MS) return hit.profile;
-  const profile = await loadAccessProfile(supabase, userId);
+  if (hit && isAccessProfileMemoUsable(hit.at, Date.now(), ACCESS_PROFILE_TTL_MS, refreshCookie)) {
+    return { profile: hit.profile, fromMemo: true };
+  }
+  const profile = await load(supabase, userId);
   accessProfileMemo.set(userId, { at: Date.now(), profile });
   while (accessProfileMemo.size > ACCESS_PROFILE_MAX_ENTRIES) {
     const oldest = accessProfileMemo.keys().next().value;
     if (oldest === undefined) break;
     accessProfileMemo.delete(oldest);
   }
-  return profile;
+  return { profile, fromMemo: false };
 }
 
 /** Drops a memoised access profile, for the paths that change it in-request. */
@@ -344,14 +362,24 @@ export async function updateSession(
   // `resolveAuthRoutingDecision`, so a field the router reads (like
   // `home_surface_preference`) must not be silently dropped here.
   let sessionProfile: AccessProfile | null = null;
-  const bustAccessProfile =
-    !!user && wantsAccessProfileRefresh(request.cookies.get(ACCESS_PROFILE_REFRESH_COOKIE)?.value);
-  if (user && bustAccessProfile) {
+  const refreshCookie = request.cookies.get(ACCESS_PROFILE_REFRESH_COOKIE)?.value ?? null;
+  // Only the legacy one-shot value is cleared here; a stamp must keep
+  // invalidating older memo entries on every instance until it expires.
+  const bustAccessProfile = !!user && refreshCookie === ACCESS_PROFILE_REFRESH_VALUE;
+  if (user && wantsAccessProfileRefresh(refreshCookie)) {
     forgetAccessProfileMemo(user.id);
   }
 
   if (user) {
-    sessionProfile = await loadAccessProfileMemo(supabase, user.id);
+    const loaded = await loadAccessProfileMemo(supabase, user.id, refreshCookie);
+    sessionProfile = loaded.profile;
+    // Loop guard: never bounce someone to /onboarding/role on a MEMOISED
+    // "no role yet" profile. Onboarding may have just created the profile on
+    // another host or instance; one fresh read decides.
+    if (loaded.fromMemo && shouldRereadBeforeOnboardingBounce(sessionProfile)) {
+      forgetAccessProfileMemo(user.id);
+      sessionProfile = (await loadAccessProfileMemo(supabase, user.id, refreshCookie)).profile;
+    }
   }
 
   // Sprint 2.1 — write the verified actor onto `forwardedHeaders` so
@@ -428,12 +456,28 @@ export async function updateSession(
     hostKind: options?.hostKind ?? null,
   });
 
+  const isServerActionRequest =
+    request.method === "POST" && request.headers.has("next-action");
+
   const applyImpersonationCookieClear = (res: NextResponse) => {
     if (clearImpersonationCookie) {
       clearImpersonationCookieOnResponse(res);
     }
     if (bustAccessProfile) {
       res.cookies.set(ACCESS_PROFILE_REFRESH_COOKIE, "", { maxAge: 0, path: "/" });
+    }
+    if (
+      decision.redirectTo?.startsWith("/onboarding/role") &&
+      !isServerActionRequest
+    ) {
+      // Lets /onboarding/role tell a fresh chooser visit from a bounce: if
+      // the page would send this person straight back, it holds instead.
+      res.cookies.set(ONBOARDING_BOUNCE_COOKIE, String(Date.now()), {
+        path: "/",
+        maxAge: ONBOARDING_BOUNCE_WINDOW_S,
+        httpOnly: true,
+        sameSite: "lax",
+      });
     }
     return res;
   };
@@ -464,8 +508,6 @@ export async function updateSession(
   // Actions enforce their own auth (requireSession/requireStaff), so it's safe
   // — and necessary — to let them run and return their own result. Only GET
   // navigations get the routing redirect.
-  const isServerActionRequest =
-    request.method === "POST" && request.headers.has("next-action");
 
   if (decision.redirectTo && !isServerActionRequest) {
     const redirectUrl = request.nextUrl.clone();
