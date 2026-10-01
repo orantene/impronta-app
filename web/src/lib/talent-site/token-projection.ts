@@ -116,6 +116,8 @@ export function talentProfileTokens(
     inquireHref: `${profilePath}?inquire=1`,
     whatsappHref: contact.whatsappHref,
     emailHref: contact.emailHref,
+    /** G4: tel: link from the explicit public call number only; "" when not opted in. */
+    callHref: contact.callHref,
     contactCopy: contactCopyForPlan(profile.talentPlanKey),
     service1: services[0] ?? "",
     service2: services[1] ?? "",

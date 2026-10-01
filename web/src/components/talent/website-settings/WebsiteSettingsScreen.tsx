@@ -43,6 +43,8 @@ import {
   switchSaveImpact,
 } from "@/lib/talent/accepting-readiness";
 import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "./primitives";
+import { CallNumberGroup } from "./CallNumberGroup";
+import { LiveStatusCard } from "./LiveStatusCard";
 import { ConfirmSheet, LanguagesGroup, languagesSummary } from "./LanguagesGroup";
 import { languagesChangeCount, type LanguagesDraft } from "./languages-model";
 import { useLanguagesDraft } from "./use-languages-draft";
@@ -70,7 +72,7 @@ function fieldsOf(o: TalentOffering): ServiceFields {
   };
 }
 
-type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis" | "policies";
+type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis" | "contact" | "policies";
 
 export function WebsiteSettingsScreen({
   talentId,
@@ -280,6 +282,7 @@ export function WebsiteSettingsScreen({
     self: t("Client self-service"),
     chat: t("Chat & inquiries"),
     vis: t("Appearance & visibility"),
+    contact: t("Contact"),
     policies: t("Policies and privacy"),
   };
 
@@ -359,6 +362,7 @@ export function WebsiteSettingsScreen({
   return (
     <div className="mx-auto max-w-xl px-4 font-admin-body">
       {header}
+      {view === "home" ? <LiveStatusCard t={t} /> : null}
       {view === "home" ? (
         <div className="overflow-hidden rounded-xl border border-admin-border-soft bg-white">
           <NavRow
@@ -406,6 +410,11 @@ export function WebsiteSettingsScreen({
           <NavRow title={titles.chat} summary={chatSummary(t, draftSw)} onOpen={() => setView("chat")} />
           <NavRow title={titles.vis} summary={visibilitySummary(t, draftSw)} onOpen={() => setView("vis")} />
           <NavRow
+            title={titles.contact}
+            summary={t("A public number for the call button on your website")}
+            onOpen={() => setView("contact")}
+          />
+          <NavRow
             title={titles.policies}
             summary={t("Cancelling, deposit and what your clients read before they book")}
             onOpen={() => setView("policies")}
@@ -422,6 +431,7 @@ export function WebsiteSettingsScreen({
       ) : null}
       {view === "chat" ? <ChatInquiriesGroup {...switchProps} strandedTitles={strandedTitles} /> : null}
       {view === "vis" ? <VisibilityGroup {...switchProps} /> : null}
+      {view === "contact" ? <CallNumberGroup t={t} /> : null}
       {status === "failed" && partial ? (
         <p role="alert" className="mt-3 rounded-lg bg-amber-50 px-3.5 py-3 text-[13px] text-amber-900">
           {t("Some changes saved. Still unsaved: {items}. Retry sends only these.").replace(
