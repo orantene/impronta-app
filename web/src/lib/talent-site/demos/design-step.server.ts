@@ -22,6 +22,7 @@ import { loadDemoDesignRow } from "@/lib/talent-site/theme-releases/release-desi
 import { loadDemoContentFixture } from "./content-fixture";
 import { matchOfferings, type ExistingOffering } from "./fixture-plan";
 import { gridlineCopyFromFixture } from "./gridline-site-copy";
+import { FOLIO_DEMO_SITE_COPY } from "./folio-site-copy";
 import { applyDemoSiteCopy } from "./site-copy";
 import type { DemoDesign } from "./types";
 import { sameStable } from "./stable";
@@ -136,6 +137,18 @@ async function gridlineCopiedTrees(
   return { shellTree: out.shell, homeTree: out.home };
 }
 
+/** Folio: the design ships neutral wording; every Folio demo gets the demo wording through site-copy. */
+function folioCopiedTrees(built: { shellTree: unknown; homeTree: unknown }): { shellTree: unknown; homeTree: unknown } {
+  const out = applyDemoSiteCopy(
+    built.shellTree as never,
+    built.homeTree as never,
+    { folio: FOLIO_DEMO_SITE_COPY },
+    () => null,
+    () => "unused",
+  );
+  return { shellTree: out.shell, homeTree: out.home };
+}
+
 type DemoDesignRow = NonNullable<Awaited<ReturnType<typeof loadDemoDesignRow>>>;
 type Trees = ReturnType<typeof styleTrees>;
 type CatalogLook = Awaited<ReturnType<typeof loadMaisonCatalogRow>>;
@@ -197,7 +210,9 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
   const copied =
     !style && spec.design === "gridline" && !!spec.contentFixture
       ? ((await gridlineCopiedTrees(admin, tp.id, spec.contentFixture, built)) as Trees)
-      : null;
+      : !style && spec.design === "folio"
+        ? (folioCopiedTrees(built) as Trees)
+        : null;
   const trees = style
     ? styleTrees(built, style, await loadMedia(admin, tp.id), spec.profileCode)
     : (copied ?? { shellTree: built.shellTree, homeTree: built.homeTree });

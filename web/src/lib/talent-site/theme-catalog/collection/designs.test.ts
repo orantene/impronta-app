@@ -362,11 +362,8 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     String(statementNodes[0]!.props?.statement ?? ""),
     /Next issue/,
   );
-  assert.equal(statementNodes[0]!.props?.creditLine, "mateoferrer.tulala.digital");
-  assert.equal(
-    statementNodes[0]!.props?.contactLine,
-    "For editorials, runway and campaigns. I reply the same day.",
-  );
+  assert.equal(statementNodes[0]!.props?.creditLine, "", "no talent host baked into the design");
+  assert.equal(statementNodes[0]!.props?.contactLine, "", "no talent claim baked into the design");
   assert.ok(
     statementFooters.some(
       (s) => s.slotKey === "statement_footer" && s.originRole === "talent.statement_footer",
