@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 
 import { actionSaveAsNewDesign } from "./new-design-actions";
 
@@ -72,8 +73,8 @@ export function SaveAsNewDesignDialog({
       <button type="button" className={btn} onClick={() => setOpen(true)} data-save-as-new-design>
         {t.open}
       </button>
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      {open && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4">
           <div role="dialog" aria-modal="true" aria-label={t.title} className="w-full max-w-md rounded-lg border border-white/15 bg-neutral-900 p-5 text-white">
             <h2 className="text-base font-semibold">{t.title}</h2>
             <p className="mt-1 text-xs text-white/60">{t.lead}</p>
@@ -95,7 +96,8 @@ export function SaveAsNewDesignDialog({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );
