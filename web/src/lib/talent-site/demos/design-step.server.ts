@@ -138,7 +138,7 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
   const catalogLook = spec.design === "folio" ? await loadMaisonCatalogRow(admin, "look", `folio-${spec.palette}`) : null;
   const styled = style ? styleLook(style, spec.palette, spec.profileCode) : null;
   const galleryTokens = catalogLook ? null : (styled?.look ?? galleryPaletteLookTokens(spec.design, spec.palette));
-  const lookSlug = catalogLook?.slug ?? (styled ? styled.lookSlug : spec.palette);
+  const lookSlug = catalogLook?.slug ?? (styled ? (styled.lookSlug ?? undefined) : spec.palette);
 
   const tokens = await loadTemplateHydrationTokens(tp.id);
   if (!tokens) throw new Error(`${spec.profileCode}: hydration tokens unavailable`);
