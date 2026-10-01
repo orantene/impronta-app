@@ -130,6 +130,8 @@ export async function mergeSite(
       tokens: design.payload.tokenDefaults ?? {},
     },
     ...(items && items.length > 0 ? { items } : {}),
+    // Demos get the release fully: seeded demo content must not read as a talent edit.
+    ...(site.isDemo ? { forceDesign: true } : {}),
     ...(row.theme_token_origin && typeof row.theme_token_origin === "object"
       ? { tokenOrigin: row.theme_token_origin as Record<string, string> }
       : {}),
