@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import {
   checkTalentSiteDomainProvisioningAction,
@@ -17,8 +18,7 @@ import {
 
 /**
  * TalentSiteDomainPanel — SELF-CONTAINED custom-domain manager for the talent
- * Max site. The WS2 dashboard lead mounts this into the
- * `TALENT_SITE_DOMAIN_PANEL_SLOT`; it is NOT wired anywhere itself.
+ * Max site. Also embedded inside Domain setup drawer (`embedded`).
  *
  * Mirrors the agency domain settings UI: connect a domain, surface the DNS
  * records to add (A/CNAME + TXT), verify, check routing/SSL, set-primary, and
@@ -31,34 +31,25 @@ import {
  *   - `canManage`      — optional gate hint; when false the panel renders an
  *                        upgrade nudge instead of the editor. The server action
  *                        re-checks Max regardless, so this is UX-only.
+ *   - `embedded`       — when true (drawer), drop outer card chrome / title so
+ *                        Domain setup owns the hierarchy.
  */
 
-const STATUS_META: Record<
-  TalentSiteDomainView["status"],
-  { label: string; fg: string; bg: string }
-> = {
-  pending: { label: "Pending", fg: COLORS.amberDeep, bg: COLORS.amberSoft },
-  dns_verification_sent: {
-    label: "Awaiting TXT",
-    fg: COLORS.amberDeep,
-    bg: COLORS.amberSoft,
-  },
-  verified: { label: "Verified", fg: COLORS.indigoDeep, bg: COLORS.indigoSoft },
-  ssl_provisioned: {
-    label: "Provisioning SSL",
-    fg: COLORS.indigoDeep,
-    bg: COLORS.indigoSoft,
-  },
-  active: { label: "Live", fg: COLORS.successDeep, bg: COLORS.successSoft },
-  error: { label: "Needs attention", fg: COLORS.criticalDeep, bg: COLORS.criticalSoft },
-};
+type Copy = { t: (s: string) => string };
 
 type Props = {
   initialDomains?: TalentSiteDomainView[];
   canManage?: boolean;
+  /** Soften chrome when mounted inside Domain setup drawer. */
+  embedded?: boolean;
 };
 
-export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Props) {
+export function TalentSiteDomainPanel({
+  initialDomains,
+  canManage = true,
+  embedded = false,
+}: Props) {
+  const copy = useDashboardText();
   const [domains, setDomains] = useState<TalentSiteDomainView[]>(initialDomains ?? []);
   const [hostnameInput, setHostnameInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -105,7 +96,7 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
   function connect() {
     const value = hostnameInput.trim();
     if (!value) {
-      setError("Enter a domain to continue.");
+      setError(copy.t("Enter a domain to continue."));
       return;
     }
     run(async () => {
@@ -117,25 +108,33 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
 
   if (!canManage) {
     return (
-      <Card>
-        <Header />
-        <p style={{ margin: "10px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-          Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a
-          custom domain at your site.
+      <Card embedded={embedded}>
+        {embedded ? null : <Header copy={copy} />}
+        <p
+          style={{
+            margin: embedded ? 0 : "10px 0 0",
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+            lineHeight: 1.5,
+          }}
+        >
+          {copy.t(
+            "Connecting your own domain is a Web Office feature. Upgrade to Web Office to point a custom domain at your site.",
+          )}
         </p>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <Header />
+    <Card embedded={embedded}>
+      {embedded ? null : <Header copy={copy} />}
 
       <div
         style={{
           display: "flex",
           gap: 8,
-          marginTop: 14,
+          marginTop: embedded ? 0 : 14,
           flexWrap: "wrap",
           alignItems: "center",
         }}
@@ -161,13 +160,13 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
             fontSize: 13,
             fontFamily: FONTS.body,
             color: COLORS.ink,
-            background: "#fff",
+            background: COLORS.card,
             border: `1px solid ${COLORS.border}`,
-            borderRadius: 8,
+            borderRadius: 10,
           }}
         />
         <PrimaryButton onClick={connect} disabled={pending}>
-          Connect domain
+          {copy.t("Connect domain")}
         </PrimaryButton>
       </div>
 
@@ -184,11 +183,12 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
 
       <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         {!loaded ? (
-          <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>Loading domains…</p>
+          <p style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{copy.t("Loading domains…")}</p>
         ) : domains.length === 0 ? (
           <p style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-            No custom domain yet. Add one above to serve your site from your own
-            address. We will show the DNS records to add.
+            {copy.t(
+              "No custom domain yet. Add one above to serve your site from your own address. We will show the DNS records to add.",
+            )}
           </p>
         ) : (
           domains.map((d) => (
@@ -196,6 +196,7 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
               key={d.domain}
               domain={d}
               pending={pending}
+              copy={copy}
               onVerify={() => run(() => verifyTalentSiteDomainAction(d.domain))}
               onCheck={() => run(() => checkTalentSiteDomainProvisioningAction(d.domain))}
               onSetPrimary={() => run(() => setPrimaryTalentSiteDomainAction(d.domain))}
@@ -208,7 +209,7 @@ export function TalentSiteDomainPanel({ initialDomains, canManage = true }: Prop
   );
 }
 
-function Header() {
+function Header({ copy }: { copy: Copy }) {
   return (
     <div>
       <div
@@ -220,23 +221,36 @@ function Header() {
           letterSpacing: 0.4,
         }}
       >
-        Custom domain
+        {copy.t("Custom domain")}
       </div>
       <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, marginTop: 4 }}>
-        Serve your site from your own domain
+        {copy.t("Serve your site from your own domain")}
       </div>
     </div>
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({
+  children,
+  embedded,
+}: {
+  children: React.ReactNode;
+  embedded?: boolean;
+}) {
+  if (embedded) {
+    return (
+      <div style={{ padding: 0, background: "transparent", border: "none", fontFamily: FONTS.body }}>
+        {children}
+      </div>
+    );
+  }
   return (
     <div
       style={{
         padding: "14px 16px",
         background: COLORS.surfaceAlt,
         border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 12,
+        borderRadius: 14,
         fontFamily: FONTS.body,
       }}
     >
@@ -245,9 +259,30 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
+function statusMeta(
+  status: TalentSiteDomainView["status"],
+  copy: Copy,
+): { label: string; fg: string; bg: string } {
+  switch (status) {
+    case "pending":
+      return { label: copy.t("Pending"), fg: COLORS.amberDeep, bg: COLORS.amberSoft };
+    case "dns_verification_sent":
+      return { label: copy.t("Awaiting TXT"), fg: COLORS.amberDeep, bg: COLORS.amberSoft };
+    case "verified":
+      return { label: copy.t("Verified"), fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
+    case "ssl_provisioned":
+      return { label: copy.t("Provisioning SSL"), fg: COLORS.indigoDeep, bg: COLORS.indigoSoft };
+    case "active":
+      return { label: copy.t("Live"), fg: COLORS.successDeep, bg: COLORS.successSoft };
+    case "error":
+      return { label: copy.t("Needs attention"), fg: COLORS.criticalDeep, bg: COLORS.criticalSoft };
+  }
+}
+
 function DomainRow({
   domain,
   pending,
+  copy,
   onVerify,
   onCheck,
   onSetPrimary,
@@ -255,12 +290,13 @@ function DomainRow({
 }: {
   domain: TalentSiteDomainView;
   pending: boolean;
+  copy: Copy;
   onVerify: () => void;
   onCheck: () => void;
   onSetPrimary: () => void;
   onRemove: () => void;
 }) {
-  const meta = STATUS_META[domain.status];
+  const meta = statusMeta(domain.status, copy);
   const needsTxt =
     domain.status === "pending" || domain.status === "dns_verification_sent";
   const needsRouting =
@@ -270,8 +306,8 @@ function DomainRow({
     <div
       style={{
         border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 10,
-        background: "#fff",
+        borderRadius: 12,
+        background: COLORS.card,
         padding: 12,
       }}
     >
@@ -301,7 +337,7 @@ function DomainRow({
                 letterSpacing: 0.3,
               }}
             >
-              Primary
+              {copy.t("Primary")}
             </span>
           ) : null}
           <span
@@ -322,17 +358,17 @@ function DomainRow({
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {needsTxt ? (
             <SecondaryButton onClick={onVerify} disabled={pending}>
-              Verify
+              {copy.t("Verify")}
             </SecondaryButton>
           ) : null}
           {needsRouting ? (
             <SecondaryButton onClick={onCheck} disabled={pending}>
-              Check routing
+              {copy.t("Check routing")}
             </SecondaryButton>
           ) : null}
           {domain.canBecomePrimary ? (
             <SecondaryButton onClick={onSetPrimary} disabled={pending}>
-              Make primary
+              {copy.t("Make primary")}
             </SecondaryButton>
           ) : null}
           <button
@@ -349,7 +385,7 @@ function DomainRow({
               padding: "7px 6px",
             }}
           >
-            Remove
+            {copy.t("Remove")}
           </button>
         </div>
       </div>
@@ -362,7 +398,7 @@ function DomainRow({
 
       {needsTxt && domain.txtRecord ? (
         <DnsBlock
-          title="1. Add this TXT record to prove you own the domain"
+          title={copy.t("1. Add this TXT record to prove you own the domain")}
           rows={[
             { type: "TXT", host: domain.txtRecord.host, value: domain.txtRecord.value },
           ]}
@@ -373,8 +409,8 @@ function DomainRow({
         <DnsBlock
           title={
             needsTxt
-              ? "2. Then point the domain at Vercel"
-              : "Point the domain at Vercel"
+              ? copy.t("2. Then point the domain at Vercel")
+              : copy.t("Point the domain at Vercel")
           }
           rows={domain.routingRecords.map((r) => ({
             type: r.type,

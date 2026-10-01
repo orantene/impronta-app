@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Site address, logo, pages, shell and custom domain for the talent's own
- * website. Moved out of the My website tab (P1 mockup): the tab shows one
- * card; these live in Website settings (or the collapsed fallback row when
- * the settings screen is flag-gated off).
+ * Site address, logo, pages and shell for the talent's own website.
+ * Moved out of the My website tab (P1 mockup): the tab shows the live card +
+ * Custom domain row; these live in Website settings (or the collapsed fallback
+ * when the settings screen is flag-gated off).
  */
 
 import Link from "next/link";
@@ -26,7 +26,6 @@ import type {
   MaxSiteManagerState,
   MaxSiteManagerPage,
 } from "@/lib/talent-site/server/site-management-types";
-import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 import { uploadTalentMaxSiteLogo } from "@/lib/client/signed-upload";
 import { removeMaxSiteLogoAction } from "@/lib/talent-site/server/site-logo-actions";
 import {
@@ -112,8 +111,7 @@ export function MaxSiteSettingsPanels() {
           <Link href="/talent/page-builder?shell=1" style={linkButton}>Edit shell →</Link>
         </div>
       </Card>
-      {/* Custom domain reads the capability RECORD (Web Office), not canManage. */}
-      <TalentSiteDomainPanel canManage={state.capabilities.personalSiteCustomDomain} />
+      {/* Custom domain lives on Presence → My website (CustomDomainRow), not here. */}
     </div>
   );
 }

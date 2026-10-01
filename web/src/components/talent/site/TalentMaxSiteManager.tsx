@@ -6,12 +6,12 @@
  * `/t/<code>` discovery profile).
  *
  * P1 mockup:
- *   - LIVE (any published design slug): exactly one card, MyWebsiteCard.
+ *   - LIVE (any published design slug): MyWebsiteCard + Custom domain row.
  *   - Before live: the unlock state (WebsiteEligibilityPanel). "Activate your
  *     free website" opens the design gallery (MaisonSetupHost, or the theme
  *     gallery when the Maison flag is off).
- *   - Site address, logo, pages, shell and custom domain live in Website
- *     settings (TalentMaxSiteSettingsPanels), not on this tab.
+ *   - Site address, logo, pages and shell live in Website settings
+ *     (TalentMaxSiteSettingsPanels). Custom domain stays on this tab.
  *
  * A non-editing tier sees an upsell card (not a 404). All writes are
  * owner-gated server actions; RLS independently backs them.
@@ -44,6 +44,7 @@ import {
   publishMaxSiteAction,
 } from "@/lib/talent-site/server/site-management-actions";
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
+import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
 
 type Props = { locale?: "en" | "es" };
 
@@ -141,6 +142,7 @@ function ManagerBody({
   locale: "en" | "es";
 }) {
   const copy = useDashboardText();
+  const { openDrawer } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
@@ -149,6 +151,15 @@ function ManagerBody({
   const [setupOpen, setSetupOpen] = useState(false);
   /** P5: "✓ <Design> is live" after a live design switch. */
   const [liveToast, setLiveToast] = useState<string | null>(null);
+
+  // Return from domain Checkout → open Domain setup in provisioning state.
+  // Param strip happens in TalentCustomDomainDrawer once it opens.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("domainCheckout") !== "done") return;
+    if (!state.capabilities.personalSiteCustomDomain) return;
+    openDrawer("talent-custom-domain");
+  }, [openDrawer, state.capabilities.personalSiteCustomDomain]);
 
   // Live card for ANY published design slug (maison, maison-v2, solace, …).
   const maisonLive = Boolean(state.sitePublishedAt);
@@ -236,6 +247,8 @@ function ManagerBody({
           </Card>
         </>
       )}
+
+      <CustomDomainRow canManage={state.capabilities.personalSiteCustomDomain} />
     </div>
   );
 }
