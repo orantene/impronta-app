@@ -67,6 +67,29 @@ export function pickApplyDesign(
   return { ...row, version: newestOpenToVersion, payload: snapshot };
 }
 
+export interface ReleaseVersionRow {
+  to_version: number;
+  channel: string;
+  status: string;
+}
+
+/**
+ * PURE: does a release row count as "released" for the channels the caller asked
+ * for. optin/default count when published. `demos` is stored as status "draft"
+ * on purpose (setChannel: not open to talents), so it counts while draft or
+ * published, never when paused/archived, and ONLY when the caller asked for the
+ * demos channel (a talent's apply never sees a demos-only release).
+ */
+export function releaseCountsForChannels(
+  r: Pick<ReleaseVersionRow, "channel" | "status">,
+  channels: ReadonlyArray<string>,
+): boolean {
+  if (!channels.includes(r.channel)) return false;
+  if (r.channel === "optin" || r.channel === "default") return r.status === "published";
+  if (r.channel === "demos") return r.status === "draft" || r.status === "published";
+  return false;
+}
+
 /**
  * Catalog row for a new apply AND the gallery preview (same function, so what
  * she sees is what she gets). See `pickApplyDesign`.
@@ -81,14 +104,13 @@ export async function loadApplyDesignRow(
   if (!row) return null;
   const { data, error } = await admin
     .from("talent_theme_releases")
-    .select("to_version")
+    .select("to_version, channel, status")
     .eq("design_slug", slug)
-    .eq("status", "published")
     .in("channel", [...channels])
-    .order("to_version", { ascending: false })
-    .limit(1);
+    .order("to_version", { ascending: false });
   if (error) return row; // tables missing / unreadable: the catalog row
-  const top = (data as Array<{ to_version?: number }> | null)?.[0]?.to_version;
+  const top = ((data as ReleaseVersionRow[] | null) ?? []).find((r) => releaseCountsForChannels(r, channels))
+    ?.to_version;
   if (typeof top !== "number" || top <= row.version) return row;
   return pickApplyDesign(row, top, await loadThemeVersionPayload(admin, slug, top));
 }

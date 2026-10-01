@@ -20,8 +20,8 @@ import { loadDemoDesignRow } from "../../src/lib/talent-site/theme-releases/rele
 import { galleryPaletteLookTokens } from "../../src/lib/talent-site/theme-catalog/gallery-meta";
 import { mergeLookIntoTokens } from "../../src/lib/talent-site/theme-catalog/look-layer";
 import { DEMOS } from "./demos";
-import { applyDesign, applyLook, publishSiteTheme } from "../../src/lib/talent-site/server/theme-apply-core";
-import { publishTalentPageBodies } from "../../src/lib/talent-site/server/publish-talent-page-bodies";
+import { applyDesign, applyLook } from "../../src/lib/talent-site/server/theme-apply-core";
+import { publishDemoSite } from "../../src/lib/talent-site/server/demo-pipeline.server";
 import { MAISON_BUILTIN_DEMO } from "../../src/lib/talent-site/theme-catalog/maison/builtins";
 import { MAISON_PALETTE_ORDER } from "../../src/lib/talent-site/theme-catalog/maison/seed";
 import { DEMO_BATCH } from "./demos";
@@ -123,23 +123,7 @@ for (const [i, e] of entries.entries()) {
     .eq("id", site.id);
   if (metaErr) throw metaErr;
 
-  const pages = await publishTalentPageBodies(admin, { talentProfileId: e.talentProfileId, now });
-  if (!pages.ok) throw new Error(`${e.profileCode} publish pages failed`);
-  const { data: fresh } = await admin.from("talent_sites").select("shell_tree").eq("id", site.id).single();
-  const { error: pubErr } = await admin
-    .from("talent_sites")
-    .update({
-      shell_published: fresh?.shell_tree ?? [],
-      site_published_at: now,
-      status: "published",
-      published_at: now,
-      updated_at: now,
-      updated_by: e.userId,
-    })
-    .eq("id", site.id);
-  if (pubErr) throw pubErr;
-  const t = await publishSiteTheme(admin, { siteId: site.id, profileCode: e.profileCode });
-  if (!t.ok) throw new Error(`${e.profileCode} publishSiteTheme: ${t.error}`);
+  await publishDemoSite(admin, { siteId: site.id, talentProfileId: e.talentProfileId, profileCode: e.profileCode, userId: e.userId });
   console.log(designSlug, e.profileCode, tp.display_name, `palette ${v2Palette ?? paletteKey}`, "published");
 }
 console.log("done");

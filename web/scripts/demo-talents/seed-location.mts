@@ -15,6 +15,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { DEMOS } from "./demos";
+import { applyDemoLocation } from "../../src/lib/talent-site/demos/location";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -30,36 +31,8 @@ const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
 for (const d of DEMOS) {
   if (!d.location) continue;
   if (!/^TAL-93\d{3}$/.test(d.profileCode)) throw new Error(`REFUSE: ${d.profileCode} is not a demo code`);
-  const { data: profile, error } = await admin
-    .from("talent_profiles")
-    .select("id, is_demo")
-    .eq("profile_code", d.profileCode)
-    .maybeSingle();
-  if (error) throw error;
-  if (!profile) {
-    console.warn(`  ${d.profileCode} (${d.displayName}): not seeded on this project, skipped`);
-    continue;
-  }
-  if ((profile as { is_demo?: boolean | null }).is_demo !== true) {
-    console.warn(`  ${d.profileCode} (${d.displayName}): is_demo is not true, REFUSED (not a demo)`);
-    continue;
-  }
-  const row = {
-    talent_profile_id: profile.id as string,
-    address_mode: d.location.addressMode,
-    studio_kind: d.location.studioKind,
-    zone_neighbourhood: d.location.neighbourhood,
-    arrival_note: d.location.arrivalNote,
-    arrival_photo_url: null,
-    exact_address: null,
-    updated_at: new Date().toISOString(),
-  };
-  if (dryRun) {
-    console.log(`  [dry-run] ${d.profileCode}`, { ...row, talent_profile_id: "(id)" });
-    continue;
-  }
-  const { error: upErr } = await admin.from("talent_location_settings").upsert(row, { onConflict: "talent_profile_id" });
-  if (upErr) throw upErr;
-  console.log(`  ${d.profileCode} (${d.displayName}): location settings written (${d.location.addressMode}, ${d.location.neighbourhood})`);
+  // The shared writer refuses anything that is not is_demo = true (never the code range alone).
+  const res = await applyDemoLocation(admin, { profileCode: d.profileCode, location: d.location, write: !dryRun });
+  console.log(`  ${dryRun ? "[dry-run] " : ""}${d.profileCode} (${d.displayName}): ${res}`);
 }
 console.log("done");

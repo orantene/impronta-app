@@ -23,7 +23,7 @@ test("pickApplyDesign: no release, no snapshot, or catalog already there = the c
   assert.equal(pickApplyDesign(row, 14, snap16), row);
 });
 
-function releaseAdmin(releases: Array<{ to_version: number }>, snapshot: unknown) {
+function releaseAdmin(releases: Array<{ to_version: number; channel?: string; status?: string }>, snapshot: unknown) {
   const catalogRow = {
     id: "1", kind: "design", slug: "maison-v2", title: "M", summary: "s", category: null, tags: [],
     payload: { shellTree: [], homeTree: [], tokenDefaults: {} }, preview: {}, required_talent_tier: "talent_basic",
@@ -37,7 +37,7 @@ function releaseAdmin(releases: Array<{ to_version: number }>, snapshot: unknown
         select: () => q,
         eq: (c: string, v: unknown) => (filters.push([c, v]), q),
         in: (c: string, v: unknown) => (filters.push([c, v]), q),
-        order: () => q,
+        order: () => Object.assign(Promise.resolve({ data: releases, error: null }), q),
         limit: () => Promise.resolve({ data: releases, error: null }),
         maybeSingle: () =>
           Promise.resolve({
@@ -53,12 +53,11 @@ function releaseAdmin(releases: Array<{ to_version: number }>, snapshot: unknown
 
 test("loadApplyDesignRow: gallery preview and apply share one version (newest open release)", async () => {
   const snap = { shellTree: [], homeTree: [], tokenDefaults: { x: "1" } };
-  const a = releaseAdmin([{ to_version: 16 }], snap);
+  const a = releaseAdmin([{ to_version: 16, channel: "optin", status: "published" }], snap);
   const d = await loadApplyDesignRow(a.admin, "maison-v2");
   assert.equal(d?.version, 16);
   assert.deepEqual(d?.payload, snap);
-  // only open, published releases are asked for (paused / draft / demos never count)
-  assert.ok(a.filters.some(([c, v]) => c === "status" && v === "published"));
+  // a talent apply asks for optin + default only (demos never count)
   assert.ok(a.filters.some(([c, v]) => c === "channel" && JSON.stringify(v) === JSON.stringify(["optin", "default"])));
   const none = await loadApplyDesignRow(releaseAdmin([], null).admin, "maison-v2");
   assert.equal(none?.version, 14);

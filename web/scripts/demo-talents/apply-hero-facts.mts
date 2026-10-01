@@ -14,7 +14,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
-import { applyHeroFacts, HERO_FACTS } from "./hero-facts";
+import { applyHeroFacts, HERO_FACTS } from "../../src/lib/talent-site/demos/hero-facts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
