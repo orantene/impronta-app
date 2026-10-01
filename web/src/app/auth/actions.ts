@@ -23,6 +23,8 @@ import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/policy-versions.core";
+import { recordSignupAcceptance } from "@/lib/legal/signup-acceptance";
 
 /**
  * `pendingEmail` is set when signup succeeded but the session is not live yet
@@ -290,6 +292,10 @@ export async function signUpWithEmail(
   if (password.length < 8) {
     return { error: t("public.auth.actions.passwordTooShort") };
   }
+  // Legal 2.2: adults only (18+) and explicit agreement, enforced server-side.
+  if (!isAgeAndTermsConfirmed(formData.get("age_terms"))) {
+    return { error: t("public.auth.actions.ageTermsRequired") };
+  }
 
   const supabase = await getCachedServerSupabase();
   if (!supabase) {
@@ -325,6 +331,8 @@ export async function signUpWithEmail(
   }
 
   if (data.user) {
+    // Best effort: never blocks signup (logs and returns on any failure).
+    await recordSignupAcceptance(data.user.id);
     if (data.session) {
       await claimGuestSupportOnAuth(data.user.id);
       await claimTulalaBriefOnAuth(supabase, data.user.id);

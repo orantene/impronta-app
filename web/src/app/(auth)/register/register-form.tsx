@@ -144,6 +144,29 @@ export function RegisterForm({
         />
       </AuthField>
 
+      <label
+        className="flex items-start gap-2 text-[0.8125rem] leading-snug"
+        style={{ color: "var(--plt-ink-soft)" }}
+      >
+        <input
+          type="checkbox"
+          name="age_terms"
+          required
+          className="mt-0.5 size-4 shrink-0"
+          data-testid="register-age-terms"
+        />
+        <span>
+          {t("public.auth.register.ageTermsPrefix")}{" "}
+          <Link href="/legal/terms" target="_blank" className="underline underline-offset-4">
+            {t("public.auth.register.ageTermsTerms")}
+          </Link>{" "}
+          {t("public.auth.register.ageTermsAnd")}{" "}
+          <Link href="/legal/privacy" target="_blank" className="underline underline-offset-4">
+            {t("public.auth.register.ageTermsPrivacy")}
+          </Link>
+        </span>
+      </label>
+
       <AuthSubmitButton
         pending={pending}
         idle={submitLabel ?? t("public.auth.register.emailSubmit")}

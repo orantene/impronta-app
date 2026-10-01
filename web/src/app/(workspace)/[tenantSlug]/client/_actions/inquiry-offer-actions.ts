@@ -31,6 +31,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import { sendClientMessageAction } from "./inquiry-message-actions";
 import { logServerError } from "@/lib/server/safe-error";
+import { acceptBookingPolicyForInquiry } from "@/lib/legal/policy-versions";
 import { offerRefusalCode, type OfferRefusalCode } from "./offer-refusal";
 
 export type InquiryOfferActionState =
@@ -112,6 +113,16 @@ export async function approveOfferAction(
           : "Could not approve. Try again.",
     };
   }
+
+  // Legal 2.2: record the booking policy accepted with this approval and stamp
+  // it on the offer. Best effort; never throws.
+  await acceptBookingPolicyForInquiry({
+    inquiryId,
+    context: "offer_approval",
+    contextId: offerId,
+    actorUserId: session.user.id,
+    stamp: { table: "inquiry_offers", id: offerId },
+  });
 
   revalidatePath(`/${tenantSlug}/client/messages`);
   revalidatePath(`/${tenantSlug}/client/inquiries/${inquiryId}`);

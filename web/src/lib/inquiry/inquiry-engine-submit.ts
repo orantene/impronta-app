@@ -18,6 +18,7 @@ import { ensureClientRelationshipForInquiry } from "./ensure-client-relationship
 import { refuseOfferingRequestIfPolicyOff } from "@/lib/scheduling/reservation-submit-gate";
 import { insertSystemMessage } from "./inquiry-system-messages";
 import { buildInquiryBells } from "./inquiry-notifications";
+import { acceptCurrentPolicy, requestFingerprint } from "@/lib/legal/policy-versions";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. All reads/writes against
 // inquiries and inquiry_participants filter on tenant_id. Inserts include
@@ -332,6 +333,28 @@ export async function submitInquiry(
     }
 
     const inquiryId = row.id as string;
+
+    // Legal 2.2: the customer accepts the booking policy that applies at
+    // request time. Best effort; never throws and never blocks submission.
+    if (input.initiator_role === "client") {
+      const firstTalent = input.talent_profile_ids[0] ?? null;
+      const fp = await requestFingerprint();
+      await acceptCurrentPolicy(
+        "booking",
+        firstTalent
+          ? { scope: "talent", talentProfileId: firstTalent, tenantId: homeTenantId }
+          : { scope: "workspace", tenantId: homeTenantId },
+        {
+          context: "inquiry",
+          contextId: inquiryId,
+          actorUserId: input.actorUserId ?? null,
+          guestSessionId: input.guest_session_id ?? null,
+          tenantId: homeTenantId,
+          ip: fp.ip,
+          userAgent: fp.userAgent,
+        },
+      );
+    }
 
     // B2: ensureCustomer + stamp inquiries.customer_id when email/phone present.
     await linkInquiryCustomer({

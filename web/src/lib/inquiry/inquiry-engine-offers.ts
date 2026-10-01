@@ -8,6 +8,7 @@ import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } fro
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logServerError } from "@/lib/server/safe-error";
+import { stampCurrentBookingPolicyOnOffer } from "@/lib/legal/policy-versions";
 import {
   parseTenantCommercialTerms,
   parseTalentBookingTerms,
@@ -609,6 +610,10 @@ export async function createOffer(
       p_kind: "offer_created",
       p_payload: { offer_id: offer.id as string, currency: ctx.currencyCode ?? "USD" },
     }).then((r) => { if (r.error) logServerError("audit.emit.offer_created", r.error); });
+
+    // Legal 2.4: stamp the booking-policy version in force when the offer was
+    // made, so the client can be told if it changed since their request.
+    await stampCurrentBookingPolicyOnOffer(ctx.inquiryId, offer.id as string);
 
     return { success: true, data: { offerId: offer.id as string } };
   });
