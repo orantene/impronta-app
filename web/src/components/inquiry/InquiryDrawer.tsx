@@ -61,7 +61,8 @@ import type { BookableOffering } from "@/components/public-booking/pick-bookable
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
-import { C, FONT, FONT_DISPLAY } from "./inquiry-drawer-tokens";
+import { C, FONT, FONT_DISPLAY, primaryBtn, primaryLinkStyle, type RosterLiteItem } from "./inquiry-drawer-tokens";
+export type { RosterLiteItem } from "./inquiry-drawer-tokens";
 import { SubmittedView } from "./InquirySubmittedView";
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
@@ -1953,20 +1954,6 @@ const inputStyle: React.CSSProperties = {
   lineHeight: 1.4,
 };
 
-function primaryBtn(enabled: boolean): React.CSSProperties {
-  return {
-    height: 36,
-    padding: "0 16px",
-    borderRadius: 8,
-    background: enabled ? C.ink : "rgba(11,11,13,0.15)",
-    color: "#fff",
-    border: "none",
-    cursor: enabled ? "pointer" : "not-allowed",
-    fontFamily: FONT,
-    fontSize: 13,
-    fontWeight: 600,
-  };
-}
 
 const ghostBtn: React.CSSProperties = {
   height: 36,
@@ -1982,13 +1969,6 @@ const ghostBtn: React.CSSProperties = {
 };
 
 /** primaryBtn rendered as an <a> — used by the submitted-step CTAs. */
-const primaryLinkStyle: React.CSSProperties = {
-  ...primaryBtn(true),
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  textDecoration: "none",
-};
 
 // ─── Talent mini-card (selected-talent grid) ─────────────────────────────────
 const talentMiniCard: React.CSSProperties = {

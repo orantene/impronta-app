@@ -636,7 +636,7 @@ const BUDGETS: Record<string, number> = {
   // Budget sections and the "Job name" field rather than rewording them.
   // Raised in the same commit as the growth, per this file's own rule.
   // Extraction would be better and is owed: this is a 2.4k-line god file.
-  "src/components/inquiry/InquiryDrawer.tsx": 2263,
+  "src/components/inquiry/InquiryDrawer.tsx": 2243,
 
   // Site-admin library and its big characterization suites. Test files grow
   // into god files exactly like source files do, and are just as hard to read.

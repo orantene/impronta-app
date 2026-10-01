@@ -5,7 +5,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
 
-import { C, FONT, FONT_DISPLAY } from "./inquiry-drawer-tokens";
+import { C, FONT, FONT_DISPLAY, primaryLinkStyle } from "./inquiry-drawer-tokens";
 
 type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 

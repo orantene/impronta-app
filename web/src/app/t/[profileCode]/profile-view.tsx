@@ -1970,7 +1970,7 @@ export async function TalentProfileView({
       : // Platform host: the guest is talking to THIS talent, not the hub
         // brand. The hub name in the dock header read "Tulala" on Jor's own
         // profile (QA 2026-10-01).
-        name?.trim() || chatHub?.displayName || "Tulala";
+        displayName(profile as TalentProfile)?.trim() || chatHub?.displayName || "Tulala";
   // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
   // for unconfigured tenants so the launcher keeps working.
   const guestChatSettings = chatTenantId

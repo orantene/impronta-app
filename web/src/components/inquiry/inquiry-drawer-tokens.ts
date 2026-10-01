@@ -1,3 +1,4 @@
+import type React from "react";
 /** Shared look for the inquiry drawer and its extracted pieces. */
 export const FONT = '"Inter", system-ui, sans-serif';
 export const FONT_DISPLAY =
@@ -28,4 +29,27 @@ export type RosterLiteItem = {
   city?: string;
   /** Public card-thumbnail URL — renders the talent's face in the picker. */
   photoUrl?: string | null;
+};
+
+export function primaryBtn(enabled: boolean): React.CSSProperties {
+  return {
+    height: 36,
+    padding: "0 16px",
+    borderRadius: 8,
+    background: enabled ? C.ink : "rgba(11,11,13,0.15)",
+    color: "#fff",
+    border: "none",
+    cursor: enabled ? "pointer" : "not-allowed",
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: 600,
+  };
+}
+
+export const primaryLinkStyle: React.CSSProperties = {
+  ...primaryBtn(true),
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  textDecoration: "none",
 };
