@@ -73,6 +73,17 @@ export type DemoTalent = {
   palette?: string;
   /** Photos from a local folder (`--photo-dir`), instead of a --photos pack. */
   photos?: DemoPhotoPlan;
+  /**
+   * Location settings (talent_location_settings): how the Location section
+   * reads. Fictional-safe: a neighbourhood and an arrival note, NEVER an exact
+   * address (the demo mode is zone only, so nothing private exists to leak).
+   */
+  location?: {
+    addressMode: "zone_only" | "after_booking" | "public";
+    studioKind: "studio" | "home_visits" | "both";
+    neighbourhood: string;
+    arrivalNote: string;
+  };
   /** Published FAQ items (talent_faq_items). */
   faq?: { q: string; a: string }[];
   /** Demo reviews: labelled "Demo review" on the site (the talent is_demo). */

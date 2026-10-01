@@ -6,6 +6,8 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { buildMaisonV2Payload } from "../theme-catalog/collection/designs";
+import { seqIds } from "../theme-catalog/collection/design-parts";
+import { legacyMaisonV2VisitBand } from "../theme-catalog/collection/maison-v2";
 import type { DesignPayload } from "../theme-catalog/types";
 
 type Props = Record<string, unknown>;
@@ -154,9 +156,22 @@ export function revertR20(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6), rebuilt from code. */
+/** v21 back to v20: the "Before you come" visit band is back (Location was added beside it), and the header link points at it. */
+export function revertR21(p: DesignPayload): DesignPayload {
+  const out = clonePayload(p);
+  const at = out.homeTree.findIndex((n) => propsOf(n).slotKey === "location");
+  out.homeTree.splice(at < 0 ? out.homeTree.length : at, 0, legacyMaisonV2VisitBand(seqIds("maison-v2-legacy-visit")));
+  walkNodes(out.shellTree, (n) => {
+    const items = (propsOf(n).sectionProps as { navItems?: Array<{ href?: string }> } | undefined)?.navItems;
+    for (const i of items ?? []) if (i.href === "#location") i.href = "#visit";
+  });
+  return out;
+}
+
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 21 = release 21), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
+  if (version < 21) out = revertR21(out);
   if (version < 20) out = revertR20(out);
   if (version < 19) out = revertR19(out);
   if (version < 18) out = revertR18(out);

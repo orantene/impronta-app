@@ -27,11 +27,14 @@ import { TalentSiteMessagesDock } from "@/app/%5Ftalent-site/TalentSiteMessagesD
 async function isAdminViewingDemo(talentProfileId: string): Promise<boolean> {
   const session = await getCachedActorSession();
   if (!isPlatformAdmin(session.profile)) return false;
-  const { data } = await createServiceRoleClient()
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { data, error } = await admin
     .from("talent_profiles")
     .select("is_demo")
     .eq("id", talentProfileId)
     .maybeSingle();
+  if (error) return false; // fail closed: no admin demo view without a clean read
   return data?.is_demo === true;
 }
 

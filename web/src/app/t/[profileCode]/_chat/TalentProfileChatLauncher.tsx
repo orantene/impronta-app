@@ -777,5 +777,9 @@ export const GUEST_CHAT_FAB_CSS = `
 @keyframes tl-fab-ring{0%{opacity:.5;transform:scale(.9)}100%{opacity:0;transform:scale(1.25)}}
 .tl-fab:focus-visible{outline:2px solid var(--tl-fab-accent);outline-offset:3px}
 .tl-fab[data-gone="true"]{transform:translate(-40px,-6px) scale(.4);opacity:0;pointer-events:none}
+/* ONE dock holds booking and chat: while the catalog dock carries its own chat button (the pill capsule
+   or the selection dock), the round launcher must not draw a second one over it. Pure CSS, so it holds
+   from the first paint and for every design, with no timing against the dock's own mount. */
+body:has(.cb-bar[data-show="true"] .cb-bar-chat,.cb-dock[data-show="true"]) .tl-fab{visibility:hidden;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.tl-fab,.tl-fab-lbl,.tl-fab::before{transition:none!important;animation:none!important}}
 `;

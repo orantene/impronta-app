@@ -22,6 +22,7 @@ import {
   MAISON_V2_RELEASE_2_4,
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
+  MAISON_V2_RELEASE_PARITY,
   type ReleaseNote,
 } from "./maison-v2";
 
@@ -48,6 +49,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_4,
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
+  MAISON_V2_RELEASE_PARITY,
 ];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {

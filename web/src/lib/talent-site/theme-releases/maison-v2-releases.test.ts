@@ -519,3 +519,55 @@ test("Maison v2 v20: the Location block is opt-in and carries no place or addres
   assert.doesNotMatch(json, /Mérida|Calle|Ejemplo|exactAddress|exact_address/);
   assert.doesNotMatch(json, HEX);
 });
+
+// ── Release 21 (parity): Location replaces the visit band ───────────────────
+
+async function v21Site() {
+  const prev = maisonV2At(20);
+  const next = maisonV2At(21);
+  const { base, theirs } = await siteSides(prev, 20, next, 21);
+  const { items } = generateReleaseItems("maison-v2", { payload: prev, version: 20 }, { payload: next, version: 21 });
+  return { base, theirs, items };
+}
+
+test("Maison v2 v21: one grouped opt-in swap item plus the header link, every note EN + ES", async () => {
+  const { items } = await v21Site();
+  assert.deepEqual(
+    items.map((i) => i.id).sort(),
+    ["code:1", "code:2", "code:3", "layout:maison-v2:visit-to-location", "variant-default:shell:header"],
+    "the grouped swap, the header link, and the three code notes",
+  );
+  for (const i of items) {
+    assert.ok(i.note?.en && i.note?.es, `note for ${i.id}`);
+    assert.doesNotMatch(`${i.note.en} ${i.note.es}`, /\u2014|\u2013/);
+  }
+  const rel = authoredRelease("maison-v2", 21)!;
+  assert.ok(rel.notes.en.includes("Location replaces") && rel.notes.es.includes("reemplaza"));
+  assert.ok(rel.codeNotes.length >= 1);
+  const layout = items.find((i) => i.type === "layout")!;
+  assert.deepEqual([...(layout.keys ?? [])].sort(), ["home:visit", "home:visit/visit"]);
+});
+
+test("Maison v2 v21: choosing the swap removes the visit band, not choosing keeps it", async () => {
+  const { base, theirs, items } = await v21Site();
+  assert.ok(slotOrder(base.trees.home!).includes("visit") && slotOrder(base.trees.home!).includes("location"));
+  const kept = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: [] });
+  assert.ok(slotOrder(kept.trees.home!).includes("visit"), "nothing chosen, the band stays");
+  const swapped = mergeDesignUpdate({ base, ours: siteOf(base), theirs, items: items.filter((i) => i.type === "layout") });
+  const order = slotOrder(swapped.trees.home!);
+  assert.ok(!order.includes("visit"), "the visit band is gone");
+  assert.ok(order.includes("location"), "Location stays");
+});
+
+test("Maison v2 v21 payload: Location replaces the visit band and the header link follows", () => {
+  const now = maisonV2At(21);
+  const slots = now.homeTree.map((n) => String(propsOf(n).slotKey));
+  assert.ok(slots.includes("location") && !slots.includes("visit"));
+  const before = maisonV2At(20);
+  assert.ok(before.homeTree.some((n) => propsOf(n).slotKey === "visit"));
+  const nav = (p: DesignPayload) =>
+    (propsOf(p.shellTree.find((n) => propsOf(n).slotKey === "header")!).sectionProps as { navItems: Array<{ label: string; href: string }> }).navItems;
+  assert.equal(nav(now).find((i) => i.label === "Location")!.href, "#location");
+  assert.equal(nav(before).find((i) => i.label === "Location")!.href, "#visit");
+  assert.equal(propsOf(findBySlot(now.homeTree, "location")!).anchorId, "location");
+});

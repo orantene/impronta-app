@@ -313,3 +313,45 @@ export const MAISON_V2_RELEASE_2_6 = {
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+/**
+ * Release 21 parity fix (v20 to v21): Location REPLACES the "Before you come"
+ * visit band, as in the mockup, so zone and hours are not shown twice. The band
+ * removal is an opt-in layout item (ONE grouped item); the header link repoints
+ * to the Location band (only if the header was not edited). Its own export so
+ * it can be combined with the hero and footer slice at integration.
+ */
+export const MAISON_V2_RELEASE_PARITY = {
+  design: "maison-v2",
+  toVersion: 21,
+  layoutKeys: ["layout:home:visit:removed", "layout:home:visit/visit:removed"],
+  layoutGroupId: "layout:maison-v2:visit-to-location",
+  notes: {
+    en: "Maison v2: Location replaces Your visit, so your zone and hours show once, and the phone section switcher now starts with Home.",
+    es: "Maison v2: Ubicación reemplaza a Tu visita, así tu zona y tu horario se muestran una sola vez, y el selector de secciones en teléfonos ahora empieza con Inicio.",
+  } satisfies ReleaseNote,
+  codeNotes: [
+    {
+      en: "The phone section switcher now starts with Home (01 Home) before your other sections.",
+      es: "El selector de secciones en teléfonos ahora empieza con Inicio (01 Inicio) antes de tus otras secciones.",
+    },
+    {
+      en: "On phones the header stays on one row: a long name is shortened with an ellipsis instead of pushing the section switcher down.",
+      es: "En teléfonos el encabezado se queda en una sola fila: un nombre largo se acorta con puntos suspensivos en lugar de empujar el selector de secciones.",
+    },
+    {
+      en: "One dock for booking and chat: when the bottom bar has its own chat button, the round chat button no longer shows on top of it.",
+      es: "Un solo dock para reservar y chatear: cuando la barra inferior tiene su propio botón de chat, el botón redondo de chat ya no aparece encima.",
+    },
+  ] satisfies ReleaseNote[],
+  byItemId: {
+    "variant-default:shell:header": {
+      en: "The header link to Location now points at the Location section (only if you have not edited your header).",
+      es: "El enlace Ubicación del encabezado ahora lleva a la sección de Ubicación (solo si no editaste tu encabezado).",
+    },
+    "layout:home:visit:removed": {
+      en: "Location replaces the Your visit section, so your zone and hours show once. Add the Location section first (from the previous update). Preview it before you choose.",
+      es: "Ubicación reemplaza la sección Tu visita, así tu zona y tu horario se muestran una sola vez. Primero agrega la sección de Ubicación (de la actualización anterior). Míralo antes de elegir.",
+    },
+  } satisfies Record<string, ReleaseNote>,
+} as const;

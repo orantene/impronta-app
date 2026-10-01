@@ -5819,6 +5819,20 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 1 1 auto; justify-content: center; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
 .site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; white-space: nowrap; }
+/* One row, always: the base `.site-header__inner` wraps, so a long name pushed the section switcher
+   onto a second row. The lockup (left) is the part that gives way: it shrinks and its name gets an ellipsis. */
+.site-header[data-variant="freeform"] .site-header__inner--freeform { flex-wrap: nowrap; }
+.site-header[data-variant="freeform"] .site-header__region[data-region="left"] { flex: 0 1 auto; min-width: 0; }
+.site-header[data-variant="freeform"] .site-header__brand { min-width: 0; max-width: 100%; }
+.site-header[data-variant="freeform"] .site-header__brand-label, .site-header[data-variant="freeform"] .site-header__brand-tagline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 767px) {
+  .site-header[data-variant="freeform"] .site-header__inner--freeform { gap: 10px; padding-inline: 16px; }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="left"] { flex: 1 1 0; }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 0 1 auto; min-width: 0; }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { flex: 0 0 auto; }
+  .site-header[data-variant="freeform"] .site-header__brand-label { font-size: 15px; }
+  .site-header__secsw-btn { max-width: min(190px, 44vw); }
+}
 .site-header[data-variant="freeform"] .site-header__spacer { flex: 1 1 auto; }
 /* The " / " separator carries the spacing; a flex gap only lands before it (asymmetric "ES  / EN"). */
 .site-header[data-variant="freeform"] .site-header__lang { gap: 0; }

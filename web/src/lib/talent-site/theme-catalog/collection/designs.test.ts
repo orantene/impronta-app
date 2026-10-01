@@ -139,7 +139,8 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
   const payload = maison!.buildPayload();
   const slots = payload.homeTree.map((n) => String((n.props as { slotKey?: string }).slotKey));
   assert.ok(slots.includes("about"));
-  assert.ok(slots.includes("visit"));
+  // Release 21: Location replaces the "Before you come" visit band.
+  assert.ok(slots.includes("location") && !slots.includes("visit"));
   assert.ok(slots.includes("contact"));
   assert.ok(slots.includes("reviews"));
 
@@ -169,7 +170,7 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
   };
   walk(payload.homeTree);
   assert.equal(aboutIsSplit, true);
-  assert.equal(visitLayout, "facts");
+  assert.equal(visitLayout, undefined, "no facts visit band in Maison v2 any more");
   assert.equal(faqBound, true);
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
 });

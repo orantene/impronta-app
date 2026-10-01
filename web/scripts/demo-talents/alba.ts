@@ -28,6 +28,14 @@ export const ALBA: DemoTalent = {
   palette: "rose",
   // Proposal: "Lun a sáb, 9:00 a 20:00, con cita".
   hours: { timezone: "America/Merida", days: [1, 2, 3, 4, 5, 6], startMin: 9 * 60, endMin: 20 * 60, slotMinutes: 30 },
+  // The Location section: zone only (no address is stored), a private studio.
+  // Hours come from `hours` above (Lun a sáb, con cita).
+  location: {
+    addressMode: "zone_only",
+    studioKind: "studio",
+    neighbourhood: "García Ginerés",
+    arrivalNote: "Estudio privado, solo con cita. Hay lugar para estacionarte en la calle.",
+  },
   tagline:
     "Manicura rusa, pestañas hechas a mano y cejas con diseño. Un estudio privado donde cada cita es solo tuya.",
   bio: "Empecé haciendo uñas a mis amigas en la prepa. Nueve años después sigo con la misma obsesión: que salgas sintiéndote tú, pero mejor. Trabajo sola, con cita, y solo con productos que yo misma uso.",

@@ -35,12 +35,12 @@ test("an empty FAQ removes the whole Questions band, labels included (live subse
   assert.equal(find(tree, isFaq).length, 1);
   const out = pruneEmptyBoundSections(
     tree,
-    ds({ talentFaqItems: [], talentVisitFacts: [{ label: "Where", value: "CDMX", icon: "place" }] }),
+    ds({ talentFaqItems: [], talentLocation: { addressMode: "zone_only", studioKind: "studio", city: "CDMX", neighbourhood: "", arrivalNote: "", arrivalPhotoUrl: "" } }),
   );
   assert.equal(find(out, isFaq).length, 0);
   assert.ok(!texts(out).includes("Questions"));
   assert.ok(!texts(out).some((t) => t.includes("What I get")));
-  // The visit block had facts, so it stays.
+  // The Location band has a zone, so it stays.
   assert.equal(find(out, (n) => n.kind === "visit").length, 1);
 });
 
@@ -68,18 +68,17 @@ test("the Location section follows the location settings, not the visit facts", 
   const tree = buildMaisonV2Payload().homeTree;
   const isLocation = (n: BuilderNode) => n.kind === "visit" && (n.props as { layout?: string }).layout === "location";
   assert.equal(find(tree, isLocation).length, 1);
+  assert.equal(find(tree, (n) => n.kind === "visit").length, 1, "Maison v2 has one visit-kind band: Location");
   const loc = { addressMode: "zone_only", studioKind: "studio", city: "Mérida", neighbourhood: "", arrivalNote: "", arrivalPhotoUrl: "" };
-  // Facts but no zone: the location band goes, the facts band stays.
+  // Facts but no zone: the location band goes.
   const noZone = pruneEmptyBoundSections(
     tree,
     ds({ talentFaqItems: [], talentVisitFacts: [{ label: "Where", value: "CDMX", icon: "place" }] }),
   );
   assert.equal(find(noZone, isLocation).length, 0);
-  assert.equal(find(noZone, (n) => n.kind === "visit").length, 1);
-  // A zone and no facts: the location band stays, the facts band goes.
+  // A zone and no facts: it stays.
   const zoneOnly = pruneEmptyBoundSections(tree, ds({ talentFaqItems: [], talentVisitFacts: [], talentLocation: loc }));
   assert.equal(find(zoneOnly, isLocation).length, 1);
-  assert.equal(find(zoneOnly, (n) => n.kind === "visit").length, 1);
 });
 
 test("the Maison v2 ticker binds services, not the trade", () => {
