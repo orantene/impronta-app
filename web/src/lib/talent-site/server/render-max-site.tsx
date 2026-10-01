@@ -437,7 +437,8 @@ async function renderMaxSiteDocument(args: {
   // which used to skip data sources entirely. Hablar/dock still loaded
   // offerings, but `services_catalog` rendered the empty state. Load catalog
   // sources by talent profile whenever the page tree needs them.
-  const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
+  const pageNeedsServicesCatalog =
+    builderTreeHasKind(blocks, "services_catalog") || builderTreeHasKind(blocks, "task_picker");
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
   const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
   const pageNeedsVisit = builderTreeHasKind(blocks, "visit");
