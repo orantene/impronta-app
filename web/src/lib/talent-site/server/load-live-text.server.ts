@@ -3,11 +3,13 @@ import "server-only";
 import { loadVisitSources } from "@/lib/site-admin/builder-node/visit-sources";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { zoneLabel } from "@/lib/talent/location-settings";
 import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 
 import type { TalentLiveText } from "../live-text";
 import { buildTalentLiveText, type LiveTextSource } from "../live-text-values";
 import type { LocalizedMapLike } from "../talent-locale-swaps";
+import { loadMenuCurrency } from "./load-starter-data";
 import { loadTalentSocialLinks } from "./talent-social-links";
 import { loadProofInput } from "./talent-locale-swaps.server";
 
@@ -63,11 +65,12 @@ export async function loadTalentLiveText(
     const city = (row.talent_service_areas ?? []).find((a) => a.service_kind === "home_base")?.locations
       ?.display_name_i18n;
 
-    const [scalars, proof, visit, social] = await Promise.all([
+    const [scalars, proof, visit, social, menuCurrency] = await Promise.all([
       readScalarFieldValuesFromCatalog(admin, talentProfileId),
       loadProofInput(admin, talentProfileId),
       loadVisitSources(talentProfileId, locale ?? "en"),
       loadTalentSocialLinks(talentProfileId),
+      loadMenuCurrency(admin, talentProfileId),
     ]);
     const src: LiveTextSource = {
       displayName: row.display_name?.trim() || row.first_name?.trim() || "",
@@ -77,7 +80,11 @@ export async function loadTalentLiveText(
       tagline: scalars.tagline ?? null,
       // `years_total` from the profile editor wins; the proof loader's read is the fallback.
       proof: { ...proof, years: scalars.years_total ?? proof.years },
-      place: visit.talentVisitFacts.find((f) => f.icon === "place")?.value ?? null,
+      // The same public zone the Location section shows ("García Ginerés, Mérida"), never the address.
+      place:
+        (visit.talentLocation ? zoneLabel(visit.talentLocation) : "") ||
+        (visit.talentVisitFacts.find((f) => f.icon === "place")?.value ?? null),
+      menuCurrency,
       hoursDays: visit.talentVisitFacts.find((f) => f.icon === "hours")?.value ?? null,
       instagramHref: social.find((s) => s.platform === "instagram")?.href ?? null,
     };

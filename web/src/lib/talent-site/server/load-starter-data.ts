@@ -241,7 +241,7 @@ export async function loadTalentStarterProfileData(
 type Db = Pick<SupabaseClient, "from">;
 
 /** The currency most of her published services are priced in ("MXN"), or null. */
-async function loadMenuCurrency(db: Db, talentProfileId: string): Promise<string | null> {
+export async function loadMenuCurrency(db: Db, talentProfileId: string): Promise<string | null> {
   const { data, error } = await db
     .from("talent_offerings")
     .select("currency")

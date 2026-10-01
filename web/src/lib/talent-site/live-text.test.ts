@@ -234,3 +234,51 @@ test("headline, years and the footer tone are wired at schema, renderer, editor 
   assert.ok(read("./theme-catalog/collection/design-type-system-foot.ts").includes('data-token-footer-tone="dark"'), "dark option styled");
   assert.ok(read("./theme-catalog/collection/maison-v2-tokens.ts").includes('"footer.tone": "light"'), "light by default");
 });
+
+// ── v21 gaps: a hero with no proof line, the menu intro default ─────────────
+
+function heroWithoutProof() {
+  const tree = [
+    box("hero", [box("c", [h("h", "x"), p("e", "Nail Artist"), p("l", "lede"), box("act", [p("b", "buttons")])])], { slotKey: "hero" }),
+  ];
+  return stampDesignOrigin(tree, { design: "maison-v2", version: 20 });
+}
+const heroKids = (out: BuilderNode[]) =>
+  (out[0] as unknown as { children: Array<{ children: BuilderNode[] }> }).children[0]!.children;
+
+test("a hero that never got a proof line gets one under the buttons once she has facts, and not before", () => {
+  const out = applyTalentLiveText(heroWithoutProof(), LIVE);
+  const kids = heroKids(out);
+  assert.equal(kids.length, 5);
+  assert.match(textOf(kids[4]!) ?? "", /^9 años de oficio · Español · Inglés/);
+  assert.equal((kids[4]!.props as { liveText?: string }).liveText, "hero_proof");
+  // Idempotent: a second pass does not add another.
+  assert.equal(heroKids(applyTalentLiveText(out, LIVE)).length, 5);
+  // No facts: the page stays as it was.
+  const bare = heroWithoutProof();
+  assert.equal(applyTalentLiveText(bare, { values: {} }), bare);
+});
+
+test("the menu intro line defaults for a Maison v2 menu that never had one, and never overrules hers", () => {
+  const catalog = (props: Record<string, unknown>) =>
+    stampDesignOrigin(
+      [{ id: "s", kind: "container", props: { layout: "stack", slotKey: "services" }, children: [{ id: "c", kind: "services_catalog", props }] }] as unknown as BuilderNode[],
+      { design: "maison-v2", version: 20 },
+    );
+  const sub = (t: BuilderNode[]) => ((t[0] as unknown as { children: BuilderNode[] }).children[0]!.props as { subtitle?: string }).subtitle;
+  assert.equal(buildTalentLiveText({ ...SRC, menuCurrency: "mxn" }, "es").menuSubtitle, "Precios en MXN.");
+  assert.equal(buildTalentLiveText({ ...SRC, menuCurrency: "USD" }, "en").menuSubtitle, "Prices in USD.");
+  assert.equal(buildTalentLiveText(SRC, "es").menuSubtitle, "");
+  const live = buildTalentLiveText({ ...SRC, menuCurrency: "MXN" }, "es");
+  assert.equal(sub(applyTalentLiveText(catalog({ layout: "rows" }), live)), "Precios en MXN.");
+  assert.equal(sub(applyTalentLiveText(catalog({ layout: "rows", subtitle: "Mis precios" }), live)), "Mis precios");
+  const none = catalog({ layout: "rows" });
+  assert.equal(applyTalentLiveText(none, buildTalentLiveText(SRC, "es")), none, "no currency, no change");
+  assert.equal(treeHasLiveCandidates(none), true);
+});
+
+test("the footer zone and the menu currency come from the same sources as the Location section", () => {
+  const loader = read("./server/load-live-text.server.ts");
+  assert.ok(loader.includes("zoneLabel(visit.talentLocation)"), "public zone label, never the address");
+  assert.ok(loader.includes("loadMenuCurrency"), "currency of her services");
+});
