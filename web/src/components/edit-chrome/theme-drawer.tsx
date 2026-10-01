@@ -997,6 +997,7 @@ export function ThemeDrawer(): ReactElement | null {
                 >
                   {busy === "saving" ? "Saving…" : "Save draft"}
                 </button>
+                {surfaceKind === "theme_template" ? null : (
                 <button
                   type="button"
                   onClick={() => setConfirmingPublish(true)}
@@ -1014,6 +1015,7 @@ export function ThemeDrawer(): ReactElement | null {
                 >
                   Publish theme
                 </button>
+                )}
               </>
             )
           }

@@ -113,13 +113,11 @@ export function newestRun(runs: ReadonlyArray<FactoryMockupRun>): FactoryMockupR
 }
 
 export const HOW_TO_ADD_STEPS = [
-  "mockup",
-  "parityMap",
-  "collection",
-  "register",
-  "demos",
-  "sync",
-  "rebuild",
+  "edit",
+  "work",
+  "publish",
+  "check",
   "parity",
-  "ship",
+  "open",
+  "commit",
 ] as const;
