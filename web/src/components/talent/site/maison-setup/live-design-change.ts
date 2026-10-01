@@ -98,6 +98,8 @@ export function paletteDisplayName(input: {
 export type LiveDesignChangeSummary = {
   title: string;
   changes: string;
+  /** The palette consequence, its own line under What changes. */
+  colorsNote: string;
   stays: string;
   toast: string;
 };
@@ -140,9 +142,16 @@ export function buildLiveDesignChangeSummary(input: {
     ? `${services.charAt(0).toUpperCase()}${services.slice(1)}, ${photos}, tu presentación, la configuración de reservas y la dirección. Puedes restaurar ${oldName} después desde Opciones de diseño.`
     : `Your ${services}, ${photos}, intro, booking settings and address. You can restore ${oldName} afterwards from Design options.`;
 
+  // A design or palette switch replaces the whole colour family (accent, accent text, on-accent):
+  // the sheet says so instead of promising the old colours are kept.
+  const colorsNote = es
+    ? `Tus colores cambian a la paleta ${paletteName}. Puedes ajustarlos después en Diseño.`
+    : `Your colours change to the ${paletteName} palette. You can adjust them later in Design.`;
+
   return {
     title: es ? `¿Publicar ${newName}?` : `Publish ${newName}?`,
     changes,
+    colorsNote,
     stays,
     toast: es ? `✓ ${newName} está en vivo` : `✓ ${newName} is live`,
   };

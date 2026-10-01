@@ -107,7 +107,9 @@ test("H-3: the header has the mockup's five links; H-5: the demo pill is not in 
 // ── section rhythm (G-2) ─────────────────────────────────────────────────────
 
 test("G-2: sections have 88px / 48px bands, the ticker, menu and About sit on the raised surface, the rest on the page", () => {
-  const home = buildMaisonV2Payload().homeTree;
+  // Optional blocks (Before and after, Aftercare tips) keep the same rhythm when a talent adds them.
+  const payload = buildMaisonV2Payload();
+  const home = [...payload.homeTree, ...(payload.optionalBlocks ?? [])];
   const surface = "token:color.surface-raised";
   for (const key of ["reviews", "before_after", "aftercare", "location", "contact"]) {
     const s = styleOf(slot(home, key));

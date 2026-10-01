@@ -5,6 +5,7 @@
  */
 import { resolveHeadline } from "./hero-headline";
 import { formatHeroEyebrow, formatHeroProofLine, type HeroProofInput } from "./hero-proof-line";
+import { resolveLocalizedLine } from "./live-line-language";
 import type { TalentLiveText } from "./live-text";
 import { pick, type LocalizedMapLike } from "./talent-locale-swaps";
 
@@ -15,9 +16,18 @@ export interface LiveTextSource {
   city: LocalizedMapLike;
   /** The city as it should read (accented, from the locations table); wins over the name maps. */
   cityLabel?: string | null;
-  /** `identity.headline` and `identity.tagline`, as she wrote them. */
+  /** `identity.headline` and `identity.tagline`, as she wrote them (her main language). */
   headline?: string | null;
   tagline?: string | null;
+  /** The same two lines per language ({ es, en }), from the profile editor. */
+  headlineI18n?: Readonly<Record<string, string>> | null;
+  taglineI18n?: Readonly<Record<string, string>> | null;
+  /** `short_bio`: the short text of her main language, the tagline's other home. */
+  shortBio?: string | null;
+  /** Her main language ("es" or "en"). */
+  primaryLocale?: string | null;
+  /** Stable per-talent key (her profile code) that picks the seeded headline variant. */
+  seedKey?: string | null;
   proof: HeroProofInput;
   /** Visit facts ("place" and "hours" values) as the location section shows them. */
   place?: string | null;
@@ -55,7 +65,11 @@ export function buildTalentLiveText(
   const cityNow = src.cityLabel?.trim() || pick(src.city, key, chain);
   const cityEn = src.city?.en?.trim() ?? "";
 
-  const headline = resolveHeadline({ headline: src.headline, tradeEn, displayName: src.displayName }, key);
+  const primary = (src.primaryLocale ?? "").toLowerCase().startsWith("en") ? "en" : "es";
+  // Her own words per language: the map, the plain field, `short_bio`; never English for a Spanish visitor when a Spanish line exists.
+  const ownHeadline = resolveLocalizedLine({ map: src.headlineI18n, plain: src.headline, locale: key, primary });
+  const ownTagline = resolveLocalizedLine({ map: src.taglineI18n, plain: src.tagline, alt: src.shortBio, locale: key, primary });
+  const headline = resolveHeadline({ headline: ownHeadline, tradeEn, displayName: src.displayName, seedKey: src.seedKey }, key);
   const eyebrow = formatHeroEyebrow(tradeNow, cityNow);
   const proof = formatHeroProofLine(src.proof, key);
   const instagram = instagramHandle(src.instagramHref);
@@ -81,12 +95,14 @@ export function buildTalentLiveText(
   const currency = src.menuCurrency?.trim().toUpperCase();
   return {
     trades: [tradeEn, tradeEs].filter(Boolean),
+    // The trade as the visitor's language names it ("Manicurista"): the header lockup under her name.
+    tradeLabel: tradeNow,
     menuSubtitle: currency ? (es ? `Precios en ${currency}.` : `Prices in ${currency}.`) : "",
     values: {
       // Her own words win; a seeded line follows the locale; the name fallback is the stored text.
       hero_headline: headline.source === "name" ? "" : headline.text,
       hero_eyebrow: eyebrow,
-      hero_tagline: src.tagline?.trim() ?? "",
+      hero_tagline: ownTagline,
       hero_proof: proof,
       footer_intro: intro,
       footer_where: src.place?.trim() ?? "",

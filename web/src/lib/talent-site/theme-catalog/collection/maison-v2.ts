@@ -629,22 +629,26 @@ export function buildMaisonV2Payload(): DesignPayload {
     })
       .map(maisonV2Header)
       .map((n) => maisonV2RichFooter(id, n)),
+    // Release 2.8 (order, G-3): the proposal's order, Hero, Work, Menu, Reviews, About, FAQ,
+    // Location (the footer is the shell's). Before and after and Aftercare tips are not in
+    // the proposal: they stay available as optional blocks below, off the default page.
     homeTree: [
       maisonV2Hero(id),
-      // Release 2.4 (reorder): reviews now sit right under the hero, above the gallery.
-      maisonV2Reviews(id),
       maisonV2Work(id),
       maisonV2Menu(id),
-      // Release 2.1 (optional block): two-image comparison.
-      padSection(beforeAfterBlock(id)),
-      // Release 2.4 (optional block): aftercare tips.
-      padSection(aftercareBlock(id)),
+      maisonV2Reviews(id),
       maisonV2About(id),
+      maisonV2Faq(id),
       // Release 21: Location (driven by the talent's address setting) REPLACES the
       // old "Before you come" visit band, as in the mockup: one place for zone,
       // hours and how to arrive. The visit kit block stays for other designs.
       padSection(locationBlock(id, { band: false })),
-      maisonV2Faq(id),
+    ],
+    optionalBlocks: [
+      // Release 2.1 (optional block): two-image comparison.
+      padSection(beforeAfterBlock(id)),
+      // Release 2.4 (optional block): aftercare tips.
+      padSection(aftercareBlock(id)),
     ],
   };
 }

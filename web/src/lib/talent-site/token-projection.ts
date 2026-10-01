@@ -101,7 +101,7 @@ export function talentProfileTokens(
     richBio,
     locationLine: profile.homeCity ? `Based in ${profile.homeCity}` : "",
     heroEyebrow: formatHeroEyebrow(primaryTypeLabel, profile.homeCity) || primaryTypeLabel,
-    headline: resolveHeadline({ headline: profile.headline, tradeEn: primaryTypeLabel, displayName }).text,
+    headline: resolveHeadline({ headline: profile.headline, tradeEn: primaryTypeLabel, displayName, seedKey: profile.profileCode }).text,
     menuSubtitle: profile.menuCurrency?.trim() ? `Prices in ${profile.menuCurrency.trim().toUpperCase()}.` : "",
     proofLine: formatHeroProofLine({
       years: profile.experienceYears,

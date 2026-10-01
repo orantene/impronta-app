@@ -282,6 +282,18 @@ export function validateDesign(payload: unknown): ThemeValidationResult {
     errors.push("homeTree: a Design needs a contact section.");
   }
 
+  const optional = record?.optionalBlocks;
+  if (optional !== undefined) {
+    if (!Array.isArray(optional)) {
+      errors.push("optionalBlocks: must be an array of kit sections.");
+    } else {
+      const check = validateBuilderNodeTree(optional as never);
+      if (!check.ok) for (const issue of check.issues) errors.push(`optionalBlocks.${issue.path}: ${issue.message}`);
+      checkTreeContent(optional as never, "optionalBlocks", errors);
+      checkTopLevel(optional as never, "optionalBlocks", TALENT_KIT_SECTION_ROLES, errors);
+    }
+  }
+
   const shellRoles = checkTopLevel(shellTree, "shellTree", TALENT_KIT_SHELL_ROLES, errors);
   for (const landmark of Object.values(TALENT_KIT_SHELL)) {
     if (!shellRoles.has(landmark.originRole)) {
