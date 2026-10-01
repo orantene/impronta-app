@@ -14,16 +14,16 @@ import {
   visibleGalleryDesigns,
 } from "./gallery-meta";
 
-const THREE = ["maison", "maison-v2", "folio"];
+const THREE = ["maison", "maison-v2", "folio", "gridline"];
 
-test("default gallery shows exactly the three finished designs", () => {
+test("default gallery shows exactly the four finished designs", () => {
   delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
   delete process.env.NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS;
   assert.deepEqual([...FINISHED_GALLERY_SLUGS], THREE);
   assert.deepEqual(visibleGalleryDesigns().map((d) => d.slug), THREE);
   const out = searchGallery();
   assert.deepEqual(out.results.map((r) => r.design.slug), THREE);
-  assert.equal(out.themeCount, 3);
+  assert.equal(out.themeCount, 4);
   // Hidden designs stay in code for previews and saved sites.
   assert.equal(GALLERY_DESIGNS.length, 7);
   assert.equal(searchGallery({ query: "solace" }).themeCount, 0);
@@ -39,12 +39,12 @@ test("flag on shows all seven designs", () => {
     delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
   }
   assert.equal(searchGallery({ showExtra: true }).themeCount, 7);
-  assert.equal(searchGallery({ showExtra: false }).themeCount, 3);
+  assert.equal(searchGallery({ showExtra: false }).themeCount, 4);
 });
 
 test("tag counts follow the visible designs", () => {
   const counts = tagCounts(searchGallery({ showExtra: false }).results);
-  assert.equal(counts.styleTags.Minimal, 0);
+  assert.equal(counts.styleTags.Minimal, 1); // Gridline
   assert.equal(counts.styleTags.Editorial, 3);
 });
 

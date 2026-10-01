@@ -434,7 +434,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
  * `TALENT_GALLERY_EXTRA_DESIGNS=1` (server) or
  * `NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS=1` (client bundle) to show them.
  */
-export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio"];
+export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio", "gridline"];
 
 export function galleryExtraDesignsEnabled(): boolean {
   return (
