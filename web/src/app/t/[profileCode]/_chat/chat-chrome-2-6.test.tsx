@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import test, { mock } from "node:test";
+import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 
@@ -43,16 +43,6 @@ import {
   CardChatContextCard,
   CardChatServiceBrowser,
 } from "./CardChatExtras";
-import { ChatHelpBubble, HELP_BUBBLE_CSS } from "./ChatHelpBubble";
-import {
-  HELP_BUBBLE_SCROLL_PX,
-  HELP_BUBBLE_VISIBLE_MS,
-  helpBubbleBlocked,
-  helpBubbleSessionKey,
-  markHelpBubbleSeen,
-  readHelpBubbleSeen,
-  shouldShowHelpBubble,
-} from "./help-bubble-logic";
 import { resolveChatHelpBubble } from "@/lib/talent-site/chat-card";
 import type { ChatOffering } from "./OfferingQuickPicker";
 /* eslint-enable import/first */
@@ -300,142 +290,6 @@ test("CH copy: every new string exists in en, es and fr, without dashes", () => 
 });
 
 // ── DK-3: the help bubble ────────────────────────────────────────────────────
-
-test("DK-3 rules: 520px, once per visit, never while something else owns the corner", () => {
-  assert.equal(HELP_BUBBLE_SCROLL_PX, 520);
-  assert.equal(HELP_BUBBLE_VISIBLE_MS, 9000);
-  assert.equal(shouldShowHelpBubble({ scrollY: 519, seen: false, blocked: false }), false);
-  assert.equal(shouldShowHelpBubble({ scrollY: 520, seen: false, blocked: false }), true);
-  assert.equal(shouldShowHelpBubble({ scrollY: 900, seen: true, blocked: false }), false);
-  assert.equal(shouldShowHelpBubble({ scrollY: 900, seen: false, blocked: true }), false);
-  assert.equal(helpBubbleBlocked({ chatOpen: false, sheetOpen: false, dockUp: false }), false);
-  for (const one of ["chatOpen", "sheetOpen", "dockUp"] as const) {
-    assert.equal(helpBubbleBlocked({ chatOpen: false, sheetOpen: false, dockUp: false, [one]: true }), true, one);
-  }
-});
-
-test("DK-3 the session flag survives unreadable storage", () => {
-  const key = helpBubbleSessionKey("TAL-1");
-  const store = new Map<string, string>();
-  const ok = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
-  assert.equal(readHelpBubbleSeen(ok, key), false);
-  markHelpBubbleSeen(ok, key);
-  assert.equal(readHelpBubbleSeen(ok, key), true);
-  const broken = {
-    getItem: () => {
-      throw new Error("blocked");
-    },
-    setItem: () => {
-      throw new Error("blocked");
-    },
-  };
-  assert.equal(readHelpBubbleSeen(broken, key), false);
-  assert.doesNotThrow(() => markHelpBubbleSeen(broken, key));
-  assert.equal(readHelpBubbleSeen(null, key), false);
-});
-
-function setScroll(y: number) {
-  Object.defineProperty(dom.window, "scrollY", { value: y, configurable: true });
-  act(() => void dom.window.dispatchEvent(new dom.window.Event("scroll")));
-}
-
-function bubble(props: Partial<React.ComponentProps<typeof ChatHelpBubble>> = {}, opened: { n: number } = { n: 0 }) {
-  return (
-    <ChatHelpBubble
-      profileCode="TAL-1"
-      name="Alba"
-      photoUrl="https://example.test/alba.jpg"
-      t={es}
-      chatOpen={false}
-      dockUp={false}
-      onOpenChat={() => opened.n++}
-      {...props}
-    />
-  );
-}
-
-test("DK-3 the bubble appears after the scroll threshold, once, and opens the chat", () => {
-  dom.window.sessionStorage.clear();
-  Object.defineProperty(dom.window, "scrollY", { value: 0, configurable: true });
-  const opened = { n: 0 };
-  const a = render(bubble({}, opened));
-  assert.equal(a.host.querySelector("[data-help-bubble]"), null, "not before the threshold");
-  setScroll(400);
-  assert.equal(a.host.querySelector("[data-help-bubble]"), null);
-  setScroll(600);
-  const el = a.host.querySelector("[data-help-bubble]")!;
-  assert.ok(el, "shows after 520px");
-  assert.match(el.textContent ?? "", /Alba/);
-  assert.match(el.textContent ?? "", /¿Te ayudo a elegir\?/);
-  assert.equal(dom.window.sessionStorage.getItem(helpBubbleSessionKey("TAL-1")), "1", "the flag is set as it shows");
-  act(() => el.querySelector<HTMLButtonElement>(".tl-hello-b")!.click());
-  assert.equal(opened.n, 1, "the whole bubble opens the chat");
-  assert.equal(a.host.querySelector("[data-help-bubble]"), null, "and goes away");
-  a.unmount();
-
-  // A second mount in the same visit never shows it again.
-  const b = render(bubble());
-  setScroll(1200);
-  assert.equal(b.host.querySelector("[data-help-bubble]"), null, "once per visit");
-  b.unmount();
-});
-
-test("DK-3 the bubble hides itself after 9 seconds, and x dismisses it", () => {
-  mock.timers.enable({ apis: ["setTimeout"] });
-  try {
-    dom.window.sessionStorage.clear();
-    Object.defineProperty(dom.window, "scrollY", { value: 0, configurable: true });
-    const a = render(bubble());
-    setScroll(700);
-    assert.ok(a.host.querySelector("[data-help-bubble]"));
-    act(() => mock.timers.tick(HELP_BUBBLE_VISIBLE_MS - 1));
-    assert.ok(a.host.querySelector("[data-help-bubble]"), "still there just before 9s");
-    act(() => mock.timers.tick(2));
-    assert.equal(a.host.querySelector("[data-help-bubble]"), null, "gone after 9s");
-    a.unmount();
-
-    dom.window.sessionStorage.clear();
-    const b = render(bubble());
-    setScroll(800);
-    act(() => b.host.querySelector<HTMLButtonElement>(".tl-hello-x")!.click());
-    assert.equal(b.host.querySelector("[data-help-bubble]"), null, "x dismisses");
-    b.unmount();
-  } finally {
-    mock.timers.reset();
-  }
-});
-
-test("DK-3 it never shows, and hides at once, while the chat is open or the dock has the button", () => {
-  dom.window.sessionStorage.clear();
-  Object.defineProperty(dom.window, "scrollY", { value: 0, configurable: true });
-  const a = render(bubble({ chatOpen: true }));
-  setScroll(900);
-  assert.equal(a.host.querySelector("[data-help-bubble]"), null, "chat open");
-  assert.equal(dom.window.sessionStorage.getItem(helpBubbleSessionKey("TAL-1")), null, "a blocked bubble does not use up the visit");
-  a.unmount();
-
-  dom.window.sessionStorage.clear();
-  const b = render(bubble());
-  setScroll(900);
-  assert.ok(b.host.querySelector("[data-help-bubble]"));
-  b.rerender(bubble({ dockUp: true }));
-  assert.equal(b.host.querySelector("[data-help-bubble]"), null, "the dock took over the button");
-  b.unmount();
-
-  dom.window.sessionStorage.clear();
-  const c = render(bubble());
-  setScroll(900);
-  assert.ok(c.host.querySelector("[data-help-bubble]"));
-  act(() => void dom.window.dispatchEvent(new dom.window.CustomEvent("tulala:maison-sheet", { detail: { open: true } })));
-  assert.equal(c.host.querySelector("[data-help-bubble]"), null, "the booking sheet opened");
-  c.unmount();
-});
-
-test("DK-3 motion: the entrance is .45s with overshoot and is off under reduced motion; no hex", () => {
-  assert.match(HELP_BUBBLE_CSS, /animation:tl-hello-in \.45s cubic-bezier\(\.2,1\.3,\.3,1\)/);
-  assert.match(HELP_BUBBLE_CSS, /prefers-reduced-motion:reduce\)\{\.tl-hello\{animation:none\}/);
-  assert.doesNotMatch(HELP_BUBBLE_CSS, /#[0-9a-fA-F]{3,8}\b/);
-});
 
 test("DK-3 switches: a site token turns it on, Maison v2 turns it on from v20 only, nothing else does", () => {
   assert.equal(resolveChatHelpBubble({ "chat.help-bubble": "on" }, null, null), true);

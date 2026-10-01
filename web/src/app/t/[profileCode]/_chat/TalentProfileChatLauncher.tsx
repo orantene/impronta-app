@@ -656,7 +656,6 @@ export function TalentProfileChatLauncher({
             photoUrl={presencePhoto}
             t={t}
             chatOpen={open}
-            dockUp={selectionDockUp}
             onOpenChat={() => setOpen(true)}
           />
         ) : null}
