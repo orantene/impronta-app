@@ -18,6 +18,7 @@
  * SSR-only (no client deps), runs inside the root layout.
  */
 
+import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import {
   buildGoogleFontsHrefFromUsage,
   THEME_TOKEN_FONT_WEIGHTS,
@@ -61,9 +62,7 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
   if (!href) return null;
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link rel="stylesheet" href={href} />
+      <link rel="stylesheet" href={toFontProxyHref(href)} />
     </>
   );
 }

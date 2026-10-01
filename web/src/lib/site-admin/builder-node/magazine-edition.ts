@@ -15,7 +15,7 @@ export const MAGAZINE_LABEL_FAMILY = "Archivo Narrow";
 
 /** Google Fonts sheet for the label face (weights the blocks use). */
 export const MAGAZINE_LABEL_FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&display=swap";
+  "/api/fonts/css?family=Archivo+Narrow:wght@400;500;600;700&display=swap";
 
 /**
  * Custom properties every magazine root declares.
