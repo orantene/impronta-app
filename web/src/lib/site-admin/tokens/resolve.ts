@@ -35,7 +35,7 @@
 
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
-import { foregroundForPrimary, readableAccentText } from "./contrast-pair";
+import { foregroundForFill, foregroundForPrimary, readableAccentText } from "./contrast-pair";
 import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
@@ -191,6 +191,16 @@ export function designTokensToCssVars(
   const accentText = readableAccentText(accentSource, ground) ?? readableAccentText(accentSource, "#ffffff");
   if (accentText) out["--token-color-accent-text"] = accentText;
   else delete out["--token-color-accent-text"];
+
+  // DERIVED: the readable foreground for an ACCENT FILL (a primary button painted with the
+  // accent). `primary-on` is measured against the PRIMARY, so a design whose buttons fill with
+  // the accent (accent != primary, e.g. a pale accent left over from another palette) printed
+  // white text on pale pink. This pair is measured against the accent itself: white or ink,
+  // whichever wins, which is always at least AA for normal text.
+  const accentFill = tokens["color.accent"] || tokens["color.primary"] || "";
+  const onAccent = accentFill ? foregroundForFill(accentFill) : null;
+  if (onAccent) out["--token-color-accent-on"] = onAccent;
+  else delete out["--token-color-accent-on"];
 
   return out;
 }

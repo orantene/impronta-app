@@ -32,6 +32,26 @@ function layer(target: Record<string, string>, source: Readonly<Record<string, s
   }
 }
 
+/**
+ * A page's own `__design` tokens (the old per-page override, written by earlier editors and by
+ * clones) may not repaint the PALETTE the site chose. Once the site carries a colour, the page
+ * cannot override that colour: otherwise a design or palette switch replaces `design_tokens`
+ * while a stale page accent (a pale pink from a Maison v1 or clone history) keeps winning, and
+ * the accent family (accent, accent-text, accent-on) lands on the wrong colour. Non-colour page
+ * overrides, and colours the site does not set, still apply.
+ */
+function layerPage(
+  target: Record<string, string>,
+  page: Readonly<Record<string, string>>,
+  site: Readonly<Record<string, string>>,
+): void {
+  for (const [key, value] of Object.entries(page)) {
+    if (key.startsWith("color.") && typeof site[key] === "string" && site[key] !== "") continue;
+    if (value === "" && isStyleTokenKey(key)) continue;
+    target[key] = value;
+  }
+}
+
 export function resolveEffectiveSiteTokens(
   pageTokens: Record<string, string>,
   siteTokens: Readonly<Record<string, string>>,
@@ -45,6 +65,6 @@ export function resolveEffectiveSiteTokens(
   const out: Record<string, string> = { ...platformTokens };
   layer(out, designDefaults);
   layer(out, siteTokens);
-  if (hasPage) layer(out, pageTokens);
+  if (hasPage) layerPage(out, pageTokens, siteTokens);
   return out;
 }
