@@ -31,7 +31,9 @@ import {
   type CatalogItemPreview,
 } from "./component-preview-stage";
 import { ComponentCatalog } from "./component-catalog";
-import { LAB, panelStyle, RADII } from "./ui";
+import { FACTORY_COPY } from "./talent-factory/factory-copy";
+import { TalentFactoryTab } from "./talent-factory/talent-factory-tab";
+import { LAB, PillToggle, panelStyle, RADII } from "./ui";
 import { useCatalogVersionDrift } from "./use-catalog-version-drift";
 
 export function BuilderLabShell({
@@ -56,6 +58,10 @@ export function BuilderLabShell({
   // After the first editor exit, return to the Playground view (you launched
   // from there) rather than the default Catalog landing.
   const [hasLaunched, setHasLaunched] = useState(false);
+  // Top-level product switch: the agency/business Catalog vs the TALENT Template
+  // Factory. Strictly separate products; the factory never lists agency starters.
+  const [mode, setMode] = useState<"catalog" | "factory">("catalog");
+  const fc = FACTORY_COPY[locale === "es" ? "es" : "en"];
 
   // X2 — poll getCatalogVersion; show banner when another session advanced it.
   const { drifted, reset } = useCatalogVersionDrift();
@@ -92,12 +98,35 @@ export function BuilderLabShell({
 
   return (
     <Panel>
-      {drifted ? <CatalogDriftBanner onDismiss={reset} /> : null}
-      <ComponentCatalog
-        onLaunchEditor={(target, draftId) => setLaunch({ target, draftId })}
-        onPreviewComponent={setPreview}
-        defaultView={hasLaunched ? "playground" : undefined}
-      />
+      <div style={{ marginBottom: 12 }}>
+        <PillToggle
+          ariaLabel="Builder Lab product"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { key: "catalog", label: fc.catalogName },
+            { key: "factory", label: fc.tabName },
+          ]}
+        />
+        <p style={{ margin: "6px 0 0", fontSize: 12, color: LAB.inkDim }} data-mode-subtitle={mode}>
+          {mode === "factory" ? fc.tabSubtitle : fc.catalogSubtitle}
+        </p>
+      </div>
+      {mode === "factory" ? (
+        <TalentFactoryTab
+          locale={locale}
+          onOpenBuilder={() => setLaunch({ target: "talent" })}
+        />
+      ) : (
+        <>
+          {drifted ? <CatalogDriftBanner onDismiss={reset} /> : null}
+          <ComponentCatalog
+            onLaunchEditor={(target, draftId) => setLaunch({ target, draftId })}
+            onPreviewComponent={setPreview}
+            defaultView={hasLaunched ? "playground" : undefined}
+          />
+        </>
+      )}
     </Panel>
   );
 }
