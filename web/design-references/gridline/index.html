@@ -1,0 +1,405 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Gridline Theme Review</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..900&family=JetBrains+Mono:wght@400;500;700&family=Geist:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+.site{--k-fd:'Archivo',system-ui,sans-serif;--k-fb:'Archivo',system-ui,sans-serif;--k-fdw:800;--k-fdls:-.02em;--k-rad:10px;--k-btnrad:6px;--k-dockrad:10px;--gm:'JetBrains Mono',ui-monospace,monospace}
+.gl{padding-bottom:120px}
+.gl-mono{font-family:var(--gm)}
+.gl-top{position:sticky;top:44px;z-index:7;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--k-ink);color:var(--k-bg)}
+.gl-logo{width:34px;height:34px;border-radius:6px;background:var(--k-accent);color:var(--k-on);display:grid;place-items:center;flex:0 0 auto}
+.gl-top .nm{flex:1;min-width:0;line-height:1.1}
+.gl-top .nm b{display:block;font:800 14.5px var(--k-fd);font-stretch:112%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gl-top .nm small{font:500 10.5px var(--gm);opacity:.7;letter-spacing:.02em}
+.gl-top .k-demo{border-color:color-mix(in srgb,var(--k-bg) 30%,transparent);color:color-mix(in srgb,var(--k-bg) 75%,transparent)}
+.gl-urg{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 10px 0 8px;border-radius:6px;border:1.5px solid color-mix(in srgb,var(--k-bg) 30%,transparent);background:none;color:var(--k-bg);font:700 12.5px var(--k-fb)}
+.gl-urg i{width:30px;height:18px;border-radius:9px;background:color-mix(in srgb,var(--k-bg) 25%,transparent);position:relative;flex:0 0 auto}
+.gl-urg i::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--k-bg);transition:left .15s}
+.gl-urg[data-on="true"]{background:var(--k-accent);color:var(--k-on);border-color:var(--k-accent)}
+.gl-urg[data-on="true"] i{background:color-mix(in srgb,var(--k-on) 35%,transparent)}
+.gl-urg[data-on="true"] i::after{left:14px;background:var(--k-on)}
+.gl-tel{width:44px;height:44px;border-radius:6px;border:0;background:var(--k-bg);color:var(--k-ink);display:grid;place-items:center;flex:0 0 auto}
+.gl-top .k-btn{display:none}
+/* hero spec block */
+.gl-hero{padding:18px 12px 0}
+.gl-kick{display:flex;align-items:center;gap:8px;font:500 11.5px var(--gm);color:var(--k-mute);letter-spacing:.02em}
+.gl-kick i{width:8px;height:8px;border-radius:50%;background:#2FA36B;box-shadow:0 0 0 3px color-mix(in srgb,#2FA36B 25%,transparent)}
+.gl-h1{margin:10px 0 0;font:850 34px/1 var(--k-fd);font-stretch:118%;letter-spacing:-.03em;text-wrap:balance}
+.gl-h1 em{font-style:normal;background:var(--k-accent);color:var(--k-on);padding:0 .12em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.gl-spec{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--k-ink);border-radius:var(--k-rad);overflow:hidden;background:var(--k-surface)}
+.gl-spec div{padding:11px 12px;border-right:1.5px solid var(--k-ink);border-bottom:1.5px solid var(--k-ink)}
+.gl-spec div:nth-child(2n){border-right:0}.gl-spec div:nth-last-child(-n+2){border-bottom:0}
+.gl-spec small{display:block;font:500 10.5px var(--gm);letter-spacing:.06em;text-transform:uppercase;color:var(--k-mute)}
+.gl-spec b{display:block;margin-top:4px;font:800 19px/1.1 var(--k-fd);font-stretch:110%}
+.gl-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.gl-acts .k-btn{padding:0 10px;font-weight:700;min-height:50px}
+.gl-who{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:center;margin-top:14px;padding:10px;border-radius:var(--k-rad);background:var(--k-surface);border:1px solid var(--k-line)}
+.gl-who img{width:92px;height:92px;object-fit:cover;object-position:50% 20%;border-radius:6px}
+.gl-who p{margin:0;font-size:14px;line-height:1.45;color:var(--k-mute)}
+.gl-who b{display:block;color:var(--k-ink);font:800 16px var(--k-fd);margin-bottom:3px}
+.gl-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.gl-badges span{font:500 11px var(--gm);padding:5px 8px;border:1px solid var(--k-line);border-radius:4px;background:var(--k-surface)}
+/* urgent band */
+.gl-emg{margin:16px 12px 0;border-radius:var(--k-rad);overflow:hidden;border:2px solid var(--k-ink);background:var(--k-surface)}
+.gl-emg .tape{height:18px;background:repeating-linear-gradient(-45deg,var(--k-accent) 0 12px,var(--k-ink) 12px 24px)}
+.gl-emg .in{padding:14px}
+.gl-emg h2{margin:0;font:850 26px/1 var(--k-fd);font-stretch:118%}
+.gl-emg p{margin:8px 0 12px;font-size:14.5px;color:var(--k-mute)}
+.gl-emg .safe{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px;background:var(--k-bg);border-radius:8px;padding:10px;margin-bottom:12px}
+.gl-emg .k-btn{width:100%;font-weight:700}
+/* sections */
+.gl-sec{padding:40px 12px 0}
+.gl-hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid var(--k-ink)}
+.gl-hd h2{margin:0;font:850 25px/1 var(--k-fd);font-stretch:118%;letter-spacing:-.02em}
+.gl-hd small{font:500 11px var(--gm);color:var(--k-mute);text-align:right}
+/* task picker */
+.gl-tasks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.gl-task{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:center;text-align:left;min-height:60px;padding:10px;border-radius:8px;border:1.5px solid var(--k-line);background:var(--k-surface);color:var(--k-ink);font:700 13.5px/1.2 var(--k-fb)}
+.gl-task svg{color:var(--k-mute)}
+.gl-task[aria-pressed="true"]{border-color:var(--k-ink);background:var(--k-ink);color:var(--k-bg)}
+.gl-task[aria-pressed="true"] svg{color:var(--k-accent)}
+.gl-rec{margin-top:8px;border:1.5px solid var(--k-ink);border-radius:var(--k-rad);background:var(--k-surface);overflow:hidden}
+.gl-rec .h{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;background:var(--k-accent);color:var(--k-on);font:700 11px var(--gm);letter-spacing:.06em;text-transform:uppercase}
+.gl-rec .b{padding:12px;display:grid;gap:10px}
+.gl-rec h3{margin:0;font:850 22px/1.05 var(--k-fd);font-stretch:112%}
+.gl-rec p{margin:0;font-size:14px;color:var(--k-mute)}
+.gl-rec dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:500 12.5px var(--gm)}
+.gl-rec dt{color:var(--k-mute)}.gl-rec dd{margin:0;text-align:right;font-weight:700}
+.gl-rec .row{display:flex;gap:8px}.gl-rec .row .k-btn{flex:1;font-weight:700}
+.gl-rec .row .k-btn.ghost{flex:0 0 auto}
+.gl-empty{margin-top:8px;padding:14px;border:1.5px dashed var(--k-line);border-radius:var(--k-rad);font:500 12.5px var(--gm);color:var(--k-mute)}
+/* comparison matrix */
+.gl-mx{overflow-x:auto;margin:0 -12px;padding:0 12px 4px;scrollbar-width:thin}
+.gl-mx table{border-collapse:separate;border-spacing:0;min-width:640px;width:100%;font-size:13px;background:var(--k-surface);border:1.5px solid var(--k-ink);border-radius:var(--k-rad);overflow:hidden}
+.gl-mx th,.gl-mx td{padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--k-line)}
+.gl-mx tr:last-child td,.gl-mx tr:last-child th{border-bottom:0}
+.gl-mx thead th{background:var(--k-ink);color:var(--k-bg);font:800 14px/1.15 var(--k-fd);font-stretch:108%;cursor:pointer}
+.gl-mx thead th:first-child{background:var(--k-ink)}
+.gl-mx tbody th{position:sticky;left:0;background:var(--k-surface);font:500 10.5px var(--gm);letter-spacing:.05em;text-transform:uppercase;color:var(--k-mute);width:110px;border-right:1px solid var(--k-line);z-index:1}
+.gl-mx td b{font:800 16px var(--k-fd)}
+.gl-mx .y{color:#1E7A4F;font-weight:700}.gl-mx .n{color:var(--k-mute)}
+.gl-mx td .k-btn{min-height:44px;padding:0 12px;font-size:13.5px;font-weight:700;width:100%}
+.gl-mx .urg td.e,.gl-mx .urg th.e{background:color-mix(in srgb,var(--k-accent) 18%,var(--k-surface))}
+.gl-mx thead th.e{background:var(--k-accent)!important;color:var(--k-on)}
+.gl-mx{display:none}
+.gl-cards{display:grid;gap:8px}
+.gl-mc{background:var(--k-surface);border:1.5px solid var(--k-ink);border-radius:var(--k-rad);overflow:hidden;display:grid}
+.gl-mc.e{border-color:var(--k-accent);box-shadow:0 0 0 2px var(--k-accent)}
+.gl-mc .h{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:52px;padding:10px 12px;border:0;background:var(--k-ink);color:var(--k-bg);text-align:left;font:800 16px/1.15 var(--k-fd)}
+.gl-mc.e .h{background:var(--k-accent);color:var(--k-on)}
+.gl-mc .h span{font:700 13px var(--gm);white-space:nowrap}
+.gl-mc dl{margin:0;padding:6px 12px;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px}
+.gl-mc dt{font:500 10.5px var(--gm);letter-spacing:.05em;text-transform:uppercase;color:var(--k-mute);padding-top:2px}
+.gl-mc dd{margin:0;text-align:right}
+.gl-mc .k-btn{margin:4px 12px 12px;font-weight:700}
+.gl-hint{font:500 11px var(--gm);color:var(--k-mute);margin-top:8px}
+/* spec table + jobs */
+.gl-st{width:100%;border-collapse:collapse;font-size:14px;background:var(--k-surface);border:1.5px solid var(--k-ink);border-radius:var(--k-rad);overflow:hidden}
+.gl-st th,.gl-st td{padding:11px 12px;border-bottom:1px solid var(--k-line);text-align:left;vertical-align:top}
+.gl-st th{font:500 11px var(--gm);letter-spacing:.05em;text-transform:uppercase;color:var(--k-mute);width:38%}
+.gl-st td{font-weight:600}
+.gl-st tr:last-child th,.gl-st tr:last-child td{border-bottom:0}
+.gl-jobs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.gl-job{margin:0;border-radius:8px;overflow:hidden;background:var(--k-surface);border:1px solid var(--k-line)}
+.gl-job img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+.gl-job figcaption{padding:8px;font:500 10.5px/1.4 var(--gm);color:var(--k-mute)}
+.gl-job figcaption b{display:block;color:var(--k-ink);font:800 13px var(--k-fd);margin-bottom:2px}
+/* coverage */
+.gl-area{display:grid;gap:10px;background:var(--k-surface);border:1.5px solid var(--k-ink);border-radius:var(--k-rad);padding:12px}
+.gl-area svg{width:100%;height:auto;display:block;border-radius:6px;background:var(--k-bg)}
+.gl-area ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.gl-area li{font:500 12px var(--gm);padding:6px 9px;border-radius:4px;background:var(--k-bg)}
+.gl-area p{margin:0;font-size:13px;color:var(--k-mute)}
+/* faq */
+.gl-faq details{border-bottom:1px solid var(--k-line)}
+.gl-faq summary{list-style:none;cursor:pointer;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:10px;font:700 15px var(--k-fb)}
+.gl-faq summary::-webkit-details-marker{display:none}
+.gl-faq summary::after{content:'+';font:500 20px var(--gm)}
+.gl-faq details[open] summary::after{content:'−'}
+.gl-faq p{margin:0 0 14px;font-size:14px;color:var(--k-mute)}
+.gl-foot{padding:26px 12px 0;display:flex;justify-content:space-between;font:500 11px var(--gm);color:var(--k-mute)}
+.site .k-sheet .k-t,.site .k-res h2{font-stretch:115%}
+@container site (max-width:370px){.gl-h1{font-size:29px}.gl-top .nm small{display:none}.gl-urg span{display:none}.gl-tasks{grid-template-columns:1fr}.gl-acts{grid-template-columns:1fr}}
+@container site (min-width:900px){
+  .gl-top{top:0;padding:10px 40px;gap:14px}
+  .gl-top .k-btn{display:inline-flex;min-height:44px;font-weight:700}
+  .gl-hero{padding:48px 40px 0;display:grid;grid-template-columns:1.25fr 1fr;gap:36px;align-items:start}
+  .gl-h1{font-size:64px}
+  .gl-spec{grid-template-columns:repeat(4,1fr)}
+  .gl-spec div{border-bottom:0!important}.gl-spec div:nth-child(2n){border-right:1.5px solid var(--k-ink)}.gl-spec div:last-child{border-right:0}
+  .gl-spec b{font-size:22px}
+  .gl-acts{display:flex}.gl-acts .k-btn{padding:0 26px}
+  .gl-who{grid-template-columns:1fr;padding:0;overflow:hidden}
+  .gl-who img{width:100%;height:340px;border-radius:0}
+  .gl-who>div{padding:0 16px 16px}
+  .gl-emg{margin:28px 40px 0;display:grid;grid-template-columns:18px 1fr}
+  .gl-emg .tape{height:auto;background:repeating-linear-gradient(-45deg,var(--k-accent) 0 12px,var(--k-ink) 12px 24px)}
+  .gl-emg .in{display:grid;grid-template-columns:1fr 1fr auto;gap:24px;align-items:center;padding:20px 24px}
+  .gl-emg .safe,.gl-emg p{margin:0}
+  .gl-sec{padding:72px 40px 0}
+  .gl-hd h2{font-size:40px}
+  .gl-pick{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;align-items:start}
+  .gl-tasks{grid-template-columns:repeat(3,1fr);gap:8px}
+  .gl-task{min-height:84px;align-items:start}
+  .gl-rec,.gl-empty{margin-top:0}
+  .gl-mx{display:block;margin:0;padding:0;overflow:visible}
+  .gl-cards{display:none}
+  .gl-mx table{min-width:0}
+  .gl-mx tbody th{width:180px}
+  .gl-proof{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;align-items:start}
+  .gl-jobs{margin-top:0;grid-template-columns:repeat(3,1fr);gap:8px}
+  .gl-two{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .gl-two .gl-sec{padding-left:0;padding-right:0}
+  .gl-wrap2{padding:0 40px}
+  .gl-foot{padding:34px 40px 0}
+}
+
+/* ── refinement pass 2026-10-01 ── */
+.gl-top{gap:10px;padding:10px 12px;border-bottom:1px solid color-mix(in srgb,var(--k-bg) 10%,transparent)}
+.gl-top .nm b{font-size:15px;font-stretch:108%}
+.gl-top .nm small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.gl-top .k-demo{display:none}
+.gl-urg{min-height:36px;padding:0 12px;border-radius:99px;border:0;gap:8px;font:700 12px var(--k-fb);background:color-mix(in srgb,var(--k-bg) 10%,transparent);color:var(--k-bg);white-space:nowrap}
+.gl-urg i{width:8px;height:8px;border-radius:50%;background:color-mix(in srgb,var(--k-bg) 45%,transparent)}
+.gl-urg i::after{display:none}
+.gl-urg[data-on="true"]{background:color-mix(in srgb,var(--k-accent) 16%,transparent);color:var(--k-accent)}
+.gl-urg[data-on="true"] i{background:var(--k-accent);box-shadow:0 0 0 0 var(--k-accent);animation:glPulse 1.8s infinite}
+@keyframes glPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--k-accent) 60%,transparent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.gl-urg i{animation:none!important}}
+.gl-tel{width:40px;height:40px;border-radius:99px;background:none;color:var(--k-bg);border:1.5px solid color-mix(in srgb,var(--k-bg) 28%,transparent)}
+.gl-logo{width:36px;height:36px;border-radius:8px}
+.gl-h1{line-height:1.14}
+.gl-h1 em{background:linear-gradient(transparent 18%,var(--k-accent) 18%,var(--k-accent) 90%,transparent 90%);padding:0 .06em;margin:0 -.06em}
+.gl-spec b{font-size:17px}
+.gl-emg{margin:12px 12px 0;border-width:1.5px}
+.gl-emg .tape{height:8px}
+.gl-emg .in{padding:14px 14px 14px}
+.gl-emg h2{font-size:21px;font-stretch:112%}
+.gl-emg p{font-size:13.5px;margin:6px 0 10px}
+.gl-emg .safe{font-size:12.5px;padding:9px 10px}
+.gl-who{grid-template-columns:64px 1fr;align-items:start}
+.gl-who img{width:64px;height:64px;border-radius:50%}
+.gl-rec0 .h{background:var(--k-ink);color:var(--k-bg)}
+.gl-task{transition:border-color .15s,transform .15s}
+.gl-task:hover{border-color:var(--k-ink);transform:translateY(-1px)}
+.gl-job{transition:transform .18s}
+.gl-job:hover{transform:translateY(-2px)}
+.gl-hd{border-bottom-width:2px}
+@container site (max-width:370px){.gl-urg{padding:0 10px}}
+@container site (min-width:900px){
+  .gl-top{padding:12px 40px}
+  .gl-top .k-demo{display:none}
+  .gl-top .k-btn{min-height:40px;padding:0 18px}
+  .gl-h1{font-size:60px;line-height:1.12}
+  .gl-spec b{font-size:20px}
+  .gl-emg{margin:24px 40px 0;grid-template-columns:10px 1fr}
+  .gl-emg .tape{height:auto}
+  .gl-emg .in{grid-template-columns:1.1fr 1fr auto;padding:16px 22px;gap:22px}
+  .gl-emg h2{font-size:22px}
+  .gl-who img{width:100%;height:340px;border-radius:0}
+  .gl-who{grid-template-columns:1fr}
+  .gl-proof{grid-template-columns:1fr;gap:12px}
+  .gl-st{display:grid;grid-template-columns:repeat(5,1fr)}
+  .gl-st tbody{display:contents}
+  .gl-st tr{display:grid;border-right:1px solid var(--k-line)}
+  .gl-st tr:last-child{border-right:0}
+  .gl-st th,.gl-st td{width:auto;border-bottom:0;padding:12px 14px 4px}
+  .gl-st td{padding:0 14px 14px;font-size:14px}
+  .gl-jobs{grid-template-columns:repeat(6,1fr)}
+  .gl-job img{aspect-ratio:4/5}
+}
+</style>
+<script src="kit.js"></script>
+<script>
+/* Theme state: urgency mode + selected task (task picker = a W-11 variant mapping tasks to services). */
+const GL = {urg:true, task:null}; /* urg = the talent's own 'Atiendo emergencias hoy' setting, shown as state */
+const GL_IC = {
+  dark:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/><path d="M4 4l16 16"/></svg>',
+  lamp:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M6 14a6 6 0 0 1 12 0zM10 18a2 2 0 0 0 4 0"/></svg>',
+  trip:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h2v8H9zM13 8h2v4h-2z"/></svg>',
+  panel:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h4M7 11h4M7 15h4M13 7h4M13 11h4M13 15h4"/></svg>',
+  plug:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M10 9v2M14 9v2M9 15h6"/></svg>',
+  spark:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
+  house:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 10v10h14V10"/><path d="M12 13l-2 3h4l-2 3"/></svg>',
+  phone:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+  warn:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>'
+};
+const GL_TASKS=[
+  ['t1','Se fue la luz en una zona','dark','rev','Una revisión encuentra el circuito que falla y te da precio antes de reparar.'],
+  ['t2','Instalar lámparas o ventiladores','lamp','lamp','Se cobra por pieza. Mándame fotos del techo y de la lámpara.'],
+  ['t3','Se bota el breaker','trip','rev','Suele ser sobrecarga o un corto. Primero se revisa, luego se cotiza la reparación.'],
+  ['t4','Tablero viejo o de fusibles','panel','tablero','Un cambio de tablero se cotiza con fotos del tablero actual y el número de circuitos.'],
+  ['t5','Contactos que no sirven','plug','rev','En la revisión se prueban todos los contactos y se reparan los sencillos ahí mismo.'],
+  ['t6','Chispas u olor a quemado','spark','emerg','Corta la luz en el interruptor principal y escríbeme. Atiendo el mismo día cuando hay espacio.']
+];
+const T = {
+  id:'TH16', theme:'Gridline', lang:'es', domain:'alextrevino.tulala.digital', currency:'MXN', galleryUrl:'',
+  brief:'Utilitarian spec sheet with a task picker, comparison matrix and urgency mode. Demo talent DEMO016, electrician, instant/request/quote/inquiry recipe.',
+  talent:{name:'Alex Treviño', first:'Alex', role:'electrician', avatar:'th16-gridline-alex', tagline:'Instalaciones eléctricas seguras, con garantía por escrito.', bio:'Electricista certificado con 12 años en casas y locales. Diagnóstico claro, precio antes de empezar y garantía de 6 meses.'},
+  mine:{name:'Tu Nombre', count:3},
+  palettes:{
+    def:{n:'Default', bg:'#EEEFEC', surface:'#FFFFFF', ink:'#0C0E11', mute:'#5A5F66', line:'#D5D8D3', accent:'#FFC21A', on:'#111111', tint:'#FFF1C7', at:'#7A5600'},
+    light:{n:'Light neutral', bg:'#FFFFFF', surface:'#F7F7F6', ink:'#141414', mute:'#686868', line:'#E3E3E1', accent:'#141414', on:'#FFFFFF', tint:'#EDEDEB', at:'#141414'},
+    dark:{n:'Dark contrast', bg:'#0C0E11', surface:'#171A1F', ink:'#F1F2F0', mute:'#9CA2AA', line:'#2B3038', accent:'#FFC21A', on:'#111111', tint:'#3A3114', at:'#FFD257'},
+    green:{n:'Field green', bg:'#EEF0EB', surface:'#FFFFFF', ink:'#0F1A14', mute:'#56615A', line:'#D3D9D1', accent:'#1F8A4C', on:'#FFFFFF', tint:'#DDEFE3', at:'#17673A'},
+    orange:{n:'Safety orange', bg:'#F3F2F0', surface:'#FFFFFF', ink:'#121212', mute:'#5E5B57', line:'#DAD6D0', accent:'#FF5A00', on:'#141414', tint:'#FFE2CF', at:'#B23F00'}
+  },
+  customStart:'#0E7C66',
+  surface:'modal',
+  hero_service:'rev',
+  dock:[{label:'Consultar', flow:'emerg'}],
+  starter:{services:4, faqs:4, texts:5},
+  reply:'Hola, soy Alex. Mándame una foto de lo que ves y tu colonia, y te digo qué conviene hacer.',
+  suggestions:['¿Cuánto cuesta cambiar un contacto?','¿Vas a San Nicolás?','¿La garantía es por escrito?'],
+  services:[
+    {id:'rev', cat:'Revisión', name:'Revisión eléctrica', dur:'1 h', price:'$550', mode:'instant', cta:'Ver horarios', img:'th16-gridline-test',
+      desc:'Reviso tablero, contactos y circuitos, y te explico qué está bien y qué no. Si hay que reparar, te doy el precio antes de empezar.',
+      includes:['Prueba de tablero, tierra y contactos','Reporte por escrito con fotos','Reparaciones menores ahí mismo, con tu visto bueno'],
+      optLabel:'Tipo de inmueble', options:[['casa','Casa','Hasta 3 recámaras',''],['depa','Departamento','Hasta 2 recámaras','-$50'],['local','Local comercial','Hasta 120 m²','+$250']],
+      slots:['08:00','10:00','12:00','15:00','17:00'], slotNote:'Llego en una ventana de 30 min. Te aviso por mensaje cuando voy en camino.',
+      policy:'Pagas en la visita. Cambios de horario hasta 4 h antes.', payNote:'Pagas en la visita, en efectivo o transferencia. No se cobra nada en línea.',
+      whoFields:[{k:'col',l:'Colonia',p:'Ej. Del Valle, San Pedro'}],
+      reply:'Claro. La revisión incluye probar todos los contactos. Si ya sabes cuál falla, dime y empiezo por ahí.'},
+    {id:'lamp', cat:'Instalación', name:'Instalación de lámparas', dur:'Por pieza', price:'$350', priceLabel:'$350 por pieza', mode:'request', cta:'Solicitar visita', img:'th16-gridline-lamps',
+      desc:'Instalo lámparas colgantes, plafones y ventiladores de techo. Reviso la caja y el cableado antes de colgar nada.',
+      includes:['Montaje y conexión por pieza','Revisión de caja y soporte','Limpieza al terminar'],
+      optLabel:'Cuántas piezas', options:[['p1','1 a 2 piezas','',''],['p3','3 a 5 piezas','','-5% por pieza'],['p6','6 o más','Se agenda medio día','-10% por pieza']],
+      extras:[['heavy','Lámpara de más de 5 kg','+$150','Requiere soporte reforzado'],['old','Retiro de lámpara anterior','+$80','Por pieza']],
+      flowTitle:'Solicitar visita', flowIntro:'Esto es una solicitud: Alex confirma el horario antes de apartarlo.', submit:'Enviar solicitud',
+      brief:[{k:'n',l:'Número de piezas',p:'Ej. 3',im:'numeric',demo:'3'},{k:'h',l:'Altura del techo',type:'select',opts:['Hasta 2.7 m','2.7 a 3.5 m','Más de 3.5 m'],demo:'2.7 a 3.5 m'},{k:'when',l:'Días que te funcionan',type:'chips',opts:['Entre semana','Sábado','Mañana','Tarde'],demo:['Sábado','Mañana']},{k:'pic',l:'Foto del techo y la lámpara',type:'upload',p:'Subir foto',h:'Opcional. Ayuda a llegar con el material correcto.'}]},
+    {id:'tablero', cat:'Tablero', name:'Cambio de tablero', dur:'1 día', price:'A cotizar', mode:'quote', cta:'Pedir cotización', img:'th16-gridline-board',
+      desc:'Cambio tableros de fusibles o saturados por uno con pastillas nuevas y circuitos identificados. Cotizo con fotos antes de ir.',
+      includes:['Tablero y pastillas nuevas','Circuitos etiquetados','Garantía de 6 meses por escrito'],
+      flowTitle:'Pedir cotización', flowIntro:'Con estas fotos te mando una cotización para aceptar o rechazar.', submit:'Pedir cotización',
+      brief:[{k:'type',l:'Inmueble',type:'chips',opts:['Casa','Departamento','Local'],demo:['Casa']},{k:'circ',l:'Circuitos aproximados',type:'select',opts:['Hasta 6','7 a 12','Más de 12','No sé'],demo:'7 a 12'},{k:'pic',l:'Foto del tablero actual',type:'upload',p:'Subir foto del tablero'},{k:'why',l:'¿Qué pasa?',type:'area',p:'Se bota, es de fusibles, huele a quemado…'}]},
+    {id:'emerg', cat:'Emergencia', name:'Emergencia (mismo día)', dur:'Mismo día', price:'A cotizar', priceLabel:'Según hora y trabajo', mode:'inquiry', cta:'Consultar', img:'th16-gridline-wires',
+      desc:'Si te quedaste sin luz o algo huele a quemado, escríbeme. Te digo si puedo llegar hoy y cuánto cuesta la visita antes de salir.',
+      includes:['Respuesta por chat con disponibilidad','Costo de visita antes de salir','Reparación cotizada en sitio'],
+      flowTitle:'Consultar emergencia', flowIntro:'Cuéntame qué pasa. Si hay chispas, corta la luz en el interruptor principal.', submit:'Enviar consulta',
+      brief:[{k:'what',l:'¿Qué pasa?',type:'chips',opts:['Sin luz en toda la casa','Sin luz en una zona','Chispas','Olor a quemado'],demo:['Sin luz en una zona']},{k:'col',l:'Colonia y municipio',p:'Ej. Cumbres, Monterrey',demo:'Cumbres, Monterrey'},{k:'pic',l:'Foto (opcional)',type:'upload',p:'Subir foto'}],
+      reply:'Hoy tengo espacio después de las 16:00 en Cumbres. La visita de emergencia es $750 y la reparación te la cotizo ahí.'}
+  ],
+  renderSite(K,S){
+    const E=K.esc, D=K.D, sv=id=>D.services.find(s=>s.id===id), rev=sv('rev'), emg=sv('emerg');
+    const task=GL_TASKS.find(t=>t[0]===GL.task), rs=task&&sv(task[3]);
+    const modeTxt={instant:'Agenda en línea',request:'Solicitud, Alex confirma',quote:'Cotización con fotos',inquiry:'Por chat'};
+    const cols=D.services;
+    const cell=(s,k)=>{
+      if(k==='price') return `<b>${E(s.priceLabel||s.price)}</b>`;
+      if(k==='dur') return E(s.dur||'');
+      if(k==='mode') return E(modeTxt[s.mode]);
+      if(k==='mat') return s.id==='tablero'?'<span class="y">Incluidos</span>':s.id==='lamp'?'<span class="n">Tú pones la lámpara</span>':'<span class="n">Se cotizan</span>';
+      if(k==='war') return '<span class="y">6 meses</span>';
+      if(k==='resp') return s.id==='emerg'?'<span class="y">Mismo día si hay espacio</span>':s.mode==='instant'?'Desde mañana':'24 a 48 h';
+      return '';
+    };
+    const rows=[['Precio','price'],['Duración','dur'],['Cómo se agenda','mode'],['Materiales','mat'],['Garantía','war'],['Respuesta','resp']];
+    return `${K.status()}
+    <div class="gl">
+    <header class="gl-top" data-w="Header shell · utility bar (phone + urgency)"><span class="gl-logo">${GL_IC.spark}</span><div class="nm"><b>${E(D.talent.name)}</b><small>Electricista · Monterrey</small></div>${K.demo()}
+      <span class="gl-urg" role="status" data-on="${GL.urg}"><i></i><span>${GL.urg?'Emergencias hoy':'Sin emergencias hoy'}</span></span>${GL.urg&&emg?K.act(emg,'k-btn'):rev?K.act(rev,'k-btn'):''}<button class="gl-tel" data-k-act="tel" aria-label="Llamar">${GL_IC.phone}</button></header>
+    ${GL.urg&&emg?`<section class="gl-emg" data-w="Section preset · alert band (urgency mode)"><div class="tape"></div><div class="in"><div><h2>Emergencia mismo día</h2><p>${E(emg.desc)}</p></div><div class="safe">${GL_IC.warn}<span><b>Mientras tanto:</b> si hay chispas u olor a quemado, corta la luz en el interruptor principal y no toques el tablero.</span></div>${K.act(emg,'k-btn')}</div></section>`:''}
+    <section class="gl-hero" data-w="hero · spec block">
+      <div>
+        <div class="gl-kick"><i></i>${K.mine?'Disponible esta semana':'Agenda abierta · Monterrey y área metro'}</div>
+        <h1 class="gl-h1">${K.mine?E(D.talent.tagline):'Instalaciones eléctricas seguras, <em>con garantía por escrito.</em>'}</h1>
+        <div class="gl-spec gl-mono">
+          <div><small>Respuesta</small><b>24 h</b></div><div><small>Garantía</small><b>6 meses</b></div>
+          <div><small>Precio</small><b>Antes de empezar</b></div><div><small>Revisión</small><b>${rev?E(rev.price):'$550'}</b></div>
+        </div>
+        <div class="gl-acts">${rev?K.act(rev,'k-btn'):''}<button class="k-btn ghost" data-k-act="go:gl-pick">¿Qué necesitas?</button></div>
+      </div>
+      <div class="gl-who"><img src="${K.img(D.talent.avatar)}" alt="${E(D.talent.name)}"><div><b>${E(D.talent.name)}</b><p>${E(D.talent.bio)}</p>${K.mine?'':`<div class="gl-badges gl-mono"><span>12 años</span><span>Casas y locales</span><span>Certificado · ficticio de demo</span></div>`}</div></div>
+    </section>
+    <section class="gl-sec" id="gl-pick" data-w="W-11 Category explorer · task picker (tasks → services)">
+      <div class="gl-hd"><h2>¿Qué está pasando?</h2><small>Elige una opción</small></div>
+      <div class="gl-pick"><div class="gl-tasks">${GL_TASKS.filter(t=>sv(t[3])).map(t=>`<button class="gl-task" data-k-act="task:${t[0]}" aria-pressed="${GL.task===t[0]}">${GL_IC[t[2]]}<span>${E(t[1])}</span></button>`).join('')}</div>
+      ${rs?`<div class="gl-rec"><div class="h"><span>Te conviene</span><span>${E(rs.cat)}</span></div><div class="b"><h3>${E(rs.name)}</h3><p>${E(task[4])}</p><dl><dt>Precio</dt><dd>${E(rs.priceLabel||rs.price)}</dd><dt>Duración</dt><dd>${E(rs.dur||'')}</dd><dt>Agenda</dt><dd>${E(modeTxt[rs.mode])}</dd></dl><div class="row">${K.open(rs,'k-btn ghost','Detalles')}${K.act(rs,'k-btn')}</div></div></div>`
+        :rev?`<div class="gl-rec gl-rec0"><div class="h"><span>¿No sabes qué es?</span><span>Empieza aquí</span></div><div class="b"><h3>${E(rev.name)}</h3><p>Elige lo que ves en casa y te digo qué pedir. Si no estás seguro, una revisión encuentra la falla y te doy el precio antes de reparar.</p><dl><dt>Precio</dt><dd>${E(rev.priceLabel||rev.price)}</dd><dt>Duración</dt><dd>${E(rev.dur||'')}</dd><dt>Agenda</dt><dd>${E(modeTxt[rev.mode])}</dd></dl><div class="row">${K.act(rev,'k-btn')}</div></div></div>`:''}</div>
+    </section>
+    <section class="gl-sec" id="gl-mx" data-w="W-01 Services · comparison matrix (new layout)">
+      <div class="gl-hd"><h2>Servicios</h2><small>Precios en MXN</small></div>
+      <div class="gl-mx"><table class="${GL.urg?'urg':''}"><thead><tr><th></th>${cols.map(s=>`<th class="${s.id==='emerg'?'e':''}" data-k-open="${s.id}">${E(s.name)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr><th>${r[0]}</th>${cols.map(s=>`<td class="${s.id==='emerg'?'e':''}">${cell(s,r[1])}</td>`).join('')}</tr>`).join('')}
+      <tr><th></th>${cols.map(s=>`<td class="${s.id==='emerg'?'e':''}">${K.act(s,s.mode==='instant'||(GL.urg&&s.id==='emerg')?'k-btn':'k-btn ghost')}</td>`).join('')}</tr></tbody></table></div>
+      <div class="gl-cards">${cols.map(s=>`<article class="gl-mc ${s.id==='emerg'&&GL.urg?'e':''}"><button class="h" data-k-open="${s.id}"><b>${E(s.name)}</b><span>${E(s.priceLabel||s.price)}</span></button><dl>${rows.slice(1).map(r=>`<dt>${r[0]}</dt><dd>${cell(s,r[1])}</dd>`).join('')}</dl>${K.act(s,s.mode==='instant'||(GL.urg&&s.id==='emerg')?'k-btn':'k-btn ghost')}</article>`).join('')}</div>
+    </section>
+    <section class="gl-sec" data-w="Section preset · spec table + W-12 Portfolio grid (jobs)">
+      <div class="gl-hd"><h2>Especificaciones</h2><small>Cómo trabajo</small></div>
+      <div class="gl-proof"><table class="gl-st"><tr><th>Voltaje</th><td>127 V y 220 V, residencial y comercial</td></tr><tr><th>Garantía</th><td>6 meses por escrito en mano de obra</td></tr><tr><th>Materiales</th><td>Marca y precio en la cotización, antes de comprar</td></tr><tr><th>Precio</th><td>Siempre antes de empezar</td></tr><tr><th>Pago</th><td>En la visita: efectivo o transferencia</td></tr></table>
+      ${K.mine?`<div class="gl-empty">Tus trabajos recientes aparecen aquí, con foto y ficha.</div>`:`<div class="gl-jobs">${[['th16-gridline-board','Cambio de tablero','OT-0412 · San Pedro · 1 día'],['th16-gridline-pendant','Lámpara colgante','OT-0398 · Centro · 1 h'],['th16-gridline-breakers','Pastillas nuevas','OT-0391 · Cumbres · 3 h'],['th16-gridline-meter','Revisión de carga','OT-0385 · Local, Santa Catarina'],['th16-gridline-work','Acometida','OT-0377 · Guadalupe · 4 h'],['th16-gridline-lamps','6 lámparas','OT-0370 · Restaurante, Obispado']].map(j=>`<figure class="gl-job"><img src="${K.img(j[0])}" alt="" loading="lazy"><figcaption><b>${j[1]}</b>${j[2]}</figcaption></figure>`).join('')}</div>`}</div>
+    </section>
+    <div class="gl-two gl-wrap2">
+      <section class="gl-sec" data-w="W-13 Location · area card (approximate)">
+        <div class="gl-hd"><h2>Zona</h2><small>Aproximada</small></div>
+        <div class="gl-area"><svg viewBox="0 0 320 150" aria-hidden="true"><defs><pattern id="glg" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M16 0H0V16" fill="none" stroke="currentColor" stroke-opacity=".12"/></pattern></defs><rect width="320" height="150" fill="url(#glg)" style="color:var(--k-ink)"/><path d="M20 120 C80 90 120 110 170 70 S260 40 300 30" stroke="var(--k-mute)" stroke-width="2" fill="none" stroke-dasharray="4 4"/><circle cx="165" cy="78" r="58" fill="var(--k-accent)" fill-opacity=".22" stroke="var(--k-accent)" stroke-width="2"/><circle cx="165" cy="78" r="5" fill="var(--k-ink)"/><text x="176" y="74" font-family="JetBrains Mono" font-size="10" fill="var(--k-ink)">MTY</text></svg>
+        <ul><li>Monterrey</li><li>San Pedro</li><li>Guadalupe</li><li>San Nicolás</li><li>Santa Catarina</li><li>Apodaca</li></ul><p>Fuera de esta zona se agrega traslado a la cotización.</p></div>
+      </section>
+      <section class="gl-sec gl-faq" data-w="W-02 FAQ · accordion">
+        <div class="gl-hd"><h2>Preguntas</h2><small>4</small></div>
+        <details><summary>¿La garantía es por escrito?</summary><p>Sí. Al terminar te dejo una nota con el trabajo, la fecha y 6 meses de garantía en mano de obra.</p></details>
+        <details><summary>¿Cobras por ir a ver?</summary><p>La revisión cuesta ${rev?E(rev.price):'$550'} y la pagas en la visita. Si decides reparar, te doy el precio antes.</p></details>
+        <details><summary>¿Tú compras el material?</summary><p>Puedo comprarlo yo con ticket, o lo compras tú con la lista que te mando.</p></details>
+        <details><summary>¿Atiendes locales comerciales?</summary><p>Sí, hasta 120 m² en revisión estándar. Locales más grandes se cotizan.</p></details>
+      </section>
+    </div>
+    <footer class="gl-foot"><span>${E(T.domain)}</span><span>Hecho con Tulala</span></footer>
+    </div>`;
+  },
+  onAction(name,S,x){
+    const [a,v]=name.split(':');
+    if(a==='urg-setting'){ GL.urg=!GL.urg; T.dock = GL.urg ? [{label:'Consultar', flow:'emerg'}] : [{label:'Ver horarios', flow:'rev'}]; x.render(); if(GL.urg){ const vp=document.getElementById('vp'); if(vp) vp.scrollTo({top:0,behavior:'smooth'}); } return; }
+    if(a==='task'){ GL.task=GL.task===v?null:v; return x.renderSite(); }
+    if(a==='tel') return x.toast('En el sitio real abre tu app de teléfono (demo)');
+    if(a==='go'){ const vp=document.getElementById('vp'), el=document.getElementById(v); if(vp&&el) vp.scrollTo({top:el.getBoundingClientRect().top-vp.getBoundingClientRect().top+vp.scrollTop-(vp.clientWidth>=900?70:110),behavior:'smooth'}); }
+  },
+  journey:[
+    ['Task picker', S=>{ GL.task='t3'; GL.urg=true; T.dock=[{label:'Consultar', flow:'emerg'}]; }, 'Visitors pick what is happening at home; the picker recommends the service with price, duration, how it is booked and the right CTA for that mode.','prop'],
+    ['Talent setting: no emergencies today', S=>{ GL.urg=false; GL.task=null; T.dock=[{label:'Ver horarios', flow:'rev'}]; }, 'Urgency is Alex\'s own "Atiendo emergencias hoy" setting, shown as a status in the top bar. Off: no alert band, the emergency card is not highlighted and the dock offers the inspection instead. Visitors cannot change it.','prop'],
+    ['Emergency inquiry', S=>{ GL.urg=true; T.dock=[{label:'Consultar', flow:'emerg'}]; S.svc='emerg'; S.sheet='flow'; S.chips.what=['Sin luz en una zona']; S.form.col='Cumbres, Monterrey'; }, 'With the setting on, Emergencia is an inquiry: Alex answers in chat with availability and the visit cost before leaving.','ex']
+  ],
+  notes:{
+    summary:'Gridline is a practical spec sheet: a dark utility bar with phone and the emergencies-today status, a spec-block hero (response, warranty, price before work), a task picker that maps what is happening at home to the right service, a comparison matrix of all services (stacked cards on phone), a spec table with job cards, an approximate area card and an FAQ. Booking opens in a centred step modal.',
+    distinct:['Task picker: the audit condition for keeping Gridline separate from Ledger. It routes a household problem to the right service and booking mode.','The talent\'s emergencies-today setting changes the page state: status pill, alert band with a safety note, highlighted emergency card, dock action swapped.','Services as a true comparison matrix with a sticky label column (price, duration, how it is booked, materials, warranty, response).','Archivo at 118% width with JetBrains Mono specs and hazard-tape stripes: industrial, not editorial.'],
+    neighbours:[['Ledger','Ledger is evidence-led consulting: case studies with before/after metrics and a process. Gridline is a problem router: task picker, urgency and a comparison matrix for a trade.'],['Common','Common is a local-trust page with a coverage check input and reviews. Gridline leads with specs and the task picker; coverage is a small area card.']],
+    suits:['Plomero: tasks become fugas, calentador, drenaje; urgency stays; Safety orange palette.','Técnico de aire acondicionado: matrix compares mantenimiento, instalación, recarga; Default palette.','Cerrajero: urgency on by default at night; tasks become lockout, cambio de chapa; Dark contrast.'],
+    sameContent:'Alex in Ledger: a serif statement hero with three metrics, services as an engagement table, then case studies with before/after numbers. No task picker and no urgency state. Gridline starts from the visitor\'s problem (picker) and compares services side by side; Ledger starts from credibility and a narrative.',
+    matrix:['Nav: utility top bar with phone + emergency status (talent setting)','Hero: spec block (response, warranty, price, visit)','Services: W-01 comparison matrix (stacked cards on phone) + task picker app','Portfolio: spec table + job cards grid','Booking surface: modal (step wizard)','Type/grid: Archivo wide 800 + JetBrains Mono; 2-col spec grid phone, 4-col spec and 3-col tasks desktop','Motion: task selection; emergency state from the talent setting'],
+    type:['Archivo 800 to 850 at 110 to 118% width for headings and prices.','JetBrains Mono for specs, captions and table labels; Archivo for body.'],
+    colour:['Default: light grey with safety yellow; text accent is a dark ochre for contrast.','Light neutral, Dark contrast (yellow on graphite), Field green, Safety orange.'],
+    shape:['6 px buttons, 10 px blocks, 1.5 px ink borders, hazard-tape stripes only in urgency mode.','Motion only as state change on toggle and selection.'],
+    mapIntro:'Gridline composes shared widgets. The task picker is a proposed W-11 variant that maps typed tasks to existing services; urgency is a page state toggled by the visitor, not a pricing rule.',
+    map:[
+      ['Header','Header shell','utility bar: phone + emergency status','Phone, status visibility','New variant','Missing control: tap to call in the shell (toast here).'],
+      ['Emergency status','Talent setting · "Atiendo emergencias hoy"','status pill + alert band + dock swap','On/off in the talent\'s dashboard','New variant','Missing control: a daily availability flag that sections and the dock can read. Visitors never toggle it.'],
+      ['Hero','Section preset · spec block','headline + 4 spec cells + photo card','Spec labels and values (typed)','Section preset','Values typed; never computed ratings.'],
+      ['Task picker','App · Task picker','task list → service recommendation','Task text, icon, target service, hint','App','Task picker · visitor picks what is happening and gets the right service and booking mode · plumbers, AC techs, locksmiths, handymen · feeds the booking or quote brief (task pre-filled).'],
+      ['Services','W-01 Services','comparison matrix (desktop) / stacked cards (phone)','Rows shown, order','New variant','Uses price, duration, mode; materials, warranty and response are typed per service (Missing control: those fields).'],
+      ['Spec table','Section preset · spec table','key/value rows','Rows (typed)','Section preset',''],
+      ['Jobs','W-12 Portfolio','grid with work-order captions','Photo, title, caption','New widget','No client names or faces.'],
+      ['Zone','W-13 Location','area card (approximate)','Municipalities, travel note','New widget','Approximate area only, never an address.'],
+      ['FAQ','W-02 FAQ','accordion','FAQ items','Existing widget',''],
+      ['Booking','Booking sheet','modal step wizard','Per-service fields, photo upload','Existing widget','Upload simulated.'],
+      ['Chat + dock','Chat dock + selection dock','dock with 1 action, follows the emergency setting','Action label per state','Existing widget','']
+    ],
+    images:[
+      ['th16-gridline-alex','Electrician, portrait, hard hat','Portrait / 4:5 desktop, face top','1621905252507-b35492cc74b4','Hero photo card, avatar'],
+      ['th16-gridline-test','Testing a panel with a multimeter','Detail 16:10','1758101755915-462eddc23f57','Revisión eléctrica'],
+      ['th16-gridline-lamps','Pendant lamps lit','Detail / tile','1536664607464-9a9419341c4d','Instalación de lámparas, job card'],
+      ['th16-gridline-board','Circuit breaker unit','Square tile','1566417110090-6b15a06ec800','Cambio de tablero, job card'],
+      ['th16-gridline-wires','Open box with coloured wiring','Detail','1601462904263-f2fa0c851cb9','Emergencia'],
+      ['th16-gridline-pendant','Black pendant lamp near a window','Square tile','1553604588-20fc10d843a7','Job card'],
+      ['th16-gridline-breakers','White breakers, blue wiring','Square tile','1576446470246-499c738d1c8e','Job card'],
+      ['th16-gridline-meter','Clamp meter and cables','Square tile','1553873002-785d775854c9','Job card'],
+      ['th16-gridline-work','Same electrician at a meter box','Square tile','1621905251189-08b45d6a269e','Job card']
+    ],
+    imgNote:'Portrait and the work shot at the meter box are the same person (one Unsplash series), so Alex reads consistently. Job photos are close-ups without faces.',
+    needed:[['Alex on real jobs','4:5 and square','6','Same person, Monterrey homes and locales'],['Before/after of a panel','Square pair','2','For an optional W-08 Before/after on the tablero service']],
+    questions:['Should the emergencies-today setting expire automatically at the end of the day?','Do materials, warranty and response time become real service fields so the matrix fills itself?']
+  }
+};
+KIT(T);
+</script>
+
+<script src="demos-tab.js"></script>
+</body></html>
