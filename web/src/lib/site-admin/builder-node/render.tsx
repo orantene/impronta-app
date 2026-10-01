@@ -165,6 +165,8 @@ import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
 import { renderSpecTableBlock } from "./spec-table-block";
+import { renderUtilityBarBlock } from "./utility-bar-block";
+import { renderAlertBandBlock } from "./alert-band-block";
 import { NextFreeChipView } from "./next-free-chip";
 
 export interface BuilderNodeRenderDataSources {
@@ -320,6 +322,13 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /**
+   * G5/G6: is "emergencies today" on right now. Supplied by the page (the G3b
+   * cache-safe source plugs in here); the renderer never reads it. Absent = off.
+   */
+  emergenciesToday?: boolean;
+  /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
+  callHref?: string;
   /** Public-safe location (exact address present only in "public" mode). */
   talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
@@ -6062,6 +6071,21 @@ function renderBuilderNodeElement(
     case "statement_footer": {
       return renderStatementFooterBlock({
         node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "utility_bar": {
+      return renderUtilityBarBlock({
+        node,
+        emergenciesToday: options.dataSources?.emergenciesToday,
+        callHref: options.dataSources?.callHref,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "alert_band": {
+      return renderAlertBandBlock({
+        node,
+        emergenciesToday: options.dataSources?.emergenciesToday,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

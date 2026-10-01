@@ -94,6 +94,7 @@ import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
 import { LiveTextToggle } from "./live-text-toggle";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { SpecTableContentInspector } from "./spec-table-inspector";
+import { UtilityBarContentInspector, AlertBandContentInspector } from "./utility-bar-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1614,6 +1615,12 @@ function BuilderNodeContentInspectorBody({
     return (
       <StatementFooterContentInspector node={node} commitPatch={commitPatch} />
     );
+  }
+  if (node.kind === "utility_bar") {
+    return <UtilityBarContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "alert_band") {
+    return <AlertBandContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "spec_table") {
     return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
@@ -5386,6 +5393,10 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Masthead · stacked words";
     case "statement_footer":
       return "Statement footer · credit and contact";
+    case "utility_bar":
+      return "Utility bar · status and call";
+    case "alert_band":
+      return "Alert band · same-day emergency";
     case "spec_table":
       return "Spec table · key and value rows";
     case "comp_card":

@@ -42,6 +42,8 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "masthead",
   "statement_footer",
   "spec_table",
+  "utility_bar",
+  "alert_band",
 ];
 
 /**
@@ -119,6 +121,8 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
     statement_footer: "structure",
     comp_card: "media",
     spec_table: "structure",
+    utility_bar: "structure",
+    alert_band: "structure",
     reserve_table: "actions",
     next_free_chip: "actions",
     session_picker: "actions",
@@ -218,6 +222,8 @@ export function elementLibrarySearchExtraTerms(kind: BuilderNodeKind): string {
   contents: "contents table of contents chapter index anchors toc contents page",
   masthead: "masthead stacked words giant name cover magazine hero editorial bw black white",
   statement_footer: "statement footer credit contact colophon closing editorial magazine inquire",
+  utility_bar: "utility bar header status pill emergencies call phone tap to call llamar urgencias",
+  alert_band: "alert band emergency hazard tape urgent same day banner urgencia emergencia",
   spec_table: "spec table specifications key value rows voltage warranty price payment facts ficha tecnica datos",
   comp_card: "comp card measure strip measurements height bust waist hips vitals details ficha profile fields",
   reserve_table: "reserve reservation book booking table restaurant party guests availability times host stand",
@@ -313,6 +319,8 @@ export const SHIPPED_ELEMENT_INSERT_KINDS: ReadonlyArray<BuilderNodeKind> = [
     "statement_footer",
     "comp_card",
     "spec_table",
+    "utility_bar",
+    "alert_band",
     "next_free_chip",
     "reserve_table",
     "session_picker",

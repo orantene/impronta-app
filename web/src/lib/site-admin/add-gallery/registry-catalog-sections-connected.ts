@@ -596,6 +596,32 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     searchTerms: ["area", "zona", "service area", "municipalities", "travel", "radius", "coverage", "where i work"],
   }),
   connected({
+    id: "conn-utility-bar-native",
+    label: "Utility bar",
+    description:
+      "A dark header bar with your name, an emergencies status pill and a tap-to-call button. The call button shows only when you set a public number.",
+    category: "dynamic",
+    icon: "about",
+    insertMethod: "nativeNode",
+    nativeKind: "utility_bar",
+    sourceType: "native-freeform",
+    connectedSource: "Your profile",
+    searchTerms: ["utility bar", "header", "emergencies", "urgencias", "call", "llamar", "phone", "on call"],
+  }),
+  connected({
+    id: "conn-alert-band-native",
+    label: "Alert band",
+    description:
+      "A hazard-tape band for same-day emergencies with a safety note. Shown only while emergencies today is on.",
+    category: "dynamic",
+    icon: "about",
+    insertMethod: "nativeNode",
+    nativeKind: "alert_band",
+    sourceType: "native-freeform",
+    connectedSource: "Your availability",
+    searchTerms: ["alert", "emergency", "emergencia", "urgent", "same day", "hazard", "banner"],
+  }),
+  connected({
     id: "conn-portfolio-work-order-native",
     label: "Job cards",
     description:
