@@ -298,6 +298,21 @@ export type ClientOfferSummary = {
   readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[];
 };
 
+/**
+ * The version the GUEST sees on an offer card. Internal drafts consume version
+ * numbers the guest never saw, so a first sent offer could read "v3". Count
+ * only the offers the guest can see, starting at 1; with a single visible
+ * offer there is nothing to disambiguate, so return null (no version shown).
+ */
+export function guestVisibleOfferVersion(
+  offer: Pick<ClientOfferSummary, "id" | "version">,
+  offers: readonly Pick<ClientOfferSummary, "id" | "version">[] | undefined,
+): number | null {
+  const all = offers ?? [];
+  if (all.length <= 1) return null;
+  return 1 + all.filter((o) => o.version < offer.version).length;
+}
+
 export type OfferCardState = "sent" | "accepted" | "declined" | "expired";
 
 export function offerCardState(offer: ClientOfferSummary, now: Date): OfferCardState {

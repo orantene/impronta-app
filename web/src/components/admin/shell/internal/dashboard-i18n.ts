@@ -1708,6 +1708,7 @@ const ES_TEXT: Record<string, string> = {
   "Portfolio": "Portfolio",
   "All tiers": "Todos los niveles",
   "Tulala's note:": "Nota de Tulala:",
+  "A talent accepted the invitation.": "Una talento aceptó la invitación.",
   "Request Tulala Review": "Solicitar revisión de Tulala",
   "More verifications": "Más verificaciones",
   "Add more trust signals. Some are private (used for security + risk scoring), others get a public badge.": "Agrega más señales de confianza. Algunas son privadas (se usan para seguridad y puntuación de riesgo) y otras obtienen una insignia pública.",

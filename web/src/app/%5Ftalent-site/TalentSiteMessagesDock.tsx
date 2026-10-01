@@ -1,3 +1,4 @@
+import { publicNameOrGeneric } from "@/lib/messaging/public-name";
 import "server-only";
 
 import { TalentProfileChatLauncherMount } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount";
@@ -210,7 +211,7 @@ export async function TalentSiteMessagesDock({
   } | null;
   const code = profile?.profile_code?.trim();
   if (!code) return null;
-  const displayName = profile?.display_name?.trim() || code;
+  const displayName = publicNameOrGeneric(profile?.display_name, locale);
   const hrefs = talentContactHrefs({
     phone: profile?.phone,
     phoneE164: profile?.phone_e164,

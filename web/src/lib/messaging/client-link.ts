@@ -1,3 +1,4 @@
+import { safePublicName } from "@/lib/messaging/public-name";
 import "server-only";
 
 /**
@@ -105,11 +106,11 @@ export type ClientLinkBusiness = {
 export async function loadClientLinkBusiness(admin: Admin, input: { tenantId: string; inquiryId: string }): Promise<ClientLinkBusiness> {
   const [identityRes, agencyRes, inquiryRes] = await Promise.all([
     admin.from("agency_business_identity").select("public_name, default_locale").eq("tenant_id", input.tenantId).maybeSingle(),
-    admin.from("agencies").select("display_name").eq("id", input.tenantId).maybeSingle(),
+    admin.from("agencies").select("display_name, slug").eq("id", input.tenantId).maybeSingle(),
     admin.from("inquiries").select("owner_user_id").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
   ]);
   const identity = (identityRes?.data ?? null) as { public_name?: string | null; default_locale?: string | null } | null;
-  const agency = (agencyRes?.data ?? null) as { display_name?: string | null } | null;
+  const agency = (agencyRes?.data ?? null) as { display_name?: string | null; slug?: string | null } | null;
   const ownerId = ((inquiryRes?.data ?? null) as { owner_user_id?: string | null } | null)?.owner_user_id ?? null;
   let handler: string | null = null;
   if (ownerId) {
@@ -120,8 +121,24 @@ export async function loadClientLinkBusiness(admin: Admin, input: { tenantId: st
   }
   const raw = (identity?.default_locale ?? "en").toLowerCase();
   const locale = raw.startsWith("es") ? "es" : raw.startsWith("fr") ? "fr" : "en";
+  let name = (identity?.public_name ?? "").trim() || (agency?.display_name ?? "").trim() || "";
+  // A solo talent on the platform hub: the business a guest talks to is the
+  // talent (her public display name), never the platform brand ("Note from Tulala").
+  if (agency?.slug === "hub") {
+    const { data: parts } = await admin
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", input.inquiryId)
+      .eq("role", "talent");
+    const ids = Array.from(new Set(((parts ?? []) as { talent_profile_id: string | null }[]).map((p) => p.talent_profile_id).filter((x): x is string => !!x)));
+    if (ids.length === 1) {
+      const { data: tp } = await admin.from("talent_profiles").select("display_name").eq("id", ids[0]).maybeSingle();
+      const talentName = safePublicName((tp as { display_name?: string | null } | null)?.display_name ?? null);
+      if (talentName) name = talentName;
+    }
+  }
   return {
-    name: (identity?.public_name ?? "").trim() || (agency?.display_name ?? "").trim() || "",
+    name,
     handlerFirstName: handler,
     locale,
   };

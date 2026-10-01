@@ -10,6 +10,8 @@ export type CheckoutViewProps = {
   readonly code: string;
   /** Presentation path; defaults to branded `/pay`. */
   readonly pathPrefix?: PayLinkPathPrefix;
+  /** What the kept time is: drives the "kept while valid" wording. */
+  readonly slotKind?: "appointment" | "pickup" | null;
   readonly amountCents: number;
   readonly currency: string;
   readonly expiresAt: string;
@@ -25,6 +27,12 @@ export function CheckoutView(props: CheckoutViewProps) {
   const t = useT();
   const [phase, setPhase] = useState<CheckoutViewProps["status"]>(props.status);
   const pathPrefix = props.pathPrefix ?? "/pay";
+  const keepSlotKey =
+    props.slotKind === "appointment"
+      ? "public.thread.keepSlotAppointment"
+      : props.slotKind === "pickup"
+        ? "public.thread.keepSlot"
+        : "public.thread.keepSlotGeneric";
   const total = `${props.currency} ${(props.amountCents / 100).toFixed(2)}`.trim();
 
   if (phase === "paid") {
@@ -32,7 +40,7 @@ export function CheckoutView(props: CheckoutViewProps) {
       <Shell>
         <h1 className="text-[22px] font-semibold">{t("public.thread.paid")}</h1>
         <p className="mt-3 text-[16px]">{total}</p>
-        <p className={POS_NOTE}>{t("public.thread.keepSlot")}</p>
+        <p className={POS_NOTE}>{t(keepSlotKey)}</p>
         {props.receiptHref ? (
           <a className={POS_PRIMARY_ACTION} href={props.receiptHref}>
             {t("public.thread.receipt")}
@@ -135,7 +143,7 @@ export function CheckoutView(props: CheckoutViewProps) {
       <p className="mt-4 text-[20px] font-semibold tabular-nums">{total}</p>
       {props.holdUntil ? <p className="mt-2 text-[13px] text-admin-ink-muted">{props.holdUntil}</p> : null}
       <p className="mt-1 text-[13px] text-admin-ink-muted">{props.expiresAt}</p>
-      <p className={POS_NOTE}>{t("public.thread.keepSlot")}</p>
+      <p className={POS_NOTE}>{t(keepSlotKey)}</p>
       <div className="mt-6 flex flex-col gap-3">
         {props.stripeUrl ? (
           <a className={POS_PRIMARY_ACTION} href={props.stripeUrl}>

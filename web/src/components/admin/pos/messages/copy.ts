@@ -197,6 +197,8 @@ const KEYS = [
   "public.thread.choose",
   "public.thread.configure",
   "public.thread.keepSlot",
+  "public.thread.keepSlotAppointment",
+  "public.thread.keepSlotGeneric",
   "public.thread.waitlist",
   "public.thread.dateMismatch",
   "public.thread.accept",

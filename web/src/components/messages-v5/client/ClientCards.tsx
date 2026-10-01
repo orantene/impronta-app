@@ -38,6 +38,7 @@ import {
   type ChangeView,
   type ChoicesView,
   type ClientOfferSummary,
+  guestVisibleOfferVersion,
   type ConfirmationView,
   type PaymentView,
   type TicketsView,
@@ -220,8 +221,10 @@ export function ClientTimesCard({
 
 export type OfferMode = "view" | "change" | "decline";
 
-export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
+export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
   readonly offer: ClientOfferSummary;
+  /** All guest-visible offers on the thread; drives the guest-facing version number. */
+  readonly offers?: readonly ClientOfferSummary[];
   readonly now: Date;
   readonly payCode?: string | null;
   readonly onAccept?: (offer: ClientOfferSummary) => void;
@@ -246,9 +249,10 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
     ) : null;
   const refundLine = offer.refundPolicy && offer.refundPolicy in copy.offer.refund ? fill(copy.offer.refund[offer.refundPolicy as keyof typeof copy.offer.refund], { business }) : null;
   const depositLabel = [offer.depositPct != null && offer.depositPct > 0 ? fill(copy.offer.depositPct, { pct: offer.depositPct }) : copy.offer.depositLine, refundLine].filter(Boolean).join(" · ");
+  const visibleVersion = guestVisibleOfferVersion(offer, offers);
   const offerTitle =
-    state === "sent"
-      ? fill(copy.offer.titleVersion, { version: offer.version })
+    state === "sent" && visibleVersion != null
+      ? fill(copy.offer.titleVersion, { version: visibleVersion })
       : copy.offer.title;
 
   const foot =

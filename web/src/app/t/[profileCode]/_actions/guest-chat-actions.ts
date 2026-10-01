@@ -26,6 +26,7 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
+import { safePublicName } from "@/lib/messaging/public-name";
 import { loadGuestThreadV5Extras } from "./guest-thread-v5";
 import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -391,7 +392,7 @@ async function loadParticipantIdentities(
       .select("id, display_name")
       .in("id", talentIds);
     for (const t of talents ?? []) {
-      talentNameById.set(t.id as string, (t.display_name as string | null) ?? null);
+      talentNameById.set(t.id as string, safePublicName(t.display_name as string | null));
     }
   }
 

@@ -559,6 +559,9 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       const ctxNow = ctxRef.current;
       setPhase("loading");
       setRefusalCode(null);
+      // A rejected server action used to leave the sheet on its loading
+      // skeleton forever; any throw now lands on the refused state with Retry.
+      try {
       if (!inquiryId) {
         setRefusalCode("not_found");
         setPhase("refused");
@@ -621,6 +624,10 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       setLastSaved({ lineCount: draftLineCount(loaded.draft), totalCents: draftTotalCents(loaded.draft) });
       setPhase("ready");
       loadedForRef.current = offerId;
+      } catch {
+        setRefusalCode("unavailable");
+        setPhase("refused");
+      }
     };
   }, [inquiryId]);
 

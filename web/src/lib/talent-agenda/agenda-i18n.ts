@@ -96,6 +96,7 @@ const ES: Record<string, string> = {
   // Payment states
   "Not requested": "Sin solicitud",
   "Deposit not requested": "Depósito sin solicitar",
+  "Awaiting payment": "Esperando pago",
   "Awaiting deposit": "Esperando depósito",
   "Checking payment": "Verificando pago",
   "Due at appointment": "Pago en cita",

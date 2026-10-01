@@ -112,6 +112,20 @@ export async function PayByCodePage({
     .eq("order_id", loaded.orderId);
   if (linesError) notFound();
 
+  // What the kept time IS: a linked booking is an appointment; an order with a
+  // pickup hold is a pickup; anything else gets neutral wording.
+  const { data: slotBooking } = await admin
+    .from("agency_bookings")
+    .select("id")
+    .eq("order_id", loaded.orderId)
+    .limit(1)
+    .maybeSingle();
+  const slotKind: "appointment" | "pickup" | null = slotBooking
+    ? "appointment"
+    : orderRow?.hold_expires_at
+      ? "pickup"
+      : null;
+
   // The two clocks the customer reads ("expires 19:15", "pickup kept until
   // 19:40", MC15) in the VENUE's zone; the rows hold ISO instants and the
   // page was printing them verbatim (live run 2026-09-11).
@@ -136,6 +150,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? "USD"}
         expiresAt={expiresAtLabel}
@@ -174,6 +189,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -192,6 +208,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -226,6 +243,7 @@ export async function PayByCodePage({
         <CheckoutView
           code={code}
           pathPrefix={pathPrefix}
+        slotKind={slotKind}
           amountCents={loaded.amountCents}
           currency={orderRow?.currency ?? ""}
           expiresAt={expiresAtLabel}
@@ -259,6 +277,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -279,6 +298,7 @@ export async function PayByCodePage({
       <CheckoutView
         code={code}
         pathPrefix={pathPrefix}
+        slotKind={slotKind}
         amountCents={loaded.amountCents}
         currency={orderRow?.currency ?? ""}
         expiresAt={expiresAtLabel}
@@ -296,6 +316,7 @@ export async function PayByCodePage({
     <CheckoutView
       code={code}
       pathPrefix={pathPrefix}
+        slotKind={slotKind}
       amountCents={loaded.amountCents}
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
