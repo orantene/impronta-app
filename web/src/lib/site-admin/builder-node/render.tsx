@@ -166,8 +166,15 @@ import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
 import { renderSpecTableBlock } from "./spec-table-block";
 import { NextFreeChipView } from "./next-free-chip";
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 export interface BuilderNodeRenderDataSources {
+  /**
+   * G3b: the talent's live status ("Atiendo emergencias hoy"), read per request
+   * by renderTalentMaxSite. Absent = off. Widget contract (data-live-when
+   * markers) in lib/talent/live-status-render.ts.
+   */
+  liveStatus?: LiveStatusRenderContext;
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
   tenantId?: string;
   /**
