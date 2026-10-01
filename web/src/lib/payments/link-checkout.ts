@@ -10,6 +10,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { recordTalentPolicyAcceptance } from "@/lib/legal/acceptances";
 import {
   bindCollectionReservation,
   CARD_RESERVATION_TTL_SECONDS,
@@ -145,14 +146,14 @@ async function openOnce(
 
   const { data: orderData, error: orderErr } = await admin
     .from("orders")
-    .select("id, tenant_id, currency, customer_id")
+    .select("id, tenant_id, currency, customer_id, policy_version_id")
     .eq("id", link.order_id)
     .maybeSingle();
   if (orderErr) {
     logServerError("payments.openPaymentLinkCheckout.order", orderErr);
     return { ok: false, reason: "unavailable" };
   }
-  const order = orderData as { id: string; tenant_id: string; currency: string; customer_id: string | null } | null;
+  const order = orderData as { id: string; tenant_id: string; currency: string; customer_id: string | null; policy_version_id?: string | null } | null;
   if (!order || order.tenant_id !== link.tenant_id) return { ok: false, reason: "not_found" };
   const currency = link.currency || order.currency;
   const amountCents = Number(link.amount_cents);
@@ -305,6 +306,15 @@ async function openOnce(
     .eq("id", order.id)
     .in("status", ["draft", "pending_payment"]);
   if (statusErr) logServerError("payments.openPaymentLinkCheckout.orderStatus", statusErr);
+
+  // Legal 2.2: the payer opened checkout under the talent policy version
+  // already stamped on the order (none for orders without one). Best effort.
+  await recordTalentPolicyAcceptance({
+    talentPolicyVersionId: order.policy_version_id ?? null,
+    context: "payment",
+    contextId: bookingId,
+    tenantId: link.tenant_id,
+  });
 
   return { ok: true, url: session.url };
 }

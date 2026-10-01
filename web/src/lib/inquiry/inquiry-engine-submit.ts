@@ -19,6 +19,7 @@ import { linkInquiryCustomer } from "./link-inquiry-customer";
 import { ensureClientRelationshipForInquiry } from "./ensure-client-relationship";
 import { refuseOfferingRequestIfPolicyOff } from "@/lib/scheduling/reservation-submit-gate";
 import { policyVersionIdForTalents } from "@/lib/talent-policies/stamp";
+import { recordTalentPolicyAcceptance } from "@/lib/legal/acceptances";
 import { insertSystemMessage } from "./inquiry-system-messages";
 import { buildInquiryBells } from "./inquiry-notifications";
 
@@ -347,6 +348,20 @@ export async function submitInquiry(
     }
 
     const inquiryId = row.id as string;
+
+    // Legal 2.2: the customer accepted the talent policy version stamped on
+    // this request (same id as policy_version_id above). Best effort, never
+    // throws; no single-talent policy means no record.
+    if (input.initiator_role === "client" && policyVersionId) {
+      await recordTalentPolicyAcceptance({
+        talentPolicyVersionId: policyVersionId,
+        context: "inquiry",
+        contextId: inquiryId,
+        actorUserId: input.actorUserId ?? null,
+        guestSessionId: input.guest_session_id ?? null,
+        tenantId: homeTenantId,
+      });
+    }
 
     // B2: ensureCustomer + stamp inquiries.customer_id when email/phone present.
     await linkInquiryCustomer({
