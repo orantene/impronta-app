@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { ALBA } from "../../../../scripts/demo-talents/alba";
-import { HERO_FACTS } from "../../../../scripts/demo-talents/hero-facts";
+import { HERO_FACTS } from "./hero-facts";
 import type { OfferingBookingMode } from "@/lib/talent/offerings-types";
 import { loadDemoContentFixture, validateDemoContentFixture } from "./content-fixture";
 

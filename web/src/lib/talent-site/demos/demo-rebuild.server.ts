@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 import { ensureGuideServices, publishDemoSite } from "@/lib/talent-site/server/demo-pipeline.server";
 import { applyContentFixture, defaultFixtureFor } from "./content-fixture.server";
+import { loadContentSnapshot, restoreContentSnapshot } from "./content-state.server";
+import type { ContentSnapshot } from "./content-restore";
 import {
   loadDemoRows,
   planDemoDesign,
@@ -46,6 +48,8 @@ export interface RebuildPorts {
   plan(admin: Admin, spec: DemoSpec, rows: DemoRows): Promise<DemoPlan>;
   /** Content steps; `write: false` only reports what would change. */
   content(admin: Admin, entry: DemoRegistryEntry, talentProfileId: string, write: boolean): Promise<DemoStepId[]>;
+  /** Rows the content step can change, for the backup. Absent = no content snapshot. */
+  snapshotContent?(admin: Admin, talentProfileId: string): Promise<ContentSnapshot>;
   writeDraft(admin: Admin, spec: DemoSpec, rows: DemoRows, plan: DemoPlan): Promise<void>;
   publish(admin: Admin, rows: DemoRows): Promise<void>;
   bust(talentProfileId: string, profileCode: string): void;
@@ -61,6 +65,9 @@ export const DEFAULT_PORTS: RebuildPorts = {
     const note = await ensureGuideServices({ admin, write, stamp: "rebuild" }, entry.profileCode, talentProfileId);
     if (note && !changed.includes("content")) changed.push("content");
     return changed;
+  },
+  async snapshotContent(admin, talentProfileId) {
+    return (await loadContentSnapshot(admin, talentProfileId)).snapshot;
   },
   writeDraft: writeDemoDraft,
   async publish(admin, rows) {
@@ -83,6 +90,8 @@ export const DEFAULT_PORTS: RebuildPorts = {
 export interface DemoSnapshot {
   talent_sites: Record<string, unknown>;
   talent_pages: Array<Record<string, unknown>>;
+  /** Offerings, FAQ, field values, languages, location and profile columns the content step can change. */
+  content?: ContentSnapshot;
 }
 
 export function snapshotOf(rows: DemoRows): DemoSnapshot {
@@ -173,7 +182,8 @@ async function rebuildOne(
   if (changed.length === 0) return { ...base, version, status: "unchanged", changed: [] };
   if (opts.dryRun) return { ...base, version, status: "would_write", changed };
 
-  const runId = await insertRun(admin, entry, target.talentProfileId, snapshotOf(rows), opts.actorId);
+  const content = ports.snapshotContent ? await ports.snapshotContent(admin, target.talentProfileId) : undefined;
+  const runId = await insertRun(admin, entry, target.talentProfileId, { ...snapshotOf(rows), ...(content ? { content } : {}) }, opts.actorId);
   try {
     if (contentChanged.length) await ports.content(admin, entry, target.talentProfileId, true);
     if (!plan.draftSame) await ports.writeDraft(admin, spec, rows, plan);
@@ -239,7 +249,7 @@ export type RestoreResult = { ok: true; profileCode: string } | { ok: false; err
 export async function restoreDemoRun(
   admin: Admin,
   runId: string,
-  ports: Pick<RebuildPorts, "assertTarget" | "bust"> = DEFAULT_PORTS,
+  ports: Pick<RebuildPorts, "assertTarget" | "bust"> & { restoreContent?: typeof restoreContentSnapshot } = DEFAULT_PORTS,
 ): Promise<RestoreResult> {
   const { data: run, error } = await admin
     .from("demo_rebuild_runs")
@@ -270,6 +280,13 @@ export async function restoreDemoRun(
       .eq("id", page.id)
       .eq("talent_profile_id", target.talentProfileId);
     if (pErr) return { ok: false, error: `Could not restore a page: ${pErr.message}` };
+  }
+  if (r.before.content) {
+    try {
+      await (ports.restoreContent ?? restoreContentSnapshot)(admin, r.profile_code, r.before.content);
+    } catch (e) {
+      return { ok: false, error: `Could not restore the content: ${e instanceof Error ? e.message : "failed"}` };
+    }
   }
   await admin.from("demo_rebuild_runs").update({ status: "restored", error: null }).eq("id", runId);
   ports.bust(target.talentProfileId, r.profile_code);
