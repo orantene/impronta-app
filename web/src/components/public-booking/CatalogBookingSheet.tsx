@@ -161,7 +161,7 @@ export function CatalogBookingSheet({
   useEffect(() => {
     const resume = () => {
       const snap = peekBookingResume();
-      if (!snap) return;
+      if (!snap?.detail) return; // a dock-only selection is resumed by the dock
       clearBookingResume();
       setDetail(snap.detail as CatalogBookingDetail);
       setStep(snap.step);
