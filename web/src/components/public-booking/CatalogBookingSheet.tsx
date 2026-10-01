@@ -115,7 +115,6 @@ export function CatalogBookingSheet({
   const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
   const [takenNotice, setTakenNotice] = useState<CatalogTakenSlotNotice | null>(null);
   const liveStartsRef = useRef<string | null>(null);
-
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaRequired =
     !skipCaptcha && captcha != null && captcha.provider !== "none" && Boolean(captcha.siteKey);

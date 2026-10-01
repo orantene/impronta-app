@@ -41,6 +41,7 @@ export const POLICIES_ES: Record<string, string> = {
   "Half of the deposit is returned": "Se devuelve la mitad del anticipo",
   "Everything is returned": "Se devuelve todo",
   "Applies to cancellations inside your free window.": "Aplica a cancelaciones dentro de tu ventana gratuita.",
+  "You take no deposit, so nothing is held. These choices apply once you ask for one.": "No pides anticipo, así que no se retiene nada. Estas opciones aplican cuando pidas uno.",
   "Tolerance for arriving late": "Tolerancia por llegada tarde",
   "After this the appointment can be shortened.": "Pasado este tiempo la cita puede acortarse.",
   "How your clients will read it": "Así lo leerán tus clientas",
