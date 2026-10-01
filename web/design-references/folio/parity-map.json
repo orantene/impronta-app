@@ -1,0 +1,289 @@
+{
+  "design": "folio",
+  "referenceDemo": {
+    "profileCode": "TAL-93011",
+    "name": "Mateo Ferrer"
+  },
+  "mockup": {
+    "defaultUrl": "http://localhost:3098/",
+    "deviceButton": "#rv-dev button[data-d=\"{w}\"]",
+    "stepButton": "#rv-steps button[data-i=\"0\"]",
+    "root": "#site",
+    "states": false,
+    "serve": "python3 -m http.server 3098 --bind 127.0.0.1 --directory web/design-references/folio"
+  },
+  "note": "Folio (TH02) pinned mockup. Keyed by the mockup data-w unit (text before the first \" ·\"); product side by data-parity-key. group[] lists contiguous mockup siblings that form one product section (the tool wraps them in a measuring box). productOnly sections exist in the product shell and not in the mockup.",
+  "order": [
+    "header",
+    "hero",
+    "contents",
+    "chapters",
+    "comp",
+    "rates",
+    "about",
+    "faq",
+    "statement",
+    "footer",
+    "socket"
+  ],
+  "sections": [
+    {
+      "key": "header",
+      "label": "Header (masthead bar)",
+      "unit": null,
+      "parityKey": "header",
+      "mockup": [
+        ".fo-hdr"
+      ],
+      "fallback": [
+        "header",
+        "[role=banner]"
+      ],
+      "expects": [
+        {
+          "name": "consult CTA pill (desktop)",
+          "kind": "text",
+          "re": "consult",
+          "minWidth": 1000
+        },
+        {
+          "name": "section links (>= 3, desktop)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3,
+          "minWidth": 1000
+        }
+      ]
+    },
+    {
+      "key": "hero",
+      "label": "Cover (magazine masthead)",
+      "unit": "hero",
+      "parityKey": "hero",
+      "group": [
+        ".fo-mast",
+        ".fo-name",
+        ".fo-spread"
+      ],
+      "mockup": [],
+      "fallback": [
+        "#hero",
+        "[data-slot-key=\"hero\"]"
+      ],
+      "expects": [
+        {
+          "name": "name headline (h1)",
+          "kind": "sel",
+          "sel": "h1",
+          "min": 1
+        },
+        {
+          "name": "cover photo",
+          "kind": "sel",
+          "sel": "img",
+          "min": 1
+        },
+        {
+          "name": "CTA pair (2 actions)",
+          "kind": "ctaPair"
+        }
+      ]
+    },
+    {
+      "key": "contents",
+      "label": "Contents (anchor index)",
+      "unit": null,
+      "parityKey": "contents",
+      "mockup": [
+        ".fo-toc"
+      ],
+      "fallback": [
+        "#contents",
+        "[data-slot-key=\"contents\"]"
+      ],
+      "expects": [
+        {
+          "name": "index entries (>= 3)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3
+        }
+      ]
+    },
+    {
+      "key": "chapters",
+      "label": "Chapters (portfolio sequence)",
+      "unit": "portfolio",
+      "parityKey": "gallery",
+      "group": [
+        "#ch1",
+        "#ch2"
+      ],
+      "mockup": [],
+      "fallback": [
+        "#gallery",
+        "#chapter-1",
+        "[data-slot-key=\"gallery\"]"
+      ],
+      "expects": [
+        {
+          "name": "chapter headings (>= 2)",
+          "kind": "sel",
+          "sel": "h2, h3",
+          "min": 2
+        },
+        {
+          "name": "photos (>= 6)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 6
+        }
+      ]
+    },
+    {
+      "key": "comp",
+      "label": "Comp card (measure strip)",
+      "unit": "stats",
+      "parityKey": "comp_card",
+      "mockup": [
+        ".fo-comp"
+      ],
+      "fallback": [
+        "#comp-card",
+        "[data-slot-key=\"comp_card\"]"
+      ],
+      "expects": [
+        {
+          "name": "measures label",
+          "kind": "text",
+          "re": "(estatura|height)"
+        }
+      ]
+    },
+    {
+      "key": "rates",
+      "label": "Rate card (#services)",
+      "unit": "services_catalog",
+      "parityKey": "services",
+      "mockup": [
+        "#rates"
+      ],
+      "fallback": [
+        "#services",
+        "[data-slot-key=\"services\"]"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "prices on rows",
+          "kind": "text",
+          "re": "price"
+        },
+        {
+          "name": "row actions (>= 3)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3
+        }
+      ]
+    },
+    {
+      "key": "about",
+      "label": "About (product only)",
+      "unit": null,
+      "parityKey": "about",
+      "mockup": [],
+      "fallback": [
+        "#about"
+      ],
+      "productOnly": true,
+      "optional": true,
+      "expects": []
+    },
+    {
+      "key": "faq",
+      "label": "FAQ (product only)",
+      "unit": null,
+      "parityKey": null,
+      "mockup": [],
+      "fallback": [
+        "#faq",
+        "[data-slot-key=\"faq\"]"
+      ],
+      "productOnly": true,
+      "optional": true,
+      "expects": []
+    },
+    {
+      "key": "statement",
+      "label": "Closing statement (Next issue)",
+      "unit": null,
+      "parityKey": "statement_footer",
+      "mockup": [
+        ".fo-end"
+      ],
+      "fallback": [
+        "#statement-footer",
+        "[data-slot-key=\"statement_footer\"]"
+      ],
+      "expects": [
+        {
+          "name": "statement line (h2)",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "consult button",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "key": "footer",
+      "label": "Shell footer (product only)",
+      "unit": null,
+      "parityKey": "footer",
+      "mockup": [],
+      "fallback": [
+        "footer"
+      ],
+      "productOnly": true,
+      "optional": true,
+      "expects": []
+    },
+    {
+      "key": "socket",
+      "label": "Footer socket (product only)",
+      "unit": null,
+      "parityKey": "socket",
+      "mockup": [],
+      "fallback": [
+        ".tulala-socket"
+      ],
+      "productOnly": true,
+      "optional": true,
+      "expects": [
+        {
+          "name": "policy links (>= 3)",
+          "kind": "countText",
+          "re": "policy",
+          "min": 3,
+          "sel": "a, button"
+        },
+        {
+          "name": "Tulala attribution",
+          "kind": "text",
+          "re": "(Tulala)"
+        }
+      ]
+    }
+  ]
+}

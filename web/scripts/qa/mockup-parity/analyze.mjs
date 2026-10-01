@@ -1,7 +1,7 @@
 /**
  * In-page analysis. `analyze` runs inside the browser (Playwright serialises it), so it
  * must stay self-contained: no imports, no module-scope references. Read-only: the only
- * DOM change is a `data-parity-key` attribute used to find elements for screenshots.
+ * DOM change is a `data-parity-shot` attribute used to find elements for screenshots.
  *
  * args: { sections, order, locale, side: "product" | "mockup", rootSel, denyEs, denyAccent,
  *         textMap, narrow }
@@ -23,42 +23,44 @@ export function analyze(args) {
   const txt = (el) => (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
   const rx = (key) => new RegExp(textMap[key] || key, "i");
 
-  // ---------- resolvers ----------
-  const resolvers = {
-    header() {
-      const c = qsa(root, "header, [role=banner]").filter((h) => visible(h) && h.querySelectorAll("a, button").length >= 2);
-      return c[0] || null;
-    },
-    footer() {
-      const c = qsa(root, "footer, #s-foot").filter(visible);
-      return c.find((e) => e.id === "s-foot") || c[c.length - 1] || null;
-    },
-    faq() {
-      const d = vis(root, "details, [aria-expanded]").filter((e) => e.closest("section, div"));
-      const q = d.find((e) => /\?|¿/.test(txt(e)));
-      return q ? q.closest("section") || q.parentElement?.parentElement || null : null;
-    },
-    socket() {
-      const f0 = resolvers.footer();
-      if (!f0) return null;
-      // the socket can be a sibling of the footer block inside one outer <footer>
-      const f = f0.parentElement && f0.parentElement.tagName === "FOOTER" ? f0.parentElement : f0;
-      const links = vis(f, "a, button").filter((l) => /(tulala|pol[ií]ticas|privacidad|privacy|policies|terms|t[eé]rminos|cookies)/i.test(txt(l)));
-      if (links.length < 2) return null;
-      let el = links[0];
-      while (el.parentElement && el.parentElement !== f && qsa(el.parentElement, "a, button").filter(visible).filter((l) => links.includes(l)).length < links.length) el = el.parentElement;
-      return el.parentElement && el.parentElement !== f ? el.parentElement : el;
-    },
+  // ---------- resolution ----------
+  // Product side: by data-parity-key (the slotKey contract). Only a page with NO key at all
+  // (a build that predates the contract) falls back to the map's legacy selectors.
+  // Mockup side: by its data-w unit, then the map's own selectors.
+  const hasKeys = side === "product" && document.querySelector("[data-parity-key]") !== null;
+  const firstVisible = (sel) => {
+    let all;
+    try { all = qsa(root, sel); } catch { return null; }
+    return all.find(visible) || all[0] || null;
   };
-  const resolve = (list) => {
-    for (const s of list) {
-      let el = null;
-      if (s.startsWith("fn:")) el = resolvers[s.slice(3)]();
-      else {
-        const all = qsa(root, s);
-        el = all.find(visible) || all[0] || null;
+  const resolve = (sec) => {
+    const tries = [];
+    if (side === "mockup" && sec.group && sec.group.length) {
+      // one product section = several contiguous mockup siblings: wrap them in a measuring box
+      const els = sec.group.map(firstVisible);
+      const parent = els[0] && els[0].parentElement;
+      if (els.every(Boolean) && els.every((e) => e.parentElement === parent)) {
+        const wrap = document.createElement("div");
+        wrap.setAttribute("data-parity-wrap", sec.key);
+        parent.insertBefore(wrap, els[0]);
+        const last = els[els.length - 1];
+        const move = [];
+        for (let c = wrap.nextElementSibling; c; c = c.nextElementSibling) { move.push(c); if (c === last) break; }
+        move.forEach((c) => wrap.appendChild(c));
+        return { el: wrap, via: "group:" + sec.group.join(" + ") };
       }
-      if (el) return { el, via: s };
+    }
+    if (side === "mockup") {
+      if (sec.unit) tries.push(`[data-w^="${sec.unit} ·"]`);
+      tries.push(...(sec.mockup || []));
+    } else if (hasKeys && sec.parityKey) {
+      tries.push(`[data-parity-key="${sec.parityKey}"]`);
+    } else {
+      tries.push(...(sec.fallback || []));
+    }
+    for (const t of tries) {
+      const el = firstVisible(t);
+      if (el) return { el, via: t };
     }
     return { el: null, via: null };
   };
@@ -192,21 +194,46 @@ export function analyze(args) {
       const solid = btns.find((b) => { const bg = getComputedStyle(b).backgroundColor; return bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent"; });
       s.button = styleOf(solid || btns[0]);
     } else if (key !== "header" && key !== "socket") {
-      s.heading = styleOf(el.querySelector("h2"));
+      s.heading = styleOf(el.querySelector("h2") || el.querySelector("h3"));
     }
     return s;
   }
 
+  // Measurements the gap report compares (read-only; plain numbers and short strings).
+  function metrics(el) {
+    const r = el.getBoundingClientRect();
+    const bgOf = (e) => { for (let p = e; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor; if (c && c !== "rgba(0, 0, 0, 0)" && c !== "transparent") return c; } return "rgb(255, 255, 255)"; };
+    const cs = getComputedStyle(el);
+    const heads = vis(el, "h1, h2, h3").slice(0, 8).map((h) => ({ tag: h.tagName.toLowerCase(), text: txt(h).slice(0, 60), ...styleOf(h) }));
+    const p0 = vis(el, "p").find((e) => txt(e).length > 20);
+    const img0 = vis(el, "img")[0];
+    const ir = img0 ? img0.getBoundingClientRect() : null;
+    return {
+      h: Math.round(r.height),
+      w: Math.round(r.width),
+      imgs: vis(el, "img").length,
+      buttons: vis(el, "button, [role=button]").length,
+      links: vis(el, "a").length,
+      headings: heads,
+      para: p0 ? styleOf(p0) : null,
+      bg: bgOf(el),
+      padTop: parseFloat(cs.paddingTop) || 0,
+      padBottom: parseFloat(cs.paddingBottom) || 0,
+      img0: ir ? { w: Math.round(ir.width), h: Math.round(ir.height) } : null,
+      textLen: txt(el).length,
+    };
+  }
+
   // ---------- run ----------
-  const res = { sections: {}, page: {} };
+  const res = { sections: {}, page: { keyed: hasKeys } };
   const found = [];
   for (const sec of sections) {
-    const { el, via } = resolve(side === "mockup" ? sec.mockup : sec.product);
+    const { el, via } = resolve(sec);
     if (!el) {
       res.sections[sec.key] = { present: false, optional: !!sec.optional };
       continue;
     }
-    el.setAttribute("data-parity-key", sec.key);
+    el.setAttribute("data-parity-shot", sec.key);
     found.push({ key: sec.key, el });
     const text = txt(el);
     const r = el.getBoundingClientRect();
@@ -230,6 +257,7 @@ export function analyze(args) {
       layout: layoutChecks(el),
       i18n,
       style: styleSample(sec.key, el),
+      metrics: metrics(el),
     };
   }
   // order: document order must follow `order`

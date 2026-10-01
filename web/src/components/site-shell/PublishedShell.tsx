@@ -423,7 +423,7 @@ async function renderShellSlot(
       }
       data-section-type-key={slot.sectionTypeKey}
       data-site-shell-side={slot.slotKey}
-      data-slot-key={slot.slotKey}
+      data-slot-key={slot.slotKey} data-parity-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
       data-builder-node-id={
         slot.sectionTypeKey === "site_header" && !sectionEjected
@@ -771,7 +771,7 @@ function renderFreeformShellLandmark({
       }
       data-section-type-key={sectionTypeKey}
       data-site-shell-side={node.props.slotKey ?? "header"}
-      data-slot-key={node.props.slotKey ?? undefined}
+      data-slot-key={node.props.slotKey ?? undefined} data-parity-key={node.props.slotKey ?? undefined}
       data-sort-order={node.props.sortOrder}
       data-builder-node-id={
         sectionTypeKey === "site_header" && node.props.ejected !== true

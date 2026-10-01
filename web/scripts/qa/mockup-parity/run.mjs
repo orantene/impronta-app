@@ -3,7 +3,7 @@
  * Mockup parity: headless visual + structural comparison of a talent's published
  * Maison v2 site against the approved mockup. Read-only (see docs/qa/mockup-parity.md).
  *
- *   npm run qa:mockup-parity -- [--talents alba,valeria,TAL-93020|--all-maison-v2]
+ *   npm run qa:mockup-parity -- [--design maison-v2|folio] [--talents alba,valeria,TAL-93020|--all-maison-v2]
  *     [--widths 390,360,1440] [--locale es|en] [--states static,chat,dock,booking]
  *     [--base-url http://localhost:3001] [--mockup-url http://localhost:3099/]
  *     [--include-drafts] [--storage-state file.json] [--out dir]
@@ -16,26 +16,26 @@ import { chromium } from "playwright";
 import { loadEnvLocal } from "../../load-env-local.mjs";
 import { analyze } from "./analyze.mjs";
 import { writeReport } from "./report.mjs";
-import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, ORDER, SECTIONS } from "./section-map.mjs";
+import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, loadDesignMap } from "./section-map.mjs";
 
 loadEnvLocal();
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WEB = join(HERE, "..", "..", "..");
-const ALBA_CODE = "TAL-93020";
 
 // ---------------------------------------------------------------- args
 function parseArgs(argv) {
-  const o = { talents: [], all: false, widths: [390], locale: "es", states: ["static", "chat", "dock", "booking"], baseUrl: "http://localhost:3001", mockupUrl: "http://localhost:3099/", drafts: false, storageState: null, out: null, public: false, apex: "tulala.digital", allowActions: false };
+  const o = { design: "maison-v2", talents: [], all: false, widths: [390], locale: "es", states: ["static", "chat", "dock", "booking"], baseUrl: "http://localhost:3001", mockupUrl: "http://localhost:3099/", drafts: false, storageState: null, out: null, public: false, apex: "tulala.digital", allowActions: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const v = () => argv[++i];
-    if (a === "--talents") o.talents = v().split(",").map((s) => s.trim()).filter(Boolean);
-    else if (a === "--all-maison-v2") o.all = true;
+    if (a === "--design") o.design = v();
+    else if (a === "--talents") o.talents = v().split(",").map((s) => s.trim()).filter(Boolean);
+    else if (a === "--all-maison-v2" || a === "--all-design") o.all = true;
     else if (a === "--widths") o.widths = v().split(",").map(Number).filter(Boolean);
     else if (a === "--locale") o.locale = v();
     else if (a === "--states") o.states = v().split(",").map((s) => s.trim());
     else if (a === "--base-url") o.baseUrl = v().replace(/\/$/, "");
-    else if (a === "--mockup-url") o.mockupUrl = v();
+    else if (a === "--mockup-url") { o.mockupUrl = v(); o.mockupUrlSet = true; }
     else if (a === "--include-drafts") o.drafts = true;
     else if (a === "--storage-state") o.storageState = v();
     else if (a === "--out") o.out = v();
@@ -45,11 +45,21 @@ function parseArgs(argv) {
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
-  if (!o.talents.length && !o.all) o.talents = ["alba"];
   if (!["es", "en"].includes(o.locale)) { console.error("--locale must be es or en"); process.exit(2); }
   return o;
 }
 const opts = parseArgs(process.argv.slice(2));
+
+// The design map (web/design-references/<slug>/parity-map.json) drives sections, order, the mockup
+// driver and the reference demo (the demo whose content equals the mockup; see demos/registry.ts).
+const MAP = (() => {
+  try { return loadDesignMap(opts.design); } catch (e) { console.error(String(e.message || e)); process.exit(2); }
+})();
+const SECTIONS = MAP.sections;
+const ORDER = MAP.order;
+const REF_CODE = MAP.referenceDemo.profileCode;
+if (!opts.talents.length && !opts.all) opts.talents = [REF_CODE];
+if (!opts.mockupUrlSet) opts.mockupUrl = MAP.mockup.defaultUrl || opts.mockupUrl;
 
 // Read-only guard: agents QA on local servers only (web/AGENTS.md, Verification).
 for (const u of [opts.baseUrl, opts.mockupUrl]) {
@@ -72,7 +82,7 @@ async function rest(path) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolveTalents() {
-  const siteRows = await rest("talent_sites?select=talent_profile_id,status,site_slug,theme_design_slug&theme_design_slug=eq.maison-v2");
+  const siteRows = await rest("talent_sites?select=talent_profile_id,status,site_slug,theme_design_slug&theme_design_slug=eq." + opts.design);
   const siteBy = new Map(siteRows.map((s) => [s.talent_profile_id, s]));
   let profiles = [];
   if (opts.all) {
@@ -100,7 +110,7 @@ async function resolveTalents() {
     if (opts.all && !opts.talents.length && t.status !== "published" && !opts.drafts) { skippedDrafts.push(t); continue; }
     out.push(t);
   }
-  out.sort((a, b) => (a.code === ALBA_CODE ? -1 : b.code === ALBA_CODE ? 1 : a.code.localeCompare(b.code)));
+  out.sort((a, b) => (a.code === REF_CODE ? -1 : b.code === REF_CODE ? 1 : a.code.localeCompare(b.code)));
   return { talents: out, skippedDrafts };
 }
 
@@ -117,6 +127,7 @@ function identities() {
 
 const liveUrl = (id) => `${opts.baseUrl}/template-preview/live?kind=live-site&talent=${id}&locale=${opts.locale}`;
 const siteUrl = (t) => (t.viaPublic ? `http://${t.slug}.${opts.apex}:${new URL(opts.baseUrl).port || 80}/` : liveUrl(t.id));
+const analyses = []; // raw per-width product analyses (analysis.json)
 const stateCache = new Map(); // identity name -> storageState | null
 
 async function stateFor(browser, ident) {
@@ -183,7 +194,7 @@ async function lazyScroll(page) {
   });
   await page.waitForTimeout(400);
 }
-const analyzeArgs = (side, extra = {}) => ({ sections: SECTIONS, order: ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: "#site", ...extra });
+const analyzeArgs = (side, extra = {}) => ({ sections: SECTIONS, order: ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: MAP.mockup.root || "#site", ...extra });
 const failed = (checks) => (checks || []).filter((c) => !c.ok).map((c) => `${c.name}${c.detail ? `: ${c.detail}` : ""}`);
 
 function colorDiff(a, b) {
@@ -214,31 +225,36 @@ async function captureMockup(browser, width) {
   const out = { shots: {}, analysis: null, selfCheck: [], ok: true };
   try {
     await page.goto(opts.mockupUrl, { waitUntil: "load", timeout: 20000 });
-    await page.waitForSelector("#devseg button", { timeout: 8000 });
+    const drv = MAP.mockup;
+    const devBtn = drv.deviceButton.replace("{w}", String(width));
+    await page.waitForSelector(devBtn, { timeout: 8000 });
     const prime = async (fn) => {
-      await page.locator(`#devseg button[data-d="${width}"]`).click();
+      await page.locator(devBtn).click();
       await page.evaluate(fn);
       await page.waitForTimeout(500);
     };
-    await page.locator(`#devseg button[data-d="${width}"]`).click();
-    await page.locator('#steps button[data-step="0"]').click();
+    await page.locator(devBtn).click();
+    if (drv.stepButton) await page.locator(drv.stepButton).click();
     await page.waitForTimeout(600);
     await page.evaluate(() => { const v = document.getElementById("vp"); if (v) { v.style.scrollBehavior = "auto"; } });
     out.analysis = await page.evaluate(analyze, analyzeArgs("mockup"));
-    for (const sec of SECTIONS) out.shots[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-key="${sec.key}"]`)) : null;
+    for (const sec of SECTIONS) out.shots[sec.key] = out.analysis.sections[sec.key]?.present ? await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`)) : null;
     for (const sec of SECTIONS) {
       const r = out.analysis.sections[sec.key];
-      if (!r?.present) { out.selfCheck.push(`${sec.key}: not found on mockup (${sec.mockup.join(" | ")})`); continue; }
+      if (!r?.present) { if (!SECTIONS.find((x) => x.key === sec.key)?.productOnly) out.selfCheck.push(`${sec.key}: not found on mockup (${[sec.unit ? "data-w=" + sec.unit : null, ...(sec.mockup || [])].filter(Boolean).join(" | ")})`); continue; }
       for (const f of failed(r.structure)) out.selfCheck.push(`${sec.key}: ${f}`);
     }
     if (width <= 480 && (out.analysis.page.headerRows || 0) > 1) out.selfCheck.push(`header: mockup itself is on ${out.analysis.page.headerRows} rows (header-row rule needs tuning)`);
-    const site = page.locator("#site");
-    await prime(() => { reset(); openService("lash4d"); S.draft.x = ["ret"]; chatOpen(S.draft); });
-    out.shots.chat = await safeShot(site);
-    await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }]; render(); });
-    out.shots.dock = await safeShot(site);
-    await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }, { id: "mrusa", v: "liso", x: [] }]; S.sheet = "summary"; render(); });
-    out.shots.booking = await safeShot(site);
+    if (drv.states) {
+      // only the maison-v2 mockup exposes the scripted chat / dock / booking states
+      const site = page.locator(drv.root || "#site");
+      await prime(() => { reset(); openService("lash4d"); S.draft.x = ["ret"]; chatOpen(S.draft); });
+      out.shots.chat = await safeShot(site);
+      await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }]; render(); });
+      out.shots.dock = await safeShot(site);
+      await prime(() => { reset(); S.sel = [{ id: "lash4d", v: "vol", x: ["ret"] }, { id: "mrusa", v: "liso", x: [] }]; S.sheet = "summary"; render(); });
+      out.shots.booking = await safeShot(site);
+    }
   } catch (e) {
     out.ok = false;
     out.error = String(e.message || e).split("\n")[0];
@@ -264,7 +280,7 @@ const finish = (r) => { r.status = r.status === "BLOCKED" ? "BLOCKED" : r.reason
 
 async function scanStatic(ctx, talent, width, mock, rows) {
   const { page, error } = await loadProduct(ctx, talent, width);
-  const isAlba = talent.code === ALBA_CODE;
+  const isAlba = talent.code === REF_CODE; // the reference demo: its content equals the mockup
   if (error) {
     const r = row(talent, width, "page", "Page render");
     r.reasons.push(`site did not render (${error})`);
@@ -275,6 +291,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
   }
   await lazyScroll(page);
   const res = await page.evaluate(analyze, analyzeArgs("product"));
+  analyses.push({ code: talent.code, name: talent.name, width, keyed: res.page.keyed, sections: res.sections, page: res.page });
   const pr = row(talent, width, "page", "Page (global checks)");
   const pg = res.page;
   if (opts.locale === "es" && !/^es/i.test(pg.lang)) pr.reasons.push(`<html lang="${pg.lang}"> on locale=es`);
@@ -284,6 +301,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
   if (pg.fixedBottomBars.length > 1) pr.reasons.push(`${pg.fixedBottomBars.length} fixed bottom bars: ${pg.fixedBottomBars.join(" | ")}`);
   if (pg.chatLaunchers.length > 1) pr.reasons.push(`${pg.chatLaunchers.length} chat launchers: ${pg.chatLaunchers.join(" | ")}`);
   if (pg.fixedOverlaps?.length) pr.reasons.push(`fixed layers overlap: ${pg.fixedOverlaps.join(" | ")}`);
+  if (pg.keyed === false) pr.warnings.push("no data-parity-key on this page (the build predates the contract): matched through the map fallback selectors");
   if (pg.extraSections?.length) pr.warnings.push(`sections not in the mockup: ${pg.extraSections.join(", ")}`);
   if (talent.viaPublic) pr.warnings.push("rendered through the public host (no preview session)");
   pr.product = await page.screenshot({ type: "jpeg", quality: 50, fullPage: false }).catch(() => null);
@@ -292,13 +310,13 @@ async function scanStatic(ctx, talent, width, mock, rows) {
     const r = row(talent, width, sec.key, sec.label);
     const a = res.sections[sec.key];
     if (!a?.present) {
-      if (sec.optional && !isAlba) r.warnings.push("absent (optional: hidden without data)");
-      else r.reasons.push(`section not found (tried ${sec.product.join(" | ")})`);
+      if ((sec.optional && !isAlba) || sec.productOnly) r.warnings.push("absent (optional: hidden without data)");
+      else r.reasons.push(`section not found (tried ${sec.parityKey ? "[data-parity-key=" + sec.parityKey + "] / " : ""}${(sec.fallback || []).join(" | ")})`);
     } else {
       r.reasons.push(...failed(a.structure), ...failed(a.layout), ...failed(a.i18n));
       if (a.order && !a.order.ok) r.reasons.push(`order: ${a.order.detail}`);
       if (isAlba) r.reasons.push(...styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
-      r.product = await safeShot(page.locator(`[data-parity-key="${sec.key}"]`));
+      r.product = await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`));
     }
     r.mockup = mock.shots[sec.key];
     if (mock.ok === false) r.warnings.push(`mockup unavailable: ${mock.error}`);
@@ -481,6 +499,8 @@ async function main() {
   const summary = {
     timestamp: ts,
     baseUrl: opts.baseUrl,
+    design: opts.design,
+    referenceDemo: MAP.referenceDemo,
     mockupUrl: opts.mockupUrl,
     locale: opts.locale,
     widths: opts.widths,
@@ -496,6 +516,8 @@ async function main() {
     failures: rows.filter((r) => r.status !== "PASS").map((r) => ({ talent: r.code, width: r.width, section: r.section, status: r.status, reasons: r.reasons })),
   };
   writeFileSync(join(outDir, "summary.json"), JSON.stringify(summary, null, 2));
+  // raw in-page analyses: input of the delta classifier (gap.mjs)
+  writeFileSync(join(outDir, "analysis.json"), JSON.stringify({ design: opts.design, referenceDemo: MAP.referenceDemo, widths: opts.widths, mockup: Object.fromEntries(Object.entries(mockups).map(([w, m]) => [w, m.analysis ? { sections: m.analysis.sections, page: m.analysis.page } : null])), product: analyses }));
   writeReport(join(outDir, "report.html"), { meta: summary, rows, summary });
   mkdirSync(join(outDir, "img"), { recursive: true });
   for (const r of rows) {
