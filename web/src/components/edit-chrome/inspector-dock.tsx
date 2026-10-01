@@ -1074,8 +1074,11 @@ export function InspectorDock() {
             time. */}
         {sectionMeta ? (
           <span
-            className="truncate text-[11px] font-semibold uppercase tracking-[0.06em]"
-            style={{ color: CHROME.muted }}
+            className="inline-flex max-w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
+            style={{
+              color: CHROME.accent,
+              background: "rgba(124, 58, 237, 0.08)",
+            }}
           >
             {sectionMeta}
           </span>

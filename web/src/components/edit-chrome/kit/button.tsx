@@ -148,8 +148,11 @@ function buildButtonStylesheet(): string {
   color: ${CHROME.ink2};
 }
 .ec-rail-item[data-active="true"] {
-  background: ${ghostActiveBg};
+  /* Round 2 — stronger selected fill so the active tab reads as product UI */
+  background: rgba(124, 58, 237, 0.14);
   color: ${CHROME.accent};
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.22);
 }
 .ec-rail-item:disabled { cursor: not-allowed; opacity: 0.4; }
 `;

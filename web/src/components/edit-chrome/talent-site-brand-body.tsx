@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Palette, PanelTop } from "lucide-react";
 
 import { useEditContext } from "./edit-context";
 import { CHROME, Field, FieldLabel, SaveChip, type SaveChipStatus } from "./kit";
@@ -103,16 +104,56 @@ export function TalentSiteBrandBody({ active }: { active: boolean }) {
 
   if (!active) return null;
 
+  const accent = draft?.["color.accent"];
+  const ink = draft?.["color.ink"];
+  const background = draft?.["color.background"];
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-[14px] py-[12px]">
+    <div
+      className="flex min-h-0 flex-1 flex-col gap-[12px] overflow-y-auto px-[14px] py-[12px]"
+      data-talent-site-brand=""
+    >
       <div className="flex items-start justify-between gap-[8px]">
-        <p className="m-0 text-[12px] leading-relaxed" style={{ color: CHROME.muted }}>
-          {t(
-            "Your design sets these colours. Change any of them: it applies to every page of your site and goes live when you publish.",
-          )}
-        </p>
+        <div className="flex min-w-0 items-start gap-2">
+          <span
+            aria-hidden
+            className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-[8px]"
+            style={{
+              background: "rgba(124, 58, 237, 0.10)",
+              color: CHROME.accent,
+            }}
+          >
+            <Palette size={14} strokeWidth={2.2} />
+          </span>
+          <p
+            className="m-0 text-[11.5px] leading-snug"
+            style={{ color: CHROME.muted }}
+          >
+            {t(
+              "Your design sets these colours. Change any of them: it applies to every page of your site and goes live when you publish.",
+            )}
+          </p>
+        </div>
         <SaveChip status={chip} />
       </div>
+
+      {draft ? (
+        <div
+          aria-hidden
+          className="flex h-9 overflow-hidden rounded-[10px] border"
+          style={{ borderColor: CHROME.line }}
+          data-brand-palette-preview=""
+        >
+          <span style={{ flex: 1.2, background: HEX6.test(accent ?? "") ? accent : "#7c3aed" }} />
+          <span style={{ flex: 1, background: HEX6.test(ink ?? "") ? ink : "#0b0b0d" }} />
+          <span
+            style={{
+              flex: 1.4,
+              background: HEX6.test(background ?? "") ? background : "#faf9f6",
+            }}
+          />
+        </div>
+      ) : null}
 
       {loadErr ? (
         <p className="m-0 text-[12px]" style={{ color: CHROME.rose }}>
@@ -129,48 +170,73 @@ export function TalentSiteBrandBody({ active }: { active: boolean }) {
         ? BRAND_COLOR_KEYS.map(({ key, label, hint }) => {
             const value = draft[key] ?? "";
             return (
-              <Field key={key}>
-                <FieldLabel info={t(hint)}>{t(label)}</FieldLabel>
-                <div className="flex items-center gap-[8px]">
-                  <ColorSwatchButton
-                    color={HEX6.test(value) ? value : "#000000"}
-                    ariaLabel={t(label)}
-                    onChange={(next) => setColor(key, next)}
-                  />
-                  <input
-                    className="w-full rounded-[8px] border px-[10px] py-[6px] text-[12px]"
-                    style={{ borderColor: CHROME.line, color: CHROME.ink }}
-                    value={value}
-                    onChange={(e) => {
-                      const v = e.target.value.trim();
-                      if (HEX6.test(v)) setColor(key, v);
-                      else setDraft((d) => (d ? { ...d, [key]: e.target.value } : d));
-                    }}
-                  />
-                </div>
-              </Field>
+              <div
+                key={key}
+                className="rounded-[12px] border px-3 py-2.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+                style={{
+                  borderColor: CHROME.line,
+                  background: CHROME.surface,
+                }}
+                data-brand-color-row={key}
+              >
+                <Field>
+                  <FieldLabel info={t(hint)}>{t(label)}</FieldLabel>
+                  <div className="flex items-center gap-[8px]">
+                    <ColorSwatchButton
+                      color={HEX6.test(value) ? value : "#000000"}
+                      ariaLabel={t(label)}
+                      onChange={(next) => setColor(key, next)}
+                    />
+                    <input
+                      className="w-full rounded-[8px] border px-[10px] py-[7px] font-mono text-[12px] tracking-wide"
+                      style={{
+                        borderColor: CHROME.lineStrong,
+                        color: CHROME.ink,
+                        background: CHROME.surface2,
+                      }}
+                      value={value}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (HEX6.test(v)) setColor(key, v);
+                        else
+                          setDraft((d) =>
+                            d ? { ...d, [key]: e.target.value } : d,
+                          );
+                      }}
+                    />
+                  </div>
+                </Field>
+              </div>
             );
           })
         : null}
 
       <div
-        className="flex flex-col gap-[8px] rounded-[10px] border px-[12px] py-[10px]"
-        style={{ borderColor: CHROME.line }}
+        className="flex flex-col gap-[10px] rounded-[12px] border px-[12px] py-[12px]"
+        style={{
+          borderColor: "rgba(124, 58, 237, 0.18)",
+          background: "rgba(124, 58, 237, 0.04)",
+        }}
       >
-        <p className="m-0 text-[12px] leading-relaxed" style={{ color: CHROME.muted }}>
-          {t("Your name, logo, menu and footer are part of your site header and footer.")}
+        <p
+          className="m-0 text-[11.5px] leading-snug"
+          style={{ color: CHROME.muted }}
+        >
+          {t(
+            "Your name, logo, menu and footer are part of your site header and footer.",
+          )}
         </p>
         <button
           type="button"
           data-talent-brand-open-shell=""
           onClick={() => router.push("/talent/page-builder?shell=1")}
-          className="inline-flex cursor-pointer items-center justify-center rounded-[10px] border px-[12px] py-[8px] text-[12.5px] font-semibold"
+          className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border-none px-[12px] py-[9px] text-[12.5px] font-semibold text-white transition-[background-color,transform] duration-150 motion-safe:active:scale-[0.98]"
           style={{
-            borderColor: CHROME.controlBorder,
-            background: CHROME.controlFill,
-            color: CHROME.text,
+            background: CHROME.accent,
+            boxShadow: "0 1px 3px rgba(124,58,237,0.35)",
           }}
         >
+          <PanelTop size={14} strokeWidth={2.2} aria-hidden />
           {t("Edit header and footer")}
         </button>
       </div>

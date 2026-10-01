@@ -4893,49 +4893,110 @@ export function StylePanel({
                 </button>
               ) : null}
 
+            {/* Mockup annotation C — quick styles are the front door. */}
+            <QuickStyleCards
+              presets={selectedStandaloneStylePresets}
+              onApply={applyStandaloneStylePreset}
+              scopeLabel={selectedViewport}
+            />
+
+            {/* #3b — collapses when all inherit so Quick styles stay above the fold. */}
+            <NodeThemeInheritancePanel
+              rows={nodeInheritRows}
+              onInherit={(field) =>
+                patchSelectedBaseStyle({ [field]: undefined })
+              }
+              onOverride={(field, seedValue) =>
+                patchSelectedBaseStyle({
+                  [field]: seedValue || undefined,
+                })
+              }
+            />
+
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <div
-                className="flex flex-col gap-2 border-t pt-3"
+              <details
+                className="rounded-[10px] border px-2.5 py-1.5"
                 data-builder-node-style-control="containerQueries"
-                style={{ borderColor: CHROME.line }}
+                open={Boolean(
+                  selectedStandaloneFullStyle?.containerType ||
+                    selectedStandaloneFullStyle?.containerName,
+                )}
+                style={{
+                  borderColor: CHROME.lineStrong,
+                  background: CHROME.surface,
+                  boxShadow: "0 1px 2px rgba(17,24,39,0.03)",
+                }}
               >
-                <span className={FIELD_LABEL}>{t("Query container")}</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneFullStyle?.containerType ?? ""}
-                  onChange={(next) =>
-                    patchSelectedBaseStyle({
-                      containerType:
-                        (next || undefined) as BuilderNodeStyleValue["containerType"],
-                    })
-                  }
-                  options={BUILDER_NODE_CONTAINER_TYPE_OPTIONS}
-                />
-                <input
-                  type="text"
-                  className="px-2"
-                  style={{
-                    height: 30,
-                    width: "100%",
-                    fontSize: 12,
-                    background: CHROME.surface2,
-                    border: `1px solid ${CHROME.controlBorder}`,
-                    borderRadius: 7,
-                    color: CHROME.ink,
-                    outline: "none",
-                  }}
-                  placeholder="container name"
-                  value={selectedStandaloneFullStyle?.containerName ?? ""}
-                  onChange={(e) =>
-                    patchSelectedBaseStyle({
-                      containerName: e.target.value.trim() || undefined,
-                    })
-                  }
-                />
-              </div>
+                <summary
+                  className="flex cursor-pointer list-none items-center justify-between gap-2 py-1"
+                  style={{ outline: "none" }}
+                >
+                  <span className={FIELD_LABEL}>{t("Query container")}</span>
+                  <span
+                    className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      color: selectedStandaloneFullStyle?.containerType
+                        ? CHROME.accent
+                        : CHROME.muted,
+                      background: selectedStandaloneFullStyle?.containerType
+                        ? "rgba(124,58,237,0.08)"
+                        : "rgba(24,24,27,0.05)",
+                    }}
+                  >
+                    {(() => {
+                      const active = BUILDER_NODE_CONTAINER_TYPE_OPTIONS.find(
+                        (o) =>
+                          o.value ===
+                          (selectedStandaloneFullStyle?.containerType ?? ""),
+                      );
+                      const label =
+                        typeof active?.label === "string"
+                          ? active.label
+                          : "On";
+                      return selectedStandaloneFullStyle?.containerType
+                        ? t(label)
+                        : t("Off");
+                    })()}
+                  </span>
+                </summary>
+                <div className="mt-2 flex flex-col gap-2">
+                  <Segmented
+                    fullWidth
+                    compact
+                    value={selectedStandaloneFullStyle?.containerType ?? ""}
+                    onChange={(next) =>
+                      patchSelectedBaseStyle({
+                        containerType:
+                          (next || undefined) as BuilderNodeStyleValue["containerType"],
+                      })
+                    }
+                    options={BUILDER_NODE_CONTAINER_TYPE_OPTIONS}
+                  />
+                  <input
+                    type="text"
+                    className="px-2"
+                    style={{
+                      height: 30,
+                      width: "100%",
+                      fontSize: 12,
+                      background: CHROME.surface2,
+                      border: `1px solid ${CHROME.controlBorder}`,
+                      borderRadius: 7,
+                      color: CHROME.ink,
+                      outline: "none",
+                    }}
+                    placeholder={t("container name")}
+                    value={selectedStandaloneFullStyle?.containerName ?? ""}
+                    onChange={(e) =>
+                      patchSelectedBaseStyle({
+                        containerName: e.target.value.trim() || undefined,
+                      })
+                    }
+                  />
+                </div>
+              </details>
             ) : null}
 
             {selectedInstanceComponentId && selectedBuilderNodeId ? (
@@ -5005,31 +5066,6 @@ export function StylePanel({
                 />
               </>
             ) : null}
-
-            {/* #3b — per-field Inherit / Override (Figma/Webflow-style). Writes
-                route through patchSelectedBaseStyle, the SAME base-style chain
-                the color/size rows use — inherit = clear the literal (cascade
-                default shows), override = seed the resolved value to edit. */}
-            <NodeThemeInheritancePanel
-              rows={nodeInheritRows}
-              onInherit={(field) =>
-                patchSelectedBaseStyle({ [field]: undefined })
-              }
-              onOverride={(field, seedValue) =>
-                patchSelectedBaseStyle({
-                  [field]: seedValue || undefined,
-                })
-              }
-            />
-
-            {/* Mockup annotation C — quick styles are the front door, and now
-                they look like it. The thumbnails are derived from each
-                preset's own style object; see QuickStyleCards. */}
-            <QuickStyleCards
-              presets={selectedStandaloneStylePresets}
-              onApply={applyStandaloneStylePreset}
-              scopeLabel={selectedViewport}
-            />
 
             {/* ── D4: the group stack ─────────────────────────────────────
                 Was SIX hardcoded section mounts, every one of them rendered

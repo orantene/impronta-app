@@ -40,18 +40,18 @@ export interface InspectorViewportRailProps {
 }
 
 /** Icon per known tier id; unknown custom tiers fall back to a neutral glyph. */
-function tierIcon(id: string): ReactNode {
+function tierIcon(id: string, size = 16): ReactNode {
   switch (id) {
     case "tablet":
-      return <Tablet size={18} strokeWidth={1.75} aria-hidden />;
+      return <Tablet size={size} strokeWidth={1.85} aria-hidden />;
     case "mobile":
     case "compact":
-      return <Smartphone size={18} strokeWidth={1.75} aria-hidden />;
+      return <Smartphone size={size} strokeWidth={1.85} aria-hidden />;
     case "desktop":
     case "wide":
-      return <Monitor size={18} strokeWidth={1.75} aria-hidden />;
+      return <Monitor size={size} strokeWidth={1.85} aria-hidden />;
     default:
-      return <MonitorSmartphone size={18} strokeWidth={1.75} aria-hidden />;
+      return <MonitorSmartphone size={size} strokeWidth={1.85} aria-hidden />;
   }
 }
 
@@ -100,7 +100,7 @@ export function InspectorViewportRail({
         key: bp.id,
         label: bp.label,
         hint: tierHint(bp, breakpoints),
-        icon: tierIcon(bp.id),
+        icon: tierIcon(bp.id, 15),
         badgeCount: isMobileTier && mobileHealthCount > 0 ? mobileHealthCount : undefined,
       };
     });
@@ -116,9 +116,10 @@ export function InspectorViewportRail({
     <div
       className="flex flex-col"
       style={{
-        gap: 10,
-        padding: compact ? "10px 0 12px" : "12px 0 14px",
-        borderBottom: `1px solid ${BUILDER_VISUAL.divider}`,
+        gap: 8,
+        padding: compact ? "8px 0 12px" : "10px 0 14px",
+        borderBottom: `1px solid ${CHROME.lineStrong}`,
+        marginBottom: 2,
       }}
       data-inspector-viewport-rail=""
     >
@@ -126,6 +127,7 @@ export function InspectorViewportRail({
         value={device}
         onChange={onDeviceChange}
         options={deviceOptions}
+        density="compact"
       />
       <div
         className="flex items-center justify-between gap-3"
@@ -139,8 +141,8 @@ export function InspectorViewportRail({
         <span
           className="inline-flex items-center gap-1.5"
           style={{
-            fontSize: 12,
-            fontWeight: 500,
+            fontSize: 11.5,
+            fontWeight: 550,
             // D6 (Inspector Reset P2) — on the base tier the hide write is a
             // no-op (there is no override bucket to write into), so the
             // control is DISABLED instead of rendering enabled-but-inert.

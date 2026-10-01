@@ -9,9 +9,8 @@
  * on day fifty — worse, they float over the very element you are reaching for,
  * so a power user drags through a hint before reaching the block.
  *
- * They stay ON by default (discoverability is the point) and the operator can
- * silence every one of them from a single control instead of dismissing tips
- * one at a time.
+ * They stay OFF by default (returning operators should not fight coaching
+ * chrome) and the topbar (i) can turn them back on for a first-run tour.
  *
  * What OFF does not touch: selection rings, handles, toolbars, and every
  * editing GESTURE — double-click-to-edit still opens the inline editor with
@@ -34,17 +33,16 @@ import { useSyncExternalStore } from "react";
 export const CANVAS_HELPERS_STORAGE_KEY = "impronta.editChrome.canvasHelpers.v1";
 export const CANVAS_HELPERS_CHANGED = "impronta.editChrome.canvasHelpersChanged";
 
-/** Helpers are ON until the operator turns them off. */
-const DEFAULT_HELPERS = true;
+/** Helpers are OFF until the operator turns them on (Oran: no coaching clutter). */
+const DEFAULT_HELPERS = false;
 
 /** Module cache — useSyncExternalStore requires a referentially stable value. */
 let cachedRaw: string | null | undefined;
 let cachedValue: boolean = DEFAULT_HELPERS;
 
 /**
- * Only an explicit "0"/"false" disables. An absent key (never toggled) or an
- * unparseable value keeps the discoverable default rather than silently
- * stripping the hints a first-time operator depends on.
+ * Only an explicit "1"/"true" enables. An absent key (never toggled) or an
+ * unparseable value stays OFF so returning operators are not re-coached.
  */
 function parseHelpers(raw: string | null): boolean {
   if (raw === null) return DEFAULT_HELPERS;
