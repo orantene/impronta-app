@@ -66,7 +66,28 @@ export type CancelMoneyResult = {
   paymentInFlight: boolean;
   /** The order was moved to `cancelled` by this call. */
   orderVoided: boolean;
+  /** Money was taken or is landing: the talent refunds by hand from Money. */
+  needsManualRefund?: boolean;
 };
+
+/**
+ * Close a still-open link row in the DB without touching Stripe. True when this
+ * call closed it, false when it was not open, null on a write error.
+ */
+async function closeOpenLinkRow(admin: Admin, tenantId: string, linkId: string): Promise<boolean | null> {
+  const { data, error } = await admin
+    .from("payment_links")
+    .update({ status: "cancelled" })
+    .eq("id", linkId)
+    .eq("tenant_id", tenantId)
+    .eq("status", "open")
+    .select("id");
+  if (error) {
+    logServerError("agenda.cancelMoney.closeInFlightLink", error);
+    return null;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
 
 export async function settleMoneyOnCancel(
   admin: Admin,
@@ -91,7 +112,16 @@ export async function settleMoneyOnCancel(
     if (killed.ok) {
       if (!killed.already) out.linksVoided += 1;
     } else if (killed.reason === "already_paid") {
+      // The Checkout session completed (money in flight) or the link row is
+      // already paid. Either way the link must not stay payable on a
+      // cancelled booking: close the row here, even though the session could
+      // not be expired. The webhook still records the money and flags it
+      // `paid_after_cancellation` (the booking is cancelled by then).
       out.paymentInFlight = true;
+      out.needsManualRefund = true;
+      const closed = await closeOpenLinkRow(admin, input.tenantId, link.id);
+      if (closed === null) out.ok = false;
+      else if (closed) out.linksVoided += 1;
     } else {
       out.ok = false;
     }
@@ -104,6 +134,7 @@ export async function settleMoneyOnCancel(
     return out;
   }
   out.paidCents = paid;
+  if (paid > 0) out.needsManualRefund = true;
   if (paid > 0 || out.paymentInFlight) return out;
 
   const { data: voided, error: voidErr } = await admin

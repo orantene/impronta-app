@@ -141,7 +141,7 @@ export function AgendaBookingRecord({
           res.paidCents > 0
             ? `${copy.t("Cancelled. The client paid")} ${(res.paidCents / 100).toFixed(2)} ${bookingCurrency}. ${copy.t("Refund it by hand from Money.")}`
             : res.paymentInFlight
-              ? `${copy.t("Cancelled ✓")} ${copy.t("A card payment is still arriving. Check Money and refund it by hand.")}`
+              ? `${copy.t("Cancelled ✓")} ${copy.t("A card payment is still arriving. The payment link is closed and the payment is flagged in Money. Refund it by hand.")}`
               : copy.t("Cancelled ✓"),
         );
         setCancelledHere(true);

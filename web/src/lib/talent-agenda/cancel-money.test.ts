@@ -63,6 +63,27 @@ test("a session that completed during the cancel is money in flight: the order i
   assert.equal(store.tables.orders[0]!.status, "pending_payment");
 });
 
+test("in-flight cancel still closes the open link in the DB, keeps the order, flags a manual refund", async () => {
+  const store = jorStore();
+  const link = fakeCancelLink({ completed: ["l1"] });
+  const out = await settleMoneyOnCancel(store.admin, { tenantId: "t1", orderId: "o1" }, { cancelPaymentLink: link.fn });
+  assert.equal(out.ok, true);
+  assert.equal(out.paymentInFlight, true);
+  assert.equal(out.needsManualRefund, true);
+  assert.equal(out.linksVoided, 1);
+  assert.equal(store.tables.payment_links[0]!.status, "cancelled", "no payable link survives the cancel");
+  assert.equal(store.tables.payment_links[1]!.status, "replaced", "closed links are untouched");
+  assert.equal(store.tables.orders[0]!.status, "pending_payment", "order kept: money may still land");
+  const again = await settleMoneyOnCancel(store.admin, { tenantId: "t1", orderId: "o1" }, { cancelPaymentLink: link.fn });
+  assert.equal(again.linksVoided, 0, "second cancel finds no open link");
+});
+
+test("paid cancel flags a manual refund", async () => {
+  const store = jorStore([{ status: "paid", gross_amount_cents: 30000 }]);
+  const out = await settleMoneyOnCancel(store.admin, { tenantId: "t1", orderId: "o1" }, { cancelPaymentLink: fakeCancelLink().fn });
+  assert.equal(out.needsManualRefund, true);
+});
+
 test("cancel money step is idempotent: a second run writes nothing", async () => {
   const store = jorStore();
   const link = fakeCancelLink();

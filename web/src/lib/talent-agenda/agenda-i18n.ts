@@ -292,8 +292,8 @@ const ES: Record<string, string> = {
   "The client paid": "El cliente pagó",
   "Cancelled. The client paid": "Cancelado. El cliente pagó",
   "Refund it by hand from Money.": "Reembolsa a mano desde Dinero.",
-  "A card payment is still arriving. Check Money and refund it by hand.":
-    "Un pago con tarjeta todavía está llegando. Revisa Dinero y reembolsa a mano.",
+  "A card payment is still arriving. The payment link is closed and the payment is flagged in Money. Refund it by hand.":
+    "Un pago con tarjeta todavía está llegando. El enlace de pago queda cerrado y el pago queda marcado en Dinero. Reembólsalo a mano.",
   Day: "Día",
   List: "Lista",
   "Calendar view": "Vista de calendario",

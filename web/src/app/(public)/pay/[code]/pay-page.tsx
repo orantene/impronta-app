@@ -116,7 +116,7 @@ export async function PayByCodePage({
   // pickup hold is a pickup; anything else gets neutral wording.
   const { data: slotBooking } = await admin
     .from("agency_bookings")
-    .select("id")
+    .select("id, status")
     .eq("order_id", loaded.orderId)
     .limit(1)
     .maybeSingle();
@@ -205,7 +205,12 @@ export async function PayByCodePage({
 
   // A cancelled booking voids its order: an open link on it is no longer
   // payable, whatever the link row still says.
-  const orderCancelled = orderRow?.status === "cancelled";
+  // The booking is checked too: a cancel whose card payment was in flight
+  // keeps the order (money may land), but its booking is cancelled and the
+  // page must never offer "Pay securely" again (QA on Jor, 2026-10-01).
+  const orderCancelled =
+    orderRow?.status === "cancelled" ||
+    (slotBooking as { status?: string | null } | null)?.status === "cancelled";
   if (loaded.status !== "open" || orderCancelled) {
     return (
       <CheckoutView
