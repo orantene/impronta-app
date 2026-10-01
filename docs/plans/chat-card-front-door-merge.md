@@ -112,3 +112,52 @@ Spacing: 16px gutters, 12px rhythm, filled chips and soft cards without borders,
 about 85% height with a drag handle, full height only while an input has focus. Desktop: floating 400px by 640px card.
 
 Left in place: `CardChatServiceBrowser` (and its tests) in `CardChatExtras.tsx` is no longer rendered; it can go next pass.
+
+## Round 3
+
+- Phones: no autofocus (pointer coarse or under 900px); the sheet opens at about 85% with the handle and goes full height
+  only when she taps the composer.
+- Chips: service-aware phrasing uses the service's short name (first three words, trailing "en/de/con..." dropped); the
+  row has a right-edge fade. Only the question chips row shows; the service quick-picker strip is not given to the card skin.
+- Desktop: bottom-right 400px card (the mockup's desktop journey: right 24, bottom 24), height auto between about 420 and
+  640. The catalog dock steps aside while the chat is open (chat presence carries `open`). Header buttons have tooltips.
+- Esc closes (window listener) and focus returns to the opener on close. The card is a non-modal dialog by design, so
+  there is no focus trap.
+
+## Function parity (binding rule: a skin themes, it never removes a function)
+
+The default chat is the front-door dock. The card skin is the SAME `MiniChatPanelColumn` with `card` set; it changes the
+palette (`paletteFor("card")`), the frame, the header and a few presentational extras. Legend for the last column:
+P = covered by `skin-parity.render.test.tsx` (same flow, both skins), C = covered by `card-dock.render.test.tsx`,
+D = covered by an existing default-skin lane test, "-" = no automated test (stated, not hidden).
+
+| Function / flow | Default skin | Card skin | Test |
+|---|---|---|---|
+| Send a message (composer, send, Enter) | `MiniChatComposer` | same component, card palette, empty-thread placeholder is the "nothing is sent" line | P |
+| Thread bubbles, system notes, typed cards (offers, receipts, v5 cards) | `GuestConversationBody` | same; greeting bubble swapped for the card greeting only when the thread is empty | P, D |
+| Contact gate (name, email) before first send | `MiniChatGateForm` | same | P |
+| Rate limit, error, captcha notice | `GuestComposerNotices` | same | P |
+| Send to agency bar for a draft | `SendToAgencyBar` | same | P |
+| Offer review, accept, pay, paid state, quotes | v5 client cards (`GuestClientCardRow`, `GuestNextStep`) | same components, token palette | D (`guest-dock-v5`, messages-v5 lane). Not re-run per skin: the cards need the thread token and server actions |
+| Intake progress rail ("Falta el dia", intake facts) and the details sheet | `GuestJourneyProgress` under the header | compact `CardDockRail` always present when the engine has segments; opens the same sheet | C |
+| Details sheet (Add details, AI scan) | `GuestDetailsControl` | same, opened by the rail | D |
+| Thread switcher (other inquiries) | header status line | header status line (shown whenever a switcher exists) and Mis citas | C |
+| Draft lock chip, saving, retry | `GuestPanelHeader` status line | same `StatusLine` in the card header | C |
+| Servicios: category pills, services, prices, Agregar | catalog (`GuestDockCatalog`) | one list from her menu with the same pills and add; the catalog itself returns when she has no menu | C |
+| Selection shelves, saved favorites, items shelf | `GuestDockLineupView` | same view inside the Servicios tab | D |
+| Selection tray, "Enviar pedido" with multi-item lineups | lineup "start inquiry" button | tray counts talent plus draft item lines; calls the same send action | C |
+| Mis citas: filters (Te toca / Esperando / Hecho), rows, pills, book again | `GuestDockProjectsView` | same view; filters show when items exist; empty state offers "Ver servicios" | P, D |
+| Resume a thread (tap a cita, returning client) | `onSwitchInquiry` | same | P (rows), D |
+| Expand to the two-pane conversation list (desktop) | `ExpandedChatLayout` | `CardDockPanel` renders the same layout, token painted; phones go full screen | C |
+| Close, Esc, focus back to the opener | panel Esc listener | same listener, plus focus return in `CardDockFrame` | C |
+| Reply-time label | header typical reply | card subtitle (`chatCardReplyLabel`) | C |
+| Quick service picker strip above the composer | `OfferingQuickPicker` | not drawn: a row in Servicios stages the same pending offering (asks about it) | C |
+| Back to my booking (booking sheet stash) | not in default | `CardDockBackToBooking` | C |
+| Unread pulse, new message dot | `NewMessagePulse` | same | - |
+| i18n EN / ES / FR | catalog keys | catalog keys, parity gate | gate |
+| Intake funnel (`submitInquiry`, `createInquiryFromIntent`), attachments, reschedule/cancel links | engine and server actions | untouched; the skin never calls them | D (server-action static tests in the lane) |
+
+Restored in this pass: the rail is no longer hidden when nothing is chosen (it is the way into details), the thread
+switcher stays reachable, the dock catalog returns when there is no service menu, the tray counts item lines too, and the
+desktop two-pane expand is back. Static guard: `skin-parity.render.test.tsx` pins every `card` use in the engine file to a
+reviewed, presentational list.

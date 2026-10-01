@@ -108,10 +108,10 @@ export function SelectionDock({
         className="cb-dock"
         role="region"
         aria-label={copy.region}
-        data-show={show && items.length > 0 ? "true" : "false"}
+        data-show={show && items.length > 0 && !presence?.open ? "true" : "false"}
         data-count={items.length}
-        aria-hidden={show && items.length > 0 ? undefined : true}
-        inert={show && items.length > 0 ? undefined : true}
+        aria-hidden={show && items.length > 0 && !presence?.open ? undefined : true}
+        inert={show && items.length > 0 && !presence?.open ? undefined : true}
       >
         {/* The chat button: always the speech-bubble icon, never a photo (a photo next to the
             selected service reads as the service's image). Dots show online and unread. */}

@@ -32,6 +32,8 @@ import { CHAT_ADD_SERVICE_EVENT } from "@/components/public-booking/chat-catalog
 import type { MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
 import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 import { CardDockAskFooter, CardDockIntro } from "./CardDockChatExtras";
+import { shortServiceName } from "./CardChatExtras";
+import { peekChatPresence, setChatPresence } from "@/components/public-booking/chat-presence-store";
 import { CardDockFrame } from "./CardDockFrame";
 import { CardDockHeader } from "./CardDockHeader";
 import { CardDockServicesView } from "./CardDockServicesView";
@@ -217,10 +219,10 @@ test("Servicios and Mis citas get a slim back link to the chat; Hablar does not"
   home.unmount();
 });
 
-test("the progress rail is hidden until there is a selection, then one compact line", () => {
+test("the progress rail stays reachable: its label alone, then one compact line with a selection", () => {
   const none = render(chrome({ lineupCount: 0 }));
-  assert.equal(none.host.querySelector("[data-card-dock-rail]"), null);
-  assert.equal(none.host.querySelector(".guest-journey-segs"), null);
+  // Nothing chosen: the line is the rail's own label, still the way into the details sheet.
+  assert.equal(none.host.querySelector("[data-card-dock-rail]")?.textContent, "Falta el d\u00eda");
   none.unmount();
   const one = render(chrome({ lineupCount: 1 }));
   assert.equal(one.host.querySelector("[data-card-dock-rail]")?.textContent, "1 servicio \u00b7 falta el d\u00eda");
@@ -317,7 +319,7 @@ test("Servicios: Agregar fires the add-service event and steps the chat aside", 
   dom.window.addEventListener(CHAT_ADD_SERVICE_EVENT, onEvent);
   let added = 0;
   const { host, unmount } = render(
-    <CardDockServicesView offerings={[OFFERING]} locale="es" t={es} selectionCount={0} sending={false} onSend={() => undefined} onBackToChat={() => undefined} onAdded={() => added++} />,
+    <CardDockServicesView offerings={[OFFERING]} locale="es" t={es} selectionCount={0} sending={false} onSend={() => undefined} onBackToChat={() => undefined} onAdded={() => added++} menu={[{ title: "Gel pedicure", category: "Pies", priceLabel: null, cta: "book_now" }]} />,
   );
   assert.match(host.textContent ?? "", /Gel pedicure/);
   act(() => host.querySelector<HTMLButtonElement>("[data-card-chat-add]")!.click());
@@ -331,7 +333,7 @@ test("Servicios: Preguntar stages the service and returns to Hablar", () => {
   clearPendingOffering();
   let back = 0;
   const { host, unmount } = render(
-    <CardDockServicesView offerings={[OFFERING]} locale="es" t={es} selectionCount={0} sending={false} onSend={() => undefined} onBackToChat={() => back++} onAdded={() => undefined} />,
+    <CardDockServicesView offerings={[OFFERING]} locale="es" t={es} selectionCount={0} sending={false} onSend={() => undefined} onBackToChat={() => back++} onAdded={() => undefined} menu={[{ title: "Gel pedicure", category: "Pies", priceLabel: null, cta: "book_now" }]} />,
   );
   act(() => host.querySelector<HTMLButtonElement>("[data-card-chat-ask]")!.click());
   assert.equal(back, 1);
@@ -416,7 +418,9 @@ test("skin: the card palette reads only --cc vars (dark designs invert it) and k
 
 test("wiring: one dock, no second chat; the card branch wraps MiniChatPanelColumn", () => {
   const panel = src("MiniChatPanel.tsx");
-  assert.match(panel, /<CardDockFrame[^>]*><MiniChatPanelColumn \{\.\.\.columnProps\} card=\{chatCard\}/);
+  assert.match(panel, /<CardDockPanel card=\{chatCard\}[^>]*columnProps=\{columnProps\}/);
+  assert.match(src("CardDockPanel.tsx"), /<MiniChatPanelColumn \{\.\.\.columnProps\} card=\{card\}/);
+  assert.match(src("CardDockPanel.tsx"), /<ExpandedChatLayout/, "desktop expand keeps the two-pane conversation list");
   assert.doesNotMatch(panel, /CardChatPanel/);
   const col = src("MiniChatPanelColumn.tsx");
   assert.match(col, /card=\{card\}/, "the column hands the card to the chrome");
@@ -577,4 +581,67 @@ test("phone sheet: a drag handle while it is a sheet, full height only while typ
   assert.ok(host.querySelector("[data-card-dock-handle]"), "the handle is back once she stops typing");
   assert.ok(dlg);
   unmount();
+});
+
+// ── round 3 ──────────────────────────────────────────────────────────────────
+
+test("chips: the service-aware phrasing uses the short name, and the row fades at the edge", () => {
+  assert.equal(shortServiceName("Gel semipermanente en manos"), "Gel semipermanente");
+  assert.equal(shortServiceName("Corte"), "Corte");
+  assert.equal(shortServiceName("Manicura rusa con dise\u00f1o"), "Manicura rusa");
+  setPendingOffering({ ...OFFERING, intent: "request", askAbout: ["Gel semipermanente en manos"] } as never);
+  const { host, unmount } = render(<CardDockAskFooter t={es} threadEmpty={false} onPick={() => undefined} />);
+  assert.equal(host.querySelector("[data-card-chat-chips] button")?.textContent, "\u00bfHay hueco esta semana para Gel semipermanente?");
+  assert.match(src("CardChatExtras.tsx"), /maskImage: "linear-gradient\(to right, black calc\(100% - 28px\), transparent\)"/);
+  unmount();
+  clearPendingOffering();
+});
+
+test("one chip row in the card skin: the service quick-picker strip is not given to the dock", () => {
+  assert.match(src("MiniChatPanelColumn.tsx"), /onPickOffering=\{card \? undefined : onPickOffering\}/);
+});
+
+test("phones do not autofocus the composer", () => {
+  const panel = src("MiniChatPanel.tsx");
+  assert.match(panel, /pointer: coarse/);
+  assert.match(panel, /phone \? undefined : setTimeout/);
+});
+
+test("desktop card grows with its content between about 420 and 640, anchored bottom-right", () => {
+  const f = cardFrameStyle(false, false, 0);
+  assert.equal(f.height, "auto");
+  assert.match(String(f.minHeight), /420px/);
+  assert.match(String(f.maxHeight), /640px/);
+  assert.equal(f.bottom, 24);
+  assert.equal(f.right, 24);
+});
+
+test("tooltips on the header buttons", () => {
+  const { host, unmount } = render(header());
+  const title = (sel: string) => host.querySelector(sel)?.getAttribute("title");
+  assert.equal(title("[data-card-dock-services]"), "Servicios");
+  assert.equal(title("[data-card-dock-bookings]"), "Mis citas");
+  assert.equal(title("[data-card-dock-expand]"), "Ampliar panel");
+  assert.equal(title('button[aria-label="Cerrar"]'), "Cerrar");
+  unmount();
+});
+
+test("the bottom dock steps aside while the chat is open, and focus returns to the opener on close", () => {
+  setChatPresence({ photoUrl: null, name: "J", unread: false, open: true });
+  assert.equal(peekChatPresence()?.open, true);
+  setChatPresence(null);
+  assert.match(readFileSync(join(here, "../../../../components/public-booking/SelectionDock.tsx"), "utf8"), /!presence\?\.open/);
+  assert.match(src("TalentProfileChatLauncher.tsx"), /unread: unseenAgencyReply, open \}/);
+  const opener = dom.window.document.createElement("button");
+  dom.window.document.body.appendChild(opener);
+  opener.focus();
+  const { unmount } = render(
+    <CardDockFrame card={CARD} accent="#111111" accentInk="#ffffff" compact={false} expanded={false} keyboardInsetPx={0} ariaLabel="Chat" onClose={() => undefined}>
+      <textarea />
+    </CardDockFrame>,
+  );
+  dom.window.document.querySelector("textarea")!.focus();
+  unmount();
+  assert.equal(dom.window.document.activeElement, opener);
+  opener.remove();
 });

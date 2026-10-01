@@ -530,9 +530,9 @@ export function TalentProfileChatLauncher({
   // Mounted only when chat is on and inquiries are open, so the dot is honest.
   const presencePhoto = brand.photoUrl ?? null;
   useEffect(() => {
-    setChatPresence({ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply });
+    setChatPresence({ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply, open });
     return () => setChatPresence(null);
-  }, [presencePhoto, talentFirst, unseenAgencyReply]);
+  }, [presencePhoto, talentFirst, unseenAgencyReply, open]);
 
   if (!mounted) return null;
 

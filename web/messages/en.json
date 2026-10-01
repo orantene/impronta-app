@@ -940,6 +940,8 @@
       "messageBrandAria": "Message {brand}",
       "cardGreeting": "Hi, I'm {name} 👋 How can I help?",
       "cardServicesAria": "See services",
+      "cardServicesTip": "Services",
+      "cardBookingsTip": "My bookings",
       "cardPillTop": "Most requested",
       "cardPricesIn": "Prices in {currency}",
       "cardAskQuote": "Ask for a quote",

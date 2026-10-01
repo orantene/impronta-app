@@ -51,16 +51,24 @@ const PILL_BTN: CSSProperties = {
   cursor: "pointer",
 };
 
+/** The service's short name for a chip: its first three words. */
+export function shortServiceName(title: string): string {
+  const words = title.trim().split(/\s+/).slice(0, 3);
+  while (words.length > 1 && /^(en|de|del|para|con|y|a|el|la|los|las|in|of|for|with|and|the|at)$/i.test(words[words.length - 1] ?? "")) words.pop();
+  return words.join(" ");
+}
+
 /** Three quick questions. They FILL the composer; they never send. */
 export function CardChatChips({ t, onPick, service = null }: { t: Translator; onPick: (question: string) => void; service?: string | null }) {
   // With a service in context the first two read about it; the third is generic.
+  const short = service ? shortServiceName(service) : null;
   const keys: readonly string[] = service
     ? ["public.guestChat.cardChipWhenFor", "public.guestChat.cardChipDurationFor", ASK_QUICK_KEYS[2]]
     : ASK_QUICK_KEYS;
   return (
-    <div role="group" aria-label={t("public.guestChat.askQuickLabel")} data-card-chat-chips="" style={{ display: "flex", flexWrap: "nowrap", gap: 8, overflowX: "auto", scrollbarWidth: "none" }}>
+    <div role="group" aria-label={t("public.guestChat.askQuickLabel")} data-card-chat-chips="" style={{ display: "flex", flexWrap: "nowrap", gap: 8, overflowX: "auto", scrollbarWidth: "none", maskImage: "linear-gradient(to right, black calc(100% - 28px), transparent)", WebkitMaskImage: "linear-gradient(to right, black calc(100% - 28px), transparent)", paddingRight: 28 }}>
       {keys.map((k) => {
-        const q = service ? interpolate(t(k), { service }) : t(k);
+        const q = short ? interpolate(t(k), { service: short }) : t(k);
         return (
           <button key={k} type="button" className={a11y.focusRing} style={CHIP} onClick={() => onPick(q)}>
             {q}

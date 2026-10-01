@@ -96,10 +96,9 @@ export function CardDockServicesView({
   children?: ReactNode;
 }) {
   const rows = useMemo(() => {
-    const base: CardDockMenuItem[] = menu.length
-      ? [...menu]
-      : offerings.map((o) => ({ title: o.title, category: "", priceLabel: o.priceLabel ?? null, currency: o.currency }));
-    return base.map((m) => ({ m, o: offerings.find((x) => x.title === m.title) ?? null }));
+    // Rows come from her service menu. Without one, the dock's own catalog (children)
+    // is the list, exactly as in the default skin.
+    return menu.map((m) => ({ m, o: offerings.find((x) => x.title === m.title) ?? null }));
   }, [menu, offerings]);
   const categories = useMemo(() => [...new Set(rows.map((r) => r.m.category).filter(Boolean))], [rows]);
   const [pill, setPill] = useState<string>(TOP);
