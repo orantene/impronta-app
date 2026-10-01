@@ -23,8 +23,22 @@ import { useAgendaCopy } from "./use-agenda-copy";
  */
 const store = createPanelStore();
 
-export const openSendQuotePanel = store.open;
-export const closeSendQuotePanel = store.close;
+/**
+ * The thread Send quote was opened from, if any. With one, the quote goes into
+ * THAT conversation; it never spawns a second "Mostrador" thread beside it
+ * (e2e P1). Opened from Today (no thread) it still starts a conversation.
+ */
+let threadContext: string | null = null;
+
+/** Safe as an onClick handler: anything that is not a thread id (a click event) means "no thread". */
+export function openSendQuotePanel(inquiryId?: unknown): void {
+  threadContext = typeof inquiryId === "string" && inquiryId ? inquiryId : null;
+  store.open();
+}
+export const closeSendQuotePanel = () => {
+  threadContext = null;
+  store.close();
+};
 
 const FIELD =
   "mt-1 w-full min-h-[44px] rounded-xl border border-black/15 bg-white px-3 text-[14px] text-[var(--tc-primary)]";
@@ -78,6 +92,7 @@ function SendQuoteForm({
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [threadId] = useState(threadContext);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,11 +119,25 @@ function SendQuoteForm({
   const offering = offerings.find((o) => o.id === offeringId);
   const hasContact = Boolean(picked && (picked.phone.trim() || picked.email.trim()));
   const amountCents = Math.round(parseFloat(amount || "0") * 100);
-  const canCreate = Boolean(picked?.name.trim() && hasContact && offering && amountCents > 0 && !pending);
+  const canCreate = threadId
+    ? Boolean(offering && amountCents > 0 && !pending)
+    : Boolean(picked?.name.trim() && hasContact && offering && amountCents > 0 && !pending);
 
   function create() {
-    if (!picked || !offering || !canCreate) return;
+    if (!offering || !canCreate) return;
     setError(null);
+    if (threadId) {
+      // Post the quote in the conversation she is in.
+      start(async () => {
+        setStep(2);
+        const res = await messagingTalentQuoteSend({ inquiryId: threadId, offeringId: offering.id, amountCents, note: note.trim() || null });
+        setStep(0);
+        setSent(res.ok);
+        setCreatedId(threadId);
+      });
+      return;
+    }
+    if (!picked) return;
     start(async () => {
       // F99: two real steps, each shown as it runs, so a slow one is visible and
       // a failure after step 1 says exactly what exists.
@@ -144,7 +173,7 @@ function SendQuoteForm({
   }
 
   function close() {
-    store.close();
+    closeSendQuotePanel();
   }
 
   if (createdId) {
@@ -201,6 +230,7 @@ function SendQuoteForm({
       }
     >
       <div className="space-y-5">
+        {threadId ? null : (
         <section className="space-y-2">
           <h3 className={LABEL}>{copy.t("Client")}</h3>
           {picked && !adding ? (
@@ -302,6 +332,7 @@ function SendQuoteForm({
             </div>
           ) : null}
         </section>
+        )}
 
         <section className="space-y-2">
           <label className={LABEL}>

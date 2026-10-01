@@ -24,6 +24,7 @@
  * bundle imports this file and nothing from the staff shell.
  */
 
+import { splitDirectAcceptApprovals } from "@/lib/messaging/offer-sender-approval";
 import { z } from "zod";
 
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
@@ -253,10 +254,10 @@ export async function messagingClientAddItem(input: {
 
 /* ---------- 4. accept / decline an exact offer version (D-MSG-162) ---------- */
 
-type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null; total_client_price?: number | string | null; currency_code?: string | null };
+type OfferRow = { id: string; inquiry_id: string; status: string; version: number; valid_until: string | null; total_client_price?: number | string | null; currency_code?: string | null; created_by_user_id?: string | null };
 
 async function offerFor(l: Link, offerId: string, offerVersion: number): Promise<OfferRow | { ok: false; reason: MessagingRefusal }> {
-  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId).select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code").eq("id", offerId).maybeSingle();
+  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId).select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code, created_by_user_id").eq("id", offerId).maybeSingle();
   const row = data as OfferRow | null;
   if (!row || row.inquiry_id !== l.inquiryId) return fail("not_found");
   // Accept binds to an exact version (owner ruling): a card drawn for v2 cannot act on v3.
@@ -344,13 +345,26 @@ async function acceptDirect(l: Link, offer: OfferRow, expectedVersion: number): 
   // guest-seat inquiry carries a client participant with no user, and its
   // pending approval refused every accept from the link).
   const { data: pending } = await scoped(l.admin, "inquiry_approvals", l.tenantId)
-    .select("id, participant_id, inquiry_participants!inner(role)")
+    .select("id, participant_id, inquiry_participants!inner(role, user_id, talent_profile_id)")
     .eq("offer_id", offer.id)
     .neq("status", "accepted");
-  const rows = (pending ?? []) as Array<{ id: string; inquiry_participants: { role: string } | { role: string }[] | null }>;
-  const roleOf = (r: (typeof rows)[number]) => (Array.isArray(r.inquiry_participants) ? r.inquiry_participants[0]?.role : r.inquiry_participants?.role) ?? "";
-  if (rows.some((r) => roleOf(r) !== "client")) return fail("not_allowed");
-  const own = rows.filter((r) => roleOf(r) === "client").map((r) => r.id);
+  type Part = { role: string; user_id: string | null; talent_profile_id: string | null };
+  const rows = (pending ?? []) as Array<{ id: string; inquiry_participants: Part | Part[] | null }>;
+  const partOf = (r: (typeof rows)[number]): Part | null => (Array.isArray(r.inquiry_participants) ? r.inquiry_participants[0] : r.inquiry_participants) ?? null;
+  // The sender's own approval is implicit in sending (offer-sender-approval.ts).
+  const talentIds = rows.map((r) => partOf(r)?.talent_profile_id).filter((x): x is string => Boolean(x));
+  const owners = new Map<string, string | null>();
+  if (talentIds.length > 0 && offer.created_by_user_id) {
+    const { data: tps } = await l.admin.from("talent_profiles").select("id, user_id").in("id", talentIds);
+    for (const tp of (tps ?? []) as Array<{ id: string; user_id: string | null }>) owners.set(tp.id, tp.user_id);
+  }
+  const split = splitDirectAcceptApprovals(
+    rows.map((r) => ({ id: r.id, role: partOf(r)?.role ?? "", participantUserId: partOf(r)?.user_id ?? null, talentProfileId: partOf(r)?.talent_profile_id ?? null })),
+    offer.created_by_user_id ?? null,
+    owners,
+  );
+  if (split.blocking.length > 0) return fail("not_allowed");
+  const own = split.settle;
   if (own.length > 0) {
     await scoped(l.admin, "inquiry_approvals", l.tenantId).update({ status: "accepted", decided_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in("id", own);
   }

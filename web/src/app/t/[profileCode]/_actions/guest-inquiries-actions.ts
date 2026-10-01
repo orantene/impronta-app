@@ -155,6 +155,7 @@ function readJobName(interpretedQuery: unknown): string | null {
 
 export async function listGuestInquiries(input: {
   tenantSlug: string;
+  locale?: string;
 }): Promise<ListGuestInquiriesResult> {
   const tenantSlug = input.tenantSlug?.trim().toLowerCase();
   if (!tenantSlug) {
@@ -425,7 +426,8 @@ export async function listGuestInquiries(input: {
   // Guests carry no LOCALE_COOKIE; resolve from the tenant default_locale (same
   // source the email pipeline + full-thread view use). Cached per tenant.
   const localeSettings = await loadTenantLocaleSettings(tenantId);
-  const locale = localeSettings.defaultLocale;
+  // The visitor's own site locale wins over the tenant default (e2e: "1 talent" in a Spanish thread).
+  const locale = /^[a-z]{2}(-[A-Za-z]{2})?$/.test(input.locale ?? "") ? (input.locale as string) : localeSettings.defaultLocale;
   const t = createTranslator(locale);
 
   // ── Assemble the summaries ─────────────────────────────────────────────────

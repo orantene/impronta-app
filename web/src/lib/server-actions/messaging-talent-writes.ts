@@ -14,6 +14,12 @@ import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { getRequestLocale } from "@/i18n/request-locale";
+
+/** The stored quote line is written in the talent's language (e2e: "Quote:" leaked English). */
+function quoteWord(locale: string): string {
+  return locale === "es" ? "Cotización" : "Quote";
+}
 
 /**
  * F38: the talent's own Messages writers (mockup msg_d / msg_actions). A
@@ -81,7 +87,7 @@ export async function messagingTalentStartConversation(input: {
     const o = own.ok ? own.items.find((x) => x.id === parsed.data.quoteOfferingId) : undefined;
     if (!o || o.status !== "published") return fail("not_found");
     const price = o.amountCents != null ? ` (${(o.amountCents / 100).toFixed(2)} ${o.currency})` : "";
-    quoteBrief = [`Quote: ${o.title}${price}`, parsed.data.quoteNote].filter(Boolean).join("\n");
+    quoteBrief = [`${quoteWord(await getRequestLocale())}: ${o.title}${price}`, parsed.data.quoteNote].filter(Boolean).join("\n");
     quoteContext = { quote_offering_id: o.id };
   }
 

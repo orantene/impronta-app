@@ -43,7 +43,7 @@ import { GuestComposerNotices } from "./GuestComposerNotices";
 import { GuestLegacyDetailChips } from "./GuestLegacyDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
 import { GuestHablarOfferPreview } from "./GuestHablarOfferPreview";
-import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-state";
+import { guestHeaderThreadState, hasSentGuestMessage, isPrivateDraftThread } from "./guest-thread-state";
 import type { GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
@@ -380,6 +380,7 @@ export function MiniChatPanelColumn({
     inquiryRecordExists: Boolean(inquiryRecordExists),
     contactPromoted,
     hasReceipt: receipt != null,
+    hasSentMessage: hasSentGuestMessage(rows),
     showGate,
     showSentAirlock,
   };
@@ -759,7 +760,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {!showGate && extrasEnabled && onSendToAgency && !guestThreadBlocksSendBar(rows) && (
+      {!showGate && extrasEnabled && onSendToAgency && !threadStateInput.hasSentMessage && !guestThreadBlocksSendBar(rows) && (
         <SendToAgencyBar
           accent={accent}
           accentInk={accentInk}

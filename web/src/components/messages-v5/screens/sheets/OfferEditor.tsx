@@ -35,7 +35,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { formatCentsUSD } from "@/lib/bookings/commission";
+import { formatOrderMoney } from "@/lib/orders/money-format";
 import { quoteSummary, type SellerChrome } from "../../shell/seller";
 import { messagingSendOffer } from "@/lib/server-actions/messaging-engine";
 import {
@@ -158,7 +158,7 @@ export type OfferEditorViewProps = {
 function depositLine(draft: OfferDraftState, copy: ScreenCopy["kit"]): string | null {
   const cents = draftDepositCents(draft);
   if (cents == null) return null;
-  return `${copy.offer.depositLabel}: ${formatCentsUSD(cents)}`;
+  return `${copy.offer.depositLabel}: ${formatOrderMoney(cents, draft.currencyCode)}`;
 }
 
 function offerCardStateFor(status: OfferDraftState["status"]): OfferCardState {
@@ -166,8 +166,9 @@ function offerCardStateFor(status: OfferDraftState["status"]): OfferCardState {
 }
 
 /** Seller summary card: what she charges, what holds the time, what is paid at the appointment. */
-function SellerQuoteSummary({ seller, totalCents, depositCents }: { seller: SellerChrome; totalCents: number; depositCents: number | null | undefined }) {
+function SellerQuoteSummary({ seller, totalCents, depositCents, currency }: { seller: SellerChrome; totalCents: number; depositCents: number | null | undefined; currency: string }) {
   const sum = quoteSummary(totalCents, depositCents);
+  const formatCentsUSD = (cents: number) => formatOrderMoney(cents, currency); // her service currency, never a hard-coded USD (e2e P1)
   return (
     <section className="pn-sec" data-offer-seller-summary>
       <h4>{seller.summaryTitle}</h4>
@@ -195,6 +196,7 @@ function SellerQuoteSummary({ seller, totalCents, depositCents }: { seller: Sell
 export function OfferEditorView(props: OfferEditorViewProps) {
   const { phase, copy, variant, onClose, refusalCode, draft, clientName } = props;
   const c = copy.kit.offer;
+  const formatCentsUSD = (cents: number) => formatOrderMoney(cents, draft?.currencyCode ?? "USD");
   const sheetVariant = variant === "mobile" ? "mobile-full" : "desktop";
   const title = draft
     ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${draft.version}`).replace("{name}", clientName)}`
@@ -461,7 +463,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
           </div>
         </section>
 
-        {props.seller ? <SellerQuoteSummary seller={props.seller} totalCents={totalCents} depositCents={draftDepositCents(draft)} /> : null}
+        {props.seller ? <SellerQuoteSummary seller={props.seller} totalCents={totalCents} depositCents={draftDepositCents(draft)} currency={draft.currencyCode} /> : null}
 
         <section className="pn-sec" data-offer-preview>
           <h4>{c.previewTitle}</h4>

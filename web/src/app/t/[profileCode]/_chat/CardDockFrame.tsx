@@ -12,6 +12,9 @@ import { CARD_CHAT_CSS } from "./CardChatExtras";
 import { cardFrameStyle, cardVars } from "./card-dock-skin";
 import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
+/** Long enough for the click that caused the blur to finish before the layout moves. */
+export const TYPING_SETTLE_MS = 400;
+
 export function CardDockFrame({
   card,
   accent,
@@ -59,11 +62,24 @@ export function CardDockFrame({
     const el = ref.current;
     if (!el || !compact) return;
     const isField = (t: EventTarget | null) => ["TEXTAREA", "INPUT"].includes((t as HTMLElement | null)?.tagName ?? "");
-    const on = (e: Event) => isField(e.target) && setTyping(true);
-    const off = (e: Event) => isField(e.target) && setTyping(false);
+    // The sheet must NOT resize the instant the field blurs: a tap on Send or on the gate's
+    // button blurs the field on pointerdown, the sheet shrinks, the button slides away and the
+    // first tap is lost (e2e P1). Shrink back only if no field takes focus again within a beat.
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const on = (e: Event) => {
+      if (!isField(e.target)) return;
+      clearTimeout(settle);
+      setTyping(true);
+    };
+    const off = (e: Event) => {
+      if (!isField(e.target)) return;
+      clearTimeout(settle);
+      settle = setTimeout(() => setTyping(false), TYPING_SETTLE_MS);
+    };
     el.addEventListener("focusin", on);
     el.addEventListener("focusout", off);
     return () => {
+      clearTimeout(settle);
       el.removeEventListener("focusin", on);
       el.removeEventListener("focusout", off);
     };

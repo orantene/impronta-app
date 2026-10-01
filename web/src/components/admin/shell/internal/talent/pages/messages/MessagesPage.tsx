@@ -106,7 +106,7 @@ function TalentMessagesV5() {
           <div className="flex items-center justify-start gap-2 px-3 pb-1 pt-2" data-talent-seller-actions>
             <button
               type="button"
-              onClick={openSendQuotePanel}
+              onClick={() => openSendQuotePanel(activeId)}
               data-send-quote-open
               className="min-h-[44px] rounded-full border border-admin-border-soft bg-white px-4 text-[13px] font-semibold text-admin-ink"
             >
