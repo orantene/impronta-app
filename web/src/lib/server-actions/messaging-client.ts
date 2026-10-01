@@ -25,7 +25,10 @@
  */
 
 import { splitDirectAcceptApprovals } from "@/lib/messaging/offer-sender-approval";
+import { headers } from "next/headers";
 import { z } from "zod";
+
+import { ensureAcceptedOfferPayment } from "@/lib/messaging/accept-offer-payment";
 
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
@@ -296,7 +299,9 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
   if (isFail(l)) return l;
   const offer = await offerFor(l, parsed.data.offerId, parsed.data.offerVersion);
   if (isFail(offer)) return offer;
-  if (offer.status === "accepted") return fail("already");
+  // A second accept (double tap, retry after a lost answer) is not a refusal:
+  // it hands back the same order's same open link, creating nothing new.
+  if (offer.status === "accepted") return { ok: true, payCode: await payAfterAccept(l, offer) };
   if (offer.status !== "sent") return fail("expired");
   if (offer.valid_until && Date.parse(offer.valid_until) < Date.now()) return fail("expired");
   const inquiry = await inquiryFor(l);
@@ -322,6 +327,46 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
     if (isFail(direct)) return direct;
   }
   await offerStateCard(l, offer, "accepted", `Accepted offer v${offer.version}`);
+  return { ok: true, payCode: await payAfterAccept(l, offer) };
+}
+
+async function requestOrigin(): Promise<string> {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (!host) return "";
+    const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+    return `${proto}://${host}`;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * After an accept: the order + pay link + pay card, under the talent's
+ * deposit / payment policy (accept-offer-payment.ts). Pay in person posts a
+ * confirmed card and returns no code. Falls back to any open link already on
+ * the conversation (a staff "Request payment") so the visitor is never left
+ * without one that exists.
+ */
+async function payAfterAccept(l: Link, offer: OfferRow): Promise<string | null> {
+  const full = await scoped(l.admin, "inquiry_offers", l.tenantId).select("deposit_pct, deposit_amount_cents").eq("id", offer.id).maybeSingle();
+  const terms = (full.data ?? {}) as { deposit_pct?: number | string | null; deposit_amount_cents?: number | string | null };
+  const pay = await ensureAcceptedOfferPayment(l.admin, {
+    tenantId: l.tenantId,
+    inquiryId: l.inquiryId,
+    offerCreatedBy: offer.created_by_user_id ?? null,
+    publicOrigin: await requestOrigin(),
+    offer: {
+      id: offer.id,
+      version: Number(offer.version),
+      totalCents: Math.round(Number(offer.total_client_price ?? 0) * 100),
+      currency: (offer.currency_code ?? "USD").toUpperCase(),
+      depositPct: terms.deposit_pct == null ? null : Number(terms.deposit_pct),
+      depositCents: terms.deposit_amount_cents == null ? null : Number(terms.deposit_amount_cents),
+    },
+  });
+  if (pay.ok && (pay.payCode || pay.collection.collect === "none")) return pay.payCode;
   const { data: linkRow } = await scoped(l.admin, "payment_links", l.tenantId)
     .select("code")
     .eq("inquiry_id", l.inquiryId)
@@ -329,7 +374,28 @@ export async function messagingClientAcceptOffer(input: { token: string; offerId
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return { ok: true, payCode: (linkRow as { code?: string } | null)?.code ?? null };
+  return (linkRow as { code?: string } | null)?.code ?? null;
+}
+
+/**
+ * The visitor's "send me the payment link" ask: the same writer as accept,
+ * for the newest accepted offer. Idempotent; answers the open link's code.
+ */
+export async function messagingClientRequestPayLink(input: { token: string }): Promise<ActionResult<{ payCode: string | null }>> {
+  const parsed = z.object({ token: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return fail("invalid");
+  const l = await link(parsed.data.token);
+  if (isFail(l)) return l;
+  const { data } = await scoped(l.admin, "inquiry_offers", l.tenantId)
+    .select("id, inquiry_id, status, version, valid_until, total_client_price, currency_code, created_by_user_id")
+    .eq("inquiry_id", l.inquiryId)
+    .eq("status", "accepted")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const offer = data as OfferRow | null;
+  if (!offer) return fail("not_found");
+  return { ok: true, payCode: await payAfterAccept(l, offer) };
 }
 
 /**

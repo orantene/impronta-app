@@ -652,7 +652,10 @@
       "headerJourneySent": "Envoyée",
       "headerJourneyThread": "En conversation",
       "headerJourneyClosed": "Fermée",
-      "presenceViewing": "{name} regarde"
+      "presenceViewing": "{name} regarde",
+      "payCardFullAction": "Payer",
+      "payCardFullDetail": "Payez par carte pour confirmer votre rendez-vous.",
+      "confirmedPayInPerson": "Confirmé. Vous payez sur place."
     },
     "profileCta": {
       "inquireAbout": "Demander pour {name}",
