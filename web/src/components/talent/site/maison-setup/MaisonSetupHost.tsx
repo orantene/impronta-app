@@ -21,6 +21,7 @@ import {
   saveMaisonChoices,
   type MaisonSetupChoices,
 } from "./maison-choices";
+import { takeOr } from "../public-page-bootstrap";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import { MaisonUndoToast } from "./MaisonUndoToast";
@@ -102,7 +103,7 @@ export function MaisonSetupHost({
 
   useEffect(() => {
     let alive = true;
-    void loadMaisonSetupBootstrapAction().then((boot) => {
+    void takeOr("maison", "host", loadMaisonSetupBootstrapAction).then((boot) => {
       if (!alive) return;
       if (!boot.enabled) {
         setEnabled(false);

@@ -26,6 +26,7 @@ import {
   quietEntryTitle,
   updateLocale,
 } from "@/lib/talent-site/theme-releases/talent-update/copy";
+import { takeOr } from "../public-page-bootstrap";
 import {
   applyThemeUpdateAction,
   dismissThemeUpdateAction,
@@ -83,7 +84,7 @@ export function ThemeUpdateNotice({
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await loadThemeUpdateNoticesAction().catch(() => null);
+    const res = await takeOr("themeNotices", "notice", loadThemeUpdateNoticesAction).catch(() => null);
     setNotice(res && res.ok ? (res.notices[0] ?? null) : null);
     return res && res.ok ? (res.notices[0] ?? null) : null;
   }, []);

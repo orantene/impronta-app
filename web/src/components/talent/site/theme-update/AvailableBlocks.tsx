@@ -12,13 +12,14 @@ import { pick } from "@/lib/talent-site/history/copy";
 import { UPDATE_COPY, updateLocale } from "@/lib/talent-site/theme-releases/talent-update/copy";
 import { loadAvailableBlocksAction } from "@/lib/talent-site/theme-releases/talent-update/talent-update-actions";
 import type { AvailableBlocks as Data } from "@/lib/talent-site/theme-releases/talent-update/talent-update.server";
+import { takeOr } from "../public-page-bootstrap";
 import { ItemRow } from "./ThemeUpdateSheet";
 
 export function AvailableBlocks({ locale: localeIn }: { locale?: string | null }): ReactElement | null {
   const locale = updateLocale(localeIn);
   const [data, setData] = useState<Data | null>(null);
   const load = useCallback(async () => {
-    const res = await loadAvailableBlocksAction().catch(() => null);
+    const res = await takeOr("availableBlocks", "blocks", loadAvailableBlocksAction).catch(() => null);
     setData(res && res.ok ? res.value : null);
   }, []);
   useEffect(() => {

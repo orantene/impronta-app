@@ -45,6 +45,7 @@ const MyWebsiteCard = dynamic(
   { ssr: false },
 );
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
+import { takeOr } from "./public-page-bootstrap";
 import {
   loadMaxSiteManagerAction,
   publishMaxSiteAction,
@@ -63,7 +64,7 @@ export function TalentMaxSiteManager({ locale = "en" }: Props) {
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await loadMaxSiteManagerAction();
+      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
       if (!res.ok) {
         setError(res.error);
         setState(null);
