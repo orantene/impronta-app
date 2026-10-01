@@ -355,7 +355,9 @@ async function acceptDirect(l: Link, offer: OfferRow, expectedVersion: number): 
   const talentIds = rows.map((r) => partOf(r)?.talent_profile_id).filter((x): x is string => Boolean(x));
   const owners = new Map<string, string | null>();
   if (talentIds.length > 0 && offer.created_by_user_id) {
-    const { data: tps } = await l.admin.from("talent_profiles").select("id, user_id").in("id", talentIds);
+    // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is a global table; the ids come from THIS inquiry's participants
+    const { data: tps, error: tpErr } = await l.admin.from("talent_profiles").select("id, user_id").in("id", talentIds);
+    if (tpErr) return fail("unavailable");
     for (const tp of (tps ?? []) as Array<{ id: string; user_id: string | null }>) owners.set(tp.id, tp.user_id);
   }
   const split = splitDirectAcceptApprovals(

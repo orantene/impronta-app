@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { QUOTE_ES_TEXT } from "./dashboard-i18n-quote";
 import { RAIL_ES_TEXT } from "./dashboard-i18n-rail";
 
 function isSpanish(locale: string): boolean {
@@ -11,6 +12,7 @@ function isSpanish(locale: string): boolean {
 
 const ES_TEXT: Record<string, string> = {
   ...RAIL_ES_TEXT,
+  ...QUOTE_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -1278,27 +1280,6 @@ const ES_TEXT: Record<string, string> = {
 
   // light-06 : Inquiry peek
   "Offer sent to client": "Oferta enviada al cliente",
-  "Send quote": "Enviar cotización",
-  "Quote sent": "Cotización enviada",
-  "Quote not sent": "Cotización no enviada",
-  "Open conversation": "Abrir conversación",
-  "Add a phone or an email so the client can be reached.": "Agrega un teléfono o un correo para poder contactar al cliente.",
-  "Could not create the quote. Nothing was sent.": "No se pudo crear la cotización. No se envió nada.",
-  "Choose an offering": "Elige un servicio",
-  "Creating conversation… (1 of 2)": "Creando la conversación… (1 de 2)",
-  "Sending quote… (2 of 2)": "Enviando la cotización… (2 de 2)",
-  "New client": "Cliente nuevo",
-  "No clients match.": "Ningún cliente coincide.",
-  "Note for the client": "Nota para el cliente",
-  "Open the conversation to send the quote from there. Nothing reached the client yet.": "Abre la conversación para enviar la cotización desde ahí. Al cliente aún no le llegó nada.",
-  "Pick an existing client": "Elige un cliente existente",
-  "Publish a service first. Quotes are made from your services.": "Publica un servicio primero. Las cotizaciones se hacen a partir de tus servicios.",
-  "Search your clients": "Busca entre tus clientes",
-  "Sends the client your quote for this service. They can accept it from the link.": "Le envía al cliente tu cotización de este servicio. Puede aceptarla desde el enlace.",
-  "The client has your quote": "El cliente ya tiene tu cotización",
-  "The conversation was created but the quote did not go out": "La conversación se creó pero la cotización no salió",
-  "They can accept it from the link. You will see the answer in the conversation.": "Puede aceptarla desde el enlace. Verás la respuesta en la conversación.",
-  "What is it for?": "¿Para qué es?",
   "Send offer": "Enviar oferta",
   "Stage": "Etapa",
   "Amount": "Importe",
