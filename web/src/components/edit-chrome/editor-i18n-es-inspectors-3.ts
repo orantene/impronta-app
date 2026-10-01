@@ -208,7 +208,7 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
 // ── Contenido nested-block UX (page-builder panel cleanup) ─────────────
   // Short helpers + NestedBlocksCard chrome. Lives here because
   // editor-i18n-es-inspectors.ts is at the 800-line max-lines ceiling.
-  // Skip "Drag to reorder" / "Saved block pattern" — already owned elsewhere.
+  // Skip "Drag to reorder" / "Saved block pattern", already owned elsewhere.
   "Add and reorder the blocks inside this group.":
     "Agrega y reordena los bloques de este grupo.",
   "Open each column to edit its text and photos. Ratio is under Design.":
