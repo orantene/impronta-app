@@ -102,16 +102,42 @@ export function SelectionDock({
     </button>
   ) : null;
 
+  const dockShown = show && items.length > 0 && !presence?.open;
+  // ONE bar at the bottom: while the dock is up the toast lives INSIDE it
+  // (rising from its top edge); only when the dock is gone (Undo after
+  // removing the last service) does it stand alone, and then it is the only
+  // thing at the bottom.
+  const toastEl = (
+    <div
+      className="cb-dock-toast"
+      data-in-dock={dockShown ? "true" : undefined}
+      role="status"
+      data-show={toast ? "true" : "false"}
+      data-kind={toast?.kind}
+    >
+      {toast ? (
+        <>
+          <span>{dockToastText(copy, toast)}</span>
+          {dockToastHasUndo(toast.kind) ? (
+            <button type="button" onClick={onUndo}>
+              {copy.undo}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <div
         className="cb-dock"
         role="region"
         aria-label={copy.region}
-        data-show={show && items.length > 0 && !presence?.open ? "true" : "false"}
+        data-show={dockShown ? "true" : "false"}
         data-count={items.length}
-        aria-hidden={show && items.length > 0 && !presence?.open ? undefined : true}
-        inert={show && items.length > 0 && !presence?.open ? undefined : true}
+        aria-hidden={dockShown ? undefined : true}
+        inert={dockShown ? undefined : true}
       >
         {/* The chat button: always the speech-bubble icon, never a photo (a photo next to the
             selected service reads as the service's image). Dots show online and unread. */}
@@ -146,19 +172,9 @@ export function SelectionDock({
         <button type="button" className="cb-dock-go" onClick={onContinue}>
           {copy.continueLabel} <span className="cb-dock-arr" aria-hidden>→</span>
         </button>
+        {dockShown ? toastEl : null}
       </div>
-      <div className="cb-dock-toast" role="status" data-show={toast ? "true" : "false"} data-kind={toast?.kind}>
-        {toast ? (
-          <>
-            <span>{dockToastText(copy, toast)}</span>
-            {dockToastHasUndo(toast.kind) ? (
-              <button type="button" onClick={onUndo}>
-                {copy.undo}
-              </button>
-            ) : null}
-          </>
-        ) : null}
-      </div>
+      {dockShown ? null : toastEl}
     </>
   );
 }

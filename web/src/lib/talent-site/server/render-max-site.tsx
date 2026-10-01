@@ -187,7 +187,7 @@ export interface MaxSiteSeo {
 }
 
 export type RenderTalentMaxSiteResult =
-  | { kind: "render"; node: ReactNode; seo: MaxSiteSeo }
+  | { kind: "render"; node: ReactNode; seo: MaxSiteSeo; /** The locale the body rendered in (bounded to the talent languages). */ locale: string }
   | { kind: "not_found" };
 
 const NOT_FOUND: RenderTalentMaxSiteResult = { kind: "not_found" };
@@ -357,7 +357,7 @@ export async function renderTalentMaxSite(
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
-    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo };
+    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;

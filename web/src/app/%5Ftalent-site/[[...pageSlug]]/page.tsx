@@ -29,6 +29,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { headers } from "next/headers";
 
+import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   HOST_CONTEXT_HEADER,
@@ -173,9 +174,10 @@ export default async function TalentSiteHostPage({
           dangerouslySetInnerHTML={{ __html: jsonLd }}
         />
       ) : null}
+      <DocumentLang locale={result.locale} />
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={locale} />
+      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} />
     </>
   );
 }

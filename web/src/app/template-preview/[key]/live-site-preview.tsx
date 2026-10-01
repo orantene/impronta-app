@@ -23,6 +23,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
+import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { TalentSiteMessagesDock } from "@/app/%5Ftalent-site/TalentSiteMessagesDock";
 
 async function isAdminViewingDemo(talentProfileId: string): Promise<boolean> {
@@ -67,9 +68,10 @@ export async function LiveSitePreview({
   // real panel here too (and the design harness can measure its open state).
   return (
     <>
+      <DocumentLang locale={result.locale} />
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={id} locale={locale} />
+      <TalentSiteMessagesDock talentProfileId={id} locale={result.locale} />
     </>
   );
 }

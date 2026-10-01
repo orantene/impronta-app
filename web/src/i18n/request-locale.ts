@@ -65,4 +65,21 @@ export async function getRequestLocale(): Promise<Locale> {
   return settings.defaultLocale ?? defaultLocale;
 }
 
+/**
+ * Locale the <html lang> attribute should carry. Same as the request locale
+ * except on the template-preview routes, which render a site in an explicit
+ * `?locale=es|en` that the middleware locale header never sees (the route
+ * renders the site in that locale, so the document must say so too).
+ */
+export function resolveDocumentLocale(
+  requestLocale: string,
+  pathname: string | null | undefined,
+  search: string | null | undefined,
+): string {
+  if (!pathname || !/^\/(?:dev\/)?template-preview(?:\/|$)/.test(pathname)) return requestLocale;
+  const raw = (search ?? "").replace(/^\?/, "");
+  const explicit = new URLSearchParams(raw).get("locale");
+  return explicit === "es" || explicit === "en" ? explicit : requestLocale;
+}
+
 export { LOCALE_HEADER };
