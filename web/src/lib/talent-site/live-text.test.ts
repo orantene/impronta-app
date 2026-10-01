@@ -77,7 +77,7 @@ const SRC = {
 test("live values: Spanish and English come from real facts, empty parts drop out", () => {
   const es = buildTalentLiveText(SRC, "es").values;
   assert.equal(es.hero_eyebrow, "Manicurista · Mérida");
-  assert.equal(es.hero_proof, "9 años de oficio · Español · English · ★ 4.9 · 212 reseñas");
+  assert.equal(es.hero_proof, "9 años de oficio · Español · Inglés · ★ 4.9 · 212 reseñas");
   assert.equal(es.hero_headline, "Manos que {i}hablan{/i} por ti.");
   assert.equal(es.hero_tagline, "Un estudio privado donde cada cita es solo tuya.");
   assert.equal(es.footer_intro, "Manicurista en Mérida.");
