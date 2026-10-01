@@ -62,6 +62,7 @@ import {
 } from "./booking-resume-store";
 import type { CatalogTakenSlotNotice } from "./catalog-taken-slot";
 import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
+import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -411,21 +412,10 @@ export function CatalogBookingSheet({
     >
       <style>{CATALOG_BOOKING_CSS}</style>
       <div className="jb-sheet">
-        <header className="jb-head">
-          <div>
-            <p className="jb-kicker">
-              {step === "done"
-                ? doneStatus.headline
-                : es
-                  ? "Tu reserva"
-                  : "Your booking"}
-            </p>
-            <h2>{detail.title}</h2>
-          </div>
-          <button type="button" className="jb-x" onClick={() => setDetail(null)} aria-label={es ? "Cerrar" : "Close"}>
-            ✕
-          </button>
-        </header>
+        <CatalogSheetHeader
+          kicker={step === "done" ? doneStatus.headline : es ? "Tu reserva" : "Your booking"}
+          title={detail.title} closeLabel={es ? "Cerrar" : "Close"} onClose={() => setDetail(null)}
+        />
 
         <div className="jb-body">
           {step === "choose" ? (
@@ -707,37 +697,26 @@ export function CatalogBookingSheet({
           ) : null}
 
           {step === "done" ? (
-            <div className="jb-done">
-              <div className="jb-check" aria-hidden="true">
-                ✓
-              </div>
-              <h3>{time ? catalogSlotDateLabel(day, time, es) : null}</h3>
-              <p>
-                {detail.title}
-                {variant ? ` · ${variant.label}` : ""}
-                {extras.length ? ` · ${extras.map((e) => e.label).join(", ")}` : ""}
-                {isQuote ? ` · ${es ? "A cotizar" : "Quote"}` : ` · ${money(total, detail.currency)}`}
-              </p>
-              {doneStatus.detail ? <p className="jb-fixture" data-catalog-done-state={doneStatus.bookingState}>{doneStatus.detail}</p> : null}
-              <p className="jb-fixture" data-catalog-done-next="">
-                {doneStepNextActionCopy({
-                  reserveMode: detail.reserveMode,
-                  allowPayInPerson: detail.allowPayInPerson,
-                  depositPct: detail.depositPct,
-                  onlineCollectReady,
-                  locale,
-                  wrote,
-                  isRequest,
-                })}
-              </p>
-              {mode === "demo" || !wrote ? (
-                <p className="jb-demo" data-catalog-demo-note="">
-                  {es
-                    ? "Demostración: aquí no se guarda nada."
-                    : "Preview: nothing is saved here."}
-                </p>
-              ) : null}
-            </div>
+            <CatalogDonePanel
+              detail={detail}
+              es={es}
+              slotLabel={slotLabel}
+              variantLabel={variant ? variant.label : null}
+              extraLabels={extras.map((e) => e.label)}
+              isQuote={isQuote}
+              totalLabel={money(total, detail.currency)}
+              doneStatus={doneStatus}
+              nextActionCopy={doneStepNextActionCopy({
+                reserveMode: detail.reserveMode,
+                allowPayInPerson: detail.allowPayInPerson,
+                depositPct: detail.depositPct,
+                onlineCollectReady,
+                locale,
+                wrote,
+                isRequest,
+              })}
+              showDemoNote={mode === "demo" || !wrote}
+            />
           ) : null}
         </div>
 
