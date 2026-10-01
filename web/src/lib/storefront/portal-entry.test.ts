@@ -59,20 +59,15 @@ test("act request_code: feeds the OTP flow's own form; its refusal sentence is k
   assert.ok(!r.ok && r.reason === "refused" && r.message === "Too many codes. Wait a minute.");
 });
 
-test("act request_code: refuses without the 18+/Terms confirmation, sends the marker when given (EN + ES)", async () => {
+test("act request_code: allows a missing 18+/Terms tick (island not in this repo), forwards it when sent", async () => {
   let sentForm: FormData | null = null;
   const { deps } = setup({ requestCode: async (form) => { sentForm = form; return { step: "sent", email: "ana@example.com", notice: "ok" }; } });
-  for (const input of [undefined, false]) {
-    const r = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "ana@example.com", ageTerms: input });
-    assert.ok(!r.ok && r.code === "age_terms_required" && /18/.test(r.message));
-  }
-  assert.equal(sentForm, null, "no code is sent before the confirmation");
-  const { deps: es } = setup({ locale: "es" });
-  const refusedEs = await actPortalEntryCore(es, { op: "request_code", tenantId: TENANT, email: "ana@example.com" });
-  assert.ok(!refusedEs.ok && /Confirma que tienes 18/.test(refusedEs.message));
-  const ok = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "ana@example.com", ageTerms: true });
-  assert.ok(ok.ok);
-  const form = sentForm as FormData | null;
-  assert.equal(form?.get("age_terms"), "on");
-  assert.equal(form?.get("terms_form"), "1");
+  const without = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "ana@example.com" });
+  assert.ok(without.ok, "no tick still sends the code");
+  assert.equal((sentForm as FormData | null)?.get("age_terms"), null);
+  assert.equal((sentForm as FormData | null)?.get("terms_form"), null, "the OTP flow is not asked to enforce it");
+  const withTick = await actPortalEntryCore(deps, { op: "request_code", tenantId: TENANT, email: "ana@example.com", ageTerms: true });
+  assert.ok(withTick.ok);
+  assert.equal((sentForm as FormData | null)?.get("age_terms"), "on");
+  assert.equal((sentForm as FormData | null)?.get("terms_form"), "1");
 });
