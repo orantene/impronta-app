@@ -14,11 +14,11 @@ const ES: Record<string, string> = {
     "Se muestra el demo destacado · la vista de este demo está planeada",
   "Each demo can change photos, sample text, sections and its default colors.":
     "Cada demo puede cambiar fotos, textos, secciones y sus colores base.",
-  "Switching demo changes photos, sample text and sections. Your colors are kept.":
-    "Cambiar de demo cambia fotos, textos y secciones. Tus colores se conservan.",
+  "Switching demo changes photos, sample text and sections. Colors change only when you pick a palette.":
+    "Cambiar de demo cambia fotos, textos y secciones. Los colores solo cambian cuando eliges una paleta.",
   "My colors": "Mis colores",
-  "kept when you switch demos": "se conservan al cambiar de demo",
-  "✓ Your colors are kept": "✓ Tus colores se conservan",
+  "the same when you switch demos": "no cambian al cambiar de demo",
+  "✓ Colors unchanged": "✓ Colores sin cambios",
   "Import starter content from this demo ›": "Importar contenido inicial de este demo ›",
   "Demo content": "Contenido de demo",
   "Demo colors": "Colores del demo",
