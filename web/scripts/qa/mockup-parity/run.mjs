@@ -326,6 +326,8 @@ async function loadProduct(ctx, talent, width) {
   if (resp.status() !== 200) return { page, error: `HTTP ${resp.status()}` };
   await page.waitForLoadState("networkidle", { timeout: 9000 }).catch(() => {});
   await page.waitForSelector("h1, h2", { timeout: 8000 }).catch(() => {});
+  // The analytics consent banner is a role=dialog overlay: hide it so it neither intercepts clicks nor passes for the chat or booking dialog.
+  await page.addStyleTag({ content: "[data-consent-banner]{display:none!important}" }).catch(() => {});
   if (process.env.PARITY_DEBUG) console.log("DEBUG", await page.evaluate(() => [document.styleSheets.length, getComputedStyle(document.querySelector(".site-header__ritem") || document.body).display, document.readyState]));
   return { page };
 }
@@ -433,7 +435,7 @@ async function scanState(ctx, talent, width, state, mock, rows) {
       if (!(await act.count())) throw new Error("no service action (Seleccionar) found in #services");
       await safeClick(act);
       await page.waitForTimeout(900);
-      const sheet = page.locator("[role=dialog]").first();
+      const sheet = page.locator("[role=dialog]:not([data-consent-banner])").first();
       if (!(await sheet.isVisible().catch(() => false))) return null; // added straight to the selection
       const radio = sheet.locator("input[type=radio], [role=radio]").first();
       if (await radio.count()) { await radio.click({ force: true, timeout: 3000 }).catch(() => {}); await page.waitForTimeout(400); }
@@ -471,11 +473,11 @@ async function scanState(ctx, talent, width, state, mock, rows) {
         if (!(await go.count())) throw new Error("no Continue button on the dock to open the booking sheet");
         await safeClick(go);
         await page.waitForTimeout(900);
-        sheet = page.locator("[role=dialog]").first();
+        sheet = page.locator("[role=dialog]:not([data-consent-banner])").first();
         if (!(await sheet.isVisible().catch(() => false))) sheet = null;
       }
       if (!sheet) r.reasons.push("the booking sheet did not open");
-      else await checkEl("[role=dialog]", "booking sheet");
+      else await checkEl("[role=dialog]:not([data-consent-banner])", "booking sheet");
     } else if (state === "dock") {
       await pickService({ keepOpen: false });
       const d = await dockInfo();
@@ -501,7 +503,7 @@ async function scanState(ctx, talent, width, state, mock, rows) {
         r.status = "BLOCKED";
         r.reasons.push("opening the chat crashed the page, most likely because the read-only guard blocked the chat's server action. Re-run with --allow-server-actions on an isolated target to verify (it may create a guest inquiry).");
       } else {
-        const panelSel = "[role=dialog], [data-chat-variant]";
+        const panelSel = "[role=dialog]:not([data-consent-banner]), [data-chat-variant]";
         // The honeypot (name=company_website) is a hidden input that sits BEFORE the textarea in the DOM; never treat it as the composer.
         const composer = page.locator("textarea:visible, [role=dialog] input[type=text]:not([name=company_website]):visible").first();
         if (!(await page.locator(panelSel).first().isVisible().catch(() => false))) r.reasons.push("chat panel did not open");
@@ -518,7 +520,7 @@ async function scanState(ctx, talent, width, state, mock, rows) {
         const listAria = page.locator("[role=dialog] button[aria-label], [data-chat-variant] button[aria-label]").filter({ hasText: /^$/ }).filter({ has: page.locator("svg") });
         const listLabelled = page.locator("[role=dialog] [aria-label*='servicios' i], [role=dialog] [aria-label*='services' i], [role=dialog] [aria-label*='menú' i], [role=dialog] [aria-label*='lista' i]");
         if (!(await list.count()) && !(await listLabelled.count()) && !(await listAria.count())) r.reasons.push("no list control (☰) in the chat");
-        await checkEl("[role=dialog], [data-chat-variant]", "chat panel");
+        await checkEl("[role=dialog]:not([data-consent-banner]), [data-chat-variant]", "chat panel");
       }
     }
     r.product = await page.screenshot({ type: "jpeg", quality: 55 }).catch(() => null);
