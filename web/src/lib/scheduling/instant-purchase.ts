@@ -71,6 +71,8 @@ export type InstantPurchaseInput = {
   guestSessionId?: string | null;
   /** Gridline G9b: task-picker brief, onto the thread inquiry's source_context. */
   brief?: OfferingTaskBrief | null;
+  /** G13: buyer locale for the intake answers' heading in the thread. */
+  locale?: string | null;
   /**
    * True only for the point of sale booking a walk-in at the desk. Staff are
    * the confirmation there, so the inquiry-only posture and the public open
@@ -458,6 +460,7 @@ export async function placeInstantPurchase(
     openThread: input.openThread,
     guestSessionId: input.guestSessionId ?? null,
     brief: input.brief ?? null,
+    locale: input.locale ?? null,
     // Snapshot: the talent's published policy the buyer saw at checkout.
     policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });

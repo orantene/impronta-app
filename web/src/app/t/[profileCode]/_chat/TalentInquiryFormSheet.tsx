@@ -26,7 +26,7 @@ import {
   type InquiryFormFieldError,
   type InquiryFormLine,
 } from "@/lib/talent/inquiry-form-payload";
-import { taskBriefFrom } from "@/lib/talent/offering-task-brief";
+import { briefFromDetail } from "@/lib/talent/offering-task-brief";
 import { submitTalentInquiryForm } from "../_actions/talent-inquiry-form-action";
 import { inquiryFormCopy, type InquiryFormCopyKey } from "./inquiry-form-copy";
 import {
@@ -53,7 +53,8 @@ function lineFromDetail(d: PendingOfferingDetail): InquiryFormLine {
     slotLabel: d.selection?.slotLabel ?? null,
     totalCents: d.selection?.totalCents ?? null,
     // G9b: the task travels as context; its note pre-fills the message box.
-    brief: d.task ? taskBriefFrom(d.task, null) : null,
+    // G13: intake answers from the sheet travel too.
+    brief: briefFromDetail(d, false),
   };
 }
 
