@@ -16,7 +16,7 @@ test("F137: the live card reads the go-live summary, not design options", () => 
     join(process.cwd(), "src/components/talent/site/maison-setup/MyWebsiteCard.tsx"),
     "utf8",
   );
-  assert.match(src, /loadTalentGoLiveAction\(\)/);
+  assert.match(src, /takeOr\("goLive", "card", loadTalentGoLiveAction\)/);
   assert.match(src, /goLiveHasPending\(res\.summary\)/);
   assert.doesNotMatch(src, /hasLivePending|loadMaisonDesignOptionsStateAction/);
 });

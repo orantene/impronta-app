@@ -5,7 +5,7 @@
  *
  * Colors-kept rule: switching demo never touches the talent's colors. If
  * she picked a palette or saved custom colors, they stay; the panel says
- * "kept when you switch demos" and a toast confirms it. Only "Use demo
+ * "the same when you switch demos" and a toast confirms it. Only "Use demo
  * colors" returns to the demo's own palette.
  */
 import {

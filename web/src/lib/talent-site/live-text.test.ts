@@ -334,3 +334,54 @@ test("a hero that has a proof line she wrote herself never gets a second one", (
   const out = applyTalentLiveText(tree, VALERIA);
   assert.equal(paragraphs(out[0]!).filter((t) => /oficio|Nueve años/.test(t)).length, 1);
 });
+
+// ── B3 / B4 / A4: the tagline by language, trade headline variants, the header trade ──
+
+import { guessLineLanguage, resolveLocalizedLine } from "./live-line-language";
+
+test("the tagline reads in the visitor's language: Valeria (plain EN, short_bio ES, primary ES)", () => {
+  const i = {
+    plain: "Clean nails, hand-painted designs and no rush. A private studio in Cancún where every appointment is just yours.",
+    alt: "Uñas limpias, diseños a mano y cero prisa. Un estudio privado en Cancún donde cada cita es solo tuya.",
+    primary: "es" as const,
+  };
+  assert.match(resolveLocalizedLine({ ...i, locale: "es" }), /^Uñas limpias/);
+  assert.match(resolveLocalizedLine({ ...i, locale: "en" }), /^Clean nails/);
+  // Her per-language map wins over both.
+  assert.equal(resolveLocalizedLine({ ...i, locale: "en", map: { en: "Nails, no rush." } }), "Nails, no rush.");
+  // One language only: the visitor of the other language reads her main one.
+  assert.equal(resolveLocalizedLine({ plain: "Modelo en CDMX", primary: "es", locale: "en" }), "Modelo en CDMX");
+  assert.equal(resolveLocalizedLine({ locale: "es", primary: "es" }), "");
+  assert.equal(guessLineLanguage("Un estudio privado donde cada cita es solo tuya."), "es");
+  assert.equal(guessLineLanguage("A private studio where every appointment is just yours."), "en");
+  const live = buildTalentLiveText({ ...SRC, tagline: i.plain, shortBio: i.alt, primaryLocale: "es" }, "es").values;
+  assert.match(live.hero_tagline ?? "", /^Uñas limpias/);
+});
+
+test("trade headlines have variants, picked deterministically per talent", () => {
+  const nails = new Set<string>();
+  for (const code of ["TAL-93020", "TAL-93003", "TAL-93103", "TAL-93901", "TAL-90001", "TAL-90002", "TAL-90003", "TAL-90004"]) {
+    const a = seedHeadlineFor("Nail Artist", code)!;
+    assert.deepEqual(a, seedHeadlineFor("Nail Artist", code), "stable for one talent");
+    nails.add(a.en);
+  }
+  assert.ok(nails.size >= 3, `several nail variants in use (${nails.size})`);
+  assert.deepEqual(seedHeadlineFor("Nail Artist"), { en: "Hands that speak for you.", es: "Manos que hablan por ti." }, "no key: the classic line");
+  // The same variant in both languages, so the Spanish render of an English seed matches.
+  const key = "TAL-93901";
+  assert.equal(resolveHeadline({ tradeEn: "Nail Artist", displayName: "V", seedKey: key }, "es").text, accentHeadline(seedHeadlineFor("Nail Artist", key)!.es));
+  assert.equal(buildTalentLiveText({ ...SRC, headline: null, seedKey: key }, "es").values.hero_headline, accentHeadline(seedHeadlineFor("Nail Artist", key)!.es));
+});
+
+test("A4: the header lockup under her name is the trade in the visitor's language, and her own words stay", () => {
+  const header = (tagline: string) =>
+    [{ id: "h", kind: "section", props: { sectionTypeKey: "site_header", sectionProps: { brand: { tagline } } } }] as unknown as BuilderNode[];
+  const live = buildTalentLiveText({ ...SRC, trade: { en: "Nail Artist", es: "Manicurista" } }, "es");
+  assert.equal(live.tradeLabel, "Manicurista");
+  const read = (t: BuilderNode[]) => ((t[0]!.props as { sectionProps: { brand: { tagline: string } } }).sectionProps.brand.tagline);
+  assert.equal(read(applyTalentLiveText(header("Nail Artist"), live)), "Manicurista");
+  assert.equal(read(applyTalentLiveText(header("nail artist"), live)), "Manicurista");
+  assert.equal(read(applyTalentLiveText(header("Uñas y pestañas"), live)), "Uñas y pestañas", "her own line is kept");
+  assert.equal(read(applyTalentLiveText(header("Nail Artist"), buildTalentLiveText({ ...SRC, trade: { en: "Nail Artist", es: "Manicurista" } }, "en"))), "Nail Artist");
+  assert.equal(treeHasLiveCandidates(header("Nail Artist")), true);
+});

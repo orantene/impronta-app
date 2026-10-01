@@ -36,6 +36,8 @@ export interface TalentLiveText {
   seeds?: Partial<Record<LiveTextKey, ReadonlyArray<string>>>;
   /** Trade names (every locale) a baked eyebrow starts with, "Nail Artist · Cancun". */
   trades?: ReadonlyArray<string>;
+  /** The trade named in the visitor's language ("Manicurista"), for the header lockup. */
+  tradeLabel?: string;
   /** The menu intro line ("Prices in MXN."), a default for a Maison v2 menu that never had one. */
   menuSubtitle?: string;
 }
@@ -160,6 +162,19 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
       }
       return LIVE_TEXT_KEEPS_FALLBACK.has(key) ? node : null;
     }
+    // The header lockup under her name: the trade, in the visitor's language, while it still reads the baked trade.
+    if (node.kind === "section" && propsOf(node).sectionTypeKey === "site_header" && live.tradeLabel) {
+      const sp = (propsOf(node).sectionProps ?? {}) as Record<string, unknown>;
+      const brand = (sp.brand ?? {}) as Record<string, unknown>;
+      const tag = typeof brand.tagline === "string" ? brand.tagline.trim() : "";
+      const isTrade = (live.trades ?? []).some((t) => t.trim().toLowerCase() === tag.toLowerCase());
+      if (isTrade && tag !== live.tradeLabel) {
+        return {
+          ...node,
+          props: { ...propsOf(node), sectionProps: { ...sp, brand: { ...brand, tagline: live.tradeLabel } } },
+        } as unknown as BuilderNode;
+      }
+    }
     // A Maison v2 menu with no intro line gets the currency sentence (once she writes one, it is hers).
     if (node.kind === "services_catalog" && live.menuSubtitle && maisonKey(node)?.startsWith("services")) {
       const props = propsOf(node);
@@ -208,6 +223,7 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
 export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
   return tree.some((n) => {
     if (n.kind === "services_catalog" && maisonKey(n)?.startsWith("services")) return true;
+    if (n.kind === "section" && propsOf(n).sectionTypeKey === "site_header") return true;
     if (maisonKey(n) === "hero/container") return true;
     if (n.kind === "heading" || n.kind === "paragraph") {
       if (isLiveTextKey(propsOf(n).liveText)) return true;

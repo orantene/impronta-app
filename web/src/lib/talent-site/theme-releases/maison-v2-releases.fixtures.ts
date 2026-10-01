@@ -232,15 +232,26 @@ export function revertR21(p: DesignPayload): DesignPayload {
 }
 
 /**
- * v22 back to v21: the Location heading's eyebrow was an explicit empty string (it now reads
- * "Tu visita" by default), and the footer line was 44px phone / 88px desktop (the mockup: 40 / 64).
+ * v22 back to v21 (release 2.8, two slices in one release):
+ *  - "order": the home page order before the proposal's, with Before and after and Aftercare
+ *    tips on the default page (they are optional blocks now);
+ *  - "location + footer size": the Location heading's eyebrow was an explicit empty string (it
+ *    now reads "Tu visita" by default), and the footer line was 44px phone / 88px desktop
+ *    (the mockup: 40 / 64).
  */
 export function revertR22(p: DesignPayload): DesignPayload {
   const out = clonePayload(p);
+  // Location + footer size.
   Object.assign(out.tokenDefaults!, { "type.footer-title-size": "44px", "type.footer-title-size-desktop": "88px" });
   walkNodes(out.homeTree, (n) => {
     if (n.kind === "visit" && propsOf(n).layout === "location") propsOf(n).eyebrow = "";
   });
+  // Order.
+  const all = [...out.homeTree, ...(out.optionalBlocks ?? [])];
+  const bySlot = new Map(all.map((n) => [String(propsOf(n).slotKey), n] as const));
+  const order = ["hero", "reviews", "gallery", "services", "before_after", "aftercare", "about", "location", "contact"];
+  out.homeTree = order.map((s) => bySlot.get(s)).filter((n): n is BuilderNode => !!n);
+  delete out.optionalBlocks;
   return out;
 }
 

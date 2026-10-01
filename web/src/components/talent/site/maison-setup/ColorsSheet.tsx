@@ -140,7 +140,7 @@ export function ColorsSheet(props: ColorsProps & { onClose: () => void; isDemoDe
                   {locale === "es" ? customPalette.name.es : customPalette.name.en}
                 </span>
                 <span className="text-[11.5px] text-admin-ink-dim">
-                  {detailT(locale, "My colors")} · {detailT(locale, "kept when you switch demos")}
+                  {detailT(locale, "My colors")} · {detailT(locale, "the same when you switch demos")}
                 </span>
               </span>
               {usingCustom ? <span aria-label={detailT(locale, "Selected")}>✓</span> : null}
