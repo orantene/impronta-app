@@ -70,6 +70,8 @@ import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-cha
 import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
 import type { IndustryPresetId } from "@/lib/words/presets";
+import { catalogRowPriceText } from "@/lib/site-admin/builder-node/services-catalog-bar-price";
+import { offeringPriceUnit } from "@/components/public-booking/catalog-booking-logic";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -213,6 +215,8 @@ export async function TalentProfileChatLauncherMount({
           reserveMode: o.reserveMode,
           depositPct: o.depositPct,
           imageUrl: o.imageUrls[0] ?? null,
+          priceLabel: catalogRowPriceText(o, locale ?? "en"),
+          priceIsPerUnit: Boolean(offeringPriceUnit(o.attributes, locale ?? "en")),
         }))
       : [
           {

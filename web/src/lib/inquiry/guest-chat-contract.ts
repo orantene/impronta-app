@@ -560,6 +560,10 @@ export type GuestChatOffering = {
   reserveMode: "full" | "deposit" | "free";
   depositPct: number | null;
   imageUrl: string | null;
+  /** The menu's own price line ("Desde $120 por uña"), so lists agree with the menu. Optional. */
+  priceLabel?: string | null;
+  /** Priced per unit: the unit replaces the duration in a list row. */
+  priceIsPerUnit?: boolean;
 };
 
 /** The resumable thread + prefill for the inline name/email gate. */

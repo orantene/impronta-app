@@ -182,3 +182,47 @@ test("TO-1 look and motion: Maison dark pill radius 14, 84px, rises in .2s; ever
   assert.match(dockCss, /\.cb-dock-avatar\{/);
   assert.match(dockCss, /\.cb-dock-unread\{/);
 });
+
+// ── CH-3 from the dock: a picked service, sheet never opened ─────────────────
+
+test("CH-3 a service picked in the dock (sheet never opened) is offered back, and resume continues like Continuar", async () => {
+  const { peekBookingResume, clearBookingResume, requestBookingResume, setBookingResume } = await import("./booking-resume-store");
+  const { useDockBookingResume } = await import("./use-dock-booking-resume");
+  clearBookingResume();
+  let continued = 0;
+  const Probe = ({ item }: { item: { title: string; totalCents: number; priceLabel: string | null; currency: string } | null }) => {
+    useDockBookingResume(item, () => void continued++);
+    return null;
+  };
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  const item = { title: "Gel pedicure", totalCents: 0, priceLabel: "Desde $120", currency: "MXN" };
+  act(() => root.render(<Probe item={item} />));
+  const snap = peekBookingResume();
+  assert.ok(snap, "the pick is published");
+  assert.equal(snap.detail, null);
+  assert.equal(snap.title, "Gel pedicure");
+  assert.equal(snap.priceLabel, "Desde $120");
+  assert.equal(snap.totalCents, null, "an inexact price shows the label, not $0");
+
+  act(() => requestBookingResume());
+  assert.equal(continued, 1, "the dock carries on exactly like Continuar");
+
+  // A sheet stash is never overwritten by the dock.
+  const sheetStash = { detail: {} as never, step: "who" as const, title: "From sheet", totalCents: 100, currency: "MXN" };
+  act(() => setBookingResume(sheetStash));
+  act(() => root.render(<Probe item={{ ...item, totalCents: 5 }} />));
+  assert.equal(peekBookingResume()?.title, "From sheet");
+  act(() => requestBookingResume());
+  assert.equal(continued, 1, "the dock leaves a sheet resume to the sheet");
+
+  // Removing the pick withdraws a dock-only offer.
+  clearBookingResume();
+  act(() => root.render(<Probe item={item} />));
+  assert.ok(peekBookingResume());
+  act(() => root.render(<Probe item={null} />));
+  assert.equal(peekBookingResume(), null);
+  act(() => root.unmount());
+  host.remove();
+});
