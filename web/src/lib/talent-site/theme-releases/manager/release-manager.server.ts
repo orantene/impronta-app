@@ -7,6 +7,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { flipCatalogToRelease, loadReleaseDesign } from "../release-design.server";
+import { loadThemeVersionSource } from "../theme-versions.server";
+import { authoredOverlayVersion } from "@/lib/talent-site/theme-catalog/collection/authored";
 import { publishDemoSite, reapplyDemoDesignAtVersion } from "@/lib/talent-site/server/demo-pipeline.server";
 import { THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import { isMissingTable, listReleases, setChannel, setRollout } from "../releases.server";
@@ -316,6 +318,11 @@ export async function changeChannel(
     persist: async (channel) => {
       const r = await setChannel(admin, release.id, channel);
       return r.ok ? { ok: true } : r;
+    },
+    authoredState: async () => {
+      const r = await loadThemeVersionSource(admin, release.design_slug, release.to_version);
+      if (!r.ok) return r;
+      return { ok: true, snapshot: r.snapshot, overlayVersion: authoredOverlayVersion(release.design_slug) };
     },
     autoImprove: () => autoImproveAll(admin, release),
   });

@@ -9,9 +9,10 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
-const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
+const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   // Gridline (TH16) design defaults.
   "Services": "Servicios",
   "Services and prices": "Servicios y precios",
@@ -130,6 +131,17 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
   "Ask about this": "Consultar",
 };
+
+/**
+ * Code table plus the `labelsEs` of every committed authored overlay
+ * (`theme-catalog/collection/authored`): labels a template-editor version
+ * seeded are localised like code seeds. An overlay entry wins a clash.
+ */
+const SEEDED_LABELS_ES: Readonly<Record<string, string>> = (() => {
+  const out: Record<string, string> = { ...CODE_SEEDED_LABELS_ES };
+  for (const [, o] of registeredAuthoredOverlays()) Object.assign(out, o.labelsEs);
+  return out;
+})();
 
 /**
  * Seeded labels with a `{{token}}` (e.g. "Hello, I'm {{displayName}}") are

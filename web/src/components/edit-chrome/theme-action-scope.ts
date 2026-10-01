@@ -47,6 +47,11 @@ import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/compo
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
 import { adoptDraftRev, resolveExpectedDraftRev } from "@/lib/talent-site/history/draft-rev";
 import { getPageVersionSnapshot } from "./save-cycle-bridge";
+import { createThemeTemplateActionSet } from "./theme-template-action-set";
+import {
+  loadThemeTemplateDesignAction,
+  saveThemeTemplateDesignAction,
+} from "./theme-template-design-actions";
 
 /** The five theme lifecycle moves the drawer needs, normalized across surfaces. */
 export interface ThemeActionSet {
@@ -78,6 +83,16 @@ export function resolveThemeActionSet(
   surfaceKind: BuilderSurfaceKind,
   pageSlug: string | null,
 ): ThemeActionSet | null {
+  // theme_template (platform admin editing a talent DESIGN): the design slug is
+  // the builder context's `pageSlug`. Never falls through to the tenant set.
+  if (surfaceKind === "theme_template") {
+    if (!pageSlug) return null;
+    return createThemeTemplateActionSet(pageSlug, {
+      load: loadThemeTemplateDesignAction,
+      save: saveThemeTemplateDesignAction,
+    });
+  }
+
   if (surfaceKind === "talent_page") {
     if (!pageSlug) return null;
     const slug = pageSlug;

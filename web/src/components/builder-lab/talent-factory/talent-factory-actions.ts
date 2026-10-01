@@ -20,6 +20,8 @@ export type TalentSyncJson = {
   unchanged: number;
   heldBack: string[];
   skippedAuthored: Array<{ kind: string; slug: string }>;
+  authoredPending: Array<{ slug: string; version: number }>;
+  authoredConflict: Array<{ slug: string; version: number }>;
 };
 
 async function gate() {
@@ -55,6 +57,8 @@ export async function actionSyncTalentCatalog(): Promise<FactoryResult<TalentSyn
           unchanged: res.unchanged,
           heldBack: res.heldBack ?? [],
           skippedAuthored: res.skippedAuthored,
+          authoredPending: res.authoredPending,
+          authoredConflict: res.authoredConflict,
         },
       };
     } catch (err) {

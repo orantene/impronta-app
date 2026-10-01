@@ -23,7 +23,8 @@ import { fitImages, writeReport } from "./report.mjs";
 import { createImageTool, preparePage } from "./pixel.mjs";
 import { pixelThresholdFor } from "./pixel-thresholds.mjs";
 import { SECTION_UNITS, classify, compactTable, findingsOf } from "./classify.mjs";
-import { applyBaseline, loadBaseline } from "./baseline.mjs";
+import { applyBaseline, loadBaseline, writeBaseline } from "./baseline.mjs";
+import { productUrl, readAuthCache, writeAuthCache, dropAuthCache } from "./loop-lib.mjs";
 import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, loadDesignMap } from "./section-map.mjs";
 
 loadEnvLocal();
@@ -46,6 +47,7 @@ function parseArgs(argv) {
     else if (a === "--mockup-url") { o.mockupUrl = v(); o.mockupUrlSet = true; }
     else if (a === "--include-drafts") o.drafts = true;
     else if (a === "--storage-state") o.storageState = v();
+    else if (a === "--auth-cache") o.authCache = v();
     else if (a === "--out") o.out = v();
     else if (a === "--public") o.public = true;
     else if (a === "--apex") o.apex = v();
@@ -55,10 +57,12 @@ function parseArgs(argv) {
     else if (a === "--sections") o.sections = v().split(",").map((x) => x.trim()).filter(Boolean);
     else if (a === "--compact") o.compact = true;
     else if (a === "--no-report") o.noReport = true;
+    else if (a === "--update-baseline") o.updateBaseline = true;
+    else if (a === "--ticket") o.ticket = v();
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
-  if (!["live", "code"].includes(o.source)) { console.error("--source must be live or code"); process.exit(2); }
+  if (!["live", "code", "draft"].includes(o.source)) { console.error("--source must be live, code or draft"); process.exit(2); }
   if (!["es", "en"].includes(o.locale)) { console.error("--locale must be es or en"); process.exit(2); }
   return o;
 }
@@ -79,7 +83,7 @@ if (!opts.mockupUrlSet) opts.mockupUrl = MAP.mockup.defaultUrl || opts.mockupUrl
 for (const k of Object.keys(SECTION_UNITS)) delete SECTION_UNITS[k];
 for (const sec of SECTIONS) {
   const shell = /^(header|footer|footer_rich|socket)$/.test(sec.parityKey || "") ? sec.parityKey.replace("footer_rich", "footer") : null;
-  SECTION_UNITS[sec.key] = { wType: sec.unit || sec.key, ...(shell ? { shell } : { slot: sec.parityKey || null }) };
+  SECTION_UNITS[sec.key] = { wType: sec.unit || sec.key, ...(sec.missing ? { missing: true } : {}), ...(shell ? { shell } : { slot: sec.parityKey || null }) };
 }
 for (const k of opts.sections) if (!SECTIONS.some((x) => x.key === k)) { console.error(`--sections: unknown section "${k}" (have ${SECTIONS.map((x) => x.key).join(", ")})`); process.exit(2); }
 const ACTIVE = opts.sections.length ? SECTIONS.filter((x) => opts.sections.includes(x.key)) : SECTIONS;
@@ -149,21 +153,23 @@ function identities() {
   return list;
 }
 
-const liveUrl = (id) => `${opts.baseUrl}/template-preview/live?kind=live-site&talent=${id}&locale=${opts.locale}`;
-const codeUrl = (t) => `${opts.baseUrl}/template-preview/${opts.design}?kind=talent-theme&demo=${opts.design}:${t.demoKey}&source=code&locale=${opts.locale}`;
-const probeUrl = (t) => (opts.source === "code" ? codeUrl(t) : liveUrl(t.id));
+const urlOpts = () => ({ baseUrl: opts.baseUrl, design: opts.design, locale: opts.locale, source: opts.source });
+const probeUrl = (t) => productUrl(urlOpts(), t);
 const siteUrl = (t) => (t.viaPublic ? `http://${t.slug}.${opts.apex}:${new URL(opts.baseUrl).port || 80}/` : probeUrl(t));
 /** A code-source page that did not hydrate the demo silently shows another persona; refuse that. */
 const hydratedFor = async (r, t) => {
-  if (opts.source !== "code") return true;
+  if (opts.source === "live") return true;
   const first = (t.name || "").split(/\s+/)[0];
   return !!first && (await r.text().catch(() => "")).includes(first);
 };
 const analyses = []; // raw per-width product analyses (analysis.json)
+const fresh = new Set(); // identities already re-logged this run
 const stateCache = new Map(); // identity name -> storageState | null
 
 async function stateFor(browser, ident) {
   if (stateCache.has(ident.name)) return stateCache.get(ident.name);
+  const cached = opts.authCache ? readAuthCache(opts.authCache, opts.baseUrl, ident.name) : null;
+  if (cached) { stateCache.set(ident.name, cached); return cached; }
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 800 } });
   const page = await ctx.newPage();
   let st = null;
@@ -179,6 +185,7 @@ async function stateFor(browser, ident) {
   }
   await ctx.close();
   stateCache.set(ident.name, st);
+  if (st && opts.authCache) writeAuthCache(opts.authCache, opts.baseUrl, ident.name, st);
   return st;
 }
 
@@ -200,6 +207,20 @@ async function pickSession(browser, talent) {
     const okSess = r && r.status() === 200 && (await hydratedFor(r, talent));
     await ctx.close();
     if (okSess) return { name: ident.name, state: st };
+    if (opts.authCache && !fresh.has(ident.name)) {
+      // A cached session may have expired: forget it and log in once more.
+      fresh.add(ident.name);
+      stateCache.delete(ident.name);
+      dropAuthCache(opts.authCache, opts.baseUrl, ident.name);
+      const st2 = await stateFor(browser, ident);
+      if (st2) {
+        const ctx2 = await browser.newContext({ storageState: st2 });
+        const r2 = await ctx2.request.get(probeUrl(talent), { maxRedirects: 0 }).catch(() => null);
+        const ok2 = r2 && r2.status() === 200 && (await hydratedFor(r2, talent));
+        await ctx2.close();
+        if (ok2) return { name: ident.name, state: st2 };
+      }
+    }
   }
   return null;
 }
@@ -388,7 +409,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
         // Pixel diff on the reference demo only: its content is exact, so every mismatch is the design's.
         if (isAlba && mpng) {
           const d = await tool.diff(png, mpng);
-          const threshold = pixelThresholdFor(sec.key, sec.pixelThreshold);
+          const threshold = pixelThresholdFor(sec.key, sec);
           r.pixel = { ratio: d.ratio, threshold, ok: d.ratio <= threshold, heightDelta: d.heightDelta, heightDeltaRatio: d.heightB ? d.heightDelta / d.heightB : 0 };
           r.diff = await tool.jpeg(d.diffPng);
           r.keep = { diff: d.diffPng, product: png, mockup: mpng };
@@ -542,7 +563,7 @@ async function main() {
   const { talents, skippedDrafts } = await resolveTalents();
   if (!talents.length) { console.error("No talents to check."); process.exit(2); }
   for (const t of talents) t.demoKey = t.code === REF_CODE ? MAP.referenceDemo.demoKey || null : null; // gallery-meta demo key, for --source code
-  if (opts.source === "code") {
+  if (opts.source !== "live") {
     const missing = talents.filter((t) => !t.demoKey);
     if (missing.length) { console.error(`--source code needs a gallery demo key for ${missing.map((t) => t.code).join(", ")} in ${opts.design} (DEMO_KEYS in run.mjs).`); process.exit(2); }
   }
@@ -556,7 +577,7 @@ async function main() {
   const noSession = [];
   for (const t of talents) {
     let sess = opts.public ? null : await pickSession(browser, t);
-    if (!sess && t.status === "published" && t.slug && opts.source !== "code") {
+    if (!sess && t.status === "published" && t.slug && opts.source === "live") {
       // No preview session: render the same published site through its public host, mapped to this machine.
       t.viaPublic = true;
       sess = { name: "public host", state: undefined };
@@ -566,8 +587,8 @@ async function main() {
       for (const w of opts.widths) {
         const r = row(t, w, "page", "Page render");
         r.status = "BLOCKED";
-        r.reasons.push(opts.source === "code"
-          ? "no signed-in platform admin can render this demo from code. Set QA_PLATFORM_ADMIN_PASSWORD, and run against a server that has the ?source=code route."
+        r.reasons.push(opts.source !== "live"
+          ? "no signed-in platform admin can render this demo from code or draft. Set QA_PLATFORM_ADMIN_PASSWORD, and run against a server that has the ?source=code route."
           : "no signed-in session can view this site (404). Set QA_PLATFORM_ADMIN_PASSWORD for demos, or the owner's QA_*_EMAIL/QA_*_PASSWORD, or pass --storage-state.");
         rows.push(r);
       }
@@ -589,7 +610,12 @@ async function main() {
   const deltas = classify(rows, { design: opts.design });
   const stale = applyBaseline(deltas, baseline);
   for (const r of rows) r.known = r.status === "FAIL" && r.findings.length > 0 && r.findings.every((f) => f.delta?.accepted);
-  const open = deltas.filter((d) => !d.accepted);
+  if (opts.updateBaseline) {
+    if (!opts.ticket) { console.error("--update-baseline needs --ticket <id> (every accepted delta needs a ticket)"); process.exit(2); }
+    const res = writeBaseline(opts.design, deltas, baseline, opts.ticket, { scoped: opts.sections.length > 0 });
+    console.log(`baseline updated: ${res.file} (+${res.added} added, -${res.removed} stale removed, ${res.total} total)`);
+  }
+  const open = opts.updateBaseline ? [] : deltas.filter((d) => !d.accepted);
   const captureBad = Object.values(mockups).some((m) => m.containerOk !== true);
   const summary = {
     timestamp: ts,

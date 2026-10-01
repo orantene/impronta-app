@@ -90,3 +90,30 @@ makes it pass.
 
 A `kit` or `platform` change touches every design. Before you hand off, run the full pass for every demo
 that wears an affected design (`--all-maison-v2`) and say so in the report. Do not widen a change past its ticket.
+
+## Fast loop by source
+
+`npm run qa:parity-loop -- --design folio --demo mateo --section <key> --width 390|360|1440 [--base-url http://localhost:3005] [--source draft|code|live]`
+
+It checks one section, one width, the static state only, prints each delta (section, check, layer, expected
+versus actual) and exits 0 when the slice is green, 1 when a delta is open, 2 on a usage error.
+
+| `--source` | Product page | Use when |
+|---|---|---|
+| `draft` | the OPEN `talent_theme_drafts` payload for the design, hydrated with the demo | you are editing in the talent design editor (nothing released) |
+| `code` (default) | the in-code payload | you are editing the design source files |
+| `live` | the published page, `/template-preview/live?kind=live-site&talent=<id>` | you want to compare what shipped |
+
+`draft` and `code` render through `/template-preview/<design>?kind=talent-theme&demo=<design>:<demoKey>&source=...`.
+`draft` is gated to platform admins (no dev-mode bypass), `code` to platform admins or local development. Both skip the demo's
+saved page and tokens, and neither writes anything. With no open draft the draft route is a 404, which the loop reports as blocked.
+
+Sign-in is cached in `web/qa-evidence/.parity-auth.json` (gitignored, mode 600). An expired session is dropped and
+the loop logs in once more. Credentials come from `web/.env.local` and are never printed.
+
+### Edit, check, repeat
+
+1. Edit in the talent design editor (use `--source draft`) or in the design source (use `--source code`).
+2. Run the loop on the section. Read the deltas and fix the lowest layer first.
+3. Repeat until it exits 0. Check the other two widths.
+4. Run the full `npm run qa:mockup-parity` pass and attach the report path to the hand-off.

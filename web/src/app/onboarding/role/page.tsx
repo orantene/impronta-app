@@ -21,6 +21,7 @@ import {
   ONBOARDING_BOUNCE_COOKIE,
   ONBOARDING_HOLD_RETRY_S,
   onboardingHoldCopy,
+  onboardingBounceNow,
   shouldHoldOnboardingBounce,
 } from "@/lib/auth/onboarding-bounce";
 
@@ -100,7 +101,7 @@ export default async function OnboardingRolePage({
     // back can ping-pong while the middleware's view catches up, so hold on a
     // "setting up your page" state that retries.
     const bounceCookie = (await cookies()).get(ONBOARDING_BOUNCE_COOKIE)?.value;
-    if (shouldHoldOnboardingBounce({ bounceCookie, destination, now: Date.now() })) {
+    if (shouldHoldOnboardingBounce({ bounceCookie, destination, now: onboardingBounceNow() })) {
       const copy = onboardingHoldCopy(await getRequestLocale());
       return (
         <div className="mx-auto flex min-h-[70vh] max-w-[440px] flex-col justify-center px-5 py-16 text-center">

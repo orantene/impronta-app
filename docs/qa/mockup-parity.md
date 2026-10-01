@@ -76,3 +76,11 @@ there means the rule is wrong, not the product. Exit code is 1 on any FAIL or BL
 
 Alba (TAL-93020) is the exact-content reference. For the other talents only structure and
 layout are meaningful.
+
+## Pixel diff, deltas, baseline
+
+- Pixel diff runs per section on the design's REFERENCE demo only (other demos report structure). Both crops are taken at the same width after `document.fonts.ready`, with animations and transitions frozen by injected CSS and images decoded. Limit per section: `pixel: { maxMismatch }` in `web/design-references/<slug>/parity-map.json` (0..1). Code: `scripts/qa/mockup-parity/pixel.mjs`.
+- Every failing check becomes a delta `{section, check, layer, evidence, suggestedFile}` (`classify.mjs`), written to `deltas.json` and grouped by layer in `report.html`. Layers: token (computed style on a token-bound property), payload (kit variant exists, prop/order/copy differs), kit (same structural delta on every demo, or shell landmark missing), platform (overflow, overlap, clipping, i18n, anchors), new_capability (mockup data-w unit has no slot in TALENT_KIT_SECTIONS, or the map section has `"missing": true`; reported as `new-capability` in the JSON). Pixel-only failures inherit the layer of other deltas on the section, else kit when height differs over 5 percent, else token.
+- `design-references/<slug>/parity-baseline.json` lists accepted deltas, each with a ticket id. Exit 0 when every failure is baselined. `--update-baseline --ticket TF-123` rewrites it: keeps entries that still fail, adds new deltas under the ticket, drops stale ones (kept on a `--sections` run).
+- `report.html` is self-contained: images are downscaled JPEGs, total kept under 16 MB.
+- Tests: `node --test scripts/qa/mockup-parity/parity.test.mjs`.

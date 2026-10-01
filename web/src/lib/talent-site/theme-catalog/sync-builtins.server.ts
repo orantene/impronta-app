@@ -15,6 +15,8 @@ import { createDraftRelease, shouldCreateDraftRelease } from "../theme-releases/
 import { generateReleaseItems } from "../theme-releases/release-notes";
 import type { ReleaseItem, ReleaseNotes } from "../theme-releases/types";
 import { writeThemeVersionSnapshots } from "../theme-releases/theme-versions.server";
+import { decideAuthoredSync, type SnapshotMeta } from "./authored-sync-rule";
+import { authoredOverlayVersion } from "./collection/authored";
 
 /**
  * Talent theme gallery: BUILT-IN SYNC. Code (`./builtins`) → published
@@ -102,8 +104,16 @@ export interface BuiltinUpsertRow {
 }
 
 /** Stored history of one Design: insert-only snapshots + released to-versions. */
+export interface DesignSnapshot {
+  version: number;
+  payload: unknown;
+  /** 'sync' | 'authored' | ... ; absent on old reads. */
+  source?: string | null;
+  meta?: SnapshotMeta | null;
+}
+
 export interface DesignHistory {
-  snapshots: ReadonlyArray<{ version: number; payload: unknown }>;
+  snapshots: ReadonlyArray<DesignSnapshot>;
   releaseToVersions: ReadonlyArray<number>;
 }
 
@@ -128,10 +138,16 @@ export function highestKnownVersion(catalogVersion: number, history: DesignHisto
 export function latestDesignState(
   prior: { version: number; payload: unknown },
   history: DesignHistory | undefined,
-): { version: number; payload: unknown } {
-  let best = { version: prior.version, payload: prior.payload };
+): DesignSnapshot {
+  let best: DesignSnapshot = { version: prior.version, payload: prior.payload, source: null, meta: null };
   for (const s of history?.snapshots ?? []) if (s.version > best.version) best = s;
   return best;
+}
+
+export interface AuthoredPendingDesign {
+  slug: string;
+  /** The authored snapshot version the code has not reflected yet. */
+  version: number;
 }
 
 export interface BuiltinSyncPlan {
@@ -140,6 +156,10 @@ export interface BuiltinSyncPlan {
   designChanges: DesignChange[];
   /** (kind, slug) pairs a built-in wanted to write but an authored row already owns. */
   skippedAuthored: Array<{ kind: TalentThemeKind; slug: string }>;
+  /** Designs whose latest snapshot is editor-authored and not yet in code: skipped. */
+  authoredPending: AuthoredPendingDesign[];
+  /** Subset of authoredPending where the code also moved since the editor's base. */
+  authoredConflict: AuthoredPendingDesign[];
   created: number;
   updated: number;
   unchanged: number;
@@ -158,11 +178,14 @@ export function planBuiltinSync(
   existing: readonly ExistingBuiltinRow[],
   userId: string | null = null,
   history: ReadonlyMap<string, DesignHistory> = new Map(),
+  overlayVersionOf: (slug: string) => number = authoredOverlayVersion,
 ): BuiltinSyncPlan {
   const bySlug = new Map(existing.map((row) => [`${row.kind}:${row.slug}`, row]));
   const upserts: BuiltinUpsertRow[] = [];
   const skippedAuthored: BuiltinSyncPlan["skippedAuthored"] = [];
   const designChanges: DesignChange[] = [];
+  const authoredPending: AuthoredPendingDesign[] = [];
+  const authoredConflict: AuthoredPendingDesign[] = [];
   let created = 0;
   let updated = 0;
   let unchanged = 0;
@@ -182,7 +205,20 @@ export function planBuiltinSync(
       // newest snapshot, not the row. Same payload as that = nothing to do.
       const h = history.get(entry.slug);
       const latest = latestDesignState(prior, h);
-      if (hashBuiltinPayload(latest.payload) === newHash) {
+      const decision = decideAuthoredSync({
+        codeHash: newHash,
+        latestHash: hashBuiltinPayload(latest.payload),
+        latest,
+        overlayVersion: overlayVersionOf(entry.slug),
+      });
+      if (decision.kind === "authored_pending") {
+        // Editor work the code does not include yet: never revert it.
+        const pending = { slug: entry.slug, version: decision.latestVersion };
+        authoredPending.push(pending);
+        if (decision.conflict) authoredConflict.push(pending);
+        continue;
+      }
+      if (decision.kind === "unchanged") {
         unchanged += 1;
         if (latest.version > prior.version) continue; // held state: no write
         version = prior.version;
@@ -231,7 +267,7 @@ export function planBuiltinSync(
     });
   }
 
-  return { upserts, designChanges, skippedAuthored, created, updated, unchanged };
+  return { upserts, designChanges, skippedAuthored, authoredPending, authoredConflict, created, updated, unchanged };
 }
 
 export interface ReleaseDraftCandidate {
@@ -305,26 +341,47 @@ export function splitGatedUpserts<T extends { kind: TalentThemeKind; slug: strin
 }
 
 const MISSING_TABLE_CODES = new Set(["42P01", "PGRST205"]);
+/** Undefined column (the `meta` migration may not be applied yet). */
+const MISSING_COLUMN_CODES = new Set(["42703", "PGRST204"]);
+
+type SnapshotRow = { design: string; version: number; payload: unknown; source?: string | null; meta?: unknown };
+
+/** Snapshots with `source` + `meta`; retries without `meta` when that column is absent. */
+async function selectSnapshotsWithMeta(
+  admin: SupabaseClient,
+  slugs: string[],
+): Promise<{ rows: SnapshotRow[]; error: { code?: string; message: string } | null }> {
+  const full = await admin.from("talent_theme_versions").select("design, version, payload, source, meta").in("design", slugs);
+  if (!full.error) return { rows: (full.data ?? []) as SnapshotRow[], error: null };
+  if (!(full.error.code && MISSING_COLUMN_CODES.has(full.error.code))) return { rows: [], error: full.error };
+  const lean = await admin.from("talent_theme_versions").select("design, version, payload, source").in("design", slugs);
+  return { rows: (lean.data ?? []) as SnapshotRow[], error: lean.error };
+}
 
 /** Read-only: snapshots + released to-versions per design. Missing tables read as empty. */
 async function loadDesignHistories(
   admin: SupabaseClient,
   slugs: string[],
 ): Promise<Map<string, DesignHistory>> {
-  const out = new Map<string, { snapshots: Array<{ version: number; payload: unknown }>; releaseToVersions: number[] }>();
+  const out = new Map<string, { snapshots: DesignSnapshot[]; releaseToVersions: number[] }>();
   const slot = (slug: string) => {
     let h = out.get(slug);
     if (!h) out.set(slug, (h = { snapshots: [], releaseToVersions: [] }));
     return h;
   };
-  const snaps = await admin.from("talent_theme_versions").select("design, version, payload").in("design", slugs);
+  const snaps = await selectSnapshotsWithMeta(admin, slugs);
   if (snaps.error) {
     if (!(snaps.error.code && MISSING_TABLE_CODES.has(snaps.error.code))) {
       logServerError("talentTheme.syncBuiltins.history", snaps.error);
     }
   } else {
-    for (const r of (snaps.data ?? []) as Array<{ design: string; version: number; payload: unknown }>) {
-      slot(r.design).snapshots.push({ version: r.version, payload: r.payload });
+    for (const r of snaps.rows) {
+      slot(r.design).snapshots.push({
+        version: r.version,
+        payload: r.payload,
+        source: r.source ?? null,
+        meta: r.meta && typeof r.meta === "object" ? (r.meta as SnapshotMeta) : null,
+      });
     }
   }
   const rels = await admin.from("talent_theme_releases").select("design_slug, to_version").in("design_slug", slugs);
@@ -347,6 +404,9 @@ export type SyncBuiltinTalentThemesResult =
       updated: number;
       unchanged: number;
       skippedAuthored: Array<{ kind: TalentThemeKind; slug: string }>;
+      /** Designs skipped because editor-authored work is not in code yet. */
+      authoredPending: AuthoredPendingDesign[];
+      authoredConflict: AuthoredPendingDesign[];
       /** `slug@version` design bumps written as snapshot + draft release only. */
       heldBack?: string[];
     }
@@ -405,6 +465,12 @@ export async function syncBuiltinTalentThemes(
       skipped: plan.skippedAuthored,
     });
   }
+  if (plan.authoredPending.length > 0) {
+    logServerError("talentTheme.syncBuiltins.authoredPending", {
+      pending: plan.authoredPending,
+      conflict: plan.authoredConflict,
+    });
+  }
   if (plan.upserts.length === 0) {
     return {
       ok: true,
@@ -412,6 +478,8 @@ export async function syncBuiltinTalentThemes(
       updated: plan.updated,
       unchanged: plan.unchanged,
       skippedAuthored: plan.skippedAuthored,
+      authoredPending: plan.authoredPending,
+      authoredConflict: plan.authoredConflict,
     };
   }
 
@@ -503,6 +571,8 @@ export async function syncBuiltinTalentThemes(
     updated: plan.updated,
     unchanged: plan.unchanged,
     skippedAuthored: plan.skippedAuthored,
+    authoredPending: plan.authoredPending,
+    authoredConflict: plan.authoredConflict,
     ...(held.length > 0 ? { heldBack: held.map((u) => `${u.slug}@${u.version}`) } : {}),
   };
 }

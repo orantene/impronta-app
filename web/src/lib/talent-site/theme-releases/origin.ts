@@ -29,12 +29,14 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
+  DESIGN_KEY_PROP,
   DESIGN_ORIGIN_PROP,
+  normalizeDesignKey,
   normalizeDesignOrigin,
   type DesignOrigin,
 } from "@/lib/site-admin/builder-node/design-origin";
 
-export { DESIGN_ORIGIN_PROP, type DesignOrigin };
+export { DESIGN_KEY_PROP, DESIGN_ORIGIN_PROP, type DesignOrigin };
 
 export type Props = Record<string, unknown>;
 
@@ -42,7 +44,7 @@ export type Props = Record<string, unknown>;
 export const UNKNOWN_FP = "?";
 
 const TOKEN_RE = /\{\{\s*[\w.]+\s*\}\}/;
-const NEVER_DESIGN = new Set<string>([DESIGN_ORIGIN_PROP, "i18n"]);
+const NEVER_DESIGN = new Set<string>([DESIGN_ORIGIN_PROP, DESIGN_KEY_PROP, "i18n"]);
 
 export function propsOf(node: BuilderNode): Props {
   const p = node.props as unknown;
@@ -179,16 +181,42 @@ export function nodeSegment(node: BuilderNode): string {
   return node.kind;
 }
 
-/** Keys for a sibling list: `segment`, then `segment#2`, `segment#3`. */
-export function siblingKeys(nodes: ReadonlyArray<BuilderNode>, parentKey: string | null): string[] {
+/** The node's pinned local key (`props.designKey`), when valid. */
+export function pinnedDesignKey(node: BuilderNode): string | undefined {
+  return normalizeDesignKey(propsOf(node)[DESIGN_KEY_PROP]);
+}
+
+/**
+ * Local keys for a sibling list. A node pinned with `props.designKey` uses it
+ * verbatim. Un-pinned nodes get `segment`, then `segment#2`, `segment#3`, the
+ * ordinal skipping any key already pinned in the list (so a list with no pins
+ * keys exactly as before pins existed).
+ */
+export function siblingLocalKeys(nodes: ReadonlyArray<BuilderNode>): string[] {
+  const pinned = new Set<string>();
+  for (const n of nodes) {
+    const k = pinnedDesignKey(n);
+    if (k) pinned.add(k);
+  }
   const seen = new Map<string, number>();
   return nodes.map((n) => {
+    const pin = pinnedDesignKey(n);
+    if (pin) return pin;
     const seg = nodeSegment(n);
-    const count = (seen.get(seg) ?? 0) + 1;
+    let count = seen.get(seg) ?? 0;
+    let local: string;
+    do {
+      count += 1;
+      local = count === 1 ? seg : `${seg}#${count}`;
+    } while (pinned.has(local));
     seen.set(seg, count);
-    const local = count === 1 ? seg : `${seg}#${count}`;
-    return parentKey ? `${parentKey}/${local}` : local;
+    return local;
   });
+}
+
+/** Keys for a sibling list, qualified by the parent key. */
+export function siblingKeys(nodes: ReadonlyArray<BuilderNode>, parentKey: string | null): string[] {
+  return siblingLocalKeys(nodes).map((local) => (parentKey ? `${parentKey}/${local}` : local));
 }
 
 export interface StampSource {
