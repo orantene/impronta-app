@@ -16,7 +16,7 @@ export const FACTORY_COPY = {
     syncing: "Syncing...",
     syncLead: "Writes draft releases for changed designs. Never flips the live catalog.",
     syncResult: "Sync result",
-    status: { up_to_date: "Up to date", code_ahead: "Code is ahead (sync needed)", not_synced: "Not synced yet", authored_pending: "Editor version not in code yet (sync skips it)" } satisfies Record<FactoryStatus, string>,
+    status: { up_to_date: "Up to date", code_ahead: "Code is ahead (sync needed)", not_synced: "Not synced yet", authored_pending: "Editor version not in code yet (sync skips it)", authored_hidden: "Authored, hidden" } satisfies Record<FactoryStatus, string>,
     catalogVersion: "Catalog",
     codeVersion: "Code",
     demos: "Demos",
@@ -31,6 +31,7 @@ export const FACTORY_COPY = {
     present: "present",
     missing: "missing",
     openBuilder: "Edit design in builder",
+    editDesign: "Edit design",
     builderNote: (code: string | null) =>
       `Opens the Talent design editor on this design draft${code ? `, previewing ${code}` : ""}. Edits stay in the draft until a new version is published; they never touch a talent site.`,
     noReference: "no reference demo",
@@ -69,7 +70,7 @@ export const FACTORY_COPY = {
     syncing: "Sincronizando...",
     syncLead: "Escribe lanzamientos en borrador para los diseños que cambiaron. Nunca cambia el catálogo en vivo.",
     syncResult: "Resultado de la sincronización",
-    status: { up_to_date: "Al día", code_ahead: "El código va adelante (falta sincronizar)", not_synced: "Aún sin sincronizar", authored_pending: "Versión del editor aún no está en el código (la sincronización la omite)" } satisfies Record<FactoryStatus, string>,
+    status: { up_to_date: "Al día", code_ahead: "El código va adelante (falta sincronizar)", not_synced: "Aún sin sincronizar", authored_pending: "Versión del editor aún no está en el código (la sincronización la omite)", authored_hidden: "Creado aquí, oculto" } satisfies Record<FactoryStatus, string>,
     catalogVersion: "Catálogo",
     codeVersion: "Código",
     demos: "Demos",
@@ -84,6 +85,7 @@ export const FACTORY_COPY = {
     present: "presente",
     missing: "falta",
     openBuilder: "Editar diseño en el editor",
+    editDesign: "Editar diseño",
     builderNote: (code: string | null) =>
       `Abre el editor de diseños de talento sobre el borrador de este diseño${code ? `, con vista previa de ${code}` : ""}. Los cambios quedan en el borrador hasta publicar una nueva versión; nunca tocan el sitio de un talento.`,
     noReference: "sin demo de referencia",

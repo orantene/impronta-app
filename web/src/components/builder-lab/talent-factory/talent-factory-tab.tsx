@@ -178,7 +178,15 @@ function DesignCard({
         </li>
       </ul>
 
-      {onOpenBuilder ? (
+      {row.authored && row.editHref ? (
+        <div className="mt-3" data-edit-authored>
+          <Link href={row.editHref} className={link}>
+            {t.editDesign}
+          </Link>
+        </div>
+      ) : null}
+
+      {onOpenBuilder && !row.authored ? (
         <div className="mt-3" data-open-builder>
           <button type="button" className={btn} onClick={() => onOpenBuilder(row.referenceDemoCode, row.slug)}>
             {t.openBuilder}
