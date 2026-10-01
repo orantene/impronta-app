@@ -54,6 +54,14 @@ function OfferingSelect({
   );
 }
 
+/** Stable, render-pure id: the first `tN` not already used by a task. */
+function nextTaskId(tasks: readonly TaskPickerTask[]): string {
+  const used = new Set(tasks.map((t) => t.id));
+  let n = tasks.length + 1;
+  while (used.has(`t${n}`)) n += 1;
+  return `t${n}`;
+}
+
 export function TaskPickerContentInspector({
   node,
   commitPatch,
@@ -68,7 +76,7 @@ export function TaskPickerContentInspector({
   const setTask = (i: number, patch: Partial<TaskPickerTask>) =>
     patchTasks(tasks.map((t, j) => (j === i ? { ...t, ...patch } : t)));
   const addTask = () =>
-    patchTasks([...tasks, { id: `t${Date.now().toString(36)}`, label: "", labelEs: "", offeringId: "", hint: "", hintEs: "" }]);
+    patchTasks([...tasks, { id: nextTaskId(tasks), label: "", labelEs: "", offeringId: "", hint: "", hintEs: "" }]);
 
   const text = (label: string, value: string | undefined, key: string, placeholder?: string) => (
     <div className={KIT.field}>

@@ -38,6 +38,7 @@ export function BookableComposer({
   tenantSlug,
   tenantId,
   agencyName,
+  soloTalentName = null,
   offering,
   bookingMode = "request",
   showInlinePicker = true,
@@ -47,6 +48,7 @@ export function BookableComposer({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
+  soloTalentName?: string | null;
   offering: BookableOffering;
   bookingMode?: TalentBookingMode;
   showInlinePicker?: boolean;
@@ -266,6 +268,7 @@ export function BookableComposer({
           source="offering_request"
           tenantSlug={tenantSlug}
           agencyName={agencyName}
+          soloTalentName={soloTalentName}
           client={null}
           enableDraftAutosave={false}
           bookableOffering={active}

@@ -36,21 +36,9 @@ export type DemoPhotoPlan = {
   alt?: Record<string, string>;
 };
 
-/** Page copy a demo sets in the builder after the design is applied. */
-export type DemoSiteCopy = {
-  heroHeading?: string;
-  heroEyebrow?: string;
-  heroLede?: string;
-  /** Proof line under the hero CTAs; `{b}...{/b}` for the bold lead. */
-  heroProof?: string;
-  ticker?: string[];
-  heroInset?: string;
-  aboutPhoto?: string;
-  menuSubtitle?: string;
-  visitExtraFacts?: { label: string; value: string; note?: string }[];
-  footerLine?: string;
-  brandTagline?: string;
-};
+/** Page copy a demo sets in the builder after the design is applied (defined next to the function that applies it). */
+import type { DemoSiteCopy } from "../../src/lib/talent-site/demos/site-copy";
+export type { DemoSiteCopy };
 
 export type DemoTalent = {
   /** TAL-93xxx is reserved for this batch (TAL-91xxx / 92xxx are older demos). */

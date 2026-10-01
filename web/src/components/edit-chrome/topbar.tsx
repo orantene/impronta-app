@@ -138,6 +138,7 @@ function PagePicker({
   pagesPickerOpenNonce?: number;
 }) {
   const editCtx = useMaybeEditContext();
+  const { t } = useEditorLocale();
   const websiteSlug = editCtx?.workspaceMembershipSlug ?? "";
   // Same host trap the quick bar hit: on a `/w/<slug>` storefront (the free
   // tier's default, served on the marketing host) a same-origin
@@ -380,7 +381,7 @@ function PagePicker({
           type="button"
           ref={triggerRef}
           id={pagePickerTriggerId}
-          title="Click to switch page · double-click to rename"
+          title={t("Click to switch page · double-click to rename")}
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={pagePickerMenuId}
@@ -979,11 +980,11 @@ function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
   return key === "desktop" && (device === "wide" || device === "compact");
 }
 
-function viewportPreviewTitle(device: EditDevice, label: string): string {
+function viewportPreviewTitle(device: EditDevice, label: string, t: (key: string) => string): string {
   if (device === "desktop") {
-    return `${label}: full-width editing canvas`;
+    return `${label}: ${t("full-width editing canvas")}`;
   }
-  return `${label}: device-width iframe preview, reloads when the draft saves so breakpoints stay accurate`;
+  return `${label}: ${t("device-width iframe preview, reloads when the draft saves so breakpoints stay accurate")}`;
 }
 
 /**
@@ -1247,6 +1248,7 @@ function ViewportSwitcher({
 }) {
   const mobileEditAvailable = typeof setMobileEditMode === "function";
   const breakpoints = useBuilderBreakpoints();
+  const { t } = useEditorLocale();
   const { advanced } = useAdvancedMode();
   // Piece B slice 1 — gate the switcher on the capability (not surfaceKind).
   const { canUseResponsiveBreakpoints } = useEditContext();
@@ -1281,12 +1283,12 @@ function ViewportSwitcher({
     <div className="inline-flex shrink-0 items-center gap-2">
       <div
         role="group"
-        aria-label="Canvas preview width"
+        aria-label={t("Canvas preview width")}
         className="inline-flex shrink-0 items-center gap-[8px]"
       >
         {visibleOpts.map((opt) => {
           const active = viewportTierActive(device, opt.key);
-          const label = breakpointLabelForDevice(opt.key, breakpoints);
+          const label = t(breakpointLabelForDevice(opt.key, breakpoints));
           const inMobileEditMode =
             opt.key === "mobile" && active && Boolean(mobileEditMode);
           return (
@@ -1296,12 +1298,12 @@ function ViewportSwitcher({
               onClick={() => selectTier(opt.key)}
               title={
                 opt.key === "mobile" && mobileEditAvailable
-                  ? "Mobile editing: edit the mobile layout, scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
-                  : viewportPreviewTitle(opt.key, label)
+                  ? t("Mobile editing: edit the mobile layout, scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks")
+                  : viewportPreviewTitle(opt.key, label, t)
               }
               aria-label={
                 opt.key === "mobile" && mobileEditAvailable
-                  ? "Mobile editing mode"
+                  ? t("Mobile editing mode")
                   : label
               }
               aria-pressed={active}
@@ -1551,6 +1553,7 @@ function ViewportFrameTools({
  * preview cookies for that one request (lib/site-admin/edit-mode/live-view).
  */
 function OpenLivePageButton() {
+  const { t } = useEditorLocale();
   // A real link, not window.open: anchors are never popup-blocked, and the
   // operator gets middle-click / cmd-click / copy-link for free. The href is
   // built from the live location after mount (the server has no window).
@@ -1563,8 +1566,8 @@ function OpenLivePageButton() {
       href={href ?? "#"}
       target="_blank"
       rel="noopener"
-      title="Open live page in a new tab"
-      aria-label="Open live page"
+      title={t("Open live page in a new tab")}
+      aria-label={t("Open live page")}
       aria-disabled={href ? undefined : true}
       className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-transparent no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45"
       style={{ width: 40, height: 40, color: CHROME.muted }}
@@ -3259,10 +3262,12 @@ export function TopBar({
       {/* Perf spine — no `disabled={saving}` here: the button and its menu only
           OPEN surfaces or ride the coalesced save queue (named checkpoint has its
           own pending state). Greying the CTA during autosaves was pure friction. */}
-      <PublishSplitButton
-        onPublish={gatedPublish}
-        onMenuSelect={handleMenuSelect}
-      />
+      {editCtx?.surfaceKind === "theme_template" ? null : (
+        <PublishSplitButton
+          onPublish={gatedPublish}
+          onMenuSelect={handleMenuSelect}
+        />
+      )}
       </div>
 
       {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Portaled to

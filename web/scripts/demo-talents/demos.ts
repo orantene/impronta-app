@@ -9,6 +9,7 @@
  */
 
 import { ALBA } from "./alba";
+import { ALEX } from "./alex";
 import type { DemoTalent } from "./demo-types";
 
 export type {
@@ -22,6 +23,7 @@ export { DEMO_BATCH } from "../../src/lib/talent-site/theme-catalog/demo-account
 
 export const DEMOS: DemoTalent[] = [
   ALBA,
+  ALEX,
   {
     profileCode: "TAL-93001",
     email: "demo-valeria-baile@impronta.test",

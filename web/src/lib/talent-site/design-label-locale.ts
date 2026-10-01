@@ -9,9 +9,29 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
-const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
+const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
+  // Gridline (TH16) design defaults.
+  "Services": "Servicios",
+  "Services and prices": "Servicios y precios",
+  "Book a visit": "Agendar visita",
+  "What do you need?": "¿Qué necesitas?",
+  "Response": "Respuesta",
+  "Warranty": "Garantía",
+  "Price": "Precio",
+  "Payment": "Pago",
+  "Review": "Revisión",
+  "How it works": "Cómo funciona",
+  "Where I work": "Dónde trabajo",
+  "Emergency": "Emergencia",
+  "Emergencies today": "Emergencias hoy",
+  "No emergencies today": "Sin emergencias hoy",
+  "Call": "Llamar",
+  "Same-day emergency": "Emergencia el mismo día",
+  "Meanwhile:": "Mientras tanto:",
+  "Request now": "Pedir ahora",
   About: "Sobre mí",
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
@@ -83,6 +103,7 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "See the book": "Ver el libro",
   "Editorial, runway and campaigns.": "Editorial, runway y campañas.",
   "Selected work": "Trabajos elegidos",
+  "More work": "Más trabajos",
   "From the studio": "Desde el estudio",
   Details: "Detalles",
   "Up close": "De cerca",
@@ -110,6 +131,17 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
   "Ask about this": "Consultar",
 };
+
+/**
+ * Code table plus the `labelsEs` of every committed authored overlay
+ * (`theme-catalog/collection/authored`): labels a template-editor version
+ * seeded are localised like code seeds. An overlay entry wins a clash.
+ */
+const SEEDED_LABELS_ES: Readonly<Record<string, string>> = (() => {
+  const out: Record<string, string> = { ...CODE_SEEDED_LABELS_ES };
+  for (const [, o] of registeredAuthoredOverlays()) Object.assign(out, o.labelsEs);
+  return out;
+})();
 
 /**
  * Seeded labels with a `{{token}}` (e.g. "Hello, I'm {{displayName}}") are

@@ -60,3 +60,42 @@ export const FOLIO_RELEASE_PARITY = {
     },
   } satisfies Record<string, ReleaseNote>,
 } as const;
+
+export const FOLIO_NEUTRAL_NOTE = {
+  en: "Folio no longer starts with sample wording. The chapter titles, credits, cover line, rates note and closing lines are now neutral, and the demo copy is gone from the design. Your own text is never replaced.",
+  es: "Folio ya no empieza con texto de ejemplo. Los títulos de capítulo, los créditos, la línea de portada, la nota de tarifas y las frases finales ahora son neutros, y el texto de demostración salió del diseño. Tu propio texto nunca se reemplaza.",
+} satisfies ReleaseNote;
+
+/**
+ * Version 17 = 16 + 1 (the sync computes max(catalog, snapshots, releases) + 1). The payload
+ * stops carrying demo wording (credits, exits, runway, city, currency, show names); the Folio
+ * demos get it back through the site-copy mechanism (`demos/folio-site-copy.ts`).
+ */
+export const FOLIO_RELEASE_NEUTRAL = {
+  design: "folio",
+  toVersion: 17,
+  notes: FOLIO_NEUTRAL_NOTE,
+  codeNotes: [] as ReleaseNote[],
+  byItemId: {
+    "variant-default:shell:header": {
+      en: "The header links use the neutral chapter titles.",
+      es: "Los enlaces del encabezado usan los títulos de capítulo neutros.",
+    },
+    "variant-default:home:hero/masthead": {
+      en: "The cover no longer starts with a sample line and the contents list uses neutral titles.",
+      es: "La portada ya no empieza con una línea de ejemplo y el índice usa títulos neutros.",
+    },
+    "variant-default:home:contents/contents": {
+      en: "The contents list uses neutral chapter titles and no sample credits.",
+      es: "El índice usa títulos de capítulo neutros y sin créditos de ejemplo.",
+    },
+    "variant-default:home:gallery/portfolio": {
+      en: "The first chapter is titled Selected work, with no sample credit.",
+      es: "El primer capítulo se llama Trabajos elegidos, sin crédito de ejemplo.",
+    },
+    "variant-default:home:gallery/portfolio#2": {
+      en: "The second chapter is titled More work, with no sample credit.",
+      es: "El segundo capítulo se llama Más trabajos, sin crédito de ejemplo.",
+    },
+  } as Record<string, ReleaseNote>,
+} as const;

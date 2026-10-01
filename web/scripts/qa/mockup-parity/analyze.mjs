@@ -55,6 +55,8 @@ export function analyze(args) {
       tries.push(...(sec.mockup || []));
     } else if (hasKeys && sec.parityKey) {
       tries.push(`[data-parity-key="${sec.parityKey}"]`);
+      // shell sections (header) may lack the key on some designs: still measure them through the map fallback
+      if (/^(header|footer|footer_rich|socket)$/.test(sec.parityKey)) tries.push(...(sec.fallback || []));
     } else {
       tries.push(...(sec.fallback || []));
     }
@@ -172,6 +174,8 @@ export function analyze(args) {
         ok = after.length >= 2;
         detail = ok ? "" : `found ${after.length} actions after the headline`;
       }
+      // optional: data the demo may legitimately lack (no phone number, no domain): absent is expected, not a gap
+      if (x.optional && !ok) { ok = true; detail = ""; }
       out.push({ name: x.name, ok, detail });
     }
     return out;
@@ -229,6 +233,8 @@ export function analyze(args) {
   const found = [];
   for (const sec of sections) {
     const { el, via } = resolve(sec);
+    // an optional section that renders as an empty, zero-height shell is absent (e.g. the alert band with the talent's setting off)
+    if (el && side === "product" && sec.optional && el.getBoundingClientRect().height < 2) { res.sections[sec.key] = { present: false, optional: true }; continue; }
     if (!el) {
       res.sections[sec.key] = { present: false, optional: !!sec.optional };
       continue;

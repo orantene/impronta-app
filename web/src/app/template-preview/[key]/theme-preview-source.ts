@@ -14,3 +14,14 @@ export function isCodeSourceRequested(
   if (param?.trim().toLowerCase() !== "code") return false;
   return gate.isPlatformAdmin || (gate.nodeEnv ?? process.env.NODE_ENV) === "development";
 }
+
+/**
+ * `?source=draft`: the OPEN talent_theme_drafts payload, read-only, for the parity
+ * fast loop. Unreleased work, so platform admins only (no dev-mode bypass).
+ */
+export function isDraftSourceRequested(
+  param: string | null | undefined,
+  gate: { isPlatformAdmin: boolean },
+): boolean {
+  return param?.trim().toLowerCase() === "draft" && gate.isPlatformAdmin;
+}

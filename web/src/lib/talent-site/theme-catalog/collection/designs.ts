@@ -40,6 +40,7 @@ import {
   shell,
   tuneHeading,
 } from "./design-parts";
+import { buildWithAuthoredOverlay } from "./authored";
 import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
@@ -169,14 +170,14 @@ export function buildFramePayload(): DesignPayload {
 // rate card + statement footer. Every block is a shared widget in its magazine edition.
 export const FOLIO_CHAPTER_SEEDS = [
   {
-    heading: "Editorial",
-    creditLine: "Demo studio credit · CDMX",
-    tocCredit: "Studio, hard light",
+    heading: "Selected work",
+    creditLine: "",
+    tocCredit: "",
   },
   {
-    heading: "Runway",
-    creditLine: "Demo show credit · 3 exits",
-    tocCredit: "Exits and details",
+    heading: "More work",
+    creditLine: "",
+    tocCredit: "",
   },
 ] as const;
 
@@ -224,7 +225,7 @@ export function buildFolioPayload(): DesignPayload {
               ...(k.props as Record<string, unknown>),
               coverLine: "{{primaryTypeLabel}}",
               // TH02: the italic serif line over the cover photo (30px, the cover's first body text).
-              coverStatement: "Editorial, runway and campaigns.",
+              coverStatement: "",
               mastRight: "{{locationLine}}",
               bio: "{{bio}}",
               // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
@@ -250,8 +251,7 @@ export function buildFolioPayload(): DesignPayload {
     shellTree: shell(id, {
       navChrome: "top_bar",
       navLinks: [
-        { label: "Editorial", href: "#chapter-1" },
-        { label: "Runway", href: "#chapter-2" },
+        ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({ label: c.heading, href: `#chapter-${i + 1}` })),
         { label: "Rates", href: "#services" },
       ],
       // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
@@ -299,15 +299,15 @@ export function buildFolioPayload(): DesignPayload {
             heading: "Measures · Comp card",
             showFullDetails: true,
             minMeasures: 4,
-            // Mateo Ferrer / model strip: height · suit · shoe · languages.
+            // Comp strip: height · suit · shoe · languages.
             measures: [
               { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height cm", labelEs: "Estatura cm" },
               { fieldKey: "physical.suit_size", enabled: true, labelEn: "Suit", labelEs: "Saco" },
               {
                 fieldKey: "physical.shoe_size_eu",
                 enabled: true,
-                labelEn: "Shoe MX",
-                labelEs: "Calzado MX",
+                labelEn: "Shoe",
+                labelEs: "Calzado",
               },
               { fieldKey: "languages", enabled: true, labelEn: "Languages", labelEs: "Idiomas" },
             ],
@@ -320,7 +320,7 @@ export function buildFolioPayload(): DesignPayload {
             label: "Booking",
             eyebrow: "",
             title: "Rates",
-            subtitle: "Base rates in MXN. Ad use and travel are quoted separately.",
+            subtitle: "",
             layout: "rate_card",
             categoryNav: "none",
             stylePreset: "editorial",
@@ -339,9 +339,10 @@ export function buildFolioPayload(): DesignPayload {
         fullBleed(
           statementFooterBlock(id, {
             statement: "Next issue.",
-            // Fine-print host; gallery demo is Mateo. Talents edit after apply.
-            creditLine: "mateoferrer.tulala.digital",
-            contactLine: "For editorials, runway and campaigns. I reply the same day.",
+            // Design-owned defaults carry no talent claim: the demo fixtures fill these
+            // through the site-copy mechanism (demos/folio-site-copy.ts).
+            creditLine: "",
+            contactLine: "",
             align: "start",
             showRule: true,
           }),
@@ -399,7 +400,8 @@ function entry(
     sort_order: sort,
     is_new_until: null,
     preview: {},
-    buildPayload,
+    buildPayloadRaw: buildPayload,
+    buildPayload: () => buildWithAuthoredOverlay(slug, buildPayload),
   };
 }
 

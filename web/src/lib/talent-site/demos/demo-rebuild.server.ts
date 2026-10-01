@@ -174,19 +174,27 @@ async function rebuildOne(
     palette: entry.palette,
     ...(entry.keepLook ? { keepLook: true } : {}),
     profileCode: entry.profileCode,
+    ...(entry.contentFixture ? { contentFixture: entry.contentFixture } : {}),
     live: Array.isArray(rows.site.shell_published) || !!rows.site.site_published_at,
   };
   const contentChanged = await ports.content(admin, entry, target.talentProfileId, false);
-  const plan = await ports.plan(admin, spec, rows);
+  let plan = await ports.plan(admin, spec, rows);
   const version = plan.design.version;
-  const { changed, needsPublish } = plannedSteps(contentChanged, plan, opts.publish);
+  const planned = plannedSteps(contentChanged, plan, opts.publish);
+  const { changed } = planned;
+  let { needsPublish } = planned;
   if (changed.length === 0) return { ...base, version, status: "unchanged", changed: [] };
   if (opts.dryRun) return { ...base, version, status: "would_write", changed };
 
   const content = ports.snapshotContent ? await ports.snapshotContent(admin, target.talentProfileId) : undefined;
   const runId = await insertRun(admin, entry, target.talentProfileId, { ...snapshotOf(rows), ...(content ? { content } : {}) }, opts.actorId);
   try {
-    if (contentChanged.length) await ports.content(admin, entry, target.talentProfileId, true);
+    if (contentChanged.length) {
+      await ports.content(admin, entry, target.talentProfileId, true);
+      // The design step reads the offerings the content step just wrote (task targets), so plan it again.
+      plan = await ports.plan(admin, spec, rows);
+      needsPublish = opts.publish && (!plan.draftSame || !plan.publishedInSync);
+    }
     if (!plan.draftSame) await ports.writeDraft(admin, spec, rows, plan);
     if (needsPublish) await ports.publish(admin, rows);
     ports.bust(target.talentProfileId, entry.profileCode);

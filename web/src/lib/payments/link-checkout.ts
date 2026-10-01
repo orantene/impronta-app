@@ -7,6 +7,7 @@
  * settle and cancel/reap; the settle side is `link-settlement.ts`.
  */
 
+import { paymentLineItemName, paymentPortion } from "@/lib/payments/line-item-name";
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -147,15 +148,18 @@ async function openOnce(
 
   const { data: orderData, error: orderErr } = await admin
     .from("orders")
-    .select("id, tenant_id, currency, customer_id, policy_version_id")
+    .select("id, tenant_id, currency, customer_id, policy_version_id, total_cents, status")
     .eq("id", link.order_id)
     .maybeSingle();
   if (orderErr) {
     logServerError("payments.openPaymentLinkCheckout.order", orderErr);
     return { ok: false, reason: "unavailable" };
   }
-  const order = orderData as { id: string; tenant_id: string; currency: string; customer_id: string | null; policy_version_id?: string | null } | null;
+  const order = orderData as { id: string; tenant_id: string; currency: string; customer_id: string | null; policy_version_id?: string | null; total_cents?: number | null } | null;
   if (!order || order.tenant_id !== link.tenant_id) return { ok: false, reason: "not_found" };
+  // A cancelled sale (the booking was cancelled) takes no more money, even
+  // when its link was not taken down: the customer sees "no longer available".
+  if ((order as { status?: string | null }).status === "cancelled") return { ok: false, reason: "not_open" };
   const currency = link.currency || order.currency;
   const amountCents = Number(link.amount_cents);
 
@@ -271,6 +275,21 @@ async function openOnce(
     admin as unknown as Parameters<typeof resolvePayeeName>[0],
     link.tenant_id,
   );
+  // The line item the payer reads: the service, and whether this is the deposit
+  // or the full amount (never a bare "Payment").
+  const { data: itemLines } = await admin
+    .from("order_lines")
+    .select("label")
+    .eq("order_id", order.id)
+    .limit(3);
+  const labels = ((itemLines ?? []) as { label: string | null }[])
+    .map((l) => (l.label ?? "").trim())
+    .filter(Boolean);
+  const lineItemName = paymentLineItemName({
+    serviceName: labels.length > 1 ? `${labels[0]} +${labels.length - 1}` : labels[0],
+    portion: paymentPortion(amountCents, order.total_cents),
+    locale: input.locale ?? null,
+  });
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents,
@@ -280,7 +299,7 @@ async function openOnce(
     bookingId,
     successUrl: input.successUrl,
     cancelUrl: input.cancelUrl,
-    description: "Payment",
+    description: lineItemName,
     payeeName,
     locale: input.locale ?? null,
     expiresAt,
@@ -426,4 +445,32 @@ export async function expireBoundSession(
   if (!sessionId || sessionId.startsWith("mock_")) return { ok: true };
   const expired = await expire(sessionId);
   return expired.ok ? { ok: true } : { ok: false, reason: expired.reason };
+}
+
+/**
+ * Read-only twin of `expireBoundSession`: has the Checkout session this claim
+ * is bound to already completed (money arriving, not yet settled in the
+ * ledger)? Nothing is expired or written. null when it cannot be read.
+ */
+export async function boundSessionIsComplete(
+  admin: Admin,
+  reservationId: string,
+  retrieve: (sessionId: string) => Promise<{ ok: true; status: string | null } | { ok: false }>,
+): Promise<boolean | null> {
+  const claim = await loadClaim(admin, reservationId);
+  if (claim === false) return null;
+  if (!claim?.transaction_id) return false;
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("status, metadata")
+    .eq("id", claim.transaction_id)
+    .maybeSingle();
+  if (error) return null;
+  const txn = data as { status: string; metadata: unknown } | null;
+  if (!txn) return false;
+  if (SETTLED_TXN_STATUSES.has(txn.status)) return true;
+  const sessionId = paymentRequestIdFromMetadata(txn.metadata);
+  if (!sessionId || sessionId.startsWith("mock_")) return false;
+  const res = await retrieve(sessionId);
+  return res.ok ? res.status === "complete" : null;
 }

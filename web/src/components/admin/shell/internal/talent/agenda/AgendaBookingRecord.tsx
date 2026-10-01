@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { ConfirmDialog, MoreMenu, initialsFor, type MoreMenuAction } from "./AgendaRecordParts";
 import { BookingStateChip, MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
 import type { AgendaListItem } from "./types";
-import { cancelBookingWithRefund, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink, respondToReschedule } from "@/lib/talent-agenda";
+import { cancelBookingWithRefund, cancelPaymentPreview, markBookingNoShow, markBookingTransferReceived, createAgendaBookingPayLink, respondToReschedule } from "@/lib/talent-agenda";
 import { respondToInquiryOffer, declineInquiryInvitation } from "@/lib/server-actions/talent-pipeline";
 import { AgendaRescheduleSheet } from "./AgendaRescheduleSheet";
 import { AgendaFinishCollect } from "./AgendaFinishCollect";
@@ -67,6 +67,16 @@ export function AgendaBookingRecord({
   const [cancelledBy, setCancelledBy] = useState<CancelledBy>("talent");
   const [linkCopied, setLinkCopied] = useState(false);
   const [showHold, setShowHold] = useState(false);
+  // Ledger-read money for the cancel dialog (undefined = loading, null = unknown).
+  const [cancelPaidCents, setCancelPaidCents] = useState<number | null | undefined>(undefined);
+  const [cancelInFlight, setCancelInFlight] = useState(false);
+  // The record flips to Cancelled the moment the server says so, not on reload.
+  const [cancelledHere, setCancelledHere] = useState(false);
+  const bookingState: AgendaListItem["bookingState"] = cancelledHere ? "cancelled" : item.bookingState;
+  // The NOW card follows the same flip: it said "Confirmed" until a reload.
+  const nowTitle = cancelledHere ? "Cancelled" : item.nowTitle;
+  const nowBodyRaw = cancelledHere ? "This booking was cancelled." : item.nowBody;
+  const nowTone = cancelledHere ? "risk" : item.nowTone;
   const depositQrSvg = useMemo(() => {
     if (!depositLink) return null;
     try {
@@ -84,7 +94,7 @@ export function AgendaBookingRecord({
   const show = recordActionVisibility({
     canAct,
     isAgency,
-    bookingState: item.bookingState,
+    bookingState: bookingState,
     paymentState: item.paymentState,
     started: noShowReady,
   });
@@ -116,7 +126,14 @@ export function AgendaBookingRecord({
   // ── Cancel confirm (A1.7 — do not cancel on open; only on confirm) ─
   function handleCancelRequest() {
     if (!bookingId) return;
+    setCancelPaidCents(undefined);
+    setCancelInFlight(false);
     setConfirmCancel(true);
+    startTransition(async () => {
+      const preview = await cancelPaymentPreview(bookingId);
+      setCancelPaidCents(preview.ok ? preview.paidCents : null);
+      setCancelInFlight(preview.ok && preview.paymentInFlight);
+    });
   }
 
   function handleCancelConfirm() {
@@ -126,11 +143,16 @@ export function AgendaBookingRecord({
     startTransition(async () => {
       const res = await cancelBookingWithRefund({ bookingId, cancelledBy });
       if (res.ok) {
+        // Refunds are never automatic here: say what was paid and where to refund it.
         setStatus(
-          res.refundableCents > 0
-            ? `${copy.t("Cancelled")}. ${copy.t("Refund of")} ${(res.refundableCents / 100).toFixed(2)} ${bookingCurrency} ${copy.t("initiated")}.`
-            : copy.t("Cancelled ✓"),
+          res.paidCents > 0
+            ? `${copy.t("Cancelled. The client paid")} ${(res.paidCents / 100).toFixed(2)} ${bookingCurrency}. ${copy.t("Refund it by hand from Money.")}`
+            : res.paymentInFlight
+              ? `${copy.t("Cancelled ✓")} ${copy.t("A card payment is still arriving. The payment link is closed and the payment is flagged in Money. Refund it by hand.")}`
+              : copy.t("Cancelled ✓"),
         );
+        setCancelledHere(true);
+        router.refresh();
         onCancelled?.();
       } else {
         setStatus(`${copy.t("Cancel failed")}: ${res.reason}`);
@@ -142,7 +164,7 @@ export function AgendaBookingRecord({
   const holdId = refTable === "talent_holds" ? refId || bookingId : undefined;
   const transferPending =
     item.paymentState === "awaiting_deposit" &&
-    item.bookingState === "completed" &&
+    bookingState === "completed" &&
     item.paymentMethod === "transfer" &&
     !!bookingId &&
     show.confirmTransfer;
@@ -163,9 +185,9 @@ export function AgendaBookingRecord({
           ? "finish"
           : needsDepositCollect
             ? "deposit"
-            : item.bookingState === "hold" && item.orderId
+            : bookingState === "hold" && item.orderId
               ? "hold_deposit"
-              : item.bookingState === "hold" && holdId
+              : bookingState === "hold" && holdId
                 ? "hold"
                 : null;
 
@@ -238,7 +260,7 @@ export function AgendaBookingRecord({
         ]
       : []),
   ];
-  const moreVisible = show.talentOwnsActions && showMoreMenu({ isAgency, bookingState: item.bookingState });
+  const moreVisible = show.talentOwnsActions && showMoreMenu({ isAgency, bookingState: bookingState });
 
   const sections =
     item.tradeSectionPayloads ??
@@ -305,7 +327,7 @@ export function AgendaBookingRecord({
           </div>
         </header>
 
-        {item.bookingState === "requested" && show.talentOwnsActions ? (
+        {bookingState === "requested" && show.talentOwnsActions ? (
           <NowBox
             tone="attention"
             title={copy.t("Request")}
@@ -388,7 +410,7 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
-        {item.bookingState === "requested" && refTable === "inquiries" && show.talentOwnsActions ? (
+        {bookingState === "requested" && refTable === "inquiries" && show.talentOwnsActions ? (
           <button
             type="button"
             className="min-h-[44px] text-[13px] text-[var(--tc-risk)]"
@@ -436,7 +458,7 @@ export function AgendaBookingRecord({
               <div className="text-[18px] font-semibold text-[var(--tc-primary)]">{item.title}</div>
               <div className="text-[13.5px] text-[var(--tc-muted)]">{item.subtitle ?? copy.t("No service set")}</div>
               <div className="mt-1.5 flex flex-wrap gap-2">
-                {item.bookingState ? <BookingStateChip state={item.bookingState} /> : null}
+                {bookingState ? <BookingStateChip state={bookingState} /> : null}
                 {item.paymentState ? <PaymentStateChip state={item.paymentState} /> : null}
               </div>
             </div>
@@ -469,22 +491,22 @@ export function AgendaBookingRecord({
           </dl>
         </section>
 
-        {item.nowTitle ? (
+        {nowTitle ? (
           <NowBox
             tone={
-              item.nowTone === "ok"
+              nowTone === "ok"
                 ? "success"
-                : item.nowTone === "warn"
+                : nowTone === "warn"
                   ? "attention"
-                  : item.nowTone === "risk"
+                  : nowTone === "risk"
                     ? "danger"
                     : "info"
             }
-            title={copy.t(item.nowTitle)}
+            title={copy.t(nowTitle ?? "")}
             body={(() => {
-              const rawBody = nowBodyForRecord(item.nowBody, isAgency);
+              const rawBody = nowBodyForRecord(nowBodyRaw, isAgency);
               const body = rawBody ? copy.t(rawBody) : "";
-              const hold = item.bookingState === "hold" ? holdEndsParts(item.holdUntilIso, now) : null;
+              const hold = bookingState === "hold" ? holdEndsParts(item.holdUntilIso, now) : null;
               if (!hold) return body;
               const line = hold.left
                 ? `${copy.t("Hold ends")} ${hold.ends} · ${hold.left} ${copy.t("left")}`
@@ -506,10 +528,10 @@ export function AgendaBookingRecord({
                       : nowStep === "hold"
                         ? { label: copy.t("Confirm or release hold"), onClick: () => setShowHold(true) }
                         : show.talentOwnsActions
-                          ? item.primaryAction
+                          ? (cancelledHere ? undefined : item.primaryAction)
                           : undefined
             }
-            secondaryAction={show.talentOwnsActions ? item.secondaryAction : undefined}
+            secondaryAction={show.talentOwnsActions && !cancelledHere ? item.secondaryAction : undefined}
           />
         ) : null}
 
@@ -542,7 +564,7 @@ export function AgendaBookingRecord({
         {/* Collect deposit — mint pay link + WhatsApp share (criterion 3) */}
         {needsDepositCollect && !showFinish ? (
           <div className="space-y-2">
-            {nowStep !== "deposit" || !item.nowTitle ? (
+            {nowStep !== "deposit" || !nowTitle ? (
               <button
                 type="button"
                 onClick={handleCollectDeposit}
@@ -607,7 +629,7 @@ export function AgendaBookingRecord({
         ) : null}
 
         {/* Finish and collect */}
-        {show.finishCollect && !showFinish && (nowStep !== "finish" || !item.nowTitle) ? (
+        {show.finishCollect && !showFinish && (nowStep !== "finish" || !nowTitle) ? (
           <button
             type="button"
             onClick={() => setShowFinish(true)}
@@ -632,7 +654,7 @@ export function AgendaBookingRecord({
           />
         ) : null}
 
-        {transferPending && !item.nowTitle ? (
+        {transferPending && !nowTitle ? (
           <button
             type="button"
             onClick={handleTransferReceived}
@@ -665,7 +687,7 @@ export function AgendaBookingRecord({
         <section className="rounded-2xl border border-black/8 bg-white p-4 text-[13px] text-[var(--tc-muted)]">
             <h2 className="mb-2 text-[14px] font-semibold text-[var(--tc-primary)]">{copy.t("Terms and history")}</h2>
             {item.terms ? <p className="border-b border-black/8 pb-2">{item.terms}</p> : null}
-            {item.bookingState === "hold" && item.holdUntilIso ? (
+            {bookingState === "hold" && item.holdUntilIso ? (
               <p className="border-b border-black/8 py-2">
                 {`${copy.t("The hold keeps this time until")} ${new Date(item.holdUntilIso).toLocaleString(
                   copy.locale === "es" ? "es-MX" : "en-GB",
@@ -719,8 +741,13 @@ export function AgendaBookingRecord({
               </label>
             ))}
           </fieldset>
+          {typeof cancelPaidCents === "number" && cancelPaidCents > 0 ? (
+            <p className="rounded-xl bg-black/[0.03] p-3">
+              {`${copy.t("The client paid")} ${(cancelPaidCents / 100).toFixed(2)} ${bookingCurrency}.`}
+            </p>
+          ) : null}
           <ul className="list-disc space-y-1 pl-5 text-[var(--tc-muted)]">
-            {cancelConsequenceKeys(item.paymentState, cancelledBy).map((k) => (
+            {cancelConsequenceKeys(item.paymentState, cancelledBy, cancelPaidCents, cancelInFlight).map((k) => (
               <li key={k}>{copy.t(k)}</li>
             ))}
             <li>{copy.t("This cannot be undone.")}</li>

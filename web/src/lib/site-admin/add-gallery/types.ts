@@ -247,4 +247,11 @@ export interface GallerySurfaceDescriptor {
    *  templates). Null on platform/lab surfaces ⇒ no rollout gating (show all).
    *  Plumbed Wave 0; consumed by WS-D. */
   tenantId: string | null;
+  /**
+   * The surface's `structuralEdits` capability. `false` on a Free-plan talent
+   * site: the gallery shows insert cards locked (`isGalleryItemStructurallyLocked`)
+   * instead of offering them and failing at the builder gate. Undefined off
+   * talent surfaces, which keeps every card available.
+   */
+  structuralEdits?: boolean;
 }

@@ -91,7 +91,13 @@ export type GalleryProfession =
   | "tattoo"
   | "tutor"
   | "guide"
-  | "electrician";
+  | "electrician"
+  | "plumber"
+  | "carpenter"
+  | "appliance_repair"
+  | "computer_tech"
+  | "smart_home"
+  | "handyman";
 
 /** Same colour shape as a Maison palette, plus gallery flags. */
 export type GalleryPalette = Pick<
@@ -169,6 +175,12 @@ export const GALLERY_PROFESSIONS: Record<
   tattoo: { label: { en: "Tattoo Artist", es: "Tatuador" }, chip: "creative", synonyms: ["tattoo", "tattoos", "tatuador", "tatuadora", "tatuaje"] },
   tutor: { label: { en: "Tutor", es: "Tutor" }, chip: "home_local", synonyms: ["tutor", "teacher", "teaching", "maestro", "maestra", "profesor", "profesora", "clases"] },
   electrician: { label: { en: "Electrician", es: "Electricista" }, chip: "home_local", synonyms: ["electrician", "electric", "electrical", "electricista", "electricidad", "luz", "tablero"] },
+  plumber: { label: { en: "Plumber", es: "Plomero" }, chip: "home_local", synonyms: ["plumber", "plumbing", "pipes", "leak", "plomero", "plomera", "plomeria", "plomería", "fuga", "drenaje"] },
+  carpenter: { label: { en: "Carpenter", es: "Carpintero" }, chip: "home_local", synonyms: ["carpenter", "carpentry", "woodwork", "furniture", "carpintero", "carpintera", "carpinteria", "carpintería", "muebles"] },
+  appliance_repair: { label: { en: "Appliance Technician", es: "Técnica de línea blanca" }, chip: "home_local", synonyms: ["appliance", "appliances", "repair", "washer", "fridge", "minisplit", "aire acondicionado", "lavadora", "refrigerador", "linea blanca", "línea blanca"] },
+  computer_tech: { label: { en: "Computer Technician", es: "Técnico de computadoras" }, chip: "tech", synonyms: ["computer", "pc", "laptop", "it", "support", "wifi", "computadora", "computadoras", "soporte", "tecnico", "técnico"] },
+  smart_home: { label: { en: "Smart Home Installer", es: "Instalador de casa inteligente" }, chip: "tech", synonyms: ["smart home", "home automation", "doorbell", "camera", "wifi", "casa inteligente", "domotica", "domótica", "chapa digital"] },
+  handyman: { label: { en: "Handyperson", es: "Arreglos en casa" }, chip: "home_local", synonyms: ["handyman", "handyperson", "repairs", "fix", "odd jobs", "arreglos", "reparaciones", "mantenimiento", "chambas"] },
   guide: { label: { en: "Local Guide", es: "Guía local" }, chip: "events", synonyms: ["guide", "tour", "host", "guía", "guia", "anfitriona", "acompañante"] },
 };
 
@@ -405,8 +417,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     styleTags: ["Bold", "Minimal"],
     featureTags: ["Service menu", "Booking-ready", "Quote requests", "Service list"],
     palettes: gridlineGalleryPalettes(),
-    // The reference demo (Alex Treviño) and the other seven land with the demo slice (G15).
-    demos: [planned("electrician", { en: "Electrician", es: "Electricista" }, ["electrician"], "default")],
+    // The reference demo (Alex Treviño) first, then the seven guide demos (theme-demos.ts, G15).
+    demos: [
+      talentDemo("alex-trevino", { en: "Electrician", es: "Electricista" }, ["electrician"], "default", "TAL-93030", "alex-trevino", "Alex Treviño"),
+      ...guideDemos("gridline"),
+    ],
   }),
 ];
 
@@ -419,7 +434,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
  * `TALENT_GALLERY_EXTRA_DESIGNS=1` (server) or
  * `NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS=1` (client bundle) to show them.
  */
-export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio"];
+export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio", "gridline"];
 
 export function galleryExtraDesignsEnabled(): boolean {
   return (

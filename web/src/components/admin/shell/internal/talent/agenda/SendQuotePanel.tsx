@@ -130,7 +130,8 @@ function SendQuoteForm({
       // Post the quote in the conversation she is in.
       start(async () => {
         setStep(2);
-        const res = await messagingTalentQuoteSend({ inquiryId: threadId, offeringId: offering.id, amountCents, note: note.trim() || null });
+        // Always ends in a sent or not-sent state: a thrown action is "not sent", never a stuck step.
+        const res = await messagingTalentQuoteSend({ inquiryId: threadId, offeringId: offering.id, amountCents, note: note.trim() || null }).catch(() => ({ ok: false as const }));
         setStep(0);
         setSent(res.ok);
         setCreatedId(threadId);
@@ -148,7 +149,7 @@ function SendQuoteForm({
         phone: picked.phone.trim() || null,
         offeringId: offering.id,
         note: note.trim() || null,
-      });
+      }).catch(() => ({ ok: false as const, reason: "unavailable" as const }));
       if (!started.ok) {
         setStep(0);
         setError(
@@ -164,7 +165,7 @@ function SendQuoteForm({
         offeringId: offering.id,
         amountCents,
         note: note.trim() || null,
-      });
+      }).catch(() => ({ ok: false as const }));
       setStep(0);
       // The conversation exists even if the quote did not go out: say so, never fake a send.
       setSent(res.ok);

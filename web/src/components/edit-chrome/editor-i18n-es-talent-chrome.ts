@@ -10,10 +10,6 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "We reloaded this page. Undo history started fresh.":
     "Recargamos esta página. El historial de deshacer empezó de nuevo.",
   "This section": "Esta sección",
-  "Container": "Contenedor",
-  "Reset": "Restablecer",
-  "Wrapping": "Ajuste de línea",
-  "Gap": "Espacio entre elementos",
   "This page changed in another tab. Your last change was not saved.":
     "Esta página cambió en otra pestaña. Tu último cambio no se guardó.",
   "Loads the newest version. Your last change is dropped and undo starts over.":
@@ -22,8 +18,6 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
     "Guarda esta copia sobre la otra pestaña. Deshacer sigue funcionando.",
   "This page changed in another tab. Choose Load the latest or Keep this copy.":
     "Esta página cambió en otra pestaña. Elige Cargar lo más reciente o Seguir con esta copia.",
-  "Your last draft didn't save. It will retry on your next edit; reload the editor if it persists.":
-    "Tu último borrador no se guardó. Se reintentará en tu próxima edición; recarga el editor si sigue pasando.",
   "also open in another tab of yours": "también abierta en otra pestaña tuya",
   "You have this page open in another tab. Edits there can conflict.":
     "Tienes esta página abierta en otra pestaña. Los cambios allí pueden chocar.",
@@ -80,7 +74,6 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "Hide rulers (⌘R)": "Ocultar reglas (⌘R)",
   "Show rulers (⌘R)": "Mostrar reglas (⌘R)",
   "Revisions": "Revisiones",
-  "Homepage": "Página de inicio",
   "No revisions yet": "Aún no hay revisiones",
   "{n} entry": "{n} entrada",
   "{n} entries": "{n} entradas",

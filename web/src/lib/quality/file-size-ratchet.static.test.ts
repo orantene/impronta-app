@@ -450,7 +450,9 @@ const BUDGETS: Record<string, number> = {
   // ES_TEXT) so this file stays at the 3968 budget — do not re-raise here.
   // 2026-09-27 AUD-018: Money request/record/refund/correct ES lives in
   // dashboard-i18n-money.ts (folded into RAIL_ES_TEXT) — same reason; keep 3968.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3968,
+  // 2026-10-01 dashboard-es sweep: profile-editor ES block (skills .. verifications)
+  // moved to dashboard-i18n-talent-editors.ts (spread at the same position), 3968 -> 3836.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3836,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.
@@ -620,7 +622,7 @@ const BUDGETS: Record<string, number> = {
   // +37 — option labels keep their English key AND their unit; without this
   // the public profile discarded both (TS also needs unit on NewDefEmbed).
   // 2026-09-24 services-rebuild: +11 (2682). Measured wc -l.
-  "src/app/t/[profileCode]/profile-view.tsx": 2682,
+  "src/app/t/[profileCode]/profile-view.tsx": 2681,
   // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
   // ride the submit FormData, which put the whole inquiry behind the ~4 MB
   // body cap while the drawer advertised 10 x 20 MB. Added:
@@ -634,7 +636,7 @@ const BUDGETS: Record<string, number> = {
   // Budget sections and the "Job name" field rather than rewording them.
   // Raised in the same commit as the growth, per this file's own rule.
   // Extraction would be better and is owed: this is a 2.4k-line god file.
-  "src/components/inquiry/InquiryDrawer.tsx": 2382,
+  "src/components/inquiry/InquiryDrawer.tsx": 2243,
 
   // Site-admin library and its big characterization suites. Test files grow
   // into god files exactly like source files do, and are just as hard to read.

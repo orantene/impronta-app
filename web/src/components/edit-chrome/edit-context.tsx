@@ -426,10 +426,10 @@ export function EditProvider({
       plan: normalizedWorkspacePlan || null,
       talentTier: gallerySurfaceTier,
       // Builder Studio — live tenant id for staged-rollout bucketing (WS-D).
-      tenantId: tenantId || null,
+      tenantId: tenantId || null, structuralEdits: surfaceStructuralEdits, // P0 gallery lock
     }),
     [
-      galleryTabsKey,
+      surfaceStructuralEdits, galleryTabsKey,
       galleryAllowDbTemplates,
       resolvedSurfaceConfig.galleryPolicy.blockAllowList,
       gallerySurfaceTarget,

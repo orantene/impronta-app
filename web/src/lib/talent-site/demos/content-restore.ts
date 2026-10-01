@@ -30,6 +30,9 @@ export const TABLE_SPECS: Readonly<Record<Exclude<ContentTable, "talent_profiles
   talent_profile_field_values: { key: ["id"], onConflict: "id" },
   talent_languages: { key: ["talent_profile_id", "language_code"], onConflict: "talent_profile_id,language_code" },
   talent_location_settings: { key: ["talent_profile_id"], onConflict: "talent_profile_id" },
+  talent_service_areas: { key: ["id"], onConflict: "id" },
+  // The content step only edits `metadata.caption` of existing photos; the executor restores it with an update (never an insert or delete).
+  media_assets: { key: ["id"], onConflict: "id" },
 };
 
 /** Parents before children for upserts; children before parents for deletes. */
@@ -42,6 +45,8 @@ export const RESTORE_ORDER: readonly Exclude<ContentTable, "talent_profiles">[] 
   "talent_profile_field_values",
   "talent_languages",
   "talent_location_settings",
+  "talent_service_areas",
+  "media_assets",
 ];
 
 export type RestoreOp =
@@ -62,6 +67,8 @@ export function planContentRestore(before: ContentSnapshot, current: ContentSnap
   const upserts: RestoreOp[] = [];
   const deletes: RestoreOp[] = [];
   for (const table of RESTORE_ORDER) {
+    // A backup taken before a table joined the content step has no rows for it: leave that table alone.
+    if (!Array.isArray(before[table])) continue;
     const spec = TABLE_SPECS[table];
     const have = new Map((current[table] ?? []).map((r) => [keyOf(spec, r), r]));
     const want = new Map((before[table] ?? []).map((r) => [keyOf(spec, r), r]));

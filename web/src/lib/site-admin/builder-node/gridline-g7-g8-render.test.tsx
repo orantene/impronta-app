@@ -123,7 +123,7 @@ test("heroSpecBlock: no typed spec cells and no badges makes no claim", () => {
 
 test("heroSpecBlock: the who card is a row on phone and a stacked photo card on desktop", () => {
   const hero = heroSpecBlock(ids(), { badges: ["x"] });
-  const who = (hero.children ?? [])[1] as BuilderNode & {
+  const who = ((hero as BuilderNode & { children?: BuilderNode[] }).children ?? [])[1] as BuilderNode & {
     props: { layout: string; responsive?: { mobile?: { layout?: string } } };
   };
   assert.equal(who.props.layout, "stack", "desktop base is the stacked photo card");

@@ -151,6 +151,7 @@ export function TulalaBrandLockup({
     >
       <TulalaWordmark height={wordmarkHeight} />
       <span
+        data-tulala-brand-descriptor
         className="mt-1 whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em]"
         style={{ opacity: descriptorOpacity }}
       >

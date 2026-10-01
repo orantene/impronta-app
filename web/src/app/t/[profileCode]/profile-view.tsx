@@ -128,6 +128,7 @@ import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
 import { loadTalentIntake } from "./_chat/talent-intake.server";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { publicNameOrGeneric } from "@/lib/messaging/public-name";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
@@ -148,9 +149,7 @@ import type {
   Testimonial,
 } from "@/lib/reviews/review-types";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// ── Types ──
 
 type TaxonomyTerm = {
   id?: string;
@@ -1969,7 +1968,8 @@ export async function TalentProfileView({
   const chatBrandName =
     hostCtx.kind === "agency"
       ? tenantBrand ?? "the agency"
-      : chatHub?.displayName ?? "Tulala";
+      : // Platform host: the guest talks to THIS talent (never the hub, never an email-derived name).
+        publicNameOrGeneric(displayName(profile as TalentProfile), locale ?? "en");
   // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
   // for unconfigured tenants so the launcher keeps working.
   const guestChatSettings = chatTenantId
@@ -2489,6 +2489,7 @@ export async function TalentProfileView({
               tenantSlug={slotTenantSlug}
               tenantId={slotTenantId}
               agencyName={tenantBrand ?? "the studio"}
+              soloTalentName={platformChrome ? name : null}
               locationLabel={livesIn}
               bookingMode={booking.mode}
             />
@@ -2568,7 +2569,7 @@ export async function TalentProfileView({
           locale={locale}
         />
       ) : null}
-      {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode }} /> : null}
+      {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode, omitPlatformBrand: Boolean(chatHub) }} /> : null}
     </>
   );
 

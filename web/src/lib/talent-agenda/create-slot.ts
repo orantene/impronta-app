@@ -8,6 +8,7 @@
 
 "use server";
 
+import { COLLECT_LATER_NOTE } from "./load-map";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -206,6 +207,7 @@ export async function createOwnSlotBooking(input: {
       contact_phone: contactPhone || null,
       customer_id: customerId,
       source_type_snapshot: "manual",
+      ...(input.paymentChoice === "request_link" ? { payment_notes: COLLECT_LATER_NOTE } : {}),
       internal_notes:
         input.paymentChoice === "request_link"
           ? "Collect later. No payment link created yet. Client has not been told."

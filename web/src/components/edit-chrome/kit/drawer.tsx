@@ -77,6 +77,7 @@ import {
   type UseFloatingDragOptions,
 } from "../floating-panel";
 import { useModalFocusTrap } from "../modal-focus-trap";
+import { useEditorLocale } from "../use-editor-locale";
 import { FloatingPanelHeader } from "./floating-panel-header";
 import { FloatingPanelShell } from "./floating-panel-shell";
 
@@ -596,14 +597,15 @@ function ToolButton({
   ariaLabel: string;
   children: ReactNode;
 }) {
+  const { t } = useEditorLocale();
   return (
     <Button
       variant="ghost"
       size="md"
       iconOnly
       onClick={onClick}
-      title={title}
-      aria-label={ariaLabel}
+      title={t(title)}
+      aria-label={t(ariaLabel)}
     >
       {children}
     </Button>
@@ -617,13 +619,9 @@ function ToolButton({
 // not a primary builder navigator. Replaced with a flush underline-
 // indicator pattern (Linear / Vercel / Stripe / Framer): tabs are
 // plain text labels, the active one carries a 1.5px ink-tone underline
-// flush with the bottom border. No card, no segmented bg, no shadow —
-// the interaction surface IS the canvas/header line below.
-//
-// The whole strip is given `min-w-0 overflow-x-auto` so it never
-// pushes the dock wider than its width — the right-edge "broken" look
-// the operator reported was from cards inheriting overflow when a tab
-// label wrapped (e.g. "Navigation" on a narrow dock).
+// flush with the bottom border. No card, no segmented bg, no shadow.
+// The strip is `min-w-0 overflow-x-auto` so a wrapped tab label never
+// pushes the dock wider than its width.
 
 interface DrawerTabsProps {
   className?: string;

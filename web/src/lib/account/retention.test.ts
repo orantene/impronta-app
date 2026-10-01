@@ -1,17 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { isPurgeableInquiry, monthsBefore, retentionEnforced, runRetention, type PurgeCandidate } from "./retention";
+import { GUEST_CONTACT_RETENTION_MONTHS, UNBOOKED_INQUIRY_RETENTION_MONTHS, isPurgeableInquiry, monthsBefore, retentionEnforced, runRetention, type PurgeCandidate } from "./retention";
 
 const NOW = new Date("2026-10-01T00:00:00.000Z");
-const CUTOFF = monthsBefore(NOW, 24);
+const CUTOFF = monthsBefore(NOW, 36);
 
 function cand(over: Partial<PurgeCandidate> = {}): PurgeCandidate {
   return {
     id: "inq-1",
     status: "closed_lost",
     bookedAt: null,
-    updatedAt: "2024-01-01T00:00:00.000Z",
+    updatedAt: "2023-01-01T00:00:00.000Z",
     lastMessageAt: null,
     bookingCount: 0,
     transactionCount: 0,
@@ -27,8 +27,10 @@ test("enforcement is off unless RETENTION_ENFORCE is exactly 'true'", () => {
   assert.equal(retentionEnforced({ RETENTION_ENFORCE: "true" }), true);
 });
 
-test("cutoffs: 24 months back from now", () => {
-  assert.equal(CUTOFF.toISOString(), "2024-10-01T00:00:00.000Z");
+test("cutoffs: 3 years back from now", () => {
+  assert.equal(CUTOFF.toISOString(), "2023-10-01T00:00:00.000Z");
+  assert.equal(GUEST_CONTACT_RETENTION_MONTHS, 36);
+  assert.equal(UNBOOKED_INQUIRY_RETENTION_MONTHS, 36);
 });
 
 test("an idle unbooked inquiry with nothing financial attached is purgeable", () => {
@@ -160,4 +162,8 @@ test("kept inquiries do not block later ones: the scan pages past them", async (
   assert.equal(orFilters.length, 1);
   assert.match(orFilters[0], /id\.gt\.k2/);
   assert.deepEqual(deleted, ["p1"]);
+});
+
+test("enforcement stays off in the default environment", () => {
+  assert.equal(retentionEnforced({}), false);
 });

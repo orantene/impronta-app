@@ -11,6 +11,7 @@
  */
 import type { ReleaseChannel, ThemeRelease } from "../types";
 import { checkChannelChange, dryRunIsFresh } from "./dry-run";
+import { checkAuthoredChannelGate } from "../../theme-catalog/authored-sync-rule";
 
 export interface ChannelDeps {
   applyToDemos: () => Promise<{ ok: true; applied: number; warnings?: string[] } | { ok: false; error: string }>;
@@ -22,13 +23,22 @@ export interface ChannelDeps {
    * refuses the change and touches nothing else. Idempotent.
    */
   flipCatalog?: () => Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * Template Factory gate input: the release's to_version snapshot (source)
+   * and the committed overlay version for its design. Read only for `optin`
+   * and `default`; a failed read refuses the change (fail closed).
+   */
+  authoredState?: () => Promise<
+    | { ok: true; snapshot: { version: number; source: string | null } | null; overlayVersion: number }
+    | { ok: false; error: string }
+  >;
   /** Phase 4: runs after `default` persisted. */
   autoImprove?: () => Promise<{ improved: number; failures: string[] }>;
 }
 
 export type ChannelChangeResult =
   | { ok: true; channel: ReleaseChannel; demosApplied: number; updates: number; bells: number; warnings: string[] }
-  | { ok: false; error: string };
+  | { ok: false; error: string; errorEs?: string; code?: "authored_pending" };
 
 export async function executeChannelChange(
   release: Pick<
@@ -42,6 +52,12 @@ export async function executeChannelChange(
   if (!guard.ok) return guard;
   if (target === "optin" && release.rollout_pct <= 0) {
     return { ok: false, error: "Set a rollout % above 0 before opening to talents." };
+  }
+  if ((target === "optin" || target === "default") && deps.authoredState) {
+    const state = await deps.authoredState();
+    if (!state.ok) return state;
+    const gate = checkAuthoredChannelGate(target, state.snapshot, state.overlayVersion);
+    if (!gate.ok) return { ok: false, error: gate.error, errorEs: gate.errorEs, code: gate.code };
   }
   if (target === "default" && deps.flipCatalog) {
     const flipped = await deps.flipCatalog();

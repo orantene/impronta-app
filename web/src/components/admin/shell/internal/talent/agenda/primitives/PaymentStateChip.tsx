@@ -12,7 +12,7 @@ const PAYMENT_STATE_META: Record<
     className: "border border-[rgba(11,11,13,0.10)] bg-[rgba(11,11,13,0.05)] text-[#5F6368]",
   },
   awaiting_deposit: {
-    labelKey: "Awaiting deposit",
+    labelKey: "Awaiting payment",
     className: "border border-[rgba(138,90,17,0.14)] bg-[rgba(138,90,17,0.10)] text-[#8A5A11]",
   },
   checking_payment: {

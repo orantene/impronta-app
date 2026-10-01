@@ -96,6 +96,7 @@ const ES: Record<string, string> = {
   // Payment states
   "Not requested": "Sin solicitud",
   "Deposit not requested": "Depósito sin solicitar",
+  "Awaiting payment": "Esperando pago",
   "Awaiting deposit": "Esperando depósito",
   "Checking payment": "Verificando pago",
   "Due at appointment": "Pago en cita",
@@ -283,6 +284,18 @@ const ES: Record<string, string> = {
   "What the client paid is refunded by your cancellation terms. The amount shows after you confirm.":
     "Lo que pagó el cliente se reembolsa según tus condiciones de cancelación. El monto se muestra al confirmar.",
   "No payment was taken, so there is nothing to refund.": "No se cobró ningún pago, así que no hay nada que reembolsar.",
+  "No payment was taken, so there is nothing to refund. The payment link is closed.":
+    "No se cobró ningún pago, así que no hay nada que reembolsar. El enlace de pago queda cerrado.",
+  "Refunds are not automatic. Refund the client by hand from Money.":
+    "Los reembolsos no son automáticos. Reembolsa al cliente a mano desde Dinero.",
+  "A card payment may be arriving. If it lands, refund the client by hand from Money.":
+    "Puede estar llegando un pago con tarjeta. Si llega, reembolsa al cliente a mano desde Dinero.",
+  "Checking what the client paid…": "Revisando lo que pagó el cliente…",
+  "The client paid": "El cliente pagó",
+  "Cancelled. The client paid": "Cancelado. El cliente pagó",
+  "Refund it by hand from Money.": "Reembolsa a mano desde Dinero.",
+  "A card payment is still arriving. The payment link is closed and the payment is flagged in Money. Refund it by hand.":
+    "Un pago con tarjeta todavía está llegando. El enlace de pago queda cerrado y el pago queda marcado en Dinero. Reembólsalo a mano.",
   Day: "Día",
   List: "Lista",
   "Calendar view": "Vista de calendario",
@@ -648,6 +661,7 @@ const ES: Record<string, string> = {
   "Working hours are over for this day": "Tu horario de este día ya terminó",
   "Fully booked": "Todo reservado",
   "No service set": "Sin servicio",
+  "No time assigned": "Sin hora asignada",
   "Not set yet": "Aún sin definir",
   "Price not set": "Precio sin definir",
   "Agree a price with the client, then send a payment link.": "Acuerda un precio con la clienta y luego envía un link de pago.",

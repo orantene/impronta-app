@@ -93,6 +93,8 @@ export interface TalentProfileTokens {
   whatsappHref?: string;
   /** `mailto:...` when she published an address. Empty hides the button. */
   emailHref?: string;
+  /** `tel:...` from the explicit public call number only. Empty hides the call button. */
+  callHref?: string;
   /** Honest booking sentence. Defaults to hand confirmation. */
   contactCopy?: string;
   /** First three service / focus labels (already de-duped + capped). */
@@ -149,17 +151,12 @@ function resolvePropValue(
 }
 
 /**
- * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
- * string-valued prop (deep — including nested objects and arrays) against the
- * talent's data. Returns a NEW tree (structural clone) — the source constant is
- * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
- * safe fallback so the page never renders a broken `<img src="">` / dead link.
+ * The flat `{{token}}` value map for a talent (every placeholder a design may
+ * use). Shared by `hydrateTalentTree` and the Template Factory canvas, which
+ * hydrates at render time only.
  */
-export function hydrateTalentTree(
-  tree: ReadonlyArray<BuilderNode>,
-  talent: TalentProfileTokens,
-): BuilderNode[] {
-  const flat: Record<string, string> = {
+export function flattenProfileTokens(talent: TalentProfileTokens): Record<string, string> {
+  return {
     displayName: talent.displayName,
     primaryTypeLabel: talent.primaryTypeLabel,
     secondaryType1: talent.secondaryType1,
@@ -180,6 +177,7 @@ export function hydrateTalentTree(
     inquireHref: talent.inquireHref,
     whatsappHref: talent.whatsappHref ?? "",
     emailHref: talent.emailHref ?? "",
+    callHref: talent.callHref ?? "",
     contactCopy: talent.contactCopy ?? CONTACT_COPY.confirmByHand,
     service1: talent.service1,
     service2: talent.service2,
@@ -192,6 +190,20 @@ export function hydrateTalentTree(
     gallery5: talent.gallery[5] ?? "",
     maxSiteUrl: talent.maxSiteUrl,
   };
+}
+
+/**
+ * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
+ * string-valued prop (deep — including nested objects and arrays) against the
+ * talent's data. Returns a NEW tree (structural clone) — the source constant is
+ * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
+ * safe fallback so the page never renders a broken `<img src="">` / dead link.
+ */
+export function hydrateTalentTree(
+  tree: ReadonlyArray<BuilderNode>,
+  talent: TalentProfileTokens,
+): BuilderNode[] {
+  const flat = flattenProfileTokens(talent);
 
   const visit = (node: BuilderNode): BuilderNode => {
     // Deep-rewrite every string-valued prop (recurses nested objects/arrays).

@@ -10,7 +10,7 @@
  * required: an entry without a ticket is a load error, because an accepted delta with
  * nobody holding it is just a hidden failure. Green means no failure outside this file.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,4 +47,33 @@ export function applyBaseline(deltas, baseline) {
     if (hit) { d.accepted = hit.ticket; used.add(hit); }
   }
   return baseline.accepted.filter((a) => !used.has(a));
+}
+
+const entryKey = (a) => [a.section, a.check, a.width ?? "", a.demo ?? "", a.layer ?? ""].join("|");
+
+/**
+ * Pure: the accepted list after `--update-baseline`. Keeps existing entries that still match a
+ * failing delta (their tickets stay), adds one entry per new delta with `ticket`, and drops
+ * stale entries unless `scoped` (a --sections run only sees part of the design).
+ */
+export function mergeBaseline(existing, deltas, ticket, { scoped = false } = {}) {
+  if (!ticket) throw new Error("mergeBaseline: ticket required");
+  const kept = existing.filter((a) => scoped || deltas.some((d) => entryMatches(a, d)));
+  const seen = new Set(kept.map(entryKey));
+  const added = [];
+  for (const d of deltas) {
+    if (kept.some((a) => entryMatches(a, d))) continue;
+    const e = { section: d.section, check: d.check, width: d.width, demo: d.talent, layer: d.layer, ticket, reason: String(d.evidence || "").slice(0, 160) };
+    if (seen.has(entryKey(e))) continue;
+    seen.add(entryKey(e));
+    added.push(e);
+  }
+  return { accepted: [...kept, ...added], added: added.length, removed: existing.length - kept.length };
+}
+
+export function writeBaseline(design, deltas, baseline, ticket, opts) {
+  const merged = mergeBaseline(baseline.accepted, deltas, ticket, opts);
+  const prev = existsSync(baseline.file) ? JSON.parse(readFileSync(baseline.file, "utf8")) : { design };
+  writeFileSync(baseline.file, JSON.stringify({ ...prev, design, accepted: merged.accepted }, null, 2) + "\n");
+  return { file: baseline.file, added: merged.added, removed: merged.removed, total: merged.accepted.length };
 }

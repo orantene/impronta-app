@@ -23,8 +23,11 @@ export interface DemoRegistryEntry {
    * Alba TAL-93020 for maison-v2, Mateo TAL-93011 for folio.
    */
   reference: boolean;
-  /** Content fixture key (design-references/<design>/content.json) for references. */
-  contentFixture?: DemoDesign;
+  /**
+   * Content fixture key: a design (design-references/<design>/content.json, the
+   * reference demo) or a demo's own profile code (Gridline's seven trade demos).
+   */
+  contentFixture?: string;
   /**
    * Published demos whose colours the rebuild must NEVER change (Andres, Sofia):
    * the design step keeps the site's current look slug, tokens and custom

@@ -21,7 +21,7 @@ async function gate(): Promise<{ ok: true; userId: string } | { ok: false; error
   return { ok: true, userId: session.user.id };
 }
 
-const DESIGNS: readonly string[] = ["maison-v2", "folio"];
+const DESIGNS: readonly string[] = ["maison-v2", "folio", "gridline"];
 
 /** dryRun true reads and plans only; false rebuilds and publishes the design's demos. */
 export async function actionRebuildDemos(design: string, dryRun: boolean): Promise<Result<DemoRebuildResult>> {

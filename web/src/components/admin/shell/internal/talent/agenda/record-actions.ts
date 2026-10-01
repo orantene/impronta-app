@@ -145,26 +145,32 @@ export type CancelledBy = "talent" | "client";
 
 /**
  * Mockup tc_cancel: consequences first. Copy keys (EN source strings) in the
- * order shown, money first. The server computes the amount by the talent's
- * cancellation terms; the UI never invents it.
+ * order shown, money first.
+ *
+ * Money is read from the LEDGER (`cancelPaymentPreview`), never the chip: the
+ * chip said "not paid" while a 300 MXN card payment existed, and the dialog
+ * promised "No payment was taken" (QA on Jor, 2026-10-01). `ledgerPaidCents`
+ * is undefined/null while the ledger has not answered; then the dialog makes
+ * no claim either way. A refund is never automatic: it is done from Money.
  */
 export function cancelConsequenceKeys(
   paymentState: AgendaPaymentState | undefined,
   cancelledBy: CancelledBy,
+  ledgerPaidCents?: number | null,
+  paymentInFlight?: boolean,
 ): string[] {
+  void cancelledBy;
   const rest = [
     "The time is freed on your calendar.",
     "The client sees the cancellation in your conversation.",
   ];
-  if (!clientPaidSomething(paymentState)) {
-    return ["No payment was taken, so there is nothing to refund.", ...rest];
+  const manual = "Refunds are not automatic. Refund the client by hand from Money.";
+  if (typeof ledgerPaidCents !== "number") {
+    return [clientPaidSomething(paymentState) ? manual : "Checking what the client paid…", ...rest];
   }
-  return [
-    cancelledBy === "talent"
-      ? "When you cancel, what the client paid always goes back."
-      : "Your cancellation terms decide what goes back. The amount shows after you confirm.",
-    ...rest,
-  ];
+  if (ledgerPaidCents > 0) return [manual, ...rest];
+  if (paymentInFlight) return ["A card payment may be arriving. If it lands, refund the client by hand from Money.", ...rest];
+  return ["No payment was taken, so there is nothing to refund. The payment link is closed.", ...rest];
 }
 
 /** Mockup tc_noshow: honest about money before recording a no-show. */

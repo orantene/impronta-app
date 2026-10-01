@@ -38,7 +38,16 @@ export function buildUpstreamCssUrl(search: string): string | null {
   const out: string[] = [];
   let families = 0;
   let display = false;
-  for (const p of params) {
+  for (const rawParam of params) {
+    // The server may hand the query over percent-encoded (":" as %3A, "@" as
+    // %40), which hid the axis separator and 400'd every family with weights.
+    // Decode first; "+" stays literal and still means a space in the name.
+    let p: string;
+    try {
+      p = decodeURIComponent(rawParam);
+    } catch {
+      return null;
+    }
     if (p === "display=swap") {
       display = true;
       continue;

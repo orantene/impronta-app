@@ -14,7 +14,16 @@ import {
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getRequestLocale } from "@/i18n/request-locale";
+import {
+  ONBOARDING_BOUNCE_COOKIE,
+  ONBOARDING_HOLD_RETRY_S,
+  onboardingHoldCopy,
+  onboardingBounceNow,
+  shouldHoldOnboardingBounce,
+} from "@/lib/auth/onboarding-bounce";
 
 const ONBOARDING_ERROR_COPY: Record<string, string> = {
   failed: "Something went wrong. Please try again.",
@@ -87,6 +96,35 @@ export default async function OnboardingRolePage({
   const destination = resolveAuthenticatedDestination(profile);
 
   if (destination !== "/onboarding/role") {
+    // Loop guard: the middleware just bounced this person here, and the
+    // fresh profile says they belong at `destination`. Redirecting straight
+    // back can ping-pong while the middleware's view catches up, so hold on a
+    // "setting up your page" state that retries.
+    const bounceCookie = (await cookies()).get(ONBOARDING_BOUNCE_COOKIE)?.value;
+    if (shouldHoldOnboardingBounce({ bounceCookie, destination, now: onboardingBounceNow() })) {
+      const copy = onboardingHoldCopy(await getRequestLocale());
+      return (
+        <div className="mx-auto flex min-h-[70vh] max-w-[440px] flex-col justify-center px-5 py-16 text-center">
+          <meta httpEquiv="refresh" content={`${ONBOARDING_HOLD_RETRY_S};url=${destination}`} />
+          <h1
+            className="plt-display text-[1.25rem] font-semibold"
+            style={{ color: "var(--plt-ink)" }}
+          >
+            {copy.title}
+          </h1>
+          <p className="mt-3 text-[0.875rem]" style={{ color: "var(--plt-muted)" }} role="status">
+            {copy.body}
+          </p>
+          <a
+            href={destination}
+            className="mx-auto mt-6 inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[0.8125rem] font-medium"
+            style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-ink)" }}
+          >
+            {copy.cta}
+          </a>
+        </div>
+      );
+    }
     redirect(destination);
   }
 

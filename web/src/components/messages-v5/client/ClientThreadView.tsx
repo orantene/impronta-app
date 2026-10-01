@@ -192,7 +192,7 @@ function renderCard(p: ClientThreadViewProps, message: ThreadMessage, kind: Clie
         return <SystemLine key={message.id} text={message.body || copy.generic.message} variant="mobile" />;
       }
       const a = act(offer.id);
-      return <ClientOfferCard offer={offer} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
+      return <ClientOfferCard offer={offer} offers={p.offers} copy={copy} kit={kit} business={name} locale={locale} now={now} phase={a.phase} refusal={a.refusal} payCode={p.payCode} onAccept={p.onAcceptOffer} onDecline={p.onDeclineOffer} onChange={p.onChangeOffer} onPay={p.onPay} />;
     }
     case "payment_request":
       return <ClientPaymentCard view={readPayment(payload)} copy={copy} business={name} locale={locale} now={now} onPay={p.onPay} />;

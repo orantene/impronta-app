@@ -23,7 +23,6 @@
  */
 
 import { useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 import { FirstPaintTipBottomProvider } from "@/components/edit-chrome/first-paint-tip-context";
 import { TalentAiTranslateProvider } from "@/components/locale-field/talent-ai-context";
@@ -114,7 +113,6 @@ export function TalentMaxBuilderMount({
   // card on Settings instead of leaving the event unheard. `navigatedRef`
   // stops a second denial (e.g. a repeated click while the toast is still up)
   // from firing a second navigation.
-  const router = useRouter();
   const navigatedRef = useRef(false);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -122,14 +120,17 @@ export function TalentMaxBuilderMount({
       if (navigatedRef.current) return;
       navigatedRef.current = true;
       // Give the existing denial toast a moment on screen before leaving.
-      timer = setTimeout(() => router.push("/talent/settings"), 1200);
+      // A HARD navigation: this route renders without the dashboard shell and
+      // a soft push keeps that bare layout, so the shell-only settings page
+      // would mount with no AdminShellProvider (the 2026-10-01 crash).
+      timer = setTimeout(() => window.location.assign("/talent/settings"), 1200);
     };
     window.addEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
     return () => {
       window.removeEventListener(TALENT_LOCKED_OPERATION_EVENT, onLocked);
       if (timer) clearTimeout(timer);
     };
-  }, [router]);
+  }, []);
 
   return (
     <BuilderMediaScopeProvider talentProfileId={talentProfileId}>

@@ -55,6 +55,26 @@ function activatePixelsAfterConsent() {
 }
 
 /**
+ * On the authenticated dashboard the banner must never sit on a control:
+ * below 720px the shell draws a fixed bottom tab bar (lift the banner above
+ * it), and from 721px the shell draws a 240px left rail whose last rows are
+ * Support and Settings (start the banner to the right of it). Keyed off the
+ * shell's own hooks, so public pages and the marketing site are unchanged.
+ */
+const CONSENT_BANNER_SHELL_OFFSET_CSS = `
+@media (max-width: 720px) {
+  body:has([data-tulala-mobile-bottom-nav]) [data-consent-banner] {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (min-width: 721px) {
+  body:has([data-tulala-app-sidebar]) [data-consent-banner] {
+    left: calc(240px + 1rem);
+  }
+}
+`;
+
+/**
  * Consent strip for analytics storage and ad pixels. Mounted in the root
  * layout. Honours Global Privacy Control (treated as a "no"), and can be
  * reopened from the footer "Privacy choices" link.
@@ -104,6 +124,8 @@ export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
   if (!mounted || !open || isPrototypeRoute) return null;
 
   return (
+    <>
+    <style>{CONSENT_BANNER_SHELL_OFFSET_CSS}</style>
     <div
       role="dialog"
       aria-label={t("public.consent.ariaLabel")}
@@ -148,5 +170,6 @@ export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -8,7 +8,12 @@ import { BUILDER_MAX_TREE_DEPTH } from "./tree-depth";
 import { isBuilderNodeRole } from "./role-bindings";
 import { isBuilderKitSectionRole, normalizeKitSlotKey } from "./section-provenance";
 import type { BuilderNode, BuilderNodeTree } from "./types";
-import { DESIGN_ORIGIN_PROP, normalizeDesignOrigin } from "./design-origin";
+import {
+  DESIGN_KEY_PROP,
+  DESIGN_ORIGIN_PROP,
+  normalizeDesignKey,
+  normalizeDesignOrigin,
+} from "./design-origin";
 
 /**
  * OPTIONAL node-level fields that must survive tree reconstruction. Without
@@ -98,6 +103,9 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   // Design seeds on every node so an update can tell design-owned from
   // talent-edited. Meaningless to the renderer; see design-origin.ts.
   { key: DESIGN_ORIGIN_PROP, normalize: normalizeDesignOrigin },
+  // TEMPLATE EDITOR: the pinned design key (`props.designKey`) on a design
+  // payload node. Stripped from talent trees by `buildDesignTrees`.
+  { key: DESIGN_KEY_PROP, normalize: normalizeDesignKey },
 ];
 
 /**

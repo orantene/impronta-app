@@ -20,6 +20,7 @@ import {
   tokenOriginMap,
   type StampSource,
 } from "../theme-releases/origin";
+import { stripDesignKeys } from "../theme-releases/design-keys";
 import { designApplySummary, lookSummary } from "../history/copy";
 import type { HistoryActor } from "../history/types";
 import { writeSiteDraft } from "../history/writer";
@@ -169,7 +170,9 @@ export function buildDesignTrees(
 ): BuildDesignTreesResult {
   // Theme releases: stamp the RAW design (tokens intact, so content-owned
   // props are known), then re-fingerprint after validation (below).
-  const stamp = (tree: BuilderNode[]) => (origin ? stampDesignOrigin(tree, origin) : tree);
+  // Template editor pins (`props.designKey`) shape the stamped keys, then are
+  // stripped: talent site trees never carry them.
+  const stamp = (tree: BuilderNode[]) => stripDesignKeys(origin ? stampDesignOrigin(tree, origin) : tree);
   const shell = pruneEmptyHydratedNodes(
     hydrateTalentTree(resolveYearToken(stamp(design.shellTree), year), tokens),
   );

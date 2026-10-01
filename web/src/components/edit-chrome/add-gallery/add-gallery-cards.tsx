@@ -38,6 +38,7 @@ import {
 } from "./add-gallery-card-meta";
 import { AddGalleryIcon } from "./add-gallery-icons";
 import { GalleryPreviewTrigger } from "./add-gallery-preview-modal";
+import { galleryLockedHint } from "@/lib/site-admin/add-gallery/structural-lock";
 import { AddGallerySectionPreview } from "./add-gallery-section-previews";
 import { useEditorLocale } from "../use-editor-locale";
 
@@ -80,20 +81,23 @@ function ElementCard({
   onInsert,
   onPreview,
   pending,
+  locked = false,
 }: {
   item: AddGalleryItem;
   onInsert: (item: AddGalleryItem) => void;
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
+  locked?: boolean;
 }) {
   const { comingSoon, advanced, incompatible, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
-  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
+  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending && !locked);
 
   return (
     <button
       type="button"
-      disabled={pending || comingSoon}
+      disabled={pending || comingSoon || locked}
+      data-add-gallery-locked={locked ? "true" : undefined}
       onPointerDown={dragProps?.onPointerDown}
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-center transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
@@ -119,6 +123,7 @@ function ElementCard({
       data-freeform-incompatible={incompatible ? "true" : undefined}
     >
       <GalleryPreviewTrigger item={item} onPreview={onPreview} />
+      {locked ? <GalleryLockedBadge /> : null}
       {infoTooltip ? (
         <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
       ) : null}
@@ -186,6 +191,7 @@ function SectionCard({
   onPreview,
   pending,
   armed = false,
+  locked = false,
 }: {
   item: AddGalleryItem;
   onInsert: (item: AddGalleryItem) => void;
@@ -198,6 +204,8 @@ function SectionCard({
    * confirm is worse than none, because it reads as a normal selected state.
    */
   armed?: boolean;
+  /** Plan-locked on this surface (Free talent site): shown, never insertable. */
+  locked?: boolean;
 }) {
   const { comingSoon, advanced, connected, incompatible, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
@@ -207,13 +215,14 @@ function SectionCard({
   const isShellVariant = item.tab === "shell";
   const dragProps = useGalleryCardPointerDrag(
     item,
-    draggable && !pending && !isShellVariant,
+    draggable && !pending && !isShellVariant && !locked,
   );
 
   return (
     <button
       type="button"
-      disabled={pending || comingSoon}
+      disabled={pending || comingSoon || locked}
+      data-add-gallery-locked={locked ? "true" : undefined}
       onPointerDown={dragProps?.onPointerDown}
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
@@ -248,6 +257,7 @@ function SectionCard({
       data-freeform-incompatible={incompatible ? "true" : undefined}
     >
       <GalleryPreviewTrigger item={item} onPreview={onPreview} />
+      {locked ? <GalleryLockedBadge /> : null}
       {infoTooltip ? (
         <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
       ) : null}
@@ -295,20 +305,23 @@ function ConnectedCard({
   onInsert,
   onPreview,
   pending,
+  locked = false,
 }: {
   item: AddGalleryItem;
   onInsert: (item: AddGalleryItem) => void;
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
+  locked?: boolean;
 }) {
   const { comingSoon, advanced, incompatible, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
-  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
+  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending && !locked);
 
   return (
     <button
       type="button"
-      disabled={pending || comingSoon}
+      disabled={pending || comingSoon || locked}
+      data-add-gallery-locked={locked ? "true" : undefined}
       onPointerDown={dragProps?.onPointerDown}
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
@@ -334,6 +347,7 @@ function ConnectedCard({
       data-freeform-incompatible={incompatible ? "true" : undefined}
     >
       <GalleryPreviewTrigger item={item} onPreview={onPreview} />
+      {locked ? <GalleryLockedBadge /> : null}
       {infoTooltip ? (
         <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
       ) : null}
@@ -417,6 +431,24 @@ function ShellVariantArmedOverlay() {
   );
 }
 
+/** Lock chip on a plan-locked card. Label from `galleryLockedHint` (en + es). */
+function GalleryLockedBadge() {
+  const { locale } = useEditorLocale();
+  return (
+    <span
+      className="pointer-events-none absolute left-[6px] top-[6px] z-[1] inline-flex items-center gap-[3px] rounded-full px-[6px] py-[2px] text-[9.5px] font-semibold"
+      style={{ background: CHROME.paper, color: CHROME.muted, border: `1px solid ${CHROME.line}` }}
+      data-add-gallery-lock-badge
+    >
+      <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      </svg>
+      {galleryLockedHint(locale).badge}
+    </span>
+  );
+}
+
 export function GalleryCard(props: {
   item: AddGalleryItem;
   tab: AddGalleryTab;
@@ -424,6 +456,7 @@ export function GalleryCard(props: {
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
   armed?: boolean;
+  locked?: boolean;
 }) {
   // Designs / Data / Shell use the richer template-card look; Blocks uses icon cards.
   if (props.tab === "designs" || props.tab === "shell") {

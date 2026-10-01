@@ -194,13 +194,17 @@ export function PrivacyEs() {
         {
           heading: "Pagos",
           body: (
-            <p>
-              Los pagos con tarjeta los procesa Stripe. {PLATFORM_BRAND.name} cobra el pago en
-              nombre del talento o espacio de trabajo que presta el servicio y luego se lo paga
-              después de descontar las tarifas que correspondan. Los datos de la tarjeta se
-              ingresan en Stripe y nunca pasan por {PLATFORM_BRAND.name}. Conservamos los
-              registros de pago descritos arriba con fines contables, fiscales y de disputas.
-            </p>
+            <>
+              <p>
+                Los pagos con tarjeta los procesa Stripe. El talento o espacio de trabajo que
+                presta el servicio es el vendedor y comerciante del pago; {PLATFORM_BRAND.name}{" "}
+                ofrece la plataforma y las herramientas de procesamiento de pagos, y las
+                tarifas se descuentan como se describe en los planes. Los datos de la tarjeta
+                se ingresan en Stripe y nunca pasan por {PLATFORM_BRAND.name}. Conservamos los
+                registros de pago descritos arriba con fines contables, fiscales y de disputas.
+              </p>
+              <p className="text-xs opacity-70">Pendiente de revisión legal</p>
+            </>
           ),
         },
         {

@@ -57,7 +57,10 @@
           "kind": "text",
           "re": "langSwitch"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "hero",
@@ -102,15 +105,22 @@
         {
           "name": "next-free chip",
           "kind": "text",
-          "re": "nextFree"
+          "re": "nextFree",
+          "optional": true,
+          "reason": "shown only when the talent has availability data"
         },
         {
           "name": "hero photo",
           "kind": "sel",
           "sel": "img",
-          "min": 1
+          "min": 1,
+          "optional": true,
+          "reason": "talent data: no cover photo uploaded"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "work",
@@ -140,7 +150,10 @@
           "sel": "img",
           "min": 3
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.22
+      }
     },
     {
       "key": "menu",
@@ -170,14 +183,19 @@
           "name": "row cards (>= 3 thumbs)",
           "kind": "sel",
           "sel": "img",
-          "min": 3
+          "min": 3,
+          "optional": true,
+          "reason": "services without photos render text rows; photos are talent data"
         },
         {
           "name": "prices on rows",
           "kind": "text",
           "re": "price"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "reviews",
@@ -205,7 +223,10 @@
           "sel": "q, blockquote, figure",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.16
+      }
     },
     {
       "key": "about",
@@ -230,7 +251,9 @@
           "name": "portrait",
           "kind": "sel",
           "sel": "img",
-          "min": 1
+          "min": 1,
+          "optional": true,
+          "reason": "talent data: no portrait uploaded"
         },
         {
           "name": "actions (>= 1)",
@@ -238,7 +261,10 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "faq",
@@ -266,7 +292,10 @@
           "sel": "details, [aria-expanded]",
           "min": 2
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "location",
@@ -300,7 +329,12 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "optional": true,
+      "notes": "Absent when the talent shows no location (privacy or no address): expected.",
+      "pixel": {
+        "maxMismatch": 0.16
+      }
     },
     {
       "key": "footer",
@@ -337,7 +371,10 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "socket",
@@ -363,7 +400,10 @@
           "kind": "text",
           "re": "(Tulala)"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.1
+      }
     }
   ]
 }

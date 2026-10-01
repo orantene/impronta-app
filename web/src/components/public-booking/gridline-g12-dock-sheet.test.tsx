@@ -33,7 +33,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
   renderToStaticMarkup(<SelectionDock {...base} locale={locale} {...(liveStatus === undefined ? {} : { liveStatus })} />);
 
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "7bb5d58fab9ddb60848ee30474ba66f0134df2703ffdab0a9ec96da430aa1084");
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "3d92c12303fd99e70ddcbacc6dd7dba08121d16b94e359c6bbb63cafb8a6ab54");
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {
@@ -69,4 +69,15 @@ test("step dots: three, one per step, hidden on done; phone sheet fills the scre
 
 test("the booking CSS ships through the type-system sheet", () => {
   assert.ok(renderToStaticMarkup(<TypeSystemStyle />).includes('data-type-system-style="utility-booking"'));
+});
+
+test("Gridline off state reads See times / Ver horarios by CSS only; markup and ON label unchanged", () => {
+  for (const [loc, label, region] of [["en", "See times", "Your selection"], ["es", "Ver horarios", "Tu selección"]] as const) {
+    assert.ok(UTILITY_BOOKING_CSS.includes(`.cb-dock[aria-label="${region}"] .cb-dock-go:not(:has(.cb-dock-lbl-on))::before{content:"${label}"`));
+    assert.ok(html(loc, OFF).includes(`aria-label="${region}"`), "selector key present in markup");
+    assert.ok(html(loc, OFF).includes(loc === "es" ? "Continuar" : "Continue"), "markup text untouched");
+  }
+  assert.match(html("es", ON), /Consultar</);
+  assert.match(html("en", ON), /Ask now</);
+  assert.ok(!html("es", OFF).includes("Ver horarios") && !html("en", OFF).includes("See times"), "no markup change for other designs");
 });

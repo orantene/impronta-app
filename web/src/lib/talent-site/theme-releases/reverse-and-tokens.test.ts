@@ -34,9 +34,9 @@ test("tokens: her own value is kept", () => {
   assert.ok(r.report.kept.some((e) => e.key === "space.row"));
 });
 
-test("tokens: a key she never set inherits the default (nothing written)", () => {
+test("tokens: a key she never set gets the new default written (authored versions must land)", () => {
   const r = merge(withTokens(built(1), {}), withTokens(built(2), theirsTokens));
-  assert.equal("shadow.card" in r.tokens, false);
+  assert.equal(r.tokens["shadow.card"], theirsTokens["shadow.card"]);
   assert.ok(r.report.applied.some((e) => e.key === "shadow.card" && e.reason === "inherits_default"));
 });
 

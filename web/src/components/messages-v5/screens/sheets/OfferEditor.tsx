@@ -41,6 +41,7 @@ import { messagingSendOffer } from "@/lib/server-actions/messaging-engine";
 import {
   messagingCounterOffer,
   messagingCreateOffer,
+  messagingSeedOfferFromShared,
   messagingListOffers,
   messagingLoadOfferForEditor,
   messagingReopenOfferForAmendment,
@@ -52,8 +53,8 @@ import {
   addCustomLine,
   draftDepositCents,
   draftLineCount,
-  draftPlatformFeeCents,
-  draftTalentNetCents,
+  draftInternalSplit,
+  visibleRevisionNumber,
   draftTotalCents,
   lineTotalCents,
   removeLine,
@@ -198,8 +199,9 @@ export function OfferEditorView(props: OfferEditorViewProps) {
   const c = copy.kit.offer;
   const formatCentsUSD = (cents: number) => formatOrderMoney(cents, draft?.currencyCode ?? "USD");
   const sheetVariant = variant === "mobile" ? "mobile-full" : "desktop";
+  const revision = draft ? visibleRevisionNumber(props.versions, draft.offerId ?? "") : 1;
   const title = draft
-    ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${draft.version}`).replace("{name}", clientName)}`
+    ? `${copy.kit.offer.editorTitle.replace("v{version}", `v${revision}`).replace("{name}", clientName)}`
     : copy.kit.offer.editorTitle.replace("v{version}", "").replace(" · {name}", clientName ? ` · ${clientName}` : "").replace("{name}", clientName ?? "").trim();
 
   if (phase === "refused" && refusalCode) {
@@ -224,8 +226,10 @@ export function OfferEditorView(props: OfferEditorViewProps) {
 
   const lineCount = draftLineCount(draft);
   const totalCents = draftTotalCents(draft);
-  const talentNet = draftTalentNetCents(draft);
-  const platformFee = draftPlatformFeeCents(draft);
+  // Talent seller mode = a solo talent selling her own service (she is the merchant).
+  const split = draftInternalSplit(draft, { soloTalent: Boolean(props.seller) });
+  const talentNet = split.talentNetCents;
+  const platformFee = split.platformFeeCents;
   const saveLabel =
     props.saveState.status === "saving"
       ? c.saving
@@ -272,7 +276,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
             data-offer-send
             title={sendGate.ok ? undefined : sendGate.reasonKey}
           >
-            {c.sendV.replace("{version}", String(draft.version))}
+            {c.sendV.replace("{version}", String(revision))}
           </Btn>
         </>
       }
@@ -292,7 +296,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
                 }}
                 data-offer-version-chip={v.version}
               >
-                v{v.version}
+                v{visibleRevisionNumber(props.versions, v.id, v.version)}
               </span>
             ))}
           </div>
@@ -455,7 +459,7 @@ export function OfferEditorView(props: OfferEditorViewProps) {
           </div>
           <div className="offer-internal-row">
             <span>{c.internalAgencyFee}</span>
-            <b>{formatCentsUSD(draft.coordinatorFeeCents)}</b>
+            <b>{formatCentsUSD(split.coordinatorFeeCents)}</b>
           </div>
           <div className="offer-internal-row">
             <span>{c.internalPlatformFee}</span>
@@ -559,6 +563,9 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       const ctxNow = ctxRef.current;
       setPhase("loading");
       setRefusalCode(null);
+      // A rejected server action used to leave the sheet on its loading
+      // skeleton forever; any throw now lands on the refused state with Retry.
+      try {
       if (!inquiryId) {
         setRefusalCode("not_found");
         setPhase("refused");
@@ -595,6 +602,7 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
         }
       }
 
+      if (existing) await messagingSeedOfferFromShared({ inquiryId, offerId }).catch(() => null);
       const loaded = await messagingLoadOfferForEditor({ inquiryId, offerId });
       if (!loaded.ok) {
         setRefusalCode(loaded.reason);
@@ -621,6 +629,10 @@ export function OfferEditorSheet({ open, onClose, ctx, copy, variant }: ActionSh
       setLastSaved({ lineCount: draftLineCount(loaded.draft), totalCents: draftTotalCents(loaded.draft) });
       setPhase("ready");
       loadedForRef.current = offerId;
+      } catch {
+        setRefusalCode("unavailable");
+        setPhase("refused");
+      }
     };
   }, [inquiryId]);
 

@@ -54,7 +54,10 @@
           "min": 3,
           "minWidth": 1000
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "hero",
@@ -88,7 +91,10 @@
           "name": "CTA pair (2 actions)",
           "kind": "ctaPair"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "contents",
@@ -109,7 +115,10 @@
           "sel": "a, button",
           "min": 3
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "chapters",
@@ -139,7 +148,10 @@
           "sel": "img",
           "min": 6
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "comp",
@@ -157,9 +169,12 @@
         {
           "name": "measures label",
           "kind": "text",
-          "re": "(estatura|height)"
+          "re": "(estatura|altura|height|medidas|measure)"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "rates",
@@ -186,12 +201,16 @@
           "re": "price"
         },
         {
-          "name": "row actions (>= 3)",
+          "name": "row actions (>= 2)",
           "kind": "sel",
           "sel": "a, button",
-          "min": 3
+          "min": 2,
+          "reason": "demos carry 2 to 4 services; the mockup has 3"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "about",
@@ -204,7 +223,10 @@
       ],
       "productOnly": true,
       "optional": true,
-      "expects": []
+      "expects": [],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
     },
     {
       "key": "faq",
@@ -218,7 +240,10 @@
       ],
       "productOnly": true,
       "optional": true,
-      "expects": []
+      "expects": [],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "statement",
@@ -245,7 +270,10 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.15
+      }
     },
     {
       "key": "footer",
@@ -260,7 +288,10 @@
       "baseline": true,
       "baselineNote": "Baseline (ticket FOLIO-PARITY-1): the shell footer is a required kit shell role, so it is part of the Folio baseline, not a delta.",
       "optional": true,
-      "expects": []
+      "expects": [],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
     },
     {
       "key": "socket",
@@ -288,7 +319,10 @@
           "kind": "text",
           "re": "(Tulala)"
         }
-      ]
+      ],
+      "pixel": {
+        "maxMismatch": 0.1
+      }
     }
   ]
 }

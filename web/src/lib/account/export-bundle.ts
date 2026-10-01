@@ -402,6 +402,8 @@ async function buildDerivedSections(
     for (const m of r.rows.filter((x) => x.deleted_at == null)) {
       let signedUrl: string | null = null;
       try {
+        // supabase-read-unchecked-ok: a failed signing leaves signedUrl null; the
+        // export still lists the file and its metadata.
         const { data: signed } = await admin.storage
           .from(String(m.bucket_id))
           .createSignedUrl(String(m.storage_path), MEDIA_URL_TTL_SECONDS);

@@ -91,6 +91,10 @@ export interface ThemePreview {
   thumbnailUrl?: string;
   /** Family names for the Look's font-pair chip. */
   fontPreview?: { heading: string; body: string };
+  /** Authored Designs only: the EN/ES name the owner typed (the row `title` is the EN one). */
+  names?: { en: string; es: string };
+  /** Authored Designs only: the code Design whose gallery palettes and fonts this one inherits. */
+  paletteSource?: string;
 }
 
 interface TalentThemeCatalogRowBase {

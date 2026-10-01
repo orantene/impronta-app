@@ -360,3 +360,18 @@ test("look: tokens only, 99/99/99/10 radius, 44px targets, entrance .45s, reduce
   assert.match(css, /from\{opacity:0;transform:translateY\(10px\) scale\(\.9\)\}/);
   assert.match(css, /prefers-reduced-motion:reduce\)\{\.tl-hello\{animation:none\}/);
 });
+
+test("bubble clears a fixed bottom bar and only one renders", async () => {
+  const { helpBubbleBottom, otherHelpBubbleShown } = await import("./help-bubble-logic");
+  assert.equal(helpBubbleBottom(800, 700, []), 112, "no bar: unchanged 12px above the anchor");
+  assert.equal(helpBubbleBottom(800, 700, [650]), 162, "a bar above the anchor lifts the bubble over it");
+  assert.equal(helpBubbleBottom(800, 700, [750]), 112, "a bar below the anchor changes nothing");
+  clearPage();
+  assert.equal(otherHelpBubbleShown(doc, null), false);
+  const x = doc.createElement("div");
+  x.setAttribute("data-help-bubble", "");
+  doc.body.appendChild(x);
+  assert.equal(otherHelpBubbleShown(doc, null), true);
+  assert.equal(otherHelpBubbleShown(doc, x), false);
+  x.remove();
+});
