@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildMaisonCustomPalette } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
@@ -49,9 +51,28 @@ describe("buildLiveDesignChangeSummary", () => {
     assert.equal(s.title, "¿Publicar Frame?");
     assert.ok(s.changes.includes("Solace → Frame"));
     assert.ok(s.stays.startsWith("Tus servicios"));
-    for (const line of [s.title, s.changes, s.stays, s.toast]) {
+    for (const line of [s.title, s.changes, s.colorsNote, s.stays, s.toast]) {
       assert.ok(!line.includes("—"));
     }
+  });
+
+  it("says honestly that the colours change, and never that they are kept", () => {
+    const es = buildLiveDesignChangeSummary({ locale: "es", fromSlug: "maison", toSlug: "maison-v2", paletteName: "Rosé" });
+    assert.equal(es.colorsNote, "Tus colores cambian a la paleta Rosé. Puedes ajustarlos después en Diseño.");
+    assert.ok(es.changes.includes("colores: Rosé"));
+    const en = buildLiveDesignChangeSummary({ locale: "en", fromSlug: "maison", toSlug: "maison-v2", paletteName: "Rosé" });
+    assert.equal(en.colorsNote, "Your colours change to the Rosé palette. You can adjust them later in Design.");
+    for (const s of [es, en]) {
+      assert.doesNotMatch(s.stays, /colou?rs|colores/i, "What stays promises no colours");
+      assert.doesNotMatch(`${s.changes} ${s.colorsNote}`, /kept|se conservan|se mantienen/i);
+    }
+  });
+
+  it("the dialog shows the colours line under What changes, before What stays", () => {
+    const src = readFileSync(join(process.cwd(), "src/components/talent/site/maison-setup/PublishDesignDialog.tsx"), "utf8");
+    const at = (needle: string) => src.indexOf(needle);
+    assert.ok(at("maison-design-changes") > 0 && at("maison-design-colors-note") > at("maison-design-changes"));
+    assert.ok(at("maison-design-stays") > at("maison-design-colors-note"));
   });
 
   it("falls back for unknown designs", () => {

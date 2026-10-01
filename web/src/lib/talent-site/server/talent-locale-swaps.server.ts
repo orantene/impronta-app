@@ -14,6 +14,7 @@ import { canonicalCityLabel } from "./city-label.server";
 
 type Row = {
   bio_i18n: LocalizedMapLike;
+  profile_code: string | null;
   home_city_text: string | null;
   talent_profile_taxonomy:
     | Array<{
@@ -39,7 +40,7 @@ export async function loadTalentLocaleSwaps(
     const { data, error } = await admin
       .from("talent_profiles")
       .select(`
-        bio_i18n,
+        bio_i18n, profile_code,
         home_city_text,
         talent_profile_taxonomy ( is_primary, display_order, taxonomy_terms ( kind, name_i18n ) ),
         talent_service_areas ( service_kind, locations ( display_name_i18n ) )
@@ -85,6 +86,7 @@ export async function loadTalentLocaleSwaps(
     return buildTalentLocaleSwaps(
       {
         bioI18n: effectiveBioI18n(row.bio_i18n, bios),
+        seedKey: row.profile_code,
         typeNames: types,
         homeCity,
         cityAliases: rawCity ? [rawCity] : [],
