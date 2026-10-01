@@ -17,6 +17,7 @@ import folioContent from "../../../../design-references/folio/content.json";
 import gridlineContent from "../../../../design-references/gridline/content.json";
 import maisonContent from "../../../../design-references/maison-v2/content.json";
 import type { DemoDesign } from "./types";
+import { GRIDLINE_DEMO_FIXTURES } from "./gridline-demo-fixtures";
 
 export type FixtureMode = "instant" | "request" | "inquiry" | "quote";
 
@@ -68,7 +69,7 @@ export interface FixtureService {
   priceLabel: string;
   /** null for "A cotizar". */
   priceAmount: number | null;
-  currency: "MXN";
+  currency: "MXN" | "USD";
   priceFrom?: boolean;
   priceUnit?: string;
   mode: FixtureMode;
@@ -85,6 +86,8 @@ export interface FixtureService {
   optionsLabel?: string;
   /** Matrix cells; present on every service when the fixture has a `matrix`. */
   matrix?: FixtureMatrixCells;
+  /** The service the matrix highlights while the talent's emergencies-today flag is on. */
+  emergency?: boolean;
   /** Extra fields an instant booking asks for (Gridline: colonia). */
   whoFields?: FixtureBriefQuestion[];
   /** Payment note on the booking sheet. */
@@ -111,10 +114,23 @@ export interface FixtureTask {
   hint: string;
 }
 
+/** A second language of a demo's written content (the talent does not speak it; the AI translate button wrote it). */
+export interface FixtureTranslation {
+  tagline?: string;
+  bio?: string;
+  services?: Record<string, { name: string; description: string; category?: string; matrix?: FixtureMatrixCells }>;
+  faq?: Array<{ q: string; a: string }>;
+  tasks?: Record<string, { label: string; hint: string }>;
+  taskDefault?: { kicker: string; hint: string };
+}
+
 export interface DemoContentFixture {
   design: FixtureDesign;
   profileCode: string;
-  locale: "es";
+  /** Primary language of the written content. */
+  locale: "es" | "en";
+  /** Second language, keyed by language code (Gridline's bilingual demo). */
+  translations?: Partial<Record<"en" | "es", FixtureTranslation>>;
   talent: {
     displayName: string;
     tagline: string;
@@ -227,16 +243,22 @@ export interface DemoContentFixture {
   mockupOnly: Record<string, unknown>;
 }
 
-const FIXTURES: Readonly<Record<FixtureDesign, DemoContentFixture>> = {
+/**
+ * Fixtures by key: a design (its reference demo's mockup content) or a demo's
+ * profile code (Gridline's seven trade demos, authored in gridline-demo-fixtures.ts).
+ */
+const FIXTURES: Readonly<Record<string, DemoContentFixture>> = {
   "maison-v2": maisonContent as unknown as DemoContentFixture,
   folio: folioContent as unknown as DemoContentFixture,
   gridline: gridlineContent as unknown as DemoContentFixture,
+  ...GRIDLINE_DEMO_FIXTURES,
 };
 
-export function loadDemoContentFixture(design: FixtureDesign): DemoContentFixture {
-  const fixture = FIXTURES[design];
+export function loadDemoContentFixture(key: string): DemoContentFixture {
+  const fixture = FIXTURES[key];
+  if (!fixture) throw new Error(`no content fixture for ${key}`);
   const problems = validateDemoContentFixture(fixture);
-  if (problems.length) throw new Error(`content fixture ${design} invalid: ${problems.join("; ")}`);
+  if (problems.length) throw new Error(`content fixture ${key} invalid: ${problems.join("; ")}`);
   return fixture;
 }
 
@@ -250,7 +272,7 @@ export function validateDemoContentFixture(f: DemoContentFixture): string[] {
   };
   const str = (v: unknown) => typeof v === "string" && v.trim().length > 0;
   need(str(f?.design) && str(f?.profileCode), "design/profileCode missing");
-  need(f?.locale === "es", "locale must be es");
+  need(f?.locale === "es" || f?.locale === "en", "locale must be es or en");
   need(str(f?.talent?.displayName) && str(f?.talent?.tagline) && str(f?.talent?.bio), "talent name/tagline/bio missing");
   need(str(f?.talent?.trade) && str(f?.talent?.city), "talent trade/city missing");
   need(Array.isArray(f?.talent?.languages) && f.talent.languages.length > 0, "talent languages missing");
@@ -261,7 +283,7 @@ export function validateDemoContentFixture(f: DemoContentFixture): string[] {
     ids.add(s.id);
     need(str(s.name) && str(s.category) && str(s.description), `service ${s.id}: name/category/description missing`);
     need(MODES.has(s.mode), `service ${s.id}: unknown mode ${s.mode}`);
-    need(s.currency === "MXN", `service ${s.id}: currency must be MXN`);
+    need(s.currency === "MXN" || s.currency === "USD", `service ${s.id}: currency must be MXN or USD`);
     need(str(s.priceLabel) && str(s.ctaLabel) && str(s.imageKey), `service ${s.id}: priceLabel/ctaLabel/imageKey missing`);
     need(s.priceAmount === null || (Number.isFinite(s.priceAmount) && s.priceAmount >= 0), `service ${s.id}: bad priceAmount`);
     need(s.mode === "quote" || s.mode === "inquiry" || s.priceAmount !== null, `service ${s.id}: priced mode without amount`);

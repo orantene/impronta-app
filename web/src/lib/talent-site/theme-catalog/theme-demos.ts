@@ -13,7 +13,7 @@
  * fonts, shape), section variants and section order. Nothing is a fixed skin.
  */
 
-export type ThemeDemoDesign = "maison-v2" | "folio";
+export type ThemeDemoDesign = "maison-v2" | "folio" | "gridline";
 
 export type ThemeDemoProfession =
   | "nails"
@@ -23,7 +23,14 @@ export type ThemeDemoProfession =
   | "hair"
   | "barber"
   | "model"
-  | "singer";
+  | "singer"
+  | "electrician"
+  | "plumber"
+  | "carpenter"
+  | "appliance_repair"
+  | "computer_tech"
+  | "smart_home"
+  | "handyman";
 
 export type ThemeDemo = {
   design: ThemeDemoDesign;
@@ -114,6 +121,15 @@ export const THEME_DEMOS: readonly ThemeDemo[] = [
   { design: "folio", key: "hand-model", name: { en: "Hand Model", es: "Modelo de manos" }, professions: ["model"], palette: "light", profileCode: "TAL-93112", siteSlug: "daniel-kim", displayName: "Daniel Kim", live: false },
   { design: "folio", key: "mature-model", name: { en: "Mature Model", es: "Modelo senior" }, professions: ["model"], palette: "stone", profileCode: "TAL-93113", siteSlug: "elena-garza-trevino", displayName: "Elena Garza Treviño", live: false },
   { design: "folio", key: "model-singer", name: { en: "Model & Singer", es: "Modelo y cantante" }, professions: ["model", "singer"], palette: "dark", profileCode: "TAL-93114", siteSlug: "rafael-hernandez-cuevas", displayName: "Rafa Cuevas", live: false },
+  // Gridline (after the featured Alex Treviño demo, TAL-93030). Palettes per the build plan 6.3:
+  // five palettes across eight demos so every Look is on a live demo.
+  { design: "gridline", key: "electrician-us", name: { en: "Electrician", es: "Electricista" }, professions: ["electrician"], palette: "default", profileCode: "TAL-93206", siteSlug: "gary-lindqvist", displayName: "Gary Lindqvist", live: false },
+  { design: "gridline", key: "plumber-us", name: { en: "Plumber", es: "Plomero" }, professions: ["plumber"], palette: "orange", profileCode: "TAL-93207", siteSlug: "tamika-sutton", displayName: "Tamika Sutton", live: false },
+  { design: "gridline", key: "carpenter-mx", name: { en: "Carpenter", es: "Carpintero" }, professions: ["carpenter"], palette: "green", profileCode: "TAL-93208", siteSlug: "saul-tapia-ortega", displayName: "Madera Tapia", live: false },
+  { design: "gridline", key: "appliance-technician-mx", name: { en: "Appliance Technician", es: "Técnica de línea blanca" }, professions: ["appliance_repair"], palette: "light", profileCode: "TAL-93209", siteSlug: "karla-beltran", displayName: "Karla Beltrán", live: false },
+  { design: "gridline", key: "computer-technician-us", name: { en: "Computer Technician", es: "Técnico de computadoras" }, professions: ["computer_tech"], palette: "dark", profileCode: "TAL-93210", siteSlug: "omar-siddiqui", displayName: "Omar Siddiqui", live: false },
+  { design: "gridline", key: "smart-home-installer-us", name: { en: "Smart Home Installer", es: "Instalador de casa inteligente" }, professions: ["smart_home"], palette: "dark", profileCode: "TAL-93211", siteSlug: "grace-tanaka", displayName: "Grace Tanaka", live: false },
+  { design: "gridline", key: "handyperson-mx", name: { en: "Handyperson", es: "Arreglos en casa" }, professions: ["handyman"], palette: "orange", profileCode: "TAL-93212", siteSlug: "ramon-gutierrez-pacheco", displayName: "Don Ramón Arreglos", live: false },
 ];
 
 export function themeDemosFor(design: ThemeDemoDesign): ThemeDemo[] {

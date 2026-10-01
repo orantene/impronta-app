@@ -19,6 +19,10 @@ import { loadTemplateHydrationTokens } from "@/lib/talent-site/server/apply-temp
 import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { applyDesign, applyLook, buildDesignTrees, coerceTokenMap } from "@/lib/talent-site/server/theme-apply-core";
 import { loadDemoDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
+import { loadDemoContentFixture } from "./content-fixture";
+import { matchOfferings, type ExistingOffering } from "./fixture-plan";
+import { gridlineCopyFromFixture } from "./gridline-site-copy";
+import { applyDemoSiteCopy } from "./site-copy";
 import type { DemoDesign } from "./types";
 import { sameStable } from "./stable";
 
@@ -31,6 +35,8 @@ export interface DemoSpec {
   live: boolean;
   /** Keep the site's current look slug, tokens and custom palette (registry `keepLook`). */
   keepLook?: boolean;
+  /** Content fixture key (registry `contentFixture`): Gridline fills its empty node text from it. */
+  contentFixture?: string;
 }
 
 type Row = Record<string, unknown> & { id: string };
@@ -95,6 +101,41 @@ export async function loadDemoRows(admin: SupabaseClient, profileCode: string): 
   };
 }
 
+/**
+ * Gridline: the design ships its spec cells, task targets, spec rows and top-bar
+ * line empty; the demo fills them from its fixture through the site-copy
+ * mechanism. Offering ids are resolved the way the content step matches them, so
+ * a task points at the offering the content step will hold. Deterministic ids:
+ * an identical rerun produces an identical tree.
+ */
+async function gridlineCopiedTrees(
+  admin: SupabaseClient,
+  tpId: string,
+  key: string,
+  built: { shellTree: unknown; homeTree: unknown },
+): Promise<{ shellTree: unknown; homeTree: unknown }> {
+  const fixture = loadDemoContentFixture(key);
+  const { data, error } = await admin
+    .from("talent_offerings")
+    .select("id, title, status, sort_order")
+    .eq("talent_profile_id", tpId)
+    .order("sort_order");
+  if (error) throw error;
+  const existing = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({ ...o, variants: [], addons: [] })) as ExistingOffering[];
+  const matched = matchOfferings(fixture, existing);
+  const idByService = new Map(fixture.services.map((s, i) => [s.id, matched.get(i)?.id] as const));
+  const copy = gridlineCopyFromFixture(fixture, (serviceId) => idByService.get(serviceId));
+  let n = 0;
+  const out = applyDemoSiteCopy(
+    built.shellTree as never,
+    built.homeTree as never,
+    { gridline: copy },
+    () => null,
+    () => `gl-copy-${++n}`,
+  );
+  return { shellTree: out.shell, homeTree: out.home };
+}
+
 type DemoDesignRow = NonNullable<Awaited<ReturnType<typeof loadDemoDesignRow>>>;
 type Trees = ReturnType<typeof styleTrees>;
 type CatalogLook = Awaited<ReturnType<typeof loadMaisonCatalogRow>>;
@@ -108,6 +149,8 @@ export interface DemoPlan {
   /** The design is rebuilt but the site's colours stay exactly as they are. */
   keepLook: boolean;
   trees: Trees;
+  /** The trees carry demo page copy (Gridline), so the draft trees are written, not just the design applied. */
+  copied: boolean;
   nextTokens: Record<string, string>;
   nextCustom: unknown;
   /** The draft already matches what the build would write. */
@@ -151,9 +194,13 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
   if (!tokens) throw new Error(`${spec.profileCode}: hydration tokens unavailable`);
   const built = buildDesignTrees(design.payload, tokens, undefined, { design: design.slug, version: design.version });
   if (!built.ok) throw new Error(`${spec.profileCode}: build failed ${built.errors.join("; ")}`);
+  const copied =
+    !style && spec.design === "gridline" && !!spec.contentFixture
+      ? ((await gridlineCopiedTrees(admin, tp.id, spec.contentFixture, built)) as Trees)
+      : null;
   const trees = style
     ? styleTrees(built, style, await loadMedia(admin, tp.id), spec.profileCode)
-    : { shellTree: built.shellTree, homeTree: built.homeTree };
+    : (copied ?? { shellTree: built.shellTree, homeTree: built.homeTree });
   const nextTokens = {
     ...(keepLook
       ? ((site.design_tokens_draft as Record<string, string> | null) ?? {})
@@ -186,6 +233,7 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
     lookSlug,
     keepLook,
     trees,
+    copied: copied !== null,
     nextTokens,
     nextCustom,
     draftSame,
@@ -202,7 +250,7 @@ export async function writeDemoDraft(
   plan: DemoPlan,
 ): Promise<void> {
   const { tp, site, home } = rows;
-  const { design, catalogLook, galleryTokens, lookSlug, keepLook, style, trees, nextTokens, nextCustom } = plan;
+  const { design, catalogLook, galleryTokens, lookSlug, keepLook, style, copied, trees, nextTokens, nextCustom } = plan;
   const d = await applyDesign(admin, {
     talentProfileId: tp.id,
     siteId: site.id,
@@ -220,7 +268,7 @@ export async function writeDemoDraft(
     .from("talent_sites")
     .update({
       ...(galleryTokens || keepLook ? { design_tokens_draft: nextTokens, theme_look_slug: lookSlug ?? null } : {}),
-      ...(style ? { shell_tree: trees.shellTree } : {}),
+      ...(style || copied ? { shell_tree: trees.shellTree } : {}),
       custom_palette: nextCustom,
       pending_design: null,
       draft_updated_at: now,
@@ -229,7 +277,7 @@ export async function writeDemoDraft(
     .eq("id", site.id)
     .eq("talent_profile_id", tp.id);
   if (error) throw error;
-  if (style) {
+  if (style || copied) {
     const { error: hErr } = await admin
       .from("talent_pages")
       .update({ blocks: trees.homeTree, updated_at: now })

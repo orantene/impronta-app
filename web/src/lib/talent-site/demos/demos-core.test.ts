@@ -19,7 +19,7 @@ import type { DemoRegistryEntry } from "./types";
 // ── registry ─────────────────────────────────────────────────────────────────
 
 test("registry: exactly one reference per design, codes unique", () => {
-  for (const design of ["maison-v2", "folio"] as const) {
+  for (const design of ["maison-v2", "folio", "gridline"] as const) {
     const refs = demosFor(design).filter((d) => d.reference);
     assert.equal(refs.length, 1, `${design} references`);
     assert.ok(refs[0]!.contentFixture === design);

@@ -44,6 +44,7 @@ import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-prese
 import { randomBytes } from "node:crypto";
 import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
 import { ALBA_PHOTO_SOURCES } from "./alba";
+import { ALEX_PHOTO_SOURCES } from "./alex";
 import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
@@ -252,7 +253,7 @@ async function uploadPlanPhotos(d: DemoTalent, profileId: string, userId: string
   ];
   for (const [i, p] of list.entries()) {
     const file = path.join(dir, `${p.key}.jpg`);
-    const source = ALBA_PHOTO_SOURCES[p.key];
+    const source = ALBA_PHOTO_SOURCES[p.key] ?? ALEX_PHOTO_SOURCES[p.key];
     if (!source) throw new Error(`no source recorded for photo ${p.key}`);
     const body = fs.readFileSync(file);
     const storagePath = `tenant/${HUB_TENANT_ID}/talent/${profileId}/${randomUUID()}.jpg`;
