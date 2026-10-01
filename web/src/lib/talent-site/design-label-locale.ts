@@ -12,6 +12,25 @@ import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settin
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
 const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
+  // Gridline (TH16) design defaults.
+  "Services": "Servicios",
+  "Services and prices": "Servicios y precios",
+  "Book a visit": "Agendar visita",
+  "What do you need?": "¿Qué necesitas?",
+  "Response": "Respuesta",
+  "Warranty": "Garantía",
+  "Price": "Precio",
+  "Payment": "Pago",
+  "Review": "Revisión",
+  "How it works": "Cómo funciona",
+  "Where I work": "Dónde trabajo",
+  "Emergency": "Emergencia",
+  "Emergencies today": "Emergencias hoy",
+  "No emergencies today": "Sin emergencias hoy",
+  "Call": "Llamar",
+  "Same-day emergency": "Emergencia el mismo día",
+  "Meanwhile:": "Mientras tanto:",
+  "Request now": "Pedir ahora",
   About: "Sobre mí",
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
