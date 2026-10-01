@@ -42,3 +42,19 @@ export function normalizeDesignOrigin(value: unknown): DesignOrigin | undefined 
     ...(cp.length > 0 ? { cp } : {}),
   };
 }
+
+/**
+ * DESIGN KEY PIN: `props.designKey` on a node of a DESIGN payload (template
+ * editor). `theme-releases/origin.ts` uses it verbatim as the node's local key
+ * segment instead of the computed `segment#ordinal`, so deleting, reordering or
+ * inserting an un-keyed twin cannot shift its siblings' keys. Never on a talent
+ * site tree (`buildDesignTrees` strips it after stamping). Carried by
+ * `validate.ts` so a builder save of a design payload keeps it.
+ */
+export const DESIGN_KEY_PROP = "designKey";
+
+const DESIGN_KEY_RE = /^[A-Za-z0-9_][A-Za-z0-9_.~#:-]{0,119}$/;
+
+export function normalizeDesignKey(value: unknown): string | undefined {
+  return typeof value === "string" && DESIGN_KEY_RE.test(value) ? value : undefined;
+}
