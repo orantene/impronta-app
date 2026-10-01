@@ -1,11 +1,13 @@
 /**
  * Alert band (Gridline `.gl-emg`): hazard-tape stripe, the headline, a safety
  * note and an action. Shown ONLY while the talent's emergencies-today flag is
- * on (`emergenciesToday`, supplied by the page); otherwise nothing renders, so
+ * on (`liveStatus.emergenciesToday`, G3b), marked `data-live-when="on"` so the expiry island hides it at midnight; otherwise nothing renders, so
  * no emergency is ever promised from a stale cache or an authored default.
  * Token colours only.
  */
 import type { CSSProperties, ReactNode } from "react";
+
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 import { anchorIdAttrs } from "./anchor-id";
 import type { BuilderAlertBandNode } from "./types";
@@ -37,10 +39,10 @@ const WARN_ICON = (
 
 export function renderAlertBandBlock(args: {
   node: BuilderAlertBandNode;
-  emergenciesToday?: boolean;
+  liveStatus?: LiveStatusRenderContext;
   styleAttr?: CSSProperties;
 }): ReactNode {
-  if (args.emergenciesToday !== true) return null;
+  if (args.liveStatus?.emergenciesToday !== true) return null;
   const { node, styleAttr } = args;
   const p = node.props;
   const title = (p.title ?? "").trim();
@@ -56,6 +58,7 @@ export function renderAlertBandBlock(args: {
       data-builder-kind="alert_band"
       data-builder-node-kind="alert_band"
       data-builder-node-id={node.id}
+      data-live-when="on"
       style={styleAttr}
       {...anchorIdAttrs(node)}
     >

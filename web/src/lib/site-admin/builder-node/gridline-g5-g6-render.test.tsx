@@ -10,6 +10,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { LIVE_STATUS_OFF, type LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { ALERT_BAND_CSS } from "./alert-band-block";
 import { createBuilderNode } from "./create";
 import { renderBuilderNodes, type BuilderNodeRenderDataSources } from "./render";
@@ -18,6 +19,7 @@ import { UTILITY_BAR_CSS, safeCallHref } from "./utility-bar-block";
 import { buildKitShell } from "@/lib/talent-site/theme-catalog/section-kit-shell";
 import { emergencyBlock } from "@/lib/talent-site/theme-catalog/section-kit-emergency";
 
+const ON: LiveStatusRenderContext = { emergenciesToday: true, emergenciesUntil: "2099-01-01T00:00:00.000Z" };
 const HERE = dirname(fileURLToPath(import.meta.url));
 const libAt = (f: string) => readFileSync(resolve(HERE, "../..", f), "utf8");
 const srcAt = (f: string) => readFileSync(resolve(HERE, "../../..", f), "utf8");
@@ -71,29 +73,33 @@ test("G5/G6 CSS is token-only (no hex) and the pulse respects reduced motion", (
 });
 
 test("utility bar: status ON shows the on label and data-on=true", () => {
-  const html = render([bar()], { emergenciesToday: true });
+  const html = render([bar()], { liveStatus: ON });
   assert.match(html, /data-builder-node-kind="utility_bar"/);
-  assert.match(html, /data-parity-key="header"/);
-  assert.match(html, /data-on="true"[^>]*>.*Emergencias hoy/);
+  assert.match(html, /data-on="true" data-live-when="on"[^>]*>.*Emergencias hoy/);
+  // the off variant ships too, so the expiry island can flip it at midnight
+  assert.match(html, /data-on="false" data-live-when="off"/);
+  assert.match(html, /Sin emergencias hoy/);
   assert.match(html, /Electricista · Monterrey/);
   assert.match(html, /Pedir visita/);
 });
 
 test("utility bar: status OFF (and absent flag) shows the off label", () => {
-  for (const ds of [{ emergenciesToday: false }, {}]) {
+  for (const ds of [{ liveStatus: LIVE_STATUS_OFF }, {}]) {
     const html = render([bar()], ds);
     assert.match(html, /data-on="false"/);
+    assert.doesNotMatch(html, /<span[^>]*data-live-when/);
+    assert.doesNotMatch(html, /role="status" data-on="true"/);
     assert.match(html, /Sin emergencias hoy/);
     assert.doesNotMatch(html, />Emergencias hoy</);
   }
 });
 
 test("utility bar: no call button without a valid callHref", () => {
-  assert.doesNotMatch(render([bar()]), /sb-ub-tel/);
-  assert.doesNotMatch(render([bar({ callHref: "{{callHref}}" })]), /sb-ub-tel/);
-  assert.doesNotMatch(render([bar()], { callHref: "" }), /sb-ub-tel/);
-  assert.doesNotMatch(render([bar()], { callHref: "javascript:alert(1)" }), /sb-ub-tel/);
-  assert.doesNotMatch(render([bar()], { callHref: "tel:123" }), /sb-ub-tel/);
+  assert.doesNotMatch(render([bar()]), /class="sb-ub-tel"/);
+  assert.doesNotMatch(render([bar({ callHref: "{{callHref}}" })]), /class="sb-ub-tel"/);
+  assert.doesNotMatch(render([bar()], { callHref: "" }), /class="sb-ub-tel"/);
+  assert.doesNotMatch(render([bar()], { callHref: "javascript:alert(1)" }), /class="sb-ub-tel"/);
+  assert.doesNotMatch(render([bar()], { callHref: "tel:123" }), /class="sb-ub-tel"/);
 });
 
 test("utility bar: call button from the page callHref, with a label", () => {
@@ -104,28 +110,29 @@ test("utility bar: call button from the page callHref, with a label", () => {
 
 test("utility bar: showCall false hides the button even with a callHref", () => {
   const html = render([bar({ showCall: false })], { callHref: "tel:+528112345678" });
-  assert.doesNotMatch(html, /sb-ub-tel/);
+  assert.doesNotMatch(html, /class="sb-ub-tel"/);
 });
 
 test("utility bar: showStatus false removes the pill", () => {
-  assert.doesNotMatch(render([bar({ showStatus: false })], { emergenciesToday: true }), /sb-ub-pill/);
+  assert.doesNotMatch(render([bar({ showStatus: false })], { liveStatus: ON }), /class="sb-ub-pill"/);
 });
 
 test("alert band: absent while the flag is off or missing, present while on", () => {
-  assert.doesNotMatch(render([band()]), /alert_band/);
-  assert.doesNotMatch(render([band()], { emergenciesToday: false }), /alert_band/);
-  const html = render([band()], { emergenciesToday: true });
+  assert.doesNotMatch(render([band()]), /data-builder-node-kind="alert_band"/);
+  assert.doesNotMatch(render([band()], { liveStatus: LIVE_STATUS_OFF }), /data-builder-node-kind="alert_band"/);
+  const html = render([band()], { liveStatus: ON });
   assert.match(html, /data-builder-node-kind="alert_band"/);
-  assert.match(html, /sb-ab-tape/);
+  assert.match(html, /data-live-when="on"/);
+  assert.match(html, /class="sb-ab-tape"/);
   assert.match(html, /Emergencia mismo día/);
   assert.match(html, /Mientras tanto:/);
   assert.match(html, /corta la luz/);
 });
 
 test("alert band: safety note and action are optional, tape uses tokens", () => {
-  const html = render([band({ safetyNote: "", ctaLabel: "", ctaHref: "" })], { emergenciesToday: true });
-  assert.doesNotMatch(html, /sb-ab-safe/);
-  assert.doesNotMatch(html, /sb-ab-cta/);
+  const html = render([band({ safetyNote: "", ctaLabel: "", ctaHref: "" })], { liveStatus: ON });
+  assert.doesNotMatch(html, /class="sb-ab-safe"/);
+  assert.doesNotMatch(html, /class="sb-ab-cta"/);
   assert.match(ALERT_BAND_CSS, /repeating-linear-gradient\(-45deg,var\(--token-color-accent/);
 });
 

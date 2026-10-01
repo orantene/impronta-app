@@ -3,13 +3,17 @@
  * Logo tile, name plus mono subtitle, an emergencies status pill, an optional
  * action (desktop) and a tap-to-call button.
  *
- * The status flag arrives as `emergenciesToday` (supplied by the page from the
- * live-status loader; never read here). The call button exists only when a
+ * The status flag arrives as `liveStatus` (G3b `dataSources.liveStatus`, absent
+ * = off). Off renders only the off pill; on renders the on pill marked
+ * `data-live-when="on"` plus the off pill marked `data-live-when="off"`, so the
+ * expiry island can flip the page at midnight without a reload. The call button exists only when a
  * `tel:` href was supplied (the talent's opt-in public number, G4); there is
  * no fallback to any private number. Token colours only, 44px targets, the
  * pulse stops under reduced motion.
  */
 import type { CSSProperties, ReactNode } from "react";
+
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 import { anchorIdAttrs } from "./anchor-id";
 import type { BuilderUtilityBarNode } from "./types";
@@ -49,29 +53,27 @@ export function safeCallHref(href: unknown): string {
 
 export function renderUtilityBarBlock(args: {
   node: BuilderUtilityBarNode;
-  emergenciesToday?: boolean;
+  liveStatus?: LiveStatusRenderContext;
   /** Call link from the page (G4 `callHref`); wins over the node's own. */
   callHref?: string;
   styleAttr?: CSSProperties;
 }): ReactNode {
   const { node, styleAttr } = args;
   const p = node.props;
-  const on = args.emergenciesToday === true;
+  const on = args.liveStatus?.emergenciesToday === true;
   const name = (p.name ?? "").trim();
   const subtitle = (p.subtitle ?? "").trim();
   const call = p.showCall === false ? "" : safeCallHref(args.callHref || p.callHref);
   const ctaLabel = (p.ctaLabel ?? "").trim();
   const ctaHref = (p.ctaHref ?? "").trim();
-  const pillLabel = on
-    ? (p.statusOnLabel ?? "").trim() || "Emergencies today"
-    : (p.statusOffLabel ?? "").trim() || "No emergencies today";
+  const onLabel = (p.statusOnLabel ?? "").trim() || "Emergencies today";
+  const offLabel = (p.statusOffLabel ?? "").trim() || "No emergencies today";
   return (
     <header
       className="sb-ub"
       data-builder-kind="utility_bar"
       data-builder-node-kind="utility_bar"
       data-builder-node-id={node.id}
-      data-parity-key="header"
       style={styleAttr}
       {...anchorIdAttrs(node)}
     >
@@ -84,10 +86,18 @@ export function renderUtilityBarBlock(args: {
         {subtitle ? <small>{subtitle}</small> : null}
       </div>
       {p.showStatus === false ? null : (
-        <span className="sb-ub-pill" role="status" data-on={on ? "true" : "false"}>
-          <i />
-          <span>{pillLabel}</span>
-        </span>
+        <>
+          {on ? (
+            <span className="sb-ub-pill" role="status" data-on="true" data-live-when="on">
+              <i />
+              <span>{onLabel}</span>
+            </span>
+          ) : null}
+          <span className="sb-ub-pill" role="status" data-on="false" data-live-when={on ? "off" : undefined}>
+            <i />
+            <span>{offLabel}</span>
+          </span>
+        </>
       )}
       {ctaLabel && ctaHref ? (
         <a className="sb-ub-cta" href={ctaHref}>

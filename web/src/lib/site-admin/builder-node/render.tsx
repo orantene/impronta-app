@@ -329,11 +329,6 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
-  /**
-   * G5/G6: is "emergencies today" on right now. Supplied by the page (the G3b
-   * cache-safe source plugs in here); the renderer never reads it. Absent = off.
-   */
-  emergenciesToday?: boolean;
   /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
   callHref?: string;
   /** Public-safe location (exact address present only in "public" mode). */
@@ -6084,7 +6079,7 @@ function renderBuilderNodeElement(
     case "utility_bar": {
       return renderUtilityBarBlock({
         node,
-        emergenciesToday: options.dataSources?.emergenciesToday,
+        liveStatus: options.dataSources?.liveStatus,
         callHref: options.dataSources?.callHref,
         styleAttr: sharedNodeStyle(node.props.style),
       });
@@ -6092,7 +6087,7 @@ function renderBuilderNodeElement(
     case "alert_band": {
       return renderAlertBandBlock({
         node,
-        emergenciesToday: options.dataSources?.emergenciesToday,
+        liveStatus: options.dataSources?.liveStatus,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
