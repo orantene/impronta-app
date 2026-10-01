@@ -31,6 +31,7 @@ const COPY = {
 } as const;
 
 const field = "mt-1 w-full rounded border border-white/15 bg-black/30 px-2 py-1.5 text-sm text-white";
+const trigger = "rounded-full border border-black/30 bg-white px-3 py-1 text-xs text-black/80 hover:bg-black/5";
 const btn = "rounded border border-white/20 px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50";
 
 export function SaveAsNewDesignDialog({
@@ -70,7 +71,7 @@ export function SaveAsNewDesignDialog({
 
   return (
     <>
-      <button type="button" className={btn} onClick={() => setOpen(true)} data-save-as-new-design>
+      <button type="button" className={trigger} onClick={() => setOpen(true)} data-save-as-new-design>
         {t.open}
       </button>
       {open && typeof document !== "undefined" ? createPortal(
