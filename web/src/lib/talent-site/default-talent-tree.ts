@@ -93,6 +93,8 @@ export interface TalentProfileTokens {
   whatsappHref?: string;
   /** `mailto:...` when she published an address. Empty hides the button. */
   emailHref?: string;
+  /** `tel:...` from the explicit public call number only. Empty hides the call button. */
+  callHref?: string;
   /** Honest booking sentence. Defaults to hand confirmation. */
   contactCopy?: string;
   /** First three service / focus labels (already de-duped + capped). */
@@ -180,6 +182,7 @@ export function hydrateTalentTree(
     inquireHref: talent.inquireHref,
     whatsappHref: talent.whatsappHref ?? "",
     emailHref: talent.emailHref ?? "",
+    callHref: talent.callHref ?? "",
     contactCopy: talent.contactCopy ?? CONTACT_COPY.confirmByHand,
     service1: talent.service1,
     service2: talent.service2,

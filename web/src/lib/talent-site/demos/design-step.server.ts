@@ -121,7 +121,7 @@ async function gridlineCopiedTrees(
     .eq("talent_profile_id", tpId)
     .order("sort_order");
   if (error) throw error;
-  const existing = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({ ...o, variants: [], addons: [] })) as ExistingOffering[];
+  const existing = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({ ...o, variants: [], addons: [] })) as unknown as ExistingOffering[];
   const matched = matchOfferings(fixture, existing);
   const idByService = new Map(fixture.services.map((s, i) => [s.id, matched.get(i)?.id] as const));
   const copy = gridlineCopyFromFixture(fixture, (serviceId) => idByService.get(serviceId));
