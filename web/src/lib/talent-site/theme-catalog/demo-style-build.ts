@@ -104,6 +104,16 @@ function styleAbout(about: BuilderNode, media: MediaUrls): BuilderNode {
   return mapTree(about, (n) => (n.kind === "image" && label(n) === "About portrait" ? withProps(n, { src: media.hero }) : n));
 }
 
+/**
+ * The demo's editable site tokens: its own, plus the footer band tone. The rich footer
+ * (`footer_rich`, release 2.7) is light by default and dark through the `footer.tone`
+ * theme token, so a demo styled with an ink footer just sets that token.
+ */
+export function demoStyleTokens(style: MaisonV2DemoStyle | undefined): Record<string, string> {
+  if (!style) return {};
+  return { ...(style.tokens ?? {}), "footer.tone": style.footer === "ink" ? "dark" : "light" };
+}
+
 function styleFooter(node: BuilderNode, style: MaisonV2DemoStyle): BuilderNode {
   if (propsOf(node).slotKey !== "footer" || node.kind !== "container") return node;
   const tone =

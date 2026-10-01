@@ -6,6 +6,7 @@ import type {
 } from "./animation-presets";
 import type { BackgroundMediaProps } from "./background-media";
 import type { BuilderIconName } from "./icon-registry";
+import type { LiveTextKey } from "./live-text-keys";
 import type { BuilderVisibilityCondition } from "./visibility";
 
 export type BuilderNodeKind =
@@ -953,6 +954,8 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
     href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
+    /** Follows a profile value at render time (see live-text-keys.ts); `text` is the fallback. */
+    liveText?: LiveTextKey;
     style?: BuilderNodeStyle;
   };
 }
@@ -965,6 +968,8 @@ export interface BuilderParagraphNode extends BuilderNodeBase {
     href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
+    /** Follows a profile value at render time (see live-text-keys.ts); `text` is the fallback. */
+    liveText?: LiveTextKey;
     style?: BuilderNodeStyle;
   };
 }

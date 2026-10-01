@@ -35,6 +35,25 @@ export function asPolicyLocale(locale: string | null | undefined): PolicyLocale 
   return typeof locale === "string" && locale.toLowerCase().startsWith("en") ? "en" : "es";
 }
 
+/**
+ * Language of a policy page on the platform path (`/t/[code]/...`): the
+ * talent's PRIMARY, unless the URL asks for another (`/en` prefix or
+ * `?locale=`), bounded by the languages she offers. The visitor's browser
+ * cookie never decides: a policy reads in the language she wrote it in.
+ */
+export function choosePolicyLocale(input: {
+  prefixLocale: string | null | undefined;
+  queryLocale: string | null | undefined;
+  primary: string;
+  supported: readonly string[];
+}): string {
+  const norm = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
+  for (const c of [norm(input.prefixLocale), norm(input.queryLocale)]) {
+    if (c && input.supported.includes(c)) return c;
+  }
+  return input.primary;
+}
+
 export type PolicyPageModel = {
   doc: PolicyDoc;
   locale: PolicyLocale;

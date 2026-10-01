@@ -18,6 +18,7 @@ import { notFound } from "next/navigation";
 
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
@@ -34,7 +35,10 @@ async function isAdminViewingDemo(talentProfileId: string): Promise<boolean> {
     .select("is_demo")
     .eq("id", talentProfileId)
     .maybeSingle();
-  if (error) return false; // fail closed: no admin demo view without a clean read
+  if (error) {
+    logServerError("live-site-preview/is-demo", error);
+    return false;
+  }
   return data?.is_demo === true;
 }
 

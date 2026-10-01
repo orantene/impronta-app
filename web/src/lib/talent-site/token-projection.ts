@@ -9,6 +9,7 @@
  * — safe on the edge and unit-testable.
  */
 import { contactCopyForPlan, talentContactHrefs } from "./contact-channels";
+import { resolveHeadline } from "./hero-headline";
 import { formatHeroEyebrow, formatHeroProofLine } from "./hero-proof-line";
 import { clampWords } from "./talent-locale-swaps";
 import {
@@ -34,7 +35,10 @@ export function talentProfileTokens(
 ): TalentProfileTokens {
   const displayName = profile.displayName.trim() || "Talent";
   const profilePath = `/t/${profile.profileCode}`;
+  // The short line under the headline: her own tagline field, else the bio cut to a
+  // sentence or two, else "Trade · City".
   const tagline =
+    profile.tagline?.trim() ||
     (profile.publicBio?.trim() ? clampWords(profile.publicBio) : "") ||
     [profile.primaryTypeLabel, profile.homeCity].filter(Boolean).join(" · ") ||
     "";
@@ -97,6 +101,8 @@ export function talentProfileTokens(
     richBio,
     locationLine: profile.homeCity ? `Based in ${profile.homeCity}` : "",
     heroEyebrow: formatHeroEyebrow(primaryTypeLabel, profile.homeCity) || primaryTypeLabel,
+    headline: resolveHeadline({ headline: profile.headline, tradeEn: primaryTypeLabel, displayName }).text,
+    menuSubtitle: profile.menuCurrency?.trim() ? `Prices in ${profile.menuCurrency.trim().toUpperCase()}.` : "",
     proofLine: formatHeroProofLine({
       years: profile.experienceYears,
       languages: profile.languagesLabel ? profile.languagesLabel.split(" \u00b7 ") : [],

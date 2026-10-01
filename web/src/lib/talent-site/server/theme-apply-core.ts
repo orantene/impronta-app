@@ -110,6 +110,9 @@ export function pruneEmptyHydratedNodes(tree: ReadonlyArray<BuilderNode>): Build
   const isEmpty = (node: BuilderNode): boolean => {
     const props = (node.props ?? {}) as Record<string, unknown>;
     if (node.kind === "heading" || node.kind === "paragraph") {
+      // A live line (follows her profile at render time) stays even with no data yet:
+      // it fills in the day she adds it (`liveText` keeps a zero-width placeholder).
+      if (props.liveText) return false;
       return typeof props.text === "string" && props.text.trim() === "";
     }
     if (node.kind === "button") {
@@ -120,6 +123,10 @@ export function pruneEmptyHydratedNodes(tree: ReadonlyArray<BuilderNode>): Build
   // A ticker word that hydrated to "" (no third service...) drops out; a ticker
   // left with no words drops out entirely.
   const dropEmptyItems = (node: BuilderNode): BuilderNode => {
+    const live = node.props as { liveText?: unknown; text?: unknown };
+    if ((node.kind === "heading" || node.kind === "paragraph") && live.liveText && typeof live.text === "string" && live.text.trim() === "") {
+      return { ...node, props: { ...(node.props as object), text: "​" } } as BuilderNode;
+    }
     if (node.kind !== "marquee") return node;
     const items = ((node.props ?? {}) as { items?: Array<{ text?: unknown }> }).items;
     if (!Array.isArray(items)) return node;

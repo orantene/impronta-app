@@ -44,6 +44,7 @@ import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-prese
 import { randomBytes } from "node:crypto";
 import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
 import { ALBA_PHOTO_SOURCES } from "./alba";
+import { applyHeroFacts } from "./hero-facts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -661,6 +662,8 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
   await writeFaq(d, profileId);
   await writeReviews(d, profileId, entry);
   await writeHomeBase(d, profileId);
+  // Release 2.7: headline, years, languages and Instagram the hero and footer read from the profile.
+  await applyHeroFacts(admin, { profileCode: d.profileCode, hubTenantId: HUB_TENANT_ID, write: true });
   if (passwordEnv) await setQaPassword(d, userId, passwordEnv);
   await writeBookingHours(d, profileId, entry);
   await writeLocationSettings(d, profileId);

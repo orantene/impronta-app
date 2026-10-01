@@ -77,6 +77,7 @@ import { ContentsContentInspector } from "./contents-inspector";
 import { MastheadContentInspector } from "./masthead-inspector";
 import { StatementFooterContentInspector } from "./statement-footer-inspector";
 import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
+import { LiveTextToggle } from "./live-text-toggle";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
@@ -601,6 +602,7 @@ function BuilderNodeContentInspectorBody({
               patch={commitPatch}
             />
           </div>
+          <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
           <div className={KIT.field}>
             <label className={KIT.label}>Level</label>
             <Segmented
@@ -641,6 +643,7 @@ function BuilderNodeContentInspectorBody({
             patch={commitPatch}
           />
         </div>
+        <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
         <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
       </BuilderNodeFlatPanel>
     );

@@ -315,20 +315,50 @@ export const MAISON_V2_RELEASE_2_6 = {
 } as const;
 
 /**
- * Release 21 parity fix (v20 to v21): Location REPLACES the "Before you come"
- * visit band, as in the mockup, so zone and hours are not shown twice. The band
- * removal is an opt-in layout item (ONE grouped item); the header link repoints
- * to the Location band (only if the header was not edited). Its own export so
- * it can be combined with the hero and footer slice at integration.
+ * Release 2.7 (v20 to v21, "hero + footer"; v20 is the chrome and location
+ * slice): the hero and the footer follow the talent's own profile.
+ *
+ * Automatic (design defaults, reach untouched parts only):
+ *   - the four hero lines (headline, eyebrow, tagline, proof line) become LIVE:
+ *     the platform fills them from her profile at render time, so her headline,
+ *     trade and city, tagline, years, languages and reviews stay true without a
+ *     re-apply. A line she rewrote keeps her words;
+ *   - the footer color token (light by default, dark as an option in the theme
+ *     drawer) only matters to the new footer.
+ * Opt-in (layout item, the talent chooses):
+ *   - the footer becomes the light rich footer ("Nos vemos pronto.", a booking
+ *     button, Where and Contact columns from her profile). The removal of the
+ *     dark band and the keyed replacement are ONE item, like the 2.5 menu swap.
+ * Content (the menu intro line "Prices in MXN.", the seeded headline) is text a
+ * release never rewrites, so it reaches newly applied sites only.
  */
-export const MAISON_V2_RELEASE_PARITY = {
+/** One talent-facing change: the nodes inside the old footer band go with its removal. */
+const FOOTER_RICH_NOTE: ReleaseNote = {
+  en: "A new light footer: a big 'See you soon.', a booking button, and Where and Contact columns filled in from your profile. Preview it before you choose.",
+  es: "Un pie de página claro y nuevo: un gran 'Nos vemos pronto.', un botón para reservar y columnas de Dónde y Contacto que se llenan desde tu perfil. Míralo antes de elegir.",
+};
+const FOOTER_BAND_PARTS = [
+  "layout:shell:footer/heading:removed",
+  "layout:shell:footer/button:removed",
+  "layout:shell:footer/container:removed",
+  "layout:shell:footer/container/social_links:removed",
+  "layout:shell:footer/container/paragraph:removed",
+] as const;
+
+const VISIT_TO_LOCATION_NOTE: ReleaseNote = {
+  en: "Location replaces the Your visit section, so your zone and hours show once. If you do not have the Location section yet it is added in the same step, so you never lose your visit info. The header link follows it. Preview it before you choose.",
+  es: "Ubicación reemplaza la sección Tu visita, así tu zona y tu horario se muestran una sola vez. Si aún no tienes la sección de Ubicación, se agrega en el mismo paso, así nunca pierdes la información de tu visita. El enlace del encabezado la sigue. Míralo antes de elegir.",
+};
+
+export const MAISON_V2_RELEASE_2_7 = {
   design: "maison-v2",
   toVersion: 21,
-  layoutKeys: ["layout:home:visit:removed", "layout:home:visit/visit:removed"],
-  layoutGroupId: "layout:maison-v2:visit-to-location",
+  /** The removal of the dark footer band (and its parts) + the keyed rich footer are ONE opt-in change. */
+  layoutKeys: ["layout:shell:footer:removed", "layout:shell:footer_rich", ...FOOTER_BAND_PARTS],
+  layoutGroupId: "layout:maison-v2:footer-rich",
   notes: {
-    en: "Maison v2: Location replaces Your visit, so your zone and hours show once, and the phone section switcher now starts with Home.",
-    es: "Maison v2: Ubicación reemplaza a Tu visita, así tu zona y tu horario se muestran una sola vez, y el selector de secciones en teléfonos ahora empieza con Inicio.",
+    en: "Maison v2 2.7: your top section follows your profile. The big line, the trade and city, the short line and the proof line (years, languages, reviews) are filled in from your profile and stay up to date. You can also choose a new light footer with your zone, hours and Instagram. Also, Location replaces Your visit so your zone and hours show once, and the phone section switcher starts with Home.",
+    es: "Maison v2 2.7: tu portada sigue tu perfil. La frase grande, el oficio y la ciudad, la línea corta y la línea de confianza (años, idiomas, reseñas) se llenan desde tu perfil y se mantienen al día. También puedes elegir un pie de página claro con tu zona, horario e Instagram. Además, Ubicación reemplaza a Tu visita para que tu zona y tu horario se muestren una sola vez, y el selector de secciones en teléfonos empieza con Inicio.",
   } satisfies ReleaseNote,
   codeNotes: [
     {
@@ -344,14 +374,45 @@ export const MAISON_V2_RELEASE_PARITY = {
       es: "Un solo dock para reservar y chatear: cuando la barra inferior tiene su propio botón de chat, el botón redondo de chat ya no aparece encima.",
     },
   ] satisfies ReleaseNote[],
+  /** Location REPLACES the visit band: ONE atomic opt-in swap that also carries the header link. */
+  extraGroups: [
+    {
+      keys: ["layout:home:visit:removed", "layout:home:visit/visit:removed"],
+      groupId: "layout:maison-v2:visit-to-location",
+      foldIds: ["variant-default:shell:header"],
+      alsoKeys: ["home:location"],
+      swap: { from: "visit", to: "location", ensure: true },
+    },
+  ],
   byItemId: {
+    "variant-default:home:hero/container/heading": {
+      en: "Your big hero line can follow the headline in your profile, or a line for your trade, or your name. Write your own and it stays yours (only if you have not edited that line).",
+      es: "La frase grande de tu portada puede seguir el titular de tu perfil, o una frase de tu oficio, o tu nombre. Escribe la tuya y se queda tuya (solo si no editaste esa línea).",
+    },
+    "variant-default:home:hero/container/paragraph": {
+      en: "The small line above your headline shows your trade and city from your profile (only if you have not edited it).",
+      es: "La línea pequeña sobre tu titular muestra tu oficio y tu ciudad desde tu perfil (solo si no la editaste tú).",
+    },
+    "variant-default:home:hero/container/paragraph#2": {
+      en: "The short line under your headline follows the tagline in your profile (only if you have not edited it).",
+      es: "La línea corta bajo tu titular sigue el lema de tu perfil (solo si no la editaste tú).",
+    },
+    "variant-default:home:hero/container/paragraph#3": {
+      en: "The line under your hero buttons shows your years of craft, languages and reviews from your profile, and hides itself when you have none (only if you have not edited it).",
+      es: "La línea bajo los botones de tu portada muestra tus años de oficio, idiomas y reseñas desde tu perfil, y se oculta si no tienes ninguno (solo si no la editaste tú).",
+    },
+    "token-default:footer.tone": {
+      en: "A new footer color option in your theme: light on the page surface, or a dark band. It only affects the new footer.",
+      es: "Una nueva opción de color del pie de página en tu tema: claro sobre la superficie de la página, o una franja oscura. Solo afecta al pie de página nuevo.",
+    },
+    "layout:home:visit:removed": VISIT_TO_LOCATION_NOTE,
+    "layout:home:visit/visit:removed": VISIT_TO_LOCATION_NOTE,
     "variant-default:shell:header": {
-      en: "The header link to Location now points at the Location section (only if you have not edited your header).",
-      es: "El enlace Ubicación del encabezado ahora lleva a la sección de Ubicación (solo si no editaste tu encabezado).",
+      en: "The header link to Location points at the Location section (applied together with the swap).",
+      es: "El enlace Ubicación del encabezado lleva a la sección de Ubicación (se aplica junto con el cambio).",
     },
-    "layout:home:visit:removed": {
-      en: "Location replaces the Your visit section, so your zone and hours show once. Add the Location section first (from the previous update). Preview it before you choose.",
-      es: "Ubicación reemplaza la sección Tu visita, así tu zona y tu horario se muestran una sola vez. Primero agrega la sección de Ubicación (de la actualización anterior). Míralo antes de elegir.",
-    },
+    "layout:shell:footer:removed": FOOTER_RICH_NOTE,
+    "layout:shell:footer_rich": FOOTER_RICH_NOTE,
+    ...Object.fromEntries(FOOTER_BAND_PARTS.map((id) => [id, FOOTER_RICH_NOTE])),
   } satisfies Record<string, ReleaseNote>,
 } as const;

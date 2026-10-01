@@ -172,6 +172,10 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
     "Elige un color. Los botones lo usan tal cual; el tinte suave, el fondo y las líneas se derivan, y el texto usa una versión que se lee bien.",
   "Pick any color. Text color and tints are derived, and contrast is checked.":
     "Elige cualquier color. El color del texto y los tintes se derivan, y se revisa el contraste.",
+  // Release 2.7 (hero + footer): lines that follow the profile.
+  "Follows your profile": "Sigue tu perfil",
+  "This line is filled in from your profile and stays up to date. Turn it off, or type your own words, to keep it as written.":
+    "Esta línea se llena desde tu perfil y se mantiene al día. Desactívala, o escribe tus propias palabras, para dejarla tal cual.",
   "Link to": "Enlazar a",
   "Make the card a link, for example #services to jump to your menu. Leave empty for plain text.":
     "Convierte la tarjeta en un enlace, por ejemplo #services para ir a tu menú. Déjalo vacío para texto simple.",

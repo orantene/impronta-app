@@ -22,7 +22,7 @@ import {
   MAISON_V2_RELEASE_2_4,
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
-  MAISON_V2_RELEASE_PARITY,
+  MAISON_V2_RELEASE_2_7,
   type ReleaseNote,
 } from "./maison-v2";
 
@@ -36,6 +36,20 @@ export interface ReleaseNoteModule {
   layoutKeys?: ReadonlyArray<string>;
   /** Id of the collapsed layout item (default `layout:<design>:hero-inset`). */
   layoutGroupId?: string;
+  /**
+   * More collapsed layout items in the same release. Each group collapses its
+   * candidate ids into ONE item (`groupId`); `foldIds` pulls other candidates
+   * (for example the header link) into that same item so they apply or not
+   * together, `alsoKeys` adds keys the item must cover, and `swap` declares the
+   * atomic replacement the merge performs (see `SwapPair.ensure`).
+   */
+  extraGroups?: ReadonlyArray<{
+    keys: ReadonlyArray<string>;
+    groupId: string;
+    foldIds?: ReadonlyArray<string>;
+    alsoKeys?: ReadonlyArray<string>;
+    swap?: { from: string; to: string; ensure?: boolean };
+  }>;
   /** Candidate ids the admin marks critical (forced, announced). */
   criticalIds?: ReadonlyArray<string>;
   /** Candidate id to the design keys its critical item names explicitly. */
@@ -49,7 +63,7 @@ const MODULES: ReadonlyArray<ReleaseNoteModule> = [
   MAISON_V2_RELEASE_2_4,
   MAISON_V2_RELEASE_2_5,
   MAISON_V2_RELEASE_2_6,
-  MAISON_V2_RELEASE_PARITY,
+  MAISON_V2_RELEASE_2_7,
 ];
 
 export function releaseNotesFor(design: string, toVersion: number): ReleaseNoteModule | null {
@@ -65,6 +79,10 @@ export function groupLayoutItems(
   const hits = items.filter((i) => i.type === "layout" && i.id && layoutKeys.includes(i.id));
   if (hits.length < 2) return [...items];
   const tree = hits.every((h) => h.tree === hits[0]!.tree) ? hits[0]!.tree : undefined;
+  // A detected key swap stays ONE atomic choice in the merge (see `swap.ts`). The nodes
+  // inside a swapped block (a footer band's children) ride along in `keys` without a swap
+  // of their own, so ANY hit that carries the swap makes the grouped item the swap.
+  const swapped = hits.find((h) => h.swap);
   const grouped: CandidateItem = {
     id: groupId,
     type: "layout",
@@ -73,8 +91,7 @@ export function groupLayoutItems(
     ...(tree ? { tree } : {}),
     layout: "nested-new",
     detail: { layout: "nested-new", grouped: hits.map((h) => h.id) },
-    // A detected key swap stays ONE atomic choice in the merge (see `swap.ts`).
-    ...(hits.every((h) => h.swap) ? { swap: hits[0]!.swap, ...(hits[0]!.group ? { group: hits[0]!.group } : {}) } : {}),
+    ...(swapped ? { swap: swapped.swap, ...(swapped.group ? { group: swapped.group } : {}) } : {}),
   };
   const out: CandidateItem[] = [];
   let placed = false;
@@ -89,6 +106,31 @@ export function groupLayoutItems(
     out.push(it);
   }
   return out;
+}
+
+/**
+ * Pull `foldIds` candidates into the collapsed group item, extend what it
+ * covers, and declare its atomic swap. The folded candidates disappear as their
+ * own items (one choice, never half applied). The item then spans trees, so it
+ * carries no single `tree`.
+ */
+export function foldLayoutGroup(
+  items: CandidateItem[],
+  g: NonNullable<ReleaseNoteModule["extraGroups"]>[number],
+): CandidateItem[] {
+  const group = items.find((i) => i.id === g.groupId);
+  if (!group) return items;
+  const folded = items.filter((i) => i.id && g.foldIds?.includes(i.id));
+  const keys = [...(group.keys ?? [group.key]), ...folded.flatMap((i) => i.keys ?? [i.key]), ...(g.alsoKeys ?? [])];
+  const { tree: _tree, ...rest } = group;
+  void _tree;
+  const next: CandidateItem = {
+    ...rest,
+    keys: [...new Set(keys)],
+    ...(g.swap ? { swap: g.swap } : {}),
+    detail: { ...(group.detail as object), folded: folded.map((i) => i.id) } as CandidateItem["detail"],
+  };
+  return items.filter((i) => !folded.includes(i)).map((i) => (i === group ? next : i));
 }
 
 /**
@@ -125,8 +167,14 @@ export function generateReleaseItems(
   const layoutKeys = mod.layoutKeys ?? [];
   const groupId = mod.layoutGroupId ?? `layout:${design}:hero-inset`;
   if (layoutKeys.length > 0) items = groupLayoutItems(items, layoutKeys, groupId);
+  for (const g of mod.extraGroups ?? []) items = foldLayoutGroup(groupLayoutItems(items, g.keys, g.groupId), g);
   const groupNote = layoutKeys.map((k) => mod.byItemId[k]).find(Boolean);
-  return { items: withAuthoredNotes(items, mod, groupNote), notes: { en: mod.notes.en, es: mod.notes.es } };
+  const noted = withAuthoredNotes(items, mod, groupNote).map((i) => {
+    const g = (mod.extraGroups ?? []).find((x) => x.groupId === i.id);
+    const note = g ? g.keys.map((k) => mod.byItemId[k]).find(Boolean) : undefined;
+    return g && note && !i.note ? { ...i, note: { en: note.en, es: note.es } } : i;
+  });
+  return { items: noted, notes: { en: mod.notes.en, es: mod.notes.es } };
 }
 
 const idOf = (i: ReleaseItem) => i.id ?? `${i.type}:${i.key}`;

@@ -24,6 +24,7 @@ import {
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import { MaisonUndoToast } from "./MaisonUndoToast";
+import { MaisonSetupOverlay } from "./MaisonSetupOverlay";
 
 type HostToast = null | "applied" | "restored";
 
@@ -190,8 +191,8 @@ export function MaisonSetupHost({
     onCloseToSite?.();
   };
 
-  return (
-    <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host" className="mb-6">
+  const body = (
+    <>
       {toast && choices.screen === "review" ? (
         <MaisonUndoToast
           locale={locale}
@@ -270,6 +271,30 @@ export function MaisonSetupHost({
           liveCustomPalette={liveCustomPalette}
         />
       )}
+    </>
+  );
+
+  // On a live site the picker is an overlay (like the other dashboard drawers),
+  // not a block in the page flow below the site card. First-time setup, before
+  // any site exists, IS the page, so it stays inline.
+  if (siteLive) {
+    return (
+      <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host">
+        <MaisonSetupOverlay
+          label={maisonSetupT(locale, "Choose a design")}
+          onClose={() => {
+            patch({ screen: "gallery", phoneSheet: null });
+            closeToSite();
+          }}
+        >
+          {body}
+        </MaisonSetupOverlay>
+      </div>
+    );
+  }
+  return (
+    <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host" className="mb-6">
+      {body}
     </div>
   );
 }

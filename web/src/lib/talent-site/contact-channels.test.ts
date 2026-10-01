@@ -60,8 +60,9 @@ test("a free plan confirms by hand and Portfolio can book a time", () => {
 });
 
 test("WhatsApp uses her number or a published link; email is a mailto only", () => {
-  assert.deepEqual(talentContactHrefs({ phone: "+52 998 111 2233" }), {
-    whatsappHref: "https://wa.me/529981112233",
+  // Privacy: the profile phone alone never becomes a WhatsApp link.
+  assert.deepEqual(talentContactHrefs({ phone: "+52 998 111 2233", phoneE164: "+529981112233" }), {
+    whatsappHref: "",
     emailHref: "",
   });
   assert.equal(

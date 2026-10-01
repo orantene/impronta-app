@@ -156,19 +156,82 @@ export function revertR20(p: DesignPayload): DesignPayload {
   return out;
 }
 
-/** v21 back to v20: the "Before you come" visit band is back (Location was added beside it), and the header link points at it. */
+/**
+ * v21 back to v20 (release 2.7, "hero + footer"): the live hero lines, the menu intro
+ * line and the rich footer swap back to the 2.5 shapes (heading = her name in italics,
+ * no `liveText`, no subtitle, the dark `footer` band with its fine print).
+ */
 export function revertR21(p: DesignPayload): DesignPayload {
   const out = clonePayload(p);
-  const at = out.homeTree.findIndex((n) => propsOf(n).slotKey === "location");
-  out.homeTree.splice(at < 0 ? out.homeTree.length : at, 0, legacyMaisonV2VisitBand(seqIds("maison-v2-legacy-visit")));
+  // Location REPLACED the "Before you come" visit band in this release: v20 had the visit
+  // band (before Location, which was an optional block) and the header link pointed at it.
+  const locAt = out.homeTree.findIndex((n) => propsOf(n).slotKey === "location");
+  out.homeTree.splice(locAt < 0 ? out.homeTree.length : locAt, 0, legacyMaisonV2VisitBand(seqIds("maison-v2-legacy-visit")));
   walkNodes(out.shellTree, (n) => {
-    const items = (propsOf(n).sectionProps as { navItems?: Array<{ href?: string }> } | undefined)?.navItems;
-    for (const i of items ?? []) if (i.href === "#location") i.href = "#visit";
+    const nav = (propsOf(n).sectionProps as { navItems?: Array<{ href?: string }> } | undefined)?.navItems;
+    for (const i of nav ?? []) if (i.href === "#location") i.href = "#visit";
+  });
+  delete out.tokenDefaults!["footer.tone"];
+  walkNodes(out.homeTree, (n) => {
+    const props = propsOf(n);
+    if (n.kind === "heading" && props.liveText === "hero_headline") props.text = "{i}{{displayName}}{/i}";
+    if (n.kind === "heading" || n.kind === "paragraph") delete props.liveText;
+    if (n.kind === "services_catalog") delete props.subtitle;
+  });
+  let seq = 0;
+  const id = () => `rev21-${(seq += 1)}`;
+  out.shellTree = out.shellTree.map((node) => {
+    const props = propsOf(node);
+    if (props.slotKey !== "footer_rich") return node;
+    const style = { ...(props.style as Props) };
+    Object.assign(style, {
+      backgroundColor: "token:color.ink",
+      textColor: "token:color.background",
+      paddingY: "xl",
+      paddingTop: "70px",
+      paddingBottom: "120px",
+      responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
+    });
+    const fine: Props = {
+      layout: "row",
+      gap: "s",
+      align: "center",
+      layerLabel: "Footer fine print",
+      responsive: { mobile: { layout: "row" } },
+      style: { width: "100%", maxWidth: "full", justifyContent: "space-between", flexWrap: "wrap", marginTopFree: "28px", gap: "10px" },
+    };
+    return {
+      ...node,
+      props: { ...props, slotKey: "footer", anchorId: "site-footer", style },
+      children: [
+        { id: id(), kind: "heading", props: { text: "See you soon.", level: 2, layerLabel: "Footer line", style: { lineHeight: "1" } } },
+        { id: id(), kind: "button", props: { label: "See services", href: "#services", tone: "primary", layerLabel: "Footer CTA", style: { marginTopFree: "18px" } } },
+        {
+          id: id(),
+          kind: "container",
+          props: fine,
+          children: [
+            {
+              id: id(),
+              kind: "social_links",
+              props: {
+                links: [],
+                display: "text",
+                ariaLabel: "Social links",
+                dataBinding: { sourceKey: "workspace_social_links" },
+                layerLabel: "Footer links",
+              },
+            },
+            { id: id(), kind: "paragraph", props: { text: "Hecho con Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } } },
+          ],
+        },
+      ],
+    } as unknown as BuilderNode;
   });
   return out;
 }
 
-/** Maison v2 as it was at `version` (15 = release 2.1 ... 21 = release 21), rebuilt from code. */
+/** Maison v2 as it was at `version` (15 = release 2.1 ... 20 = release 2.6, 21 = release 2.7), rebuilt from code. */
 export function maisonV2At(version: number): DesignPayload {
   let out = currentMaisonV2();
   if (version < 21) out = revertR21(out);

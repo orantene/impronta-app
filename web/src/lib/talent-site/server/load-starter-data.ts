@@ -8,6 +8,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { canonicalBioEn } from "@/lib/translation/public-bio";
 import { effectiveBioI18n, pickBio } from "@/lib/translation/bios-to-bio-i18n";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
+import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 
@@ -15,6 +16,7 @@ import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadHeroProofData } from "./load-hero-proof";
+import { canonicalCityLabel } from "./city-label.server";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
@@ -136,11 +138,13 @@ export async function loadTalentStarterProfileData(
   })();
 
   // Service-area home base first, else the city the drawer saved (F30).
-  const homeCity =
+  const homeCityRaw =
     (p.talent_service_areas ?? [])
       .find((a) => a.service_kind === "home_base")
       ?.locations?.display_name_i18n?.en?.trim() ||
     cityLabelFromPlaceText(p.home_city_text);
+  // Place text can be ASCII-folded ("Cancun"); restore the location's accent.
+  const homeCity = homeCityRaw ? await canonicalCityLabel(trusted, homeCityRaw, "en") : homeCityRaw;
 
   const serviceAreaLabels = (p.talent_service_areas ?? [])
     .map((a) => a.locations?.display_name_i18n?.en?.trim())
@@ -202,6 +206,11 @@ export async function loadTalentStarterProfileData(
     .join(" · ");
 
   const proof = await loadHeroProofData(trusted, talentProfileId);
+  // Her own headline and tagline (profile fields), and the currency of her menu.
+  const [scalars, menuCurrency] = await Promise.all([
+    readScalarFieldValuesFromCatalog(trusted, talentProfileId),
+    loadMenuCurrency(trusted, talentProfileId),
+  ]);
 
   return {
     displayName,
@@ -212,6 +221,9 @@ export async function loadTalentStarterProfileData(
     richBio,
     languagesLabel,
     experienceYears: proof.years,
+    headline: scalars.headline ?? null,
+    tagline: scalars.tagline ?? null,
+    menuCurrency,
     ratingAvg: proof.rating,
     ratingCount: proof.count,
     isDemo: proof.demo,
@@ -227,6 +239,29 @@ export async function loadTalentStarterProfileData(
 }
 
 type Db = Pick<SupabaseClient, "from">;
+
+/** The currency most of her published services are priced in ("MXN"), or null. */
+async function loadMenuCurrency(db: Db, talentProfileId: string): Promise<string | null> {
+  const { data, error } = await db
+    .from("talent_offerings")
+    .select("currency")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .eq("moderation_state", "approved")
+    .in("visibility", ["public", "on_request"])
+    .not("currency", "is", null)
+    .limit(50);
+  if (error) {
+    logServerError("talentSite.loadStarterMenuCurrency", error);
+    return null;
+  }
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as { currency: string | null }[]) {
+    const code = row.currency?.trim().toUpperCase();
+    if (code && code.length >= 3) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
 
 /** Published, approved, public service titles in the talent's order. */
 async function loadPublishedServiceNames(db: Db, talentProfileId: string): Promise<string[]> {

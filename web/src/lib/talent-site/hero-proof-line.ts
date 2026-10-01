@@ -12,6 +12,8 @@
  * function so the English seed and its Spanish render-time swap cannot drift.
  */
 
+import { localizedLanguageName } from "./language-label";
+
 export interface HeroProofInput {
   /** `years_experience`, whole years. 0 / null drops the part. */
   years?: number | null;
@@ -40,7 +42,11 @@ const ENDONYM: Readonly<Record<string, string>> = {
   yucatec: "Maaya t'aan",
 };
 
-export function languageEndonym(name: string): string {
+export function languageEndonym(name: string, locale: ProofLocale = "en"): string {
+  // The English line is the seed baked into applied trees (its text is a swap
+  // key), so it keeps each language's own name. The Spanish line reads the
+  // names in Spanish ("Inglés"), never the stored English name.
+  if (locale === "es") return localizedLanguageName({ name }, "es");
   const n = name.trim();
   return ENDONYM[n.toLowerCase()] ?? n;
 }
@@ -66,7 +72,7 @@ export function formatHeroProofLine(input: HeroProofInput, locale: ProofLocale =
   if (years >= 1) parts.push(yearsPart(years, locale));
   const seen = new Set<string>();
   for (const raw of input.languages ?? []) {
-    const name = languageEndonym(raw);
+    const name = languageEndonym(raw, locale);
     if (name && !seen.has(name.toLowerCase())) {
       seen.add(name.toLowerCase());
       parts.push(name);

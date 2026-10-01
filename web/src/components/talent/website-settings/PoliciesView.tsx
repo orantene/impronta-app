@@ -254,6 +254,11 @@ export function PoliciesView({
       <SettingsCard title={tt("Your answers")}>
         <div role="radiogroup" aria-label={tt("If a client cancels late or does not show up")} className="grid gap-2">
           <p className="m-0 text-[13.5px] font-semibold text-admin-ink">{tt("If a client cancels late or does not show up")}</p>
+          {data.facts.depositPct == null ? (
+            <p data-policy-no-deposit-note="" className="m-0 text-[12.5px] text-admin-ink-muted">
+              {tt("You take no deposit, so nothing is held. These choices apply once you ask for one.")}
+            </p>
+          ) : null}
           {LATE_CANCEL_REFUNDS.map((mode) => (
             <ChoiceCard
               key={mode}

@@ -51,6 +51,7 @@ import {
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
+import { applyTalentLiveText, type TalentLiveText } from "@/lib/talent-site/live-text";
 
 export interface InEditorCanvasRegionProps {
   /**
@@ -124,15 +125,22 @@ export function InEditorCanvasRegion({
   // canvas, exactly as the live render localises them (render-time only).
   const labelLocale = canvasRenderData?.labelLocale ?? null;
   const transformTree = useCallback(
-    (t: BuilderNodeTree): BuilderNodeTree =>
-      labelLocale
-        ? (localiseSeededDesignLabels(
-            t as Parameters<typeof localiseSeededDesignLabels>[0],
-            labelLocale.locale,
-            labelLocale.ctaMode,
-            labelLocale.swaps,
+    (t: BuilderNodeTree): BuilderNodeTree => {
+      if (!labelLocale) return t;
+      const localised = localiseSeededDesignLabels(
+        t as Parameters<typeof localiseSeededDesignLabels>[0],
+        labelLocale.locale,
+        labelLocale.ctaMode,
+        labelLocale.swaps,
+      ) as BuilderNodeTree;
+      // Lines that follow her profile show their live value, as on the live page.
+      return labelLocale.live
+        ? (applyTalentLiveText(
+            localised as Parameters<typeof applyTalentLiveText>[0],
+            labelLocale.live as TalentLiveText,
           ) as BuilderNodeTree)
-        : t,
+        : localised;
+    },
     [labelLocale],
   );
 

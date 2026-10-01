@@ -10,6 +10,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { parseWeeklyHours, type WeekdayIndex } from "@/lib/scheduling/hours-types";
 import { recurringFromAvailabilityData, weeklyFromAvailabilityPattern } from "@/lib/scheduling/pattern-hours";
 import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
+import { localizedLanguageName } from "@/lib/talent-site/language-label";
+import { canonicalCityLabel } from "@/lib/talent-site/server/city-label.server";
 
 import { parseLocationSettings, toPublicLocation, type TalentLocationPublic } from "@/lib/talent/location-settings";
 
@@ -169,7 +171,9 @@ export async function loadVisitSources(
     const es = locale.toLowerCase().startsWith("es");
 
     const base = areas.find((a) => a.service_kind === "home_base");
-    const baseName = (base ? placeName(base, locale) : null) ?? cityLabelFromPlaceText(profile?.home_city_text);
+    // Place text can arrive ASCII-folded ("Cancun"); the locations row has the accent.
+    const baseRaw = (base ? placeName(base, locale) : null) ?? cityLabelFromPlaceText(profile?.home_city_text);
+    const baseName = baseRaw ? await canonicalCityLabel(admin, baseRaw, locale) : null;
     const locationSettings = parseLocationSettings(locationRes.data ?? null);
     const talentLocation = toPublicLocation(locationSettings, baseName ?? "");
     // The note follows the talent's address setting (it used to always promise
@@ -193,10 +197,13 @@ export async function loadVisitSources(
       });
     }
 
-    const travel = areas
-      .filter((a) => a.service_kind === "travel_to")
-      .map((a) => placeName(a, locale))
-      .filter((x): x is string => Boolean(x));
+    const travel = await Promise.all(
+      areas
+        .filter((a) => a.service_kind === "travel_to")
+        .map((a) => placeName(a, locale))
+        .filter((x): x is string => Boolean(x))
+        .map((x) => canonicalCityLabel(admin, x, locale)),
+    );
     if (travel.length) {
       facts.push({
         label: es ? "Va a" : "Travels to",
@@ -236,7 +243,7 @@ export async function loadVisitSources(
     }
 
     const languageNames = langs
-      .map((l) => l.language_name?.trim() || l.language_code?.trim() || "")
+      .map((l) => localizedLanguageName({ name: l.language_name, code: l.language_code }, locale))
       .filter(Boolean);
     if (languageNames.length) {
       facts.push({

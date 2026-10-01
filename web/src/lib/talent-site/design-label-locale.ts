@@ -70,6 +70,12 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   visit: "visita",
   "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
   "See you soon.": "Nos vemos pronto.",
+  // Maison v2 2.7 rich footer, menu intro line.
+  "See you {i}soon.{/i}": "Nos vemos {i}pronto.{/i}",
+  Where: "Dónde",
+  "See location": "Ver ubicación",
+  "Write from this site": "Escribir por este sitio",
+  "Prices in {{currency}}.": "Precios en {{currency}}.",
   "Made with Tulala": "Hecho con Tulala",
   // Folio (magazine edition).
   Contents: "En este número",
@@ -202,6 +208,12 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     instant: { en: "Booking", es: "Reservas" },
     request: { en: "Appointments", es: "Citas" },
     inquiry: { en: "Quotes", es: "Cotizaciones" },
+  },
+  // Maison v2 2.7 footer button: the booking mode picks the verb.
+  "Book an appointment": {
+    instant: { en: "Book an appointment", es: "Reservar cita" },
+    request: { en: "Request an appointment", es: "Solicitar cita" },
+    inquiry: { en: "Write to me", es: "Escríbeme" },
   },
 };
 

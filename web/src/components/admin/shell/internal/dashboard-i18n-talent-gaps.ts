@@ -20,4 +20,11 @@ export const TALENT_GAPS_ES_TEXT: Record<string, string> = {
   "List": "Lista",
   "Working hours could not load": "No se pudo cargar tu horario",
   "New booking": "Nueva reserva",
+  // Maison v2 2.7: the hero copy fields next to the tagline in Identity.
+  "Website headline": "Titular del sitio",
+  "The big line at the top of your website. Short and about what clients get.":
+    "La frase grande al inicio de tu sitio. Corta y sobre lo que recibe tu clienta o cliente.",
+  "e.g. Hands that speak for you.": "p. ej., Manos que hablan por ti.",
+  "Years of experience": "Años de experiencia",
+  "Shown in the line under your hero buttons.": "Se muestra en la línea bajo los botones de tu portada.",
 };

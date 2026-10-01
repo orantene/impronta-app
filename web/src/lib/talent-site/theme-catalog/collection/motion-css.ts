@@ -60,7 +60,7 @@ export const MOTION_SOFT_CSS: readonly string[] = [
   `@media (prefers-reduced-motion:no-preference){${soft("[data-tl-motion]")}{animation:tl-rise .25s ${MOTION_EASE_PANEL}}}`,
   `${soft(".cb-spinner")}{display:inline-block}`,
   // Section anchors clear the sticky header (`--site-header-h` is published by the header).
-  `${SOFT_ROOT} :is(#hero,#gallery,#services,#reviews,#about,#contact,#visit),${SOFT_HTML} [data-theme-canvas-root] :is(#hero,#gallery,#services,#reviews,#about,#contact,#visit){scroll-margin-top:calc(var(--site-header-h,0px) + 8px)}`,
+  `${SOFT_ROOT} :is(#hero,#gallery,#services,#reviews,#about,#contact,#visit,#location),${SOFT_HTML} [data-theme-canvas-root] :is(#hero,#gallery,#services,#reviews,#about,#contact,#visit,#location){scroll-margin-top:calc(var(--site-header-h,0px) + 8px)}`,
 ];
 
 /** Every motion sheet for the always-on surfaces (keyframes + the reduced-motion rule). */
