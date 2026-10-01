@@ -23,6 +23,7 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
+import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
 
 export type PaymentIntentInput = {
   transactionId: string;
@@ -33,6 +34,8 @@ export type PaymentIntentInput = {
   inquiryId: string;
   bookingId: string;
   description?: string;
+  /** Public display name of the talent/workspace; becomes the card statement suffix. */
+  payeeName?: string | null;
   /**
    * Optional split breakdown, in cents, carried as PaymentIntent metadata so
    * the post-payment transfer step (Phase 3) and the confirmation PDF can read
@@ -110,6 +113,9 @@ export async function createPaymentIntentForTransaction(
       currency: input.currency.toLowerCase(),
       automatic_payment_methods: { enabled: true },
       description: input.description ?? "Booking payment",
+      ...(sanitizeStatementDescriptorSuffix(input.payeeName)
+        ? { statement_descriptor_suffix: sanitizeStatementDescriptorSuffix(input.payeeName) }
+        : {}),
       // NOTE: receipt_email is intentionally NOT set. The app sends its own
       // branded, bilingual "Payment received" receipt (notification entry
       // payment.received → client.payment_receipt) and logs it in the platform

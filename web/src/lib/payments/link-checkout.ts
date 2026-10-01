@@ -264,6 +264,8 @@ async function openOnce(
   if (!transactionId || !bookingId) return { ok: false, reason: "unavailable" };
 
   // ── 5. The session, for that row, dying with the claim.
+  const { data: payeeRow } = await admin.from("agencies").select("display_name").eq("id", link.tenant_id).maybeSingle();
+  const payeeName = (payeeRow as { display_name: string | null } | null)?.display_name ?? null;
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents,
@@ -274,6 +276,7 @@ async function openOnce(
     successUrl: input.successUrl,
     cancelUrl: input.cancelUrl,
     description: "Payment",
+    payeeName,
     locale: input.locale ?? null,
     expiresAt,
     metadata: { payment_link_code: link.code },

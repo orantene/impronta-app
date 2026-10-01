@@ -26,8 +26,6 @@ export interface TalentJsonLdInput {
   canonicalUrl: string;
   /** Display name — falls back to first+last, then profile code. */
   name: string;
-  givenName?: string | null;
-  familyName?: string | null;
   /** Primary public role: "Model", "Dancer", "MC", etc. */
   jobTitle?: string | null;
   /** Public bio (already locale-resolved). */
@@ -88,8 +86,6 @@ export function buildTalentProfileJsonLd(input: TalentJsonLdInput): Record<strin
   const person: Record<string, JsonValue> = compact({
     "@type": "Person",
     name: input.name.trim(),
-    givenName: input.givenName?.trim() ?? null,
-    familyName: input.familyName?.trim() ?? null,
     jobTitle: input.jobTitle?.trim() ?? null,
     description: input.description?.trim() ?? null,
     url: input.canonicalUrl,
