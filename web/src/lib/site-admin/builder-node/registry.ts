@@ -1219,6 +1219,7 @@ export const mastheadPropsSchema = z.object({
   edition: z.enum(["cover", "magazine"]).optional(),
   mastRight: z.string().max(160).optional(),
   coverLine: z.string().max(160).optional(),
+  coverStatement: z.string().max(160).optional(),
   bio: z.string().max(600).optional(),
   ctaLabel: z.string().max(60).optional(),
   ctaHref: z.string().max(500).optional(),
