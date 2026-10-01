@@ -75,7 +75,7 @@ test("with a context card the chips fill the composer too", () => {
   const chips = host.querySelectorAll<HTMLButtonElement>("[data-card-chat-context] [data-card-chat-chips] button");
   assert.equal(chips.length, 3);
   act(() => chips[1]!.click());
-  assert.equal(host.querySelector<HTMLTextAreaElement>("textarea")!.value, es("public.guestChat.askQuickDuration"));
+  assert.equal(host.querySelector<HTMLTextAreaElement>("textarea")!.value, "\u00bfCu\u00e1nto dura Gel pedicure?");
   unmount();
   clearPendingOffering();
 });

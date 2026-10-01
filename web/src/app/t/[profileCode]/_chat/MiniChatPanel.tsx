@@ -246,7 +246,7 @@ export function MiniChatPanel({
       if (h.lastName != null) setLastName(h.lastName);
       if (h.phone) setPhone(h.phone);
       if (h.email) setEmail(h.email);
-      if (h.draftPrefix) {
+      if (h.draftPrefix && !chatCard) {
         setDraft((cur) => (cur.trim() ? cur : h.draftPrefix!));
         setDockViewState("chat");
       }

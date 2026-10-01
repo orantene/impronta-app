@@ -29,10 +29,12 @@ export const CARD_CHAT_CSS = `@keyframes cc-up{from{transform:translateY(40px);o
 
 const CHIP: CSSProperties = {
   background: "var(--cc-bg)",
-  border: "1px solid var(--cc-line)",
+  border: 0,
   borderRadius: 999,
-  padding: "7px 12px",
+  padding: "8px 14px",
   fontSize: 12.5,
+  flex: "0 0 auto",
+  whiteSpace: "nowrap",
   color: "var(--cc-ink)",
   cursor: "pointer",
   fontFamily: "var(--cc-font)",
@@ -50,11 +52,15 @@ const PILL_BTN: CSSProperties = {
 };
 
 /** Three quick questions. They FILL the composer; they never send. */
-export function CardChatChips({ t, onPick }: { t: Translator; onPick: (question: string) => void }) {
+export function CardChatChips({ t, onPick, service = null }: { t: Translator; onPick: (question: string) => void; service?: string | null }) {
+  // With a service in context the first two read about it; the third is generic.
+  const keys: readonly string[] = service
+    ? ["public.guestChat.cardChipWhenFor", "public.guestChat.cardChipDurationFor", ASK_QUICK_KEYS[2]]
+    : ASK_QUICK_KEYS;
   return (
-    <div role="group" aria-label={t("public.guestChat.askQuickLabel")} data-card-chat-chips="" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-      {ASK_QUICK_KEYS.map((k) => {
-        const q = t(k);
+    <div role="group" aria-label={t("public.guestChat.askQuickLabel")} data-card-chat-chips="" style={{ display: "flex", flexWrap: "nowrap", gap: 8, overflowX: "auto", scrollbarWidth: "none" }}>
+      {keys.map((k) => {
+        const q = service ? interpolate(t(k), { service }) : t(k);
         return (
           <button key={k} type="button" className={a11y.focusRing} style={CHIP} onClick={() => onPick(q)}>
             {q}
@@ -80,14 +86,13 @@ export function CardChatContextCard({
   onPick: (question: string) => void;
 }) {
   return (
-    <div data-card-chat-context="" style={{ padding: "8px 12px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div data-card-chat-context="" style={{ padding: "8px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
       <div
         style={{
           display: "flex",
           gap: 10,
           alignItems: "center",
-          background: "var(--cc-surface)",
-          border: "1px solid var(--cc-line)",
+          background: "var(--cc-bg)",
           borderRadius: 16,
           padding: 8,
         }}
@@ -114,7 +119,7 @@ export function CardChatContextCard({
           ✕
         </button>
       </div>
-      <CardChatChips t={t} onPick={onPick} />
+      <CardChatChips t={t} onPick={onPick} service={titles.length === 1 ? (titles[0] ?? null) : null} />
     </div>
   );
 }
@@ -141,13 +146,13 @@ export function CardChatBackToBooking({
       onClick={onBack}
       className={a11y.focusRing}
       style={{
-        margin: "8px 12px 0",
+        margin: "8px 16px 0",
         display: "flex",
         alignItems: "center",
         gap: 8,
         textAlign: "left",
         background: "var(--cc-bg)",
-        border: "1px solid var(--cc-line)",
+        border: 0,
         borderRadius: 14,
         padding: "10px 12px",
         color: "var(--cc-ink)",

@@ -14,7 +14,6 @@
 import { useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
-import { interpolate } from "@/i18n/interpolate";
 import {
   peekBookingResume,
   requestBookingResume,
@@ -38,16 +37,12 @@ const BUBBLE: CSSProperties = {
   alignSelf: "flex-start",
 };
 
-export function CardDockIntro({ t, name, greeting }: { t: Translator; name: string; greeting: string }) {
+/** Her greeting bubble. The "nothing is sent" line is the composer placeholder now. */
+export function CardDockIntro({ greeting }: { greeting: string }) {
   return (
-    <>
-      <div data-card-dock-note="" style={{ textAlign: "center", fontSize: 11.5, color: "var(--cc-muted)" }}>
-        {interpolate(t("public.guestChat.cardNote"), { name })}
-      </div>
-      <div data-card-dock-greeting="" style={BUBBLE}>
-        {greeting}
-      </div>
-    </>
+    <div data-card-dock-greeting="" style={BUBBLE}>
+      {greeting}
+    </div>
   );
 }
 
@@ -105,7 +100,7 @@ export function CardDockAskFooter({
   }
   if (!threadEmpty) return null;
   return (
-    <div style={{ padding: "8px 12px 0" }}>
+    <div style={{ padding: "8px 16px 0" }}>
       <CardChatChips t={t} onPick={onPick} />
     </div>
   );
