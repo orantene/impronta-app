@@ -42,10 +42,11 @@ export function useLiveReplyCue({
 }): boolean {
   const [fresh, setFresh] = useState(false);
   // The moment she last looked: page load, then every time she closes the panel.
-  const sinceRef = useRef<number>(Date.now());
+  const sinceRef = useRef<number>(0);
   const wasOpen = useRef(false);
 
   useEffect(() => {
+    if (sinceRef.current === 0) sinceRef.current = Date.now();
     if (open) {
       wasOpen.current = true;
       setFresh(false);
