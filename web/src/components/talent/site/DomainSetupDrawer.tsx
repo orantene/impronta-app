@@ -130,19 +130,19 @@ export function DomainSetupDrawerBody({
         <PathCard
           title={copy.t("Buy domain")}
           body={copy.t("Search here, pay the registrar price, we register it for you.")}
-          mark="1"
+          mark={copy.t("Buy")}
           onClick={() => go("search")}
         />
         <PathCard
           title={copy.t("Connect existing")}
           body={copy.t("Point a domain you already own at your website.")}
-          mark="2"
+          mark={copy.t("DNS")}
           onClick={() => go("connect")}
         />
         <PathCard
           title={copy.t("Get help")}
           body={copy.t("Ask Tulala to help finish domain setup.")}
-          mark="3"
+          mark={copy.t("Help")}
           onClick={() => go("help")}
         />
       </div>
@@ -382,15 +382,19 @@ function PathCard({
         aria-hidden
         style={{
           flexShrink: 0,
-          width: 28,
+          width: "auto",
+          minWidth: 40,
           height: 28,
+          padding: "0 8px",
           borderRadius: 8,
           display: "grid",
           placeItems: "center",
           background: COLORS.ink,
           color: COLORS.card,
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: 700,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
         }}
       >
         {mark}

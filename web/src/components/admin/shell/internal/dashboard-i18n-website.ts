@@ -95,6 +95,9 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "ZIP": "Código postal",
   "Country (ISO)": "País (ISO)",
   "Opening checkout…": "Abriendo el pago…",
+  "Buy": "Comprar",
+  "DNS": "DNS",
+  "Help": "Ayuda",
   // Connect panel (Domain setup drawer + standalone)
   "Enter a domain to continue.": "Ingresa un dominio para continuar.",
   "Connect domain": "Conectar dominio",

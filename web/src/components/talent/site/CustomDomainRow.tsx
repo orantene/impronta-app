@@ -121,12 +121,13 @@ export function CustomDomainRow({
             placeItems: "center",
             background: unlocked ? COLORS.ink : COLORS.surfaceAlt,
             color: unlocked ? COLORS.card : COLORS.inkMuted,
-            fontSize: 15,
+            fontSize: 11,
             fontWeight: 700,
+            letterSpacing: 0.2,
             lineHeight: 1,
           }}
         >
-          @
+          www
         </span>
         <span style={{ minWidth: 0 }}>
           <span
