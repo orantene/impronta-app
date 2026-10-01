@@ -1,3 +1,4 @@
+import { ConsentEmbed } from "@/components/consent/consent-embed";
 import type { PublicTalentEmbed } from "@/lib/talent/profile-embeds/types";
 
 /**
@@ -44,16 +45,20 @@ export function PublicTalentEmbeds({
                   : "relative aspect-video w-full"
               }
             >
-              <iframe
-                src={item.src}
-                title={item.title || `${item.provider} embed`}
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-                allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
-                allowFullScreen
-                className="absolute inset-0 h-full w-full border-0"
-              />
+              <div className="absolute inset-0">
+                <ConsentEmbed
+                  src={item.src}
+                  provider={item.provider}
+                  title={item.title || `${item.provider} embed`}
+                  iframeProps={{
+                    loading: "lazy",
+                    referrerPolicy: "strict-origin-when-cross-origin",
+                    sandbox: "allow-scripts allow-same-origin allow-presentation allow-popups",
+                    allow: "autoplay; encrypted-media; picture-in-picture; clipboard-write",
+                    allowFullScreen: true,
+                  }}
+                />
+              </div>
             </div>
             {item.title ? (
               <p className="px-3 py-2 text-sm text-foreground">{item.title}</p>

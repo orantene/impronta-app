@@ -426,14 +426,12 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
       data-profile-theme="atelier"
     >
       {/* Fonts + scoped Atelier styles */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       {/* Page-scoped on purpose — Fraunces is loaded only on Atelier profiles, not
           globally. fonts.googleapis.com is already CSP-allowed (see
           app/google-fonts-link.tsx + builder render.tsx). */}
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,340;9..144,400;9..144,500&display=swap"
+        href="/api/fonts/css?family=Fraunces:opsz,wght@9..144,300;9..144,340;9..144,400;9..144,500&display=swap"
         rel="stylesheet"
       />
       <style dangerouslySetInnerHTML={{ __html: ATELIER_CSS }} />
