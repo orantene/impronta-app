@@ -25,6 +25,8 @@
 
 import { useState } from "react";
 
+import { themeTemplateEditHref } from "@/lib/talent-site/theme-template/types";
+
 import { BuilderLabStage, type BuilderLabTarget } from "./builder-lab-stage";
 import {
   BuilderLabComponentPreview,
@@ -115,7 +117,15 @@ export function BuilderLabShell({
       {mode === "factory" ? (
         <TalentFactoryTab
           locale={locale}
-          onOpenBuilder={() => setLaunch({ target: "talent" })}
+          onOpenBuilder={(profileCode, slug) => {
+            // TALENT design editor (own route), never the agency Studio stage.
+            window.location.assign(
+              themeTemplateEditHref(slug, {
+                subject: profileCode ?? undefined,
+                lang: locale === "es" ? "es" : "en",
+              }),
+            );
+          }}
         />
       ) : (
         <>

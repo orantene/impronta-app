@@ -53,13 +53,13 @@ describe("TalentFactoryTab render", () => {
   });
   it("lists no agency starters and states the open-in-builder limits", () => {
     assert.doesNotMatch(html, /builtin-|Site Starter Kit|Sync built-in starters/);
-    assert.match(html, /Open in builder/);
-    assert.match(html, /To change the design for every talent/);
+    assert.match(html, /Edit design in builder/);
+    assert.match(html, /never touch a talent site/);
   });
   it("renders Spanish", () => {
     const es = renderToStaticMarkup(<TalentFactoryTab locale="es" initial={DATA} onOpenBuilder={() => {}} />);
     assert.match(es, /Fábrica de plantillas de talento/);
-    assert.match(es, /Abrir en el editor/);
+    assert.match(es, /Editar diseño en el editor/);
     assert.match(es, /Sincronizar catálogo/);
     assert.doesNotMatch(es, /—/);
   });

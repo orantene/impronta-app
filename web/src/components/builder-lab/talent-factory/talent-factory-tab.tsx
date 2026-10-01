@@ -26,7 +26,7 @@ export function TalentFactoryTab({
   locale?: string;
   /** Pre-loaded data (tests); when omitted the tab loads through the gated action. */
   initial?: FactoryOverview;
-  onOpenBuilder?: (profileCode: string | null) => void;
+  onOpenBuilder?: (profileCode: string | null, slug: string) => void;
 }) {
   const [lang, setLang] = useState<FactoryLang>(locale === "es" ? "es" : "en");
   const t = FACTORY_COPY[lang];
@@ -117,7 +117,7 @@ function DesignCard({
   row: FactoryDesignRow;
   lang: FactoryLang;
   mockupMode: FactoryOverview["mockupMode"];
-  onOpenBuilder?: (profileCode: string | null) => void;
+  onOpenBuilder?: (profileCode: string | null, slug: string) => void;
 }) {
   const t = FACTORY_COPY[lang];
   const cmd = parityCommandFor(row.slug);
@@ -180,7 +180,7 @@ function DesignCard({
 
       {onOpenBuilder ? (
         <div className="mt-3" data-open-builder>
-          <button type="button" className={btn} onClick={() => onOpenBuilder(row.referenceDemoCode)}>
+          <button type="button" className={btn} onClick={() => onOpenBuilder(row.referenceDemoCode, row.slug)}>
             {t.openBuilder}
             {row.referenceDemoCode ? ` (${row.referenceDemoCode})` : ` (${t.noReference})`}
           </button>

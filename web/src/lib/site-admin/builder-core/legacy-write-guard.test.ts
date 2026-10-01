@@ -70,6 +70,12 @@ test("non-homepage surface may write pure-freeform tables", () => {
   assert.doesNotThrow(() =>
     assertNoLegacyBuilderWrite("platform_lab", "builder_template_revisions"),
   );
+  assert.doesNotThrow(() =>
+    assertNoLegacyBuilderWrite("theme_template", "talent_theme_drafts"),
+  );
+  assert.throws(() =>
+    assertNoLegacyBuilderWrite("theme_template", "cms_page_sections"),
+  );
 });
 
 test("legacy-target detection is case-insensitive + trims", () => {
