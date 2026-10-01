@@ -57,7 +57,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const rebuildSchema = z
   .object({
-    design: z.enum(["maison-v2", "folio"]).optional(),
+    design: z.enum(["maison-v2", "folio", "gridline"]).optional(),
     only: z.array(z.string().regex(CODE)).max(100).optional(),
     dryRun: z.boolean().optional(),
     publish: z.boolean().optional(),

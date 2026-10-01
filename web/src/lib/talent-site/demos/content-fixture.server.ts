@@ -62,8 +62,8 @@ export interface ContentFixtureResult {
 
 /** The fixture a demo gets when none is supplied: what the codebase already knows about it. */
 export function defaultFixtureFor(entry: DemoRegistryEntry): DemoContentFixture {
-  if (entry.reference && entry.contentFixture) {
-    // A reference demo takes its hero facts and Location from the mockup fixture itself.
+  if (entry.contentFixture) {
+    // A demo with a content fixture takes its hero facts and Location from that fixture.
     const f = loadDemoContentFixture(entry.contentFixture);
     const heroFacts = fixtureHeroFacts(f, HERO_FACTS[entry.profileCode]);
     const location = fixtureLocation(f);
@@ -120,8 +120,8 @@ export async function applyContentFixture(
       if (await hook(admin, entry, fixture.services, opts.write)) changed.push("content");
     } else skipped.push("services");
   }
-  if (entry.reference && entry.contentFixture) {
-    // Mockup content of a reference demo: tagline, bio, city, languages, services, FAQ, height.
+  if (entry.contentFixture) {
+    // Fixture content: tagline, bio, city, languages, services, FAQ, height, areas, job captions.
     const hub = await resolveHubTenantId(admin);
     const res = await applyReferenceContent(admin, entry, { write: opts.write, hubTenantId: hub });
     for (const step of res.changed) if (!changed.includes(step)) changed.push(step);

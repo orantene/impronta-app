@@ -1,7 +1,7 @@
 /**
  * The demos the one-command rebuild owns. Derived from THEME_DEMOS (the same
  * list the gallery and the apply pipeline read) plus the two reference demos
- * that sit outside it: Alba (maison-v2) and Mateo Ferrer (folio). No manifest:
+ * that sit outside it: Alba (maison-v2), Mateo Ferrer (folio) and Alex Treviño (gridline). No manifest:
  * adding a demo to THEME_DEMOS adds it here.
  *
  * Exactly one demo per design is the `reference` (the mockup's own content).
@@ -12,17 +12,21 @@ import type { DemoDesign, DemoRegistryEntry } from "./types";
 
 export const ALBA_CODE = "TAL-93020";
 export const MATEO_CODE = "TAL-93011";
+export const ALEX_CODE = "TAL-93030";
 
 const FROM_THEME_DEMOS: DemoRegistryEntry[] = THEME_DEMOS.map((d) => ({
   design: d.design,
   profileCode: d.profileCode,
   palette: d.palette,
   reference: false,
+  // Gridline's trade demos each own a content fixture keyed by their profile code.
+  ...(d.design === "gridline" ? { contentFixture: d.profileCode } : {}),
 }));
 
 const REFERENCES: DemoRegistryEntry[] = [
   { design: "maison-v2", profileCode: ALBA_CODE, palette: "rose", reference: true, contentFixture: "maison-v2" },
   { design: "folio", profileCode: MATEO_CODE, palette: "stone", reference: true, contentFixture: "folio" },
+  { design: "gridline", profileCode: ALEX_CODE, palette: "default", reference: true, contentFixture: "gridline" },
 ];
 
 /** Live demos outside THEME_DEMOS: rebuilt to the newest design but always in their CURRENT look. */

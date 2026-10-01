@@ -1,6 +1,6 @@
 // Pure helpers for scripts/demo-talents/rebuild.mjs (unit-tested).
 
-export const DESIGNS = ["maison-v2", "folio"];
+export const DESIGNS = ["maison-v2", "folio", "gridline"];
 export const DEFAULT_BASE_URL = "http://localhost:3005";
 
 /** Returns { ok: true, opts } or { ok: false, error }. Default is a dry run. */

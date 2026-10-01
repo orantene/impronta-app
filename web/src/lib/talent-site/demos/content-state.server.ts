@@ -14,6 +14,8 @@ import {
   CONTENT_FIELD_KEYS,
   desiredLanguages,
   fixtureSkipped,
+  planAreaOps,
+  planCaptionOps,
   planFaqOps,
   planFieldValues,
   planLanguages,
@@ -45,7 +47,7 @@ export async function loadContentSnapshot(
   const defs = await rows(admin.from("profile_field_definitions").select("id, field_key").in("field_key", [...CONTENT_FIELD_KEYS]));
   const fieldKeyById = new Map(defs.map((d) => [d.id as string, d.field_key as string]));
   const defIds = [...fieldKeyById.keys()];
-  const [media, variants, addons, faq, fields, languages, location, profile] = await Promise.all([
+  const [media, variants, addons, faq, fields, languages, location, areas, gallery, profile] = await Promise.all([
     byOffering("talent_offering_media"),
     byOffering("talent_offering_variants"),
     byOffering("talent_offering_addons"),
@@ -55,6 +57,19 @@ export async function loadContentSnapshot(
       : [],
     rows(admin.from("talent_languages").select("*").eq("talent_profile_id", tpId)),
     rows(admin.from("talent_location_settings").select("*").eq("talent_profile_id", tpId)),
+    rows(admin.from("talent_service_areas").select("*").eq("talent_profile_id", tpId).order("display_order").order("created_at")),
+    // The gallery in display order (the order the site reads it); only the caption inside `metadata` is ever edited.
+    rows(
+      admin
+        .from("media_assets")
+        .select("id, metadata")
+        .eq("owner_talent_profile_id", tpId)
+        .eq("variant_kind", "gallery")
+        .is("deleted_at", null)
+        .eq("approval_state", "approved")
+        .order("sort_order")
+        .order("created_at"),
+    ),
     rows(admin.from("talent_profiles").select(PROFILE_COLUMNS.join(", ")).eq("id", tpId)),
   ]);
   return {
@@ -67,6 +82,8 @@ export async function loadContentSnapshot(
       talent_profile_field_values: fields,
       talent_languages: languages,
       talent_location_settings: location,
+      talent_service_areas: areas,
+      media_assets: gallery,
       talent_profiles: profile,
     },
     fieldKeyById,
@@ -99,7 +116,7 @@ export interface ReferenceContentResult {
 }
 
 /**
- * Apply a REFERENCE demo's mockup content (tagline, bio, city, languages,
+ * Apply a demo's content fixture (tagline, bio, city, languages,
  * services, FAQ, height). Plans first from the live rows; `write: false` only
  * reports. A second run on applied state plans nothing.
  */
@@ -108,7 +125,7 @@ export async function applyReferenceContent(
   entry: DemoRegistryEntry,
   opts: { write: boolean; hubTenantId: string },
 ): Promise<ReferenceContentResult> {
-  if (!entry.reference || !entry.contentFixture) return { changed: [], skipped: [] };
+  if (!entry.contentFixture) return { changed: [], skipped: [] };
   const target = await assertDemoTarget(admin, entry.profileCode);
   if (!target.ok) throw new Error(`REFUSE: ${target.reason}`);
   const tpId = target.talentProfileId;
@@ -121,7 +138,14 @@ export async function applyReferenceContent(
     addons: snapshot.talent_offering_addons.filter((a) => a.offering_id === o.id),
   }));
   const offerings = planOfferingOps(fixture, existing);
-  const faq = planFaqOps(fixture.faq.items, snapshot.talent_faq_items);
+  const second = (["en", "es"] as const).find((l) => l !== fixture.locale && fixture.translations?.[l]?.faq?.length);
+  const faq = planFaqOps(
+    fixture.faq.items,
+    snapshot.talent_faq_items,
+    second ? { locale: fixture.locale, lang: second, items: fixture.translations![second]!.faq! } : undefined,
+  );
+  const areas = planAreaOps(fixture.location?.areas, snapshot.talent_service_areas);
+  const captions = planCaptionOps(fixture, snapshot.media_assets);
   const haveFields = new Map(snapshot.talent_profile_field_values.map((r) => [fieldKeyById.get(r.field_definition_id as string) ?? "", r.value]));
   const fields = planFieldValues(fixture, haveFields);
   const languages = planLanguages(desiredLanguages(fixture), snapshot.talent_languages);
@@ -133,7 +157,11 @@ export async function applyReferenceContent(
     fields.length > 0 ||
     languages.upsert.length > 0 ||
     languages.remove.length > 0 ||
-    Object.keys(profilePatch).length > 0;
+    Object.keys(profilePatch).length > 0 ||
+    areas.insert.length > 0 ||
+    areas.update.length > 0 ||
+    areas.delete.length > 0 ||
+    captions.length > 0;
   const skipped = fixtureSkipped(fixture);
   if (!dirty) return { changed: [], skipped };
   if (!opts.write) return { changed: ["content"], skipped };
@@ -211,6 +239,28 @@ export async function applyReferenceContent(
       .upsert(languages.upsert.map((l) => ({ talent_profile_id: tpId, ...l })), { onConflict: "talent_profile_id,language_code" });
     must(error, "talent_languages");
   }
+  if (areas.insert.length) {
+    const { error } = await admin
+      .from("talent_service_areas")
+      .insert(areas.insert.map((r) => ({ ...r, talent_profile_id: tpId, tenant_id: opts.hubTenantId })));
+    must(error, "talent_service_areas");
+  }
+  for (const u of areas.update) {
+    const { error } = await admin.from("talent_service_areas").update({ ...u.patch, updated_at: now }).eq("id", u.id).eq("talent_profile_id", tpId);
+    must(error, "talent_service_areas");
+  }
+  if (areas.delete.length) {
+    const { error } = await admin.from("talent_service_areas").delete().in("id", areas.delete).eq("talent_profile_id", tpId).eq("service_kind", "travel_to");
+    must(error, "talent_service_areas");
+  }
+  for (const c of captions) {
+    const { error } = await admin
+      .from("media_assets")
+      .update({ metadata: c.metadata, updated_at: now })
+      .eq("id", c.id)
+      .eq("owner_talent_profile_id", tpId);
+    must(error, "media_assets");
+  }
   if (Object.keys(profilePatch).length) {
     const { error } = await admin.from("talent_profiles").update({ ...profilePatch, updated_at: now }).eq("id", tpId);
     must(error, "talent_profiles");
@@ -228,9 +278,19 @@ export async function restoreContentSnapshot(admin: Admin, profileCode: string, 
     if (op.kind === "patch") {
       const { error } = await admin.from("talent_profiles").update(op.patch).eq("id", target.talentProfileId);
       must(error, "talent_profiles");
+    } else if (op.kind === "upsert" && op.table === "media_assets") {
+      // Only the caption inside metadata was ever edited: put the metadata back, never insert a photo.
+      const { error } = await admin
+        .from("media_assets")
+        .update({ metadata: op.row.metadata })
+        .eq("id", op.row.id as string)
+        .eq("owner_talent_profile_id", target.talentProfileId);
+      must(error, op.table);
     } else if (op.kind === "upsert") {
       const { error } = await admin.from(op.table).upsert(op.row, { onConflict: TABLE_SPECS[op.table].onConflict });
       must(error, op.table);
+    } else if (op.table === "media_assets") {
+      // Photos are never deleted by a restore.
     } else {
       let q = admin.from(op.table).delete();
       for (const [k, v] of Object.entries(op.key)) q = q.eq(k, v as string);
