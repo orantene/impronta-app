@@ -14,10 +14,18 @@
  * Pure types, a static loader and a pure validator; no I/O.
  */
 import folioContent from "../../../../design-references/folio/content.json";
+import gridlineContent from "../../../../design-references/gridline/content.json";
 import maisonContent from "../../../../design-references/maison-v2/content.json";
 import type { DemoDesign } from "./types";
 
 export type FixtureMode = "instant" | "request" | "inquiry" | "quote";
+
+/**
+ * A design that owns a canonical content fixture. A superset of `DemoDesign`:
+ * Gridline (TH16) has a fixture before it has a design or a registry entry, so
+ * its reference demo can be built and checked against the mockup first.
+ */
+export type FixtureDesign = DemoDesign | "gridline";
 
 export interface FixtureVariant {
   id: string;
@@ -25,6 +33,10 @@ export interface FixtureVariant {
   note: string;
   priceDelta: number;
   minutesDelta: number;
+  /** The mockup's own delta text ("-$50", "-5% por pieza"), kept verbatim. */
+  deltaLabel?: string;
+  /** Percent delta per unit (-5 = 5% off each piece); `priceDelta` stays 0 for these. */
+  deltaPct?: number;
 }
 
 export interface FixtureBriefQuestion {
@@ -33,6 +45,17 @@ export interface FixtureBriefQuestion {
   placeholder?: string;
   type?: string;
   options?: string[];
+  /** Soft-keyboard hint ("numeric"). */
+  inputMode?: string;
+  /** Helper line under the field. */
+  help?: string;
+}
+
+/** Per-service cells of a comparison matrix (Gridline W-01). Typed, never computed. */
+export interface FixtureMatrixCells {
+  materials: string;
+  warranty: string;
+  response: string;
 }
 
 export interface FixtureService {
@@ -57,7 +80,15 @@ export interface FixtureService {
   payMode?: "deposit" | "free" | "full";
   modeNote?: string;
   variants?: FixtureVariant[];
-  extras?: Array<Omit<FixtureVariant, "note">>;
+  extras?: Array<Omit<FixtureVariant, "note"> & { note?: string }>;
+  /** Label above the options ("Tipo de inmueble"). */
+  optionsLabel?: string;
+  /** Matrix cells; present on every service when the fixture has a `matrix`. */
+  matrix?: FixtureMatrixCells;
+  /** Extra fields an instant booking asks for (Gridline: colonia). */
+  whoFields?: FixtureBriefQuestion[];
+  /** Payment note on the booking sheet. */
+  payNote?: string;
   flow?: { title?: string; intro?: string; submit?: string; brief?: FixtureBriefQuestion[] };
   slots?: string[];
   slotNote?: string;
@@ -71,8 +102,17 @@ export interface FixtureReview {
   initials?: string;
 }
 
+export interface FixtureTask {
+  id: string;
+  label: string;
+  /** Icon key of the task picker glyph set. */
+  icon: string;
+  serviceId: string;
+  hint: string;
+}
+
 export interface DemoContentFixture {
-  design: DemoDesign;
+  design: FixtureDesign;
   profileCode: string;
   locale: "es";
   talent: {
@@ -94,10 +134,39 @@ export interface DemoContentFixture {
     imageKey?: string;
     imageAlt?: string;
     inset?: { imageKey: string; alt: string };
+    /** Typed spec cells of a spec-block hero (Gridline). Never computed ratings. */
+    facts?: Array<{ label: string; value: string }>;
+    /** Short credential chips under the who-card. */
+    badges?: string[];
     mastheadLeft?: string;
     mastheadRight?: string;
   };
   menu: { eyebrow: string | null; title: string; subtitle: string; ticker?: string[] };
+  /** Utility top bar (Gridline): sub line and the call button's accessible name. */
+  topBar?: { subtitle: string; phoneAriaLabel: string };
+  /** The talent's own daily "emergencies today" setting and what it drives. */
+  urgency?: {
+    setting: string;
+    defaultOn: boolean;
+    serviceId: string;
+    statusOn: string;
+    statusOff: string;
+    band: { title: string; safetyLead: string; safety: string };
+    dock: { on: { label: string; serviceId: string }; off: { label: string; serviceId: string } };
+  };
+  /** Task picker (Gridline W-11): tasks mapped to services. */
+  tasks?: {
+    title: string;
+    hint: string;
+    recommendKicker: string;
+    detailsLabel: string;
+    items: FixtureTask[];
+    fallback: { kicker: string; badge: string; serviceId: string; body: string };
+  };
+  /** Comparison matrix rows (Gridline W-01); cells live on each service's `matrix`. */
+  matrix?: { rows: Array<{ key: "price" | "dur" | "mode" | "mat" | "war" | "resp"; label: string }> };
+  /** Spec table (Gridline): key/value rows. */
+  specTable?: { title: string; subtitle: string; rows: Array<{ label: string; value: string }> };
   payment?: {
     depositPercent: number;
     inPersonMethods: string[];
@@ -111,6 +180,8 @@ export interface DemoContentFixture {
     items: Array<{
       imageKey: string;
       caption: string;
+      /** Card title above the caption (Gridline job cards). */
+      title?: string;
       serviceId?: string;
       group?: string;
       numeral?: string;
@@ -141,6 +212,8 @@ export interface DemoContentFixture {
     headline: string;
     sub: string;
     rows: Array<{ label: string; value: string }>;
+    /** Municipalities / neighbourhoods served, as chips on an area card. */
+    areas?: string[];
     arrivalNote: string | null;
   } | null;
   footer: {
@@ -154,12 +227,13 @@ export interface DemoContentFixture {
   mockupOnly: Record<string, unknown>;
 }
 
-const FIXTURES: Readonly<Record<DemoDesign, DemoContentFixture>> = {
+const FIXTURES: Readonly<Record<FixtureDesign, DemoContentFixture>> = {
   "maison-v2": maisonContent as unknown as DemoContentFixture,
   folio: folioContent as unknown as DemoContentFixture,
+  gridline: gridlineContent as unknown as DemoContentFixture,
 };
 
-export function loadDemoContentFixture(design: DemoDesign): DemoContentFixture {
+export function loadDemoContentFixture(design: FixtureDesign): DemoContentFixture {
   const fixture = FIXTURES[design];
   const problems = validateDemoContentFixture(fixture);
   if (problems.length) throw new Error(`content fixture ${design} invalid: ${problems.join("; ")}`);
@@ -198,6 +272,24 @@ export function validateDemoContentFixture(f: DemoContentFixture): string[] {
   for (const p of f?.portfolio?.items ?? []) {
     need(str(p.imageKey) && str(p.caption), "portfolio imageKey/caption missing");
     need(!p.serviceId || ids.has(p.serviceId), `portfolio links unknown service ${p.serviceId}`);
+  }
+  // Gridline blocks: every reference lands on a real service; every service carries its matrix cells.
+  const ref = (id: string | undefined, what: string) => need(!!id && ids.has(id), `${what} points at unknown service ${id}`);
+  for (const t of f?.tasks?.items ?? []) {
+    need(str(t.id) && str(t.label) && str(t.icon) && str(t.hint), `task ${t.id}: id/label/icon/hint missing`);
+    ref(t.serviceId, `task ${t.id}`);
+  }
+  if (f?.tasks) ref(f.tasks.fallback?.serviceId, "task fallback");
+  if (f?.urgency) {
+    ref(f.urgency.serviceId, "urgency");
+    ref(f.urgency.dock?.on?.serviceId, "urgency dock on");
+    ref(f.urgency.dock?.off?.serviceId, "urgency dock off");
+  }
+  if (f?.matrix) {
+    need(f.matrix.rows.length > 0, "matrix has no rows");
+    for (const s of f.services) {
+      need(!!s.matrix && str(s.matrix.materials) && str(s.matrix.warranty) && str(s.matrix.response), `service ${s.id}: matrix cells missing`);
+    }
   }
   need(typeof f?.mockupOnly === "object" && f.mockupOnly !== null, "mockupOnly must exist (use {} when empty)");
   return out;

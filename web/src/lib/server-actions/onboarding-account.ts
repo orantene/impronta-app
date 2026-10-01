@@ -14,6 +14,8 @@
  */
 
 import { requestEmailCode, type EmailCodeState } from "@/app/auth/otp-actions";
+import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
+import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
 import {
   isCompleteOtpCode,
@@ -37,12 +39,14 @@ const VERIFY_PER_EMAIL = 10;
 
 export type RequestCodeResult =
   | { ok: true; email: string; resent: boolean }
-  | { ok: false; code: "module_off" | "invalid_email" | "too_many" | "send_failed"; message: string };
+  | { ok: false; code: "module_off" | "invalid_email" | "too_many" | "send_failed" | "age_terms_required"; message: string };
 
 export async function requestOnboardingCode(input: {
   email: string;
   locale: "en" | "es";
   resend?: boolean;
+  /** The 18+ and Terms/Privacy checkbox on the save step (Legal 2.2). */
+  ageTerms?: boolean;
 }): Promise<RequestCodeResult> {
   if (!(await getOnboardingFlags()).onboarding_module_enabled) {
     return { ok: false, code: "module_off", message: "" };
@@ -52,10 +56,17 @@ export async function requestOnboardingCode(input: {
   if (!email || !isValidAuthEmail(email)) {
     return { ok: false, code: "invalid_email", message: t("public.auth.actions.invalidEmail") };
   }
+  // Legal 2.2: this path can create an account, so it carries the same 18+ and
+  // Terms/Privacy confirmation as the signup form, checked here on the server.
+  if (!isAgeAndTermsConfirmed(input.ageTerms ? "on" : null)) {
+    return { ok: false, code: "age_terms_required", message: t("public.auth.actions.ageTermsRequired") };
+  }
   const form = new FormData();
   form.set("email", email);
   form.set("locale", input.locale);
   form.set("create", "1");
+  form.set("terms_form", "1");
+  form.set("age_terms", "on");
   form.set("next", "/");
   if (input.resend) form.set("resend", "1");
   const state: EmailCodeState = await requestEmailCode(undefined, form);
@@ -73,6 +84,8 @@ export async function verifyOnboardingCode(input: {
   code: string;
   locale: "en" | "es";
   path: OnboardingPath;
+  /** Same tick as the request step; the acceptance is recorded once the account exists. */
+  ageTerms?: boolean;
 }): Promise<VerifyCodeResult> {
   if (!(await getOnboardingFlags()).onboarding_module_enabled) {
     return { ok: false, code: "module_off", message: "" };
@@ -102,6 +115,10 @@ export async function verifyOnboardingCode(input: {
     return { ok: false, code: "wrong_code", message: t(error ? otpVerifyErrorKey(error) : "public.auth.passwordless.errors.generic") };
   }
   const user = data.user;
+
+  // Legal 2.2: record 18+ + Terms/Privacy against the new account. Idempotent
+  // per revision and best effort, so it can never block sign-in.
+  if (isAgeAndTermsConfirmed(input.ageTerms ? "on" : null)) await recordSignupAcceptance(user.id);
 
   // The guest brief becomes this person's brief: same id, same module_state.
   const claimed = await claimTulalaBriefOnAuth(supabase, user.id);

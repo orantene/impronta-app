@@ -114,6 +114,7 @@ export default async function TemplatePreviewPage({
     locale?: string;
     bare?: string;
     demo?: string;
+    source?: string;
   }>;
 }) {
   const [{ key }, sp] = await Promise.all([params, searchParams]);
@@ -140,6 +141,7 @@ export default async function TemplatePreviewPage({
         locale={sp.locale === "es" ? "es" : "en"}
         localeExplicit={sp.locale === "es" || sp.locale === "en"}
         demo={sp.demo ?? null}
+        source={sp.source ?? null}
       />
     );
   }

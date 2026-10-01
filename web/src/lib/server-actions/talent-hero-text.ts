@@ -17,6 +17,7 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import {
+  cleanLocaleMap,
   readScalarFieldValuesFromCatalog,
   syncScalarFieldValuesToCatalog,
 } from "@/lib/talent/scalar-field-values-catalog";
@@ -24,7 +25,18 @@ import {
 export interface HeroTextFields {
   headline: string | null;
   years: number | null;
+  /** The headline and the tagline written per language ({ es, en }); empty when she wrote none. */
+  headlineI18n: Record<string, string>;
+  taglineI18n: Record<string, string>;
 }
+
+type ScalarRead = Awaited<ReturnType<typeof readScalarFieldValuesFromCatalog>>;
+const toFields = (read: ScalarRead): HeroTextFields => ({
+  headline: read.headline ?? null,
+  years: read.years_total ?? null,
+  headlineI18n: read.headline_i18n ?? {},
+  taglineI18n: read.tagline_i18n ?? {},
+});
 
 type Result<T> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -62,7 +74,7 @@ export async function loadHeroTextFields(input: {
   const who = await resolveWriter(input.talent_profile_id, input.mode);
   if (!who.ok) return { ok: false, error: who.error };
   const read = await readScalarFieldValuesFromCatalog(who.supabase, input.talent_profile_id);
-  return { ok: true, fields: { headline: read.headline ?? null, years: read.years_total ?? null } };
+  return { ok: true, fields: toFields(read) };
 }
 
 export async function saveHeroTextFields(input: {
@@ -70,6 +82,8 @@ export async function saveHeroTextFields(input: {
   mode: "self" | "staff";
   headline?: string | null;
   years?: number | null;
+  headlineI18n?: Record<string, string> | null;
+  taglineI18n?: Record<string, string> | null;
 }): Promise<Result<{ fields: HeroTextFields }>> {
   const who = await resolveWriter(input.talent_profile_id, input.mode);
   if (!who.ok) return { ok: false, error: who.error };
@@ -86,8 +100,10 @@ export async function saveHeroTextFields(input: {
   await syncScalarFieldValuesToCatalog(who.supabase, input.talent_profile_id, who.tenantId, {
     headline,
     years_total: years,
+    ...(input.headlineI18n !== undefined ? { headline_i18n: cleanLocaleMap(input.headlineI18n) } : {}),
+    ...(input.taglineI18n !== undefined ? { tagline_i18n: cleanLocaleMap(input.taglineI18n) } : {}),
   });
   revalidatePath(who.path, "page");
   const read = await readScalarFieldValuesFromCatalog(who.supabase, input.talent_profile_id);
-  return { ok: true, fields: { headline: read.headline ?? null, years: read.years_total ?? null } };
+  return { ok: true, fields: toFields(read) };
 }

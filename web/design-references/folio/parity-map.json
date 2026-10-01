@@ -2,7 +2,8 @@
   "design": "folio",
   "referenceDemo": {
     "profileCode": "TAL-93011",
-    "name": "Mateo Ferrer"
+    "name": "Mateo Ferrer",
+    "demoKey": "mateo-ferrer"
   },
   "mockup": {
     "defaultUrl": "http://localhost:3098/",

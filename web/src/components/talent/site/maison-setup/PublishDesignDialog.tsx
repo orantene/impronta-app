@@ -67,6 +67,9 @@ export function PublishDesignDialog({
         <p className="mt-1 text-[13px] leading-relaxed text-admin-ink" data-testid="maison-design-changes">
           {summary.changes}
         </p>
+        <p className="mt-1 text-[13px] leading-relaxed text-admin-ink" data-testid="maison-design-colors-note">
+          {summary.colorsNote}
+        </p>
 
         <p className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-admin-ink-dim">
           {es ? "Qué se queda" : "What stays"}

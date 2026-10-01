@@ -2,7 +2,8 @@
   "design": "maison-v2",
   "referenceDemo": {
     "profileCode": "TAL-93020",
-    "name": "Alba"
+    "name": "Alba",
+    "demoKey": "alba-nail-artist"
   },
   "mockup": {
     "deviceButton": "#devseg button[data-d=\"{w}\"]",

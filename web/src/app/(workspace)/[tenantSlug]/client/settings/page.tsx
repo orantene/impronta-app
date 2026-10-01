@@ -25,6 +25,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
+import { AccountExportLinks, accountExportCopy } from "@/components/account/AccountExportLinks";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -264,6 +266,23 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
         >
           <ClientSocialVerificationPanel tenantSlug={tenantSlug} />
         </Card>
+
+        {/* Legal: data export (JSON, CSV as a second link). */}
+        <div id="download-data" style={{ scrollMarginTop: 72 }}>
+          <Card title={accountExportCopy(locale === "es").title}>
+            <AccountExportLinks es={locale === "es"} />
+          </Card>
+        </div>
+
+        {/* Legal 3.1 — self-serve deletion: 14-day grace, cancellable. */}
+        <div id="delete-account" style={{ scrollMarginTop: 72 }}>
+          <Card
+            title={t("dashboard.clientSettings.deleteAccountTitle")}
+            subtitle={t("dashboard.clientSettings.deleteAccountSubtitle")}
+          >
+            <AccountDeletionCard surface="client" es={locale === "es"} />
+          </Card>
+        </div>
       </div>
     </div>
   );

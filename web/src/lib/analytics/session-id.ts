@@ -26,6 +26,8 @@
  * the visitor, nothing shared with a third party.
  */
 
+import { hasAnalyticsConsent } from "./consent";
+
 const KEY = "tulala.session.v1";
 
 function newId(): string {
@@ -44,6 +46,9 @@ function newId(): string {
  */
 export function getSessionId(): string | null {
   if (typeof window === "undefined") return null;
+  // No stored visit id without analytics consent. Null is honest: the event
+  // still records, it just cannot be stitched into a journey.
+  if (!hasAnalyticsConsent()) return null;
   try {
     let id = sessionStorage.getItem(KEY);
     if (!id) {
