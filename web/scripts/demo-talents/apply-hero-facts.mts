@@ -1,3 +1,5 @@
+// SUPERSEDED by `npm run demos:rebuild` (scripts/demo-talents/rebuild.mjs): one command, backup + restore, dry run by default.
+console.error("[demo-talents] superseded: use `npm run demos:rebuild` (dry run by default, --write to apply).");
 /**
  * Give the Maison v2 demo talents their hero facts (release 2.7): a headline, a
  * tagline, years of craft, languages and an Instagram, written to the PROFILE
