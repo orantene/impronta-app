@@ -167,7 +167,7 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
   const draftSame =
     site.theme_design_slug === spec.design &&
     site.theme_design_version === design.version &&
-    (site.theme_look_slug ?? null) === lookSlug &&
+    (site.theme_look_slug ?? null) === (lookSlug ?? null) &&
     sameStable(site.custom_palette ?? null, nextCustom) &&
     sameStable(site.shell_tree, trees.shellTree) &&
     sameStable(home.blocks, trees.homeTree) &&
