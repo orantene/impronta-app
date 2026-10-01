@@ -246,32 +246,36 @@ export async function requestTalentDomainHelpAction(input: {
 
     if (hostname) {
       const admin = createServiceRoleClient() ?? guard.supabase;
-      const { data: existing } = await admin
+      const { data: existing, error: existingError } = await admin
         .from("talent_site_domains")
         .select("id")
         .eq("talent_profile_id", guard.talentProfileId)
         .eq("domain", hostname)
         .maybeSingle();
-      const assistedRow = {
-        talent_profile_id: guard.talentProfileId,
-        domain: hostname,
-        acquisition: "assisted",
-        registrant_email: guard.email,
-        status: "pending",
-        verification_token: `impronta-assist-${randomBytes(8).toString("hex")}`,
-      };
-      if (existing?.id) {
-        const { error } = await admin
-          .from("talent_site_domains")
-          .update({
-            acquisition: "assisted",
-            registrant_email: guard.email,
-          })
-          .eq("id", existing.id);
-        if (error) logServerError("talentDomain.help.assistedUpdate", error);
+      if (existingError) {
+        logServerError("talentDomain.help.assistedLookup", existingError);
       } else {
-        const { error } = await admin.from("talent_site_domains").insert(assistedRow);
-        if (error) logServerError("talentDomain.help.assistedInsert", error);
+        const assistedRow = {
+          talent_profile_id: guard.talentProfileId,
+          domain: hostname,
+          acquisition: "assisted",
+          registrant_email: guard.email,
+          status: "pending",
+          verification_token: `impronta-assist-${randomBytes(8).toString("hex")}`,
+        };
+        if (existing?.id) {
+          const { error } = await admin
+            .from("talent_site_domains")
+            .update({
+              acquisition: "assisted",
+              registrant_email: guard.email,
+            })
+            .eq("id", existing.id);
+          if (error) logServerError("talentDomain.help.assistedUpdate", error);
+        } else {
+          const { error } = await admin.from("talent_site_domains").insert(assistedRow);
+          if (error) logServerError("talentDomain.help.assistedInsert", error);
+        }
       }
     }
 
