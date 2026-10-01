@@ -2800,6 +2800,8 @@
       "reviewsSubtitleSome": "Reseñas que el talento dejó sobre ti, y las reseñas que has escrito.",
       "reviewsSubtitleNone": "Las reseñas aparecen aquí una vez completadas tus reservas.",
       "socialTitle": "Verificación social",
+      "deleteAccountTitle": "Eliminar mi cuenta",
+      "deleteAccountSubtitle": "Elimina tu cuenta de forma permanente tras un plazo de 14 días.",
       "socialSubtitle": "Conecta cuentas sociales o profesionales como prueba de confianza opcional para agencias y talento.",
       "signInEmail": "Correo / contraseña",
       "signInGoogle": "Google",

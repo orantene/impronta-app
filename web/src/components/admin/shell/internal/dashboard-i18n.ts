@@ -1925,6 +1925,9 @@ const ES_TEXT: Record<string, string> = {
   "Email transfer request": "Enviar solicitud de transferencia",
   "Opening ownership support email": "Abriendo el correo de soporte de titularidad",
   "Delete workspace": "Eliminar el espacio de trabajo",
+  "Delete my account": "Eliminar mi cuenta",
+  "Your personal sign-in and profile. The workspace itself is not deleted; transfer it first if others use it.":
+    "Tu acceso personal y tu perfil. El espacio de trabajo no se elimina; transfiérelo primero si otras personas lo usan.",
   "Permanent deletion requires support review and a final export.":
     "La eliminación permanente requiere revisión de soporte y una exportación final.",
   "Email deletion request": "Enviar solicitud de eliminación",
