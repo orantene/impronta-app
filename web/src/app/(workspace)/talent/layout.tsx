@@ -39,6 +39,7 @@ import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
+  isLocaleSeedablePath,
   talentLocaleSeedHref,
   talentLocaleSeedPlan,
 } from "@/lib/site-admin/server/talent-locale-seed";
@@ -282,7 +283,11 @@ export default async function PlatformTalentLayout({
   // from the session and sets a 60 s attempt cookie so this can never loop).
   const localeSettings = talentLocaleState.settings;
   const jar = await cookies();
-  const seedPlan = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value
+  // Never guess the return URL: no original-pathname header, or a non-dashboard
+  // path, means no hop (the /talent/today fallback would hijack the request).
+  const seedPlan = jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value ||
+    !hdrs.get("x-impronta-original-pathname") ||
+    !isLocaleSeedablePath(pathname)
     ? null
     : talentLocaleSeedPlan({
         cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,

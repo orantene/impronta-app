@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  isLocaleSeedablePath,
   safeTalentNextPath,
   talentLocaleSeedHref,
   talentLocaleSeedPlan,
@@ -30,8 +31,6 @@ test("next path guard keeps same-origin /talent paths only", () => {
   assert.equal(safeTalentNextPath("//evil.example/talent"), "/talent/today");
   assert.equal(safeTalentNextPath("https://evil.example/talent"), "/talent/today");
   assert.equal(safeTalentNextPath("/\\evil.example"), "/talent/today");
-  assert.equal(safeTalentNextPath("/admin"), "/talent/today");
-  assert.equal(safeTalentNextPath("/talentx"), "/talent/today");
   assert.equal(safeTalentNextPath(null), "/talent/today");
 });
 
@@ -71,4 +70,31 @@ test("her own auto cookie still re-seeds; unknown primary never writes", () => {
     talentLocaleSeedPlan({ cookieLocale: "en", cookieIsAuto: false, cookieOwner: "x", userId: V, primary: null }),
     { locale: null, stamp: false },
   );
+});
+
+test("return URL keeps path and query exactly, on any same-origin route", () => {
+  assert.equal(
+    safeTalentNextPath("/template-preview/live?kind=live-site&talent=abc&locale=es"),
+    "/template-preview/live?kind=live-site&talent=abc&locale=es",
+  );
+  assert.equal(safeTalentNextPath("/talent/page-builder?a=1&b=%2F"), "/talent/page-builder?a=1&b=%2F");
+});
+
+test("same-origin guard rejects parser-differential and control-character forms", () => {
+  for (const bad of ["/\t/evil.example", "/\n/evil.example", "///evil.example", "//evil.example", "http:/evil.example", "javascript:alert(1)", "evil", "/a\\b"]) {
+    assert.equal(safeTalentNextPath(bad), "/talent/today", bad);
+  }
+});
+
+test("no loop: the seed route never returns to itself", () => {
+  assert.equal(safeTalentNextPath("/api/talent/locale-seed?next=%2Ffoo"), "/talent/today");
+  assert.equal(talentLocaleSeedHref("/api/talent/locale-seed"), "/api/talent/locale-seed?next=%2Ftalent%2Ftoday");
+});
+
+test("hop runs only on dashboard routes", () => {
+  assert.equal(isLocaleSeedablePath("/talent/inbox"), true);
+  assert.equal(isLocaleSeedablePath("/talent"), true);
+  for (const p of ["/template-preview/live", "/talentx", "/es/talent", "/", "/t/site", null, undefined, ""]) {
+    assert.equal(isLocaleSeedablePath(p), false, String(p));
+  }
 });
