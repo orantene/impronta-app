@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { translatorFor } from "@/i18n/use-t";
+import { getSiteUrl } from "@/lib/auth-flow";
 import {
   PRIVACY_CHOICES_EVENT,
   isGpcEnabled,
@@ -114,11 +115,11 @@ export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
       <div className="mx-auto flex max-w-4xl items-start gap-2 sm:items-center">
         <p className="flex-1 text-xs leading-snug text-muted-foreground sm:text-sm">
           {t("public.consent.message")}{" "}
-          <a href="/legal/privacy" className="underline underline-offset-2 hover:text-foreground">
+          <a href={`${getSiteUrl()}/legal/privacy`} className="underline underline-offset-2 hover:text-foreground">
             {t("public.consent.privacyLink")}
           </a>
           {" · "}
-          <a href="/legal/cookies" className="underline underline-offset-2 hover:text-foreground">
+          <a href={`${getSiteUrl()}/legal/cookies`} className="underline underline-offset-2 hover:text-foreground">
             {t("public.consent.cookiesLink")}
           </a>
         </p>

@@ -297,7 +297,9 @@ export async function SiteFooterComponent({
         ) : null}
         {hasLegal ? (
           <div className="site-footer__legal">
-            {legal.links.some((l) => l.href === PRIVACY_CHOICES_HREF) ? (
+            {legal.links.some((l) =>
+              (resolveLinkLike(l.href, linkCtx).href ?? "").endsWith(PRIVACY_CHOICES_HREF),
+            ) ? (
               <PrivacyChoicesBridge />
             ) : null}
             {legal.copyright ? (
