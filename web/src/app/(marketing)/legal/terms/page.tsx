@@ -46,6 +46,10 @@ export default async function TermsPage() {
                 actions taken under your account. Everyone who uses {PLATFORM_BRAND.name}, talents and clients alike, must
                 be 18 or older. To close your account, contact support and we will help you.
               </p>
+              {/* LEGAL_REVIEW_PENDING: 18+ for talents and paying clients (owner decision 2026-10-01) */}
+              <p>
+                {"To be a talent, or a client who pays on Tulala, you must be 18 or older. If we learn that someone is under 18, we may close the account."}
+              </p>
             </>
           ),
         },
@@ -92,6 +96,10 @@ export default async function TermsPage() {
           heading: "Payments",
           body: (
             <>
+              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              <p>
+                {"The talent is the merchant of record for each card payment they receive, through their own Stripe Connect account. Chargebacks, lost disputes, and tax invoicing (for example, the CFDI in Mexico) are the talent\u2019s responsibility."}
+              </p>
               <p>
                 {PLATFORM_BRAND.name} collects card payments for bookings on behalf of the
                 talent or workspace that provides the service, using Stripe Connect. Card

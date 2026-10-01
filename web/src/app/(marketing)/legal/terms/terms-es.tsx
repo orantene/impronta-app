@@ -23,12 +23,18 @@ export function TermsEs() {
         {
           heading: "Tu cuenta",
           body: (
-            <p>
-              Eres responsable de mantener seguras las credenciales de tu cuenta y de las
-              acciones que se realicen con ella. Todas las personas que usan{" "}
-              {PLATFORM_BRAND.name}, talentos y clientes por igual, deben tener 18 años o más.
-              Para cerrar tu cuenta, contacta a soporte y te ayudaremos.
-            </p>
+            <>
+  <p>
+                Eres responsable de mantener seguras las credenciales de tu cuenta y de las
+                acciones que se realicen con ella. Todas las personas que usan{" "}
+                {PLATFORM_BRAND.name}, talentos y clientes por igual, deben tener 18 años o más.
+                Para cerrar tu cuenta, contacta a soporte y te ayudaremos.
+              </p>
+              {/* LEGAL_REVIEW_PENDING: 18+ for talents and paying clients (owner decision 2026-10-01) */}
+              <p>
+                Para ser talento, o cliente que paga en Tulala, debes tener 18 años o más. Si descubrimos que alguien es menor de 18, podemos cerrar la cuenta.
+              </p>
+            </>
           ),
         },
         {
@@ -72,6 +78,10 @@ export function TermsEs() {
           heading: "Pagos",
           body: (
             <>
+              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              <p>
+                El talento es el comerciante registrado de cada pago con tarjeta que recibe, mediante su cuenta de Stripe Connect. Los contracargos, las disputas perdidas y la facturación fiscal (por ejemplo, el CFDI en México) corresponden al talento.
+              </p>
               <p>
                 {PLATFORM_BRAND.name} cobra los pagos con tarjeta de las reservaciones en
                 nombre del talento o espacio de trabajo que presta el servicio, mediante

@@ -67,7 +67,7 @@ export function takesMoneyOnline(reserveMode: string | null | undefined, payInPe
 
 /** Settings copy for each gap. Translated by the settings i18n map. */
 export const READINESS_GAP_COPY: Record<ReadinessGap, string> = {
-  plan: "Instant booking comes with the Website plan",
+  plan: "Instant booking is not available on this plan",
   working_hours: "Add working hours to turn on instant booking",
   duration: "Add a duration to this service to turn on instant booking",
   // PAY-2 Option B — platform Checkout, not Connect. Connect unfinished

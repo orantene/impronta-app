@@ -55,7 +55,7 @@ test("person profiles AND-gate agency allow + talent opt-in", () => {
   );
 });
 
-test("plan ceiling: free cannot climb past request even if offering is instant", () => {
+test("plan ceiling: free can be instant but cannot take deposits or full prepay", () => {
   const policy = resolveAppointmentPolicy({
     tenant: { enabled: true, allowTalentDirectBooking: true },
     talent: { profileKind: "person", directBookingOptIn: true },
@@ -63,8 +63,8 @@ test("plan ceiling: free cannot climb past request even if offering is instant",
     offering: { bookingMode: "instant", reserveMode: "full", durationMinutes: 30 },
   });
   assert.equal(policy.requestedMode, "full");
-  assert.equal(policy.maxMode, "request");
-  assert.equal(policy.effectiveMode, "request");
+  assert.equal(policy.maxMode, "instant");
+  assert.equal(policy.effectiveMode, "instant");
 });
 
 test("unknown plan fails closed (maxMode off)", () => {

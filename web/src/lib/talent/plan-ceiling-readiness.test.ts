@@ -14,11 +14,11 @@ test("a plan without instant is the only gap reported", () => {
   assert.deepEqual(readinessGaps({ ...ready, planAllowsInstant: false }), ["plan"]);
   assert.deepEqual(readinessGaps({ ...ready, planAllowsInstant: true }), []);
   assert.deepEqual(readinessGaps(ready), []);
-  assert.equal(READINESS_GAP_COPY.plan, "Instant booking comes with the Website plan");
+  assert.equal(READINESS_GAP_COPY.plan, "Instant booking is not available on this plan");
   assert.doesNotMatch(READINESS_GAP_COPY.plan, /—/);
 });
 
-test("an instant service on the free tier resolves to request; paid stays instant", () => {
+test("an instant service resolves to request only when the plan lacks instant", () => {
   const offering = {
     bookingMode: "instant" as const,
     kind: "service",

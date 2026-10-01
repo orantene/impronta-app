@@ -20,6 +20,7 @@ const mailboxes = (s: string) => [...s.matchAll(/mailto:([a-z]+)@/g)].map((m) =>
 const figures = (s: string) =>
   [
     ...s
+      .replace(/\\u[0-9a-fA-F]{4}/g, "")
       .replace(/^import [^\n]*$/gm, "")
       .replace(/\/\/[^\n]*/g, "")
       .replace(/className="[^"]*"/g, "")

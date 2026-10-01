@@ -10,8 +10,8 @@ import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Copy is written against the code
 // facts in the legal inventory report and the working defaults decided by
-// Oran. Do not ship to production until reviewed. Retention is phrased
-// "we aim to" until automated purging exists. Do not claim self-serve
+// Oran. Do not ship to production until reviewed. Retention periods are the
+// owner decisions of 2026-10-01 (src/lib/legal/retention-config.ts). Do not claim self-serve
 // deletion or CSV export here: neither exists yet.
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -244,16 +244,20 @@ export default async function PrivacyPage() {
           heading: "How long we keep data",
           body: (
             <>
+              {/* LEGAL_REVIEW_PENDING: retention periods (owner decision 2026-10-01), see src/lib/legal/retention-config.ts */}
               <p>
-                We aim to keep data no longer than needed, and we are building automated
-                clean-up to enforce these periods:
+                {"We keep data only as long as needed. These are the periods:"}
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>Unbooked inquiries and their messages: 24 months after last activity</li>
-                <li>Bookings and payment records: 5 years, for tax and dispute purposes</li>
-                <li>Guest data: 12 months</li>
-                <li>Deleted media: 30 days</li>
-                <li>Security and audit logs: 180 days</li>
+                <li>
+                  {"Messages and bookings: 3 years after the last activity"}
+                </li>
+                <li>
+                  {"Deleted accounts: purged 30 days after the 14-day grace period"}
+                </li>
+                <li>
+                  {"Security and error logs: 90 days"}
+                </li>
               </ul>
               <p>
                 Backups are held by our database provider and age out on its schedule. Data we

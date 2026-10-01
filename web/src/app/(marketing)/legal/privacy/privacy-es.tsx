@@ -230,16 +230,12 @@ export function PrivacyEs() {
           heading: "Cuánto tiempo conservamos los datos",
           body: (
             <>
-              <p>
-                Buscamos conservar los datos solo el tiempo necesario, y estamos construyendo una
-                limpieza automática para hacer cumplir estos periodos:
-              </p>
+              {/* LEGAL_REVIEW_PENDING: retention periods (owner decision 2026-10-01), see src/lib/legal/retention-config.ts */}
+              <p>Conservamos los datos solo el tiempo necesario. Estos son los plazos:</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>Solicitudes sin reservación y sus mensajes: 24 meses después de la última actividad</li>
-                <li>Reservaciones y registros de pago: 5 años, por motivos fiscales y de disputas</li>
-                <li>Datos de invitados: 12 meses</li>
-                <li>Medios eliminados: 30 días</li>
-                <li>Registros de seguridad y auditoría: 180 días</li>
+                <li>Mensajes y reservas: 3 años después de la última actividad</li>
+                <li>Cuentas eliminadas: se borran 30 días después del periodo de gracia de 14 días</li>
+                <li>Registros de seguridad y errores: 90 días</li>
               </ul>
               <p>
                 Las copias de respaldo las conserva nuestro proveedor de base de datos y caducan
