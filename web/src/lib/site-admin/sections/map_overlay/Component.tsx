@@ -14,6 +14,7 @@ import { presentationDataAttrs, presentationInlineStyles } from "../shared/prese
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { MapOverlayV1 } from "./schema";
+import { ConsentEmbed } from "@/components/consent/consent-embed";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
   if (align === "left") return "left";
@@ -261,13 +262,16 @@ export function MapOverlayComponent({
         </Container>
       )}
       <div className="site-map__frame" style={{ aspectRatio: ratio }}>
-        <iframe
+        <ConsentEmbed
           className="site-map__iframe"
           src={localizedMapEmbedUrl}
+          provider="maps"
           title={`${card.title} on map`}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          sandbox="allow-scripts allow-same-origin allow-popups"
+          iframeProps={{
+            loading: "lazy",
+            referrerPolicy: "no-referrer-when-downgrade",
+            sandbox: "allow-scripts allow-same-origin allow-popups",
+          }}
         />
         <div className="site-map__card">
           <h3 className="site-map__card-title">{card.title}</h3>

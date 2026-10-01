@@ -300,9 +300,13 @@ export function OnboardingModule({
 
   // Phase 4 · account. Signed-in people never see the save step.
   const path: OnboardingPath = state.understanding?.path ?? "talent";
-  const sendCode = useCallback(async (email: string, resend = false) => {
+  // The 18+/Terms tick from the save step; carried to the verify step so the
+  // acceptance is recorded once the account exists (Legal 2.2).
+  const ageTermsRef = useRef(false);
+  const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
     dispatch({ type: "sendStarted" });
-    const r = await requestOnboardingCode({ email, locale, resend });
+    ageTermsRef.current = ageTerms;
+    const r = await requestOnboardingCode({ email, locale, resend, ageTerms });
     if (r.ok) dispatch({ type: "codeSent", email: r.email, notice: resend ? t("public.onboarding.code.resent") : null });
     else dispatch({ type: "accountFailed", message: r.code === "module_off" ? t("public.onboarding.errors.moduleOff") : r.message });
   }, [locale, t]);
@@ -310,7 +314,7 @@ export function OnboardingModule({
   const verifyCode = useCallback(async (code: string) => {
     if (!state.codeEmail) return;
     dispatch({ type: "sendStarted" });
-    const r = await verifyOnboardingCode({ email: state.codeEmail, code, locale, path });
+    const r = await verifyOnboardingCode({ email: state.codeEmail, code, locale, path, ageTerms: ageTermsRef.current });
     if (r.ok) {
       dispatch({ type: "authed", email: r.email });
       trackRef.current("onboarding_account_created", { method: "code" });
@@ -490,7 +494,7 @@ export function OnboardingModule({
         path={path}
         busy={state.busy}
         error={state.accountMessage}
-        onEmail={(email) => void sendCode(email)}
+        onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
         onGoogleSuccess={onGoogleSuccess}
       />
     );

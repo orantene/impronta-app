@@ -47,6 +47,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
 import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
+import { sanitizeStatementDescriptorSuffix } from "@/lib/payments/statement-descriptor";
 
 /**
  * Re-export the ONE canonical Stripe singleton (server-only, defined in
@@ -101,6 +102,8 @@ export type CheckoutSessionInput = {
   successUrl: string;
   cancelUrl: string;
   description?: string;
+  /** Public display name of the talent/workspace; becomes the card statement suffix. */
+  payeeName?: string | null;
   /**
    * The paying client's resolved app locale (`getRequestLocale()`), threaded
    * from the calling server action. Stripe otherwise reads the BROWSER
@@ -235,6 +238,9 @@ export async function createCheckoutSessionForTransaction(
       // `refunds.ts`), so the same routing keys must land on the PI or a
       // Dashboard / webhook refund no-ops with empty PI metadata.
       payment_intent_data: {
+        ...(sanitizeStatementDescriptorSuffix(input.payeeName)
+          ? { statement_descriptor_suffix: sanitizeStatementDescriptorSuffix(input.payeeName) }
+          : {}),
         metadata: {
           transaction_id: input.transactionId,
           ...(input.inquiryId ? { inquiry_id: input.inquiryId } : {}),

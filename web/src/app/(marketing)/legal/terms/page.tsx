@@ -3,6 +3,7 @@ import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { TermsEs } from "./terms-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Payment, refund, and chargeback
@@ -21,7 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  if ((await getRequestLocale()) === "es") return <TermsEs />;
   return (
     <LegalPage
       eyebrow="Legal"

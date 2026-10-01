@@ -5,6 +5,7 @@ import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { PrivacyEs } from "./privacy-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Copy is written against the code
@@ -41,7 +42,8 @@ function Ext({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  if ((await getRequestLocale()) === "es") return <PrivacyEs />;
   return (
     <LegalPage
       eyebrow="Legal"
