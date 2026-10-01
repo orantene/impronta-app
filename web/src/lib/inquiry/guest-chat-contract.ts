@@ -753,6 +753,8 @@ export type MiniChatBrand = {
   agencyName: string;
   /** Talent first name / display name used in the opener ("Hi — I'm {talentName}'s booking assistant"). */
   talentDisplayName: string;
+  /** The panel talks for ONE talent (her profile), not an agency roster: solo opener. */
+  soloTalent?: boolean;
   /**
    * Brand accent color (CSS color string) from agency_branding.theme_json
    * ("color.primary" / accent). Drives the launcher + send button. Optional —

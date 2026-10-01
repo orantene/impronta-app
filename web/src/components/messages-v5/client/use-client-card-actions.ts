@@ -24,6 +24,8 @@ import {
   messagingClientRequestChange,
   messagingClientRequestPayLink,
 } from "@/lib/server-actions/messaging-client";
+import { payLinkTarget } from "@/lib/payments/pay-link-target";
+import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 
 import type { CardActivity } from "./ClientThreadView";
 
@@ -100,7 +102,9 @@ export function useClientCardActions(input: {
   );
 
   const onPay = useCallback((code: string) => {
-    window.location.assign(`/pay/${encodeURIComponent(code)}`);
+    void resolvePayLinkPublicUrl({ code })
+      .catch(() => ({ url: null }))
+      .then((r) => window.location.assign(payLinkTarget(code, r.url)));
   }, []);
 
   const onAcceptOffer = useCallback(

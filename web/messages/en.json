@@ -945,6 +945,7 @@
       "remoteNoteContact": "The agency updated your contact details.",
       "remoteNoteGeneric": "The agency updated your inquiry.",
       "greetingTalentPickFirst": "Hi, I'm here to help you find the right talent. Want someone specific, or should we recommend a fit?",
+      "greetingSolo": "Hi, I'm {name}'s booking assistant. Which service would you like, and when works for you?",
       "greetingDefault": "Hi, I'm {name}'s booking assistant. What's the event? Tell me a little and I'll line up the right talent for you.",
       "closeAria": "Close",
       "messageBrandAria": "Message {brand}",

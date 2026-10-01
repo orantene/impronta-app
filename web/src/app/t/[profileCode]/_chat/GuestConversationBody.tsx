@@ -197,7 +197,7 @@ export function GuestConversationBody({
             ? t("public.guestChat.greetingTalentPickFirst")
             : brand.greeting?.trim()
               ? brand.greeting.trim()
-              : interpolate(t("public.guestChat.greetingDefault"), {
+              : interpolate(t(brand.soloTalent ? "public.guestChat.greetingSolo" : "public.guestChat.greetingDefault"), {
                   // FULL display name, not the first-name split. #1766 gave this
                   // line the tenant's own `brand.greeting` when there is one;
                   // this is the fallback beneath it, and it read

@@ -268,6 +268,7 @@ export async function TalentProfileChatLauncherMount({
           .filter((o): o is NonNullable<typeof o> => o != null),
         agencyName,
         talentDisplayName,
+        soloTalent: true,
         accentColor,
         logoUrl,
         photoUrl,
