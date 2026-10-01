@@ -70,3 +70,14 @@ test("step dots: three, one per step, hidden on done; phone sheet fills the scre
 test("the booking CSS ships through the type-system sheet", () => {
   assert.ok(renderToStaticMarkup(<TypeSystemStyle />).includes('data-type-system-style="utility-booking"'));
 });
+
+test("Gridline off state reads See times / Ver horarios by CSS only; markup and ON label unchanged", () => {
+  for (const [loc, label, region] of [["en", "See times", "Your selection"], ["es", "Ver horarios", "Tu selección"]] as const) {
+    assert.ok(UTILITY_BOOKING_CSS.includes(`.cb-dock[aria-label="${region}"] .cb-dock-go:not(:has(.cb-dock-lbl-on))::before{content:"${label}"`));
+    assert.ok(html(loc, OFF).includes(`aria-label="${region}"`), "selector key present in markup");
+    assert.ok(html(loc, OFF).includes(loc === "es" ? "Continuar" : "Continue"), "markup text untouched");
+  }
+  assert.match(html("es", ON), /Consultar</);
+  assert.match(html("en", ON), /Ask now</);
+  assert.ok(!html("es", OFF).includes("Ver horarios") && !html("en", OFF).includes("See times"), "no markup change for other designs");
+});

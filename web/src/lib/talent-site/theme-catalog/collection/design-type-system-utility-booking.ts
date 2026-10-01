@@ -10,7 +10,15 @@
  * Step dots need no markup: the footer action carries the step
  * (`data-catalog-continue`), so `:has()` picks the active dot.
  */
+import { selectionDockCopy } from "@/components/public-booking/selection-dock-state";
 import { U, displayType, labelType } from "./design-type-system-utility";
+
+// Gridline, emergencies off: the dock action offers the inspection ("See times").
+// No markup change: the button text is swapped in CSS, per locale, keyed on the dock region label
+// (the dock copy's own locale string), so every other design keeps byte-identical markup.
+const SEE_TIMES = { en: "See times", es: "Ver horarios" } as const;
+const seeTimes = (loc: "en" | "es") =>
+  `${U} .cb-dock[aria-label="${selectionDockCopy(loc).region}"] .cb-dock-go:not(:has(.cb-dock-lbl-on))`;
 
 const INK = "var(--token-color-ink)";
 const LINE = "color-mix(in srgb,var(--token-color-ink) 22%,transparent)";
@@ -22,6 +30,11 @@ export const UTILITY_BOOKING_CSS = [
   // Dock: while the status is on, the second label replaces the first.
   `${U} .cb-dock-go .cb-dock-lbl-off{display:none}`,
   `${U} .cb-dock-go .cb-dock-lbl-on{display:inline}`,
+  ...(["en", "es"] as const).flatMap((loc) => [
+    `${seeTimes(loc)}{font-size:0}`,
+    `${seeTimes(loc)}::before{content:"${SEE_TIMES[loc]}";font-size:14px}`,
+    `${seeTimes(loc)} .cb-dock-arr{font-size:14px}`,
+  ]),
   `${U} .cb-dock-go{border-radius:var(--token-button-radius,6px);font-family:var(--site-body-font,inherit)}`,
   // Sheet type: wide display face for the title and totals, mono labels.
   `${U} .jb-head h2{${displayType};font-size:1.5rem}`,
