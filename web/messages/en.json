@@ -957,6 +957,7 @@
       "cardSendOrder": "Send request · {count}",
       "helpBubbleTitle": "Can I help you choose?",
       "helpBubbleDismiss": "Dismiss",
+      "helpBubbleOpenAria": "Open chat with {name}",
       "cardBackToBooking": "Back to my booking",
       "cardBrowseBack": "Back to chat",
       "cardBrowseAdd": "Add",

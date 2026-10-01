@@ -1,10 +1,12 @@
 /**
- * DK-3 help bubble: the pure rules (no React, no DOM), unit-tested on their own.
+ * DK-3 help bubble: the pure rules (no React), unit-tested on their own.
  *
  * The bubble offers help once per visit: after the visitor scrolls about 520px,
- * a one-line pill appears above the chat button, then hides itself after 9
- * seconds. It never shows while the chat or the booking sheet is open, or while
- * the catalog dock has taken over the chat button.
+ * a one-line pill appears just above the chat button, then hides itself after 9
+ * seconds. It never shows while the chat or a sheet is open, or when the chat
+ * button is hidden. The chat button is the dock's chat icon when the dock is up
+ * (with or without a selection), the idle bar's chat button, or the floating
+ * chat button, in that order.
  */
 
 /** How far the visitor scrolls before the bubble may appear. */
@@ -20,8 +22,16 @@ export function helpBubbleSessionKey(profileCode: string): string {
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
-/** Storage can throw (private mode, blocked site data): an unreadable flag counts as not seen. */
+/** Kept when storage is unreadable or unwritable, so the bubble shows at most once per page load. */
+const shownThisLoad = new Set<string>();
+
+/** Test hook: forget the in-memory flags. */
+export function resetHelpBubbleMemory(): void {
+  shownThisLoad.clear();
+}
+
 export function readHelpBubbleSeen(storage: StorageLike | null, key: string): boolean {
+  if (shownThisLoad.has(key)) return true;
   try {
     return storage?.getItem(key) === "1";
   } catch {
@@ -29,17 +39,20 @@ export function readHelpBubbleSeen(storage: StorageLike | null, key: string): bo
   }
 }
 
+/** Stored for the visit; if storage throws, remembered for this page load instead. */
 export function markHelpBubbleSeen(storage: StorageLike | null, key: string): void {
   try {
-    storage?.setItem(key, "1");
+    if (!storage) throw new Error("no storage");
+    storage.setItem(key, "1");
+    if (storage.getItem(key) !== "1") shownThisLoad.add(key);
   } catch {
-    /* private mode: the bubble may show again on a reload, which is harmless */
+    shownThisLoad.add(key);
   }
 }
 
-/** True while something else owns the bottom corner. */
-export function helpBubbleBlocked(input: { chatOpen: boolean; sheetOpen: boolean; dockUp: boolean }): boolean {
-  return input.chatOpen || input.sheetOpen || input.dockUp;
+/** True while something else owns the screen. The dock being up is NOT a reason: it is where the bubble anchors. */
+export function helpBubbleBlocked(input: { chatOpen: boolean; sheetOpen: boolean }): boolean {
+  return input.chatOpen || input.sheetOpen;
 }
 
 export function shouldShowHelpBubble(input: {
@@ -48,4 +61,36 @@ export function shouldShowHelpBubble(input: {
   blocked: boolean;
 }): boolean {
   return !input.seen && !input.blocked && input.scrollY >= HELP_BUBBLE_SCROLL_PX;
+}
+
+/** Up to two initials for the no-photo avatar ("Alba Rivas" gives "AR"). */
+export function helpBubbleInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  const first = Array.from(parts[0]!)[0] ?? "";
+  const last = parts.length > 1 ? (Array.from(parts[parts.length - 1]!)[0] ?? "") : "";
+  return (first + last).toLocaleUpperCase();
+}
+
+export type HelpBubbleAnchor = { el: HTMLElement; side: "left" | "right" };
+
+const visible = (el: HTMLElement | null): el is HTMLElement => {
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+};
+
+/**
+ * Where the bubble sits: above the dock's chat icon (left aligned), else the
+ * idle bar's chat button (left), else the floating chat button (right aligned,
+ * it lives at the right edge). `null` when no chat button is on screen.
+ */
+export function findHelpBubbleAnchor(doc: Document): HelpBubbleAnchor | null {
+  const dock = doc.querySelector<HTMLElement>(".cb-dock[data-show='true'] .cb-dock-ask");
+  if (visible(dock)) return { el: dock, side: "left" };
+  const bar = doc.querySelector<HTMLElement>(".cb-bar[data-show='true'] .cb-bar-chat");
+  if (visible(bar)) return { el: bar, side: "left" };
+  const fab = doc.querySelector<HTMLElement>("[data-guest-chat-fab]:not([data-gone='true'])");
+  if (visible(fab)) return { el: fab, side: "right" };
+  return null;
 }

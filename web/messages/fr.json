@@ -205,6 +205,7 @@
       "closeAria": "Fermer",
       "helpBubbleTitle": "Je vous aide à choisir ?",
       "helpBubbleDismiss": "Fermer",
+      "helpBubbleOpenAria": "Ouvrir le chat avec {name}",
       "messageBrandAria": "Écrire à {brand}",
       "cardGreeting": "Bonjour, je suis {name} 👋 Comment puis-je vous aider ?",
       "cardServicesAria": "Voir les services",
