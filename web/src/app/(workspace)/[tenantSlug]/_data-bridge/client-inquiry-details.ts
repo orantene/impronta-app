@@ -30,6 +30,7 @@ import {
 } from "@/lib/inquiry/cross-tenant-context";
 import { loadLineupStatusSummary } from "@/lib/inquiry/acceptance-summary";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
+import { bookingPolicyChangedSinceInquiry } from "@/lib/legal/policy-versions";
 import { type BalanceCollectionMethod, type RefundPolicyKey, normalizeDepositPct } from "@/lib/billing/commercial-terms-types";
 
 // ─── Output shape ───────────────────────────────────────────────────────────
@@ -197,6 +198,8 @@ export type ClientInquiryDetails = {
      * honest "awaiting the other parties" state instead.
      */
     myApprovalStatus: "pending" | "accepted" | "rejected" | null;
+    /** Legal 2.4: the booking policy changed between the request and this offer. */
+    termsUpdatedSinceRequest?: boolean;
     /** W6a — negotiated booking terms (deposit/balance/refund). Null if unset. Client-safe. */
     commercialTerms: {
       depositPct: number;
@@ -614,6 +617,9 @@ export async function loadClientInquiryDetails(
           (appr?.status as "pending" | "accepted" | "rejected" | null) ?? null;
       }
     }
+    const termsUpdatedSinceRequest = offerRow?.id
+      ? await bookingPolicyChangedSinceInquiry(inq.id, offerRow.id)
+      : false;
     const offer = offerRow
       ? {
           exists: true,
@@ -645,6 +651,7 @@ export async function loadClientInquiryDetails(
               service_name: resolveServiceName(ln.source_service_id, ln.talent_profiles?.services_menu),
             })),
           myApprovalStatus: clientApprovalStatus,
+          termsUpdatedSinceRequest,
           commercialTerms: offerRow.balance_collection_method
             ? {
                 depositPct: normalizeDepositPct(offerRow.balance_collection_method, Number(offerRow.deposit_pct ?? 0)),

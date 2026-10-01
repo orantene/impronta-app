@@ -103,6 +103,16 @@ export function OfferTab({
     <div style={{ padding: "16px 22px 32px", fontFamily: FONT }}>
       <Card>
         <OfferHeader offer={offer} expired={expired} />
+        {offer.termsUpdatedSinceRequest && canDecide && (
+          <div
+            role="note"
+            data-testid="offer-terms-updated"
+            style={{ margin: "10px 0 2px", padding: "10px 12px", borderRadius: 10, background: C.amberSoft, fontSize: 12.5, lineHeight: 1.5, color: C.ink }}
+          >
+            <strong>{t("dashboard.clientOffer.termsUpdatedTitle")}</strong>{" "}
+            {t("dashboard.clientOffer.termsUpdatedBody")}
+          </div>
+        )}
         <Divider />
         <LineItemsTable offer={offer} />
         <CostBreakdown offer={offer} />

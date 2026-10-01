@@ -10,6 +10,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { acceptBookingPolicy } from "@/lib/legal/policy-versions";
 import {
   bindCollectionReservation,
   CARD_RESERVATION_TTL_SECONDS,
@@ -308,6 +309,13 @@ async function openOnce(
     .eq("id", order.id)
     .in("status", ["draft", "pending_payment"]);
   if (statusErr) logServerError("payments.openPaymentLinkCheckout.orderStatus", statusErr);
+
+  // Legal 2.2: record the workspace booking policy in force when the payer
+  // opened checkout and stamp it on the booking. Best effort; never throws.
+  await acceptBookingPolicy(
+    { scope: "workspace", tenantId: link.tenant_id },
+    { context: "payment", contextId: bookingId, stamp: { table: "agency_bookings", id: bookingId } },
+  );
 
   return { ok: true, url: session.url };
 }
