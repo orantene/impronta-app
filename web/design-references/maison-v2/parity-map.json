@@ -1,0 +1,369 @@
+{
+  "design": "maison-v2",
+  "referenceDemo": {
+    "profileCode": "TAL-93020",
+    "name": "Alba",
+    "demoKey": "alba-nail-artist"
+  },
+  "mockup": {
+    "deviceButton": "#devseg button[data-d=\"{w}\"]",
+    "stepButton": "#steps button[data-step=\"0\"]",
+    "root": "#site",
+    "states": true
+  },
+  "note": "Keyed by the mockup data-w unit (the part before the first \" ·\"). Product side matches by data-parity-key; fallback selectors apply only when the page carries no data-parity-key at all (a build that predates the contract).",
+  "order": [
+    "header",
+    "hero",
+    "work",
+    "menu",
+    "reviews",
+    "about",
+    "faq",
+    "location",
+    "footer",
+    "socket"
+  ],
+  "sections": [
+    {
+      "key": "header",
+      "label": "Header",
+      "unit": "site_header",
+      "parityKey": "header",
+      "mockup": [
+        ".m-hdr",
+        "#m-hdr"
+      ],
+      "fallback": [
+        "header",
+        "[role=banner]"
+      ],
+      "expects": [
+        {
+          "name": "section links (>= 3) or section menu",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3,
+          "alt": "[aria-haspopup], [aria-expanded]"
+        },
+        {
+          "name": "booking-mode CTA pill (desktop)",
+          "kind": "text",
+          "re": "navCta",
+          "minWidth": 1000
+        },
+        {
+          "name": "ES/EN switch",
+          "kind": "text",
+          "re": "langSwitch"
+        }
+      ]
+    },
+    {
+      "key": "hero",
+      "label": "Hero",
+      "unit": "hero",
+      "parityKey": "hero",
+      "mockup": [
+        "section.hero",
+        "#hero"
+      ],
+      "fallback": [
+        "#hero",
+        "[data-slot-key='hero']",
+        "[data-anchor-id='hero']"
+      ],
+      "expects": [
+        {
+          "name": "eyebrow",
+          "kind": "eyebrow"
+        },
+        {
+          "name": "headline (h1)",
+          "kind": "sel",
+          "sel": "h1",
+          "min": 1
+        },
+        {
+          "name": "lede paragraph",
+          "kind": "sel",
+          "sel": "p",
+          "min": 1
+        },
+        {
+          "name": "CTA pair (2 actions)",
+          "kind": "ctaPair"
+        },
+        {
+          "name": "proof line",
+          "kind": "text",
+          "re": "proof"
+        },
+        {
+          "name": "next-free chip",
+          "kind": "text",
+          "re": "nextFree"
+        },
+        {
+          "name": "hero photo",
+          "kind": "sel",
+          "sel": "img",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "key": "work",
+      "label": "Work / portfolio",
+      "unit": "portfolio",
+      "parityKey": "gallery",
+      "mockup": [
+        "#s-work"
+      ],
+      "fallback": [
+        "#gallery",
+        "#work",
+        "#portfolio",
+        "[data-slot-key='gallery']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2, h3",
+          "min": 1
+        },
+        {
+          "name": "photos (>= 3)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 3
+        }
+      ]
+    },
+    {
+      "key": "menu",
+      "label": "Menu (#services)",
+      "unit": "services_catalog",
+      "parityKey": "services",
+      "mockup": [
+        "#s-menu"
+      ],
+      "fallback": [
+        "#services",
+        "[data-slot-key='services']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "menu intro line (currency)",
+          "kind": "text",
+          "re": "menuIntro"
+        },
+        {
+          "name": "row cards (>= 3 thumbs)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 3
+        },
+        {
+          "name": "prices on rows",
+          "kind": "text",
+          "re": "price"
+        }
+      ]
+    },
+    {
+      "key": "reviews",
+      "label": "Reviews",
+      "unit": "reviews",
+      "parityKey": "reviews",
+      "mockup": [
+        "#s-revs"
+      ],
+      "fallback": [
+        "#reviews",
+        "[data-slot-key='reviews']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "review cards (>= 1)",
+          "kind": "sel",
+          "sel": "q, blockquote, figure",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "key": "about",
+      "label": "About",
+      "unit": "about",
+      "parityKey": "about",
+      "mockup": [
+        "#s-about"
+      ],
+      "fallback": [
+        "#about",
+        "[data-slot-key='about']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "portrait",
+          "kind": "sel",
+          "sel": "img",
+          "min": 1
+        },
+        {
+          "name": "actions (>= 1)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "key": "faq",
+      "label": "FAQ",
+      "unit": "faq",
+      "parityKey": null,
+      "mockup": [
+        "#s-faq"
+      ],
+      "fallback": [
+        "#faq",
+        "[data-slot-key=\"faq\"]"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "questions (>= 2)",
+          "kind": "sel",
+          "sel": "details, [aria-expanded]",
+          "min": 2
+        }
+      ]
+    },
+    {
+      "key": "location",
+      "label": "Location (#location)",
+      "unit": "location",
+      "parityKey": "location",
+      "mockup": [
+        "#s-loc"
+      ],
+      "fallback": [
+        "#location",
+        "#visit",
+        "[data-slot-key='location']",
+        "[data-slot-key='visit']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "location rows (text)",
+          "kind": "text",
+          "re": "where"
+        },
+        {
+          "name": "actions (directions / chat)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "key": "footer",
+      "label": "Footer",
+      "unit": "footer",
+      "parityKey": "footer_rich",
+      "mockup": [
+        "#s-foot"
+      ],
+      "fallback": [
+        "#s-foot",
+        "footer"
+      ],
+      "expects": [
+        {
+          "name": "big line (h2)",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "Where column",
+          "kind": "text",
+          "re": "where"
+        },
+        {
+          "name": "Contact column",
+          "kind": "text",
+          "re": "contact"
+        },
+        {
+          "name": "booking button",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "key": "socket",
+      "label": "Footer socket",
+      "unit": "bottom_strip",
+      "parityKey": "socket",
+      "mockup": [
+        ".bstrip"
+      ],
+      "fallback": [
+        ".tulala-socket"
+      ],
+      "expects": [
+        {
+          "name": "policy links (>= 3)",
+          "kind": "countText",
+          "re": "policy",
+          "min": 3,
+          "sel": "a, button"
+        },
+        {
+          "name": "Tulala attribution",
+          "kind": "text",
+          "re": "(Tulala)"
+        }
+      ]
+    }
+  ]
+}
