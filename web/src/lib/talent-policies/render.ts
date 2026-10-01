@@ -20,7 +20,7 @@ export type RenderedPolicy = {
 };
 
 /** Bump when the wording changes, so the hash moves with the template. */
-export const POLICY_TEMPLATE_VERSION = 1;
+export const POLICY_TEMPLATE_VERSION = 2;
 
 /** D3: Tulala's own documents open off-host. */
 export const TULALA_DOC_LINKS = {
@@ -54,6 +54,42 @@ function placeSentence(places: WorkPlace[], zone: string | null, name: string, l
   if (places.includes("remote")) parts.push(es ? "en línea" : "online");
   const where = list(parts, locale);
   return es ? `${name} atiende ${where}.` : `${name} works ${where}.`;
+}
+
+/**
+ * Late cancel and no-show sentences. They must agree with the deposit clause:
+ * with no deposit nothing is held, so nothing is returned or kept; with a
+ * partial deposit the answer is about the deposit; with everything paid up
+ * front it is about what was paid. Only what the platform does is promised.
+ */
+export function lateClauseSentences(
+  facts: PolicyFacts,
+  answers: PolicyAnswers,
+  locale: PolicyLocale,
+  windowWords: string,
+): { late: string; noShow: string } {
+  const es = locale === "es";
+  const name = nameOf(facts, locale);
+  if (facts.depositPct == null) {
+    return {
+      late: es ? `Si cancelas ${windowWords}, no se te cobra nada.` : `If you cancel ${windowWords}, nothing is charged.`,
+      noShow: es
+        ? `Si no te presentas, tampoco se cobra nada, pero ${name} puede pedir un anticipo en tu próxima reserva.`
+        : `If you do not show up, nothing is charged either, but ${name} may ask for a deposit on your next booking.`,
+    };
+  }
+  const paidAll = facts.depositPct >= 100;
+  const what = paidAll ? (es ? "lo pagado" : "what you paid") : es ? "el anticipo" : "the deposit";
+  const half = paidAll ? (es ? "la mitad de lo pagado" : "half of what you paid") : es ? "la mitad del anticipo" : "half of the deposit";
+  const mode = answers.late_cancel_refund;
+  const late =
+    mode === "full"
+      ? es ? `Si cancelas ${windowWords}, se te devuelve todo lo pagado.` : `If you cancel ${windowWords}, everything you paid is returned.`
+      : mode === "half"
+        ? es ? `Si cancelas ${windowWords}, se devuelve ${half}.` : `If you cancel ${windowWords}, ${half} is returned.`
+        : es ? `Si cancelas ${windowWords}, ${what} no se devuelve.` : `If you cancel ${windowWords}, ${what} is not returned.`;
+  const noShow = es ? `Si no te presentas a la cita, ${what} no se devuelve.` : `If you do not show up, ${what} is not returned.`;
+  return { late, noShow };
 }
 
 function clauses(facts: PolicyFacts, answers: PolicyAnswers, locale: PolicyLocale): Array<Omit<PolicyClause, "n">> {
@@ -102,21 +138,7 @@ function clauses(facts: PolicyFacts, answers: PolicyAnswers, locale: PolicyLocal
   // Late cancellation and no-show (only meaningful when a window or deposit exists).
   if (facts.cancelHours != null || facts.depositPct != null) {
     const windowWords = facts.cancelHours != null ? (es ? `dentro de las ${facts.cancelHours} horas previas` : `inside the ${facts.cancelHours} hours before`) : es ? "tarde" : "late";
-    const late =
-      answers.late_cancel_refund === "full"
-        ? es
-          ? `Si cancelas ${windowWords}, se te devuelve todo lo pagado.`
-          : `If you cancel ${windowWords}, everything you paid is returned.`
-        : answers.late_cancel_refund === "half"
-          ? es
-            ? `Si cancelas ${windowWords}, se devuelve la mitad del anticipo.`
-            : `If you cancel ${windowWords}, half of the deposit is returned.`
-          : es
-            ? `Si cancelas ${windowWords}, el anticipo no se devuelve.`
-            : `If you cancel ${windowWords}, the deposit is not returned.`;
-    const noShow = es
-      ? "Si no te presentas a la cita, el anticipo no se devuelve."
-      : "If you do not show up, the deposit is not returned.";
+    const { late, noShow } = lateClauseSentences(facts, answers, locale, windowWords);
     out.push({
       title: es ? "Cancelación tardía y ausencia" : "Late cancellation and no-show",
       body: `${late} ${noShow}`,

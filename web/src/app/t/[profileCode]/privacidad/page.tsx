@@ -2,18 +2,18 @@
 
 import type { Metadata } from "next";
 
-import { TalentProfilePolicyPage, talentProfilePolicyMetadata } from "../_shared/policy-route";
+import { type PolicySearchParams, TalentProfilePolicyPage, talentProfilePolicyMetadata } from "../_shared/policy-route";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
-export async function generateMetadata({ params }: { params: Promise<{ profileCode: string }> }): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ profileCode: string }>; searchParams: PolicySearchParams }): Promise<Metadata> {
   const { profileCode } = await params;
-  return talentProfilePolicyMetadata(profileCode, "privacy");
+  return talentProfilePolicyMetadata(profileCode, "privacy", searchParams);
 }
 
-export default async function Page({ params }: { params: Promise<{ profileCode: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ profileCode: string }>; searchParams: PolicySearchParams }) {
   const { profileCode } = await params;
-  return <TalentProfilePolicyPage profileCode={profileCode} doc="privacy" />;
+  return <TalentProfilePolicyPage profileCode={profileCode} doc="privacy" searchParams={searchParams} />;
 }
