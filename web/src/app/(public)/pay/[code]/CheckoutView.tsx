@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 
 import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
+import { BookingPolicyAgreeLine } from "@/components/policies/BookingPolicyAgreeLine";
 import { useT } from "@/i18n/use-t";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 
@@ -136,7 +137,8 @@ export function CheckoutView(props: CheckoutViewProps) {
       {props.holdUntil ? <p className="mt-2 text-[13px] text-admin-ink-muted">{props.holdUntil}</p> : null}
       <p className="mt-1 text-[13px] text-admin-ink-muted">{props.expiresAt}</p>
       <p className={POS_NOTE}>{t("public.thread.keepSlot")}</p>
-      <div className="mt-6 flex flex-col gap-3">
+      <BookingPolicyAgreeLine className="mt-4 text-admin-ink-muted" />
+      <div className="mt-3 flex flex-col gap-3">
         {props.stripeUrl ? (
           <a className={POS_PRIMARY_ACTION} href={props.stripeUrl}>
             {t("public.thread.pay")}

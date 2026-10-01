@@ -12,6 +12,7 @@
  * unit-testable and importable by the provisioning helper + a seed script.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { buildFooterLegalRow } from "./footer-legal-row";
 
 /** Injectable id factory — defaults to crypto.randomUUID (matches `starter.ts`). */
 export type NodeIdFactory = () => string;
@@ -121,6 +122,7 @@ export function buildDefaultShellTree(
           style: { tone: "muted", align: "center" },
         },
       },
+      buildFooterLegalRow(makeId),
     ],
   };
 

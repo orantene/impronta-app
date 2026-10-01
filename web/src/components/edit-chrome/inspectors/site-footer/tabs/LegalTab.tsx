@@ -31,6 +31,7 @@ import {
   type SiteFooterSocial,
   type SiteFooterSocialPlatform,
 } from "@/lib/site-admin/site-footer/types";
+import { nextDefaultFooterLink } from "@/lib/policies/footer-links";
 import type { SiteFooterPatch } from "../SiteFooterInspector";
 import { DragGlyph, PlusGlyph, TrashGlyph } from "../glyphs";
 import { LinkRow } from "./ColumnsTab";
@@ -193,9 +194,16 @@ export function LegalTab({ api }: { api: SiteFooterPatch }) {
             type="button"
             onClick={() => {
               if (atLegalCap) return;
+              // Next unused default: Booking policy, Privacy, Privacy choices,
+              // Terms. Every one resolves on talent and agency hosts (no 404).
+              const next = nextDefaultFooterLink(legalLinks.map((l) => l.href));
               setLegalLinks([
                 ...legalLinks,
-                { label: t("Privacy"), href: "/privacy" },
+                {
+                  label: t(next.label),
+                  href: next.href,
+                  ...(next.external ? { external: true } : {}),
+                },
               ]);
             }}
             disabled={atLegalCap}

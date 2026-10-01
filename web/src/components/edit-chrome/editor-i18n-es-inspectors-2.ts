@@ -146,6 +146,9 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "A footer can show at most 4 small-print links.":
     "Un pie de página muestra como máximo 4 enlaces de letra pequeña.",
   "Privacy": "Privacidad",
+  "Booking policy": "Política de reservas",
+  "Privacy choices": "Opciones de privacidad",
+  "Terms": "Términos",
   "Click again to replace": "Haz clic otra vez para reemplazar",
   "This swaps out what's there now.": "Esto sustituye lo que hay ahora.",
   "This template has no saved layout, so it can't be applied.":

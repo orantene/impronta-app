@@ -46,6 +46,12 @@ test("shared plumbing + static assets pass through untouched", () => {
   }
 });
 
+test("/policies/booking and /policies/privacy pass through; bare /policies is not a page slug", () => {
+  assert.deepEqual(isTalentSiteHostPathAllowed("/policies/booking"), { kind: "passthrough" });
+  assert.deepEqual(isTalentSiteHostPathAllowed("/policies/privacy"), { kind: "passthrough" });
+  assert.equal(isTalentSiteHostPathAllowed("/policies"), null);
+});
+
 test("workspace / auth / multi-segment / dotted paths are NOT allowed (→ 404)", () => {
   for (const p of [
     "/admin",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -730,7 +730,12 @@ export default async function CmsPublicPage({
     .eq("slug", slugPath)
     .maybeSingle();
 
-  if (!data) notFound();
+  if (!data) {
+    // Legacy "/privacy" footer link: when the tenant has no page of its own,
+    // send visitors to the generated privacy notice instead of a 404.
+    if (slugPath === "privacy") redirect("/policies/privacy");
+    notFound();
+  }
 
   return (
     <>

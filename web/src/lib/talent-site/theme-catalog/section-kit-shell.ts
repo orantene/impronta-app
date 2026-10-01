@@ -12,6 +12,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { NavChromeStyle } from "@/lib/site-admin/nav-chrome";
 import { buildDefaultShellTree } from "../default-max-site-trees";
+import { buildFooterLegalRow } from "../footer-legal-row";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
 type KitIdFactory = MaxSiteTemplateIdFactory;
@@ -171,6 +172,7 @@ export function buildKitShell(
           style: { tone: "muted", align: "center" },
         },
       },
+      buildFooterLegalRow(makeId),
     ],
   } as BuilderNode;
 
