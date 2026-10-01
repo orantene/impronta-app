@@ -84,6 +84,12 @@
     "src/app/api/cron/reap-guest-support/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/process-account-deletions/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/enforce-retention/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/cron/support-insights/route.ts": {
       "maxDuration": 60
     },
@@ -210,6 +216,14 @@
     {
       "path": "/api/cron/reap-guest-support",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/process-account-deletions",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/cron/enforce-retention",
+      "schedule": "55 4 * * *"
     },
     {
       "path": "/api/cron/support-insights",

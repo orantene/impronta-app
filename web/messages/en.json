@@ -2783,6 +2783,8 @@
       "reviewsSubtitleSome": "Reviews talent left about you, and the reviews you've written.",
       "reviewsSubtitleNone": "Reviews appear here after your bookings are completed.",
       "socialTitle": "Social verification",
+      "deleteAccountTitle": "Delete my account",
+      "deleteAccountSubtitle": "Permanently remove your account after a 14-day grace period.",
       "socialSubtitle": "Connect social or professional accounts as optional trust proof for agencies and talent.",
       "signInEmail": "Email / password",
       "signInGoogle": "Google",
