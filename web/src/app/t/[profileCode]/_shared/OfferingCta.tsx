@@ -14,6 +14,7 @@
  * the money flows — the storefront itself never charges anything.
  */
 
+import { intakeDetail } from "@/lib/talent/offering-intake";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
@@ -75,6 +76,7 @@ export function OfferingCta({
       intent: instant ? "instant" : "request",
       description: offering.description,
       where: where.length ? where : undefined,
+      ...intakeDetail(offering.attributes),
     };
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };

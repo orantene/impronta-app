@@ -25,6 +25,7 @@
  * works unchanged against the real instant-book and inquiry mounts.
  */
 
+import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
@@ -77,6 +78,7 @@ function detailFor(o: TalentOffering): OfferingRequestDetail {
     intent: instant ? "instant" : "request",
     description: o.description,
     where: where.length ? where : undefined,
+    ...intakeDetail(o.attributes),
   };
 }
 

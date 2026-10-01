@@ -18,6 +18,14 @@
  * No migration: `source_context` is the existing jsonb provenance column.
  */
 
+import {
+  clampIntakeRecords,
+  intakeAnswerRecords,
+  type IntakeAnswerRecord,
+  type IntakeAnswers,
+  type IntakeQuestion,
+} from "./offering-intake";
+
 export type OfferingTaskRef = { id: string; label: string };
 
 /** The persisted shape (snake_case, like the rest of source_context). */
@@ -25,6 +33,8 @@ export type OfferingTaskBrief = {
   task_id?: string;
   task_label?: string;
   note?: string;
+  /** Gridline G13: answers to the service's intake questions (offering-intake.ts). */
+  intake?: IntakeAnswerRecord[];
 };
 
 export const TASK_NOTE_MAX = 500;
@@ -48,8 +58,11 @@ export function taskNotePrefill(task: OfferingTaskRef | null | undefined): strin
 export function taskBriefFrom(
   task: Partial<OfferingTaskRef> | null | undefined,
   note: unknown,
+  intake?: unknown,
 ): OfferingTaskBrief | null {
   const out: OfferingTaskBrief = {};
+  const answers = clampIntakeRecords(intake);
+  if (answers.length) out.intake = answers;
   const id = clean(task?.id, LABEL_MAX);
   const label = clean(task?.label, LABEL_MAX);
   const n = clean(note, TASK_NOTE_MAX);
@@ -73,5 +86,28 @@ export function taskNoteHint(locale: string): string {
 /** Re-clamp a brief that arrived from the client (server side). */
 export function clampTaskBrief(b: OfferingTaskBrief | null | undefined): OfferingTaskBrief | null {
   if (!b || typeof b !== "object") return null;
-  return taskBriefFrom({ id: b.task_id, label: b.task_label }, b.note);
+  return taskBriefFrom({ id: b.task_id, label: b.task_label }, b.note, b.intake);
+}
+
+/**
+ * Gridline G13: the brief a booking detail carries on submit. The task (G9b)
+ * and the intake answers (G13) are independent: a service with questions sends
+ * its answers even when the sheet was not opened from the task picker.
+ * `keepNote` is false where the note went into a message box instead.
+ */
+export function briefFromDetail(
+  d:
+    | {
+        task?: OfferingTaskRef | null;
+        note?: string | null;
+        intake?: IntakeQuestion[];
+        answers?: IntakeAnswers;
+      }
+    | null
+    | undefined,
+  keepNote: boolean,
+): OfferingTaskBrief | null {
+  if (!d) return null;
+  const intake = intakeAnswerRecords(d.intake, d.answers);
+  return taskBriefFrom(d.task ?? null, d.task && keepNote ? d.note : null, intake);
 }

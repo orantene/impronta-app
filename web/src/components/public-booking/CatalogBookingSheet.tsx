@@ -44,6 +44,8 @@ import {
 import { catalogIsQuote, catalogPriceLabel } from "./catalog-booking-price";
 import { CatalogInquiryBrief } from "./catalog-inquiry-brief";
 import { CatalogTaskNote, catalogTaskBrief } from "./catalog-task-note";
+import { CatalogIntakeFields } from "./catalog-intake-fields";
+import { preselectIntakeFromTask } from "@/lib/talent/offering-intake";
 import {
   fetchLiveSlots,
   shouldSkipGuestCaptchaOnHost,
@@ -133,7 +135,8 @@ export function CatalogBookingSheet({
       if (!d) return;
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
-      setDetail(d);
+      // G13: a picked task pre-selects matching intake chips (still editable).
+      setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       setVariantId(null);
       setAddOnIds([]);
       setDayIndex(0);
@@ -453,6 +456,12 @@ export function CatalogBookingSheet({
                 />
               </div>
               <CatalogTaskNote detail={detail} locale={locale} onChange={(note) => setDetail({ ...detail, note })} />
+              <CatalogIntakeFields
+                questions={detail.intake}
+                answers={detail.answers}
+                locale={locale}
+                onChange={(answers) => setDetail({ ...detail, answers })}
+              />
 
               {needsVariant ? (
                 <fieldset className="jb-group">

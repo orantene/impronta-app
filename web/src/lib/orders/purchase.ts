@@ -736,6 +736,7 @@ export async function createPurchase(
         bookingId,
         transactionId: createdTransactionId,
         brief: input.brief ?? null,
+        locale: input.locale ?? null,
       });
     }
 

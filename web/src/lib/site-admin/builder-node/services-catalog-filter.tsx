@@ -1,5 +1,6 @@
 "use client";
 
+import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
@@ -89,6 +90,7 @@ export function detailFor(
     intent: instant ? "instant" : "request",
     description: offering.description,
     where: where.length ? where : undefined,
+    ...intakeDetail(offering.attributes),
   };
 }
 

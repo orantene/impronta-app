@@ -44,6 +44,7 @@ import { assertAcceptingNewContact, isDirectTalentChannel } from "@/lib/talent/a
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { verifyTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
 import { clampTaskBrief } from "@/lib/talent/offering-task-brief";
+import { formatIntakeBlock } from "@/lib/talent/offering-intake";
 import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -695,7 +696,12 @@ export async function startGuestChatInquiry(
             : ""
         }\n\n`
       : "";
-  const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
+  // G13: the service's intake answers, readable in the thread for both sides
+  // (the structured copy rides source_context.offering.brief.intake).
+  const intakeBlock = formatIntakeBlock(offeringBrief?.intake ?? [], input.locale ?? "en");
+  const firstMessage = rawFirstMessage
+    ? `${offeringPrefix}${rawFirstMessage}${intakeBlock ? `\n\n${intakeBlock}` : ""}`
+    : rawFirstMessage;
 
   const missing: string[] = [];
   if (!contactFirstName) missing.push("requester.first_name");

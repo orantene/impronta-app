@@ -111,6 +111,7 @@ export async function createInstantBookingAction(
           openThread: true,
           guestSessionId: await resolveGuestSessionId(),
           brief: payload.brief ?? null,
+          locale: await getRequestLocale(),
         });
 
         if (!booked.ok) {
