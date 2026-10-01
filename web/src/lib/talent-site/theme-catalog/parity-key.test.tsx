@@ -138,7 +138,7 @@ for (const design of ["maison-v2", "folio"]) {
     const entry = DESIGNS.find((d) => d.slug === design);
     assert.ok(entry);
     const payload = entry.buildPayload();
-    const rendered = html([...payload.shellTree.filter((n) => n.kind !== "section"), ...payload.homeTree]);
+    const rendered = html([...payload.shellTree.filter((n) => n.kind !== "section"), ...payload.homeTree, ...(payload.optionalBlocks ?? [])]);
     const keys = new Set([...rendered.matchAll(/data-parity-key="([^"]+)"/g)].map((m) => m[1]));
     for (const n of payload.shellTree) {
       if (n.kind === "section") keys.add(String((n.props as Record<string, unknown>).slotKey));

@@ -167,6 +167,7 @@ import { renderCompCardBlock } from "./comp-card-block";
 import { renderSpecTableBlock } from "./spec-table-block";
 import { renderUtilityBarBlock } from "./utility-bar-block";
 import { renderAlertBandBlock } from "./alert-band-block";
+import { renderTaskPickerBlock } from "./task-picker-block";
 import { NextFreeChipView } from "./next-free-chip";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -6088,6 +6089,16 @@ function renderBuilderNodeElement(
       return renderAlertBandBlock({
         node,
         liveStatus: options.dataSources?.liveStatus,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "task_picker": {
+      return renderTaskPickerBlock({
+        node,
+        offerings: options.dataSources.talentOfferings ?? [],
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        confirmsByHand: options.dataSources.talentOfferingsConfirmsByHand ?? true,
+        bookingPosture: options.dataSources.talentOfferingsBookingSettings?.bookingPosture,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

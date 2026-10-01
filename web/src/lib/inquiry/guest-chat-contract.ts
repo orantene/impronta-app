@@ -24,6 +24,7 @@
 import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestInquiriesCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
 import type { InquiryReceiptData } from "./inquiry-receipt-contract";
 import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view"; // pure module (no server import); L13 v5 extras below // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -357,6 +358,12 @@ export type StartGuestChatInput = {
     slot_label?: string | null;
     starts_at?: string | null;
     total_cents?: number | null;
+    /**
+     * Gridline G9b: the task the visitor picked in the task picker, with the
+     * note they kept or edited (-> source_context.offering.brief). Clamped
+     * server-side.
+     */
+    brief?: OfferingTaskBrief | null;
   } | null;
   /**
    * Signed service choice (`signTalentOfferingIntent`). The server reloads

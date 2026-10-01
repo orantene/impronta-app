@@ -3,6 +3,8 @@
  * Max/vanity catalog islands never type- or value-import the hub route folder.
  */
 
+import type { OfferingTaskRef } from "./offering-task-brief";
+
 /** Delivery / location values stored on `talent_offerings.attributes.where`. */
 export type OfferingDeliveryWhere = "studio" | "client" | "remote" | "agreed";
 
@@ -45,6 +47,10 @@ export type OfferingRequestDetail = {
    * No new columns — read-only projection of the offering attribute.
    */
   where?: OfferingDeliveryWhere[];
+  /** Gridline G9b: the task picked in the task picker (W-11), when any. */
+  task?: OfferingTaskRef | null;
+  /** Editable brief note, pre-filled from `task`. Sent only on submit. */
+  note?: string | null;
 };
 
 /** Read `attributes.where` without inventing schema. Unknown entries are dropped. */

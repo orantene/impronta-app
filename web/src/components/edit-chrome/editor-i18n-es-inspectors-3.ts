@@ -238,6 +238,37 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Note label": "Etiqueta de la nota",
   "Safety note text": "Texto de la nota de seguridad",
   "Meanwhile:": "Mientras tanto:",
+  // ── Gridline G9a: task picker ──────────────────────────────────────────
+  "Task picker": "Selector de tareas",
+  "Task picker · tasks and recommended services": "Selector de tareas · tareas y servicios recomendados",
+  "What is happening, in the visitor's words. Each task recommends one of your services with its price, time and the right action.":
+    "Lo que pasa, en palabras del visitante. Cada tarea recomienda uno de tus servicios con su precio, su tiempo y la acción correcta.",
+  "Visitors pick what is happening and get one service recommended, with its price, time and the right action.":
+    "El visitante elige lo que pasa y recibe un servicio recomendado, con su precio, su tiempo y la acción correcta.",
+  "Start here": "Empieza aquí",
+  "Shown while no task is picked. Usually your inspection or first visit.":
+    "Se muestra mientras no hay tarea elegida. Normalmente tu revisión o primera visita.",
+  "Start here service": "Servicio para empezar",
+  "Label (Spanish)": "Etiqueta (español)",
+  "Note": "Nota",
+  "Note (Spanish)": "Nota (español)",
+  "Tasks": "Tareas",
+  "A task with no service chosen is not shown. Spanish text falls back to the English text when empty.":
+    "Una tarea sin servicio elegido no se muestra. El texto en español usa el texto en inglés cuando está vacío.",
+  "Choose a service": "Elige un servicio",
+  "Unavailable service (not published)": "Servicio no disponible (no publicado)",
+  "Task text": "Texto de la tarea",
+  "Task text (Spanish)": "Texto de la tarea (español)",
+  "Task (The power went out)": "Tarea (Se fue la luz)",
+  "Task in Spanish": "Tarea en español",
+  "Task icon": "Ícono de la tarea",
+  "Recommended service": "Servicio recomendado",
+  "Task note": "Nota de la tarea",
+  "Task note (Spanish)": "Nota de la tarea (español)",
+  "Note shown with the recommendation": "Nota que se muestra con la recomendación",
+  "Note in Spanish": "Nota en español",
+  "Add task": "Agregar tarea",
+  "Remove task": "Quitar tarea",
   "Spec table": "Ficha técnica",
   "Spec table · key and value rows": "Ficha técnica · filas de dato y valor",
   "A short table of facts. On a phone it is stacked rows; on a desktop it becomes one strip with a column per row.":

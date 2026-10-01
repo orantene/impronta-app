@@ -110,6 +110,7 @@ export async function createInstantBookingAction(
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
           guestSessionId: await resolveGuestSessionId(),
+          brief: payload.brief ?? null,
         });
 
         if (!booked.ok) {

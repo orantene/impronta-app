@@ -95,6 +95,7 @@ import { LiveTextToggle } from "./live-text-toggle";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { SpecTableContentInspector } from "./spec-table-inspector";
 import { UtilityBarContentInspector, AlertBandContentInspector } from "./utility-bar-inspector";
+import { TaskPickerContentInspector } from "./task-picker-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -1621,6 +1622,8 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "alert_band") {
     return <AlertBandContentInspector node={node} commitPatch={commitPatch} />;
+  if (node.kind === "task_picker") {
+    return <TaskPickerContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "spec_table") {
     return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
@@ -5397,6 +5400,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Utility bar · status and call";
     case "alert_band":
       return "Alert band · same-day emergency";
+    case "task_picker":
+      return "Task picker · tasks and recommended services";
     case "spec_table":
       return "Spec table · key and value rows";
     case "comp_card":
