@@ -33,3 +33,42 @@ export function getStripe(): Stripe | null {
   }
   return _stripe;
 }
+
+// ─── Second platform account: Stripe Mexico ──────────────────────────────────
+
+/** Which Stripe PLATFORM account a flow runs on. */
+export type StripeAccountKey = "us" | "mx";
+
+export function isStripeMxConfigured(): boolean {
+  return !!process.env.STRIPE_MX_SECRET_KEY;
+}
+
+let _stripeMx: Stripe | null = null;
+
+/** Mexico platform client, or null when STRIPE_MX_SECRET_KEY is unset. */
+export function getStripeMx(): Stripe | null {
+  if (!process.env.STRIPE_MX_SECRET_KEY) return null;
+  if (!_stripeMx) {
+    _stripeMx = new Stripe(process.env.STRIPE_MX_SECRET_KEY, {
+      apiVersion: "2026-04-22.dahlia",
+    });
+  }
+  return _stripeMx;
+}
+
+/** Client for a platform account; null when that account's key is unset. */
+export function getStripeFor(key: StripeAccountKey): Stripe | null {
+  return key === "mx" ? getStripeMx() : getStripe();
+}
+
+/**
+ * MX publishable key. Prefers NEXT_PUBLIC_ (the only form a client bundle can
+ * read; set locally), falls back to the Vercel server-side name.
+ */
+export function getStripeMxPublishableKey(): string | null {
+  return (
+    process.env.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY ||
+    process.env.STRIPE_MX_PUBLISHABLE_KEY ||
+    null
+  );
+}

@@ -42,7 +42,7 @@ import {
   WORKSPACE_PLAN_KEYS,
   type StripeAction,
 } from "@/lib/stripe/webhook-routing";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripeFor, isStripeConfigured, type StripeAccountKey } from "@/lib/stripe/client";
 import { syncStripeSubscriptionToDb } from "@/lib/stripe/workspace-billing";
 import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
 import {
@@ -152,9 +152,7 @@ async function markBookingDepositPaid(action: Extract<StripeAction, { kind: "boo
   if (error) throw new TransientWebhookError(`booking_deposit update failed: ${error.message ?? error}`);
 }
 
-async function persistConnectAccount(accountId: string, eventId: string): Promise<void> {
-  const stripe = getStripe();
-  if (!stripe) throw new TransientWebhookError("Stripe client unavailable for capability.updated");
+async function persistConnectAccount(stripe: Stripe, accountId: string, eventId: string): Promise<void> {
   // capability.updated only carries the capability; re-fetch the full account.
   let account: Stripe.Account;
   try {
@@ -418,7 +416,7 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       return;
 
     case "capability_updated":
-      await persistConnectAccount(action.accountId, event.id);
+      await persistConnectAccount(stripe, action.accountId, event.id);
       return;
 
     case "charge_dispute": {
@@ -656,9 +654,12 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
  * Insert-on-claim: INSERT first; ON CONFLICT (23505) means another delivery
  * already won. The handler runs only when we successfully claimed the row.
  */
-export async function claimEventForProcessing(event: Stripe.Event): Promise<boolean> {
+export async function claimEventForProcessing(
+  event: Stripe.Event,
+  account: StripeAccountKey = "us",
+): Promise<boolean> {
   return claimStripeEvent({
-    lane: "platform",
+    lane: account === "mx" ? "platform_mx" : "platform",
     eventId: event.id,
     eventType: event.type,
     livemode: event.livemode ?? null,
@@ -674,8 +675,8 @@ export async function claimEventForProcessing(event: Stripe.Event): Promise<bool
  * claim row outlives the failed attempt and Stripe's retry short-circuits as
  * "already processed" — silently dropping a paid event.
  */
-async function releaseEventClaim(eventId: string): Promise<void> {
-  return releaseStripeEventClaim({ lane: "platform", eventId });
+async function releaseEventClaim(eventId: string, account: StripeAccountKey = "us"): Promise<void> {
+  return releaseStripeEventClaim({ lane: account === "mx" ? "platform_mx" : "platform", eventId });
 }
 
 // ─── HTTP entry ────────────────────────────────────────────────────────────────
@@ -685,8 +686,13 @@ async function releaseEventClaim(eventId: string): Promise<void> {
  * thin shims over this, so EITHER configured URL behaves identically and shares
  * one idempotency ledger.
  */
-export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
-  if (!isStripeConfigured()) {
+export async function handleStripeWebhook(
+  req: Request,
+  opts: { account?: StripeAccountKey } = {},
+): Promise<NextResponse> {
+  const account: StripeAccountKey = opts.account ?? "us";
+  const stripe = getStripeFor(account);
+  if (account === "us" ? !isStripeConfigured() : !stripe) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
   // Stripe splits deliveries across TWO endpoint types and each carries its own
@@ -700,16 +706,18 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
   // emitted account.updated on her account, we never received it, and her $80
   // stayed held until the next daily cron. Accept either secret so ONE URL can
   // serve both endpoints.
-  const webhookSecrets = [
-    process.env.STRIPE_WEBHOOK_SECRET,
-    process.env.STRIPE_WEBHOOK_SECRET_CONNECT,
-  ].filter((s): s is string => !!s && s.trim().length > 0);
+  const webhookSecrets = (account === "mx"
+    ? [process.env.STRIPE_MX_WEBHOOK_SECRET, process.env.STRIPE_MX_WEBHOOK_SECRET_CONNECT]
+    : [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_WEBHOOK_SECRET_CONNECT]
+  ).filter((s): s is string => !!s && s.trim().length > 0);
   if (webhookSecrets.length === 0) {
-    logServerError("stripe-webhook", "STRIPE_WEBHOOK_SECRET not set");
+    logServerError(
+      "stripe-webhook",
+      account === "mx" ? "STRIPE_MX_WEBHOOK_SECRET not set" : "STRIPE_WEBHOOK_SECRET not set",
+    );
     return NextResponse.json({ error: "Webhook secret not configured." }, { status: 503 });
   }
 
-  const stripe = getStripe()!;
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
@@ -732,19 +740,19 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
   }
 
   // Idempotency: claim the event id, short-circuit duplicates.
-  const alreadyProcessed = await claimEventForProcessing(event);
+  const alreadyProcessed = await claimEventForProcessing(event, account);
   if (alreadyProcessed) {
     return NextResponse.json({ received: true, idempotent: true });
   }
 
   try {
-    await processStripeEvent(event, stripe);
+    await processStripeEvent(event, stripe!);
   } catch (err) {
     logServerError(`stripe-webhook.${event.type}`, err);
     // Release the claim so the retry actually re-runs this handler. Both
     // transient and unexpected failures are treated as retryable — better to
     // retry an unknown failure than silently lose a paid event.
-    await releaseEventClaim(event.id);
+    await releaseEventClaim(event.id, account);
     return NextResponse.json(
       { error: "Processing failure; will retry." },
       { status: 503 },
