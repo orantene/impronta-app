@@ -13,8 +13,7 @@ import { notFound } from "next/navigation";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { buildThemeTemplateCanvasData } from "@/lib/talent-site/theme-template/canvas.server";
 import { findDemo, demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { openThemeDraft } from "@/lib/talent-site/theme-template/drafts.server";
@@ -74,26 +73,25 @@ export default async function TalentDesignEditPage({
   const referenceCode = demosFor(slug as DemoDesign).find((d) => d.reference)?.profileCode ?? null;
   const requested = first(sp.subject);
   const subjectCode = requested && findDemo(requested) ? requested : referenceCode;
-  let subjectId: string | null = null;
   let subjectLabel: string | null = null;
   if (subjectCode) {
     const { data: profile } = await admin
       .from("talent_profiles")
-      .select("id, display_name")
+      .select("display_name")
       .eq("profile_code", subjectCode)
       .maybeSingle();
     if (profile) {
-      subjectId = profile.id as string;
       subjectLabel = (profile.display_name as string | null)?.trim() || subjectCode;
     }
   }
 
-  const nodes = (tree === "shell" ? draft.value.payload.shellTree : draft.value.payload.homeTree) ?? [];
-  const canvas = await buildInEditorCanvasRenderData({
-    tree: nodes as BuilderNodeTree,
-    tenantId,
-    locale: lang,
-    previewSubject: subjectId ? { kind: "talent", id: subjectId, locale: lang } : null,
+  const canvas = await buildThemeTemplateCanvasData({
+    design: slug,
+    subjectCode,
+    look: look ?? null,
+    draft: draft.value,
+    tree,
+    lang,
   });
 
   return (

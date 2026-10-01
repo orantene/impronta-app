@@ -8,6 +8,7 @@
  * builder, never the agency Studio.
  */
 
+import { ThemeTemplateSubjectPicker } from "@/lib/talent-site/theme-template/subject-picker";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -67,6 +68,7 @@ export function ThemeTemplateEditorMount({
           {t.tabShell}
         </Link>
       </nav>
+      <ThemeTemplateSubjectPicker design={design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
       <button
         type="button"
         disabled
