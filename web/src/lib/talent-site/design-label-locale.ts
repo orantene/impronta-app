@@ -102,6 +102,7 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "See the book": "Ver el libro",
   "Editorial, runway and campaigns.": "Editorial, runway y campañas.",
   "Selected work": "Trabajos elegidos",
+  "More work": "Más trabajos",
   "From the studio": "Desde el estudio",
   Details: "Detalles",
   "Up close": "De cerca",

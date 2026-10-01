@@ -61,7 +61,7 @@ test("the Folio payload validates, About is an optional block, the cover carries
   assert.ok(JSON.stringify(p.optionalBlocks ?? []).includes(`"slotKey":"about"`), "About stays available");
   assert.ok(kinds(p.homeTree).includes("statement_footer"));
   const mast = JSON.stringify(p.homeTree);
-  assert.match(mast, /"coverStatement":"Editorial, runway and campaigns\."/);
+  assert.match(mast, /"coverStatement":""/, "the cover line ships neutral; a demo or talent writes it");
 });
 
 test("other designs keep their pages (only Maison v2 and Folio ship optional blocks)", () => {
@@ -158,4 +158,18 @@ test("Maison v2 and Gridline output is pinned (Folio-only changes leave it byte-
     gridline: h(JSON.stringify(buildGridlinePayload())),
   };
   assert.deepEqual(got, PINS);
+});
+
+test("release 17: Folio neutral wording has EN/ES notes and every generated item a note", () => {
+  const to = buildFolioPayload();
+  const from = JSON.parse(
+    JSON.stringify(to)
+      .replace(/"coverStatement":""/, '"coverStatement":"Editorial, runway and campaigns."')
+      .replace(/"Selected work"/g, '"Editorial"')
+      .replace(/"More work"/g, '"Runway"'),
+  );
+  const { items, notes } = generateReleaseItems("folio", { payload: from, version: 16 }, { payload: to, version: 17 });
+  assert.ok(notes.en && notes.es);
+  assert.ok(releaseNotesFor("folio", 17));
+  for (const i of items) assert.ok(i.note?.en && i.note?.es, `missing note for ${i.id}`);
 });
