@@ -7,11 +7,13 @@
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { typeSystemComponentStyleDefaults } from "./design-type-system";
 import { FOLIO_DESIGN_TOKEN_DEFAULTS } from "./folio-defaults";
+import { GRIDLINE_DESIGN_TOKEN_DEFAULTS } from "./gridline-defaults";
 import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
 
 const DESIGN_TOKEN_DEFAULTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "maison-v2": MAISON_V2_TOKEN_DEFAULTS,
   folio: FOLIO_DESIGN_TOKEN_DEFAULTS,
+  gridline: GRIDLINE_DESIGN_TOKEN_DEFAULTS,
 };
 
 const NONE: Readonly<Record<string, string>> = Object.freeze({});

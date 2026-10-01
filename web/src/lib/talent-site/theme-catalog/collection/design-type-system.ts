@@ -319,7 +319,7 @@ export function typeSystemComponentStyleDefaults(
   tokens: Readonly<Record<string, string>>,
   base: ComponentStyleDefaults,
 ): ComponentStyleDefaults {
-  if (!isEditorialTypeSystem(tokens) && !isMagazineTypeSystem(tokens)) return base;
+  if (!isEditorialTypeSystem(tokens) && !isMagazineTypeSystem(tokens) && tokens["type.system"] !== "utility") return base;
   const out: ComponentStyleDefaults = { ...base };
   delete out.heading;
   delete out.paragraph;
