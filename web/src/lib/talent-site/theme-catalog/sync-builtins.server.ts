@@ -8,6 +8,7 @@ import type { BuiltinDesignEntry, BuiltinLookEntry } from "./builtins/types";
 import { MAISON_BUILTIN_DESIGN, MAISON_BUILTIN_LOOKS } from "./maison/builtins";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { FOLIO_BUILTIN_LOOKS } from "./collection/folio-looks";
+import { GRIDLINE_BUILTIN_LOOKS } from "./collection/gridline-looks";
 import { TALENT_THEME_SCHEMA_VERSION, type DesignPayload, type TalentThemeKind } from "./types";
 import { validateDesign, validateLook } from "./validate";
 import { createDraftRelease, shouldCreateDraftRelease } from "../theme-releases/releases.server";
@@ -372,6 +373,7 @@ export async function syncBuiltinTalentThemes(
     ...BUILTIN_LOOKS,
     ...MAISON_BUILTIN_LOOKS,
     ...FOLIO_BUILTIN_LOOKS,
+    ...GRIDLINE_BUILTIN_LOOKS,
   ];
   const built = entries.map((entry) => ({ entry, payload: entry.buildPayload() }));
 

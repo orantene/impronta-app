@@ -7,4 +7,6 @@
  */
 export const TALENT_KIT_ALT_SLOTS: Readonly<Record<string, ReadonlyArray<string>>> = {
   "talent.shell.footer": ["footer_rich"],
+  // Gridline: the FAQ is the contact role under the key the parity map addresses (`faq`).
+  "talent.contact": ["faq"],
 };

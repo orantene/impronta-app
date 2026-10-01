@@ -40,9 +40,10 @@ import {
   shell,
   tuneHeading,
 } from "./design-parts";
+import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
-export { buildMaisonV2Payload };
+export { buildGridlinePayload, buildMaisonV2Payload };
 
 // ── Solace ───────────────────────────────────────────────────────────────────
 // Calm full-bleed cover, a centered short intro, services as an unhurried
@@ -448,6 +449,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     10,
     buildFolioPayload,
   ),
+  entry(
+    "gridline",
+    "Gridline",
+    "A utility bar with a tap-to-call button, a spec-block hero, a task picker and a clear comparison of services. Built for trades that get called.",
+    "bold",
+    ["trades", "urgent", "price-matrix"],
+    11,
+    buildGridlinePayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -466,6 +476,8 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
   mono: "Una frase y una lista de precios rápida. Para clientes que ya saben lo que quieren.",
   frame: "Tu trabajo primero: portada con retrato, una cuadrícula de trabajos y servicios en tarjetas.",
   folio: "Portada de revista con tu nombre como cabecera, un libro de trabajos y una tarifa clara.",
+  gridline:
+    "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
 };
 
 /** What each design still needs from shared widgets (mockup → today). */
@@ -475,4 +487,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe"],
   folio: [],
+  gridline: [],
 };
