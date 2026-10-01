@@ -45,3 +45,14 @@ test("toFontProxyHref keeps the Google URL for a family the proxy would reject",
   const href = "https://fonts.googleapis.com/css2?family=Definitely+Not+A+Font&display=swap";
   assert.equal(toFontProxyHref(href), href);
 });
+
+test("proxy accepts a percent-encoded query (server-encoded colon and at)", () => {
+  assert.equal(
+    buildUpstreamCssUrl("family=Figtree%3Awght%40400..700&display=swap"),
+    "https://fonts.googleapis.com/css2?family=Figtree:wght@400..700&display=swap",
+  );
+  assert.notEqual(
+    buildUpstreamCssUrl("family=Bodoni+Moda%3Aital%2Cwght%400%2C400..700%3B1%2C400..700&display=swap"),
+    null,
+  );
+});
