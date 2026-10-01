@@ -502,7 +502,8 @@ async function scanState(ctx, talent, width, state, mock, rows) {
         r.reasons.push("opening the chat crashed the page, most likely because the read-only guard blocked the chat's server action. Re-run with --allow-server-actions on an isolated target to verify (it may create a guest inquiry).");
       } else {
         const panelSel = "[role=dialog], [data-chat-variant]";
-        const composer = page.locator("textarea, [role=dialog] input[type=text]").first();
+        // The honeypot (name=company_website) is a hidden input that sits BEFORE the textarea in the DOM; never treat it as the composer.
+        const composer = page.locator("textarea:visible, [role=dialog] input[type=text]:not([name=company_website]):visible").first();
         if (!(await page.locator(panelSel).first().isVisible().catch(() => false))) r.reasons.push("chat panel did not open");
         if (!(await composer.isVisible().catch(() => false))) r.reasons.push("chat composer not found");
         const chip = page.locator(`${panelSel.split(", ").map((s) => `${s} button`).join(", ")}`).filter({ hasText: /[?¿]/ }).filter({ hasNotText: never_ });

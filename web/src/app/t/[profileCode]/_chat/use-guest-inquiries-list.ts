@@ -4,15 +4,18 @@
  * useGuestInquiriesList — F4: load the guest's inquiries list while the panel
  * is open (feeds both the mini-mode thread switcher and the expanded left
  * pane). Extracted verbatim from MiniChatPanel.tsx (W1-A decomposition
- * pre-pass) to keep that file under the 800-line cap. No logic changes.
+ * pre-pass) to keep that file under the 800-line cap. Cold-resume retry: see
+ * guest-inquiries-retry.ts.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type {
   GuestInquirySummary,
   ListGuestInquiriesCallback,
 } from "@/lib/inquiry/guest-chat-contract";
+
+import { nextListRetryDelayMs } from "./guest-inquiries-retry";
 
 export function useGuestInquiriesList({
   open,
@@ -21,6 +24,7 @@ export function useGuestInquiriesList({
   tenantSlug,
   refreshKey,
   activeInquiryId = null,
+  locale,
 }: {
   open: boolean;
   expanded: boolean;
@@ -41,35 +45,29 @@ export function useGuestInquiriesList({
    * shortly after. Also refetches when the id resolves from null -> real.
    */
   activeInquiryId?: string | null;
+  /** The visitor's site locale, so project labels read in her language. */
+  locale?: string | null;
 }): GuestInquirySummary[] {
   const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
-  // One retry budget per (open) session, so a genuinely empty guest never loops.
-  const retriedRef = useRef(false);
-
   useEffect(() => {
-    if (!open) {
-      retriedRef.current = false;
-      return;
-    }
-    if (!onListGuestInquiries || !tenantSlug) return;
+    if (!open || !onListGuestInquiries || !tenantSlug) return;
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    // Per effect run, so a changed active id starts a fresh, capped series.
+    let attempt = 0;
     const load = async () => {
       try {
-        const res = await onListGuestInquiries({ tenantSlug });
+        const res = await onListGuestInquiries({ tenantSlug, ...(locale ? { locale } : {}) });
         if (cancelled || !res.ok) return;
         setInquiries(res.inquiries);
-        // Cold-resume guard: resumed into an inquiry but the list came back
-        // empty -> the session probably was not settled yet. Retry once.
-        if (
-          res.inquiries.length === 0 &&
-          activeInquiryId &&
-          !retriedRef.current
-        ) {
-          retriedRef.current = true;
+        // Cold-resume guard (see guest-inquiries-retry.ts): the resumed inquiry
+        // must be in the list; if it is not, the session had not settled yet.
+        const delay = nextListRetryDelayMs(attempt, activeInquiryId, res.inquiries.map((i) => i.inquiryId));
+        if (delay !== null) {
+          attempt += 1;
           retryTimer = setTimeout(() => {
             if (!cancelled) void load();
-          }, 500);
+          }, delay);
         }
       } catch {
         /* transient */
@@ -80,7 +78,7 @@ export function useGuestInquiriesList({
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [open, expanded, onListGuestInquiries, tenantSlug, refreshKey, activeInquiryId]);
+  }, [open, expanded, onListGuestInquiries, tenantSlug, refreshKey, activeInquiryId, locale]);
 
   return inquiries;
 }

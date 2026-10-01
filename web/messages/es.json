@@ -1399,7 +1399,10 @@
       "headerJourneySent": "Enviada",
       "headerJourneyThread": "En conversación",
       "headerJourneyClosed": "Cerrada",
-      "presenceViewing": "{name} lo está viendo"
+      "presenceViewing": "{name} lo está viendo",
+      "payCardFullAction": "Pagar",
+      "payCardFullDetail": "Paga con tarjeta para confirmar tu cita.",
+      "confirmedPayInPerson": "Confirmado. Pagas en persona."
     },
     "inquiryDrawer": {
       "dialogAria": "Nueva solicitud",

@@ -631,6 +631,11 @@ async function onDirectTalentChannel(tenantId: string | null): Promise<boolean> 
   return isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId });
 }
 
+/** The stored "Requesting:" prefix is written in the visitor's language (e2e: it leaked English into ES threads). */
+function requestingWord(locale: string | null | undefined): string {
+  return locale === "es" ? "Solicito" : "Requesting";
+}
+
 function notAcceptingMessage(locale: string | null | undefined): string {
   return locale === "es"
     ? "Ahora no recibe mensajes nuevos. Si tienes una reserva, usa el enlace de tu email de confirmación."
@@ -684,7 +689,7 @@ export async function startGuestChatInquiry(
         : null;
   const offeringPrefix =
     offering && !clientPrefixed
-      ? `Requesting: ${offeringTitle}${
+      ? `${requestingWord(input.locale)}: ${offeringTitle}${
           offeringAmount != null
             ? ` (${offering.currency} ${(offeringAmount / 100).toLocaleString()})`
             : ""

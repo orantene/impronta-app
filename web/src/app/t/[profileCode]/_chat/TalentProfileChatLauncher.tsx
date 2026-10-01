@@ -41,6 +41,7 @@ import { setChatPresence } from "@/components/public-booking/chat-presence-store
 import { ChatHelpBubble } from "./ChatHelpBubble";
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherProjectPicker } from "./LauncherProjectPicker";
+import { useLiveReplyCue } from "./use-live-reply-cue";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
 import { FlyingAvatar } from "./FlyingAvatar";
@@ -169,6 +170,8 @@ export function TalentProfileChatLauncher({
   useEffect(() => {
     if (open) setReplySeen(true);
   }, [open]);
+  // A reply that lands after page load lights the launcher too (use-live-reply-cue.ts).
+  const liveReply = useLiveReplyCue({ open, enabled: Boolean(existingInquiryId) || replySeen, tenantSlug, locale: brand.locale, onList: onListGuestInquiries });
   // Audit item 7 (Lane G) — below ~700px the free-floating avatar cluster (up to
   // 3 circles breaking the pill's top edge, or the "+N …more" chip) has been
   // observed drifting over profile content (review text / section headers) in
@@ -486,7 +489,7 @@ export function TalentProfileChatLauncher({
   // any local open (which marks it seen). Drives BOTH the resolver's `replied`
   // state ("{agency} replied") and the pulse ring, so opening the thread clears
   // the label and the pulse together.
-  const unseenAgencyReply = unreadCoordinatorReply && !replySeen;
+  const unseenAgencyReply = (unreadCoordinatorReply && !replySeen) || liveReply;
   const ctaState = resolveInquiryCta({
     talentProfileId: focusTalentId,
     isInLineup: focusTalentId ? cart.isInCart(focusTalentId) : false,
@@ -687,6 +690,9 @@ export function TalentProfileChatLauncher({
             <NewMessagePulse active={repliedPulse} accent={accent} />
           )}
           <ChatGlyph color={accentInk} />
+          {!open && unseenAgencyReply ? (
+            <span aria-hidden data-launcher-unread="" style={{ position: "absolute", top: 4, right: 4, width: 12, height: 12, borderRadius: "50%", background: accentInk, boxShadow: `0 0 0 2px ${accent}` }} />
+          ) : null}
           <span className="tl-fab-lbl" aria-hidden>
             {fabHoverLabel}
           </span>

@@ -34,7 +34,7 @@ import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 import { CardDockAskFooter, CardDockIntro } from "./CardDockChatExtras";
 import { shortServiceName } from "./CardChatExtras";
 import { peekChatPresence, setChatPresence } from "@/components/public-booking/chat-presence-store";
-import { CardDockFrame } from "./CardDockFrame";
+import { CardDockFrame, TYPING_SETTLE_MS } from "./CardDockFrame";
 import { CardDockHeader } from "./CardDockHeader";
 import { CardDockServicesView } from "./CardDockServicesView";
 import { GuestDockChrome } from "./GuestDockChrome";
@@ -560,7 +560,7 @@ test("the composer opens empty: the card skin ignores the booking-sheet draft pr
 });
 
 
-test("phone sheet: a drag handle while it is a sheet, full height only while typing", () => {
+test("phone sheet: a drag handle while it is a sheet, full height only while typing", async () => {
   const { host, unmount } = render(
     <CardDockFrame card={CARD} accent="#111111" accentInk="#ffffff" compact expanded={false} keyboardInsetPx={0} ariaLabel="Chat" onClose={() => undefined}>
       <textarea />
@@ -578,7 +578,9 @@ test("phone sheet: a drag handle while it is a sheet, full height only while typ
   act(() => {
     ta.dispatchEvent(new dom.window.FocusEvent("focusout", { bubbles: true }));
   });
-  assert.ok(host.querySelector("[data-card-dock-handle]"), "the handle is back once she stops typing");
+  assert.equal(host.querySelector("[data-card-dock-handle]"), null, "no resize on blur: the tap that blurred the field must land (e2e P1)");
+  await new Promise((r) => setTimeout(r, TYPING_SETTLE_MS + 80));
+  assert.ok(host.querySelector("[data-card-dock-handle]"), "the handle is back once she has stopped typing for a beat");
   assert.ok(dlg);
   unmount();
 });
@@ -644,4 +646,34 @@ test("the bottom dock steps aside while the chat is open, and focus returns to t
   unmount();
   assert.equal(dom.window.document.activeElement, opener);
   opener.remove();
+});
+
+// ── e2e r4 ───────────────────────────────────────────────────────────────────
+
+test("expanded two-pane: the header text takes the card ink, never the page colour (e2e P1: white on white)", () => {
+  assert.match(src("CardDockPanel.tsx"), /display: "contents", color: "var\(--cc-ink\)"/);
+});
+
+test("the offer editor formats money in the offer's own currency, never a hard-coded USD", () => {
+  const editor = readFileSync(join(here, "../../../../components/messages-v5/screens/sheets/OfferEditor.tsx"), "utf8");
+  assert.doesNotMatch(editor, /from "@\/lib\/bookings\/commission"/);
+  assert.match(editor, /formatOrderMoney\(cents, draft\.currencyCode\)/);
+  assert.match(editor, /currency=\{draft\.currencyCode\}/);
+});
+
+test("Send quote from an open thread posts in that thread", () => {
+  const panel = readFileSync(join(here, "../../../../components/admin/shell/internal/talent/agenda/SendQuotePanel.tsx"), "utf8");
+  assert.match(panel, /messagingTalentQuoteSend\(\{ inquiryId: threadId/);
+  assert.match(panel, /threadId \? null : \(/, "the client picker is not shown when the thread is known");
+  const page = readFileSync(join(here, "../../../../components/admin/shell/internal/talent/pages/messages/MessagesPage.tsx"), "utf8");
+  assert.match(page, /openSendQuotePanel\(activeId\)/);
+});
+
+test("stored 'Requesting:' and 'Quote:' lines are written in the visitor's or talent's language", () => {
+  const guest = readFileSync(join(here, "../_actions/guest-chat-actions.ts"), "utf8");
+  assert.match(guest, /requestingWord\(input\.locale\)/);
+  assert.match(guest, /locale === "es" \? "Solicito" : "Requesting"/);
+  const writes = readFileSync(join(here, "../../../../lib/server-actions/messaging-talent-writes.ts"), "utf8");
+  assert.match(writes, /quoteWord\(await getRequestLocale\(\)\)/);
+  assert.match(writes, /"Cotizaci\u00f3n"/);
 });

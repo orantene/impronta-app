@@ -40,7 +40,7 @@ export function CardDockPanel({
   const column = <MiniChatPanelColumn {...columnProps} card={card} />;
   if (expanded && !compact) {
     return (
-      <div style={{ display: "contents", ...(cardVars(card, accent, accentInk) as CSSProperties) }} data-chat-variant="card" data-chat-expanded="true">
+      <div style={{ display: "contents", color: "var(--cc-ink)", ...(cardVars(card, accent, accentInk) as CSSProperties) }} data-chat-variant="card" data-chat-expanded="true">
         <ExpandedChatLayout
           right={column}
           accent={accent}
