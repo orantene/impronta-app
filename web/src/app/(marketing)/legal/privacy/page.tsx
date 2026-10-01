@@ -9,8 +9,8 @@ import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Copy is written against the code
 // facts in the legal inventory report and the working defaults decided by
-// Oran. Do not ship to production until reviewed. Retention is phrased
-// "we aim to" until automated purging exists. Do not claim self-serve
+// Oran. Do not ship to production until reviewed. Retention periods are the
+// owner decisions of 2026-10-01 (src/lib/legal/retention-config.ts). Do not claim self-serve
 // deletion or CSV export here: neither exists yet.
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,7 +41,9 @@ function Ext({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const locale = await getRequestLocale();
+  const es = locale === "es";
   return (
     <LegalPage
       eyebrow="Legal"
@@ -242,16 +244,26 @@ export default function PrivacyPage() {
           heading: "How long we keep data",
           body: (
             <>
+              {/* LEGAL_REVIEW_PENDING: retention periods (owner decision 2026-10-01), see src/lib/legal/retention-config.ts */}
               <p>
-                We aim to keep data no longer than needed, and we are building automated
-                clean-up to enforce these periods:
+                {es
+                  ? "Conservamos los datos solo el tiempo necesario. Estos son los plazos:"
+                  : "We keep data only as long as needed. These are the periods:"}
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>Unbooked inquiries and their messages: 24 months after last activity</li>
-                <li>Bookings and payment records: 5 years, for tax and dispute purposes</li>
-                <li>Guest data: 12 months</li>
-                <li>Deleted media: 30 days</li>
-                <li>Security and audit logs: 180 days</li>
+                <li>
+                  {es
+                    ? "Mensajes y reservas: 3 años después de la última actividad"
+                    : "Messages and bookings: 3 years after the last activity"}
+                </li>
+                <li>
+                  {es
+                    ? "Cuentas eliminadas: se borran 30 días después del periodo de gracia de 14 días"
+                    : "Deleted accounts: purged 30 days after the 14-day grace period"}
+                </li>
+                <li>
+                  {es ? "Registros de seguridad y errores: 90 días" : "Security and error logs: 90 days"}
+                </li>
               </ul>
               <p>
                 Backups are held by our database provider and age out on its schedule. Data we

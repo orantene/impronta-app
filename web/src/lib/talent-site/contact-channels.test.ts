@@ -50,12 +50,12 @@ test("empty WhatsApp and email buttons drop; a hidden one stays", () => {
   assert.deepEqual(labels, [CONTACT_LAYER.ask, CONTACT_LAYER.email]);
 });
 
-test("a free plan confirms by hand and Portfolio can book a time", () => {
-  assert.equal(talentOffersInstantBooking("talent_basic"), false);
-  assert.equal(talentOffersInstantBooking("talent_pro"), false);
-  assert.equal(talentOffersInstantBooking(null), false);
+test("a free plan and Portfolio can both book a time", () => {
+  assert.equal(talentOffersInstantBooking("talent_basic"), true);
+  assert.equal(talentOffersInstantBooking("talent_pro"), true);
+  assert.equal(talentOffersInstantBooking(null), true);
   assert.equal(talentOffersInstantBooking("talent_portfolio"), true);
-  assert.equal(contactCopyForPlan("talent_basic"), CONTACT_COPY.confirmByHand);
+  assert.equal(contactCopyForPlan("talent_basic"), CONTACT_COPY.bookInstant);
   assert.equal(contactCopyForPlan("talent_portfolio"), CONTACT_COPY.bookInstant);
 });
 

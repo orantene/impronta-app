@@ -128,10 +128,13 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Inquiries paused": "Consultas en pausa",
   "Taking new bookings": "Recibiendo nuevas reservas",
   "New bookings paused": "Nuevas reservas en pausa",
-  "Instant booking comes with the Website plan": "La reserva inmediata viene con el plan Website",
+  "Instant booking is not available on this plan": "La reserva inmediata no está disponible en este plan",
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",
   "Add a duration to this service to turn on instant booking":
     "Agrega una duración a este servicio para activar la reserva inmediata",
   // PAY-2 Option B — platform Checkout readiness, not Connect.
   "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
+  // LEGAL_REVIEW_PENDING: merchant of record + 18+ (owner decision 2026-10-01)
+  "You are the merchant of record for card payments from your clients, through your own Stripe Connect account. Chargebacks and tax invoicing (CFDI in Mexico) are yours. You and your paying clients must be 18 or older.":
+    "Tú eres el comerciante registrado de los pagos con tarjeta de tus clientes, a través de tu propia cuenta de Stripe Connect. Los contracargos y la facturación fiscal (CFDI en México) son tuyos. Tú y tus clientes que pagan deben tener 18 años o más.",
 };

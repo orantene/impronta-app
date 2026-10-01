@@ -14,14 +14,13 @@ import {
   weeklyHasBookableWindow,
 } from "./instant-book-gates";
 
-test("free plan cannot auto-confirm (request ceiling)", () => {
-  const gate = assertInstantPlanCeiling("free");
+test("free plan can auto-confirm (instant ceiling)", () => {
+  assert.equal(assertInstantPlanCeiling("free").ok, true);
+});
+
+test("an unknown plan still fails closed", () => {
+  const gate = assertInstantPlanCeiling("nonsense");
   assert.equal(gate.ok, false);
-  if (!gate.ok) {
-    assert.equal(gate.reason, "plan_lacks_capability");
-    assert.equal(gate.maxMode, "request");
-    assert.equal(gate.requiredMode, "instant");
-  }
 });
 
 test("website and above can instant", () => {

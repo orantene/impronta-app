@@ -16,7 +16,11 @@ test("privacy page has no unimplemented promises", () => {
   const s = read("src/app/(marketing)/legal/privacy/page.tsx");
   assert.doesNotMatch(s, /consent banner/i);
   assert.doesNotMatch(s, /within 30 days/i);
-  assert.doesNotMatch(s, /90 days/i);
+  // Owner decision 2026-10-01: these periods are stated, from retention-config.ts.
+  assert.match(s, /3 years after the last activity/);
+  assert.match(s, /3 años después de la última actividad/);
+  assert.match(s, /90 days/);
+  assert.match(s, /LEGAL_REVIEW_PENDING/);
   assert.doesNotMatch(s, /CSV \+ JSON/);
   for (const p of ["Vercel", "Supabase", "Stripe", "Resend", "Sentry", "Google Maps", "Anthropic", "OpenAI", "Upstash"]) {
     assert.ok(s.includes(p), `subprocessor ${p} listed`);
@@ -49,4 +53,16 @@ test("self-cancel copy does not promise a link-based cancel", () => {
     read("src/components/talent/website-settings/WebsiteSettingsGroups.tsx"),
     /refunded in full before that/,
   );
+});
+
+test("terms state talent merchant of record and 18+ in EN and ES, marked for review", () => {
+  const s = read("src/app/(marketing)/legal/terms/page.tsx");
+  assert.match(s, /merchant of record/);
+  assert.match(s, /comerciante registrado/);
+  assert.match(s, /18 or older/);
+  assert.match(s, /18 años o más/);
+  assert.match(s, /LEGAL_REVIEW_PENDING/);
+  const panel = read("src/components/talent/money/MoneyPayoutsPanel.tsx");
+  assert.match(panel, /merchant of record/);
+  assert.match(panel, /LEGAL_REVIEW_PENDING/);
 });

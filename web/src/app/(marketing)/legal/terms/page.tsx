@@ -21,7 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const locale = await getRequestLocale();
+  const es = locale === "es";
   return (
     <LegalPage
       eyebrow="Legal"
@@ -43,6 +45,12 @@ export default function TermsPage() {
                 You&rsquo;re responsible for keeping your account credentials secure and for
                 actions taken under your account. Everyone who uses {PLATFORM_BRAND.name}, talents and clients alike, must
                 be 18 or older. To close your account, contact support and we will help you.
+              </p>
+              {/* LEGAL_REVIEW_PENDING: 18+ for talents and paying clients (owner decision 2026-10-01) */}
+              <p>
+                {es
+                  ? "Para ser talento, o cliente que paga en Tulala, debes tener 18 años o más. Si descubrimos que alguien es menor de 18, podemos cerrar la cuenta."
+                  : "To be a talent, or a client who pays on Tulala, you must be 18 or older. If we learn that someone is under 18, we may close the account."}
               </p>
             </>
           ),
@@ -90,6 +98,12 @@ export default function TermsPage() {
           heading: "Payments",
           body: (
             <>
+              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              <p>
+                {es
+                  ? "El talento es el comerciante registrado de cada pago con tarjeta que recibe, mediante su cuenta de Stripe Connect. Los contracargos, las disputas perdidas y la facturación fiscal (por ejemplo, el CFDI en México) corresponden al talento."
+                  : "The talent is the merchant of record for each card payment they receive, through their own Stripe Connect account. Chargebacks, lost disputes, and tax invoicing (for example, the CFDI in Mexico) are the talent\u2019s responsibility."}
+              </p>
               <p>
                 {PLATFORM_BRAND.name} collects card payments for bookings on behalf of the
                 talent or workspace that provides the service, using Stripe Connect. Card
