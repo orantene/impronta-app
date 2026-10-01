@@ -30,7 +30,8 @@ import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-des
 import { loadMaisonCatalogRow, maisonBuiltinRow } from "@/lib/talent-site/server/maison-catalog-row";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
-import { isCodeSourceRequested } from "./theme-preview-source";
+import { isCodeSourceRequested, isDraftSourceRequested } from "./theme-preview-source";
+import { loadThemeDraft } from "@/lib/talent-site/theme-template/drafts.server";
 import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/catalog-visibility";
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
@@ -138,8 +139,19 @@ export async function ThemeCatalogPreview({
   // `?source=code`: the in-code built-in, hydrated with the demo's content.
   const actor = source ? await getCachedActorSession() : null;
   const viewerIsAdmin = !!actor && isPlatformAdmin(actor.profile);
-  const codeSource = isCodeSourceRequested(source, { isPlatformAdmin: viewerIsAdmin });
+  const draftSource = isDraftSourceRequested(source, { isPlatformAdmin: viewerIsAdmin });
+  // `?source=draft` is the open editor draft: like code, it skips the demo's saved page and tokens.
+  const codeSource = isCodeSourceRequested(source, { isPlatformAdmin: viewerIsAdmin }) || draftSource;
   const loadRow = async <K extends "design" | "look">(kind: K, slug: string) => {
+    if (kind === "design" && draftSource) {
+      // The OPEN talent_theme_drafts payload (read-only), on the in-code or catalog row's shell.
+      const draft = await loadThemeDraft(admin, slug);
+      const base =
+        maisonBuiltinRow("design", slug) ??
+        (isMaisonCatalogSlug(slug) ? await loadMaisonCatalogRow(admin, "design", slug) : await loadPublishedCatalogRow(admin, "design", slug));
+      if (!draft.ok || !base) return null as never;
+      return { ...base, payload: draft.value.payload } as never;
+    }
     if (kind === "design" && codeSource) {
       const inCode = maisonBuiltinRow("design", slug);
       if (inCode) return inCode as never;

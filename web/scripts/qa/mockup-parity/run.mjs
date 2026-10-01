@@ -24,6 +24,7 @@ import { createImageTool, preparePage } from "./pixel.mjs";
 import { pixelThresholdFor } from "./pixel-thresholds.mjs";
 import { SECTION_UNITS, classify, compactTable, findingsOf } from "./classify.mjs";
 import { applyBaseline, loadBaseline, writeBaseline } from "./baseline.mjs";
+import { productUrl, readAuthCache, writeAuthCache, dropAuthCache } from "./loop-lib.mjs";
 import { ACCENT_DENYLIST, ES_DENYLIST, LOCALE_TEXT, NEVER_CLICK, loadDesignMap } from "./section-map.mjs";
 
 loadEnvLocal();
@@ -46,6 +47,7 @@ function parseArgs(argv) {
     else if (a === "--mockup-url") { o.mockupUrl = v(); o.mockupUrlSet = true; }
     else if (a === "--include-drafts") o.drafts = true;
     else if (a === "--storage-state") o.storageState = v();
+    else if (a === "--auth-cache") o.authCache = v();
     else if (a === "--out") o.out = v();
     else if (a === "--public") o.public = true;
     else if (a === "--apex") o.apex = v();
@@ -60,7 +62,7 @@ function parseArgs(argv) {
     else if (a === "--help" || a === "-h") { console.log("see docs/qa/mockup-parity.md"); process.exit(0); }
     else { console.error(`unknown flag ${a}`); process.exit(2); }
   }
-  if (!["live", "code"].includes(o.source)) { console.error("--source must be live or code"); process.exit(2); }
+  if (!["live", "code", "draft"].includes(o.source)) { console.error("--source must be live, code or draft"); process.exit(2); }
   if (!["es", "en"].includes(o.locale)) { console.error("--locale must be es or en"); process.exit(2); }
   return o;
 }
@@ -151,21 +153,23 @@ function identities() {
   return list;
 }
 
-const liveUrl = (id) => `${opts.baseUrl}/template-preview/live?kind=live-site&talent=${id}&locale=${opts.locale}`;
-const codeUrl = (t) => `${opts.baseUrl}/template-preview/${opts.design}?kind=talent-theme&demo=${opts.design}:${t.demoKey}&source=code&locale=${opts.locale}`;
-const probeUrl = (t) => (opts.source === "code" ? codeUrl(t) : liveUrl(t.id));
+const urlOpts = () => ({ baseUrl: opts.baseUrl, design: opts.design, locale: opts.locale, source: opts.source });
+const probeUrl = (t) => productUrl(urlOpts(), t);
 const siteUrl = (t) => (t.viaPublic ? `http://${t.slug}.${opts.apex}:${new URL(opts.baseUrl).port || 80}/` : probeUrl(t));
 /** A code-source page that did not hydrate the demo silently shows another persona; refuse that. */
 const hydratedFor = async (r, t) => {
-  if (opts.source !== "code") return true;
+  if (opts.source === "live") return true;
   const first = (t.name || "").split(/\s+/)[0];
   return !!first && (await r.text().catch(() => "")).includes(first);
 };
 const analyses = []; // raw per-width product analyses (analysis.json)
+const fresh = new Set(); // identities already re-logged this run
 const stateCache = new Map(); // identity name -> storageState | null
 
 async function stateFor(browser, ident) {
   if (stateCache.has(ident.name)) return stateCache.get(ident.name);
+  const cached = opts.authCache ? readAuthCache(opts.authCache, opts.baseUrl, ident.name) : null;
+  if (cached) { stateCache.set(ident.name, cached); return cached; }
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 800 } });
   const page = await ctx.newPage();
   let st = null;
@@ -181,6 +185,7 @@ async function stateFor(browser, ident) {
   }
   await ctx.close();
   stateCache.set(ident.name, st);
+  if (st && opts.authCache) writeAuthCache(opts.authCache, opts.baseUrl, ident.name, st);
   return st;
 }
 
@@ -202,6 +207,20 @@ async function pickSession(browser, talent) {
     const okSess = r && r.status() === 200 && (await hydratedFor(r, talent));
     await ctx.close();
     if (okSess) return { name: ident.name, state: st };
+    if (opts.authCache && !fresh.has(ident.name)) {
+      // A cached session may have expired: forget it and log in once more.
+      fresh.add(ident.name);
+      stateCache.delete(ident.name);
+      dropAuthCache(opts.authCache, opts.baseUrl, ident.name);
+      const st2 = await stateFor(browser, ident);
+      if (st2) {
+        const ctx2 = await browser.newContext({ storageState: st2 });
+        const r2 = await ctx2.request.get(probeUrl(talent), { maxRedirects: 0 }).catch(() => null);
+        const ok2 = r2 && r2.status() === 200 && (await hydratedFor(r2, talent));
+        await ctx2.close();
+        if (ok2) return { name: ident.name, state: st2 };
+      }
+    }
   }
   return null;
 }
@@ -544,7 +563,7 @@ async function main() {
   const { talents, skippedDrafts } = await resolveTalents();
   if (!talents.length) { console.error("No talents to check."); process.exit(2); }
   for (const t of talents) t.demoKey = t.code === REF_CODE ? MAP.referenceDemo.demoKey || null : null; // gallery-meta demo key, for --source code
-  if (opts.source === "code") {
+  if (opts.source !== "live") {
     const missing = talents.filter((t) => !t.demoKey);
     if (missing.length) { console.error(`--source code needs a gallery demo key for ${missing.map((t) => t.code).join(", ")} in ${opts.design} (DEMO_KEYS in run.mjs).`); process.exit(2); }
   }
@@ -558,7 +577,7 @@ async function main() {
   const noSession = [];
   for (const t of talents) {
     let sess = opts.public ? null : await pickSession(browser, t);
-    if (!sess && t.status === "published" && t.slug && opts.source !== "code") {
+    if (!sess && t.status === "published" && t.slug && opts.source === "live") {
       // No preview session: render the same published site through its public host, mapped to this machine.
       t.viaPublic = true;
       sess = { name: "public host", state: undefined };
@@ -568,8 +587,8 @@ async function main() {
       for (const w of opts.widths) {
         const r = row(t, w, "page", "Page render");
         r.status = "BLOCKED";
-        r.reasons.push(opts.source === "code"
-          ? "no signed-in platform admin can render this demo from code. Set QA_PLATFORM_ADMIN_PASSWORD, and run against a server that has the ?source=code route."
+        r.reasons.push(opts.source !== "live"
+          ? "no signed-in platform admin can render this demo from code or draft. Set QA_PLATFORM_ADMIN_PASSWORD, and run against a server that has the ?source=code route."
           : "no signed-in session can view this site (404). Set QA_PLATFORM_ADMIN_PASSWORD for demos, or the owner's QA_*_EMAIL/QA_*_PASSWORD, or pass --storage-state.");
         rows.push(r);
       }
