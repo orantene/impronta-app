@@ -21,7 +21,7 @@ import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
   editorial: "a3ebd9640804e556",
-  utility: "9ca94a7f74bd99fc",
+  utility: "d46adc1808b45b81", // re-pinned after the Gridline FAQ heading fix
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   maison: "bb197b26f7793574",
