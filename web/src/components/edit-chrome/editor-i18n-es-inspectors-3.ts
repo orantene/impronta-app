@@ -212,7 +212,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Alert band": "Banda de alerta",
   "Alert band · same-day emergency": "Banda de alerta · emergencia el mismo día",
   "A hazard-tape band for same-day emergencies with a safety note. Shown only while emergencies today is on.": "Una banda tipo cinta de precaución para emergencias del mismo día, con una nota de seguridad. Se muestra solo mientras Emergencias hoy está activado.",
-  "Header": "Encabezado",
   "Subtitle": "Subtítulo",
   "Electrician · Monterrey": "Electricista · Monterrey",
   "Logo image URL": "URL de la imagen del logo",
@@ -227,12 +226,10 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "The button appears only when you have set a public call number in your site settings.": "El botón aparece solo si definiste un número público de llamada en los ajustes de tu sitio.",
   "Show the call button": "Mostrar el botón de llamada",
   "Call button label": "Texto del botón de llamada",
-  "Action": "Acción",
   "A button shown on desktop only. Leave the label empty to hide it.": "Un botón que solo se ve en escritorio. Deja el texto vacío para ocultarlo.",
   "Action label": "Texto de la acción",
   "Action link": "Enlace de la acción",
   "This band shows only while your Emergencies today switch is on. When it is off, nothing is shown.": "Esta banda se muestra solo mientras tu interruptor Emergencias hoy está activado. Si está apagado, no se muestra nada.",
-  "Headline": "Titular",
   "Safety note": "Nota de seguridad",
   "Advice for the client while they wait. Empty hides the note.": "Consejo para el cliente mientras espera. Vacío oculta la nota.",
   "Note label": "Etiqueta de la nota",
@@ -342,8 +339,6 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Following the theme": "Sigue el tema",
   "container name": "nombre del contenedor",
   "Box model": "Modelo de caja",
-  "How the things inside this box sit next to each other.":
-    "Cómo se acomodan las cosas dentro de este cuadro.",
   // ── Portada Diseño density (page-builder panel cleanup) ────────────────
   "Pick a look, then fine-tune the columns.":
     "Elige un aspecto y luego ajusta las columnas.",

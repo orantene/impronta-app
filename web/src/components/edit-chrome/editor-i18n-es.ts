@@ -25,6 +25,7 @@ import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
 import { ES_SHORTCUT_TEXT } from "./editor-i18n-es-shortcuts";
 
 export const ES_TEXT: Record<string, string> = {
+  "Device": "Dispositivo",
   ...ES_SECTION_CATALOG_TEXT,
   // WAVE 4.5 — the per-section Editor panel bodies + shared field primitives.
   // Spread BEFORE the canvas/explicit keys so a hand-tuned chrome string still

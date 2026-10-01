@@ -157,7 +157,7 @@
         {
           "name": "measures label",
           "kind": "text",
-          "re": "(estatura|height)"
+          "re": "(estatura|altura|height|medidas|measure)"
         }
       ]
     },
@@ -186,10 +186,11 @@
           "re": "price"
         },
         {
-          "name": "row actions (>= 3)",
+          "name": "row actions (>= 2)",
           "kind": "sel",
           "sel": "a, button",
-          "min": 3
+          "min": 2,
+          "reason": "demos carry 2 to 4 services; the mockup has 3"
         }
       ]
     },

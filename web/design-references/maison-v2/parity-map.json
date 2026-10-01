@@ -102,13 +102,17 @@
         {
           "name": "next-free chip",
           "kind": "text",
-          "re": "nextFree"
+          "re": "nextFree",
+          "optional": true,
+          "reason": "shown only when the talent has availability data"
         },
         {
           "name": "hero photo",
           "kind": "sel",
           "sel": "img",
-          "min": 1
+          "min": 1,
+          "optional": true,
+          "reason": "talent data: no cover photo uploaded"
         }
       ]
     },
@@ -170,7 +174,9 @@
           "name": "row cards (>= 3 thumbs)",
           "kind": "sel",
           "sel": "img",
-          "min": 3
+          "min": 3,
+          "optional": true,
+          "reason": "services without photos render text rows; photos are talent data"
         },
         {
           "name": "prices on rows",
@@ -230,7 +236,9 @@
           "name": "portrait",
           "kind": "sel",
           "sel": "img",
-          "min": 1
+          "min": 1,
+          "optional": true,
+          "reason": "talent data: no portrait uploaded"
         },
         {
           "name": "actions (>= 1)",
@@ -300,7 +308,9 @@
           "sel": "a, button",
           "min": 1
         }
-      ]
+      ],
+      "optional": true,
+      "notes": "Absent when the talent shows no location (privacy or no address): expected."
     },
     {
       "key": "footer",

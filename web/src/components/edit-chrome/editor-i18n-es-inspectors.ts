@@ -7,6 +7,7 @@
 import { NAV_CHROME_ES_LABELS } from "./editor-i18n-es-nav-chrome";
 
 export const ES_INSPECTOR_TEXT: Record<string, string> = {
+  "Call": "Llamar",
   ...NAV_CHROME_ES_LABELS,
   // ── Alignment, position, direction ──────────────────────────────────────
   Align: "Alineación",

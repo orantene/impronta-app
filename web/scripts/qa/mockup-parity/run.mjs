@@ -228,7 +228,7 @@ async function lazyScroll(page) {
   });
   await page.waitForTimeout(400);
 }
-const analyzeArgs = (side, extra = {}) => ({ sections: ACTIVE, order: ACTIVE_ORDER, locale: opts.locale, side, textMap: LOCALE_TEXT, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: MAP.mockup.root || "#site", ...extra });
+const analyzeArgs = (side, extra = {}) => ({ sections: ACTIVE, order: ACTIVE_ORDER, locale: opts.locale, side, textMap: { ...LOCALE_TEXT, ...(MAP.localeText || {}) }, denyEs: ES_DENYLIST, denyAccent: ACCENT_DENYLIST, rootSel: MAP.mockup.root || "#site", ...extra });
 const failed = (checks) => (checks || []).filter((c) => !c.ok).map((c) => `${c.name}${c.detail ? `: ${c.detail}` : ""}`);
 
 function colorDiff(a, b) {
@@ -242,7 +242,7 @@ function styleDiffs(prod, mock) {
   const add = (k, prop, evidence) => out.push({ kind: "style", check: `style ${k} ${prop}`, evidence });
   for (const [k, ps] of Object.entries(prod || {})) {
     const ms = mock?.[k];
-    if (!ps || !ms) { if (ps && !ms) add(k, "presence", `mockup has no ${k}`); if (!ps && ms) add(k, "presence", `product element missing (${k})`); continue; }
+    if (!ps || !ms) { if (ps && !ms && k !== "eyebrow") add(k, "presence", `mockup has no ${k}`); /* the mockup eyebrow is a dot + text pair the leaf probe cannot see; its presence is checked by the kicker/eyebrow structure rule */ if (!ps && ms) add(k, "presence", `product element missing (${k})`); continue; }
     if (ps.ff !== ms.ff) add(k, "font-family", `${k} font-family "${ps.ff}" vs mockup "${ms.ff}"`);
     if (Math.abs(ps.fs - ms.fs) > Math.max(2, ms.fs * 0.08)) add(k, "font-size", `${k} font-size ${ps.fs}px vs mockup ${ms.fs}px`);
     if (Math.abs(ps.fw - ms.fw) > 100) add(k, "font-weight", `${k} font-weight ${ps.fw} vs mockup ${ms.fw}`);
@@ -372,7 +372,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
     const r = row(talent, width, sec.key, sec.label);
     const a = res.sections[sec.key];
     if (!a?.present) {
-      if ((sec.optional && !isAlba) || sec.productOnly) r.warnings.push("absent (optional: hidden without data)");
+      if ((sec.optional && (!isAlba || sec.optionalOnReference)) || sec.productOnly) r.warnings.push("absent (optional: hidden without data)");
       else addFindings(r, [{ kind: "missing", check: "section present", evidence: `section not found (tried ${sec.parityKey ? "[data-parity-key=" + sec.parityKey + "] / " : ""}${(sec.fallback || []).join(" | ")})` }]);
     } else {
       addFindings(r, [
@@ -380,7 +380,7 @@ async function scanStatic(ctx, talent, width, mock, rows) {
         ...checkFindings("layout", a.layout),
         ...checkFindings("i18n", a.i18n),
       ]);
-      if (a.order && !a.order.ok) addFindings(r, [{ kind: "order", check: "section order", evidence: `order: ${a.order.detail}` }]);
+      if (isAlba && a.order && !a.order.ok) addFindings /* section order is the talent's own tree; only the reference demo must follow the mockup order */(r, [{ kind: "order", check: "section order", evidence: `order: ${a.order.detail}` }]);
       if (isAlba) addFindings(r, styleDiffs(a.style, mock.analysis?.sections[sec.key]?.style));
       const png = await safeShot(page.locator(`[data-parity-shot="${sec.key}"]`));
       const mpng = mock.png?.[sec.key];
@@ -417,20 +417,21 @@ async function scanState(ctx, talent, width, state, mock, rows) {
 
     /** Layout, overflow and i18n checks for one element, through the same in-page analysis the sections use. */
     const checkEl = async (selector, name) => {
-      const res = await page.evaluate(analyze, analyzeArgs("product", { sections: [{ key: "x", label: name, mockup: [selector], product: [selector], expects: [] }], order: [] }));
+      const res = await page.evaluate(analyze, analyzeArgs("product", { sections: [{ key: "x", label: name, mockup: [selector], fallback: [selector], expects: [] }], order: [] }));
       const a = res.sections.x;
       if (!a?.present) { r.reasons.push(`${name} not found (${selector})`); return; }
-      r.reasons.push(...failed(a.layout).map((f) => `${name}: ${f}`), ...failed(a.i18n).map((f) => `${name}: ${f}`));
+      // a sheet scrolls its content under a sticky footer (Continue bar): that overlap is by design
+      r.reasons.push(...failed(a.layout).filter((f) => !(name === "booking sheet" && /^no overlapping/.test(f))).map((f) => `${name}: ${f}`), ...failed(a.i18n).map((f) => `${name}: ${f}`));
     };
 
     /** Open the first service (the "Seleccionar" action), choose its first option, then close the sheet. Nothing is submitted. */
     const pickService = async ({ keepOpen }) => {
       const svc = page.locator("#services");
       await svc.scrollIntoViewIfNeeded({ timeout: 4000 }).catch(() => {});
-      let act = svc.locator("button").filter({ hasText: /^(seleccion|select|reserv|book|a[ñn]adir|agregar|add|solicit|request|elegir|choose)/i }).filter({ hasNotText: never_ });
+      let act = svc.locator("button:visible").filter({ hasText: /^(seleccion|select|reserv|book|a[ñn]adir|agregar|add|solicit|request|elegir|choose)/i }).filter({ hasNotText: never_ });
       if (!(await act.count())) {
         // other label: any button that is not a category chip ("Name 3") or inside a nav/group
-        act = svc.locator("button:not(nav button):not([role=group] button)").filter({ hasNotText: /^\S+(\s\S+)?\s+\d+$/ }).filter({ hasNotText: never_ });
+        act = svc.locator("button:visible:not(nav button):not([role=group] button)").filter({ hasNotText: /^\S+(\s\S+)?\s+\d+$/ }).filter({ hasNotText: never_ });
       }
       if (!(await act.count())) throw new Error("no service action (Seleccionar) found in #services");
       await safeClick(act);
@@ -451,7 +452,7 @@ async function scanState(ctx, talent, width, state, mock, rows) {
       const vis = (e) => { const b = e.getBoundingClientRect(); return b.width > 20 && b.height > 20 && b.top < window.innerHeight && b.bottom > 0; };
       const fixedBars = Array.from(document.querySelectorAll("body *")).filter((e) => getComputedStyle(e).position === "fixed" && vis(e) && !e.closest("[data-show=false], [data-gone=true], [aria-hidden=true]") && e.getBoundingClientRect().height < 200 && e.getBoundingClientRect().width > 200);
       const top = fixedBars.filter((b) => !fixedBars.some((o) => o !== b && o.contains(b)));
-      const dock = document.querySelector(".cb-dock[data-show='true']") || top.find((b) => /(servicio|service|\$|MXN)/i.test(b.innerText || ""));
+      const dock = Array.from(document.querySelectorAll(".cb-dock[data-show='true']")).find(vis) || top.find((b) => /(servicio|service|\$|MXN)/i.test(b.innerText || ""));
       if (!dock) return { bars: top.length, dock: false };
       const btns = Array.from(dock.querySelectorAll("button, a"));
       const ask = dock.querySelector(".cb-dock-ask") || btns.find((b) => /(chat|mensaje|pregunt|escrib|message|ask)/i.test(b.getAttribute("aria-label") || ""));
@@ -469,8 +470,8 @@ async function scanState(ctx, talent, width, state, mock, rows) {
       let sheet = await pickService({ keepOpen: true });
       if (!sheet) {
         // the service went straight to the selection: the dock's Continue opens the booking sheet
-        const go = page.locator(".cb-dock[data-show='true'] .cb-dock-go, .cb-dock[data-show='true'] button").filter({ hasText: /(continuar|continue|reservar|book|solicitar|request)/i }).filter({ hasNotText: never_ });
-        if (!(await go.count())) throw new Error("no Continue button on the dock to open the booking sheet");
+        const go = page.locator(".cb-dock[data-show='true'] .cb-dock-go:visible, .cb-dock[data-show='true'] button:visible, .cb-bar[data-show='true'] .cb-bar-go:visible").filter({ hasText: /(continuar|continue|reservar|book|solicitar|request)/i }).filter({ hasNotText: never_ });
+        if (!(await go.count())) throw new Error("a service was selected but no visible Continue (dock or bar) opens the booking sheet");
         await safeClick(go);
         await page.waitForTimeout(900);
         sheet = page.locator("[role=dialog]:not([data-consent-banner])").first();
@@ -508,7 +509,7 @@ async function scanState(ctx, talent, width, state, mock, rows) {
         const composer = page.locator("textarea:visible, [role=dialog] input[type=text]:not([name=company_website]):visible").first();
         if (!(await page.locator(panelSel).first().isVisible().catch(() => false))) r.reasons.push("chat panel did not open");
         if (!(await composer.isVisible().catch(() => false))) r.reasons.push("chat composer not found");
-        const chip = page.locator(`${panelSel.split(", ").map((s) => `${s} button`).join(", ")}`).filter({ hasText: /[?¿]/ }).filter({ hasNotText: never_ });
+        const chip = page.locator(`${panelSel.split(", ").map((s) => `${s} button`).join(", ")}`).filter({ hasText: /[?¿]|\d\s*(MXN|USD)|\$\s?\d|cotizaci[oó]n|quote/i }).filter({ hasNotText: never_ }); // the front-door chat suggests service chips ("Revisión eléctrica 550 MXN"), not canned questions
         if (!(await chip.count())) r.reasons.push("no suggestion chips (questions) in the chat");
         else {
           const before = await composer.inputValue().catch(() => "");

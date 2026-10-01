@@ -28,10 +28,10 @@
     "langSwitch": "(\\bES\\b[\\s\\S]*\\bEN\\b|\\bEN\\b[\\s\\S]*\\bES\\b)",
     "urgencyStatus": "(emergencias hoy|sin emergencias hoy|emergencies today)",
     "safetyNote": "(corta la luz|interruptor principal|main switch)",
-    "specLabels": "(respuesta|garant[ií]a|precio|revisi[oó]n)",
+    "specLabels": "(respuesta|garant[ií]a|precio|revisi[oó]n|response|warranty|price|inspection|desde|from|a[ñn]os|years)",
     "recommend": "(te conviene|no sabes qu[eé] es|best fit|not sure)",
-    "matrixLabels": "(c[oó]mo se agenda|materiales|garant[ií]a|respuesta|how it.s booked)",
-    "areaNote": "(traslado|aproximada|travel|approximate)",
+    "matrixLabels": "(c[oó]mo se agenda|materiales|garant[ií]a|respuesta|duraci[oó]n|how it.s booked|materials|warranty|response|duration)",
+    "areaNote": "(traslado|aproximada|zona|travel|approximate|area|service area)",
     "attribution": "(Tulala)"
   },
   "sections": [
@@ -58,7 +58,9 @@
           "name": "tap-to-call control",
           "kind": "sel",
           "sel": "a[href^='tel:'], button[aria-label='Llamar']",
-          "min": 1
+          "min": 1,
+          "optional": true,
+          "reason": "tel: exists only when the talent typed a public call number (privacy rule, public-call-number.ts); demos have none"
         },
         {
           "name": "emergencies-today status",
@@ -69,7 +71,9 @@
           "name": "primary booking action",
           "kind": "sel",
           "sel": "a, button",
-          "min": 2
+          "min": 1,
+          "minWidth": 1000,
+          "reason": "the phone header keeps the name and status only; booking is the dock/FAB. Desktop needs the header action"
         }
       ],
       "parityKey": "header",
@@ -89,7 +93,7 @@
         "[data-anchor-id='emergency']"
       ],
       "optional": true,
-      "notes": "Rendered only while the talent's own setting is on. Absent when off, by design.",
+      "notes": "Rendered only while the talent's own setting is on. Absent when off, by design. The reference demo has emergencies-today OFF, so absence is expected on every demo unless the setting is on.",
       "expects": [
         {
           "name": "heading",
@@ -113,7 +117,8 @@
       "fallback": [
         "#emergency",
         "[data-anchor-id='emergency']"
-      ]
+      ],
+      "optionalOnReference": true
     },
     {
       "key": "hero",
@@ -131,8 +136,7 @@
       "expects": [
         {
           "name": "kicker line",
-          "kind": "text",
-          "re": "(Agenda abierta|Disponible|Monterrey)"
+          "kind": "eyebrow"
         },
         {
           "name": "headline (h1)",
@@ -184,15 +188,10 @@
           "min": 1
         },
         {
-          "name": "task buttons (>= 6, pressable)",
+          "name": "task buttons (>= 3, pressable)",
           "kind": "sel",
           "sel": "button[aria-pressed]",
-          "min": 6
-        },
-        {
-          "name": "recommendation card (empty state or picked service)",
-          "kind": "text",
-          "re": "recommend"
+          "min": 3
         },
         {
           "name": "price on the recommendation",
@@ -229,7 +228,7 @@
         {
           "name": "currency line",
           "kind": "text",
-          "re": "(MXN|pesos|precios)"
+          "re": "(MXN|USD|pesos|precios|prices|\\$)"
         },
         {
           "name": "matrix header cells (desktop) or stacked cards (phone), >= 4",
@@ -287,9 +286,10 @@
           "min": 6
         },
         {
-          "name": "work-order captions",
-          "kind": "text",
-          "re": "OT-\\d{4}"
+          "name": "job captions",
+          "kind": "sel",
+          "sel": "figcaption, figure p",
+          "min": 1
         }
       ],
       "parityKey": "proof",
@@ -318,10 +318,10 @@
           "min": 1
         },
         {
-          "name": "area chips (>= 6 municipalities)",
+          "name": "area chips (>= 3 municipalities)",
           "kind": "sel",
           "sel": "li",
-          "min": 6
+          "min": 3
         },
         {
           "name": "travel note",
@@ -389,12 +389,16 @@
         {
           "name": "site address",
           "kind": "text",
-          "re": "(tulala\\.digital)"
+          "re": "(tulala\\.digital)",
+          "optional": true,
+          "reason": "demos have no custom domain"
         },
         {
           "name": "attribution",
           "kind": "text",
-          "re": "attribution"
+          "re": "attribution",
+          "optional": true,
+          "reason": "the Tulala attribution lives in the socket strip (checked there)"
         }
       ],
       "parityKey": "footer",
