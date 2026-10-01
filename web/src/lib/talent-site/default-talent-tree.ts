@@ -151,17 +151,12 @@ function resolvePropValue(
 }
 
 /**
- * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
- * string-valued prop (deep — including nested objects and arrays) against the
- * talent's data. Returns a NEW tree (structural clone) — the source constant is
- * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
- * safe fallback so the page never renders a broken `<img src="">` / dead link.
+ * The flat `{{token}}` value map for a talent (every placeholder a design may
+ * use). Shared by `hydrateTalentTree` and the Template Factory canvas, which
+ * hydrates at render time only.
  */
-export function hydrateTalentTree(
-  tree: ReadonlyArray<BuilderNode>,
-  talent: TalentProfileTokens,
-): BuilderNode[] {
-  const flat: Record<string, string> = {
+export function flattenProfileTokens(talent: TalentProfileTokens): Record<string, string> {
+  return {
     displayName: talent.displayName,
     primaryTypeLabel: talent.primaryTypeLabel,
     secondaryType1: talent.secondaryType1,
@@ -195,6 +190,20 @@ export function hydrateTalentTree(
     gallery5: talent.gallery[5] ?? "",
     maxSiteUrl: talent.maxSiteUrl,
   };
+}
+
+/**
+ * Walk a builder-node tree and substitute `{{token}}` placeholders in EVERY
+ * string-valued prop (deep — including nested objects and arrays) against the
+ * talent's data. Returns a NEW tree (structural clone) — the source constant is
+ * never mutated. Image/button nodes whose resolved `src`/`href` is empty keep a
+ * safe fallback so the page never renders a broken `<img src="">` / dead link.
+ */
+export function hydrateTalentTree(
+  tree: ReadonlyArray<BuilderNode>,
+  talent: TalentProfileTokens,
+): BuilderNode[] {
+  const flat = flattenProfileTokens(talent);
 
   const visit = (node: BuilderNode): BuilderNode => {
     // Deep-rewrite every string-valued prop (recurses nested objects/arrays).

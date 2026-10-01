@@ -209,7 +209,7 @@ export async function buildTalentBuilderCanvasData(input: {
 }
 
 /** One shell root, as `renderMaxSiteDocument` renders it (read-only). */
-function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
+export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
   const locale = localeCtx.locale;
   const opts = {
     publicPathPrefix: "",

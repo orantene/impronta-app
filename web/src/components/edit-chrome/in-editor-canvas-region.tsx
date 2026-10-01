@@ -52,6 +52,7 @@ import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { applyTalentLiveText, type TalentLiveText } from "@/lib/talent-site/live-text";
+import { hydratePlaceholders } from "@/lib/talent-site/theme-template/hydrate-placeholders";
 
 export interface InEditorCanvasRegionProps {
   /**
@@ -124,24 +125,36 @@ export function InEditorCanvasRegion({
   // talent_page: seeded labels follow the SITE locale + booking mode on the
   // canvas, exactly as the live render localises them (render-time only).
   const labelLocale = canvasRenderData?.labelLocale ?? null;
+  // Template Factory editor: the design keeps `{{placeholders}}`; the canvas fills them from the demo talent.
+  const placeholders = canvasRenderData?.placeholders ?? null;
   const transformTree = useCallback(
     (t: BuilderNodeTree): BuilderNodeTree => {
-      if (!labelLocale) return t;
-      const localised = localiseSeededDesignLabels(
-        t as Parameters<typeof localiseSeededDesignLabels>[0],
-        labelLocale.locale,
-        labelLocale.ctaMode,
-        labelLocale.swaps,
-      ) as BuilderNodeTree;
-      // Lines that follow her profile show their live value, as on the live page.
-      return labelLocale.live
-        ? (applyTalentLiveText(
-            localised as Parameters<typeof applyTalentLiveText>[0],
+      let out = t;
+      if (labelLocale) {
+        out = localiseSeededDesignLabels(
+          out as Parameters<typeof localiseSeededDesignLabels>[0],
+          labelLocale.locale,
+          labelLocale.ctaMode,
+          labelLocale.swaps,
+        ) as BuilderNodeTree;
+        // Lines that follow her profile show their live value, as on the live page.
+        if (labelLocale.live) {
+          out = applyTalentLiveText(
+            out as Parameters<typeof applyTalentLiveText>[0],
             labelLocale.live as TalentLiveText,
-          ) as BuilderNodeTree)
-        : localised;
+          ) as BuilderNodeTree;
+        }
+      }
+      if (placeholders) {
+        out = hydratePlaceholders(
+          out as Parameters<typeof hydratePlaceholders>[0],
+          placeholders,
+          labelLocale?.locale,
+        ) as BuilderNodeTree;
+      }
+      return out;
     },
-    [labelLocale],
+    [labelLocale, placeholders],
   );
 
   // Body-hosted page (freeform cms_page on the storefront): the visible canvas
@@ -188,7 +201,7 @@ export function InEditorCanvasRegion({
       components={{}}
       componentStyleDefaults={canvasRenderData?.componentStyleDefaults}
       includeRendererStyles
-      transformTree={labelLocale ? transformTree : undefined}
+      transformTree={labelLocale || placeholders ? transformTree : undefined}
       visitorLocale={labelLocale?.locale}
     />
   );
