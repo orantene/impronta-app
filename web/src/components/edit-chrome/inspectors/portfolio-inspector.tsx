@@ -31,6 +31,7 @@ const LAYOUT_LABELS: Record<PortfolioLayout, string> = {
   contact_sheet: "Contact sheet",
   chapter: "Chapter",
   staggered: "Staggered strip",
+  work_order: "Work orders",
 };
 
 function Section({
@@ -304,7 +305,12 @@ export function PortfolioContentInspector({
             );
           })}
         </div>
-        {layout !== "filmstrip" && layout !== "chapter" ? (
+        {layout === "work_order" ? (
+          <p className="text-[12px] text-stone-600">
+            Job cards. Write each photo caption on two lines: the job on the first, the work order detail on the second. No faces or client names.
+          </p>
+        ) : null}
+        {layout !== "filmstrip" && layout !== "chapter" && layout !== "work_order" ? (
           <div className="flex flex-wrap gap-1.5">
             {([2, 3, 4] as const).map((n) => {
               const active = columns === n;

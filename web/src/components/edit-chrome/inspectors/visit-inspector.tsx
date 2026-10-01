@@ -21,6 +21,7 @@ const LAYOUT_LABELS: Record<VisitLayout, string> = {
   facts: "Facts",
   split: "Map + facts",
   location: "Location",
+  area: "Area card",
 };
 
 const MAP_SIDES = ["left", "right"] as const;
@@ -121,6 +122,11 @@ export function VisitContentInspector({
             </button>
           ))}
         </div>
+        {layout === "area" ? (
+          <p className="text-[12px] text-stone-600">
+            An approximate area: a drawn grid, the places you travel to as chips and your arrival note. It never shows an address.
+          </p>
+        ) : (
         <label className="flex items-start gap-2 text-[13px] text-stone-800">
           <input
             type="checkbox"
@@ -135,6 +141,7 @@ export function VisitContentInspector({
             </span>
           </span>
         </label>
+        )}
       </Section>
 
       {layout === "location" ? (

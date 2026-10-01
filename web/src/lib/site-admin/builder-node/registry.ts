@@ -80,6 +80,7 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "masthead",
   "statement_footer",
   "comp_card",
+  "spec_table",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -1109,7 +1110,7 @@ export const servicesCatalogPropsSchema = z.object({
 /** W-12 Portfolio — live talent media layouts (incl. shared chapter). */
 export const portfolioPropsSchema = z.object({
   layout: z
-    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter", "staggered"])
+    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter", "staggered", "work_order"])
     .optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
@@ -1158,7 +1159,7 @@ export const reviewsPropsSchema = z.object({
 
 /** Visit facts — live service areas / languages / hours. */
 export const visitPropsSchema = z.object({
-  layout: z.enum(["facts", "split", "location"]).optional(),
+  layout: z.enum(["facts", "split", "location", "area"]).optional(),
   mapSide: z.enum(["left", "right"]).optional(),
   mapSize: z.enum(["sm", "md", "lg"]).optional(),
   showMapButton: z.boolean().optional(),
@@ -1253,6 +1254,18 @@ export const statementFooterPropsSchema = z.object({
 });
 
 /** Comp card — live measure strip + profile field visibility. */
+/** Spec table: authored key/value rows. */
+export const specTablePropsSchema = z.object({
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  rows: z
+    .array(z.object({ label: z.string().max(60), value: z.string().max(200) }))
+    .max(8)
+    .optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
 export const compCardPropsSchema = z.object({
   layout: z.enum(["strip", "strip_with_details"]).optional(),
   eyebrow: z.string().max(80).optional(),
@@ -2330,6 +2343,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Measure strip from your public profile fields (height, bust, and more). Choose which measures show. Hidden when empty.",
       children: { type: "none" },
       propsSchema: compCardPropsSchema,
+    },
+    spec_table: {
+      kind: "spec_table",
+      label: "Spec table",
+      description:
+        "Key and value rows (voltage, warranty, how you price). A strip on desktop, stacked rows on a phone.",
+      children: { type: "none" },
+      propsSchema: specTablePropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

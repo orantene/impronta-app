@@ -13,6 +13,7 @@ import { cloneContentsDefaultProps } from "./contents-defaults";
 import { cloneMastheadDefaultProps } from "./masthead-defaults";
 import { cloneStatementFooterDefaultProps } from "./statement-footer-defaults";
 import { cloneCompCardDefaultProps } from "./comp-card-defaults";
+import { cloneSpecTableDefaultProps } from "./spec-table-defaults";
 import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "./next-free-chip-defaults";
 // Re-exported so existing `import { makeId } from "./create"` consumers keep
 // working; the canonical home is now the dependency-light `./make-id`.
@@ -261,6 +262,8 @@ export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
       return { id: makeId("masthead"), kind: "masthead", props: cloneMastheadDefaultProps() };
     case "statement_footer":
       return { id: makeId("statement_footer"), kind: "statement_footer", props: cloneStatementFooterDefaultProps() };
+    case "spec_table":
+      return { id: makeId("spec_table"), kind: "spec_table", props: cloneSpecTableDefaultProps() };
     case "comp_card":
       return { id: makeId("comp_card"), kind: "comp_card", props: cloneCompCardDefaultProps() };
     case "next_free_chip":
