@@ -67,6 +67,12 @@ export interface InEditorCanvasRenderData {
    * on the live site. Absent on every other surface.
    */
   designSlug?: string | null;
+  /**
+   * Template Factory editor only: the flat `{{token}}` map of the preview
+   * talent. The canvas hydrates the un-hydrated design tree with it at render
+   * time (never pruning), so the saved document keeps its placeholders.
+   */
+  placeholders?: Record<string, string>;
   /** talent_page only: server-rendered font links + Design skin stylesheet. */
   headNodes?: ReactNode;
   /** talent_page only: the site header / footer, read-only around the page. */
