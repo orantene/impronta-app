@@ -1,4 +1,6 @@
+import { GatedTrackingScripts } from "./tenant-tracking-gated";
 import {
+  partitionTagsByConsent,
   selectTrackingForRender,
   trackingSelectionDroppedAnything,
   type TrackingTag,
@@ -78,11 +80,15 @@ export async function TenantTrackingHead({ tenantId }: { tenantId: string }) {
   }
 
   if (selection.tags.length === 0) return null;
+  // Google tags load under Consent Mode (denied until accepted), Plausible is
+  // cookieless, and ad pixels are held back until the visitor accepts.
+  const { immediate, afterConsent } = partitionTagsByConsent(selection.tags);
   return (
     <>
-      {selection.tags.map((tag) => (
+      {immediate.map((tag) => (
         <TrackingScript key={tag.key} tag={tag} />
       ))}
+      {afterConsent.length > 0 && <GatedTrackingScripts tags={afterConsent} />}
     </>
   );
 }
