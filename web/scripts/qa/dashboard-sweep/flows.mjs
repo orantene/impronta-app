@@ -349,7 +349,7 @@ STAGES.presence = async ({ page, ctx, sess, step, rec, base }) => {
         const colour = /color/i.test(sheetTxt.split("---").pop() || "") && /(cambi|usar|mantener|conservar)/i.test(sheetTxt);
         const sh = await rec.shot(ctx, page, `${TL} confirm sheet`);
         const after = await page.evaluate(SIG);
-        const pickerClosed = !(await page.getByText(/Elige un diseño|Folio|Maison/).first().isVisible().catch(() => false));
+        const pickerClosed = (await page.getByRole("button", { name: /^Cambiar diseño$/ }).first().isVisible().catch(() => false)) && !(await page.getByText(/Elige un diseño/).first().isVisible().catch(() => false));
         if (pickerClosed) rec.add(ctx, { page: TL, element: "Usar este diseño", severity: "high", what: "Clicking Usar este diseño applied the theme with no colour-switch confirm sheet (picker closed)", expected: "Confirm sheet about keeping/switching colours", screenshot: sh });
         else if (!colour) rec.add(ctx, { page: TL, element: "Usar este diseño", severity: "medium", what: `No colour-switch confirm sheet detected after Usar este diseño (layers ${before.layers} -> ${after.layers}). Sheet text: ${sheetTxt.slice(-160).replace(/\s+/g, " ")}`, expected: "Confirm sheet about colours when the theme palette differs", screenshot: sh });
         rec.steps.push({ user: ctx.user, width: ctx.width, stage: "presence", name: `${TL}: confirm sheet colour=${colour} pickerClosed=${pickerClosed}`, result: "info" });
