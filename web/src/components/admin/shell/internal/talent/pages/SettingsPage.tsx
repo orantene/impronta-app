@@ -240,7 +240,7 @@ export function SettingsPage() {
     {
       key: "download-data",
       label: tx("Download my data"),
-      sub: tx("A copy of the information Tulala holds about you, as a file."),
+      sub: copy.t("A copy of the information Tulala holds about you, as a file."),
       onOpen: () => {
         window.location.assign("/api/account/export");
       },
@@ -249,7 +249,7 @@ export function SettingsPage() {
       ? {
           key: "plan",
           label: tx("Plan"),
-          value: TALENT_TIER_META[state.talentTier].label,
+          value: copy.t(TALENT_TIER_META[state.talentTier].label),
           panel: (
             <TalentPlanCard
               onCompare={() => openDrawer("talent-tier-compare")}
@@ -260,7 +260,7 @@ export function SettingsPage() {
       : {
           key: "plan",
           label: tx("Plan"),
-          value: TALENT_TIER_META[state.talentTier].label,
+          value: copy.t(TALENT_TIER_META[state.talentTier].label),
           onOpen: () => openDrawer("talent-tier-compare"),
         },
     {

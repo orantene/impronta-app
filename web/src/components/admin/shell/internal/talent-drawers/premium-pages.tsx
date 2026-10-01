@@ -165,7 +165,7 @@ export function TalentTierCompareDrawer() {
                   letterSpacing: -0.3,
                 }}
               >
-                {meta.label}
+                {copy.t(meta.label)}
               </div>
               <div
                 style={{
@@ -175,7 +175,7 @@ export function TalentTierCompareDrawer() {
                   marginTop: 3,
                 }}
               >
-                {meta.tagline}
+                {copy.t(meta.tagline)}
               </div>
               {/* Price from PLAN_CATALOG. NOTE: this is NOT the source checkout
                   bills against — checkout resolves a Stripe price id from
@@ -202,7 +202,7 @@ export function TalentTierCompareDrawer() {
                   opacity: 0.85,
                 }}
               >
-                {meta.blurb}
+                {copy.t(meta.blurb)}
               </p>
               {process.env.NODE_ENV !== "production" && !isCurrent && (
                 <button
@@ -273,7 +273,7 @@ export function TalentTierCompareDrawer() {
                       alignItems: "center",
                     }}
                   >
-                    <span className="font-medium">{f.label}</span>
+                    <span className="font-medium">{copy.t(f.label)}</span>
                     <FeatureCell value={f.free} />
                     <FeatureCell value={f.max} />
                   </div>
@@ -372,6 +372,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
 }
 
 function FeatureCell({ value }: { value: TalentTierCell }) {
+  const copy = useDashboardText();
   if (value === true) {
     return (
       <span style={{ textAlign: "center", fontWeight: 600 }} className="text-admin-green">✓</span>
@@ -382,7 +383,7 @@ function FeatureCell({ value }: { value: TalentTierCell }) {
   }
   return (
     <span style={{ textAlign: "center", fontSize: 11.5 }} className="text-admin-ink-muted">
-      {value}
+      {copy.t(value)}
     </span>
   );
 }

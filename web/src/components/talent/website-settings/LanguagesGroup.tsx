@@ -120,8 +120,12 @@ export function LanguagesGroup({
   setDraft: (next: LanguagesDraft) => void;
 }) {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const own = (c: string) => languageName(c, c, true);
   const inUi = (c: string) => languageName(c, uiLocale, !uiLocale.startsWith("es"));
+  // Live site languages read in their own name; the rest (fr, pt, de: coming
+  // soon) are named in the dashboard language so an es dashboard never shows
+  // "French".
+  const own = (c: string) =>
+    (LIVE_SITE_LOCALES as readonly string[]).includes(c) ? languageName(c, c, true) : languageName(c, uiLocale, true);
 
   return (
     <>

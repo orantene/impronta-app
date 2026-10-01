@@ -104,12 +104,12 @@ export function MaxSiteSettingsPanels() {
       <Card>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
-            <div style={sectionLabel}>Header &amp; footer (site shell)</div>
+            <div style={sectionLabel}>{copy.t("Header & footer (site shell)")}</div>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, maxWidth: 520 }}>
-              The shell renders around every page. Edit your logo, navigation and footer here.
+              {copy.t("The shell renders around every page. Edit your logo, navigation and footer here.")}
             </p>
           </div>
-          <Link href="/talent/page-builder?shell=1" style={linkButton}>Edit shell →</Link>
+          <Link href="/talent/page-builder?shell=1" style={linkButton}>{copy.t("Edit shell")} →</Link>
         </div>
       </Card>
       {/* Custom domain reads the capability RECORD (Web Office), not canManage. */}
@@ -121,6 +121,7 @@ export function MaxSiteSettingsPanels() {
 // ── Slug editor ──────────────────────────────────────────────────────────────
 
 function SlugEditor({ state, onSaved }: { state: MaxSiteManagerState; onSaved: () => Promise<void> }) {
+  const copy = useDashboardText();
   const [value, setValue] = useState(state.siteSlug ?? "");
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -146,9 +147,9 @@ function SlugEditor({ state, onSaved }: { state: MaxSiteManagerState; onSaved: (
 
   return (
     <Card>
-      <div style={sectionLabel}>Site address</div>
+      <div style={sectionLabel}>{copy.t("Site address")}</div>
       <p style={{ margin: "4px 0 10px", fontSize: 12.5, color: COLORS.inkMuted }}>
-        Your link is <code style={code}>/t/site/{state.siteSlug ?? "…"}</code>. Letters, numbers and hyphens.
+        {copy.t("Your link is")} <code style={code}>/t/site/{state.siteSlug ?? "…"}</code>. {copy.t("Letters, numbers and hyphens.")}
       </p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>/t/site/</span>
@@ -160,7 +161,7 @@ function SlugEditor({ state, onSaved }: { state: MaxSiteManagerState; onSaved: (
           placeholder="your-name"
         />
         <PrimaryButton onClick={save} disabled={pending || !dirty}>
-          {pending ? "Saving…" : "Save address"}
+          {pending ? copy.t("Saving…") : copy.t("Save address")}
         </PrimaryButton>
       </div>
       {err ? <p style={{ margin: "8px 0 0", fontSize: 12, color: COLORS.criticalDeep }}>{err}</p> : null}
@@ -172,6 +173,7 @@ function SlugEditor({ state, onSaved }: { state: MaxSiteManagerState; onSaved: (
 // ── Logo ─────────────────────────────────────────────────────────────────────
 
 function LogoPanel({ state, onSaved }: { state: MaxSiteManagerState; onSaved: () => Promise<void> }) {
+  const copy = useDashboardText();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -218,30 +220,30 @@ function LogoPanel({ state, onSaved }: { state: MaxSiteManagerState; onSaved: ()
 
   return (
     <Card>
-      <div style={sectionLabel}>Logo</div>
+      <div style={sectionLabel}>{copy.t("Logo")}</div>
       <p style={{ margin: "4px 0 10px", fontSize: 12.5, color: COLORS.inkMuted }}>
-        Shown in your site header. PNG, SVG, JPEG or WebP, under 10 MB.
+        {copy.t("Shown in your site header. PNG, SVG, JPEG or WebP, under 10 MB.")}
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         {state.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={state.logoUrl}
-            alt="Site logo"
+            alt={copy.t("Site logo")}
             style={{ height: 48, maxWidth: 180, objectFit: "contain", background: COLORS.surfaceAlt, borderRadius: 8, padding: 6, border: `1px solid ${COLORS.borderSoft}` }}
           />
         ) : (
           <div style={{ height: 48, width: 120, display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.surfaceAlt, borderRadius: 8, border: `1px dashed ${COLORS.borderSoft}`, fontSize: 11, color: COLORS.inkMuted }}>
-            No logo
+            {copy.t("No logo")}
           </div>
         )}
         <input ref={inputRef} type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" onChange={onFile} style={{ display: "none" }} />
         <button type="button" onClick={() => inputRef.current?.click()} disabled={pending} style={linkButton}>
-          {pending ? "Uploading…" : state.logoUrl ? "Replace logo" : "Upload logo"}
+          {pending ? copy.t("Uploading…") : state.logoUrl ? copy.t("Replace logo") : copy.t("Upload logo")}
         </button>
         {state.logoUrl ? (
           <button type="button" onClick={remove} disabled={pending} style={{ ...linkButton, color: COLORS.criticalDeep, borderColor: COLORS.criticalDeep }}>
-            Remove
+            {copy.t("Remove")}
           </button>
         ) : null}
       </div>
@@ -264,6 +266,7 @@ function PagesPanel({
   pending: boolean;
   run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
 }) {
+  const copy = useDashboardText();
   const pages = [...state.pages].sort((a, b) => a.sortOrder - b.sortOrder || a.slug.localeCompare(b.slug));
   // ONB-4 — inline form state: null = no form open.
   const [addingPage, setAddingPage] = useState(false);
@@ -304,13 +307,13 @@ function PagesPanel({
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
         <div>
-          <div style={sectionLabel}>Pages</div>
+          <div style={sectionLabel}>{copy.t("Pages")}</div>
           <p style={{ margin: "4px 0 0", fontSize: 12.5, color: COLORS.inkMuted }}>
-            Add pages, set your home page, and arrange the order they appear in your navigation.
+            {copy.t("Add pages, set your home page, and arrange the order they appear in your navigation.")}
           </p>
         </div>
         {!addingPage ? (
-          <button type="button" onClick={() => setAddingPage(true)} disabled={pending} style={linkButton}>＋ Add page</button>
+          <button type="button" onClick={() => setAddingPage(true)} disabled={pending} style={linkButton}>＋ {copy.t("Add page")}</button>
         ) : null}
       </div>
 
@@ -325,7 +328,7 @@ function PagesPanel({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {pages.length === 0 && !addingPage ? (
-          <span style={mutedText}>No pages yet. Add your first page.</span>
+          <span style={mutedText}>{copy.t("No pages yet. Add your first page.")}</span>
         ) : (
           pages.map((p, i) => {
             // ONB-4 — inline rename form replaces the button row for this page.
@@ -368,29 +371,29 @@ function PagesPanel({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                    <button type="button" aria-label="Move up" onClick={() => move(i, -1)} disabled={pending || i === 0} style={arrowBtn}>▲</button>
-                    <button type="button" aria-label="Move down" onClick={() => move(i, 1)} disabled={pending || i === pages.length - 1} style={arrowBtn}>▼</button>
+                    <button type="button" aria-label={copy.t("Move up")} onClick={() => move(i, -1)} disabled={pending || i === 0} style={arrowBtn}>▲</button>
+                    <button type="button" aria-label={copy.t("Move down")} onClick={() => move(i, 1)} disabled={pending || i === pages.length - 1} style={arrowBtn}>▼</button>
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
                         {p.navLabel || p.title}
                       </span>
-                      {p.isHome ? <Pill tone="green">Home</Pill> : null}
-                      {p.status === "published" ? <Pill tone="green">Live</Pill> : <Pill tone="indigo">Draft</Pill>}
+                      {p.isHome ? <Pill tone="green">{copy.t("Home")}</Pill> : null}
+                      {p.status === "published" ? <Pill tone="green">{copy.t("Live")}</Pill> : <Pill tone="indigo">{copy.t("Draft")}</Pill>}
                     </div>
                     <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>/t/site/{state.siteSlug ?? "…"}{p.isHome ? "" : `/${p.slug}`}</div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   {!p.isHome ? (
-                    <button type="button" onClick={() => setHome(p)} disabled={pending} style={miniBtn}>Set home</button>
+                    <button type="button" onClick={() => setHome(p)} disabled={pending} style={miniBtn}>{copy.t("Set home")}</button>
                   ) : null}
-                  <Link href={`/talent/page-builder?page=${encodeURIComponent(p.slug)}`} style={miniBtnLink}>Edit</Link>
+                  <Link href={`/talent/page-builder?page=${encodeURIComponent(p.slug)}`} style={miniBtnLink}>{copy.t("Edit")}</Link>
                   {/* ONB-4 — inline rename / delete instead of window.prompt / window.confirm */}
-                  <button type="button" onClick={() => setRenamingId(p.id)} disabled={pending} style={miniBtn}>Rename</button>
+                  <button type="button" onClick={() => setRenamingId(p.id)} disabled={pending} style={miniBtn}>{copy.t("Rename")}</button>
                   {!p.isHome ? (
-                    <button type="button" onClick={() => setDeletingId(p.id)} disabled={pending} style={{ ...miniBtn, color: COLORS.criticalDeep }}>Delete</button>
+                    <button type="button" onClick={() => setDeletingId(p.id)} disabled={pending} style={{ ...miniBtn, color: COLORS.criticalDeep }}>{copy.t("Delete")}</button>
                   ) : null}
                 </div>
               </div>

@@ -178,7 +178,7 @@ function TalentSidebar() {
 
   const tier = state.talentTier;
   const trialOn = studioV2 && bridgeTalentPlanTrial?.active === true;
-  const tierLabel = trialOn ? "Trial" : TALENT_TIER_META[tier].label;
+  const tierLabel = copy.t(trialOn ? "Trial" : TALENT_TIER_META[tier].label);
   const tierChipClass =
     tier === "max"
       ? "bg-admin-ink text-white border border-admin-ink"

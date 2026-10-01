@@ -90,6 +90,26 @@ export function Thread(props: ThreadProps) {
     else host.scrollTop = host.scrollHeight;
   }, [target, row.id]);
 
+  // The "More" menu closes on Escape and on any press outside it (the scrim
+  // covers the pane, but a press on the header's own More button, or a key
+  // press with focus anywhere, must not leave the menu stuck open).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onMenu(false);
+    };
+    const onPress = (e: PointerEvent) => {
+      const el = e.target instanceof Element ? e.target : null;
+      if (el && !el.closest("[data-thread-menu]") && !el.closest("button.more, .acts button")) onMenu(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPress);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPress);
+    };
+  }, [menuOpen, onMenu]);
+
   const clientName = essentials?.customer.name.trim() || row.contactName.trim() || kit.inbox.visitor;
   const headerEssentials = essentials ?? { name: row.subject || row.contactName, customer: { name: row.contactName, email: row.contactEmail, phone: row.contactPhone, identityLevel: "none" as const, identityMethod: null, request: null, source: null } };
   const owner = row.ownerLabel ? { label: row.ownerLabel, isMe: !!currentUserId && row.ownerUserId === currentUserId } : null;

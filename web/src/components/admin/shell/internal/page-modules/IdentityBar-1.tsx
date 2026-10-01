@@ -420,8 +420,8 @@ export function TulalaIdentityBar() {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Preview site"
-              title="Preview public site"
+              aria-label={copy.t("Preview site")}
+              title={copy.t("Preview public site")}
               className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
             >
               <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
