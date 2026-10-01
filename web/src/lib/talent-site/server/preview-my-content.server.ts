@@ -10,6 +10,7 @@ import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-
 import { boundTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { pruneEmptyMyContentBlocks } from "@/lib/talent-site/my-content-prune";
+import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import {
   loadTalentManagingTenantId,
@@ -106,9 +107,11 @@ export async function prepareMyContentPreview(input: {
     fixed.body,
     input.locale,
   );
+  const homeTree = pruneEmptyMyContentBlocks(fixed.body, dataSources, input.locale);
   return {
-    shellTree: fixed.shellTree,
-    homeTree: pruneEmptyMyContentBlocks(fixed.body, dataSources, input.locale),
+    // Footer links to Location / Visit follow the sections the preview really shows.
+    shellTree: pruneDeadSectionLinks(fixed.shellTree, homeTree),
+    homeTree,
     dataSources,
   };
 }

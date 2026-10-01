@@ -7,6 +7,7 @@ import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteCh
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
+import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -545,6 +546,10 @@ async function renderMaxSiteDocument(args: {
   const [headerTree, rawFooterTree] = splitShell(shellTree);
   // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
   const footerTree = stripDesignCredits(rawFooterTree);
+  // Footer links to Location / Visit are decided against the sections this page really renders
+  // (an override page, such as a policy page, renders neither, so those links drop).
+  const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
+  const liveFooterTree = pruneDeadSectionLinks(footerTree, args.mainOverride ? [] : renderedBlocks);
   const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
   const socketModel = buildSocketModel({
     locale,
@@ -716,7 +721,7 @@ async function renderMaxSiteDocument(args: {
       ) : null}
 
       <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
-        {args.mainOverride ?? renderFreeformPageRootTree(pruneEmptyBoundSections(blocks, pricedDataSources), {
+        {args.mainOverride ?? renderFreeformPageRootTree(renderedBlocks, {
           publicPathPrefix,
           mode: "freeform",
           includeRendererStyles: false,
@@ -735,7 +740,7 @@ async function renderMaxSiteDocument(args: {
 
       {hasShell && footerTree.length > 0 ? (
         <footer data-talent-max-site-footer="">
-          {renderBuilderNodes(footerTree, {
+          {renderBuilderNodes(liveFooterTree, {
             publicPathPrefix,
             mode: "freeform", dataSources: { socialLinks: footerSocialLinks }, // her own links
             includeRendererStyles: false,

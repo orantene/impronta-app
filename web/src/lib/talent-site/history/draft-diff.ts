@@ -42,7 +42,7 @@ const EXCERPT = 80;
 
 const SECTION_NAMES: Record<string, { en: string; es: string }> = {
   hero: { en: "Hero", es: "Portada" },
-  "before-after": { en: "Before / After", es: "Antes / Después" },
+  "before-after": { en: "Before and after", es: "Antes y después" },
   services: { en: "Services", es: "Servicios" },
   menu: { en: "Services", es: "Servicios" },
   reviews: { en: "Reviews", es: "Reseñas" },

@@ -37,7 +37,7 @@ const U3 = "55555555-5555-4555-8555-000000000003";
 const TOKENS = { "space.row": "8px" };
 const THEIRS = (): DesignSide => built(3, { heroVariant: "stacked", menuLayout: "grid", withGallery: true }, { "space.row": "12px" });
 
-const I_BLOCK_A: ReleaseItem = { type: "new-block", key: "gallery", tree: "home", note: { en: "Before / After", es: "Antes / Después" } };
+const I_BLOCK_A: ReleaseItem = { type: "new-block", key: "gallery", tree: "home", note: { en: "Before / After", es: "Antes y después" } };
 const I_LAYOUT: ReleaseItem = { type: "layout", key: "hero", note: { en: "Hero inset" } };
 const I_CODE_V2: ReleaseItem = { type: "code", key: "price-wrap", note: { en: "v2 wording" } };
 const I_CODE_V3: ReleaseItem = { type: "code", key: "price-wrap", note: { en: "v3 wording" } };
@@ -328,8 +328,8 @@ test("F122: a section she removed gets its own line, not 'kept your edits'", asy
   assert.deepEqual(s.keptKeys, []);
   assert.deepEqual(s.removedKeys, ["before_after"]);
   assert.match(keptLine(s, "es"), /No cambiaste nada/);
-  assert.equal(keptRemovedLine(s, "es"), "Mantuvimos quitada la sección Antes / Después, como la dejaste");
-  assert.equal(keptRemovedLine(s, "en"), "We kept Before / After removed, as you left it");
+  assert.equal(keptRemovedLine(s, "es"), "Mantuvimos quitada la sección Antes y después, como la dejaste");
+  assert.equal(keptRemovedLine(s, "en"), "We kept Before and after removed, as you left it");
   const faq = summarizeReport({ applied: [], added: [], conflicts: [], kept: [entry("faq", "removed")] });
   assert.equal(keptRemovedLine(faq, "es"), "Mantuvimos quitada la sección Preguntas frecuentes, como la dejaste");
   // never on her page / not in her base: the merge emits no entry, so nothing is said
@@ -344,8 +344,8 @@ test("F122: a section she removed gets its own line, not 'kept your edits'", asy
   assert.deepEqual(both.keptKeys, ["hero"]);
   assert.deepEqual(both.removedKeys, ["before_after"]);
   // localised section names
-  assert.equal(keptPartLabel("before_after", "es"), "Antes / Después");
-  assert.equal(keptPartLabel("before_after", "en"), "Before / After");
+  assert.equal(keptPartLabel("before_after", "es"), "Antes y después");
+  assert.equal(keptPartLabel("before_after", "en"), "Before and after");
 });
 
 // ── F124: a restore that lowers the pin reopens the rows it had closed ───────
