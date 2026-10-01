@@ -30,9 +30,9 @@ export const FACTORY_COPY = {
     parityMap: "Parity map",
     present: "present",
     missing: "missing",
-    openBuilder: "Open in builder",
+    openBuilder: "Edit design in builder",
     builderNote: (code: string | null) =>
-      `No admin route opens a talent's own builder without impersonation, so this opens the Builder Lab editor on the talent target${code ? `. Pick ${code} as the preview subject` : ""}. It is a Playground draft: it does not edit the demo or the design. To change the design for every talent, change the design code and Sync catalog.`,
+      `Opens the Talent design editor on this design draft${code ? `, previewing ${code}` : ""}. Edits stay in the draft until a new version is published; they never touch a talent site.`,
     noReference: "no reference demo",
     lastComparison: "Last mockup comparison",
     noRun: "No run found on this machine yet.",
@@ -83,9 +83,9 @@ export const FACTORY_COPY = {
     parityMap: "Mapa de paridad",
     present: "presente",
     missing: "falta",
-    openBuilder: "Abrir en el editor",
+    openBuilder: "Editar diseño en el editor",
     builderNote: (code: string | null) =>
-      `Ninguna ruta de administrador abre el editor propio de un talento sin suplantar, así que esto abre el editor del Builder Lab con destino talento${code ? `. Elige ${code} como sujeto de vista previa` : ""}. Es un borrador del Playground: no edita la demo ni el diseño. Para cambiar el diseño de todos los talentos, cambia el código del diseño y sincroniza el catálogo.`,
+      `Abre el editor de diseños de talento sobre el borrador de este diseño${code ? `, con vista previa de ${code}` : ""}. Los cambios quedan en el borrador hasta publicar una nueva versión; nunca tocan el sitio de un talento.`,
     noReference: "sin demo de referencia",
     lastComparison: "Última comparación con la maqueta",
     noRun: "Aún no hay una ejecución en esta máquina.",

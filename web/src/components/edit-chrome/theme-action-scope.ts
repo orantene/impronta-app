@@ -108,6 +108,24 @@ export function resolveThemeActionSet(
     };
   }
 
+  // theme_template (TALENT design editor) → its OWN branch. It must never fall
+  // through to the tenant `agency_branding` set below. Until the talent-design
+  // token actions are wired (a later slice) every move reports "unsupported".
+  if (surfaceKind === "theme_template") {
+    const unsupported = async () => ({
+      ok: false as const,
+      error: "Theme tokens are not editable on this surface yet.",
+      code: "unsupported",
+    });
+    return {
+      load: unsupported,
+      saveDraft: unsupported,
+      saveComponentStyles: unsupported,
+      applyPreset: unsupported,
+      publish: unsupported,
+    };
+  }
+
   // homepage / cms_page / platform_lab → tenant-scoped (unchanged).
   return {
     load: () => loadDesignAction(),

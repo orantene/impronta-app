@@ -9,7 +9,7 @@
  * hydration with a demo talent's content happens only on the canvas.
  * Shell and home are two builder mounts over ONE draft row (CAS on `rev`).
  *
- * Route: /platform/admin/builder-lab/designs/[slug]/edit?tree=home|shell&subject=<TAL-code>&look=<look-slug>&lang=es|en
+ * Route: /platform/admin/builder-lab/talent-designs/[slug]/edit?tree=home|shell&subject=<TAL-code>&look=<look-slug>&lang=es|en
  * Surface kind: "theme_template".
  */
 import type { DesignPayload } from "@/lib/talent-site/theme-catalog/types";
@@ -106,5 +106,5 @@ export function themeTemplateEditHref(
   if (opts.look) q.set("look", opts.look);
   if (opts.lang) q.set("lang", opts.lang);
   const qs = q.toString();
-  return `/platform/admin/builder-lab/designs/${encodeURIComponent(design)}/edit${qs ? `?${qs}` : ""}`;
+  return `/platform/admin/builder-lab/talent-designs/${encodeURIComponent(design)}/edit${qs ? `?${qs}` : ""}`;
 }
