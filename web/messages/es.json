@@ -3222,8 +3222,6 @@
         "kitContent4": "Tu tarifa inicial, cuando publicas una",
         "kitContent5": "Hasta seis fotos de tu galería",
         "kitContent6": "Un enlace de contratación a tu perfil de Tulala",
-        "domainTitle": "Dominio propio",
-        "domainDesc": "Apunta tu propio dominio a tu página personal de Tulala. Las visitas ven tunombre.com; Tulala gestiona el SSL y las redirecciones.",
         "domainLabel": "Dominio",
         "domainHint": "Usa el dominio principal (tunombre.com) o un subdominio (pagina.tunombre.com).",
         "dnsConfig": "Configuración de DNS",

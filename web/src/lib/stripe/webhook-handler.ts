@@ -50,6 +50,7 @@ import {
   syncClientBalanceTopupToDb,
   syncClientBalanceRefundToDb,
 } from "@/lib/stripe/client-billing";
+import { fulfillTalentDomainPurchase } from "@/lib/stripe/talent-domain-billing";
 import {
   persistAccountSnapshot,
   findAgencyByStripeAccountId,
@@ -298,6 +299,25 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
         }),
       );
       return;
+
+    case "talent_domain_purchase": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const meta = (session.metadata ?? {}) as Record<string, string | undefined>;
+      ensureSyncOk(
+        "talent_domain_purchase",
+        await fulfillTalentDomainPurchase({
+          sessionId: action.sessionId,
+          talentProfileId: action.talentProfileId,
+          domain: action.domain,
+          expectedPriceCents: action.expectedPriceCents,
+          amountTotal: action.amountTotal,
+          currency: action.currency,
+          paymentIntentId: action.paymentIntentId,
+          metadata: meta,
+        }),
+      );
+      return;
+    }
 
     case "booking_payment": {
       // One settle path for invoices, POS card sales and payment links: the
