@@ -13,6 +13,7 @@
  * and the deterministic notes are always the fallback.
  */
 import { STYLE_TOKEN_BY_KEY } from "@/lib/site-admin/tokens/style-tokens";
+import { paletteColorLabel, parsePaletteItemKey } from "@/lib/talent-site/theme-catalog/design-palettes";
 import { sectionNameForKey, sectionNameForLabel } from "@/lib/talent-site/history/draft-diff";
 import { humanKey } from "../talent-update/view";
 import { ROOT_KEY } from "../tree-ops";
@@ -80,7 +81,21 @@ function tokenValue(key: string, value: unknown, locale: NoteLocale): string | n
   return opt ? opt[locale] : value;
 }
 
+function paletteNote(item: ReleaseItem, pk: { palette: string; token: string }): ReleaseNote {
+  const name = item.detail?.paletteName as { en?: string; es?: string } | undefined;
+  const pEn = name?.en ?? pk.palette;
+  const pEs = name?.es ?? pk.palette;
+  const to = typeof item.detail?.to === "string" ? item.detail.to : null;
+  const en = paletteColorLabel(pk.token, "en");
+  const es = paletteColorLabel(pk.token, "es");
+  return to
+    ? { en: `${pEn} colours: ${en} is now ${to} ${KEEP_EN}.`, es: `Colores ${pEs}: ${es} ahora es ${to} ${KEEP_ES}.` }
+    : { en: `${pEn} colours: ${en} goes back to the standard colour ${KEEP_EN}.`, es: `Colores ${pEs}: ${es} vuelve al color estándar ${KEEP_ES}.` };
+}
+
 function tokenNote(item: ReleaseItem): ReleaseNote {
+  const pk = !item.tokenKeys?.length ? parsePaletteItemKey(item.key) : null;
+  if (pk) return paletteNote(item, pk);
   const keys = item.tokenKeys && item.tokenKeys.length > 0 ? item.tokenKeys : [item.key];
   if (keys.length > 1) {
     const en = keys.map((k) => tokenLabel(k, "en")).join(", ");

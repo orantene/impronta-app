@@ -12,6 +12,7 @@
  * font overrides. Splitting fonts into their own pick is the `kind` column's
  * job later (palette / typography), not a special case here.
  */
+import { getToken } from "@/lib/site-admin/tokens/registry";
 
 export const LOOK_OWNED_TOKEN_PREFIXES = ["color.", "typography."] as const;
 export const LOOK_OWNED_TOKEN_KEYS = ["background.mode"] as const;
@@ -47,4 +48,16 @@ export function mergeLookIntoTokens(
     if (isLookOwnedTokenKey(key)) out[key] = value;
   }
   return out;
+}
+
+/** Palette-editable keys (design editor colour edits): colours only, fonts stay the design's pair. */
+export function isPaletteTokenKey(key: string): boolean {
+  return key.startsWith("color.");
+}
+
+/** A colour value the token registry accepts for `key` (hex when the key is unregistered). */
+export function isValidPaletteValue(key: string, value: unknown): value is string {
+  if (!isPaletteTokenKey(key) || typeof value !== "string" || value === "") return false;
+  const spec = getToken(key);
+  return spec ? spec.validator.safeParse(value).success : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
 }

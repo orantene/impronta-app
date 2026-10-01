@@ -32,6 +32,7 @@ import { readableButtonDefaults } from "@/lib/talent-site/server/talent-site-ren
 import { renderShellRoot } from "@/lib/talent-site/server/talent-builder-canvas.server";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
 import { hydratePlaceholders } from "./hydrate-placeholders";
+import { themeTemplatePaletteTokens } from "./theme-template-tokens";
 import type { ThemeDraft, ThemeDraftTree } from "./types";
 
 /** The demo talent a design previews with when no `?subject=` is given: its reference demo. */
@@ -77,7 +78,7 @@ export async function buildThemeTemplateCanvasData(input: {
   const profileId = subjectCode ? await profileIdForCode(subjectCode) : null;
   const platformDefault = await loadPlatformDefaultTheme("talent");
 
-  const lookTokens = themeTemplateLookTokens(design, input.look ?? draft.preview.look);
+  const lookTokens = themeTemplatePaletteTokens(design, input.look ?? draft.preview.look, draft.payload);
   const effectiveTokens = resolveEffectiveSiteTokens(
     {},
     { ...lookTokens, ...(draft.preview.previewTokens ?? {}) },

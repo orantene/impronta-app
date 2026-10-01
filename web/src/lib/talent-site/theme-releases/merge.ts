@@ -45,7 +45,7 @@ import {
 } from "./origin";
 import { makeAllow, type Allowance, type AllowFn } from "./policy";
 import { carryEdits, detectSwaps, type SwapPair } from "./swap";
-import { mergeTokenDefaults } from "./tokens-merge";
+import { mergePaletteTokens, mergeTokenDefaults } from "./tokens-merge";
 import {
   ROOT_KEY,
   hasTalentAddedDescendant,
@@ -502,7 +502,10 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
     report,
     nextSeq: seq,
   });
-  return { trees, tokens, report };
+  const withPalette = input.palette
+    ? mergePaletteTokens({ ...input.palette, tokens, allow, report, nextSeq: seq })
+    : tokens;
+  return { trees, tokens: withPalette, report };
 }
 
 /** Read helper for reports: a leaf of the node's props. */

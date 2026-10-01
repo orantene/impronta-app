@@ -182,6 +182,16 @@ export interface MergeInput {
   items?: ReadonlyArray<ReleaseItem>;
   /** `talent_sites.theme_token_origin` (key → hash of the default as applied). */
   tokenOrigin?: Readonly<Record<string, string>>;
+  /**
+   * The site's palette (from `theme_look_slug`) at the pinned and target
+   * versions: effective look tokens (code palette + `DesignPayload.palettes`).
+   * Omitted = the site is on no palette of this design; colours are not merged.
+   */
+  palette?: {
+    key: string;
+    base: Readonly<Record<string, string>>;
+    theirs: Readonly<Record<string, string>>;
+  };
 }
 
 export interface MergeResult {

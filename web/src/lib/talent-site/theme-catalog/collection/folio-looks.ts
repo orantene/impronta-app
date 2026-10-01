@@ -6,6 +6,7 @@
  * labels use Archivo Narrow, loaded by the magazine widgets). The accent
  * stays ink so the photography carries the colour.
  */
+import { authoredPaletteOverrides } from "./authored";
 import { GRIDLINE_DEFAULT_LOOK } from "./gridline-looks";
 import type { BuiltinLookEntry } from "../builtins/types";
 import type { LookPayload } from "../types";
@@ -75,6 +76,8 @@ function folioLookTokens(p: FolioPalette): LookPayload {
       "color.accent": p.ink,
       ...FOLIO_LOOK_TYPE_DEFAULTS,
       "background.mode": "plain",
+      // Editor-authored palette colours the code reflects (committed overlay).
+      ...(authoredPaletteOverrides("folio")[p.key] ?? {}),
     },
   };
 }

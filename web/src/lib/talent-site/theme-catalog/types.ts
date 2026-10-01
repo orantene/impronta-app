@@ -48,6 +48,13 @@ export interface DesignPayload {
    * map.
    */
   tokenDefaults?: Record<string, string>;
+  /**
+   * Editor-authored colour overrides per gallery palette (`design-palettes.ts`):
+   * `{ [paletteKey]: { "color.*": value } }`, absolute values on top of the code
+   * palette, carried cumulatively by every version. Sites on that palette get
+   * them through the release merge (untouched colours only).
+   */
+  palettes?: Record<string, Record<string, string>>;
 }
 
 /**

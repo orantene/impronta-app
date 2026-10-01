@@ -18,6 +18,7 @@
  *    `/template-preview/<slug>?kind=talent-theme&talent=<id>`.
  * Everything else is `planned` (Preview planned tile).
  */
+import { authoredPaletteOverrides } from "./collection/authored";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
@@ -458,7 +459,11 @@ export function galleryPaletteLookTokens(slug: string, paletteKey: string): Reco
   const d = getGalleryDesign(slug);
   const p = d?.palettes.find((x) => x.key === paletteKey);
   if (!d || !p) return null;
-  if (d.slug === MAISON_THEME_KEY) return maisonPaletteLookTokens(paletteKey as keyof typeof MAISON_PALETTES);
+  // Editor-authored colour edits the code already reflects (committed overlay).
+  const authored = authoredPaletteOverrides(d.slug)[paletteKey] ?? {};
+  if (d.slug === MAISON_THEME_KEY) {
+    return { ...maisonPaletteLookTokens(paletteKey as keyof typeof MAISON_PALETTES), ...authored };
+  }
   return {
     "color.background": p.page,
     "color.surface-raised": p.section,
@@ -471,6 +476,7 @@ export function galleryPaletteLookTokens(slug: string, paletteKey: string): Reco
     // The soft accent tint (mode chips, initials, image placeholders).
     ...(p.tint ? { "color.blush": p.tint } : {}),
     ...designTypographyTokens(d.slug),
+    ...authored,
   };
 }
 
