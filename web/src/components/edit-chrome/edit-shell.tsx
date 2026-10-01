@@ -1363,6 +1363,7 @@ function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
     p.navigatorOpen,
     p.navigatorWidth,
   );
+  const { t } = useEditorLocale();
   // Same ON/OFF as coachmarks — default OFF so returning operators never see
   // the always-on "Click any section…" pill unless they opt in via (i).
   const { helpers } = useCanvasHelpers();
