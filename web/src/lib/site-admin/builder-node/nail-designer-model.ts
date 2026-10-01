@@ -1,21 +1,17 @@
 /**
- * Nail Designer (app_nail_designer) — the pure model.
+ * Nail Designer (app_nail_designer): the pure model, ported from the owner's
+ * Nail Studio design (design-references/apps/nail-designer). Catalogs, the
+ * starter and saved looks, the state transitions, and the plain-text summary
+ * the "Send my design" button hands to the booking / inquiry flow.
  *
- * Option catalogs, the design state and its transitions, and the plain-text
- * summary the CTA hands to the booking / inquiry flow. No React, no IO, so the
- * renderer, the island, the inspector, preflight and the tests share ONE
- * definition of "what can be offered" and "what a design says".
- *
- * Polish swatches are CONTENT: they are the colours of the physical polish a
- * nail artist stocks, not site chrome. Every surface of the app itself (frames,
- * tabs, buttons) is painted from the site's design tokens in the CSS.
+ * Zero config: the block always offers the full design. Polish swatches and
+ * skin tones are CONTENT (the colours of physical polish), kept as data.
  */
 import type { BuilderAppNailDesignerNode } from "./types";
 
-type Named = { id: string; en: string; es: string };
-
+export type Named = { id: string; en: string; es: string };
 export type NailShape = Named & { radius: string; clip: string };
-export type NailColor = Named & { hex: string };
+export type NailColor = { en: string; es: string; hex: string };
 
 export const NAIL_SHAPES: ReadonlyArray<NailShape> = [
   { id: "square", en: "Square", es: "Cuadrada", radius: "10% 10% 46% 46% / 6% 6% 24% 24%", clip: "none" },
@@ -39,30 +35,30 @@ export const NAIL_SHAPES: ReadonlyArray<NailShape> = [
 ];
 
 export const NAIL_COLORS: ReadonlyArray<NailColor> = [
-  { id: "cherry", en: "Cherry", es: "Cereza", hex: "#B3122E" },
-  { id: "rosewood", en: "Rosewood", es: "Palo de rosa", hex: "#8E3B46" },
-  { id: "blush", en: "Blush", es: "Rubor", hex: "#E8A9A6" },
-  { id: "ballet", en: "Ballet", es: "Ballet", hex: "#F2D4CF" },
-  { id: "nude", en: "Nude", es: "Nude", hex: "#D9B39A" },
-  { id: "mocha", en: "Mocha", es: "Moca", hex: "#7B5544" },
-  { id: "coral", en: "Coral", es: "Coral", hex: "#F2735B" },
-  { id: "tangerine", en: "Tangerine", es: "Mandarina", hex: "#F39A3B" },
-  { id: "butter", en: "Butter", es: "Mantequilla", hex: "#F4DC8A" },
-  { id: "sage", en: "Sage", es: "Salvia", hex: "#A7B99A" },
-  { id: "emerald", en: "Emerald", es: "Esmeralda", hex: "#1F6B52" },
-  { id: "sky", en: "Sky", es: "Cielo", hex: "#9CC5E3" },
-  { id: "cobalt", en: "Cobalt", es: "Cobalto", hex: "#2448A6" },
-  { id: "lilac", en: "Lilac", es: "Lila", hex: "#C4A8E0" },
-  { id: "plum", en: "Plum", es: "Ciruela", hex: "#5B2A58" },
-  { id: "milk", en: "Milk", es: "Leche", hex: "#F7F3EE" },
-  { id: "graphite", en: "Graphite", es: "Grafito", hex: "#4A4A4F" },
-  { id: "onyx", en: "Onyx", es: "Ónix", hex: "#16151A" },
+  { en: "Cherry", es: "Cereza", hex: "#B3122E" },
+  { en: "Rosewood", es: "Palo de rosa", hex: "#8E3B46" },
+  { en: "Blush", es: "Rubor", hex: "#E8A9A6" },
+  { en: "Ballet", es: "Ballet", hex: "#F2D4CF" },
+  { en: "Nude", es: "Nude", hex: "#D9B39A" },
+  { en: "Mocha", es: "Moca", hex: "#7B5544" },
+  { en: "Coral", es: "Coral", hex: "#F2735B" },
+  { en: "Tangerine", es: "Mandarina", hex: "#F39A3B" },
+  { en: "Butter", es: "Mantequilla", hex: "#F4DC8A" },
+  { en: "Sage", es: "Salvia", hex: "#A7B99A" },
+  { en: "Emerald", es: "Esmeralda", hex: "#1F6B52" },
+  { en: "Sky", es: "Cielo", hex: "#9CC5E3" },
+  { en: "Cobalt", es: "Cobalto", hex: "#2448A6" },
+  { en: "Lilac", es: "Lila", hex: "#C4A8E0" },
+  { en: "Plum", es: "Ciruela", hex: "#5B2A58" },
+  { en: "Milk", es: "Leche", hex: "#F7F3EE" },
+  { en: "Graphite", es: "Grafito", hex: "#4A4A4F" },
+  { en: "Onyx", es: "Ónix", hex: "#16151A" },
 ];
 
-export const NAIL_ARTS: ReadonlyArray<Named> = [
+export const NAIL_PATTERNS: ReadonlyArray<Named> = [
   { id: "solid", en: "Solid", es: "Liso" },
   { id: "french", en: "French tip", es: "Francesa" },
-  { id: "ombre", en: "Ombre", es: "Degradado" },
+  { id: "ombre", en: "Ombré", es: "Degradado" },
   { id: "dots", en: "Polka", es: "Lunares" },
   { id: "stripes", en: "Stripes", es: "Rayas" },
   { id: "moon", en: "Half-moon", es: "Media luna" },
@@ -78,7 +74,7 @@ export const NAIL_FINISHES: ReadonlyArray<Named> = [
   { id: "pearl", en: "Pearl", es: "Perla" },
 ];
 
-export const NAIL_CHARMS: ReadonlyArray<Named> = [
+export const NAIL_STICKERS: ReadonlyArray<Named> = [
   { id: "none", en: "None", es: "Ninguno" },
   { id: "gem", en: "Crystal", es: "Cristal" },
   { id: "star", en: "Star", es: "Estrella" },
@@ -93,159 +89,108 @@ export const NAIL_LENGTHS: ReadonlyArray<Named & { k: number }> = [
   { id: "long", en: "Long", es: "Larga", k: 1.6 },
 ];
 
-/** Thumb last, as in the reference board. */
-export const NAIL_FINGERS: ReadonlyArray<Named> = [
-  { id: "pinky", en: "Pinky", es: "Meñique" },
-  { id: "ring", en: "Ring", es: "Anular" },
-  { id: "middle", en: "Middle", es: "Medio" },
-  { id: "index", en: "Index", es: "Índice" },
-  { id: "thumb", en: "Thumb", es: "Pulgar" },
+export const NAIL_SKINS: ReadonlyArray<{ en: string; es: string; hex: string }> = [
+  { en: "Porcelain", es: "Porcelana", hex: "#F4D9C6" },
+  { en: "Light", es: "Claro", hex: "#E9BE9E" },
+  { en: "Tan", es: "Bronceado", hex: "#CF9670" },
+  { en: "Olive", es: "Oliva", hex: "#B07A52" },
+  { en: "Brown", es: "Moreno", hex: "#7E5236" },
+  { en: "Deep", es: "Profundo", hex: "#4F3222" },
 ];
 
-/** The option groups the author can switch on and off. */
-export type NailOptionGroup = "shapes" | "colors" | "arts" | "finishes" | "charms";
-export const NAIL_OPTION_GROUPS: ReadonlyArray<NailOptionGroup> = [
-  "shapes",
-  "colors",
-  "arts",
-  "finishes",
-  "charms",
+/** Geometry per finger (design px at scale 1), thumb last. */
+export const NAIL_FINGERS: ReadonlyArray<Named & { w: number; h: number; rot: number; tx: number; ty: number }> = [
+  { id: "pinky", en: "Pinky", es: "Meñique", w: 64, h: 270, rot: -7, tx: 0, ty: 0 },
+  { id: "ring", en: "Ring", es: "Anular", w: 74, h: 340, rot: -2, tx: 0, ty: 0 },
+  { id: "middle", en: "Middle", es: "Medio", w: 78, h: 370, rot: 0, tx: 0, ty: 0 },
+  { id: "index", en: "Index", es: "Índice", w: 76, h: 340, rot: 4, tx: 0, ty: 0 },
+  { id: "thumb", en: "Thumb", es: "Pulgar", w: 92, h: 240, rot: 30, tx: 18, ty: 56 },
 ];
-
-export const NAIL_DESIGNER_CATALOG_IDS: Record<NailOptionGroup, ReadonlyArray<string>> = {
-  shapes: NAIL_SHAPES.map((x) => x.id),
-  colors: NAIL_COLORS.map((x) => x.id),
-  arts: NAIL_ARTS.map((x) => x.id),
-  finishes: NAIL_FINISHES.map((x) => x.id),
-  charms: NAIL_CHARMS.filter((x) => x.id !== "none").map((x) => x.id),
-};
 
 export type NailDesignerProps = BuilderAppNailDesignerNode["props"];
 
-/** Default props for a freshly inserted block: everything offered, booking on. */
-export const NAIL_DESIGNER_DEFAULT_PROPS: NailDesignerProps = {
-  title: "Design your nails",
-  intro: "Pick a shape, colours and finish, then send the design with your booking.",
-  shapes: [...NAIL_DESIGNER_CATALOG_IDS.shapes],
-  colors: [...NAIL_DESIGNER_CATALOG_IDS.colors],
-  arts: [...NAIL_DESIGNER_CATALOG_IDS.arts],
-  finishes: [...NAIL_DESIGNER_CATALOG_IDS.finishes],
-  charms: [...NAIL_DESIGNER_CATALOG_IDS.charms],
-  ctaLabel: "Send my design",
-  sendWithBooking: true,
-};
-
+/** Zero config: a fresh block carries no props at all. */
 export function cloneNailDesignerDefaultProps(): NailDesignerProps {
-  return {
-    ...NAIL_DESIGNER_DEFAULT_PROPS,
-    shapes: [...(NAIL_DESIGNER_DEFAULT_PROPS.shapes ?? [])],
-    colors: [...(NAIL_DESIGNER_DEFAULT_PROPS.colors ?? [])],
-    arts: [...(NAIL_DESIGNER_DEFAULT_PROPS.arts ?? [])],
-    finishes: [...(NAIL_DESIGNER_DEFAULT_PROPS.finishes ?? [])],
-    charms: [...(NAIL_DESIGNER_DEFAULT_PROPS.charms ?? [])],
-  };
+  return {};
 }
 
-export type NailOffered = {
-  shapes: ReadonlyArray<NailShape>;
-  colors: ReadonlyArray<NailColor>;
-  arts: ReadonlyArray<Named>;
-  finishes: ReadonlyArray<Named>;
-  /** Includes the leading "none" entry whenever any charm is offered. */
-  charms: ReadonlyArray<Named>;
-};
+export type NailState = { c1: string; c2: string; pattern: string; finish: string; sticker: string };
+export type NailDesign = { nails: NailState[]; shape: string; length: string; skin: string };
+export type NailLook = { name: string; nameEs: string; shape: string; length: string; nails: NailState[] };
 
-function pick<T extends { id: string }>(all: ReadonlyArray<T>, ids: ReadonlyArray<string> | undefined): T[] {
-  // An absent list means "all"; an empty list means the author switched the group off.
-  if (!ids) return [...all];
-  const want = new Set(ids);
-  return all.filter((x) => want.has(x.id));
+export function nail(c1: string, c2: string, pattern: string, finish: string, sticker = "none"): NailState {
+  return { c1, c2, pattern, finish, sticker };
+}
+const cloneNails = (list: ReadonlyArray<NailState>): NailState[] => list.map((n) => ({ ...n }));
+
+export const NAIL_START: ReadonlyArray<NailState> = [
+  nail("#E8A9A6", "#F7F3EE", "french", "gloss"),
+  nail("#8E3B46", "#F7F3EE", "solid", "gloss", "gem"),
+  nail("#E8A9A6", "#F7F3EE", "french", "gloss"),
+  nail("#E8A9A6", "#F7F3EE", "french", "gloss"),
+  nail("#E8A9A6", "#F7F3EE", "french", "gloss"),
+];
+
+export const NAIL_STARTER_LOOKS: ReadonlyArray<NailLook> = [
+  { name: "Rosé French", nameEs: "Francesa rosé", shape: "almond", length: "medium", nails: [...NAIL_START] },
+  {
+    name: "Midnight Chrome",
+    nameEs: "Cromo medianoche",
+    shape: "coffin",
+    length: "long",
+    nails: [
+      nail("#2448A6", "#16151A", "solid", "chrome"),
+      nail("#16151A", "#2448A6", "solid", "glitter", "star"),
+      nail("#2448A6", "#16151A", "solid", "chrome"),
+      nail("#2448A6", "#16151A", "solid", "chrome"),
+      nail("#2448A6", "#16151A", "solid", "chrome"),
+    ],
+  },
+  {
+    name: "Garden Party",
+    nameEs: "Fiesta en el jardín",
+    shape: "round",
+    length: "short",
+    nails: [
+      nail("#A7B99A", "#F7F3EE", "dots", "gloss"),
+      nail("#F4DC8A", "#F7F3EE", "solid", "gloss", "flower"),
+      nail("#A7B99A", "#F7F3EE", "dots", "gloss"),
+      nail("#A7B99A", "#F7F3EE", "dots", "gloss"),
+      nail("#A7B99A", "#F7F3EE", "dots", "gloss"),
+    ],
+  },
+];
+
+export const NAIL_DEFAULT_SKIN = "#E9BE9E";
+export const NAIL_HISTORY_MAX = 40;
+export const NAIL_LOOKS_MAX = 12;
+
+export function starterNailDesign(): NailDesign {
+  return { nails: cloneNails(NAIL_START), shape: "almond", length: "medium", skin: NAIL_DEFAULT_SKIN };
+}
+export { cloneNails };
+
+/** Apply a patch to every nail (target null) or to one selected index. */
+export function patchNails(
+  nails: ReadonlyArray<NailState>,
+  target: number | null,
+  patch: Partial<NailState>,
+): NailState[] {
+  return nails.map((n, i) => (target === null || i === target ? { ...n, ...patch } : n));
 }
 
-/** The options a visitor can use, in catalog order. Unknown ids are ignored. */
-export function resolveNailOffered(props: NailDesignerProps): NailOffered {
-  const charms = pick(
-    NAIL_CHARMS.filter((x) => x.id !== "none"),
-    props.charms,
-  );
-  return {
-    shapes: pick(NAIL_SHAPES, props.shapes),
-    colors: pick(NAIL_COLORS, props.colors),
-    arts: pick(NAIL_ARTS, props.arts),
-    finishes: pick(NAIL_FINISHES, props.finishes),
-    charms: charms.length ? [NAIL_CHARMS[0], ...charms] : [],
-  };
-}
-
-/** Count of offered choices across all groups (charms exclude "none"). */
-export function nailOfferedCount(offered: NailOffered): number {
-  return (
-    offered.shapes.length +
-    offered.colors.length +
-    offered.arts.length +
-    offered.finishes.length +
-    Math.max(0, offered.charms.length - 1)
-  );
-}
-
-export type NailState = { c1: string; c2: string; art: string; finish: string; charm: string };
-export type NailDesign = { nails: NailState[]; shape: string; length: string };
-
-function firstOf<T extends { id: string }>(list: ReadonlyArray<T>, prefer: string, fallback: string): string {
-  if (list.some((x) => x.id === prefer)) return prefer;
-  return list[0]?.id ?? fallback;
-}
-
-/** The starter look, clamped to what the author offers. */
-export function initialNailDesign(offered: NailOffered): NailDesign {
-  const colors = offered.colors.length ? offered.colors : NAIL_COLORS;
-  const c1 = firstOf(colors, "blush", "blush");
-  const c2 = colors.find((c) => c.id === "milk" && c.id !== c1)?.id ?? colors.find((c) => c.id !== c1)?.id ?? c1;
-  const base: NailState = {
-    c1,
-    c2,
-    art: firstOf(offered.arts, "french", "solid"),
-    finish: firstOf(offered.finishes, "gloss", "gloss"),
-    charm: "none",
-  };
-  return {
-    nails: NAIL_FINGERS.map(() => ({ ...base })),
-    shape: firstOf(offered.shapes, "almond", "almond"),
-    length: "medium",
-  };
-}
-
-/** Apply a patch to every nail (target null), or to the one selected index. */
-export function patchNails(design: NailDesign, target: number | null, patch: Partial<NailState>): NailDesign {
-  return {
-    ...design,
-    nails: design.nails.map((n, i) => (target === null || i === target ? { ...n, ...patch } : n)),
-  };
-}
-
-/** A random look drawn only from what is offered. `rand` is injectable for tests. */
-export function surpriseNailDesign(offered: NailOffered, rand: () => number = Math.random): NailDesign {
-  const r = <T,>(list: ReadonlyArray<T>, fallback: T): T =>
-    list.length ? list[Math.min(list.length - 1, Math.floor(rand() * list.length))] : fallback;
-  const base = initialNailDesign(offered);
-  const c1 = r(offered.colors, NAIL_COLORS[0]).id;
-  let c2 = r(offered.colors, NAIL_COLORS[0]).id;
-  if (c2 === c1 && offered.colors.length > 1) c2 = offered.colors.find((c) => c.id !== c1)!.id;
-  const finish = r(offered.finishes, NAIL_FINISHES[0]).id;
-  const charmChoices = offered.charms.filter((c) => c.id !== "none");
-  const plain: NailState = { c1, c2, art: r(offered.arts, NAIL_ARTS[0]).id, finish, charm: "none" };
-  const accent: NailState = {
-    c1: c2,
-    c2: c1,
-    art: r(offered.arts, NAIL_ARTS[0]).id,
-    finish,
-    charm: charmChoices.length ? r(charmChoices, NAIL_CHARMS[1]).id : "none",
-  };
-  return {
-    shape: r(offered.shapes, NAIL_SHAPES[3]).id,
-    length: base.length,
-    nails: NAIL_FINGERS.map((_, i) => ({ ...(i === 1 ? accent : plain) })),
-  };
+/** "Surprise me": ported from the reference; `rand` is injectable for tests. */
+export function surpriseNailDesign(rand: () => number = Math.random): { nails: NailState[]; shape: string } {
+  const r = <T,>(a: ReadonlyArray<T>): T => a[Math.floor(rand() * a.length)];
+  const c1 = r(NAIL_COLORS).hex;
+  let c2 = r(NAIL_COLORS).hex;
+  if (c2 === c1) c2 = c1 === "#F7F3EE" ? "#16151A" : "#F7F3EE";
+  const pat = r(NAIL_PATTERNS).id;
+  const fin = r(NAIL_FINISHES).id;
+  const acc = r(NAIL_PATTERNS).id;
+  const st = r(NAIL_STICKERS.slice(1)).id;
+  const nails = [0, 1, 2, 3, 4].map((i) => (i === 1 ? nail(c2, c1, acc, fin, st) : nail(c1, c2, pat, fin, "none")));
+  return { nails, shape: r(NAIL_SHAPES).id };
 }
 
 const LENGTH_FACTOR = new Map(NAIL_LENGTHS.map((l) => [l.id, l.k] as const));
@@ -253,23 +198,28 @@ export function nailLengthFactor(id: string): number {
   return LENGTH_FACTOR.get(id) ?? 1.2;
 }
 
-export function nailLabel(list: ReadonlyArray<Named>, id: string, es: boolean): string {
+export function nailLabel(list: ReadonlyArray<{ id: string; en: string; es: string }>, id: string, es: boolean): string {
   const hit = list.find((x) => x.id === id);
   return hit ? (es ? hit.es : hit.en) : id;
+}
+
+/** Polish name for a hex, or "Custom #HEX" for a mixed colour. */
+export function nailColorName(hex: string, es: boolean): string {
+  const up = String(hex).toUpperCase();
+  const c = NAIL_COLORS.find((x) => x.hex === up);
+  return c ? (es ? c.es : c.en) : `${es ? "Personalizado" : "Custom"} ${up}`;
 }
 
 export const NAIL_SUMMARY_MAX = 480;
 
 function describeNail(n: NailState, es: boolean): string {
-  const art = nailLabel(NAIL_ARTS, n.art, es).toLowerCase();
-  const c1 = nailLabel(NAIL_COLORS, n.c1, es).toLowerCase();
-  const c2 = nailLabel(NAIL_COLORS, n.c2, es).toLowerCase();
+  const art = nailLabel(NAIL_PATTERNS, n.pattern, es).toLowerCase();
+  const c1 = nailColorName(n.c1, es).toLowerCase();
+  const c2 = nailColorName(n.c2, es).toLowerCase();
   const finish = nailLabel(NAIL_FINISHES, n.finish, es).toLowerCase();
-  const accent = n.art === "solid" ? "" : es ? ` con acento ${c2}` : ` with ${c2} accent`;
-  const charm = n.charm === "none" ? "" : `, ${nailLabel(NAIL_CHARMS, n.charm, es).toLowerCase()}`;
-  return es
-    ? `${art}, ${c1}${accent}, acabado ${finish}${charm}`
-    : `${art}, ${c1}${accent}, ${finish} finish${charm}`;
+  const accent = n.pattern === "solid" ? "" : es ? ` con acento ${c2}` : ` with ${c2} accent`;
+  const charm = n.sticker === "none" ? "" : `, ${nailLabel(NAIL_STICKERS, n.sticker, es).toLowerCase()}`;
+  return es ? `${art}, ${c1}${accent}, acabado ${finish}${charm}` : `${art}, ${c1}${accent}, ${finish} finish${charm}`;
 }
 
 /**
@@ -277,7 +227,10 @@ function describeNail(n: NailState, es: boolean): string {
  * words only (no ids), capped, no em dashes: it lands in a message box the
  * visitor can still edit before anything is sent.
  */
-export function nailDesignSummary(design: NailDesign, locale: string): string {
+export function nailDesignSummary(
+  design: Pick<NailDesign, "nails" | "shape" | "length">,
+  locale: string,
+): string {
   const es = locale.toLowerCase().startsWith("es");
   const shape = nailLabel(NAIL_SHAPES, design.shape, es).toLowerCase();
   const length = nailLabel(NAIL_LENGTHS, design.length, es).toLowerCase();

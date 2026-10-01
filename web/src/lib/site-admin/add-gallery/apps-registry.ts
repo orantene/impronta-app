@@ -31,7 +31,7 @@ export const APP_REGISTRY: ReadonlyArray<AppRegistryEntry> = [
     nativeKind: "app_nail_designer",
     label: "Nail Designer",
     description:
-      "Visitors design a manicure nail by nail and send it with their booking request. Offers shapes, colours, finishes and art you choose.",
+      "Visitors design a manicure nail by nail and send it with their booking request. Drop it in and it works, nothing to set up.",
     icon: "interactive",
     thumbnail: "nail-designer",
     searchTerms: ["nails", "manicure", "polish", "design", "app", "uñas", "manicura", "esmalte"],

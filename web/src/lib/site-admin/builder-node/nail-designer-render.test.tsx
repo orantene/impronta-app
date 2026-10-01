@@ -1,6 +1,8 @@
 /**
- * Nail Designer renderer smoke: server HTML (no JS) carries the whole tool,
- * localises, hides when nothing is offered, and its CSS is token-only.
+ * Nail Designer renderer: server HTML (no JS) carries the whole ported design
+ * (tabs, swatch groups, save look, skin tone, surprise me, undo, reset, send),
+ * localises, fits any width by container query, and takes its accent from the
+ * site theme token.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -29,56 +31,68 @@ function render(node: BuilderNode, locale = "en"): string {
   );
 }
 
-test("renders the whole tool as real buttons in the first paint", () => {
+const count = (html: string, re: RegExp) => (html.match(re) ?? []).length;
+
+test("the whole reference design is in the first paint", () => {
   const html = render(nailNode());
   assert.match(html, /data-builder-node-kind="app_nail_designer"/);
-  assert.match(html, /<h2 class="sb-nd-title">Design your nails<\/h2>/);
-  assert.equal((html.match(/data-nd-finger=/g) ?? []).length, 5);
-  assert.equal((html.match(/data-nd-color=/g) ?? []).length, 36, "polish + accent swatches");
-  for (const tab of ["Colour", "Art", "Finish", "Shape", "Extras"]) assert.match(html, new RegExp(`>${tab}<`));
-  assert.match(html, /role="tablist"/);
-  assert.match(html, /role="tabpanel"/);
+  assert.match(html, /Nail <em>Studio<\/em>/);
+  assert.match(html, /Design a manicure, nail by nail\./);
+  assert.equal(count(html, /data-nd-finger=/g), 5);
+  // Polish + accent swatch groups: 18 + 18 colours (Color tab is the default).
+  assert.equal(count(html, /data-nd-color=/g), 36);
+  assert.equal(count(html, /data-nd-custom=/g), 2, "custom polish + custom accent pickers");
+  assert.match(html, /Mix a custom polish/);
+  assert.match(html, /Mix a custom accent/);
+  for (const tab of ["color", "art", "finish", "shape", "extras", "looks"]) assert.match(html, new RegExp(`data-nd-tab="${tab}"`));
+  for (const label of ["Color", "Art", "Finish", "Shape", "Extras", "Looks"]) assert.match(html, new RegExp(`>${label}<`));
+  for (const action of ["undo", "reset", "surprise", "save", "send"]) assert.match(html, new RegExp(`data-nd-action="${action}"`));
+  assert.match(html, />Surprise me</);
+  assert.match(html, />Save look</);
   assert.match(html, /data-nd-action="send"[^>]*>Send my design</);
+  assert.match(html, />All nails</);
+  assert.match(html, /Editing · All nails/);
+  assert.match(html, /Tap a nail to style it on its own/);
   assert.match(html, /aria-label="Pinky nail"/);
+  // Starter saved looks show in the desktop row.
+  for (const name of ["Rosé French", "Midnight Chrome", "Garden Party"]) assert.match(html, new RegExp(name));
+});
+
+test("skin tone is part of the Shape tab (reference), with six tones", () => {
+  const src = readFileSync(new URL("./nail-designer-panels.tsx", import.meta.url), "utf8");
+  assert.match(src, /data-nd-skin/);
+  assert.match(src, /NAIL_SKINS\.map/);
+  assert.match(src, /Mix a custom|customPolish/);
 });
 
 test("Spanish visitors get Spanish chrome and the default CTA", () => {
   const html = render(nailNode({ ctaLabel: "" }), "es");
-  assert.match(html, />Color</);
   assert.match(html, />Acabado</);
   assert.match(html, /Enviar mi diseño/);
-  assert.match(html, /aria-label="Uña meñique"/);
+  assert.match(html, />Sorpréndeme</);
+  assert.match(html, /aria-label="uña meñique"/);
 });
 
-test("send with booking off removes the CTA but keeps the tool", () => {
-  const html = render(nailNode({ sendWithBooking: false }));
-  assert.doesNotMatch(html, /data-nd-action="send"/);
-  assert.match(html, /data-nd-action="undo"/);
+test("optional text overrides render above the design, empty by default", () => {
+  assert.doesNotMatch(render(nailNode()), /<h2 class="sb-nd-title"/);
+  const html = render(nailNode({ title: "Design your nails", intro: "Try a look", ctaLabel: "Book this set" }));
+  assert.match(html, /<h2 class="sb-nd-title">Design your nails<\/h2>/);
+  assert.match(html, /Try a look/);
+  assert.match(html, /data-nd-action="send"[^>]*>Book this set</);
 });
 
-test("only the offered options appear, and a group with none loses its tab", () => {
-  const html = render(nailNode({ colors: ["cherry", "onyx"], charms: [], shapes: [] }));
-  assert.equal((html.match(/data-nd-color=/g) ?? []).length, 4);
-  assert.doesNotMatch(html, />Extras</);
-  assert.doesNotMatch(html, />Shape</);
+test("the CSS is the ported design: both boards by container query, accent from the theme token", () => {
+  assert.match(NAIL_DESIGNER_CSS, /@container sbnd \(min-width:980px\)/);
+  assert.match(NAIL_DESIGNER_CSS, /container:sbnd\/inline-size/);
+  assert.match(NAIL_DESIGNER_CSS, /--nd-accent:var\(--token-color-primary,#A63D57\)/);
+  assert.match(NAIL_DESIGNER_CSS, /grid-template-columns:minmax\(0,1fr\) 420px/);
+  assert.match(NAIL_DESIGNER_CSS, /height:820px/);
+  assert.match(NAIL_DESIGNER_CSS, /height:844px/);
+  assert.doesNotMatch(NAIL_DESIGNER_CSS, /#A63D57\b(?!\))/, "design accent only as the token fallback");
+  assert.doesNotMatch(NAIL_DESIGNER_CSS, /@import|url\(|https?:\/\//, "no external network");
 });
 
-test("nothing offered renders hidden with no tool inside", () => {
-  const html = render(nailNode({ shapes: [], colors: [], arts: [], finishes: [], charms: [] }));
-  assert.match(html, /data-nd-empty="1"/);
-  assert.match(html, /hidden/);
-  assert.doesNotMatch(html, /data-nd-finger=/);
-});
-
-test("the CSS paints only from design tokens, mobile-first with a container query", () => {
-  assert.doesNotMatch(NAIL_DESIGNER_CSS, /#[0-9a-fA-F]{3,8}\b/, "no hex in the app chrome");
-  assert.doesNotMatch(NAIL_DESIGNER_CSS, /\b(?:rgba?|hsla?)\(/);
-  assert.match(NAIL_DESIGNER_CSS, /var\(--token-color-ink\)/);
-  assert.match(NAIL_DESIGNER_CSS, /@container sbnd \(min-width:760px\)/);
-  assert.match(NAIL_DESIGNER_CSS, /prefers-reduced-motion:no-preference/);
-});
-
-test("the island makes no network call and keeps state local", () => {
+test("the island makes no network call, keeps state local, and hands off through the existing event", () => {
   const src = readFileSync(new URL("./nail-designer-island.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(src, /\bfetch\(|XMLHttpRequest|localStorage|sessionStorage|WebSocket|sendBeacon/);
   assert.match(src, /tulala:ask-question/);
