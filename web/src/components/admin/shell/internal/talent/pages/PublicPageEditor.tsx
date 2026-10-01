@@ -14,7 +14,7 @@ import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeState
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { NavRow } from "@/components/talent/website-settings/primitives";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
-import { prefetchPublicPageBootstrap, takeOr } from "@/components/talent/site/public-page-bootstrap";
+import { takeOr } from "@/components/talent/site/public-page-bootstrap";
 import {
   takeWebsiteSettingsIntent,
   type WebsiteSettingsIntentView,
@@ -48,8 +48,6 @@ type PresenceTab = "site" | "appear" | "nets";
  */
 export function PublicPageEditor({ locale = "en" }: Props) {
   const studio = useTalentStudioV2();
-  // ONE bundled server action for the whole page; children read their slice.
-  useState(() => { prefetchPublicPageBootstrap(); return null; });
   const copy = useDashboardText();
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
