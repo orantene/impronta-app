@@ -257,7 +257,7 @@ test("CH wiring: the card chat no longer closes itself to scroll to #services", 
   const col = [src("CardDockServicesView.tsx"), src("CardDockChatExtras.tsx"), src("CardDockHeader.tsx"), src("GuestDockChrome.tsx"), src("MiniChatPanelColumn.tsx")].join("\n");
   assert.doesNotMatch(col, /getElementById\("services"\)/);
   assert.doesNotMatch(col, /seeServices/);
-  assert.match(col, /<CardChatServiceBrowser/);
+  assert.match(col, /data-card-chat-add/);
   assert.match(col, /<CardChatBackToBooking/);
   assert.match(col, /<CardChatContextCard/);
   assert.match(col, /card\.browseServices/, "her browse switch hides the list button");

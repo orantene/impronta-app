@@ -34,6 +34,8 @@ export interface TalentLiveText {
   values: Partial<Record<LiveTextKey, string>>;
   /** Stored texts that still mean "the seed" per key (legacy binding only). */
   seeds?: Partial<Record<LiveTextKey, ReadonlyArray<string>>>;
+  /** Trade names (every locale) a baked eyebrow starts with, "Nail Artist · Cancun". */
+  trades?: ReadonlyArray<string>;
   /** The menu intro line ("Prices in MXN."), a default for a Maison v2 menu that never had one. */
   menuSubtitle?: string;
 }
@@ -89,18 +91,55 @@ function isSeedText(text: unknown, seeds: ReadonlyArray<string> | undefined): bo
   return t === "" || t === "​" || (seeds?.some((s) => s.trim() === t) ?? false);
 }
 
+const PROOF_BAKED = /^\s*(\d+\s+(years?\s+of\s+craft|años?\s+de\s+oficio)|Based in |Con base en )|★/i;
+
+/** Hero lines by their layer label, for pages whose nodes carry no design origin stamp. */
+const LEGACY_LABELS: Readonly<Record<string, LiveTextKey>> = {
+  "Hero eyebrow": "hero_eyebrow",
+  "Hero proof": "hero_proof",
+};
+
+/** The baked text of an old hero line: an exact seed, or the shape the design wrote ("Trade · City", "7 years of craft ..."). */
+function isBaked(key: LiveTextKey, text: unknown, live: TalentLiveText): boolean {
+  if (isSeedText(text, live.seeds?.[key])) return true;
+  if (typeof text !== "string") return false;
+  const t = text.trim();
+  if (key === "hero_proof") return PROOF_BAKED.test(t);
+  if (key === "hero_eyebrow") {
+    const low = t.toLowerCase();
+    return (live.trades ?? []).some((tr) => {
+      const x = tr.trim().toLowerCase();
+      return x !== "" && (low === x || low.startsWith(`${x} · `));
+    });
+  }
+  return false;
+}
+
 /** The live key a node follows, explicit first, else the legacy hero binding. */
 export function liveKeyOf(node: BuilderNode, live: TalentLiveText): LiveTextKey | null {
   if (node.kind !== "heading" && node.kind !== "paragraph") return null;
   const props = propsOf(node);
   if (isLiveTextKey(props.liveText)) return props.liveText;
-  const origin = readOrigin(node);
-  if (!origin || origin.design !== "maison-v2") return null;
-  const key = LEGACY_HERO_KEYS[origin.key];
-  if (!key) return null;
-  // A stamped hero node that is not the expected kind (a talent swapped it) is left alone.
   if (node.kind !== "paragraph") return null;
-  return isSeedText(props.text, live.seeds?.[key]) ? key : null;
+  const label = typeof props.layerLabel === "string" ? LEGACY_LABELS[props.layerLabel] : undefined;
+  const origin = readOrigin(node);
+  const key = (origin?.design === "maison-v2" ? LEGACY_HERO_KEYS[origin.key] : undefined) ?? label;
+  if (!key) return null;
+  return isBaked(key, props.text, live) ? key : null;
+}
+
+/** Any proof line already in this subtree (bound, labelled, or at the design's key), baked or hers. */
+function hasProofLine(nodes: readonly BuilderNode[]): boolean {
+  return nodes.some((n) => {
+    if (n.kind === "paragraph") {
+      const props = propsOf(n);
+      if (props.liveText === "hero_proof" || props.layerLabel === "Hero proof") return true;
+      const origin = readOrigin(n);
+      if (origin?.design === "maison-v2" && LEGACY_HERO_KEYS[origin.key] === "hero_proof") return true;
+    }
+    const kids = (n as AnyNode).children;
+    return Array.isArray(kids) && hasProofLine(kids);
+  });
 }
 
 function applyOne(node: BuilderNode, live: TalentLiveText): BuilderNode {
@@ -137,7 +176,7 @@ export function applyTalentLiveText(tree: BuilderNode[], live: TalentLiveText): 
     let next = kids.map(visit).filter((k): k is BuilderNode => k !== null);
     // The hero without a proof line: put one under the buttons when she has facts to show.
     if (maisonKey(node) === "hero/container" && live.values.hero_proof?.trim()) {
-      const hasProof = next.some((k) => propsOf(k).liveText === "hero_proof");
+      const hasProof = hasProofLine(kids) || hasProofLine(next);
       const at = next.findIndex((k) => maisonKey(k) === "hero/container/container");
       if (!hasProof && at >= 0) {
         next = [...next.slice(0, at + 1), applyOne(proofParagraph(node.id), live), ...next.slice(at + 1)];
@@ -174,6 +213,7 @@ export function treeHasLiveCandidates(tree: readonly BuilderNode[]): boolean {
       if (isLiveTextKey(propsOf(n).liveText)) return true;
       const origin = readOrigin(n);
       if (origin?.design === "maison-v2" && origin.key in LEGACY_HERO_KEYS) return true;
+      if (typeof propsOf(n).layerLabel === "string" && propsOf(n).layerLabel as string in LEGACY_LABELS) return true;
     }
     const kids = (n as AnyNode).children;
     return Array.isArray(kids) && treeHasLiveCandidates(kids);

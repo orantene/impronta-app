@@ -55,6 +55,7 @@ export function GuestComposerOfferingStrip({
   accent,
   surfaceMode,
   v5,
+  hideAskCard = false,
 }: {
   showGate: boolean;
   offerPreview: boolean;
@@ -69,6 +70,8 @@ export function GuestComposerOfferingStrip({
   accent: string;
   surfaceMode?: SurfaceMode;
   v5?: GuestThreadV5Extras | null;
+  /** Card skin: the card footer draws the asking-about card, so this strip must not. */
+  hideAskCard?: boolean;
 }) {
   if (showGate) return null;
 
@@ -82,6 +85,7 @@ export function GuestComposerOfferingStrip({
 
   // AUD-044 — Ask from the catalog selection dock: context card + quick chips.
   if (pending?.askAbout && pending.askAbout.length > 0 && !offerPosture) {
+    if (hideAskCard) return null;
     const prefix = catalogBookingDraftPrefix(pending, pending.selection, locale);
     return (
       <GuestAskAboutCard

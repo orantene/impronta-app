@@ -9,15 +9,16 @@
  *   ⤢  expand to full screen
  *   ✕  close
  *
- * The icons ARE the tab switchers (a second tap returns to Hablar). The tab
- * strip itself (GuestDockNav) shows only away from Hablar, so there is never
- * a duplicated control on the home view. Colours are `--cc-*` vars.
+ * The icons ARE the navigation (a second tap returns to Hablar); there is no
+ * tab strip. Away from Hablar a slim "Back to chat" link (`CardDockBack`) sits
+ * under the header. Expand shows on desktop only. Colours are `--cc-*` vars.
  */
 
 import { Calendar, Maximize2, Minimize2 } from "lucide-react";
-import type { CSSProperties } from "react";
+import { useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 import type { MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
 import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
@@ -27,6 +28,51 @@ import { StatusLine } from "./GuestPanelHeader";
 import { CARD_PALETTE } from "./mini-chat-styles";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import a11y from "./mini-chat-a11y.module.css";
+
+const DESKTOP_QUERY = "(min-width: 900px)";
+function subscribeDesktop(cb: () => void) {
+  if (typeof window.matchMedia !== "function") return () => undefined;
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function useIsDesktop(): boolean {
+  return useSyncExternalStore(subscribeDesktop, () => typeof window.matchMedia !== "function" || window.matchMedia(DESKTOP_QUERY).matches, () => false);
+}
+
+/** The slim way back to Hablar from Servicios / Mis citas. */
+export function CardDockBack({ label, onBack }: { label: string; onBack: () => void }) {
+  return (
+    <button
+      type="button"
+      data-card-dock-back=""
+      onClick={onBack}
+      className={a11y.focusRing}
+      style={{ alignSelf: "flex-start", margin: "10px 16px 0", padding: "4px 0", border: 0, background: "transparent", color: "var(--cc-muted)", fontSize: 13, fontFamily: "var(--cc-font)", cursor: "pointer", flex: "0 0 auto" }}
+    >
+      {"\u2190"} {label}
+    </button>
+  );
+}
+
+/** One compact line once she has a selection ("1 servicio · falta el día"); nothing before. */
+export function CardDockRail({ count, label, t, onOpenDetails }: { count: number; label: string | null; t: Translator; onOpenDetails: (() => void) | null }) {
+  if (count <= 0) return null;
+  const tail = label ? label.charAt(0).toLowerCase() + label.slice(1) : "";
+  const text = interpolate(t(count === 1 ? "public.guestChat.cardRailOne" : "public.guestChat.cardRailMany"), { count, label: tail }).replace(/ \u00b7 $/, "");
+  return (
+    <button
+      type="button"
+      data-card-dock-rail=""
+      onClick={() => onOpenDetails?.()}
+      disabled={!onOpenDetails}
+      className={a11y.focusRing}
+      style={{ alignSelf: "stretch", margin: "8px 16px 0", padding: "6px 12px", border: 0, borderRadius: 999, background: "var(--cc-bg)", color: "var(--cc-ink)", fontSize: 12.5, fontFamily: "var(--cc-font)", textAlign: "left", cursor: onOpenDetails ? "pointer" : "default", flex: "0 0 auto" }}
+    >
+      {text}
+    </button>
+  );
+}
 
 const ROUND_BTN: CSSProperties = {
   position: "relative",
@@ -88,6 +134,23 @@ function XIcon() {
   );
 }
 
+/** Always present: the photo, or her initial when there is none or it fails to load. */
+export function CardDockAvatar({ photo, name }: { photo: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const size: CSSProperties = { width: 38, height: 38, borderRadius: "50%", flex: "0 0 auto" };
+  if (photo && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- tenant avatar URL, small
+      <img data-card-dock-avatar="" src={photo} alt="" width={38} height={38} onError={() => setFailed(true)} style={{ ...size, objectFit: "cover" }} />
+    );
+  }
+  return (
+    <span data-card-dock-avatar="" aria-hidden style={{ ...size, display: "grid", placeItems: "center", background: "var(--cc-accent)", color: "var(--cc-on)", fontWeight: 600, fontSize: 15 }}>
+      {name.trim().charAt(0).toUpperCase() || "?"}
+    </span>
+  );
+}
+
 export function CardDockHeader({
   brand,
   card,
@@ -124,14 +187,15 @@ export function CardDockHeader({
 }) {
   const name = brand.talentDisplayName || brand.agencyName;
   const photo = brand.photoUrl ?? brand.logoUrl ?? null;
-  const subline = [card.replyLabel, card.city].filter(Boolean).join(" · ");
+  const subline = card.replyLabel ?? card.city ?? "";
+  const desktop = useIsDesktop();
   const toggle = (view: GuestDockView) => onViewChange?.(activeView === view ? "chat" : view);
   const Expand = expanded ? Minimize2 : Maximize2;
   return (
     <div
       data-card-dock-header=""
       style={{
-        padding: "14px 14px 10px",
+        padding: "14px 16px 12px",
         display: "flex",
         alignItems: "center",
         gap: 8,
@@ -139,10 +203,7 @@ export function CardDockHeader({
         flex: "0 0 auto",
       }}
     >
-      {photo ? (
-        // eslint-disable-next-line @next/next/no-img-element -- tenant avatar URL, small
-        <img src={photo} alt="" width={38} height={38} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flex: "0 0 auto" }} />
-      ) : null}
+      <CardDockAvatar photo={photo} name={name} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <b style={{ display: "block", fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</b>
         {threadState !== "new" ? (
@@ -179,7 +240,7 @@ export function CardDockHeader({
           <Badge n={projectsCount} />
         </button>
       ) : null}
-      {onToggleExpand ? (
+      {onToggleExpand && desktop ? (
         <button
           type="button"
           onClick={onToggleExpand}

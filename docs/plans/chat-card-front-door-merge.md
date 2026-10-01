@@ -82,3 +82,33 @@ The card Servicios tab now shows, top to bottom:
 - The tray counts the inquiry lineup (the dock's selection). A service picked in the booking selection dock lives in
   that page-level component and is not readable from the chat yet.
 - Expanded mode on desktop is a taller card, not the 2-pane list used by the standard dock.
+
+## Round 2 (owner-approved audit, supersedes the sections above where they differ)
+
+Header
+- The photo always shows (a monogram tile when there is none or it fails). No tab strip: the header round buttons
+  (list = Servicios, calendar = Mis citas, both with count badges) are the navigation; away from Hablar a slim
+  "Back to chat" link sits under the header. Expand shows on desktop (900px and up) only; phones keep list, calendar, close.
+- Subtitle: the honest reply time when known, else the city.
+
+Hablar, top to bottom: "Volver a mi reserva" strip, her greeting bubble, flexible space, then the context card and the
+chips directly above the composer. One opaque surface (a solid base under the token surface, on the sheet and the scroll
+body). ONE context card (the dock strip stays silent in the card skin). The composer opens empty (the booking-sheet draft
+prefix is not applied in the card skin); the "nothing is sent until you tap send" line is the composer placeholder, with
+no separate line. Chips are one horizontally scrolling row; with a service in context the first two are phrased about it.
+
+Progress rail: hidden until she has a selection, then one compact line ("1 servicio · falta el dia").
+
+Servicios: ONE list. Pills on top, "Mas pedido" first and selected (her first three), the other pills filter the same
+list, no service twice (the dock catalog is not drawn under it in this skin). Row = thumbnail or icon tile, name, price,
+one primary pill: "Agregar" for a fixed price (instant or request), "Pedir cotizacion" for a quote; tapping the name asks
+about it. No Guardar. The "≈ US$" part shows only to visitors outside the talent's locale; Spanish visitors get one
+"Precios en MXN" note. Variant-based "Elegir opciones" is NOT distinguished: the menu data carries no variants flag, and
+the add-service event already opens the sheet when options are needed.
+
+Mis citas: empty shows only the empty state and a "Ver servicios" button (opens Servicios); the filters appear with items.
+
+Spacing: 16px gutters, 12px rhythm, filled chips and soft cards without borders, one header divider. Phone sheet opens at
+about 85% height with a drag handle, full height only while an input has focus. Desktop: floating 400px by 640px card.
+
+Left in place: `CardChatServiceBrowser` (and its tests) in `CardChatExtras.tsx` is no longer rendered; it can go next pass.

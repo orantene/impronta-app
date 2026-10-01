@@ -6,9 +6,11 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { zoneLabel } from "@/lib/talent/location-settings";
 import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
 
+import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import type { TalentLiveText } from "../live-text";
 import { buildTalentLiveText, type LiveTextSource } from "../live-text-values";
-import type { LocalizedMapLike } from "../talent-locale-swaps";
+import { pick, type LocalizedMapLike } from "../talent-locale-swaps";
+import { canonicalCityLabel } from "./city-label.server";
 import { loadMenuCurrency } from "./load-starter-data";
 import { loadTalentSocialLinks } from "./talent-social-links";
 import { loadProofInput } from "./talent-locale-swaps.server";
@@ -16,6 +18,7 @@ import { loadProofInput } from "./talent-locale-swaps.server";
 type Row = {
   display_name: string | null;
   first_name: string | null;
+  home_city_text: string | null;
   talent_profile_taxonomy:
     | Array<{
         is_primary: boolean | null;
@@ -47,7 +50,7 @@ export async function loadTalentLiveText(
     const { data, error } = await admin
       .from("talent_profiles")
       .select(`
-        display_name, first_name,
+        display_name, first_name, home_city_text,
         talent_profile_taxonomy ( is_primary, display_order, taxonomy_terms ( kind, name_i18n ) ),
         talent_service_areas ( service_kind, locations ( display_name_i18n ) )
       `)
@@ -65,6 +68,10 @@ export async function loadTalentLiveText(
     const city = (row.talent_service_areas ?? []).find((a) => a.service_kind === "home_base")?.locations
       ?.display_name_i18n;
 
+    // The city as the Location section reads it: accented via the locations table, with her saved city text as the hint.
+    const hint = cityLabelFromPlaceText(row.home_city_text);
+    const cityRaw = pick(city, locale?.toLowerCase().startsWith("es") ? "es" : "en", chain) || hint || "";
+    const cityLabel = cityRaw ? await canonicalCityLabel(admin, cityRaw, locale ?? "en", [hint]) : "";
     const [scalars, proof, visit, social, menuCurrency] = await Promise.all([
       readScalarFieldValuesFromCatalog(admin, talentProfileId),
       loadProofInput(admin, talentProfileId),
@@ -76,6 +83,7 @@ export async function loadTalentLiveText(
       displayName: row.display_name?.trim() || row.first_name?.trim() || "",
       trade,
       city,
+      cityLabel,
       headline: scalars.headline ?? null,
       tagline: scalars.tagline ?? null,
       // `years_total` from the profile editor wins; the proof loader's read is the fallback.

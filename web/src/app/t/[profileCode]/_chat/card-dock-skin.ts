@@ -16,6 +16,12 @@ import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 
 import { C, FONT } from "./mini-chat-styles";
 
+/**
+ * An OPAQUE surface: the token layer on top of the chat palette's solid white.
+ * A missing or translucent token can never let the page show through the chat.
+ */
+export const CARD_SOLID_BG = `linear-gradient(var(--cc-surface), var(--cc-surface)), ${C.surface}`;
+
 /** Theme value, then page token var, then chat palette. */
 function tone(value: string | null, tokenVar: string, fallback: string): string {
   return value ?? `var(${tokenVar}, ${fallback})`;
@@ -41,7 +47,7 @@ export function cardFrameStyle(compact: boolean, expanded: boolean, keyboardInse
     zIndex: 96,
     display: "flex",
     flexDirection: "column",
-    background: "var(--cc-surface)",
+    background: CARD_SOLID_BG,
     color: "var(--cc-ink)",
     fontFamily: "var(--cc-font)",
     overflow: "hidden",
@@ -57,7 +63,7 @@ export function cardFrameStyle(compact: boolean, expanded: boolean, keyboardInse
       left: 0,
       right: 0,
       bottom: lift,
-      height: "min(86dvh, 720px)",
+      height: "min(85dvh, 720px)",
       borderRadius: "24px 24px 0 0",
       borderTop: "1px solid var(--cc-line)",
       paddingBottom: "env(safe-area-inset-bottom)",

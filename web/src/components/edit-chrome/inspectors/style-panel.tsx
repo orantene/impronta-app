@@ -53,6 +53,7 @@ import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
 import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput, InspectorInfoTip, InspectorLabelWithInfo } from "./kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
+import { StyleContainerQuery } from "./style-container-query";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
@@ -181,13 +182,6 @@ const STANDALONE_STYLE_SCOPE_OPTIONS: ReadonlyArray<
 > = [
   { value: "viewport", label: "Screen" },
   { value: "container", label: "Container" },
-];
-const BUILDER_NODE_CONTAINER_TYPE_OPTIONS: ReadonlyArray<
-  SegmentedOption<string>
-> = [
-  { value: "", label: "Off" },
-  { value: "inline-size", label: "Width" },
-  { value: "size", label: "Size" },
 ];
 
 const HORIZONTAL_MODE_OPTIONS: ReadonlyArray<SegmentedOption<HorizontalSpacingMode>> = [
@@ -4916,87 +4910,12 @@ export function StylePanel({
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <details
-                className="rounded-[10px] border px-2.5 py-1.5"
-                data-builder-node-style-control="containerQueries"
-                open={Boolean(
-                  selectedStandaloneFullStyle?.containerType ||
-                    selectedStandaloneFullStyle?.containerName,
-                )}
-                style={{
-                  borderColor: CHROME.lineStrong,
-                  background: CHROME.surface,
-                  boxShadow: "0 1px 2px rgba(17,24,39,0.03)",
-                }}
-              >
-                <summary
-                  className="flex cursor-pointer list-none items-center justify-between gap-2 py-1"
-                  style={{ outline: "none" }}
-                >
-                  <span className={FIELD_LABEL}>{t("Query container")}</span>
-                  <span
-                    className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
-                    style={{
-                      color: selectedStandaloneFullStyle?.containerType
-                        ? CHROME.accent
-                        : CHROME.muted,
-                      background: selectedStandaloneFullStyle?.containerType
-                        ? "rgba(124,58,237,0.08)"
-                        : "rgba(24,24,27,0.05)",
-                    }}
-                  >
-                    {(() => {
-                      const active = BUILDER_NODE_CONTAINER_TYPE_OPTIONS.find(
-                        (o) =>
-                          o.value ===
-                          (selectedStandaloneFullStyle?.containerType ?? ""),
-                      );
-                      const label =
-                        typeof active?.label === "string"
-                          ? active.label
-                          : "On";
-                      return selectedStandaloneFullStyle?.containerType
-                        ? t(label)
-                        : t("Off");
-                    })()}
-                  </span>
-                </summary>
-                <div className="mt-2 flex flex-col gap-2">
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedStandaloneFullStyle?.containerType ?? ""}
-                    onChange={(next) =>
-                      patchSelectedBaseStyle({
-                        containerType:
-                          (next || undefined) as BuilderNodeStyleValue["containerType"],
-                      })
-                    }
-                    options={BUILDER_NODE_CONTAINER_TYPE_OPTIONS}
-                  />
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      width: "100%",
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder={t("container name")}
-                    value={selectedStandaloneFullStyle?.containerName ?? ""}
-                    onChange={(e) =>
-                      patchSelectedBaseStyle({
-                        containerName: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
-              </details>
+              // Collapsible container-query control; lives in
+              // ./style-container-query.tsx to keep this file in budget.
+              <StyleContainerQuery
+                style={selectedStandaloneFullStyle}
+                onPatch={patchSelectedBaseStyle}
+              />
             ) : null}
 
             {selectedInstanceComponentId && selectedBuilderNodeId ? (
