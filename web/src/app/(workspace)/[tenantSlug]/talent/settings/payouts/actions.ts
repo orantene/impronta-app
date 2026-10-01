@@ -12,6 +12,7 @@
  * for client redirect.
  */
 
+import { usdcPayoutOffer } from "@/lib/payments/usdc-payout-offer";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
@@ -252,15 +253,17 @@ export async function createTalentDashboardLinkAction(): Promise<
  * path. Returns a human country label for the badge.
  */
 export async function loadTalentStablecoinEligibility(): Promise<
-  | { ok: true; eligible: boolean; countryLabel: string | null }
+  | { ok: true; eligible: boolean; recommended: boolean; countryLabel: string | null }
   | { ok: false; error: string }
 > {
   const tp = await resolveOwnTalentProfileId();
   if (!tp.ok) return { ok: false, error: tp.error };
   const r = await getTalentStablecoinEligibility(tp.id);
+  const offer = usdcPayoutOffer(r.country);
   return {
     ok: true,
-    eligible: r.eligible,
+    eligible: offer.eligible,
+    recommended: offer.recommended,
     countryLabel: r.country ? payoutCountryLabel(r.country) : null,
   };
 }
