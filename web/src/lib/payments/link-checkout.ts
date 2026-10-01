@@ -25,6 +25,7 @@ import {
   expireCheckoutSession,
   retrieveCheckoutSessionLink,
 } from "@/lib/payments/stripe-checkout";
+import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
 
 
@@ -264,8 +265,7 @@ async function openOnce(
   if (!transactionId || !bookingId) return { ok: false, reason: "unavailable" };
 
   // ── 5. The session, for that row, dying with the claim.
-  const { data: payeeRow } = await admin.from("agencies").select("display_name").eq("id", link.tenant_id).maybeSingle();
-  const payeeName = (payeeRow as { display_name: string | null } | null)?.display_name ?? null;
+  const payeeName = await resolvePayeeName(admin, link.tenant_id);
   const session = await (deps.createCheckoutSession ?? createCheckoutSessionForTransaction)({
     transactionId,
     amountCents,
