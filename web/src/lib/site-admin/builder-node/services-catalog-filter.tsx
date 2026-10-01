@@ -21,7 +21,7 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { CatalogPurchaseMount } from "@/components/public-booking/CatalogPurchaseMount";
-import { catalogBarPriceLabel } from "./services-catalog-bar-price";
+import { catalogBarPriceLabel, catalogRowPriceText } from "./services-catalog-bar-price";
 import { ServicesCatalogDemoToast, useDemoToast } from "./services-catalog-demo-toast";
 import { catalogDurationShort, railCount } from "./services-catalog-format";
 import { ChatIcon, SelectionDock } from "@/components/public-booking/SelectionDock";
@@ -32,6 +32,7 @@ import {
 } from "@/components/public-booking/selection-dock-state";
 import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
 import { useChatAddService } from "@/components/public-booking/use-chat-add-service";
+import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
 import {
@@ -288,6 +289,9 @@ export function ServicesCatalogFilter({
     ];
   });
   const dockCurrency = dock.picked[0]?.currency ?? "MXN";
+  // CH-3: a service picked here (sheet never opened) still gets "Volver a mi reserva" in the chat.
+  const front = dockItems[0];
+  useDockBookingResume(front ? { title: front.title, totalCents: front.totalCents, priceLabel: front.priceLabel, currency: dockCurrency } : null, continueFromBar);
 
 
   const removeFront = () => {
@@ -642,24 +646,10 @@ export function CatalogRow({
             ? "Por cotización"
             : "By quote"
         : null;
-  // One-line price for the meta row: "Desde $650" / "$900" / "A cotizar".
-  const money = minCents == null ? "" : formatMoney(minCents, item.currency, locale);
-  // Priced per unit ("Desde $120 por uña"): the unit replaces the duration.
-  const unit = offeringPriceUnit(item.attributes, locale);
-  const perUnit = !!unit && !onRequest && !quote && minCents != null;
-  const priceText = perUnit
-    ? `${es ? "Desde" : "From"} ${money} ${es ? "por" : "per"} ${unit}`
-    : onRequest || quote || minCents == null
-      ? es
-        ? onRequest
-          ? "Bajo consulta"
-          : "A cotizar"
-        : onRequest
-          ? "On request"
-          : "Quote"
-      : ladder
-        ? `${es ? "Desde" : "From"} ${money}`
-        : money;
+  // One-line price for the meta row: "Desde $120 por uña" / "Desde $650" / "$900" / "A cotizar".
+  const priceText = catalogRowPriceText(item, locale);
+  // Priced per unit: the unit replaces the duration in the meta row.
+  const perUnit = !!offeringPriceUnit(item.attributes, locale) && !onRequest && !quote && minCents != null;
   const badges: string[] = [];
   if (showBadges) {
     if (derived.effectiveMode === "instant") badges.push(es ? "Reserva inmediata" : "Instant booking");

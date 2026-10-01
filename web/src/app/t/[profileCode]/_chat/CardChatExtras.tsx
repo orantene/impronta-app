@@ -131,7 +131,7 @@ export function CardChatBackToBooking({
   t: Translator;
   onBack: () => void;
 }) {
-  const sub = [resume.title, resume.totalCents != null ? formatMoney(resume.totalCents, resume.currency, locale) : null]
+  const sub = [resume.title, resume.priceLabel ?? (resume.totalCents != null ? formatMoney(resume.totalCents, resume.currency, locale) : null)]
     .filter(Boolean)
     .join(", ");
   return (
@@ -166,8 +166,9 @@ export function CardChatBackToBooking({
 }
 
 function priceLine(o: ChatOffering, locale: string, t: Translator): string {
-  const price = o.amountCents == null ? t("public.guestChat.cardBrowseQuote") : formatMoney(o.amountCents, o.currency, locale);
-  return o.durationMinutes ? `${o.durationMinutes} min · ${price}` : price;
+  // The menu's own price line when the page supplied it; the plain fallback otherwise.
+  const price = o.priceLabel ?? (o.amountCents == null ? t("public.guestChat.cardBrowseQuote") : formatMoney(o.amountCents, o.currency, locale));
+  return o.durationMinutes && !o.priceIsPerUnit ? `${o.durationMinutes} min · ${price}` : price;
 }
 
 /** CH-4: the service list that swaps with the thread (the header list button toggles it). */

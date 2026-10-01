@@ -10,12 +10,19 @@
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
 export type BookingResumeSnapshot = {
-  detail: OfferingRequestDetail;
+  /**
+   * The sheet's service when she left from inside the sheet. `null` when the
+   * selection lives only in the menu dock (picked, sheet never opened): the
+   * dock then continues exactly as its Continuar button does.
+   */
+  detail: OfferingRequestDetail | null;
   /** The step she left from; "done" is never stashed. */
   step: "choose" | "when" | "who";
   title: string;
   totalCents: number | null;
   currency: string;
+  /** The menu's own price line ("Desde $120") when the total is not exact. */
+  priceLabel?: string | null;
 };
 
 /** Fired by the chat; the booking sheet listens and re-opens from the snapshot. */
@@ -50,7 +57,7 @@ export function subscribeBookingResume(fn: () => void): () => void {
   };
 }
 
-/** Ask the sheet to re-open where she left it. No-op when nothing was stashed. */
+/** Ask the sheet (or, for a dock-only selection, the dock) to carry on where she left it. No-op when nothing was stashed. */
 export function requestBookingResume(): void {
   if (typeof window === "undefined" || snapshot === null) return;
   window.dispatchEvent(new window.CustomEvent(BOOKING_RESUME_EVENT));

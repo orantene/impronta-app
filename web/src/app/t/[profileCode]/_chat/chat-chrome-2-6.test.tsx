@@ -215,6 +215,23 @@ test("CH-4 the in-chat list shows each service with Add and Ask, and a way back"
   unmount();
 });
 
+test("CH-4 the list uses the menu's own price line: per unit, from, quote", async () => {
+  const { catalogRowPriceText } = await import("@/lib/site-admin/builder-node/services-catalog-bar-price");
+  const base = { visibility: "public", priceDisplay: "exact", priceType: "flat_package", amountCents: 12000, currency: "MXN", variants: [], attributes: {} } as never;
+  assert.equal(catalogRowPriceText({ ...(base as object), attributes: { price_unit: "nail" } } as never, "es").startsWith("Desde"), true, "per unit shows Desde");
+  assert.equal(catalogRowPriceText({ ...(base as object), amountCents: null, priceDisplay: "quote" } as never, "es"), "A cotizar");
+  assert.equal(catalogRowPriceText({ ...(base as object), visibility: "on_request" } as never, "en"), "On request");
+  // The browser prints that line and drops the duration for a per-unit price.
+  const o = { ...OFFERINGS[0]!, priceLabel: "Desde $120 por uña", priceIsPerUnit: true };
+  const { host, unmount } = render(
+    <CardChatServiceBrowser offerings={[o]} locale="es" t={es} onAdd={() => undefined} onAsk={() => undefined} onBack={() => undefined} />,
+  );
+  const row = host.querySelector("[data-card-chat-service]")!.textContent ?? "";
+  assert.match(row, /Desde \$120 por uña/);
+  assert.doesNotMatch(row, /75 min/);
+  unmount();
+});
+
 test("CH-4 an empty catalog says so instead of showing a blank panel", () => {
   const { host, unmount } = render(
     <CardChatServiceBrowser offerings={[]} locale="en" t={en} onAdd={() => undefined} onAsk={() => undefined} onBack={() => undefined} />,
