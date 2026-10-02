@@ -504,7 +504,7 @@ export async function handleBookingRefund(
   if (ref.bookingId) {
     try {
       const sbFees = d.resolveSupabase();
-      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshots(sbFees, ref.bookingId));
+      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshots(sbFees, ref.bookingId)) ?? 0;
     } catch {
       /* fall back to the legacy full-charge comparison */
     }
