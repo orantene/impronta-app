@@ -57,6 +57,28 @@ describe("agendaMoneyRows", () => {
     );
     assert.equal(out.waiting.length, 0);
     assert.equal(out.owed.length, 0);
+    assert.equal(out.refundPending.length, 0);
+  });
+
+  it("surfaces paid_after_cancellation as refund pending on Money", () => {
+    const out = agendaMoneyRows(
+      [
+        {
+          ...base,
+          id: "pac",
+          kind: "booking",
+          booking: "cancelled",
+          payment: "refund_pending",
+          money: { totalCents: 30000, paidCents: 30000, dueCents: 0, currency: "MXN" },
+        },
+      ],
+      now,
+    );
+    assert.equal(out.waiting.length, 0);
+    assert.equal(out.owed.length, 0);
+    assert.equal(out.refundPending.length, 1);
+    assert.equal(out.refundPending[0]!.kind, "refund_pending");
+    assert.equal(out.refundPending[0]!.amountCents, 30000);
   });
 });
 

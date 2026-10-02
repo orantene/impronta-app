@@ -62,12 +62,14 @@ export function derivePaymentState(input: {
   startsAt?: string | null;
 }): PaymentState {
   if (input.managedByAgency) return "agency";
+  // Paid after cancel (or an explicit refund-pending txn) must surface before
+  // the cancelled short-circuit — Money shows "Refund pending" / "Reembolso pendiente".
+  if (input.refundPending || input.transactionStatus === "refund_pending") {
+    return "refund_pending";
+  }
   // Cancelled work is never owed / awaiting — Money "waiting" must not count it.
   if (input.booking === "cancelled" || input.booking === "hold_expired" || input.booking === "no_show") {
     return "none";
-  }
-  if (input.refundPending || input.transactionStatus === "refund_pending") {
-    return "refund_pending";
   }
   if (
     input.checking ||

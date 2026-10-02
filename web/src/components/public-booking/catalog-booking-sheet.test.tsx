@@ -707,3 +707,31 @@ test("ES: the booking sheet renders no English UI chrome on the choose step", ()
   );
   unmount();
 });
+
+test("Track D10: quote tulala:offering-request never opens the booking sheet", () => {
+  const sheet = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "CatalogBookingSheet.tsx"), "utf8");
+  assert.match(sheet, /priceDisplay === "quote"/);
+  assert.match(sheet, /openCatalogBookingChat/);
+
+  const book = mockBook();
+  const { host, unmount } = mount("demo", book);
+  const asks: Event[] = [];
+  const onAsk = (e: Event) => asks.push(e);
+  dom.window.addEventListener("tulala:ask-question", onAsk);
+  act(() => {
+    dom.window.dispatchEvent(
+      new dom.window.CustomEvent("tulala:offering-request", {
+        detail: detail({
+          priceDisplay: "quote",
+          priceType: "custom",
+          amountCents: null,
+          intent: "request",
+        }),
+      }),
+    );
+  });
+  assert.equal(host.querySelector(".jb-back"), null, "quote must not open the sheet");
+  assert.equal(asks.length, 1, "quote redirects to ask chat");
+  dom.window.removeEventListener("tulala:ask-question", onAsk);
+  unmount();
+});

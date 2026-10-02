@@ -204,7 +204,7 @@ export type MoneyAgendaRow = {
   /** null when no price is agreed yet: the page says so instead of printing $0. */
   amountCents: number | null;
   currency: string;
-  kind: "deposit" | "balance";
+  kind: "deposit" | "balance" | "refund_pending";
   overdue: boolean;
   /** Overdue, or the appointment is today or earlier. */
   dueByToday: boolean;
@@ -221,16 +221,18 @@ type AgendaMoneyInput = Pick<
  * Money the agenda already knows about but the earnings ledger does not:
  *   - owed: balances due on booked work (due, part paid, overdue, or finished unpaid),
  *   - waiting: deposits and payments requested on holds and bookings that are
- *     not owed yet ("Payment requests waiting" in mockup mc_outstanding).
+ *     not owed yet ("Payment requests waiting" in mockup mc_outstanding),
+ *   - refundPending: paid_after_cancellation rows ("Refund pending" / "Reembolso pendiente").
  */
 export function agendaMoneyRows(
   items: readonly AgendaMoneyInput[],
   now: Date,
-): { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[] } {
+): { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[]; refundPending: MoneyAgendaRow[] } {
   const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
   const owed: MoneyAgendaRow[] = [];
   const waiting: MoneyAgendaRow[] = [];
+  const refundPending: MoneyAgendaRow[] = [];
   for (const item of items) {
     if (item.kind !== "booking" && item.kind !== "hold") continue;
     if (
@@ -239,7 +241,8 @@ export function agendaMoneyRows(
       item.booking === "no_show" ||
       item.booking === "requested"
     ) {
-      continue;
+      // Cancelled still surfaces when money landed after cancel (refund pending).
+      if (item.payment !== "refund_pending") continue;
     }
     const name = item.client?.name ?? item.title;
     const base = {
@@ -253,6 +256,22 @@ export function agendaMoneyRows(
       orderId: item.orderId ?? null,
       bookingHref: `/talent/bookings/${item.id}`,
     };
+    if (item.payment === "refund_pending") {
+      refundPending.push({
+        ...base,
+        kind: "refund_pending",
+        amountCents: item.money.paidCents > 0 ? item.money.paidCents : null,
+      });
+      continue;
+    }
+    if (
+      item.booking === "cancelled" ||
+      item.booking === "hold_expired" ||
+      item.booking === "no_show" ||
+      item.booking === "requested"
+    ) {
+      continue;
+    }
     const unpaid = (item.money.paidCents ?? 0) === 0;
     const finishedUnpaid =
       item.booking === "completed" &&
@@ -269,7 +288,11 @@ export function agendaMoneyRows(
     }
   }
   const byDate = (a: MoneyAgendaRow, b: MoneyAgendaRow) => a.startsAt.localeCompare(b.startsAt);
-  return { owed: owed.sort(byDate), waiting: waiting.sort(byDate) };
+  return {
+    owed: owed.sort(byDate),
+    waiting: waiting.sort(byDate),
+    refundPending: refundPending.sort(byDate),
+  };
 }
 
 /**

@@ -80,6 +80,11 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Deposits and payments you asked for on holds and bookings. Not owed until the time is booked.":
     "Depósitos y pagos que pediste en holds y reservas. No se deben hasta que el horario quede reservado.",
   "No requests waiting.": "No hay solicitudes en espera.",
+  "Refund pending": "Reembolso pendiente",
+  "refund pending": "reembolso pendiente",
+  "refunds pending": "reembolsos pendientes",
+  "Money arrived after a cancellation. Refund from the booking.":
+    "Llegó dinero después de una cancelación. Reembolsa desde la reserva.",
   "Deposit requested": "Depósito solicitado",
   "Balance due": "Saldo pendiente",
   "Amount not set": "Monto sin definir",

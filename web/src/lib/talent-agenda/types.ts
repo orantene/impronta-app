@@ -83,6 +83,11 @@ export interface TalentAgendaItem {
   orderId?: string;
   /** agency_bookings.payment_method when present (cash | transfer | other). */
   paymentMethod?: string | null;
+  /**
+   * Offer accepted (or quote) with no agreed time yet. Not on the calendar
+   * grid; Today shows these in the "No time" / "Sin hora" strip.
+   */
+  unscheduled?: boolean;
   tradeSection?: { kind: TradeSectionKind; payload: Record<string, unknown> };
   history: { at: string; text: string }[];
 }

@@ -38,6 +38,7 @@ import {
 } from "@/lib/talent-agenda/today-view";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
   who: "Your name and what you do",
@@ -200,9 +201,15 @@ export function AgendaTodayPage({
   }, [copy.isSpanish, ledgerTiles, onOpenMoney]);
 
   const derived = todayFromAgenda(items, clock);
-  const attention = derived.attention;
-  const appointments = todayAppointments(items, clock);
-  const upNext = upNextDay(items, clock);
+  const attention = derived.attention.filter((item) => !item.unscheduled);
+  const noTime = unscheduledAgendaItems(items);
+  const appointments = todayAppointments(items, clock).filter((item) => !item.unscheduled);
+  const upNext = (() => {
+    const next = upNextDay(items, clock);
+    if (!next) return null;
+    const filtered = next.items.filter((item) => !item.unscheduled);
+    return filtered.length ? { ...next, items: filtered } : null;
+  })();
   const totals = todayTotals(
     items,
     clock,
@@ -614,6 +621,40 @@ export function AgendaTodayPage({
               })
             )}
           </section>
+
+          {noTime.length > 0 ? (
+            <section className={CARD} data-testid="today-no-time">
+              <CardHead>
+                <CardTitle>{copy.t("No time")}</CardTitle>
+                <span className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[12px] font-semibold text-[var(--tc-primary)]">
+                  {noTime.length}
+                </span>
+              </CardHead>
+              {noTime.map((item) => {
+                const who = item.client?.name ?? item.title;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-black/10 px-4 py-3"
+                  >
+                    <button
+                      type="button"
+                      onClick={open(item.id)}
+                      className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left"
+                    >
+                      <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{who}</div>
+                      <div className="mt-px text-[12.5px] text-black/70">
+                        {[item.title !== who ? item.title : "", copy.t("No time assigned")]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </button>
+                    <ActionButton label={copy.t("Set a time")} onClick={open(item.id)} />
+                  </div>
+                );
+              })}
+            </section>
+          ) : null}
 
           <section className={CARD} data-testid="today-agenda">
             <CardHead>

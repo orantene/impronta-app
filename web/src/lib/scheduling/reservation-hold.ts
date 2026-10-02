@@ -181,6 +181,22 @@ export async function placeReservationHold(
     }
     return mapHoldInsertError(error);
   }
+
+  // TOCTOU: a booking can land between the busy check and the hold insert.
+  // Holds do not share an exclusion constraint with talent_bookings, so
+  // re-check and release if the window is no longer free.
+  const stillFree = await checkReservationWindowFree(admin, {
+    talentProfileId: input.talentProfileId,
+    startsAt,
+    endsAt,
+  });
+  if (!stillFree.ok) {
+    await admin.from("talent_holds").delete().eq("id", data.id);
+    return stillFree.code === "unavailable"
+      ? { ok: false, code: "unavailable", error: "Could not check that time. Try again." }
+      : { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." };
+  }
+
   return { ok: true, holdId: data.id as string, expiresAt };
 }
 

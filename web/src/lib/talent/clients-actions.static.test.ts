@@ -53,4 +53,8 @@ describe("loadTalentClients column contract", () => {
     // clients-merge; consumers import it from there.
     assert.doesNotMatch(src, /^export\s+type\s+\{/m);
   });
+
+  it("skips cancelled agency_bookings when building owed balances (Track D2)", () => {
+    assert.match(src, /if \(booking\.status === "cancelled"\) continue;/);
+  });
 });
