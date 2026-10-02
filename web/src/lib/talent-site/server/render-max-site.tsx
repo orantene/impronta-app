@@ -345,11 +345,8 @@ export async function renderTalentMaxSite(
       talentName: identity?.name ?? null,
     });
 
-    // Published, publicly visible catalog services -> Person.makesOffer. A load
-    // failure degrades to no services, never to a failed render.
-    const jsonLdServices = offeringsToJsonLdServices(
-      await loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []),
-    );
+    // Public services -> Person.makesOffer; a load failure means no services, never a failed render.
+    const jsonLdServices = offeringsToJsonLdServices(await loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []));
 
     const seo = buildMaxSiteSeo({
       services: jsonLdServices,
@@ -444,7 +441,6 @@ async function renderMaxSiteDocument(args: {
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
   // with no tenant-scoped bindings — so it renders without a data-source load.
-  //
   // Exception: unrostered / free personal Max sites have `tenantId === null`,
   // which used to skip data sources entirely. Hablar/dock still loaded
   // offerings, but `services_catalog` rendered the empty state. Load catalog

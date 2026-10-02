@@ -28,8 +28,6 @@ const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "fresh", label: "New" },
 ];
 
-/** Set by TalentClientsPage each render (children format after the parent runs). */
-let dateLocale: string | undefined;
 
 function formatMoney(cents: number, currency: string | null): string {
   const amount = Math.round(cents) / 100;
@@ -41,7 +39,7 @@ function formatMoney(cents: number, currency: string | null): string {
   return code ? `$${formatted} ${code}` : `$${formatted}`;
 }
 
-function formatMonthYear(iso: string): string {
+function formatMonthYear(iso: string, dateLocale?: string): string {
   try {
     return new Date(iso).toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
   } catch {
@@ -49,7 +47,7 @@ function formatMonthYear(iso: string): string {
   }
 }
 
-function formatDay(iso: string | null): string {
+function formatDay(iso: string | null, dateLocale?: string): string {
   if (!iso) return "";
   try {
     return new Date(iso).toLocaleDateString(dateLocale, {
@@ -197,6 +195,7 @@ function ClientRecord(props: {
   router: ReturnType<typeof useRouter>;
 }) {
   const { row, t, router } = props;
+  const dateLocale = useDashboardText().isSpanish ? "es-MX" : "en-US";
   const action = clientsRowAction(row);
   const history = row.history ?? [];
   const completed = history.filter((h) => (h.state ?? (h.past ? "completed" : null)) === "completed");
@@ -225,7 +224,7 @@ function ClientRecord(props: {
               {[row.phone, row.email].filter(Boolean).join(" · ") || t("No phone or email on file")}
             </p>
             <p className="mt-0.5 font-admin-body text-[13px] text-admin-ink-muted">
-              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt)} · ` : ""}
+              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt, dateLocale)} · ` : ""}
               {row.source === "booking" ? t("From a booking") : t("From a message")}
             </p>
           </div>
@@ -239,7 +238,7 @@ function ClientRecord(props: {
           {row.nextStartsAt ? (
             <>
               <div className="mt-1 font-admin-body text-[17px] font-bold text-admin-ink">
-                {formatDay(row.nextStartsAt)}
+                {formatDay(row.nextStartsAt, dateLocale)}
               </div>
               <div className="mt-1 text-[13px] font-semibold text-admin-ink-muted">
                 {nextStatusLabel(row.nextStatus, t)}
@@ -303,7 +302,7 @@ function ClientRecord(props: {
                   }`}
                 >
                   <span className="w-[96px] shrink-0 font-admin-body text-[13.5px] text-admin-ink">
-                    {formatDay(h.startsAt)}
+                    {formatDay(h.startsAt, dateLocale)}
                   </span>
                   <span className="min-w-0 flex-1 font-admin-body text-[13px]">
                     <span className="block text-[14px] text-admin-ink">
@@ -364,11 +363,11 @@ function ClientRecord(props: {
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("First visit")}</dt>
-              <dd className="text-admin-ink">{first ? formatDay(first.startsAt) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{first ? formatDay(first.startsAt, dateLocale) : t("None yet")}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("Last visit")}</dt>
-              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt, dateLocale) : t("None yet")}</dd>
             </div>
           </dl>
         </details>
@@ -380,7 +379,7 @@ function ClientRecord(props: {
 export function TalentClientsPage() {
   const { bridgeTalentSelfProfile, toast } = useAdminShell();
   const copy = useDashboardText();
-  dateLocale = copy.isSpanish ? "es-MX" : "en-US";
+  const dateLocale = copy.isSpanish ? "es-MX" : "en-US";
   const t = copy.t;
   const router = useRouter();
   const [items, setItems] = useState<TalentClientRow[] | null>(null);
@@ -606,7 +605,7 @@ export function TalentClientsPage() {
                         {row.completedCount > 0 ? (
                           <>
                             {[
-                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit),
+                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit, dateLocale),
                               (() => {
                                 const h = lastCompleted(row);
                                 return h ? historyService(h, row.name) : null;
@@ -625,7 +624,7 @@ export function TalentClientsPage() {
                       <div className="text-[13.5px] text-admin-ink">
                         {row.nextStartsAt ? (
                           <>
-                            {formatDay(row.nextStartsAt)}
+                            {formatDay(row.nextStartsAt, dateLocale)}
                             <div className="mt-0.5 text-[12px] font-semibold text-admin-ink-muted">
                               {nextStatusLabel(row.nextStatus, t)}
                             </div>
@@ -688,9 +687,9 @@ export function TalentClientsPage() {
                             </span>
                             <span className="mt-0.5 block text-[14px] text-admin-ink-muted">
                               {row.nextStartsAt
-                                ? `${t("Next")}: ${formatDay(row.nextStartsAt)} · ${nextStatusLabel(row.nextStatus, t)}`
+                                ? `${t("Next")}: ${formatDay(row.nextStartsAt, dateLocale)} · ${nextStatusLabel(row.nextStatus, t)}`
                                 : row.completedCount > 0
-                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit)}` : ""}`
+                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit, dateLocale)}` : ""}`
                                   : t("No work yet")}
                             </span>
                           </span>
