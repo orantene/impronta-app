@@ -96,3 +96,13 @@ export function getStripeMxPublishableKey(): string | null {
     null
   );
 }
+
+/**
+ * Publishable key of a platform account. Client-side Stripe objects (Connect
+ * embedded onboarding, Elements) must be initialised with the key of the
+ * platform that minted their session; an MX account session opened with the US
+ * key fails.
+ */
+export function getStripePublishableKeyFor(key: StripeAccountKey): string | null {
+  return key === "mx" ? getStripeMxPublishableKey() : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? null);
+}

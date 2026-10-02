@@ -13,6 +13,11 @@
  * entrypoint to avoid the import-time side effect too). The caller supplies
  * `fetchClientSecret`, which the SDK invokes to mint an Account Session; the
  * underlying Express account is created lazily at that point.
+ *
+ * The first session is minted BEFORE the Connect instance: its result names the
+ * publishable key of the platform that owns the account (US or MX), and the
+ * instance must be initialised with that key. That first secret is handed to
+ * the SDK's first fetch; later fetches mint fresh sessions.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -29,7 +34,7 @@ type StripeConnectInstance = ReturnType<typeof loadConnectAndInitialize>;
 
 /** Mints an Account Session client secret server-side (a "use server" action). */
 export type AccountSessionFetch = () => Promise<
-  { ok: true; clientSecret: string } | { ok: false; error: string }
+  { ok: true; clientSecret: string; publishableKey?: string | null } | { ok: false; error: string }
 >;
 
 const C = {
@@ -47,7 +52,7 @@ export function ConnectEmbeddedOnboarding({
   fetchClientSecret: AccountSessionFetch;
   onExit?: () => void;
 }) {
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const defaultPublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const [connectInstance, setConnectInstance] =
     useState<StripeConnectInstance | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -66,27 +71,50 @@ export function ConnectEmbeddedOnboarding({
   });
 
   useEffect(() => {
-    if (!publishableKey) {
-      setInitError("Payouts are not available right now.");
-      return;
-    }
-    try {
-      const locale = stripeConnectLocale(dashboardLocale);
-      const instance = loadConnectAndInitialize({
-        publishableKey,
-        fetchClientSecret: async () => {
-          const r = await fetchRef.current();
-          if (!r.ok) throw new Error(r.error);
-          return r.clientSecret;
-        },
-        appearance: TULALA_CONNECT_APPEARANCE,
-        ...(locale ? { locale } : {}),
-      });
-      setConnectInstance(instance);
-    } catch {
-      setInitError("Could not load payout setup. Please refresh and try again.");
-    }
-  }, [publishableKey, dashboardLocale]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const first = await fetchRef.current();
+        if (cancelled) return;
+        if (!first.ok) {
+          setInitError(first.error);
+          return;
+        }
+        // The account's own platform key (MX accounts need the MX key). Only an
+        // ABSENT field falls back to the US key; an explicit null (MX key not
+        // set) refuses rather than opening an MX session with the US key.
+        const publishableKey =
+          first.publishableKey === undefined ? defaultPublishableKey : first.publishableKey;
+        if (!publishableKey) {
+          setInitError("Payouts are not available right now.");
+          return;
+        }
+        let prefetched: string | null = first.clientSecret;
+        const locale = stripeConnectLocale(dashboardLocale);
+        const instance = loadConnectAndInitialize({
+          publishableKey,
+          fetchClientSecret: async () => {
+            if (prefetched) {
+              const s = prefetched;
+              prefetched = null;
+              return s;
+            }
+            const r = await fetchRef.current();
+            if (!r.ok) throw new Error(r.error);
+            return r.clientSecret;
+          },
+          appearance: TULALA_CONNECT_APPEARANCE,
+          ...(locale ? { locale } : {}),
+        });
+        setConnectInstance(instance);
+      } catch {
+        if (!cancelled) setInitError("Could not load payout setup. Please refresh and try again.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultPublishableKey, dashboardLocale]);
 
   if (initError) {
     return (
