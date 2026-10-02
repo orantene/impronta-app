@@ -788,17 +788,6 @@ test("the QR asset endpoint is reachable on the surfaces the workspace runs on",
   }
 });
 
-test("Support Desk Phase 1a prefixes are reachable on the app host", () => {
-  assert.equal(isPathAllowedForHostKind("app", "/desk"), true);
-  assert.equal(isPathAllowedForHostKind("app", "/desk/inbox"), true);
-  assert.equal(isPathAllowedForHostKind("app", "/platform/admin/support/desk"), true);
-  assert.equal(isPathAllowedForHostKind("app", "/api/support-desk"), true);
-  assert.equal(isPathAllowedForHostKind("app", "/api/support-desk/tickets"), true);
-  // Marketing must not grow a desk surface.
-  assert.equal(isPathAllowedForHostKind("marketing", "/desk"), false);
-  assert.equal(isPathAllowedForHostKind("marketing", "/api/support-desk"), false);
-});
-
 test("the QR asset endpoint is not exposed on the marketing apex", () => {
   assert.equal(isPathAllowedForHostKind("marketing", "/api/links/t7/qr.png"), false);
 });

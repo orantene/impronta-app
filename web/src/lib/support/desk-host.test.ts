@@ -4,6 +4,8 @@ import { test } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
+
 import {
   isHostScopedAuthHost,
   isPathAllowedOnSupportDeskHost,
@@ -110,4 +112,14 @@ test("proxy wires the support-desk dead-host gate after resolve", () => {
     deadAt < proxy.indexOf('hostContext.kind === "talent_site"'),
     "runs before surface dispatch",
   );
+});
+
+test("Support Desk Phase 1a prefixes are reachable on the app host", () => {
+  assert.equal(isPathAllowedForHostKind("app", "/desk"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/desk/inbox"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/platform/admin/support/desk"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/api/support-desk"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/api/support-desk/tickets"), true);
+  assert.equal(isPathAllowedForHostKind("marketing", "/desk"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/support-desk"), false);
 });
