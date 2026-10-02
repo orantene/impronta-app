@@ -8,6 +8,7 @@ import { Check, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { TrialDoorCard, useTrialDoorOffer } from "@/components/billing/trial-door-card";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import type { TrialDoorOffer } from "@/lib/server-actions/trial-door";
@@ -470,8 +471,7 @@ export function UpgradeModal({
                           onClick={() => {
                             if (isCurrent) return;
                             if (plan.key === "network") {
-                              window.location.href =
-                                "mailto:hello@impronta.group?subject=Network%20plan%20enquiry";
+                              window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Network plan enquiry")}`;
                               return;
                             }
                             onSelect?.(plan.key);
@@ -510,7 +510,7 @@ export function UpgradeModal({
               Plans switch on the next billing cycle. VAT calculated at
               checkout. Need something custom?{" "}
               <a
-                href="mailto:hello@impronta.group"
+                href={`mailto:${SUPPORT_EMAIL}`}
                 className="font-semibold text-foreground underline-offset-2 hover:underline"
               >
                 Talk to us

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { CapabilityCard } from "./capability-card";
 import {
   PLAN_COLOR,
@@ -48,7 +49,7 @@ export function TierBand({
         </div>
         {bandIsLocked && band.ctaLabel ? (
           <Link
-            href={band.tier === "network" ? "mailto:hello@impronta.group" : "?plan=" + band.tier}
+            href={band.tier === "network" ? `mailto:${SUPPORT_EMAIL}` : "?plan=" + band.tier}
             className="rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-transform hover:-translate-y-px"
             style={{
               backgroundColor: accent.bg,
