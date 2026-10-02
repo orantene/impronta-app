@@ -2904,6 +2904,8 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail: string | null
+          /** pass_through: actual processing fee on this leg (null for included-mode). */
+          processing_fee_cents: number | null
           release_after: string | null
           status: string
           stripe_transfer_id: string | null
@@ -2927,6 +2929,7 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail?: string | null
+          processing_fee_cents?: number | null
           release_after?: string | null
           status: string
           stripe_transfer_id?: string | null
@@ -2950,6 +2953,7 @@ export type Database = {
           participant_id?: string
           party?: string
           payout_rail?: string | null
+          processing_fee_cents?: number | null
           release_after?: string | null
           status?: string
           stripe_transfer_id?: string | null
