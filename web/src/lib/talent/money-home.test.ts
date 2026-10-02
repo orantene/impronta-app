@@ -17,6 +17,14 @@ describe("agendaMoneyRows", () => {
     payment: "awaiting" as const,
     money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" },
   };
+  it("Money month select does not use CSS capitalize (Octubre De bug)", () => {
+    const src = readFileSync(
+      new URL("../../components/talent/money/MoneyHomePage.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.equal(/className="[^"]*\bcapitalize\b/.test(src), false);
+    assert.match(src, /\$\{month\} de \$\{y\}/);
+  });
   it("lists holds awaiting a deposit as waiting requests, with no invented amount", () => {
     const out = agendaMoneyRows([{ ...base, id: "h1" }], now);
     assert.equal(out.owed.length, 0);
@@ -25,27 +33,30 @@ describe("agendaMoneyRows", () => {
     assert.equal(out.waiting[0]!.dueByToday, true);
     assert.equal(out.waiting[0]!.service, "");
   });
-  it("counts balances due on booked work as owed", () => {
+  it("does not count cancelled bookings as waiting payment requests", () => {
     const out = agendaMoneyRows(
       [
         {
           ...base,
-          id: "b1",
+          id: "c2",
           kind: "booking",
-          booking: "confirmed",
-          payment: "partial",
-          title: "Gel polish",
-          money: { totalCents: 90000, paidCents: 30000, dueCents: 60000, currency: "MXN" },
+          booking: "cancelled",
+          payment: "awaiting",
+          money: { totalCents: 50000, paidCents: 0, dueCents: 50000, currency: "MXN" },
         },
-        { ...base, id: "c1", booking: "cancelled" },
+        {
+          ...base,
+          id: "h2",
+          kind: "hold",
+          booking: "cancelled",
+          payment: "awaiting",
+          money: { totalCents: 1, paidCents: 0, dueCents: 1, currency: "MXN" },
+        },
       ],
       now,
     );
-    assert.deepEqual(
-      out.owed.map((r) => [r.id, r.amountCents, r.service]),
-      [["b1", 60000, "Gel polish"]],
-    );
     assert.equal(out.waiting.length, 0);
+    assert.equal(out.owed.length, 0);
   });
 });
 

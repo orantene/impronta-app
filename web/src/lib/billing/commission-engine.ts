@@ -37,6 +37,7 @@ import {
   type ProcessingFeePayer,
   type ProcessorFeeRates,
 } from "./commission";
+import { attachPayoutProcessingFees } from "./commission-processing";
 
 /** One element of the participants array returned by
  *  `engine_load_commission_context`. */
@@ -455,6 +456,33 @@ export async function loadBookingCommissionSnapshots(
     return [];
   }
   return (data ?? []) as PersistedBookingCommissionSnapshot[];
+}
+
+/**
+ * Snapshots enriched with the ACTUAL processing fee from `booking_payouts`
+ * (written at payout). Use this for refund eligibility — the snapshot row has
+ * no `processing_fee_cents` column, so a bare load always looks like "unknown fee"
+ * and blocks seller-pays refunds.
+ */
+export async function loadBookingCommissionSnapshotsForRefund(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<PersistedBookingCommissionSnapshot[]> {
+  const snaps = await loadBookingCommissionSnapshots(supabase, bookingId);
+  if (snaps.length === 0) return snaps;
+  const { data, error } = await supabase
+    .from("booking_payouts")
+    .select("participant_id, processing_fee_cents")
+    .eq("booking_id", bookingId);
+  if (error) {
+    logServerError(`commission-engine/load_payout_fees[booking=${bookingId}]`, error);
+    // Fail closed for seller-pays: leave snaps without fees so nonRefundableFeeCents returns null.
+    return snaps;
+  }
+  return attachPayoutProcessingFees(
+    snaps,
+    (data ?? []) as { participant_id: string; processing_fee_cents?: number | null }[],
+  );
 }
 
 /** Single-row legacy helper — returns the first snapshot row for a booking,

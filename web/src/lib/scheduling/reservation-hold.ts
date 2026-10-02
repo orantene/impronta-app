@@ -17,6 +17,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { checkReservationWindowFree } from "./reservation-slot-free";
 import {
   CAPACITY_HOLD_TTL_MAX_SECONDS,
   CAPACITY_HOLD_TTL_MIN_SECONDS,
@@ -132,6 +133,19 @@ export async function placeReservationHold(
   }
   if (Date.parse(endsAt) <= Date.parse(startsAt)) {
     return { ok: false, code: "invalid", error: "End must be after start." };
+  }
+
+  // Holds only collide with other holds (gist). Bookings live in talent_bookings
+  // and were invisible here — check the same busy source the slot grid uses.
+  const free = await checkReservationWindowFree(admin, {
+    talentProfileId: input.talentProfileId,
+    startsAt,
+    endsAt,
+  });
+  if (!free.ok) {
+    return free.code === "unavailable"
+      ? { ok: false, code: "unavailable", error: "Could not check that time. Try again." }
+      : { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." };
   }
 
   let expiresAt: string | null;

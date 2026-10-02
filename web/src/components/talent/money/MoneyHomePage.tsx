@@ -56,7 +56,13 @@ function day(iso: string | null, locale: string): string {
 function monthLabel(key: string, locale: string): string {
   const d = new Date(`${key}-01T12:00:00`);
   const label = d.toLocaleDateString(locale, { month: "long", year: "numeric" });
-  return locale.toLowerCase().startsWith("es") ? label.replace(/^(\S+) De (\d+)/i, (_m, mo, y) => `${mo.toLowerCase()} de ${y}`) : label;
+  // Spanish locales often emit "octubre de 2026" or "Octubre de 2026". Never
+  // title-case the whole string (CSS capitalize turns "de" into "De").
+  if (!locale.toLowerCase().startsWith("es")) return label;
+  return label.replace(/^(\S+)\s+[Dd]e\s+(\d+)/, (_m, mo: string, y: string) => {
+    const month = mo.charAt(0).toLocaleUpperCase(locale) + mo.slice(1).toLocaleLowerCase(locale);
+    return `${month} de ${y}`;
+  });
 }
 
 function currentMonthKey(): string {
@@ -224,7 +230,7 @@ function MoneyHomePane(props: {
           aria-label={t("Month")}
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="h-11 rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] font-semibold capitalize text-admin-ink sm:h-9"
+          className="h-11 rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] font-semibold text-admin-ink sm:h-9"
         >
           {months.map((m) => (
             <option key={m} value={m}>

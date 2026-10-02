@@ -30,7 +30,7 @@
 
 import "server-only";
 import { nonRefundableFeeCents as nonRefundableFeeCentsOf } from "@/lib/billing/commission";
-import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
 import { getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
 import { loadChargePlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -246,7 +246,7 @@ export async function loadRefundEligibility(
   let nonRefundableFeeCents: number | null = 0;
   if (typeof row.booking_id === "string" && row.booking_id) {
     try {
-      nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshots(sb, row.booking_id));
+      nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshotsForRefund(sb, row.booking_id));
     } catch {
       nonRefundableFeeCents = null; // snapshot unreadable: block, never guess
     }

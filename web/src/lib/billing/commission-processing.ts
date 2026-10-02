@@ -65,6 +65,31 @@ export function nonRefundableFeeCents(
 }
 
 /**
+ * Pure merge: the ACTUAL processing fee is written to `booking_payouts.processing_fee_cents`
+ * at payout time. The commission snapshot table has no such column, so refunds that only
+ * read the snapshot see 0 and BLOCK every seller-pays refund. Attach fees by participant
+ * before calling {@link nonRefundableFeeCents}. When a participant has several legs, sum
+ * their fees. PURE.
+ */
+export function attachPayoutProcessingFees<T extends { participant_id: string; processing_fee_cents?: number | null }>(
+  snaps: readonly T[],
+  payoutLegs: readonly { participant_id: string; processing_fee_cents?: number | null }[],
+): T[] {
+  const feeByParticipant = new Map<string, number>();
+  for (const leg of payoutLegs) {
+    const fee = leg.processing_fee_cents;
+    if (fee == null || !(fee > 0)) continue;
+    feeByParticipant.set(leg.participant_id, (feeByParticipant.get(leg.participant_id) ?? 0) + fee);
+  }
+  if (feeByParticipant.size === 0) return snaps.map((s) => ({ ...s }));
+  return snaps.map((s) => {
+    const fromPayout = feeByParticipant.get(s.participant_id);
+    if (fromPayout == null) return { ...s };
+    return { ...s, processing_fee_cents: fromPayout };
+  });
+}
+
+/**
  * Partial refund on the same base: `share` (0..1] of the refundable ceiling
  * (gross minus non-refundable fees), rounded down to the cent. PURE.
  */

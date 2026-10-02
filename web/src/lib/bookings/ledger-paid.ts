@@ -27,6 +27,8 @@ export type LedgerPaid = {
   lastMethod: string | null;
   lastPaidAt: string | null;
   currency: string | null;
+  /** True when any money-in row was stamped paid_after_cancellation (refund from Money). */
+  paidAfterCancellation?: boolean;
 };
 
 export function ledgerRowMethod(row: Pick<LedgerPaidRow, "provider" | "metadata">): string {
@@ -53,6 +55,10 @@ export function summarizeLedgerPaid(rows: readonly LedgerPaidRow[]): Map<string,
     };
     cur.paidCents += cents;
     cur.byMethod[method] = (cur.byMethod[method] ?? 0) + cents;
+    const meta = r.metadata && typeof r.metadata === "object" ? (r.metadata as Record<string, unknown>) : {};
+    if (meta.needs_attention === "paid_after_cancellation") {
+      cur.paidAfterCancellation = true;
+    }
     const at = r.paid_at ?? null;
     if (!cur.lastPaidAt || (at && at >= cur.lastPaidAt)) {
       cur.lastMethod = method;
