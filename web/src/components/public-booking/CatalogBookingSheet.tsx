@@ -135,7 +135,15 @@ export function CatalogBookingSheet({
       const d = (e as CustomEvent).detail as CatalogBookingDetail | undefined;
       if (!d) return;
       // Quote services: ask flow only — never open the booking sheet (no times).
-      if (d.priceDisplay === "quote") return;
+      if (d.priceDisplay === "quote") {
+        openCatalogBookingChat({
+          detail: d,
+          askAbout: [d.title],
+          from: "catalog",
+          demo: mode === "demo",
+        });
+        return;
+      }
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       // G13: a picked task pre-selects matching intake chips (still editable).
@@ -160,7 +168,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, []);
+  }, [mode]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {

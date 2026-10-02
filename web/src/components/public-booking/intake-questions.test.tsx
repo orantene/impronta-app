@@ -158,7 +158,9 @@ function typeInto(el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 const MODES = [
   { name: "instant", event: "tulala:offering-instant", d: () => detail("instant") },
   { name: "request", event: "tulala:offering-request", d: () => detail("request") },
-  { name: "inquiry", event: "tulala:offering-request", d: () => detail("request", { priceType: "custom", priceDisplay: "quote", amountCents: null }) },
+  // Inquiry-shaped request still opens the sheet for intake; quote priceDisplay
+  // is ask-flow only and must not be used here.
+  { name: "inquiry", event: "tulala:offering-request", d: () => detail("request", { priceType: "custom", amountCents: null }) },
 ] as const;
 
 for (const m of MODES) {

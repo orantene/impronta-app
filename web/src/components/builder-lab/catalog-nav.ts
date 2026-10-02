@@ -97,6 +97,7 @@ export const GROUP_VIEWS: Record<CatalogGroup, ReadonlyArray<CatalogView>> = {
     "data",
     "apps",
     "shell",
+    "apps",
     "catalog_studio",
   ],
   design: [

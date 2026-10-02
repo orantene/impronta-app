@@ -44,6 +44,13 @@ vi.mock("@/lib/talent/translation-coverage-actions", () => ({
   suggestTalentPrimaryLocaleAction: vi.fn(async () => null),
 }));
 vi.mock("@/components/talent/site/TalentMaxSiteSettingsPanels", () => ({ MaxSiteSettingsPanels: () => null }));
+vi.mock("@/components/talent/website-settings/LiveStatusCard", () => ({
+  LiveStatusCard: () => null,
+}));
+vi.mock("@/components/talent/website-settings/live-status-action", () => ({
+  loadLiveStatusAction: vi.fn(async () => null),
+  setEmergenciesTodayAction: vi.fn(),
+}));
 vi.mock("@/components/admin/shell/internal/state", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   useAdminShell: () => ({ toast: vi.fn() }),

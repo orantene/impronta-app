@@ -45,11 +45,7 @@ test("portfolio work_order: schema, renderer, inspector and add gallery are all 
   const inspector = read("portfolio-inspector.tsx");
   assert.ok(inspector.includes("work_order: \"Work orders\""), "layout button label");
   assert.ok(inspector.includes('layout === "work_order"'), "layout hint");
-  // The booking-family cards were split out of registry-catalog-sections-connected.ts into
-  // -booking.ts (file-size extraction); the pin reads both files.
-  const gallery =
-    libAt("site-admin/add-gallery/registry-catalog-sections-connected.ts") +
-    libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
+  const gallery = libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
   assert.ok(gallery.includes('id: "conn-portfolio-work-order-native"'));
   assert.ok(gallery.includes('layout: "work_order"'));
 });
@@ -60,11 +56,7 @@ test("visit area: schema, renderer, inspector and add gallery are all wired", ()
   assert.ok(libAt("site-admin/builder-node/visit-block.tsx").includes('layout === "area"'));
   assert.ok(libAt("site-admin/builder-node/visit-defaults.ts").includes('"location", "area"'));
   assert.ok(read("visit-inspector.tsx").includes('area: "Area card"'), "layout button");
-  // The booking-family cards were split out of registry-catalog-sections-connected.ts into
-  // -booking.ts (file-size extraction); the pin reads both files.
-  const gallery =
-    libAt("site-admin/add-gallery/registry-catalog-sections-connected.ts") +
-    libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
+  const gallery = libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
   assert.ok(gallery.includes('id: "conn-area-native"'));
   assert.ok(gallery.includes("defaultProps: { ...AREA_DEFAULT_PROPS }"));
 });

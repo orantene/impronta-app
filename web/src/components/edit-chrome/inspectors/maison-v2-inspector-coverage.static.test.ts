@@ -164,11 +164,7 @@ test("location layout: types, validation, renderer, inspector and add gallery ar
     assert.ok(inspector.includes(v), `inspector ${v}`);
   }
   // 4. add gallery: a card that starts in the location layout
-  // The booking-family cards were split out of registry-catalog-sections-connected.ts into
-  // -booking.ts (file-size extraction); the pin reads both files.
-  const gallery =
-    libAt("site-admin/add-gallery/registry-catalog-sections-connected.ts") +
-    libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
+  const gallery = libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
   assert.ok(gallery.includes('id: "conn-location-native"'));
   assert.ok(gallery.includes("defaultProps: { ...LOCATION_DEFAULT_PROPS }"));
 });

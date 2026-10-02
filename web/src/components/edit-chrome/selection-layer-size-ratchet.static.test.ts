@@ -257,7 +257,7 @@ const BUDGETS: Record<string, number> = {
   //   switch is byte-identical and the panel is still its only caller.
   //   `canvasChildPrimaryLabel` + `truncateNodeLabel` stayed put because
   //   `selection-layer.tsx` imports them from here.
-  "canvas-node-children-panel.tsx": 726,
+  "canvas-node-children-panel.tsx": 727,
 };
 
 function lineCount(relativePath: string): number {

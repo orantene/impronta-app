@@ -150,15 +150,23 @@ test("every native gallery kind RENDERS something on a published page", () => {
   // The dangerous one. A kind registered everywhere EXCEPT render.tsx places in
   // the builder and publishes an empty page — which reads as "the feature was
   // never built" rather than "it was mis-registered".
+  // alert_band is gated on liveStatus.emergenciesToday — supply it so the
+  // kind still proves it has a render branch (without the flag it correctly
+  // publishes as nothing).
   for (const kind of GALLERY_NATIVE_KINDS) {
     const node = createBuilderNode(kind);
     const html = renderToStaticMarkup(
-      createElement("div", null, 
+      createElement(
+        "div",
+        null,
         renderBuilderNodes([node], {
           mode: "freeform",
-          // Live-gated kinds (alert_band) render nothing unless their live flag
-          // is on, by design; turn it on so the kind is asserted rendering.
-          dataSources: { liveStatus: { emergenciesToday: true, emergenciesUntil: null } },
+          dataSources: {
+            liveStatus: {
+              emergenciesToday: true,
+              emergenciesUntil: "2099-01-01T00:00:00.000Z",
+            },
+          },
         }),
       ),
     );
