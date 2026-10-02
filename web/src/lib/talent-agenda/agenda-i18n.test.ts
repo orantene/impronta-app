@@ -38,4 +38,11 @@ describe("T9.4 agenda i18n", () => {
     );
     assert.equal(t("At your studio"), "En tu estudio");
   });
+
+  it("Track D5: Sin hora strip labels have ES", () => {
+    const t = agendaI18n("es");
+    assert.equal(t("No time"), "Sin hora");
+    assert.equal(t("Set a time"), "Asignar hora");
+    assert.equal(t("No time assigned"), "Sin hora asignada");
+  });
 });

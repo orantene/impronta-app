@@ -38,6 +38,8 @@ export function mapAgencyBookingPayment(input: {
   linkOpen: boolean;
   now: Date;
   startsAt: string;
+  /** Ledger stamped paid_after_cancellation — Money shows Refund pending. */
+  refundPending?: boolean;
 }): PaymentState {
   const bookingState = deriveBookingState({
     kind: "booking",
@@ -60,6 +62,7 @@ export function mapAgencyBookingPayment(input: {
     paidCents: input.paidCents,
     depositCents: input.agency?.deposit_amount_cents ?? 0,
     managedByAgency: (input.agency?.source_type_snapshot ?? "").toLowerCase() === "agency",
+    refundPending: input.refundPending === true,
     now: input.now,
   });
   if (

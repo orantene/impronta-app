@@ -130,32 +130,41 @@ function AgendaMoneyLine({
   const copy = useDashboardText();
   const t = copy.t;
   const router = useRouter();
+  const warn = row.kind === "refund_pending" || row.overdue;
+  const kindLabel =
+    row.kind === "refund_pending"
+      ? t("Refund pending")
+      : row.kind === "deposit"
+        ? t("Deposit requested")
+        : row.overdue
+          ? t("Overdue")
+          : t("Balance due");
   return (
     <div
       className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${first ? "" : "border-t border-admin-border-soft"}`}
     >
       <div className="min-w-0 flex-1">
         <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name}</div>
-        <div className={`text-[13px] ${row.overdue ? "font-semibold text-admin-critical" : "text-admin-ink-muted"}`}>
-          {[
-            row.kind === "deposit" ? t("Deposit requested") : row.overdue ? t("Overdue") : t("Balance due"),
-            row.service,
-            day(row.startsAt, copy.locale),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+        <div className={`text-[13px] ${warn ? "font-semibold text-admin-critical" : "text-admin-ink-muted"}`}>
+          {[kindLabel, row.service, day(row.startsAt, copy.locale)].filter(Boolean).join(" · ")}
         </div>
       </div>
-      <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">
+      <span
+        className={`whitespace-nowrap font-admin-body text-[15px] font-bold ${
+          warn ? "text-admin-critical" : "text-admin-ink"
+        }`}
+      >
         {row.amountCents != null ? money(row.amountCents, row.currency) : t("Amount not set")}
       </span>
       <div className="flex gap-2">
         <button type="button" className={`${btnSec} flex-1`} onClick={() => router.push(row.bookingHref)}>
           {t("Open booking")}
         </button>
-        <button type="button" className={`${btnSec} flex-1`} onClick={() => onRequest(row)}>
-          {t("Send a payment link")}
-        </button>
+        {row.kind !== "refund_pending" ? (
+          <button type="button" className={`${btnSec} flex-1`} onClick={() => onRequest(row)}>
+            {t("Send a payment link")}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -164,7 +173,7 @@ function AgendaMoneyLine({
 function MoneyHomePane(props: {
   earnings: TalentEarnings;
   clients: TalentClientRow[] | null;
-  agenda: { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[] };
+  agenda: { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[]; refundPending: MoneyAgendaRow[] };
   payout: PayoutLine;
   onManagePayouts: () => void;
   onRequest: (row: MoneyAgendaRow) => void;
@@ -201,6 +210,7 @@ function MoneyHomePane(props: {
   const owedSummary = talentOwedSummary({ clients: props.clients, agendaOwed: props.agenda.owed, currency: cur });
   const owedCents = owedSummary.cents;
   const waiting = props.agenda.waiting;
+  const refundPending = props.agenda.refundPending;
   const waitingPriced = waiting.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
@@ -214,6 +224,9 @@ function MoneyHomePane(props: {
     .filter((r) => !clientHrefs.has(r.bookingHref))
     .filter((r) => (outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday));
   const waitingList = waiting.filter((r) =>
+    outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday,
+  );
+  const refundList = refundPending.filter((r) =>
     outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday,
   );
   const outstandingCount = owedSummary.count;
@@ -292,6 +305,9 @@ function MoneyHomePane(props: {
                   waitingPriced > 0 ? ` · ${money(waitingPriced, cur)}` : ""
                 }`
               : "",
+            refundPending.length > 0
+              ? `${refundPending.length} ${t(refundPending.length === 1 ? "refund pending" : "refunds pending")}`
+              : "",
           ]
             .filter(Boolean)
             .join(" · ")}
@@ -316,7 +332,7 @@ function MoneyHomePane(props: {
         {(
           [
             ["payments", t("Payments"), view.payments.length],
-            ["outstanding", t("Outstanding"), outstandingCount + waiting.length],
+            ["outstanding", t("Outstanding"), outstandingCount + waiting.length + refundPending.length],
             ["payouts", t("Payouts"), view.payouts.length],
           ] as const
         ).map(([id, label, n]) => (
@@ -509,6 +525,22 @@ function MoneyHomePane(props: {
               ))}
             </div>
           )}
+          {refundList.length > 0 ? (
+            <>
+              <h3 className="mt-2 font-admin-body text-[15px] font-bold text-admin-ink">
+                {t("Refund pending")}{" "}
+                <span className="text-[12.5px] text-admin-ink-muted">{refundList.length}</span>
+              </h3>
+              <p className="-mt-2 font-admin-body text-[12.5px] text-admin-ink-muted">
+                {t("Money arrived after a cancellation. Refund from the booking.")}
+              </p>
+              <div className="overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
+                {refundList.map((r, i) => (
+                  <AgendaMoneyLine key={r.id} row={r} first={i === 0} onRequest={props.onRequest} />
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
       ) : null}
 

@@ -18,6 +18,7 @@ import type { AcceptPolicyLine } from "./accept-offer-collection";
 import { runAcceptOfferPayment, type AcceptOfferForPayment, type AcceptPaymentResult, type AcceptPaymentStore } from "./accept-offer-payment-core";
 import { insertMessage } from "./insert-message";
 import { linkRecordToConversation } from "./link-record";
+import { stampInquiryBookedAt } from "./stamp-inquiry-booked-at";
 
 /**
  * Production store for `runAcceptOfferPayment`: the client accepted an offer
@@ -350,6 +351,13 @@ function productionStore(c: Ctx, offer: AcceptOfferForPayment): AcceptPaymentSto
         logServerError("messaging.acceptOffer.booking", new Error(booked.reason));
         return { ok: false };
       }
+      // Idempotency for engine_convert_to_booking: accept already created the
+      // agency_bookings row; without booked_at the RPC inserts a second one.
+      const stamped = await stampInquiryBookedAt(c.admin, {
+        tenantId: c.tenantId,
+        inquiryId: c.inquiryId,
+      });
+      if (!stamped.ok) return { ok: false };
       return { ok: true, bookingId: booked.bookingId, scheduled: booked.scheduled };
     },
   };

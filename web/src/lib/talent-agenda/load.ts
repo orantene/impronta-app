@@ -12,6 +12,7 @@ import {
 
 import { blocksTime, deriveBookingState, derivePaymentState } from "./derive";
 import { mapAgencyBookingPayment, mapDeliverableDeadline } from "./load-map";
+import { loadUnscheduledDraftsForTalent, txRefundPending } from "./load-unscheduled";
 import { summarizeCommercialEvent } from "@/lib/commercial-activity-summary";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import type { TalentAgendaItem, TalentAgendaLoadResult, TalentAgendaRange } from "./types";
@@ -64,6 +65,7 @@ type TransactionRow = {
   requested_at: string | null;
   paid_at: string | null;
   refunded_at: string | null;
+  metadata?: unknown;
 };
 
 type PaymentLinkRow = {
@@ -240,7 +242,7 @@ export async function loadTalentAgenda(
         ? Promise.resolve({ data: [], error: null })
         : moneyDb
             .from("booking_transactions")
-            .select("booking_id, status, gross_amount_cents, requested_at, paid_at, refunded_at")
+            .select("booking_id, status, gross_amount_cents, requested_at, paid_at, refunded_at, metadata")
             .in("booking_id", bookingIds),
       ownerUserId == null
         ? Promise.resolve({ data: [], error: null })
@@ -481,6 +483,7 @@ export async function loadTalentAgenda(
         linkOpen,
         now: range.from,
         startsAt: booking.starts_at,
+        refundPending: txRefundPending(txRows),
       });
 
       const travelBefore = Math.max(
@@ -723,6 +726,18 @@ export async function loadTalentAgenda(
     }>) {
       const deadline = mapDeliverableDeadline(deliverable, hours?.timezone ?? "UTC");
       if (deadline) items.push(deadline);
+    }
+
+    // Offer accepted with no time: draft agency_bookings never mirrored into
+    // talent_bookings, so the dated query above misses them. Surface on Today.
+    const unscheduled = await loadUnscheduledDraftsForTalent(moneyDb, {
+      talentProfileId,
+      scheduledBookingIds: bookingIds,
+      now: range.from,
+    });
+    const seen = new Set(items.map((i) => i.id));
+    for (const item of unscheduled) {
+      if (!seen.has(item.id)) items.push(item);
     }
 
     items.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
