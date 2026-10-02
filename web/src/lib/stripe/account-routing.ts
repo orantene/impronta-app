@@ -27,6 +27,7 @@ export function resolveStripeAccountForSeller(input: {
   if (country !== "MX" || USDC_RAILS.has(rail)) return "us";
   const mxOk = input.mxConfigured ?? !!process.env.STRIPE_MX_SECRET_KEY;
   if (!mxOk) {
+    // eslint-disable-next-line no-console -- pure module; intentional operator warning
     (input.warn ?? ((m) => console.warn(m)))(
       "[stripe-account-routing] MX seller but STRIPE_MX_SECRET_KEY is unset; falling back to the US platform",
     );
