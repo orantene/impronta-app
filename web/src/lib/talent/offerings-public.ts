@@ -45,7 +45,7 @@ export async function loadPublicOfferingsForProfile(
    */
   tenantId?: string | null,
   /** WSF-C §7: "agency" skips the talent's switches (default: direct unless tenantId). */
-  opts?: { channel?: "direct" | "agency" },
+  opts?: { channel?: "direct" | "agency"; chain?: readonly string[] },
 ): Promise<TalentOffering[]> {
   try {
     const admin = createServiceRoleClient();
@@ -121,7 +121,7 @@ export async function loadPublicOfferingsForProfile(
     return rows.map((r) => ({
       ...(pause !== "open" ? { publicPause: pause } : {}),
       ...withPublicAvailability(
-        withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? []), sellingDefaults),
+        withEffectivePolicy(rowToOffering(r, locale, images.get(r.id) ?? [], opts?.chain), sellingDefaults),
         sellingDefaults,
         availability,
       ),

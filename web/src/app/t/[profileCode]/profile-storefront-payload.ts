@@ -8,6 +8,7 @@ export async function loadProfileStorefrontPayload(
   talentProfileId: string,
   locale: string,
   agencyTenantId: string | null,
+  chain?: readonly string[],
 ): Promise<{
   storefrontOfferings: TalentOffering[];
   usdRates: UsdRates | null;
@@ -16,6 +17,7 @@ export async function loadProfileStorefrontPayload(
     talentProfileId,
     locale,
     agencyTenantId,
+    chain ? { chain } : undefined,
   );
   const usdRates = needsUsdRates(storefrontOfferings) ? await loadUsdRates() : null;
   return { storefrontOfferings, usdRates };
