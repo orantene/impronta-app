@@ -5,8 +5,8 @@
  * product calls free must work in the real builder, and everything Web Office
  * sells must be refused in BOTH halves of the system:
  *
- *   free      edit text, hide a section, reorder, change Look, publish
- *   locked    insert shows the lock chip and raises a lock event
+ *   free      edit text, hide a section, change Look, publish
+ *   locked    insert shows the lock chip and raises a lock event; reorder is refused
  *   server    a FORGED insert, replayed past the client guard, is refused
  *   server    SEO fields in a forged save are stripped, the save still succeeds
  *
