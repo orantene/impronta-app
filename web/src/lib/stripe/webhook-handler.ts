@@ -728,7 +728,7 @@ export async function handleStripeWebhook(
   let lastVerifyError: unknown = null;
   for (const secret of webhookSecrets) {
     try {
-      event = await stripe.webhooks.constructEventAsync(body, signature, secret);
+      event = await stripe!.webhooks.constructEventAsync(body, signature, secret);
       break;
     } catch (err) {
       lastVerifyError = err;
