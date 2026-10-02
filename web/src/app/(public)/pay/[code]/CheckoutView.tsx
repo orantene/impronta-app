@@ -17,8 +17,6 @@ export type CheckoutViewProps = {
   /** Closed page only: a session completed or money settled, so never say "nothing was taken". */
   readonly moneyMayHaveMoved?: boolean;
   readonly amountCents: number;
-  /** Card processing fee already inside amountCents, when the client pays it. Absent: the fee is in the price. */
-  readonly cardFeeCents?: number;
   readonly currency: string;
   readonly expiresAt: string;
   readonly status: "open" | "paid" | "expired" | "cancelled" | "replaced" | "unknown" | "declined" | "processing" | "refunded";
@@ -152,12 +150,6 @@ export function CheckoutView(props: CheckoutViewProps) {
           </li>
         ))}
       </ol>
-      {props.cardFeeCents && props.cardFeeCents > 0 ? (
-        <p data-card-fee-line="" className="mt-2 flex justify-between text-[15px]">
-          <span>{t("public.thread.cardFeeLine")}</span>
-          <span className="tabular-nums">{(props.cardFeeCents / 100).toFixed(2)}</span>
-        </p>
-      ) : null}
       <p className="mt-4 text-[20px] font-semibold tabular-nums">{total}</p>
       {props.feeLines?.length ? (
         <EngineFeeLines
@@ -166,11 +158,12 @@ export function CheckoutView(props: CheckoutViewProps) {
           label={(c) => t(`public.thread.fees.${c}`)}
           nonRefundable={t("public.thread.fees.nonRefundable")}
         />
-      ) : null}
+      ) : (
+        <p data-refund-fees-note="" className="mt-2 text-[13px] text-admin-ink-muted">{t("public.thread.fees.nonRefundable")}</p>
+      )}
       {props.holdUntil ? <p className="mt-2 text-[13px] text-admin-ink-muted">{props.holdUntil}</p> : null}
       <p className="mt-1 text-[13px] text-admin-ink-muted">{props.expiresAt}</p>
       <p className={POS_NOTE}>{t(keepSlotKey)}</p>
-      <p data-refund-fees-note="" className="text-[13px] text-admin-ink-muted">{t("public.thread.refundFeesNote")}</p>
       <div className="mt-6 flex flex-col gap-3">
         {props.stripeUrl ? (
           <a className={POS_PRIMARY_ACTION} href={props.stripeUrl}>

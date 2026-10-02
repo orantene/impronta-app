@@ -16,22 +16,24 @@ const facts: PolicyFacts = {
   contact: { chat: true, whatsapp: false, email: false },
 };
 
-test("policy text states the card fee default and that refunds exclude card fees (EN + ES)", () => {
+test("policy text follows processing_fee_payer and states fees are non-refundable (EN + ES)", () => {
   const en = renderPolicyText(facts, DEFAULT_POLICY_ANSWERS, "en").text;
   const es = renderPolicyText(facts, DEFAULT_POLICY_ANSWERS, "es").text;
-  assert.match(en, /card processing fee is included in the price/);
-  assert.match(en, /Refunds exclude card processing fees/);
-  assert.match(es, /Los reembolsos no incluyen las comisiones de procesamiento de tarjeta/);
-  assert.doesNotMatch(en + es, /—/);
+  assert.match(en, /card processing fee is paid by the professional/);
+  assert.match(en, /fees are non-refundable/);
+  assert.match(es, /las comisiones no son reembolsables/);
+  const client = renderPolicyText({ ...facts, processingFeePayer: "client" }, DEFAULT_POLICY_ANSWERS, "en").text;
+  assert.match(client, /card processing fee is added to your total/);
+  assert.doesNotMatch(en + es + client, /—/);
 });
 
-test("checkout shows the refund-fee note before Pay, and a fee line only when the client pays it", () => {
+test("checkout has one fee source: engine fee lines, with a non-refundable fallback note", () => {
   const view = readFileSync("src/app/(public)/pay/[code]/CheckoutView.tsx", "utf8");
   assert.match(view, /data-refund-fees-note/);
-  assert.ok(view.indexOf("refundFeesNote") < view.lastIndexOf("props.stripeUrl ?"));
-  assert.match(view, /cardFeeCents && props\.cardFeeCents > 0/);
+  assert.doesNotMatch(view, /cardFeeCents|refundFeesNote/);
   for (const f of ["messages/en.json", "messages/es.json"]) {
     const j = JSON.parse(readFileSync(f, "utf8")).public.thread;
-    assert.ok(j.refundFeesNote && j.cardFeeLine, f);
+    assert.ok(j.fees.nonRefundable, f);
+    assert.ok(!j.refundFeesNote && !j.cardFeeLine, f);
   }
 });

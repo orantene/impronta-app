@@ -181,13 +181,15 @@ function clauses(facts: PolicyFacts, answers: PolicyAnswers, locale: PolicyLocal
           : `Use the form on this site to write to ${name}.`,
   });
 
-  // Card fees and refunds. No talent setting decides who pays the card fee
-  // yet, so the default is stated: the fee is included in the price.
+  // Card fees and refunds. Client pays service + platform fee; the card fee
+  // is paid by the talent by default ("seller") or by the client, per the
+  // talent's processing_fee_payer setting. Fees are non-refundable.
+  const clientPaysCard = facts.processingFeePayer === "client";
   out.push({
-    title: es ? "Comisiones de tarjeta y reembolsos" : "Card fees and refunds",
+    title: es ? "Comisiones y reembolsos" : "Fees and refunds",
     body: es
-      ? "La comisión de procesamiento de tarjeta está incluida en el precio. Los reembolsos no incluyen las comisiones de procesamiento de tarjeta."
-      : "The card processing fee is included in the price. Refunds exclude card processing fees.",
+      ? `${clientPaysCard ? "La comisión de procesamiento de tarjeta se suma al total que pagas." : "La comisión de procesamiento de tarjeta la cubre la profesional."} Los reembolsos equivalen al precio menos las comisiones, y las comisiones no son reembolsables.`
+      : `${clientPaysCard ? "The card processing fee is added to your total." : "The card processing fee is paid by the professional."} Refunds are the price minus fees, and fees are non-refundable.`,
   });
 
   // Tulala's own documents, off-host.

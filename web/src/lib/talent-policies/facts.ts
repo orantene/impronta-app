@@ -35,6 +35,8 @@ export type PolicyFacts = {
   /** Approximate zone (a city or area). Never an exact address. */
   zone: string | null;
   contact: { chat: boolean; whatsapp: boolean; email: boolean };
+  /** Who pays the card processing fee. Absent / anything else: the talent ("seller"). */
+  processingFeePayer?: "seller" | "client";
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -62,6 +64,7 @@ export type PolicyFactsInput = {
   phone?: string | null;
   phoneE164?: string | null;
   socialLinks?: unknown;
+  processingFeePayer?: unknown;
 };
 
 export function readPolicyFacts(input: PolicyFactsInput): PolicyFacts {
@@ -84,6 +87,7 @@ export function readPolicyFacts(input: PolicyFactsInput): PolicyFacts {
     cancelHours: cancelHours != null && cancelHours > 0 ? cancelHours : null,
     where: parseWhere(d.where),
     zone: input.homeBaseName?.trim() || cityLabelFromPlaceText(input.homeCityText) || null,
+    processingFeePayer: input.processingFeePayer === "client" ? "client" : "seller",
     contact: {
       chat: input.chatEnabled !== false,
       whatsapp: hrefs.whatsappHref !== "",
@@ -124,6 +128,13 @@ export async function loadPolicyFacts(admin: Reader, talentProfileId: string): P
     phone_e164: string | null;
     social_links: unknown;
   };
+  // Separate, tolerant read: a failed read leaves the default ("seller").
+  const payerRes = await admin
+    .from("talent_profiles")
+    .select("processing_fee_payer")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  const payer = (payerRes.error ? null : payerRes.data) as { processing_fee_payer?: unknown } | null;
   const areas = ((areasRes.error ? [] : areasRes.data) ?? []) as AreaRow[];
   const base = areas.find((a) => a.service_kind === "home_base");
   const names = base?.locations?.display_name_i18n;
@@ -138,5 +149,6 @@ export async function loadPolicyFacts(admin: Reader, talentProfileId: string): P
     phone: p.phone,
     phoneE164: p.phone_e164,
     socialLinks: p.social_links,
+    processingFeePayer: payer?.processing_fee_payer,
   });
 }
