@@ -85,7 +85,16 @@ export async function GET(request: Request) {
     const feeUnknown = await retryFeeUnknownPayouts(admin);
 
     const result = { payees: talentIds.size + tenantIds.size, released, stillHeld, failed, feeUnknown };
-    void improntaLog("payouts.cron.reconcile", { ...result });
+    void improntaLog("payouts.cron.reconcile", {
+      payees: result.payees,
+      released,
+      stillHeld,
+      failed,
+      feeUnknownTransactions: feeUnknown.transactions,
+      feeUnknownPaid: feeUnknown.paid,
+      feeUnknownStillHeld: feeUnknown.stillHeld,
+      feeUnknownFailed: feeUnknown.failed,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     logServerError("cron/reconcile-held-payouts", err);
