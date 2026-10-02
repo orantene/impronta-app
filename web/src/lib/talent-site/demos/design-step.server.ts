@@ -24,6 +24,7 @@ import { loadDemoContentFixture } from "./content-fixture";
 import { matchOfferings, type ExistingOffering } from "./fixture-plan";
 import { gridlineCopyFromFixture } from "./gridline-site-copy";
 import { FOLIO_DEMO_SITE_COPY } from "./folio-site-copy";
+import { placeDemoApps } from "./app-placement";
 import { applyDemoSiteCopy } from "./site-copy";
 import type { DemoDesign } from "./types";
 import { sameStable } from "./stable";
@@ -214,9 +215,12 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
       : !style && spec.design === "folio"
         ? (folioCopiedTrees(built) as Trees)
         : null;
-  const trees = style
+  const styledTrees = style
     ? styleTrees(built, style, await loadMedia(admin, tp.id), spec.profileCode)
     : (copied ?? { shellTree: built.shellTree, homeTree: built.homeTree });
+  // Trade apps (Nail Designer on nails demos) are demo content placed after the Menu band, never a design default.
+  const apps = placeDemoApps(styledTrees.homeTree as never, spec);
+  const trees: Trees = apps.placed ? { ...styledTrees, homeTree: apps.tree as never } : styledTrees;
   const nextTokens = {
     ...(keepLook
       ? ((site.design_tokens_draft as Record<string, string> | null) ?? {})
@@ -253,7 +257,7 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
     lookSlug,
     keepLook,
     trees,
-    copied: copied !== null,
+    copied: copied !== null || apps.placed,
     nextTokens,
     nextCustom,
     draftSame,

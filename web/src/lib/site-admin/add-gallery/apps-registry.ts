@@ -9,8 +9,24 @@
  * the agency Studio gallery never sees any entry.
  */
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node/types";
+import { THEME_DEMOS, type ThemeDemoProfession } from "@/lib/talent-site/theme-catalog/theme-demos";
 
-export interface AppRegistryEntry {
+/**
+ * App Library model: apps belong to TRADES, never to a design. `recommendedDesigns`
+ * is a suggestion for the library UI only; no design ships an app as its default.
+ */
+export interface AppLibraryMeta {
+  name: { en: string; es: string };
+  pitch: { en: string; es: string };
+  /** Trades the app is for (theme-demo profession keys). */
+  trades: ReadonlyArray<ThemeDemoProfession>;
+  /** Design slugs that show the app off well (hint, not a binding). */
+  recommendedDesigns: ReadonlyArray<string>;
+  /** Premium library flag the plan system reads later. False today. */
+  premium: boolean;
+}
+
+export interface AppRegistryEntry extends AppLibraryMeta {
   /** Gallery item id (stable, prefixed `app-`). */
   id: string;
   /** The builder node kind inserted on click / drop. */
@@ -34,6 +50,39 @@ export const APP_REGISTRY: ReadonlyArray<AppRegistryEntry> = [
       "Visitors design a manicure nail by nail and send it with their booking request. Drop it in and it works, nothing to set up.",
     icon: "interactive",
     thumbnail: "nail-designer",
+    name: { en: "Nail Designer", es: "Diseñador de uñas" },
+    pitch: {
+      en: "Clients design their manicure nail by nail and send it with their booking.",
+      es: "Tus clientas diseñan su manicura uña por uña y la envían con su reserva.",
+    },
+    trades: ["nails"],
+    recommendedDesigns: ["maison-v2"],
+    premium: false,
     searchTerms: ["nails", "manicure", "polish", "design", "app", "uñas", "manicura", "esmalte"],
   },
 ];
+
+/** Demo trades the theme-demo list does not carry (the reference demos sit outside it). */
+const DEMO_TRADE_OVERRIDES: Readonly<Record<string, ReadonlyArray<ThemeDemoProfession>>> = {
+  // Alba, the Maison v2 reference demo (content.json trade: Nail Artist).
+  "TAL-93020": ["nails"],
+};
+
+/** Trades of a demo profile code (empty when unknown). */
+export function tradesForDemoCode(profileCode: string): ReadonlyArray<ThemeDemoProfession> {
+  return DEMO_TRADE_OVERRIDES[profileCode] ?? THEME_DEMOS.find((d) => d.profileCode === profileCode)?.professions ?? [];
+}
+
+export function appsForTrade(trade: string): AppRegistryEntry[] {
+  return APP_REGISTRY.filter((a) => (a.trades as ReadonlyArray<string>).includes(trade));
+}
+
+/** Apps for a demo by its trades (never by its design). */
+export function appsForDemo(demo: { profileCode: string }): AppRegistryEntry[] {
+  const trades = tradesForDemoCode(demo.profileCode);
+  return APP_REGISTRY.filter((a) => a.trades.some((t) => trades.includes(t)));
+}
+
+export function appsForDesign(slug: string): AppRegistryEntry[] {
+  return APP_REGISTRY.filter((a) => a.recommendedDesigns.includes(slug));
+}
