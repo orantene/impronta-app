@@ -270,18 +270,30 @@ export function talentOwedSummary(input: {
   clients: readonly TalentClientRow[] | null;
   agendaOwed: readonly MoneyAgendaRow[];
   currency: string | null;
-}): { cents: number; count: number; currency: string | null } {
+}): { cents: number; count: number; currency: string | null; others: { currency: string; cents: number }[] } {
   const currency = input.currency?.toUpperCase() ?? null;
-  const ledger = (input.clients ?? []).filter(
-    (c) => (c.amountOwedCents ?? 0) > 0 && (currency == null || (c.currency ?? currency).toUpperCase() === currency),
-  );
+  const cur = (v: string | null | undefined) => (v ?? currency ?? "").toUpperCase();
+  const inCur = (v: string | null | undefined) => currency == null || cur(v) === currency;
+  const ledgerAll = (input.clients ?? []).filter((c) => (c.amountOwedCents ?? 0) > 0);
+  const ledger = ledgerAll.filter((c) => inCur(c.currency));
+  const agendaMain = input.agendaOwed.filter((r) => inCur(r.currency));
   const ledgerCents = ledger.reduce((n, c) => n + (c.amountOwedCents ?? 0), 0);
-  const agendaCents = input.agendaOwed.reduce((n, r) => n + (r.amountCents ?? 0), 0);
+  const agendaCents = agendaMain.reduce((n, r) => n + (r.amountCents ?? 0), 0);
   const hrefs = new Set(ledger.map((c) => c.nextBookingHref).filter(Boolean));
-  const extra = input.agendaOwed.filter((r) => !hrefs.has(r.bookingHref)).length;
+  const extra = agendaMain.filter((r) => !hrefs.has(r.bookingHref)).length;
+  // Never sum across currencies: other currencies are reported apart.
+  const otherMap = new Map<string, number>();
+  for (const c of ledgerAll) if (!inCur(c.currency)) otherMap.set(cur(c.currency), (otherMap.get(cur(c.currency)) ?? 0) + (c.amountOwedCents ?? 0));
+  for (const r of input.agendaOwed) {
+    if (inCur(r.currency) || (r.amountCents ?? 0) <= 0) continue;
+    const k = cur(r.currency);
+    const ledgerHas = ledgerAll.some((c) => cur(c.currency) === k && c.nextBookingHref && c.nextBookingHref === r.bookingHref);
+    if (!ledgerHas) otherMap.set(k, Math.max(otherMap.get(k) ?? 0, r.amountCents ?? 0));
+  }
   return {
     cents: Math.max(ledgerCents, agendaCents),
     count: ledger.length + extra,
-    currency: currency ?? ledger[0]?.currency?.toUpperCase() ?? input.agendaOwed[0]?.currency ?? null,
+    currency: currency ?? ledger[0]?.currency?.toUpperCase() ?? agendaMain[0]?.currency ?? null,
+    others: [...otherMap].map(([currency, cents]) => ({ currency, cents })),
   };
 }

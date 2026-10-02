@@ -593,17 +593,17 @@ export function AgendaTodayPage({
               attention.slice(0, attentionLimit).map((item, index) => {
                 const act = todayAttentionAction(item);
                 return (
-                  <div key={item.id} className="flex items-start gap-3 border-t border-black/10 px-4 py-3">
+                  <div key={item.id} className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-black/10 px-4 py-3">
                     <span
                       className={`grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg text-[13px] font-bold ${TONE_CLASS[act.tone]}`}
                     >
                       {index + 1}
                     </span>
-                    <button type="button" onClick={open(item.id)} className="min-w-0 flex-1 text-left">
+                    <button type="button" onClick={open(item.id)} className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left">
                       <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{attentionTitle(item)}</div>
                       <div className="mt-px text-[12.5px] text-black/70">{attentionSub(item)}</div>
                     </button>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[1100px]:basis-full max-[1100px]:justify-start max-[1100px]:pl-[42px]">
                       <span className={`rounded-full px-2 py-0.5 text-[11.5px] font-medium ${TONE_CLASS[act.tone]}`}>
                         {act.tone === "brand" ? act.chip : copy.t(act.chip)}
                       </span>

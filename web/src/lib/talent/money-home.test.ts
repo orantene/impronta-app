@@ -207,9 +207,15 @@ describe("F69 talentOwedSummary: Today card and Money page share one number", ()
     assert.equal(s.count, 3);
   });
   it("agenda only until the ledger loads; other currencies stay out", () => {
-    assert.deepEqual(talentOwedSummary({ clients: null, agendaOwed: [], currency: "USD" }), { cents: 0, count: 0, currency: "USD" });
+    assert.deepEqual(talentOwedSummary({ clients: null, agendaOwed: [], currency: "USD" }), { cents: 0, count: 0, currency: "USD", others: [] });
     const mxn = [client({ id: "m", amountOwedCents: 5000, currency: "MXN" })];
     assert.equal(talentOwedSummary({ clients: mxn, agendaOwed: [], currency: "USD" }).cents, 0);
+  });
+  it("never sums across currencies: MXN agenda rows are reported apart from USD", () => {
+    const row = { id: "x", name: "Z", service: "", startsAt: "2026-09-01T10:00:00Z", amountCents: 8400, currency: "MXN", kind: "balance" as const, overdue: false, dueByToday: true, orderId: null, bookingHref: "/talent/bookings/z" };
+    const s = talentOwedSummary({ clients: three, agendaOwed: [row], currency: "USD" });
+    assert.equal(s.cents, 6800);
+    assert.deepEqual(s.others, [{ currency: "MXN", cents: 8400 }]);
   });
   it("Today card and Money page both read the shared summary", () => {
     for (const f of ["../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx", "../../components/talent/money/MoneyHomePage.tsx"]) {

@@ -4,6 +4,7 @@ import { anyDemoTalent } from "@/lib/talent/demo-talent";
 import { validateActorPermission } from "./inquiry-permissions";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { shouldSendWorkspaceAutoAck } from "./workspace-auto-ack";
+import { workspaceAckBody } from "./guest-ack-copy";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { resolveInquiryCoordination, seedOwningAgencyCoordinators } from "./coordinator-assignment";
 import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-party-resolver";
@@ -610,10 +611,11 @@ export async function submitInquiry(
         // and NEVER on the guest path: it won a 48 ms race. See PR #1883.
         const autoAckEnabled =
           agencyRow == null ? true : agencyRow.auto_ack_enabled !== false;
-        const autoAckMessage: string =
-          typeof agencyRow?.auto_ack_message === "string" && agencyRow.auto_ack_message.trim()
-            ? agencyRow.auto_ack_message
-            : "Thanks, we'll get back to you within 4 hours.";
+        const { resolveTenantAckLocale } = await import("./guest-auto-ack");
+        const autoAckMessage: string = workspaceAckBody(
+          typeof agencyRow?.auto_ack_message === "string" ? agencyRow.auto_ack_message : null,
+          await resolveTenantAckLocale(homeTenantId),
+        );
 
         if (
           shouldSendWorkspaceAutoAck({

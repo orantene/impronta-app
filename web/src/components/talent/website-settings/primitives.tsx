@@ -17,7 +17,9 @@ export function StatusChip({
   status,
   unsaved,
   labels,
+  className = "",
 }: {
+  className?: string;
   status: SaveStatus;
   unsaved: number;
   labels: { saved: string; unsaved: string; saving: string; failed: string };
@@ -31,7 +33,7 @@ export function StatusChip({
           ? [labels.unsaved.replace("{n}", String(unsaved)), "bg-amber-50 text-amber-900"]
           : [labels.saved, "bg-emerald-50 text-emerald-900"];
   return (
-    <span role="status" aria-live="polite" className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone}`}>
+    <span role="status" aria-live="polite" className={`inline-flex shrink-0 items-center self-start rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone} ${className}`}>
       {text}
     </span>
   );
@@ -58,7 +60,7 @@ export function SaveBar({
       // Mobile: sit above the shell's fixed bottom nav (64px + safe area, same
       // as the shell's surface-main padding) and keep clear of the round
       // floating launcher at bottom-right.
-      className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-admin-border-soft bg-white px-4 py-3 max-[720px]:bottom-[calc(64px+env(safe-area-inset-bottom,0px))] max-[720px]:pr-[76px]"
+      className="sticky bottom-0 z-10 -mx-4 mt-6 w-[calc(100%+2rem)] border-t border-admin-border-soft bg-white px-4 py-3 max-[720px]:bottom-[calc(64px+env(safe-area-inset-bottom,0px))] max-[720px]:pr-[76px]"
     >
       {/* Disabled buttons always say why. */}
       {idle ? <p id="ws-savebar-why" className="mb-2 text-[12.5px] text-admin-ink-muted">{labels.nothing}</p> : null}
