@@ -11,6 +11,8 @@ const PAGES = [
   "src/app/(marketing)/legal/terms/terms-es.tsx",
   "src/app/(marketing)/legal/privacy/page.tsx",
   "src/app/(marketing)/legal/privacy/privacy-es.tsx",
+  "src/app/(marketing)/legal/refunds/page.tsx",
+  "src/app/(marketing)/legal/refunds/refunds-es.tsx",
 ];
 
 test("retention constants follow the 2026-10-01 owner decisions", () => {

@@ -216,7 +216,7 @@ test("the first group carries the talent's name, not 'Este sitio'", () => {
 
 test("the Tulala group has Cookies, pointing at the platform cookies page", () => {
   const m = model();
-  assert.deepEqual(m.tulalaLinks.map((l) => l.key), ["tulala-terms", "tulala-privacy", "tulala-cookies"]);
+  assert.deepEqual(m.tulalaLinks.map((l) => l.key), ["tulala-terms", "tulala-privacy", "tulala-cookies", "tulala-refunds"]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
   assert.equal(cookies.label, "Cookies");
   assert.equal(cookies.href, "https://tulala.digital/es/legal/cookies");

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
@@ -92,10 +93,15 @@ export function TermsEs() {
               <p className="text-xs opacity-70">Pendiente de revisión legal</p>
               <p>
                 Los reembolsos siguen la política de reembolso que el talento eligió para la
-                reservación, y {PLATFORM_BRAND.name} los procesa. Si un cliente disputa un cargo
-                con su banco, los contracargos y las disputas son responsabilidad del talento. Si
-                se pierde una disputa, {PLATFORM_BRAND.name} puede descontar el monto disputado
-                y cualquier comisión de disputa de los pagos futuros del talento.
+                reservación, y {PLATFORM_BRAND.name} los procesa. El detalle está en la página
+                de{" "}
+                <Link href="/legal/refunds" className="underline" style={{ color: "var(--plt-ink)" }}>
+                  Política de reembolsos
+                </Link>
+                . Si un cliente disputa un cargo con su banco, los contracargos y las disputas
+                son responsabilidad del talento. Si se pierde una disputa,{" "}
+                {PLATFORM_BRAND.name} puede descontar el monto disputado y cualquier comisión de
+                disputa de los pagos futuros del talento.
               </p>
               <p>
                 Actualmente no hay una tarifa de reservación aparte para los clientes. Las

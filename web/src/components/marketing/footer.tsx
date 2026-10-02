@@ -30,6 +30,7 @@ const FOOTER_HREFS = {
     "/legal/privacy",
     "/legal/terms",
     "/legal/cookies",
+    "/legal/refunds",
   ],
 };
 

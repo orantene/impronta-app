@@ -18,6 +18,7 @@ export const TULALA_LEGAL_TERMS_URL = "https://tulala.digital/legal/terms";
 export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
 export const TULALA_HOME_URL = "https://tulala.digital";
 export const TULALA_LEGAL_COOKIES_URL = "https://tulala.digital/legal/cookies";
+export const TULALA_LEGAL_REFUNDS_URL = "https://tulala.digital/legal/refunds";
 
 /** Legal pages keep one language per URL; a Spanish site links the /es/ copy. */
 export function localizedLegalUrl(url: string, locale: string | null | undefined): string {
@@ -178,6 +179,12 @@ export function buildSocketModel(input: {
       key: "tulala-cookies",
       label: "Cookies",
       href: localizedLegalUrl(TULALA_LEGAL_COOKIES_URL, locale),
+      external: true,
+    },
+    {
+      key: "tulala-refunds",
+      label: pickLocale(locale, { en: "Refunds", es: "Reembolsos" }),
+      href: localizedLegalUrl(TULALA_LEGAL_REFUNDS_URL, locale),
       external: true,
     },
   ];

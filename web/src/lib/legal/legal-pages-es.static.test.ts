@@ -10,7 +10,7 @@ import { test } from "node:test";
  * here instead of shipping a one-language legal page.
  */
 const read = (p: string) => readFileSync(p, "utf8");
-const PAGES = ["terms", "privacy", "cookies"] as const;
+const PAGES = ["terms", "privacy", "cookies", "refunds"] as const;
 const dir = (n: string) => `src/app/(marketing)/legal/${n}`;
 
 const headings = (s: string) => [...s.matchAll(/heading: "([^"]+)"/g)].map((m) => m[1]);
