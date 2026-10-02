@@ -13,15 +13,17 @@ export type DemoSiteSettings = TalentSiteSwitches & {
   currency: "MXN" | "USD";
 };
 
-const base = (partial: Partial<DemoSiteSettings> & Pick<DemoSiteSettings, "siteLangs" | "bookingMode" | "currency">): DemoSiteSettings => ({
-  ...DEFAULT_TALENT_SITE_SWITCHES,
-  chatConfig: { ...DEFAULT_TALENT_SITE_SWITCHES.chatConfig },
-  ...partial,
-  chatConfig: {
-    ...DEFAULT_TALENT_SITE_SWITCHES.chatConfig,
-    ...(partial.chatConfig ?? {}),
-  },
-});
+const base = (partial: Partial<DemoSiteSettings> & Pick<DemoSiteSettings, "siteLangs" | "bookingMode" | "currency">): DemoSiteSettings => {
+  const { chatConfig: chatPartial, ...rest } = partial;
+  return {
+    ...DEFAULT_TALENT_SITE_SWITCHES,
+    ...rest,
+    chatConfig: {
+      ...DEFAULT_TALENT_SITE_SWITCHES.chatConfig,
+      ...(chatPartial ?? {}),
+    },
+  };
+};
 
 /**
  * Varied settings keyed by profile code. Demos not listed keep product defaults
