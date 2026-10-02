@@ -64,7 +64,8 @@ interface ParticipantContext {
 interface CommissionContext {
   booking_id: string;
   home_tenant_id: string;
-  offer_id: string;
+  /** Null for order-backed purchases that never created an inquiry offer. */
+  offer_id: string | null;
   currency_code: string;
   platform_config: PlatformCommissionConfig;
   participants: ParticipantContext[];
