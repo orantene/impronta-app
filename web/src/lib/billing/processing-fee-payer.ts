@@ -38,11 +38,14 @@ export async function getProcessingFeePayer(
   sb: SupabaseClient,
   party: FeePayerParty,
 ): Promise<ProcessingFeePayer> {
-  const { data } = await sb
+  const { data, error } = await sb
     .from(tableFor(party.kind))
     .select("processing_fee_payer")
     .eq("id", party.id)
     .maybeSingle();
+  // A failed read is not "seller": surface it so the caller decides (the
+  // settings action logs it and shows the default).
+  if (error) throw error;
   return parseProcessingFeePayer((data as { processing_fee_payer?: unknown } | null)?.processing_fee_payer);
 }
 

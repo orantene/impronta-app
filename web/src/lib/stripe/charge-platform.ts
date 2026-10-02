@@ -86,11 +86,13 @@ async function resolveSellerPlatformUnsafe(
   if (error || !txn) return "us";
   const t = txn as { source_tenant_id?: string | null; payout_receiver_id?: string | null };
   if (t.payout_receiver_id) {
-    const { data: pa } = await sb
+    const { data: pa, error: paErr } = await sb
       .from("payout_accounts")
       .select("owner_type, owner_id")
       .eq("id", t.payout_receiver_id)
       .maybeSingle();
+    // Same fallback as a failed transaction read above: the default platform.
+    if (paErr) return "us";
     const p = pa as { owner_type?: string; owner_id?: string } | null;
     if (p?.owner_id && p.owner_type === "talent") {
       return loadAccountPlatform("talent_profiles", { column: "id", value: p.owner_id });

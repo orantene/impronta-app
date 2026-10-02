@@ -225,13 +225,22 @@ async function passThroughLegAlreadyTransferred(
   party: Party | "channel_referral",
 ): Promise<boolean> {
   if (!isPassThrough) return false;
-  const { data } = await sb
+  const { data, error } = await sb
     .from("booking_payouts")
     .select("status")
     .eq("booking_id", bookingId)
     .eq("participant_id", participantId)
     .eq("party", party)
     .maybeSingle();
+  if (error) {
+    // Unknown ledger state: never risk re-sending a paid leg. Skipped loudly;
+    // the next webhook / retry run re-checks.
+    logServerError(
+      "transfers.ledger_read_failed",
+      new Error(`booking ${bookingId} participant ${participantId} ${party}: ${error.message} (leg skipped this run)`),
+    );
+    return true;
+  }
   return (data?.status as string | undefined) === "transferred";
 }
 
@@ -261,11 +270,15 @@ export async function executeBookingTransfers(
   const outcomes: TransferOutcome[] = [];
 
   try {
-    const { data: txn } = await sb
+    const { data: txn, error: txnErr } = await sb
       .from("booking_transactions")
       .select("id, booking_id, status, currency, provider_metadata")
       .eq("id", transactionId)
       .maybeSingle();
+    if (txnErr) {
+      logServerError("transfers.txn_read_failed", txnErr);
+      return outcomes;
+    }
     if (!txn?.booking_id) return outcomes;
     // Only fan out once the charge is settled.
     if (!["paid", "payout_pending", "payout_sent"].includes(txn.status as string)) return outcomes;
