@@ -223,9 +223,12 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     title?: string;
     anchorId?: string;
   }> = [];
+  // After K1–K8 / authored overlay, the standalone contents block is removed
+  // (`homeTree:contents`); the issue index lives on the masthead's `contents` prop.
   const contentsFound: Array<{
     kind?: string;
     props?: Record<string, unknown>;
+    source?: "contents-block" | "masthead";
   }> = [];
   const mastheads: Array<{
     kind?: string;
@@ -264,10 +267,18 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
         });
       }
       if (node.kind === "contents") {
-        contentsFound.push({ kind: node.kind, props: node.props });
+        contentsFound.push({ kind: node.kind, props: node.props, source: "contents-block" });
       }
       if (node.kind === "masthead") {
         mastheads.push({ kind: node.kind, props: node.props });
+        const mastContents = node.props?.contents;
+        if (Array.isArray(mastContents) && mastContents.length > 0) {
+          contentsFound.push({
+            kind: "contents",
+            props: { items: mastContents },
+            source: "masthead",
+          });
+        }
       }
       if (node.kind === "comp_card") {
         compCards.push({ kind: node.kind, props: node.props });
@@ -328,7 +339,8 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     chapters.map((c) => c.anchorId),
     ["chapter-1", "chapter-2"],
   );
-  assert.equal(contentsFound.length, 1, "folio stamps shared contents block");
+  assert.equal(contentsFound.length, 1, "folio stamps contents on the masthead (standalone block removed)");
+  assert.equal(contentsFound[0]!.source, "masthead");
   const items =
     (contentsFound[0]!.props?.items as Array<{ label: string; anchor: string }>) ??
     [];
@@ -369,7 +381,15 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
       (s) => s.slotKey === "statement_footer" && s.originRole === "talent.statement_footer",
     ),
   );
-  assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
+  // Trees must stay token-driven; authored Look palettes legitimately carry hex.
+  assert.doesNotMatch(
+    JSON.stringify({
+      shellTree: payload.shellTree,
+      homeTree: payload.homeTree,
+      optionalBlocks: payload.optionalBlocks,
+    }),
+    /#[0-9a-fA-F]{3,8}/,
+  );
   assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
 });
 

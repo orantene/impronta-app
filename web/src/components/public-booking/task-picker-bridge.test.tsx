@@ -146,7 +146,19 @@ for (const c of CASES) {
   for (const locale of ["es", "en"] as const) {
     test(`${c.mode} (${locale}): task → action opens ${c.title} with the task pre-filled, nothing sent`, () => {
       const { host, calls, unmount } = mount(locale);
+      const asks: Event[] = [];
+      const onAsk = (e: Event) => asks.push(e);
+      dom.window.addEventListener("tulala:ask-question", onAsk);
       pick(host, c.task);
+      if (c.mode === "quote") {
+        // Quote services use ask flow only — never the booking sheet.
+        assert.equal(host.querySelector(".jb-back"), null, "quote never opens the booking sheet");
+        assert.equal(asks.length, 1, "quote fires ask-question");
+        assert.equal(calls.length, 0, "opening never sends anything");
+        dom.window.removeEventListener("tulala:ask-question", onAsk);
+        unmount();
+        return;
+      }
       const sheet = host.querySelector(".jb-back");
       assert.ok(sheet, "the booking sheet opened");
       assert.equal(host.querySelector(".jb-head h2")?.textContent, c.title, "right service");
@@ -159,6 +171,7 @@ for (const c of CASES) {
         locale === "es" ? /¿Qué pasa\?/ : /What's going on\?/,
       );
       assert.equal(calls.length, 0, "opening never sends anything");
+      dom.window.removeEventListener("tulala:ask-question", onAsk);
       unmount();
     });
   }

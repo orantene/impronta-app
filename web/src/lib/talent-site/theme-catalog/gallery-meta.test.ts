@@ -94,7 +94,7 @@ test("collection palettes cover maison's token keys, plus muted/on-accent and de
   assert.equal(galleryPreviewLookSlug(getGalleryDesign("folio")!, null), "stone");
   assert.equal(galleryDefaultLookTokens("maison-v2")!["color.background"], "#FCF7F7");
   assert.equal(galleryDefaultLookTokens("maison"), null, "Maison uses its Look rows");
-  assert.equal(galleryDefaultLookTokens("folio")!["color.background"], "#ECEAE5");
+  assert.equal(galleryDefaultLookTokens("folio")!["color.background"], "#EFE7DC");
   assert.equal(galleryPaletteLookTokens("nope", "pink"), null);
 });
 

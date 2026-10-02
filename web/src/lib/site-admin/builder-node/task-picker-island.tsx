@@ -15,6 +15,7 @@
  */
 import { useState } from "react";
 
+import { openCatalogBookingChat } from "@/components/public-booking/catalog-booking-chat";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { taskNotePrefill } from "@/lib/talent/offering-task-brief";
@@ -52,10 +53,20 @@ export function TaskPickerIsland({ model, locale, confirmsByHand, bookingPosture
     : null;
 
   const dispatch = (eventName: string) => {
-    if (!offering) return;
+    if (!offering || !derived) return;
     const base = detailFor(offering, confirmsByHand, bookingPosture);
     const ref = task ? { id: task.id, label: task.label } : null;
     const detail = ref ? { ...base, task: ref, note: taskNotePrefill(ref) } : base;
+    // Quote services: ask flow only (same as catalog dispatch) — never open the
+    // booking sheet, which would show "no times" over the chat.
+    if (detail.priceDisplay === "quote" || derived.cta === "ask_quote") {
+      openCatalogBookingChat({
+        detail,
+        askAbout: [detail.title],
+        from: "catalog",
+      });
+      return;
+    }
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   };
 

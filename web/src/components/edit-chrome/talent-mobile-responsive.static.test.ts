@@ -50,7 +50,8 @@ test("Theme update sheet: bottom sheet under sm, dvh height, safe-area footer, 4
 });
 
 test("Theme update notice clears the safe area and cannot outgrow the phone", () => {
-  assert.match(NOTICE, /bottom-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+  // Toast docks above the home indicator; builder card is top-docked (F94) with max-h.
+  assert.match(NOTICE, /bottom-\[max\(1rem,env\(safe-area-inset-bottom\)\)\]/);
   assert.match(NOTICE, /max-h-\[60dvh\]/);
   assert.match(NOTICE, /min-h-11/);
 });

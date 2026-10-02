@@ -59,9 +59,13 @@ export function ConsentEmbed({
   }
 
   const copy = embedCopy(lang, provider);
+  // Keep the prepared src in the unconsented markup so SSR / vendor-locale
+  // guards can still see language params (e.g. Maps `hl=`) without loading
+  // the third party until the visitor clicks.
   return (
     <div
       data-consent-embed={provider}
+      data-embed-src={privacyEmbedSrc(src)}
       style={{
         width: "100%",
         height: "100%",

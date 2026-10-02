@@ -27,11 +27,11 @@ test("maison-v2 sets a valid default for every site style token, on its payload 
   }
   assert.deepEqual(designTokenDefaults("maison-v2"), MAISON_V2_TOKEN_DEFAULTS);
   assert.deepEqual(designTokenDefaults(" Maison-V2 "), MAISON_V2_TOKEN_DEFAULTS);
-  // Folio's committed authored overlay (v18) patches two code defaults.
+  // Folio's committed authored overlay (v22) patches button padding only;
+  // hero desktop size stays the code default clamp(84px,19cqi,300px).
   assert.deepEqual(designTokenDefaults("folio"), {
     ...FOLIO_DESIGN_TOKEN_DEFAULTS,
     "button.padding-x": "20px",
-    "type.hero-size-desktop": "clamp(72px,15cqi,240px)",
   });
   assert.deepEqual(designTokenDefaults(null), {});
   const payload = buildMaisonV2Payload();

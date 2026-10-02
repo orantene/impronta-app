@@ -45,7 +45,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-hero-slider",
     label: "Hero Slider",
     description:
-      "Full-screen freeform slider — each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
+      "Full-screen freeform slider - each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
     category: "hero",
     icon: "hero-split",
     sectionTemplateId: "hero-slider",
@@ -90,7 +90,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-story-house",
     label: "Story House",
     description:
-      "Editorial origin story — 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
+      "Editorial origin story - 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
     category: "about",
     icon: "about-split",
     sectionTemplateId: "story-house",
@@ -178,7 +178,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-talent-discipline",
     label: "Talent by Discipline",
     description:
-      "Featured-pod category grid — Models, hosts, performers, and more.",
+      "Featured-pod category grid - Models, hosts, performers, and more.",
     category: "talent-roster",
     icon: "talent-grid",
     sectionTemplateId: "talent-discipline-wrapper",
@@ -299,13 +299,13 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
   }),
 
   // ── Connected / NATIVE data blocks (WS7 Phase 0) ────────────────────────
-  // These two are `nativeNode` inserts — a real BuilderNode kind, rendered by
+  // These two are `nativeNode` inserts - a real BuilderNode kind, rendered by
   // the shared builder renderer from server-resolved tenant data. They are the
   // native replacements for the `section_embed` round-trip to the curated
   // `hero_search` / `talent_type_grid` sections, which is why `sourceType` is
   // `native-freeform` rather than the `connected()` helper's `section-embed`
   // default. Insertion goes through `createNativeNodeForGalleryItem` →
-  // `createBuilderNode(kind)`, i.e. the builder tree only — the same path
+  // `createBuilderNode(kind)`, i.e. the builder tree only - the same path
   // `assertAddGalleryBuilderTreeOnly` polices.
   connected({
     id: "conn-hero-search-native",
@@ -348,7 +348,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     ],
   }),
 
-  // ── BUILDER 2027 · P2A — NATIVE roster bands ────────────────────────────
+  // ── BUILDER 2027 · P2A - NATIVE roster bands ────────────────────────────
   // The three cards here insert a real BuilderNode kind, not a `section_embed`
   // bridge into the frozen curated section of the same name. They sit beside
   // the existing `conn-directory-grid` / `conn-talent-search` embed cards for
@@ -437,7 +437,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     searchTerms: ["brand mark", "logo cloud"],
   }),
 
-  // ── Connected / Directory (dynamic embeds — Class C) ────────────────────
+  // ── Connected / Directory (dynamic embeds - Class C) ────────────────────
   connected({
     id: "conn-talent-search",
     label: "Talent Search Bar",

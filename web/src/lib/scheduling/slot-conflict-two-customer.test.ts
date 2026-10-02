@@ -25,13 +25,39 @@ type InsertResult = {
   error: { code: string; message: string } | null;
 };
 
+/** Chainable empty-read builder for the busy pre-check (holds/bookings/blocks). */
+function emptySelect() {
+  // Thenable chain: every filter returns the builder; awaiting it resolves empty.
+  const terminal: {
+    select: () => typeof terminal;
+    eq: () => typeof terminal;
+    lt: () => typeof terminal;
+    gt: () => typeof terminal;
+    or: () => typeof terminal;
+    then: Promise<{ data: never[]; error: null }>["then"];
+  } = {
+    select: () => terminal,
+    eq: () => terminal,
+    lt: () => terminal,
+    gt: () => terminal,
+    or: () => terminal,
+    then: (resolve, reject) =>
+      Promise.resolve({ data: [], error: null }).then(resolve, reject),
+  };
+  return terminal;
+}
+
 /** Mock admin: first insert wins; every later insert hits firm-hold exclusion. */
 function racingHoldClient() {
   let inserts = 0;
   return {
     from: (table: string) => {
+      if (table === "talent_bookings" || table === "talent_availability_blocks") {
+        return emptySelect();
+      }
       assert.equal(table, "talent_holds");
       return {
+        select: () => emptySelect(),
         insert: () => ({
           select: () => ({
             single: async (): Promise<InsertResult> => {

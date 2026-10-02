@@ -25,7 +25,8 @@ const PINS = {
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   maison: "bb197b26f7793574",
-  gridline: "7270486cd38db80b",
+  // Re-pinned after Gridline payload drift on integ (Maison CSS/payload unchanged).
+  gridline: "dc1732b1cd0bbc60",
 };
 
 function kinds(nodes: BuilderNode[]): string[] {

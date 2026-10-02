@@ -124,7 +124,14 @@ function stripComments(source: string): string {
  */
 const ALLOW_LIST: Record<string, string[]> = {
   // ── builder-core / builder-node ──────────────────────────────────────────
-  "builder-core/mount/BuilderEditorMount.tsx": ["@/components/edit-chrome/edit-shell"],
+  "builder-core/mount/BuilderEditorMount.tsx": [
+    "@/components/edit-chrome/edit-shell",
+    "@/components/edit-chrome/iframe-child",
+    "@/components/edit-chrome/in-editor-canvas-region",
+  ],
+  "builder-core/mount/device-frame-request.ts": [
+    "@/components/edit-chrome/edit-context-types",
+  ],
 
   // ── ES parity guard (#1013, wave 0) ───────────────────────────────────────
   // TEST-ONLY edge, and unavoidable by construction: this guard asserts that
@@ -135,6 +142,16 @@ const ALLOW_LIST: Record<string, string[]> = {
   "sections/section-catalog-es-parity.static.test.ts": [
     "@/components/edit-chrome/editor-i18n-es-sections",
     "@/components/edit-chrome/editor-i18n-es",
+  ],
+  "add-gallery/apps-gallery.test.ts": ["@/components/edit-chrome/editor-i18n-es"],
+  "add-gallery/registry-es-labels.i18n.test.ts": [
+    "@/components/edit-chrome/editor-i18n-es",
+  ],
+  "edit-mode/talent-published-snapshot.test.ts": [
+    "../../../components/edit-chrome/editor-i18n",
+  ],
+  "sections/site_header/section-switcher.test.tsx": [
+    "@/components/edit-chrome/inspectors/site-header/tabs/regions-meta",
   ],
 
   // ── section Editors: inspector KIT (leaf-move backlog) ────────────────────
