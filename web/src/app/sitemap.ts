@@ -202,7 +202,7 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
   }
   if (!talentProfileId) return [];
 
-  const { data: profile } = await admin
+  const { data: profile, error: profileError } = await admin
     .from("talent_profiles")
     .select("updated_at, created_at, preferred_locale, secondary_locales")
     .eq("id", talentProfileId)
@@ -212,7 +212,7 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     .eq("visibility", "public")
     .neq("profile_kind", "resource")
     .maybeSingle();
-  if (!profile) return [];
+  if (profileError || !profile) return [];
 
   const [site, planKey] = await Promise.all([
     loadMaxSiteByProfileId(talentProfileId),

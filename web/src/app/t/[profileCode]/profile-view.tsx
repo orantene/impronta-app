@@ -103,6 +103,10 @@ import { talentPlanRemovesPlatformBadge } from "@/lib/access/talent-membership";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
+import {
+  talentProfileMetaFallbackDescription,
+  talentProfileMetaTitle,
+} from "@/lib/seo/talent-profile-meta-copy";
 import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
@@ -1463,26 +1467,14 @@ export async function buildTalentProfileMetadata({
     ) ?? pickLocale(locale, { en: "Talent", es: "Talento" });
   const loc = residenceLabel(locale, profile as TalentProfile);
 
-  // Query-shaped ("<name>, <type> in <place>"): that is how clients search.
-  const title = loc
-    ? pickLocale(locale, {
-        en: `${name}, ${talentType} in ${loc}`,
-        es: `${name}, ${talentType} en ${loc}`,
-      })
-    : `${name}, ${talentType}`;
+  const title = talentProfileMetaTitle(locale, name, talentType, loc);
   const about = publicBioForLocale(locale, [locale, "en"], {
     ...(profile.bio_i18n ?? {}),
     en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
   });
-  // No bio: build a descriptive, brand-neutral line in the page's language. It
-  // used to hardcode "Impronta" (one tenant's name) on every host, platform
-  // apex included, and was English on the /es/ URL.
+  // No bio: brand-neutral line in the page language.
   const description =
-    about.trim() ||
-    pickLocale(locale, {
-      en: `${name}, ${talentType}${loc ? ` in ${loc}` : ""}. See the portfolio, services and availability, and send a booking request.`,
-      es: `${name}, ${talentType}${loc ? ` en ${loc}` : ""}. Mira su portafolio, servicios y disponibilidad, y envía una solicitud de reserva.`,
-    });
+    about.trim() || talentProfileMetaFallbackDescription(locale, name, talentType, loc);
 
   return {
     title,
