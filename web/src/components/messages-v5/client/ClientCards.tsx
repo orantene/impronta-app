@@ -44,6 +44,8 @@ import {
   type TimesView,
 } from "@/lib/messages-v5/client-thread-view";
 
+import { EngineFeeLines } from "@/components/payments/FeeLines";
+
 import { Card, CardLine, CardTotal } from "../kit/Card";
 import { fill, type KitCopy } from "../kit/copy";
 import { Btn, Icon, Pill } from "../kit/primitives";
@@ -412,6 +414,24 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
           <CardLine label={copy.pay.paidAmount} amount={money(view.paidCents, view.currency)} />
           {view.dueCents! > 0 ? <CardLine label={copy.pay.balanceDue} amount={money(view.dueCents, view.currency)} /> : null}
         </>
+      ) : view.feeLines.length > 0 && !paid && !closed ? (
+        <EngineFeeLines
+          lines={view.feeLines}
+          currency={view.currency}
+          locale={locale}
+          label={(c) =>
+            c === "service_subtotal"
+              ? copy.pay.feeService
+              : c === "base_reservation_fee"
+                ? copy.pay.feeReservation
+                : c === "platform_fee"
+                  ? copy.pay.feePlatform
+                  : c === "processing_fee"
+                    ? copy.pay.feeProcessing
+                    : copy.pay.feeTotal
+          }
+          nonRefundable={copy.pay.feeNonRefundable}
+        />
       ) : (
         <CardLine label={kind} amount={amount} />
       )}
