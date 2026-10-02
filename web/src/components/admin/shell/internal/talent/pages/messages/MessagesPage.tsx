@@ -12,6 +12,7 @@ import { talentShellEngine } from "@/components/messages-v5/shell/talent-engine"
 import type { ShellActionId } from "@/components/messages-v5/screens/contracts";
 
 import { TalentMessagesShellLazy, useKeyboardInset } from "../../shared/client-threads-1";
+import { MessagesSettingsDrawer } from "@/components/talent/money/MessagesSettingsDrawer";
 import { TalentDecisionBar } from "./TalentDecisionBar";
 import {
   TalentSellerActions,
@@ -62,6 +63,9 @@ function TalentMessagesV5() {
       data-talent-messages-v5
       className="-mx-[14px] -mt-[14px] -mb-[60px] flex h-[calc(100dvh-66px)] min-h-0 flex-col max-md:h-[calc(100dvh-115px-env(safe-area-inset-bottom,0px))]"
     >
+      <div className="flex shrink-0 justify-end px-2">
+        <MessagesSettingsDrawer />
+      </div>
       <TalentDecisionBar inquiryId={activeId} />
       <MessagesV5Shell
         tenantId={tenantId || "talent"}
