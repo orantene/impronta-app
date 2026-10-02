@@ -280,9 +280,10 @@ test("new groups whose parent voice is wrong override it", async () => {
   // Vehicle care under transportation is not a rental.
   assert.equal(await resolveTalentTradePreset(exploding, "vehicle-care"), "dropoff_service");
   assert.equal(PARENT_CATEGORY_PRESET["transportation"], "rentals");
-  // Pest control and solar are quoted jobs, not drop-offs.
+  // Pest control and solar are quoted jobs; on-site trades book a visit, so the
+  // home-technical-services parent is `practice` (main, f4c092eb4).
   assert.equal(await resolveTalentTradePreset(exploding, "home-extras"), "practice");
-  assert.equal(PARENT_CATEGORY_PRESET["home-technical-services"], "dropoff_service");
+  assert.equal(PARENT_CATEGORY_PRESET["home-technical-services"], "practice");
   // Sewing and repair is collected, unlike jewelry and handcraft commissions.
   assert.equal(await resolveTalentTradePreset(exploding, "sewing-repair"), "dropoff_service");
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "jewelry-watches": "crafts-makers" }), "jewelry-watches"), "workshop_print");
@@ -291,7 +292,7 @@ test("new groups whose parent voice is wrong override it", async () => {
 
 test("new groups whose parent voice is right inherit it", async () => {
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "event-planning": "production-bts" }), "event-planning"), "practice");
-  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "tech-repair": "home-technical-services" }), "tech-repair"), "dropoff_service");
+  assert.equal(await resolveTalentTradePreset(fakeAdmin({ "tech-repair": "home-technical-services" }), "tech-repair"), "practice");
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "dental-care": "health-therapy" }), "dental-care"), "practice");
   assert.equal(await resolveTalentTradePreset(fakeAdmin({ "animal-health": "pets-animal-care" }), "animal-health"), "practice");
 });
