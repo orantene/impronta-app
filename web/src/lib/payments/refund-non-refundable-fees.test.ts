@@ -5,7 +5,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeRefundEligibility } from "@/lib/payments/refund-execute";
-import { nonRefundableFeeCents, proportionalRefundCents } from "@/lib/billing/commission-processing";
+import {
+  attachPayoutProcessingFees,
+  nonRefundableFeeCents,
+  proportionalRefundCents,
+} from "@/lib/billing/commission-processing";
 
 const base = {
   status: "paid",
@@ -102,4 +106,34 @@ test("legacy included mode unchanged: 0 kept, whole gross refundable", () => {
     computeRefundEligibility({ ...base, grossAmountCents: 10_300, nonRefundableFeeCents: kept }).remainingCents,
     10_300,
   );
+});
+
+test("seller-pays: fee lives on payouts — attach before nonRefundableFeeCents", () => {
+  const snap = {
+    participant_id: "p1",
+    processing_mode: "pass_through" as const,
+    processing_fee_payer: "seller" as const,
+    client_surcharge_cents: 150,
+  };
+  assert.equal(nonRefundableFeeCents([snap]), null);
+  const enriched = attachPayoutProcessingFees([snap], [
+    { participant_id: "p1", processing_fee_cents: 324 },
+  ]);
+  assert.equal(nonRefundableFeeCents(enriched), 150 + 324);
+});
+
+test("attachPayoutProcessingFees sums legs per participant and leaves others untouched", () => {
+  const out = attachPayoutProcessingFees(
+    [
+      { participant_id: "a", processing_fee_cents: null },
+      { participant_id: "b" },
+    ],
+    [
+      { participant_id: "a", processing_fee_cents: 100 },
+      { participant_id: "a", processing_fee_cents: 24 },
+      { participant_id: "c", processing_fee_cents: 999 },
+    ],
+  );
+  assert.equal(out[0]!.processing_fee_cents, 124);
+  assert.equal(out[1]!.processing_fee_cents, undefined);
 });

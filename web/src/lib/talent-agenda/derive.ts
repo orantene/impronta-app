@@ -35,7 +35,7 @@ export function deriveBookingState(input: {
     return "hold";
   }
   const s = (input.status ?? "").toLowerCase();
-  if (s === "cancelled") return "cancelled";
+  if (s === "cancelled" || s === "canceled") return "cancelled";
   if (s === "completed") return "completed";
   if (s === "no_show" || s === "no-show") return "no_show";
   if (s === "confirmed" || s === "in_progress" || s === "tentative") return "confirmed";
@@ -62,6 +62,10 @@ export function derivePaymentState(input: {
   startsAt?: string | null;
 }): PaymentState {
   if (input.managedByAgency) return "agency";
+  // Cancelled work is never owed / awaiting — Money "waiting" must not count it.
+  if (input.booking === "cancelled" || input.booking === "hold_expired" || input.booking === "no_show") {
+    return "none";
+  }
   if (input.refundPending || input.transactionStatus === "refund_pending") {
     return "refund_pending";
   }

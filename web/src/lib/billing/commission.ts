@@ -98,6 +98,7 @@ import {
   estimateProcessorFeeCents,
   grossUpForProcessorFee,
   nonRefundableFeeCents,
+  attachPayoutProcessingFees,
   applyProcessingFeeToLanes,
 } from "./commission-processing";
 
@@ -106,6 +107,7 @@ export {
   estimateProcessorFeeCents,
   grossUpForProcessorFee,
   nonRefundableFeeCents,
+  attachPayoutProcessingFees,
   applyProcessingFeeToLanes,
 };
 

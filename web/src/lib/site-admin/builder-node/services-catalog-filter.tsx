@@ -3,7 +3,7 @@
 import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
-import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
+import { deriveOfferingCta, opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
@@ -101,14 +101,20 @@ function dispatchOffering(
   inclusion?: string | null,
   bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
 ) {
-  const { eventName } = deriveFor(offering, confirmsByHand, bookingPosture);
+  const { eventName, cta } = deriveFor(offering, confirmsByHand, bookingPosture);
+  const detail = {
+    ...detailFor(offering, confirmsByHand, bookingPosture),
+    startAt,
+    inclusion: inclusion ?? undefined,
+  };
+  // Quote / inquiry: never open the booking sheet (no times). Mirror MaisonMenu.
+  if (opensAskFlowOnly(cta)) {
+    openCatalogBookingChat({ detail, askAbout: [detail.title], from: "catalog" });
+    return;
+  }
   window.dispatchEvent(
     new CustomEvent(eventName, {
-      detail: {
-        ...detailFor(offering, confirmsByHand, bookingPosture),
-        startAt,
-        inclusion: inclusion ?? undefined,
-      },
+      detail,
     }),
   );
 }

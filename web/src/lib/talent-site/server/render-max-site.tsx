@@ -25,7 +25,9 @@ import {
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
-import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
+import { localiseTalentHeaderDefaults, stripHiddenAskHeaderCta } from "@/lib/talent-site/header-cta-locale";
+import { askEntryPointsVisible, resolveTalentAskEntry } from "@/lib/talent/chat-entry";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
@@ -473,7 +475,7 @@ async function renderMaxSiteDocument(args: {
   // resolve captcha even if the tree scan missed a nested catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow, siteSwitches] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
@@ -510,7 +512,14 @@ async function renderMaxSiteDocument(args: {
         const admin = createServiceRoleClient();
         return admin ? loadTalentLiveStatus(admin, talentProfileId) : { ...DEFAULT_TALENT_LIVE_STATUS };
       })(),
+      (async () => {
+        const admin = createServiceRoleClient();
+        return admin ? loadTalentSiteSwitches(admin, talentProfileId) : null;
+      })(),
     ]);
+  const askVisible = siteSwitches
+    ? askEntryPointsVisible(resolveTalentAskEntry(siteSwitches))
+    : true;
   // Expiry is applied here, at render time: a lapsed flag renders as off.
   const liveStatus = toLiveStatusRenderContext(liveStatusRow, new Date());
   const usdRates = await loadUsdRatesForSitePrices([
@@ -606,7 +615,10 @@ async function renderMaxSiteDocument(args: {
     ) {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
-      const localised = localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale);
+      const localised = stripHiddenAskHeaderCta(
+        localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale),
+        askVisible,
+      );
       const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;

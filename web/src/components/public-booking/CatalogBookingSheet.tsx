@@ -134,6 +134,8 @@ export function CatalogBookingSheet({
     const open = (e: Event) => {
       const d = (e as CustomEvent).detail as CatalogBookingDetail | undefined;
       if (!d) return;
+      // Quote services: ask flow only — never open the booking sheet (no times).
+      if (d.priceDisplay === "quote") return;
       // PKG-2: products / untimed packages use CatalogPurchaseMount; skip only when that rail handles it.
       if (d.intent === "instant" && catalogDetailIsPurchase(d)) return;
       // G13: a picked task pre-selects matching intake chips (still editable).
