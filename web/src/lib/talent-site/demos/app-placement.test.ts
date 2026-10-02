@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { appsForDemo, appsForDesign, appsForTrade, APP_REGISTRY } from "@/lib/site-admin/add-gallery/apps-registry";
+import { appsForDemo, appsForDesign, appsForTrade, APP_REGISTRY, tradesForDemoCode } from "@/lib/site-admin/add-gallery/apps-registry";
 import { THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { NAIL_BAND_ID, nailBand, placeDemoApps } from "./app-placement";
@@ -59,4 +59,9 @@ test("band: ES/EN copy, design tokens only (no hex)", () => {
   assert.match(json, /Diseña tus uñas antes de tu cita/);
   assert.match(json, /token:color\.surface-raised/);
   assert.doesNotMatch(json, /—/);
+});
+
+test("Andrés (TAL-93006) is a recorded chef: no app recommended, never nails", () => {
+  assert.deepEqual(tradesForDemoCode("TAL-93006"), ["chef"]);
+  assert.equal(appsForDemo({ profileCode: "TAL-93006" }).length, 0);
 });
