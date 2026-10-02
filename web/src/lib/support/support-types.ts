@@ -168,6 +168,14 @@ export function supportPresenceKey(ticketId: string): string {
   return `support:${ticketId}`;
 }
 
+/**
+ * Private Realtime topic for Desk/HQ agent presence (journey 7).
+ * Clients must open with `{ config: { private: true } }` + setAuth().
+ */
+export function supportPresenceChannel(ticketId: string): string {
+  return `support.presence.${ticketId}`;
+}
+
 export function asRecord(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;

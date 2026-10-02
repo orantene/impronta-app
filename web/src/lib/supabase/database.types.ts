@@ -2904,6 +2904,8 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail: string | null
+          /** pass_through: actual processing fee on this leg (null for included-mode). */
+          processing_fee_cents: number | null
           release_after: string | null
           status: string
           stripe_transfer_id: string | null
@@ -2927,6 +2929,7 @@ export type Database = {
           participant_id: string
           party: string
           payout_rail?: string | null
+          processing_fee_cents?: number | null
           release_after?: string | null
           status: string
           stripe_transfer_id?: string | null
@@ -2950,6 +2953,7 @@ export type Database = {
           participant_id?: string
           party?: string
           payout_rail?: string | null
+          processing_fee_cents?: number | null
           release_after?: string | null
           status?: string
           stripe_transfer_id?: string | null
@@ -12005,6 +12009,63 @@ export type Database = {
           key?: string
           label_en?: string
           sort_order?: number
+        }
+        Relationships: []
+      }
+      resend_inbound_emails: {
+        Row: {
+          id: string
+          resend_email_id: string
+          message_id: string | null
+          from_address: string
+          to_addresses: string[]
+          subject: string
+          body_text: string | null
+          body_html: string | null
+          body_truncated: boolean
+          forward_to: string | null
+          forward_status: string
+          forward_error: string | null
+          forwarded_at: string | null
+          provider_payload: Record<string, unknown>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resend_email_id: string
+          message_id?: string | null
+          from_address: string
+          to_addresses?: string[]
+          subject?: string
+          body_text?: string | null
+          body_html?: string | null
+          body_truncated?: boolean
+          forward_to?: string | null
+          forward_status?: string
+          forward_error?: string | null
+          forwarded_at?: string | null
+          provider_payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resend_email_id?: string
+          message_id?: string | null
+          from_address?: string
+          to_addresses?: string[]
+          subject?: string
+          body_text?: string | null
+          body_html?: string | null
+          body_truncated?: boolean
+          forward_to?: string | null
+          forward_status?: string
+          forward_error?: string | null
+          forwarded_at?: string | null
+          provider_payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

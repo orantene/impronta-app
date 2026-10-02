@@ -40,7 +40,9 @@ import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshot,
   loadBookingCommissionSnapshots,
+  loadBookingCommissionSnapshotsForRefund,
 } from "./commission-engine";
+import { nonRefundableFeeCents } from "./commission-processing";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Faithful in-process fake — mirrors only the call shapes the engine uses.
@@ -79,13 +81,20 @@ function makeSupabase(
     calls.from.push(table);
     const out = script.from?.[table] ?? { data: null, error: null };
     const result = { data: out.data ?? null, error: out.error ?? null };
-    const chain = {
+    // PostgREST builders are thenable — ForRefund awaits `.select().eq()` with
+    // no `.order()` / `.maybeSingle()` terminal. Mirror that here.
+    const chain: {
+      select: () => typeof chain;
+      eq: () => typeof chain;
+      maybeSingle: () => Promise<typeof result>;
+      order: () => Promise<typeof result>;
+      then: PromiseLike<typeof result>["then"];
+    } = {
       select: () => chain,
       eq: () => chain,
-      // Two terminals: maybeSingle (used by agency_bookings lookup) and
-      // order (used by loadBookingCommissionSnapshots).
       maybeSingle: () => Promise.resolve(result),
       order: () => Promise.resolve(result),
+      then: (onFulfilled, onRejected) => Promise.resolve(result).then(onFulfilled, onRejected),
     };
     return chain;
   };
@@ -497,5 +506,68 @@ describe("loadBookingCommissionSnapshot (single-row legacy helper)", () => {
       from: { booking_commission_snapshot: { data: [], error: null } },
     });
     assert.equal(await loadBookingCommissionSnapshot(supabase, BOOKING), null);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. loadBookingCommissionSnapshotsForRefund — A4: fee lives on booking_payouts
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("loadBookingCommissionSnapshotsForRefund", () => {
+  const sellerSnap = {
+    booking_id: BOOKING,
+    participant_id: PARTICIPANT,
+    processing_mode: "pass_through" as const,
+    processing_fee_payer: "seller" as const,
+    client_surcharge_cents: 150,
+    platform_fee_cents: 150,
+    talent_net_cents: 10_000,
+    workspace_fee_cents: 0,
+  };
+
+  it("bare snapshot (no payout fee) → seller-pays still unknown to nonRefundableFeeCents", async () => {
+    const { supabase, calls } = makeSupabase({
+      from: {
+        booking_commission_snapshot: { data: [sellerSnap] },
+        booking_payouts: { data: [] },
+      },
+    });
+    const out = await loadBookingCommissionSnapshotsForRefund(supabase, BOOKING);
+    assert.equal(nonRefundableFeeCents(out), null);
+    assert.ok(calls.from.includes("booking_payouts"));
+  });
+
+  it("attaches booking_payouts.processing_fee_cents so seller-pays refunds can compute", async () => {
+    const { supabase } = makeSupabase({
+      from: {
+        booking_commission_snapshot: { data: [sellerSnap] },
+        booking_payouts: {
+          data: [{ participant_id: PARTICIPANT, processing_fee_cents: 324 }],
+        },
+      },
+    });
+    const out = await loadBookingCommissionSnapshotsForRefund(supabase, BOOKING);
+    assert.equal(out[0]?.processing_fee_cents, 324);
+    assert.equal(nonRefundableFeeCents(out), 150 + 324);
+  });
+
+  it("payouts read error → fail closed (snaps without fee, nonRefundable null)", async () => {
+    const { supabase } = makeSupabase({
+      from: {
+        booking_commission_snapshot: { data: [sellerSnap] },
+        booking_payouts: { data: null, error: { message: "payouts boom" } },
+      },
+    });
+    const out = await loadBookingCommissionSnapshotsForRefund(supabase, BOOKING);
+    assert.equal(out[0]?.processing_fee_cents, undefined);
+    assert.equal(nonRefundableFeeCents(out), null);
+  });
+
+  it("no snapshots → [] and does not query payouts", async () => {
+    const { supabase, calls } = makeSupabase({
+      from: { booking_commission_snapshot: { data: [] } },
+    });
+    assert.deepEqual(await loadBookingCommissionSnapshotsForRefund(supabase, BOOKING), []);
+    assert.equal(calls.from.includes("booking_payouts"), false);
   });
 });
