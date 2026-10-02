@@ -216,7 +216,7 @@ test("collection Designs stamp shared navChrome modes on the standard header", (
 test("folio uses portfolio chapter layout and clears project-story gap", () => {
   const folio = COLLECTION_DESIGNS.find((d) => d.slug === "folio");
   assert.ok(folio);
-  const payload = folio!.buildPayloadRaw()  /* code structure; editor overlays are tested in authored-overlays.test.ts */;
+  const payload = folio!.buildPayload();
   const chapters: Array<{
     layout?: string;
     chapterNumber?: number;

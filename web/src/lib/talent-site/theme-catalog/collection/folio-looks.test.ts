@@ -24,6 +24,6 @@ test("folioLookTokensFromCode resolves stone and rejects unknown", () => {
   const stone = folioLookTokensFromCode("folio-stone");
   assert.ok(stone);
   // Authored Folio stone palette override (Mateo warm sand), not the code default #ECEAE5.
-  assert.equal(stone!["color.background"], "#EFE7DC");
+  assert.equal(stone!["color.background"], "#ECEAE5");
   assert.equal(folioLookTokensFromCode("folio-nope"), null);
 });

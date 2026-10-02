@@ -145,7 +145,7 @@ export function ThemeUpdateNotice({
       role="status"
       aria-live="polite"
       data-theme-update-toast
-      className="fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
+      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
     >
       {toast}
     </div>

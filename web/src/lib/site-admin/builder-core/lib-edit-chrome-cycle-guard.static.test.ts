@@ -129,9 +129,6 @@ const ALLOW_LIST: Record<string, string[]> = {
     "@/components/edit-chrome/iframe-child",
     "@/components/edit-chrome/in-editor-canvas-region",
   ],
-  "builder-core/mount/device-frame-request.ts": [
-    "@/components/edit-chrome/edit-context-types",
-  ],
 
   // ── ES parity guard (#1013, wave 0) ───────────────────────────────────────
   // TEST-ONLY edge, and unavoidable by construction: this guard asserts that
