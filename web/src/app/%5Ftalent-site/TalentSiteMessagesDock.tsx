@@ -1,3 +1,4 @@
+import { publicNameOrGeneric } from "@/lib/messaging/public-name";
 import "server-only";
 
 import { TalentProfileChatLauncherMount } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncherMount";
@@ -30,6 +31,7 @@ import { TalentSiteContactBridge } from "./TalentSiteContactBridge";
 import {
   chatCardColorsFromTokens,
   chatCardReplyKey,
+  resolveChatHelpBubble,
   resolveChatVariant,
   type ChatCardConfig,
 } from "@/lib/talent-site/chat-card";
@@ -68,17 +70,19 @@ async function loadVanitySiteChrome(
   logoUrl: string | null;
   tokens: Record<string, unknown> | null;
   designSlug: string | null;
+  designVersion: number | null;
 }> {
   const { data, error } = await admin
     .from("talent_sites")
-    .select("design_tokens, logo_url, theme_design_slug")
+    .select("design_tokens, logo_url, theme_design_slug, theme_design_version")
     .eq("talent_profile_id", talentProfileId)
     .maybeSingle();
-  if (error) return { accentColor: null, logoUrl: null, tokens: null, designSlug: null };
+  if (error) return { accentColor: null, logoUrl: null, tokens: null, designSlug: null, designVersion: null };
   const row = data as {
     design_tokens?: unknown;
     logo_url?: string | null;
     theme_design_slug?: string | null;
+    theme_design_version?: number | null;
   } | null;
   // AUD-039: the same `talent_sites.logo_url` the Max-site shell header paints.
   const logoUrl = row?.logo_url?.trim() || null;
@@ -90,6 +94,7 @@ async function loadVanitySiteChrome(
     logoUrl,
     tokens,
     designSlug: row?.theme_design_slug?.trim() || null,
+    designVersion: typeof row?.theme_design_version === "number" ? row.theme_design_version : null,
   };
 }
 
@@ -206,7 +211,7 @@ export async function TalentSiteMessagesDock({
   } | null;
   const code = profile?.profile_code?.trim();
   if (!code) return null;
-  const displayName = profile?.display_name?.trim() || code;
+  const displayName = publicNameOrGeneric(profile?.display_name, locale);
   const hrefs = talentContactHrefs({
     phone: profile?.phone,
     phoneE164: profile?.phone_e164,
@@ -233,6 +238,7 @@ export async function TalentSiteMessagesDock({
           replyLabel: await chatCardReplyLabel(resolved.tenant.tenantId, talentProfileId, t),
           city: localizedName(profile?.residence_city?.display_name_i18n, locale),
           customGreeting: switches.chatConfig.greeting ?? null,
+          browseServices: switches.chatConfig.browseServices,
           ...chatCardColorsFromTokens(siteChrome.tokens),
         }
       : null;
@@ -273,6 +279,7 @@ export async function TalentSiteMessagesDock({
           wordsPresetOverride={tradePreset}
           omitPlatformBrand
           chatCard={chatCard}
+          helpBubble={resolveChatHelpBubble(siteChrome.tokens, siteChrome.designSlug, siteChrome.designVersion)}
         />
       ) : askEntry === "form" ? (
         <TalentInquiryFormSheet

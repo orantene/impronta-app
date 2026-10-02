@@ -18,6 +18,7 @@
  * site (resolved from the gate, never from input).
  */
 
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import type { TalentSiteCapability } from "@/lib/access/talent-membership";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { logServerError } from "@/lib/server/safe-error";
@@ -78,10 +79,12 @@ export async function applySiteDesignAction(input: {
   if (!loaded.ok) return loaded;
   const site = await ensureSiteId(r);
   if (!site.ok) return site;
+  // F109: apply the version the gallery preview shows (newest released).
+  const design = (await loadApplyDesignRow(r.admin, input.designSlug)) ?? loaded.row;
   return applyDesign(r.admin, {
     talentProfileId: r.g.talentProfileId,
     siteId: site.siteId,
-    design: loaded.row,
+    design,
     displayName: r.g.displayName,
     userId: r.g.userId,
   });

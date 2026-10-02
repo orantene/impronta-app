@@ -1,3 +1,4 @@
+import { safePublicName } from "@/lib/messaging/public-name";
 import "server-only";
 
 /**
@@ -68,6 +69,11 @@ export async function loadClientOfferSummaries(admin: Admin, input: { tenantId: 
 
 /** The newest OPEN payment link on this conversation, so "Accept and pay" and "Pay" can go straight to /pay/<code>. */
 export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<string | null> {
+  return (await loadOpenPaymentLink(admin, input))?.code ?? null;
+}
+
+/** The open link's code AND the amount it actually charges (single source for the dock title). */
+export async function loadOpenPaymentLink(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<{ code: string; amountCents: number | null } | null> {
   // `status` stays "open" after the link's own expiry passes (the sweeper
   // flips it later), so the expiry is checked here too: an expired link is
   // not a Pay button and not a next step. Found live 2026-09-18: the card
@@ -75,7 +81,7 @@ export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: strin
   const nowIso = (input.now ?? new Date()).toISOString();
   const { data, error } = await admin
     .from("payment_links")
-    .select("code, status, created_at, expires_at")
+    .select("code, amount_cents, status, created_at, expires_at")
     .eq("tenant_id", input.tenantId)
     .eq("inquiry_id", input.inquiryId)
     .eq("status", "open")
@@ -84,8 +90,10 @@ export async function loadOpenPaymentCode(admin: Admin, input: { tenantId: strin
     .limit(1)
     .maybeSingle();
   if (error || !data) return null;
-  const code = (data as { code?: string | null }).code;
-  return code ? String(code) : null;
+  const row = data as { code?: string | null; amount_cents?: number | string | null };
+  if (!row.code) return null;
+  const cents = row.amount_cents == null ? NaN : Number(row.amount_cents);
+  return { code: String(row.code), amountCents: Number.isFinite(cents) && cents > 0 ? Math.round(cents) : null };
 }
 
 export type ClientLinkBusiness = {
@@ -94,15 +102,27 @@ export type ClientLinkBusiness = {
   readonly locale: string;
 };
 
+/**
+ * The platform network hub (kind hub + plan network; its slug is "tulala" in
+ * production, not "hub"). Matching the slug "hub" never fired, so every solo
+ * talent's guest saw "Note from Tulala" (QA on Jor, 2026-10-01). Same
+ * predicate as `getPlatformHubTenant`.
+ */
+export function isPlatformHubRow(row: { slug?: string | null; kind?: string | null; plan_tier?: string | null } | null | undefined): boolean {
+  if (!row) return false;
+  if (row.kind === "hub" && row.plan_tier === "network") return true;
+  return row.slug === "hub";
+}
+
 /** Business header: workspace public name, the owner's first name, and the WORKSPACE locale (the token thread follows the workspace, not the visitor). */
 export async function loadClientLinkBusiness(admin: Admin, input: { tenantId: string; inquiryId: string }): Promise<ClientLinkBusiness> {
   const [identityRes, agencyRes, inquiryRes] = await Promise.all([
     admin.from("agency_business_identity").select("public_name, default_locale").eq("tenant_id", input.tenantId).maybeSingle(),
-    admin.from("agencies").select("display_name").eq("id", input.tenantId).maybeSingle(),
+    admin.from("agencies").select("display_name, slug, kind, plan_tier").eq("id", input.tenantId).maybeSingle(),
     admin.from("inquiries").select("owner_user_id").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
   ]);
   const identity = (identityRes?.data ?? null) as { public_name?: string | null; default_locale?: string | null } | null;
-  const agency = (agencyRes?.data ?? null) as { display_name?: string | null } | null;
+  const agency = (agencyRes?.data ?? null) as { display_name?: string | null; slug?: string | null; kind?: string | null; plan_tier?: string | null } | null;
   const ownerId = ((inquiryRes?.data ?? null) as { owner_user_id?: string | null } | null)?.owner_user_id ?? null;
   let handler: string | null = null;
   if (ownerId) {
@@ -113,8 +133,24 @@ export async function loadClientLinkBusiness(admin: Admin, input: { tenantId: st
   }
   const raw = (identity?.default_locale ?? "en").toLowerCase();
   const locale = raw.startsWith("es") ? "es" : raw.startsWith("fr") ? "fr" : "en";
+  let name = (identity?.public_name ?? "").trim() || (agency?.display_name ?? "").trim() || "";
+  // A solo talent on the platform hub: the business a guest talks to is the
+  // talent (her public display name), never the platform brand ("Note from Tulala").
+  if (isPlatformHubRow(agency)) {
+    const { data: parts } = await admin
+      .from("inquiry_participants")
+      .select("talent_profile_id")
+      .eq("inquiry_id", input.inquiryId)
+      .eq("role", "talent");
+    const ids = Array.from(new Set(((parts ?? []) as { talent_profile_id: string | null }[]).map((p) => p.talent_profile_id).filter((x): x is string => !!x)));
+    if (ids.length === 1) {
+      const { data: tp } = await admin.from("talent_profiles").select("display_name").eq("id", ids[0]).maybeSingle();
+      const talentName = safePublicName((tp as { display_name?: string | null } | null)?.display_name ?? null);
+      if (talentName) name = talentName;
+    }
+  }
   return {
-    name: (identity?.public_name ?? "").trim() || (agency?.display_name ?? "").trim() || "",
+    name,
     handlerFirstName: handler,
     locale,
   };

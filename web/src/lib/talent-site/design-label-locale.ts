@@ -9,9 +9,29 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
 
 /** Seeded English label -> Spanish. Keys are exact seed strings. */
-const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
+const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
+  // Gridline (TH16) design defaults.
+  "Services": "Servicios",
+  "Services and prices": "Servicios y precios",
+  "Book a visit": "Agendar visita",
+  "What do you need?": "¿Qué necesitas?",
+  "Response": "Respuesta",
+  "Warranty": "Garantía",
+  "Price": "Precio",
+  "Payment": "Pago",
+  "Review": "Revisión",
+  "How it works": "Cómo funciona",
+  "Where I work": "Dónde trabajo",
+  "Emergency": "Emergencia",
+  "Emergencies today": "Emergencias hoy",
+  "No emergencies today": "Sin emergencias hoy",
+  "Call": "Llamar",
+  "Same-day emergency": "Emergencia el mismo día",
+  "Meanwhile:": "Mientras tanto:",
+  "Request now": "Pedir ahora",
   About: "Sobre mí",
   "The menu": "El menú",
   "Services {i}and prices{/i}": "Servicios {i}y precios{/i}",
@@ -59,6 +79,9 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   // Maison v2 (the Rosé proposal copy).
   "Recent {i}work{/i}": "Trabajo {i}reciente{/i}",
   "Menu and prices": "Menú y precios",
+  // Maison v2 2.5: the header's fifth link and the About chat action.
+  Location: "Ubicación",
+  "Write me": "Escríbeme",
   "See work": "Ver trabajos",
   "What they {i}say{/i}": "Lo que {i}dicen{/i}",
   "The detail is {i}my craft{/i}.": "El detalle es {i}mi oficio{/i}.",
@@ -67,12 +90,20 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   visit: "visita",
   "What I get {i}asked{/i}": "Lo que {i}me preguntan{/i}",
   "See you soon.": "Nos vemos pronto.",
+  // Maison v2 2.7 rich footer, menu intro line.
+  "See you {i}soon.{/i}": "Nos vemos {i}pronto.{/i}",
+  Where: "Dónde",
+  "See location": "Ver ubicación",
+  "Write from this site": "Escribir por este sitio",
+  "Prices in {{currency}}.": "Precios en {{currency}}.",
   "Made with Tulala": "Hecho con Tulala",
   // Folio (magazine edition).
   Contents: "En este número",
   "In this issue": "En este número",
   "See the book": "Ver el libro",
+  "Editorial, runway and campaigns.": "Editorial, runway y campañas.",
   "Selected work": "Trabajos elegidos",
+  "More work": "Más trabajos",
   "From the studio": "Desde el estudio",
   Details: "Detalles",
   "Up close": "De cerca",
@@ -97,9 +128,20 @@ const SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Demo studio credit · CDMX": "Créditos ficticios de demo · Estudio en CDMX",
   "Demo show credit · 3 exits": "Show ficticio de demo · 3 salidas",
   "For editorials, runway and campaigns. I reply the same day.": "Para editoriales, runway y campañas. Respondo en el día.",
-  Consultar: "Consultar",
-
+  // Folio masthead + cover CTA is seeded in Spanish; English visitors read this.
+  "Ask about this": "Consultar",
 };
+
+/**
+ * Code table plus the `labelsEs` of every committed authored overlay
+ * (`theme-catalog/collection/authored`): labels a template-editor version
+ * seeded are localised like code seeds. An overlay entry wins a clash.
+ */
+const SEEDED_LABELS_ES: Readonly<Record<string, string>> = (() => {
+  const out: Record<string, string> = { ...CODE_SEEDED_LABELS_ES };
+  for (const [, o] of registeredAuthoredOverlays()) Object.assign(out, o.labelsEs);
+  return out;
+})();
 
 /**
  * Seeded labels with a `{{token}}` (e.g. "Hello, I'm {{displayName}}") are
@@ -160,9 +202,12 @@ export type SiteCtaMode = "instant" | "request" | "inquiry";
 export function resolveSiteCtaMode(input: {
   sellingDefaults: unknown;
   confirmsByHand: boolean;
+  /** false = instant cannot work yet (no working hours): same readiness step as resolveEffectiveBookingMode. */
+  instantReady?: boolean;
 }): SiteCtaMode {
   const posture = parseSellingBookingSettings(input.sellingDefaults).bookingPosture;
   if (posture === "instant" && input.confirmsByHand) return "request";
+  if (posture === "instant" && input.instantReady === false) return "request";
   return posture;
 }
 
@@ -200,6 +245,12 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     request: { en: "Appointments", es: "Citas" },
     inquiry: { en: "Quotes", es: "Cotizaciones" },
   },
+  // Maison v2 2.7 footer button: the booking mode picks the verb.
+  "Book an appointment": {
+    instant: { en: "Book an appointment", es: "Reservar cita" },
+    request: { en: "Request an appointment", es: "Solicitar cita" },
+    inquiry: { en: "Write to me", es: "Escríbeme" },
+  },
 };
 
 /** Spanish mode copy -> its entry, so a Spanish seed follows the mode in English. */
@@ -229,6 +280,7 @@ const LABEL_PROPS = [
   "mastRight",
   "subline",
   "coverLine",
+  "coverStatement",
   "contentsTitle",
   "bookLabel",
   "ctaLabel",

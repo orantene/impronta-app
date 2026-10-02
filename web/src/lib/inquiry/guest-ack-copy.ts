@@ -89,3 +89,17 @@ export function buildGuestAckBody(args: {
     ? `Got it, we've received your message. We typically reply ${fragment}.`
     : "Got it, we've received your message and will be in touch shortly.";
 }
+
+const ENGLISH_WORKSPACE_ACK = "Thanks, we'll get back to you within 4 hours.";
+const SPANISH_WORKSPACE_ACK = "Gracias, te responderemos en un máximo de 4 horas.";
+
+/**
+ * The workspace auto-ack body: a custom sentence wins; the English seed default
+ * (or nothing) is answered in the visitor's language.
+ */
+export function workspaceAckBody(custom: string | null | undefined, locale: string | null | undefined): string {
+  const text = (custom ?? "").trim();
+  const es = normalizeAckLocale(locale) === "es";
+  if (text && !(es && text === ENGLISH_WORKSPACE_ACK)) return text;
+  return es ? SPANISH_WORKSPACE_ACK : ENGLISH_WORKSPACE_ACK;
+}

@@ -1,3 +1,4 @@
+import { safePublicName } from "@/lib/messaging/public-name";
 import "server-only";
 
 /**
@@ -76,8 +77,7 @@ async function resolveCoordinator(
     return null;
   }
   if (!data) return null;
-  const displayName =
-    ((data.display_name as string | null)?.trim() || "") || null;
+  const displayName = safePublicName(data.display_name as string | null);
   // No usable name = treat as unassigned rather than render an empty face.
   if (!displayName) return null;
   return {
@@ -240,5 +240,5 @@ async function resolveAgencyName(
     .select("display_name")
     .eq("id", tenantId)
     .maybeSingle();
-  return (data?.display_name as string | null)?.trim() || null;
+  return safePublicName(data?.display_name as string | null);
 }

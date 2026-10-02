@@ -19,8 +19,10 @@ import {
   messagesForTalent,
   projectTalentLines,
   projectTalentMoney,
+  talentIsSeller,
   talentReplyThread,
 } from "@/lib/messaging/talent-pov";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadMessagingThread } from "@/lib/messaging/thread";
 import type { InboxFilter } from "@/lib/messaging/types";
 
@@ -39,13 +41,18 @@ export async function messagingTalentLoadInbox(input: { locationSlug: string; fi
   if (!actor.ok) return actor;
   const listed = await listTalentInquiryIds(actor.admin, actor.talentProfileId);
   if (!listed.ok) return listed;
-  return loadMessagingInbox(actor.admin, {
+  const inbox = await loadMessagingInbox(actor.admin, {
     tenantId: "",
     locationSlug: "all",
     filter: input.filter,
     actorUserId: actor.userId,
     onlyInquiryIds: listed.ids,
   });
+  if (!inbox.ok) return inbox;
+  // Her own hub sales are hers; every other tenant's thread is an agency's.
+  const hub = await getPlatformHubTenant();
+  const rows = inbox.rows.map((row) => ({ ...row, agency: !talentIsSeller(row.tenantId, hub?.tenantId ?? null) }));
+  return { ...inbox, rows };
 }
 
 export async function messagingTalentLoadThread(input: { inquiryId: string }) {
@@ -158,10 +165,6 @@ export async function messagingTalentThreadLink(input: { inquiryId: string }) {
     conversationHostKind: conversationHostKind(gate.row.sourceContext),
   });
   return { ok: true as const, token, url };
-}
-
-export async function messagingTalentNote() {
-  return fail("not_allowed");
 }
 
 export async function messagingTalentInvitation(input: { inquiryId: string }) {

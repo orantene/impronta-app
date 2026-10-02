@@ -20,6 +20,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
+import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
 import { talentSiteRewriteReentryResponse } from "@/lib/saas/talent-site-rewrite-reentry";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
@@ -185,6 +186,13 @@ export async function proxy(request: NextRequest) {
       new URL("/_host-unregistered", request.url),
       { status: 404 },
     );
+  }
+
+  // A suspended workspace's public storefront is not served (agency + hub
+  // hosts only; fails open on a read error).
+  if (hostContext.kind === "agency" || hostContext.kind === "hub") {
+    const suspended = await timed("proxy.suspendedWorkspace", suspendedWorkspaceResponse(request, hostContext.tenantId));
+    if (suspended) return suspended;
   }
 
   // ── Talent custom-domain host ────────────────────────────────────────────
@@ -755,6 +763,6 @@ export const config = {
     // allow-listed for every host kind in `surface-allow-list.ts`.
     // `api/media/asset` is excluded because next/image's internal fetch
     // carries no `Host`; safe, and why, in `@/lib/media/private-access`.
-    "/((?!_next/static|_next/image|api/media/asset|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|api/media/asset|favicon.ico|apps/nail-studio/|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

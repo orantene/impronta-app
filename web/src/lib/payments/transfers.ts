@@ -20,12 +20,16 @@
  * Until then this runs harmlessly in skip/mock mode.
  */
 
-import { getStripe } from "@/lib/stripe/client";
+import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
+import { decideLegPlatform } from "@/lib/stripe/account-routing";
+import { loadChargePlatformForTransaction, loadRecipientPlatform } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { isProductPayoutDeferred } from "@/lib/bookings/fulfillment";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { applyProcessingFeeToLanes } from "@/lib/billing/commission";
+import { fetchProcessingFee, apportionFeeCents } from "@/lib/payments/processing-fee";
 import { isOffPlatformPaymentMethod } from "@/lib/payments/off-platform";
 import { getConnectedAccountSnapshotById } from "@/lib/payments/stripe-connect";
 import {
@@ -36,6 +40,7 @@ import { recordPayoutLeg, syncBookingPayoutLifecycle } from "@/lib/payments/book
 import { notifyCurrencyMismatchHold } from "@/lib/payments/payout-reversal-notify";
 import {
   disburse,
+  type DisburseInput,
   type DisburseOutcome,
   type DisburseRoute,
   type PayoutRail,
@@ -78,7 +83,76 @@ export type TransferDeps = {
   resolveTalentRecipientAccount?: (talentProfileId: string) => Promise<string | null>;
   /** Source FinancialAccount id for the GP rail — defaults to the platform's primary FA. */
   getFinancialAccountId?: () => Promise<string | null>;
+  /** Platform that took the charge; defaults to booking_transactions.stripe_platform ('us'). */
+  chargePlatform?: StripeAccountKey;
+  /** Platform owning a recipient's connected account; defaults to the stored column ('us'). */
+  resolveRecipientPlatform?: (
+    party: "talent" | "workspace" | "channel_referral",
+    id: string | null,
+  ) => Promise<StripeAccountKey>;
+  /**
+   * Retry mode (retryFeeUnknownPayouts): skip EVERY leg the ledger already
+   * shows as transferred, not only pass_through ones, so a re-run never
+   * re-sends a paid leg once Stripe's 24h idempotency window has lapsed.
+   */
+  skipTransferredLegs?: boolean;
 };
+
+/**
+ * Pay one leg on the charge platform, or HOLD it when the recipient's account
+ * lives on a different platform (never a cross-platform transfer).
+ */
+export async function disburseOnChargePlatform(
+  input: DisburseInput,
+  recipientId: string | null,
+  ctx: {
+    chargePlatform: StripeAccountKey;
+    stripe: Stripe | null;
+    resolveRecipientPlatform: NonNullable<TransferDeps["resolveRecipientPlatform"]>;
+    transactionId: string;
+    disburseFn?: typeof disburse;
+  },
+): Promise<DisburseOutcome> {
+  const recipientPlatform = await ctx.resolveRecipientPlatform(input.party, recipientId);
+  const decision = decideLegPlatform({
+    chargePlatform: ctx.chargePlatform,
+    recipientPlatform,
+    rail: input.route.rail,
+  });
+  if (!decision.ok) {
+    logServerError(
+      "transfers.cross_platform_hold",
+      new Error(
+        `ALERT ${decision.reason} (booking ${input.bookingId}, txn ${ctx.transactionId}, party ${input.party}, recipient ${recipientId ?? "none"}) — leg HELD, not transferred`,
+      ),
+    );
+    void improntaLog("transfers.cross_platform_hold", {
+      bookingId: input.bookingId,
+      transactionId: ctx.transactionId,
+      party: input.party,
+      chargePlatform: ctx.chargePlatform,
+      recipientPlatform,
+    });
+    return {
+      party: input.party,
+      participantId: input.participantId,
+      amountCents: input.amountCents,
+      currency: input.currency,
+      rail: input.route.rail,
+      status: "skipped_cross_platform",
+      detail: decision.reason,
+    };
+  }
+  return (ctx.disburseFn ?? disburse)(input, { stripe: ctx.stripe });
+}
+
+/** Ledger last_error for a leg: the failure, or WHY a held leg is held when the
+ *  release path cannot fix it (cross-platform), so admins see the reason. */
+export function legLastError(o: Pick<TransferOutcome, "status" | "detail">): string | null {
+  if (o.status === "failed") return o.detail ?? "transfer failed";
+  if (o.status === "skipped_cross_platform") return `cross-platform hold: ${o.detail ?? "recipient account is on another Stripe platform"}`;
+  return null;
+}
 
 /** Map a transfer outcome status to the ledger's persisted status.
  *  'mock' (no STRIPE_SECRET_KEY) and zero-amount legs are not recorded by the
@@ -139,6 +213,38 @@ async function talentRecipientAccount(talentProfileId: string): Promise<string |
 }
 
 /**
+ * pass_through only: true when this leg already reached 'transferred'. A
+ * re-delivered webhook must never recompute (and possibly change) the amount of
+ * a leg that already paid out. Always false for 'included' rows (no extra read).
+ */
+async function passThroughLegAlreadyTransferred(
+  sb: SupabaseClient,
+  isPassThrough: boolean,
+  bookingId: string,
+  participantId: string,
+  party: Party | "channel_referral",
+): Promise<boolean> {
+  if (!isPassThrough) return false;
+  const { data, error } = await sb
+    .from("booking_payouts")
+    .select("status")
+    .eq("booking_id", bookingId)
+    .eq("participant_id", participantId)
+    .eq("party", party)
+    .maybeSingle();
+  if (error) {
+    // Unknown ledger state: never risk re-sending a paid leg. Skipped loudly;
+    // the next webhook / retry run re-checks.
+    logServerError(
+      "transfers.ledger_read_failed",
+      new Error(`booking ${bookingId} participant ${participantId} ${party}: ${error.message} (leg skipped this run)`),
+    );
+    return true;
+  }
+  return (data?.status as string | undefined) === "transferred";
+}
+
+/**
  * Execute the talent + workspace transfers for a paid booking transaction.
  * Idempotent + best-effort; never throws (the payment already settled).
  */
@@ -160,14 +266,19 @@ export async function executeBookingTransfers(
   const resolveTalentRecipientAccount =
     deps.resolveTalentRecipientAccount ?? talentRecipientAccount;
   const getFinancialAccountId = deps.getFinancialAccountId ?? getPrimaryFinancialAccountId;
+  const skipTransferred = deps.skipTransferredLegs === true;
   const outcomes: TransferOutcome[] = [];
 
   try {
-    const { data: txn } = await sb
+    const { data: txn, error: txnErr } = await sb
       .from("booking_transactions")
-      .select("id, booking_id, status, currency")
+      .select("id, booking_id, status, currency, provider_metadata")
       .eq("id", transactionId)
       .maybeSingle();
+    if (txnErr) {
+      logServerError("transfers.txn_read_failed", txnErr);
+      return outcomes;
+    }
     if (!txn?.booking_id) return outcomes;
     // Only fan out once the charge is settled.
     if (!["paid", "payout_pending", "payout_sent"].includes(txn.status as string)) return outcomes;
@@ -199,9 +310,75 @@ export async function executeBookingTransfers(
       return outcomes;
     }
 
-    const stripe = deps.stripe ?? getStripe();
+    // The platform that TOOK THE CHARGE holds the funds, so every transfer runs
+    // on it, and only to recipients whose connected account it owns.
+    const chargePlatform = deps.chargePlatform ?? (await loadChargePlatformForTransaction(transactionId, sb));
+    const stripe = deps.stripe ?? getStripeFor(chargePlatform);
+    const payLeg = (input: DisburseInput, recipientId: string | null) =>
+      disburseOnChargePlatform(input, recipientId, {
+        chargePlatform,
+        stripe,
+        resolveRecipientPlatform: deps.resolveRecipientPlatform ?? loadRecipientPlatform,
+        transactionId,
+      });
 
     const settledCurrency = String((txn.currency as string) || "usd").toLowerCase();
+
+    // ── processing_mode = 'pass_through' ──────────────────────────────────
+    // The frozen snapshot lanes are PROVISIONAL (talent_net / workspace_fee
+    // before the processing fee, because the real fee is unknowable until the
+    // charge settles). Read the ACTUAL fee from the charge's balance
+    // transaction, split it across the booking's card-paid participant rows
+    // (largest remainder, deterministic), and deduct it from the seller lane
+    // below. If the fee cannot be determined the pass-through legs are HELD
+    // (amount 0 placeholder) with a structured alert: never guessed, never
+    // paid pre-fee. 'included' snapshots skip all of this (byte-identical).
+    const ppSnaps = snapshots.filter(
+      (s) =>
+        s.processing_mode === "pass_through" &&
+        // payer='client': the seller is paid exactly the snapshot (the client
+        // covered the fee), so there is nothing to deduct and no fee to read.
+        (s.processing_fee_payer ?? "seller") === "seller" &&
+        (s.processing_fee_cents ?? 0) === 0 &&
+        !isOffPlatformPaymentMethod(s.payment_method),
+    );
+    const ppFeeByParticipant = new Map<string, number>();
+    let ppFeeHoldReason: string | null = null;
+    if (ppSnaps.length) {
+      const meta = (txn.provider_metadata ?? null) as Record<string, unknown> | null;
+      const piId = typeof meta?.payment_intent_id === "string" ? (meta.payment_intent_id as string) : null;
+      const feeRes = stripe
+        ? await fetchProcessingFee(stripe, piId)
+        : ({ ok: false, reason: "stripe_unavailable" } as const);
+      if (!feeRes.ok) {
+        ppFeeHoldReason = `processing fee unavailable: ${feeRes.reason}`;
+      } else if (feeRes.currency !== settledCurrency) {
+        ppFeeHoldReason = `processing fee currency ${feeRes.currency} != settled ${settledCurrency}`;
+      } else {
+        const sorted = [...ppSnaps].sort((a, b) => (a.participant_id < b.participant_id ? -1 : 1));
+        const parts = apportionFeeCents(
+          feeRes.feeCents,
+          sorted.map((s) => s.gross_charged_cents),
+        );
+        sorted.forEach((s, i) => ppFeeByParticipant.set(s.participant_id, parts[i] ?? 0));
+      }
+      if (ppFeeHoldReason) {
+        logServerError(
+          "transfers.processing_fee_unavailable",
+          new Error(
+            `pass_through payout HELD for booking ${bookingId} (txn ${transactionId}): ${ppFeeHoldReason}. Not paying pre-fee amounts.`,
+          ),
+        );
+        void improntaLog("transfers.processing_fee_unavailable", {
+          bookingId,
+          transactionId,
+          paymentIntentId: piId,
+          reason: ppFeeHoldReason,
+        });
+      }
+    }
+    const ppIds = new Set(ppSnaps.map((s) => s.participant_id));
+
     for (const snap of snapshots) {
       // OFF-PLATFORM MONEY HAS NO PAYOUT LEG.
       //
@@ -237,6 +414,43 @@ export async function executeBookingTransfers(
       // Connect (the GP rail is talent-only today).
       const talentRail: PayoutRail = await resolvePayoutRail("talent", talentProfileId);
 
+      // Lane amounts actually payable. 'included' (and already-final) rows: the
+      // snapshot as frozen. pass_through: snapshot minus this row's share of the
+      // real processing fee (or a 0 placeholder + hold when the fee is unknown).
+      const isPassThrough = ppIds.has(snap.participant_id);
+      const feeHeld = isPassThrough && ppFeeHoldReason !== null;
+      let talentAmountCents = snap.talent_net_cents;
+      let workspaceAmountCents = snap.workspace_fee_cents;
+      let legFeeCents: number | null = null;
+      if (isPassThrough) {
+        if (feeHeld) {
+          talentAmountCents = 0;
+          workspaceAmountCents = 0;
+        } else {
+          const fee = ppFeeByParticipant.get(snap.participant_id) ?? 0;
+          const applied = applyProcessingFeeToLanes({
+            sellerOfRecord: snap.owning_party_type === "talent" ? "talent" : "workspace",
+            talentNetCents: snap.talent_net_cents,
+            workspaceFeeCents: snap.workspace_fee_cents,
+            platformFeeCents: snap.platform_fee_cents,
+            processingFeeCents: fee,
+          });
+          talentAmountCents = applied.talentNetCents;
+          workspaceAmountCents = applied.workspaceFeeCents;
+          legFeeCents = fee;
+          if (applied.shortfallCents > 0) {
+            // The seller lane could not cover the fee; the platform absorbs it.
+            void improntaLog("transfers.processing_fee_shortfall_absorbed", {
+              bookingId,
+              transactionId,
+              participantId: snap.participant_id,
+              shortfallCents: applied.shortfallCents,
+              feeCents: fee,
+            });
+          }
+        }
+      }
+
       // Audit #5: never transfer in a currency the platform did NOT settle. The
       // client charge settled in the transaction currency; a snapshot lane in a
       // different currency (a legacy mixed-currency booking) can't be funded from
@@ -259,6 +473,10 @@ export async function executeBookingTransfers(
             `snapshot lane ${currency} != settled ${settledCurrency} (booking ${bookingId}, txn ${transactionId}) — recorded HELD payout leg(s) for manual reconciliation`,
           ),
         );
+        // pass_through rows record a 0 placeholder: the pre-fee snapshot amount
+        // must never sit in a held leg a human or the release path could pay.
+        const mismatchTalentCents = isPassThrough ? 0 : snap.talent_net_cents;
+        const mismatchWorkspaceCents = isPassThrough ? 0 : snap.workspace_fee_cents;
         if (snap.talent_net_cents > 0) {
           await recordPayoutLeg(sb, {
             bookingId,
@@ -270,7 +488,7 @@ export async function executeBookingTransfers(
             talentProfileId,
             tenantId,
             destinationAccountId: null,
-            amountCents: snap.talent_net_cents,
+            amountCents: mismatchTalentCents,
             currency,
             status: "held",
             stripeTransferId: null,
@@ -282,7 +500,11 @@ export async function executeBookingTransfers(
           // Notify the affected talent their payout is held (in-app bell),
           // reusing the payout-notification pattern, so the talent isn't left
           // silently unpaid with no heads-up.
-          await notifyCurrencyMismatchHold(sb, bookingId, snap.participant_id, snap.talent_net_cents, currency);
+          // Skipped for pass_through: the payable amount is not known until the
+          // processing fee is, and a "$0 held" bell would be wrong.
+          if (!isPassThrough) {
+            await notifyCurrencyMismatchHold(sb, bookingId, snap.participant_id, mismatchTalentCents, currency);
+          }
         }
         if (isWorkspaceOwned && snap.workspace_fee_cents > 0) {
           await recordPayoutLeg(sb, {
@@ -295,7 +517,7 @@ export async function executeBookingTransfers(
             talentProfileId: null,
             tenantId,
             destinationAccountId: null,
-            amountCents: snap.workspace_fee_cents,
+            amountCents: mismatchWorkspaceCents,
             currency,
             status: "held",
             stripeTransferId: null,
@@ -340,7 +562,38 @@ export async function executeBookingTransfers(
       // 1) Talent — full protected quote. Routed via the resolved rail: a
       //    Connect transfer by default, or a Global Payouts OutboundPayment when
       //    the talent is provisioned for it (opt-in, off until then).
-      if (snap.talent_net_cents > 0) {
+      if (feeHeld && snap.talent_net_cents > 0) {
+        outcomes.push({
+          party: "talent",
+          participantId: snap.participant_id,
+          amountCents: 0,
+          currency,
+          rail: talentRail,
+          status: "skipped_fee_unknown",
+          detail: ppFeeHoldReason ?? undefined,
+        });
+        await recordPayoutLeg(sb, {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          party: "talent",
+          owningPartyType: snap.owning_party_type,
+          owningPartyId: snap.owning_party_id,
+          talentProfileId,
+          tenantId,
+          destinationAccountId: null,
+          amountCents: 0,
+          currency,
+          status: "held",
+          stripeTransferId: null,
+          payoutRail: talentRail,
+          releaseAfter: null,
+          lastError: ppFeeHoldReason,
+        });
+      } else if (
+        talentAmountCents > 0 &&
+        !(await passThroughLegAlreadyTransferred(sb, isPassThrough || skipTransferred, bookingId, snap.participant_id, "talent"))
+      ) {
         const rail: PayoutRail = talentRail;
         let route: DisburseRoute;
         if (rail === "global_payouts" && talentProfileId) {
@@ -358,16 +611,16 @@ export async function executeBookingTransfers(
           const accountId = talentProfileId ? await resolveTalentAccount(talentProfileId) : null;
           route = { rail: "connect_transfer", connectAccountId: accountId };
         }
-        const outcome = await disburse(
+        const outcome = await payLeg(
           {
             party: "talent",
             participantId: snap.participant_id,
             bookingId,
-            amountCents: snap.talent_net_cents,
+            amountCents: talentAmountCents,
             currency,
             route,
           },
-          { stripe },
+          talentProfileId,
         );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
@@ -380,31 +633,64 @@ export async function executeBookingTransfers(
           talentProfileId,
           tenantId,
           destinationAccountId: outcome.destination ?? null,
-          amountCents: snap.talent_net_cents,
+          amountCents: talentAmountCents,
           currency,
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
           payoutRail: outcome.rail,
           // Booking payouts are due when recorded. Ticketing sets a real gate here.
           releaseAfter: null,
-          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+          processingFeeCents: snap.owning_party_type === "talent" ? legFeeCents : null,
+          lastError: legLastError(outcome),
         });
       }
 
       // 2) Workspace — margin net of the platform's seller share. Agency payouts
       //    stay on the Connect rail (the GP rail is talent-only for now).
-      if (isWorkspaceOwned && snap.workspace_fee_cents > 0) {
+      if (feeHeld && isWorkspaceOwned && snap.workspace_fee_cents > 0) {
+        outcomes.push({
+          party: "workspace",
+          participantId: snap.participant_id,
+          amountCents: 0,
+          currency,
+          rail: "connect_transfer",
+          status: "skipped_fee_unknown",
+          detail: ppFeeHoldReason ?? undefined,
+        });
+        await recordPayoutLeg(sb, {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          party: "workspace",
+          owningPartyType: snap.owning_party_type,
+          owningPartyId: snap.owning_party_id,
+          talentProfileId: null,
+          tenantId,
+          destinationAccountId: null,
+          amountCents: 0,
+          currency,
+          status: "held",
+          stripeTransferId: null,
+          payoutRail: "connect_transfer",
+          releaseAfter: null,
+          lastError: ppFeeHoldReason,
+        });
+      } else if (
+        isWorkspaceOwned &&
+        workspaceAmountCents > 0 &&
+        !(await passThroughLegAlreadyTransferred(sb, isPassThrough || skipTransferred, bookingId, snap.participant_id, "workspace"))
+      ) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
-        const outcome = await disburse(
+        const outcome = await payLeg(
           {
             party: "workspace",
             participantId: snap.participant_id,
             bookingId,
-            amountCents: snap.workspace_fee_cents,
+            amountCents: workspaceAmountCents,
             currency,
             route: { rail: "connect_transfer", connectAccountId: accountId },
           },
-          { stripe },
+          snap.owning_party_id,
         );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
@@ -417,14 +703,15 @@ export async function executeBookingTransfers(
           talentProfileId: null,
           tenantId,
           destinationAccountId: outcome.destination ?? null,
-          amountCents: snap.workspace_fee_cents,
+          amountCents: workspaceAmountCents,
           currency,
           status: ledgerStatus(outcome.status),
           stripeTransferId: outcome.transferId ?? null,
           payoutRail: "connect_transfer",
           // Booking payouts are due when recorded. Ticketing sets a real gate here.
           releaseAfter: null,
-          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+          processingFeeCents: snap.owning_party_type === "talent" ? null : legFeeCents,
+          lastError: legLastError(outcome),
         });
       }
       // 3) Phase C — HUB REFERRAL. Carved out of this row's workspace margin and
@@ -435,9 +722,13 @@ export async function executeBookingTransfers(
       //    off this block never runs, so existing payouts are byte-identical.
       const channelReferralCents = snap.channel_referral_cents ?? 0;
       const channelReferralPartyId = snap.channel_referral_party_id ?? null;
-      if (channelReferralCents > 0 && channelReferralPartyId) {
+      if (
+        channelReferralCents > 0 &&
+        channelReferralPartyId &&
+        !(await passThroughLegAlreadyTransferred(sb, skipTransferred, bookingId, snap.participant_id, "channel_referral"))
+      ) {
         const accountId = await resolveWorkspaceAccount(channelReferralPartyId);
-        const outcome = await disburse(
+        const outcome = await payLeg(
           {
             party: "channel_referral",
             participantId: snap.participant_id,
@@ -446,7 +737,7 @@ export async function executeBookingTransfers(
             currency,
             route: { rail: "connect_transfer", connectAccountId: accountId },
           },
-          { stripe },
+          channelReferralPartyId,
         );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
@@ -468,7 +759,7 @@ export async function executeBookingTransfers(
           payoutRail: "connect_transfer",
           // Booking payouts are due when recorded. Ticketing sets a real gate here.
           releaseAfter: null,
-          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+          lastError: legLastError(outcome),
         });
       }
 
@@ -486,7 +777,8 @@ export async function executeBookingTransfers(
       (o) =>
         o.status === "failed" ||
         o.status === "skipped_no_account" ||
-        o.status === "skipped_live_disabled",
+        o.status === "skipped_live_disabled" ||
+        o.status === "skipped_fee_unknown",
     );
     if (pending.length) {
       logServerError(

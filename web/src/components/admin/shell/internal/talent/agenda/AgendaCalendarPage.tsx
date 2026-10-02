@@ -149,7 +149,11 @@ export function AgendaCalendarPage({
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 720px)");
-    const apply = () => setPhone(media.matches);
+    const apply = () => {
+      setPhone(media.matches);
+      // The month grid has no phone layout: fall back to the agenda strip.
+      if (media.matches) setView((v) => (v === "month" ? "week" : v));
+    };
     apply();
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
@@ -360,7 +364,7 @@ export function AgendaCalendarPage({
   return (
     <div style={TALENT_AGENDA_VARS} className="space-y-4">
       <PageHeader
-        title={copy.t("Calendar")}
+        title={copy.t("Bookings")}
         subtitle={phone ? undefined : subtitle}
         actions={
           phone ? (
@@ -385,6 +389,10 @@ export function AgendaCalendarPage({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
+              <SecondaryButton onClick={() => setView(view === "list" ? "week" : "list")}>{copy.t(view === "list" ? "Schedule" : "List")}</SecondaryButton>
+              {onOpenAvailability ? (
+                <SecondaryButton onClick={onOpenAvailability}>{copy.t("Working hours")}</SecondaryButton>
+              ) : null}
               <SecondaryButton onClick={() => openBlock(selected)}>{copy.t("Block time")}</SecondaryButton>
               {onNewBooking ? <PrimaryButton onClick={onNewBooking}>{copy.t("New booking")}</PrimaryButton> : null}
             </div>
@@ -474,15 +482,6 @@ export function AgendaCalendarPage({
           </button>
           {hours?.timezone ? <span className={`text-[13px] ${MUTED}`}>{hours.timezone}</span> : null}
           <span className="flex-1" />
-          <Segmented
-            label={copy.t("Calendar mode")}
-            value={view === "list" ? "list" : "schedule"}
-            onChange={(id) => setView(id === "list" ? "list" : "week")}
-            options={[
-              { id: "schedule", label: copy.t("Schedule") },
-              { id: "list", label: copy.t("List") },
-            ]}
-          />
           {view !== "list" ? (
             <Segmented
               label={copy.t("Calendar view")}
@@ -494,9 +493,6 @@ export function AgendaCalendarPage({
                 { id: "month", label: copy.t("Month") },
               ]}
             />
-          ) : null}
-          {onOpenAvailability ? (
-            <SecondaryButton onClick={onOpenAvailability}>{copy.t("Availability")}</SecondaryButton>
           ) : null}
           <SecondaryButton onClick={() => setOverlay("sync")}>
             <span aria-hidden>⟳</span> {copy.t("Calendar sync")}

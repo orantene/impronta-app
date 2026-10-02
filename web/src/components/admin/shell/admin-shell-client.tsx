@@ -1808,7 +1808,7 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-identity-bar] {
               padding: 0 14px !important;
             }
-            .tulala-shell [data-tulala-identity-bar] [aria-label="Help"],
+            .tulala-shell [data-tulala-identity-bar] [aria-label="Help"], .tulala-shell [data-tulala-identity-bar] [data-tulala-brand-descriptor],
             .tulala-shell [data-tulala-identity-bar] [aria-label="Sign out"],
             .tulala-shell [data-tulala-identity-bar] [role="group"][aria-label="Language"] {
               display: none !important;

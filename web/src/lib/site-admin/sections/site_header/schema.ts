@@ -148,6 +148,17 @@ const headerItemSchema = z.discriminatedUnion("type", [
     ...headerItemBase,
   }),
   z.object({ type: z.literal("saved"), href: z.string().max(500).optional(), ...headerItemBase }),
+  z.object({
+    type: z.literal("section_switcher"),
+    /**
+     * H-4: the phone section switcher. Content comes from the header's own
+     * section links (Navigation tab), so there is no second list to keep.
+     * `showIndex` (default on) draws the section number ("03") before the name.
+     * Additive and optional: every pre-H-4 `regions` value omits the item.
+     */
+    showIndex: z.boolean().optional(),
+    ...headerItemBase,
+  }),
   z.object({ type: z.literal("spacer"), ...headerItemBase }),
 ]);
 

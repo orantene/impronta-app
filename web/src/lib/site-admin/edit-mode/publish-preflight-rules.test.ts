@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   findInvalidInquiryCtas,
+  findSectionSwitcherIssues,
   isInquiryIntentLabel,
   isSectionHidden,
   isValidInquiryCtaHref,
@@ -38,4 +39,28 @@ test("invalid inquiry CTA links are flagged", () => {
   });
   assert.equal(issues.length, 1);
   assert.match(issues[0] ?? "", /book now/i);
+});
+
+test("H-4 preflight: a section switcher needs two in-page menu links", () => {
+  const withSwitcher = (navItems: unknown) => ({
+    regions: { left: [], center: [{ type: "section_switcher" }], right: [] },
+    navItems,
+  });
+  const one = findSectionSwitcherIssues("Header", "site_header", withSwitcher([{ label: "Menu", href: "#services" }]));
+  assert.equal(one.length, 1);
+  assert.match(one[0] ?? "", /at least two menu links/);
+  // External and path links do not count: the switcher can only spy on anchors.
+  assert.equal(
+    findSectionSwitcherIssues("Header", "site_header", withSwitcher([{ label: "A", href: "#a" }, { label: "B", href: "/blog" }])).length,
+    1,
+  );
+  assert.deepEqual(
+    findSectionSwitcherIssues("Header", "site_header", withSwitcher([{ label: "A", href: "#a" }, { label: "B", href: "#b" }])),
+    [],
+  );
+  // Not placed, hidden, another section, or links managed elsewhere: nothing to say.
+  assert.deepEqual(findSectionSwitcherIssues("Header", "site_header", { regions: { left: [], center: [], right: [] }, navItems: [] }), []);
+  assert.deepEqual(findSectionSwitcherIssues("Header", "site_header", { ...withSwitcher([]), presentation: { visibility: "hidden" } }), []);
+  assert.deepEqual(findSectionSwitcherIssues("Hero", "hero", withSwitcher([])), []);
+  assert.deepEqual(findSectionSwitcherIssues("Header", "site_header", withSwitcher(undefined)), []);
 });

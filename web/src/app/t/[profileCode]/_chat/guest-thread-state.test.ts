@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-state";
+import { guestHeaderThreadState, hasSentGuestMessage, isPrivateDraftThread } from "./guest-thread-state";
 
 /**
  * Measured on the live inquiry: the panel rendered "Not sent yet" directly
@@ -60,4 +60,21 @@ test("the gate and the airlock still own the surface", () => {
     const during = { ...SUBMITTED, hasReceipt: false, [key]: true };
     assert.equal(isPrivateDraftThread(during), false, `${key} must suppress the draft banner`);
   }
+});
+
+test("e2e: a delivered guest message makes the thread sent even with no receipt and placeholder contact", () => {
+  const input = { ...SUBMITTED, hasReceipt: false, hasSentMessage: true };
+  assert.equal(isPrivateDraftThread(input), false);
+  assert.equal(guestHeaderThreadState(input), "sent");
+  // Without the message it is still the private draft.
+  assert.equal(guestHeaderThreadState({ ...input, hasSentMessage: false }), "draft");
+});
+
+test("hasSentGuestMessage counts only delivered guest text", () => {
+  const row = (over: Record<string, unknown>) => ({ authorRole: "guest", kind: "text", ...over });
+  assert.equal(hasSentGuestMessage([row({})]), true);
+  assert.equal(hasSentGuestMessage([row({ pending: true })]), false);
+  assert.equal(hasSentGuestMessage([row({ failed: true })]), false);
+  assert.equal(hasSentGuestMessage([row({ authorRole: "staff" }), row({ kind: "offer_review" })]), false);
+  assert.equal(hasSentGuestMessage([]), false);
 });

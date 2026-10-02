@@ -12,6 +12,9 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { logServerError } from "@/lib/server/safe-error";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { talentErrorCopy } from "./_talent-error-copy";
+
 
 export default function TalentShellError({
   error,
@@ -20,6 +23,7 @@ export default function TalentShellError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const copy = talentErrorCopy(useDashboardLocale());
   useEffect(() => {
     logServerError("talent/error.tsx", error);
   }, [error]);
@@ -57,7 +61,7 @@ export default function TalentShellError({
             margin: 0,
           }}
         >
-          Talent
+          {copy.eyebrow}
         </p>
         <h1
           style={{
@@ -71,7 +75,7 @@ export default function TalentShellError({
             lineHeight: 1.2,
           }}
         >
-          Something went wrong
+          {copy.title}
         </h1>
         <p
           style={{
@@ -83,8 +87,7 @@ export default function TalentShellError({
             marginBottom: 0,
           }}
         >
-          This section failed to load. Retry to reload it — your profile and
-          inquiry data are safe.
+          {copy.body}
         </p>
         {error?.digest ? (
           <p
@@ -125,7 +128,7 @@ export default function TalentShellError({
               cursor: "pointer",
             }}
           >
-            Retry
+            {copy.retry}
           </button>
           <Link
             href="/"
@@ -143,7 +146,7 @@ export default function TalentShellError({
               textDecoration: "none",
             }}
           >
-            Go home
+            {copy.home}
           </Link>
         </div>
       </div>

@@ -11,6 +11,7 @@ export function ProfileSlotPickerMount({
   tenantSlug,
   tenantId,
   agencyName,
+  soloTalentName = null,
   locationLabel,
   bookingMode = "request",
   signedIn = false,
@@ -20,6 +21,7 @@ export function ProfileSlotPickerMount({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
+  soloTalentName?: string | null;
   locationLabel?: string | null;
   bookingMode?: TalentBookingMode;
   signedIn?: boolean;
@@ -33,6 +35,7 @@ export function ProfileSlotPickerMount({
         tenantSlug={tenantSlug}
         tenantId={tenantId}
         agencyName={agencyName || "the studio"}
+        soloTalentName={soloTalentName}
         offering={offering}
         bookingMode={bookingMode}
         signedIn={signedIn}

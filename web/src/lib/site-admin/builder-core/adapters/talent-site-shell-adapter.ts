@@ -23,6 +23,10 @@ import {
   restoreTalentSiteShellRevisionAction,
   loadTalentSiteShellRevisionsAction,
 } from "./talent-site-shell-actions";
+import {
+  loadTalentHistoryAction,
+  restoreTalentHistoryAction,
+} from "@/lib/talent-site/history/history-actions";
 
 export {
   createTalentSiteShellAdapter,
@@ -42,13 +46,29 @@ const productionActions: TalentSiteShellAdapterActions = {
   // `restoreRevision`, closing the talent-site-shell parity gap (the shared
   // `buildSiteShellBuilderConfig` already sets `canRestoreRevision: true`, so
   // the RevisionsDrawer becomes functional instead of a silent no-op).
-  restoreRevision: restoreTalentSiteShellRevisionAction,
+  //
+  // Theme releases Phase 2 — the drawer now lists the SITE's history timeline
+  // (`loadTimeline` below), so restore targets a history entry: the snapshot
+  // lands on the draft as a new entry, nothing is deleted. A legacy shell
+  // revision id (pre-timeline tab) still restores through REV-1.
+  restoreRevision: async ({ talentProfileId, revisionId, expectedDraftRev }) => {
+    const res = await restoreTalentHistoryAction({
+      entryId: revisionId,
+      expectedDraftRev: expectedDraftRev ?? null,
+    });
+    if (res.ok) return { ok: true, updatedAt: new Date().toISOString(), draftRev: res.draftRev };
+    if (res.code === "not_found") {
+      return restoreTalentSiteShellRevisionAction({ talentProfileId, revisionId });
+    }
+    return { ok: false, error: res.error, code: res.code };
+  },
   // REV-1b — OWNER-gated revision LIST read. Binding it makes the adapter expose
   // `loadRevisions`, which the RevisionsDrawer prefers over its staff-gated
   // homepage/cms_page default. Without this, the talent-site shell editor (no
   // pageSlug) falls through to the staff-gated homepage loader and the drawer
   // renders empty — a talent could RESTORE (REV-1) but never SEE the list.
   loadShellRevisions: loadTalentSiteShellRevisionsAction,
+  loadTimeline: () => loadTalentHistoryAction({ pageSlug: null }),
 };
 
 /**

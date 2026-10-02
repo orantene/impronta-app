@@ -19,6 +19,8 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logStaffInquiryRead } from "@/lib/platform/staff-access-log";
 import {
   AdminThreadAdapter,
   type AdminThreadInquiry,
@@ -61,6 +63,42 @@ export default async function AdminInquiryThreadPage({
 
   const { data: { user } } = await supabase.auth.getUser();
   const viewerId = user?.id ?? null;
+
+  // Staff access log: a platform admin reading a thread they are not a party
+  // to leaves a platform_audit_log row. Fire-and-await; never blocks the page.
+  if (viewerId) {
+    // supabase-read-unchecked-ok: audit-only lookup; a failed read means "not a
+    // platform admin", so no log row is written and the page renders unchanged.
+    const { data: viewerProfile } = await supabase
+      .from("profiles")
+      .select("app_role")
+      .eq("id", viewerId)
+      .maybeSingle();
+    await logStaffInquiryRead({
+      actorUserId: viewerId,
+      actorAppRole: (viewerProfile as { app_role?: string | null } | null)?.app_role,
+      tenantId: scope.tenantId,
+      inquiryId,
+      surface: "admin.messages.thread",
+      isParticipant: async (iqId, userId) => {
+        const svc = createServiceRoleClient();
+        if (!svc) return false;
+        // supabase-read-unchecked-ok: a failed read counts as "not a participant",
+        // which only adds an extra audit row; it never grants or hides access.
+        const [{ data: asClient }, { data: asParticipant }] = await Promise.all([
+          svc.from("inquiries").select("id").eq("id", iqId).eq("client_user_id", userId).maybeSingle(),
+          svc
+            .from("inquiry_participants")
+            .select("id")
+            .eq("inquiry_id", iqId)
+            .eq("user_id", userId)
+            .is("removed_at", null)
+            .maybeSingle(),
+        ]);
+        return Boolean(asClient || asParticipant);
+      },
+    });
+  }
 
   // ── Core inquiry row ──
   const { data: inquiryRow, error: iqErr } = await supabase

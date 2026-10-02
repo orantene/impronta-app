@@ -23,6 +23,11 @@ export function DashboardLocaleProvider({
   return createElement(DashboardLocaleContext.Provider, { value: locale }, children);
 }
 
+/** The server-provided locale, or null outside a provider (no cookie read, no state). */
+export function useServerDashboardLocale(): string | null {
+  return useContext(DashboardLocaleContext);
+}
+
 /** Initial locale: the server-provided one when present, else "en". */
 export function initialDashboardLocale(serverLocale: string | null | undefined): string {
   return serverLocale?.trim() ? serverLocale.trim() : "en";

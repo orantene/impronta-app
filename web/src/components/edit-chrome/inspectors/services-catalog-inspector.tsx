@@ -487,7 +487,7 @@ export function ServicesCatalogLayoutInspector({
   const layout = catalog.layout ?? "rows";
   const showColumns = layout === "cards" || layout === "grid" || layout === "editorial";
   const showPhotoCorners =
-    layout !== "compact_list" && layout !== "rate_card" && catalog.showPhoto !== false;
+    layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix" && catalog.showPhoto !== false;
   return (
     <div className="flex flex-col gap-3" data-builder-node-layout-panel="services_catalog">
       <div className={KIT.field}>
@@ -504,6 +504,7 @@ export function ServicesCatalogLayoutInspector({
           <option value="rate_card">Rate card (hairline)</option>
           <option value="editorial">Editorial cards</option>
           <option value="featured">Featured offering</option>
+          <option value="matrix">Comparison matrix</option>
         </select>
         <p className="text-xs text-black/50">
           Suggested from your catalog: photo-led → cards; many items without photos → compact list;
@@ -566,6 +567,18 @@ export function ServicesCatalogLayoutInspector({
           <option value="outline">Outline (mockup Seleccionar)</option>
           <option value="solid">Solid fill</option>
           <option value="pill">Ink pill</option>
+        </select>
+      </div>
+      {/* The renderer reads `rowStyle === "card"` (rows layout): raised row cards, soft pill button, row click. */}
+      <div className={KIT.field}>
+        <label className={KIT.label}>Row style</label>
+        <select
+          className={KIT.input}
+          value={catalog.rowStyle ?? "flat"}
+          onChange={(e) => onPatch({ rowStyle: e.target.value })}
+        >
+          <option value="flat">Hairline rows</option>
+          <option value="card">Raised cards</option>
         </select>
       </div>
       <div className={KIT.field}>

@@ -100,3 +100,52 @@ test("delayed method: completed-but-unpaid waits; async success settles; async f
   );
   assert.equal(failed.reason, "async_payment_failed");
 });
+
+// ─── delayed methods on a plain booking invoice (not a payment link) ────────────
+
+const INVOICE_SESSION = {
+  id: "cs_test_inv_1",
+  mode: "payment",
+  status: "complete",
+  payment_status: "paid",
+  client_reference_id: "txn_inv_1",
+  payment_intent: "pi_inv_1",
+  amount_total: 5000,
+  currency: "mxn",
+  metadata: { transaction_id: "txn_inv_1", booking_id: "bk_2" },
+};
+
+test("invoice: completed-but-unpaid session is ignored (never marked paid)", () => {
+  expectKind(
+    classifyStripeEvent(evt("checkout.session.completed", { ...INVOICE_SESSION, payment_status: "unpaid" })),
+    "ignore",
+  );
+});
+
+test("invoice: async success classifies as the same booking_payment as a paid completed session", () => {
+  const completed = classifyStripeEvent(evt("checkout.session.completed", INVOICE_SESSION));
+  const asyncOk = classifyStripeEvent(evt("checkout.session.async_payment_succeeded", INVOICE_SESSION));
+  assert.deepEqual(asyncOk, completed);
+  expectKind(asyncOk, "booking_payment");
+});
+
+test("invoice: a duplicate async success classifies identically (settle layer reports already_settled)", () => {
+  const e = evt("checkout.session.async_payment_succeeded", INVOICE_SESSION);
+  assert.deepEqual(classifyStripeEvent(e), classifyStripeEvent(e));
+});
+
+test("invoice: async failure closes the session through the shared failed path", () => {
+  const failed = expectKind(
+    classifyStripeEvent(evt("checkout.session.async_payment_failed", INVOICE_SESSION)),
+    "checkout_session_closed",
+  );
+  assert.equal(failed.transactionId, "txn_inv_1");
+  assert.equal(failed.reason, "async_payment_failed");
+});
+
+test("async success with no transaction is named invalid, not silently dropped", () => {
+  expectKind(
+    classifyStripeEvent(evt("checkout.session.async_payment_succeeded", { id: "cs_x", mode: "payment", metadata: {} })),
+    "invalid",
+  );
+});

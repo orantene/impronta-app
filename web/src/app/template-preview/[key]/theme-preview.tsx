@@ -25,7 +25,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildDesignTrees } from "@/lib/talent-site/server/theme-apply-core";
 import { splitShell } from "@/lib/talent-site/server/render-max-site-shell";
 import { loadPublishedCatalogRow } from "@/lib/talent-site/server/theme-catalog-row";
-import { loadMaisonCatalogRow } from "@/lib/talent-site/server/maison-catalog-row";
+import { loadAuthoredDesignRow } from "@/lib/talent-site/theme-template/new-design.server";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
+import { loadMaisonCatalogRow, maisonBuiltinRow } from "@/lib/talent-site/server/maison-catalog-row";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { isPlatformAdmin } from "@/lib/access/platform-role";
+import { isCodeSourceRequested, isDraftSourceRequested } from "./theme-preview-source";
+import { loadThemeDraft } from "@/lib/talent-site/theme-template/drafts.server";
 import { isMaisonCatalogSlug } from "@/lib/talent-site/theme-catalog/maison/catalog-visibility";
 import { resolvePreviewHydration } from "@/lib/talent-site/server/preview-data";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
@@ -36,12 +42,14 @@ import {
   galleryDefaultLookTokens,
   getGalleryDesign,
   galleryPaletteLookTokens,
+  galleryPreviewLookSlug,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import {
   COLLECTION_DEFAULT_LOOK,
   folioLookTokensFromCode,
 } from "@/lib/talent-site/theme-catalog/collection/folio-looks";
+import { gridlineLookTokensFromCode } from "@/lib/talent-site/theme-catalog/collection/gridline-looks";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
 import { localiseSeededDesignLabels } from "@/lib/talent-site/design-label-locale";
 import { loadTalentPlanKey, loadTalentSiteCtaMode } from "@/lib/talent-site/server/load-max-site";
@@ -62,6 +70,7 @@ const FOLIO_MAGAZINE_KINDS = new Set([
   "contents",
   "portfolio",
   "comp_card",
+  "spec_table",
   "statement_footer",
 ]);
 
@@ -102,7 +111,10 @@ export async function ThemeCatalogPreview({
   locale: requestedLocale = "en",
   localeExplicit = false,
   demo = null,
+  source = null,
 }: {
+  /** `?source=code` (platform admin / dev): render the in-code payload, not the published row. */
+  source?: string | null;
   /** True when `?locale=` was in the URL; My content otherwise uses the site locale. */
   localeExplicit?: boolean;
   /** P4: `<designSlug>:<demoKey>`; only gallery-meta demo sources resolve. */
@@ -123,14 +135,49 @@ export async function ThemeCatalogPreview({
 
   // Maison slugs are not in the generic built-in list, so they resolve
   // through the Maison loader (DB row, else the Maison built-in). AUD-033.
-  const loadRow = <K extends "design" | "look">(kind: K, slug: string) =>
-    isMaisonCatalogSlug(slug)
-      ? loadMaisonCatalogRow(admin, kind, slug)
-      : loadPublishedCatalogRow(admin, kind, slug);
+  // F109: a Design previews at the version a new apply would pin (newest released).
+  // `?source=code`: the in-code built-in, hydrated with the demo's content.
+  const actor = source ? await getCachedActorSession() : null;
+  const viewerIsAdmin = !!actor && isPlatformAdmin(actor.profile);
+  const draftSource = isDraftSourceRequested(source, { isPlatformAdmin: viewerIsAdmin });
+  // `?source=draft` is the open editor draft: like code, it skips the demo's saved page and tokens.
+  const codeSource = isCodeSourceRequested(source, { isPlatformAdmin: viewerIsAdmin }) || draftSource;
+  const loadRow = async <K extends "design" | "look">(kind: K, slug: string) => {
+    if (kind === "design" && draftSource) {
+      // The OPEN talent_theme_drafts payload (read-only), on the in-code or catalog row's shell.
+      const draft = await loadThemeDraft(admin, slug);
+      const base =
+        maisonBuiltinRow("design", slug) ??
+        (isMaisonCatalogSlug(slug) ? await loadMaisonCatalogRow(admin, "design", slug) : await loadPublishedCatalogRow(admin, "design", slug));
+      if (!draft.ok || !base) return null as never;
+      return { ...base, payload: draft.value.payload } as never;
+    }
+    if (kind === "design" && codeSource) {
+      const inCode = maisonBuiltinRow("design", slug);
+      if (inCode) return inCode as never;
+    }
+    if (kind === "design") {
+      const applied = await loadApplyDesignRow(admin, slug);
+      if (applied) return applied as never;
+    }
+    const found = isMaisonCatalogSlug(slug)
+      ? await loadMaisonCatalogRow(admin, kind, slug)
+      : await loadPublishedCatalogRow(admin, kind, slug);
+    // Save as new design: an authored design is hidden (draft) until released,
+    // so only a platform admin's `?source=authored` preview may load it.
+    if (!found && kind === "design" && source === "authored" && viewerIsAdmin) {
+      return (await loadAuthoredDesignRow(admin, slug)) as never;
+    }
+    return found;
+  };
   const design = await loadRow("design", designSlug);
   // Same publish-time validation the apply action runs: a malformed row is a
   // 404 here, never a thrown render.
   if (!design || !validateDesign(design.payload).ok) notFound();
+
+  // An authored design has no code builtin: palettes, fonts, looks and type
+  // system come from the code design it was copied from.
+  const metaSlug = design.preview?.paletteSource ?? design.slug;
 
   // Look resolution, most specific first:
   //  1. `?look=` names one of THIS design's gallery palettes (its own colours
@@ -139,30 +186,41 @@ export async function ThemeCatalogPreview({
   //  3. no / unknown look: the design's OWN default (Maison: maison-pink,
   //     collection designs: first gallery palette + fonts). The platform's
   //     generic default is never the whole answer for a catalog design.
-  const effectiveLookSlug = resolveFolioLookSlug(design.slug, lookSlug);
-  const folioTokens = folioLookTokensFromCode(effectiveLookSlug);
-  const cleanLook = lookSlug && SLUG_RE.test(lookSlug) ? lookSlug : null;
+  const effectiveLookSlug = resolveFolioLookSlug(metaSlug, lookSlug);
+  // Folio and Gridline resolve their Looks from code (never DB); `?look=green` or `gridline-green` both work.
+  const folioTokens =
+    metaSlug === "gridline"
+      ? gridlineLookTokensFromCode(effectiveLookSlug)
+      : folioLookTokensFromCode(effectiveLookSlug);
+  const codeDemo = codeSource ? resolveDemoPreviewSource(designSlug, demo) : null;
+  const codeDemoGallery = codeDemo ? getGalleryDesign(metaSlug) : null;
+  const cleanLook =
+    lookSlug && SLUG_RE.test(lookSlug)
+      ? lookSlug
+      : codeDemo && codeDemoGallery
+        ? galleryPreviewLookSlug(codeDemoGallery, codeDemo.defaultPalette)
+        : null;
   const paletteTokens =
-    folioTokens ? null : cleanLook ? galleryPaletteLookTokens(design.slug, cleanLook) : null;
+    folioTokens ? null : cleanLook ? galleryPaletteLookTokens(metaSlug, cleanLook) : null;
   const rowSlug =
     folioTokens || paletteTokens
       ? null
-      : cleanLook ?? (design.slug === "maison" ? MAISON_DEFAULT_LOOK : null);
+      : cleanLook ?? (metaSlug === "maison" ? MAISON_DEFAULT_LOOK : null);
   const lookRow = rowSlug ? await loadRow("look", rowSlug) : null;
   const look = lookRow && validateLook(lookRow.payload).ok ? lookRow : null;
   const lookTokens: Record<string, string> | null =
     folioTokens ??
     paletteTokens ??
     (look
-      ? getGalleryDesign(design.slug) && design.slug !== "maison"
-        ? { ...look.payload.tokens, ...designTypographyTokens(design.slug) }
+      ? getGalleryDesign(metaSlug) && metaSlug !== "maison"
+        ? { ...look.payload.tokens, ...designTypographyTokens(metaSlug) }
         : look.payload.tokens
-      : galleryDefaultLookTokens(design.slug));
+      : galleryDefaultLookTokens(metaSlug));
 
   // P4: a gallery-meta demo talent's content (allow-listed), else the
   // owner-gated hydration exactly as before.
   const demoSource = resolveDemoPreviewSource(designSlug, demo);
-  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource) : null;
+  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource, { platformAdminVerified: codeSource && viewerIsAdmin }) : null;
   const hydration = demoHydration ?? (await resolvePreviewHydration(talentProfileId));
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
@@ -179,10 +237,10 @@ export async function ThemeCatalogPreview({
     : requestedLocale;
   // A demo shows its SAVED page (her own headline, eyebrow, lede, photos);
   // My content keeps the design tree bound to the owner's data.
-  const saved = demoHydration
+  const saved = demoHydration && !codeSource
     ? await loadDemoSavedTrees(demoHydration.demoTalentProfileId, design.slug)
     : null;
-  const folioDesign = design.slug === "folio";
+  const folioDesign = metaSlug === "folio";
   const shellForBind = folioDesign ? built.shellTree : (saved?.shellTree ?? built.shellTree);
   const homeForBind = folioDesign
     ? stampFolioMagazineEdition(built.homeTree)
@@ -203,10 +261,20 @@ export async function ThemeCatalogPreview({
 
   const platformDefault = await loadPlatformDefaultTheme("talent");
   // Same layering as the live render: Design defaults sit between platform and Look.
-  const designDefaults = designTokenDefaults(design.slug);
+  const designDefaults = designTokenDefaults(metaSlug);
+  // A demo wears its OWN saved Look (palette, fonts, shape: the site's token
+  // layer), unless the viewer picked a different palette than the demo's
+  // gallery default. F19: every Maison v2 demo rendered in Rosé.
+  const galleryDesign = getGalleryDesign(metaSlug);
+  const demoDefaultLook =
+    demoSource && galleryDesign ? galleryPreviewLookSlug(galleryDesign, demoSource.defaultPalette) : null;
+  const demoOwnTokens =
+    saved && Object.keys(saved.tokens).length > 0 && (!cleanLook || cleanLook === demoDefaultLook)
+      ? saved.tokens
+      : null;
   const effectiveTokens = resolveEffectiveSiteTokens(
     {},
-    lookTokens ? mergeLookIntoTokens({}, lookTokens) : {},
+    demoOwnTokens ?? (lookTokens ? mergeLookIntoTokens({}, lookTokens) : {}),
     platformDefault.tokens,
     designDefaults,
   );

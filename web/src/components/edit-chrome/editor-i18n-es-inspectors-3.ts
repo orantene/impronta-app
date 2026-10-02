@@ -158,4 +158,195 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Preview and translate in {lang}. Untranslated blocks dim.":
     "Ver y traducir en {lang}. Los bloques sin traducir se atenúan.",
   "Content language": "Idioma del contenido",
+  // Release 2.5 (Maison v2 look): row cards, framed work cards, linked next-free chip.
+  "Row style": "Estilo de las filas",
+  "Hairline rows": "Filas con línea fina",
+  "Raised cards": "Tarjetas elevadas",
+  "Framed cards": "Tarjetas con marco",
+  "Each photo sits in a raised card with its name and an arrow. Needs captions on to show the name.":
+    "Cada foto va en una tarjeta elevada con su nombre y una flecha. Activa los pies de foto para ver el nombre.",
+  "Custom accent": "Acento personalizado",
+  "One color, the rest follows": "Un color, el resto se ajusta solo",
+  "Accent color": "Color de acento",
+  "Pick one color. Buttons use it as is; the soft tint, page ground and lines are derived, and text uses a version that stays readable.":
+    "Elige un color. Los botones lo usan tal cual; el tinte suave, el fondo y las líneas se derivan, y el texto usa una versión que se lee bien.",
+  "Pick any color. Text color and tints are derived, and contrast is checked.":
+    "Elige cualquier color. El color del texto y los tintes se derivan, y se revisa el contraste.",
+  // Release 2.7 (hero + footer): lines that follow the profile.
+  "Follows your profile": "Sigue tu perfil",
+  "This line is filled in from your profile and stays up to date. Turn it off, or type your own words, to keep it as written.":
+    "Esta línea se llena desde tu perfil y se mantiene al día. Desactívala, o escribe tus propias palabras, para dejarla tal cual.",
+  "Link to": "Enlazar a",
+  "Make the card a link, for example #services to jump to your menu. Leave empty for plain text.":
+    "Convierte la tarjeta en un enlace, por ejemplo #services para ir a tu menú. Déjalo vacío para texto simple.",
+
+  // ── Header section switcher (Maison v2 2.6, H-4) ───────────────────────
+  "Section switcher": "Selector de secciones",
+  "On phones, shows the current section and opens a menu of every section. Uses your menu links.":
+    "En teléfonos, muestra la sección actual y abre un menú con todas las secciones. Usa tus enlaces del menú.",
+  "{count} sections, shown on phones": "{count} secciones, visibles en teléfonos",
+  "Needs at least two in-page menu links": "Necesita al menos dos enlaces del menú que apunten a secciones de la página",
+  "Section number": "Número de sección",
+  "The two-digit number shown before the section name.": "El número de dos dígitos que aparece antes del nombre de la sección.",
+  "Show the number": "Mostrar el número",
+  "Name only": "Solo el nombre",
+  // ── visit inspector: Location layout (2026-09-30) ─────────────────────
+  Facts: "Datos",
+  "Map + facts": "Mapa y datos",
+  "Area map": "Mapa de la zona",
+  "Map on the left": "Mapa a la izquierda",
+  "Map on the right": "Mapa a la derecha",
+  "Small map": "Mapa pequeño",
+  "Medium map": "Mapa mediano",
+  "Large map": "Mapa grande",
+  "Show the View map button": "Mostrar el botón Ver mapa",
+  "Who sees your address, the studio kind, the arrival note and photo come from Services, Defaults. The map area is drawn from your city and neighbourhood.":
+    "Quién ve tu dirección, el tipo de estudio, la nota y la foto de llegada vienen de Servicios, Valores predeterminados. La zona del mapa se dibuja con tu ciudad y tu colonia.",
+  "Appears once the interactive map is available. Until then only the area drawing shows.":
+    "Aparece cuando el mapa interactivo esté disponible. Mientras tanto solo se ve el dibujo de la zona.",
+  "Location · zone, hours, how to arrive": "Ubicación · zona, horario, cómo llegar",
+  // ── Gridline G10/G11: spec table, work-order portfolio, area card ──────
+  "Utility bar": "Barra de utilidad",
+  "Utility bar · status and call": "Barra de utilidad · estado y llamada",
+  "A dark header bar with your name, an emergencies status pill and a tap-to-call button. The call button shows only when you set a public number.": "Una barra oscura con tu nombre, un indicador de emergencias y un botón para llamar. El botón de llamada aparece solo si defines un número público.",
+  "Alert band": "Banda de alerta",
+  "Alert band · same-day emergency": "Banda de alerta · emergencia el mismo día",
+  "A hazard-tape band for same-day emergencies with a safety note. Shown only while emergencies today is on.": "Una banda tipo cinta de precaución para emergencias del mismo día, con una nota de seguridad. Se muestra solo mientras Emergencias hoy está activado.",
+  "Subtitle": "Subtítulo",
+  "Electrician · Monterrey": "Electricista · Monterrey",
+  "Logo image URL": "URL de la imagen del logo",
+  "Emergencies pill": "Indicador de emergencias",
+  "Shows whether you take emergencies today. It follows your live Emergencies today switch.": "Indica si atiendes emergencias hoy. Sigue tu interruptor Emergencias hoy.",
+  "Show the pill": "Mostrar el indicador",
+  "Label when on": "Texto cuando está activo",
+  "Label when off": "Texto cuando está apagado",
+  "Emergencies today": "Emergencias hoy",
+  "No emergencies today": "Sin emergencias hoy",
+  "Call button": "Botón de llamada",
+  "The button appears only when you have set a public call number in your site settings.": "El botón aparece solo si definiste un número público de llamada en los ajustes de tu sitio.",
+  "Show the call button": "Mostrar el botón de llamada",
+  "Call button label": "Texto del botón de llamada",
+  "A button shown on desktop only. Leave the label empty to hide it.": "Un botón que solo se ve en escritorio. Deja el texto vacío para ocultarlo.",
+  "Action label": "Texto de la acción",
+  "Action link": "Enlace de la acción",
+  "This band shows only while your Emergencies today switch is on. When it is off, nothing is shown.": "Esta banda se muestra solo mientras tu interruptor Emergencias hoy está activado. Si está apagado, no se muestra nada.",
+  "Safety note": "Nota de seguridad",
+  "Advice for the client while they wait. Empty hides the note.": "Consejo para el cliente mientras espera. Vacío oculta la nota.",
+  "Note label": "Etiqueta de la nota",
+  "Safety note text": "Texto de la nota de seguridad",
+  "Meanwhile:": "Mientras tanto:",
+  // ── Gridline G9a: task picker ──────────────────────────────────────────
+  "Task picker": "Selector de tareas",
+  "Task picker · tasks and recommended services": "Selector de tareas · tareas y servicios recomendados",
+  "What is happening, in the visitor's words. Each task recommends one of your services with its price, time and the right action.":
+    "Lo que pasa, en palabras del visitante. Cada tarea recomienda uno de tus servicios con su precio, su tiempo y la acción correcta.",
+  "Visitors pick what is happening and get one service recommended, with its price, time and the right action.":
+    "El visitante elige lo que pasa y recibe un servicio recomendado, con su precio, su tiempo y la acción correcta.",
+  "Start here": "Empieza aquí",
+  "Shown while no task is picked. Usually your inspection or first visit.":
+    "Se muestra mientras no hay tarea elegida. Normalmente tu revisión o primera visita.",
+  "Start here service": "Servicio para empezar",
+  "Label (Spanish)": "Etiqueta (español)",
+  "Note": "Nota",
+  "Note (Spanish)": "Nota (español)",
+  "Tasks": "Tareas",
+  "A task with no service chosen is not shown. Spanish text falls back to the English text when empty.":
+    "Una tarea sin servicio elegido no se muestra. El texto en español usa el texto en inglés cuando está vacío.",
+  "Choose a service": "Elige un servicio",
+  "Unavailable service (not published)": "Servicio no disponible (no publicado)",
+  "Task text": "Texto de la tarea",
+  "Task text (Spanish)": "Texto de la tarea (español)",
+  "Task (The power went out)": "Tarea (Se fue la luz)",
+  "Task in Spanish": "Tarea en español",
+  "Task icon": "Ícono de la tarea",
+  "Recommended service": "Servicio recomendado",
+  "Task note": "Nota de la tarea",
+  "Task note (Spanish)": "Nota de la tarea (español)",
+  "Note shown with the recommendation": "Nota que se muestra con la recomendación",
+  "Note in Spanish": "Nota en español",
+  "Add task": "Agregar tarea",
+  "Remove task": "Quitar tarea",
+  "Spec table": "Ficha técnica",
+  "Spec table · key and value rows": "Ficha técnica · filas de dato y valor",
+  "A short table of facts. On a phone it is stacked rows; on a desktop it becomes one strip with a column per row.":
+    "Una tabla corta de datos. En el celular son filas apiladas; en escritorio se vuelve una franja con una columna por fila.",
+  "Rows with an empty label or value are not shown.": "Las filas sin etiqueta o sin valor no se muestran.",
+  "Row label": "Etiqueta de la fila",
+  "Row value": "Valor de la fila",
+  "Label (Warranty)": "Etiqueta (Garantía)",
+  "Value (6 months, in writing)": "Valor (6 meses, por escrito)",
+  "Add row": "Agregar fila",
+  "Key and value rows (voltage, warranty, how you price). A strip on desktop, stacked rows on a phone.":
+    "Filas de dato y valor (voltaje, garantía, cómo cotizas). Una franja en escritorio, filas apiladas en el celular.",
+  "Work orders": "Órdenes de trabajo",
+  "Job cards. Write each photo caption on two lines: the job on the first, the work order detail on the second. No faces or client names.":
+    "Tarjetas de trabajo. Escribe cada pie de foto en dos líneas: el trabajo en la primera, el detalle de la orden en la segunda. Sin caras ni nombres de clientes.",
+  "Job cards": "Tarjetas de trabajo",
+  "Area card": "Tarjeta de zona",
+  "An approximate area: a drawn grid, the places you travel to as chips and your arrival note. It never shows an address.":
+    "Una zona aproximada: una cuadrícula dibujada, los lugares a los que viajas como etiquetas y tu nota de llegada. Nunca muestra una dirección.",
+  // ── Gridline G7/G8: spec grid stats variant, services comparison matrix ──
+  "Spec grid": "Cuadrícula de datos",
+  "Comparison matrix": "Matriz de comparación",
+  "Services comparison": "Comparación de servicios",
+  "Your services side by side: price, length, how it is booked, materials, warranty and response. A table on desktop, stacked cards on a phone.":
+    "Tus servicios lado a lado: precio, duración, cómo se agenda, materiales, garantía y respuesta. Una tabla en escritorio, tarjetas apiladas en el celular.",
+// ── Contenido nested-block UX (page-builder panel cleanup) ─────────────
+  // Short helpers + NestedBlocksCard chrome. Lives here because
+  // editor-i18n-es-inspectors.ts is at the 800-line max-lines ceiling.
+  // Skip "Drag to reorder" / "Saved block pattern", already owned elsewhere.
+  "Add and reorder the blocks inside this group.":
+    "Agrega y reordena los bloques de este grupo.",
+  "Open each column to edit its text and photos. Ratio is under Design.":
+    "Abre cada columna para editar su texto y fotos. La proporción está en Diseño.",
+  "Open each item to rename the question and edit what’s inside.":
+    "Abre cada elemento para renombrar la pregunta y editar lo que hay dentro.",
+  "Open each tab to rename it and edit what’s inside.":
+    "Abre cada pestaña para renombrarla y editar lo que hay dentro.",
+  "Add slides below. Autoplay and controls are under Design.":
+    "Agrega diapositivas abajo. La reproducción automática y los controles están en Diseño.",
+  "Add images or cards below. Columns and gap are under Design.":
+    "Agrega imágenes o tarjetas abajo. Las columnas y el espacio están en Diseño.",
+  "Edit the heading, text, image, and button blocks below.":
+    "Edita abajo los bloques de título, texto, imagen y botón.",
+  "This group holds buttons only. Add headline text as a sibling block.":
+    "Este grupo solo contiene botones. Agrega el titular como un bloque hermano.",
+  "A horizontal line. Tone is under Design; spacing under Style.":
+    "Una línea horizontal. El tono está en Diseño; el espaciado en Estilo.",
+  "Empty space. Change its size under Design.":
+    "Espacio vacío. Cambia su tamaño en Diseño.",
+  "Library & saved blocks": "Biblioteca y bloques guardados",
+  "Blocks in this group": "Bloques de este grupo",
+  "Insert at top": "Insertar arriba",
+  "Done selecting": "Listo",
+  "Select multiple": "Seleccionar varios",
+  "{count} block selected": "{count} bloque seleccionado",
+  "{count} blocks selected": "{count} bloques seleccionados",
+  "Select blocks for bulk actions": "Selecciona bloques para acciones en lote",
+  "Select all": "Seleccionar todos",
+  "Insert after": "Insertar después",
+  "Paste in group": "Pegar en el grupo",
+  "Paste the copied block into this group":
+    "Pega el bloque copiado en este grupo",
+  "Save pattern": "Guardar patrón",
+  "Block presets": "Preajustes de bloque",
+  "Add a block": "Agregar un bloque",
+  "Insert block here": "Insertar bloque aquí",
+  "Section packs": "Paquetes de sección",
+  blocks: "bloques",
+  Starter: "Inicio",
+  // ── Estilo panel density (page-builder panel cleanup) ──────────────────
+  "Following the theme": "Sigue el tema",
+  "container name": "nombre del contenedor",
+  "Box model": "Modelo de caja",
+  // ── Portada Diseño density (page-builder panel cleanup) ────────────────
+  "Pick a look, then fine-tune the columns.":
+    "Elige un aspecto y luego ajusta las columnas.",
+  "Gap & mobile": "Espacio y móvil",
+  "Keep side by side": "Mantener lado a lado",
+  "Stack on phone": "Apilar en el teléfono",
+  "Stacking & visibility": "Apilado y visibilidad",
+  // ── Site Diseño Marca / Tema entry (page-builder panel cleanup) ────────
+  "Site colours used across every page. Tema opens the full editor.":
+    "Colores del sitio en todas las páginas. Tema abre el editor completo.",
 };

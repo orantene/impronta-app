@@ -35,7 +35,7 @@
 
 import type { TokenSpec } from "./registry";
 import { TOKEN_REGISTRY, tokenDefaults } from "./registry";
-import { foregroundForPrimary } from "./contrast-pair";
+import { contrastRatio, foregroundForFill, foregroundForPrimary, readableAccentText } from "./contrast-pair";
 import { STYLE_TOKEN_DATA_ATTRS, STYLE_TOKEN_VAR_NAMES } from "./style-tokens";
 
 /** Minimal row shape accepted by `resolveDesignTokens`. */
@@ -94,6 +94,8 @@ export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   // bindable-token catalog (built from TOKEN_REGISTRY x COLOR_VAR_NAMES) offers
   // `token:color.primary-on`. The VALUE is derived below, after this loop.
   "color.primary-on": "--token-color-primary-on",
+  // Derived as well: the accent made readable as text (see `readableAccentText`).
+  "color.accent-text": "--token-color-accent-text",
   "color.secondary": "--token-color-secondary",
   "color.accent": "--token-color-accent",
   "color.neutral": "--token-color-neutral",
@@ -181,6 +183,31 @@ export function designTokensToCssVars(
     if (onPrimary) out["--token-color-primary-on"] = onPrimary;
   }
 
+  // DERIVED: the accent as readable TEXT on the page surface. The registry
+  // default is never painted; with no measurable accent the var stays unset so
+  // the stylesheet's own fallback (the raw accent) applies.
+  const accentSource = tokens["color.accent"] || tokens["color.primary"] || "";
+  const ground = tokens["color.surface-raised"] || tokens["color.background"] || "#ffffff";
+  let accentText = readableAccentText(accentSource, ground) ?? readableAccentText(accentSource, "#ffffff");
+  // The page ground can be darker than the raised surface (Gridline orange: white cards on a
+  // grey page). Text in the accent also sits on the page, so it must clear AA there too.
+  const page = tokens["color.background"];
+  if (accentText && page && page !== ground && (contrastRatio(accentText, page) ?? 5) < 4.5) {
+    accentText = readableAccentText(accentSource, page) ?? accentText;
+  }
+  if (accentText) out["--token-color-accent-text"] = accentText;
+  else delete out["--token-color-accent-text"];
+
+  // DERIVED: the readable foreground for an ACCENT FILL (a primary button painted with the
+  // accent). `primary-on` is measured against the PRIMARY, so a design whose buttons fill with
+  // the accent (accent != primary, e.g. a pale accent left over from another palette) printed
+  // white text on pale pink. This pair is measured against the accent itself: white or ink,
+  // whichever wins, which is always at least AA for normal text.
+  const accentFill = tokens["color.accent"] || tokens["color.primary"] || "";
+  const onAccent = accentFill ? foregroundForFill(accentFill) : null;
+  if (onAccent) out["--token-color-accent-on"] = onAccent;
+  else delete out["--token-color-accent-on"];
+
   return out;
 }
 
@@ -219,6 +246,7 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   // same contract as directory.card.profile-popup. The attr also lets CSS /
   // instrumentation see the tenant-wide chat chrome without re-deriving.
   "chat.variant": "data-token-chat-variant",
+  "chat.help-bubble": "data-token-chat-help-bubble",
   // M7.1 template families
   "template.directory-card-family": "data-token-template-directory-card-family",
   "template.profile-layout-family": "data-token-template-profile-layout-family",
@@ -271,6 +299,8 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "profile.reviews-visibility": "data-token-profile-reviews",
   // Site style switches (type system, main button variant); style-tokens.ts.
   ...STYLE_TOKEN_DATA_ATTRS,
+  // Also an attribute (the var is still emitted): the highlighter style swaps a rule set, not a value.
+  "type.accent-style": "data-token-type-accent-style",
 };
 
 /**

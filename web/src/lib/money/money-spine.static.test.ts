@@ -3,7 +3,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,25 +38,17 @@ describe("Money page M2 spine", () => {
     assert.match(outstanding, /onRecord/);
   });
 
-  it("AUD-018 wires Request / Record / Refund / Correct sheets", () => {
+  it("AUD-018 routes Request / Record to the booking writer; no fake-success sheets", () => {
     const page = readFileSync(join(moneyDir, "MoneyPage.tsx"), "utf8");
     const detail = readFileSync(join(moneyDir, "PaymentDetailDrawer.tsx"), "utf8");
-    const request = readFileSync(join(moneyDir, "MoneyRequestPaymentSheet.tsx"), "utf8");
-    const record = readFileSync(join(moneyDir, "MoneyRecordPaymentSheet.tsx"), "utf8");
-    const refund = readFileSync(join(moneyDir, "MoneyRefundSheet.tsx"), "utf8");
-    const correct = readFileSync(join(moneyDir, "MoneyCorrectRecordSheet.tsx"), "utf8");
-    assert.match(page, /MoneyRequestPaymentSheet/);
-    assert.match(page, /MoneyRecordPaymentSheet/);
-    assert.match(page, /MoneyRefundSheet/);
-    assert.match(page, /MoneyCorrectRecordSheet/);
-    assert.match(detail, /onRefund/);
-    assert.match(detail, /onCorrect/);
-    assert.match(request, /mc_req_pick/);
-    assert.match(request, /mc_req_amount/);
-    assert.match(request, /mc_req_created/);
-    assert.match(record, /mc_record/);
-    assert.match(refund, /mc_refund/);
-    assert.match(correct, /mc_cash_correct/);
+    // Record and request route to the booking record's real writer.
+    assert.match(page, /\/talent\/bookings\/\$\{encodeURIComponent\(bookingId\)\}\?collect=1/);
+    // Refund / correct / request sheets showed success with no write: they are gone.
+    for (const f of ["MoneyRequestPaymentSheet", "MoneyRefundSheet", "MoneyCorrectRecordSheet", "MoneyRecordPaymentSheet"]) {
+      assert.equal(existsSync(join(moneyDir, `${f}.tsx`)), false, f);
+      assert.doesNotMatch(page, new RegExp(f));
+    }
+    assert.doesNotMatch(detail, /onRefund|onCorrect/);
   });
 
   it("MoneySpine M4 wires payout detail, failed alternate, and account states", () => {
@@ -125,5 +117,12 @@ describe("Money page never shows fixture figures to real talents", () => {
     const earnings = readFileSync(join(moneyDir, "MoneyHomePage.tsx"), "utf8");
     assert.match(earnings, /useResolvedTalentEarningsByCurrency/);
     assert.equal(/septemberLedgerFixture|LEDGER_CONTRACT_CLOCK/.test(earnings), false);
+  });
+
+  it("no Money surface says a payment was recorded without a write", () => {
+    for (const file of readdirSync(moneyDir).filter((f) => f.endsWith(".tsx"))) {
+      const src = readFileSync(join(moneyDir, file), "utf8");
+      assert.equal(/Recorded \{amount\}/.test(src), false, `${file} shows "Recorded" without a writer`);
+    }
   });
 });

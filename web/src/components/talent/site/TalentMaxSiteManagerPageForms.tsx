@@ -150,7 +150,7 @@ export function PageRenameForm({
       />
       {!page.isHome ? (
         <p style={{ margin: 0, fontSize: 10.5, color: COLORS.inkMuted }}>
-          Path preview: /t/site/{siteSlug ?? "…"}/{previewSlug || "…"}
+          {copy.t("Path preview")}: /t/site/{siteSlug ?? "…"}/{previewSlug || "…"}
         </p>
       ) : null}
       {text?.seoAllowed ? (
@@ -205,10 +205,11 @@ export function PageDeleteConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{ padding: "10px 12px", border: `1.5px solid ${COLORS.criticalDeep}`, borderRadius: 10, background: "rgba(176,48,58,0.04)" }}>
       <p style={{ margin: "0 0 8px", fontSize: 12.5, color: COLORS.ink }}>
-        Delete <strong>{page.title}</strong>? This can&rsquo;t be undone.
+        {copy.t("Delete")} <strong>{page.title}</strong>? {copy.t("This can't be undone.")}
       </p>
       <div style={{ display: "flex", gap: 6 }}>
         <button
@@ -216,9 +217,9 @@ export function PageDeleteConfirm({
           onClick={onConfirm}
           style={{ ...miniBtn, background: COLORS.criticalDeep, color: "#fff", border: "none" }}
         >
-          Delete page
+          {copy.t("Delete page")}
         </button>
-        <button type="button" onClick={onCancel} style={miniBtn}>Cancel</button>
+        <button type="button" onClick={onCancel} style={miniBtn}>{copy.t("Cancel")}</button>
       </div>
     </div>
   );
@@ -236,6 +237,7 @@ export function PageAddForm({
   onSave: (title: string) => void;
   onCancel: () => void;
 }) {
+  const copy = useDashboardText();
   const [title, setTitle] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => { titleRef.current?.focus(); }, []);
@@ -255,7 +257,7 @@ export function PageAddForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="New page title"
+        placeholder={copy.t("New page title")}
         style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }}
       />
       {title.trim() ? (
@@ -270,9 +272,9 @@ export function PageAddForm({
           disabled={!title.trim()}
           style={{ ...miniBtn, background: COLORS.accent, color: "#fff", border: "none" }}
         >
-          Add page
+          {copy.t("Add page")}
         </button>
-        <button type="button" onClick={onCancel} style={miniBtn}>Cancel</button>
+        <button type="button" onClick={onCancel} style={miniBtn}>{copy.t("Cancel")}</button>
       </div>
     </div>
   );

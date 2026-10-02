@@ -1,7 +1,9 @@
 "use client";
 
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
+import type { WebsiteSetupStep } from "@/lib/talent/website-flow";
 
 const SLICE_LABEL = {
   who: "Your name and what you do",
@@ -17,29 +19,28 @@ const SLICE_LABEL = {
  * website is still locked; once unlocked, one line plus "Activate your free
  * website" (opens the design gallery). Never mounted once the site is live.
  */
-export function WebsiteEligibilityPanel({ onActivate }: { onActivate?: () => void }) {
+export function WebsiteEligibilityPanel({ onActivate }: { onActivate?: (step: WebsiteSetupStep) => void }) {
   const copy = useDashboardText();
-  const eligibility = useWebsiteEligibility();
-  if (eligibility.unlocked) {
+  const flow = useWebsiteFlow();
+  const eligibility = flow.eligibility;
+  if (flow.state === "ready" || flow.state === "preview") {
+    // Same state, title and next action as the top pill and the Today card.
     return (
       <section
         data-testid="website-unlocked"
+        data-flow-state={flow.state}
         className="mb-6 rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body"
       >
-        <h2 className="text-[16px] font-semibold text-admin-ink">✓ {copy.t("Your free website is unlocked")}</h2>
-        <p className="mt-1 max-w-[560px] text-[13px] leading-normal text-admin-ink-muted">
-          {copy.t(
-            "Pick a design, see it with your own services and photos, then publish when you are happy. Nothing goes live until you publish.",
-          )}
-        </p>
-        {onActivate ? (
+        <h2 className="text-[16px] font-semibold text-admin-ink">✓ {flow.text.cardTitle}</h2>
+        <p className="mt-1 max-w-[560px] text-[13px] leading-normal text-admin-ink-muted">{flow.text.cardSub}</p>
+        {onActivate && flow.text.cta ? (
           <button
             type="button"
             data-testid="website-activate"
-            onClick={onActivate}
+            onClick={() => onActivate(flow.step)}
             className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-admin-ink px-4 text-[13px] font-semibold text-white"
           >
-            {copy.t("Activate your free website")}
+            {flow.text.cta}
           </button>
         ) : null}
       </section>
@@ -57,7 +58,7 @@ export function WebsiteEligibilityPanel({ onActivate }: { onActivate?: () => voi
           .filter((slice) => slice.required)
           .map((slice) => (
             <li key={slice.key}>
-              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}
+              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
               {slice.done == null ? ` · ${copy.t("Not available")}` : ""}
             </li>
           ))}

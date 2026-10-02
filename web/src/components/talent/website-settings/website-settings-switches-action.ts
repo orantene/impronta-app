@@ -7,6 +7,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { parseTalentChatConfig, type TalentSiteSwitches } from "@/lib/talent/site-switches";
 import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 
 export type SiteSwitchesSnapshot = {
   switches: TalentSiteSwitches;
@@ -17,6 +18,8 @@ export type SiteSwitchesSnapshot = {
     payoutsReady: boolean;
     /** Talent Stripe Connect payouts on. Advisory copy only (PAY-2 Option B). */
     connectPayoutsEnabled: boolean;
+    /** F27: false on the free tier (request only). */
+    planAllowsInstant: boolean;
   };
 };
 
@@ -28,10 +31,11 @@ export async function loadSiteSwitchesAction(): Promise<SiteSwitchesSnapshot | n
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const id = scope.talentProfile.id;
-  const [switches, hours, profile] = await Promise.all([
+  const [switches, hours, profile, plan] = await Promise.all([
     loadTalentSiteSwitches(admin, id),
     loadWorkingHoursPresence(admin, [id]),
     admin.from("talent_profiles").select("stripe_payouts_enabled").eq("id", id).maybeSingle(),
+    loadPlanAllowsInstant(admin, [id]),
   ]);
   if (profile.error) logServerError("talent.websiteSettings.connectStatus", profile.error);
   return {
@@ -41,6 +45,7 @@ export async function loadSiteSwitchesAction(): Promise<SiteSwitchesSnapshot | n
       payoutsReady: isPlatformCheckoutReady(),
       connectPayoutsEnabled:
         (profile.data as { stripe_payouts_enabled?: unknown } | null)?.stripe_payouts_enabled === true,
+      planAllowsInstant: plan.get(id) ?? true,
     },
   };
 }

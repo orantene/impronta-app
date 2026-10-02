@@ -9,6 +9,7 @@ import type {
 } from "@/lib/server-actions/instant-book-types";
 import { offeringRequiresOnlineCollect } from "@/lib/talent/who-step-payment-copy";
 import type { OfferingReserveMode } from "@/lib/talent/offerings-types";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import {
   demoReservationIso,
   resolveCatalogConfirmOutcome,
@@ -20,13 +21,13 @@ export type CatalogBookFn = (payload: InstantBookFormPayload) => Promise<Instant
 
 export function catalogSlotLostMessage(locale: string): string {
   return locale.toLowerCase().startsWith("es")
-    ? "Ese horario ya no está disponible. Elegí otro."
+    ? "Ese horario ya no está disponible. Elige otro."
     : "That time is no longer available. Pick another.";
 }
 
 export function catalogConfirmNetworkError(locale: string): string {
   return locale.toLowerCase().startsWith("es")
-    ? "No se pudo guardar. Probá de nuevo."
+    ? "No se pudo guardar. Prueba de nuevo."
     : "Could not save. Please try again.";
 }
 
@@ -44,6 +45,7 @@ export async function runCatalogConfirmWrite(input: {
   contactPhone: string | null;
   variantId: string | null;
   addOnIds: string[];
+  brief?: OfferingTaskBrief | null;
   liveStarts: string | null;
   liveTz: string;
   bookingDurationMinutes: number;
@@ -89,6 +91,7 @@ export async function runCatalogConfirmWrite(input: {
       payInPerson: input.reserveMode === "free" && input.allowPayInPerson !== false,
       variantId: input.variantId,
       addOnIds: input.addOnIds,
+      ...(input.brief ? { brief: input.brief } : {}),
       reservation,
       captchaToken: input.captchaToken,
       sourcePage: typeof window !== "undefined" ? window.location.pathname : null,

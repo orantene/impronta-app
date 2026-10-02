@@ -61,6 +61,7 @@ import {
 } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { withSavedBios } from "@/lib/talent/saved-bio.server";
 import {
   GUEST_CHAT_DEFAULTS,
   loadGuestChatSettings,
@@ -103,7 +104,11 @@ import { talentPlanRemovesPlatformBadge } from "@/lib/access/talent-membership";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
-import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
+import {
+  talentProfileMetaFallbackDescription,
+  talentProfileMetaTitle,
+} from "@/lib/seo/talent-profile-meta-copy";
+import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -127,6 +132,7 @@ import { askEntryPointsVisible } from "@/lib/talent/chat-entry";
 import { loadTalentIntake } from "./_chat/talent-intake.server";
 import { ProfileInstantBookingMount } from "./_shared/ProfileInstantBookingMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { publicNameOrGeneric } from "@/lib/messaging/public-name";
 import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
@@ -147,9 +153,7 @@ import type {
   Testimonial,
 } from "@/lib/reviews/review-types";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// ── Types ──
 
 type TaxonomyTerm = {
   id?: string;
@@ -373,6 +377,10 @@ function primaryTalentType(
 }
 
 async function fetchTalentProfile(profileCode: string, preview: boolean) {
+  const r = await fetchTalentProfileRow(profileCode, preview);
+  return r ? { ...r, profile: await withSavedBios(r.profile) } : null;
+}
+async function fetchTalentProfileRow(profileCode: string, preview: boolean) {
   if (preview) {
     const session = await getCachedActorSession();
     const supabase =
@@ -563,14 +571,9 @@ async function fetchPublicFieldValues(
   if (error || !data) return [];
 
   // ── Gap 2 — public resolver-gate (2a tenant overrides + 2b-soft) ──────
-  // Governance reads use a SERVICE-ROLE client: the public path's client
-  // is anon and cannot read RLS-scoped workspace_profile_field_settings /
-  // agency_talent_roster, so without this the gate would silently fail
-  // OPEN. Reading governance data with service role to compute a MORE
-  // restrictive public view never exposes that data. If the service
-  // client (or any governance read) is unavailable we fail SAFE by
-  // degrading to the prior Phase 1.5 behaviour — never over-hiding,
-  // never a new leak. No data is mutated; this is a read-side filter.
+  // Governance reads use the SERVICE ROLE (anon can't read RLS-scoped field settings / roster, so
+  // the gate would fail OPEN). It only computes a MORE restrictive view and never exposes that data;
+  // if a read is unavailable it falls back to Phase 1.5 behaviour. Read-side filter, no writes.
   const svc = createServiceRoleClient();
   const fieldIds = Array.from(
     new Set(
@@ -1452,22 +1455,25 @@ export async function buildTalentProfileMetadata({
   const metadataTaxonomyVisibility = await loadProfileTaxonomyVisibility(
     await resolveProfileOverrideTenantId(hostCtx, profile.id),
   );
+  // Title and description follow the page language: the /es/ URL is its own
+  // indexable page (hreflang says so), so it must read Spanish in the SERP,
+  // "Modelo de moda en Playa del Carmen", not the English label.
   const talentType =
     primaryTalentType(
-      "en",
+      locale,
       profile.talent_profile_taxonomy ?? [],
       metadataTaxonomyVisibility,
-    ) ?? "Talent";
-  const loc = residenceLabel("en", profile as TalentProfile);
+    ) ?? pickLocale(locale, { en: "Talent", es: "Talento" });
+  const loc = residenceLabel(locale, profile as TalentProfile);
 
-  const title = loc ? `${name} — ${talentType} · ${loc}` : `${name} — ${talentType}`;
+  const title = talentProfileMetaTitle(locale, name, talentType, loc);
   const about = publicBioForLocale(locale, [locale, "en"], {
     ...(profile.bio_i18n ?? {}),
     en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
   });
+  // No bio: brand-neutral line in the page language.
   const description =
-    about.trim() ||
-    `View ${name}'s talent profile on Impronta — ${talentType}${loc ? ` — lives in ${loc}` : ""}.`;
+    about.trim() || talentProfileMetaFallbackDescription(locale, name, talentType, loc);
 
   return {
     title,
@@ -1827,7 +1833,7 @@ export async function TalentProfileView({
   );
 
   // Storefront — offerings catalog, USD line for non-USD prices, Offer JSON-LD.
-  const { storefrontOfferings, usdRates, offerJsonLd } = await loadProfileStorefrontPayload(
+  const { storefrontOfferings, usdRates } = await loadProfileStorefrontPayload(
     profile.id,
     locale,
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
@@ -1964,7 +1970,8 @@ export async function TalentProfileView({
   const chatBrandName =
     hostCtx.kind === "agency"
       ? tenantBrand ?? "the agency"
-      : chatHub?.displayName ?? "Tulala";
+      : // Platform host: the guest talks to THIS talent (never the hub, never an email-derived name).
+        publicNameOrGeneric(displayName(profile as TalentProfile), locale ?? "en");
   // Per-tenant guest-chat config (enable + placement + greeting). Defaults-on
   // for unconfigured tenants so the launcher keeps working.
   const guestChatSettings = chatTenantId
@@ -2291,8 +2298,6 @@ export async function TalentProfileView({
   const jsonLd = buildTalentProfileJsonLd({
     canonicalUrl: canonicalShareUrl,
     name,
-    givenName: profile.first_name ?? null,
-    familyName: profile.last_name ?? null,
     // null when every category is hidden for this tenant — buildTalentProfileJsonLd
     // OMITS the jobTitle key rather than emitting an empty string.
     jobTitle:
@@ -2308,6 +2313,10 @@ export async function TalentProfileView({
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
+    // Real catalog data only: published, publicly visible services
+    // (Offer -> Service, provider = this Person). Replaces the old standalone
+    // Offer ItemList, which carried no provider link.
+    services: offeringsToJsonLdServices(storefrontOfferings),
   });
 
   // ── Profile template dispatch ─────────────────────────────────────────
@@ -2486,6 +2495,7 @@ export async function TalentProfileView({
               tenantSlug={slotTenantSlug}
               tenantId={slotTenantId}
               agencyName={tenantBrand ?? "the studio"}
+              soloTalentName={platformChrome ? name : null}
               locationLabel={livesIn}
               bookingMode={booking.mode}
             />
@@ -2549,13 +2559,6 @@ export async function TalentProfileView({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
-      {offerJsonLd && offerJsonLd.itemListElement.length > 0 ? (
-        <script
-          type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(offerJsonLd) }}
-        />
-      ) : null}
       {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
       {slotTenantId ? (
         <ProfileInstantBookingMount
@@ -2565,7 +2568,7 @@ export async function TalentProfileView({
           locale={locale}
         />
       ) : null}
-      {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode }} /> : null}
+      {!isModal ? <TalentIntakeSurfaces askEntry={talentAskEntry} switches={talentSwitches} agencyChatOn={guestChatSettings.enabled && guestChatSettings.showOnTalent} agencyGreeting={guestChatSettings.greeting} launcher={{ talentProfileId: profile.id, talentProfileCode: profile.profile_code, talentDisplayName: name, tenantSlug: chatTenantSlug, tenantId: chatTenantId, agencyName: chatBrandName, accentColor: chatAccentColor, logoUrl: watermarkLogoUrl, sourcePage: profileSourcePage, locale, backgroundMode: chatBackgroundMode, omitPlatformBrand: Boolean(chatHub) }} /> : null}
     </>
   );
 

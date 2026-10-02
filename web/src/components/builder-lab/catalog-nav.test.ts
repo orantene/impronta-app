@@ -80,7 +80,7 @@ test("orderedViewsForGroup structure: all first, gallery in CODE_TAB_DEFS order,
   assert.equal(out[0], "all");
   assert.equal(out[out.length - 1], "catalog_studio");
   // Gallery tabs sit between, in CODE_TAB_DEFS order.
-  assert.deepEqual(out, ["all", "blocks", "designs", "data", "shell", "catalog_studio"]);
+  assert.deepEqual(out, ["all", "blocks", "designs", "data", "shell", "apps", "catalog_studio"]);
 });
 
 test("orderedViewsForGroup structure: filters absent gallery tabs", () => {

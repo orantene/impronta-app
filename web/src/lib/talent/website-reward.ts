@@ -45,7 +45,7 @@ export function websiteRewardCopy(
     case "setup_unfinished":
       return {
         title: es ? "Termina la configuración del sitio" : "Finish website setup",
-        detail: es ? "Perfil completo · sigue donde lo dejaste" : "Profile complete · pick up where you left off",
+        detail: es ? "Perfil completo" : "Profile complete",
       };
     case "unlocked_not_activated":
       return {

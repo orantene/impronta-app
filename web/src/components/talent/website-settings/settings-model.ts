@@ -100,7 +100,10 @@ export function diffDraft(
   saved: SettingsDraft,
   draft: SettingsDraft,
 ): { defaults: string[]; services: string[] } {
-  const defaults = DEFAULT_KEYS.filter((k) => saved.defaults[k] !== draft.defaults[k]);
+  const defaults: string[] = DEFAULT_KEYS.filter((k) => saved.defaults[k] !== draft.defaults[k]);
+  if ((saved.defaults.inPersonMethods ?? []).join(",") !== (draft.defaults.inPersonMethods ?? []).join(",")) {
+    defaults.push("inPersonMethods");
+  }
   const services = Object.keys(draft.services).filter((id) => {
     const a = saved.services[id];
     const b = draft.services[id];

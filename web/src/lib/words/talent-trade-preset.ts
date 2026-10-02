@@ -64,7 +64,8 @@ export const PARENT_CATEGORY_PRESET: Readonly<Record<string, IndustryPresetId>> 
   "photo-video-creative": "practice",
   "speakers-coaches-experts": "practice",
   "kids-family-services": "practice",
-  "home-technical-services": "dropoff_service",
+  // On-site trades (electrician, plumber, handyman) book a visit; nothing is dropped off.
+  "home-technical-services": "practice",
   "hospitality-property": "venue_for_hire",
   "travel-concierge": "tours_activities",
   "transportation": "rentals",

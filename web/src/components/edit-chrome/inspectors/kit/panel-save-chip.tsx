@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { CHROME } from "../../kit/tokens";
+import { useEditorLocale } from "../../use-editor-locale";
 
 interface PanelSaveChipProps {
   dirty: boolean;
@@ -23,6 +24,7 @@ interface PanelSaveChipProps {
 }
 
 export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
+  const { t } = useEditorLocale();
   const [justSaved, setJustSaved] = useState(false);
   const wasSavingRef = useRef(false);
 
@@ -44,7 +46,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
         className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700"
       >
         <span className="size-1.5 rounded-full bg-rose-500" />
-        Couldn&apos;t save
+        {t("Couldn't save")}
       </span>
     );
   }
@@ -52,7 +54,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600">
         <span className="size-1.5 animate-pulse rounded-full bg-stone-500" />
-        Saving
+        {t("Saving")}
       </span>
     );
   }
@@ -60,7 +62,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
         <span className="size-1.5 rounded-full bg-blue-500" />
-        Pending
+        {t("Pending")}
       </span>
     );
   }
@@ -68,7 +70,7 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
         <span className="size-1.5 rounded-full bg-emerald-500" />
-        Draft saved
+        {t("Draft saved")}
       </span>
     );
   }
@@ -84,6 +86,7 @@ export function InspectorDraftStatus({
   saving,
   error,
 }: PanelSaveChipProps) {
+  const { t } = useEditorLocale();
   if (error) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-rose-600">
@@ -92,7 +95,7 @@ export function InspectorDraftStatus({
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        Couldn&apos;t save
+        {t("Couldn't save")}
       </span>
     );
   }
@@ -100,7 +103,7 @@ export function InspectorDraftStatus({
     return (
       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-500">
         <span className="size-1.5 animate-pulse rounded-full bg-stone-400" aria-hidden />
-        Saving…
+        {t("Saving…")}
       </span>
     );
   }
@@ -108,7 +111,7 @@ export function InspectorDraftStatus({
     return (
       <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-700">
         <span className="size-1.5 rounded-full bg-blue-500" aria-hidden />
-        Unsaved changes
+        {t("Unsaved changes")}
       </span>
     );
   }
@@ -117,7 +120,7 @@ export function InspectorDraftStatus({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M20 6L9 17l-5-5" />
         </svg>
-        Draft saved
+        {t("Draft saved")}
       </span>
     );
 }

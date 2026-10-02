@@ -13,8 +13,7 @@ import {
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { PublicHeader } from "@/components/public-header";
-import { PoweredByTulala } from "@/components/powered-by-tulala";
-import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import { AgencyFooterSocket } from "@/components/agency-footer-socket";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
@@ -114,7 +113,6 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     favoriteIds,
     actor,
     publicBranding,
-    whitelabel,
     tenantWords,
   ] = await Promise.all([
     cmsLocale
@@ -134,7 +132,6 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     getFavoriteTalentIds(),
     getCachedActorSession(),
     loadPublicBranding(tenantId),
-    loadTenantWhitelabel(tenantId),
     // The tenant's preset decides whether the agency fallback strings apply at
     // all. A restaurant's footer read "Agency-managed discovery and
     // representation" because nothing on this path asked.
@@ -472,10 +469,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                     .replace("{year}", String(year))
                     .replace("{brand}", brandLabel)}
                 </p>
-                {whitelabel ? null : <PoweredByTulala className="mt-2" />}
               </div>
             </footer>
           )}
+          {/* Global Tulala footer socket: the ONE credit (whitelabel hides it). */}
+          {cmsLocale ? <AgencyFooterSocket tenantId={tenantId} locale={cmsLocale} /> : null}
         </main>
             <DirectoryInquirySheet ui={directoryUi} locale={locale} />
             <FavoritesModal

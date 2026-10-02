@@ -5818,7 +5818,21 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-variant="freeform"] .site-header__region { display: flex; align-items: center; gap: clamp(10px, 1.6vw, 20px); min-width: 0; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 1 1 auto; justify-content: center; }
 .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { justify-content: flex-end; }
-.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; }
+.site-header[data-variant="freeform"] .site-header__ritem { display: inline-flex; align-items: center; gap: 0.5em; text-decoration: none; color: inherit; white-space: nowrap; }
+/* One row, always: the base `.site-header__inner` wraps, so a long name pushed the section switcher
+   onto a second row. The lockup (left) is the part that gives way: it shrinks and its name gets an ellipsis. */
+.site-header[data-variant="freeform"] .site-header__inner--freeform { flex-wrap: nowrap; }
+.site-header[data-variant="freeform"] .site-header__region[data-region="left"] { flex: 0 1 auto; min-width: 0; }
+.site-header[data-variant="freeform"] .site-header__brand { min-width: 0; max-width: 100%; }
+.site-header[data-variant="freeform"] .site-header__brand-label, .site-header[data-variant="freeform"] .site-header__brand-tagline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 767px) {
+  .site-header[data-variant="freeform"] .site-header__inner--freeform { gap: 10px; padding-inline: 16px; }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="left"] { flex: 1 1 0; }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="center"] { flex: 0 1 auto; min-width: 0; }
+  .site-header[data-variant="freeform"] .site-header__region[data-region="right"] { flex: 0 0 auto; }
+  .site-header[data-variant="freeform"] .site-header__brand-label { font-size: 15px; }
+  .site-header__secsw-btn { max-width: min(190px, 44vw); }
+}
 .site-header[data-variant="freeform"] .site-header__spacer { flex: 1 1 auto; }
 /* The " / " separator carries the spacing; a flex gap only lands before it (asymmetric "ES  / EN"). */
 .site-header[data-variant="freeform"] .site-header__lang { gap: 0; }
@@ -5864,6 +5878,31 @@ html[data-theme="dark"] [data-tone="light"] {
   .site-header[data-variant="freeform"] .site-header__mobile-panel { transition: none; }
 }
 
+/* H-4 section switcher (phone): index + italic name, accent underline that draws in, menu of every section.
+   Hidden wherever the item is set to hide (desktop/tablet by default); colours are tokens only. */
+.site-header__secsw { position: relative; min-width: 0; }
+.site-header__secsw-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; max-width: 190px; padding: 0 2px; border: 0; background: none; color: var(--token-color-ink); font: inherit; cursor: pointer; position: relative; }
+.site-header__secsw-idx { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--token-color-accent, var(--token-color-primary)); font-variant-numeric: tabular-nums; }
+.site-header__secsw-clip { display: block; overflow: hidden; height: 24px; min-width: 0; }
+.site-header__secsw-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--site-heading-font, Georgia, serif); font-style: italic; font-weight: 500; font-size: 17px; line-height: 24px; }
+.site-header__secsw-name[data-dir="up"] { animation: site-secsw-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.site-header__secsw-name[data-dir="down"] { animation: site-secsw-down 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.site-header__secsw-line { position: absolute; left: 2px; right: 22px; bottom: 6px; height: 1.5px; background: var(--token-color-accent, var(--token-color-primary)); transform-origin: left; animation: site-secsw-line 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; }
+.site-header__secsw-chev { flex: 0 0 auto; color: var(--token-color-accent, var(--token-color-primary)); transition: transform 0.2s; }
+.site-header__secsw-btn[aria-expanded="true"] .site-header__secsw-chev { transform: rotate(180deg); }
+.site-header__secsw-btn:focus-visible, .site-header__secsw-menu a:focus-visible { outline: 2px solid var(--token-color-accent, var(--token-color-primary)); outline-offset: 2px; }
+.site-header__secsw-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 70; min-width: 200px; margin: 0; padding: 6px; list-style: none; display: grid; background: var(--token-color-surface-raised, var(--token-color-background)); border: 1px solid var(--token-color-line); border-radius: 16px; box-shadow: 0 18px 40px -18px color-mix(in srgb, var(--token-color-ink) 35%, transparent); }
+.site-header__secsw-menu a { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 10px; color: var(--token-color-ink); text-decoration: none; font-family: var(--site-heading-font, Georgia, serif); font-style: italic; font-weight: 500; font-size: 17px; }
+.site-header__secsw-menu a:hover { background: var(--token-color-background); }
+.site-header__secsw-menu a[aria-current="true"] { background: color-mix(in srgb, var(--token-color-accent, var(--token-color-primary)) 12%, transparent); font-weight: 600; }
+@keyframes site-secsw-up { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes site-secsw-down { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes site-secsw-line { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .site-header__secsw-name, .site-header__secsw-line { animation: none; }
+  .site-header__secsw-chev { transition: none; }
+}
+
 .site-header__inner { width: min(var(--site-container-max, 1120px), 100%); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); display: flex; flex-wrap: wrap; align-items: center; gap: clamp(16px, 3vw, 32px); }
 .site-header[data-variant="standard"] .site-header__inner { justify-content: space-between; }
 .site-header[data-variant="split"] .site-header__inner { display: grid; grid-template-columns: 1fr auto 1fr; }
@@ -5872,6 +5911,12 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header__brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--token-color-ink); font-family: var(--site-heading-font); font-weight: 600; letter-spacing: -0.005em; }
 .site-header__brand-mark { width: clamp(20px, 2vw, 28px); height: clamp(20px, 2vw, 28px); object-fit: contain; }
 .site-header__brand-label { font-size: clamp(14px, 1.1vw, 16px); }
+/* Phones: the header is ONE row on every design and variant. A long name gives way (ellipsis), never wraps the bar. */
+@media (max-width: 767px) {
+  .site-header__inner { flex-wrap: nowrap; }
+  .site-header__brand { min-width: 0; max-width: 100%; }
+  .site-header__brand-label, .site-header__brand-tagline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
 .site-header__brand-tagline { font-size: clamp(9px, 0.7vw, 11px); font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--token-color-muted); line-height: 1; }
 
 .site-header__nav { flex: 0 0 auto; }
@@ -5879,7 +5924,7 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header__nav-link { color: var(--token-color-ink); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 0; opacity: 0.85; transition: opacity var(--site-motion-dur-short, 180ms) var(--site-motion-ease, ease); }
 .site-header__nav-link:hover { opacity: 1; }
 
-.site-header__cta { margin-left: auto; }
+.site-header__cta { margin-left: auto; white-space: nowrap; flex: none; }
 @media (max-width: 720px) {
   .site-header__nav { display: none; }
   .site-header[data-variant="split"] .site-header__inner { grid-template-columns: 1fr auto; }

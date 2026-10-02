@@ -176,7 +176,8 @@ export function collectNativeDataBlockNeeds(
     if (node.kind === "menu_board") {
       menuBoard = true;
     }
-    if (node.kind === "services_catalog") {
+    // task_picker reads the same live offerings (it recommends one by id).
+    if (node.kind === "services_catalog" || node.kind === "task_picker") {
       servicesCatalog = true;
     }
     if (node.kind === "portfolio") {

@@ -62,7 +62,8 @@ test("P1: Design options reset/reapply toasts carry Undo; restore toast lifted t
   // restore no longer sets a toast inside the panel (it unmounts)
   assert.doesNotMatch(panel, /Previous design restored/);
   const host = read("MaisonSetupHost.tsx");
-  assert.match(host, /if \(forceScreen === "review"\) setToast\("restored"\)/);
+  // F58: only a real restore toasts; a resume-forced review is read-only.
+  assert.match(host, /if \(forceScreen === "review" && !resume\) setToast\("restored"\)/);
   assert.match(host, /"Previous design restored to your draft"/);
 });
 

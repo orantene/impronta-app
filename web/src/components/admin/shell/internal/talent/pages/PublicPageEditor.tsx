@@ -6,12 +6,15 @@ import dynamic from "next/dynamic";
 import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentSiteDashboardPanel } from "@/components/talent/site/TalentSiteDashboardPanel";
 import { TalentMaxSiteManager } from "@/components/talent/site/TalentMaxSiteManager";
+import { AvailableBlocks } from "@/components/talent/site/theme-update/AvailableBlocks";
+import { ThemeUpdateNotice } from "@/components/talent/site/theme-update/ThemeUpdateNotice";
 import { MaxSiteSettingsPanels } from "@/components/talent/site/TalentMaxSiteSettingsPanels";
 import { DiscoverNetworksPanel } from "@/components/talent/studio/DiscoverNetworksPanel";
 import { WebOfficeReturnBanner } from "@/components/talent/studio/WebOfficeStates";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { NavRow } from "@/components/talent/website-settings/primitives";
 import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
+import { takeOr } from "@/components/talent/site/public-page-bootstrap";
 import {
   takeWebsiteSettingsIntent,
   type WebsiteSettingsIntentView,
@@ -55,7 +58,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const [settingsEnabled, setSettingsEnabled] = useState(false);
   useEffect(() => {
     let live = true;
-    void loadWebsiteSettingsEnabledAction()
+    void takeOr("settingsEnabled", "editor", loadWebsiteSettingsEnabledAction)
       .then((on) => {
         if (live) setSettingsEnabled(on);
       })
@@ -84,6 +87,8 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           title={talentSiteCopy(locale, "pageTitle")}
           subtitle={talentSiteCopy(locale, "pageSubtitle")}
         />
+        <ThemeUpdateNotice surface="presence" locale={locale} />
+        <AvailableBlocks locale={locale} />
         {settingsEntry}
         <LegacyPresence locale={locale} />
       </>
@@ -116,6 +121,8 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           <Suspense fallback={null}>
             <WebOfficeReturnBanner />
           </Suspense>
+          <ThemeUpdateNotice surface="presence" locale={locale} />
+          <AvailableBlocks locale={locale} />
           <TalentMaxSiteManager locale={locale} />
           <TalentFaqEditor />
           {/* Address, logo, pages and domain live in Website settings. Flag

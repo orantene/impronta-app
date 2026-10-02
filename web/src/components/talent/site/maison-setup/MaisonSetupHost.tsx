@@ -21,9 +21,11 @@ import {
   saveMaisonChoices,
   type MaisonSetupChoices,
 } from "./maison-choices";
+import { takeOr } from "../public-page-bootstrap";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import { MaisonUndoToast } from "./MaisonUndoToast";
+import { MaisonSetupOverlay } from "./MaisonSetupOverlay";
 
 type HostToast = null | "applied" | "restored";
 
@@ -31,6 +33,7 @@ export function MaisonSetupHost({
   onCloseToSite,
   onPublished,
   forceScreen,
+  forceScreenReason = "restored",
   onForceScreenConsumed,
   siteLive = false,
   liveAddress,
@@ -47,6 +50,13 @@ export function MaisonSetupHost({
   onPublished?: (toast?: string) => void;
   /** Optional override (e.g. Change design / restore from the live card). */
   forceScreen?: MaisonSetupChoices["screen"] | null;
+  /**
+   * Why the screen is forced. "restored" = Design options just restored the
+   * previous design (the server already wrote it): show the Undo toast.
+   * "resume" = a surface (Today, pill, My presence) opens the flow at the
+   * talent's current step: READ-ONLY, no toast, no setup_choices write (F58).
+   */
+  forceScreenReason?: "restored" | "resume";
   onForceScreenConsumed?: () => void;
   /**
    * Site is live with Maison (manager's `maisonLive`). While live, the host
@@ -93,7 +103,7 @@ export function MaisonSetupHost({
 
   useEffect(() => {
     let alive = true;
-    void loadMaisonSetupBootstrapAction().then((boot) => {
+    void takeOr("maison", "host", loadMaisonSetupBootstrapAction).then((boot) => {
       if (!alive) return;
       if (!boot.enabled) {
         setEnabled(false);
@@ -137,6 +147,7 @@ export function MaisonSetupHost({
 
   useEffect(() => {
     if (!forceScreen || !talentProfileId) return;
+    const resume = forceScreenReason === "resume";
     setChoices((prev) => {
       const merged: MaisonSetupChoices = {
         ...prev,
@@ -147,15 +158,16 @@ export function MaisonSetupHost({
           ? { contentMode: "mine" as const }
           : {}),
       };
-      persistChoices(talentProfileId, merged);
+      // Resuming is navigation only: never persist on arrival (F58).
+      if (!resume) persistChoices(talentProfileId, merged);
       return merged;
     });
     setExplicitOpen(true);
     // Restore from Design options lands on Review; the panel unmounts, so the
-    // "restored · Undo" toast lives here.
-    if (forceScreen === "review") setToast("restored");
+    // "restored · Undo" toast lives here. Never on a plain resume (F58).
+    if (forceScreen === "review" && !resume) setToast("restored");
     consumeForceScreen();
-  }, [forceScreen, talentProfileId, sitePublished]);
+  }, [forceScreen, forceScreenReason, talentProfileId, sitePublished]);
 
   useEffect(() => {
     if (!toast) return;
@@ -180,8 +192,8 @@ export function MaisonSetupHost({
     onCloseToSite?.();
   };
 
-  return (
-    <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host" className="mb-6">
+  const body = (
+    <>
       {toast && choices.screen === "review" ? (
         <MaisonUndoToast
           locale={locale}
@@ -260,6 +272,30 @@ export function MaisonSetupHost({
           liveCustomPalette={liveCustomPalette}
         />
       )}
+    </>
+  );
+
+  // On a live site the picker is an overlay (like the other dashboard drawers),
+  // not a block in the page flow below the site card. First-time setup, before
+  // any site exists, IS the page, so it stays inline.
+  if (siteLive) {
+    return (
+      <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host">
+        <MaisonSetupOverlay
+          label={maisonSetupT(locale, "Choose a design")}
+          onClose={() => {
+            patch({ screen: "gallery", phoneSheet: null });
+            closeToSite();
+          }}
+        >
+          {body}
+        </MaisonSetupOverlay>
+      </div>
+    );
+  }
+  return (
+    <div data-maison-setup-host="" data-testid="maison-setup-host" id="maison-setup-host" className="mb-6">
+      {body}
     </div>
   );
 }

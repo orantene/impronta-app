@@ -151,6 +151,7 @@ import {
 import { resolveSectionHeadlineFromProps } from "@/lib/site-admin/section-display-name";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
+import { useDiscardDraftToLive } from "./use-discard-draft-to-live";
 import {
   cancelCanvasTextStylePatches,
   commitActiveInlineEditor,
@@ -426,10 +427,10 @@ export function EditProvider({
       plan: normalizedWorkspacePlan || null,
       talentTier: gallerySurfaceTier,
       // Builder Studio — live tenant id for staged-rollout bucketing (WS-D).
-      tenantId: tenantId || null,
+      tenantId: tenantId || null, structuralEdits: surfaceStructuralEdits, // P0 gallery lock
     }),
     [
-      galleryTabsKey,
+      surfaceStructuralEdits, galleryTabsKey,
       galleryAllowDbTemplates,
       resolvedSurfaceConfig.galleryPolicy.blockAllowList,
       gallerySurfaceTarget,
@@ -1861,8 +1862,8 @@ export function EditProvider({
           if (historyDepthRef.current > 0) {
             reportMutationError(
               opts?.undoResetReason === "conflict"
-                ? "Undo history was reset because this page changed in another tab or session."
-                : "Undo history was reset because the editor reloaded this page.",
+                ? "We loaded the latest version. Undo history started fresh."
+                : "We reloaded this page. Undo history started fresh.",
             );
           }
           setPast([]);
@@ -5183,14 +5184,9 @@ export function EditProvider({
     // though the tree reverted correctly.
     cancelCanvasTextStylePatches();
     clearCanvasTextStylePreview();
-    // WS2 (Step 3) — read the live `past` stack from the ref so `undo` does not
-    // list `past` in its deps; dropping that dep keeps `undo` stable across every
-    // edit (an edit pushes to `past`, which used to recreate this callback and,
-    // via its value-memo entry, rebuild the whole context value — the fast-undo
-    // half of the fix). The functional setPast/setFuture updaters below already
-    // operate on the latest state, so only these two READS needed the ref. The
-    // ref is synced AFTER the flush await by the same effect that drives the
-    // history bridge, so reading it post-flush sees the freshest stack.
+    // WS2 (Step 3) — read `past` from the ref so `undo` stays stable across
+    // edits (no `past` dep, no context-value rebuild). The ref is synced by the
+    // history-bridge effect, so reading it after the flush await is current.
     if (pastRef.current.length === 0) return;
     const top = pastRef.current[pastRef.current.length - 1]!;
 
@@ -5559,6 +5555,8 @@ export function EditProvider({
     },
     [pageVersion, pageSlug, pageId, locale, surfaceAdapter, refreshComposition, queueRouterRefresh, reportMutationError],
   );
+
+  const discardDraftToLive = useDiscardDraftToLive({ surfaceAdapter, locale, pageSlug, pageId, pageVersionRef, refreshComposition, reportMutationError });
 
   // REV-1b — surface the active adapter's OWNER-gated revision LIST read, or
   // null when the surface has none. The RevisionsDrawer prefers this over its
@@ -5952,6 +5950,7 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      discardDraftToLive,
       loadSurfaceRevisions,
 
       themeOpen,
@@ -6216,6 +6215,7 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      discardDraftToLive,
       loadSurfaceRevisions,
       themeOpen,
       openTheme,

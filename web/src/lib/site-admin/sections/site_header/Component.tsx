@@ -1,4 +1,6 @@
-import { HeaderDemoPill, HeaderSiteLocales } from "./header-site-chrome";
+import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { SectionSwitcher } from "./SectionSwitcher";
+import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import {
@@ -8,6 +10,7 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { SiteHeaderV1, HeaderItem } from "./schema";
 import { HeaderRegionLiveCount } from "./HeaderRegionLiveCount";
+import { HeaderHeightVar } from "./HeaderHeightVar";
 import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import {
@@ -472,17 +475,7 @@ export async function SiteHeaderComponent({
   const siteLocales = props.siteChrome?.locales ?? []; // talent site languages, links to this page per locale
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
-      const bp = item.responsive ?? {};
-      // Brand stays in the mobile bar by default; everything else collapses
-      // into the hamburger menu on mobile (the intelligent-responsive default).
-      const mobileDefault =
-        item.type === "wordmark" || item.type === "logo" ? "show" : "menu";
-      const attrs: Record<string, string | undefined> = {
-        "data-header-item": item.type,
-        "data-bp-desktop": bp.desktop ?? "show",
-        "data-bp-tablet": bp.tablet ?? bp.desktop ?? "show",
-        "data-bp-mobile": bp.mobile ?? mobileDefault,
-      };
+      const attrs = headerItemAttrs(item);
       const key = `${item.type}-${idx}`;
       switch (item.type) {
         case "wordmark":
@@ -574,6 +567,14 @@ export async function SiteHeaderComponent({
               ))}
             </div>
           ) : null;
+        case "section_switcher": {
+          // H-4: phone section switcher over the in-page links of the Navigation list.
+          const own = switcherLinksFrom(navLinks);
+          const hashLinks = own.length > 0 ? withSwitcherHome(own, pickLocale(locale, { en: "Home", es: "Inicio" })) : own;
+          return hashLinks.length > 1 ? (
+            <SectionSwitcher key={key} links={hashLinks} showIndex={item.showIndex !== false} label={pickLocale(locale, { en: "Sections", es: "Secciones" })} attrs={attrs} />
+          ) : null;
+        }
         case "spacer":
           return <span key={key} {...attrs} className="site-header__ritem site-header__spacer" aria-hidden />;
         default:
@@ -582,7 +583,7 @@ export async function SiteHeaderComponent({
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
     // Burger + panel only when an item actually folds into it on the phone.
-    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? (i.type === "wordmark" || i.type === "logo" ? "show" : "menu")) === "menu");
+    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? headerItemMobileDefault(i)) === "menu");
     return (
       <header
         className="site-header"
@@ -602,6 +603,7 @@ export async function SiteHeaderComponent({
           <HeaderScrollObserver thresholdPx={scrollThresholdPx ?? 40} />
         ) : null}
         {scrollSpy}
+        <HeaderHeightVar />
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
@@ -609,7 +611,7 @@ export async function SiteHeaderComponent({
           {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
           {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
         </div>
-        {hasMobileMenu ? <div className="site-header__mobile-panel" data-mobile-panel="">{allItems.map((item, i) => renderItem(item, i))}</div> : null}
+        {hasMobileMenu ? <div className="site-header__mobile-panel" data-mobile-panel="">{allItems.filter((i) => i.type !== "section_switcher").map((item, i) => renderItem(item, i))}</div> : null}
       </header>
     );
   }

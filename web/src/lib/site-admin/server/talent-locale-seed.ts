@@ -37,14 +37,56 @@ export function talentLocaleSeedTarget(input: {
 }
 
 /**
- * Same-origin `/talent` path guard for the seed route's `next` parameter.
- * Anything else (absolute URLs, protocol-relative, backslashes, other
- * surfaces) collapses to `/talent/today`.
+ * F132 - what the talent surface should write for THIS signed-in user.
+ *
+ * The `locale` cookie is per browser, so a platform admin's deliberate English
+ * made Valeria (preferred_locale es) see English. A cookie only counts as the
+ * talent's own choice when its owner stamp equals her user id. Otherwise it is
+ * foreign: re-seed her primary (marked auto) and stamp her as owner, so her
+ * own later switch is honoured and nobody else's ever is.
+ *   - `primary` null (degraded read)  -> nothing, never guess
+ *   - owner is this user              -> the existing deliberate/auto rule
+ *   - owner absent or someone else    -> primary + stamp
+ */
+export function talentLocaleSeedPlan(input: {
+  cookieLocale: string | null | undefined;
+  cookieIsAuto: boolean;
+  cookieOwner: string | null | undefined;
+  userId: string;
+  primary: string | null | undefined;
+}): { locale: string | null; stamp: boolean } {
+  if (!input.primary) return { locale: null, stamp: false };
+  if (!input.userId || input.cookieOwner !== input.userId) {
+    return { locale: input.primary, stamp: true };
+  }
+  return {
+    locale: talentLocaleSeedTarget({
+      cookieLocale: input.cookieLocale,
+      cookieIsAuto: input.cookieIsAuto,
+      primary: input.primary,
+    }),
+    stamp: false,
+  };
+}
+
+/** Dashboard routes the seed hop may run on. Everything else (template-preview, public sites) is excluded. */
+export function isLocaleSeedablePath(pathname: string | null | undefined): boolean {
+  if (!pathname || typeof pathname !== "string") return false;
+  return pathname === "/talent" || pathname.startsWith("/talent/");
+}
+
+/**
+ * Same-origin relative return-URL guard for the seed route's `next` parameter.
+ * Parses with `new URL()` against a sentinel origin (never trusts a bare
+ * `startsWith("/")`), rejects absolute, protocol-relative, backslash and
+ * control-character forms and the seed route itself (loop), and otherwise
+ * returns the EXACT original path + query so the hop is invisible. Invalid
+ * input collapses to `/talent/today`.
  */
 export function safeTalentNextPath(next: string | null | undefined): string {
   const fallback = "/talent/today";
   if (!next || typeof next !== "string") return fallback;
-  if (!next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return fallback;
+  if (!next.startsWith("/") || next.startsWith("//") || /[\\\u0000-\u001f]/.test(next)) return fallback;
   let parsed: URL;
   try {
     parsed = new URL(next, "http://seed.invalid");
@@ -52,11 +94,13 @@ export function safeTalentNextPath(next: string | null | undefined): string {
     return fallback;
   }
   if (parsed.origin !== "http://seed.invalid") return fallback;
-  if (parsed.pathname !== "/talent" && !parsed.pathname.startsWith("/talent/")) return fallback;
+  if (parsed.pathname === TALENT_LOCALE_SEED_ROUTE || parsed.pathname.startsWith(`${TALENT_LOCALE_SEED_ROUTE}/`)) {
+    return fallback;
+  }
   return `${parsed.pathname}${parsed.search}`;
 }
 
-/** Build the seed route URL that returns the talent to `next`. */
+/** Build the seed route URL that returns the visitor to `next`. */
 export function talentLocaleSeedHref(next: string): string {
   return `${TALENT_LOCALE_SEED_ROUTE}?next=${encodeURIComponent(safeTalentNextPath(next))}`;
 }

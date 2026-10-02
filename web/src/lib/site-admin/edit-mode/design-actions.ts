@@ -86,7 +86,7 @@ export type DesignLoadResult =
   | { ok: false; error: string; code?: string };
 
 export type DesignSaveResult =
-  | { ok: true; version: number; themeDraft: Record<string, string> }
+  | { ok: true; version: number; themeDraft: Record<string, string>; draftRev?: number | null }
   | {
       ok: false;
       error: string;
@@ -101,6 +101,8 @@ export type DesignPresetResult =
       version: number;
       themeDraft: Record<string, string>;
       presetSlug: string;
+      /** Talent site draft_rev after the write (theme releases Phase 2). */
+      draftRev?: number | null;
     }
   | {
       ok: false;

@@ -9,6 +9,8 @@ import type { GalleryDemo, GalleryDesign } from "@/lib/talent-site/theme-catalog
 import type { MaisonSetupLocale } from "./maison-setup-copy";
 import { demoDefaultPaletteKey } from "./theme-detail-model";
 import { demosCountLabel, detailT } from "./theme-detail-copy";
+import { AppBadge } from "./GalleryAppsUi";
+import { appsOnDemo } from "./gallery-apps";
 
 export function demoThumbStyle(design: GalleryDesign, demo: GalleryDemo): React.CSSProperties {
   const key = demoDefaultPaletteKey(design, demo);
@@ -22,6 +24,7 @@ export function DemoCard({
   selected,
   locale,
   onSelect,
+  onOpenApps,
   wide = false,
 }: {
   design: GalleryDesign;
@@ -29,11 +32,15 @@ export function DemoCard({
   selected: boolean;
   locale: MaisonSetupLocale;
   onSelect: (key: string) => void;
+  /** App badge click: open Theme detail on the Apps tab for this demo. */
+  onOpenApps?: (key: string) => void;
   wide?: boolean;
 }) {
+  const apps = onOpenApps && demo.status === "built" ? appsOnDemo(demo) : [];
   const planned = demo.status !== "built";
   const name = locale === "es" ? demo.name.es : demo.name.en;
   return (
+    <div className={`relative shrink-0 ${wide ? "w-full" : "w-[132px]"}`}>
     <button
       type="button"
       data-testid={`maison-demo-card-${demo.key}`}
@@ -42,9 +49,7 @@ export function DemoCard({
       aria-disabled={planned}
       disabled={planned}
       onClick={() => onSelect(demo.key)}
-      className={`flex shrink-0 flex-col overflow-hidden rounded-lg border-2 bg-white text-left ${
-        wide ? "w-full" : "w-[132px]"
-      } ${selected ? "border-admin-ink" : "border-admin-border-soft"} ${
+      className={`flex w-full flex-col overflow-hidden rounded-lg border-2 bg-white text-left ${selected ? "border-admin-ink" : "border-admin-border-soft"} ${
         planned ? "cursor-not-allowed opacity-60" : ""
       }`}
     >
@@ -61,6 +66,14 @@ export function DemoCard({
         {selected ? <span aria-hidden>✓</span> : null}
       </span>
     </button>
+    <AppBadge
+      apps={apps}
+      locale={locale}
+      testId={`demo-app-badge-${demo.key}`}
+      onOpen={() => onOpenApps?.(demo.key)}
+      className="absolute right-1.5 top-1.5"
+    />
+    </div>
   );
 }
 
@@ -70,12 +83,14 @@ export function DemoStrip({
   selectedKey,
   locale,
   onSelect,
+  onOpenApps,
 }: {
   design: GalleryDesign;
   demos: GalleryDemo[];
   selectedKey: string | null;
   locale: MaisonSetupLocale;
   onSelect: (key: string) => void;
+  onOpenApps?: (key: string) => void;
 }) {
   return (
     <div data-maison-demo-strip="" className="flex flex-col gap-2">
@@ -91,6 +106,7 @@ export function DemoStrip({
             selected={demo.key === selectedKey}
             locale={locale}
             onSelect={onSelect}
+            onOpenApps={onOpenApps}
           />
         ))}
       </div>

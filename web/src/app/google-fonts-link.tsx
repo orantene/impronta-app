@@ -18,6 +18,7 @@
  * SSR-only (no client deps), runs inside the root layout.
  */
 
+import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import {
   buildGoogleFontsHrefFromUsage,
   THEME_TOKEN_FONT_WEIGHTS,
@@ -29,7 +30,11 @@ interface GoogleFontsLinkProps {
 }
 
 export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkProps) {
-  const wanted: Array<{ value: string; italic: boolean }> = [];
+  const wanted: Array<{ value: string; italic: boolean; stretch: boolean }> = [];
+  // A wide heading (`type.stretch` above 100%, or the utility type system) needs the
+  // `wdth` axis, or `font-stretch` silently does nothing. Heading + body only.
+  const stretchPct = Number.parseFloat(tokens["type.stretch"] ?? "");
+  const wide = tokens["type.system"] === "utility" || (Number.isFinite(stretchPct) && stretchPct > 100);
   for (const key of [
     "typography.heading-font-family",
     "typography.body-font-family",
@@ -42,7 +47,11 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
     // Display headings use genuine italics for accents (`{i}`); request
     // them only for the heading face (the builder skips families without).
     if (tokens[key]) {
-      wanted.push({ value: tokens[key], italic: key === "typography.heading-font-family" });
+      wanted.push({
+        value: tokens[key],
+        italic: key === "typography.heading-font-family",
+        stretch: wide && key !== "shell.header-nav-font",
+      });
     }
   }
   // Usage-aware builder: weights are clamped to what each family actually
@@ -61,9 +70,7 @@ export function GoogleFontsLink({ tokens, fontFamilies = [] }: GoogleFontsLinkPr
   if (!href) return null;
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link rel="stylesheet" href={href} />
+      <link rel="stylesheet" href={toFontProxyHref(href)} />
     </>
   );
 }

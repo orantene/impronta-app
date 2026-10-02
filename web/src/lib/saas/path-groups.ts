@@ -85,11 +85,18 @@ export const PROTOTYPE_PREFIX = "/prototypes" as const;
  */
 export const SHARED_API_PREFIXES = [
   "/api/cron",
+  // Template Factory demo rebuild + restore. Platform-admin session or CRON_SECRET
+  // bearer (scripts/demo-talents/rebuild.mjs); the handler is the gate.
+  "/api/platform/demos",
   "/api/analytics/events",
   "/api/stripe",
   "/api/health",
   "/api/dev/reset-guest",
   "/api/media/asset",
+  // Same-origin Google Fonts proxy (css + file). Every talent site, agency site
+  // and the builder canvas load theme fonts through it; without this prefix the
+  // request gets the branded HTML 404 and every theme falls back to Georgia.
+  "/api/fonts",
   // Public booking slots. The slot picker runs on EVERY public surface an
   // appointment can be booked from -- an agency storefront, a talent site, the
   // platform host -- so it cannot belong to one host kind. It derives its
@@ -99,6 +106,10 @@ export const SHARED_API_PREFIXES = [
   // the fetch gets the branded HTML 404, and the picker renders no times at
   // all on every host.
   "/api/public/booking",
+  // Policy sheet over the booking: published policy text for a talent (or the
+  // platform default). Public by design, host-independent (talent hosts,
+  // agency hosts and the platform path all open the same sheet).
+  "/api/public/talent-policy",
   // Tulala Agent intake + Account Strategist. Anonymous-first on marketing
   // (/get-started/agent) and authenticated on app (/account/brief/agent). Own
   // KV namespaces, own SSRF guard, own fail-closed gate. Not under `/api/ai`

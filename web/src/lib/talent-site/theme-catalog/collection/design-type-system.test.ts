@@ -16,6 +16,7 @@ import { designComponentStyleDefaults, designTokenDefaults } from "./design-toke
 import { EDITORIAL_TYPE_SYSTEM_CSS, typeSystemComponentStyleDefaults } from "./design-type-system";
 import { buildMaisonV2Payload, MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2";
 import { FOLIO_DESIGN_TOKEN_DEFAULTS } from "./folio-defaults";
+import { loadAuthoredOverlayFile } from "./authored";
 
 const PLATFORM = { "color.primary": "#111111", "radius.base": "md" };
 
@@ -27,7 +28,15 @@ test("maison-v2 sets a valid default for every site style token, on its payload 
   }
   assert.deepEqual(designTokenDefaults("maison-v2"), MAISON_V2_TOKEN_DEFAULTS);
   assert.deepEqual(designTokenDefaults(" Maison-V2 "), MAISON_V2_TOKEN_DEFAULTS);
-  assert.deepEqual(designTokenDefaults("folio"), FOLIO_DESIGN_TOKEN_DEFAULTS);
+  // Folio's committed authored overlay patches code defaults: expected = code + each overlay `to`
+  // (derived from the overlay file so a new editor version does not need a test edit).
+  const folioOverlay = loadAuthoredOverlayFile("folio");
+  const folioExpected: Record<string, string> = { ...FOLIO_DESIGN_TOKEN_DEFAULTS };
+  for (const [k, v] of Object.entries(folioOverlay?.tokenDefaults ?? {})) {
+    if (typeof v.to === "string") folioExpected[k] = v.to;
+    else delete folioExpected[k];
+  }
+  assert.deepEqual(designTokenDefaults("folio"), folioExpected);
   assert.deepEqual(designTokenDefaults(null), {});
   const payload = buildMaisonV2Payload();
   assert.deepEqual(payload.tokenDefaults, MAISON_V2_TOKEN_DEFAULTS);
@@ -57,10 +66,13 @@ test("design defaults render as CSS vars and the type-system attribute", () => {
   const vars = designTokensToCssVars(tokens);
   assert.equal(vars["--token-button-radius"], "999px");
   assert.equal(vars["--token-type-hero-size-desktop"], "96px");
-  assert.equal(vars["--token-layout-section-pad-top"], "84px");
+  // Release 2.5 (v19): 88px bands (was 84px).
+  assert.equal(vars["--token-layout-section-pad-top"], "88px");
   const attrs = designTokensToDataAttrs(tokens);
   assert.equal(attrs["data-token-type-system"], "editorial");
   assert.equal(attrs["data-token-button-variant"], "fill");
+  // Release 2.5: the soft chrome switch rides as a data attribute next to the type system.
+  assert.equal(attrs["data-token-shape-chrome"], "soft");
 });
 
 test("overrides beat design defaults: site over design, page over site", () => {

@@ -20,10 +20,13 @@ import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
 import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 import { WebsiteTodayUnlockCard } from "@/components/talent/website-reward/WebsiteTodayUnlockCard";
-import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
+import { WebsiteTodayHero } from "@/components/talent/website-reward/WebsiteTodayHero";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { AgendaTodayPage } from "../agenda/AgendaTodayPage";
+import { openNewBookingPanel } from "../agenda/NewBookingPanel";
+import { openSendQuotePanel } from "../agenda/SendQuotePanel";
+import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { resolveTradeProfile } from "@/lib/talent-agenda/trades";
 import { type MoneyLanding } from "@/lib/money/today-money-tiles";
@@ -140,12 +143,12 @@ export function TalentTodayPage() {
         payoutsEnabled={
           bridgeTalentPayoutSnapshot?.ok === true ? bridgeTalentPayoutSnapshot.data.payoutsEnabled : null
         }
-        onSendQuote={() => setTalentPage("messages")}
+        onSendQuote={openSendQuotePanel}
         newLabel={resolveTradeProfile(bridgeTalentSelfProfile?.primaryTypeLabel).words.newLabel[copy.isSpanish ? 1 : 0]}
         onOpenAttention={() => setTalentPage("attention")}
         onOpenCalendar={() => setTalentPage("calendar")}
-        onNewBooking={() => openAgendaPath("/talent/bookings/new", "bookings-new")}
-        onOpenAvailability={() => setTalentPage("calendar-availability")}
+        onNewBooking={openNewBookingPanel}
+        onOpenAvailability={openWorkingHoursPanel}
         onOpenServices={() => setTalentPage("services")}
         onOpenSite={() => setTalentPage("public-page")}
         onOpenProfile={() => setTalentPage("profile")}
@@ -503,10 +506,8 @@ export function TalentTodayPage() {
         <WebsiteTodayUnlockCard onActivate={() => setTalentPage("public-page")} />
       )}
 
-      {/* W75 / AUD-023 — Continue your website when Maison setup is mid-flow. */}
-      {bridgeTalentSelfProfile && (
-        <MaisonWebsiteResumeCard onContinue={() => setTalentPage("public-page")} />
-      )}
+      {/* F23 / F34: the ONE website card (ready / preview), same state as the pill. */}
+      {bridgeTalentSelfProfile && <WebsiteTodayHero canBook={websiteEligibility.hasAvailability === true} />}
 
       <TalentTodayHero
         firstName={profile.name.split(" ")[0]}

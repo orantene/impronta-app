@@ -98,6 +98,7 @@ export function buildKitCopy(t: Translator) {
       title: t("dashboard.messagesV5.inbox.title"),
       newConversation: t("dashboard.messagesV5.inbox.newConversation"),
       threads: t("dashboard.messagesV5.inbox.threads"),
+      threadsOne: t("dashboard.messagesV5.inbox.threadsOne"),
       visitor: t("dashboard.messagesV5.inbox.visitor"),
       unassigned: t("dashboard.messagesV5.inbox.unassigned"),
       you: t("dashboard.messagesV5.inbox.you"),
@@ -219,6 +220,9 @@ export function buildKitCopy(t: Translator) {
     offer: {
       draft: t("dashboard.messagesV5.offer.draft"),
       sentV: t("dashboard.messagesV5.offer.sentV"),
+      sentPlain: t("dashboard.messagesV5.offer.sentPlain"),
+      talentAcceptedLine: t("dashboard.messagesV5.offer.talentAcceptedLine"),
+      acceptedPlain: t("dashboard.messagesV5.offer.acceptedPlain"),
       viewedAt: t("dashboard.messagesV5.offer.viewedAt"),
       acceptedV: t("dashboard.messagesV5.offer.acceptedV"),
       declined: t("dashboard.messagesV5.offer.declined"),

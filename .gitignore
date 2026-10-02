@@ -68,5 +68,8 @@ tmp-*
 docs/plans/impronta-lumina/sweep/*.png
 docs/plans/impronta-lumina/mockup/preset/preset-*.png
 
+# mockup-parity run output (reports, diffs, deltas.json): regenerate, never commit
+web/qa-evidence/mockup-parity/
+web/qa-evidence/.parity-auth.json
 # Vercel protection-bypass secret: never commit (rotate if it was ever tracked)
 .bypass.secret

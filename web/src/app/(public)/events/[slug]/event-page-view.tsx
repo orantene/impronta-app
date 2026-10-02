@@ -22,7 +22,7 @@ export const COPY: Record<Locale, Record<string, string>> = {
   },
   es: {
     dateTba: "Fecha por anunciar", doors: "puertas", cta: "Conseguir entradas", lineup: "Cartel", tickets: "Entradas",
-    pickTicket: "Elegí tu entrada", with: "Con", ageGate: "Mayores de {n}", refunds: "Reembolsos hasta {h} horas antes de puertas",
+    pickTicket: "Elige tu entrada", with: "Con", ageGate: "Mayores de {n}", refunds: "Reembolsos hasta {h} horas antes de puertas",
   },
 };
 

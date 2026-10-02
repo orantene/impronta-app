@@ -326,25 +326,7 @@ export function createFooterEditorialPreset(): Exclude<
     ],
   };
 
-  // "Powered by Tulala" — Tulala in a champagne <em>. lockedProps:["text"] so
-  // tenant surfaces cannot rewrite the attribution (handoff §8 lock, no mig).
-  const poweredId = makeId("rich_text");
-  const powered: BuilderNode = {
-    id: poweredId,
-    kind: "rich_text",
-    props: {
-      text: "Powered by {i}Tulala{/i}",
-      style: {
-        textColor: MUTED,
-        textTransform: "uppercase",
-        letterSpacing: "0.16em",
-        fontSize: "0.68rem",
-        customCss: [`em { color: ${CHAMPAGNE}; font-style: italic; }`].join("\n"),
-      },
-    },
-    i18n: { es: { text: "Hecho con {i}Tulala{/i}" } },
-    lockedProps: ["text"],
-  };
+  // The Tulala credit lives in the global footer socket (one credit only).
 
   const bottomBar: BuilderNode = {
     id: makeId("container"),
@@ -359,7 +341,7 @@ export function createFooterEditorialPreset(): Exclude<
         paddingTop: "26px",
       },
     },
-    children: [copyright, langToggle, powered],
+    children: [copyright, langToggle],
   };
 
   // ── Inner wrap ───────────────────────────────────────────────────────────

@@ -18,7 +18,7 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    */
   surfaceMode?: SurfaceMode;
   /**
-   * `chat.variant` = card: render the one-to-one chat card (CardChatColumn)
+   * `chat.variant` = card: skin the one dock as the chat card (CardDockFrame + CardDockHeader)
    * instead of the full dock column. Null/absent = the dock, unchanged.
    */
   chatCard?: ChatCardConfig | null;

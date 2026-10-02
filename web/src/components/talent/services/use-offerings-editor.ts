@@ -31,6 +31,7 @@ import {
   deleteWorkspaceMenuItem,
   reorderWorkspaceMenuItems,
 } from "@/lib/talent/menu-offerings-actions";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,
@@ -107,6 +108,14 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     setLoading(true);
     setLoadTick((n) => n + 1);
   }, []);
+
+  // The free-website checklist counts these rows. Any change to the talent's
+  // list (add, publish, archive, duplicate, delete) must refresh the pill and
+  // sheet in place, not after a full reload.
+  useEffect(() => {
+    if (isWorkspace || loading) return;
+    invalidateWebsiteEligibility();
+  }, [isWorkspace, loading, items]);
 
   useEffect(() => {
     let cancelled = false;

@@ -106,3 +106,12 @@ describe("guest acknowledgement copy", () => {
     assert.equal(normalizeAckLocale("pt"), "en");
   });
 });
+
+import { workspaceAckBody } from "./guest-ack-copy";
+describe("workspaceAckBody", () => {
+  it("answers the English seed default in Spanish for es visitors", () => {
+    assert.match(workspaceAckBody("Thanks, we'll get back to you within 4 hours.", "es-MX"), /^Gracias/);
+    assert.equal(workspaceAckBody("", "en"), "Thanks, we'll get back to you within 4 hours.");
+    assert.equal(workspaceAckBody("Hola", "es"), "Hola");
+  });
+});

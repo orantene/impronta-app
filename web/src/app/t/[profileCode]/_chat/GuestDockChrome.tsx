@@ -7,10 +7,12 @@
 
 import type { Translator } from "@/i18n/interpolate";
 import type { MiniChatBrand } from "@/lib/inquiry/guest-chat-contract";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 
 import type { GuestDockView } from "./guest-dock-view";
 import type { GuestHeaderThreadState } from "./guest-thread-state";
+import { CardDockBack, CardDockHeader, CardDockRail } from "./CardDockHeader";
 import { GuestDockNav } from "./GuestDockNav";
 import { GuestJourneyProgress, type JourneySeg } from "./GuestJourneyProgress";
 import { GuestPanelHeader } from "./GuestPanelHeader";
@@ -42,6 +44,8 @@ export type GuestDockChromeProps = {
   projectsCount: number;
   t: Translator;
   onClose: () => void;
+  /** Card skin (`chat.variant = card`): header with round icon buttons. */
+  card?: ChatCardConfig | null;
 };
 
 export function GuestDockChrome({
@@ -70,9 +74,29 @@ export function GuestDockChrome({
   projectsCount,
   t,
   onClose,
+  card = null,
 }: GuestDockChromeProps) {
   return (
     <>
+      {card ? (
+        <CardDockHeader
+          brand={brand}
+          card={card}
+          t={t}
+          activeView={activeDockView}
+          onViewChange={dockEnabled ? onDockViewChange : undefined}
+          showServices={brand.dockItemsTab !== false || card.browseServices}
+          servicesCount={lineupCount}
+          projectsCount={projectsCount}
+          threadState={threadState}
+          syncState={syncState}
+          onRetrySync={onRetrySync}
+          onOpenSwitcher={onOpenSwitcher}
+          expanded={expanded}
+          onToggleExpand={onToggleExpand}
+          onClose={onClose}
+        />
+      ) : (
       <GuestPanelHeader
         brand={brand}
         accent={accent}
@@ -94,8 +118,17 @@ export function GuestDockChrome({
         t={t}
         onClose={onClose}
       />
+      )}
 
-      {dockEnabled && journeySegs.length > 0 && railLabel && (
+      {card && dockEnabled && onDockViewChange && (activeDockView === "lineup" || activeDockView === "projects") ? (
+        <CardDockBack label={t("public.guestChat.cardBrowseBack")} onBack={() => onDockViewChange("chat")} />
+      ) : null}
+
+      {card && dockEnabled && activeDockView === "chat" && journeySegs.length > 0 && railLabel ? (
+        <CardDockRail count={lineupCount || journeySegs.filter((s) => s.on).length} label={railLabel} t={t} onOpenDetails={onOpenDetails} />
+      ) : null}
+
+      {!card && dockEnabled && journeySegs.length > 0 && railLabel && (
         <GuestJourneyProgress
           segs={journeySegs}
           railLabel={railLabel}
@@ -106,7 +139,7 @@ export function GuestDockChrome({
         />
       )}
 
-      {dockEnabled && onDockViewChange && (
+      {dockEnabled && onDockViewChange && !card && (
         <GuestDockNav
           active={activeDockView}
           onChange={onDockViewChange}

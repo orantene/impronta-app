@@ -1,0 +1,79 @@
+/**
+ * Known-delta baseline: design-references/<design>/parity-baseline.json
+ *
+ *   { "design": "maison-v2", "accepted": [
+ *       { "section": "menu", "check": "no horizontal overflow", "width": 360,
+ *         "ticket": "TF-123", "reason": "why this is accepted for now" } ] }
+ *
+ * `section` and `check` are required. `check` may end in "*" (prefix match).
+ * `width`, `demo` (profile code) and `layer` narrow an entry when present. `ticket` is
+ * required: an entry without a ticket is a load error, because an accepted delta with
+ * nobody holding it is just a hidden failure. Green means no failure outside this file.
+ */
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const WEB = join(HERE, "..", "..", "..");
+
+export const baselinePath = (design) => join(WEB, "design-references", design, "parity-baseline.json");
+
+export function loadBaseline(design, file = baselinePath(design)) {
+  if (!existsSync(file)) return { file, accepted: [], missing: true };
+  const raw = JSON.parse(readFileSync(file, "utf8"));
+  const accepted = Array.isArray(raw.accepted) ? raw.accepted : [];
+  accepted.forEach((a, i) => {
+    for (const k of ["section", "check", "ticket"]) {
+      if (!a[k] || typeof a[k] !== "string") throw new Error(`${file}: accepted[${i}] needs a string "${k}" (every accepted delta needs a ticket)`);
+    }
+  });
+  return { file, accepted, missing: false };
+}
+
+const checkMatches = (pattern, check) => (pattern.endsWith("*") ? check.startsWith(pattern.slice(0, -1)) : pattern === check);
+const entryMatches = (a, d) =>
+  a.section === d.section &&
+  checkMatches(a.check, d.check) &&
+  (a.width == null || a.width === d.width) &&
+  (a.demo == null || a.demo === d.talent) &&
+  (a.layer == null || a.layer === d.layer);
+
+/** Marks `delta.accepted = ticket` on baselined deltas. Returns the entries that matched nothing (stale). */
+export function applyBaseline(deltas, baseline) {
+  const used = new Set();
+  for (const d of deltas) {
+    const hit = baseline.accepted.find((a) => entryMatches(a, d));
+    if (hit) { d.accepted = hit.ticket; used.add(hit); }
+  }
+  return baseline.accepted.filter((a) => !used.has(a));
+}
+
+const entryKey = (a) => [a.section, a.check, a.width ?? "", a.demo ?? "", a.layer ?? ""].join("|");
+
+/**
+ * Pure: the accepted list after `--update-baseline`. Keeps existing entries that still match a
+ * failing delta (their tickets stay), adds one entry per new delta with `ticket`, and drops
+ * stale entries unless `scoped` (a --sections run only sees part of the design).
+ */
+export function mergeBaseline(existing, deltas, ticket, { scoped = false } = {}) {
+  if (!ticket) throw new Error("mergeBaseline: ticket required");
+  const kept = existing.filter((a) => scoped || deltas.some((d) => entryMatches(a, d)));
+  const seen = new Set(kept.map(entryKey));
+  const added = [];
+  for (const d of deltas) {
+    if (kept.some((a) => entryMatches(a, d))) continue;
+    const e = { section: d.section, check: d.check, width: d.width, demo: d.talent, layer: d.layer, ticket, reason: String(d.evidence || "").slice(0, 160) };
+    if (seen.has(entryKey(e))) continue;
+    seen.add(entryKey(e));
+    added.push(e);
+  }
+  return { accepted: [...kept, ...added], added: added.length, removed: existing.length - kept.length };
+}
+
+export function writeBaseline(design, deltas, baseline, ticket, opts) {
+  const merged = mergeBaseline(baseline.accepted, deltas, ticket, opts);
+  const prev = existsSync(baseline.file) ? JSON.parse(readFileSync(baseline.file, "utf8")) : { design };
+  writeFileSync(baseline.file, JSON.stringify({ ...prev, design, accepted: merged.accepted }, null, 2) + "\n");
+  return { file: baseline.file, added: merged.added, removed: merged.removed, total: merged.accepted.length };
+}

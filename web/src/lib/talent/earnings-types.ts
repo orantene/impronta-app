@@ -17,6 +17,13 @@ export type TalentEarningsRow = {
    * and part-paid) until a real collected amount lands on the row.
    */
   paymentStatus?: string | null;
+  /**
+   * Money the ledger (booking_transactions) shows as collected on this booking,
+   * and its split by method. When present, Money "Collected" uses it instead of
+   * guessing from grossCents (covers part payments and manual cash / transfer).
+   */
+  collectedCents?: number | null;
+  collectedByMethod?: Record<string, number> | null;
 };
 
 export type TalentEarningsPerAgency = {
@@ -88,6 +95,13 @@ export type TalentSnapshotAggregateRow = {
    * downstream). Added for the talent Money tabs feature (L49).
    */
   currencyCode?: string;
+  /**
+   * Money the ledger (booking_transactions) shows as collected on this booking,
+   * and its split by method. When present, Money "Collected" uses it instead of
+   * guessing from grossCents (covers part payments and manual cash / transfer).
+   */
+  collectedCents?: number | null;
+  collectedByMethod?: Record<string, number> | null;
 };
 
 type BookingPayoutFields = {
@@ -267,6 +281,8 @@ export function buildTalentEarnings(
       source: row.source,
       paymentMethod: row.paymentMethod,
       paymentStatus: row.paymentStatus ?? null,
+      collectedCents: row.collectedCents ?? null,
+      collectedByMethod: row.collectedByMethod ?? null,
     })),
   };
 }

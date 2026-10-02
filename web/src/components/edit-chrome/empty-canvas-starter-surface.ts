@@ -44,6 +44,7 @@ export function starterSurfaceForKind(
 ): EmptyCanvasStarterSurface | undefined {
   switch (kind) {
     case "talent_page":
+    case "theme_template":
       return "talent";
     case "homepage":
       // Full set — preserve the historical homepage picker exactly.

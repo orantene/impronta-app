@@ -26,6 +26,7 @@ import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/s
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import { publicContactMode } from "@/lib/talent/accepting-readiness";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -104,14 +105,17 @@ export async function loadPublicOfferingsForProfile(
     const sellingDefaults = defaults.ok ? (defaults.defaults.get(talentProfileId) ?? {}) : {};
     // WSF-C: readiness everywhere; the talent's switches only on a direct
     // channel (no agency context, §7).
-    const [switches, hours] = await Promise.all([
+    const [switches, hours, plan] = await Promise.all([
       tenantId || opts?.channel === "agency" ? Promise.resolve(null) : loadTalentSiteSwitches(db, talentProfileId),
       loadWorkingHoursPresence(db, [talentProfileId]),
+      loadPlanAllowsInstant(db, [talentProfileId]),
     ]);
     const availability = {
       switches,
       hasWorkingHours: hours.get(talentProfileId) ?? null,
       payoutsReady: isPlatformCheckoutReady(),
+      // F27: agency-routed catalogs follow the agency's plan, not hers.
+      planAllowsInstant: tenantId ? undefined : plan.get(talentProfileId),
     };
     const pause = switches ? publicContactMode(switches) : "open";
     return rows.map((r) => ({

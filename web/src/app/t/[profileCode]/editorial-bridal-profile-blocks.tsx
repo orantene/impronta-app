@@ -19,6 +19,7 @@
 
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { ConsentEmbed } from "@/components/consent/consent-embed";
 
 export type EmbeddedMediaProvider =
   | "spotify"
@@ -299,13 +300,16 @@ export function EditorialBridalProfileBlocks(props: EditorialProfileInput) {
                         : "aspect-video w-full"
                     }
                   >
-                    <iframe
+                    <ConsentEmbed
                       src={src}
+                      provider={em.provider}
                       title={em.label ?? `${em.provider} embed ${i + 1}`}
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="h-full w-full border-0"
+                      iframeProps={{
+                        loading: "lazy",
+                        allow:
+                          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+                        allowFullScreen: true,
+                      }}
                     />
                   </div>
                   {em.label ? (

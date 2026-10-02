@@ -375,7 +375,7 @@ function BrandIdentity({
  * IS the switcher: a labelled control with a chevron, so the affordance is
  * never a naked chevron hanging off the brand name.
  */
-function StatusLine({
+export function StatusLine({
   threadState,
   syncState,
   onRetrySync,

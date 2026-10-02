@@ -9,6 +9,16 @@
 
 export type ChatVariant = "standard" | "card";
 
+/**
+ * Designs that turn the help bubble on once a site has APPLIED this catalog
+ * version (the site pins `theme_design_version`), so a live site changes only
+ * through the release flow, never on a code deploy. Maison v2 2.6 is v20. A
+ * site that set the token herself always wins.
+ */
+const DESIGN_HELP_BUBBLE_SINCE: Readonly<Record<string, number>> = {
+  "maison-v2": 20,
+};
+
 /** Designs whose proposal shows the chat card. A default only; the token wins. */
 const DESIGN_CHAT_VARIANT_DEFAULTS: Readonly<Record<string, ChatVariant>> = {
   "maison-v2": "card",
@@ -24,6 +34,21 @@ export function resolveChatVariant(
 }
 
 /**
+ * `chat.help-bubble`: the once-per-visit bubble above the chat button. Off
+ * unless the site (or a Design default) turns it on; never for a missing token.
+ */
+export function resolveChatHelpBubble(
+  tokens: Readonly<Record<string, unknown>> | null | undefined,
+  designSlug: string | null | undefined,
+  designVersion: number | null | undefined,
+): boolean {
+  const raw = tokens?.["chat.help-bubble"];
+  if (raw === "on" || raw === "off") return raw === "on";
+  const since = designSlug ? DESIGN_HELP_BUBBLE_SINCE[designSlug] : undefined;
+  return since !== undefined && typeof designVersion === "number" && designVersion >= since;
+}
+
+/**
  * Everything the card needs that the shared chat contract does not carry.
  * Colours are theme token VALUES (or null → the card falls back to the page's
  * `--token-color-*` vars, then the chat palette). Never literals from here.
@@ -34,6 +59,8 @@ export type ChatCardConfig = {
   city: string | null;
   /** A greeting she wrote herself; null → the card's own "Hi, I'm {name}". */
   customGreeting: string | null;
+  /** Her "browse services in chat" switch (CH-4). Off hides the list button. */
+  browseServices: boolean;
   colors: {
     background: string | null;
     surface: string | null;

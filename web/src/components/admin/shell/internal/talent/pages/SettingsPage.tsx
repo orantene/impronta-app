@@ -9,11 +9,13 @@ import { DefaultCurrencyCard } from "@/app/(workspace)/[tenantSlug]/talent/setti
 import { PreferredLanguageCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/PreferredLanguageCard";
 import { ProfileVisibilityCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/ProfileVisibilityCard";
 import { TalentPlanCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard";
+import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
 import { PasskeysCard } from "../../modern-features";
 import { Icon } from "../../primitives";
 import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
+import { openWorkingHoursPanel } from "../agenda/WorkingHoursPanel";
 import { PageHeader } from "../shared/page-chrome-1";
 
 const TAG_TONE: Record<"ok" | "warn" | "risk", string> = {
@@ -127,7 +129,7 @@ export function SettingsPage() {
       key: "hours",
       label: tx("Working hours and days off"),
       sub: tx("Hours, breaks, time between appointments, how far ahead and how late clients can book."),
-      onOpen: () => setTalentPage("calendar-availability"),
+      onOpen: openWorkingHoursPanel,
     },
   ];
 
@@ -235,11 +237,19 @@ export function SettingsPage() {
       sub: tx("Search-engine indexing, sensitive measurements and document visibility."),
       onOpen: () => openSection("admin"),
     },
+    {
+      key: "download-data",
+      label: tx("Download my data"),
+      sub: copy.t("A copy of the information Tulala holds about you, as a file."),
+      onOpen: () => {
+        window.location.assign("/api/account/export");
+      },
+    },
     bridgeTalentSelfProfile
       ? {
           key: "plan",
           label: tx("Plan"),
-          value: TALENT_TIER_META[state.talentTier].label,
+          value: copy.t(TALENT_TIER_META[state.talentTier].label),
           panel: (
             <TalentPlanCard
               onCompare={() => openDrawer("talent-tier-compare")}
@@ -250,7 +260,7 @@ export function SettingsPage() {
       : {
           key: "plan",
           label: tx("Plan"),
-          value: TALENT_TIER_META[state.talentTier].label,
+          value: copy.t(TALENT_TIER_META[state.talentTier].label),
           onOpen: () => openDrawer("talent-tier-compare"),
         },
     {
@@ -304,10 +314,10 @@ export function SettingsPage() {
     key: "close",
     label: tx("Close your account"),
     sub: tx(
-      "Everything goes: pages, clients, history, money records. Not possible while a booking is unfinished or money is owed to you.",
+      "Your profile, pages and sign-in are removed after 14 days. Bookings and payment records are kept, anonymized.",
     ),
-    tag: { text: tx("Cannot be undone"), tone: "risk" },
-    onOpen: () => openDrawer("help"),
+    tag: { text: tx("Cancellable for 14 days"), tone: "risk" },
+    panel: <AccountDeletionCard surface="talent" es={copy.isSpanish} />,
   });
 
   // Only relationships that exist. A solo talent has none, so the group hides.

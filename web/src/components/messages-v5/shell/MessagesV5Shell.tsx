@@ -115,7 +115,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
   const variant = variantForLayout(layout);
   const placement = contextPlacement(layout);
 
-  const [segment, setSegment] = useState<InboxSegment>("needs");
+  const [segment, setSegment] = useState<InboxSegment>(props.seller ? "all" : "needs"); // F54: her inbox loads every conversation; her filters narrow on the client
   const [chips, setChips] = useState<InboxFilterKey[]>([]);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<InboxRow[]>([]);
@@ -363,7 +363,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     rowsRef.current = rows;
   }, [rows]);
   useEffect(() => {
-    if (!activeId || !essentials) return;
+    if (props.seller || !activeId || !essentials) return; // merge is staff chrome: her engine refuses it
     const c = essentials.customer;
     if ((c.identityLevel !== "none" && c.identityLevel !== "linked") || (!c.phone && !c.email)) return;
     if (dupeDismissed.has(activeId)) return;
@@ -379,7 +379,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [activeId, dupeDismissed, engine, essentials]);
+  }, [activeId, dupeDismissed, engine, essentials, props.seller]);
 
   /* ----------------------------------------------------- derived state */
   const recordChips = useMemo(() => essentials?.linked ?? activeRow?.recordChips ?? [], [essentials?.linked, activeRow?.recordChips]);
@@ -586,7 +586,7 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
       onNew={() => dispatch("new_conversation")}
       currentUserId={props.currentUserId}
       copy={copy.kit}
-      variant={variant} seller={Boolean(props.seller)}
+      variant={variant} seller={Boolean(props.seller)} sellerChrome={props.seller ?? null}
     />
   );
 
@@ -755,8 +755,8 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         onStart={async (input) => {
           const r = await engine.startConversation(input);
           if (!r.ok) return r.reason;
-          await reloadInbox();
-          openThread(r.inquiryId);
+          openThread(r.inquiryId); // F54: a new thread waits on the client, so it is listed under All, not Needs action.
+          if (segment === "all") await reloadInbox(); else setSegment("all");
           return null;
         }}
       />

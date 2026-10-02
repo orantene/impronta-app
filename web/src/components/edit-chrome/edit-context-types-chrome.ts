@@ -230,6 +230,10 @@ export interface EditContextChromeAndSessionValue {
     revisionId: string,
   ) => Promise<{ ok: boolean; error?: string }>;
 
+  /** Reset the draft to the live body via the surface adapter (talent sites);
+   *  `undefined` when the surface has none (topbar keeps the homepage path). */
+  discardDraftToLive?: () => Promise<{ ok: boolean; error?: string }>;
+
   /**
    * REV-1b — the active surface's OWNER-gated revision LIST read, or `null`
    * when the surface has no surface-specific loader (homepage / cms_page, which

@@ -157,11 +157,13 @@ test("resolveEffectiveSiteTokens layers platform < site < page", () => {
     "color.primary": "#8a6d3b",
     "radius.scale-preset": "soft",
   });
-  const page = { "color.primary": "#000000" };
-  // Page override wins key by key; the site Look fills the rest.
+  // Colours the SITE sets win over a stale page override (P2: a design or
+  // palette switch must replace the colour family); non-colour page keys and
+  // colours the site does not set still apply from the page.
+  const page = { "color.primary": "#000000", "color.tint": "#eeeeee", "radius.scale-preset": "sharp" };
   assert.deepEqual(
     resolveEffectiveSiteTokens(page, { ...site, "color.ink": "#222222" }, platform),
-    { "color.primary": "#000000", "color.ink": "#222222", "radius.scale-preset": "soft" },
+    { "color.primary": "#8a6d3b", "color.ink": "#222222", "color.tint": "#eeeeee", "radius.scale-preset": "sharp" },
   );
 });
 

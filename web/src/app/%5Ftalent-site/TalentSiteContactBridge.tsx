@@ -44,14 +44,39 @@ export function TalentSiteContactBridge({
       event.preventDefault();
       window.dispatchEvent(new Event("tulala:open-guest-chat"));
     };
+    // A cold load or a pasted `...#talent-ask` link opens the chat too (the click above only
+    // covers links followed on the page).
+    const onHash = () => {
+      if (window.location.hash === "#talent-ask") window.dispatchEvent(new Event("tulala:open-guest-chat"));
+    };
     document.addEventListener("click", onClick, true);
+    window.addEventListener("hashchange", onHash);
+    // WSF: entry "hidden" (chat off, inquiries off): no ask / inquire control stays on the page.
+    let observer: MutationObserver | null = null;
+    if (!showAsk) {
+      const sweep = () => hideAskControls(document);
+      sweep();
+      observer = new MutationObserver(sweep);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
     setShowFallback(!pageAlreadyHasContactChrome());
-    return () => document.removeEventListener("click", onClick, true);
-  }, []);
+    return () => {
+      observer?.disconnect();
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("hashchange", onHash);
+    };
+  }, [showAsk]);
 
-  if (!showFallback) return null;
+  // `#talent-ask` is a real target on every talent page: the chat entry this bridge belongs to.
+  // The click handler above opens the chat; this id keeps the link from being a dead anchor
+  // (no-script visitors, crawlers and link checkers) and gives the hash somewhere to land.
+  const askTarget = <span id="talent-ask" data-talent-ask-target="" aria-hidden="true" />;
+
+  if (!showFallback) return askTarget;
 
   return (
+    <>
+    {askTarget}
     <section data-talent-contact-fallback="" className="talent-contact-fallback">
       <style>{FALLBACK_CSS}</style>
       <p className="talent-contact-fallback__heading">{heading}</p>
@@ -70,6 +95,7 @@ export function TalentSiteContactBridge({
         {emailHref ? <a href={emailHref}>{emailLabel}</a> : null}
       </div>
     </section>
+    </>
   );
 }
 
@@ -84,20 +110,48 @@ function pageAlreadyHasContactChrome(): boolean {
   for (const a of Array.from(document.querySelectorAll("a"))) {
     const href = a.getAttribute("href") ?? "";
     if (isAskHref(href)) return true;
-    const label = (a.textContent ?? "").trim().toLowerCase();
-    if (
-      label === "hacer una pregunta" ||
-      label === "ask a question" ||
-      label === "poser une question"
-    ) {
-      return true;
-    }
+    if (isAskLabel(a.textContent ?? "")) return true;
   }
   return false;
 }
 
-function isAskHref(href: string): boolean {
+const ASK_LABELS = new Set([
+  "hacer una pregunta",
+  "ask a question",
+  "poser une question",
+  "escríbeme",
+  "escribeme",
+  "inquire",
+]);
+
+export function isAskLabel(text: string): boolean {
+  return ASK_LABELS.has(text.trim().toLowerCase());
+}
+
+/** An ask / inquire control: an ask href, or an ask label on a link or button. */
+export function isAskControl(href: string, label: string): boolean {
+  return isAskHref(href) || isAskLabel(label);
+}
+
+function hideAskControls(root: ParentNode): void {
+  for (const el of Array.from(root.querySelectorAll("a, button"))) {
+    if (el.closest("[data-talent-contact-fallback]")) continue;
+    if (!isAskControl(el.getAttribute("href") ?? "", el.textContent ?? "")) continue;
+    const node = el as HTMLElement;
+    if (!node.hidden) {
+      node.hidden = true;
+      node.style.display = "none";
+    }
+  }
+}
+
+/** `/contact`, `/contacto`, optionally locale-prefixed, with no extra segments. */
+const CONTACT_PATH = /^\/(?:[a-z]{2}\/)?contact(?:o)?\/?$/i;
+
+export function isAskHref(href: string): boolean {
   if (href === "#talent-ask" || href.endsWith("#talent-ask")) return true;
+  const path = href.split(/[?#]/)[0] ?? "";
+  if (CONTACT_PATH.test(path)) return true;
   if (href.startsWith("mailto:") || href.includes("wa.me") || href.includes("whatsapp.com")) {
     return false;
   }

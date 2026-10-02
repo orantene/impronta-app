@@ -254,6 +254,7 @@ export function PayoutsShell({
           {gpPrimary ? (
             // Non-Connect country / already on Global Payouts: GP is the only path.
             <>
+              <StablecoinPayoutCard position="top" />
               <GlobalPayoutsBankCard />
               {/* USDC opt-in (additive). Self-gates on stablecoin eligibility,
                   renders nothing when the talent's market isn't eligible. */}
@@ -261,6 +262,8 @@ export function PayoutsShell({
             </>
           ) : (
             <>
+          {/* Recommended markets (Argentina): USDC leads, bank is second. */}
+          {!showOnboarding && !needCountry && <StablecoinPayoutCard position="top" />}
           {/* PRIMARY: your bank */}
           {showOnboarding ? (
             <div style={card}>

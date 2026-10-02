@@ -19,6 +19,8 @@ import {
   loadReviewRequestsForOwnerAction,
 } from "@/lib/reviews/review-request-actions";
 import type { ReviewableCounterparty } from "@/lib/reviews/review-types";
+import { reviewInviteCandidates, type ReviewInviteCandidate } from "@/lib/reviews/review-invite-candidates";
+import { loadTalentClients } from "@/lib/talent/clients-actions";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -55,6 +57,8 @@ export function AskForReviewCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentLabel, setSentLabel] = useState<string | null>(null);
+  // F45: her own clients with a completed booking, for the email path picker.
+  const [clientPicks, setClientPicks] = useState<ReviewInviteCandidate[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,10 +69,15 @@ export function AskForReviewCard({
     Promise.all([
       loadClientReviewablesAction(tenantSlug),
       loadReviewRequestsForOwnerAction(tenantSlug, talentProfileId),
+      loadTalentClients(talentProfileId).catch(() => ({ ok: false as const })),
     ])
-      .then(([reviewables, requests]) => {
+      .then(([reviewables, requests, clients]) => {
         if (cancelled) return;
         setBookings(reviewables);
+        const askedEmails = new Set(
+          requests.map((r) => r.invitedEmail?.trim().toLowerCase()).filter((e): e is string => !!e),
+        );
+        setClientPicks(clients.ok ? reviewInviteCandidates(clients.items, askedEmails) : []);
         setAskedBookingIds(
           new Set(
             requests
@@ -214,10 +223,47 @@ export function AskForReviewCard({
             </div>
           )}
 
+          {showEmailPath && clientPicks.length > 0 && (
+            <div className="flex flex-col gap-[6px]" data-review-client-picker>
+              <span className="text-admin-11h font-semibold text-admin-ink-muted">
+                {t("dashboard.talentReviews.ask.pickClient")}
+              </span>
+              <div className="flex flex-col gap-[6px]">
+                {clientPicks.map((c) => {
+                  const active = email.trim().toLowerCase() === c.email;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setEmail(c.email)}
+                      disabled={busy}
+                      className={`flex items-center justify-between gap-[10px] rounded-admin-sm border px-[12px] py-[9px] text-left font-admin-body text-admin-13 ${
+                        active
+                          ? "border-admin-accent bg-admin-accent-soft text-admin-ink"
+                          : "border-admin-border bg-white text-admin-ink hover:border-admin-accent-soft"
+                      }`}
+                    >
+                      <span className="min-w-0 truncate">
+                        {[c.name, formatDate(c.lastVisit)].filter(Boolean).join(" · ")}
+                      </span>
+                      {active && (
+                        <span className="shrink-0 text-admin-11h font-bold text-admin-accent-deep">
+                          {t("dashboard.talentReviews.ask.selected")}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {showEmailPath && (
             <label className="flex flex-col gap-[5px]">
               <span className="text-admin-11h font-semibold text-admin-ink-muted">
-                {t("dashboard.talentReviews.ask.clientEmail")}
+                {clientPicks.length > 0
+                  ? t("dashboard.talentReviews.ask.otherEmail")
+                  : t("dashboard.talentReviews.ask.clientEmail")}
               </span>
               <input
                 type="email"

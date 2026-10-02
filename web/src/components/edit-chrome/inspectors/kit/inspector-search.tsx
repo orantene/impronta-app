@@ -114,22 +114,25 @@ export function InspectorSearchField({
     <div
       role="search"
       aria-label={t("Find a setting")}
+      data-inspector-search=""
       style={{
         position: "relative",
         display: "flex",
         alignItems: "center",
-        marginBottom: 10,
+        marginBottom: 12,
       }}
     >
       <Search
-        size={13}
+        size={14}
+        strokeWidth={2.15}
         aria-hidden
         style={{
           position: "absolute",
-          left: 9,
-          color: CHROME.muted,
+          left: 10,
+          color: value ? CHROME.accent : CHROME.muted,
           pointerEvents: "none",
           flexShrink: 0,
+          transition: "color 140ms ease",
         }}
       />
       <input
@@ -143,27 +146,28 @@ export function InspectorSearchField({
         spellCheck={false}
         style={{
           width: "100%",
-          height: 30,
-          paddingLeft: 28,
-          paddingRight: value ? 28 : 10,
-          borderRadius: 8,
-          // Inspector Reset P5: khaki controlBorder + parchment paper fill
-          // → the cool lineStrong edge + white controlFill NumberUnit/
-          // InspectorSelect share, so the search field at the top of the
-          // panel matches the fields it filters.
+          height: 34,
+          paddingLeft: 32,
+          paddingRight: value ? 30 : 12,
+          borderRadius: 10,
+          // Round 3 — product search well: white surface + soft edge/shadow
           border: `1px solid ${CHROME.lineStrong}`,
-          background: CHROME.controlFill,
+          background: CHROME.surface,
           fontSize: 12.5,
+          fontWeight: 500,
           color: CHROME.ink,
           outline: "none",
+          boxShadow: "0 1px 2px rgba(17,24,39,0.04)",
+          transition: "border-color 140ms ease, box-shadow 140ms ease",
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = CHROME.blue;
-          e.currentTarget.style.boxShadow = "0 0 0 2px rgba(99,102,241,0.12)";
+          e.currentTarget.style.borderColor = CHROME.accent;
+          e.currentTarget.style.boxShadow =
+            "0 0 0 3px rgba(124,58,237,0.12), 0 1px 2px rgba(17,24,39,0.04)";
         }}
         onBlur={(e) => {
           e.currentTarget.style.borderColor = CHROME.lineStrong;
-          e.currentTarget.style.boxShadow = "none";
+          e.currentTarget.style.boxShadow = "0 1px 2px rgba(17,24,39,0.04)";
         }}
       />
       {value ? (
@@ -177,15 +181,15 @@ export function InspectorSearchField({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "transparent",
+            background: "rgba(24,24,27,0.05)",
             border: "none",
-            padding: 3,
+            padding: 4,
             cursor: "pointer",
             color: CHROME.muted,
-            borderRadius: 4,
+            borderRadius: 6,
           }}
         >
-          <X size={12} aria-hidden />
+          <X size={12} strokeWidth={2.2} aria-hidden />
         </button>
       ) : null}
     </div>

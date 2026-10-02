@@ -100,7 +100,7 @@ export function PayoutNudgeCard({
           {body}
         </div>
         <Link
-          href={tenantSlug ? `/${tenantSlug}/talent/settings/payouts` : `/talent/settings/payouts`}
+          href={tenantSlug ? `/${tenantSlug}/talent/payouts` : `/talent/payouts`}
           style={{
             display: "inline-block",
             marginTop: 10,

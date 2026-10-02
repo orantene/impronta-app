@@ -20,6 +20,8 @@ import type Stripe from "stripe";
 import { markFailed, markPaid } from "@/lib/bookings/transactions";
 import { closePaymentLinkForClosedCheckout } from "@/lib/payments/link-settlement";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import type { StripeAccountKey } from "@/lib/stripe/client";
+import { loadChargePlatformForTransaction, recordChargePlatform } from "@/lib/stripe/charge-platform";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -60,7 +62,22 @@ export type SettleCheckoutResult =
 export async function settleCheckoutPayment(
   event: Stripe.Event,
   action: { transactionId: string; paymentIntentId: string | null },
+  /** Platform account the event arrived on. */
+  account: StripeAccountKey = "us",
 ): Promise<SettleCheckoutResult> {
+  // The platform that delivered this settlement IS the platform that took the
+  // charge. Record it BEFORE markPaid fans out payouts (transfers, refunds and
+  // reversals all key off it), and flag a disagreement with what checkout stored.
+  if (account === "mx") {
+    if (!(await recordChargePlatform(action.transactionId, "mx"))) {
+      return { ok: false, error: `could not record charge platform mx for ${action.transactionId}` };
+    }
+  } else if ((await loadChargePlatformForTransaction(action.transactionId)) === "mx") {
+    logServerError(
+      "stripe-webhook.charge_platform_mismatch",
+      new Error(`ALERT US-platform settlement for txn ${action.transactionId} recorded as an MX charge (event ${event.id})`),
+    );
+  }
   // Audit #5: verify the actually-charged amount + currency match the booking
   // transaction BEFORE marking paid + disbursing. The PaymentIntent is
   // idempotency-keyed at its first amount, so a later gross edit can silently

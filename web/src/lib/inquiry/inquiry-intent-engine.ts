@@ -41,6 +41,7 @@ import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling
 import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertTalentReservationAllowed } from "@/lib/scheduling/booking-surface";
+import { checkReservationWindowFree } from "@/lib/scheduling/reservation-slot-free";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -135,6 +136,19 @@ export async function createInquiryFromIntent(
     });
     if (!gate.ok) {
       return { ok: false, reason: "forbidden", error: gate.error };
+    }
+    // The hold insert only collides with other holds. Agenda bookings
+    // (talent_bookings) and blocks are checked here, from the same busy
+    // source the public slots API uses, so a booked time is never re-held.
+    const free = await checkReservationWindowFree(admin, {
+      talentProfileId: offering.talent_profile_id,
+      startsAt: incomingStamp.starts_at,
+      endsAt: incomingStamp.ends_at,
+    });
+    if (!free.ok) {
+      return free.code === "slot_taken"
+        ? { ok: false, reason: "slot_taken", error: "That time was just taken. Pick another time." }
+        : { ok: false, reason: "engine_error", error: "Could not hold that time. Try again." };
     }
     const hold = await placeReservationHold(admin, {
       talentProfileId: offering.talent_profile_id,

@@ -61,7 +61,7 @@ export const PARITY_SURFACES: ReadonlyArray<ParitySurfaceShape> = [
     key: "talent_profile",
     label: "Talent profile",
     blurb: "The talent's freeform profile page (buildTalentPageBuilderConfig).",
-    allowedTabs: ["blocks", "designs", "data", "page_templates"],
+    allowedTabs: ["blocks", "designs", "data", "page_templates", "apps"],
     allowDbTemplates: true,
     surfaceTarget: "talent",
     usesTalentTier: true,

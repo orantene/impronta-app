@@ -4,10 +4,11 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-const SRC = readFileSync(join(import.meta.dirname, "offerings-children.ts"), "utf8");
+const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "offerings-children.ts"), "utf8");
 
 test("addon select includes duration_minutes", () => {
   assert.match(

@@ -43,6 +43,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import { NoirBookbarAutoHide, NoirReveal } from "./NoirReveal";
 import { NOIR_CSS } from "./noir-css";
 import { NoirStatRail, type NoirDetailRow } from "./NoirStatRail";
@@ -485,11 +486,9 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
   return (
     <main id="main-content" className="flex-1" style={noirVars as React.CSSProperties} data-profile-shell data-profile-theme="noir" data-profile-variant={variant} data-bookbar="idle">
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       {/* Page-scoped on purpose: Cormorant/Jost load only on Noir profiles. */}
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+      <link href="/api/fonts/css?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
       <style dangerouslySetInnerHTML={{ __html: NOIR_CSS }} />
       <noscript>
         <style>{`[data-profile-theme="noir"] [data-nf-reveal]{opacity:1!important;transform:none!important}[data-profile-theme="noir"][data-bookbar="idle"] .nf-rail,[data-profile-theme="noir"][data-bookbar="idle"] .nf-bar{transform:none!important}`}</style>
@@ -614,8 +613,14 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       {showFooter && !isModal ? (
         <footer className="nf-wrap nf-foot">
           <div style={{ color: "rgba(236,228,211,0.6)", fontSize: 13, letterSpacing: 0, textTransform: "none" }}><PublicCmsFooterNav locale={locale} /></div>
-          {props.whitelabel ? null : <span>Powered by <em>Tulala</em></span>}
         </footer>
+      ) : null}
+      {showFooter && !isModal ? (
+        <ProfileFooterSocket
+          locale={locale}
+          whitelabel={props.whitelabel}
+          tokens={{ surface: "var(--nf-bg)", ink: "var(--nf-ink)", line: "var(--nf-line-soft)" }}
+        />
       ) : null}
 
       {/* ── STICKY BAR (phone) ── */}

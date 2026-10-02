@@ -21,11 +21,15 @@ import {
   buildMoneyHomeView,
   methodBucket,
   moneyMonths,
+  talentOwedSummary,
   type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
+import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
+import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
 import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agenda/AgendaPayRequest";
 
+import { FeePayerCard } from "./FeePayerCard";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 
 type Tab = "payments" | "outstanding" | "payouts";
@@ -51,7 +55,14 @@ function day(iso: string | null, locale: string): string {
 
 function monthLabel(key: string, locale: string): string {
   const d = new Date(`${key}-01T12:00:00`);
-  return d.toLocaleDateString(locale, { month: "long", year: "numeric" });
+  const label = d.toLocaleDateString(locale, { month: "long", year: "numeric" });
+  // Spanish locales often emit "octubre de 2026" or "Octubre de 2026". Never
+  // title-case the whole string (CSS capitalize turns "de" into "De").
+  if (!locale.toLowerCase().startsWith("es")) return label;
+  return label.replace(/^(\S+)\s+[Dd]e\s+(\d+)/, (_m, mo: string, y: string) => {
+    const month = mo.charAt(0).toLocaleUpperCase(locale) + mo.slice(1).toLocaleLowerCase(locale);
+    return `${month} de ${y}`;
+  });
 }
 
 function currentMonthKey(): string {
@@ -187,8 +198,8 @@ function MoneyHomePane(props: {
 
   // Owed = the client ledger, or the agenda's balances when those are larger (booked work
   // the ledger has not caught up with). Requests waiting are shown apart: not owed yet.
-  const agendaOwedCents = props.agenda.owed.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
-  const owedCents = Math.max(view.owedCents, agendaOwedCents);
+  const owedSummary = talentOwedSummary({ clients: props.clients, agendaOwed: props.agenda.owed, currency: cur });
+  const owedCents = owedSummary.cents;
   const waiting = props.agenda.waiting;
   const waitingPriced = waiting.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
   const endOfToday = new Date();
@@ -205,7 +216,7 @@ function MoneyHomePane(props: {
   const waitingList = waiting.filter((r) =>
     outFilter === "all" ? true : outFilter === "today" ? r.dueByToday : !r.dueByToday,
   );
-  const outstandingCount = view.owed.length + props.agenda.owed.filter((r) => !clientHrefs.has(r.bookingHref)).length;
+  const outstandingCount = owedSummary.count;
 
   const split = (["card", "cash", "transfer", "other"] as const)
     .filter((m) => view.byMethod[m] > 0)
@@ -219,7 +230,7 @@ function MoneyHomePane(props: {
           aria-label={t("Month")}
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="h-11 rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] font-semibold capitalize text-admin-ink sm:h-9"
+          className="h-11 rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] font-semibold text-admin-ink sm:h-9"
         >
           {months.map((m) => (
             <option key={m} value={m}>
@@ -262,7 +273,11 @@ function MoneyHomePane(props: {
         <SummaryCard
           title={t("Owed to you")}
           scope={t("any month")}
-          value={props.clients == null ? t("Loading") : money(owedCents, cur)}
+          value={
+            props.clients == null
+              ? t("Loading")
+              : [money(owedCents, cur), ...owedSummary.others.map((o) => money(o.cents, o.currency))].join(" + ")
+          }
           tone={owedCents > 0 ? "warn" : undefined}
           lines={[
             outstandingCount > 0
@@ -334,7 +349,7 @@ function MoneyHomePane(props: {
               aria-label={t("Search client or service")}
               className="h-11 w-full rounded-[10px] border border-admin-border-soft bg-white px-3 font-admin-body text-[14px] text-admin-ink sm:h-9 sm:w-[280px]"
             />
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex flex-wrap gap-2">
               {(["all", "card", "cash", "transfer"] as const).map((m) => (
                 <button
                   key={m}
@@ -388,7 +403,7 @@ function MoneyHomePane(props: {
                     </span>
                   </span>
                   <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">
-                    {money(p.grossCents, cur)}
+                    {money(p.collectedCents != null && p.collectedCents > 0 ? p.collectedCents : p.grossCents, cur)}
                   </span>
                 </button>
               ))}
@@ -402,7 +417,7 @@ function MoneyHomePane(props: {
 
       {tab === "outstanding" ? (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex flex-wrap gap-2">
             {(
               [
                 ["all", t("All")],
@@ -539,6 +554,8 @@ export function MoneyHomePage() {
   const router = useRouter();
   const [sheet, setSheet] = useState<"record" | "request" | null>(null);
   const [linkFor, setLinkFor] = useState<MoneyAgendaRow | null>(null);
+  // Record payment opens the amount + method sheet right here, over Money.
+  const [finishFor, setFinishFor] = useState<MoneyAgendaRow | null>(null);
   const agenda = useMemo(
     () => agendaMoneyRows(bridgeTalentAgendaItems ?? [], new Date()),
     [bridgeTalentAgendaItems],
@@ -603,6 +620,7 @@ export function MoneyHomePage() {
           </div>
         }
       />
+      <FeePayerCard currency={fallbackCurrency} />
       {loadError ? (
         <p className="rounded-[12px] border border-admin-border-soft bg-admin-critical-soft px-4 py-3 font-admin-body text-[13.5px] text-admin-critical">
           {t("Could not load Money.")} {t("Refresh the page and try again.")}
@@ -638,65 +656,78 @@ export function MoneyHomePage() {
       )}
 
       {sheet ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={sheet === "record" ? t("Record payment") : t("Request payment")}
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/20 sm:items-center"
+        <AgendaPanelFrame
+          title={sheet === "record" ? t("Record payment") : t("Request payment")}
+          onClose={() => setSheet(null)}
+          dataAttr="data-money-pick-panel"
+          footer={
+            <button type="button" className={`${btnSec} w-full`} onClick={() => setSheet(null)}>
+              {t("Cancel")}
+            </button>
+          }
         >
-          <div className="max-h-[85vh] w-full max-w-[520px] overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl">
-            <h2 className="font-admin-display text-[18px] font-semibold text-admin-ink">
-              {sheet === "record" ? t("Record payment") : t("Request payment")}
-            </h2>
-            <p className="mt-1 font-admin-body text-[13px] text-admin-ink-muted">
-              {sheet === "record"
-                ? t("Pick the booking. Cash and transfers are recorded on the booking with Finish and collect or Mark transfer received.")
-                : t("Pick the booking to send a payment link for.")}
+          <p className="font-admin-body text-[13px] text-admin-ink-muted">
+            {sheet === "record"
+              ? t("Pick the booking, then enter what you received and how.")
+              : t("Pick the booking to send a payment link for.")}
+          </p>
+          {pickRows.length === 0 ? (
+            <p className="mt-4 font-admin-body text-[13.5px] text-admin-ink-muted">
+              {t("No bookings are waiting for a payment.")}
             </p>
-            {pickRows.length === 0 ? (
-              <p className="mt-4 font-admin-body text-[13.5px] text-admin-ink-muted">
-                {t("No bookings are waiting for a payment.")}
-              </p>
-            ) : (
-              <ul className="mt-3 overflow-hidden rounded-[12px] border border-admin-border-soft">
-                {pickRows.map((r, i) => (
-                  <li key={r.id} className={i ? "border-t border-admin-border-soft" : ""}>
-                    <button
-                      type="button"
-                      onClick={() => (sheet === "record" ? router.push(r.bookingHref) : request(r))}
-                      className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left hover:bg-black/[0.03]"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-admin-body text-[14px] font-semibold text-admin-ink">
-                          {r.name}
-                        </span>
-                        <span className="block text-[12.5px] text-admin-ink-muted">
-                          {[r.kind === "deposit" ? t("Deposit requested") : t("Balance due"), day(r.startsAt, copy.locale)]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
+          ) : (
+            <ul className="mt-3 overflow-hidden rounded-[12px] border border-admin-border-soft">
+              {pickRows.map((r, i) => (
+                <li key={r.id} className={i ? "border-t border-admin-border-soft" : ""}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (sheet === "record") {
+                        setSheet(null);
+                        setFinishFor(r);
+                      } else request(r);
+                    }}
+                    className="flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left hover:bg-black/[0.03]"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-admin-body text-[14px] font-semibold text-admin-ink">
+                        {r.name}
                       </span>
-                      <span className="whitespace-nowrap font-admin-body text-[14px] font-bold text-admin-ink">
-                        {r.amountCents != null ? money(r.amountCents, r.currency) : t("Amount not set")}
+                      <span className="block text-[12.5px] text-admin-ink-muted">
+                        {[r.kind === "deposit" ? t("Deposit requested") : t("Balance due"), day(r.startsAt, copy.locale)]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="mt-4 flex justify-end">
-              <button type="button" className={btnSec} onClick={() => setSheet(null)}>
-                {t("Cancel")}
-              </button>
-            </div>
-          </div>
-        </div>
+                    </span>
+                    <span className="whitespace-nowrap font-admin-body text-[14px] font-bold text-admin-ink">
+                      {r.amountCents != null ? money(r.amountCents, r.currency) : t("Amount not set")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AgendaPanelFrame>
+      ) : null}
+
+      {finishFor ? (
+        <MoneyRecordPaymentPanel
+          row={finishFor}
+          onClose={() => setFinishFor(null)}
+          onDone={() => {
+            setFinishFor(null);
+            router.refresh();
+          }}
+        />
       ) : null}
 
       {linkFor?.orderId ? (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-white/95 p-4">
-          <AgendaPayRequest orderId={linkFor.orderId} onClose={() => setLinkFor(null)} />
-        </div>
+        <AgendaPayRequest
+          orderId={linkFor.orderId}
+          defaultCents={linkFor.amountCents}
+          clientName={linkFor.name}
+          onClose={() => setLinkFor(null)}
+        />
       ) : null}
     </>
   );

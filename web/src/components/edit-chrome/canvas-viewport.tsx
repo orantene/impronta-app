@@ -57,6 +57,7 @@ import {
   type ReactNode,
 } from "react";
 import { CANVAS_FLOATING_BAR, CHROME, CHROME_RADII, Z_INDEX } from "./kit/tokens";
+import { useEditorLocale } from "./use-editor-locale";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import {
   DEFAULT_WORKSPACE_CANVAS_MODE,
@@ -602,6 +603,7 @@ export function CanvasZoomControls({
 }) {
   const { zoom, zoomIn, zoomOut, zoomTo, fitPage, showRulers, toggleRulers } =
     useCanvasViewport();
+  const { t } = useEditorLocale();
 
   const leftOffset = resolveCanvasHudLeftInset({
     mode: DEFAULT_WORKSPACE_CANVAS_MODE,
@@ -666,10 +668,10 @@ export function CanvasZoomControls({
           // Hide the HUD on small screens where the inspector rail is also hidden.
           display: "flex",
         }}
-        aria-label="Canvas zoom controls"
+        aria-label={t("Canvas zoom controls")}
       >
       {/* Zoom out */}
-      <ZoomBtn title="Zoom out (⌘−)" onClick={zoomOut} disabled={zoom <= ZOOM_MIN}>
+      <ZoomBtn title={t("Zoom out (⌘−)")} onClick={zoomOut} disabled={zoom <= ZOOM_MIN}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
@@ -679,7 +681,7 @@ export function CanvasZoomControls({
       <button
         type="button"
         data-zoom-pct
-        title="Click to reset to 100%"
+        title={t("Click to reset to 100%")}
         onClick={() => zoomTo(1)}
         className="inline-flex items-center justify-center border-none transition-colors"
         style={{
@@ -704,7 +706,7 @@ export function CanvasZoomControls({
       </button>
 
       {/* Zoom in */}
-      <ZoomBtn title="Zoom in (⌘+)" onClick={zoomIn} disabled={zoom >= ZOOM_MAX}>
+      <ZoomBtn title={t("Zoom in (⌘+)")} onClick={zoomIn} disabled={zoom >= ZOOM_MAX}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -718,7 +720,7 @@ export function CanvasZoomControls({
       />
 
       {/* Fit to page */}
-      <ZoomBtn title="Fit page (⌘⇧F)" onClick={fitPage}>
+      <ZoomBtn title={t("Fit page (⌘⇧F)")} onClick={fitPage}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
         </svg>
@@ -726,7 +728,7 @@ export function CanvasZoomControls({
 
       {/* Rulers toggle */}
       <ZoomBtn
-        title={showRulers ? "Hide rulers (⌘R)" : "Show rulers (⌘R)"}
+        title={showRulers ? t("Hide rulers (⌘R)") : t("Show rulers (⌘R)")}
         onClick={toggleRulers}
         active={showRulers}
       >

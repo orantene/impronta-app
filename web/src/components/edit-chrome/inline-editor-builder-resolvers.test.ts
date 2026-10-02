@@ -2,7 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { buildInlineImageReplacePatch } from "./inline-editor-builder-resolvers";
+import {
+  buildInlineImageReplacePatch,
+  resolveEditableBuilderNodeTextTarget,
+} from "./inline-editor-builder-resolvers";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
@@ -99,3 +103,25 @@ test("D1 fix: patching via buildInlineImageReplacePatch makes the published rend
     "mediaId marker updated too",
   );
 });
+
+// F120 - catalog-style widget titles edit in place through the `title` prop.
+function stubTitleDom(nodeId: string, kind: string) {
+  const h2 = { contains: () => false } as unknown as HTMLElement;
+  const nodeEl = {
+    getAttribute: (n: string) =>
+      n === "data-builder-node-id" ? nodeId : n === "data-builder-node-kind" ? kind : null,
+    querySelector: (sel: string) => (sel === "h1, h2" ? h2 : null),
+  } as unknown as HTMLElement;
+  (h2 as unknown as { closest: () => HTMLElement }).closest = () => nodeEl;
+  return h2;
+}
+
+for (const kind of ["services_catalog", "reviews", "menu_board"]) {
+  test(`double-click on a ${kind} heading resolves the title prop`, () => {
+    const tree = [
+      { id: "n1", kind, props: { title: "Services and prices" } },
+    ] as unknown as BuilderNodeTree;
+    const target = resolveEditableBuilderNodeTextTarget(tree, stubTitleDom("n1", kind));
+    assert.deepEqual(target, { id: "n1", propKey: "title", variant: "single" });
+  });
+}

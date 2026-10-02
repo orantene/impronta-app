@@ -91,7 +91,7 @@ test("MODE-2 approval/request: request_to_book → Solicitar cita; who stays cha
       whoPrimaryCta: "confirm_now",
       locale: "es",
     }),
-    "Chateá ahora",
+    "Chatea ahora",
   );
 });
 

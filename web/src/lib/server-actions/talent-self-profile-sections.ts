@@ -25,6 +25,9 @@ import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 import { uiProfileShellStatusToDbPatch } from "@/lib/talent/profile-shell-workflow";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { loadSelfProfileEditorData } from "@/lib/talent/self-profile-editor-data";
+import { syncBiosToBioI18n } from "@/lib/translation/sync-bios-to-bio-i18n.server";
+import { loadSavedRecurring, syncBookingHoursFromPattern } from "@/lib/scheduling/sync-hours-from-pattern.server";
+import { recurringChanged, recurringFromAvailabilityData } from "@/lib/scheduling/pattern-hours";
 import type {
   TalentBio,
   ProfileEditorData,
@@ -79,6 +82,9 @@ export async function updateSelfAbout(input: {
     bios: input.bios,
     personality_traits: input.personality_traits,
   });
+  // F25: the public profile and site read bio_i18n; mirror the saved bios
+  // there too (the admin save already did; the self save never did).
+  await syncBiosToBioI18n(createServiceRoleClient() ?? supabase, input.talent_profile_id, input.bios);
 
   revalidatePath(`/t/${profileCode}`, "page");
   return { ok: true };
@@ -180,16 +186,39 @@ export async function updateSelfRates(input: {
 export async function updateSelfAvailability(input: {
   talent_profile_id: string;
   availability_data: { cells: { date: string; status: string }[]; recurring?: unknown; vacation?: unknown };
+  /** The saving browser's IANA zone; used only when her city gives none (F48). */
+  timezone?: string | null;
 }): Promise<Result> {
   const auth = await requireTalentSelfAction(input.talent_profile_id);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, profileCode } = auth;
+  const { supabase } = auth;
+
+  // The drawer saves every section on every save; only a CHANGED pattern
+  // may touch hours, or an unrelated save would undo Settings > Working hours.
+  const admin = createServiceRoleClient();
+  const patternChanged = recurringChanged(
+    admin ? await loadSavedRecurring(admin, input.talent_profile_id) : null,
+    recurringFromAvailabilityData(input.availability_data),
+  );
 
   const { error } = await supabase
     .from("talent_profiles")
     .update({ availability_data: input.availability_data, updated_at: new Date().toISOString() })
     .eq("id", input.talent_profile_id);
   if (error) { logServerError("self-sections.availability", error); return { ok: false, error: CLIENT_ERROR.update }; }
+
+  // F27: the pattern IS her working days; write them into the hours row
+  // every booking engine reads (one source of truth, see pattern-hours.ts).
+  // An unchanged pattern still fills a MISSING hours row (a talent who set
+  // it before this sync existed), but never rewrites saved hours.
+  if (admin) {
+    await syncBookingHoursFromPattern(admin, {
+      talentProfileId: input.talent_profile_id,
+      recurring: recurringFromAvailabilityData(input.availability_data),
+      clientTimezone: input.timezone ?? null,
+      onlyIfNoHours: !patternChanged,
+    });
+  }
 
   return { ok: true };
 }

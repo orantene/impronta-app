@@ -44,6 +44,8 @@ import { resolveTalentTradePreset } from "../../src/lib/words/talent-trade-prese
 import { randomBytes } from "node:crypto";
 import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
 import { ALBA_PHOTO_SOURCES } from "./alba";
+import { ALEX_PHOTO_SOURCES } from "./alex";
+import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const targetRef = process.env.DEMO_SEED_TARGET_REF?.trim();
@@ -251,7 +253,7 @@ async function uploadPlanPhotos(d: DemoTalent, profileId: string, userId: string
   ];
   for (const [i, p] of list.entries()) {
     const file = path.join(dir, `${p.key}.jpg`);
-    const source = ALBA_PHOTO_SOURCES[p.key];
+    const source = ALBA_PHOTO_SOURCES[p.key] ?? ALEX_PHOTO_SOURCES[p.key];
     if (!source) throw new Error(`no source recorded for photo ${p.key}`);
     const body = fs.readFileSync(file);
     const storagePath = `tenant/${HUB_TENANT_ID}/talent/${profileId}/${randomUUID()}.jpg`;
@@ -456,6 +458,25 @@ async function writeBookingHours(d: DemoTalent, profileId: string, entry: Manife
   entry.bookingHours = true;
 }
 
+// The Location section's settings (zone only for demos: no address is stored).
+async function writeLocationSettings(d: DemoTalent, profileId: string) {
+  if (!d.location) return;
+  const { error } = await admin.from("talent_location_settings").upsert(
+    {
+      talent_profile_id: profileId,
+      address_mode: d.location.addressMode,
+      studio_kind: d.location.studioKind,
+      zone_neighbourhood: d.location.neighbourhood,
+      arrival_note: d.location.arrivalNote,
+      arrival_photo_url: null,
+      exact_address: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "talent_profile_id" },
+  );
+  if (error) throw error;
+}
+
 // One of the demo's own gallery photos per service card (by order).
 async function linkOfferingPhotos(profileId: string) {
   const { data: offers, error: oErr } = await admin
@@ -642,8 +663,11 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
   await writeFaq(d, profileId);
   await writeReviews(d, profileId, entry);
   await writeHomeBase(d, profileId);
+  // Release 2.7: headline, years, languages and Instagram the hero and footer read from the profile.
+  await applyHeroFacts(admin, { profileCode: d.profileCode, hubTenantId: HUB_TENANT_ID, write: true });
   if (passwordEnv) await setQaPassword(d, userId, passwordEnv);
   await writeBookingHours(d, profileId, entry);
+  await writeLocationSettings(d, profileId);
   saveManifest(manifest);
 
   const shell = buildDefaultShellTree({ displayName: d.displayName });
@@ -704,6 +728,7 @@ async function removeBatch(manifest: Manifest) {
     const steps: [string, PromiseLike<{ error: unknown }>][] = [
       ["media_assets", admin.from("media_assets").delete().eq("owner_talent_profile_id", e.talentProfileId)],
       ["talent_booking_hours", admin.from("talent_booking_hours").delete().eq("talent_profile_id", e.talentProfileId)],
+      ["talent_location_settings", admin.from("talent_location_settings").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_offerings", admin.from("talent_offerings").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_reviews", admin.from("talent_reviews").delete().eq("talent_profile_id", e.talentProfileId)],
       ["talent_faq_items", admin.from("talent_faq_items").delete().eq("talent_profile_id", e.talentProfileId)],

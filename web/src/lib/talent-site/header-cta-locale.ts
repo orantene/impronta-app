@@ -67,3 +67,46 @@ export function localiseTalentHeaderDefaults(
   }
   return props;
 }
+
+/** True when a header CTA href points at the ask / chat entry. */
+export function isTalentAskHref(href: unknown): boolean {
+  if (typeof href !== "string") return false;
+  const h = href.trim();
+  return h === "#talent-ask" || h.endsWith("#talent-ask") || h.includes("inquire=1");
+}
+
+/**
+ * Drop Ask / Escríbeme header CTAs when site switches hide ask entry points
+ * (chat off + inquiries off). Prevents the SSR flash that TalentSiteContactBridge
+ * used to hide after paint.
+ */
+export function stripHiddenAskHeaderCta(
+  sectionProps: unknown,
+  askVisible: boolean,
+): unknown {
+  if (askVisible) return sectionProps;
+  if (!sectionProps || typeof sectionProps !== "object") return sectionProps;
+  const props = { ...(sectionProps as Record<string, unknown>) };
+
+  const cta = props.primaryCta;
+  if (cta && typeof cta === "object" && isTalentAskHref((cta as Record<string, unknown>).href)) {
+    delete props.primaryCta;
+  }
+
+  const regions = props.regions;
+  if (regions && typeof regions === "object") {
+    const next: Record<string, unknown> = {};
+    for (const [slot, items] of Object.entries(regions as Record<string, unknown>)) {
+      next[slot] = Array.isArray(items)
+        ? items.filter((item) => {
+            if (!item || typeof item !== "object") return true;
+            const it = item as Record<string, unknown>;
+            if (it.type === "cta" && isTalentAskHref(it.href)) return false;
+            return true;
+          })
+        : items;
+    }
+    props.regions = next;
+  }
+  return props;
+}

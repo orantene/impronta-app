@@ -15,7 +15,7 @@ export const MAGAZINE_LABEL_FAMILY = "Archivo Narrow";
 
 /** Google Fonts sheet for the label face (weights the blocks use). */
 export const MAGAZINE_LABEL_FONT_HREF =
-  "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600;700&display=swap";
+  "/api/fonts/css?family=Archivo+Narrow:wght@400;500;600;700&display=swap";
 
 /**
  * Custom properties every magazine root declares.
@@ -35,6 +35,6 @@ export const MAGAZINE_ROOT_VARS = [
 ].join(";");
 
 /** Magazine button — radius + rule width from tokens (Folio defaults: square + 1px). */
-export const MAGAZINE_BUTTON_CSS = `.sb-mag-btn{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 18px;border:var(--sb-mag-rule) solid var(--sb-mag-ink);border-radius:var(--sb-mag-radius);background:var(--sb-mag-ink);color:var(--sb-mag-bg);font-family:var(--sb-mag-label);font-weight:600;font-size:12px;letter-spacing:var(--site-label-tracking,.2em);text-transform:var(--site-label-case,uppercase);text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none}
+export const MAGAZINE_BUTTON_CSS = `.sb-mag-btn{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 18px;border:var(--sb-mag-rule) solid var(--sb-mag-ink);border-radius:var(--sb-mag-radius);background:var(--sb-mag-ink);color:var(--token-color-surface-raised,var(--sb-mag-bg));font-family:var(--sb-mag-label);font-weight:600;font-size:12px;letter-spacing:var(--sb-mag-btn-tracking,.2em);text-transform:var(--site-label-case,uppercase);text-decoration:none;white-space:nowrap;cursor:pointer;box-shadow:none}
 .sb-mag-btn[data-ghost="1"]{background:transparent;color:var(--sb-mag-ink);border-color:var(--sb-mag-line)}
 .sb-mag-btn:focus-visible{outline:2px solid var(--sb-mag-ink);outline-offset:2px}`;

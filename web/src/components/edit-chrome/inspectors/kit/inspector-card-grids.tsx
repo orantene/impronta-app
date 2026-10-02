@@ -8,6 +8,9 @@
  * boundary pushed that file past the 800-line cap. Same rendered DOM, same
  * props, same export names: `inspector-ui.tsx` re-exports both, so every
  * existing import site and the kit barrel are unchanged.
+ *
+ * Round 2 polish: `density="compact"` renders an icon+label segmented strip
+ * (no tall cards / px hints) for the Portada dock device rail.
  */
 
 import { useCallback, type ReactNode } from "react";
@@ -20,6 +23,7 @@ export function InspectorDeviceCards<T extends string>({
   value,
   onChange,
   options,
+  density = "cards",
 }: {
   value: T;
   onChange: (next: T) => void;
@@ -34,15 +38,107 @@ export function InspectorDeviceCards<T extends string>({
      */
     badgeCount?: number;
   }>;
+  /** `compact` = segmented icon+label strip (Round 2 Portada chrome). */
+  density?: "cards" | "compact";
 }) {
   const { t, to } = useInspectorT();
   // Column count tracks the registry-driven option list (RESP-1) so adding a
   // wide/compact editable tier keeps the cards evenly sized rather than spilling.
   const columns = Math.min(Math.max(options.length, 1), 5);
+
+  if (density === "compact") {
+    return (
+      <div
+        role="group"
+        aria-label={t("Device")}
+        className="flex items-stretch gap-0.5 rounded-[10px] p-0.5"
+        style={{
+          background: CHROME.surface2,
+          border: `1px solid ${CHROME.line}`,
+        }}
+        data-inspector-device-strip="compact"
+      >
+        {options.map((opt) => {
+          const active = opt.key === value;
+          const hasBadge = (opt.badgeCount ?? 0) > 0;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => onChange(opt.key)}
+              aria-pressed={active}
+              aria-label={
+                hasBadge
+                  ? t(
+                      opt.badgeCount === 1
+                        ? "{device}: {count} mobile health issue"
+                        : "{device}: {count} mobile health issues",
+                    )
+                      .replace("{device}", t(opt.label))
+                      .replace("{count}", String(opt.badgeCount))
+                  : t(opt.label)
+              }
+              title={
+                hasBadge
+                  ? t(
+                      opt.badgeCount === 1
+                        ? "{count} mobile health issue, review in Mobile preview"
+                        : "{count} mobile health issues, review in Mobile preview",
+                    ).replace("{count}", String(opt.badgeCount))
+                  : opt.hint
+                    ? to(opt.hint)
+                    : t(opt.label)
+              }
+              className="relative flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[8px] border-none px-1 py-1.5 transition-[background-color,color,box-shadow] duration-150"
+              style={{
+                background: active ? CHROME.surface : "transparent",
+                color: active ? CHROME.accent : CHROME.muted,
+                boxShadow: active
+                  ? `0 0 0 1px ${CHROME.accent}, 0 1px 2px rgba(17,24,39,0.06)`
+                  : "none",
+                fontWeight: active ? 650 : 550,
+              }}
+            >
+              {hasBadge ? (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    right: 4,
+                    minWidth: 14,
+                    height: 14,
+                    borderRadius: 999,
+                    background: CHROME.blue,
+                    color: "#fff",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    lineHeight: "14px",
+                    textAlign: "center",
+                    padding: "0 3px",
+                  }}
+                >
+                  {(opt.badgeCount ?? 0) > 99 ? "99+" : opt.badgeCount}
+                </span>
+              ) : null}
+              <span aria-hidden className="inline-flex [&_svg]:size-[15px]">
+                {opt.icon}
+              </span>
+              <span className="max-w-full truncate text-[10px] font-semibold leading-none tracking-[0.01em]">
+                {t(opt.label)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div
       className="grid gap-2"
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      data-inspector-device-strip="cards"
     >
       {options.map((opt) => {
         const active = opt.key === value;
@@ -168,12 +264,16 @@ export function InspectorOptionCards<T extends string>({
             type="button"
             onClick={() => toggle(opt.value)}
             aria-pressed={active}
-            className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-colors"
+            className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-[background-color,border-color,box-shadow,color] duration-150"
             style={{
               minHeight: 64,
-              background: active ? "rgba(124, 58, 237, 0.08)" : CHROME.surface,
+              background: active ? "rgba(124, 58, 237, 0.10)" : CHROME.surface,
               borderColor: active ? CHROME.accent : CHROME.line,
               color: active ? CHROME.accent : CHROME.muted,
+              boxShadow: active
+                ? "0 1px 4px rgba(124,58,237,0.14)"
+                : "0 1px 2px rgba(17,24,39,0.03)",
+              fontWeight: active ? 650 : 550,
             }}
           >
             {opt.icon ? <span aria-hidden>{opt.icon}</span> : null}

@@ -2,7 +2,7 @@
 export type AddGalleryCardCopy = {
   /** One short sentence shown on the card face. */
   description: string;
-  /** Longer guidance — shown in the info popover only. */
+  /** Longer guidance - shown in the info popover only. */
   infoTooltip?: string;
 };
 
@@ -393,7 +393,7 @@ export const ADD_GALLERY_CARD_COPY: Readonly<
   "sec-talent-discipline": {
     description: "Category grid with featured Models pod and discipline cards.",
     infoTooltip:
-      "Intro Text and Title are freeform layers — double-click them on the canvas to edit copy. Select Discipline Grid → Edit Content for category cards, images, and taxonomy source.",
+      "Intro Text and Title are freeform layers - double-click them on the canvas to edit copy. Select Discipline Grid → Edit Content for category cards, images, and taxonomy source.",
   },
   "sec-roster-grid": {
     description: "Full filterable talent directory.",

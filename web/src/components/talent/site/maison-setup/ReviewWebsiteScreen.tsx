@@ -12,6 +12,7 @@ import {
 } from "@/lib/talent-site/server/maison-review-actions";
 import { undoMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
+import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { maisonReadinessHeadline } from "@/lib/talent-site/server/maison-publish-readiness";
 import { maisonPaletteLookTokens } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { maisonCustomLookTokens } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
@@ -115,7 +116,9 @@ export function ReviewWebsiteScreen({
     });
   }
 
+  const applyBusy = useThemeApplyBusy();
   function handlePublish() {
+    if (isThemeApplyBusy()) return;
     startTransition(async () => {
       setPublishError(null);
       const res = await publishMaxSiteAction();
@@ -234,9 +237,6 @@ export function ReviewWebsiteScreen({
           )}
         </p>
 
-        {/* W72 — never show trial / plan / price in this flow */}
-        <p className="sr-only">{maisonSetupT(locale, "No trial, plan, or price in this flow.")}</p>
-
         {publishError ? (
           <div
             data-testid="maison-publish-failure"
@@ -251,7 +251,7 @@ export function ReviewWebsiteScreen({
               type="button"
               data-testid="maison-publish-retry"
               onClick={handlePublish}
-              disabled={pending || !ready}
+              disabled={pending || !ready || applyBusy}
               className="mt-2 text-[13px] font-semibold text-red-900 underline"
             >
               {maisonSetupT(locale, "Try again")}
@@ -265,7 +265,7 @@ export function ReviewWebsiteScreen({
           type="button"
           data-testid="maison-publish"
           onClick={handlePublish}
-          disabled={pending || !ready}
+          disabled={pending || !ready || applyBusy}
           className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-40"
         >
           {pending

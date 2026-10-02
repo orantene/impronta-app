@@ -1,18 +1,22 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
-import {
-  canonicalBioEn,
-  publicBioForLocale,
-  bioEnFromI18n,
-} from "@/lib/translation/public-bio";
+import { canonicalBioEn } from "@/lib/translation/public-bio";
+import { effectiveBioI18n, pickBio } from "@/lib/translation/bios-to-bio-i18n";
+import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
+import { readScalarFieldValuesFromCatalog } from "@/lib/talent/scalar-field-values-catalog";
+import { cityLabelFromPlaceText } from "@/lib/scheduling/timezone-from-place";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 
 import { templateKeyForPlan } from "@/lib/talent-site/templates/registry";
 import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-template-snapshot";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
+import { loadHeroProofData } from "./load-hero-proof";
+import { canonicalCityLabel } from "./city-label.server";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
@@ -38,6 +42,7 @@ export async function loadTalentStarterProfileData(
       short_bio,
       bio_i18n,
       services_menu,
+      home_city_text,
       talent_profile_taxonomy (
         relationship_type,
         is_primary,
@@ -69,6 +74,7 @@ export async function loadTalentStarterProfileData(
     short_bio: string | null;
     bio_i18n: LocalizedMap | null;
     services_menu: unknown;
+    home_city_text: string | null;
     talent_profile_taxonomy: {
       relationship_type: string | null;
       is_primary: boolean | null;
@@ -131,10 +137,14 @@ export async function loadTalentStarterProfileData(
     return out;
   })();
 
-  const homeCity =
+  // Service-area home base first, else the city the drawer saved (F30).
+  const homeCityRaw =
     (p.talent_service_areas ?? [])
       .find((a) => a.service_kind === "home_base")
-      ?.locations?.display_name_i18n?.en ?? null;
+      ?.locations?.display_name_i18n?.en?.trim() ||
+    cityLabelFromPlaceText(p.home_city_text);
+  // Place text can be ASCII-folded ("Cancun"); restore the location's accent.
+  const homeCity = homeCityRaw ? await canonicalCityLabel(trusted, homeCityRaw, "en", [cityLabelFromPlaceText(p.home_city_text)]) : homeCityRaw;
 
   const serviceAreaLabels = (p.talent_service_areas ?? [])
     .map((a) => a.locations?.display_name_i18n?.en?.trim())
@@ -144,10 +154,13 @@ export async function loadTalentStarterProfileData(
   // the menu's sortOrder — mirrors the public profile's services filter. Drives
   // the default freeform profile's "Services & focus" cards. NOT the geographic
   // `serviceAreaLabels`.
-  const serviceNames = normalizeServicesMenu(p.services_menu)
+  const menuNames = normalizeServicesMenu(p.services_menu)
     .filter((it) => it.isActive && it.visibility !== "agency_only")
     .map((it) => it.name.trim())
     .filter((name): name is string => name.length > 0);
+  // F26: services created in Services live in talent_offerings, not the
+  // legacy menu; a talent with published offerings shows THEIR names.
+  const serviceNames = menuNames.length > 0 ? menuNames : await loadPublishedServiceNames(trusted, talentProfileId);
 
   const { data: mediaRows } = await trusted
     .from("media_assets")
@@ -173,10 +186,10 @@ export async function loadTalentStarterProfileData(
   // The full published bio (locale-resolved, NOT sliced). Same resolution the
   // slot templates use for `publicBio`, but the default freeform About renders
   // it in full as a proper paragraph. "" when none.
+  // F25: bio_i18n per locale, filled by the drawer's saved `bios` value.
+  const bios = (await readBlobFieldValuesFromCatalog(trusted, talentProfileId)).bios;
   const richBio =
-    publicBioForLocale("en", ["en"], p.bio_i18n).trim() ||
-    canonicalBioEn(bioEnFromI18n(p.bio_i18n), p.short_bio) ||
-    "";
+    pickBio(effectiveBioI18n(p.bio_i18n, bios), "en") || canonicalBioEn(null, p.short_bio) || "";
 
   // Cheap, single extra query — joined spoken-language names ("Spanish · English"),
   // ordered the way the public profile orders them. "" when none / on error.
@@ -192,6 +205,13 @@ export async function loadTalentStarterProfileData(
     .filter((name): name is string => !!name)
     .join(" · ");
 
+  const proof = await loadHeroProofData(trusted, talentProfileId);
+  // Her own headline and tagline (profile fields), and the currency of her menu.
+  const [scalars, menuCurrency] = await Promise.all([
+    readScalarFieldValuesFromCatalog(trusted, talentProfileId),
+    loadMenuCurrency(trusted, talentProfileId),
+  ]);
+
   return {
     displayName,
     profileCode: p.profile_code,
@@ -200,6 +220,13 @@ export async function loadTalentStarterProfileData(
     publicBio: richBio || null,
     richBio,
     languagesLabel,
+    experienceYears: proof.years,
+    headline: scalars.headline ?? null,
+    tagline: scalars.tagline ?? null,
+    menuCurrency,
+    ratingAvg: proof.rating,
+    ratingCount: proof.count,
+    isDemo: proof.demo,
     homeCity,
     serviceAreaLabels,
     serviceNames,
@@ -209,6 +236,51 @@ export async function loadTalentStarterProfileData(
     socialLinks: p.social_links,
     talentPlanKey: p.talent_plan_key,
   };
+}
+
+type Db = Pick<SupabaseClient, "from">;
+
+/** The currency most of her published services are priced in ("MXN"), or null. */
+export async function loadMenuCurrency(db: Db, talentProfileId: string): Promise<string | null> {
+  const { data, error } = await db
+    .from("talent_offerings")
+    .select("currency")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .eq("moderation_state", "approved")
+    .in("visibility", ["public", "on_request"])
+    .not("currency", "is", null)
+    .limit(50);
+  if (error) {
+    logServerError("talentSite.loadStarterMenuCurrency", error);
+    return null;
+  }
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as { currency: string | null }[]) {
+    const code = row.currency?.trim().toUpperCase();
+    if (code && code.length >= 3) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
+/** Published, approved, public service titles in the talent's order. */
+async function loadPublishedServiceNames(db: Db, talentProfileId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from("talent_offerings")
+    .select("title, title_i18n")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "published")
+    .eq("moderation_state", "approved")
+    .in("visibility", ["public", "on_request"])
+    .order("sort_order", { ascending: true })
+    .limit(12);
+  if (error) {
+    logServerError("talentSite.loadStarterServiceNames", error);
+    return [];
+  }
+  return ((data ?? []) as { title: string | null; title_i18n: Record<string, string | null> | null }[])
+    .map((row) => (row.title_i18n?.en ?? row.title ?? "").trim())
+    .filter((name) => name.length > 0);
 }
 
 /**

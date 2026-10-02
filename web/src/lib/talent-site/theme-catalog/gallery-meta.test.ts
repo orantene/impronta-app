@@ -11,6 +11,7 @@ process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
 import { COLLECTION_DESIGNS } from "./collection/designs";
 import { MAISON_PALETTES, MAISON_PALETTE_ORDER, maisonPaletteLookTokens } from "./maison/seed";
 import { DEMOS } from "../../../../scripts/demo-talents/demos";
+import { THEME_DEMOS } from "./theme-demos";
 import {
   GALLERY_CATEGORY_CHIPS,
   GALLERY_DESIGNS,
@@ -43,7 +44,8 @@ test("every design is well formed", () => {
     for (const t of d.styleTags) assert.ok(GALLERY_STYLE_TAGS.includes(t));
     for (const t of d.featureTags) assert.ok(GALLERY_FEATURE_TAGS.includes(t));
     for (const c of d.categoryChips) assert.ok(GALLERY_CATEGORY_CHIPS.includes(c));
-    assert.ok(d.palettes.length >= 3 && d.palettes.length <= 5, d.slug);
+    // Maison v2 has six since release 2.5 (Orchid joined the five; none were retired).
+    assert.ok(d.palettes.length >= 3 && d.palettes.length <= (d.slug === "maison-v2" ? 6 : 5), d.slug);
     assert.ok(d.palettes.some((p) => p.highContrast), `${d.slug} needs a high-contrast palette`);
     const keys = new Set(d.palettes.map((p) => p.key));
     assert.equal(keys.size, d.palettes.length);
@@ -101,10 +103,17 @@ test("built talent demos point at real demo-talent packs on that design", () => 
     for (const demo of d.demos) {
       if (demo.source.kind !== "demo-talent") continue;
       const code = demo.source.profileCode;
+      // Either a hand-built pack (demos.ts) or a guide demo (theme-demos.ts).
       const pack = DEMOS.find((x) => x.profileCode === code);
-      assert.ok(pack, code);
-      assert.equal(pack.siteSlug, demo.source.siteSlug);
-      assert.equal(pack.theme, d.slug);
+      const guide = THEME_DEMOS.find((x) => x.profileCode === code);
+      assert.ok(pack || guide, code);
+      if (guide) {
+        assert.equal(guide.siteSlug, demo.source.siteSlug);
+        assert.equal(guide.design, d.slug);
+      } else {
+        assert.equal(pack!.siteSlug, demo.source.siteSlug);
+        assert.equal(pack!.theme, d.slug);
+      }
     }
   }
 });

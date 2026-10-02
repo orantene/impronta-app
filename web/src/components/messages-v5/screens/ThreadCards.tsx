@@ -39,6 +39,8 @@ export type ThreadCardProps = {
   readonly onAction: (id: ShellActionId, detail?: { readonly recordId?: string; readonly recordKind?: string }) => void;
   readonly onCopyText: (text: string) => void;
   readonly origin?: string;
+  /** Talent seller mode: no internal offer version number on the card. */
+  readonly hideVersion?: boolean;
   /** Injectable for tests; defaults to `new Date()` for hold countdowns. */
   readonly now?: Date;
 };
@@ -82,7 +84,7 @@ function strTz(payload: Record<string, unknown> | null): string | null {
   return tz || null;
 }
 
-export function ThreadCard({ message, cardKind, clientName, copy, variant, locale = "en", onAction, onCopyText, origin, now }: ThreadCardProps) {
+export function ThreadCard({ message, cardKind, clientName, copy, variant, locale = "en", onAction, onCopyText, origin, now, hideVersion }: ThreadCardProps) {
   const kit = copy.kit;
   const model = renderCard(cardKind, message.payload, "operator");
   const p = message.payload ?? {};
@@ -98,9 +100,10 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
       const totalCents = typeof o.totalCents === "number" ? o.totalCents : Number.isFinite(legacyCents) ? legacyCents : null;
       return (
         <OfferCard
-          title={model.title}
+          title={kit.card.cat.offer}
           state={offerState(cardKind, message.kind === "offer_event" ? { ...p, state: o.status === "accepted" ? "selected" : o.status ?? "sent" } : message.payload)}
           version={typeof o.version === "number" ? o.version : 1}
+          showVersion={!hideVersion}
           forName={clientName}
           lines={[]}
           total={totalCents === null ? "" : money(totalCents, o.currency ?? "USD")}

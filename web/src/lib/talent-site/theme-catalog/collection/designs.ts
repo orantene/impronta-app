@@ -40,9 +40,11 @@ import {
   shell,
   tuneHeading,
 } from "./design-parts";
+import { buildWithAuthoredOverlay } from "./authored";
+import { buildGridlinePayload } from "./gridline";
 import { buildMaisonV2Payload } from "./maison-v2";
 
-export { buildMaisonV2Payload };
+export { buildGridlinePayload, buildMaisonV2Payload };
 
 // ── Solace ───────────────────────────────────────────────────────────────────
 // Calm full-bleed cover, a centered short intro, services as an unhurried
@@ -168,14 +170,14 @@ export function buildFramePayload(): DesignPayload {
 // rate card + statement footer. Every block is a shared widget in its magazine edition.
 export const FOLIO_CHAPTER_SEEDS = [
   {
-    heading: "Editorial",
-    creditLine: "Demo studio credit · CDMX",
-    tocCredit: "Studio, hard light",
+    heading: "Selected work",
+    creditLine: "",
+    tocCredit: "",
   },
   {
-    heading: "Runway",
-    creditLine: "Demo show credit · 3 exits",
-    tocCredit: "Exits and details",
+    heading: "More work",
+    creditLine: "",
+    tocCredit: "",
   },
 ] as const;
 
@@ -222,6 +224,8 @@ export function buildFolioPayload(): DesignPayload {
             props: {
               ...(k.props as Record<string, unknown>),
               coverLine: "{{primaryTypeLabel}}",
+              // TH02: the italic serif line over the cover photo (30px, the cover's first body text).
+              coverStatement: "",
               mastRight: "{{locationLine}}",
               bio: "{{bio}}",
               // Folio artifact cover CTA is Consultar (inquiry), not mode-swapped Book.
@@ -247,8 +251,7 @@ export function buildFolioPayload(): DesignPayload {
     shellTree: shell(id, {
       navChrome: "top_bar",
       navLinks: [
-        { label: "Editorial", href: "#chapter-1" },
-        { label: "Runway", href: "#chapter-2" },
+        ...FOLIO_CHAPTER_SEEDS.map((c, i) => ({ label: c.heading, href: `#chapter-${i + 1}` })),
         { label: "Rates", href: "#services" },
       ],
       // Folio artifact header CTA reads Consultar (inquiry), not Inquire/Escríbeme.
@@ -296,15 +299,15 @@ export function buildFolioPayload(): DesignPayload {
             heading: "Measures · Comp card",
             showFullDetails: true,
             minMeasures: 4,
-            // Mateo Ferrer / model strip: height · suit · shoe · languages.
+            // Comp strip: height · suit · shoe · languages.
             measures: [
               { fieldKey: "physical.height_cm", enabled: true, labelEn: "Height cm", labelEs: "Estatura cm" },
               { fieldKey: "physical.suit_size", enabled: true, labelEn: "Suit", labelEs: "Saco" },
               {
                 fieldKey: "physical.shoe_size_eu",
                 enabled: true,
-                labelEn: "Shoe MX",
-                labelEs: "Calzado MX",
+                labelEn: "Shoe",
+                labelEs: "Calzado",
               },
               { fieldKey: "languages", enabled: true, labelEn: "Languages", labelEs: "Idiomas" },
             ],
@@ -317,7 +320,7 @@ export function buildFolioPayload(): DesignPayload {
             label: "Booking",
             eyebrow: "",
             title: "Rates",
-            subtitle: "Base rates in MXN. Ad use and travel are quoted separately.",
+            subtitle: "",
             layout: "rate_card",
             categoryNav: "none",
             stylePreset: "editorial",
@@ -331,15 +334,15 @@ export function buildFolioPayload(): DesignPayload {
           }),
         ),
       ),
-      aboutBlock(id, { align: "start", accent: false }),
       faqBlock(id, { heading: "Questions", ask: true }),
       magazine(
         fullBleed(
           statementFooterBlock(id, {
             statement: "Next issue.",
-            // Fine-print host; gallery demo is Mateo. Talents edit after apply.
-            creditLine: "mateoferrer.tulala.digital",
-            contactLine: "For editorials, runway and campaigns. I reply the same day.",
+            // Design-owned defaults carry no talent claim: the demo fixtures fill these
+            // through the site-copy mechanism (demos/folio-site-copy.ts).
+            creditLine: "",
+            contactLine: "",
             align: "start",
             showRule: true,
           }),
@@ -350,6 +353,9 @@ export function buildFolioPayload(): DesignPayload {
         ? withFooterCta(n)
         : n,
     ),
+    // Release (Folio parity): TH02 has no About page. It leaves the default page and stays a block
+    // a talent can add; a talent who already has it keeps it (see the release note module).
+    optionalBlocks: [aboutBlock(id, { align: "start", accent: false })],
   };
 }
 
@@ -394,7 +400,8 @@ function entry(
     sort_order: sort,
     is_new_until: null,
     preview: {},
-    buildPayload,
+    buildPayloadRaw: buildPayload,
+    buildPayload: () => buildWithAuthoredOverlay(slug, buildPayload),
   };
 }
 
@@ -444,6 +451,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     10,
     buildFolioPayload,
   ),
+  entry(
+    "gridline",
+    "Gridline",
+    "A utility bar with a tap-to-call button, a spec-block hero, a task picker and a clear comparison of services. Built for trades that get called.",
+    "bold",
+    ["trades", "urgent", "price-matrix"],
+    11,
+    buildGridlinePayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -462,6 +478,8 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
   mono: "Una frase y una lista de precios rápida. Para clientes que ya saben lo que quieren.",
   frame: "Tu trabajo primero: portada con retrato, una cuadrícula de trabajos y servicios en tarjetas.",
   folio: "Portada de revista con tu nombre como cabecera, un libro de trabajos y una tarifa clara.",
+  gridline:
+    "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
 };
 
 /** What each design still needs from shared widgets (mockup → today). */
@@ -471,4 +489,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
   frame: ["W-12 contact sheet tag filter and loupe"],
   folio: [],
+  gridline: [],
 };

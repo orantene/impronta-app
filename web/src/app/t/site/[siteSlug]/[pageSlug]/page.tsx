@@ -18,6 +18,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { talentSitePathRedirectTarget } from "@/lib/talent-site/site-public-url";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
@@ -67,11 +68,11 @@ export default async function TalentMaxSiteInnerPage({
   searchParams,
 }: {
   params: Promise<{ siteSlug: string; pageSlug: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; history?: string; themeUpdate?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const { siteSlug, pageSlug } = await params;
-  const { preview } = await searchParams;
+  const { preview, history, themeUpdate } = await searchParams;
 
   // Same permanent move as the home route — see its comment. The inner page
   // lands on `<slug>.tulala.digital/<pageSlug>`.
@@ -96,9 +97,14 @@ export default async function TalentMaxSiteInnerPage({
     publicPathPrefix,
     hrefMode: "path",
     previewDraft: preview === "draft",
+    previewHistoryEntryId: history ?? null,
+    previewThemeUpdateId: themeUpdate ?? null,
     canonicalOrigin: publicSiteMetadataBase().origin,
     canonicalPath: innerPath(siteSlug, pageSlug),
   });
+  if (result.kind !== "render" && pageSlug === LEGACY_PRIVACY_SLUG) {
+    permanentRedirect(`/t/site/${encodeURIComponent(siteSlug)}/${POLICY_SLUG.privacy}`);
+  }
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (

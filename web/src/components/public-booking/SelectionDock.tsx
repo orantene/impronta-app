@@ -10,7 +10,19 @@
  * floating control. Styles live in catalog-booking-styles (`.cb-dock*`).
  */
 
-import { selectionDockCopy, dockSummary } from "./selection-dock-state";
+import { useSyncExternalStore } from "react";
+
+import { useEmergenciesToday } from "@/components/talent-site/LiveStatusExpiry";
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
+
+import { peekChatPresence, subscribeChatPresence } from "./chat-presence-store";
+import {
+  dockSummary,
+  dockToastHasUndo,
+  dockToastText,
+  selectionDockCopy,
+  type DockToast,
+} from "./selection-dock-state";
 
 export type SelectionDockItem = {
   id: string;
@@ -39,6 +51,16 @@ export function ChatIcon({ size }: { size: number }) {
   );
 }
 
+/** Category-neutral service glyph: the thumbnail fallback when a service has no photo. */
+function ServiceGlyph({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+      <path d="M18.5 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
+    </svg>
+  );
+}
+
 export function SelectionDock({
   items,
   show,
@@ -49,6 +71,7 @@ export function SelectionDock({
   onContinue,
   toast,
   onUndo,
+  liveStatus = null,
 }: {
   items: SelectionDockItem[];
   show: boolean;
@@ -57,11 +80,20 @@ export function SelectionDock({
   onRemoveFront: () => void;
   onAsk: () => void;
   onContinue: () => void;
-  /** The 5s Undo toast: a ✕-remove or a single-select switch, else null. */
-  toast: { kind: "removed" | "switched"; name: string } | null;
+  /** TO-1: the toast to show (added, updated, removed, switched), else null. */
+  toast: DockToast | null;
   onUndo: () => void;
+  /**
+   * G12: the talent's live status. Only while "emergencias hoy" is on does the
+   * action carry a second label (hidden, shown by the utility type system' CSS
+   * alone), so every other design and the off state render the original markup.
+   */
+  liveStatus?: LiveStatusRenderContext | null;
 }) {
   const copy = selectionDockCopy(locale);
+  const emergenciesOn = useEmergenciesToday(liveStatus);
+  // The chat button shows online / unread dots when the chat is live on this page.
+  const presence = useSyncExternalStore(subscribeChatPresence, peekChatPresence, () => null);
   const front = items[0] ?? null;
   const { name, line } = dockSummary(items, locale, formatPrice);
   const thumbs = items
@@ -72,7 +104,6 @@ export function SelectionDock({
     <button
       type="button"
       className="cb-dock-x"
-      data-inline={frontHasThumb ? undefined : "true"}
       aria-label={copy.remove(front.title)}
       onClick={onRemoveFront}
     >
@@ -82,33 +113,45 @@ export function SelectionDock({
     </button>
   ) : null;
 
+  const dockShown = show && items.length > 0 && !presence?.open;
+  // ONE bar at the bottom: while the dock is up the toast lives INSIDE it
+  // (rising from its top edge); only when the dock is gone (Undo after
+  // removing the last service) does it stand alone, and then it is the only
+  // thing at the bottom.
+  const toastEl = (
+    <div
+      className="cb-dock-toast"
+      data-in-dock={dockShown ? "true" : undefined}
+      role="status"
+      data-show={toast ? "true" : "false"}
+      data-kind={toast?.kind}
+    >
+      {toast ? (
+        <>
+          <span>{dockToastText(copy, toast)}</span>
+          {dockToastHasUndo(toast.kind) ? (
+            <button type="button" onClick={onUndo}>
+              {copy.undo}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <div
         className="cb-dock"
         role="region"
         aria-label={copy.region}
-        data-show={show && items.length > 0 ? "true" : "false"}
+        data-show={dockShown ? "true" : "false"}
         data-count={items.length}
-        aria-hidden={show && items.length > 0 ? undefined : true}
-        inert={show && items.length > 0 ? undefined : true}
+        aria-hidden={dockShown ? undefined : true}
+        inert={dockShown ? undefined : true}
       >
-        {frontHasThumb ? (
-          <div className="cb-dock-stack">
-            {thumbs.map((t) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={t.id} src={t.imageUrl} alt="" className="cb-dock-th" />
-            ))}
-            {removeBtn}
-            {items.length > 1 ? <span className="cb-dock-count">{items.length}</span> : null}
-          </div>
-        ) : (
-          removeBtn
-        )}
-        <div className="cb-dock-info">
-          <b>{name}</b>
-          <span>{line}</span>
-        </div>
+        {/* The chat button: always the speech-bubble icon, never a photo (a photo next to the
+            selected service reads as the service's image). Dots show online and unread. */}
         <button
           type="button"
           className="cb-dock-ask"
@@ -116,24 +159,41 @@ export function SelectionDock({
           onClick={onAsk}
         >
           <ChatIcon size={20} />
-          <span className="cb-dock-dot" aria-hidden />
+          {presence ? <span className="cb-dock-dot" aria-hidden /> : null}
+          {presence?.unread ? <span className="cb-dock-unread" data-dock-unread="" aria-hidden /> : null}
         </button>
-        <button type="button" className="cb-dock-go" onClick={onContinue}>
-          {copy.continueLabel} <span className="cb-dock-arr" aria-hidden>→</span>
-        </button>
-      </div>
-      <div className="cb-dock-toast" role="status" data-show={toast ? "true" : "false"}>
-        {toast ? (
-          <>
-            <span>
-              {toast.kind === "switched" ? copy.switched(toast.name) : copy.removed(toast.name)}
+        <div className="cb-dock-stack" data-dock-thumb={frontHasThumb ? "photo" : "icon"}>
+          {frontHasThumb ? (
+            thumbs.map((t) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={t.id} src={t.imageUrl} alt="" className="cb-dock-th" />
+            ))
+          ) : (
+            <span className="cb-dock-th cb-dock-th-icon" aria-hidden>
+              <ServiceGlyph size={18} />
             </span>
-            <button type="button" onClick={onUndo}>
-              {copy.undo}
-            </button>
-          </>
-        ) : null}
+          )}
+          {removeBtn}
+          {items.length > 1 ? <span className="cb-dock-count">{items.length}</span> : null}
+        </div>
+        <div className="cb-dock-info">
+          <b>{name}</b>
+          <span>{line}</span>
+        </div>
+        <button type="button" className="cb-dock-go" onClick={onContinue}>
+          {emergenciesOn ? (
+            <>
+              <span className="cb-dock-lbl-off">{copy.continueLabel}</span>
+              <span className="cb-dock-lbl-on" data-dock-live="on" hidden>{copy.liveLabel}</span>
+            </>
+          ) : (
+            copy.continueLabel
+          )}{" "}
+          <span className="cb-dock-arr" aria-hidden>→</span>
+        </button>
+        {dockShown ? toastEl : null}
       </div>
+      {dockShown ? null : toastEl}
     </>
   );
 }

@@ -5,6 +5,7 @@
  * metadata on the right (desktop) or folded into the state line (mobile).
  */
 
+import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
 import type { InboxRow } from "@/lib/messaging/types";
 
 import type { KitCopy } from "./copy";
@@ -47,7 +48,7 @@ export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUs
             <span>{when}</span>
           </span>
           <span className="l2">{row.subject}</span>
-          <span className="l3">{row.lastMessagePreview}</span>
+          <span className="l3">{localiseEngineLine(row.lastMessagePreview, copy)}</span>
           <span className="l4">
             <StateTags state={state} chips={row.recordChips} copy={copy} maxRecords={1} identityLevel={isVisitor ? "none" : undefined} />
             {unread ? <i className="cnt">{row.unreadCount}</i> : null}
@@ -71,7 +72,7 @@ export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUs
           <span>{name}</span>
         </span>
         <span className="sub">{row.subject}</span>
-        <span className="pv">{row.lastMessagePreview}</span>
+        <span className="pv">{localiseEngineLine(row.lastMessagePreview, copy)}</span>
         <span className="tags">
           <StateTags state={state} chips={row.recordChips} copy={copy} maxRecords={1} identityLevel={isVisitor ? "none" : undefined} />
         </span>

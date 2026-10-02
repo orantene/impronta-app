@@ -22,6 +22,8 @@ import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { uploadTalentMedia } from "@/lib/client/signed-upload";
+import { MatrixFields } from "./MatrixFields";
+import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
 
@@ -434,6 +436,14 @@ export function EditorScreen({
               </div>
             )}
 
+            {kind !== "product" && (
+              <MatrixFields attributes={item.attributes} onChange={(next) => patch({ attributes: next })} />
+            )}
+
+            {kind !== "product" && (
+              <IntakeFields attributes={item.attributes} onChange={(next) => patch({ attributes: next })} />
+            )}
+
             <div className="border-t border-admin-border-soft pt-5">
               <p className={LABEL}>
                 {kind === "product" ? copy.t("Rules this product uses") : kind === "package" ? copy.t("Rules this package uses") : copy.t("Rules this service uses")}
@@ -561,8 +571,8 @@ export function EditorScreen({
       </div>
 
       {preview && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" onClick={() => setPreview(false)}>
-          <div style={{ maxWidth: 460 }} className="w-full overflow-hidden rounded-2xl bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => setPreview(false)}>
+          <div style={{ maxWidth: 460 }} className="max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="border-b border-admin-border-soft px-5 py-4">
               <h2 className="font-admin-body text-[18px] font-semibold tracking-normal text-admin-ink">{copy.t("Preview as customer")}</h2>
               <p className="mt-0.5 text-[13px] text-admin-ink-dim">{copy.t("This is how it looks on your pages. Nothing is booked from here.")}</p>
@@ -737,7 +747,7 @@ function PortfolioSheet({
   const chosen = (photos ?? []).filter((p) => picked.includes(p.id));
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={onClose}>
-      <div style={{ maxWidth: 680 }} className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+      <div style={{ maxWidth: 680 }} className="flex max-h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-admin-border-soft px-5 py-4">
           <h2 className="font-admin-body text-[18px] font-semibold tracking-normal text-admin-ink">{copy.t("Pick photos from your portfolio")}</h2>
           <p className="mt-0.5 text-[13px] text-admin-ink-dim">

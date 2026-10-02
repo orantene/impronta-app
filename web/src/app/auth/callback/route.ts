@@ -24,6 +24,8 @@ import {
 import { NextResponse } from "next/server";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
+import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
+import { hasSignupAcceptance } from "@/lib/legal/acceptances";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -120,7 +122,17 @@ export async function GET(request: Request) {
         });
       }
 
-      const destination = resolvePostAuthDestination(ensuredProfile, next);
+      let destination = resolvePostAuthDestination(ensuredProfile, next);
+      // Legal 2.2: a brand-new Google account has not ticked the 18+ and
+      // Terms box (the provider cannot carry it). Send it through a one-time
+      // step first. Unknown (feature off / table missing) never gates.
+      if (
+        user &&
+        isFreshOAuthSignup(user, Date.now()) &&
+        (await hasSignupAcceptance(user.id)) === false
+      ) {
+        destination = `/register/accept-terms?next=${encodeURIComponent(destination)}`;
+      }
       // Always redirect post-auth destinations to the app host.
       // The auth callback runs on whatever host the OAuth provider returns to
       // (could be tulala.digital — the marketing host) but /onboarding/role,

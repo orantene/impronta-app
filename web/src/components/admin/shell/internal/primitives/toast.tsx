@@ -77,6 +77,7 @@ function ToastRow({ id, message, undo, action, tone = "default", onDismiss }: { 
       // WS-12.7 — error toasts use role="alert" (assertive) so screen readers
       // announce them immediately; other tones use role="status" (polite).
       role={tone === "error" ? "alert" : "status"}
+      data-tulala-toast
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       style={{

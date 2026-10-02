@@ -166,7 +166,7 @@ export function FloatingPanelShell({
       onDragOver={onDragOver}
       className={`fixed flex flex-col font-sans ${
         compactBottomSheetBelowLg
-          ? "max-lg:!bottom-0 max-lg:!left-0 max-lg:!right-0 max-lg:!top-auto max-lg:!h-[min(55vh,520px)] max-lg:!w-full max-lg:!max-h-none max-lg:rounded-b-none max-lg:rounded-t-[16px]"
+          ? "max-md:!bottom-0 max-md:!left-0 max-md:!right-0 max-md:!top-auto max-md:!h-[min(55vh,520px)] max-md:!w-full max-md:!max-h-none max-md:rounded-b-none max-md:rounded-t-[16px] max-md:pb-[env(safe-area-inset-bottom)]"
           : ""
       } ${className ?? ""}`}
       style={{

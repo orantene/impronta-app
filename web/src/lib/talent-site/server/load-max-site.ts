@@ -5,7 +5,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
 import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
+import { resolveDesignSource } from "@/lib/talent-site/theme-template/design-lineage.server";
 import type {
   MaxSitePageRow,
   MaxSiteRow,
@@ -142,7 +144,9 @@ export async function loadMaxSiteDesignSlug(talentProfileId: string): Promise<st
     return null;
   }
   const slug = (data as { theme_design_slug?: unknown } | null)?.theme_design_slug;
-  return typeof slug === "string" && slug.trim() ? slug.trim() : null;
+  if (typeof slug !== "string" || !slug.trim()) return null;
+  // An authored design inherits its source's code-keyed tokens/type system.
+  return resolveDesignSource(slug.trim(), admin);
 }
 
 /**
@@ -179,9 +183,13 @@ export async function loadTalentSiteCtaMode(
   talentProfileId: string,
   planKey: string | null,
 ): Promise<SiteCtaMode> {
+  const admin = createServiceRoleClient();
+  const hours = admin ? await loadWorkingHoursPresence(admin, [talentProfileId]) : new Map<string, boolean>();
   return resolveSiteCtaMode({
     sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
     confirmsByHand: !talentOffersInstantBooking(planKey),
+    // An unknown hours read never downgrades (same rule as the offering loader).
+    instantReady: hours.get(talentProfileId) !== false,
   });
 }
 

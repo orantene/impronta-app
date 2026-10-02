@@ -35,6 +35,11 @@ import {
 
 import { useEditContext } from "../edit-context";
 import { paidPlanInsertBlockMessage } from "@/lib/site-admin/add-gallery/paid-plan-gate";
+import {
+  GALLERY_LOCKED_UPGRADE_HREF,
+  galleryLockedHint,
+  isGalleryItemStructurallyLocked,
+} from "@/lib/site-admin/add-gallery/structural-lock";
 import { TabBar } from "./add-gallery-tab-bar";
 import { GalleryCard } from "./add-gallery-cards";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -72,6 +77,7 @@ const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
   designs: "Add Designs",
   data: "Add Data",
   shell: "Add Shell",
+  apps: "Add Apps",
 };
 
 interface AddGalleryPanelProps {
@@ -93,7 +99,7 @@ function CategoryRail({
     <nav
       className="flex shrink-0 flex-col gap-[2px] overflow-y-auto py-[12px] pl-[12px] pr-[8px]"
       style={{
-        width: 148,
+        width: "min(148px, 34vw)",
         borderRight: `1px solid ${CHROME.line}`,
       }}
       aria-label={t("Categories")}
@@ -118,7 +124,7 @@ function CategoryRail({
               <AddGalleryIcon name={cat.icon} size="sm" tone="accent" />
             </span>
             <span className="min-w-0 leading-snug [overflow-wrap:anywhere]">
-              {cat.label}
+              {t(cat.label)}
             </span>
           </button>
         );
@@ -135,6 +141,40 @@ function CategoryRail({
  * drop + commits the insert on pointerup. Returns the row-handle props (or null
  * when the card isn't draggable) to spread onto the card button.
  */
+/**
+ * Upgrade hint above a plan-locked gallery (Free talent site). A plain anchor,
+ * not a router push: the builder route renders without the dashboard shell and
+ * a soft navigation would keep that bare layout.
+ */
+function GalleryLockedNotice({ locale }: { locale: string }) {
+  const hint = galleryLockedHint(locale);
+  return (
+    <div
+      className="mx-[16px] mb-[8px] flex items-start gap-[10px] rounded-[10px] border px-[12px] py-[10px]"
+      style={{ borderColor: CHROME.line, background: CHROME.paper }}
+      role="note"
+      data-add-gallery-locked-notice
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] font-semibold" style={{ color: CHROME.ink }}>
+          {hint.title}
+        </p>
+        <p className="mt-[2px] text-[11.5px] leading-snug" style={{ color: CHROME.muted }}>
+          {hint.body}
+        </p>
+      </div>
+      <a
+        href={GALLERY_LOCKED_UPGRADE_HREF}
+        className="shrink-0 rounded-full px-[10px] py-[5px] text-[11.5px] font-semibold"
+        style={{ background: CHROME.ink, color: CHROME.paper }}
+        data-add-gallery-locked-cta
+      >
+        {hint.cta}
+      </a>
+    </div>
+  );
+}
+
 export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const { t, locale } = useEditorLocale();
   const {
@@ -268,7 +308,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
-    return filterGalleryItemsFrom(mergedItems, {
+    const here = filterGalleryItemsFrom(mergedItems, {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
@@ -276,7 +316,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       // ruled vocabulary (a capability on the gallery policy, not surfaceKind).
       blockAllowList: gallerySurface.blockAllowList,
     });
-  }, [mergedItems, tab, activeCategoryId, query, gallerySurface]);
+    // Global search: apps (every one, any theme) also surface from other tabs.
+    if (!query.trim() || tab === "apps" || !allowedTabIds.includes("apps")) return here;
+    const apps = filterGalleryItemsFrom(mergedItems, { tab: "apps", query, blockAllowList: gallerySurface.blockAllowList });
+    return [...here, ...apps.filter((a) => !here.some((h) => h.id === a.id))];
+  }, [mergedItems, tab, activeCategoryId, query, gallerySurface, allowedTabIds]);
 
   // ── Shell variants: REPLACE, not insert ───────────────────────────────────
   // A shell template rewrites a landmark's children. The normal gallery path
@@ -339,6 +383,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
       if (pending || !isAddGalleryItemAvailable(item)) return;
+      // Same rule as the builder gate: a locked card never reaches insert.
+      if (isGalleryItemStructurallyLocked(item, gallerySurface.structuralEdits)) return;
       const paidGate = paidPlanInsertBlockMessage(item, workspacePlan);
       if (paidGate) return reportMutationError(t(paidGate));
 
@@ -397,6 +443,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       insertBuilderComponent,
       reportMutationError,
       workspacePlan, t,
+      gallerySurface.structuralEdits,
       selectBuilderNode,
       notifyTemplateApplied,
       onClose,
@@ -418,6 +465,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       open={open}
       onClose={onClose}
       width={PANEL_WIDTH}
+      compactBottomSheet
       maxHeight={PANEL_MAX_HEIGHT}
       testId="add-gallery-panel"
       tabs={
@@ -498,6 +546,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           ) : null}
         </div>
 
+        {gallerySurface.structuralEdits === false && tab !== "shell" ? (
+          <GalleryLockedNotice locale={locale} />
+        ) : null}
         <div className="flex min-h-0 flex-1">
           {!query.trim() && categories.length > 0 ? (
             <CategoryRail
@@ -536,6 +587,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                     onPreview={setPreviewItem}
                     pending={pending}
                     armed={armedShellItemId === item.id}
+                    locked={isGalleryItemStructurallyLocked(item, gallerySurface.structuralEdits)}
                   />
                 ))}
               </div>

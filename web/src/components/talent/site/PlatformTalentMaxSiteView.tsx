@@ -1,3 +1,4 @@
+import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
 import Link from "next/link";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -59,7 +60,7 @@ export function PlatformTalentMaxSiteView({
             fontFamily: '"Inter", system-ui, sans-serif',
           }}
         >
-          Draft preview — visitors see the published version until you publish again.
+          {draftPreviewBannerText(locale)}
         </div>
       ) : null}
       <main id="main-content">

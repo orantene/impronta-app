@@ -19,6 +19,8 @@ import {
   type SurfaceMode,
 } from "./mini-chat-styles";
 
+type Translator = ReturnType<typeof createTranslator>;
+
 /**
  * A row in the visible stream — either a server/persisted message or a local
  * optimistic placeholder keyed on a tmp- id (reconciled by created order).
@@ -66,7 +68,7 @@ export function MiniChatMessageBubble({
   // Non-text kinds (offer/payment cards) get a generic labelled fallback for
   // the MVP popup — full ChatCard rendering is a fast-follow per the contract.
   const isCard = m.kind !== "text";
-  const pay = m.kind === "payment_paid" || m.kind === "payment_request" ? readPayStamp(m, locale) : null;
+  const pay = m.kind === "payment_paid" || m.kind === "payment_request" ? readPayStamp(m, locale, t) : null;
   if (pay) {
     return (
       <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
@@ -170,7 +172,7 @@ export function MiniChatMessageBubble({
               {labelForKind(m.kind, t)}
             </span>
             <br />
-            {m.body || t("public.guestChat.openFullToView")}
+            {payInPersonLine(m, t) ?? payLinkFailedLine(m, t) ?? (m.body || t("public.guestChat.openFullToView"))}
             {offerLines.length > 0 && (
               <span
                 style={{
@@ -258,7 +260,22 @@ export function SendIcon({ color }: { color: string }) {
   );
 }
 
-function readPayStamp(m: StreamRow, locale: string): {
+/** An accepted offer under a pay-in-person / free-reserve policy: confirmed, no link. */
+function payInPersonLine(m: StreamRow, t: Translator): string | null {
+  if (m.kind !== "booking_confirmed") return null;
+  const raw = m.cardPayload && typeof m.cardPayload === "object" ? (m.cardPayload as Record<string, unknown>) : {};
+  if (raw.payInPerson !== true) return null;
+  return t("public.guestChat.confirmedPayInPerson");
+}
+
+/** The pay link could not be minted after an accept: say so, in the visitor's language. */
+function payLinkFailedLine(m: StreamRow, t: Translator): string | null {
+  if (m.kind !== "booking_status") return null;
+  const raw = m.cardPayload && typeof m.cardPayload === "object" ? (m.cardPayload as Record<string, unknown>) : {};
+  return raw.payLinkFailed === true ? t("public.guestChat.payLinkFailed") : null;
+}
+
+function readPayStamp(m: StreamRow, locale: string, t: Translator): {
   paid: boolean;
   kicker: string;
   title: string;
@@ -275,20 +292,24 @@ function readPayStamp(m: StreamRow, locale: string): {
   const code = typeof raw.paymentLinkCode === "string" ? raw.paymentLinkCode : typeof raw.code === "string" ? raw.code : "";
   const method = typeof raw.method === "string" ? raw.method : "";
   const methodLine = method === "cash"
-    ? (es ? "Pagado en efectivo." : "Paid in cash.")
+    ? t("public.guestChat.payCashPaid")
     : method === "transfer" || method === "wire"
-      ? (es ? "Pagado por transferencia." : "Paid by transfer.")
+      ? t("public.guestChat.payTransferPaid")
       : deposit
-        ? (es ? "Seña pagada. El saldo sigue pendiente." : "Deposit paid. The balance is still due.")
+        ? t("public.guestChat.payDepositPaidLine")
         : (es ? "Pagado. Nada pendiente." : "Paid. Nothing left.");
   return {
     paid,
     kicker: paid
       ? (deposit ? (es ? "Seña pagada" : "Deposit paid") : (es ? "Pagado" : "Paid"))
-      : (deposit ? (es ? "Pagar la seña" : "Pay the deposit") : (es ? "Pago" : "Payment")),
+      : (deposit ? t("public.guestChat.payDepositKicker") : (es ? "Pago" : "Payment")),
     title: amount || (es ? "Tu cita" : "Your booking"),
-    detail: paid ? methodLine : (es ? "La tarjeta cobra la seña. El efectivo y la transferencia los anota el estudio." : "The card pays the deposit. Cash and transfer are recorded by the studio."),
+    detail: paid
+      ? methodLine
+      : deposit
+        ? t("public.guestChat.payDepositDetail")
+        : t("public.guestChat.payCardFullDetail"),
     href: !paid && code ? `/pay/${code}` : null,
-    action: es ? "Pagar la seña" : "Pay the deposit",
+    action: deposit ? t("public.guestChat.payDepositKicker") : t("public.guestChat.payCardFullAction"),
   };
 }

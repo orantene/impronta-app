@@ -9,6 +9,11 @@
  * Stripe idempotency key, so no double-pay). Catches the case where the
  * account.updated webhook was missed or fired before the account was enabled.
  *
+ * Also retries pass_through legs HELD because the processing fee was unknown at
+ * settlement (retryFeeUnknownPayouts): the fee is re-read from the charge
+ * platform's balance transaction; still unknown = still held, never guessed.
+ * Folded into this cron rather than a new one: vercel.json is at 40 crons.
+ *
  * Scheduled daily in `web/vercel.json`.
  *
  *   curl -H "Authorization: Bearer $CRON_SECRET" \
@@ -20,6 +25,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
+import { retryFeeUnknownPayouts } from "@/lib/payments/retry-fee-unknown-payouts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,8 +82,19 @@ export async function GET(request: Request) {
       }
     }
 
-    const result = { payees: talentIds.size + tenantIds.size, released, stillHeld, failed };
-    void improntaLog("payouts.cron.reconcile", { ...result });
+    const feeUnknown = await retryFeeUnknownPayouts(admin);
+
+    const result = { payees: talentIds.size + tenantIds.size, released, stillHeld, failed, feeUnknown };
+    void improntaLog("payouts.cron.reconcile", {
+      payees: result.payees,
+      released,
+      stillHeld,
+      failed,
+      feeUnknownTransactions: feeUnknown.transactions,
+      feeUnknownPaid: feeUnknown.paid,
+      feeUnknownStillHeld: feeUnknown.stillHeld,
+      feeUnknownFailed: feeUnknown.failed,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     logServerError("cron/reconcile-held-payouts", err);

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { CHIP_HREF_RE } from "./next-free-chip-href";
+import { LIVE_TEXT_KEYS } from "./live-text-keys";
 import { BUILDER_ICON_NAMES } from "./icon-registry";
 import {
   isBindableTokenKey,
@@ -78,6 +80,11 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "masthead",
   "statement_footer",
   "comp_card",
+  "spec_table",
+  "utility_bar",
+  "alert_band",
+  "task_picker",
+  "app_nail_designer",
   "next_free_chip",
   "reserve_table",
   "session_picker",
@@ -781,6 +788,8 @@ const headingPropsSchema = z.object({
   href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
+  /** Follows a profile value at render time (see live-text-keys.ts). */
+  liveText: z.enum(LIVE_TEXT_KEYS).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -789,6 +798,8 @@ const paragraphPropsSchema = z.object({
   href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
+  /** Follows a profile value at render time (see live-text-keys.ts). */
+  liveText: z.enum(LIVE_TEXT_KEYS).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -1040,7 +1051,7 @@ const menuBoardPropsSchema = z.object({
 
 export const servicesCatalogPropsSchema = z.object({
   layout: z
-    .enum(["rows", "cards", "grid", "compact_list", "rate_card", "editorial", "featured"])
+    .enum(["rows", "cards", "grid", "compact_list", "rate_card", "editorial", "featured", "matrix"])
     .optional(),
   categoryNav: z
     .enum(["pills", "tabs", "rail", "jump_strip", "sections", "accordion", "none"])
@@ -1074,6 +1085,7 @@ export const servicesCatalogPropsSchema = z.object({
   sort: z.enum(["catalog", "manual"]).optional(),
   manualOrderIds: z.array(z.string().max(80)).max(200).optional(),
   rowCtaVariant: z.enum(["outline", "solid", "pill"]).optional(),
+  rowStyle: z.enum(["flat", "card"]).optional(),
   contentWidth: z.enum(["contained", "full"]).optional(),
   photoRadius: z.enum(["square", "soft", "round"]).optional(),
   durationFormat: z.enum(["auto", "minutes", "hours_minutes"]).optional(),
@@ -1102,12 +1114,13 @@ export const servicesCatalogPropsSchema = z.object({
 /** W-12 Portfolio — live talent media layouts (incl. shared chapter). */
 export const portfolioPropsSchema = z.object({
   layout: z
-    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter", "staggered"])
+    .enum(["filmstrip", "grid", "masonry", "contact_sheet", "chapter", "staggered", "work_order"])
     .optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
   columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
   showCaptions: z.boolean().optional(),
+  cardStyle: z.enum(["plain", "framed"]).optional(),
   selectionMode: z.enum(["all", "ids"]).optional(),
   selectedMediaIds: z.array(z.string().max(80)).max(48).optional(),
   autoIncludeNew: z.boolean().optional(),
@@ -1150,7 +1163,10 @@ export const reviewsPropsSchema = z.object({
 
 /** Visit facts — live service areas / languages / hours. */
 export const visitPropsSchema = z.object({
-  layout: z.enum(["facts", "split"]).optional(),
+  layout: z.enum(["facts", "split", "location", "area"]).optional(),
+  mapSide: z.enum(["left", "right"]).optional(),
+  mapSize: z.enum(["sm", "md", "lg"]).optional(),
+  showMapButton: z.boolean().optional(),
   eyebrow: z.string().max(80).optional(),
   title: z.string().max(160).optional(),
   titleAccent: z.string().max(80).optional(),
@@ -1207,6 +1223,7 @@ export const mastheadPropsSchema = z.object({
   edition: z.enum(["cover", "magazine"]).optional(),
   mastRight: z.string().max(160).optional(),
   coverLine: z.string().max(160).optional(),
+  coverStatement: z.string().max(160).optional(),
   bio: z.string().max(600).optional(),
   ctaLabel: z.string().max(60).optional(),
   ctaHref: z.string().max(500).optional(),
@@ -1242,6 +1259,78 @@ export const statementFooterPropsSchema = z.object({
 });
 
 /** Comp card — live measure strip + profile field visibility. */
+/** Spec table: authored key/value rows. */
+export const specTablePropsSchema = z.object({
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  rows: z
+    .array(z.object({ label: z.string().max(60), value: z.string().max(200) }))
+    .max(8)
+    .optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+export const utilityBarPropsSchema = z.object({
+  name: z.string().max(120).optional(),
+  subtitle: z.string().max(120).optional(),
+  logoUrl: z.string().max(2000).optional(),
+  showStatus: z.boolean().optional(),
+  statusOnLabel: z.string().max(60).optional(),
+  statusOffLabel: z.string().max(60).optional(),
+  showCall: z.boolean().optional(),
+  callLabel: z.string().max(40).optional(),
+  callHref: z.string().max(40).optional(),
+  ctaLabel: z.string().max(40).optional(),
+  ctaHref: z.string().max(500).optional(),
+  style: builderNodeStyleSchema,
+});
+
+export const alertBandPropsSchema = z.object({
+  title: z.string().max(120).optional(),
+  body: z.string().max(300).optional(),
+  safetyLabel: z.string().max(60).optional(),
+  safetyNote: z.string().max(300).optional(),
+  ctaLabel: z.string().max(40).optional(),
+  ctaHref: z.string().max(500).optional(),
+  style: builderNodeStyleSchema,
+});
+
+/** Task picker (W-11): authored tasks pointing at offerings by id. */
+export const taskPickerPropsSchema = z.object({
+  eyebrow: z.string().max(80).optional(),
+  title: z.string().max(160).optional(),
+  tasks: z
+    .array(
+      z.object({
+        id: z.string().max(40),
+        label: z.string().max(80),
+        labelEs: z.string().max(80).optional(),
+        icon: z.enum(BUILDER_ICON_NAMES).optional(),
+        offeringId: z.string().max(64).optional(),
+        hint: z.string().max(240).optional(),
+        hintEs: z.string().max(240).optional(),
+      }),
+    )
+    .max(12)
+    .optional(),
+  defaultOfferingId: z.string().max(64).optional(),
+  defaultKicker: z.string().max(60).optional(),
+  defaultKickerEs: z.string().max(60).optional(),
+  defaultHint: z.string().max(240).optional(),
+  defaultHintEs: z.string().max(240).optional(),
+  useWebsiteTheme: z.boolean().optional(),
+  style: builderNodeStyleSchema,
+});
+
+/** Apps: Nail Designer. Zero config; only optional text overrides. */
+export const appNailDesignerPropsSchema = z.object({
+  title: z.string().max(120).optional(),
+  intro: z.string().max(400).optional(),
+  ctaLabel: z.string().max(60).optional(),
+  style: builderNodeStyleSchema,
+});
+
 export const compCardPropsSchema = z.object({
   layout: z.enum(["strip", "strip_with_details"]).optional(),
   eyebrow: z.string().max(80).optional(),
@@ -1275,6 +1364,7 @@ export const nextFreeChipPropsSchema = z.object({
   labelEs: z.string().max(80).optional(),
   days: z.number().int().min(1).max(30).optional(),
   variant: z.enum(["inline", "stacked"]).optional(),
+  href: z.string().max(200).regex(CHIP_HREF_RE, "Use a same-page anchor like #services or a site path").optional(),
   useWebsiteTheme: z.boolean().optional(),
   style: builderNodeStyleSchema,
 });
@@ -1705,7 +1795,7 @@ const statsPropsSchema = z.object({
     )
     .max(6)
     .optional(),
-  variant: z.enum(["row", "grid", "split"]).optional(),
+  variant: z.enum(["row", "grid", "split", "spec"]).optional(),
   align: z.enum(["start", "center"]).optional(),
   columns: z.number().int().min(1).max(6).optional(),
   animate: z.boolean().optional(),
@@ -2318,6 +2408,46 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Measure strip from your public profile fields (height, bust, and more). Choose which measures show. Hidden when empty.",
       children: { type: "none" },
       propsSchema: compCardPropsSchema,
+    },
+    spec_table: {
+      kind: "spec_table",
+      label: "Spec table",
+      description:
+        "Key and value rows (voltage, warranty, how you price). A strip on desktop, stacked rows on a phone.",
+      children: { type: "none" },
+      propsSchema: specTablePropsSchema,
+    },
+    utility_bar: {
+      kind: "utility_bar",
+      label: "Utility bar",
+      description:
+        "A dark header bar with your name, an emergencies status pill and a tap-to-call button. The call button shows only when you set a public number.",
+      children: { type: "none" },
+      propsSchema: utilityBarPropsSchema,
+    },
+    alert_band: {
+      kind: "alert_band",
+      label: "Alert band",
+      description:
+        "A hazard-tape band for same-day emergencies with a safety note. Shown only while emergencies today is on.",
+      children: { type: "none" },
+      propsSchema: alertBandPropsSchema,
+    },
+    task_picker: {
+      kind: "task_picker",
+      label: "Task picker",
+      description:
+        "What is happening, in the visitor's words. Each task recommends one of your services with its price, time and the right action.",
+      children: { type: "none" },
+      propsSchema: taskPickerPropsSchema,
+    },
+    app_nail_designer: {
+      kind: "app_nail_designer",
+      label: "Nail Designer",
+      description:
+        "An interactive nail design tool. Visitors style a manicure nail by nail, then send the design with their booking request. Nothing to set up.",
+      children: { type: "none" },
+      propsSchema: appNailDesignerPropsSchema,
     },
     next_free_chip: {
       kind: "next_free_chip",

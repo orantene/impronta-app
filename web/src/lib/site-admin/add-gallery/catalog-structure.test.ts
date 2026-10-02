@@ -47,12 +47,13 @@ function item(over: Partial<AddGalleryItem> & { id: string }): AddGalleryItem {
 
 // ── resolveTabs ──────────────────────────────────────────────────────────────
 
-test("resolveTabs: empty structure ⇒ four tabs Blocks / Designs / Data / Shell", () => {
+test("resolveTabs: empty structure ⇒ five tabs Blocks / Designs / Data / Shell / Apps", () => {
   assert.deepEqual(resolveTabs({}), [
     { id: "blocks", label: "Blocks" },
     { id: "designs", label: "Designs" },
     { id: "data", label: "Data" },
     { id: "shell", label: "Shell" },
+    { id: "apps", label: "Apps" },
   ]);
   assert.deepEqual(
     resolveTabs({}),
