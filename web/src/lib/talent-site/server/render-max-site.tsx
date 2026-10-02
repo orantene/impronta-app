@@ -26,8 +26,7 @@ import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instan
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
 import { localiseTalentHeaderDefaults, stripHiddenAskHeaderCta } from "@/lib/talent-site/header-cta-locale";
-import { askEntryPointsVisible, resolveTalentAskEntry } from "@/lib/talent/chat-entry";
-import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { loadTalentAskVisible } from "./talent-ask-visible";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
@@ -425,14 +424,9 @@ async function renderMaxSiteDocument(args: {
   const designTokens = designSlice.tokens;
   const talentComponentStyleDefaults = designSlice.componentStyles;
 
-  // Captcha for native `form` nodes AND live `services_catalog` booking.
-  // /api/cms/forms/submit and createInstantBookingAction both enforce captcha
-  // per TENANT — a Max site that rendered no widget silently rejected every
-  // submission / confirm once a provider was configured (improntamodels
-  // 2026-08-16; book-jorgelina catalog sheet 2026-09-25). Gated on the tree
-  // actually containing a form or services_catalog so pages without one pay
-  // no query. Live catalog booking also needs the site key whenever the
-  // vanity host is not a draft preview (catalogBookingLive below).
+  // Captcha for `form` nodes + live `services_catalog` booking: both submit paths enforce it per
+  // tenant, so a missing widget silently rejected every submit (2026-08-16, 2026-09-25). Only
+  // queried when the tree has a form or catalog; live booking needs the key off draft previews.
   const pageNeedsCaptcha = (function needsCaptcha(nodes: unknown): boolean {
     if (Array.isArray(nodes)) return nodes.some(needsCaptcha);
     if (!nodes || typeof nodes !== "object") return false;
@@ -471,7 +465,7 @@ async function renderMaxSiteDocument(args: {
   // resolve captcha even if the tree scan missed a nested catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow, siteSwitches] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow, askVisible] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
@@ -508,14 +502,8 @@ async function renderMaxSiteDocument(args: {
         const admin = createServiceRoleClient();
         return admin ? loadTalentLiveStatus(admin, talentProfileId) : { ...DEFAULT_TALENT_LIVE_STATUS };
       })(),
-      (async () => {
-        const admin = createServiceRoleClient();
-        return admin ? loadTalentSiteSwitches(admin, talentProfileId) : null;
-      })(),
+      loadTalentAskVisible(talentProfileId),
     ]);
-  const askVisible = siteSwitches
-    ? askEntryPointsVisible(resolveTalentAskEntry(siteSwitches))
-    : true;
   // Expiry is applied here, at render time: a lapsed flag renders as off.
   const liveStatus = toLiveStatusRenderContext(liveStatusRow, new Date());
   const usdRates = await loadUsdRatesForSitePrices([

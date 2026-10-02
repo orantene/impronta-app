@@ -571,14 +571,9 @@ async function fetchPublicFieldValues(
   if (error || !data) return [];
 
   // ── Gap 2 — public resolver-gate (2a tenant overrides + 2b-soft) ──────
-  // Governance reads use a SERVICE-ROLE client: the public path's client
-  // is anon and cannot read RLS-scoped workspace_profile_field_settings /
-  // agency_talent_roster, so without this the gate would silently fail
-  // OPEN. Reading governance data with service role to compute a MORE
-  // restrictive public view never exposes that data. If the service
-  // client (or any governance read) is unavailable we fail SAFE by
-  // degrading to the prior Phase 1.5 behaviour — never over-hiding,
-  // never a new leak. No data is mutated; this is a read-side filter.
+  // Governance reads use the SERVICE ROLE (anon can't read RLS-scoped field settings / roster, so
+  // the gate would fail OPEN). It only computes a MORE restrictive view and never exposes that data;
+  // if a read is unavailable it falls back to Phase 1.5 behaviour. Read-side filter, no writes.
   const svc = createServiceRoleClient();
   const fieldIds = Array.from(
     new Set(
