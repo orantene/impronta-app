@@ -1,23 +1,24 @@
-/**
- * Local QA entry for Support Desk — same real Desk UI as `/desk`.
- * Gated by SUPPORT_DESK_ENABLED + platform admin (via parent layout).
- */
-
 import { DeskShell } from "@/components/support-desk/DeskShell";
 import { loadDeskPage } from "@/components/support-desk/load-desk-page";
 
 export const dynamic = "force-dynamic";
 
-export default async function SupportDeskLocalQaPage() {
+export default async function DeskTicketPage({
+  params,
+}: {
+  params: Promise<{ ticketId: string }>;
+}) {
+  const { ticketId } = await params;
   const data = await loadDeskPage({
-    loginNext: "/platform/admin/support/desk",
+    ticketId,
+    loginNext: `/desk/${ticketId}`,
   });
   return (
     <DeskShell
       rows={data.rows}
       cannedReplies={data.cannedReplies}
       initialTicketId={data.initialTicketId}
-      basePath="/platform/admin/support/desk"
+      basePath="/desk"
     />
   );
 }

@@ -1,0 +1,296 @@
+/* Support Desk tokens — Phase 0.5 mockup system. Components use var(--desk-*). */
+:root,
+[data-desk-theme="light"] {
+  --desk-canvas: #ffffff;
+  --desk-surface: #fafaf7;
+  --desk-pane: #f7f7f4;
+  --desk-ink: #0b0b0d;
+  --desk-ink-muted: rgba(11, 11, 13, 0.72);
+  --desk-ink-dim: rgba(11, 11, 13, 0.38);
+  --desk-border: rgba(24, 24, 27, 0.1);
+  --desk-border-soft: rgba(24, 24, 27, 0.06);
+  --desk-brand: #0f4f3e;
+  --desk-brand-fg: #ffffff;
+  --desk-brand-soft: rgba(15, 79, 62, 0.1);
+  --desk-coral: #c26a45;
+  --desk-coral-soft: rgba(194, 106, 69, 0.1);
+  --desk-critical: #b0303a;
+  --desk-note: #fff8e8;
+  --desk-note-border: rgba(194, 106, 69, 0.28);
+  --desk-note-ink: #7a4128;
+  --desk-font: "Inter", "Geist Sans", system-ui, sans-serif;
+  --desk-fs-13: 13px;
+  --desk-fs-14: 14px;
+  --desk-fs-16: 16px;
+  --desk-fs-20: 20px;
+  --desk-radius: 8px;
+  --desk-motion: 150ms ease;
+}
+
+[data-desk-theme="dark"] {
+  --desk-canvas: #121214;
+  --desk-surface: #1a1a1d;
+  --desk-pane: #161619;
+  --desk-ink: #f5f2eb;
+  --desk-ink-muted: rgba(245, 242, 235, 0.72);
+  --desk-ink-dim: rgba(245, 242, 235, 0.4);
+  --desk-border: rgba(255, 255, 255, 0.12);
+  --desk-border-soft: rgba(255, 255, 255, 0.06);
+  --desk-brand: #5dd3a0;
+  --desk-brand-fg: #0b0b0d;
+  --desk-brand-soft: rgba(93, 211, 160, 0.14);
+  --desk-note: #2a2218;
+  --desk-note-border: rgba(194, 106, 69, 0.4);
+  --desk-note-ink: #e8c4a8;
+}
+
+.desk-root {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--desk-canvas);
+  color: var(--desk-ink);
+  font-family: var(--desk-font);
+  font-size: var(--desk-fs-14);
+}
+
+.desk-root *,
+.desk-root *::before,
+.desk-root *::after {
+  box-sizing: border-box;
+}
+
+.desk-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--desk-border);
+  background: var(--desk-surface);
+}
+
+.desk-brand {
+  font-size: var(--desk-fs-16);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.desk-shell {
+  display: grid;
+  grid-template-columns: 12rem minmax(16rem, 22rem) minmax(0, 1fr) minmax(14rem, 18rem);
+  min-height: 0;
+  height: calc(100dvh - 3.25rem);
+}
+
+@media (max-width: 1100px) {
+  .desk-shell {
+    grid-template-columns: 11rem minmax(14rem, 20rem) minmax(0, 1fr);
+  }
+  .desk-context {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .desk-shell {
+    grid-template-columns: 1fr;
+  }
+  .desk-rail,
+  .desk-list,
+  .desk-thread,
+  .desk-context {
+    display: none;
+    min-height: 0;
+    height: 100%;
+  }
+  .desk-shell[data-mobile="queues"] .desk-rail,
+  .desk-shell[data-mobile="list"] .desk-list,
+  .desk-shell[data-mobile="thread"] .desk-thread {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.desk-rail,
+.desk-list,
+.desk-thread,
+.desk-context {
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid var(--desk-border-soft);
+  background: var(--desk-pane);
+}
+
+.desk-thread {
+  background: var(--desk-canvas);
+  display: flex;
+  flex-direction: column;
+}
+
+.desk-context {
+  border-right: none;
+  background: var(--desk-surface);
+}
+
+.desk-rail-item,
+.desk-row {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.65rem 0.85rem;
+  transition: background var(--desk-motion);
+}
+
+.desk-rail-item:hover,
+.desk-row:hover {
+  background: var(--desk-brand-soft);
+}
+
+.desk-rail-item[data-active="true"],
+.desk-row[data-active="true"] {
+  background: var(--desk-brand-soft);
+  box-shadow: inset 2px 0 0 var(--desk-brand);
+}
+
+.desk-row-title {
+  font-size: var(--desk-fs-14);
+  font-weight: 500;
+  margin: 0;
+}
+
+.desk-row-meta {
+  margin: 0.2rem 0 0;
+  font-size: var(--desk-fs-13);
+  color: var(--desk-ink-muted);
+}
+
+.desk-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--desk-brand-soft);
+  color: var(--desk-brand);
+}
+
+.desk-pill[data-tone="warn"] {
+  background: var(--desk-coral-soft);
+  color: var(--desk-coral);
+}
+
+.desk-pill[data-tone="critical"] {
+  background: rgba(176, 48, 58, 0.12);
+  color: var(--desk-critical);
+}
+
+.desk-search {
+  width: 100%;
+  border: 1px solid var(--desk-border);
+  border-radius: var(--desk-radius);
+  padding: 0.45rem 0.65rem;
+  background: var(--desk-canvas);
+  color: var(--desk-ink);
+  font: inherit;
+}
+
+.desk-composer {
+  border-top: 1px solid var(--desk-border);
+  padding: 0.75rem;
+  background: var(--desk-surface);
+}
+
+.desk-composer textarea {
+  width: 100%;
+  min-height: 5.5rem;
+  resize: vertical;
+  border: 1px solid var(--desk-border);
+  border-radius: var(--desk-radius);
+  padding: 0.65rem 0.75rem;
+  background: var(--desk-canvas);
+  color: var(--desk-ink);
+  font: inherit;
+}
+
+.desk-composer[data-note="true"] textarea {
+  background: var(--desk-note);
+  border-color: var(--desk-note-border);
+  color: var(--desk-note-ink);
+}
+
+.desk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+  align-items: center;
+}
+
+.desk-btn {
+  border: 1px solid var(--desk-border);
+  background: var(--desk-canvas);
+  color: var(--desk-ink);
+  border-radius: var(--desk-radius);
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: var(--desk-fs-13);
+  cursor: pointer;
+}
+
+.desk-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.desk-btn-primary {
+  background: var(--desk-brand);
+  border-color: var(--desk-brand);
+  color: var(--desk-brand-fg);
+  font-weight: 600;
+}
+
+.desk-btn[data-active="true"] {
+  background: var(--desk-brand-soft);
+  border-color: var(--desk-brand);
+}
+
+.desk-empty {
+  padding: 2rem 1.25rem;
+  color: var(--desk-ink-muted);
+}
+
+.desk-error {
+  color: var(--desk-critical);
+  font-size: var(--desk-fs-13);
+}
+
+.desk-section-title {
+  margin: 0;
+  padding: 0.85rem;
+  font-size: var(--desk-fs-13);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--desk-ink-dim);
+}
+
+.desk-thread-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-rail-item,
+  .desk-row {
+    transition: none;
+  }
+}

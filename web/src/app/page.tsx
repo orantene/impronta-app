@@ -33,6 +33,8 @@ import CmsPublicPage, {
   generateMetadata as cmsPageMetadata,
 } from "@/app/(public)/p/[[...slug]]/page";
 import { PublicChatSurface } from "@/app/(public)/_chat/PublicChatSurface";
+import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
+import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
 export const dynamic = "force-dynamic";
@@ -243,11 +245,19 @@ export default async function HomePage() {
   // working surface so a preview tab doesn't land on the marketing landing.
   // Target is env-driven (no tenant hardcoded); unset = no redirect.
   // Production unaffected.
+  const h = await headers();
+  const host = h.get("x-impronta-host-name") ?? h.get("host") ?? "";
+  const originalPathname = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+  // Support Desk host root → /desk when the flag is on (Phase 1b).
+  if (
+    originalPathname === "/" &&
+    isSupportDeskHost(host) &&
+    isSupportDeskEnabled()
+  ) {
+    redirect("/desk");
+  }
   const devRootRedirect = process.env.DEV_ROOT_REDIRECT?.trim();
   if (process.env.NODE_ENV === "development" && devRootRedirect) {
-    const h = await headers();
-    const host = h.get("host") ?? "";
-    const originalPathname = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
     if (
       originalPathname === "/" &&
       (host.startsWith("localhost") || host.startsWith("127.0.0.1"))

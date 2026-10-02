@@ -216,6 +216,22 @@ export async function hqClaimSelfAction(raw: { ticketId: string }): Promise<Ok |
   return { ok: true };
 }
 
+/** Reopen via engine (bumps reopened_count). Prefer over status→open for Desk. */
+export async function hqReopenTicketAction(raw: {
+  ticketId: string;
+}): Promise<Ok | Fail> {
+  const parsed = z.object({ ticketId: uuid }).safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const hq = await assertHqAccess();
+  if (!hq.ok) return hq;
+  const result = await supportEngine.reopenTicket({
+    ticketId: parsed.data.ticketId,
+    actorUserId: hq.userId,
+  });
+  if (!result.ok) return result;
+  return { ok: true };
+}
+
 export async function hqLoadTicketDetailAction(raw: { ticketId: string }): Promise<
   | { ok: true; data: NonNullable<Awaited<ReturnType<typeof import("./load-hq").loadHqTicketDetail>>> }
   | Fail

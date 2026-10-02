@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { useT } from "@/i18n/use-t";
 import { HQ, HQ_F, HQ_FD } from "../tenants/hq-kit";
 import { interpolate } from "@/i18n/interpolate";
@@ -63,6 +64,22 @@ export function SupportHqShell({
             ),
             { count: openCount },
           )}
+        </p>
+        <p style={{ margin: "10px 0 0" }}>
+          <Link
+            href="/desk"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              fontFamily: HQ_F,
+              fontSize: 13,
+              fontWeight: 600,
+              color: HQ.green,
+              textDecoration: "none",
+            }}
+          >
+            Open Support Desk ↗
+          </Link>
         </p>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
