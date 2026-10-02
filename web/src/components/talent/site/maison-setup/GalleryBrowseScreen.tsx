@@ -40,7 +40,10 @@ import {
   type GalleryBrowseState,
 } from "./gallery-browse-state";
 
-export type GalleryExploreOptions = { demoKey?: string; fromQuery?: string };
+import { AppBadge } from "./GalleryAppsUi";
+import { appsOnDesign } from "./gallery-apps";
+
+export type GalleryExploreOptions = { demoKey?: string; fromQuery?: string; tab?: "apps" };
 
 type Props = {
   locale: MaisonSetupLocale;
@@ -143,7 +146,7 @@ export function GalleryBrowseScreen({
     setOpenMenu(null);
     setState((s) => resetFilters(s));
   };
-  const explore = (r: GallerySearchResult) => {
+  const explore = (r: GallerySearchResult, tab?: "apps") => {
     const scrollY =
       typeof window !== "undefined"
         ? (document.querySelector<HTMLElement>("[data-maison-setup-overlay]")?.scrollTop ?? window.scrollY)
@@ -155,6 +158,7 @@ export function GalleryBrowseScreen({
     onExplore(r.design.slug, {
       ...(demoKey ? { demoKey } : {}),
       ...(state.query.trim() ? { fromQuery: state.query.trim() } : {}),
+      ...(tab ? { tab } : {}),
     });
   };
 
@@ -194,6 +198,7 @@ export function GalleryBrowseScreen({
         : t("{n} demos", { n });
     const isLast = state.lastViewed === d.slug;
     const badge = state.combined && multi && r.combinesBoth ? t("Combines both") : suggested.includes(d.slug) ? t("Suggested") : null;
+    const cardApps = appsOnDesign(d);
     const allTags = [...d.styleTags, ...d.featureTags];
     const highlighted = new Set<string>([...state.tags, ...(state.style ? [state.style] : [])]);
     return (
@@ -207,6 +212,7 @@ export function GalleryBrowseScreen({
           isLast ? "border-admin-ink ring-2 ring-admin-ink" : "border-admin-border-soft"
         }`}
       >
+        <div className="relative">
         <button
           type="button"
           onClick={() => explore(r)}
@@ -220,11 +226,19 @@ export function GalleryBrowseScreen({
             </span>
           ) : null}
           {isLast ? (
-            <span className="absolute right-2.5 top-2.5 rounded-full bg-admin-ink px-2.5 py-1 text-[12px] font-semibold text-white">
+            <span className={`absolute right-2.5 ${cardApps.length ? "top-11" : "top-2.5"} rounded-full bg-admin-ink px-2.5 py-1 text-[12px] font-semibold text-white`}>
               {t("Last viewed")}
             </span>
           ) : null}
         </button>
+        <AppBadge
+          apps={cardApps}
+          locale={locale}
+          testId={`design-app-badge-${d.slug}`}
+          onOpen={() => explore(r, "apps")}
+          className="absolute right-2.5 top-2.5"
+        />
+        </div>
         <div className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3.5">
           <h3 className="text-[19px] font-semibold text-admin-ink">
             {d.name}

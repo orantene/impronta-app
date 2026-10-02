@@ -86,3 +86,17 @@ export function appsForDemo(demo: { profileCode: string }): AppRegistryEntry[] {
 export function appsForDesign(slug: string): AppRegistryEntry[] {
   return APP_REGISTRY.filter((a) => a.recommendedDesigns.includes(slug));
 }
+
+/** Library entry as the talent theme gallery reads it (same object as the builder entry). */
+export type AppLibraryEntry = AppRegistryEntry;
+
+/** Apps recommended for any of these trades (theme gallery demo cards). De-duplicated. */
+export function appsForProfessions(professions: ReadonlyArray<string>): AppRegistryEntry[] {
+  const seen = new Set<string>();
+  const out: AppRegistryEntry[] = [];
+  for (const p of professions) for (const app of appsForTrade(p)) if (!seen.has(app.id)) { seen.add(app.id); out.push(app); }
+  return out;
+}
+
+/** Every app in the library (alias of the builder registry). */
+export const APP_LIBRARY: ReadonlyArray<AppRegistryEntry> = APP_REGISTRY;

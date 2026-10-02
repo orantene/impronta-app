@@ -68,6 +68,7 @@ describe("choices parse: demoKey / fromQuery", () => {
       fromQuery: null,
       designPaletteKey: null,
       phoneSheet: null,
+      detailTab: "preview",
     });
     const p = exploreDesignPatch("folio", { demoKey: "fashion-model", fromQuery: "Model" });
     assert.equal(p.demoKey, "fashion-model");
