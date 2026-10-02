@@ -9,8 +9,11 @@
  * to `.tulala.digital` — see cookie-domain.ts + desk-host.ts.
  */
 
+/** Canonical production Desk host (alias desk.tulala.digital later). */
+export const SUPPORT_DESK_PRIMARY_HOST = "support.tulala.digital" as const;
+
 export const SUPPORT_DESK_HOSTNAMES = [
-  "support.tulala.digital",
+  SUPPORT_DESK_PRIMARY_HOST,
   "desk.tulala.digital",
   "support.local",
   "desk.local",

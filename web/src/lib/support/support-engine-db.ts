@@ -5,8 +5,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { supportFrom } from "./support-from";
 import {
+  mapMessageRow,
   mapTicketRow,
   type SupportAuthorKind,
+  type SupportMessageRow,
   type SupportTicketEventType,
   type SupportTicketRow,
 } from "./support-types";
@@ -73,4 +75,20 @@ export async function claimIfUnassigned(
     .update({ assignee_user_id: actorUserId })
     .eq("id", ticketId)
     .is("assignee_user_id", null);
+}
+
+/** Prior message with the same client send key (Desk retry / journey 27). */
+export async function findMessageByClientSendKey(
+  admin: SupabaseClient,
+  ticketId: string,
+  clientSendKey: string,
+): Promise<SupportMessageRow | null> {
+  const { data } = await supportFrom(admin, "support_messages")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .filter("metadata->>client_send_key", "eq", clientSendKey)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? mapMessageRow(data) : null;
 }
