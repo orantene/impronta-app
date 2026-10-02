@@ -16,6 +16,7 @@ import { designComponentStyleDefaults, designTokenDefaults } from "./design-toke
 import { EDITORIAL_TYPE_SYSTEM_CSS, typeSystemComponentStyleDefaults } from "./design-type-system";
 import { buildMaisonV2Payload, MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2";
 import { FOLIO_DESIGN_TOKEN_DEFAULTS } from "./folio-defaults";
+import { loadAuthoredOverlay } from "./authored";
 
 const PLATFORM = { "color.primary": "#111111", "radius.base": "md" };
 
@@ -27,12 +28,15 @@ test("maison-v2 sets a valid default for every site style token, on its payload 
   }
   assert.deepEqual(designTokenDefaults("maison-v2"), MAISON_V2_TOKEN_DEFAULTS);
   assert.deepEqual(designTokenDefaults(" Maison-V2 "), MAISON_V2_TOKEN_DEFAULTS);
-  // Folio's committed authored overlay (v18) patches two code defaults.
-  assert.deepEqual(designTokenDefaults("folio"), {
-    ...FOLIO_DESIGN_TOKEN_DEFAULTS,
-    "button.padding-x": "20px",
-    "type.hero-size-desktop": "clamp(72px,15cqi,240px)",
-  });
+  // Folio's committed authored overlay patches code defaults: expected = code + each overlay `to`
+  // (computed from the overlay file so a new editor version does not need a test edit).
+  const folioOverlay = loadAuthoredOverlay("folio");
+  const folioExpected: Record<string, string> = { ...FOLIO_DESIGN_TOKEN_DEFAULTS };
+  for (const [k, v] of Object.entries(folioOverlay?.tokenDefaults ?? {})) {
+    if (typeof v.to === "string") folioExpected[k] = v.to;
+    else delete folioExpected[k];
+  }
+  assert.deepEqual(designTokenDefaults("folio"), folioExpected);
   assert.deepEqual(designTokenDefaults(null), {});
   const payload = buildMaisonV2Payload();
   assert.deepEqual(payload.tokenDefaults, MAISON_V2_TOKEN_DEFAULTS);
