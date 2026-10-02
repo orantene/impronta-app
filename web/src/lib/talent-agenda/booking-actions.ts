@@ -425,6 +425,8 @@ export async function recordBookingTransferAwaiting(input: {
 
 /**
  * Confirm a previously awaiting bank transfer was received.
+ * Routes through the manual ledger (same path as cash) so Money Collected
+ * sees the money; never flips payment_status alone.
  */
 export async function markBookingTransferReceived(input: {
   bookingId: string;
@@ -437,7 +439,7 @@ export async function markBookingTransferReceived(input: {
 
   const { data: row, error } = await admin
     .from("agency_bookings")
-    .select("id, payment_status, payment_method")
+    .select("id, payment_status, payment_method, total_client_revenue")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (error) {
@@ -448,6 +450,27 @@ export async function markBookingTransferReceived(input: {
   if (row.payment_status === "paid") return { ok: true, already: true };
   if (row.payment_method !== "transfer") {
     return { ok: false, reason: "not_transfer" };
+  }
+
+  const total = totalClientRevenueToCents(row.total_client_revenue);
+  if (total > 0) {
+    const store = supabaseManualPaymentStore(admin);
+    let remaining = total;
+    try {
+      remaining = Math.max(0, total - sumMoneyIn(await store.listLedger(input.bookingId)));
+    } catch (err) {
+      logServerError("agenda.markTransferReceived.ledger", err);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (remaining === 0) return { ok: true, already: true };
+    const res = await recordBookingPayment({
+      bookingId: input.bookingId,
+      amountCents: remaining,
+      method: "transfer",
+      idempotencyKey: `agenda-transfer-received:${input.bookingId}:${remaining}`,
+    });
+    if (!res.ok) return { ok: false, reason: res.reason };
+    return res.already ? { ok: true, already: true } : { ok: true };
   }
 
   const { error: upErr } = await admin

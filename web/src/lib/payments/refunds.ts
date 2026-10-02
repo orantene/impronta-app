@@ -46,7 +46,7 @@
 import type Stripe from "stripe";
 import { markRefunded as markRefundedReal, markDisputed as markDisputedReal } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { loadBookingCommissionSnapshots, loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
 import { nonRefundableFeeCents } from "@/lib/billing/commission";
 import {
   reverseBookingPayouts,
@@ -504,7 +504,7 @@ export async function handleBookingRefund(
   if (ref.bookingId) {
     try {
       const sbFees = d.resolveSupabase();
-      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshots(sbFees, ref.bookingId)) ?? 0;
+      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(sbFees, ref.bookingId)) ?? 0;
     } catch {
       /* fall back to the legacy full-charge comparison */
     }

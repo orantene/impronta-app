@@ -38,6 +38,7 @@ import { useChatAddService } from "@/components/public-booking/use-chat-add-serv
 import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
+import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   PLATFORM_DEFAULT_BOOKING_POSTURE,
@@ -101,16 +102,16 @@ function dispatchOffering(
   inclusion?: string | null,
   bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
 ) {
-  const { eventName } = deriveFor(offering, confirmsByHand, bookingPosture);
-  window.dispatchEvent(
-    new CustomEvent(eventName, {
-      detail: {
-        ...detailFor(offering, confirmsByHand, bookingPosture),
-        startAt,
-        inclusion: inclusion ?? undefined,
-      },
-    }),
-  );
+  dispatchCatalogOffering({
+    offering,
+    confirmsByHand,
+    bookingPosture,
+    detail: {
+      ...detailFor(offering, confirmsByHand, bookingPosture),
+      startAt,
+      inclusion: inclusion ?? undefined,
+    },
+  });
 }
 
 export function ServicesCatalogFilter({

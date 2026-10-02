@@ -373,12 +373,17 @@ export async function createBookingTransaction(opts: {
       // charges a duplicate (reproduced 2026-07-24: two paid $180 deposits on
       // one booking). The UI hides the button after collection; this is the
       // money-layer backstop.
+      //
+      // Manual cash/transfer PARTS are also written as checkout_type='deposit'
+      // (index workaround in manual-payment.ts). Those are NOT online deposits —
+      // exclude provider='manual' so a cash part does not block the real deposit link.
       const { data: paidDeposits, error: paidDepositsErr } = await sb
         .from("booking_transactions")
         .select("id")
         .eq("booking_id", opts.bookingId)
         .eq("checkout_type", "deposit")
         .eq("status", "paid")
+        .neq("provider", "manual")
         .limit(1);
       if (paidDepositsErr) {
         logServerError("transactions.create.depositDupLookup", paidDepositsErr);

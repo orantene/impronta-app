@@ -23,6 +23,10 @@
  * reaches the total is `balance` (or `full` when it is the only one). That is
  * what lets "cash part, then the rest" be two real rows.
  *
+ * Online deposit mint must ignore these manual "deposit" rows (see
+ * transactions.ts create deposit dup check: `.neq("provider", "manual")`),
+ * otherwise a cash part falsely blocks "The deposit is already collected".
+ *
  * The walk is draft -> payment_requested -> paid, the only legal path under
  * `validate_booking_transaction_status_transition` (same as settle-at-door).
  * `markPaid` is NOT used: it fans out card payouts and order completion, and
