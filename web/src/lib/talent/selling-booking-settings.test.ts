@@ -105,7 +105,7 @@ test("labels match product vocabulary", () => {
 test("who-step chat under confirm_now keeps Chat now label", () => {
   assert.equal(
     whoStepPrimaryLabel({ action: "chat", whoPrimaryCta: "confirm_now", locale: "es" }),
-    "Chateá ahora",
+    "Chatea ahora",
   );
   assert.equal(
     whoStepPrimaryLabel({ action: "chat", whoPrimaryCta: "contact", locale: "en" }),
@@ -120,7 +120,7 @@ test("who-step chat under confirm_now keeps Chat now label", () => {
 test("AUD-004: inquiry when-step uses preferred-time vocabulary", () => {
   assert.equal(whenStepTimeGroupLabel({ action: "chat", locale: "es" }), "Horario preferido");
   assert.equal(whenStepTimeGroupLabel({ action: "chat", locale: "en" }), "Preferred time");
-  assert.equal(whenStepTimeGroupLabel({ action: "confirm", locale: "es" }), "Elegí un horario");
+  assert.equal(whenStepTimeGroupLabel({ action: "confirm", locale: "es" }), "Elige un horario");
   assert.equal(
     chooseStepContinueLabel({ action: "chat", locale: "es", needsOption: false }),
     "Continuar: horario preferido",
