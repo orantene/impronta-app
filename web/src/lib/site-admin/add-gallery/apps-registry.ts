@@ -100,3 +100,24 @@ export function appsForProfessions(professions: ReadonlyArray<string>): AppRegis
 
 /** Every app in the library (alias of the builder registry). */
 export const APP_LIBRARY: ReadonlyArray<AppRegistryEntry> = APP_REGISTRY;
+/** Trade words (EN + ES) the gallery search matches an app on. */
+const TRADE_WORDS: Readonly<Record<string, ReadonlyArray<string>>> = {
+  nails: ["nails", "uñas", "unas", "manicurista"],
+  lashes: ["lashes", "pestañas", "pestanas"],
+  brows: ["brows", "cejas"],
+  bridal_makeup: ["makeup", "maquillaje", "bridal", "novias"],
+  hair: ["hair", "cabello", "pelo", "estilista"],
+  barber: ["barber", "barbero", "barbería"],
+};
+
+/** Everything a search may match on: name, pitch and trades, EN and ES. Never filters by design. */
+export function appSearchTerms(app: AppRegistryEntry): string[] {
+  return [
+    app.name.en,
+    app.name.es,
+    app.pitch.en,
+    app.pitch.es,
+    ...app.trades.flatMap((t) => [t.replace(/_/g, " "), ...(TRADE_WORDS[t] ?? [])]),
+    ...app.searchTerms,
+  ];
+}
