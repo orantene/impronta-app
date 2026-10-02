@@ -30,7 +30,8 @@ export type ThemeDemoProfession =
   | "appliance_repair"
   | "computer_tech"
   | "smart_home"
-  | "handyman";
+  | "handyman"
+  | "chef";
 
 export type ThemeDemo = {
   design: ThemeDemoDesign;
