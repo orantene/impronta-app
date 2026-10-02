@@ -232,7 +232,9 @@ const BUDGETS: Record<string, number> = {
   //   (canvas-drop-candidates.perf.test.ts asserts the DOM-op counts). The
   //   rAF-coalesced scroll refresher added back a few wiring lines here. Net
   //   down, which is the direction this ratchet exists to encourage.
-  "selection-layer.tsx": 7657,
+  // +3 (Track B Free structure locks): onDuplicate may be null like move/paste
+  //   so Free talent chips hide Duplicate; still under REBASELINE_SLACK.
+  "selection-layer.tsx": 7660,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

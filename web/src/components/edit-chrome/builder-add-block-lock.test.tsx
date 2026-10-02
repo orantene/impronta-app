@@ -73,7 +73,8 @@ test("gallery lock agrees with the builder gate for every insertable card", () =
 
 test("locked hint is bilingual", () => {
   assert.match(galleryLockedHint("en").title, /Web Office/);
-  assert.match(galleryLockedHint("es").title, /^Añadir/);
+  assert.match(galleryLockedHint("es").title, /Oficina Web/);
+  assert.equal(galleryLockedHint("es").cta, "Ver planes");
   assert.notEqual(galleryLockedHint("es").cta, galleryLockedHint("en").cta);
 });
 

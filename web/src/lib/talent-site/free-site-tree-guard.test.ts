@@ -7,6 +7,7 @@ import {
   collectTalentSiteSectionChildIds,
   collectTalentSiteTreeShape,
   freeSiteSectionsLockedMessage,
+  isStructuralOrderPreserved,
 } from "./free-site-tree-guard";
 
 /**
@@ -83,16 +84,16 @@ test("ALLOW: a hidden toggle", () => {
   assert.equal(run(next).ok, true);
 });
 
-test("ALLOW: reordering blocks inside a section", () => {
+test("DENY: reordering blocks inside a section", () => {
   const next = baseTree();
   const hero = next[0] as unknown as { children: BuilderNode[] };
   hero.children.reverse();
-  assert.equal(run(next).ok, true);
+  assert.equal(run(next).ok, false);
 });
 
-test("ALLOW: reordering whole sections", () => {
+test("DENY: reordering whole sections", () => {
   const next = baseTree().slice().reverse() as BuilderNodeTree;
-  assert.equal(run(next).ok, true);
+  assert.equal(run(next).ok, false);
 });
 
 test("ALLOW: removing a block", () => {
@@ -107,12 +108,12 @@ test("ALLOW: removing a whole section", () => {
   assert.equal(run(next).ok, true);
 });
 
-test("ALLOW: moving an existing block to a DIFFERENT section (id is stable)", () => {
+test("DENY: moving an existing block to a DIFFERENT section (order changes)", () => {
   const next = baseTree();
   const hero = next[0] as unknown as { children: BuilderNode[] };
   const contact = next[1] as unknown as { children: BuilderNode[] };
   contact.children.push(hero.children.pop()!);
-  assert.equal(run(next).ok, true);
+  assert.equal(run(next).ok, false);
 });
 
 test("ALLOW: Web Office (canInsertSections) short-circuits every check", () => {
@@ -165,14 +166,15 @@ test("DENY: a new node nested DEEP inside an existing block", () => {
   assert.equal(run(next).ok, false);
 });
 
-test("DENY message names Web Office and is available in en + es", () => {
+test("DENY message names Web Office / Oficina Web and is available in en + es", () => {
   const en = freeSiteSectionsLockedMessage("en");
   const es = freeSiteSectionsLockedMessage("es");
   assert.match(en, /Web Office/);
-  assert.match(es, /Web Office/);
+  assert.match(es, /Oficina Web/);
   assert.notEqual(en, es, "the Spanish string must actually be translated");
   for (const copy of [en, es]) {
     assert.doesNotMatch(copy, /—/, "no em dashes in user-facing copy");
+    assert.doesNotMatch(copy, /reorder/i, "reorder is no longer a Free affordance");
   }
   // An unknown locale degrades to English rather than throwing.
   assert.equal(freeSiteSectionsLockedMessage("fr"), en);
@@ -236,11 +238,29 @@ test("ALLOW: Web Office short-circuits the duplicate and empty-section checks", 
   );
 });
 
-test("collectTalentSiteTreeShape counts sections and nested ids", () => {
+test("collectTalentSiteTreeShape counts sections, nested ids, and order", () => {
   const shape = collectTalentSiteTreeShape(baseTree());
   assert.equal(shape.sectionCount, 2);
   assert.equal(shape.childCounts.get("n-heading"), 1);
+  assert.deepEqual(shape.structuralOrder, [
+    "s-hero",
+    "n-heading",
+    "n-text",
+    "s-contact",
+    "n-cta",
+  ]);
   const doubled = [...baseTree(), JSON.parse(JSON.stringify(baseTree()[0]))] as BuilderNodeTree;
   assert.equal(collectTalentSiteTreeShape(doubled).childCounts.get("n-heading"), 2);
   assert.equal(collectTalentSiteTreeShape(doubled).sectionCount, 3);
+});
+
+test("isStructuralOrderPreserved allows removals but refuses reorders", () => {
+  assert.equal(
+    isStructuralOrderPreserved(["a", "b", "c"], ["a", "c"]),
+    true,
+  );
+  assert.equal(
+    isStructuralOrderPreserved(["a", "b", "c"], ["a", "c", "b"]),
+    false,
+  );
 });
