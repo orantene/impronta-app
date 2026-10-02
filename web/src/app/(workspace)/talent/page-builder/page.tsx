@@ -294,6 +294,7 @@ export default async function TalentPageBuilderRoute({
       talentTier={profile.talentTier}
       siteCapabilities={siteCapabilities}
       talentDisplayName={profile.displayName}
+      talentHeadshotUrl={profile.headshotUrl}
       locale={locale}
       canvasRenderData={canvasRenderData}
       initialComposition={initialComposition}

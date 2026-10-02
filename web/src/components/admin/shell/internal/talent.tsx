@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
+import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
@@ -95,19 +96,6 @@ const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }
   { label: "Work", pages: ["messages", "calendar", "clients", "money"] },
   { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
 ];
-
-const TALENT_SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
-  today: "home",
-  messages: "mail",
-  calendar: "calendar",
-  clients: "team",
-  money: "credit",
-  profile: "user",
-  "public-page": "globe",
-  services: "briefcase",
-  reviews: "star",
-  settings: "settings",
-};
 
 function TalentSidebarNavButton({
   page,

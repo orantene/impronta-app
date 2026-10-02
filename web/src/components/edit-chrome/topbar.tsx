@@ -78,6 +78,7 @@ import {
 } from "./kit";
 import { usePagePresence } from "./presence-provider";
 import { TalentDraftChip, useTalentPublishGate } from "./talent-draft-chip";
+import { TalentBackLink, TalentIdentityMenu, useTalentBuilderIdentity } from "./talent-builder-identity";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { useEditContext } from "./edit-context";
@@ -2967,6 +2968,7 @@ export function TopBar({
   labHeaderActions,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
+  const talentIdentity = useTalentBuilderIdentity();
   const gatedPublish = useTalentPublishGate(onPublish); // no Publish while a design applies
   const draftReset = useTopbarDraftReset();
   const { t } = useEditorLocale();
@@ -3061,17 +3063,12 @@ export function TopBar({
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />
       ) : (
         <>
-          <ExitForm dirty={dirty} />
+          {talentIdentity ? <TalentBackLink /> : <ExitForm dirty={dirty} />}
           {workspaceSlug ? <WorkspaceMenu slug={workspaceSlug} /> : null}
         </>
       )}
       <TbDivider />
-      <PagePicker
-        title={pageTitle ?? "Homepage"}
-        pageId={pageId}
-        dirty={dirty}
-        pagesPickerOpenNonce={pagesPickerOpenNonce}
-      />
+      {talentIdentity ? <TalentIdentityMenu /> : <PagePicker title={pageTitle ?? "Homepage"} pageId={pageId} dirty={dirty} pagesPickerOpenNonce={pagesPickerOpenNonce} />}
       {headerVariant === "lab" && previewSubjectChip ? (
         <>{previewSubjectChip}</>
       ) : null}
