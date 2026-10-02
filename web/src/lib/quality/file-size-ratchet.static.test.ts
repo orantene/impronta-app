@@ -197,7 +197,7 @@ const BUDGETS: Record<string, number> = {
   // +13 (freeform translation status): the TranslationStatusButton mount
   // beside NavLocaleToggle. The panel, matcher, and server action live in
   // their own modules; this is only the gated call site.
-  "src/components/edit-chrome/topbar.tsx": 3396,
+  "src/components/edit-chrome/topbar.tsx": 3327,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
   // plugin, trigger detection, catalog/matcher and menu component all live in
   // their own modules (SlashCommandPlugin, slash-command-trigger,

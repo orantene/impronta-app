@@ -20,6 +20,7 @@
 
 import type { ReactNode } from "react";
 
+import { useEditorLocale } from "../use-editor-locale";
 import { CHROME } from "./tokens";
 
 export type SaveChipStatus = "saved" | "saving" | "dirty" | "error" | "count";
@@ -37,7 +38,8 @@ const PULSE_ID = "save-chip-pulse";
 
 export function SaveChip({ status, label, title, className }: SaveChipProps) {
   const palette = paletteForStatus(status);
-  const text = label ?? defaultLabel(status);
+  const { t } = useEditorLocale();
+  const text = label ?? t(defaultLabel(status));
   return (
     <>
       {/* Inject the pulse keyframes once. Idempotent — multiple chips on

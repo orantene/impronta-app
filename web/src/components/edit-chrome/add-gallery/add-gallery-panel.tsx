@@ -99,7 +99,7 @@ function CategoryRail({
     <nav
       className="flex shrink-0 flex-col gap-[2px] overflow-y-auto py-[12px] pl-[12px] pr-[8px]"
       style={{
-        width: 148,
+        width: "min(148px, 34vw)",
         borderRight: `1px solid ${CHROME.line}`,
       }}
       aria-label={t("Categories")}
@@ -461,6 +461,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       open={open}
       onClose={onClose}
       width={PANEL_WIDTH}
+      compactBottomSheet
       maxHeight={PANEL_MAX_HEIGHT}
       testId="add-gallery-panel"
       tabs={

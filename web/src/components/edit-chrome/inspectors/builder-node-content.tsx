@@ -606,9 +606,9 @@ function BuilderNodeContentInspectorBody({
   if (node.kind === "heading") {
     return (
       <BuilderNodeFlatPanel>
-        <BuilderNodeSection title="Heading">
+        <BuilderNodeSection title={t("Heading")}>
           <div className={KIT.field}>
-            <label className={KIT.label}>Text</label>
+            <label className={KIT.label}>{t("Text")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="text"
@@ -623,7 +623,7 @@ function BuilderNodeContentInspectorBody({
           </div>
           <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
           <div className={KIT.field}>
-            <label className={KIT.label}>Level</label>
+            <label className={KIT.label}>{t("Level")}</label>
             <Segmented
               fullWidth
               compact
@@ -649,7 +649,7 @@ function BuilderNodeContentInspectorBody({
     return (
       <BuilderNodeFlatPanel>
         <div className={KIT.field}>
-          <label className={KIT.label}>Copy</label>
+          <label className={KIT.label}>{t("Copy")}</label>
           <BuilderNodeLocalizableTextField
             node={node}
             prop="text"

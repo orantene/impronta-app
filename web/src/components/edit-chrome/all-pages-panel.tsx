@@ -28,6 +28,7 @@ import {
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
+import { TalentAllPagesPanel } from "./all-pages-panel-talent";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import { aiCreatePageHref } from "./empty-canvas-ai-front-door";
 import {
@@ -245,7 +246,9 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     openRevisions,
     flushBuilderTreeSave,
     workspaceMembershipSlug,
+    surfaceKind,
   } = useEditContext();
+  const isTalentSurface = surfaceKind === "talent_page";
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
   const [availability, setAvailability] = useState<PagePickerAvailability | null>(null);
   const [loading, setLoading] = useState(false);
@@ -283,6 +286,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const addPageDenialMessage = resolveAddPageDenialMessage(availability);
 
   const loadPages = useCallback(() => {
+    if (isTalentSurface) return;
     setLoading(true);
     setFetchErr(null);
     void readPageRolesAction()
@@ -303,7 +307,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         setPages([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [isTalentSurface]);
 
   // PAGE ROLES — assign this page's slug to a role (home/directory/404). The
   // home/directory ROUTES then serve this page; the badge moves on reload.
@@ -477,6 +481,8 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     setRenamingId(null);
     setDeletingId(null);
   }
+
+  if (isTalentSurface) return <TalentAllPagesPanel open={open} onClose={onClose} onHistory={openRevisions} />;
 
   return (
     <DockFloatingPanel

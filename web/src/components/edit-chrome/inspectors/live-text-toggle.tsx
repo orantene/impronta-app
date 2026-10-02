@@ -11,6 +11,7 @@
 import type { LiveTextKey } from "@/lib/site-admin/builder-node/live-text-keys";
 
 import { KIT } from "./kit/tokens";
+import { useInspectorT } from "./kit/use-inspector-t";
 
 type CommitPatch = (patch: Record<string, unknown>) => void;
 
@@ -21,6 +22,7 @@ export function LiveTextToggle({
   liveText: LiveTextKey | undefined;
   commitPatch: CommitPatch;
 }) {
+  const { t } = useInspectorT();
   if (!liveText) return null;
   return (
     <div className={KIT.field}>
@@ -34,10 +36,11 @@ export function LiveTextToggle({
           }}
         />
         <span>
-          Follows your profile
+          {t("Follows your profile")}
           <span className="mt-0.5 block text-[12px] text-stone-500">
-            This line is filled in from your profile and stays up to date. Turn it off, or type your own words, to keep
-            it as written.
+            {t(
+              "This line is filled in from your profile and stays up to date. Turn it off, or type your own words, to keep it as written.",
+            )}
           </span>
         </span>
       </label>
