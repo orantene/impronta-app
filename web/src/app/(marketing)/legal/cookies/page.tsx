@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { CookiesEs } from "./cookies-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -74,7 +75,8 @@ function CookieTable({ rows }: { rows: readonly Row[] }) {
 }
 
 export default async function CookiesPage() {
-  if ((await getRequestLocale()) === "es") return <CookiesEs />;
+  const locale = await getRequestLocale();
+  if (locale === "es") return <CookiesEs />;
   return (
     <LegalPage
       eyebrow="Legal"
@@ -85,7 +87,7 @@ export default async function CookiesPage() {
           {PLATFORM_BRAND.name} uses cookies and similar browser storage to keep you signed
           in, remember your settings, and, only if you agree, measure how the product is
           used. This page lists what we use. See also our{" "}
-          <Link href="/legal/privacy" className="underline" style={{ color: "var(--plt-ink)" }}>
+          <Link href={withLocaleHref("/legal/privacy", locale)} className="underline" style={{ color: "var(--plt-ink)" }}>
             Privacy Policy
           </Link>
           .

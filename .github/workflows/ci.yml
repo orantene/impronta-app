@@ -547,6 +547,12 @@ jobs:
       - name: tests — storefront seams
         if: ${{ !cancelled() }}
         run: npm run test:storefront
+
+      # Design-compiler (token/CSS compile pipeline). Wired into `npm run ci`;
+      # must appear here so check:ci-lane-parity stays green.
+      - name: tests — design-compiler
+        if: ${{ !cancelled() }}
+        run: npm run test:design-compiler
       # QR & Links Q1: which destination a printed code resolves to, at the
       # hour it is actually scanned. Pure — a wall clock in the venue timezone
       # and a rule list, no database. The rows and the redirect are asserted in

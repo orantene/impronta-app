@@ -11,9 +11,18 @@ class MemoryStorage {
   setItem(k: string, v: string) { this.m.set(k, v); }
 }
 
-function setup(storage: unknown = new MemoryStorage()) {
+function setup(
+  storage: unknown = new MemoryStorage(),
+  consent: "granted" | "denied" | null = "granted",
+) {
   (globalThis as Record<string, unknown>).window = {};
   (globalThis as Record<string, unknown>).sessionStorage = storage;
+  // getSessionId requires explicit analytics consent (session-id.ts); without
+  // it every assignVariant call returns null and the split/correlation tests
+  // collapse to false-red.
+  const local = new MemoryStorage();
+  if (consent) local.setItem("impronta_analytics_consent", consent);
+  (globalThis as Record<string, unknown>).localStorage = local;
 }
 
 async function fresh() {
@@ -22,7 +31,7 @@ async function fresh() {
 
 describe("marketing experiments", () => {
   beforeEach(() => {
-    for (const k of ["window", "sessionStorage"]) {
+    for (const k of ["window", "sessionStorage", "localStorage"]) {
       delete (globalThis as Record<string, unknown>)[k];
     }
   });

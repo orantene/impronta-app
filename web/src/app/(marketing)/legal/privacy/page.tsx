@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PrivacyEs } from "./privacy-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -43,7 +44,8 @@ function Ext({ href, children }: { href: string; children: ReactNode }) {
 }
 
 export default async function PrivacyPage() {
-  if ((await getRequestLocale()) === "es") return <PrivacyEs />;
+  const locale = await getRequestLocale();
+  if (locale === "es") return <PrivacyEs />;
   return (
     <LegalPage
       eyebrow="Legal"
@@ -105,7 +107,7 @@ export default async function PrivacyPage() {
               <p>
                 <strong>Usage and device data</strong>: IP address, browser type, page views,
                 and performance data. Analytics cookies are used only if you accept them (see{" "}
-                <Link href="/legal/cookies" className="underline" style={linkStyle}>
+                <Link href={withLocaleHref("/legal/cookies", locale)} className="underline" style={linkStyle}>
                   Cookies
                 </Link>
                 ).
@@ -199,7 +201,7 @@ export default async function PrivacyPage() {
               functional ones to remember language and currency, and optional ones for
               analytics only if you consent. The full list, and how to change your choice with
               the &ldquo;Privacy choices&rdquo; link, is on the{" "}
-              <Link href="/legal/cookies" className="underline" style={linkStyle}>
+              <Link href={withLocaleHref("/legal/cookies", locale)} className="underline" style={linkStyle}>
                 Cookies page
               </Link>
               .

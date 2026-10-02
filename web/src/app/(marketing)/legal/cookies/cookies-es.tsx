@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { withLocaleHref } from "@/i18n/pathnames";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Spanish version of the Cookies page,
 // equivalent to ./page.tsx. Cookie names and durations are the same rows; keep
@@ -69,7 +70,7 @@ export function CookiesEs() {
           {PLATFORM_BRAND.name} usa cookies y almacenamiento similar del navegador para
           mantener tu sesión iniciada, recordar tus ajustes y, solo si lo aceptas, medir cómo
           se usa el producto. Esta página enumera lo que usamos. Consulta también nuestro{" "}
-          <Link href="/legal/privacy" className="underline" style={{ color: "var(--plt-ink)" }}>
+          <Link href={withLocaleHref("/legal/privacy", "es")} className="underline" style={{ color: "var(--plt-ink)" }}>
             Política de privacidad
           </Link>
           .

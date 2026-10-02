@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { withLocaleHref } from "@/i18n/pathnames";
 
 // DRAFT PENDING LEGAL REVIEW (2026-10-01). Spanish version of the Privacy
 // Policy, equivalent to ./page.tsx. No claim here may go beyond the English
@@ -87,7 +88,7 @@ export function PrivacyEs() {
                 <strong>Datos de uso y del dispositivo</strong>: dirección IP, tipo de
                 navegador, páginas vistas y datos de rendimiento. Las cookies de analítica se
                 usan solo si las aceptas (consulta{" "}
-                <Link href="/legal/cookies" className="underline" style={linkStyle}>
+                <Link href={withLocaleHref("/legal/cookies", "es")} className="underline" style={linkStyle}>
                   Cookies
                 </Link>
                 ).
@@ -184,7 +185,7 @@ export function PrivacyEs() {
               funcionando, cookies funcionales para recordar idioma y moneda, y cookies
               opcionales de analítica solo si das tu consentimiento. La lista completa, y cómo
               cambiar tu elección con el enlace &ldquo;Opciones de privacidad&rdquo;, está en la{" "}
-              <Link href="/legal/cookies" className="underline" style={linkStyle}>
+              <Link href={withLocaleHref("/legal/cookies", "es")} className="underline" style={linkStyle}>
                 página de Cookies
               </Link>
               .
