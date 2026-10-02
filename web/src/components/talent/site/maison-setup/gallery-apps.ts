@@ -12,8 +12,8 @@ import type { GalleryDemo, GalleryDesign } from "@/lib/talent-site/theme-catalog
 import type { MaisonSetupLocale } from "./maison-setup-copy";
 
 export const GALLERY_APPS_COPY = {
-  en: { badge: "App included", apps: "Apps", pro: "Pro", empty: "No apps for this theme yet.", play: "Try it here" },
-  es: { badge: "App incluida", apps: "Apps", pro: "Pro", empty: "Este tema aún no tiene apps.", play: "Pruébala aquí" },
+  en: { badge: "★ App", bestFit: "Best fit for the app:", tipOne: "Includes the {names} app · Try it in the theme", tipMany: "Includes the apps {names} · Try them in the theme", apps: "Apps", pro: "Pro", empty: "No apps for this theme yet.", play: "Try it here" },
+  es: { badge: "★ App", bestFit: "Ideal para la app:", tipOne: "Incluye la app {names} · Pruébala en el tema", tipMany: "Incluye las apps {names} · Pruébalas en el tema", apps: "Apps", pro: "Pro", empty: "Este tema aún no tiene apps.", play: "Pruébala aquí" },
 } as const;
 
 export function galleryAppsT(locale: MaisonSetupLocale, key: keyof (typeof GALLERY_APPS_COPY)["en"]): string {
@@ -51,10 +51,18 @@ export function appsForDetail(
   });
 }
 
-/** "App included · Nail Designer" (first app named, "+N" when more). */
+/** Badge text: a star pill, "★ App". */
 export function appBadgeLabel(apps: ReadonlyArray<AppLibraryEntry>, locale: MaisonSetupLocale): string | null {
-  const first = apps[0];
-  if (!first) return null;
-  const more = apps.length > 1 ? ` +${apps.length - 1}` : "";
-  return `${galleryAppsT(locale, "badge")} · ${appName(first, locale)}${more}`;
+  return apps.length ? galleryAppsT(locale, "badge") : null;
+}
+
+/** App names joined with commas. */
+export function appNames(apps: ReadonlyArray<AppLibraryEntry>, locale: MaisonSetupLocale): string {
+  return apps.map((a) => appName(a, locale)).join(", ");
+}
+
+/** Tooltip: "Includes the Nail Designer app · Try it in the theme". */
+export function appBadgeTip(apps: ReadonlyArray<AppLibraryEntry>, locale: MaisonSetupLocale): string {
+  const key = apps.length > 1 ? "tipMany" : "tipOne";
+  return galleryAppsT(locale, key).replace("{names}", appNames(apps, locale));
 }

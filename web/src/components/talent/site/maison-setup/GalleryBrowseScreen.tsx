@@ -41,7 +41,7 @@ import {
 } from "./gallery-browse-state";
 
 import { AppBadge } from "./GalleryAppsUi";
-import { appsOnDesign } from "./gallery-apps";
+import { appNames, appsOnDesign, galleryAppsT } from "./gallery-apps";
 
 export type GalleryExploreOptions = { demoKey?: string; fromQuery?: string; tab?: "apps" };
 
@@ -220,30 +220,28 @@ export function GalleryBrowseScreen({
           aria-label={`${t("Explore")} ${d.name}`}
         >
           <ThemeGalleryPreviewFrame preview={preview} url={preview.src(d.slug, galleryPreviewLookSlug(d, demo?.defaultPalette), demo && demo.status === "built" && demo.source.kind === "demo-talent" ? `${d.slug}:${demo.key}` : null)} locale={locale} title={d.name} virtualWidth={1280} aspectRatio="4 / 3" />
-          {badge ? (
-            <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-admin-ink shadow-sm">
-              {badge}
-            </span>
-          ) : null}
-          {isLast ? (
-            <span className={`absolute right-2.5 ${cardApps.length ? "top-11" : "top-2.5"} rounded-full bg-admin-ink px-2.5 py-1 text-[12px] font-semibold text-white`}>
-              {t("Last viewed")}
-            </span>
-          ) : null}
         </button>
-        <AppBadge
-          apps={cardApps}
-          locale={locale}
-          testId={`design-app-badge-${d.slug}`}
-          onOpen={() => explore(r, "apps")}
-          className="absolute right-2.5 top-2.5"
-        />
         </div>
         <div className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3.5">
-          <h3 className="text-[19px] font-semibold text-admin-ink">
-            {d.name}
-            {searching && demoName ? <span className="font-medium text-admin-ink-muted"> · {demoName}</span> : null}
-          </h3>
+          {badge || isLast ? (
+            <p data-testid="design-card-labels" className="flex flex-wrap items-center gap-x-2 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-admin-ink-dim">
+              {badge ? <span data-card-label="suggested">{badge}</span> : null}
+              {isLast ? <span data-card-label="last-viewed">{t("Last viewed")}</span> : null}
+            </p>
+          ) : null}
+          <div data-testid="design-card-title-row" className="flex items-start justify-between gap-2">
+            <h3 className="min-w-0 text-[19px] font-semibold text-admin-ink">
+              {d.name}
+              {searching && demoName ? <span className="font-medium text-admin-ink-muted"> · {demoName}</span> : null}
+            </h3>
+            <AppBadge
+              apps={cardApps}
+              locale={locale}
+              testId={`design-app-badge-${d.slug}`}
+              onOpen={() => explore(r, "apps")}
+              className="mt-0.5"
+            />
+          </div>
           <p className="text-[14px] leading-snug text-admin-ink-muted">{d.description[locale]}</p>
           <div className="flex flex-wrap gap-1.5" aria-label={t("Tags")}>
             {allTags.map((tag) => {
@@ -270,6 +268,12 @@ export function GalleryBrowseScreen({
             <p className="mt-0.5 text-[13.5px] text-admin-ink">
               <span className="text-admin-ink-muted">{matching ? t("Matching demo:") : t("Featured demo:")}</span>{" "}
               <b className="font-semibold">{demoName}</b>
+            </p>
+          ) : null}
+          {cardApps.length ? (
+            <p data-testid="design-card-app-fit" className="text-[13.5px] text-admin-ink">
+              <span className="text-admin-ink-muted">{galleryAppsT(locale, "bestFit")}</span>{" "}
+              <b className="font-semibold">{appNames(cardApps, locale)}</b>
             </p>
           ) : null}
           <div className="mt-auto flex items-center gap-2 pt-1">

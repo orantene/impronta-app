@@ -12,6 +12,8 @@ import { AppBadge, AppsTab } from "./GalleryAppsUi";
 import {
   GALLERY_APPS_COPY,
   appBadgeLabel,
+  appBadgeTip,
+  appNames,
   appsForDetail,
   appsOnDemo,
   appsOnDesign,
@@ -23,8 +25,11 @@ const designWithApp = getGalleryDesign("maison-v2")!;
 const designWithout = getGalleryDesign("gridline")!;
 
 test("badge label EN and ES", () => {
-  assert.equal(appBadgeLabel([nail], "en"), "App included · Nail Designer");
-  assert.equal(appBadgeLabel([nail], "es"), "App incluida · Diseñador de uñas");
+  assert.equal(appBadgeLabel([nail], "en"), "★ App");
+  assert.equal(appBadgeLabel([nail], "es"), "★ App");
+  assert.equal(appBadgeTip([nail], "en"), "Includes the Nail Designer app · Try it in the theme");
+  assert.equal(appBadgeTip([nail], "es"), "Incluye la app Diseñador de uñas · Pruébala en el tema");
+  assert.equal(appNames([nail, { ...nail, name: { en: "B", es: "B" } }], "en"), "Nail Designer, B");
   assert.equal(appBadgeLabel([], "en"), null);
 });
 
@@ -35,7 +40,11 @@ test("badge renders only when the design has apps", () => {
   assert.equal(without.length, 0);
   const on = renderToStaticMarkup(<AppBadge apps={withApps} locale="en" onOpen={() => {}} />);
   const off = renderToStaticMarkup(<AppBadge apps={without} locale="en" onOpen={() => {}} />);
-  assert.match(on, /App included/);
+  assert.match(on, /★ App/);
+  assert.match(on, /role="tooltip"/);
+  assert.match(on, /aria-describedby/);
+  assert.match(on, /Includes the Nail Designer app/);
+  assert.match(renderToStaticMarkup(<AppBadge apps={withApps} locale="es" onOpen={() => {}} />), /Incluye la app Diseñador de uñas/);
   assert.equal(off, "");
 });
 
@@ -73,4 +82,15 @@ test("i18n parity and no em dashes", () => {
 test("badge opens detail on the apps tab; default stays preview", () => {
   assert.equal(exploreDesignPatch("maison-v2", { tab: "apps" }).detailTab, "apps");
   assert.equal(exploreDesignPatch("maison-v2").detailTab, "preview");
+});
+
+test("browse card: badge in the title row, pills in text area, app-fit line", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("./GalleryBrowseScreen.tsx", import.meta.url), "utf8");
+  const title = src.indexOf('data-testid="design-card-title-row"');
+  assert.ok(title > 0 && src.indexOf("<AppBadge", title) > title);
+  assert.ok(src.indexOf("design-card-labels") < title);
+  const img = src.slice(src.indexOf("<ThemeGalleryPreviewFrame"), src.indexOf("design-card-labels"));
+  assert.doesNotMatch(img, /absolute left-2\.5|Last viewed|<AppBadge/);
+  assert.match(src, /design-card-app-fit/);
 });

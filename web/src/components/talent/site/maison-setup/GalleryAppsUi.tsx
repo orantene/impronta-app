@@ -4,12 +4,12 @@
  * Market apps in the talent theme gallery: the corner badge (theme + demo
  * cards) and the Apps tab with a live playground rendering the real island.
  */
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import type { AppLibraryEntry } from "@/lib/site-admin/add-gallery/apps-registry";
 import { NAIL_DESIGNER_CSS } from "@/lib/site-admin/builder-node/nail-designer-css";
 import { NailDesignerIsland } from "@/lib/site-admin/builder-node/nail-designer-island";
 import type { MaisonSetupLocale } from "./maison-setup-copy";
-import { appBadgeLabel, appName, appPitch, galleryAppsT } from "./gallery-apps";
+import { appBadgeLabel, appBadgeTip, appName, appPitch, galleryAppsT } from "./gallery-apps";
 
 export function AppBadge({
   apps,
@@ -24,18 +24,30 @@ export function AppBadge({
   testId?: string;
   className?: string;
 }) {
+  const tipId = useId();
   const label = appBadgeLabel(apps, locale);
   if (!label) return null;
   return (
-    <button
-      type="button"
-      data-testid={testId ?? "gallery-app-badge"}
-      data-gallery-app-badge=""
-      onClick={onOpen}
-      className={`z-10 max-w-[70%] truncate rounded-full bg-white px-2.5 py-1 text-[11.5px] font-semibold text-admin-ink shadow-sm ${className}`}
-    >
-      {label}
-    </button>
+    <span className={`group relative z-10 inline-flex shrink-0 ${className}`}>
+      <button
+        type="button"
+        data-testid={testId ?? "gallery-app-badge"}
+        data-gallery-app-badge=""
+        aria-describedby={tipId}
+        onClick={onOpen}
+        className="inline-flex items-center whitespace-nowrap rounded-full bg-admin-highlight px-2.5 py-1 text-[11.5px] font-bold text-admin-highlight-ink shadow-sm"
+      >
+        {label}
+      </button>
+      <span
+        id={tipId}
+        role="tooltip"
+        data-testid="gallery-app-badge-tip"
+        className="pointer-events-none absolute right-0 top-full z-20 mt-1.5 hidden w-max max-w-[220px] rounded-lg bg-admin-ink px-2.5 py-1.5 text-[12px] font-medium leading-snug text-white shadow-lg group-focus-within:block group-hover:block"
+      >
+        {appBadgeTip(apps, locale)}
+      </span>
+    </span>
   );
 }
 
