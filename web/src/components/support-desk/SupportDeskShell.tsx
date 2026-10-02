@@ -16,6 +16,7 @@ import {
   hqChangeStatusAction,
   hqClaimSelfAction,
   hqLoadTicketDetailAction,
+  hqReopenTicketAction,
   hqReplySupportTicketAction,
 } from "@/lib/support/hq-actions";
 import { SupportThreadView } from "@/components/support/SupportThreadView";
@@ -600,7 +601,7 @@ export function SupportDeskShell({
                     type="button"
                     className="rounded-md border border-admin-border px-2 py-1 text-[11px]"
                     onClick={() =>
-                      void hqChangeStatusAction({ ticketId: ticket.id, status: "open" }).then(() =>
+                      void hqReopenTicketAction({ ticketId: ticket.id }).then(() =>
                         reloadTicket(ticket.id),
                       )
                     }

@@ -45,8 +45,15 @@ describe("desk shell wiring", () => {
     );
     assert.match(shell, /hqReplySupportTicketAction/);
     assert.match(shell, /hqChangeStatusAction/);
+    assert.match(shell, /hqReopenTicketAction/);
     assert.match(shell, /hqClaimSelfAction/);
     assert.match(shell, /hqLoadTicketDetailAction/);
     assert.match(shell, /clientSendKey/);
+  });
+
+  it("hqReopenTicketAction wraps supportEngine.reopenTicket", () => {
+    const src = readFileSync(join(WEB_SRC, "lib/support/hq-actions.ts"), "utf8");
+    assert.match(src, /export async function hqReopenTicketAction/);
+    assert.match(src, /supportEngine\.reopenTicket/);
   });
 });
