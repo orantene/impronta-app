@@ -29,6 +29,8 @@
  */
 
 import "server-only";
+import { nonRefundableFeeCents as nonRefundableFeeCentsOf } from "@/lib/billing/commission";
+import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -110,6 +112,10 @@ export type RefundEligibility = {
   currency: string;
   /** The `pi_...` this transaction settled on, when known. */
   paymentIntentId: string | null;
+  /** pass_through: platform fee + client-paid processing fee. NON-REFUNDABLE
+   *  (owner decision 2026-10-01); already excluded from `remainingCents`.
+   *  Absent when 0 (legacy rows). */
+  nonRefundableFeeCents?: number;
   /** Present when a refund cannot be issued; human-readable, English, for logs. */
   blockedReason: string | null;
   /**
@@ -132,13 +138,17 @@ export function computeRefundEligibility(input: {
   alreadyRefundedCents: number;
   paymentIntentId: string | null;
   provider: string;
+  /** Fees that are never returned (see nonRefundableFeeCents in billing/commission). */
+  nonRefundableFeeCents?: number;
 }): RefundEligibility {
+  const nonRefundable = Math.max(0, Math.round(input.nonRefundableFeeCents ?? 0));
   const base: Omit<RefundEligibility, "blockedReason" | "blockedCode"> = {
-    remainingCents: Math.max(0, input.grossAmountCents - input.alreadyRefundedCents),
+    remainingCents: Math.max(0, input.grossAmountCents - nonRefundable - input.alreadyRefundedCents),
     alreadyRefundedCents: input.alreadyRefundedCents,
     grossAmountCents: input.grossAmountCents,
     currency: input.currency,
     paymentIntentId: input.paymentIntentId,
+    ...(nonRefundable > 0 ? { nonRefundableFeeCents: nonRefundable } : {}),
   };
 
   if (!REFUNDABLE_STATUSES.has(input.status)) {
@@ -188,7 +198,7 @@ export async function loadRefundEligibility(
 
   const { data: txn, error } = await sb
     .from("booking_transactions")
-    .select("id, status, gross_amount_cents, currency, provider, provider_metadata, refund_of_transaction_id")
+    .select("id, booking_id, status, gross_amount_cents, currency, provider, provider_metadata, refund_of_transaction_id")
     .eq("id", transactionId)
     .maybeSingle();
   if (error || !txn) return { error: "Payment not found.", code: "not_found" };
@@ -217,7 +227,19 @@ export async function loadRefundEligibility(
       ? ((meta as Record<string, unknown>).payment_intent_id as string | undefined) ?? null
       : null;
 
+  // pass_through bookings: the platform fee + client-paid processing fee are
+  // non-refundable, so the refundable ceiling is the service amount only.
+  let nonRefundableFeeCents = 0;
+  if (typeof row.booking_id === "string" && row.booking_id) {
+    try {
+      nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshots(sb, row.booking_id));
+    } catch {
+      /* legacy behaviour: no snapshot read => nothing excluded */
+    }
+  }
+
   return computeRefundEligibility({
+    nonRefundableFeeCents,
     status: String(row.status),
     grossAmountCents: Number(row.gross_amount_cents ?? 0),
     currency: String(row.currency ?? "USD"),

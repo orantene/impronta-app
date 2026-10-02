@@ -47,6 +47,44 @@
  * absorbs the gap (talent stays whole) and surfaces `seller_shortfall_cents`
  * so the offer composer can prompt the admin to raise the price.
  *
+ * ── processing_mode = 'pass_through' (owner decision, 2026-10-01) ─────────
+ * Opt-in via `platformConfig.processing_mode` (default 'included' = every
+ * rule above, byte-identical). In 'pass_through':
+ *   • the CLIENT pays subtotal + a client-only surcharge (default 150 bps,
+ *     `pass_through_take_bps`); seller share is forced to 0 bps — Tulala adds
+ *     no seller-side fee, so the platform nets exactly the surcharge;
+ *   • the SELLER (talent when independent) bears the ACTUAL processing fee of
+ *     the payment, at cost. The processor charges it on the full gross
+ *     (subtotal + surcharge). The snapshot is frozen before the charge
+ *     settles, so the fee is applied via `processingFeeCents` (known only after
+ *     settlement — see transfers.ts); when omitted the lanes are PROVISIONAL
+ *     (processing_fee_cents = 0, talent_net = subtotal) and MUST NOT be paid
+ *     out as-is;
+ *   • workspace seller: talent still gets the full quote; the workspace bears
+ *     the fee out of its margin (after the channel referral), and any part its
+ *     margin cannot cover is absorbed by the platform and surfaced in
+ *     seller_shortfall_cents (+ processing_fee_shortfall_cents).
+ *   INVARIANT (pass_through):
+ *     talent_net + workspace_fee + platform_fee + channel_referral
+ *       + processing_fee === gross_charged
+ *
+ * ── processing_fee_payer (per-seller choice, pass_through mode only) ──────
+ *   'seller' (DEFAULT) — everything above: the seller bears the actual fee.
+ *   'client' — the client ALSO pays the processing fee: at quote time the
+ *     gross is grossed up so that  gross − fee(gross) = subtotal + platform
+ *     fee (+ base fee), where fee(g) = round((percent·g + fixed)·(1 + tax)).
+ *     Rates are DATA (`processorFeeRates`: percent, fixed_cents, tax_on_fee),
+ *     never hardcoded. The seller ALWAYS receives exactly the subtotal; the
+ *     real fee differs from the quote (card type, international, Link…), and
+ *     the variance lands on the platform lane:
+ *        platform_fee = surcharge + (client_processing_fee − actual_fee).
+ *     Workspace seller choosing 'client': talent keeps the full quote AND the
+ *     workspace keeps its full margin (nothing is carved for the fee).
+ *   INVARIANT (client): talent + workspace + platform + referral + fee === gross.
+ *
+ * Refunds (owner decision): fees are NON-REFUNDABLE in every mode — see
+ * `nonRefundableFeeCents`.
+ *
  * Override hierarchy for the total take (most-specific wins):
  *   1. per-booking override (platform-admin elevation)
  *   2. relationship override (workspace_talent_commission_overrides)
@@ -54,6 +92,43 @@
  *   4. plan-tier default (platform_commission_config.plan_tier_bps[plan])
  *   5. platform default (platform_commission_config.default_take_bps)
  */
+
+import { CommissionResolutionError } from "./commission-errors";
+import {
+  estimateProcessorFeeCents,
+  grossUpForProcessorFee,
+  nonRefundableFeeCents,
+  applyProcessingFeeToLanes,
+} from "./commission-processing";
+
+export { CommissionResolutionError };
+export {
+  estimateProcessorFeeCents,
+  grossUpForProcessorFee,
+  nonRefundableFeeCents,
+  applyProcessingFeeToLanes,
+};
+
+/** How the payment-processing fee is borne. 'included' = legacy (absorbed in
+ *  the take). 'pass_through' = seller pays the actual fee at cost. */
+export type ProcessingMode = "included" | "pass_through";
+
+/** Who pays the processing fee in pass_through mode. Per-seller setting. */
+export type ProcessingFeePayer = "seller" | "client";
+
+/** Processor pricing for one provider/currency. DATA, not constants.
+ *  fee(g) = round((percent * g + fixed_cents) * (1 + tax_on_fee)). */
+export interface ProcessorFeeRates {
+  /** e.g. 0.029 for 2.9%. */
+  percent: number;
+  /** Fixed component in minor units (e.g. 30 = $0.30; 300 = 3.00 MXN). */
+  fixed_cents: number;
+  /** Tax charged ON the processor fee, e.g. 0.16 for MX IVA. Default 0. */
+  tax_on_fee?: number;
+}
+
+/** Default client-only surcharge (bps) in pass_through mode. */
+export const PASS_THROUGH_DEFAULT_TAKE_BPS = 150;
 
 export type WorkspacePlanTier = "free" | "studio" | "agency" | "network";
 
@@ -108,6 +183,15 @@ export interface PlatformCommissionConfig {
    *  omitted, defaults to an even split of the resolved total take. Talent
    *  pay is never touched when a workspace is the seller of record. */
   client_surcharge_bps?: number | null;
+  /** Fee model. Undefined/'included' = legacy behaviour (default). */
+  processing_mode?: ProcessingMode | null;
+  /** pass_through only: the total (client-only) platform take in bps, replacing
+   *  the platform-default / plan-tier layers. null/undefined = 150. Tenant,
+   *  relationship and booking overrides still win over it. */
+  pass_through_take_bps?: number | null;
+  /** pass_through, payer='client': processor pricing as data, keyed by
+   *  lowercase currency code with a "default" fallback. */
+  processor_fee_rates?: Record<string, ProcessorFeeRates> | null;
   /** Platform cap on a workspace's flat base reservation fee, in cents
    *  (null = uncapped). Bounds what any workspace can charge per booking. */
   max_base_fee_cents?: number | null;
@@ -146,6 +230,18 @@ export interface ResolveBookingCommissionsInput {
    *  independent talent selling directly (owning_party_type='talent'),
    *  where the talent IS the seller of record. */
   sellerOfRecord?: SellerOfRecord;
+  /** Overrides `platformConfig.processing_mode` (e.g. a frozen snapshot's mode). */
+  processingMode?: ProcessingMode | null;
+  /** pass_through only. Who pays the processing fee; the SELLER's setting
+   *  (talent profile / workspace). Default 'seller'. */
+  processingFeePayer?: ProcessingFeePayer | null;
+  /** Required when processingFeePayer = 'client' (the gross-up needs the rates
+   *  for this provider + currency). */
+  processorFeeRates?: ProcessorFeeRates | null;
+  /** pass_through only: the ACTUAL processing fee of the settled payment, in
+   *  cents of `currencyCode` (gross-based, for the whole booking row). Omit/null
+   *  while unknown → provisional lanes. Ignored in 'included' mode. */
+  processingFeeCents?: number | null;
   /** Pre-loaded by the caller. */
   platformConfig: PlatformCommissionConfig;
   /** Pre-loaded by the caller. `null` = no override row exists for the tenant. */
@@ -208,6 +304,24 @@ export interface BookingCommissionSnapshot {
   base_reservation_fee_cents?: number;
   /** Who bore the seller-side fee on this row. */
   seller_of_record: SellerOfRecord;
+  /** Present only in pass_through mode (absent = 'included'). */
+  processing_mode?: ProcessingMode;
+  /** pass_through: the actual processing fee carried by the seller lane(s) +
+   *  platform shortfall. 0 while provisional (fee not yet known). */
+  processing_fee_cents?: number;
+  /** pass_through: the part of the fee the platform absorbed because the
+   *  workspace margin / talent pay could not cover it. Also added into
+   *  seller_shortfall_cents. */
+  processing_fee_shortfall_cents?: number;
+  /** pass_through: who pays the processing fee ('seller' | 'client'). */
+  processing_fee_payer?: ProcessingFeePayer;
+  /** payer='client': the processing line the CLIENT is charged on top
+   *  (gross_charged − subtotal − surcharge − base fee). Non-refundable. */
+  client_processing_fee_cents?: number;
+  /** payer='client': the processor fee ESTIMATED at quote time from the rates
+   *  (the actual fee is in processing_fee_cents once supplied, and in
+   *  provider_balance_transactions.fee_cents). */
+  processing_fee_quoted_cents?: number;
   /** Phase C — the hub referral carved out of this row's workspace_fee and
    *  owed to the originating channel. 0 when the lane is off / rate 0 / not a
    *  re-homed cross-channel booking. Already DEDUCTED from workspace_fee_cents. */
@@ -233,20 +347,7 @@ export interface PersistedBookingCommissionSnapshot extends BookingCommissionSna
   created_at: string;
 }
 
-/** Errors that the resolver throws — caller surfaces friendly messages. */
-export class CommissionResolutionError extends Error {
-  constructor(public code:
-    | "negative_line_item"
-    | "talent_cost_exceeds_price"
-    | "no_line_items"
-    | "currency_invalid"
-    | "platform_take_out_of_range"
-    | "lanes_do_not_sum"
-  ) {
-    super(code);
-    this.name = "CommissionResolutionError";
-  }
-}
+
 
 /** Resolve a booking's commission snapshot. PURE — no IO. */
 export function resolveBookingCommissions(
@@ -272,12 +373,18 @@ export function resolveBookingCommissions(
   }
 
   // 1. Resolve the TOTAL platform take with the four-level override hierarchy.
-  let platformTakeBps = input.platformConfig.default_take_bps;
+  const processingMode: ProcessingMode =
+    input.processingMode ?? input.platformConfig.processing_mode ?? "included";
+  const passThrough = processingMode === "pass_through";
+
+  let platformTakeBps = passThrough
+    ? (input.platformConfig.pass_through_take_bps ?? PASS_THROUGH_DEFAULT_TAKE_BPS)
+    : input.platformConfig.default_take_bps;
   let platformTakeFloorCents = input.platformConfig.default_take_floor_cents;
   let resolvedFrom: CommissionResolvedFrom = "platform_default";
 
-  // Layer: plan-tier default
-  const planTierBps = input.platformConfig.plan_tier_bps[input.workspacePlan];
+  // Layer: plan-tier default (legacy mode only — pass_through has one flat rate)
+  const planTierBps = passThrough ? undefined : input.platformConfig.plan_tier_bps[input.workspacePlan];
   if (typeof planTierBps === "number") {
     platformTakeBps = planTierBps;
     resolvedFrom = "plan_tier";
@@ -347,8 +454,10 @@ export function resolveBookingCommissions(
 
   // Client share of the take; default to an even split of the resolved
   // total. Clamp to [0, total] so the seller share is never negative.
-  const rawClientShareBps =
-    input.platformConfig.client_surcharge_bps != null
+  // pass_through: the whole take is a client surcharge (seller share = 0).
+  const rawClientShareBps = passThrough
+    ? platformTakeBps
+    : input.platformConfig.client_surcharge_bps != null
       ? input.platformConfig.client_surcharge_bps
       : Math.floor(platformTakeBps / 2);
   const clientShareBps = Math.min(Math.max(Math.round(rawClientShareBps), 0), platformTakeBps);
@@ -396,10 +505,23 @@ export function resolveBookingCommissions(
     clientSurchargeCents += platformTakeFloorCents - takeBeforeFloor;
   }
 
-  const platformFeeCents = clientSurchargeCents + sellerDeductionCents;
+  let platformFeeCents = clientSurchargeCents + sellerDeductionCents;
   // The client pays: subtotal + the platform's client surcharge + the
   // workspace's base reservation fee.
-  const grossChargedCents = subtotalCents + clientSurchargeCents + baseReservationFeeCents;
+  let grossChargedCents = subtotalCents + clientSurchargeCents + baseReservationFeeCents;
+
+  // 4b. payer = 'client' — gross up so the CLIENT also covers the processor fee.
+  //     The seller side (talent / workspace lanes) is untouched below.
+  const feePayer: ProcessingFeePayer = passThrough ? (input.processingFeePayer ?? "seller") : "seller";
+  let clientProcessingFeeCents = 0;
+  let quotedProcessingFeeCents = 0;
+  if (feePayer === "client") {
+    if (!input.processorFeeRates) throw new CommissionResolutionError("processing_rates_missing");
+    const target = grossChargedCents;
+    grossChargedCents = grossUpForProcessorFee(target, input.processorFeeRates);
+    clientProcessingFeeCents = grossChargedCents - target;
+    quotedProcessingFeeCents = estimateProcessorFeeCents(grossChargedCents, input.processorFeeRates);
+  }
 
   // 5. Lane destinations.
   let talentNetCents: number;
@@ -455,6 +577,40 @@ export function resolveBookingCommissions(
     }
   }
 
+  // 5c. pass_through — the seller bears the ACTUAL processing fee at cost.
+  //     Independent talent: talent_net drops by the fee (clamped at 0; any
+  //     excess is absorbed by the platform). Workspace seller: talent is
+  //     untouched; the fee comes out of workspace_fee (after the referral) and
+  //     what the margin cannot cover is absorbed by the platform. Provisional
+  //     (fee unknown) → fee 0, lanes unchanged.
+  let processingFeeApplied = 0;
+  let processingShortfallCents = 0;
+  if (feePayer === "client") {
+    // The seller is whole by construction. The fee booked is the ACTUAL one when
+    // known, else the quote; the platform lane absorbs/keeps the variance so the
+    // lanes still sum to the grossed-up charge.
+    const fee = input.processingFeeCents ?? quotedProcessingFeeCents;
+    if (!Number.isInteger(fee) || fee < 0) {
+      throw new CommissionResolutionError("negative_line_item");
+    }
+    processingFeeApplied = fee;
+    platformFeeCents += clientProcessingFeeCents - fee;
+  } else if (passThrough && input.processingFeeCents != null) {
+    const applied = applyProcessingFeeToLanes({
+      sellerOfRecord,
+      talentNetCents,
+      workspaceFeeCents,
+      platformFeeCents,
+      processingFeeCents: input.processingFeeCents,
+    });
+    processingFeeApplied = input.processingFeeCents;
+    processingShortfallCents = applied.shortfallCents;
+    talentNetCents = applied.talentNetCents;
+    workspaceFeeCents = applied.workspaceFeeCents;
+    platformFeeCents = applied.platformFeeCents;
+    sellerShortfallCents += applied.shortfallCents;
+  }
+
   // 6. Sanity — no lane negative; the FOUR lanes (talent + workspace + platform
   //    + channel referral) sum to what the client is charged. Talent-protection
   //    makes negatives unreachable for valid inputs, but stay paranoid against
@@ -464,7 +620,8 @@ export function resolveBookingCommissions(
     throw new CommissionResolutionError("lanes_do_not_sum");
   }
   if (
-    talentNetCents + workspaceFeeCents + platformFeeCents + channelReferralCents !==
+    talentNetCents + workspaceFeeCents + platformFeeCents + channelReferralCents +
+      processingFeeApplied !==
     grossChargedCents
   ) {
     throw new CommissionResolutionError("lanes_do_not_sum");
@@ -483,6 +640,20 @@ export function resolveBookingCommissions(
     gross_charged_cents: grossChargedCents,
     seller_shortfall_cents: sellerShortfallCents,
     seller_of_record: sellerOfRecord,
+    ...(passThrough
+      ? {
+          processing_mode: "pass_through" as const,
+          processing_fee_cents: processingFeeApplied,
+          processing_fee_shortfall_cents: processingShortfallCents,
+          processing_fee_payer: feePayer,
+          ...(feePayer === "client"
+            ? {
+                client_processing_fee_cents: clientProcessingFeeCents,
+                processing_fee_quoted_cents: quotedProcessingFeeCents,
+              }
+            : {}),
+        }
+      : {}),
     channel_referral_cents: channelReferralCents,
     channel_referral_party_id: channelReferralPartyId,
     currency_code: input.currencyCode,
