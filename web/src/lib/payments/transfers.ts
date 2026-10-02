@@ -90,6 +90,12 @@ export type TransferDeps = {
     party: "talent" | "workspace" | "channel_referral",
     id: string | null,
   ) => Promise<StripeAccountKey>;
+  /**
+   * Retry mode (retryFeeUnknownPayouts): skip EVERY leg the ledger already
+   * shows as transferred, not only pass_through ones, so a re-run never
+   * re-sends a paid leg once Stripe's 24h idempotency window has lapsed.
+   */
+  skipTransferredLegs?: boolean;
 };
 
 /**
@@ -138,6 +144,14 @@ export async function disburseOnChargePlatform(
     };
   }
   return (ctx.disburseFn ?? disburse)(input, { stripe: ctx.stripe });
+}
+
+/** Ledger last_error for a leg: the failure, or WHY a held leg is held when the
+ *  release path cannot fix it (cross-platform), so admins see the reason. */
+export function legLastError(o: Pick<TransferOutcome, "status" | "detail">): string | null {
+  if (o.status === "failed") return o.detail ?? "transfer failed";
+  if (o.status === "skipped_cross_platform") return `cross-platform hold: ${o.detail ?? "recipient account is on another Stripe platform"}`;
+  return null;
 }
 
 /** Map a transfer outcome status to the ledger's persisted status.
@@ -208,7 +222,7 @@ async function passThroughLegAlreadyTransferred(
   isPassThrough: boolean,
   bookingId: string,
   participantId: string,
-  party: Party,
+  party: Party | "channel_referral",
 ): Promise<boolean> {
   if (!isPassThrough) return false;
   const { data } = await sb
@@ -243,6 +257,7 @@ export async function executeBookingTransfers(
   const resolveTalentRecipientAccount =
     deps.resolveTalentRecipientAccount ?? talentRecipientAccount;
   const getFinancialAccountId = deps.getFinancialAccountId ?? getPrimaryFinancialAccountId;
+  const skipTransferred = deps.skipTransferredLegs === true;
   const outcomes: TransferOutcome[] = [];
 
   try {
@@ -564,7 +579,7 @@ export async function executeBookingTransfers(
         });
       } else if (
         talentAmountCents > 0 &&
-        !(await passThroughLegAlreadyTransferred(sb, isPassThrough, bookingId, snap.participant_id, "talent"))
+        !(await passThroughLegAlreadyTransferred(sb, isPassThrough || skipTransferred, bookingId, snap.participant_id, "talent"))
       ) {
         const rail: PayoutRail = talentRail;
         let route: DisburseRoute;
@@ -613,7 +628,7 @@ export async function executeBookingTransfers(
           // Booking payouts are due when recorded. Ticketing sets a real gate here.
           releaseAfter: null,
           processingFeeCents: snap.owning_party_type === "talent" ? legFeeCents : null,
-          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+          lastError: legLastError(outcome),
         });
       }
 
@@ -650,7 +665,7 @@ export async function executeBookingTransfers(
       } else if (
         isWorkspaceOwned &&
         workspaceAmountCents > 0 &&
-        !(await passThroughLegAlreadyTransferred(sb, isPassThrough, bookingId, snap.participant_id, "workspace"))
+        !(await passThroughLegAlreadyTransferred(sb, isPassThrough || skipTransferred, bookingId, snap.participant_id, "workspace"))
       ) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
         const outcome = await payLeg(
@@ -683,7 +698,7 @@ export async function executeBookingTransfers(
           // Booking payouts are due when recorded. Ticketing sets a real gate here.
           releaseAfter: null,
           processingFeeCents: snap.owning_party_type === "talent" ? null : legFeeCents,
-          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+          lastError: legLastError(outcome),
         });
       }
       // 3) Phase C — HUB REFERRAL. Carved out of this row's workspace margin and
@@ -694,7 +709,11 @@ export async function executeBookingTransfers(
       //    off this block never runs, so existing payouts are byte-identical.
       const channelReferralCents = snap.channel_referral_cents ?? 0;
       const channelReferralPartyId = snap.channel_referral_party_id ?? null;
-      if (channelReferralCents > 0 && channelReferralPartyId) {
+      if (
+        channelReferralCents > 0 &&
+        channelReferralPartyId &&
+        !(await passThroughLegAlreadyTransferred(sb, skipTransferred, bookingId, snap.participant_id, "channel_referral"))
+      ) {
         const accountId = await resolveWorkspaceAccount(channelReferralPartyId);
         const outcome = await payLeg(
           {
@@ -727,7 +746,7 @@ export async function executeBookingTransfers(
           payoutRail: "connect_transfer",
           // Booking payouts are due when recorded. Ticketing sets a real gate here.
           releaseAfter: null,
-          lastError: outcome.status === "failed" ? (outcome.detail ?? "transfer failed") : null,
+          lastError: legLastError(outcome),
         });
       }
 
