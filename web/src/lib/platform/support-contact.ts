@@ -34,8 +34,10 @@ export const SUPPORT_EMAIL = "hello@tulala.digital";
  * and pointing a reader at a mailbox that bounces is exactly that failure,
  * committed by the page making the argument.
  *
- * TO RESTORE: once `dig MX tulala.digital` returns a record AND a test message
- * is confirmed delivered, flip this to true. That re-enables the email channel
- * on /support and /help. Nothing else needs editing.
+ * TO RESTORE: once `dig MX tulala.digital` returns Resend receiving AND a test
+ * message is confirmed in Gmail, set `NEXT_PUBLIC_SUPPORT_EMAIL_CAN_RECEIVE=1`
+ * in Vercel production (redeploy). That re-enables mailto on /support, /help,
+ * and /about without a code change.
  */
-export const SUPPORT_EMAIL_CAN_RECEIVE = false;
+export const SUPPORT_EMAIL_CAN_RECEIVE =
+  process.env.NEXT_PUBLIC_SUPPORT_EMAIL_CAN_RECEIVE === "1";

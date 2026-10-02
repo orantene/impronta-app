@@ -14,11 +14,13 @@ import {
 import { sendEmail } from "@/lib/email";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { SUPPORT_EMAIL as PLATFORM_SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { notifyPlatformSignupFailed } from "./workspace-signup-platform-alerts";
 
 const PROVISION_FAILURE_NOTE_MARKER = "[provision-failure-emailed]";
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "hello@impronta.group";
+/** Env override allowed; default is the single platform support address. */
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL?.trim() || PLATFORM_SUPPORT_EMAIL;
 
 // Subset of MarketingLeadRow needed for the failure-email path. Kept
 // structural so the caller doesn't have to export its internal row type.
