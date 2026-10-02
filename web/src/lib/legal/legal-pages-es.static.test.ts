@@ -37,7 +37,12 @@ for (const n of PAGES) {
   const es = read(`${dir(n)}/${n}-es.tsx`);
 
   test(`${n}: Spanish body is served by locale and keeps the review marker`, () => {
-    assert.match(en, new RegExp(`if \\(\\(await getRequestLocale\\(\\)\\) === "es"\\) return <\\w+ />;`));
+    // Accept either inline `await getRequestLocale()` or a prior `const locale = …`
+    // binding (privacy/cookies stash locale for withLocaleHref cross-links).
+    assert.match(
+      en,
+      /if \((?:\(await getRequestLocale\(\)\)|locale) === "es"\) return <\w+ \/>;/,
+    );
     assert.match(en, /DRAFT PENDING LEGAL REVIEW/);
     assert.match(es, /DRAFT PENDING LEGAL REVIEW/);
   });
