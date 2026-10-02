@@ -16,6 +16,7 @@ export const NAIL_DESIGNER_CSS = `
 .sb-nd *{box-sizing:border-box}
 .sb-nd button{font-family:inherit}
 .sb-nd button:focus-visible,.sb-nd input:focus-visible{outline:2px solid var(--nd-accent);outline-offset:2px}
+.sb-nd{padding-bottom:104px}
 .sb-nd-head{margin-bottom:.75rem}
 .sb-nd-title{margin:0;font-size:clamp(1.35rem,2.5vw,1.85rem);font-weight:600;letter-spacing:-.02em;line-height:1.15}
 .sb-nd-intro{margin:.35rem 0 0;font-size:.95rem;max-width:60ch;opacity:.75}
@@ -95,7 +96,7 @@ export const NAIL_DESIGNER_CSS = `
 .nd-mobonly{display:flex}
 .nd-tab.nd-mobonly{display:block}
 .nd-livemsg{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@container sbnd (min-width:980px){
+@container sbnd (min-width:860px){
   .nd-root{--s:1;display:grid;grid-template-columns:minmax(0,1fr) 420px;height:820px;background:#F3ECE6}
   .nd-main{display:flex;flex-direction:column;gap:20px;min-width:0;min-height:0;padding:28px 36px}
   .nd-head{gap:16px;padding:0;background:transparent}
@@ -121,5 +122,11 @@ export const NAIL_DESIGNER_CSS = `
   .nd-panel{padding:22px 24px 28px}
   .nd-foot{display:block;padding:16px 24px 20px}
   .nd-foot .nd-mobonly{display:none}
+}
+@container sbnd (min-width:860px) and (max-width:979px){
+  .nd-root{--s:.8;grid-template-columns:minmax(0,1fr) 380px}
+  .nd-main{padding:24px 24px}
+  .nd-brand{font-size:28px}
+  .nd-hand{bottom:-56px;gap:14px}
 }
 `;

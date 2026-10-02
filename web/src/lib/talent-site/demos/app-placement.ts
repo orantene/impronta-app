@@ -25,6 +25,9 @@ const label = (n: BuilderNode) => (n.props as { layerLabel?: string } | undefine
 /** The Nail Designer band: a Maison-style section holding the app node. */
 export function nailBand(): BuilderNode {
   const es = (k: keyof typeof COPY) => ({ es: { text: COPY[k].es } });
+  // The renderer reads `node.i18n` (the validate-time mirror of `props.i18n`). A tree
+  // that reaches the live renderer without a validate pass carries only props.i18n, so
+  // the Spanish copy never resolved and the band showed English. Write BOTH.
   return {
     id: NAIL_BAND_ID,
     kind: "container",
@@ -41,6 +44,7 @@ export function nailBand(): BuilderNode {
       {
         id: `${NAIL_BAND_ID}-eyebrow`,
         kind: "paragraph",
+        i18n: es("eyebrow"),
         props: {
           text: COPY.eyebrow.en,
           i18n: es("eyebrow"),
@@ -50,6 +54,7 @@ export function nailBand(): BuilderNode {
       {
         id: `${NAIL_BAND_ID}-heading`,
         kind: "heading",
+        i18n: es("heading"),
         props: {
           text: COPY.heading.en,
           i18n: es("heading"),
@@ -61,6 +66,7 @@ export function nailBand(): BuilderNode {
       {
         id: `${NAIL_BAND_ID}-intro`,
         kind: "paragraph",
+        i18n: es("intro"),
         props: { text: COPY.intro.en, i18n: es("intro"), style: { size: "lg", maxWidth: "reading" } },
       },
       { id: `${NAIL_BAND_ID}-app`, kind: "app_nail_designer", props: {} },

@@ -305,7 +305,7 @@ export function NailDesignerIsland({ locale, ctaLabel }: Props) {
           {surpriseBtn("nd-mobonly")}
           {saveBtn("nd-mobonly")}
           <button type="button" className="nd-act nd-send" data-nd-action="send" onClick={send}>
-            {ctaLabel}
+            {ctaLabel.trim() || t.send}
           </button>
         </div>
       </aside>

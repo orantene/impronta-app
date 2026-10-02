@@ -82,7 +82,7 @@ test("optional text overrides render above the design, empty by default", () => 
 });
 
 test("the CSS is the ported design: both boards by container query, accent from the theme token", () => {
-  assert.match(NAIL_DESIGNER_CSS, /@container sbnd \(min-width:980px\)/);
+  assert.match(NAIL_DESIGNER_CSS, /@container sbnd \(min-width:860px\)/);
   assert.match(NAIL_DESIGNER_CSS, /container:sbnd\/inline-size/);
   assert.match(NAIL_DESIGNER_CSS, /--nd-accent:var\(--token-color-primary,#A63D57\)/);
   assert.match(NAIL_DESIGNER_CSS, /grid-template-columns:minmax\(0,1fr\) 420px/);
