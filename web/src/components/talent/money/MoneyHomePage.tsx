@@ -26,7 +26,7 @@ import {
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
 import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
-import { AgendaFinishCollect } from "@/components/admin/shell/internal/talent/agenda/AgendaFinishCollect";
+import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
 import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agenda/AgendaPayRequest";
 
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
@@ -391,7 +391,7 @@ function MoneyHomePane(props: {
                     </span>
                   </span>
                   <span className="whitespace-nowrap font-admin-body text-[15px] font-bold text-admin-ink">
-                    {money(p.grossCents, cur)}
+                    {money(p.collectedCents != null && p.collectedCents > 0 ? p.collectedCents : p.grossCents, cur)}
                   </span>
                 </button>
               ))}
@@ -542,7 +542,7 @@ export function MoneyHomePage() {
   const router = useRouter();
   const [sheet, setSheet] = useState<"record" | "request" | null>(null);
   const [linkFor, setLinkFor] = useState<MoneyAgendaRow | null>(null);
-  // Record payment opens Finish and collect right here, over Money.
+  // Record payment opens the amount + method sheet right here, over Money.
   const [finishFor, setFinishFor] = useState<MoneyAgendaRow | null>(null);
   const agenda = useMemo(
     () => agendaMoneyRows(bridgeTalentAgendaItems ?? [], new Date()),
@@ -655,7 +655,7 @@ export function MoneyHomePage() {
         >
           <p className="font-admin-body text-[13px] text-admin-ink-muted">
             {sheet === "record"
-              ? t("Pick the booking. Cash and transfers are recorded on the booking with Finish and collect or Mark transfer received.")
+              ? t("Pick the booking, then enter what you received and how.")
               : t("Pick the booking to send a payment link for.")}
           </p>
           {pickRows.length === 0 ? (
@@ -698,10 +698,8 @@ export function MoneyHomePage() {
       ) : null}
 
       {finishFor ? (
-        <AgendaFinishCollect
-          bookingId={finishFor.id}
-          orderId={finishFor.orderId}
-          dueCents={finishFor.amountCents ?? undefined}
+        <MoneyRecordPaymentPanel
+          row={finishFor}
           onClose={() => setFinishFor(null)}
           onDone={() => {
             setFinishFor(null);

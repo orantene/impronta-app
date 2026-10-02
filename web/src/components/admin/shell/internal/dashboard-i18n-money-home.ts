@@ -4,6 +4,29 @@
  */
 
 export const MONEY_HOME_ES_TEXT: Record<string, string> = {
+  "Card in person": "Tarjeta en persona",
+  "How was it paid?": "¿Cómo te pagaron?",
+  "Still owed": "Aún te deben",
+  "Paid in full.": "Pagado completo.",
+  "Amount received": "Monto recibido",
+  "Confirm received": "Confirmar recibido",
+  "You received": "Recibiste",
+  by: "por",
+  "This is recorded as collected by you. It never becomes a Tulala payout.":
+    "Se registra como cobrado por ti. Nunca se vuelve un depósito de Tulala.",
+  "Payment recorded": "Pago registrado",
+  "Pick the booking, then enter what you received and how.":
+    "Elige la reserva y luego anota cuánto recibiste y cómo.",
+  "That is more than the booking total. Still owed:":
+    "Es más que el total de la reserva. Aún te deben:",
+  "That is more than the booking total.": "Es más que el total de la reserva.",
+  "This booking is already paid in full.": "Esta reserva ya está pagada completa.",
+  "Set the booking price first.": "Primero pon el precio de la reserva.",
+  "A payment link is still open on this booking. Cancel it first.":
+    "Hay un enlace de pago abierto en esta reserva. Cancélalo primero.",
+  "This booking is cancelled.": "Esta reserva está cancelada.",
+  "Enter an amount above zero.": "Escribe un monto mayor a cero.",
+  "Could not record the payment. Try again.": "No se pudo registrar el pago. Inténtalo de nuevo.",
   "Amounts in": "Montos en",
   Collected: "Cobrado",
   "this month": "este mes",

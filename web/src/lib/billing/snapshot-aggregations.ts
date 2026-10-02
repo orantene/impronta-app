@@ -4,6 +4,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadLedgerPaidByBooking, type LedgerPaid } from "@/lib/bookings/ledger-paid";
+import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
 
 import {
   mapBookingPayoutStatus,
@@ -35,6 +38,8 @@ type BookingTalentJoinRow = {
     source_type_snapshot: string | null;
     payment_method: string | null;
     source_inquiry_id: string | null;
+    total_client_revenue?: number | string | null;
+    currency_code?: string | null;
   };
   agencies: {
     id: string;
@@ -160,7 +165,9 @@ export async function fetchTalentSnapshotAggregateRows(
           client_revenue_lifecycle,
           source_type_snapshot,
           payment_method,
-          source_inquiry_id
+          source_inquiry_id,
+          total_client_revenue,
+          currency_code
         ),
         agencies!booking_talent_tenant_id_fkey (
           id,
@@ -234,6 +241,16 @@ export async function fetchTalentSnapshotAggregateRows(
   }
 
   const snapshots = (snapshotsRes.data ?? []) as SnapshotRow[];
+  // Ledger money per booking (manual cash / transfer rows, online charges).
+  // bookingIds are already scoped to this talent's own booking_talent rows;
+  // the service-role read is needed because talents have no RLS read on
+  // manual ledger rows. Non-fatal: an empty map keeps the snapshot view.
+  let ledgerByBooking = new Map<string, LedgerPaid>();
+  try {
+    ledgerByBooking = await loadLedgerPaidByBooking(createServiceRoleClient() ?? supabase, bookingIds);
+  } catch (ledgerErr) {
+    logServerError("snapshot-aggregations/ledger", ledgerErr);
+  }
   const participants = (participantsRes.data ?? []) as ParticipantRow[];
 
   // booking_id → latest talent-leg transfer settlement timestamp.
@@ -285,10 +302,40 @@ export async function fetchTalentSnapshotAggregateRows(
       snapshots,
       participantIds,
     );
-    if (!snapshot) continue;
+    const ledger = ledgerByBooking.get(row.booking_id) ?? null;
+    const agency = row.agencies;
+    if (!snapshot) {
+      // A direct booking with no commission snapshot (the talent's own
+      // client, paid in cash or by transfer) still has real money on the
+      // ledger. Show it rather than dropping the booking.
+      if (!ledger || ledger.paidCents <= 0) continue;
+      const currency = (booking.currency_code ?? ledger.currency ?? "USD").toUpperCase();
+      if (!opts.includeAllCurrencies && !isEurRow(currency, row.booking_id)) continue;
+      const totalCents = totalClientRevenueToCents(booking.total_client_revenue ?? null);
+      out.push({
+        bookingId: row.booking_id,
+        bookingTalentId: row.id,
+        tenantId: row.tenant_id,
+        agencySlug: agency?.slug ?? "",
+        agencyName: agency?.display_name ?? "Agency",
+        workDate: workDateIso,
+        payoutDate,
+        clientLabel: resolveClientLabel(booking),
+        grossCents: totalCents > 0 ? totalCents : ledger.paidCents,
+        netCents: ledger.paidCents,
+        workspaceFeeCents: 0,
+        status: mapBookingPayoutStatus(booking),
+        source: mapBookingSource(booking.source_type_snapshot),
+        paymentMethod: ledger.lastMethod ?? booking.payment_method,
+        paymentStatus: booking.payment_status ?? null,
+        currencyCode: currency,
+        collectedCents: ledger.paidCents,
+        collectedByMethod: ledger.byMethod,
+      });
+      continue;
+    }
     if (!opts.includeAllCurrencies && !isEurRow(snapshot.currency_code, row.booking_id)) continue;
 
-    const agency = row.agencies;
     out.push({
       bookingId: row.booking_id,
       bookingTalentId: row.id,
@@ -306,6 +353,8 @@ export async function fetchTalentSnapshotAggregateRows(
       paymentMethod: snapshot.payment_method ?? booking.payment_method,
       paymentStatus: booking.payment_status ?? null,
       currencyCode: snapshot.currency_code,
+      collectedCents: ledger?.paidCents ?? null,
+      collectedByMethod: ledger?.byMethod ?? null,
     });
   }
 

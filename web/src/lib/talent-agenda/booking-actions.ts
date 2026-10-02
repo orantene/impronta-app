@@ -13,6 +13,14 @@ import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 
+import {
+  recordManualPayment,
+  sumMoneyIn,
+  supabaseManualPaymentStore,
+  type ManualPaymentMethod,
+  type ManualPaymentResult,
+} from "@/lib/bookings/manual-payment";
+
 import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
 import type { OwnBookingResult } from "./ownership";
 
@@ -231,8 +239,59 @@ export async function completeBooking(input: {
 }
 
 /**
+ * Record money the talent received outside Tulala (cash, bank transfer, card
+ * on their own terminal, other) as ONE manual row in booking_transactions and
+ * update the booking balance. Partial payments allowed; the paid total is
+ * capped at the booking total; the same idempotencyKey never writes twice.
+ */
+export async function recordBookingPayment(input: {
+  bookingId: string;
+  amountCents: number;
+  method: ManualPaymentMethod;
+  idempotencyKey: string;
+}): Promise<ManualPaymentResult | AgendaActionFail> {
+  const own = await requireOwnBooking(input.bookingId);
+  if (!own.ok) return own;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, reason: "unavailable" };
+
+  let res: ManualPaymentResult;
+  try {
+    res = await recordManualPayment(supabaseManualPaymentStore(admin), {
+      bookingId: input.bookingId,
+      amountCents: input.amountCents,
+      method: input.method,
+      idempotencyKey: input.idempotencyKey,
+      actorUserId: own.userId,
+    });
+  } catch (err) {
+    logServerError("agenda.recordPayment", err);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!res.ok || res.already) return res;
+
+  await logBookingActivity(admin, {
+    bookingId: input.bookingId,
+    actorUserId: own.userId,
+    eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
+    payload: {
+      surface: "talent_money",
+      payment_status: { to: res.paymentStatus },
+      payment_method: { to: input.method },
+      amountCents: input.amountCents,
+      transactionId: res.transactionId,
+    },
+  });
+
+  return res;
+}
+
+/**
  * T8.2 Talent records cash collected at the appointment (no POS shift).
- * Updates payment_status only — does not invent Stripe money.
+ * Writes the cash to the ledger as a manual row for what is still due (or
+ * amountCents when given). A booking with no price set has nothing to put on
+ * the ledger, so it only flips payment_status as before.
  */
 export async function recordBookingCashCollected(input: {
   bookingId: string;
@@ -257,18 +316,32 @@ export async function recordBookingCashCollected(input: {
   if (row.payment_status === "paid") return { ok: true, already: true };
 
   const total = totalClientRevenueToCents(row.total_client_revenue);
-  const amount = input.amountCents != null ? Math.max(0, input.amountCents) : total;
-  const nextStatus =
-    total > 0 && amount > 0 && amount < total
-      ? "partial"
-      : amount > 0 || total === 0
-        ? "paid"
-        : "unpaid";
+  if (total > 0) {
+    const store = supabaseManualPaymentStore(admin);
+    let remaining = total;
+    try {
+      remaining = Math.max(0, total - sumMoneyIn(await store.listLedger(input.bookingId)));
+    } catch (err) {
+      logServerError("agenda.recordCash.ledger", err);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (remaining === 0) return { ok: true, already: true };
+    const amount = input.amountCents != null ? Math.round(input.amountCents) : remaining;
+    const res = await recordBookingPayment({
+      bookingId: input.bookingId,
+      amountCents: amount,
+      method: "cash",
+      // One cash finish per booking + amount: a double tap replays, never doubles.
+      idempotencyKey: `agenda-cash:${input.bookingId}:${amount}:${total - remaining}`,
+    });
+    if (!res.ok) return { ok: false, reason: res.reason };
+    return res.already ? { ok: true, already: true } : { ok: true };
+  }
 
   const { error: upErr } = await admin
     .from("agency_bookings")
     .update({
-      payment_status: nextStatus,
+      payment_status: "paid",
       payment_method: "cash",
       payment_notes: "Cash collected by talent at appointment.",
     })
@@ -284,9 +357,9 @@ export async function recordBookingCashCollected(input: {
     eventType: BOOKING_AUDIT.PAYMENT_STATE_CHANGED,
     payload: {
       surface: "talent_agenda",
-      payment_status: { from: row.payment_status, to: nextStatus },
+      payment_status: { from: row.payment_status, to: "paid" },
       payment_method: { from: row.payment_method ?? null, to: "cash" },
-      amountCents: amount,
+      amountCents: 0,
     },
   });
 

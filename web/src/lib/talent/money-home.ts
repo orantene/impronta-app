@@ -77,6 +77,9 @@ export function methodBucket(raw: string | null | undefined): MoneyMethodBucket 
  * show as 100k collected). Exclude until a real collected amount is on the row.
  */
 function isCollected(row: TalentEarningsRow): boolean {
+  // The ledger is the real answer when it has one: a part payment counts for
+  // what was actually collected, not for the whole booking.
+  if (row.collectedCents != null && row.collectedCents > 0) return true;
   if (row.status === "paid" || row.status === "invoiced") return true;
   if (row.status !== "pending") return false;
   const ps = (row.paymentStatus ?? "").trim().toLowerCase();
@@ -98,6 +101,18 @@ export function buildMoneyHomeView(input: {
   const byMethod: Record<MoneyMethodBucket, number> = { card: 0, cash: 0, transfer: 0, other: 0 };
   let collectedCents = 0;
   for (const r of payments) {
+    const ledger = r.collectedCents != null && r.collectedCents > 0 ? r.collectedCents : null;
+    if (ledger != null) {
+      collectedCents += ledger;
+      const split = r.collectedByMethod ?? {};
+      let assigned = 0;
+      for (const [m, cents] of Object.entries(split)) {
+        byMethod[methodBucket(m)] += cents;
+        assigned += cents;
+      }
+      if (assigned < ledger) byMethod[methodBucket(r.paymentMethod)] += ledger - assigned;
+      continue;
+    }
     collectedCents += r.grossCents;
     byMethod[methodBucket(r.paymentMethod)] += r.grossCents;
   }

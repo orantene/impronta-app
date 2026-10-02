@@ -78,10 +78,13 @@ describe("Send quote panel", () => {
   });
 });
 
-describe("Money Record payment opens Finish over Money", () => {
-  it("renders the Finish panel in place instead of navigating to the booking", () => {
+describe("Money Record payment opens the record sheet over Money", () => {
+  it("renders the amount + method sheet in place and writes the ledger", () => {
     const money = code("../../../../../talent/money/MoneyHomePage.tsx");
-    assert.match(money, /<AgendaFinishCollect/);
+    assert.match(money, /<MoneyRecordPaymentPanel/);
+    const sheet = code("../../../../../talent/money/MoneyRecordPaymentPanel.tsx");
+    assert.match(sheet, /recordBookingPayment\(/);
+    assert.match(sheet, /idempotencyKey/);
     assert.match(money, /setFinishFor\(r\)/);
     assert.doesNotMatch(money, /collect=1/);
   });
