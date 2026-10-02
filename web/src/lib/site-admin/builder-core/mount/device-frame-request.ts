@@ -1,4 +1,5 @@
-import type { EditDevice } from "@/components/edit-chrome/edit-context-types";
+/** Structural mirror of edit-chrome `EditDevice` (kept local so lib does not import edit-chrome). */
+type EditDevice = "desktop" | "tablet" | "mobile" | "wide" | "compact";
 
 type ParamsLike = { get(name: string): string | null } | null | undefined;
 

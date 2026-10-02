@@ -45,7 +45,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-hero-slider",
     label: "Hero Slider",
     description:
-      "Full-screen freeform slider — each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
+      "Full-screen freeform slider: each slide is its own layout (columns, photo background, headings, buttons) with crossfade, Ken Burns, autoplay and dots.",
     category: "hero",
     icon: "hero-split",
     sectionTemplateId: "hero-slider",
@@ -90,7 +90,7 @@ export const ADD_GALLERY_SECTIONS_CONNECTED_ITEMS: ReadonlyArray<AddGalleryItem>
     id: "sec-story-house",
     label: "Story House",
     description:
-      "Editorial origin story — 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
+      "Editorial origin story: 4:5 portrait in a gold inset frame beside a Cormorant heading, muted copy, italic gold pull-quote, and signature.",
     category: "about",
     icon: "about-split",
     sectionTemplateId: "story-house",

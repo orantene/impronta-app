@@ -124,7 +124,23 @@ function stripComments(source: string): string {
  */
 const ALLOW_LIST: Record<string, string[]> = {
   // ── builder-core / builder-node ──────────────────────────────────────────
-  "builder-core/mount/BuilderEditorMount.tsx": ["@/components/edit-chrome/edit-shell"],
+  // The mount is the composition root that renders the editor chrome around the
+  // canvas; it necessarily imports the chrome shell + iframe/canvas regions.
+  "builder-core/mount/BuilderEditorMount.tsx": [
+    "@/components/edit-chrome/edit-shell",
+    "@/components/edit-chrome/iframe-child",
+    "@/components/edit-chrome/in-editor-canvas-region",
+  ],
+
+  // ── TEST-ONLY parity/contract edges (static tests, never in the runtime graph) ──
+  // These tests pin lib catalogs/behaviour against edit-chrome ES/i18n/meta
+  // catalogs and can only do so by importing both sides.
+  "add-gallery/apps-gallery.test.ts": ["@/components/edit-chrome/editor-i18n-es"],
+  "add-gallery/registry-es-labels.i18n.test.ts": ["@/components/edit-chrome/editor-i18n-es"],
+  "edit-mode/talent-published-snapshot.test.ts": ["../../../components/edit-chrome/editor-i18n"],
+  "sections/site_header/section-switcher.test.tsx": [
+    "@/components/edit-chrome/inspectors/site-header/tabs/regions-meta",
+  ],
 
   // ── ES parity guard (#1013, wave 0) ───────────────────────────────────────
   // TEST-ONLY edge, and unavoidable by construction: this guard asserts that
