@@ -6,11 +6,8 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { anchorIdAttrs } from "./anchor-id";
-import { NAIL_DESIGNER_CSS } from "./nail-designer-css";
-import { NailDesignerIsland } from "./nail-designer-island";
+import { NailStudioFrame } from "./nail-designer-frame";
 import type { BuilderAppNailDesignerNode } from "./types";
-
-const DEFAULT_CTA = { en: "Send my design", es: "Enviar mi diseño" };
 
 export function renderNailDesignerBlock(args: {
   node: BuilderAppNailDesignerNode;
@@ -20,10 +17,8 @@ export function renderNailDesignerBlock(args: {
   styleAttr?: CSSProperties;
 }): ReactNode {
   const { node, styleAttr } = args;
-  const es = args.locale.toLowerCase().startsWith("es");
   const title = args.text("title", node.props.title).trim();
   const intro = args.text("intro", node.props.intro).trim();
-  const ctaLabel = args.text("ctaLabel", node.props.ctaLabel).trim() || (es ? DEFAULT_CTA.es : DEFAULT_CTA.en);
   return (
     <section
       className="sb-nd"
@@ -33,14 +28,13 @@ export function renderNailDesignerBlock(args: {
       style={styleAttr}
       {...anchorIdAttrs(node)}
     >
-      <style>{NAIL_DESIGNER_CSS}</style>
       {title || intro ? (
         <header className="sb-nd-head">
           {title ? <h2 className="sb-nd-title">{title}</h2> : null}
           {intro ? <p className="sb-nd-intro">{intro}</p> : null}
         </header>
       ) : null}
-      <NailDesignerIsland locale={args.locale} ctaLabel={ctaLabel} />
+      <NailStudioFrame locale={args.locale} />
     </section>
   );
 }

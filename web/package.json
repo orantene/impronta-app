@@ -6,6 +6,7 @@
     "node": "22.x"
   },
   "scripts": {
+    "apps:sync-nail-studio": "node scripts/sync-nail-studio.mjs",
     "predev": "node scripts/check-migrations-applied.mjs --warn-only",
     "dev": "NODE_OPTIONS=--max-old-space-size=6144 next dev -p ${PORT:-3000}",
     "dev:qa": "NODE_ENV=development NODE_OPTIONS=--max-old-space-size=6144 next dev -p ${PORT:-3008}",

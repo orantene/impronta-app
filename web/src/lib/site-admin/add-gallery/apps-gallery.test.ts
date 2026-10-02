@@ -99,7 +99,7 @@ test("i18n parity: tab, category, titles, descriptions and inspector copy all ha
 test("no em dashes in the Spanish or English Apps copy", () => {
   const es = readFileSync(new URL("../../../components/edit-chrome/editor-i18n-es-apps.ts", import.meta.url), "utf8");
   const model = readFileSync(new URL("../builder-node/nail-designer-model.ts", import.meta.url), "utf8");
-  const island = readFileSync(new URL("../builder-node/nail-designer-island.tsx", import.meta.url), "utf8");
+  const island = readFileSync(new URL("../builder-node/nail-designer-frame.tsx", import.meta.url), "utf8");
   for (const [name, text] of [["es catalog", es], ["model", model], ["island", island]] as const) {
     // Comments may use dashes; only string literals are user-facing.
     const literals = text.match(/"[^"\n]*"|`[^`\n]*`/g) ?? [];

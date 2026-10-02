@@ -50,7 +50,7 @@ test("Apps tab lists the app with a live playground and no Pro pill when free", 
   const html = renderToStaticMarkup(<AppsTab apps={[nail]} locale="es" />);
   assert.match(html, /Diseñador de uñas/);
   assert.match(html, /data-testid="gallery-app-playground-app_nail_designer"/);
-  assert.match(html, /<button/);
+  assert.match(html, /<iframe[^>]*src="\/apps\/nail-studio\/index\.html\?lang=es"/);
   assert.doesNotMatch(html, /gallery-app-pro/);
 });
 
