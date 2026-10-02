@@ -19546,6 +19546,32 @@
           "why": "No action is needed right now."
         }
       }
+    },
+    "talentUsdc": {
+      "badgeRecommended": "Recommended",
+      "badgeAvailable": "Available in {country}",
+      "label": "USDC, digital dollars",
+      "title": "Get paid in USDC",
+      "intro": "USDC is a digital dollar. Your share of each booking goes straight to your own wallet.",
+      "benefitFast": "Arrives in minutes, not days",
+      "benefitStable": "Stays in US dollars (1 USDC = 1 USD)",
+      "benefitNoBank": "No bank account needed",
+      "benefitConvert": "Convert to pesos or your local currency anytime",
+      "howTitle": "How it works",
+      "step1Title": "Set up payouts",
+      "step1Body": "Create your secure payout account. It takes a few minutes.",
+      "step2Title": "Link your wallet in Stripe",
+      "step2Body": "Add your wallet address and choose USDC as your payout currency.",
+      "step3Title": "Get paid in USDC",
+      "step3Body": "Each booking payout lands in your wallet automatically.",
+      "cta": "Link your wallet in Stripe",
+      "opening": "Opening...",
+      "bankHint": "Prefer a bank? You can set that up below instead.",
+      "walletTitle": "What is a wallet?",
+      "walletBody1": "A wallet is an app or account that holds digital money, like USDC, and has its own address. You choose it and you control it.",
+      "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
+      "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
+      "checking": "Checking if USDC payouts are available for you..."
     }
   },
   "admin": {
