@@ -12012,6 +12012,63 @@ export type Database = {
         }
         Relationships: []
       }
+      resend_inbound_emails: {
+        Row: {
+          id: string
+          resend_email_id: string
+          message_id: string | null
+          from_address: string
+          to_addresses: string[]
+          subject: string
+          body_text: string | null
+          body_html: string | null
+          body_truncated: boolean
+          forward_to: string | null
+          forward_status: string
+          forward_error: string | null
+          forwarded_at: string | null
+          provider_payload: Record<string, unknown>
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resend_email_id: string
+          message_id?: string | null
+          from_address: string
+          to_addresses?: string[]
+          subject?: string
+          body_text?: string | null
+          body_html?: string | null
+          body_truncated?: boolean
+          forward_to?: string | null
+          forward_status?: string
+          forward_error?: string | null
+          forwarded_at?: string | null
+          provider_payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resend_email_id?: string
+          message_id?: string | null
+          from_address?: string
+          to_addresses?: string[]
+          subject?: string
+          body_text?: string | null
+          body_html?: string | null
+          body_truncated?: boolean
+          forward_to?: string | null
+          forward_status?: string
+          forward_error?: string | null
+          forwarded_at?: string | null
+          provider_payload?: Record<string, unknown>
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       review_moderation_events: {
         Row: {
           action: string

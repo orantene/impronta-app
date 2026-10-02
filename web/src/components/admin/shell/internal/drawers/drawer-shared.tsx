@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useC
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
 import { addTalentToRoster, bulkAddTalentToRoster } from "../actions";
 import { parseTalentCsv } from "../csv-parser";
@@ -429,7 +430,7 @@ export function useSaveAndClose(message?: string) {
 
 export function openSupportEmail(subject: string, body: string) {
   const params = new URLSearchParams({ subject, body });
-  window.location.href = `mailto:support@tulala.digital?${params.toString()}`;
+  window.location.href = `mailto:${SUPPORT_EMAIL}?${params.toString()}`;
 }
 
 
