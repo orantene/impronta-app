@@ -140,11 +140,12 @@ describe("nonRefundableFeeCents (fees are never refunded)", () => {
   it("client mode: platform fee + processing line", () => {
     const s = resolveBookingCommissions(input());
     assert.equal(nonRefundableFeeCents([s]), 150 + 334);
-    assert.equal(s.gross_charged_cents - nonRefundableFeeCents([s]), 10_000);
+    assert.equal(s.gross_charged_cents - (nonRefundableFeeCents([s]) ?? 0), 10_000);
   });
-  it("seller mode: platform fee only", () => {
+  it("seller mode: fee not yet recorded is unknown (null), never guessed", () => {
     const s = resolveBookingCommissions(input({ processingFeePayer: "seller" }));
-    assert.equal(nonRefundableFeeCents([s]), 150);
+    assert.equal(nonRefundableFeeCents([s]), null);
+    assert.equal(nonRefundableFeeCents([{ ...s, processing_fee_cents: 324 }]), 150 + 324);
   });
   it("legacy included rows: 0 (refunds unchanged)", () => {
     assert.equal(nonRefundableFeeCents([{ client_surcharge_cents: 300 }]), 0);

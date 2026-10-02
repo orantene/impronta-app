@@ -140,8 +140,21 @@ export function computeRefundEligibility(input: {
   paymentIntentId: string | null;
   provider: string;
   /** Fees that are never returned (see nonRefundableFeeCents in billing/commission). */
-  nonRefundableFeeCents?: number;
+  nonRefundableFeeCents?: number | null;
 }): RefundEligibility {
+  if (input.nonRefundableFeeCents === null) {
+    // Seller-pays fee not recorded: the refund base is unknowable, never guess.
+    return {
+      remainingCents: 0,
+      alreadyRefundedCents: input.alreadyRefundedCents,
+      grossAmountCents: input.grossAmountCents,
+      currency: input.currency,
+      paymentIntentId: input.paymentIntentId,
+      blockedReason:
+        "The actual card processing fee for this payment is not recorded yet, so the refund amount cannot be computed. Try again once the payment has settled.",
+      blockedCode: "unavailable",
+    };
+  }
   const nonRefundable = Math.max(0, Math.round(input.nonRefundableFeeCents ?? 0));
   const base: Omit<RefundEligibility, "blockedReason" | "blockedCode"> = {
     remainingCents: Math.max(0, input.grossAmountCents - nonRefundable - input.alreadyRefundedCents),
@@ -230,12 +243,12 @@ export async function loadRefundEligibility(
 
   // pass_through bookings: the platform fee + client-paid processing fee are
   // non-refundable, so the refundable ceiling is the service amount only.
-  let nonRefundableFeeCents = 0;
+  let nonRefundableFeeCents: number | null = 0;
   if (typeof row.booking_id === "string" && row.booking_id) {
     try {
       nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshots(sb, row.booking_id));
     } catch {
-      /* legacy behaviour: no snapshot read => nothing excluded */
+      nonRefundableFeeCents = null; // snapshot unreadable: block, never guess
     }
   }
 

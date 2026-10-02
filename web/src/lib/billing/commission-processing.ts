@@ -29,24 +29,48 @@ export function grossUpForProcessorFee(targetNetCents: number, rates: ProcessorF
 
 /**
  * The part of a booking's charge that is NOT refundable (owner decision
- * 2026-10-01: the platform fee and the processing fee are never returned, in
- * either payer mode). Only pass_through snapshots carry it; included-mode rows
- * (legacy) contribute 0 so their refunds are unchanged. PURE.
+ * 2026-10-01: fees are non-refundable and nobody loses money on a refund).
+ *   - payer 'client': the client paid the processing fee on top and the seller
+ *     received 100% of the subtotal. Kept = platform fee + client processing
+ *     line; a full refund returns the service subtotal.
+ *   - payer 'seller' (default): the seller bore the ACTUAL processing fee, so a
+ *     full refund returns the subtotal MINUS that fee (exactly what the seller
+ *     received). Kept = platform fee + actual processing fee.
+ *   - included mode (legacy): 0, refunds unchanged.
+ * Returns `null` when a seller-pays snapshot has no actual fee recorded
+ * (`processing_fee_cents` 0/absent): the caller must block, never guess. PURE.
  */
 export function nonRefundableFeeCents(
   snaps: Array<{
     processing_mode?: ProcessingMode | null;
+    processing_fee_payer?: "seller" | "client" | null;
+    processing_fee_cents?: number | null;
     client_surcharge_cents?: number | null;
     client_processing_fee_cents?: number | null;
   }>,
-): number {
-  return snaps.reduce(
-    (sum, r) =>
-      r.processing_mode === "pass_through"
-        ? sum + (r.client_surcharge_cents ?? 0) + (r.client_processing_fee_cents ?? 0)
-        : sum,
-    0,
-  );
+): number | null {
+  let sum = 0;
+  for (const r of snaps) {
+    if (r.processing_mode !== "pass_through") continue;
+    sum += r.client_surcharge_cents ?? 0;
+    if (r.processing_fee_payer === "client") {
+      sum += r.client_processing_fee_cents ?? 0;
+    } else {
+      const actual = r.processing_fee_cents ?? 0;
+      if (!(actual > 0)) return null;
+      sum += actual;
+    }
+  }
+  return sum;
+}
+
+/**
+ * Partial refund on the same base: `share` (0..1] of the refundable ceiling
+ * (gross minus non-refundable fees), rounded down to the cent. PURE.
+ */
+export function proportionalRefundCents(refundableCents: number, share: number): number {
+  if (!(share > 0) || !(refundableCents > 0)) return 0;
+  return Math.floor(refundableCents * Math.min(share, 1));
 }
 
 
