@@ -47,6 +47,7 @@ import type Stripe from "stripe";
 import { markRefunded as markRefundedReal, markDisputed as markDisputedReal } from "@/lib/bookings/transactions";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
+import { nonRefundableFeeCents } from "@/lib/billing/commission";
 import {
   reverseBookingPayouts,
   computeTalentProtectiveClawback,
@@ -412,7 +413,12 @@ async function reconcilePartialRefund(
   }
 
   const snaps = await loadBookingCommissionSnapshots(sb, ref.bookingId);
-  const platformFeeCents = snaps.reduce((s, r) => s + (r.platform_fee_cents ?? 0), 0);
+  // pass_through rows: the platform fee is NON-REFUNDABLE, so it absorbs none of
+  // a refund (the whole refund comes back from the seller lanes).
+  const platformFeeCents = snaps.reduce(
+    (s, r) => s + (r.processing_mode === "pass_through" ? 0 : (r.platform_fee_cents ?? 0)),
+    0,
+  );
   const talentTotalCents = snaps.reduce((s, r) => s + (r.talent_net_cents ?? 0), 0);
   const workspaceLegs = snaps
     .filter((r) => (r.workspace_fee_cents ?? 0) > 0)
@@ -491,7 +497,19 @@ export async function handleBookingRefund(
   const ref = await resolveBookingFromPaymentIntent(stripe, input.paymentIntentId, d.resolveSupabase());
   if (!ref) return false;
 
-  const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents;
+  // Fees are non-refundable (pass_through): the client's FULL refund is the
+  // service amount, i.e. the charge minus the platform + processing fee lines.
+  // 0 for legacy ('included') bookings, so their full-vs-partial test is unchanged.
+  let feesKeptCents = 0;
+  if (ref.bookingId) {
+    try {
+      const sbFees = d.resolveSupabase();
+      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshots(sbFees, ref.bookingId));
+    } catch {
+      /* fall back to the legacy full-charge comparison */
+    }
+  }
+  const isFullRefund = ref.chargeAmountCents > 0 && input.refundedCents >= ref.chargeAmountCents - feesKeptCents;
   if (!isFullRefund) {
     // The individual refund slice drives the partial reconciliation; fall back
     // to the cumulative amount only if the routing layer couldn't enumerate the

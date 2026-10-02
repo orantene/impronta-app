@@ -46,7 +46,7 @@ export type PayoutLeg = {
   /** Earliest transfer time; `null` = due now. REQUIRED so forgetting it is a
    *  compile error, not an early payout. See payout-release-gate.ts. */
   releaseAfter: string | null;
-};
+} & { /** pass_through leg fee; written only when defined */ processingFeeCents?: number | null };
 
 /** A payee predicate as data: equality filters + one-of filters, in order. */
 export type PayoutPayeeScope = {
@@ -127,6 +127,7 @@ export async function recordPayoutLeg(sb: SupabaseClient, leg: PayoutLeg): Promi
       payout_rail: leg.payoutRail,
       last_error: leg.lastError,
       transferred_at: leg.status === "transferred" ? new Date().toISOString() : null,
+      ...(leg.processingFeeCents != null ? { processing_fee_cents: leg.processingFeeCents } : {}),
     };
 
     if (existing) {
@@ -268,7 +269,7 @@ export async function releaseHeldPayouts(
     const { data, error } = await query;
     if (error || !data?.length) return [];
 
-    for (const row of data as HeldRow[]) {
+    for (const row of (data as HeldRow[]).filter((r) => (r.amount_cents ?? 0) > 0)) { // 0 = pass_through placeholder
       // Never release a Global Payouts leg via the Connect rail. This path only
       // does stripe.transfers.create() (Connect); a GP leg released here would
       // double-pay once the GP retry (its own outbound-payment webhook) also
