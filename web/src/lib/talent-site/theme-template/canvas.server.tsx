@@ -49,6 +49,16 @@ async function profileIdForCode(code: string): Promise<string | null> {
   return (data as { id?: string } | null)?.id ?? null;
 }
 
+/** The editor language wins; the talent's own bounded locale is only the fallback. */
+export function canvasLocaleFor(lang: "en" | "es" | null | undefined, fallback: string): string {
+  return lang === "en" || lang === "es" ? lang : fallback;
+}
+
+/** Fallback walk led by the canvas locale. */
+export function canvasLocaleChain(locale: string, chain: readonly string[]): string[] {
+  return [locale, ...chain.filter((c) => c !== locale)];
+}
+
 /** Look tokens for `?look=` (a design palette key), else the design's default look. */
 export function themeTemplateLookTokens(design: string, look: string | null | undefined): Record<string, string> {
   const fromLook = look ? galleryPaletteLookTokens(design, look) : null;
@@ -120,7 +130,16 @@ export async function buildThemeTemplateCanvasData(input: {
     hrefMode: "host-root",
     editorPreview: true,
   });
-  const locale = localeCtx.locale;
+  // The canvas follows the EDITOR language (?lang=), even when the demo
+  // talent's own site language set does not include it (else EN editor, ES canvas).
+  const locale = canvasLocaleFor(input.lang, localeCtx.locale);
+  const chain = canvasLocaleChain(locale, localeCtx.chain);
+  const shellCtx = {
+    ...localeCtx,
+    locale,
+    chain,
+    contentLocale: { ...localeCtx.contentLocale, locale, chain },
+  };
   const editedTree = tree === "shell" ? draft.payload.shellTree : draft.payload.homeTree;
   const allTrees = [...draft.payload.homeTree, ...draft.payload.shellTree];
 
@@ -133,9 +152,9 @@ export async function buildThemeTemplateCanvasData(input: {
   const [dataSources, ctaMode, swaps, live] = await Promise.all([
     loadPreviewDataSources(profileId, allTrees, locale),
     loadTalentSiteCtaMode(profileId, planKey),
-    loadTalentLocaleSwaps(profileId, locale, localeCtx.chain),
+    loadTalentLocaleSwaps(profileId, locale, chain),
     treeHasLiveCandidates(editedTree)
-      ? loadTalentLiveText(profileId, locale, localeCtx.chain)
+      ? loadTalentLiveText(profileId, locale, chain)
       : Promise.resolve(null),
   ]);
 
@@ -158,7 +177,7 @@ export async function buildThemeTemplateCanvasData(input: {
   if (tree === "home" && draft.payload.shellTree.length > 0) {
     const [headerTree, footerTree] = splitShell(hydratePlaceholders(draft.payload.shellTree, placeholders, locale));
     const render = (roots: BuilderNode[]): ReactNode =>
-      roots.length === 0 ? null : <>{roots.map((r) => renderShellRoot(r, localeCtx, isDemo))}</>;
+      roots.length === 0 ? null : <>{roots.map((r) => renderShellRoot(r, shellCtx, isDemo))}</>;
     shellHeader = render(headerTree);
     shellFooter = render(footerTree);
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import type { DemoRebuildResult, DemoRebuildRow } from "@/lib/talent-site/demos/types";
 
@@ -8,6 +8,18 @@ import { ConfirmDialog } from "./[releaseId]/confirm-dialog";
 import { actionRebuildDemos, actionRestoreDemoRun } from "./demo-rebuild-actions";
 import { DEMO_REBUILD_COPY } from "./demo-rebuild-copy";
 import type { Lang } from "./copy";
+
+/** Give up waiting on a dry run after this long and offer a retry. */
+export const PREVIEW_TIMEOUT_MS = 30_000;
+
+/** Resolves with the action result, or a timeout error (the server work is not cancelled). */
+export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const t = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(onTimeout), ms);
+  });
+  return Promise.race([p, t]).finally(() => clearTimeout(timer));
+}
 
 const btn =
   "rounded border border-white/30 px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40";
@@ -28,15 +40,31 @@ export function DemoRebuildPanel({ design, lang }: { design: string; lang: Lang 
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [elapsed, setElapsed] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  const checking = pending && !result && !confirmOpen && restoringId === null;
+
+  useEffect(() => {
+    if (!checking) {
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => setElapsed((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [checking]);
 
   const toWrite = preview ? preview.rows.filter((r) => r.status === "would_write").length : 0;
 
   function runPreview() {
     setError(null);
+    setTimedOut(false);
     setResult(null);
     start(async () => {
-      const res = await actionRebuildDemos(design, true);
-      if (res.ok) setPreview(res.data);
+      const res = await withTimeout(actionRebuildDemos(design, true), PREVIEW_TIMEOUT_MS, null);
+      if (res === null) {
+        setTimedOut(true);
+        setError(t.timeout);
+      } else if (res.ok) setPreview(res.data);
       else setError(res.error || t.genericError);
     });
   }
@@ -84,7 +112,7 @@ export function DemoRebuildPanel({ design, lang }: { design: string; lang: Lang 
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btn} disabled={pending} onClick={runPreview}>
-            {pending && !result && !confirmOpen && restoringId === null ? t.previewing : t.preview}
+            {checking ? t.previewing : t.preview}
           </button>
           {preview && toWrite > 0 ? (
             <button type="button" className={`${btn} bg-white/15 font-medium`} disabled={pending} onClick={() => setConfirmOpen(true)}>
@@ -94,9 +122,20 @@ export function DemoRebuildPanel({ design, lang }: { design: string; lang: Lang 
         </div>
       </div>
 
+      {checking && elapsed >= 2 ? (
+        <p role="status" className="mt-3 text-sm text-white/60" data-rebuild-elapsed>
+          {t.elapsed(elapsed)}
+        </p>
+      ) : null}
+
       {error ? (
         <p role="alert" className="mt-3 text-sm text-red-300">
-          {error}
+          {error}{" "}
+          {timedOut ? (
+            <button type="button" className="underline" onClick={runPreview} data-rebuild-retry>
+              {t.retry}
+            </button>
+          ) : null}
         </p>
       ) : null}
 

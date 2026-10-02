@@ -13,6 +13,7 @@ import {
   parseMockupSummary,
   parityCommandFor,
   previewFromCodeHref,
+  releasedVersionOf,
 } from "./factory-model";
 import { evaluateFactoryGate, guardedFactoryRun } from "./talent-factory-gate";
 import { FACTORY_SLUGS } from "./talent-factory.server";
@@ -88,5 +89,20 @@ describe("model", () => {
     assert.equal(newestRun([a!, b!])?.openDeltas, 2);
     assert.equal(b?.reportPath, "web/qa-evidence/mockup-parity/d2/report.html");
     assert.equal(b?.deltasByLayer.token, 2);
+  });
+});
+
+describe("releasedVersionOf", () => {
+  it("counts only published releases", () => {
+    assert.equal(releasedVersionOf([]), null);
+    assert.equal(releasedVersionOf([{ to_version: 23, status: "draft" }]), null);
+    assert.equal(
+      releasedVersionOf([
+        { to_version: 22, status: "published" },
+        { to_version: 23, status: "draft" },
+        { to_version: 20, status: "published" },
+      ]),
+      22,
+    );
   });
 });

@@ -64,7 +64,7 @@ export function ThemeTemplateEditorMount({
     `rounded-full px-3 py-1 text-xs ${active ? "bg-black/80 text-white" : "bg-black/5 text-black/70"}`;
 
   const headerActions = (
-    <div className="flex flex-wrap items-center gap-3 text-black/80" data-theme-template-header>
+    <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-black/80" data-theme-template-header>
       <nav aria-label={t.tabsAria} className="flex items-center gap-1" data-tree-tabs>
         <Link href={tabHref("home")} className={tabClass(tree === "home")} aria-current={tree === "home" ? "page" : undefined}>
           {t.tabHome}
@@ -74,15 +74,26 @@ export function ThemeTemplateEditorMount({
         </Link>
       </nav>
       <ThemeTemplateSubjectPicker design={sourceDesign ?? design} subject={subjectCode ?? null} look={look ?? null} lang={lang} />
-      <SaveAsNewDesignDialog sourceDesign={design} lang={lang} />
       <PublishDesignButton design={design} lang={lang} />
-      <Link
-        href="/platform/admin/builder-lab/themes"
-        className="text-xs text-black/70 underline hover:text-black"
-        data-release-manager-link
-      >
-        {t.releaseManager}
-      </Link>
+      <details className="relative" data-header-overflow>
+        <summary
+          className="cursor-pointer list-none rounded border border-black/20 px-2 py-1 text-xs hover:bg-black/5"
+          aria-label={t.more}
+          title={t.more}
+        >
+          {"\u22EF"}
+        </summary>
+        <div className="absolute right-0 z-50 mt-1 flex min-w-[12rem] flex-col gap-2 rounded border border-black/15 bg-white p-3 shadow-lg">
+          <SaveAsNewDesignDialog sourceDesign={design} lang={lang} />
+          <Link
+            href="/platform/admin/builder-lab/themes"
+            className="text-xs text-black/70 underline hover:text-black"
+            data-release-manager-link
+          >
+            {t.releaseManager}
+          </Link>
+        </div>
+      </details>
     </div>
   );
 

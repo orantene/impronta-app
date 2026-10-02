@@ -10,6 +10,7 @@ const row = (slug: string, title: string, over: Partial<FactoryOverview["rows"][
   title,
   catalogVersion: 2,
   codeVersion: 2,
+  releasedVersion: 2 as number | null,
   status: "up_to_date" as const,
   demoCount: 3,
   galleryVisible: true,
@@ -30,6 +31,9 @@ const DATA: FactoryOverview = {
     row("folio", "Folio", {
       mockupRun: { timestamp: "2026-09-30T10:00:00Z", pass: 4, fail: 0, known: 1, openDeltas: 2, deltasByLayer: { token: 1, payload: 1, kit: 0, platform: 0, "new-capability": 0 }, reportPath: "web/qa-evidence/mockup-parity/x/report.html" },
     }),
+    row("folio-qa", "Folio Studio QA", { status: "authored_hidden", authored: true, editHref: "/x", galleryVisible: false }),
+    row("gridline", "Gridline", { releasedVersion: null, latestReleaseId: null, catalogVersion: 5 }),
+    row("pending", "Pending", { status: "authored_pending" }),
     row("solace", "Solace", { demoCount: 0, canRebuild: false, galleryVisible: false, catalogVersion: null, status: "not_synced", latestReleaseId: null, referenceDemoCode: null }),
   ],
 };
@@ -70,5 +74,20 @@ describe("TalentFactoryTab render", () => {
     const p = renderToStaticMarkup(<TalentFactoryTab initial={{ ...DATA, mockupMode: "production" }} />);
     assert.match(p, /Run this on your machine/);
     assert.doesNotMatch(p, /Open deltas/);
+  });
+  it("shows released version and Released in catalog without a release row", () => {
+    assert.match(html, /Released/);
+    assert.match(html, /Released in catalog \(v5\)/);
+  });
+  it("groups hidden drafts in a collapsed section", () => {
+    const m = html.match(/<details[^>]*data-hidden-drafts[^>]*>([\s\S]*?)<\/details>/);
+    assert.ok(m, "details present");
+    assert.doesNotMatch(m![0].split(">")[0], /open/);
+    assert.match(m![1], /Hidden drafts \(1\)/);
+    assert.match(m![1], /data-factory-design="folio-qa"/);
+    assert.doesNotMatch(html.replace(m![0], ""), /data-factory-design="folio-qa"/);
+  });
+  it("authored_pending shows the pull command", () => {
+    assert.match(html, /npm run theme:pull-authored -- --design pending/);
   });
 });

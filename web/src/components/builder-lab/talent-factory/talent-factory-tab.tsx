@@ -11,7 +11,7 @@ import { useEffect, useState, useTransition } from "react";
 import { DemoRebuildPanel } from "@/app/(workspace)/platform/admin/builder-lab/themes/demo-rebuild-panel";
 
 import { FACTORY_COPY, type FactoryLang } from "./factory-copy";
-import { HOW_TO_ADD_STEPS, parityCommandFor, releaseHref, type FactoryDesignRow, type FactoryOverview } from "./factory-model";
+import { HOW_TO_ADD_STEPS, parityCommandFor, pullAuthoredCommandFor, releaseHref, type FactoryDesignRow, type FactoryOverview } from "./factory-model";
 import { actionLoadTalentFactory, actionSyncTalentCatalog, type TalentSyncJson } from "./talent-factory-actions";
 
 const btn =
@@ -91,10 +91,26 @@ export function TalentFactoryTab({
 
       {!data ? <p className="text-sm text-white/60">{t.loading}</p> : null}
       <div className="grid gap-3">
-        {data?.rows.map((row) => (
-          <DesignCard key={row.slug} row={row} lang={lang} mockupMode={data.mockupMode} onOpenBuilder={onOpenBuilder} />
-        ))}
+        {data?.rows
+          .filter((r) => r.status !== "authored_hidden")
+          .map((row) => (
+            <DesignCard key={row.slug} row={row} lang={lang} mockupMode={data.mockupMode} onOpenBuilder={onOpenBuilder} />
+          ))}
       </div>
+      {data && data.rows.some((r) => r.status === "authored_hidden") ? (
+        <details className="mt-4" data-hidden-drafts>
+          <summary className="cursor-pointer text-sm text-white/70">
+            {t.hiddenDrafts(data.rows.filter((r) => r.status === "authored_hidden").length)}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            {data.rows
+              .filter((r) => r.status === "authored_hidden")
+              .map((row) => (
+                <DesignCard key={row.slug} row={row} lang={lang} mockupMode={data.mockupMode} onOpenBuilder={onOpenBuilder} />
+              ))}
+          </div>
+        </details>
+      ) : null}
 
       <section className="mt-6 rounded-lg border border-white/10 bg-white/5 p-4" data-how-to-add>
         <h3 className="text-sm font-medium">{t.howTitle}</h3>
@@ -123,6 +139,16 @@ function DesignCard({
   const t = FACTORY_COPY[lang];
   const cmd = parityCommandFor(row.slug);
   const [copied, setCopied] = useState(false);
+  const [pullCopied, setPullCopied] = useState(false);
+  const pullCmd = pullAuthoredCommandFor(row.slug);
+  function copyPull() {
+    try {
+      void navigator.clipboard.writeText(pullCmd);
+      setPullCopied(true);
+    } catch {
+      setPullCopied(false);
+    }
+  }
   function copyCmd() {
     try {
       void navigator.clipboard.writeText(cmd);
@@ -141,10 +167,25 @@ function DesignCard({
           {t.status[row.status]}
         </span>
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+      {row.status === "authored_pending" ? (
+        <div className="mt-2" data-pull-hint>
+          <p className="text-xs text-white/60">{t.pendingHint}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <code className="rounded bg-white/10 px-2 py-1 text-xs">{pullCmd}</code>
+            <button type="button" className={btn} onClick={copyPull}>
+              {pullCopied ? t.copied : t.copy}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
         <div>
           <dt className="text-xs text-white/40">{t.catalogVersion}</dt>
           <dd>{row.catalogVersion === null ? "-" : `v${row.catalogVersion}`}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-white/40">{t.releasedVersion}</dt>
+          <dd>{row.releasedVersion === null ? "-" : `v${row.releasedVersion}`}</dd>
         </div>
         <div>
           <dt className="text-xs text-white/40">{t.codeVersion}</dt>
@@ -166,7 +207,9 @@ function DesignCard({
               {t.openReleases}
             </Link>
           ) : (
-            <span className="text-white/40">{t.noRelease}</span>
+            <span className="text-white/60" data-released-in-catalog={row.catalogVersion !== null ? "" : undefined}>
+              {row.catalogVersion !== null ? t.releasedInCatalog(row.catalogVersion) : t.noRelease}
+            </span>
           )}
         </li>
         <li>

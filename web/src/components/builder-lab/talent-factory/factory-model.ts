@@ -26,6 +26,8 @@ export interface FactoryDesignRow {
   catalogVersion: number | null;
   /** Version a sync would leave the design at (newest known, +1 if code differs). */
   codeVersion: number;
+  /** Newest published release version for THIS slug (null = no release row). */
+  releasedVersion: number | null;
   status: FactoryStatus;
   demoCount: number;
   galleryVisible: boolean;
@@ -67,6 +69,19 @@ export function deriveFactoryStatus(input: {
 /** The version a sync would leave this design at. */
 export function codeVersionOf(highestKnown: number, codeDiffers: boolean): number {
   return codeDiffers ? highestKnown + 1 : highestKnown;
+}
+
+/** Newest published release target; paused/draft/archived do not count. */
+export function releasedVersionOf(
+  releases: ReadonlyArray<{ to_version: number; status: string }>,
+): number | null {
+  let best: number | null = null;
+  for (const r of releases) if (r.status === "published" && (best === null || r.to_version > best)) best = r.to_version;
+  return best;
+}
+
+export function pullAuthoredCommandFor(slug: string): string {
+  return `npm run theme:pull-authored -- --design ${slug}`;
 }
 
 export function previewFromCodeHref(slug: string): string {

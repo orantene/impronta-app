@@ -192,7 +192,13 @@ export function heroSpecBlock(makeId: MaxSiteTemplateIdFactory, opts: HeroSpecBl
       {
         id: makeId(),
         kind: "heading",
-        props: { text: opts.headline ?? "{{tagline}}", level: 1, style: { size: "xl", textWrap: "balance" } },
+        // Her headline field, with the same fallback chain as the live site (trade seed, then name).
+        props: {
+          text: opts.headline ?? "{{headline}}",
+          ...(opts.headline ? {} : { liveText: "hero_headline" }),
+          level: 1,
+          style: { size: "xl", textWrap: "balance" },
+        },
       },
       {
         id: makeId(),
