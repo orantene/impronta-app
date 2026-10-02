@@ -6,6 +6,8 @@ Canonical evidence lives in Project Context:
 
 **Scope:** US sandbox + TAL-93900 only. MX checklist item skipped (Oran 2026-10-02).
 
+**PR:** [#2469](https://github.com/orantene/impronta-app/pull/2469) · `fix/payments-e2e` @ `0e8963c5f`
+
 ## A4 summary (code)
 
 Seller-pays refunds must merge `booking_payouts.processing_fee_cents` via
