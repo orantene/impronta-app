@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { TermsEs } from "./terms-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -109,10 +111,18 @@ export default async function TermsPage() {
               <p className="text-xs opacity-70">Pending legal review</p>
               <p>
                 Refunds follow the refund policy the talent selected for the booking, and{" "}
-                {PLATFORM_BRAND.name} processes them. If a customer disputes a charge with their
-                bank, chargebacks and disputes are the talent&rsquo;s responsibility. If a
-                dispute is lost, {PLATFORM_BRAND.name} may deduct the disputed amount and any
-                dispute fee from the talent&rsquo;s future payouts.
+                {PLATFORM_BRAND.name} processes them. Details live on the{" "}
+                <Link
+                  href={withLocaleHref("/legal/refunds", "en")}
+                  className="underline"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  Refund policy
+                </Link>{" "}
+                page. If a customer disputes a charge with their bank, chargebacks and disputes
+                are the talent&rsquo;s responsibility. If a dispute is lost,{" "}
+                {PLATFORM_BRAND.name} may deduct the disputed amount and any dispute fee from
+                the talent&rsquo;s future payouts.
               </p>
               <p>
                 Card processing fees: every card payment carries a processing fee that the

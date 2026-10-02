@@ -28,6 +28,11 @@ test("footer, footer-socket, sitemap, and marketing copy include refunds", () =>
   assert.match(socket, /https:\/\/tulala\.digital\/legal\/refunds/);
 });
 
+test("Terms EN+ES Payments section links to /legal/refunds", () => {
+  assert.match(read("src/app/(marketing)/legal/terms/page.tsx"), /\/legal\/refunds/);
+  assert.match(read("src/app/(marketing)/legal/terms/terms-es.tsx"), /\/legal\/refunds/);
+});
+
 test("refunds pages carry the draft-review marker and no em dashes", () => {
   for (const f of [
     "src/app/(marketing)/legal/refunds/page.tsx",
