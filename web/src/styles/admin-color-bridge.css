@@ -67,6 +67,9 @@
   --color-admin-amber: #52606D;
   --color-admin-amber-soft: rgba(82, 96, 109, 0.10);
   --color-admin-amber-deep: #3A4651;
+  /* Highlight: the yellow "App" badge in the theme gallery. Defined once. */
+  --color-admin-highlight: #FFC83D;
+  --color-admin-highlight-ink: #3D2A00;
   /* ── Trust-tier badge semantics (RULING 2026-09-05) ────────────────
    * A tier literally named "Gold" keeps a gold treatment as a SCOPED
    * semantic, not chrome. These are the ONLY sanctioned golds in admin and
@@ -193,6 +196,9 @@
   --color-admin-border: var(--color-admin-border);
   --color-admin-border-soft: var(--color-admin-border-soft);
   --color-admin-border-strong: var(--color-admin-border-strong);
+
+  --color-admin-highlight: var(--color-admin-highlight);
+  --color-admin-highlight-ink: var(--color-admin-highlight-ink);
 
   --color-admin-accent: var(--color-admin-accent);
   --color-admin-accent-deep: var(--color-admin-accent-deep);

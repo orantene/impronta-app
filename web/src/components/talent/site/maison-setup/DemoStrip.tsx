@@ -71,7 +71,7 @@ export function DemoCard({
       locale={locale}
       testId={`demo-app-badge-${demo.key}`}
       onOpen={() => onOpenApps?.(demo.key)}
-      className="absolute right-1.5 top-1.5 !max-w-[calc(100%-12px)] !px-1.5 !py-0.5 !text-[10px]"
+      className="absolute right-1.5 top-1.5"
     />
     </div>
   );
