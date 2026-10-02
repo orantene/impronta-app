@@ -1,0 +1,204 @@
+{
+  "sections": [
+    {
+      "order": 0,
+      "unit": "site_header · minimal",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "header",
+      "variant": "minimal",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 1,
+      "unit": "hero · editorial-split",
+      "confidence": "exact",
+      "kitSlot": "hero",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "editorial-split",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 2,
+      "unit": "portfolio · filmstrip",
+      "confidence": "exact",
+      "kitSlot": "gallery",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "filmstrip",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 3,
+      "unit": "services_catalog · list-thumbs + category-rail",
+      "confidence": "near",
+      "kitSlot": "services",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "list-thumbs + category-rail",
+      "note": "type matches; variant not found in kit source (0/2 pieces)"
+    },
+    {
+      "order": 4,
+      "unit": "reviews · quote-cards",
+      "confidence": "near",
+      "kitSlot": "reviews",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "quote-cards",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 5,
+      "unit": "about · portrait-arch",
+      "confidence": "near",
+      "kitSlot": "about",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "portrait-arch",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 6,
+      "unit": "faq · accordion",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "accordion",
+      "shell": null,
+      "variant": "accordion",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 7,
+      "unit": "selection_dock · idle",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "platform shell",
+      "variant": "idle",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 8,
+      "unit": "selection_dock · active",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "platform shell",
+      "variant": "active",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 9,
+      "unit": "chat_dock · service_browser",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "platform shell",
+      "variant": "service_browser",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 10,
+      "unit": "chat_dock · thread",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "platform shell",
+      "variant": "thread",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 11,
+      "unit": "location_map · fallback",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "location_map",
+      "shell": null,
+      "variant": "fallback",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 12,
+      "unit": "location_map · editorial (no provider)",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "location_map",
+      "shell": null,
+      "variant": "editorial (no provider)",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 13,
+      "unit": "location · not provided",
+      "confidence": "near",
+      "kitSlot": "location",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "not provided",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 14,
+      "unit": "footer · talent (light editorial)",
+      "confidence": "exact",
+      "kitSlot": "statement_footer",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "talent (light editorial)",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 15,
+      "unit": "bottom_strip · shared by all themes",
+      "confidence": "near",
+      "kitSlot": "statement_footer",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "shared by all themes",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 16,
+      "unit": "policy_page · shared layout",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "platform shell",
+      "variant": "shared layout",
+      "note": "shell/platform chrome, not a home section"
+    },
+    {
+      "order": 17,
+      "unit": "booking conditions summary · from settings",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": null,
+      "shell": "platform shell",
+      "variant": "from settings",
+      "note": "shell/platform chrome, not a home section"
+    }
+  ],
+  "homeSlotOrder": [
+    "hero",
+    "gallery",
+    "services",
+    "reviews",
+    "about",
+    "location",
+    "statement_footer",
+    "statement_footer"
+  ],
+  "stats": {
+    "units": 18,
+    "skippedDynamic": 2,
+    "homeUnits": 11,
+    "exact": 6,
+    "near": 5,
+    "none": 0,
+    "exactPct": 54.5,
+    "exactOrNearPct": 100
+  }
+}

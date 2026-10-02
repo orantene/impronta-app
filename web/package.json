@@ -23,6 +23,8 @@
     "check:builder-test-lane-coverage": "node scripts/check-builder-test-lane-coverage.cjs",
     "check:field-catalog-frozen": "node scripts/check-field-catalog-frozen.mjs",
     "check:field-engine-integrity": "node scripts/check-field-engine-integrity.mjs",
+    "design:compile": "node scripts/design-compiler/compile.mjs",
+    "test:design-compiler": "node --test scripts/design-compiler/",
     "lint:migrations": "node --env-file=.env.local scripts/lint-migration-columns.mjs",
     "start": "next start",
     "lint": "bash scripts/gate-queue.sh lint 1 -- node -r ./scripts/eslint-node-polyfill.cjs ./node_modules/eslint/bin/eslint.js . --quiet --suppressions-location eslint-suppressions.json",
