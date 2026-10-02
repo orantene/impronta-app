@@ -115,8 +115,22 @@ export default async function TermsPage() {
                 from future payouts.
               </p>
               <p>
-                There is currently no separate booking fee for customers. Commission and
-                fees are disclosed in the plans.
+                Card processing fees: every card payment carries a processing fee that the
+                card networks and Stripe do not return. Depending on the talent&rsquo;s
+                settings, the talent absorbs this fee or it is added to the customer&rsquo;s
+                total. The full amount, including any fee, is always shown before the customer
+                pays.
+              </p>
+              <p>
+                Because processing fees are not returned, a refund is the refundable amount
+                under the talent&rsquo;s refund policy minus the processing fees on that
+                payment. Neither the talent nor {PLATFORM_BRAND.name} covers those fees. If the
+                actual fee cannot be confirmed yet, the refund waits until it can, rather than
+                being estimated.
+              </p>
+              <p>
+                {PLATFORM_BRAND.name} does not charge customers a separate booking fee.
+                Commission and fees for talents are disclosed in the plans.
               </p>
             </>
           ),
