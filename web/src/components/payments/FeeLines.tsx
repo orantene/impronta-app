@@ -8,6 +8,7 @@
  */
 
 import { formatFeeMoney, PLATFORM_FEE_RATE, type FeeLines as FeeLinesData } from "@/lib/billing/fee-payer-setting";
+import type { FeeLine as EngineFeeLine } from "@/lib/billing/processing-fee-payer";
 
 export function FeeLines({
   lines,
@@ -53,6 +54,44 @@ export function FeeLines({
         ))}
       </dl>
       <p className="mt-2 text-[12px] text-admin-ink-muted">{t("Fees are non-refundable.")}</p>
+    </div>
+  );
+}
+
+/**
+ * EngineFeeLines — the same breakdown, fed by the commission engine's
+ * clientFeeLines / bookingClientFeeLines (codes + cents). `label` maps a code
+ * to copy so the caller owns i18n; `total_charged` renders as the strong row.
+ */
+export function EngineFeeLines({
+  lines,
+  currency,
+  locale = "en",
+  label,
+  nonRefundable,
+}: {
+  lines: readonly EngineFeeLine[];
+  currency: string;
+  locale?: string;
+  label: (code: EngineFeeLine["code"]) => string;
+  nonRefundable: string;
+}) {
+  if (!lines.length) return null;
+  return (
+    <div data-testid="engine-fee-lines" className="text-[14px]">
+      <dl className="m-0">
+        {lines.map((l) => (
+          <div
+            key={l.code}
+            data-fee-line={l.code}
+            className={`flex justify-between gap-3 py-1 ${l.code === "total_charged" ? "border-t border-admin-border-soft pt-2 font-semibold" : ""}`}
+          >
+            <dt>{label(l.code)}</dt>
+            <dd className="m-0 whitespace-nowrap tabular-nums">{formatFeeMoney(l.cents, currency, locale)}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-[12px] text-admin-ink-muted">{nonRefundable}</p>
     </div>
   );
 }

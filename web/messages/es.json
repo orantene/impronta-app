@@ -1673,6 +1673,14 @@
       "choose": "Elegir",
       "configure": "Configurar",
       "keepSlot": "Se guarda la hora de recoger mientras este enlace sea valido. No se cobra hasta que pagues.",
+      "fees": {
+        "service_subtotal": "Servicio",
+        "base_reservation_fee": "Cargo de reserva",
+        "platform_fee": "Cargo de la plataforma",
+        "processing_fee": "Procesamiento de tarjeta",
+        "total_charged": "Total",
+        "nonRefundable": "Los cargos no son reembolsables."
+      },
       "waitlist": "Esta sesion esta llena. Entrate a la lista de espera.",
       "dateMismatch": "Esa fecha no esta. Abajo hay otra fecha.",
       "accept": "Aceptar",

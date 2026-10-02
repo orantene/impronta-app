@@ -133,3 +133,18 @@ export function sellerFeeLines(s: SnapForLines, actualFeeCents: number | null): 
   lines.push({ code: "net_payout", cents: ws });
   return lines;
 }
+
+/**
+ * Client fee lines for a whole booking (one snapshot row per participant):
+ * sums each code across rows, keeping clientFeeLines' order. Returns [] unless
+ * the summed total equals `chargeCents`, so a deposit or partial link never
+ * shows a breakdown that does not add up to what is being charged.
+ */
+export function bookingClientFeeLines(rows: readonly SnapForLines[], chargeCents: number): FeeLine[] {
+  const sums = new Map<FeeLineCode, number>();
+  for (const row of rows) {
+    for (const l of clientFeeLines(row)) sums.set(l.code, (sums.get(l.code) ?? 0) + l.cents);
+  }
+  if (!rows.length || sums.get("total_charged") !== chargeCents) return [];
+  return [...sums].map(([code, cents]) => ({ code, cents }));
+}

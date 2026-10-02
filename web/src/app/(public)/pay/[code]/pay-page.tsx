@@ -12,6 +12,7 @@ import { venueHhmm } from "@/lib/spaces/venue-clock";
 
 import { CheckoutView } from "./CheckoutView";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
+import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -292,6 +293,7 @@ export async function PayByCodePage({
     );
   }
 
+  const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, loaded.amountCents);
   return (
     <CheckoutView
       code={code}
@@ -300,6 +302,7 @@ export async function PayByCodePage({
       currency={orderRow?.currency ?? ""}
       expiresAt={expiresAtLabel}
       status="open"
+      feeLines={feeLines}
       lines={((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
         label: line.label ?? "",
         units: Number(line.units) || 1,

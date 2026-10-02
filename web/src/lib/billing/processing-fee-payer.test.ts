@@ -80,3 +80,24 @@ test("talent statement: seller pays => deduction + net; client pays => no deduct
   const provisional = sellerFeeLines(mk("seller"), null);
   assert.deepEqual(provisional.map((l) => l.code), ["service_subtotal", "net_payout"]);
 });
+
+test("bookingClientFeeLines sums rows and refuses a total that does not match the charge", async () => {
+  const { bookingClientFeeLines } = await import("./processing-fee-payer");
+  const row = {
+    gross_cents: 10000,
+    gross_charged_cents: 10150,
+    client_surcharge_cents: 150,
+    talent_net_cents: 10000,
+    workspace_fee_cents: 0,
+    channel_referral_cents: 0,
+    seller_of_record: "talent" as const,
+  };
+  const lines = bookingClientFeeLines([row, row], 20300);
+  assert.deepEqual(lines, [
+    { code: "service_subtotal", cents: 20000 },
+    { code: "platform_fee", cents: 300 },
+    { code: "total_charged", cents: 20300 },
+  ]);
+  assert.deepEqual(bookingClientFeeLines([row], 5000), []);
+  assert.deepEqual(bookingClientFeeLines([], 0), []);
+});

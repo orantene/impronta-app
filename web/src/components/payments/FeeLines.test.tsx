@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { previewFeeLines } from "@/lib/billing/fee-payer-setting";
 
-import { FeeLines } from "./FeeLines";
+import { EngineFeeLines, FeeLines } from "./FeeLines";
 
 test("seller mode: no card processing line, shows total and non-refundable note", () => {
   const html = renderToStaticMarkup(
@@ -23,4 +23,25 @@ test("client mode: card processing line and grossed-up total", () => {
   );
   assert.match(html, /Card processing/);
   assert.match(html, /about \$104\.8[34]/);
+});
+
+test("EngineFeeLines renders engine codes via the label map, total strong, non-refundable note", () => {
+  const html = renderToStaticMarkup(
+    <EngineFeeLines
+      currency="USD"
+      lines={[
+        { code: "service_subtotal", cents: 10000 },
+        { code: "platform_fee", cents: 150 },
+        { code: "processing_fee", cents: 334 },
+        { code: "total_charged", cents: 10484 },
+      ]}
+      label={(c) => `L:${c}`}
+      nonRefundable="Fees are non-refundable."
+    />,
+  );
+  assert.match(html, /L:processing_fee/);
+  assert.match(html, /\$104\.84/);
+  assert.match(html, /data-fee-line="total_charged" class="[^"]*font-semibold/);
+  assert.match(html, /Fees are non-refundable\./);
+  assert.equal(renderToStaticMarkup(<EngineFeeLines currency="USD" lines={[]} label={String} nonRefundable="x" />), "");
 });

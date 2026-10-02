@@ -3,7 +3,9 @@
 import { useState, type ReactNode } from "react";
 
 import { POS_NOTE, POS_PRIMARY_ACTION, POS_SECONDARY_ACTION } from "@/components/admin/pos/pos-classes";
+import { EngineFeeLines } from "@/components/payments/FeeLines";
 import { useT } from "@/i18n/use-t";
+import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import type { PayLinkPathPrefix } from "@/lib/payments/pay-link-url";
 
 export type CheckoutViewProps = {
@@ -19,6 +21,8 @@ export type CheckoutViewProps = {
   readonly stripeUrl: string | null;
   readonly threadHref: string | null;
   readonly receiptHref: string | null;
+  /** Engine client fee lines (open state only); [] / absent = no breakdown. */
+  readonly feeLines?: readonly FeeLine[];
 };
 
 export function CheckoutView(props: CheckoutViewProps) {
@@ -133,6 +137,14 @@ export function CheckoutView(props: CheckoutViewProps) {
         ))}
       </ol>
       <p className="mt-4 text-[20px] font-semibold tabular-nums">{total}</p>
+      {props.feeLines?.length ? (
+        <EngineFeeLines
+          lines={props.feeLines}
+          currency={props.currency}
+          label={(c) => t(`public.thread.fees.${c}`)}
+          nonRefundable={t("public.thread.fees.nonRefundable")}
+        />
+      ) : null}
       {props.holdUntil ? <p className="mt-2 text-[13px] text-admin-ink-muted">{props.holdUntil}</p> : null}
       <p className="mt-1 text-[13px] text-admin-ink-muted">{props.expiresAt}</p>
       <p className={POS_NOTE}>{t("public.thread.keepSlot")}</p>

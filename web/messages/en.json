@@ -1673,6 +1673,14 @@
       "choose": "Choose",
       "configure": "Configure",
       "keepSlot": "The pickup time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "fees": {
+        "service_subtotal": "Service",
+        "base_reservation_fee": "Reservation fee",
+        "platform_fee": "Platform fee",
+        "processing_fee": "Card processing",
+        "total_charged": "Total",
+        "nonRefundable": "Fees are non-refundable."
+      },
       "waitlist": "This session is full. Join the waitlist.",
       "dateMismatch": "That date is not available. Another date is offered below.",
       "accept": "Accept",

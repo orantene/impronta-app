@@ -740,6 +740,14 @@
       "choose": "Choisir",
       "configure": "Configurer",
       "keepSlot": "L heure de retrait est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
+      "fees": {
+        "service_subtotal": "Service",
+        "base_reservation_fee": "Frais de réservation",
+        "platform_fee": "Frais de plateforme",
+        "processing_fee": "Traitement de carte",
+        "total_charged": "Total",
+        "nonRefundable": "Les frais ne sont pas remboursables."
+      },
       "waitlist": "Cette seance est complete. Rejoignez la liste d attente.",
       "dateMismatch": "Cette date n est pas disponible. Une autre date est proposee ci-dessous.",
       "accept": "Accepter",
