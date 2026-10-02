@@ -40,7 +40,7 @@ export const MAGAZINE_INDEX_CSS = `
 .sb-mag-toc>h2{margin:10px 0 6px;font:600 11px/1.2 var(--sb-mag-label);letter-spacing:.24em;text-transform:uppercase;color:var(--sb-mag-ink)}
 .sb-mag-toc ol{list-style:none;margin:0;padding:0}
 .sb-mag-toc a{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--sb-mag-line);color:var(--sb-mag-ink);text-decoration:none}
-.sb-mag-toc i{font:italic 400 22px/1 var(--sb-mag-serif)}
+.sb-mag-toc i{font:italic 400 22px var(--sb-mag-serif)}
 .sb-mag-toc b{font:400 26px/1 var(--sb-mag-serif);min-width:0}
 .sb-mag-toc small{font:600 10.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:var(--sb-mag-mute);text-align:right}
 .sb-contents[data-edition="magazine"]{padding:0 16px}

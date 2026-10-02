@@ -29,7 +29,7 @@ export const COMP_CARD_MAGAZINE_CSS = `
 .sb-comp[data-edition="magazine"] .sb-comp-eyebrow,.sb-comp[data-edition="magazine"] .sb-comp-title{margin:0;font:600 11px/1.2 var(--sb-mag-label);letter-spacing:.24em;text-transform:uppercase;color:inherit;opacity:.7}
 .sb-comp[data-edition="magazine"] .sb-comp-rail{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;border:0;padding:0}
 .sb-comp[data-edition="magazine"] .sb-comp-cell{display:flex;flex-direction:column-reverse;justify-content:flex-end;border-top:1px solid color-mix(in srgb,var(--sb-mag-bg) 35%,transparent);padding-top:8px}
-.sb-comp[data-edition="magazine"] .sb-comp-cell dt{font:600 9.5px/1.2 var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:inherit;opacity:.7;margin-top:4px}
+.sb-comp[data-edition="magazine"] .sb-comp-cell dt{font:600 9.5px/21px var(--sb-mag-label);letter-spacing:.16em;text-transform:uppercase;color:inherit;opacity:.7;margin:0}
 .sb-comp[data-edition="magazine"] .sb-comp-cell dd{margin:0;font:400 30px/1 var(--sb-mag-serif);letter-spacing:0;color:inherit}
 .sb-comp[data-edition="magazine"] .sb-comp-cell dd small{font-family:var(--sb-mag-label);opacity:.7}
 .sb-comp[data-edition="magazine"] .sb-comp-details{display:none!important}
@@ -42,10 +42,10 @@ export const COMP_CARD_MAGAZINE_CSS = `
 }
 /* The kit section (the keyed wrapper) is the dark strip, like TH02's .fo-comp: margins and fill live on it. */
 @supports selector(:has(*)){
-  [data-parity-key="comp_card"][data-builder-node-kind="container"]:has(.sb-comp[data-edition="magazine"]){margin:52px 16px 0;background:var(--token-color-ink);color:var(--token-color-background)}
+  [data-parity-key="comp_card"][data-builder-node-kind="container"]:has(.sb-comp[data-edition="magazine"]){width:auto;margin:52px 16px 0;background:var(--token-color-ink);color:var(--token-color-background)}
   [data-parity-key="comp_card"][data-builder-node-kind="container"] .sb-comp[data-edition="magazine"]{margin:0;background:transparent}
 }
-@media (min-width:900px){@supports selector(:has(*)){[data-parity-key="comp_card"][data-builder-node-kind="container"]:has(.sb-comp[data-edition="magazine"]){margin:90px 40px 0}}}
+@media (min-width:900px){@supports selector(:has(*)){[data-parity-key="comp_card"][data-builder-node-kind="container"]:has(.sb-comp[data-edition="magazine"]){width:auto;margin:90px 40px 0}}}
 @media (max-width:540px){.sb-comp[data-edition="magazine"] .sb-comp-rail{grid-template-columns:repeat(4,minmax(0,1fr))}}
 `;
 
