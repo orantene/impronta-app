@@ -153,7 +153,14 @@ test("every native gallery kind RENDERS something on a published page", () => {
   for (const kind of GALLERY_NATIVE_KINDS) {
     const node = createBuilderNode(kind);
     const html = renderToStaticMarkup(
-      createElement("div", null, renderBuilderNodes([node], { mode: "freeform" })),
+      createElement("div", null, 
+        renderBuilderNodes([node], {
+          mode: "freeform",
+          // Live-gated kinds (alert_band) render nothing unless their live flag
+          // is on, by design; turn it on so the kind is asserted rendering.
+          dataSources: { liveStatus: { emergenciesToday: true, emergenciesUntil: null } },
+        }),
+      ),
     );
     assert.match(
       html,

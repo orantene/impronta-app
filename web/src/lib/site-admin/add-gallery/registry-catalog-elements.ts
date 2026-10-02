@@ -7,7 +7,7 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
   el({
     id: "el-text",
     label: "Text",
-    description: "Heading or paragraph — switch style in the bottom toolbar.",
+    description: "Heading or paragraph: switch style in the bottom toolbar.",
     category: "text",
     icon: "text",
     insertMethod: "nativeNode",
