@@ -1,0 +1,146 @@
+/* Tulala Support Desk — design tokens (mockup only). No hex in components. */
+:root,
+[data-theme="light"] {
+  --desk-canvas: #ffffff;
+  --desk-surface: #fafaf7;
+  --desk-surface-alt: #f2f2ee;
+  --desk-pane: #f7f7f4;
+  --desk-card: #ffffff;
+
+  --desk-ink: #0b0b0d;
+  --desk-ink-muted: rgba(11, 11, 13, 0.72);
+  --desk-ink-dim: rgba(11, 11, 13, 0.38);
+
+  --desk-border: rgba(24, 24, 27, 0.1);
+  --desk-border-soft: rgba(24, 24, 27, 0.06);
+  --desk-border-strong: rgba(24, 24, 27, 0.2);
+
+  --desk-brand: #0f4f3e;
+  --desk-brand-soft: rgba(15, 79, 62, 0.1);
+  --desk-brand-deep: #093328;
+  --desk-brand-fg: #ffffff;
+
+  --desk-success: #2e7d5b;
+  --desk-success-soft: rgba(46, 125, 91, 0.1);
+  --desk-success-deep: #1f5d43;
+
+  --desk-caution: #52606d;
+  --desk-caution-soft: rgba(82, 96, 109, 0.1);
+  --desk-caution-deep: #3a4651;
+
+  --desk-coral: #c26a45;
+  --desk-coral-soft: rgba(194, 106, 69, 0.1);
+  --desk-coral-deep: #7a4128;
+
+  --desk-critical: #b0303a;
+  --desk-critical-soft: rgba(176, 48, 58, 0.1);
+  --desk-critical-deep: #7e1f26;
+
+  --desk-info: #5b6ba0;
+  --desk-info-soft: rgba(91, 107, 160, 0.1);
+  --desk-info-deep: #3f4870;
+
+  --desk-ai: #5f4b8b;
+  --desk-ai-soft: rgba(95, 75, 139, 0.1);
+  --desk-ai-deep: #3d2f61;
+
+  --desk-fill: #3a3d45;
+  --desk-fill-fg: #ffffff;
+
+  --desk-note: #fff8e8;
+  --desk-note-border: rgba(194, 106, 69, 0.28);
+  --desk-note-ink: #7a4128;
+
+  --desk-shadow: 0 1px 2px rgba(11, 11, 13, 0.04);
+  --desk-shadow-lg: 0 8px 28px rgba(11, 11, 13, 0.1);
+
+  --desk-unread: var(--desk-brand);
+  --desk-sla-warn: var(--desk-coral);
+  --desk-sla-breach: var(--desk-critical);
+
+  --desk-font: "Inter", "Geist Sans", system-ui, sans-serif;
+  --desk-mono: "SF Mono", Menlo, ui-monospace, monospace;
+
+  --desk-fs-11: 11px;
+  --desk-fs-12: 12px;
+  --desk-fs-13: 13px;
+  --desk-fs-14: 14px;
+  --desk-fs-16: 16px;
+  --desk-fs-20: 20px;
+
+  --desk-radius-sm: 6px;
+  --desk-radius: 8px;
+  --desk-radius-lg: 12px;
+
+  --desk-motion: 150ms ease;
+  --desk-focus: 0 0 0 2px var(--desk-card), 0 0 0 4px var(--desk-brand);
+
+  --proto-bar: #0b0b0d;
+  --proto-bar-fg: #fafaf7;
+  --proto-sim: #fff3cd;
+  --proto-sim-ink: #5c4813;
+}
+
+[data-theme="dark"] {
+  --desk-canvas: #0c0c0c;
+  --desk-surface: #121214;
+  --desk-surface-alt: #18181b;
+  --desk-pane: #161618;
+  --desk-card: #1a1a1d;
+
+  --desk-ink: #f4f4f5;
+  --desk-ink-muted: rgba(244, 244, 245, 0.72);
+  --desk-ink-dim: rgba(244, 244, 245, 0.4);
+
+  --desk-border: rgba(148, 163, 184, 0.16);
+  --desk-border-soft: rgba(148, 163, 184, 0.1);
+  --desk-border-strong: rgba(148, 163, 184, 0.28);
+
+  --desk-brand: #3d9b7a;
+  --desk-brand-soft: rgba(61, 155, 122, 0.16);
+  --desk-brand-deep: #8fd4b8;
+  --desk-brand-fg: #0a0a0a;
+
+  --desk-success: #4cae80;
+  --desk-success-soft: rgba(76, 174, 128, 0.16);
+  --desk-success-deep: #9fd9bc;
+
+  --desk-caution: #9aa7b5;
+  --desk-caution-soft: rgba(154, 167, 181, 0.14);
+  --desk-caution-deep: #c5ced6;
+
+  --desk-coral: #e08a68;
+  --desk-coral-soft: rgba(224, 138, 104, 0.16);
+  --desk-coral-deep: #f0b8a0;
+
+  --desk-critical: #e0606a;
+  --desk-critical-soft: rgba(224, 96, 106, 0.16);
+  --desk-critical-deep: #f0a0a6;
+
+  --desk-info: #8a98c8;
+  --desk-info-soft: rgba(138, 152, 200, 0.16);
+  --desk-info-deep: #b8c2e0;
+
+  --desk-ai: #9b87c9;
+  --desk-ai-soft: rgba(155, 135, 201, 0.16);
+  --desk-ai-deep: #c5b8e0;
+
+  --desk-fill: #e4e4e7;
+  --desk-fill-fg: #0b0b0d;
+
+  --desk-note: #2a2218;
+  --desk-note-border: rgba(224, 138, 104, 0.35);
+  --desk-note-ink: #f0b8a0;
+
+  --desk-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --desk-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  --proto-sim: #3a3018;
+  --proto-sim-ink: #f5e6a8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --desk-motion: 0ms;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "design": "support-desk",
+  "phase": "0.5",
+  "mockup": {
+    "defaultUrl": "http://localhost:3099/support-desk/",
+    "serve": "python3 -m http.server 3099 --bind 127.0.0.1 --directory web/design-references",
+    "screens": {
+      "A": "#/login/default",
+      "B": "#/inbox/needs_you",
+      "C": "#/thread/c1",
+      "D": "#/composer/reply",
+      "E": "#/context/rich",
+      "F": "#/cmdk/default",
+      "G": "#/empty/inbox",
+      "H": "#/mobile/queues",
+      "I": "#/insights"
+    },
+    "viewports": [1440, 390],
+    "themes": ["light", "dark"],
+    "simulated": true,
+    "productionDeskUi": false
+  }
+}
