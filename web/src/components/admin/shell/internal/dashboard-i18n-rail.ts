@@ -142,4 +142,8 @@ export const RAIL_ES_TEXT: Record<string, string> = {
     "Los precios y las reglas de reserva que guardas aquí se ven en el widget de menú de Servicios cuando publicas la oferta. El diseño del sitio queda en borrador hasta que publiques la página.",
   "Your website Services menu widget shows the same catalog - add an offering here and it can appear on your page without rebuilding the menu.":
     "El widget de menú de Servicios de tu sitio muestra el mismo catálogo: agrega una oferta aquí y puede aparecer en tu página sin reconstruir el menú.",
+  "A newer version is live. Reload to keep editing.": "Hay una versión más reciente. Recargá para seguir editando.",
+  Reload: "Recargar",
+  "A newer version was published while this was open. Reload and try again.":
+    "Se publicó una versión más reciente mientras esto estaba abierto. Recargá e intentá de nuevo.",
 };
