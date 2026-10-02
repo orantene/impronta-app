@@ -18,8 +18,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { logServerError } from "@/lib/server/safe-error";
-
-const SUPPORT_EMAIL = "hello@tulala.digital";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 export default function OnboardingWorkspaceError({
   error,

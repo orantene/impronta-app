@@ -4,6 +4,7 @@ import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -29,7 +30,7 @@ export default async function FaqPage() {
       eyebrow: "Frequently asked",
       titleA: "Straight answers.",
       titleB: "No fluff.",
-      subtitle: `The short version of what people ask before signing up. If you have a question that isn\u2019t here, email hello@${PLATFORM_BRAND.domain}. We reply same-day.`,
+      subtitle: `The short version of what people ask before signing up. If you have a question that isn\u2019t here, email ${SUPPORT_EMAIL}. We reply same-day.`,
       startFree: "Start free",
       seePricing: "See pricing",
     },
@@ -37,7 +38,7 @@ export default async function FaqPage() {
       eyebrow: "Preguntas frecuentes",
       titleA: "Respuestas claras.",
       titleB: "Sin rodeos.",
-      subtitle: `Lo que la gente pregunta antes de registrarse, en versi\u00f3n corta. Si tu duda no est\u00e1 aqu\u00ed, escr\u00edbenos a hello@${PLATFORM_BRAND.domain}. Te respondemos el mismo d\u00eda.`,
+      subtitle: `Lo que la gente pregunta antes de registrarse, en versi\u00f3n corta. Si tu duda no est\u00e1 aqu\u00ed, escr\u00edbenos a ${SUPPORT_EMAIL}. Te respondemos el mismo d\u00eda.`,
       startFree: "Empieza gratis",
       seePricing: "Ver precios",
     },

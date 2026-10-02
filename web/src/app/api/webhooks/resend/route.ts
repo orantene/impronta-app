@@ -3,10 +3,11 @@
  *
  * Endpoint: POST /api/webhooks/resend
  *
- * Consumes Resend delivery events (email.delivered / opened / clicked /
- * bounced / complained), stamps the matching `notification_dispatch_log` row's
- * delivery column, and on hard bounce / complaint adds an `email_suppressions`
- * row so the address is never mailed again.
+ * Consumes Resend webhook events:
+ *   - Delivery (email.delivered / opened / clicked / bounced / complained):
+ *     stamps `notification_dispatch_log` and may add `email_suppressions`.
+ *   - Inbound (`email.received`): fetches the message and forwards to Gmail
+ *     (Track C receiving — see `lib/email/resend-inbound-forward.ts`).
  *
  * Configuration (required):
  *   RESEND_WEBHOOK_SECRET      — Svix signing secret (`whsec_…`) from the
@@ -27,6 +28,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
+import { forwardResendInboundEmail } from "@/lib/email/resend-inbound-forward";
 import {
   applyResendEvent,
   verifyResendSignature,
@@ -61,6 +63,20 @@ export async function POST(req: NextRequest) {
   }
   if (!event?.type) {
     return NextResponse.json({ error: "Missing event type" }, { status: 400 });
+  }
+
+  if (event.type === "email.received") {
+    try {
+      const forward = await forwardResendInboundEmail(event);
+      void improntaLog("notif.webhook.resend.inbound", {
+        ok: forward.ok,
+        detail: forward.detail,
+      });
+      return NextResponse.json({ received: true, inbound: forward });
+    } catch (err) {
+      logServerError("webhooks.resend.inbound", err);
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
   }
 
   const admin = createServiceRoleClient();
