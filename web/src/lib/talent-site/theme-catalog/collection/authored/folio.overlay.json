@@ -1,19 +1,53 @@
 {
-  "authoredVersion": 18,
+  "authoredVersion": 22,
   "codeHash": "b7d6817c3758ffb6db659f10f360c286d6078b5cae8fdb2c42e82651149cf44f",
-  "payloadHash": "23lcl9ma4xy",
+  "payloadHash": "13bgdyvxgxg",
   "tokenDefaults": {
     "button.padding-x": {
       "from": "16px",
       "to": "20px"
-    },
-    "type.hero-size-desktop": {
-      "from": "clamp(84px,19cqi,300px)",
-      "to": "clamp(72px,15cqi,240px)"
     }
   },
-  "props": {},
-  "removed": [],
+  "palettes": {
+    "stone": {
+      "color.accent": {
+        "to": "#111111"
+      },
+      "color.background": {
+        "to": "#EFE7DC"
+      },
+      "color.ink": {
+        "to": "#111111"
+      },
+      "color.line": {
+        "to": "#D3D0C8"
+      },
+      "color.muted": {
+        "to": "#6A6760"
+      },
+      "color.primary": {
+        "to": "#111111"
+      },
+      "color.surface-raised": {
+        "to": "#F7F6F3"
+      }
+    }
+  },
+  "props": {
+    "homeTree:hero/masthead": [
+      {
+        "path": "designKey",
+        "to": "masthead"
+      },
+      {
+        "path": "props.style.marginTop",
+        "to": "l"
+      }
+    ]
+  },
+  "removed": [
+    "homeTree:contents"
+  ],
   "added": [],
   "order": {},
   "labelsEs": {}

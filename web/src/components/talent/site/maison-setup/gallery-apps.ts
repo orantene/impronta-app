@@ -45,8 +45,8 @@ export function appsForDetail(
 ): AppLibraryEntry[] {
   const seen = new Set<string>();
   return [...appsOnDesign(design), ...appsOnDemo(demo)].filter((a) => {
-    if (seen.has(a.kind)) return false;
-    seen.add(a.kind);
+    if (seen.has(a.nativeKind)) return false;
+    seen.add(a.nativeKind);
     return true;
   });
 }

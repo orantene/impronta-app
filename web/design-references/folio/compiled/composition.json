@@ -1,0 +1,59 @@
+{
+  "sections": [
+    {
+      "order": 0,
+      "unit": "hero · magazine-cover",
+      "confidence": "near",
+      "kitSlot": "hero",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "magazine-cover",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 1,
+      "unit": "portfolio · chapter-sequence",
+      "confidence": "near",
+      "kitSlot": "gallery",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "chapter-sequence",
+      "note": "type matches; variant not found in kit source (0/1 pieces)"
+    },
+    {
+      "order": 2,
+      "unit": "stats · measure-strip",
+      "confidence": "exact",
+      "kitSlot": null,
+      "nodeKind": "stats",
+      "shell": null,
+      "variant": "measure-strip",
+      "note": "type and variant found in kit source"
+    },
+    {
+      "order": 3,
+      "unit": "services_catalog · rate-card",
+      "confidence": "exact",
+      "kitSlot": "services",
+      "nodeKind": null,
+      "shell": null,
+      "variant": "rate-card",
+      "note": "type and variant found in kit source"
+    }
+  ],
+  "homeSlotOrder": [
+    "hero",
+    "gallery",
+    "services"
+  ],
+  "stats": {
+    "units": 4,
+    "skippedDynamic": 0,
+    "homeUnits": 4,
+    "exact": 2,
+    "near": 2,
+    "none": 0,
+    "exactPct": 50,
+    "exactOrNearPct": 100
+  }
+}
