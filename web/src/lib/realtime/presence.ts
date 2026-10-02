@@ -26,7 +26,15 @@ export type TypingUser = { id: string; name: string };
 export type PresencePeer = { id: string; name: string; role: string };
 
 type PresenceArgs = {
+  /**
+   * Logical key. Default topic is `tulala.presence.${channelKey}` (public).
+   * Pass `channelName` to override (e.g. private `support.presence.{id}`).
+   */
   channelKey: string | null;
+  /** Full Realtime topic; when set, used instead of `tulala.presence.${channelKey}`. */
+  channelName?: string | null;
+  /** When true, join with private:true + setAuth (RLS on realtime.messages). */
+  privateChannel?: boolean;
   userId: string;
   displayName: string;
   role?: string;
@@ -43,7 +51,14 @@ export function useThreadPresence(args: PresenceArgs): {
   setTyping: (isTyping: boolean) => void;
   peers: PresencePeer[];
 } {
-  const { channelKey, userId, displayName, role = "peer" } = args;
+  const {
+    channelKey,
+    channelName = null,
+    privateChannel = false,
+    userId,
+    displayName,
+    role = "peer",
+  } = args;
 
   const [typingMap, setTypingMap] = useState<Map<string, TypingUser>>(
     () => new Map(),
@@ -70,82 +85,98 @@ export function useThreadPresence(args: PresenceArgs): {
   // Subscribe / teardown on channelKey change.
   useEffect(() => {
     setTypingMap(new Map());
+    setPeers([]);
     const timers = peerTimersRef.current;
     for (const t of timers.values()) clearTimeout(t);
     timers.clear();
 
-    if (!channelKey) return;
+    if (!channelKey && !channelName) return;
     const supabase = createClient();
     if (!supabase) return;
 
-    const channel = supabase.channel(`tulala.presence.${channelKey}`, {
-      config: { broadcast: { self: false }, presence: { key: userId } },
-    });
+    let cancelled = false;
+    const topic = channelName || `tulala.presence.${channelKey}`;
+    let channel: RealtimeChannel | null = null;
 
-    channel.on("broadcast", { event: TYPING_EVENT }, (msg) => {
-      const payload = (msg?.payload ?? {}) as Partial<Payload>;
-      const id = typeof payload.id === "string" ? payload.id : "";
-      if (!id || id === userId) return; // never show ourselves
-      const name = typeof payload.name === "string" ? payload.name : "Someone";
-
-      if (payload.typing === false) {
-        clearPeerTimer(id);
-        setTypingMap((prev) => {
-          if (!prev.has(id)) return prev;
-          const next = new Map(prev);
-          next.delete(id);
-          return next;
-        });
-        return;
+    void (async () => {
+      if (privateChannel) {
+        await supabase.realtime.setAuth();
       }
-
-      setTypingMap((prev) => {
-        const next = new Map(prev);
-        next.set(id, { id, name });
-        return next;
+      if (cancelled) return;
+      channel = supabase.channel(topic, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: userId },
+          ...(privateChannel ? { private: true } : {}),
+        },
       });
-      // (Re)arm this peer's idle expiry.
-      clearPeerTimer(id);
-      const timer = setTimeout(() => {
-        peerTimersRef.current.delete(id);
+
+      channel.on("broadcast", { event: TYPING_EVENT }, (msg) => {
+        const payload = (msg?.payload ?? {}) as Partial<Payload>;
+        const id = typeof payload.id === "string" ? payload.id : "";
+        if (!id || id === userId) return; // never show ourselves
+        const name = typeof payload.name === "string" ? payload.name : "Someone";
+
+        if (payload.typing === false) {
+          clearPeerTimer(id);
+          setTypingMap((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Map(prev);
+            next.delete(id);
+            return next;
+          });
+          return;
+        }
+
         setTypingMap((prev) => {
-          if (!prev.has(id)) return prev;
           const next = new Map(prev);
-          next.delete(id);
+          next.set(id, { id, name });
           return next;
         });
-      }, IDLE_TIMEOUT_MS);
-      peerTimersRef.current.set(id, timer);
-    });
-
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState() as Record<
-        string,
-        Array<{ userId?: string; displayName?: string; role?: string }>
-      >;
-      const next: PresencePeer[] = [];
-      for (const metas of Object.values(state)) {
-        for (const meta of metas) {
-          const id = typeof meta.userId === "string" ? meta.userId : "";
-          if (!id || id === userId) continue;
-          next.push({
-            id,
-            name: typeof meta.displayName === "string" ? meta.displayName : "Someone",
-            role: typeof meta.role === "string" ? meta.role : "peer",
+        // (Re)arm this peer's idle expiry.
+        clearPeerTimer(id);
+        const timer = setTimeout(() => {
+          peerTimersRef.current.delete(id);
+          setTypingMap((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Map(prev);
+            next.delete(id);
+            return next;
           });
-        }
-      }
-      setPeers(next);
-    });
+        }, IDLE_TIMEOUT_MS);
+        peerTimersRef.current.set(id, timer);
+      });
 
-    channel.subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        void channel.track({ userId, displayName: displayName || "Someone", role });
-      }
-    });
-    channelRef.current = channel;
+      channel.on("presence", { event: "sync" }, () => {
+        const state = channel!.presenceState() as Record<
+          string,
+          Array<{ userId?: string; displayName?: string; role?: string }>
+        >;
+        const next: PresencePeer[] = [];
+        for (const metas of Object.values(state)) {
+          for (const meta of metas) {
+            const id = typeof meta.userId === "string" ? meta.userId : "";
+            if (!id || id === userId) continue;
+            next.push({
+              id,
+              name: typeof meta.displayName === "string" ? meta.displayName : "Someone",
+              role: typeof meta.role === "string" ? meta.role : "peer",
+            });
+          }
+        }
+        setPeers(next);
+      });
+
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void channel!.track({ userId, displayName: displayName || "Someone", role });
+        }
+      });
+      channelRef.current = channel;
+    })();
 
     return () => {
+      cancelled = true;
       channelRef.current = null;
       setPeers([]);
       for (const t of timers.values()) clearTimeout(t);
@@ -154,9 +185,9 @@ export function useThreadPresence(args: PresenceArgs): {
         clearTimeout(selfIdleTimerRef.current);
         selfIdleTimerRef.current = null;
       }
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
-  }, [channelKey, userId, displayName, role, clearPeerTimer]);
+  }, [channelKey, channelName, privateChannel, userId, displayName, role, clearPeerTimer]);
 
   const broadcast = useCallback(
     (typing: boolean) => {
