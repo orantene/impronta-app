@@ -202,9 +202,12 @@ export type SiteCtaMode = "instant" | "request" | "inquiry";
 export function resolveSiteCtaMode(input: {
   sellingDefaults: unknown;
   confirmsByHand: boolean;
+  /** false = instant cannot work yet (no working hours): same readiness step as resolveEffectiveBookingMode. */
+  instantReady?: boolean;
 }): SiteCtaMode {
   const posture = parseSellingBookingSettings(input.sellingDefaults).bookingPosture;
   if (posture === "instant" && input.confirmsByHand) return "request";
+  if (posture === "instant" && input.instantReady === false) return "request";
   return posture;
 }
 

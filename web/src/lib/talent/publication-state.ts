@@ -34,14 +34,21 @@ export function publicationLabel(word: PublicationWord, locale: string): string 
 }
 
 export function bookingModeLabel(
-  input: { bookingMode: string | null; priceDisplay: string; priceType?: string; amountCents?: number | null },
+  input: {
+    bookingMode: string | null;
+    priceDisplay: string;
+    priceType?: string;
+    amountCents?: number | null;
+    /** false = instant cannot work yet (no working hours): read as a request, like the public CTA. */
+    instantReady?: boolean;
+  },
   locale: string,
 ): string {
   const es = locale.toLowerCase().startsWith("es");
   if (input.priceDisplay === "quote" || input.priceType === "custom" || input.amountCents == null) {
     return es ? "Pedir cotización" : "Request a quote";
   }
-  if (input.bookingMode === "instant") return es ? "Reserva instantánea" : "Instant booking";
+  if (input.bookingMode === "instant" && input.instantReady !== false) return es ? "Reserva instantánea" : "Instant booking";
   if (input.bookingMode === "inquiry") return es ? "Solo consulta" : "Inquiry only";
   if (input.bookingMode == null) return es ? "Usa tu predeterminado" : "Uses your default";
   return es ? "Pedir reserva" : "Request to book";

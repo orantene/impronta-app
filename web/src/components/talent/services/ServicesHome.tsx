@@ -605,7 +605,7 @@ export function ServicesHome({
                 </span>
               </span>
             </button>
-            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} />
+            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>

@@ -5,6 +5,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { toI18nMap } from "@/lib/i18n/i18n-columns";
 import { isTalentThemeGalleryEnabled } from "@/lib/access/talent-theme-gallery";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
+import { loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
 import { resolveSiteCtaMode, type SiteCtaMode } from "@/lib/talent-site/design-label-locale";
 import type {
   MaxSitePageRow,
@@ -179,9 +180,13 @@ export async function loadTalentSiteCtaMode(
   talentProfileId: string,
   planKey: string | null,
 ): Promise<SiteCtaMode> {
+  const admin = createServiceRoleClient();
+  const hours = admin ? await loadWorkingHoursPresence(admin, [talentProfileId]) : new Map<string, boolean>();
   return resolveSiteCtaMode({
     sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
     confirmsByHand: !talentOffersInstantBooking(planKey),
+    // An unknown hours read never downgrades (same rule as the offering loader).
+    instantReady: hours.get(talentProfileId) !== false,
   });
 }
 

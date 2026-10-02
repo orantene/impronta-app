@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import type { TalentAskEntry } from "@/lib/talent/chat-entry";
+import { askEntryPointsVisible, type TalentAskEntry } from "@/lib/talent/chat-entry";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
@@ -515,9 +515,7 @@ export function MaisonProfileLayout(props: MaisonProfileLayoutProps) {
             <div className="mn-slot">{inquireButtonFooter}</div>
           </div>
 
-          {props.askEntry === undefined ||
-          props.askEntry === "chat" ||
-          props.askEntry === "form" ? (
+          {props.askEntry === undefined || askEntryPointsVisible(props.askEntry) ? (
             <div className="mn-closing-alt">
               <span>{c.askLead}</span>
               <MaisonAskButton
