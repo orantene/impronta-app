@@ -3,6 +3,20 @@
 > Canonical product spec for the Support Desk. Source: work order Part 2 (2026-10-02).
 > Every phase is built against this document. If SPEC and code disagree, **the code wins**: note the difference in the audit and update the SPEC.
 
+## Implementation directive (2026-10-02 — Oran)
+
+**Skip the mockup path.** Do not wait on `:3099` HTML mockups, Phase 0.5 click-through, or 1:1 mockup parity as a merge gate. **Ship the real Desk product** on the live Next.js surface, reusing `web/src/lib/support/` + existing HQ actions/loaders.
+
+| Track | Status |
+|---|---|
+| Phase 0 SPEC | Landed (#2472) |
+| Phase 0 audit / memo | `00-audit.md` (#2479) |
+| Phase 0.5 mockups | **Optional reference only** — not a gate for 1b/1c |
+| Phase 1a | Flag / host 404 / host-scoped cookies / local QA stub (#2473) |
+| Phase 1b / 1c | **GO** — build real Desk shell, keyboard, HQ link, presence server-auth |
+
+Phase 1 still must meet §6 / §20 journeys / §23 completion standards against **live** UI. Design-reference HTML under `web/design-references/support-desk/` is non-blocking inspiration if present.
+
 You are responsible for designing and implementing a world-class Tulala Support Desk. Treat it as a complete support operations product, not a new page or a visual redesign.
 
 The goal is ONE reliable support system where human agents, AI assistance, customer context, conversations, email, internal notes, escalations and operational analytics work together without disconnected records or dead ends.
