@@ -46,7 +46,8 @@ There is no migration auto-apply yet — step 2 is mandatory and must happen *be
 
 To QA a preview, either:
 - `vercel promote <preview-url> --yes` and test on `tulala.digital` / `app.tulala.digital` / `impronta.tulala.digital`, or
-- `vercel alias set <preview-url> <seeded-host>` where the target is already in `agency_domains` (no staging host is currently reserved — seed one if you need it).
+- `vercel alias set <preview-url> <seeded-host>` where the target is already in `agency_domains` (a reserved QA pool now exists, see below).
+- **QA host pool:** `qa-1` … `qa-6.tulala.digital` are reserved in `agency_domains` (platform kind `app`, migration `20261231310000_qa_host_pool.sql`). `cd web && npm run qa:host -- claim <branch>` aliases the branch's latest READY preview to a free host (the alias is the lease; stale after 24h or when the branch is gone), `release <host|branch>` frees it, `list` shows host → branch, sha, age. Needs `VERCEL_TOKEN` in env; `factory/*` previews are claimed automatically by `qa-host-pool.yml`. **These hosts use the PRODUCTION database. Agents stay read-only.** Deployment protection applies: send `x-vercel-protection-bypass` from `VERCEL_AUTOMATION_BYPASS_SECRET` (never print or commit it).
 
 ## Full deploy topology
 
