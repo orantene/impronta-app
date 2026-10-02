@@ -19,6 +19,7 @@ import {
   pickPolicyLinks,
   stripDesignCredits,
   TULALA_LEGAL_PRIVACY_URL,
+  localizedLegalUrl,
   TULALA_LEGAL_TERMS_URL,
 } from "./footer-socket";
 
@@ -55,7 +56,7 @@ test("agency surface: one socket, one credit, Tulala terms and privacy", () => {
   assert.equal(count(out, /data-tulala-socket/g), 1);
   assert.equal(count(out, /data-socket-credit/g), 1);
   assert.equal(count(out, /Site made with/g), 1);
-  assert.ok(out.includes(TULALA_LEGAL_TERMS_URL));
+  assert.ok(out.includes(TULALA_LEGAL_TERMS_URL) || out.includes(localizedLegalUrl(TULALA_LEGAL_TERMS_URL, "es")));
   assert.ok(out.includes(TULALA_LEGAL_PRIVACY_URL));
 });
 
@@ -64,7 +65,7 @@ test("agency surface: whitelabel hides the credit, keeps Tulala documents", () =
   assert.equal(count(out, /data-tulala-socket/g), 1);
   assert.equal(count(out, /data-socket-credit/g), 0);
   assert.equal(out.includes("Powered by Tulala"), false);
-  assert.ok(out.includes(TULALA_LEGAL_TERMS_URL));
+  assert.ok(out.includes(TULALA_LEGAL_TERMS_URL) || out.includes(localizedLegalUrl(TULALA_LEGAL_TERMS_URL, "es")));
 });
 
 test("agency surface: its own policy pages lead, otherwise only Tulala documents", () => {

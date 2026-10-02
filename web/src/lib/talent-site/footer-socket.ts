@@ -19,6 +19,11 @@ export const TULALA_LEGAL_PRIVACY_URL = "https://tulala.digital/legal/privacy";
 export const TULALA_HOME_URL = "https://tulala.digital";
 export const TULALA_LEGAL_COOKIES_URL = "https://tulala.digital/legal/cookies";
 
+/** Legal pages keep one language per URL; a Spanish site links the /es/ copy. */
+export function localizedLegalUrl(url: string, locale: string | null | undefined): string {
+  return (locale ?? "").toLowerCase().startsWith("es") ? url.replace("tulala.digital/legal/", "tulala.digital/es/legal/") : url;
+}
+
 /** Talent-host policy routes (served by the policy-pages work). */
 export const TALENT_BOOKING_POLICY_PATH = "/politicas";
 export const TALENT_PRIVACY_PATH = "/privacidad";
@@ -160,19 +165,19 @@ export function buildSocketModel(input: {
     {
       key: "tulala-terms",
       label: pickLocale(locale, { en: "Terms", es: "Términos" }),
-      href: TULALA_LEGAL_TERMS_URL,
+      href: localizedLegalUrl(TULALA_LEGAL_TERMS_URL, locale),
       external: true,
     },
     {
       key: "tulala-privacy",
       label: pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
-      href: TULALA_LEGAL_PRIVACY_URL,
+      href: localizedLegalUrl(TULALA_LEGAL_PRIVACY_URL, locale),
       external: true,
     },
     {
       key: "tulala-cookies",
       label: "Cookies",
-      href: TULALA_LEGAL_COOKIES_URL,
+      href: localizedLegalUrl(TULALA_LEGAL_COOKIES_URL, locale),
       external: true,
     },
   ];

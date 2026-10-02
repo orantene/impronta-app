@@ -21,6 +21,7 @@ import {
   socketLockedHint,
   stripDesignCredits,
   TULALA_LEGAL_PRIVACY_URL,
+  localizedLegalUrl,
   TULALA_LEGAL_TERMS_URL,
 } from "./footer-socket";
 
@@ -122,8 +123,8 @@ test("whitelabel hides the credit but keeps the Tulala document links", () => {
   const out = html({ whitelabel: true });
   assert.equal(out.includes("Sitio creado con"), false);
   assert.equal(out.includes("data-socket-credit"), false);
-  assert.ok(out.includes(TULALA_LEGAL_TERMS_URL));
-  assert.ok(out.includes(TULALA_LEGAL_PRIVACY_URL));
+  assert.ok(out.includes(localizedLegalUrl(TULALA_LEGAL_TERMS_URL, "es")));
+  assert.ok(out.includes(localizedLegalUrl(TULALA_LEGAL_PRIVACY_URL, "es")));
 });
 
 test("a plan that removes the badge hides the credit too", () => {
@@ -136,8 +137,8 @@ test("links: talent policies on the talent host, Tulala documents off-host", () 
   const by = Object.fromEntries([...m.siteLinks, ...m.tulalaLinks].map((l) => [l.key, l]));
   assert.equal(by["booking-policy"]!.href, "/politicas");
   assert.equal(by["privacy"]!.href, "/privacidad");
-  assert.equal(by["tulala-terms"]!.href, "https://tulala.digital/legal/terms");
-  assert.equal(by["tulala-privacy"]!.href, "https://tulala.digital/legal/privacy");
+  assert.equal(by["tulala-terms"]!.href, "https://tulala.digital/es/legal/terms");
+  assert.equal(by["tulala-privacy"]!.href, "https://tulala.digital/es/legal/privacy");
   assert.equal(by["tulala-terms"]!.external, true);
   assert.equal(model({ publicPathPrefix: "/t/site/jor/" }).siteLinks[0]!.href, "/t/site/jor/politicas");
   assert.match(html(), /rel="noopener"/);
@@ -218,7 +219,7 @@ test("the Tulala group has Cookies, pointing at the platform cookies page", () =
   assert.deepEqual(m.tulalaLinks.map((l) => l.key), ["tulala-terms", "tulala-privacy", "tulala-cookies"]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
   assert.equal(cookies.label, "Cookies");
-  assert.equal(cookies.href, "https://tulala.digital/legal/cookies");
+  assert.equal(cookies.href, "https://tulala.digital/es/legal/cookies");
   assert.equal(cookies.external, true);
   assert.match(html(), /data-socket-link="tulala-cookies"/);
 });
@@ -243,4 +244,9 @@ test("the language group is dropped when the header already has a language switc
   assert.equal(headerShowsLanguageSwitch(withSwitch), true);
   assert.equal(headerShowsLanguageSwitch(without), false);
   assert.equal(headerShowsLanguageSwitch([]), false);
+});
+
+test("legal links: Spanish sites link /es/legal, English sites keep /legal", () => {
+  assert.equal(localizedLegalUrl("https://tulala.digital/legal/terms", "es"), "https://tulala.digital/es/legal/terms");
+  assert.equal(localizedLegalUrl("https://tulala.digital/legal/terms", "en"), "https://tulala.digital/legal/terms");
 });
