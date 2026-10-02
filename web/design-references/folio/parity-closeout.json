@@ -1,0 +1,198 @@
+{
+  "design": "folio",
+  "referenceDemo": "TAL-93011 Mateo Ferrer",
+  "measuredAt": "2026-10-02",
+  "source": "report 20261002-053344 (rerun after the contents map fix) plus computed-style dumps of mockup (localhost:3098/folio/) vs product (mateo-ferrer, prod build :3005 / :3001 for desktop rate rows)",
+  "mapFix": {
+    "file": "web/design-references/folio/parity-map.json",
+    "section": "contents",
+    "change": "parityKey null; product fallback now [data-parity-key=\"hero\"] .sb-mag-toc, .sb-mag-toc (the contents nav inside the hero spread). Mockup stays .fo-toc.",
+    "result": "390: contents delta gone (section found). 1440: the missing-section delta became a real pixel delta (-9px, see C4)."
+  },
+  "deltaCount": { "before": 13, "afterMapFix": 14, "note": "contents moved from 'missing' (2) to one real 1440 pixel delta; the 11 pixel + 2 colour deltas are analysed below" },
+  "findingsFirst": [
+    "Most pixel deltas are NOT design-token problems: (a) an extra 48px margin-top on the hero node and a 12px flex gap between stacked section nodes, both stored as per-section props on Mateo's tree; (b) Mateo's saved color.background is #EFE7DC (warm sand) not the stone palette #ECEAE5; (c) the product hardcodes 15px body text and a few magazine CSS literals; (d) chapter II lead photo is portrait in the product, landscape in the mockup (content, not style).",
+    "The two button colour deltas cannot be closed by any palette key: the mockup paints button text with the surface colour (#F7F6F3 = color.surface-raised), the product paints it with color.background. Resetting color.background to stone gives rgb(236,234,229), still not rgb(247,246,243). One CSS line fixes it (code edit K1).",
+    "Not measurable offline / not fixed by tokens: statement 1440 sections are 419.5px (product) vs 419px (mockup): the -24px is the measuring box (product wrapper), no style delta."
+  ],
+  "edits": {
+    "A_designTokenDefaults": [
+      {
+        "key": "type.body-size",
+        "scope": "FOLIO_STYLE_TOKEN_DEFAULTS (style-token allow-list)",
+        "current": "15px (style-tokens fallback; every product wrapper computes 15px / line-height 22.5px)",
+        "mockup": "14px / line-height 21px (body of .site)",
+        "fixes": ["statement 390 (+23px): closing copy 'Para editoriales, runway y campanas. Respondo en el dia.' wraps to 2 lines at 15px (h45) and fits 1 line at 14px (h21)", "statement 1440 line-height 22.5 to 21", "rate rows text metrics"],
+        "caveat": ".sb-mag-copy hardcodes font:400 15px/1.5 in statement-footer-block.tsx line 33, so the token alone does NOT reach it: also needs K2."
+      },
+      {
+        "key": "layout.section-pad-top-phone",
+        "current": "40px (style-tokens fallback, computed on the rate card at 390)",
+        "mockup": "52px (.fo-ch / .fo-rates padding-top at phone)",
+        "fixes": ["rates 390 (+29px): section padding-top 40 vs 52"]
+      },
+      {
+        "key": "layout.section-pad-top",
+        "current": "84px (computed at 1440)",
+        "mockup": "90px (.fo-ch / .fo-rates padding-top desktop)",
+        "fixes": ["rates 1440 (-29px)"]
+      },
+      {
+        "key": "layout.gutter-phone",
+        "current": "18px",
+        "mockup": "16px (rate card content 358px wide, product 354px)",
+        "fixes": ["rates 390: header block and rows 4px narrower, rows wrap differently"]
+      },
+      {
+        "key": "layout.gutter",
+        "current": "48px",
+        "mockup": "40px (mast, header, spread, rates all use 40px side padding at desktop)",
+        "fixes": ["rates 1440: content column 1104 vs 1106, header title column 267 vs 320 wide"]
+      },
+      {
+        "key": "layout.section-pad-bottom-phone",
+        "current": "18px computed on the rate card (token fallback is 8px; the source of 18 is not a plain token, verify)",
+        "mockup": "16px",
+        "fixes": ["rates 390 (+2px)"],
+        "verify": true
+      },
+      {
+        "key": "layout.section-pad-bottom",
+        "current": "48px computed at 1440 (verify source)",
+        "mockup": "40px",
+        "fixes": ["rates 1440 (-8px)"],
+        "verify": true
+      },
+      {
+        "key": "button.height",
+        "current": "44px",
+        "mockup": "46px (.k-btn min-height 46 wins over the 34/38px heights in .fo-hdr/.fo-rate)",
+        "fixes": ["rates 390 and 1440: product row CTA is 44px, mockup 46px (row 84.1 vs 87.6 at 1440, 130.8 vs 136.3 at 390)"],
+        "note": "Hero and statement buttons are already 46px (MAGAZINE_BUTTON_CSS); only the .site-builder-node--button / rate row buttons read this token."
+      }
+    ],
+    "B_paletteStone": [
+      {
+        "key": "color.background",
+        "palette": "folio-stone",
+        "current": "#EFE7DC on Mateo's saved design_tokens (the stone palette in folio-looks.ts is #ECEAE5; Mateo kept a Maison-pink era value)",
+        "mockup": "#ECEAE5 (rgb 236,234,229)",
+        "fixes": ["hero button colour delta, partially: rgb(239,231,220) becomes rgb(236,234,229); all section backgrounds", "closes the page-bg difference seen in every section dump"],
+        "note": "This is a talent token (reset to palette), not a design default. The other stone keys already match: color.ink #111111, color.muted #6A6760, color.line #D3D0C8, color.surface-raised #F7F6F3."
+      }
+    ],
+    "C_perSectionProps": [
+      {
+        "id": "C1",
+        "node": "masthead folio-2 (inside container slotKey hero folio-1)",
+        "path": "props.style.marginTop",
+        "current": "\"l\" (3rem = 48px inline margin-top)",
+        "mockup": "none (hero starts flush under the sticky header)",
+        "fixes": ["hero 390 (+44px) and hero 1440 (+54px): removes 48px; residual -4px at 390 and +6px at 1440 are K3"]
+      },
+      {
+        "id": "C2",
+        "node": "container slotKey gallery folio-8 (holds the two chapter portfolio nodes)",
+        "path": "props.style.gap (free gap escape, writes --bn-gap)",
+        "current": "gap \"s\" = 0.75rem (12px between chapter I and chapter II)",
+        "mockup": "0px (sections abut)",
+        "set": "\"0px\"",
+        "fixes": ["chapters 390 (+12px): each chapter section is already identical (840px) so the whole delta is this gap"]
+      },
+      {
+        "id": "C3",
+        "node": "container slotKey comp_card folio-11",
+        "path": "props.style.width",
+        "current": "unset: .site-builder-node--container forces width:100%, and the comp card rule adds margin 52px 16px, so the box is 390px wide starting at x=16 (overflows 16px) with the 4 stat cells 83px wide",
+        "mockup": "358px wide (390 minus 2x16), cells 75px",
+        "set": "\"auto\"",
+        "fixes": ["comp 390 (+12px): at 354px content width the 'MX 28.5' value wraps to 2 lines (cell 60px instead of 30px)", "comp 1440: same 100%-plus-margin overflow (1440px wide at x=40, should be 1358px)"],
+        "verify": "style.width exists in the style schema (registry.ts line ~195); confirm the container renderer applies it over the CSS width:100%. If not, use code edit K4."
+      }
+    ],
+    "D_contentNotStyle": [
+      {
+        "id": "D1",
+        "delta": "chapters 1440 (+234px)",
+        "measure": "chapter I section 695px vs 694px (match). Chapter II 695px vs 472.8px: the lead photo has aspect-ratio:auto at desktop in BOTH, so its height is the photo's natural ratio: product lead renders 605px tall (portrait) vs mockup 382.8px (landscape f-d-stride crop).",
+        "fix": "Mateo's chapter II lead image must be the landscape photo (demo content / album order), not a style edit. After C2 the residual is 222px."
+      },
+      {
+        "id": "D2",
+        "delta": "hero/rates copy differences ('Con base en Mexico City' vs 'CDMX · ES / EN', 'Vol. 10' vs 'Vol. 07', service names/prices)",
+        "fix": "demo copy, ignored by the parity pixel check as content"
+      }
+    ]
+  },
+  "K_codeEditsNoTokenOrPropPath": [
+    {
+      "id": "K1",
+      "file": "web/src/lib/site-admin/builder-node/magazine-edition.ts (MAGAZINE_BUTTON_CSS, line 38)",
+      "current": "color:var(--sb-mag-bg)",
+      "mockup": "color:var(--sb-mag-tint,var(--sb-mag-bg)) (stone: #F7F6F3 = rgb 247,246,243)",
+      "fixes": ["hero button colour 390 and 1440 (both style deltas)", "statement button (same class)"]
+    },
+    {
+      "id": "K2",
+      "file": "web/src/lib/site-admin/builder-node/statement-footer-block.tsx line 33",
+      "current": ".sb-mag-copy font:400 15px/1.5",
+      "mockup": "14px / 21px (inherit the body)",
+      "fixes": ["statement 390 (+23px), statement 1440 (22.5 vs 21 line)"]
+    },
+    {
+      "id": "K3",
+      "file": "web/src/lib/site-admin/builder-node/contents-block.tsx (MAGAZINE_INDEX_CSS, .sb-mag-toc i)",
+      "current": "numeral line-height 22px (row 51px)",
+      "mockup": "font:italic 400 22px (line-height normal, row 54px)",
+      "fixes": ["contents 1440 (-9px = 3 rows x 3px)", "hero 390 residual (-4px) and 1440 residual (+6px: toc +9, spread/mast offsets)"],
+      "note": "Mockup .fo-toc i is the only element resetting line-height via the font shorthand."
+    },
+    {
+      "id": "K4",
+      "file": "web/src/lib/site-admin/builder-node/comp-card-block.tsx line 45 and 48",
+      "current": "[data-parity-key=comp_card]:has(.sb-comp) {margin:52px 16px 0} with container width:100%",
+      "mockup": "width:auto so margin 16/40 shrinks the box",
+      "fixes": ["comp 390 and 1440 width overflow (same as C3 if style.width does not apply)"]
+    },
+    {
+      "id": "K5",
+      "file": "web/src/lib/site-admin/builder-node/comp-card-block.tsx line 32 (.sb-comp-cell dt)",
+      "current": "font:600 9.5px/1.2, margin-top:4px (cell 78.4px at 1440)",
+      "mockup": "label is an inline small inside a 21px line box, margin 0 (cell 84px)",
+      "fixes": ["comp 1440 (-14px: 5.6px per cell row plus section padding)"]
+    },
+    {
+      "id": "K6",
+      "file": "web/src/lib/talent-site/theme-catalog/collection/design-type-system.ts lines 253 and 255",
+      "current": "header nav links use labelType (11px, padding 6px, ls .18em); header CTA height:34px/min-height:34px, font 11.5px",
+      "mockup": "nav 11.5px / padding 0, CTA 46px high (min-height 46), 11.5px",
+      "fixes": ["header 1440 (-13px: product 62px vs mockup 75px, caused by the 34px vs 46px CTA)"]
+    },
+    {
+      "id": "K7",
+      "file": "web/src/lib/talent-site/theme-catalog/collection/design-type-system.ts rate_card block (lines 281-295)",
+      "current": "row CTA 13px/-0.17px tracking, padding 8px 16.8px, price column wraps ('Desde' / '$7,000' stacked at 390: row 117 vs 136)",
+      "mockup": "11px, ls .18em (1.98px), padding 0 14px, price on one line",
+      "fixes": ["rates 390 rows (-39px total) and island padding-bottom 72px", "rates 1440 rows (84.1 vs 87.6)"]
+    },
+    {
+      "id": "K8",
+      "file": "web/src/lib/site-admin/builder-node/magazine-edition.ts line 38",
+      "current": "letter-spacing:var(--site-label-tracking,.2em) which resolves to .22em (preset uppercase-tracked) = 2.64px at 12px",
+      "mockup": ".2em = 2.4px",
+      "fixes": ["hero/statement button widths 1px (no height effect)"]
+    }
+  ],
+  "rates390IslandPadding": {
+    "note": "At 390 the rate card carries 72px padding-bottom on .cb-island (props.mobileBar \"float\" reserves room for the floating bar). Mockup has none. Per-section prop: services_catalog folio-14 props.mobileBar \"float\" -> \"off\" (check the inspector enum), worth -72px of the +29 net (the rest are padding/gutter/row deltas listed above).",
+    "node": "services_catalog folio-14",
+    "path": "props.mobileBar",
+    "current": "float",
+    "mockup": "no floating bar reserve",
+    "verify": true
+  },
+  "expectedClosure": {
+    "tokensAndProps": "C1+C2+A(padding/gutter/button/body)+B close hero margin, chapters 390, rates padding. Remaining deltas need the K code edits and the chapter II photo (D1).",
+    "wouldStayRedWithoutCode": ["hero button colours (K1)", "header 1440 (K6)", "comp 390/1440 (K4/K5 unless C3 works)", "contents 1440 (K3)", "chapters 1440 (D1 content)"]
+  }
+}
