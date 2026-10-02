@@ -6,7 +6,7 @@
 
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { generateBookingConfirmationPdf } from "./booking-confirmation-pdf";
+import { confirmationTotalRows, generateBookingConfirmationPdf } from "./booking-confirmation-pdf";
 
 describe("generateBookingConfirmationPdf", () => {
   it("produces a valid, non-trivial PDF for the canonical booking", async () => {
@@ -67,5 +67,54 @@ describe("generateBookingConfirmationPdf", () => {
       totalPaidCents: 103_000,
     });
     assert.ok(bytes.length > 500);
+  });
+});
+
+describe("confirmationTotalRows", () => {
+  const base = { currency: "USD", subtotalCents: 10_000, serviceFeeCents: 150, totalPaidCents: 10_150 };
+  it("shows the fee breakdown when it sums exactly to the amount paid", () => {
+    const rows = confirmationTotalRows({
+      ...base,
+      feeLines: [
+        { code: "service_subtotal", cents: 10_000 },
+        { code: "platform_fee", cents: 150 },
+        { code: "total_charged", cents: 10_150 },
+      ],
+    });
+    assert.deepEqual(rows, [
+      { label: "Service", value: "$100.00" },
+      { label: "Platform fee (1.5%)", value: "$1.50" },
+    ]);
+  });
+  it("includes card processing when the client pays it", () => {
+    const rows = confirmationTotalRows({
+      ...base,
+      totalPaidCents: 10_480,
+      feeLines: [
+        { code: "service_subtotal", cents: 10_000 },
+        { code: "platform_fee", cents: 150 },
+        { code: "processing_fee", cents: 330 },
+        { code: "total_charged", cents: 10_480 },
+      ],
+    });
+    assert.equal(rows.length, 3);
+    assert.equal(rows[2].label, "Card processing");
+  });
+  it("falls back to Subtotal and Service fee when lines are absent or do not sum", () => {
+    const fallback = [
+      { label: "Subtotal", value: "$100" },
+      { label: "Service fee", value: "$2" },
+    ];
+    assert.deepEqual(confirmationTotalRows({ ...base, feeLines: null }), fallback);
+    assert.deepEqual(
+      confirmationTotalRows({
+        ...base,
+        feeLines: [
+          { code: "service_subtotal", cents: 9_000 },
+          { code: "total_charged", cents: 10_150 },
+        ],
+      }),
+      fallback,
+    );
   });
 });
