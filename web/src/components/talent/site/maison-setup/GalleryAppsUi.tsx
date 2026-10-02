@@ -6,8 +6,7 @@
  */
 import { useId, type ReactNode } from "react";
 import type { AppLibraryEntry } from "@/lib/site-admin/add-gallery/apps-registry";
-import { NAIL_DESIGNER_CSS } from "@/lib/site-admin/builder-node/nail-designer-css";
-import { NailDesignerIsland } from "@/lib/site-admin/builder-node/nail-designer-island";
+import { NailStudioFrame } from "@/lib/site-admin/builder-node/nail-designer-frame";
 import type { MaisonSetupLocale } from "./maison-setup-copy";
 import { appBadgeLabel, appBadgeTip, appName, appPitch, galleryAppsT } from "./gallery-apps";
 
@@ -54,8 +53,7 @@ export function AppBadge({
 const PLAYGROUND: Record<string, (locale: MaisonSetupLocale) => ReactNode> = {
   app_nail_designer: (locale) => (
     <section className="sb-nd">
-      <style>{NAIL_DESIGNER_CSS}</style>
-      <NailDesignerIsland locale={locale} ctaLabel={locale === "es" ? "Enviar mi diseño" : "Send my design"} />
+      <NailStudioFrame locale={locale} />
     </section>
   ),
 };
