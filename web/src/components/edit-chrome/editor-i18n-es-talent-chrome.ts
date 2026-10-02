@@ -84,4 +84,34 @@ export const ES_TALENT_CHROME_TEXT: Record<string, string> = {
   "Use the": "Usa el botón",
   "button to select two revisions and see a structural diff. Use the": "para elegir dos revisiones y ver las diferencias. Usa el botón",
   "button to name a checkpoint.": "para nombrar un punto de control.",
+  // Builder QA 1 — inspector, save chip, pages panel, draft reset, gallery.
+  "Level": "Nivel",
+  "Saving": "Guardando",
+  "Unsaved": "Sin guardar",
+  "Pending": "Pendiente",
+  "Unsaved changes": "Cambios sin guardar",
+  "Add block here": "Agregar bloque aquí",
+  "Add block to {label}": "Agregar bloque a {label}",
+  "Your site": "Tu sitio",
+  "Editing now": "Editando ahora",
+  "Discard your draft?": "¿Descartar tu borrador?",
+  "Replace your draft with the live homepage?": "¿Reemplazar tu borrador con la página de inicio publicada?",
+  "This discards your unsaved draft edits.": "Se descartan los cambios del borrador que no has publicado.",
+  "Replace draft": "Reemplazar borrador",
+  "Adding the live blocks above or below is not available on your site. Use Replace instead.":
+    "Agregar los bloques publicados arriba o abajo no está disponible en tu sitio. Usa Reemplazar.",
+  "Network error. Couldn't discard the draft. Check your connection and try again.":
+    "Error de red. No se pudo descartar el borrador. Revisa tu conexión e inténtalo de nuevo.",
+  "Network error. Couldn't pull from live. Check your connection and try again.":
+    "Error de red. No se pudo traer la versión publicada. Revisa tu conexión e inténtalo de nuevo.",
+  "Nothing is published yet, so there is no live version to go back to.":
+    "Aún no hay nada publicado, así que no hay una versión publicada a la que volver.",
+  "This page can't go back to the live version.": "Esta página no puede volver a la versión publicada.",
+  "Coach": "Coach",
+  "Conference": "Conferencia",
+  "Restaurant": "Restaurante",
+  "SaaS": "Software",
+  "Store": "Tienda",
+  "Festival": "Festival",
+  "Noir": "Noir",
 };

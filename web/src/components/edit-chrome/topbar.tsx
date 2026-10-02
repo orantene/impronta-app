@@ -45,8 +45,6 @@ import Link from "next/link";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 import { liveViewHrefFor } from "@/lib/site-admin/edit-mode/live-view-href";
-import { copyPublishedHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
-import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { localeMetadata } from "@/i18n/config";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
@@ -67,6 +65,7 @@ import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
+import { useTopbarDraftReset } from "./use-topbar-draft-reset";
 import { TranslationStatusButton } from "./translation-status-panel";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import {
@@ -218,6 +217,7 @@ function PagePicker({
   // Lazy-fetch when opened.
   useEffect(() => {
     if (!open || pages !== null || loadingPages) return;
+    if (editCtx?.surfaceKind === "talent_page") return setPages([]); // talent site: no workspace pages
     setLoadingPages(true);
     listPagesForPickerAction()
       .then((result) => {
@@ -237,7 +237,7 @@ function PagePicker({
         setAvailability(null);
       })
       .finally(() => setLoadingPages(false));
-  }, [open, pages, loadingPages]);
+  }, [open, pages, loadingPages, editCtx?.surfaceKind]);
 
   // Outside-click dismiss — same pattern as PublishSplitButton.
   useEffect(() => {
@@ -1742,9 +1742,12 @@ type PublishMenuOption =
 function PublishSplitButton({
   onPublish,
   onMenuSelect,
+  replaceOnly = false,
 }: {
   onPublish: () => void;
   onMenuSelect: (opt: PublishMenuOption) => void;
+  /** Talent sites reset to live wholesale; add-above / add-below do not apply. */
+  replaceOnly?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false); const { t } = useEditorLocale();
   const publishMenuId = useId();
@@ -1924,6 +1927,8 @@ function PublishSplitButton({
             description={t("Replace your draft with the live homepage")}
             onClick={() => { onMenuSelect("pull-from-live:replace"); setMenuOpen(false); }}
           />
+          {replaceOnly ? null : (
+            <>
           {/* Pull from live: Add above */}
           <MenuItem
             icon={
@@ -1948,6 +1953,8 @@ function PublishSplitButton({
             description={t("Add the live homepage blocks below your draft")}
             onClick={() => { onMenuSelect("pull-from-live:below"); setMenuOpen(false); }}
           />
+            </>
+          )}
           <div
             role="separator"
             style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
@@ -2961,6 +2968,7 @@ export function TopBar({
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
   const gatedPublish = useTalentPublishGate(onPublish); // no Publish while a design applies
+  const draftReset = useTopbarDraftReset();
   const { t } = useEditorLocale();
   // Workspace slug for the dashboard quick-links menu. Null on Builder Lab and
   // platform surfaces, where `/{slug}/admin/*` would not resolve.
@@ -3024,91 +3032,10 @@ export function TopBar({
       opt === "pull-from-live:above" ||
       opt === "pull-from-live:below"
     ) {
-      const mode =
-        opt === "pull-from-live:replace"
-          ? "replace"
-          : opt === "pull-from-live:above"
-            ? "above"
-            : "below";
-      void runPullFromLive(mode);
+      draftReset.pull(opt.slice("pull-from-live:".length) as "replace" | "above" | "below");
     } else if (opt === "discard") {
-      void runDiscardDraft();
+      draftReset.discard();
     }
-  }
-
-  // Pull from live: import the tenant's LIVE published homepage into the draft.
-  // DRAFT-ONLY (the lib op never touches the published snapshot or busts the
-  // public cache). Runs from the `...` menu (not the advisory-heavy Publish
-  // drawer) so it never main-thread-freezes on large homes. Mirrors the
-  // publish-drawer's handleCopyFromLive: confirm -> safeAction -> refresh.
-  async function runDiscardDraft() {
-    if (!editCtx) return;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        t(
-          "Reset this draft to the currently published version? This discards your unsaved draft edits.",
-        ),
-      )
-    ) {
-      return;
-    }
-    const res = await safeAction(
-      () =>
-        copyPublishedHomepageAction({
-          locale: editCtx.locale,
-          mode: "replace",
-        }),
-      {
-        name: "discardDraft",
-        fallback: {
-          ok: false as const,
-          error:
-            "Network error. Couldn't discard the draft. Check your connection and try again.",
-          code: "network",
-        },
-      },
-    );
-    if (res.ok) {
-      await editCtx.refreshComposition();
-      return;
-    }
-    editCtx.reportMutationError(res.error);
-  }
-
-  async function runPullFromLive(mode: "replace" | "above" | "below") {
-    if (!editCtx) return;
-    // Only Replace discards the current draft, so only it needs a confirm.
-    // Add above / add below are additive (a single undo reverts them), so they
-    // run in one click without a prompt.
-    if (
-      mode === "replace" &&
-      typeof window !== "undefined" &&
-      !window.confirm(
-        "Replace your draft with the live homepage? Discards unsaved draft edits.",
-      )
-    ) {
-      return;
-    }
-    const res = await safeAction(
-      () => copyPublishedHomepageAction({ locale: editCtx.locale, mode }),
-      {
-        name: "pullFromLiveHomepage",
-        fallback: {
-          ok: false as const,
-          error:
-            "Network error. Couldn't pull from live. Check your connection and try again.",
-          code: "network",
-        },
-      },
-    );
-    if (res.ok) {
-      // Reload the editor from the server (same refresh used after copy /
-      // restore / publish) so the canvas reflects the updated draft.
-      await editCtx.refreshComposition();
-      return;
-    }
-    editCtx.reportMutationError(res.error);
   }
 
   return (
@@ -3266,8 +3193,10 @@ export function TopBar({
         <PublishSplitButton
           onPublish={gatedPublish}
           onMenuSelect={handleMenuSelect}
+          replaceOnly={Boolean(editCtx?.discardDraftToLive)}
         />
       )}
+      {draftReset.dialog}
       </div>
 
       {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Portaled to

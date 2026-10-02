@@ -90,6 +90,11 @@ export interface BuilderSurfaceRestoreInput {
   expectedVersion: number;
 }
 
+/** Input the seam accepts for "reset the draft to what is live". */
+export interface BuilderSurfaceDiscardInput {
+  expectedVersion: number;
+}
+
 /**
  * The surface adapter. One instance per surface kind. The `save` method takes
  * the full `CompositionSaveInput` (the same envelope `saveHomepageCompositionAction`
@@ -130,6 +135,17 @@ export interface BuilderSurfaceAdapter {
   restoreRevision?(
     ctx: BuilderSurfaceContext,
     input: BuilderSurfaceRestoreInput,
+  ): Promise<RevisionRestoreResult>;
+
+  /**
+   * Reset the draft to the surface's LIVE (published) body. Optional. The
+   * topbar's "Discard draft" / "Pull from live: Replace" call it when present;
+   * a surface without it keeps the homepage action path. Talent sites need it:
+   * the homepage action resets the WORKSPACE homepage, never the talent page.
+   */
+  discardDraft?(
+    ctx: BuilderSurfaceContext,
+    input: BuilderSurfaceDiscardInput,
   ): Promise<RevisionRestoreResult>;
 
   /**

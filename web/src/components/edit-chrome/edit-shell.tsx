@@ -36,6 +36,7 @@ import {
   useBuilderTree,
 } from "./builder-tree-bridge";
 import { useCanUndo, useCanRedo } from "./history-bridge";
+import { useInlineTextEditActive } from "./canvas-lexical-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -529,7 +530,8 @@ function EditShellInner({
   // listener on every keystroke. The handler now reads the tree
   // NON-REACTIVELY via `getBuilderTreeSnapshot()` — the same micro-store, same
   // value, zero subscription. Keep it that way.
-  const canUndo = useCanUndo();
+  const historyCanUndo = useCanUndo();
+  const canUndo = useInlineTextEditActive() || historyCanUndo;
   const canRedo = useCanRedo();
 
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
