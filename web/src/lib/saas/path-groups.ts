@@ -315,6 +315,11 @@ export const APP_WORKSPACE_PREFIXES = [
   // Lives at /platform/admin/* on the app host (no tenant slug).
   // Gated inside layout.tsx to app_role === 'super_admin'.
   "/platform",
+  // Support Desk Phase 1a — dedicated desk shell on support.tulala.digital
+  // (and the future alias desk.tulala.digital). Local QA uses
+  // /platform/admin/support/desk (covered by /platform above). Production
+  // Desk UI waits on Phase 0.5 mockup OK; this prefix is reachability only.
+  "/desk",
   // Phase 9 — operator-issued share links (CMS revisions + Pitch landings).
   // Allowed on app/hub hosts too so links sent via WhatsApp resolve when the
   // recipient lands on app.tulala.digital or a localhost dev mirror. Tenant
@@ -350,6 +355,10 @@ export const APP_API_PREFIXES = [
   "/api/talent",
   // HQ support investigation bundle (session or SUPPORT_INVESTIGATION_TOKEN).
   "/api/platform",
+  // Support Desk Phase 1a — desk-scoped APIs on the support host / local QA.
+  // Handlers land in later phases; prefix is required for reachability
+  // (four-layer rule). See SUPPORT_DESK_API_PREFIXES.
+  "/api/support-desk",
   // QR & Links: renderings of a link's code (qr.svg/png/pdf). Staff-only and
   // gated on the SESSION's tenant, not the host, so it works on the agency
   // host and on the app host, where the host carries no tenant at all.
@@ -567,3 +576,18 @@ export const MARKETING_API_PREFIXES = [
   // the rest of `/api/directory` stays agency + app only.
   "/api/directory/talents-by-ids",
 ] as const;
+
+/**
+ * Support Desk host surface (support.tulala.digital). Narrower than a full
+ * app host: login + desk shell + desk APIs. Local QA also uses
+ * `/platform/admin/support/desk` on the app host (covered by APP_WORKSPACE
+ * `/platform`). Mirrored into APP_* lists for reachability on kind=app.
+ */
+export const SUPPORT_DESK_PAGE_PREFIXES = [
+  "/desk",
+  // Local-QA mirror path allowed when the support host is used with the
+  // same App Router tree (rare); primary local path is on app/localhost.
+  "/platform/admin/support/desk",
+] as const;
+
+export const SUPPORT_DESK_API_PREFIXES = ["/api/support-desk"] as const;
