@@ -40,6 +40,8 @@ test("the block renders an iframe on the owner's app with lang, allow, title and
   assert.match(es, /src="\/apps\/nail-studio\/index\.html\?lang=es"/);
   assert.match(es, /title="Diseñador de uñas"/);
   assert.equal(nailStudioSrc("es-MX"), "/apps/nail-studio/index.html?lang=es");
+  assert.equal(nailStudioSrc("en", { layout: "desktop" }), "/apps/nail-studio/index.html?lang=en&layout=desktop");
+  assert.equal(nailStudioSrc("es", { layout: "phone" }), "/apps/nail-studio/index.html?lang=es&layout=phone");
 });
 
 test("the message handler ignores foreign sources, origins and types", () => {

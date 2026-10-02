@@ -60,6 +60,8 @@ import {
   prepareMyContentPreview,
   resolveMyContentPreviewLocale,
 } from "@/lib/talent-site/server/preview-my-content.server";
+import { resolveMaisonSeedPreviewBundle } from "@/lib/talent-site/theme-catalog/maison/seed-preview-tokens";
+import type { BuilderNodeRenderDataSources } from "@/lib/site-admin/builder-node/render";
 
 /** Maison renders in its own default Look when the gallery picks none. */
 const MAISON_DEFAULT_LOOK = "maison-pink";
@@ -217,11 +219,18 @@ export async function ThemeCatalogPreview({
         : look.payload.tokens
       : galleryDefaultLookTokens(metaSlug));
 
-  // P4: a gallery-meta demo talent's content (allow-listed), else the
-  // owner-gated hydration exactly as before.
+  // P4 + G1-P0-03: gallery-meta demo content (demo-talent or maison-seed),
+  // else the owner-gated hydration exactly as before.
   const demoSource = resolveDemoPreviewSource(designSlug, demo);
-  const demoHydration = demoSource ? await resolveDemoPreviewHydration(demoSource, { platformAdminVerified: codeSource && viewerIsAdmin }) : null;
-  const hydration = demoHydration ?? (await resolvePreviewHydration(talentProfileId));
+  const maisonSeed =
+    demoSource?.kind === "maison-seed" ? resolveMaisonSeedPreviewBundle() : null;
+  const demoHydration =
+    demoSource?.kind === "demo-talent"
+      ? await resolveDemoPreviewHydration(demoSource, { platformAdminVerified: codeSource && viewerIsAdmin })
+      : null;
+  const hydration =
+    maisonSeed?.hydration ?? demoHydration ?? (await resolvePreviewHydration(talentProfileId));
+  const seedDataSources: BuilderNodeRenderDataSources | undefined = maisonSeed?.dataSources;
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();
 
@@ -230,7 +239,7 @@ export async function ThemeCatalogPreview({
   // content keeps the requested locale and the untouched design.
   const ownerId = !demoSource && hydration.isReal ? talentProfileId?.trim() || null : null;
   // A demo talent's own live widgets (services, photos, reviews, visit) bind
-  // too, read-only, in the requested locale.
+  // too, read-only, in the requested locale. Maison seed uses pack dataSources.
   const contentId = ownerId ?? demoHydration?.demoTalentProfileId ?? null;
   const locale = ownerId
     ? await resolveMyContentPreviewLocale(ownerId, localeExplicit ? requestedLocale : null)
@@ -314,7 +323,7 @@ export async function ThemeCatalogPreview({
       <TalentSiteRenderer
         snapshot={snapshot}
         locale={locale}
-        freeformDataSources={mine?.dataSources}
+        freeformDataSources={seedDataSources ?? mine?.dataSources}
         designSlug={design.slug}
       />
     </ThemeTokenPreviewFrame>

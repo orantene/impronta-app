@@ -66,7 +66,7 @@ export const EDITORIAL_SOFT_CHROME_CSS = [
   // ── Menu: group heading rule (MN-8), desktop rail (MN-7), sticky phone chips (MN-6).
   `${SOFT} .site-builder-node--services-catalog-group-title{margin:26px 0 14px;padding-bottom:10px;border-bottom:${RULE} solid var(--token-color-line)}`,
   `${MQ_PHONE}{${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{position:sticky;top:calc(var(--site-header-h,0px) - 1px);z-index:4;margin:12px calc(${GUTTER_PHONE} * -1) 0;padding:8px ${GUTTER_PHONE};background:color-mix(in srgb,${SURFACE} 94%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 16px -14px ${soft(25)}}}`,
-  `${MQ_DESK}{${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{top:calc(var(--site-header-h,72px) + 24px)}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill[data-active="true"]{background:${ACCENT};color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)));border-color:${ACCENT}}${SOFT} .site-builder-node--services-catalog-group-title{margin-top:10px}}`,
+  `${MQ_DESK}{${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"]{min-width:0;gap:28px}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-groups{min-width:0;overflow-x:clip}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{top:calc(var(--site-header-h,72px) + 24px)}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill[data-active="true"]{background:${ACCENT};color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)));border-color:${ACCENT}}${SOFT} .site-builder-node--services-catalog-group-title{margin-top:10px}}`,
 
   // ── Reviews: raised cards without a hairline on the band (RV-2), 84% slides and an
   // edge fade on the phone, three cards and no dead arrows on desktop (RV-3).
@@ -83,10 +83,10 @@ export const EDITORIAL_SOFT_CHROME_CSS = [
   `${SOFT} #contact .site-builder-node--accordion{display:grid!important;gap:10px!important}`,
   `${SOFT} #contact .site-builder-node--accordion-item{background:${SURFACE};border:0!important;border-radius:18px!important;padding:0 20px!important;box-shadow:0 1px 2px ${soft(6)};transition:box-shadow .2s ease}`,
   `${SOFT} #contact .site-builder-node--accordion-item[open]{box-shadow:0 14px 30px -22px ${soft(35)}}`,
-  `${SOFT} #contact .site-builder-node--accordion-item > summary{align-items:center;min-height:64px;font-size:16px}`,
+  `${SOFT} #contact .site-builder-node--accordion-item > summary{align-items:center;min-height:64px;font-size:16px;color:${INK}}`,
   `${SOFT} #contact .site-builder-node--accordion-item > summary::after{flex:0 0 auto;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:${TINT};color:${ACCENT_TEXT};font:500 20px/1 var(--site-body-font,inherit);transition:transform .2s ease}`,
   `${SOFT} #contact .site-builder-node--accordion-item[open] > summary::after{content:"+";transform:rotate(45deg)}`,
-  `${SOFT} #contact .site-builder-node--accordion-item p{margin:0 0 18px;font-size:15px;line-height:1.6}`,
+  `${SOFT} #contact .site-builder-node--accordion-item p{margin:0 0 18px;font-size:15px;line-height:1.6;color:color-mix(in srgb,${INK} 78%,transparent)}`,
   `${MQ_DESK}{${SOFT} #contact .site-builder-node--accordion{grid-template-columns:1fr 1fr!important;align-items:start;gap:14px!important}}`,
 
   // ── Accent words and eyebrows read the text-safe accent (PL-2).
