@@ -119,7 +119,7 @@ test.describe("J2 locked builder (free talent)", () => {
   test.skip(FLAGS_OFF, "J2 needs TALENT_FREE_WEBSITE_ENABLED on.");
   test.describe.configure({ mode: "serial" });
 
-  test("free edits: text, hide, reorder", async ({ page }) => {
+  test("free edits: text and hide (no reorder on Free)", async ({ page }) => {
     await collectLockHits(page);
     await signIn(page, BUILDER);
     await waitForBuilder(page);
@@ -136,17 +136,11 @@ test.describe("J2 locked builder (free talent)", () => {
       timeout: 30_000,
     });
 
-    // ── hide + reorder a section, from the navigator ──────────────────────────
+    // ── hide a section from the navigator (reorder controls stay hidden) ─────
     await page.locator('[data-dock-item="structure"]').click();
     const rows = page.locator("[data-navigator-section-row]");
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
-    expect(
-      await rows.count(),
-      "the seeded free site must have at least two sections to reorder",
-    ).toBeGreaterThan(1);
 
-    // The eye cycles always -> desktop-only -> mobile-only -> hidden; its
-    // aria-label is the state, so clicking until it reads "Hidden" is exact.
     const target = rows.nth(1);
     const eye = target.getByRole("button", { name: /Click to (hide|show)|Hidden on every|Visible everywhere|Desktop only|Mobile only/ });
     for (let i = 0; i < 4; i += 1) {
@@ -159,18 +153,7 @@ test.describe("J2 locked builder (free talent)", () => {
       timeout: 15_000,
     });
 
-    const firstRowId = await rows.first().getAttribute("data-builder-node-id");
-    const secondRowId = await target.getAttribute("data-builder-node-id");
-    expect(firstRowId, "navigator rows must carry a builder node id").toBeTruthy();
-    expect(secondRowId).toBeTruthy();
-    expect(secondRowId).not.toEqual(firstRowId);
-
-    await target.getByRole("button", { name: /^Move .* up$/ }).click();
-    await expect(rows.first()).toHaveAttribute("data-builder-node-id", secondRowId!, {
-      timeout: 60_000,
-    });
-
-    // Hiding and reordering are not structural inserts: nothing may lock.
+    await expect(page.locator("[data-navigator-section-reorder-controls]")).toHaveCount(0);
     expect(await lockHits(page)).toEqual([]);
   });
 
