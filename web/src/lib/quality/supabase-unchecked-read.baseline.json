@@ -119,7 +119,6 @@
   "src/app/not-found.tsx": 1,
   "src/app/onboarding/actions.ts": 2,
   "src/app/onboarding/role/page.tsx": 1,
-  "src/app/onboarding/talent-location/page.tsx": 1,
   "src/app/onboarding/workspace/page.tsx": 1,
   "src/app/share/[token]/page.tsx": 1,
   "src/app/share/folder/[token]/page.tsx": 2,

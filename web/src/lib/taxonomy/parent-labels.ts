@@ -37,6 +37,13 @@ export const SHORT_PARENT_LABEL: Record<string, string> = {
   "speakers-coaches-experts": "Speakers",
   "production-bts": "Production",
   "animals-specialty-acts": "Animals",
+  // Taxonomy expansion (2026-09-29)
+  "professional-services": "Professionals",
+  "health-therapy": "Health & Therapy",
+  "education-tutoring": "Education",
+  "design-digital": "Design & Digital",
+  "crafts-makers": "Makers",
+  "pets-animal-care": "Pets",
 
   // Admin shell fixture ids (snake_case, used by components/admin/shell)
   "hosts": "Hosts",

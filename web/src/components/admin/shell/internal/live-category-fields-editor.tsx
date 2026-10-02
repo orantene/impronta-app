@@ -200,7 +200,7 @@ export function filterLiveCategoryFieldsForScope<T extends ScopeFilteredField>(
 // the "Other" bucket into per-talent-type sub-blocks instead of one giant
 // 22-field scroll. Anything not in this map falls back to title-casing the
 // raw prefix.
-const NAMESPACE_LABEL: Record<string, string> = {
+export const NAMESPACE_LABEL: Record<string, string> = {
   model:      "Model details",
   chef:       "Chef details",
   performer:  "Performer details",
@@ -222,10 +222,40 @@ const NAMESPACE_LABEL: Record<string, string> = {
   availability: "Availability extras",
   consent:      "Consent",
   emergency:    "Emergency",
+  // Taxonomy expansion (2026-09-29): namespaces from migrations 298200 + 298300.
+  svc:          "Service details",
+  pets:         "Pet care",
+  realestate:   "Real estate",
+  paperwork:    "Paperwork and permits",
+  lang:         "Languages and writing",
+  biz:          "Business support",
+  birth:        "Birth and postpartum",
+  tutor:        "Tutoring",
+  techedu:      "Tech lessons",
+  lessons:      "Music and arts lessons",
+  driving:      "Driving lessons",
+  design:       "Design work",
+  webprod:      "Web and product",
+  dev:          "Development",
+  jewelry:      "Jewelry and watches",
+  handcraft:    "Handcraft",
+  sewing:       "Sewing and repair",
+  sound:        "Production and sound",
+  eventplan:    "Event planning",
+  techrepair:   "Tech repair",
+  vehiclecare:  "Vehicle care",
+  legal:        "Legal",
+  finance:      "Finance and tax",
+  dental:       "Dental",
+  rehab:        "Rehabilitation",
+  mental:       "Mental health",
+  medhome:      "Medical and home care",
+  arch:         "Architecture and interiors",
+  professional: "Professional details",
 };
 
 /** Catalog keys mirroring NAMESPACE_LABEL. English above stays the fallback. */
-const NAMESPACE_LABEL_KEY: Record<string, string> = {
+export const NAMESPACE_LABEL_KEY: Record<string, string> = {
   model:        "dashboard.adminFieldsEditor.ns.model",
   chef:         "dashboard.adminFieldsEditor.ns.chef",
   performer:    "dashboard.adminFieldsEditor.ns.performer",
@@ -247,6 +277,35 @@ const NAMESPACE_LABEL_KEY: Record<string, string> = {
   availability: "dashboard.adminFieldsEditor.ns.availability",
   consent:      "dashboard.adminFieldsEditor.ns.consent",
   emergency:    "dashboard.adminFieldsEditor.ns.emergency",
+  svc:          "dashboard.adminFieldsEditor.ns.svc",
+  pets:         "dashboard.adminFieldsEditor.ns.pets",
+  realestate:   "dashboard.adminFieldsEditor.ns.realestate",
+  paperwork:    "dashboard.adminFieldsEditor.ns.paperwork",
+  lang:         "dashboard.adminFieldsEditor.ns.lang",
+  biz:          "dashboard.adminFieldsEditor.ns.biz",
+  birth:        "dashboard.adminFieldsEditor.ns.birth",
+  tutor:        "dashboard.adminFieldsEditor.ns.tutor",
+  techedu:      "dashboard.adminFieldsEditor.ns.techedu",
+  lessons:      "dashboard.adminFieldsEditor.ns.lessons",
+  driving:      "dashboard.adminFieldsEditor.ns.driving",
+  design:       "dashboard.adminFieldsEditor.ns.design",
+  webprod:      "dashboard.adminFieldsEditor.ns.webprod",
+  dev:          "dashboard.adminFieldsEditor.ns.dev",
+  jewelry:      "dashboard.adminFieldsEditor.ns.jewelry",
+  handcraft:    "dashboard.adminFieldsEditor.ns.handcraft",
+  sewing:       "dashboard.adminFieldsEditor.ns.sewing",
+  sound:        "dashboard.adminFieldsEditor.ns.sound",
+  eventplan:    "dashboard.adminFieldsEditor.ns.eventplan",
+  techrepair:   "dashboard.adminFieldsEditor.ns.techrepair",
+  vehiclecare:  "dashboard.adminFieldsEditor.ns.vehiclecare",
+  legal:        "dashboard.adminFieldsEditor.ns.legal",
+  finance:      "dashboard.adminFieldsEditor.ns.finance",
+  dental:       "dashboard.adminFieldsEditor.ns.dental",
+  rehab:        "dashboard.adminFieldsEditor.ns.rehab",
+  mental:       "dashboard.adminFieldsEditor.ns.mental",
+  medhome:      "dashboard.adminFieldsEditor.ns.medhome",
+  arch:         "dashboard.adminFieldsEditor.ns.arch",
+  professional: "dashboard.adminFieldsEditor.ns.professional",
 };
 
 function namespaceFor(fieldKey: string): string {

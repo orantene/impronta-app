@@ -55,4 +55,11 @@ export const PARENT_EMOJI: Record<string, string> = {
   "speakers-coaches-experts": "🎙",
   "production-bts": "🎬",
   "animals-specialty-acts": "🐾",
+  // Taxonomy expansion (2026-09-29)
+  "professional-services": "💼",
+  "health-therapy": "🩺",
+  "education-tutoring": "📚",
+  "design-digital": "🎨",
+  "crafts-makers": "🧵",
+  "pets-animal-care": "🐕",
 };
