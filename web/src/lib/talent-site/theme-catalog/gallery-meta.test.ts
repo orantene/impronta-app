@@ -129,10 +129,13 @@ test("EN + ES synonyms resolve", () => {
   assert.ok(professionsForTerm("fotógrafo").includes("photographer"));
 });
 
-test("no query returns all designs and all demos", () => {
+test("no query returns all designs and usable demos only", () => {
   const out = searchGallery();
   assert.equal(out.themeCount, GALLERY_DESIGNS.length);
-  assert.equal(out.demoCount, GALLERY_DESIGNS.reduce((n, d) => n + d.demos.length, 0));
+  assert.equal(
+    out.demoCount,
+    GALLERY_DESIGNS.reduce((n, d) => n + d.demos.filter((x) => x.status === "built").length, 0),
+  );
   assert.deepEqual(out.suggestionsWhenEmpty, []);
 });
 

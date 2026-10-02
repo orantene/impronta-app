@@ -23,6 +23,8 @@ import {
   type GallerySearchResult,
   type GalleryStyleTag,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
+import { demoCardPersonName } from "@/lib/talent-site/demos/demo-profile-meta";
 import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -187,8 +189,8 @@ export function GalleryBrowseScreen({
     const d = r.design;
     const matching = searching || Boolean(state.chip);
     const demo = r.featuredDemo;
-    const demoName = demo ? demo.name[locale] : null;
-    const n = matching ? r.matchingDemos.length : d.demos.length;
+    const demoName = demo ? demoCardPersonName(demo, locale) : null;
+    const n = matching ? countUsableDemos(r.matchingDemos) : countUsableDemos(d.demos);
     const countLabel = matching
       ? n === 1
         ? t("1 matching demo")

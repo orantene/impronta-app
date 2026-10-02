@@ -19,6 +19,7 @@ import {
   type GallerySearchResult,
   type GalleryStyleTag,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
 
 export type GalleryBrowseState = {
   query: string;
@@ -92,7 +93,7 @@ export function deriveGalleryView(s: GalleryBrowseState): GalleryBrowseView {
   );
   const output: GallerySearchOutput = {
     results: filtered,
-    demoCount: filtered.reduce((n, r) => n + r.matchingDemos.length, 0),
+    demoCount: filtered.reduce((n, r) => n + countUsableDemos(r.matchingDemos), 0),
     themeCount: filtered.length,
     suggestionsWhenEmpty: filtered.length ? [] : emptySuggestions(),
   };
@@ -149,7 +150,7 @@ export function gallerySearchSuggestions(input: string, locale: "en" | "es", max
   // Theme names match too.
   for (const d of visibleGalleryDesigns()) {
     if (normalizeSearchText(d.name).startsWith(normalizeSearchText(last))) {
-      out.push({ kind: "profession", label: d.name, query: d.name, demos: d.demos.length, themes: 1 });
+      out.push({ kind: "profession", label: d.name, query: d.name, demos: countUsableDemos(d.demos), themes: 1 });
     }
   }
   return out.slice(0, max);

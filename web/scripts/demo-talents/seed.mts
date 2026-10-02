@@ -46,6 +46,7 @@ import { DEMOS, DEMO_BATCH, type DemoTalent } from "./demos";
 import { ALBA_PHOTO_SOURCES } from "./alba";
 import { ALEX_PHOTO_SOURCES } from "./alex";
 import { applyHeroFacts } from "../../src/lib/talent-site/demos/hero-facts";
+import { demoSiteSwitchColumns } from "../../src/lib/talent-site/demos/demo-site-settings";
 import { isDemoEmail } from "./demo-identity";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
@@ -673,6 +674,7 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
 
   const shell = buildDefaultShellTree({ displayName: d.displayName });
   const home = buildStarterHomePageTree({ displayName: d.displayName, tagline: d.tagline });
+  const siteSwitches = demoSiteSwitchColumns(d.profileCode);
   const { error: siteErr } = await admin.from("talent_sites").upsert(
     {
       talent_profile_id: profileId,
@@ -686,6 +688,7 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
       version: 1,
       draft_updated_at: now,
       updated_at: now,
+      ...siteSwitches,
     },
     { onConflict: "talent_profile_id" },
   );

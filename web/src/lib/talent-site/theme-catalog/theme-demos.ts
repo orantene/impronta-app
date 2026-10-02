@@ -120,7 +120,7 @@ export const THEME_DEMOS: readonly ThemeDemo[] = [
   { design: "folio", key: "fitness-model", name: { en: "Fitness Model", es: "Modelo fitness" }, professions: ["model"], palette: "dark", profileCode: "TAL-93110", siteSlug: "andre-castillo", displayName: "Andre Castillo", live: false },
   { design: "folio", key: "runway-model", name: { en: "Runway Model", es: "Modelo de pasarela" }, professions: ["model"], palette: "stone", profileCode: "TAL-93111", siteSlug: "noemi-castaneda", displayName: "Noemí Castañeda", live: false },
   { design: "folio", key: "hand-model", name: { en: "Hand Model", es: "Modelo de manos" }, professions: ["model"], palette: "light", profileCode: "TAL-93112", siteSlug: "daniel-kim", displayName: "Daniel Kim", live: false },
-  { design: "folio", key: "mature-model", name: { en: "Mature Model", es: "Modelo senior" }, professions: ["model"], palette: "stone", profileCode: "TAL-93113", siteSlug: "elena-garza-trevino", displayName: "Elena Garza Treviño", live: false },
+  { design: "folio", key: "mature-model", name: { en: "Mature Model", es: "Modelo madura" }, professions: ["model"], palette: "stone", profileCode: "TAL-93113", siteSlug: "elena-garza-trevino", displayName: "Elena Garza Treviño", live: false },
   { design: "folio", key: "model-singer", name: { en: "Model & Singer", es: "Modelo y cantante" }, professions: ["model", "singer"], palette: "dark", profileCode: "TAL-93114", siteSlug: "rafael-hernandez-cuevas", displayName: "Rafa Cuevas", live: false },
   // Gridline (after the featured Alex Treviño demo, TAL-93030). Palettes per the build plan 6.3:
   // five palettes across eight demos so every Look is on a live demo.
