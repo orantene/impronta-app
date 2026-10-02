@@ -70,7 +70,9 @@ describe("G2.1 / A0 finish-collect honesty", () => {
   });
 
   it("createAgendaBookingPayLink ensures an order shell when missing", () => {
-    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    // The order shell lives in agenda-order-shell.ts; booking-actions calls it.
+    const src =
+      readFileSync(join(root, "booking-actions.ts"), "utf8") + readFileSync(join(root, "agenda-order-shell.ts"), "utf8");
     assert.match(src, /ensureAgendaOrderShell/);
     assert.match(src, /source_channel:\s*"talent_agenda"/);
     assert.match(src, /guest_session_id/);
@@ -91,7 +93,7 @@ describe("G2.1 / A0 finish-collect honesty", () => {
   });
 
   it("ensureAgendaOrderShell aligns a short unpaid talent_agenda shell before mint", () => {
-    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    const src = readFileSync(join(root, "agenda-order-shell.ts"), "utf8");
     assert.match(src, /alignAgendaOrderShellToAmount/);
     assert.match(src, /currentTotal >= input\.amountCents/);
     assert.match(src, /state", "reserved"/);
