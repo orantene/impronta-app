@@ -26,6 +26,7 @@ import {
   mockupPathFor,
   newestRun,
   parseMockupSummary,
+  releasedVersionOf,
   previewFromCodeHref,
   type FactoryDesignRow,
   type FactoryMockupRun,
@@ -95,6 +96,7 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
       title: ov?.title ?? entry.title,
       catalogVersion,
       codeVersion: codeVersionOf(highest, codeDiffers),
+      releasedVersion: releasedVersionOf(ov?.openReleases ?? []),
       status: deriveFactoryStatus({
         catalogVersion,
         codeDiffers,
@@ -125,6 +127,7 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
       title: ov?.title ?? (c.title as string),
       catalogVersion,
       codeVersion: catalogVersion,
+      releasedVersion: releasedVersionOf(ov?.openReleases ?? []),
       status: deriveFactoryStatus({ catalogVersion, codeDiffers: false, authoredHidden: hidden }),
       demoCount: 0,
       galleryVisible: !hidden,

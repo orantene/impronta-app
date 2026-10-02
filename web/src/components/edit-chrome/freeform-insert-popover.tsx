@@ -16,6 +16,7 @@ import {
   ElementLibraryInsertPicker,
 } from "./element-library-insert-picker";
 import { AIBriefInput } from "./ai-brief-input";
+import { useEditorLocale } from "./use-editor-locale";
 import { CHROME, CHROME_RADII } from "./kit";
 import type { BuilderNodeKind } from "@/lib/site-admin/builder-node";
 
@@ -47,12 +48,13 @@ export function FreeformInsertPopover({
   onGenerateSection?: (brief: string) => Promise<{ ok: boolean; error?: string }>;
   onDismiss: () => void;
 }) {
+  const { t } = useEditorLocale();
   const [aiPending, setAiPending] = useState(false);
   return (
     <div
       data-freeform-insert-menu={target.key}
       role="dialog"
-      aria-label={`Add block to ${target.label}`}
+      aria-label={t("Add block to {label}").replace("{label}", target.label)}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
@@ -94,7 +96,7 @@ export function FreeformInsertPopover({
               color: CHROME.muted2,
             }}
           >
-            Add block
+            {t("Add block")}
           </div>
           <div
             style={{

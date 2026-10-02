@@ -25,6 +25,11 @@ const ALLOWED = new Set(
     // The one place the private address is released: the confirmation message,
     // and only for "exact after booking" (see confirmation-address.test.ts).
     "lib/messaging/confirmation-address.ts",
+    // Demo seeding only: always WRITES exact_address as null for is_demo talents
+    // (guarded by assertDemoTarget); never reads or returns a private address.
+    "lib/talent-site/demos/location.ts",
+    // Comment only: documents that the Gridline area card never reads exactAddress.
+    "lib/site-admin/builder-node/area-block.tsx",
   ].map((p) => p.split("/").join(sep)),
 );
 

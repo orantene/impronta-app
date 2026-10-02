@@ -100,13 +100,13 @@
       "key": "contents",
       "label": "Contents (anchor index)",
       "unit": null,
-      "parityKey": "contents",
+      "parityKey": null,
       "mockup": [
         ".fo-toc"
       ],
       "fallback": [
-        "#contents",
-        "[data-slot-key=\"contents\"]"
+        "[data-parity-key=\"hero\"] .sb-mag-toc",
+        ".sb-mag-toc"
       ],
       "expects": [
         {
@@ -118,7 +118,8 @@
       ],
       "pixel": {
         "maxMismatch": 0.15
-      }
+      },
+      "note": "Folio v21: no separate Contents section. The contents list lives inside the hero spread (mockup .fo-toc, product nav.sb-mag-toc in the masthead side column), so the product resolves by selector, not by data-parity-key."
     },
     {
       "key": "chapters",

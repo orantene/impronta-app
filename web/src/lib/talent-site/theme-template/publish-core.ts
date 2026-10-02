@@ -14,6 +14,7 @@
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "../theme-catalog/types";
 import { DESIGN_ALLOWED_NODE_KINDS, validateDesign } from "../theme-catalog/validate";
+import { canonicalPalettes } from "../theme-catalog/palettes-canonical";
 import { diffDesignPayloads, type CandidateItem } from "../theme-releases/diff-payload";
 import {
   contentPaths,
@@ -75,6 +76,7 @@ export function canonicalDesign(payload: DesignPayload): DesignPayload {
     homeTree: canonicalTree(payload.homeTree),
     ...(payload.optionalBlocks ? { optionalBlocks: canonicalTree(payload.optionalBlocks) } : {}),
     ...(payload.tokenDefaults ? { tokenDefaults: sortedRecord(payload.tokenDefaults) } : {}),
+    ...(canonicalPalettes(payload.palettes) ? { palettes: canonicalPalettes(payload.palettes) } : {}),
   };
   return JSON.parse(JSON.stringify(out)) as DesignPayload;
 }

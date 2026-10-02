@@ -169,6 +169,7 @@ import { renderSpecTableBlock } from "./spec-table-block";
 import { renderUtilityBarBlock } from "./utility-bar-block";
 import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
+import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -6092,6 +6093,15 @@ function renderBuilderNodeElement(
       return renderAlertBandBlock({
         node,
         liveStatus: options.dataSources?.liveStatus,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "app_nail_designer": {
+      return renderNailDesignerBlock({
+        node,
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        text: (prop, value) =>
+          value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "",
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }

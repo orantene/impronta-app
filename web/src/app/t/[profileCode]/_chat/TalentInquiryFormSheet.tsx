@@ -26,7 +26,7 @@ import {
   type InquiryFormFieldError,
   type InquiryFormLine,
 } from "@/lib/talent/inquiry-form-payload";
-import { briefFromDetail } from "@/lib/talent/offering-task-brief";
+import { TASK_NOTE_MAX, briefFromDetail } from "@/lib/talent/offering-task-brief";
 import { submitTalentInquiryForm } from "../_actions/talent-inquiry-form-action";
 import { inquiryFormCopy, type InquiryFormCopyKey } from "./inquiry-form-copy";
 import {
@@ -123,15 +123,18 @@ export function TalentInquiryFormSheet({
     };
     const onAsk = (e: Event) => {
       const d = (e as CustomEvent).detail as
-        | { demo?: boolean; offeringId?: string | null; offeringTitle?: string | null }
+        | { demo?: boolean; offeringId?: string | null; offeringTitle?: string | null; message?: unknown }
         | null;
       if (d?.demo === true) return;
+      // An on-page app (Nail Designer) hands over a starting message: pre-fill only.
+      const appMessage = typeof d?.message === "string" ? d.message.trim().slice(0, TASK_NOTE_MAX) : "";
       const fromStore = linesFromPending();
-      if (fromStore.length > 0) return openWith(fromStore, notePrefillFrom(peekPendingOffering()));
+      if (fromStore.length > 0) return openWith(fromStore, appMessage || notePrefillFrom(peekPendingOffering()));
       openWith(
         d?.offeringId && d.offeringTitle
           ? [{ offeringId: d.offeringId, title: d.offeringTitle }]
           : [],
+        appMessage,
       );
     };
     const onOpenClean = () => {

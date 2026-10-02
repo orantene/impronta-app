@@ -36,6 +36,8 @@ import {
 } from "./live-design-change";
 import { DemoStrip } from "./DemoStrip";
 import { DemosSheet } from "./DemosSheet";
+import { AppsTab } from "./GalleryAppsUi";
+import { appsForDetail, galleryAppsT } from "./gallery-apps";
 import { ColorSwatches, ColorsSheet, swatchStyle, type ColorsProps } from "./ColorsSheet";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -109,6 +111,8 @@ export function ThemeDetailScreen({
   const demos = orderedDemos(design);
   const { demo, requested, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
   const selectedDemoKey = requested?.key ?? demo?.key ?? null;
+  const detailApps = appsForDetail(design, demo);
+  const appsTabOn = detailApps.length > 0 && choices.detailTab === "apps";
   const colors = effectiveColors(design, demo, choices, choices.contentMode);
   const usingCustom = colors.kind === "custom";
   const activeCustom = usingCustom ? choices.customPalette : null;
@@ -368,6 +372,31 @@ export function ThemeDetailScreen({
     </div>
   );
 
+  const tabStrip =
+    detailApps.length > 0 ? (
+      <div
+        role="tablist"
+        data-testid="maison-detail-tabs"
+        className="grid grid-cols-2 rounded-lg border border-admin-border-soft p-0.5"
+      >
+        {(["preview", "apps"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={tab === "apps" ? appsTabOn : !appsTabOn}
+            data-testid={`maison-detail-tab-${tab}`}
+            onClick={() => onChange({ detailTab: tab })}
+            className={`min-h-11 rounded-md text-[13px] font-semibold ${
+              (tab === "apps") === appsTabOn ? "bg-admin-ink text-white" : "bg-transparent text-admin-ink"
+            }`}
+          >
+            {tab === "apps" ? `${galleryAppsT(locale, "apps")} · ${detailApps.length}` : maisonSetupT(locale, "Preview")}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
   const plannedNote = plannedFallback ? (
     <p data-testid="maison-demo-planned-note" className="text-[12px] text-admin-ink-dim">
       {detailT(locale, "Showing the featured demo · this demo's preview is planned")}
@@ -476,6 +505,10 @@ export function ThemeDetailScreen({
               selectedKey={selectedDemoKey}
               locale={locale}
               onSelect={selectDemo}
+              onOpenApps={(key) => {
+                selectDemo(key);
+                onChange({ detailTab: "apps" });
+              }}
             />
             {plannedNote}
           </div>
@@ -483,8 +516,11 @@ export function ThemeDetailScreen({
           {/* Phone: full-width Demo | My content above the preview */}
           <div className="md:hidden">{segment}</div>
           <div className="md:hidden">{plannedNote}</div>
+          {tabStrip}
 
-          <div className="min-h-0 flex-1 overflow-auto">{previewFrame}</div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            {appsTabOn ? <AppsTab apps={detailApps} locale={locale} /> : previewFrame}
+          </div>
         </div>
 
         {/* Desktop right panel */}

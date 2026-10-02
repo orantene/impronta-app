@@ -2,7 +2,8 @@
  * THEME RELEASES: candidate release items from two versions of a Design
  * payload (plan §1.3). Pure; the admin edits types + notes before shipping.
  *
- *   token-default    a `tokenDefaults` key changed, appeared or went away
+ *   token-default    a `tokenDefaults` key changed, appeared or went away;
+ *                    or a palette colour (`palettes`, key `palette:<p>:<token>`)
  *   variant-default  a keyed node's design-owned props changed
  *   new-block        a top-level section key new in `to`
  *   layout           a node kind swap, a key removed, a key new below a
@@ -18,6 +19,7 @@
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import type { DesignPayload } from "../theme-catalog/types";
+import { diffDesignPalettes, paletteDisplayName, paletteItemKey } from "../theme-catalog/design-palettes";
 import { indexTree } from "./classify";
 import { designLeaves, kidsOf, stampDesignOrigin } from "./origin";
 import { detectSwaps, swapGroupId } from "./swap";
@@ -148,6 +150,15 @@ export function diffDesignPayloads(
     .sort();
   for (const key of tokenKeys) {
     out.push({ id: `token-default:${key}`, type: "token-default", key, detail: { from: ta[key] ?? null, to: tb[key] ?? null } });
+  }
+  for (const ch of diffDesignPalettes(design, from.payload.palettes, to.payload.palettes)) {
+    const key = paletteItemKey(ch.palette, ch.token);
+    out.push({
+      id: `token-default:${key}`,
+      type: "token-default",
+      key,
+      detail: { palette: ch.palette, paletteName: paletteDisplayName(design, ch.palette), token: ch.token, from: ch.from, to: ch.to },
+    });
   }
   codeNotes.forEach((note, i) => out.push({ id: `code:${i + 1}`, type: "code", key: `code:${i + 1}`, note }));
   return out;

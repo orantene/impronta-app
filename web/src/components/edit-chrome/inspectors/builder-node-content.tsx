@@ -96,6 +96,7 @@ import { CompCardContentInspector } from "./comp-card-inspector";
 import { SpecTableContentInspector } from "./spec-table-inspector";
 import { UtilityBarContentInspector, AlertBandContentInspector } from "./utility-bar-inspector";
 import { TaskPickerContentInspector } from "./task-picker-inspector";
+import { NailDesignerContentInspector } from "./nail-designer-inspector";
 import { builder2027SecondaryLabel } from "../builder-2027-secondary-label";
 import {
   Builder2027ContentInspector,
@@ -605,9 +606,9 @@ function BuilderNodeContentInspectorBody({
   if (node.kind === "heading") {
     return (
       <BuilderNodeFlatPanel>
-        <BuilderNodeSection title="Heading">
+        <BuilderNodeSection title={t("Heading")}>
           <div className={KIT.field}>
-            <label className={KIT.label}>Text</label>
+            <label className={KIT.label}>{t("Text")}</label>
             <BuilderNodeLocalizableTextField
               node={node}
               prop="text"
@@ -622,7 +623,7 @@ function BuilderNodeContentInspectorBody({
           </div>
           <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
           <div className={KIT.field}>
-            <label className={KIT.label}>Level</label>
+            <label className={KIT.label}>{t("Level")}</label>
             <Segmented
               fullWidth
               compact
@@ -648,7 +649,7 @@ function BuilderNodeContentInspectorBody({
     return (
       <BuilderNodeFlatPanel>
         <div className={KIT.field}>
-          <label className={KIT.label}>Copy</label>
+          <label className={KIT.label}>{t("Copy")}</label>
           <BuilderNodeLocalizableTextField
             node={node}
             prop="text"
@@ -1626,6 +1627,29 @@ function BuilderNodeContentInspectorBody({
   }
   if (node.kind === "task_picker") {
     return <TaskPickerContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "app_nail_designer") {
+    const nailProps = node.props as Record<string, unknown>;
+    return (
+      <NailDesignerContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        renderText={(prop, label, kind, placeholder) => (
+          <BuilderNodeLocalizableTextField
+            node={node}
+            prop={prop}
+            tenantId={tenantId}
+            fieldKind={kind}
+            baseValue={typeof nailProps[prop] === "string" ? (nailProps[prop] as string) : ""}
+            ariaLabel={label}
+            className={kind === "textarea" ? KIT.textarea : KIT.input}
+            placeholder={placeholder}
+            onCommitBase={(next) => commitPatch({ [prop]: next })}
+            patch={commitPatch}
+          />
+        )}
+      />
+    );
   }
   if (node.kind === "spec_table") {
     return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
@@ -5445,6 +5469,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return (
         builder2027SecondaryLabel(node) ?? BUILDER_NODE_REGISTRY[node.kind].label
       );
+    case "app_nail_designer":
+      return BUILDER_NODE_REGISTRY[node.kind].label;
   }
 }
 

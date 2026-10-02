@@ -43,7 +43,7 @@ import {
   TALENT_KIT_SHELL,
   TALENT_KIT_SHELL_ROLES,
 } from "./section-kit";
-import { isLookOwnedTokenKey, LOOK_REQUIRED_TOKEN_KEYS } from "./look-layer";
+import { isLookOwnedTokenKey, isValidPaletteValue, LOOK_REQUIRED_TOKEN_KEYS } from "./look-layer";
 import type { ThemeValidationResult } from "./types";
 
 // ── Design ───────────────────────────────────────────────────────────────────
@@ -84,6 +84,7 @@ export const DESIGN_ALLOWED_NODE_KINDS: ReadonlySet<string> = new Set([
   "utility_bar",
   "alert_band",
   "task_picker",
+  "app_nail_designer",
   "next_free_chip",
   // Maison v2 ticker (serif variant of the shared marquee).
   "marquee",
@@ -307,6 +308,7 @@ export function validateDesign(payload: unknown): ThemeValidationResult {
   }
 
   checkDesignTokenDefaults(record?.tokenDefaults, errors);
+  checkDesignPalettes(record?.palettes, errors);
 
   return { ok: errors.length === 0, errors };
 }
@@ -329,6 +331,24 @@ function checkDesignTokenDefaults(value: unknown, errors: string[]): void {
     }
     if (typeof raw !== "string" || !styleTokenValidator(def).safeParse(raw).success) {
       errors.push(`tokenDefaults.${key}: invalid value.`);
+    }
+  }
+}
+
+/** `palettes` (optional): `{ paletteKey: { "color.*": valid colour } }`. */
+function checkDesignPalettes(value: unknown, errors: string[]): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push("palettes: must be an object of palette colour maps.");
+    return;
+  }
+  for (const [palette, map] of Object.entries(value as Record<string, unknown>)) {
+    if (!map || typeof map !== "object" || Array.isArray(map)) {
+      errors.push(`palettes.${palette}: must be an object of colours.`);
+      continue;
+    }
+    for (const [key, raw] of Object.entries(map as Record<string, unknown>)) {
+      if (!isValidPaletteValue(key, raw)) errors.push(`palettes.${palette}.${key}: not a valid colour.`);
     }
   }
 }

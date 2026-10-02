@@ -8,7 +8,7 @@
  * Register a new overlay by importing its JSON here (the pull script does it).
  */
 import type { DesignPayload } from "../../types";
-import { applyAuthoredOverlay, type AuthoredOverlayFile } from "./overlay";
+import { applyAuthoredOverlay, overlayPaletteOverrides, type AuthoredOverlayFile } from "./overlay";
 import folioOverlay from "./folio.overlay.json";
 // pull-authored:imports
 
@@ -42,7 +42,8 @@ function isOverlayFile(value: unknown): value is AuthoredOverlayFile {
     Array.isArray(v.removed) &&
     Array.isArray(v.added) &&
     !!v.order && typeof v.order === "object" &&
-    !!v.labelsEs && typeof v.labelsEs === "object"
+    !!v.labelsEs && typeof v.labelsEs === "object" &&
+    (v.palettes === undefined || (!!v.palettes && typeof v.palettes === "object"))
   );
 }
 
@@ -88,4 +89,9 @@ export function buildWithAuthoredOverlay(slug: string, buildRaw: () => DesignPay
   const overlay = loadAuthoredOverlayFile(slug);
   const raw = buildRaw();
   return overlay ? applyAuthoredOverlay(raw, overlay) : raw;
+}
+
+/** Committed palette colour overrides for `slug` (`paletteKey -> token -> value`); {} when none. */
+export function authoredPaletteOverrides(slug: string): Readonly<Record<string, Record<string, string>>> {
+  return overlayPaletteOverrides(loadAuthoredOverlayFile(slug));
 }

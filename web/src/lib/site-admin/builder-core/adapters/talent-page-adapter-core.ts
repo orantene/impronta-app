@@ -69,6 +69,7 @@ import type {
   BuilderSurfaceContext,
   BuilderSurfacePublishInput,
   BuilderSurfaceSaveDraftInput,
+  BuilderSurfaceDiscardInput,
   BuilderSurfaceRestoreInput,
 } from "../surface-adapter";
 import { assertNoLegacyBuilderWrite } from "../legacy-write-guard";
@@ -483,6 +484,32 @@ export function createTalentPageAdapter(
       const result = await actions.publishPage({ talentProfileId, pageId: row.id });
       if (!result.ok) return { ok: false, error: result.error };
       return { ok: true, pageVersion: versionAfterWrite(result), publishedAt: result.publishedAt };
+    },
+
+    async discardDraft(
+      ctx: BuilderSurfaceContext,
+      input: BuilderSurfaceDiscardInput,
+    ): Promise<RevisionRestoreResult> {
+      guard("talent_pages");
+
+      const talentProfileId = capturedTalentProfileId || "";
+      if (!ctx.pageSlug) {
+        return { ok: false, error: "talent_page discardDraft: pageSlug is required." };
+      }
+      const row = await actions.loadPage({ talentProfileId, slug: ctx.pageSlug });
+      if (!row) return { ok: false, error: "Talent page not found." };
+      const live = Array.isArray(row.blocks_published) ? row.blocks_published : [];
+      if (live.length === 0) {
+        return { ok: false, error: "Nothing is published yet, so there is no live version to go back to." };
+      }
+      const result = await actions.savePage({
+        talentProfileId,
+        pageId: row.id,
+        patch: { blocks: live, theme: row.theme, updated_at: new Date().toISOString() },
+        expectedDraftRev: resolveExpectedDraftRev(input.expectedVersion),
+      });
+      if (!result.ok) return writeFailure(result);
+      return { ok: true, pageVersion: versionAfterWrite(result) };
     },
 
     ...(actions.restoreRevision

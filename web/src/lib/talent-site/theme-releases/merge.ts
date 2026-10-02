@@ -45,7 +45,7 @@ import {
 } from "./origin";
 import { makeAllow, type Allowance, type AllowFn } from "./policy";
 import { carryEdits, detectSwaps, type SwapPair } from "./swap";
-import { mergeTokenDefaults } from "./tokens-merge";
+import { mergePaletteTokens, mergeTokenDefaults } from "./tokens-merge";
 import {
   ROOT_KEY,
   hasTalentAddedDescendant,
@@ -481,7 +481,13 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
   const report = emptyReport();
   let n = 0;
   const seq = () => (n += 1);
-  const allow = makeAllow(input.items);
+  const itemAllow = makeAllow(input.items);
+  const allow: AllowFn = input.forceDesign
+    ? (scope, key, tree) => {
+        const a = itemAllow(scope, key, tree);
+        return a.ok ? { ...a, critical: true } : a;
+      }
+    : itemAllow;
   const declared = (input.items ?? []).flatMap((i) => (i.swap ? [{ tree: i.tree, pair: i.swap }] : []));
   const trees: Record<string, BuilderNode[]> = {};
   for (const [name, ours] of Object.entries(input.ours.trees)) {
@@ -502,7 +508,10 @@ export function mergeDesignUpdate(input: MergeInput): MergeResult {
     report,
     nextSeq: seq,
   });
-  return { trees, tokens, report };
+  const withPalette = input.palette
+    ? mergePaletteTokens({ ...input.palette, tokens, allow, report, nextSeq: seq })
+    : tokens;
+  return { trees, tokens: withPalette, report };
 }
 
 /** Read helper for reports: a leaf of the node's props. */

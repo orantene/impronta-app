@@ -12,6 +12,7 @@ export const EDITOR_COPY: Record<
     publish: string;
     exit: string;
     releaseManager: string;
+    more: string;
     draftUnavailable: (reason: string) => string;
     disabled: string;
     back: string;
@@ -26,6 +27,7 @@ export const EDITOR_COPY: Record<
     publish: "Publish as new version",
     exit: "Exit editor",
     releaseManager: "Open release manager",
+    more: "More actions",
     draftUnavailable: (reason) => `This design draft could not be opened: ${reason}`,
     disabled: "The talent design editor is turned off.",
     back: "Back to the Talent Template Factory",
@@ -39,6 +41,7 @@ export const EDITOR_COPY: Record<
     publish: "Publicar como nueva versión",
     exit: "Salir del editor",
     releaseManager: "Abrir gestor de versiones",
+    more: "Más acciones",
     draftUnavailable: (reason) => `No se pudo abrir el borrador de este diseño: ${reason}`,
     disabled: "El editor de diseños de talento está desactivado.",
     back: "Volver a la Fábrica de plantillas de talento",

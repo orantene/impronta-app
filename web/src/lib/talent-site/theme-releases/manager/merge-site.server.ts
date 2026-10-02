@@ -22,6 +22,7 @@ import {
   fallbackHydrationTokens,
 } from "@/lib/talent-site/server/theme-apply-core";
 import type { DesignPayload, TalentThemeDesignRow } from "@/lib/talent-site/theme-catalog/types";
+import { designPaletteTokens, paletteKeyForLook } from "@/lib/talent-site/theme-catalog/design-palettes";
 import type { BaseResolver } from "./base-resolver.server";
 import { writeThemeTokenOrigin } from "../token-origin-store";
 import { indexTree } from "../classify";
@@ -77,7 +78,7 @@ export async function mergeSite(
   const [rowRes, homeRes, hydration, basePayload] = await Promise.all([
     admin
       .from("talent_sites")
-      .select("shell_tree, design_tokens_draft, theme_token_origin")
+      .select("shell_tree, design_tokens_draft, theme_token_origin, theme_look_slug")
       .eq("id", site.siteId)
       .maybeSingle(),
     admin
@@ -116,6 +117,10 @@ export async function mergeSite(
   const oursShell = ensureStamped(asTree(row.shell_tree), stampAgainst.shellTree, hasBase);
   const oursHome = ensureStamped(asTree(home?.blocks), stampAgainst.homeTree, hasBase);
 
+  // Palette colour edits reach sites on that palette (base = pinned version's colours).
+  const paletteKey = paletteKeyForLook(design.slug, typeof row.theme_look_slug === "string" ? row.theme_look_slug : null);
+  const paletteBase = paletteKey ? designPaletteTokens(design.slug, paletteKey, basePayload?.palettes) : null;
+  const paletteTheirs = paletteKey ? designPaletteTokens(design.slug, paletteKey, design.payload.palettes) : null;
   const result = mergeDesignUpdate({
     base: {
       trees: { shell: base?.shellTree ?? [], home: base?.homeTree ?? [] },
@@ -130,9 +135,12 @@ export async function mergeSite(
       tokens: design.payload.tokenDefaults ?? {},
     },
     ...(items && items.length > 0 ? { items } : {}),
+    // Demos get the release fully: seeded demo content must not read as a talent edit.
+    ...(site.isDemo ? { forceDesign: true } : {}),
     ...(row.theme_token_origin && typeof row.theme_token_origin === "object"
       ? { tokenOrigin: row.theme_token_origin as Record<string, string> }
       : {}),
+    ...(paletteKey && paletteBase && paletteTheirs ? { palette: { key: paletteKey, base: paletteBase, theirs: paletteTheirs } } : {}),
   });
   // F125: no exact base = no full merge, but critical fixes still reach her by targeted key match.
   const critical = hasBase

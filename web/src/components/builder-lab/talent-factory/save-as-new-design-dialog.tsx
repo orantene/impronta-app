@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 
 import { actionSaveAsNewDesign } from "./new-design-actions";
 
@@ -30,6 +31,7 @@ const COPY = {
 } as const;
 
 const field = "mt-1 w-full rounded border border-white/15 bg-black/30 px-2 py-1.5 text-sm text-white";
+const trigger = "rounded-full border border-black/30 bg-white px-3 py-1 text-xs text-black/80 hover:bg-black/5";
 const btn = "rounded border border-white/20 px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50";
 
 export function SaveAsNewDesignDialog({
@@ -69,11 +71,11 @@ export function SaveAsNewDesignDialog({
 
   return (
     <>
-      <button type="button" className={btn} onClick={() => setOpen(true)} data-save-as-new-design>
+      <button type="button" className={trigger} onClick={() => setOpen(true)} data-save-as-new-design>
         {t.open}
       </button>
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      {open && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4">
           <div role="dialog" aria-modal="true" aria-label={t.title} className="w-full max-w-md rounded-lg border border-white/15 bg-neutral-900 p-5 text-white">
             <h2 className="text-base font-semibold">{t.title}</h2>
             <p className="mt-1 text-xs text-white/60">{t.lead}</p>
@@ -95,7 +97,8 @@ export function SaveAsNewDesignDialog({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

@@ -9,6 +9,7 @@ import { readOrigin, stableStringify } from "./origin";
 import { findKeyPath } from "./tree-ops";
 import { addNode, built, edit, plain, prop, removeKey, topKeys } from "./test-fixtures";
 import type { DesignSide, ReleaseItem } from "./types";
+import { siteResultFromReport } from "./manager/dry-run";
 
 const base = built(1);
 const run = (ours: DesignSide, theirs: DesignSide, items?: ReleaseItem[], b: DesignSide = base) =>
@@ -269,4 +270,43 @@ test("pure: inputs are not mutated", () => {
   const snapshot = stableStringify(ours);
   run(ours, built(2, { heroVariant: "stacked", withGallery: true }));
   assert.equal(stableStringify(ours), snapshot);
+});
+
+// Folio v18 -> v19 (release 2942f779): a section default on `home:hero/masthead`
+// was "kept" on every demo because seeded demo copy (non-cp props) made the
+// node's fingerprint differ from its stamp, so it read as a talent edit.
+const SECTION_DEFAULT: ReleaseItem[] = [
+  { id: "variant-default:home:hero", key: "home:hero", tree: "home", type: "variant-default", paths: ["style.paddingY"] } as ReleaseItem,
+];
+const demoSeeded = () => edit(built(1), "home", "hero", "contentsTitle", "Editorial, runway and campaigns.");
+
+test("demo: a section default applies over seeded demo content (forceDesign)", () => {
+  const r = mergeDesignUpdate({ base, ours: demoSeeded(), theirs: built(2, { heroPadding: "xl" }), items: SECTION_DEFAULT, forceDesign: true });
+  assert.equal(prop(asSide(r), "home", "hero", "style.paddingY"), "xl");
+  assert.equal(prop(asSide(r), "home", "hero", "contentsTitle"), "Editorial, runway and campaigns.");
+  assert.equal(r.report.applied.length, 1);
+  assert.equal(r.report.kept.length, 0);
+  const counts = siteResultFromReport(
+    { siteId: "s", profileCode: "TAL-93011", displayName: "Mateo", isDemo: true, pinnedVersion: 1, noBase: false },
+    r.report,
+  ).counts;
+  assert.equal(counts.applied, 1);
+  assert.equal(counts.kept, 0);
+});
+
+test("talent: the same edited hero keeps her version; an untouched hero takes the section default", () => {
+  const theirs = built(2, { heroPadding: "xl" });
+  const edited = mergeDesignUpdate({ base, ours: demoSeeded(), theirs, items: SECTION_DEFAULT });
+  assert.equal(prop(asSide(edited), "home", "hero", "style.paddingY"), "l");
+  assert.equal(edited.report.kept.length, 1);
+  const clean = mergeDesignUpdate({ base, ours: built(1), theirs, items: SECTION_DEFAULT });
+  assert.equal(prop(asSide(clean), "home", "hero", "style.paddingY"), "xl");
+  assert.equal(clean.report.applied.length, 1);
+});
+
+test("forceDesign still respects release items (a key not in the release stays pending)", () => {
+  const items: ReleaseItem[] = [{ id: "x", key: "home:menu", tree: "home", type: "variant-default" } as ReleaseItem];
+  const r = mergeDesignUpdate({ base, ours: demoSeeded(), theirs: built(2, { heroPadding: "xl" }), items, forceDesign: true });
+  assert.equal(prop(asSide(r), "home", "hero", "style.paddingY"), "l");
+  assert.equal(r.report.pending.length, 1);
 });

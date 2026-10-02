@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { ES_TALENT_CHROME_TEXT } from "./editor-i18n-es-talent-chrome";
+import { ES_TEXT as ES_TALENT_CHROME_TEXT } from "./editor-i18n-es";
 
 // F123 + F121 copy: conflict, presence and inspector strings exist in Spanish
 // and the technical wording is gone from the conflict toast.

@@ -17,6 +17,7 @@
  */
 
 import { setPendingOffering } from "./pending-offering-store";
+import { setPendingDraftMessage } from "./pending-draft-message";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
@@ -197,9 +198,11 @@ export function TalentProfileChatLauncher({
     };
     window.addEventListener("tulala:open-guest-chat", onOpenClean);
     const onAskQuestion = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { demo?: boolean } | null;
+      const detail = (e as CustomEvent).detail as { demo?: boolean; message?: unknown } | null;
       // Demo harness panels consume the event without a live dock write.
       if (detail?.demo === true) return;
+      // An on-page app (Nail Designer) hands over a starting message: pre-fill only.
+      if (typeof detail?.message === "string") setPendingDraftMessage(detail.message);
       setOpen(true);
     };
     window.addEventListener("tulala:ask-question", onAskQuestion);

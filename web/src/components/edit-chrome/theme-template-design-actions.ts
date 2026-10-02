@@ -32,12 +32,14 @@ async function requireAdmin() {
 
 export async function loadThemeTemplateDesignAction(input: {
   design: string;
+  /** The editor's `?look=` palette key; colours shown are that palette's (with draft edits). */
+  look?: string | null;
 }): Promise<DesignLoadResult> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate;
   const res = await loadThemeDraft(gate.admin, input.design);
   if (!res.ok) return { ok: false, error: res.error, code: res.code };
-  const themeDraft = themeTemplateDrawerTokens(res.value);
+  const themeDraft = themeTemplateDrawerTokens(res.value, null, input.look ?? null);
   return {
     ok: true,
     snapshot: {
@@ -58,6 +60,8 @@ export async function saveThemeTemplateDesignAction(input: {
   design: string;
   patch: Record<string, string>;
   expectedRev: number;
+  /** The editor's `?look=`: colour keys are saved on that palette. */
+  look?: string | null;
 }): Promise<DesignSaveResult> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate;
@@ -69,6 +73,7 @@ export async function saveThemeTemplateDesignAction(input: {
   const res = await saveThemeDraftTokens(gate.admin, {
     design: input.design,
     patch: normalized,
+    look: input.look ?? null,
     expectedRev: input.expectedRev,
     actorId: gate.actorId,
   });

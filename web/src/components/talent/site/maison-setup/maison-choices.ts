@@ -46,6 +46,8 @@ export type MaisonSetupChoices = {
    * demo switches (colors-kept rule).
    */
   designPaletteKey: string | null;
+  /** Theme detail tab: the live preview (default) or the market Apps tab. */
+  detailTab?: "preview" | "apps";
 };
 
 export const MAISON_CHOICES_STORAGE_PREFIX = "maison-setup-choices:";
@@ -211,7 +213,12 @@ export function maisonResumeSummaryLine(
 }
 
 /** P4: what the gallery passes when a theme card is explored. */
-export type MaisonExploreOptions = { demoKey?: string | null; fromQuery?: string | null };
+export type MaisonExploreOptions = {
+  demoKey?: string | null;
+  fromQuery?: string | null;
+  /** Open Theme detail on this tab (app badge click). */
+  tab?: "apps";
+};
 
 /**
  * Patch for opening Theme detail from the gallery. Backward compatible:
@@ -232,5 +239,6 @@ export function exploreDesignPatch(
     fromQuery: parseFromQuery(opts?.fromQuery ?? null),
     designPaletteKey: null,
     phoneSheet: null,
+    detailTab: opts?.tab === "apps" ? "apps" : "preview",
   };
 }

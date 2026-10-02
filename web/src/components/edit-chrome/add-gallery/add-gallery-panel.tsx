@@ -77,6 +77,7 @@ const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
   designs: "Add Designs",
   data: "Add Data",
   shell: "Add Shell",
+  apps: "Add Apps",
 };
 
 interface AddGalleryPanelProps {
@@ -98,7 +99,7 @@ function CategoryRail({
     <nav
       className="flex shrink-0 flex-col gap-[2px] overflow-y-auto py-[12px] pl-[12px] pr-[8px]"
       style={{
-        width: 148,
+        width: "min(148px, 34vw)",
         borderRight: `1px solid ${CHROME.line}`,
       }}
       aria-label={t("Categories")}
@@ -307,7 +308,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
-    return filterGalleryItemsFrom(mergedItems, {
+    const here = filterGalleryItemsFrom(mergedItems, {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
@@ -315,7 +316,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       // ruled vocabulary (a capability on the gallery policy, not surfaceKind).
       blockAllowList: gallerySurface.blockAllowList,
     });
-  }, [mergedItems, tab, activeCategoryId, query, gallerySurface]);
+    // Global search: apps (every one, any theme) also surface from other tabs.
+    if (!query.trim() || tab === "apps" || !allowedTabIds.includes("apps")) return here;
+    const apps = filterGalleryItemsFrom(mergedItems, { tab: "apps", query, blockAllowList: gallerySurface.blockAllowList });
+    return [...here, ...apps.filter((a) => !here.some((h) => h.id === a.id))];
+  }, [mergedItems, tab, activeCategoryId, query, gallerySurface, allowedTabIds]);
 
   // ── Shell variants: REPLACE, not insert ───────────────────────────────────
   // A shell template rewrites a landmark's children. The normal gallery path
@@ -460,6 +465,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       open={open}
       onClose={onClose}
       width={PANEL_WIDTH}
+      compactBottomSheet
       maxHeight={PANEL_MAX_HEIGHT}
       testId="add-gallery-panel"
       tabs={

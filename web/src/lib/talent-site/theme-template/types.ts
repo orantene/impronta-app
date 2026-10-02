@@ -28,7 +28,7 @@ export interface ThemeDraftPreview {
   subject?: string;
   /** Look slug used for the preview colours. */
   look?: string;
-  /** Look-owned tokens the admin tried while editing (preview only). */
+  /** Look-owned NON-colour tokens the admin tried while editing (preview only; colours go to payload.palettes). */
   previewTokens?: Record<string, string>;
 }
 
@@ -60,7 +60,7 @@ export type ThemeDraftResult<T> =
  *   openThemeDraft(admin, design, actorId)            -> existing open draft, or a new one from the latest snapshot (keys frozen)
  *   loadThemeDraft(admin, design)                     -> the open draft or not_found
  *   saveThemeDraftTree(admin, { design, tree, nodes, expectedRev, actorId })  -> new rev
- *   saveThemeDraftTokens(admin, { design, patch, expectedRev, actorId })      -> new rev (style tokens -> payload.tokenDefaults; look-owned -> preview.previewTokens)
+ *   saveThemeDraftTokens(admin, { design, patch, expectedRev, actorId })      -> new rev (style tokens -> payload.tokenDefaults; colours -> payload.palettes[look]; other look-owned -> preview.previewTokens)
  *   savePreviewSettings(admin, { design, preview })   -> preview only, no rev bump
  *   discardThemeDraft(admin, design, actorId)
  *
@@ -78,6 +78,11 @@ export interface ThemeDraftSaveTree {
 
 export interface ThemeDraftSaveTokens {
   design: string;
+  /**
+   * The editor's `?look=` (gallery palette key). Colour keys are saved on that
+   * palette (`payload.palettes`); omitted = the design's first palette.
+   */
+  look?: string | null;
   patch: Record<string, string | null>;
   expectedRev: number;
   actorId: string | null;

@@ -38,7 +38,7 @@ async function rows(q: PromiseLike<{ data: unknown; error: { message: string } |
 
 /** Read every row the content step can change, plus the field-key map of the touched definitions. */
 export async function loadContentSnapshot(
-  admin: Admin,
+  admin: SupabaseClient,
   tpId: string,
 ): Promise<{ snapshot: ContentSnapshot; fieldKeyById: Map<string, string> }> {
   const offerings = await rows(admin.from("talent_offerings").select("*").eq("talent_profile_id", tpId).order("sort_order"));
@@ -94,7 +94,7 @@ const must = (e: { message: string } | null, what: string) => {
   if (e) throw new Error(`${what}: ${e.message}`);
 };
 
-async function writeChildren(admin: Admin, table: string, offeringId: string, ops: ChildOps | Row[]) {
+async function writeChildren(admin: SupabaseClient, table: string, offeringId: string, ops: ChildOps | Row[]) {
   const c: ChildOps = Array.isArray(ops) ? { insert: ops, update: [], delete: [] } : ops;
   if (c.insert.length) {
     const { error } = await admin.from(table).insert(c.insert.map((r) => ({ ...r, offering_id: offeringId })));
@@ -121,7 +121,7 @@ export interface ReferenceContentResult {
  * reports. A second run on applied state plans nothing.
  */
 export async function applyReferenceContent(
-  admin: Admin,
+  admin: SupabaseClient,
   entry: DemoRegistryEntry,
   opts: { write: boolean; hubTenantId: string },
 ): Promise<ReferenceContentResult> {
@@ -269,7 +269,7 @@ export async function applyReferenceContent(
 }
 
 /** Put a backup's content rows back. Asserts the guard; a missing/old snapshot restores nothing. */
-export async function restoreContentSnapshot(admin: Admin, profileCode: string, before: ContentSnapshot | undefined): Promise<void> {
+export async function restoreContentSnapshot(admin: SupabaseClient, profileCode: string, before: ContentSnapshot | undefined): Promise<void> {
   if (!before) return;
   const target = await assertDemoTarget(admin, profileCode);
   if (!target.ok) throw new Error(`REFUSE: ${target.reason}`);

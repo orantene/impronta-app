@@ -225,20 +225,23 @@ export async function rebuildDemos(
     changed: [],
     error: `${code} is not in the demo registry.`,
   }));
-  for (const entry of entries) {
+  const runEntry = async (entry: (typeof entries)[number]): Promise<DemoRebuildRow> => {
     try {
-      rows.push(await rebuildOne(admin, entry, { dryRun, publish, ...(actorId ? { actorId } : {}) }, ports));
+      return await rebuildOne(admin, entry, { dryRun, publish, ...(actorId ? { actorId } : {}) }, ports);
     } catch (err) {
-      rows.push({
+      return {
         profileCode: entry.profileCode,
         design: entry.design,
         version: null,
         status: "failed",
         changed: [],
         error: err instanceof Error ? err.message : "rebuild failed",
-      });
+      };
     }
-  }
+  };
+  // Dry runs only read, so they fan out; real writes stay strictly serial.
+  if (dryRun) rows.push(...(await Promise.all(entries.map(runEntry))));
+  else for (const entry of entries) rows.push(await runEntry(entry));
   return {
     ok: rows.every((r) => r.status !== "failed" && r.status !== "refused"),
     dryRun,
