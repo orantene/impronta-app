@@ -1,28 +1,26 @@
 /**
- * Local QA entry for Support Desk (Phase 1a).
- *
- * Production Desk UI waits on Phase 0.5 mockup OK (1b/1c). This route only
- * proves the `SUPPORT_DESK_ENABLED` gate on the app/localhost surface.
- * Dedicated host: `support.tulala.digital` (404 while flag off).
+ * Local QA entry for Support Desk — redirects into the real `/desk` product
+ * surface so agents are not trapped inside Platform Admin chrome.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
+import { SUPPORT_DESK_HOST_PATH } from "@/lib/support/desk/desk-url";
 
 export const dynamic = "force-dynamic";
 
-export default function SupportDeskLocalQaPage() {
+export default async function SupportDeskLocalQaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ticket?: string; view?: string }>;
+}) {
   if (!isSupportDeskEnabled()) notFound();
 
-  return (
-    <main className="mx-auto max-w-xl p-8">
-      <h1 className="text-lg font-medium">Support Desk</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Local QA gate is on (<code>SUPPORT_DESK_ENABLED</code>). Production Desk UI
-        ships after Phase 0.5 mockup approval. Mockups:{" "}
-        <code>web/design-references/support-desk/</code> on port 3099.
-      </p>
-    </main>
-  );
+  const sp = await searchParams;
+  const params = new URLSearchParams();
+  if (sp.ticket) params.set("ticket", sp.ticket);
+  if (sp.view) params.set("view", sp.view);
+  const qs = params.toString();
+  redirect(qs ? `${SUPPORT_DESK_HOST_PATH}?${qs}` : SUPPORT_DESK_HOST_PATH);
 }

@@ -315,10 +315,9 @@ export const APP_WORKSPACE_PREFIXES = [
   // Lives at /platform/admin/* on the app host (no tenant slug).
   // Gated inside layout.tsx to app_role === 'super_admin'.
   "/platform",
-  // Support Desk Phase 1a — dedicated desk shell on support.tulala.digital
-  // (and the future alias desk.tulala.digital). Local QA uses
-  // /platform/admin/support/desk (covered by /platform above). Production
-  // Desk UI waits on Phase 0.5 mockup OK; this prefix is reachability only.
+  // Support Desk — dedicated shell on support.tulala.digital (alias
+  // desk.tulala.digital). Local QA: /platform/admin/support/desk redirects
+  // to /desk when SUPPORT_DESK_ENABLED is on (covered by /platform above).
   "/desk",
   // Phase 9 — operator-issued share links (CMS revisions + Pitch landings).
   // Allowed on app/hub hosts too so links sent via WhatsApp resolve when the

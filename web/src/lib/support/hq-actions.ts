@@ -16,12 +16,15 @@ export async function hqReplySupportTicketAction(raw: {
   ticketId: string;
   body: string;
   asInternalNote?: boolean;
+  /** Client send key — retries with the same key must not duplicate (journey 27). */
+  clientSendKey?: string;
 }): Promise<Ok | Fail> {
   const parsed = z
     .object({
       ticketId: uuid,
       body: z.string().trim().min(1).max(8000),
       asInternalNote: z.boolean().optional(),
+      clientSendKey: z.string().trim().min(8).max(80).optional(),
     })
     .safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
@@ -38,6 +41,7 @@ export async function hqReplySupportTicketAction(raw: {
     messageKind: parsed.data.asInternalNote ? "note" : "text",
     skipNotify: parsed.data.asInternalNote === true,
     asHq: true,
+    clientSendKey: parsed.data.clientSendKey,
   });
   if (!result.ok) return result;
   return { ok: true };

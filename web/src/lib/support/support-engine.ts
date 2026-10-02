@@ -196,6 +196,8 @@ export async function appendMessage(input: {
   aiMeta?: Record<string, unknown> | null;
   skipNotify?: boolean;
   asHq?: boolean;
+  /** When set, a prior message with the same key returns that row (no duplicate). */
+  clientSendKey?: string;
 }): Promise<SupportEngineResult<{ message: SupportMessageRow; ticket: SupportTicketRow }>> {
   const admin = adminClient();
   if (!admin) return { ok: false, error: "Not configured." };
@@ -213,6 +215,22 @@ export async function appendMessage(input: {
     working = reopened.data;
   }
 
+  const sendKey = input.clientSendKey?.trim() || null;
+  if (sendKey) {
+    const { data: prior } = await supportFrom(admin, "support_messages")
+      .select("*")
+      .eq("ticket_id", working.id)
+      .filter("metadata->>client_send_key", "eq", sendKey)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const priorMsg = prior ? mapMessageRow(prior) : null;
+    if (priorMsg) {
+      const fresh = (await loadTicketById(working.id, admin)) ?? working;
+      return { ok: true, data: { message: priorMsg, ticket: fresh } };
+    }
+  }
+
   const { data, error } = await supportFrom(admin, "support_messages")
     .insert({
       ticket_id: working.id,
@@ -223,7 +241,7 @@ export async function appendMessage(input: {
       body: input.body,
       card_payload: input.cardPayload ?? null,
       ai_meta: input.aiMeta ?? null,
-      metadata: {},
+      metadata: sendKey ? { client_send_key: sendKey } : {},
     })
     .select("*")
     .single();
