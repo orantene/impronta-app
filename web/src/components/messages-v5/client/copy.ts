@@ -145,6 +145,12 @@ export function buildClientCopy(t: Translator) {
       keepSlot: t("dashboard.messagesV5.client.link.pay.keepSlot"),
       cancelled: t("dashboard.messagesV5.client.link.pay.cancelled"),
       cancelledPill: t("dashboard.messagesV5.client.link.pay.cancelledPill"),
+      feeService: t("dashboard.messagesV5.client.link.pay.feeService"),
+      feeReservation: t("dashboard.messagesV5.client.link.pay.feeReservation"),
+      feePlatform: t("dashboard.messagesV5.client.link.pay.feePlatform"),
+      feeProcessing: t("dashboard.messagesV5.client.link.pay.feeProcessing"),
+      feeTotal: t("dashboard.messagesV5.client.link.pay.feeTotal"),
+      feeNonRefundable: t("dashboard.messagesV5.client.link.pay.feeNonRefundable"),
     },
     tickets: {
       cat: t("dashboard.messagesV5.client.link.tickets.cat"),

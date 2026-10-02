@@ -39,7 +39,8 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripeFor } from "@/lib/stripe/client";
+import { balanceProviderFor, configuredBalancePlatforms } from "@/lib/payments/balance-transactions";
 import { classifyHeartbeats, type HeartbeatRow } from "@/lib/ops/cron-heartbeat";
 import {
   computeBalanceDeltas,
@@ -229,51 +230,64 @@ export async function GET(request: Request) {
     // every other signal stays green while the totals drift apart.
     let balanceMismatchSummary: string | null = null;
     let balanceCheckSkipped: string | null = null;
-    try {
-      if (!isStripeConfigured()) {
-        balanceCheckSkipped = "stripe not configured";
-      } else {
-        const stripe = getStripe()!;
-        const balance = await stripe.balance.retrieve();
-        const stripeByCurrency = sumStripeBalance(balance);
+    // Per platform account (US, then MX): each Stripe balance is compared with
+    // the rows ingested under that platform's provider value. An unconfigured
+    // platform is skipped cleanly.
+    const mismatchParts: string[] = [];
+    const skippedParts: string[] = [];
+    for (const { platform, configured } of configuredBalancePlatforms()) {
+      const provider = balanceProviderFor(platform);
+      try {
+        if (!configured) {
+          // MX is optional: absent = nothing to reconcile, not a skip worth reporting.
+          if (platform === "us") skippedParts.push("us: stripe not configured");
+        } else {
+          const stripe = getStripeFor(platform)!;
+          const balance = await stripe.balance.retrieve();
+          const stripeByCurrency = sumStripeBalance(balance);
 
-        // Our side: the sum of every balance transaction we have ingested.
-        const { data: ourRows, error: ourRowsErr } = await admin
-          .from("provider_balance_transactions")
-          .select("currency, net_cents")
-          .returns<Array<{ currency: string; net_cents: number }>>();
-        // Unread, this would make our side look like ZERO and report the whole
-        // Stripe balance as a mismatch: a loud false alarm on a read failure.
-        if (ourRowsErr) throw ourRowsErr;
-
-        const oursByCurrency: Record<string, number> = {};
-        for (const r of ourRows ?? []) {
-          const c = (r.currency ?? "").toLowerCase();
-          if (!c) continue;
-          oursByCurrency[c] = (oursByCurrency[c] ?? 0) + (r.net_cents ?? 0);
-        }
-
-        const mismatches = mismatchedDeltas(computeBalanceDeltas(stripeByCurrency, oursByCurrency));
-        if (mismatches.length > 0) {
-          // The earliest ingested date is what distinguishes "we missed
-          // transactions" from "we started counting late", so the alert carries
-          // it rather than making an operator go and find it.
-          const { data: earliest, error: earliestErr } = await admin
+          // Our side: the sum of every balance transaction we have ingested.
+          const { data: ourRows, error: ourRowsErr } = await admin
             .from("provider_balance_transactions")
-            .select("stripe_created_at")
-            .order("stripe_created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle<{ stripe_created_at: string }>();
-          if (earliestErr) logServerError("cron/alert-money-failures.earliest", earliestErr);
-          balanceMismatchSummary = describeMismatch(mismatches, earliest?.stripe_created_at ?? null);
+            .select("currency, net_cents")
+            .eq("provider", provider)
+            .returns<Array<{ currency: string; net_cents: number }>>();
+          // Unread, this would make our side look like ZERO and report the whole
+          // Stripe balance as a mismatch: a loud false alarm on a read failure.
+          if (ourRowsErr) throw ourRowsErr;
+
+          const oursByCurrency: Record<string, number> = {};
+          for (const r of ourRows ?? []) {
+            const c = (r.currency ?? "").toLowerCase();
+            if (!c) continue;
+            oursByCurrency[c] = (oursByCurrency[c] ?? 0) + (r.net_cents ?? 0);
+          }
+
+          const mismatches = mismatchedDeltas(computeBalanceDeltas(stripeByCurrency, oursByCurrency));
+          if (mismatches.length > 0) {
+            // The earliest ingested date is what distinguishes "we missed
+            // transactions" from "we started counting late", so the alert carries
+            // it rather than making an operator go and find it.
+            const { data: earliest, error: earliestErr } = await admin
+              .from("provider_balance_transactions")
+              .select("stripe_created_at")
+              .eq("provider", provider)
+              .order("stripe_created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle<{ stripe_created_at: string }>();
+            if (earliestErr) logServerError("cron/alert-money-failures.earliest", earliestErr);
+            mismatchParts.push(`${platform}: ${describeMismatch(mismatches, earliest?.stripe_created_at ?? null)}`);
+          }
         }
+      } catch (err) {
+        // A Stripe outage must not fail the whole sweep -- the other six signals
+        // are still worth reporting.
+        skippedParts.push(`${platform}: ${err instanceof Error ? err.message : "balance check failed"}`);
+        logServerError(`cron/alert-money-failures.balance[${platform}]`, err);
       }
-    } catch (err) {
-      // A Stripe outage must not fail the whole sweep -- the other six signals
-      // are still worth reporting.
-      balanceCheckSkipped = err instanceof Error ? err.message : "balance check failed";
-      logServerError("cron/alert-money-failures.balance", err);
     }
+    if (mismatchParts.length) balanceMismatchSummary = mismatchParts.join(" | ");
+    if (skippedParts.length) balanceCheckSkipped = skippedParts.join(" | ");
 
     const totalAlerts =
       staleFailedCount +

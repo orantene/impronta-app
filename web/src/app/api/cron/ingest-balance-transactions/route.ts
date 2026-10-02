@@ -25,7 +25,7 @@
 import { NextResponse } from "next/server";
 import { recordCronHeartbeat } from "@/lib/ops/cron-heartbeat";
 import * as Sentry from "@sentry/nextjs";
-import { ingestBalanceTransactions } from "@/lib/payments/balance-transactions";
+import { ingestBalanceTransactionsAllPlatforms } from "@/lib/payments/balance-transactions";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -43,16 +43,33 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await ingestBalanceTransactions();
+  // US then MX (MX unconfigured = skipped cleanly). Each platform keeps its
+  // own watermark (provider 'stripe' / 'stripe_mx').
+  const perPlatform = await ingestBalanceTransactionsAllPlatforms();
+  const failedRun = perPlatform.find((r) => !r.ok);
+  const result = {
+    ok: !failedRun,
+    pages: perPlatform.reduce((n, r) => n + r.pages, 0),
+    fetched: perPlatform.reduce((n, r) => n + r.fetched, 0),
+    written: perPlatform.reduce((n, r) => n + r.written, 0),
+    truncated: perPlatform.some((r) => r.truncated),
+    windowStart: perPlatform[0]?.windowStart ?? "",
+    ...(failedRun ? { error: `${failedRun.platform ?? "us"}: ${failedRun.error ?? "unknown"}` } : {}),
+    platforms: perPlatform,
+  };
 
-  void improntaLog("money.cron.balance_transactions", {
-    ok: result.ok,
-    pages: result.pages,
-    fetched: result.fetched,
-    written: result.written,
-    truncated: result.truncated,
-    windowStart: result.windowStart,
-  });
+  for (const r of perPlatform) {
+    void improntaLog("money.cron.balance_transactions", {
+      platform: r.platform ?? "us",
+      ok: r.ok,
+      skipped: r.skipped ?? false,
+      pages: r.pages,
+      fetched: r.fetched,
+      written: r.written,
+      truncated: r.truncated,
+      windowStart: r.windowStart,
+    });
+  }
 
   // Heartbeat on BOTH paths -- see the note in project-ledger's route.
   await recordCronHeartbeat({

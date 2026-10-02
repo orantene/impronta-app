@@ -29,6 +29,7 @@ import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agend
 import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
 import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agenda/AgendaPayRequest";
 
+import { FeePayerCard } from "./FeePayerCard";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 
 type Tab = "payments" | "outstanding" | "payouts";
@@ -613,6 +614,7 @@ export function MoneyHomePage() {
           </div>
         }
       />
+      <FeePayerCard currency={fallbackCurrency} />
       {loadError ? (
         <p className="rounded-[12px] border border-admin-border-soft bg-admin-critical-soft px-4 py-3 font-admin-body text-[13.5px] text-admin-critical">
           {t("Could not load Money.")} {t("Refresh the page and try again.")}

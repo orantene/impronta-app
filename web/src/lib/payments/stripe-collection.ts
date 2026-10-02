@@ -6,7 +6,8 @@
  */
 
 import type Stripe from "stripe";
-import { createCheckoutSessionForTransaction, getStripe } from "@/lib/payments/stripe-checkout";
+import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { withObjectPlatformFallback } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
 import { reportTerminalAvailability } from "@/lib/payments/terminal-availability";
 import { createStripeTerminalPaymentRequest } from "@/lib/payments/stripe-terminal";
@@ -169,12 +170,15 @@ export async function retrieveCheckoutSessionState(
       error: "This collection was opened without Stripe configured, so there is nothing to ask about.",
     };
   }
-  const stripe = deps.stripe !== undefined ? deps.stripe : getStripe();
-  if (!stripe) {
-    return { ok: false as const, error: "Stripe is not configured, so the payment cannot be looked up." };
-  }
   try {
-    const session = await stripe.checkout.sessions.retrieve(requestId);
+    // A session id carries no platform: ask US, then MX (resource_missing only).
+    const session =
+      deps.stripe !== undefined
+        ? await deps.stripe?.checkout.sessions.retrieve(requestId)
+        : await withObjectPlatformFallback((c) => c.checkout.sessions.retrieve(requestId));
+    if (!session) {
+      return { ok: false as const, error: "Stripe is not configured, so the payment cannot be looked up." };
+    }
     const state = mapCheckoutSessionState(session);
     return {
       requestId: session.id ?? requestId,

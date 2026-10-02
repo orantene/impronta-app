@@ -787,6 +787,14 @@
       "keepSlotAppointment": "L heure du rendez-vous est tenue tant que ce lien est valable. Rien n est debite avant le paiement.",
       "keepSlotNoTime": "Votre reservation est confirmee une fois payee. L heure est convenue avec le talent. Rien n est debite avant le paiement.",
       "keepSlotGeneric": "Votre créneau est tenu tant que ce lien est valable. Rien n est debite avant le paiement.",
+      "fees": {
+        "service_subtotal": "Service",
+        "base_reservation_fee": "Frais de réservation",
+        "platform_fee": "Frais de plateforme",
+        "processing_fee": "Traitement de carte",
+        "total_charged": "Total",
+        "nonRefundable": "Les frais ne sont pas remboursables."
+      },
       "waitlist": "Cette seance est complete. Rejoignez la liste d attente.",
       "dateMismatch": "Cette date n est pas disponible. Une autre date est proposee ci-dessous.",
       "accept": "Accepter",
@@ -8077,6 +8085,12 @@
             "keepSlot": "Payer conserve votre réservation.",
             "cancelled": "Ce paiement a été annulé. Demandez à {business} si vous souhaitez encore payer.",
             "cancelledPill": "Annulé",
+            "feeService": "Service",
+            "feeReservation": "Frais de réservation",
+            "feePlatform": "Frais de plateforme",
+            "feeProcessing": "Traitement de carte",
+            "feeTotal": "Total",
+            "feeNonRefundable": "Les frais ne sont pas remboursables.",
             "total": "Total",
             "paidAmount": "Payé",
             "balanceDue": "Reste dû",
@@ -8444,6 +8458,32 @@
           "why": "Aucune action n'est nécessaire pour l'instant."
         }
       }
+    },
+    "talentUsdc": {
+      "badgeRecommended": "Recommandé",
+      "badgeAvailable": "Disponible en {country}",
+      "label": "USDC, dollars numériques",
+      "title": "Soyez payé en USDC",
+      "intro": "L'USDC est un dollar numérique. Votre part de chaque réservation arrive directement dans votre propre portefeuille.",
+      "benefitFast": "Arrive en quelques minutes, pas en jours",
+      "benefitStable": "Reste en dollars américains (1 USDC = 1 USD)",
+      "benefitNoBank": "Aucun compte bancaire nécessaire",
+      "benefitConvert": "Convertissez en monnaie locale quand vous voulez",
+      "howTitle": "Comment ça marche",
+      "step1Title": "Configurez vos paiements",
+      "step1Body": "Créez votre compte de paiement sécurisé. Cela prend quelques minutes.",
+      "step2Title": "Liez votre portefeuille dans Stripe",
+      "step2Body": "Ajoutez l'adresse de votre portefeuille et choisissez l'USDC comme devise de paiement.",
+      "step3Title": "Soyez payé en USDC",
+      "step3Body": "Le paiement de chaque réservation arrive automatiquement dans votre portefeuille.",
+      "cta": "Lier mon portefeuille dans Stripe",
+      "opening": "Ouverture...",
+      "bankHint": "Vous préférez une banque ? Configurez-la plus bas.",
+      "walletTitle": "Qu'est-ce qu'un portefeuille ?",
+      "walletBody1": "Un portefeuille est une appli ou un compte qui conserve de l'argent numérique, comme l'USDC, avec sa propre adresse. Vous le choisissez et vous le contrôlez.",
+      "walletBody2": "Pour l'utiliser localement, vous pouvez convertir vos USDC en monnaie locale quand vous voulez, avec tout service qui le permet dans votre pays.",
+      "walletBody3": "Liez uniquement une adresse qui vous appartient. Vérifiez-la avant d'enregistrer.",
+      "checking": "Vérification de la disponibilité des paiements en USDC..."
     }
   },
   "client": {

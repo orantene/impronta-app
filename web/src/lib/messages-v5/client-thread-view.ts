@@ -19,6 +19,8 @@
 
 import type { ThreadMessage } from "@/lib/messaging/types";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import type { FeeLine } from "@/lib/billing/processing-fee-payer";
+import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
 
 export const CLIENT_GROUP_WINDOW_MS = 3 * 60 * 1000;
 
@@ -373,6 +375,8 @@ export type PaymentView = {
   readonly paidCents: number | null;
   readonly dueCents: number | null;
   readonly method: string | null;
+  /** Client fee breakdown stamped at request time; [] unless it sums to amountCents. */
+  readonly feeLines: readonly FeeLine[];
 };
 
 export function readPayment(payload: Record<string, unknown> | null): PaymentView {
@@ -390,6 +394,7 @@ export function readPayment(payload: Record<string, unknown> | null): PaymentVie
     paidCents: num(p.paidCents),
     dueCents: num(p.dueCents),
     method: str(p.method),
+    feeLines: validClientFeeLines(p.feeLines, num(p.amountCents)),
   };
 }
 

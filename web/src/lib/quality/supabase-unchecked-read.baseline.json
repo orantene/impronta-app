@@ -220,7 +220,7 @@
   "src/lib/payments/stripe-connect-talent.ts": 5,
   "src/lib/payments/stripe-talent-subscription.ts": 4,
   "src/lib/payments/talent-global-payouts.ts": 3,
-  "src/lib/payments/transfers.ts": 3,
+  "src/lib/payments/transfers.ts": 2,
   "src/lib/payments/webhook-v2.ts": 1,
   "src/lib/pdf/payout-statement.ts": 5,
   "src/lib/pdf/receipt.ts": 2,

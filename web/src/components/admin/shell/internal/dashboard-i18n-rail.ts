@@ -20,6 +20,7 @@
  */
 
 import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
+import { FEES_ES_TEXT } from "./dashboard-i18n-fees";
 import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
 import { LOCATION_ES_TEXT } from "./dashboard-i18n-location";
@@ -38,6 +39,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   ...WEBSITE_ES_TEXT,
   ...MONEY_ES_TEXT,
   ...MONEY_HOME_ES_TEXT,
+  ...FEES_ES_TEXT,
   ...CLIENTS_ES_TEXT,
   ...TALENT_GAPS_ES_TEXT,
   ...SWEEP_R1_ES_TEXT,

@@ -34,6 +34,8 @@ import {
   type OfferLineItemForResolver,
   type BookingCommissionSnapshot,
   type PersistedBookingCommissionSnapshot,
+  type ProcessingFeePayer,
+  type ProcessorFeeRates,
 } from "./commission";
 
 /** One element of the participants array returned by
@@ -167,6 +169,42 @@ export async function persistBookingCommissionSnapshot(
     /* even-split default applies */
   }
 
+  // Fee model (owner decision 2026-10-01): 'included' (default, legacy) or
+  // 'pass_through' (client pays +1.5% surcharge, seller bears the real
+  // processing fee at payout). TWO-KEY ARMING, mirroring HUB_REFERRAL_LANE:
+  // env COMMISSION_PROCESSING_PASS_THROUGH=1 (code armed) AND
+  // platform_commission_config.processing_mode='pass_through' (the setting,
+  // read via a tiny reader RPC added with the `processing_mode` migration).
+  // With the env unset NO extra RPC is made, so existing behaviour (and call
+  // sequence) is byte-identical. Non-fatal and fail-safe: an absent RPC
+  // (migration not applied) or any error leaves the mode 'included'.
+  if (process.env.COMMISSION_PROCESSING_PASS_THROUGH === "1") {
+   try {
+    const modeRes = (await supabase.rpc(
+      "engine_platform_processing_mode" as never,
+    )) as {
+      data: {
+        processing_mode?: string | null;
+        pass_through_take_bps?: number | null;
+        processor_fee_rates?: Record<string, ProcessorFeeRates> | null;
+      } | null;
+    };
+    if (modeRes.data?.processing_mode === "pass_through") {
+      ctx.platform_config = {
+        ...ctx.platform_config,
+        processing_mode: "pass_through",
+        pass_through_take_bps:
+          typeof modeRes.data.pass_through_take_bps === "number"
+            ? modeRes.data.pass_through_take_bps
+            : null,
+        processor_fee_rates: modeRes.data.processor_fee_rates ?? null,
+      };
+    }
+   } catch {
+    /* 'included' default applies */
+   }
+  }
+
   // Phase C — hub referral lane. Gated on the HUB_REFERRAL_LANE flag (default
   // off): when off the rate is forced to 0, so the resolver produces a 0
   // referral and the result is byte-identical to pre-Phase-C. When on, the
@@ -236,7 +274,32 @@ export async function persistBookingCommissionSnapshot(
         }
       }
 
+      // Per-seller processing-fee payer ('seller' default | 'client'). Read ONLY
+      // in pass_through mode (so the legacy RPC sequence is untouched); any miss
+      // or error leaves the default 'seller'.
+      let processingFeePayer: ProcessingFeePayer = "seller";
+      let processorFeeRates: ProcessorFeeRates | null = null;
+      if (platformConfig.processing_mode === "pass_through") {
+        try {
+          const payerRes = (await supabase.rpc(
+            "engine_processing_fee_payer" as never,
+            {
+              p_party_type: p.owning_party_type === "talent" ? "talent" : "workspace",
+              p_party_id: p.owning_party_type === "talent" ? p.owning_party_id : (p.tenant_id ?? p.owning_party_id),
+            } as never,
+          )) as { data: string | null };
+          if (payerRes.data === "client") processingFeePayer = "client";
+        } catch {
+          /* 'seller' default applies */
+        }
+        const rates = platformConfig.processor_fee_rates;
+        processorFeeRates =
+          rates?.[String(ctx.currency_code ?? "").toLowerCase()] ?? rates?.default ?? null;
+      }
+
       const base = resolveBookingCommissions({
+        processingFeePayer,
+        processorFeeRates,
         // tenantId is an input field but isn't consumed by the math.
         // For independents we pass the owning_party_id (the talent's id)
         // so traceability still has a value to surface.
@@ -320,6 +383,16 @@ export async function persistBookingCommissionSnapshot(
         seller_shortfall_cents: s.seller_shortfall_cents,
         channel_referral_cents: s.channel_referral_cents,
         channel_referral_party_id: s.channel_referral_party_id,
+        // Only sent in pass_through mode (omitted = 'included'), so the legacy
+        // payload is byte-identical.
+        ...(s.processing_mode === "pass_through"
+          ? {
+              processing_mode: "pass_through",
+              processing_fee_payer: s.processing_fee_payer ?? "seller",
+              client_processing_fee_cents: s.client_processing_fee_cents ?? 0,
+              processing_fee_quoted_cents: s.processing_fee_quoted_cents ?? 0,
+            }
+          : {}),
         currency_code: s.currency_code,
         payment_method: s.payment_method,
         off_platform_reason: s.off_platform_reason,

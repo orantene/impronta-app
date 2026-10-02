@@ -255,7 +255,7 @@ export function PayoutsActionsClient({
           <ConnectEmbeddedOnboarding
             fetchClientSecret={async () => {
               const r = await getConnectAccountSessionAction(tenantSlug, country ? { country } : {});
-              return r.ok ? { ok: true, clientSecret: r.data.clientSecret } : r;
+              return r.ok ? { ok: true, clientSecret: r.data.clientSecret, publishableKey: r.data.publishableKey } : r;
             }}
             onExit={onOnboardingExit}
           />
