@@ -66,6 +66,9 @@ export const APP_REGISTRY: ReadonlyArray<AppRegistryEntry> = [
 const DEMO_TRADE_OVERRIDES: Readonly<Record<string, ReadonlyArray<ThemeDemoProfession>>> = {
   // Alba, the Maison v2 reference demo (content.json trade: Nail Artist).
   "TAL-93020": ["nails"],
+  // Andrés Molina, Maison v2 keepLook demo: private dinner chef (talent type private-dinner-chef,
+  // scripts/demo-talents/demos.ts). Trade recorded only; no app in the library targets chefs yet.
+  "TAL-93006": ["chef"],
 };
 
 /** Trades of a demo profile code (empty when unknown). */
