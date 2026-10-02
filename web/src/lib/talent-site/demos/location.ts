@@ -54,7 +54,7 @@ export type LocationResult = "unchanged" | "would_write" | "wrote" | "not_found"
 
 /** Upsert one demo's Location settings. Idempotent: an identical row is "unchanged" and not touched. */
 export async function applyDemoLocation(
-  admin: Db,
+  admin: SupabaseClient,
   input: { profileCode: string; location: DemoLocation; write: boolean },
 ): Promise<LocationResult> {
   const { data: profile, error } = await admin
