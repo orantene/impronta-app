@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { GUEST_CHAT_LAUNCHER_GAP_PX, GUEST_CHAT_LAUNCHER_HEIGHT_PX } from "@/app/t/[profileCode]/_chat/launcher-clearance";
+import { GUEST_CHAT_LAUNCHER_BOTTOM_PX } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 import type { SocketLink, SocketModel } from "@/lib/talent-site/footer-socket";
 
 /**
@@ -11,6 +13,16 @@ import type { SocketLink, SocketModel } from "@/lib/talent-site/footer-socket";
  * ink or ink mixed into the strip surface, never on a design's dark band.
  * Phone: stacked. Desktop: one row.
  */
+
+/**
+ * Desktop: the guest-chat launcher floats GUEST_CHAT_LAUNCHER_BOTTOM_PX above
+ * the viewport bottom, so the strip's last row (right-aligned links such as
+ * Cookies) must end above launcher bottom + height + gap. Scoped to the socket.
+ */
+const DESKTOP_LAUNCHER_CLEARANCE_PX =
+  GUEST_CHAT_LAUNCHER_BOTTOM_PX + GUEST_CHAT_LAUNCHER_HEIGHT_PX + GUEST_CHAT_LAUNCHER_GAP_PX;
+
+export const SOCKET_LAUNCHER_CLEARANCE_CSS = `@media (min-width:768px){body:has([data-guest-chat-launcher]) .tulala-socket{padding-bottom:calc(${DESKTOP_LAUNCHER_CLEARANCE_PX}px + env(safe-area-inset-bottom,0px))}}`;
 
 const STRIP_CSS = `
 .tulala-socket{--ts-bg:var(--token-color-surface-raised,var(--token-color-background,Canvas));--ts-ink:var(--token-color-ink,CanvasText);--ts-line:var(--token-color-line,currentColor);--ts-muted:color-mix(in srgb,var(--ts-ink) 82%,var(--ts-bg));box-sizing:border-box;width:100%;background:var(--ts-bg);color:var(--ts-ink);border-top:1px solid var(--ts-line);font-family:var(--site-body-font,inherit);font-size:13px;line-height:1.4;padding:18px 18px 22px}
@@ -30,6 +42,7 @@ const STRIP_CSS = `
 .tulala-socket__inner{grid-auto-flow:column;justify-content:space-between;align-items:center;gap:8px 28px}
 .tulala-socket__credit{margin-left:auto;text-align:right}
 }
+${SOCKET_LAUNCHER_CLEARANCE_CSS}
 `;
 
 function LinkGroup({ label, links }: { label: string; links: SocketLink[] }): ReactNode {
@@ -66,6 +79,7 @@ export function TalentSiteSocket({
       className="tulala-socket"
       data-tulala-socket=""
       data-parity-key="socket"
+      data-site-locale={model.locale}
       data-clear-dock={clearDock ? "true" : "false"}
       {...(hint ? { "data-socket-locked": "" } : {})}
     >

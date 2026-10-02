@@ -52,6 +52,8 @@ export interface SocketLanguage {
 }
 
 export interface SocketModel {
+  /** The locale the site rendered in; the consent banner follows it. */
+  locale?: string;
   siteGroupLabel: string;
   tulalaGroupLabel: string;
   langGroupLabel: string;
@@ -189,6 +191,7 @@ export function buildSocketModel(input: {
       : [];
 
   return {
+    locale,
     siteGroupLabel: shortTalentName(input.talentName) ?? pickLocale(locale, { en: "This site", es: "Este sitio" }),
     tulalaGroupLabel: "Tulala",
     langGroupLabel: pickLocale(locale, { en: "Language", es: "Idioma" }),

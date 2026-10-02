@@ -79,7 +79,7 @@ export function DomainSetupDrawerBody({
       setQuote(null);
       const result = await searchTalentDomainAction(query);
       if (!result.ok) {
-        setError(result.error);
+        setError(copy.t(result.error));
         return;
       }
       setQuote(result.quote);
@@ -111,7 +111,7 @@ export function DomainSetupDrawerBody({
         contact: { ...contact, country: contact.country.trim().toUpperCase() },
       });
       if (!result.ok) {
-        setError(result.error);
+        setError(copy.t(result.error));
         return;
       }
       window.location.assign(result.url);
@@ -127,7 +127,7 @@ export function DomainSetupDrawerBody({
         note: helpNote,
       });
       if (!result.ok) {
-        setError(result.error);
+        setError(copy.t(result.error));
         return;
       }
       setMessage(
@@ -208,7 +208,7 @@ export function DomainSetupDrawerBody({
           label={copy.t("Hostname (optional)")}
           value={helpHost}
           onChange={setHelpHost}
-          placeholder="yourname.com"
+          placeholder={copy.t("yourname.com")}
         />
         <label style={labelStyle}>
           {copy.t("Notes (optional)")}
@@ -245,7 +245,7 @@ export function DomainSetupDrawerBody({
               search();
             }
           }}
-          placeholder="yourname.com"
+          placeholder={copy.t("yourname.com")}
           style={{ ...inputStyle, flex: 1, minWidth: 160 }}
         />
         <PrimaryButton onClick={search} disabled={pending || !query.trim()}>

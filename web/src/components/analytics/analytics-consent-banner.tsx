@@ -79,7 +79,18 @@ const CONSENT_BANNER_SHELL_OFFSET_CSS = `
  * layout. Honours Global Privacy Control (treated as a "no"), and can be
  * reopened from the footer "Privacy choices" link.
  */
-export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
+/**
+ * Pages that render in their own language (talent sites bound to the talent's
+ * languages) mark it on the page; the banner follows that, not the root header.
+ */
+export function pageLocaleOverride(root: ParentNode | null | undefined): string | null {
+  const v = root?.querySelector?.("[data-site-locale]")?.getAttribute("data-site-locale")?.trim();
+  return v ? v : null;
+}
+
+export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?: string }) {
+  const [pageLocale, setPageLocale] = useState<string | null>(null);
+  const locale = pageLocale ?? rootLocale;
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   // Prototype routes (e.g. /prototypes/drawer-preview) are designer/dev
@@ -89,7 +100,12 @@ export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
   const t = translatorFor(locale);
 
   useEffect(() => {
+    setPageLocale(pageLocaleOverride(document));
+  }, [pathname]);
+
+  useEffect(() => {
     setMounted(true);
+    setPageLocale(pageLocaleOverride(document));
     syncConsentCookie();
     const stored = readStoredConsent();
     let dismissed = false;
@@ -99,7 +115,10 @@ export function AnalyticsConsentBanner({ locale = "en" }: { locale?: string }) {
       /* ignore */
     }
     if (shouldShowBanner(stored, isGpcEnabled()) && !dismissed) setOpen(true);
-    const reopen = () => setOpen(true);
+    const reopen = () => {
+      setPageLocale(pageLocaleOverride(document));
+      setOpen(true);
+    };
     window.addEventListener(PRIVACY_CHOICES_EVENT, reopen);
     return () => window.removeEventListener(PRIVACY_CHOICES_EVENT, reopen);
   }, []);
