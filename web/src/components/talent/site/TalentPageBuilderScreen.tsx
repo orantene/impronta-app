@@ -29,6 +29,7 @@ import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
+import { TalentBuilderIdentityProvider } from "@/components/edit-chrome/talent-builder-identity";
 import { ThemeUpdateNotice } from "./theme-update/ThemeUpdateNotice";
 
 type Props = {
@@ -42,6 +43,8 @@ type Props = {
   /** Phase 1 — the per-capability record (`buildTalentSiteCapabilities`). */
   siteCapabilities: TalentSiteCapabilities;
   talentDisplayName: string | null;
+  /** Profile photo for the top bar identity menu (initials when null). */
+  talentHeadshotUrl?: string | null;
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
@@ -78,6 +81,7 @@ export function TalentPageBuilderScreen({
   talentPlanKey,
   siteCapabilities,
   talentDisplayName,
+  talentHeadshotUrl = null,
   locale,
   canvasRenderData = null,
   initialComposition = null,
@@ -208,6 +212,7 @@ export function TalentPageBuilderScreen({
 
   return (
     <DashboardLocaleProvider locale={locale ?? ""}>
+    <TalentBuilderIdentityProvider value={{ displayName: talentDisplayName, headshotUrl: talentHeadshotUrl }}>
     <div
       data-talent-page-builder-screen=""
       // Light "desk" behind the editor canvas (modern 2026 builder). The canvas
@@ -247,6 +252,7 @@ export function TalentPageBuilderScreen({
         />
       )}
     </div>
+    </TalentBuilderIdentityProvider>
     </DashboardLocaleProvider>
   );
 }
