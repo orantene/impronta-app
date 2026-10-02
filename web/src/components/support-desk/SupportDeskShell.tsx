@@ -34,6 +34,11 @@ import {
 } from "@/lib/support/desk/desk-filters";
 import { deskShortcutFromKeyboardEvent } from "@/lib/support/desk/desk-shortcuts";
 import { beginDeskSend, type DeskSendAttempt } from "@/lib/support/desk/desk-send";
+import {
+  applyDeskRequesterMessagePreview,
+  applyDeskTicketInsert,
+  applyDeskTicketUpdate,
+} from "@/lib/support/desk/desk-queue-realtime";
 import type { SupportCannedReply } from "@/lib/platform/support-canned";
 
 type MobileStep = "views" | "list" | "thread" | "context";
@@ -143,24 +148,17 @@ export function SupportDeskShell({
   const onTicket = useCallback((row: SupportTicketRow) => setTicket(row), []);
   useSupportRealtime({ ticketId: selectedId, onMessage, onTicket });
 
-  useHqSupportRealtime({
-    onInsert: (row) => {
-      setQueue((prev) => {
-        if (prev.some((p) => p.ticket.id === row.ticket.id)) {
-          return prev.map((p) => (p.ticket.id === row.ticket.id ? row : p));
-        }
-        return [row, ...prev];
-      });
-    },
-    onUpdate: (partial) => {
-      setQueue((prev) =>
-        prev.map((p) =>
-          p.ticket.id === partial.id ? { ...p, ticket: { ...p.ticket, ...partial } } : p,
-        ),
-      );
-      setTicket((cur) => (cur && cur.id === partial.id ? { ...cur, ...partial } : cur));
-    },
-  });
+  const onTicketInsert = useCallback((ticketRow: SupportTicketRow) => {
+    setQueue((prev) => applyDeskTicketInsert(prev, ticketRow));
+  }, []);
+  const onTicketUpdate = useCallback((ticketRow: SupportTicketRow) => {
+    setQueue((prev) => applyDeskTicketUpdate(prev, ticketRow));
+    setTicket((cur) => (cur && cur.id === ticketRow.id ? ticketRow : cur));
+  }, []);
+  const onRequesterMessage = useCallback((message: SupportMessageRow) => {
+    setQueue((prev) => applyDeskRequesterMessagePreview(prev, message));
+  }, []);
+  useHqSupportRealtime({ onTicketInsert, onTicketUpdate, onRequesterMessage });
 
   const { setTyping, peers } = useThreadPresence({
     channelKey: selectedId,

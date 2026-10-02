@@ -12,8 +12,9 @@ import {
 function row(
   partial: Partial<SupportTicketRow> & Pick<SupportTicketRow, "id">,
 ): HqQueueRow {
+  const { id, ...rest } = partial;
   const ticket = {
-    id: partial.id,
+    id,
     ticketNumber: 1,
     tenantId: null,
     surface: "client",
@@ -53,7 +54,7 @@ function row(
     metadata: {},
     createdAt: "2026-10-01T00:00:00.000Z",
     updatedAt: "2026-10-01T00:00:00.000Z",
-    ...partial,
+    ...rest,
   } as SupportTicketRow;
   return {
     ticket,
