@@ -13,6 +13,7 @@ export {
   completeBooking,
   markBookingNoShow,
   recordBookingCashCollected,
+  recordBookingPayment,
   recordBookingTransferAwaiting,
   markBookingTransferReceived,
   createAgendaBookingPayLink,
