@@ -1,46 +1,47 @@
 # Support Desk — Phase 0 audit + architecture decision memo
 
-**Date:** 2026-10-02  
-**Branch audited:** `origin/main` @ post-#2472 tip; 1a facts from `feat/support-desk-flag-host` (#2473)  
+**Date:** 2026-10-02 (Codex review pass same day)  
+**Branch audited:** `origin/main` @ post-#2472 tip; 1a on main via #2473; product shell [#2483](https://github.com/orantene/impronta-app/pull/2483)  
 **SPEC:** [`SPEC.md`](./SPEC.md) · [#2472](https://github.com/orantene/impronta-app/pull/2472) merged · **directive: skip mockups, ship live Desk**  
 **Phase 0.5:** [#2477](https://github.com/orantene/impronta-app/pull/2477) — optional reference only; **not a gate**  
-**1a:** [#2473](https://github.com/orantene/impronta-app/pull/2473) — flag / host / cookies / local QA stub  
-**1b/1c:** **UNBLOCKED** — build real Desk product now  
-**Context extras:** `internal/support-desk-phase0-reuse.md`, `internal/support-desk-phase0-audit.md`, `internal/support-desk-phase1a-flag-host-patterns.md`
+**1a:** [#2473](https://github.com/orantene/impronta-app/pull/2473) — flag / host / host-only cookie write / local QA stub  
+**1b/1c:** [#2483](https://github.com/orantene/impronta-app/pull/2483) — live Desk product (docs classify required vs optional below)  
+**Codex triage:** Context `internal/desk-codex-2479.md`
 
-**Verdict:** Platform support **engine is largely shipped** (tickets, messages, events, HQ, requester launcher, guest chat, AI auto-send, crons, RLS). Desk product shell is what 1b/1c build. No second ticket system. No agency helpdesk.
+**Verdict:** Platform support **engine is largely shipped**. Desk shell is 1b/1c. No second ticket system. No agency helpdesk.
 
-**Oran directive (binding):** Skip mockup path. Ship real Desk. Do not gate 1b/1c on design asks, `:3099`, or 1:1 mockup parity. Memo defaults D1–D10 apply if silent.
+**Oran directive (binding):** Skip mockup path. Ship real Desk. Do not gate on design asks. Memo D1–D10 apply if silent — with **required** callouts below (Codex P1/P2).
 
-**This PR:** docs only — no Desk UI here.
+**This PR:** docs only — no Desk UI here. Do not merge until required/optional language below is accurate.
 
 ---
 
 ## Architecture decision memo (defaults — live implementation)
 
-| # | Decision | Live default / 1a contract | Owner |
-|---|---|---|---|
-| D1 | Desk host | `support.tulala.digital` (+ future `desk.tulala.digital`; local `support.local` / `desk.local`) as `kind=app` | 1a |
-| D2 | Flag | `isSupportDeskEnabled()` — explicit `0/1`; unset → ON only local `development` without Vercel; **OFF** when `VERCEL_ENV` is production/preview | 1a |
-| D3 | Flag-off | Proxy 404 `/_page-not-found` on Desk hosts; local `/platform/admin/support/desk` → `notFound()` | 1a |
-| D4 | Cookies | `isHostScopedAuthHost` — Desk hosts **never** get `Domain=.tulala.digital` | 1a |
-| D5 | Email interim | #2470 Gmail forward + `hello@`; Desk email SoT = Phase 3 | merge lane |
-| D6 | AI | Engine auto-sends today; Desk v1 human replies; draft/approve = Phase 5 | 1b+ / 5 |
-| D7 | Agents | Oran via `super_admin` first; agent seats = Phase 2 | 2 |
-| D8 | Journey 7 | Show presence; **server-auth** presence channel in 1c; full collision = Phase 4 | 1c |
-| D9 | DESK-QA | Seed + cleanup before unblurred screenshots | ops |
-| D10 | Status | Keep `open\|resolved\|closed` + `waiting_on`; richer UI mapping OK | 1b |
+| # | Decision | Required contract | Owner | Status |
+|---|---|---|---|---|
+| D1 | Desk host | `support.tulala.digital` (+ `desk.*` later; local `support.local`) as `kind=app` | 1a | Landed #2473 |
+| D2 | Flag | `isSupportDeskEnabled()` — ON only local unset-dev; **OFF** on Vercel unless explicit | 1a | Landed |
+| D3 | Flag-off | Proxy 404 on Desk hosts; local desk route `notFound()` | 1a | Landed |
+| D4 | Desk auth cookies | **Required:** Desk hosts never set `Domain=.tulala.digital` (`isHostScopedAuthHost` → host-only). Same Supabase cookie names; isolation is host-scoped Domain. | 1a + held #2483 | **Landed** #2473 / verified #2483 |
+| D5 | Email interim | #2470 Gmail forward + `hello@`; Desk SoT = Phase 3 | merge lane | Track C |
+| D6 | AI | Engine auto-sends today; Desk v1 human replies; draft/approve = Phase 5 | 5 | Noted |
+| D7 | Agents | Oran via `super_admin` first; seats = Phase 2 | 2 | Later |
+| D8 | Journey 7 presence | **Required 1c (not optional):** private `support.presence.{ticketId}` + `private: true` + `realtime.setAuth()` + **RLS on `realtime.messages`**. Public `tulala.presence.*` is not enough. | **1c (#2483)** | **Landed** #2483 |
+| D9 | DESK-QA | Seed + cleanup before unblurred screenshots | ops | Open |
+| D10 | Status | Keep `open\|resolved\|closed` + `waiting_on` | 1b | OK |
+| D11 | Journey 27 idempotency | **Required Phase 1 (not UI-only):** `clientSendKey` on `hqReplySupportTicketAction` / `appendMessage`; persist + lookup so retries do not duplicate. | **1b/1c (#2483)** | **Landed** #2483 |
 
-**1b/1c GO checklist (owners):**
-
+**1b/1c GO checklist (#2483; P1 bars required and landed — do not reopen product work):**
 1. Reuse `hq-actions` / `load-hq` / engine — no parallel ticket writes.
-2. Real three-pane Desk (SPEC §6) behind flag; replace 1a QA stub copy that still mentions mockup wait.
-3. Wire existing queue + thread + resolve/reopen/reply/note.
-4. HQ **"Open Support Desk ↗"** (new tab, same auth model as host-scoped cookies allow).
+2. Real three-pane Desk (SPEC §6) behind flag; delete 1a mockup-wait stub copy.
+3. Wire queue + thread + resolve/reopen/reply/note.
+4. HQ **"Open Support Desk ↗"** (D4 host-scoped cookies **required** — landed).
 5. Keyboard per SPEC §6; ignore shortcuts in inputs.
-6. Journey 7: presence + **server-auth** (public `tulala.presence.support.*` is not enough).
-7. Journeys **2, 7, 23–28**; truthful failed-send; retry no duplicate.
-8. Mobile stack (not three panes squeezed). Fix defects even if a design-reference HTML disagrees.
+6. Journey 7: **required** private presence + RLS (D8) — landed #2483.
+7. Journeys **2, 7, 23–28** — journey **27** **requires** D11 send-key path — landed #2483.
+8. Mobile stack; fix defects even if design-reference HTML disagrees.
+
 
 ---
 
@@ -50,11 +51,11 @@
 |---|---|---|
 | Engine | `web/src/lib/support/` | Create/append/status/escalate/claim; writes via service role |
 | HQ UI | `web/src/app/(workspace)/platform/admin/support/` | Queue, drawer, insights, ideas, canned, diagnostics, replay |
-| Requester UI | `web/src/components/support/` | Launcher/panel (workspace / talent / client) |
-| Guest / marketing | `web/src/components/marketing/support/` | Marketing launcher, `/contact`, guest chat |
+| Requester UI | `web/src/components/support/` | Launcher/panel |
+| Guest / marketing | `web/src/components/marketing/support/` | Marketing launcher, `/contact` |
 | Desk flag/host (1a) | `desk-flag.ts`, `desk-hosts.ts`, `desk-host.ts`, `proxy.ts` | Kill-switch + host admission |
-| Local Desk QA (1a) | `/platform/admin/support/desk` | Stub until 1b replaces with real shell |
-| AI / crons / email | existing APIs + Resend delivery; #2470 inbound forward | See §6–7, §15 |
+| Desk product (#2483) | `/desk`, `components/support-desk/`, `lib/support/desk/` | Live shell |
+| AI / crons / email | existing + #2470 inbound forward | §6–7, §15 |
 
 **Reuse rule:** Desk shell calls existing HQ/engine paths only.
 
@@ -70,15 +71,24 @@ DB statuses: **`open` | `resolved` | `closed`**. `waiting_on` ∈ `{support, req
 | Resolve | `resolved` + `resolved_at` |
 | Close | Cron resolved→closed ~72h; or HQ close |
 | Reopen | Explicit, or auto on requester message when resolved |
-| Escalate | `handled_by=human` + reason; default assignee earliest super_admin |
+| Escalate | `handled_by=human` + reason |
+| Agent reply retry | Must use client send key path (D11) — landed #2483 |
 
-Messages: `author_kind` requester|agent|ai|system; `message_kind` text|card|system|**note** (internal). SPEC richer statuses = UI mapping first (D10).
+Messages: `author_kind` requester|agent|ai|system; `message_kind` text|card|system|**note**.
 
 ---
 
 ## 3. Database + RLS map
 
-Migrations `20261213000000` → guest / escalation reasons. Pattern: SELECT via RLS; writes service-role only. Guest tickets: service role after ownership check. 1a adds `agency_domains` seed for support host (`20261231320000_support_desk_host.sql` on #2473). Further Desk migrations sort after newest file at build time.
+Core support migrations through guest / escalation. Pattern: SELECT via RLS; writes service-role.  
+**Required additive (1c / Phase 1):**
+
+| Migration / change | Required? | Landed |
+|---|---|---|
+| Desk host seed (`20261231320000_*`) | Yes — 1a | #2473 |
+| **Private presence RLS** on `realtime.messages` for `support.presence.%` | **Yes — 1c** (not optional) | #2483 |
+| Client send-key idempotency path (D11) | **Yes — Phase 1** | #2483 |
+| Agent roles / inbound email cols | Phase 2–3 | — |
 
 ---
 
@@ -87,10 +97,12 @@ Migrations `20261213000000` → guest / escalation reasons. Pattern: SELECT via 
 | Actor | Today | Target |
 |---|---|---|
 | super_admin | Full HQ | Desk + HQ |
-| support_agent | **missing** | Phase 2 |
-| Requester / guest | Existing access | Unchanged |
+| support_agent | missing | Phase 2 |
+| Requester / guest | Existing | Unchanged |
 
-HQ gate: `assertHqAccess` → `app_role === super_admin` only (`PLATFORM_ROLE_KEYS`).
+HQ gate: `assertHqAccess` → `super_admin` only today.
+
+**D4 cookie isolation (required):** Host-scoped Domain on Desk hosts (`isHostScopedAuthHost`) — **required** and landed in #2473; held by #2483. Same cookie names; not a second namespace.
 
 ---
 
@@ -98,163 +110,154 @@ HQ gate: `assertHqAccess` → `app_role === super_admin` only (`PLATFORM_ROLE_KE
 
 | Route / host | Notes |
 |---|---|
-| `/platform/admin/support` | Existing HQ — keep |
-| `/platform/admin/support/desk` | Local QA; flag → `notFound()` when off; **1b replaces stub with real shell** |
-| `support.tulala.digital` | Desk host; proxy 404 when flag off |
-| Marketing `/support` | Unrelated positioning page |
+| `/platform/admin/support` | Existing HQ |
+| `/platform/admin/support/desk` | Local QA → real Desk |
+| `/desk` | Desk app path (#2483) |
+| `support.tulala.digital` | Desk host; 404 when flag off |
+| Marketing `/support` | Unrelated |
 
 ---
 
-## 6. AI flows
+## 6–7. AI / cron / notifications
 
-Auth + guest chat auto-persist AI messages. Guardrails + guest turn ceiling 6. **SPEC draft/approve ≠ current engine** — do not label auto-send as draft in Desk UI until Phase 5.
-
----
-
-## 7. Cron + notifications
-
-`support-lifecycle`, `support-insights`, `support-weekly-digest`, `reap-guest-support`, `reap-support-replays`. Kind `ticket` notifications — deep links must open Desk conversation when shell ships.
+Unchanged vs prior audit: AI auto-sends today; crons as listed; deep links must open Desk when shell ships.
 
 ---
 
-## 8. UI screenshots
+## 8–9. Screenshots / mobile
 
-Deferred until DESK-QA seed. Capture live Desk (not mockups) on QA host with seeded tickets only.
-
----
-
-## 9. Mobile
-
-HQ is queue+drawer. Desk must implement SPEC mobile stack (list → thread → context sheet). Verify 390/360, keyboard-open composer.
+DESK-QA seed first. Mobile = list → thread → context sheet.
 
 ---
 
 ## 10. Tests + coverage
 
-1a: `desk-flag.test.ts`, `desk-host.test.ts`, `cookie-domain.test.ts`. Still needed: presence server-auth, engine journey coverage, Desk e2e for §20 Phase 1 journeys.
+Required bars covered by product tests on #2483: `desk-presence.static.test.ts`, `desk-send.test.ts`, `cookie-domain.test.ts` / `desk-host.test.ts`.
 
 ---
 
-## 11. Duplicate / dead
+## 11–12. Dead / missing
 
-`supportPresenceKey()` unused; UI uses ``support.${ticketId}``. Address drift cleaned by #2470 path. 1a stub copy still mentions mockup wait — **1b must delete that language**.
-
----
-
-## 12. Missing → phase
-
-| Gap | Phase |
-|---|---|
-| Real Desk shell | **1b** GO |
-| Keyboard + HQ link + presence auth | **1c** GO |
-| Agent roles | 2 |
-| Email → tickets | 3 |
-| Collision / merge / SLA UX | 4 |
-| AI draft approve | 5 |
-| Rich context sidebar | 6 |
+| Gap | Phase | Required? | Landed |
+|---|---|---|---|
+| Real Desk shell | 1b | Yes | #2483 |
+| Keyboard + HQ link | 1c | Yes | #2483 |
+| Private presence + RLS (D8) | 1c | **Yes** (not optional) | #2483 |
+| Host-scoped Desk cookies (D4) | 1a/1c | **Yes** | #2473 / #2483 |
+| Reply send-key idempotency (D11) | 1 | **Yes** | #2483 |
+| Agent roles | 2 | Later | — |
+| Email → tickets | 3 | Later | — |
 
 ---
 
 ## 13. Security risks
 
-| Risk | Mitigation |
-|---|---|
-| Shared `.tulala.digital` cookie on Desk | 1a host-scoped hosts |
-| Flag-off still serving | 1a proxy 404 |
-| Public presence channel | **1c server-auth** |
-| Soft claim ≠ lock | Phase 4; 1c presence only |
-| AI auto-send | Flags + later draft path |
+| Risk | Mitigation | Required? |
+|---|---|---|
+| Parent-domain cookie widen on Desk host | D4 host-scoped Domain (never `.tulala.digital`) | **Yes** — landed |
+| Flag-off still serving | 1a proxy 404 | Done |
+| Public presence spoof/join | D8 private + RLS | **Yes** — landed #2483 |
+| Duplicate reply on retry | D11 client send key + engine lookup | **Yes** — landed #2483 |
+| Soft claim ≠ lock | Phase 4 | Later |
 
 ---
 
-## 14. Retention / privacy
+## 14–15. Retention / email
 
-Guest reaper + replay reap exist. localhost/QA → prod DB: DESK-QA seed/cleanup required. Notes must never look customer-visible.
-
----
-
-## 15. Email
-
-#2470 = interim forward to Gmail. Phase 3 = Resend inbound → `support_tickets` / messages (Message-ID / In-Reply-To). Gmail never SoT.
+Unchanged. #2470 interim; Phase 3 Desk SoT.
 
 ---
 
 ## 16. Phase / PR plan
 
-| Phase | Status |
-|---|---|
-| 0 SPEC + audit | SPEC merged; this audit → merge #2479 |
-| 0.5 mockups | **Skipped as gate** |
-| 1a | #2473 — merge when green |
-| **1b / 1c** | **Build now** — real product |
-| 1d | Journeys 2/7/23–28 evidence |
-| 2–6 | Per SPEC / memo |
+| Phase | PR | Notes |
+|---|---|---|
+| 0 SPEC | #2472 | Merged |
+| 0 audit | **#2479** | Docs; merge when required/optional language accurate |
+| 0.5 mockups | #2477 | Optional reference only |
+| 1a | #2473 | Merged |
+| **1b/1c product** | **#2483** | Shell + presence + send key; finish D4 + DB unique |
 
 ---
 
 ## 17. Migration plan
 
-1a host seed additive. 1c optional private realtime for presence. 2 roles. 3 inbound email columns. 4 spam/merged/snooze flags. Always `db:push` before merge of migration PRs.
+| Change | Required? | When |
+|---|---|---|
+| Host seed | Yes | 1a (done) |
+| **Private presence RLS** (`support.presence.%`) | **Yes — never optional** | 1c — landed #2483; `db:push` ops |
+| Client send-key path (D11) | **Yes** | Phase 1 — landed #2483 |
+| Host-scoped Desk cookies (D4) | **Yes** | 1a — landed #2473 |
+| Agent roles / inbound email | Later | 2–3 |
+
+Always `db:push` before merge of migration PRs (presence migration needs Mac `db:push` — non-blocking for this docs PR).
 
 ---
 
-## 18. Risks + open (non-blocking)
+## 18. Risks + open
 
-D1/D4/D5 defaults stand. **No open design questions.** Do not AskQuestion / ping Oran for mockup review.
+- D4 / D8 / D11 are **required** bars; code verified landed on #2483 / #2473 (`internal/codex-p1-desk-verify-2483.md`) — **do not reopen product work** from this audit.
+- Presence RLS uses `is_platform_admin()` while Desk is owner-only; Phase 2 may tighten to ticket ACL.
+- No Oran design questions. No mockup gate.
 
 ---
 
 ## 19. Acceptance
 
-### Phase 0
-- [x] SPEC + live-implementation directive
+### Phase 0 (#2479)
+- [x] SPEC + live directive
 - [x] Audit 1–20 + Oran additions
-- [x] Mockup path skipped; 1b/1c unblocked
-- [ ] #2479 merged; DESK-QA screenshots later
+- [x] Codex P1/P2 required vs optional corrected
+- [ ] Merged after CI green
 
 ### Phase 1a
-- Flag/host/cookie tests green; stub OK until 1b
+- [x] Flag/host/404/host-only write
 
-### Phase 1b–1d
-- Live Desk meets SPEC §6 / journeys / §23 — not mockup HTML
+### Phase 1b–1d (#2483)
+- [ ] Live Desk §6 / §23 (product PR)
+- [x] D8 private presence + RLS **required** — landed #2483
+- [x] D4 host-scoped Desk cookies **required** — landed #2473 / held #2483
+- [x] D11 send-key idempotency **required** — landed #2483
+- [ ] Journeys 2, 7, 23–28 evidence (product PR)
 
 ---
 
 ## 20. Journey-to-phase map
 
-| # | Journey | Phase |
-|---|---|---|
-| 2, 23–28 | In-app ticket, resolve/reopen, search, mobile, network, retry, realtime | **1** |
-| 7 | Two agents — presence+auth **1**; full collision **4** | 1 / 4 |
-| 1, 3–4, 14–16 | Contact/email/attachments | 3 |
-| 5–6, 8, 11, 13, 21–22 | Reopen UX, drafts, escalate, merge, SLA, snooze | 4 |
-| 9–10, 17, 29 | AI draft paths | 5 |
-| 12, 18–19 | Rich context | 6 |
-| 20 | Unauthorized tenant | 2 |
-| 30 | Honest final response | 3–5 |
+| # | Journey | Phase | Notes |
+|---|---|---|---|
+| 2, 23–26, 28 | In-app, resolve/reopen, search, mobile, network, realtime | **1** | |
+| **27** | Retry no duplicate | **1** | D11 — key + DB unique |
+| **7** | Two agents | **1** presence (D8) / **4** collision | |
+| 1, 3–4, 14–16 | Contact/email/attachments | 3 | |
+| 5–6, 8, 11, 13, 21–22 | Reopen UX, drafts, escalate, merge, SLA | 4 | |
+| 9–10, 17, 29 | AI drafts | 5 | |
+| 12, 18–19 | Rich context | 6 | |
+| 20 | Unauthorized tenant | 2 | |
+| 30 | Honest final response | 3–5 | |
 
 ---
 
-## Oran additions (closed)
+## Oran additions
 
-- **A. Host-scoped cookies** — implemented in 1a (`isHostScopedAuthHost`).
-- **B. Flag-off=404** — implemented in 1a proxy + desk page `notFound()`.
-- **C. DESK-QA** — still needed before prod screenshots.
-- **D. #2470 interim** — merge lane; not Desk SoT.
-- **E. Phase 2–3** — agents then inbound→tickets.
-- **F. Journey 7 presence server-auth** — **1c must ship**; today public broadcast only.
+- **A. Cookies (D4)** — **required**; host-scoped Domain landed #2473 / held #2483.
+- **B. Flag-off=404** — done.
+- **C. DESK-QA** — still needed for screenshots.
+- **D. #2470 interim** — merge lane.
+- **E. Phase 2–3** — agents; inbound→tickets.
+- **F. Journey 7 presence (D8)** — **required 1c** private+RLS; landed #2483 (not optional).
 
 ---
 
 ## End-of-phase report (Phase 0)
 
-1. **Discovered** — Engine/HQ complete enough to productize; gaps = Desk shell, agents, email ingest, presence auth.
-2. **Implemented** — SPEC directive + this memo; no Desk UI in this PR.
-3. **Reused** — `lib/support` + HQ for 1b/1c.
-4. **Data-model** — none in audit PR; 1a host seed separate.
-5. **Tested** — read-only audit; 1a unit tests on that branch.
+1. **Discovered** — Engine/HQ enough to productize; Codex P1s are **required** bars (presence / cookies / idempotency).
+2. **Implemented** — docs only in #2479; required vs optional corrected.
+3. **Reused** — `lib/support` + HQ for #2483.
+4. **Data-model** — presence RLS required (landed #2483); send-key path required (landed #2483).
+5. **Tested** — docs + code verify note `internal/codex-p1-desk-verify-2483.md`.
 6. **Incomplete** — DESK-QA screenshots; #2479 merge.
-7. **Risks** — §13; stub copy still says mockup-wait until 1b edits it.
-8. **Decisions from Oran** — none blocking; mockup path skipped.
-9. **Evidence** — SPEC; this file; #2473; #2470; #2477 optional.
-10. **Next** — Merge #2479 → 1a → **1b/1c ship live Desk**.
+7. **Risks** — §13.
+8. **Decisions from Oran** — none; no ping.
+9. **Evidence** — this file; #2483; `internal/desk-codex-2479.md`; verify memo.
+10. **Next** — Merge #2479 when CI green → merge lane; product work stays on #2483 (no reopen from docs).
