@@ -31,7 +31,8 @@
 import "server-only";
 import { nonRefundableFeeCents as nonRefundableFeeCentsOf } from "@/lib/billing/commission";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
+import { loadChargePlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -271,10 +272,13 @@ export async function executeBookingRefund(input: {
   actorUserId?: string | null;
   note?: string | null;
 }): Promise<RefundExecuteResult> {
-  if (!isStripeConfigured()) {
+  // Refund on the platform that TOOK THE CHARGE; the PaymentIntent does not
+  // exist on the other one.
+  const chargePlatform = await loadChargePlatformForTransaction(input.transactionId);
+  if (chargePlatform === "us" && !isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured, so no refund was issued.", code: "stripe_not_configured" };
   }
-  const stripe = getStripe();
+  const stripe = getStripeFor(chargePlatform);
   if (!stripe) {
     return { ok: false, error: "Stripe is not configured, so no refund was issued.", code: "stripe_not_configured" };
   }

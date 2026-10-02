@@ -17,7 +17,8 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { headers } from "next/headers";
-import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { getStripe, getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
+import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import {
   createOrGetTalentConnectedAccount,
   createTalentOnboardingLink,
@@ -130,7 +131,10 @@ export async function createTalentAccountSession(
     const ensure = await createOrGetTalentConnectedAccount(tp.id, { country: opts.country });
     if (!ensure.ok) return { ok: false, error: ensure.error };
 
-    const session = await stripe.accountSessions.create({
+    // The account may live on the MX platform; its session must be minted there.
+    const owningStripe =
+      getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: tp.id })) ?? stripe;
+    const session = await owningStripe.accountSessions.create({
       account: ensure.data.stripeAccountId,
       components: {
         account_onboarding: {

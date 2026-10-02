@@ -13,7 +13,8 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { getStripe } from "@/lib/stripe/client";
+import { getStripeFor } from "@/lib/stripe/client";
+import { decideReleasePlatform, loadChargePlatformForBooking } from "@/lib/stripe/charge-platform";
 import { logServerError } from "@/lib/server/safe-error";
 import { isDue, laterHold } from "./payout-release-gate";
 import { getTalentConnectedAccountSnapshot, canRouteTransfersToTalent } from "@/lib/payments/stripe-connect-talent";
@@ -244,7 +245,6 @@ export async function releaseHeldPayouts(
 ): Promise<ReleaseOutcome[]> {
   const sb = deps.sb ?? createServiceRoleClient();
   if (!sb) return [];
-  const stripe = deps.stripe ?? getStripe();
   const resolveTalentAccount = deps.resolveTalentAccount ?? defaultTalentAccount;
   const resolveWorkspaceAccount = deps.resolveWorkspaceAccount ?? defaultWorkspaceAccount;
   const outcomes: ReleaseOutcome[] = [];
@@ -275,18 +275,17 @@ export async function releaseHeldPayouts(
       // double-pay once the GP retry (its own outbound-payment webhook) also
       // lands. Leave it held for the GP release path. NULL rail = legacy Connect.
       if (row.payout_rail === "global_payouts") {
-        outcomes.push({
-          legId: row.id,
-          party: row.party,
-          amountCents: row.amount_cents,
-          result: "still_held",
-          detail: "global_payouts leg is not Connect-releasable",
-        });
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: "global_payouts leg is not Connect-releasable" });
         continue;
       }
-      // talent → talent Connect account; workspace AND channel_referral → the
-      // workspace Connect account keyed on tenant_id (the channel party for a
-      // referral leg). Both non-talent parties route Connect transfers.
+      // Release only on the charge platform that also owns the recipient's account.
+      const decision = await decideReleasePlatform(row, sb);
+      if (!decision.ok) {
+        outcomes.push({ legId: row.id, party: row.party, amountCents: row.amount_cents, result: "still_held", detail: decision.reason });
+        continue;
+      }
+      const stripe = deps.stripe ?? getStripeFor(decision.key);
+      // talent → talent Connect account; workspace/channel_referral → tenant_id's workspace account.
       const accountId =
         row.party === "talent"
           ? row.talent_profile_id
@@ -709,7 +708,8 @@ export async function reverseBookingPayouts(
 ): Promise<PayoutReversalOutcome[]> {
   const sb = deps.sb ?? createServiceRoleClient();
   if (!sb) return [];
-  const stripe = deps.stripe ?? getStripe();
+  // Reverse on the platform that took the charge (the transfers live there).
+  const stripe = deps.stripe ?? getStripeFor(await loadChargePlatformForBooking(bookingId, sb));
   const outcomes: PayoutReversalOutcome[] = [];
 
   try {

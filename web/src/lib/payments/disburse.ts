@@ -34,6 +34,8 @@ export type DisburseStatus =
   /** pass_through: the real processing fee could not be determined, so the leg
    *  is HELD (never paid pre-fee). Set by transfers.ts, not by disburse(). */
   | "skipped_fee_unknown"
+  /** Recipient's connected account is on a different Stripe platform than the charge: HELD, never transferred. */
+  | "skipped_cross_platform"
   | "mock"
   | "failed";
 
