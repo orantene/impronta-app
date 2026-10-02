@@ -101,7 +101,6 @@ import {
   attachPayoutProcessingFees,
   applyProcessingFeeToLanes,
 } from "./commission-processing";
-
 export { CommissionResolutionError };
 export {
   estimateProcessorFeeCents,
@@ -110,7 +109,6 @@ export {
   attachPayoutProcessingFees,
   applyProcessingFeeToLanes,
 };
-
 /** How the payment-processing fee is borne. 'included' = legacy (absorbed in
  *  the take). 'pass_through' = seller pays the actual fee at cost. */
 export type ProcessingMode = "included" | "pass_through";

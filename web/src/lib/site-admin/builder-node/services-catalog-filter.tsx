@@ -3,7 +3,7 @@
 import { intakeDetail } from "@/lib/talent/offering-intake";
 import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
-import { deriveOfferingCta, opensAskFlowOnly } from "@/lib/talent/offering-cta-derivation";
+import { deriveOfferingCta } from "@/lib/talent/offering-cta-derivation";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import {
@@ -38,6 +38,7 @@ import { useChatAddService } from "@/components/public-booking/use-chat-add-serv
 import { useDockBookingResume } from "@/components/public-booking/use-dock-booking-resume";
 import { useDockToast } from "@/components/public-booking/use-dock-toast";
 import { catalogCategoryJumpId, catalogDurationPhrase } from "./services-catalog-title";
+import { dispatchCatalogOffering } from "./catalog-offering-dispatch";
 import {
   DEFAULT_SHEET_BOOKING_SETTINGS,
   PLATFORM_DEFAULT_BOOKING_POSTURE,
@@ -101,22 +102,16 @@ function dispatchOffering(
   inclusion?: string | null,
   bookingPosture: TalentBookingPosture = PLATFORM_DEFAULT_BOOKING_POSTURE,
 ) {
-  const { eventName, cta } = deriveFor(offering, confirmsByHand, bookingPosture);
-  const detail = {
-    ...detailFor(offering, confirmsByHand, bookingPosture),
-    startAt,
-    inclusion: inclusion ?? undefined,
-  };
-  // Quote / inquiry: never open the booking sheet (no times). Mirror MaisonMenu.
-  if (opensAskFlowOnly(cta)) {
-    openCatalogBookingChat({ detail, askAbout: [detail.title], from: "catalog" });
-    return;
-  }
-  window.dispatchEvent(
-    new CustomEvent(eventName, {
-      detail,
-    }),
-  );
+  dispatchCatalogOffering({
+    offering,
+    confirmsByHand,
+    bookingPosture,
+    detail: {
+      ...detailFor(offering, confirmsByHand, bookingPosture),
+      startAt,
+      inclusion: inclusion ?? undefined,
+    },
+  });
 }
 
 export function ServicesCatalogFilter({
