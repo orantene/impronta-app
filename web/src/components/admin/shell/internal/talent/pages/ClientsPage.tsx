@@ -28,6 +28,9 @@ const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "fresh", label: "New" },
 ];
 
+/** Set by TalentClientsPage each render (children format after the parent runs). */
+let dateLocale: string | undefined;
+
 function formatMoney(cents: number, currency: string | null): string {
   const amount = Math.round(cents) / 100;
   const code = (currency ?? "").trim().toUpperCase();
@@ -40,7 +43,7 @@ function formatMoney(cents: number, currency: string | null): string {
 
 function formatMonthYear(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    return new Date(iso).toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
   } catch {
     return "";
   }
@@ -49,7 +52,7 @@ function formatMonthYear(iso: string): string {
 function formatDay(iso: string | null): string {
   if (!iso) return "";
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    return new Date(iso).toLocaleDateString(dateLocale, {
       weekday: "short",
       day: "numeric",
       month: "short",
@@ -377,6 +380,7 @@ function ClientRecord(props: {
 export function TalentClientsPage() {
   const { bridgeTalentSelfProfile, toast } = useAdminShell();
   const copy = useDashboardText();
+  dateLocale = copy.isSpanish ? "es-MX" : "en-US";
   const t = copy.t;
   const router = useRouter();
   const [items, setItems] = useState<TalentClientRow[] | null>(null);

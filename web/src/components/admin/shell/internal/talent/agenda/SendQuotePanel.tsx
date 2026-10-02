@@ -81,6 +81,8 @@ function SendQuoteForm({
   const copy = useAgendaCopy();
   const [clients, setClients] = useState<TalentClientRow[]>([]);
   const [offerings, setOfferings] = useState<TalentOffering[]>([]);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
+  const [offeringsLoaded, setOfferingsLoaded] = useState(false);
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Picked | null>(null);
   const [adding, setAdding] = useState(false);
@@ -97,10 +99,14 @@ function SendQuoteForm({
   useEffect(() => {
     let cancelled = false;
     void loadTalentClients(talentProfileId).then((res) => {
-      if (!cancelled && res.ok) setClients(res.items);
+      if (cancelled) return;
+      if (res.ok) setClients(res.items);
+      setClientsLoaded(true);
     });
     void loadTalentOfferingsForEditor(talentProfileId).then((res) => {
-      if (!cancelled && res.ok) setOfferings(res.items.filter((o) => o.status === "published"));
+      if (cancelled) return;
+      if (res.ok) setOfferings(res.items.filter((o) => o.status === "published"));
+      setOfferingsLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -273,7 +279,7 @@ function SendQuoteForm({
                   </li>
                 ))}
                 {matches.length === 0 ? (
-                  <li className="px-3 py-3 text-[13px] text-[var(--tc-muted)]">{copy.t("No clients match.")}</li>
+                  <li className="px-3 py-3 text-[13px] text-[var(--tc-muted)]">{clientsLoaded ? copy.t("No clients match.") : copy.t("Loading")}</li>
                 ) : null}
               </ul>
               <button
@@ -353,7 +359,7 @@ function SendQuoteForm({
             </select>
           </label>
           {offerings.length === 0 ? (
-            <p className="text-[12.5px] text-[var(--tc-muted)]">{copy.t("Publish a service first. Quotes are made from your services.")}</p>
+            <p className="text-[12.5px] text-[var(--tc-muted)]">{offeringsLoaded ? copy.t("Publish a service first. Quotes are made from your services.") : copy.t("Loading")}</p>
           ) : null}
         </section>
 

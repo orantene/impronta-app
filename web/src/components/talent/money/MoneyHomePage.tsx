@@ -54,7 +54,8 @@ function day(iso: string | null, locale: string): string {
 
 function monthLabel(key: string, locale: string): string {
   const d = new Date(`${key}-01T12:00:00`);
-  return d.toLocaleDateString(locale, { month: "long", year: "numeric" });
+  const label = d.toLocaleDateString(locale, { month: "long", year: "numeric" });
+  return locale.toLowerCase().startsWith("es") ? label.replace(/^(\S+) De (\d+)/i, (_m, mo, y) => `${mo.toLowerCase()} de ${y}`) : label;
 }
 
 function currentMonthKey(): string {
@@ -265,7 +266,11 @@ function MoneyHomePane(props: {
         <SummaryCard
           title={t("Owed to you")}
           scope={t("any month")}
-          value={props.clients == null ? t("Loading") : money(owedCents, cur)}
+          value={
+            props.clients == null
+              ? t("Loading")
+              : [money(owedCents, cur), ...owedSummary.others.map((o) => money(o.cents, o.currency))].join(" + ")
+          }
           tone={owedCents > 0 ? "warn" : undefined}
           lines={[
             outstandingCount > 0
