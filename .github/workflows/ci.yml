@@ -351,6 +351,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:size-ratchet
 
+      - name: tests — QA host pool helpers
+        if: ${{ !cancelled() }}
+        run: npm run test:qa-host
+
       - name: tests — alias guard
         # scripts/lib/alias-guard.mjs: a custom domain may only be aliased to a
         # build whose commit the main structural gate passed (2026-09-11
