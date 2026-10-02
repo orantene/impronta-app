@@ -93,9 +93,9 @@ export function TermsEs() {
               <p>
                 Los reembolsos siguen la política de reembolso que el talento eligió para la
                 reservación, y {PLATFORM_BRAND.name} los procesa. Si un cliente disputa un cargo
-                con su banco, el costo de una disputa perdida sale de la parte del talento. Si
-                no se puede recuperar, {PLATFORM_BRAND.name} lo cubre y puede descontar el monto
-                de pagos futuros.
+                con su banco, los contracargos y las disputas son responsabilidad del talento. Si
+                se pierde una disputa, {PLATFORM_BRAND.name} puede descontar el monto disputado
+                y cualquier comisión de disputa de los pagos futuros del talento.
               </p>
               <p>
                 Actualmente no hay una tarifa de reservación aparte para los clientes. Las

@@ -200,6 +200,8 @@ const KEYS = [
   "public.thread.keepSlotAppointment",
   "public.thread.keepSlotNoTime",
   "public.thread.keepSlotGeneric",
+  "public.thread.refundFeesNote",
+  "public.thread.cardFeeLine",
   "public.thread.waitlist",
   "public.thread.dateMismatch",
   "public.thread.accept",

@@ -20,7 +20,7 @@ export type RenderedPolicy = {
 };
 
 /** Bump when the wording changes, so the hash moves with the template. */
-export const POLICY_TEMPLATE_VERSION = 2;
+export const POLICY_TEMPLATE_VERSION = 3;
 
 /** D3: Tulala's own documents open off-host. */
 export const TULALA_DOC_LINKS = {
@@ -179,6 +179,15 @@ function clauses(facts: PolicyFacts, answers: PolicyAnswers, locale: PolicyLocal
         : es
           ? `Usa el formulario de este sitio para escribir a ${name}.`
           : `Use the form on this site to write to ${name}.`,
+  });
+
+  // Card fees and refunds. No talent setting decides who pays the card fee
+  // yet, so the default is stated: the fee is included in the price.
+  out.push({
+    title: es ? "Comisiones de tarjeta y reembolsos" : "Card fees and refunds",
+    body: es
+      ? "La comisión de procesamiento de tarjeta está incluida en el precio. Los reembolsos no incluyen las comisiones de procesamiento de tarjeta."
+      : "The card processing fee is included in the price. Refunds exclude card processing fees.",
   });
 
   // Tulala's own documents, off-host.

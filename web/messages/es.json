@@ -1736,6 +1736,8 @@
       "keepSlotAppointment": "Se guarda la hora de la cita mientras este enlace sea válido. No se cobra hasta que pagues.",
       "keepSlotNoTime": "Tu reserva se confirma al pagar. La hora se acuerda con la talento. No se cobra hasta que pagues.",
       "keepSlotGeneric": "Se guarda tu horario reservado mientras este enlace sea válido. No se cobra hasta que pagues.",
+      "refundFeesNote": "Los reembolsos no incluyen las comisiones de tarjeta.",
+      "cardFeeLine": "Comisión de tarjeta",
       "waitlist": "Esta sesion esta llena. Entrate a la lista de espera.",
       "dateMismatch": "Esa fecha no esta. Abajo hay otra fecha.",
       "accept": "Aceptar",

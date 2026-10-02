@@ -110,9 +110,9 @@ export default async function TermsPage() {
               <p>
                 Refunds follow the refund policy the talent selected for the booking, and{" "}
                 {PLATFORM_BRAND.name} processes them. If a customer disputes a charge with their
-                bank, the cost of a lost dispute comes from the talent&rsquo;s share. If that
-                cannot be recovered, {PLATFORM_BRAND.name} covers it and may deduct the amount
-                from future payouts.
+                bank, chargebacks and disputes are the talent&rsquo;s responsibility. If a
+                dispute is lost, {PLATFORM_BRAND.name} may deduct the disputed amount and any
+                dispute fee from the talent&rsquo;s future payouts.
               </p>
               <p>
                 Card processing fees: every card payment carries a processing fee that the

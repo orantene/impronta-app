@@ -68,3 +68,19 @@ test("terms state talent merchant of record and 18+ in EN and ES, marked for rev
   assert.match(panel, /merchant of record/);
   assert.match(panel, /LEGAL_REVIEW_PENDING/);
 });
+
+test("no legal page claims Tulala covers chargebacks; chargebacks belong to the talent", () => {
+  const pages = [
+    "src/app/(marketing)/legal/terms/page.tsx",
+    "src/app/(marketing)/legal/terms/terms-es.tsx",
+    "src/app/(marketing)/legal/privacy/page.tsx",
+    "src/app/(marketing)/legal/privacy/privacy-es.tsx",
+  ];
+  for (const p of pages) {
+    const s = read(p).replace(/\s+/g, " ");
+    assert.doesNotMatch(s, /\{PLATFORM_BRAND\.name\} (covers it|lo cubre)/, p);
+    assert.doesNotMatch(s, /Tulala covers|Tulala cubre/i, p);
+  }
+  assert.match(read(pages[0]).replace(/\s+/g, " "), /chargebacks and disputes are the talent&rsquo;s responsibility/);
+  assert.match(read(pages[1]).replace(/\s+/g, " "), /contracargos y las disputas son responsabilidad del talento/);
+});
