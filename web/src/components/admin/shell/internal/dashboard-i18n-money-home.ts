@@ -83,8 +83,13 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Refund pending": "Reembolso pendiente",
   "refund pending": "reembolso pendiente",
   "refunds pending": "reembolsos pendientes",
-  "Money arrived after a cancellation. Refund from the booking.":
-    "Llegó dinero después de una cancelación. Reembolsa desde la reserva.",
+  "Money arrived after a cancellation. Refund it here.":
+    "Llegó dinero después de una cancelación. Reembólsalo aquí.",
+  "Refunding…": "Reembolsando…",
+  "Refund failed": "El reembolso falló",
+  "Nothing left to refund on this booking.": "No queda nada por reembolsar en esta reserva.",
+  "Refund sent": "Reembolso enviado",
+  "Money updates when Stripe confirms it.": "Dinero se actualiza cuando Stripe lo confirma.",
   "Deposit requested": "Depósito solicitado",
   "Balance due": "Saldo pendiente",
   "Amount not set": "Monto sin definir",

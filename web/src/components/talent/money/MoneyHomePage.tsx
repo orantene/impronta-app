@@ -7,7 +7,7 @@
  * so plainly instead of printing a zero.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -25,10 +25,12 @@ import {
   type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
+import { refundOwnBookingPayment } from "@/lib/talent-agenda";
 import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
 import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
 import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agenda/AgendaPayRequest";
 
+import { AgendaMoneyLine } from "./AgendaMoneyLine";
 import { FeePayerCard } from "./FeePayerCard";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 
@@ -118,58 +120,6 @@ function SummaryCard(props: {
   );
 }
 
-function AgendaMoneyLine({
-  row,
-  first,
-  onRequest,
-}: {
-  row: MoneyAgendaRow;
-  first: boolean;
-  onRequest: (row: MoneyAgendaRow) => void;
-}) {
-  const copy = useDashboardText();
-  const t = copy.t;
-  const router = useRouter();
-  const warn = row.kind === "refund_pending" || row.overdue;
-  const kindLabel =
-    row.kind === "refund_pending"
-      ? t("Refund pending")
-      : row.kind === "deposit"
-        ? t("Deposit requested")
-        : row.overdue
-          ? t("Overdue")
-          : t("Balance due");
-  return (
-    <div
-      className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${first ? "" : "border-t border-admin-border-soft"}`}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name}</div>
-        <div className={`text-[13px] ${warn ? "font-semibold text-admin-critical" : "text-admin-ink-muted"}`}>
-          {[kindLabel, row.service, day(row.startsAt, copy.locale)].filter(Boolean).join(" · ")}
-        </div>
-      </div>
-      <span
-        className={`whitespace-nowrap font-admin-body text-[15px] font-bold ${
-          warn ? "text-admin-critical" : "text-admin-ink"
-        }`}
-      >
-        {row.amountCents != null ? money(row.amountCents, row.currency) : t("Amount not set")}
-      </span>
-      <div className="flex gap-2">
-        <button type="button" className={`${btnSec} flex-1`} onClick={() => router.push(row.bookingHref)}>
-          {t("Open booking")}
-        </button>
-        {row.kind !== "refund_pending" ? (
-          <button type="button" className={`${btnSec} flex-1`} onClick={() => onRequest(row)}>
-            {t("Send a payment link")}
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 function MoneyHomePane(props: {
   earnings: TalentEarnings;
   clients: TalentClientRow[] | null;
@@ -177,6 +127,9 @@ function MoneyHomePane(props: {
   payout: PayoutLine;
   onManagePayouts: () => void;
   onRequest: (row: MoneyAgendaRow) => void;
+  onRefund: (row: MoneyAgendaRow) => void;
+  refundBusyId: string | null;
+  refundStatus: string | null;
 }) {
   const copy = useDashboardText();
   const t = copy.t;
@@ -532,11 +485,21 @@ function MoneyHomePane(props: {
                 <span className="text-[12.5px] text-admin-ink-muted">{refundList.length}</span>
               </h3>
               <p className="-mt-2 font-admin-body text-[12.5px] text-admin-ink-muted">
-                {t("Money arrived after a cancellation. Refund from the booking.")}
+                {t("Money arrived after a cancellation. Refund it here.")}
               </p>
+              {props.refundStatus ? (
+                <p className="-mt-1 px-1 font-admin-body text-[13px] text-admin-ink">{props.refundStatus}</p>
+              ) : null}
               <div className="overflow-hidden rounded-[12px] border border-admin-border-soft bg-white">
                 {refundList.map((r, i) => (
-                  <AgendaMoneyLine key={r.id} row={r} first={i === 0} onRequest={props.onRequest} />
+                  <AgendaMoneyLine
+                    key={r.id}
+                    row={r}
+                    first={i === 0}
+                    onRequest={props.onRequest}
+                    onRefund={props.onRefund}
+                    refundBusy={props.refundBusyId === r.id}
+                  />
                 ))}
               </div>
             </>
@@ -584,10 +547,15 @@ function MoneyHomePane(props: {
 export function MoneyHomePage() {
   const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentPayoutSnapshot } = useAdminShell();
   const router = useRouter();
+  const copy = useDashboardText();
+  const t = copy.t;
   const [sheet, setSheet] = useState<"record" | "request" | null>(null);
   const [linkFor, setLinkFor] = useState<MoneyAgendaRow | null>(null);
   // Record payment opens the amount + method sheet right here, over Money.
   const [finishFor, setFinishFor] = useState<MoneyAgendaRow | null>(null);
+  const [refundBusyId, setRefundBusyId] = useState<string | null>(null);
+  const [refundStatus, setRefundStatus] = useState<string | null>(null);
+  const [, startRefund] = useTransition();
   const agenda = useMemo(
     () => agendaMoneyRows(bridgeTalentAgendaItems ?? [], new Date()),
     [bridgeTalentAgendaItems],
@@ -606,9 +574,27 @@ export function MoneyHomePage() {
     if (row.orderId) setLinkFor(row);
     else router.push(row.bookingHref);
   };
+  const refund = (row: MoneyAgendaRow) => {
+    setRefundStatus(null);
+    setRefundBusyId(row.id);
+    startRefund(async () => {
+      const res = await refundOwnBookingPayment({ bookingId: row.id });
+      setRefundBusyId(null);
+      if (!res.ok) {
+        setRefundStatus(`${t("Refund failed")}: ${res.reason}`);
+        return;
+      }
+      if (res.already || res.refundedCents <= 0) {
+        setRefundStatus(t("Nothing left to refund on this booking."));
+      } else {
+        setRefundStatus(
+          `${t("Refund sent")} ${(res.refundedCents / 100).toFixed(2)} ${res.currency}. ${t("Money updates when Stripe confirms it.")}`,
+        );
+      }
+      router.refresh();
+    });
+  };
   const pickRows = [...agenda.owed, ...agenda.waiting];
-  const copy = useDashboardText();
-  const t = copy.t;
   const { byCurrency, defaultCurrency, loadError } = useResolvedTalentEarningsByCurrency();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
   const [clients, setClients] = useState<TalentClientRow[] | null>(null);
@@ -683,6 +669,9 @@ export function MoneyHomePage() {
             payout={payout}
             onManagePayouts={() => openDrawer("talent-payouts")}
             onRequest={request}
+            onRefund={refund}
+            refundBusyId={refundBusyId}
+            refundStatus={refundStatus}
           />
         </>
       )}
