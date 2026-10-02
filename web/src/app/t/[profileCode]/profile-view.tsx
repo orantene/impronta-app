@@ -104,7 +104,11 @@ import { talentPlanRemovesPlatformBadge } from "@/lib/access/talent-membership";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
-import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
+import {
+  talentProfileMetaFallbackDescription,
+  talentProfileMetaTitle,
+} from "@/lib/seo/talent-profile-meta-copy";
+import { buildTalentProfileJsonLd, jsonLdToString, offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
 import {
   resolveTalentVisibility,
   type TalentSurface,
@@ -1456,22 +1460,25 @@ export async function buildTalentProfileMetadata({
   const metadataTaxonomyVisibility = await loadProfileTaxonomyVisibility(
     await resolveProfileOverrideTenantId(hostCtx, profile.id),
   );
+  // Title and description follow the page language: the /es/ URL is its own
+  // indexable page (hreflang says so), so it must read Spanish in the SERP,
+  // "Modelo de moda en Playa del Carmen", not the English label.
   const talentType =
     primaryTalentType(
-      "en",
+      locale,
       profile.talent_profile_taxonomy ?? [],
       metadataTaxonomyVisibility,
-    ) ?? "Talent";
-  const loc = residenceLabel("en", profile as TalentProfile);
+    ) ?? pickLocale(locale, { en: "Talent", es: "Talento" });
+  const loc = residenceLabel(locale, profile as TalentProfile);
 
-  const title = loc ? `${name} — ${talentType} · ${loc}` : `${name} — ${talentType}`;
+  const title = talentProfileMetaTitle(locale, name, talentType, loc);
   const about = publicBioForLocale(locale, [locale, "en"], {
     ...(profile.bio_i18n ?? {}),
     en: canonicalBioEn(bioEnFromI18n(profile.bio_i18n), profile.short_bio),
   });
+  // No bio: brand-neutral line in the page language.
   const description =
-    about.trim() ||
-    `View ${name}'s talent profile on Impronta — ${talentType}${loc ? ` — lives in ${loc}` : ""}.`;
+    about.trim() || talentProfileMetaFallbackDescription(locale, name, talentType, loc);
 
   return {
     title,
@@ -1831,7 +1838,7 @@ export async function TalentProfileView({
   );
 
   // Storefront — offerings catalog, USD line for non-USD prices, Offer JSON-LD.
-  const { storefrontOfferings, usdRates, offerJsonLd } = await loadProfileStorefrontPayload(
+  const { storefrontOfferings, usdRates } = await loadProfileStorefrontPayload(
     profile.id,
     locale,
     hostCtx.kind === "agency" ? hostCtx.tenantId : null,
@@ -2311,6 +2318,10 @@ export async function TalentProfileView({
     createdAt: (profile as { created_at?: string | null }).created_at ?? null,
     updatedAt: (profile as { updated_at?: string | null }).updated_at ?? null,
     affiliationName: hostCtx.kind === "agency" ? tenantBrand : null,
+    // Real catalog data only: published, publicly visible services
+    // (Offer -> Service, provider = this Person). Replaces the old standalone
+    // Offer ItemList, which carried no provider link.
+    services: offeringsToJsonLdServices(storefrontOfferings),
   });
 
   // ── Profile template dispatch ─────────────────────────────────────────
@@ -2553,13 +2564,6 @@ export async function TalentProfileView({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
-      {offerJsonLd && offerJsonLd.itemListElement.length > 0 ? (
-        <script
-          type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(offerJsonLd) }}
-        />
-      ) : null}
       {/* Storefront Book now / Buy — armed when a seller tenant resolved. */}
       {slotTenantId ? (
         <ProfileInstantBookingMount
