@@ -62,6 +62,30 @@ export function getStripeFor(key: StripeAccountKey): Stripe | null {
 }
 
 /**
+ * Run a lookup on whichever platform owns the object when the caller only has
+ * its id (a Checkout session id carries no platform). Tries US, then MX when
+ * configured, moving on ONLY for Stripe's `resource_missing`; any other error
+ * is the real answer and is rethrown. Returns null when no client is configured.
+ */
+export async function withObjectPlatformFallback<T>(
+  fn: (stripe: Stripe) => Promise<T>,
+): Promise<T | null> {
+  const clients = [getStripe(), getStripeMx()].filter((c): c is Stripe => c !== null);
+  if (clients.length === 0) return null;
+  let lastErr: unknown;
+  for (const c of clients) {
+    try {
+      return await fn(c);
+    } catch (err) {
+      lastErr = err;
+      const code = typeof err === "object" && err !== null ? (err as { code?: unknown }).code : undefined;
+      if (code !== "resource_missing") throw err;
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * MX publishable key. Prefers NEXT_PUBLIC_ (the only form a client bundle can
  * read; set locally), falls back to the Vercel server-side name.
  */

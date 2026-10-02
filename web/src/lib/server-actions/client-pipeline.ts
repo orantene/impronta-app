@@ -298,6 +298,8 @@ export async function createInquiryPaymentIntent(
   amountCents?: number;
   currency?: string;
   mock?: boolean;
+  /** Publishable key of the Stripe platform that owns the charge (MX differs from US). */
+  publishableKey?: string | null;
 }> {
   try {
     const ctx = await loadClientInquiryContext(inquiryId);
@@ -340,6 +342,7 @@ export async function createInquiryPaymentIntent(
       amountCents: result.amountCents,
       currency: result.currency,
       mock: result.mock,
+      publishableKey: result.publishableKey ?? null,
     };
   } catch (err) {
     logServerError("client-pipeline.createInquiryPaymentIntent", err);

@@ -18,7 +18,8 @@
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
-import { getStripe } from "@/lib/stripe/client";
+import { getStripe, getStripeFor } from "@/lib/stripe/client";
+import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import {
   createOrGetConnectedAccount,
   createOnboardingLink,
@@ -156,7 +157,10 @@ export async function getConnectAccountSessionAction(
     const ensure = await createOrGetConnectedAccount(tenantSlug, { country: opts.country });
     if (!ensure.ok) return ensure;
 
-    const session = await stripe.accountSessions.create({
+    // The account may live on the MX platform; its session must be minted there.
+    const owningStripe =
+      getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug })) ?? stripe;
+    const session = await owningStripe.accountSessions.create({
       account: ensure.data.stripeAccountId,
       components: {
         account_onboarding: {

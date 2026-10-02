@@ -20,7 +20,9 @@
  * Until then this runs harmlessly in skip/mock mode.
  */
 
-import { getStripe } from "@/lib/stripe/client";
+import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
+import { decideLegPlatform } from "@/lib/stripe/account-routing";
+import { loadChargePlatformForTransaction, loadRecipientPlatform } from "@/lib/stripe/charge-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -36,6 +38,7 @@ import { recordPayoutLeg, syncBookingPayoutLifecycle } from "@/lib/payments/book
 import { notifyCurrencyMismatchHold } from "@/lib/payments/payout-reversal-notify";
 import {
   disburse,
+  type DisburseInput,
   type DisburseOutcome,
   type DisburseRoute,
   type PayoutRail,
@@ -78,7 +81,62 @@ export type TransferDeps = {
   resolveTalentRecipientAccount?: (talentProfileId: string) => Promise<string | null>;
   /** Source FinancialAccount id for the GP rail — defaults to the platform's primary FA. */
   getFinancialAccountId?: () => Promise<string | null>;
+  /** Platform that took the charge; defaults to booking_transactions.stripe_platform ('us'). */
+  chargePlatform?: StripeAccountKey;
+  /** Platform owning a recipient's connected account; defaults to the stored column ('us'). */
+  resolveRecipientPlatform?: (
+    party: "talent" | "workspace" | "channel_referral",
+    id: string | null,
+  ) => Promise<StripeAccountKey>;
 };
+
+/**
+ * Pay one leg on the charge platform, or HOLD it when the recipient's account
+ * lives on a different platform (never a cross-platform transfer).
+ */
+export async function disburseOnChargePlatform(
+  input: DisburseInput,
+  recipientId: string | null,
+  ctx: {
+    chargePlatform: StripeAccountKey;
+    stripe: Stripe | null;
+    resolveRecipientPlatform: NonNullable<TransferDeps["resolveRecipientPlatform"]>;
+    transactionId: string;
+    disburseFn?: typeof disburse;
+  },
+): Promise<DisburseOutcome> {
+  const recipientPlatform = await ctx.resolveRecipientPlatform(input.party, recipientId);
+  const decision = decideLegPlatform({
+    chargePlatform: ctx.chargePlatform,
+    recipientPlatform,
+    rail: input.route.rail,
+  });
+  if (!decision.ok) {
+    logServerError(
+      "transfers.cross_platform_hold",
+      new Error(
+        `ALERT ${decision.reason} (booking ${input.bookingId}, txn ${ctx.transactionId}, party ${input.party}, recipient ${recipientId ?? "none"}) — leg HELD, not transferred`,
+      ),
+    );
+    void improntaLog("transfers.cross_platform_hold", {
+      bookingId: input.bookingId,
+      transactionId: ctx.transactionId,
+      party: input.party,
+      chargePlatform: ctx.chargePlatform,
+      recipientPlatform,
+    });
+    return {
+      party: input.party,
+      participantId: input.participantId,
+      amountCents: input.amountCents,
+      currency: input.currency,
+      rail: input.route.rail,
+      status: "skipped_cross_platform",
+      detail: decision.reason,
+    };
+  }
+  return (ctx.disburseFn ?? disburse)(input, { stripe: ctx.stripe });
+}
 
 /** Map a transfer outcome status to the ledger's persisted status.
  *  'mock' (no STRIPE_SECRET_KEY) and zero-amount legs are not recorded by the
@@ -199,7 +257,17 @@ export async function executeBookingTransfers(
       return outcomes;
     }
 
-    const stripe = deps.stripe ?? getStripe();
+    // The platform that TOOK THE CHARGE holds the funds, so every transfer runs
+    // on it, and only to recipients whose connected account it owns.
+    const chargePlatform = deps.chargePlatform ?? (await loadChargePlatformForTransaction(transactionId, sb));
+    const stripe = deps.stripe ?? getStripeFor(chargePlatform);
+    const payLeg = (input: DisburseInput, recipientId: string | null) =>
+      disburseOnChargePlatform(input, recipientId, {
+        chargePlatform,
+        stripe,
+        resolveRecipientPlatform: deps.resolveRecipientPlatform ?? loadRecipientPlatform,
+        transactionId,
+      });
 
     const settledCurrency = String((txn.currency as string) || "usd").toLowerCase();
     for (const snap of snapshots) {
@@ -358,7 +426,7 @@ export async function executeBookingTransfers(
           const accountId = talentProfileId ? await resolveTalentAccount(talentProfileId) : null;
           route = { rail: "connect_transfer", connectAccountId: accountId };
         }
-        const outcome = await disburse(
+        const outcome = await payLeg(
           {
             party: "talent",
             participantId: snap.participant_id,
@@ -367,7 +435,7 @@ export async function executeBookingTransfers(
             currency,
             route,
           },
-          { stripe },
+          talentProfileId,
         );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
@@ -395,7 +463,7 @@ export async function executeBookingTransfers(
       //    stay on the Connect rail (the GP rail is talent-only for now).
       if (isWorkspaceOwned && snap.workspace_fee_cents > 0) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
-        const outcome = await disburse(
+        const outcome = await payLeg(
           {
             party: "workspace",
             participantId: snap.participant_id,
@@ -404,7 +472,7 @@ export async function executeBookingTransfers(
             currency,
             route: { rail: "connect_transfer", connectAccountId: accountId },
           },
-          { stripe },
+          snap.owning_party_id,
         );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {
@@ -437,7 +505,7 @@ export async function executeBookingTransfers(
       const channelReferralPartyId = snap.channel_referral_party_id ?? null;
       if (channelReferralCents > 0 && channelReferralPartyId) {
         const accountId = await resolveWorkspaceAccount(channelReferralPartyId);
-        const outcome = await disburse(
+        const outcome = await payLeg(
           {
             party: "channel_referral",
             participantId: snap.participant_id,
@@ -446,7 +514,7 @@ export async function executeBookingTransfers(
             currency,
             route: { rail: "connect_transfer", connectAccountId: accountId },
           },
-          { stripe },
+          channelReferralPartyId,
         );
         outcomes.push(outcome);
         await recordPayoutLeg(sb, {

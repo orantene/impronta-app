@@ -35,3 +35,34 @@ export function resolveStripeAccountForSeller(input: {
   }
   return "mx";
 }
+
+export function normalizeStripePlatform(v: unknown): StripeAccountKey {
+  return v === "mx" ? "mx" : "us";
+}
+
+export type LegPlatformDecision =
+  | { ok: true; key: StripeAccountKey }
+  | { ok: false; reason: string };
+
+/**
+ * A payout leg may only be transferred on the platform that TOOK THE CHARGE
+ * (the funds sit in that platform's balance) AND that owns the recipient's
+ * connected account. Any mismatch is a HOLD, never a cross-platform transfer.
+ * The Global Payouts rail lives on the US platform only.
+ */
+export function decideLegPlatform(input: {
+  chargePlatform: StripeAccountKey;
+  recipientPlatform: StripeAccountKey;
+  rail?: "connect_transfer" | "global_payouts";
+}): LegPlatformDecision {
+  if (input.rail === "global_payouts" && input.chargePlatform !== "us") {
+    return { ok: false, reason: `global_payouts rail is US-platform only; charge was taken on ${input.chargePlatform}` };
+  }
+  if (input.chargePlatform !== input.recipientPlatform) {
+    return {
+      ok: false,
+      reason: `cross-platform transfer refused: charge on ${input.chargePlatform}, recipient account on ${input.recipientPlatform}`,
+    };
+  }
+  return { ok: true, key: input.chargePlatform };
+}

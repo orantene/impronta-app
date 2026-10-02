@@ -31,6 +31,8 @@ export type DisburseStatus =
   | "skipped_no_account"
   | "skipped_zero"
   | "skipped_live_disabled"
+  /** Recipient's connected account is on a different Stripe platform than the charge: HELD, never transferred. */
+  | "skipped_cross_platform"
   | "mock"
   | "failed";
 

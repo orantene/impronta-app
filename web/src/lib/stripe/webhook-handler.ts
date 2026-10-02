@@ -274,7 +274,12 @@ async function applyConnectTransferSettlement(
  * Execute the classified action. Throws `TransientWebhookError` for retryable
  * failures; logs + returns for permanent ones.
  */
-export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): Promise<void> {
+export async function processStripeEvent(
+  event: Stripe.Event,
+  stripe: Stripe,
+  /** Platform account this event arrived on; threaded to settle so the charge platform is recorded. */
+  account: StripeAccountKey = "us",
+): Promise<void> {
   const action = classifyStripeEvent(event);
 
   switch (action.kind) {
@@ -301,7 +306,7 @@ export async function processStripeEvent(event: Stripe.Event, stripe: Stripe): P
       // One settle path for invoices, POS card sales and payment links: the
       // audit #5 amount guard, `markPaid`, and "already settled" acknowledged
       // rather than retried (`webhook-card-settle.ts`).
-      const settled = await settleCheckoutPayment(event, action);
+      const settled = await settleCheckoutPayment(event, action, account);
       if (!settled.ok) throw new TransientWebhookError(settled.error);
       // Payment settled — fan out the confirmation (PDF → Files + email).
       // Best-effort + idempotent; never throws, so a confirmation hiccup
@@ -746,7 +751,7 @@ export async function handleStripeWebhook(
   }
 
   try {
-    await processStripeEvent(event, stripe!);
+    await processStripeEvent(event, stripe!, account);
   } catch (err) {
     logServerError(`stripe-webhook.${event.type}`, err);
     // Release the claim so the retry actually re-runs this handler. Both
