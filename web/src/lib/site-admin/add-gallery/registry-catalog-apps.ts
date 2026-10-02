@@ -1,5 +1,5 @@
 import { el } from "./registry-helpers";
-import { APP_REGISTRY } from "./apps-registry";
+import { APP_REGISTRY, appSearchTerms } from "./apps-registry";
 import type { AddGalleryItem } from "./types";
 
 /**
@@ -19,6 +19,6 @@ export const ADD_GALLERY_APP_ITEMS: ReadonlyArray<AddGalleryItem> = APP_REGISTRY
     nativeKind: app.nativeKind,
     sourceType: "native-freeform",
     appThumbnail: app.thumbnail,
-    searchTerms: app.searchTerms,
+    searchTerms: appSearchTerms(app),
   }),
 );

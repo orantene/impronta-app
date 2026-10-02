@@ -308,7 +308,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   }, [categoryId, categories]);
 
   const items = useMemo(() => {
-    return filterGalleryItemsFrom(mergedItems, {
+    const here = filterGalleryItemsFrom(mergedItems, {
       tab,
       categoryId: query.trim() ? undefined : (activeCategoryId ?? undefined),
       query,
@@ -316,7 +316,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       // ruled vocabulary (a capability on the gallery policy, not surfaceKind).
       blockAllowList: gallerySurface.blockAllowList,
     });
-  }, [mergedItems, tab, activeCategoryId, query, gallerySurface]);
+    // Global search: apps (every one, any theme) also surface from other tabs.
+    if (!query.trim() || tab === "apps" || !allowedTabIds.includes("apps")) return here;
+    const apps = filterGalleryItemsFrom(mergedItems, { tab: "apps", query, blockAllowList: gallerySurface.blockAllowList });
+    return [...here, ...apps.filter((a) => !here.some((h) => h.id === a.id))];
+  }, [mergedItems, tab, activeCategoryId, query, gallerySurface, allowedTabIds]);
 
   // ── Shell variants: REPLACE, not insert ───────────────────────────────────
   // A shell template rewrites a landmark's children. The normal gallery path
