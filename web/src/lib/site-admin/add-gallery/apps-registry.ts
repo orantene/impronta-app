@@ -37,3 +37,41 @@ export const APP_REGISTRY: ReadonlyArray<AppRegistryEntry> = [
     searchTerms: ["nails", "manicure", "polish", "design", "app", "uñas", "manicura", "esmalte"],
   },
 ];
+
+// PLACEHOLDER: replaced at integration (App Library model, owned by the apps-registry agent).
+export interface AppLibraryEntry {
+  kind: BuilderNodeKind;
+  name: { en: string; es: string };
+  pitch: { en: string; es: string };
+  /** Gallery profession keys the app suits. */
+  trades: ReadonlyArray<string>;
+  /** Gallery design slugs that ship the app. */
+  recommendedDesigns: ReadonlyArray<string>;
+  premium: boolean;
+  thumbnail: string;
+}
+
+export const APP_LIBRARY: ReadonlyArray<AppLibraryEntry> = [
+  {
+    kind: "app_nail_designer",
+    name: { en: "Nail Designer", es: "Diseñador de uñas" },
+    pitch: {
+      en: "Clients design their manicure nail by nail and send it with a booking request.",
+      es: "Tus clientas diseñan su manicura uña por uña y la envían con su solicitud de reserva.",
+    },
+    trades: ["nails"],
+    recommendedDesigns: ["maison-v2"],
+    premium: false,
+    thumbnail: "nail-designer",
+  },
+];
+
+export function appsForTrade(trade: string): AppLibraryEntry[] {
+  return APP_LIBRARY.filter((a) => a.trades.includes(trade));
+}
+export function appsForDesign(designSlug: string): AppLibraryEntry[] {
+  return APP_LIBRARY.filter((a) => a.recommendedDesigns.includes(designSlug));
+}
+export function appsForDemo(professions: ReadonlyArray<string>): AppLibraryEntry[] {
+  return APP_LIBRARY.filter((a) => a.trades.some((t) => professions.includes(t)));
+}
