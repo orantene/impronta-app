@@ -123,9 +123,9 @@ jobs:
           set +e
           # Bump heap: the full-project tsc exceeds the default ~2GB and was
           # OOM-exiting (134) mid-compile, making the ratchet a false-green (it
-          # counted 0 errors before the heap died). 8GB lets tsc finish so the
-          # error count is real.
-          tsc_output=$(NODE_OPTIONS="--max-old-space-size=8192" npx tsc --noEmit 2>&1)
+          # counted 0 errors before the heap died). Combined integ+factory
+          # OOMs at 8GB; 11GB lets tsc finish so the error count is real.
+          tsc_output=$(NODE_OPTIONS="--max-old-space-size=11264" npx tsc --noEmit 2>&1)
           tsc_exit=$?
           set -e
           # Match the primary error line; TS sometimes prints multi-line
@@ -547,6 +547,12 @@ jobs:
       - name: tests — storefront seams
         if: ${{ !cancelled() }}
         run: npm run test:storefront
+
+      # Design-compiler (token/CSS compile pipeline). Wired into `npm run ci`;
+      # must appear here so check:ci-lane-parity stays green.
+      - name: tests — design-compiler
+        if: ${{ !cancelled() }}
+        run: npm run test:design-compiler
       # QR & Links Q1: which destination a printed code resolves to, at the
       # hour it is actually scanned. Pure — a wall clock in the venue timezone
       # and a rule list, no database. The rows and the redirect are asserted in
@@ -649,7 +655,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=11264
         run: npx next build
 
       # ── Gate 7: Admin + POS JavaScript budget ────────────────────────

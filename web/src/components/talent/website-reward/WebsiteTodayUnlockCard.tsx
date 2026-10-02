@@ -3,29 +3,16 @@
 /**
  * Today cards for journey 1 (mz_today / mz_unlocked) — W21 / W22.
  * Incomplete: checklist + ✦ Finish with AI + Write it myself.
- * Unlocked: Activate + suggested address line.
+ * Ready / preview: WebsiteTodayHero (one card, same state as the pill).
  * Live: renders nothing (W23 — never Unlock).
  */
 
-import { useEffect, useState } from "react";
+import { firstMissingWebsiteSlice, websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
+import { useCallback, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
 import { FinishWithAiPanel } from "./FinishWithAiPanel";
-import { talentSiteHost } from "@/lib/talent-site/site-public-url";
-import { useAdminShell } from "@/components/admin/shell/internal/state";
-import { loadTalentSiteActivationStateAction } from "@/lib/talent-site/server/site-activation-state";
-
-/** Client-safe mirror of slugifySiteName for the suggested-address line. */
-function suggestSlug(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48)
-    .replace(/-+$/g, "");
-}
 
 const SLICE_LABEL = {
   who: "Your name and what you do",
@@ -37,75 +24,28 @@ const SLICE_LABEL = {
 } as const;
 
 type Props = {
-  onActivate: () => void;
+  /** Kept for callers; the next action now comes from useWebsiteFlow. */
+  onActivate?: () => void;
 };
 
-export function WebsiteTodayUnlockCard({ onActivate }: Props) {
+export function WebsiteTodayUnlockCard(_props: Props = {}) {
   const copy = useDashboardText();
-  const { bridgeTalentSelfProfile } = useAdminShell();
-  const eligibility = useWebsiteEligibility();
+  const flow = useWebsiteFlow();
+  const eligibility = flow.eligibility;
   const [aiOpen, setAiOpen] = useState(false);
+  const openAi = useCallback(() => setAiOpen(true), []);
+  const openSlice = useOpenWebsiteSlice(openAi);
   const [toast, setToast] = useState<string | null>(null);
-  const [canManage, setCanManage] = useState(false);
-  const [isPublished, setIsPublished] = useState(false);
-  const [siteSlug, setSiteSlug] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let live = true;
-    void loadTalentSiteActivationStateAction().then((s) => {
-      if (!live) return;
-      if (s) {
-        setCanManage(s.canManage);
-        setIsPublished(s.isPublished);
-        setSiteSlug(s.siteSlug);
-      }
-      setLoaded(true);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  if (!loaded || !canManage || isPublished) return null;
+  if (!flow.activation?.canManage || flow.state === "published") return null;
   if (eligibility.percent == null) return null;
 
   const required = eligibility.slices.filter((s) => s.required);
   const doneCount = required.filter((s) => s.done).length;
   const missing = required.filter((s) => s.done === false);
-  const suggested =
-    talentSiteHost(siteSlug) ??
-    talentSiteHost(suggestSlug(bridgeTalentSelfProfile?.displayName ?? "")) ??
-    null;
 
-  if (eligibility.unlocked) {
-    return (
-      <section
-        data-testid="website-unlocked-card"
-        className="mb-3.5 rounded-[14px] border border-emerald-900/20 bg-emerald-900/[0.06] px-4 py-3.5 font-admin-body"
-      >
-        <p className="text-[14px] font-bold text-admin-ink">{copy.t("Your free website is unlocked")}</p>
-        {suggested ? (
-          <p className="mt-1 text-[12.5px] leading-snug text-admin-ink-muted">
-            {copy.t("Suggested address:")} {suggested} · {copy.t("checked when you publish")}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={onActivate}
-          data-testid="website-unlocked-activate"
-          className="mt-3 rounded-[9px] bg-emerald-900 px-4 py-2.5 text-[12.5px] font-bold text-white"
-        >
-          {copy.t("Activate your free website")}
-        </button>
-        {toast ? (
-          <p className="mt-2 text-[12px] font-semibold text-emerald-900" role="status">
-            {toast}
-          </p>
-        ) : null}
-      </section>
-    );
-  }
+  // Ready / preview: WebsiteTodayHero is the one card (same state as the pill).
+  if (flow.state !== "notReady") return null;
 
   const introMissing = missing.some((s) => s.key === "intro");
   const oneLeft = missing.length === 1;
@@ -128,7 +68,18 @@ export function WebsiteTodayUnlockCard({ onActivate }: Props) {
         <ul className="mt-2 space-y-1 text-[13px] text-admin-ink">
           {required.map((slice) => (
             <li key={slice.key}>
-              {slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}
+              {slice.done === false ? (
+                <button
+                  type="button"
+                  data-testid={`today-website-slice-${slice.key}`}
+                  onClick={() => openSlice(slice.key)}
+                  className="text-left underline decoration-black/20 underline-offset-2 hover:decoration-black/60"
+                >
+                  · {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
+                </button>
+              ) : (
+                <>{slice.done ? "✓" : "·"} {copy.t(SLICE_LABEL[slice.key])}</>
+              )}
             </li>
           ))}
         </ul>
@@ -151,7 +102,7 @@ export function WebsiteTodayUnlockCard({ onActivate }: Props) {
                 window.location.hash = "#write-intro";
                 return;
               }
-              onActivate();
+              openSlice(firstMissingWebsiteSlice(eligibility.slices));
             }}
             className="rounded-[9px] border border-admin-border-soft bg-white px-4 py-2.5 text-[12.5px] font-bold text-admin-ink"
           >

@@ -111,7 +111,9 @@ export function MoneySpine({
           [data-money-spine] [data-money-mob-po] { display: flex !important; }
           [data-money-spine] [data-money-mob-actions] { display: flex !important; }
           [data-money-spine] [data-money-desk-po-cta] { display: none !important; }
-          [data-money-payout-states] { width: calc(100vw - 16px) !important; max-height: calc(100vh - 24px) !important; }
+          [data-money-spine] [role="tablist"] { overflow-x: auto; gap: 16px !important; max-width: 100%; scrollbar-width: none; }
+          [data-money-spine] [role="tab"] { min-height: 44px; white-space: nowrap; }
+          [data-money-payout-states] { width: calc(100vw - 16px) !important; max-height: calc(100dvh - 24px) !important; }
           [data-money-payout-states] > div:last-child > div { grid-template-columns: 1fr !important; }
         }
         @media (min-width: 721px) {
@@ -266,16 +268,6 @@ export function MoneySpine({
         <PaymentDetailDrawer
           detail={paymentDetail}
           onClose={() => setPaymentDetail(null)}
-          onRefund={() => {
-            const d = paymentDetail;
-            setPaymentDetail(null);
-            onOpenAction({ kind: "refund", detail: d });
-          }}
-          onCorrect={() => {
-            const d = paymentDetail;
-            setPaymentDetail(null);
-            onOpenAction({ kind: "correct", payment: d.payment });
-          }}
         />
       ) : null}
 

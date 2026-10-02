@@ -45,8 +45,6 @@ import Link from "next/link";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 import { liveViewHrefFor } from "@/lib/site-admin/edit-mode/live-view-href";
-import { copyPublishedHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
-import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { localeMetadata } from "@/i18n/config";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
@@ -67,6 +65,7 @@ import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
+import { useTopbarDraftReset } from "./use-topbar-draft-reset";
 import { TranslationStatusButton } from "./translation-status-panel";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import {
@@ -78,6 +77,7 @@ import {
   SaveChip,
 } from "./kit";
 import { usePagePresence } from "./presence-provider";
+import { TalentDraftChip, useTalentPublishGate } from "./talent-draft-chip";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { useEditContext } from "./edit-context";
@@ -137,6 +137,7 @@ function PagePicker({
   pagesPickerOpenNonce?: number;
 }) {
   const editCtx = useMaybeEditContext();
+  const { t } = useEditorLocale();
   const websiteSlug = editCtx?.workspaceMembershipSlug ?? "";
   // Same host trap the quick bar hit: on a `/w/<slug>` storefront (the free
   // tier's default, served on the marketing host) a same-origin
@@ -216,6 +217,7 @@ function PagePicker({
   // Lazy-fetch when opened.
   useEffect(() => {
     if (!open || pages !== null || loadingPages) return;
+    if (editCtx?.surfaceKind === "talent_page") return setPages([]); // talent site: no workspace pages
     setLoadingPages(true);
     listPagesForPickerAction()
       .then((result) => {
@@ -235,7 +237,7 @@ function PagePicker({
         setAvailability(null);
       })
       .finally(() => setLoadingPages(false));
-  }, [open, pages, loadingPages]);
+  }, [open, pages, loadingPages, editCtx?.surfaceKind]);
 
   // Outside-click dismiss — same pattern as PublishSplitButton.
   useEffect(() => {
@@ -379,7 +381,7 @@ function PagePicker({
           type="button"
           ref={triggerRef}
           id={pagePickerTriggerId}
-          title="Click to switch page · double-click to rename"
+          title={t("Click to switch page · double-click to rename")}
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={pagePickerMenuId}
@@ -770,12 +772,11 @@ function PagePicker({
 
 // ── #18 — relative "Saved Xs ago" formatter ─────────────────────────────────
 
-function formatSavedAgo(isoOrEpoch: string): string {
+function formatSavedAgo(isoOrEpoch: string, t: (k: string) => string = (k) => k): string {
   const ms = Date.now() - new Date(isoOrEpoch).getTime();
-  if (ms < 5_000) return "just now";
-  if (ms < 60_000) return `${Math.floor(ms / 1_000)}s ago`;
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
-  return `${Math.floor(ms / 3_600_000)}h ago`;
+  if (ms < 5_000) return t("just now");
+  const [n, unit] = ms < 60_000 ? [Math.floor(ms / 1_000), "s"] : ms < 3_600_000 ? [Math.floor(ms / 60_000), "m"] : [Math.floor(ms / 3_600_000), "h"];
+  return t(`{n}${unit} ago`).replace("{n}", String(n));
 }
 
 /**
@@ -807,7 +808,7 @@ function SaveStatusButton({
   liveSitePublishedAt?: string | null;
   onSaveDraft?: () => void | Promise<unknown>;
 }) {
-  const saving = useSaving();
+  const saving = useSaving(); const { t } = useEditorLocale();
   const lastDraftSavedAt = useLastDraftSavedAt();
   const { mutationError } = useEditContext();
   const saveFailed =
@@ -833,8 +834,8 @@ function SaveStatusButton({
   if (saveFailed) {
     const label =
       mutationError?.code === "VERSION_CONFLICT"
-        ? "Save conflict"
-        : "Couldn't save";
+        ? t("Save conflict")
+        : t("Couldn't save");
     return (
       <span role="status" aria-live="polite" aria-atomic="true">
         <SaveChip
@@ -842,8 +843,8 @@ function SaveStatusButton({
           label={label}
           title={
             mutationError?.code === "VERSION_CONFLICT"
-              ? "This page changed in another tab or session. Choose Reload latest or Keep editing this copy in the banner."
-              : "Your last draft didn't save. It will retry on your next edit; reload the editor if it persists."
+              ? t("This page changed in another tab. Choose Load the latest or Keep this copy.")
+              : t("Your last draft didn't save. It will retry on your next edit; reload the editor if it persists.")
           }
         />
       </span>
@@ -856,18 +857,18 @@ function SaveStatusButton({
       ? "dirty"
       : "saved";
   const publishNote = hasUnpublishedChanges
-    ? " Visitors still see the last published version until you publish."
+    ? ` ${t("Visitors still see the last published version until you publish.")}`
     : "";
   const words =
     state === "saving"
-      ? "Saving…"
+      ? t("Saving…")
       : state === "dirty"
-        ? "Unsaved draft"
+        ? t("Unsaved draft")
         : lastDraftSavedAt
-          ? `Draft saved · ${formatSavedAgo(lastDraftSavedAt)}`
-          : "Draft saved";
+          ? `${t("Draft saved")} · ${formatSavedAgo(lastDraftSavedAt, t)}`
+          : t("Draft saved");
   const title = onSaveDraft
-    ? `${words}.${publishNote} Click to save now (⌘S).`
+    ? `${words}.${publishNote} ${t("Click to save now (⌘S).")}`
     : `${words}.${publishNote}`;
   const color =
     state === "saving"
@@ -979,11 +980,11 @@ function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
   return key === "desktop" && (device === "wide" || device === "compact");
 }
 
-function viewportPreviewTitle(device: EditDevice, label: string): string {
+function viewportPreviewTitle(device: EditDevice, label: string, t: (key: string) => string): string {
   if (device === "desktop") {
-    return `${label}: full-width editing canvas`;
+    return `${label}: ${t("full-width editing canvas")}`;
   }
-  return `${label}: device-width iframe preview, reloads when the draft saves so breakpoints stay accurate`;
+  return `${label}: ${t("device-width iframe preview, reloads when the draft saves so breakpoints stay accurate")}`;
 }
 
 /**
@@ -1247,6 +1248,7 @@ function ViewportSwitcher({
 }) {
   const mobileEditAvailable = typeof setMobileEditMode === "function";
   const breakpoints = useBuilderBreakpoints();
+  const { t } = useEditorLocale();
   const { advanced } = useAdvancedMode();
   // Piece B slice 1 — gate the switcher on the capability (not surfaceKind).
   const { canUseResponsiveBreakpoints } = useEditContext();
@@ -1281,12 +1283,12 @@ function ViewportSwitcher({
     <div className="inline-flex shrink-0 items-center gap-2">
       <div
         role="group"
-        aria-label="Canvas preview width"
+        aria-label={t("Canvas preview width")}
         className="inline-flex shrink-0 items-center gap-[8px]"
       >
         {visibleOpts.map((opt) => {
           const active = viewportTierActive(device, opt.key);
-          const label = breakpointLabelForDevice(opt.key, breakpoints);
+          const label = t(breakpointLabelForDevice(opt.key, breakpoints));
           const inMobileEditMode =
             opt.key === "mobile" && active && Boolean(mobileEditMode);
           return (
@@ -1296,12 +1298,12 @@ function ViewportSwitcher({
               onClick={() => selectTier(opt.key)}
               title={
                 opt.key === "mobile" && mobileEditAvailable
-                  ? "Mobile editing: edit the mobile layout, scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
-                  : viewportPreviewTitle(opt.key, label)
+                  ? t("Mobile editing: edit the mobile layout, scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks")
+                  : viewportPreviewTitle(opt.key, label, t)
               }
               aria-label={
                 opt.key === "mobile" && mobileEditAvailable
-                  ? "Mobile editing mode"
+                  ? t("Mobile editing mode")
                   : label
               }
               aria-pressed={active}
@@ -1551,6 +1553,7 @@ function ViewportFrameTools({
  * preview cookies for that one request (lib/site-admin/edit-mode/live-view).
  */
 function OpenLivePageButton() {
+  const { t } = useEditorLocale();
   // A real link, not window.open: anchors are never popup-blocked, and the
   // operator gets middle-click / cmd-click / copy-link for free. The href is
   // built from the live location after mount (the server has no window).
@@ -1563,8 +1566,8 @@ function OpenLivePageButton() {
       href={href ?? "#"}
       target="_blank"
       rel="noopener"
-      title="Open live page in a new tab"
-      aria-label="Open live page"
+      title={t("Open live page in a new tab")}
+      aria-label={t("Open live page")}
       aria-disabled={href ? undefined : true}
       className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-transparent no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45"
       style={{ width: 40, height: 40, color: CHROME.muted }}
@@ -1739,11 +1742,14 @@ type PublishMenuOption =
 function PublishSplitButton({
   onPublish,
   onMenuSelect,
+  replaceOnly = false,
 }: {
   onPublish: () => void;
   onMenuSelect: (opt: PublishMenuOption) => void;
+  /** Talent sites reset to live wholesale; add-above / add-below do not apply. */
+  replaceOnly?: boolean;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); const { t } = useEditorLocale();
   const publishMenuId = useId();
   const publishMenuTriggerId = useId();
   // Ref on the caret trigger so we can anchor the menu with position:fixed,
@@ -1779,11 +1785,11 @@ function PublishSplitButton({
   }, [menuOpen]);
 
   return (
-    <div className="relative shrink-0" data-publish-split>
+    <div className="sticky right-[20px] z-[2] shrink-0" data-publish-split>
       <div
         className="inline-flex items-stretch overflow-hidden rounded-[10px]"
         role="group"
-        aria-label="Publish"
+        aria-label={t("Publish")}
         style={{
           height: TB_CONTROL_H,
           background: CHROME.accent,
@@ -1793,7 +1799,7 @@ function PublishSplitButton({
         <button
           type="button"
           onClick={onPublish}
-          title="Review publish checks in the drawer, then publish your draft to the live site"
+          title={t("Review publish checks in the drawer, then publish your draft to the live site")}
           className="inline-flex cursor-pointer items-center gap-[8px] border-none text-[14px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ padding: "0 18px 0 20px", background: "transparent" }}
         >
@@ -1812,7 +1818,7 @@ function PublishSplitButton({
             <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
             <path d="m8 17 4-4 4 4" />
           </svg>
-          Publish
+          {t("Publish")}
         </button>
         <span
           aria-hidden
@@ -1847,7 +1853,7 @@ function PublishSplitButton({
               return next;
             });
           }}
-          aria-label="Publish options"
+          aria-label={t("Publish options")}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           aria-controls={publishMenuId}
@@ -1900,8 +1906,8 @@ function PublishSplitButton({
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             }
-            title="Schedule publish…"
-            description="Choose a date and time"
+            title={t("Schedule publish…")}
+            description={t("Choose a date and time")}
             onClick={() => { onMenuSelect("schedule"); setMenuOpen(false); }}
           />
           <div
@@ -1917,10 +1923,12 @@ function PublishSplitButton({
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             }
-            title="Pull from live: Replace"
-            description="Replace your draft with the live homepage"
+            title={t("Pull from live: Replace")}
+            description={t("Replace your draft with the live homepage")}
             onClick={() => { onMenuSelect("pull-from-live:replace"); setMenuOpen(false); }}
           />
+          {replaceOnly ? null : (
+            <>
           {/* Pull from live: Add above */}
           <MenuItem
             icon={
@@ -1929,8 +1937,8 @@ function PublishSplitButton({
                 <polyline points="5 12 12 5 19 12" />
               </svg>
             }
-            title="Pull from live: Add above"
-            description="Add the live homepage blocks above your draft"
+            title={t("Pull from live: Add above")}
+            description={t("Add the live homepage blocks above your draft")}
             onClick={() => { onMenuSelect("pull-from-live:above"); setMenuOpen(false); }}
           />
           {/* Pull from live: Add below */}
@@ -1941,10 +1949,12 @@ function PublishSplitButton({
                 <polyline points="19 12 12 19 5 12" />
               </svg>
             }
-            title="Pull from live: Add below"
-            description="Add the live homepage blocks below your draft"
+            title={t("Pull from live: Add below")}
+            description={t("Add the live homepage blocks below your draft")}
             onClick={() => { onMenuSelect("pull-from-live:below"); setMenuOpen(false); }}
           />
+            </>
+          )}
           <div
             role="separator"
             style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
@@ -1960,8 +1970,8 @@ function PublishSplitButton({
                 <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
               </svg>
             }
-            title="Unpublish / Archive"
-            description="Take this page offline"
+            title={t("Unpublish / Archive")}
+            description={t("Take this page offline")}
             onClick={() => { onMenuSelect("unpublish"); setMenuOpen(false); }}
           />
           <MenuItem
@@ -1971,8 +1981,8 @@ function PublishSplitButton({
                 <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
               </svg>
             }
-            title="Discard draft"
-            description="Reset this draft to the live published version"
+            title={t("Discard draft")}
+            description={t("Reset this draft to the live published version")}
             onClick={() => { onMenuSelect("discard"); setMenuOpen(false); }}
           />
         </div>
@@ -2427,14 +2437,14 @@ function WorkspaceMenu({ slug }: { slug: string }) {
 }
 
 function ExitButton() {
-  const { pending } = useFormStatus();
+  const { pending } = useFormStatus(); const { t } = useEditorLocale();
   return (
     <TbTextBtn
       type="submit"
       disabled={pending}
       iconOnly
-      title={pending ? "Exiting…" : "Exit to live site"}
-      ariaLabel={pending ? "Exiting…" : "Exit to live site"}
+      title={pending ? t("Exiting…") : t("Exit to live site")}
+      ariaLabel={pending ? t("Exiting…") : t("Exit to live site")}
     >
       <svg
         width={TB_ICON_PX}
@@ -2957,6 +2967,8 @@ export function TopBar({
   labHeaderActions,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
+  const gatedPublish = useTalentPublishGate(onPublish); // no Publish while a design applies
+  const draftReset = useTopbarDraftReset();
   const { t } = useEditorLocale();
   // Workspace slug for the dashboard quick-links menu. Null on Builder Lab and
   // platform surfaces, where `/{slug}/admin/*` would not resolve.
@@ -3020,91 +3032,10 @@ export function TopBar({
       opt === "pull-from-live:above" ||
       opt === "pull-from-live:below"
     ) {
-      const mode =
-        opt === "pull-from-live:replace"
-          ? "replace"
-          : opt === "pull-from-live:above"
-            ? "above"
-            : "below";
-      void runPullFromLive(mode);
+      draftReset.pull(opt.slice("pull-from-live:".length) as "replace" | "above" | "below");
     } else if (opt === "discard") {
-      void runDiscardDraft();
+      draftReset.discard();
     }
-  }
-
-  // Pull from live: import the tenant's LIVE published homepage into the draft.
-  // DRAFT-ONLY (the lib op never touches the published snapshot or busts the
-  // public cache). Runs from the `...` menu (not the advisory-heavy Publish
-  // drawer) so it never main-thread-freezes on large homes. Mirrors the
-  // publish-drawer's handleCopyFromLive: confirm -> safeAction -> refresh.
-  async function runDiscardDraft() {
-    if (!editCtx) return;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        t(
-          "Reset this draft to the currently published version? This discards your unsaved draft edits.",
-        ),
-      )
-    ) {
-      return;
-    }
-    const res = await safeAction(
-      () =>
-        copyPublishedHomepageAction({
-          locale: editCtx.locale,
-          mode: "replace",
-        }),
-      {
-        name: "discardDraft",
-        fallback: {
-          ok: false as const,
-          error:
-            "Network error. Couldn't discard the draft. Check your connection and try again.",
-          code: "network",
-        },
-      },
-    );
-    if (res.ok) {
-      await editCtx.refreshComposition();
-      return;
-    }
-    editCtx.reportMutationError(res.error);
-  }
-
-  async function runPullFromLive(mode: "replace" | "above" | "below") {
-    if (!editCtx) return;
-    // Only Replace discards the current draft, so only it needs a confirm.
-    // Add above / add below are additive (a single undo reverts them), so they
-    // run in one click without a prompt.
-    if (
-      mode === "replace" &&
-      typeof window !== "undefined" &&
-      !window.confirm(
-        "Replace your draft with the live homepage? Discards unsaved draft edits.",
-      )
-    ) {
-      return;
-    }
-    const res = await safeAction(
-      () => copyPublishedHomepageAction({ locale: editCtx.locale, mode }),
-      {
-        name: "pullFromLiveHomepage",
-        fallback: {
-          ok: false as const,
-          error:
-            "Network error. Couldn't pull from live. Check your connection and try again.",
-          code: "network",
-        },
-      },
-    );
-    if (res.ok) {
-      // Reload the editor from the server (same refresh used after copy /
-      // restore / publish) so the canvas reflects the updated draft.
-      await editCtx.refreshComposition();
-      return;
-    }
-    editCtx.reportMutationError(res.error);
   }
 
   return (
@@ -3124,7 +3055,7 @@ export function TopBar({
           horizontal scroll parent, Publish/Exit sit outside the viewport and
           Playwright (and operators) cannot reach them. Inner row keeps natural
           width; outer bar scrolls. */}
-      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px]">
+      <div className="flex h-full min-w-max items-center gap-[12px] px-[20px] max-[1100px]:gap-[6px] max-[1100px]:px-[12px]">
       {/* ── Left cluster — page-level navigation ── */}
       {headerVariant === "lab" ? (
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />
@@ -3253,18 +3184,19 @@ export function TopBar({
         onSaveDraft={onSaveDraft}
       />
       <TopBarPresence />
-
+      <TalentDraftChip />
       {/* ── Publish split (primary CTA) ── */}
-      {/* Perf spine — no `disabled={saving}` here: the button and its menu
-          only OPEN surfaces (publish drawer, schedule, revisions, settings) or
-          fire actions that ride the coalesced save queue (save-draft opens the
-          named-checkpoint modal, which has its own pending state; pull-from-live
-          rides the optimistic tree lane). Greying the primary CTA during
-          routine autosaves was pure friction. */}
-      <PublishSplitButton
-        onPublish={onPublish}
-        onMenuSelect={handleMenuSelect}
-      />
+      {/* Perf spine — no `disabled={saving}` here: the button and its menu only
+          OPEN surfaces or ride the coalesced save queue (named checkpoint has its
+          own pending state). Greying the CTA during autosaves was pure friction. */}
+      {editCtx?.surfaceKind === "theme_template" ? null : (
+        <PublishSplitButton
+          onPublish={gatedPublish}
+          onMenuSelect={handleMenuSelect}
+          replaceOnly={Boolean(editCtx?.discardDraftToLive)}
+        />
+      )}
+      {draftReset.dialog}
       </div>
 
       {/* WS4-TASK1 — Named checkpoint modal (backdrop + dialog). Portaled to

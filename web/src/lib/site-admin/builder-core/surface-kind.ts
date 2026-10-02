@@ -43,7 +43,12 @@ export type BuilderSurfaceKind =
   // suppressed and a persistent trim/safe-area guide. Persists to `print_designs`
   // via a minimal adapter (load/save, no revisions); "publish" is export to a
   // print PDF (Piece B slice 2), not a live page. See docs/plans/print-canvas-design.md.
-  | "print";
+  | "print"
+  // `theme_template` — TALENT-ONLY platform-admin editor for a talent DESIGN
+  // (home or shell tree of a talent_theme_catalog design draft). Persists to
+  // `talent_theme_drafts`; "publish" is Publish-as-new-version (separate flow).
+  // Never shares behaviour with the agency Studio (`platform_lab`).
+  | "theme_template";
 
 /** Every valid surface kind, for exhaustiveness checks + guard iteration. */
 export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
@@ -53,6 +58,7 @@ export const BUILDER_SURFACE_KINDS: readonly BuilderSurfaceKind[] = [
   "cms_page",
   "site_shell",
   "print",
+  "theme_template",
 ] as const;
 
 /** The single surface allowed to write the legacy `cms_page_sections` table /

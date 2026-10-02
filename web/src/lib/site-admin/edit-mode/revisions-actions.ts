@@ -65,6 +65,20 @@ export interface RevisionListRow {
   titleAtRevision: string | null;
   /** Operator-assigned named version. Null = unlabeled. */
   label: string | null;
+  /** Talent site history timeline row (theme releases Phase 2); absent elsewhere. */
+  history?: RevisionHistoryMeta;
+}
+
+/** Extra fields a talent site history row carries into the drawer. */
+export interface RevisionHistoryMeta {
+  kind: string;
+  actor: "talent" | "tulala" | "system";
+  summaryEn: string;
+  summaryEs: string;
+  undoable: boolean;
+  editCount: number;
+  /** Owner-only read-only render of this entry's snapshot. */
+  previewUrl: string | null;
 }
 
 export type RevisionsLoadResult =

@@ -44,6 +44,7 @@ import {
 } from "@/components/auth/auth-ui";
 import { OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
+import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
 /** The error line for a state, if it carries one (the `sent` state never does). */
 function stateError(state: EmailCodeState): string | undefined {
@@ -167,6 +168,9 @@ export function EmailCodeForm({
         >
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="locale" value={locale} />
+          {allowCreate ? <input type="hidden" name="create" value="1" /> : null}
+          {/* Step 1 required the 18+ and Terms box on the create path. */}
+          {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
           <AuthField
@@ -209,6 +213,8 @@ export function EmailCodeForm({
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="resend" value="1" />
           <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
+          {allowCreate ? <input type="hidden" name="age_terms" value="on" /> : null}
+          {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           <button
             type="submit"
@@ -256,6 +262,7 @@ export function EmailCodeForm({
       >
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
+        {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
         {stepError ? <AuthNotice tone="error">{stepError}</AuthNotice> : null}
@@ -277,6 +284,8 @@ export function EmailCodeForm({
             style={AUTH_INPUT_STYLE}
           />
         </AuthField>
+
+        {allowCreate ? <AgeTermsCheckbox locale={locale} /> : null}
 
         <AuthSubmitButton
           pending={sending}

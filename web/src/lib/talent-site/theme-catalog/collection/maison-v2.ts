@@ -11,28 +11,45 @@
  *   hero      split, eyebrow, italic-accent heading, lede, CTA + ghost,
  *             photo with inset and the stacked next-free chip
  *   ticker    marquee, `serif` variant with a star separator
- *   work      portfolio, `staggered` layout (filmstrip on phone)
- *   menu      services_catalog rows + sticky category rail, 2 columns,
- *             64px thumbs, mode chip, booking-mode row CTA
+ *   work      portfolio, `staggered` layout (filmstrip on phone), framed cards
+ *   menu      services_catalog rows as raised cards (`rowStyle: "card"`) + sticky
+ *             category rail / chips, 2 columns, 76px thumbs, mode chip, soft pill CTA
  *   reviews   reviews trio (hidden without real reviews)
  *   about     split portrait (arched crop in the skin) + copy
  *   visit     visit facts, 4-up tiles in the skin
  *   faq       accordion bound to talent_faq_items
- *   footer    dark statement band
+ *   footer    rich footer (`footer_rich`): big line, intro, booking button, Where and
+ *             Contact columns from her profile, light by default (`footer.tone`)
+ *
+ * Release 2.5 ("look only", v19): section rhythm (page and raised-surface bands,
+ * 88px / 48px), header polish, ticker band, framed work cards, menu row cards,
+ * FAQ and review cards, About actions, hero chip link and the text-safe accent.
+ * Automatic items are token and variant defaults; the menu swap and the About
+ * actions are opt-in layout items under their own keys. The matching CSS is the
+ * soft chrome (`design-type-system-soft.ts`, switched on by `shape.chrome`).
+ *
+ * Release 2.7 (hero + footer): the hero headline, eyebrow, lede and proof line are
+ * LIVE lines (`liveText`, see `live-text.ts`) that follow her profile at render time,
+ * the menu gets its currency intro line, and the footer becomes the light rich footer
+ * (`maison-v2-footer.ts`), an opt-in layout swap for sites on the 2.5 dark band.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import type { DesignPayload } from "../types";
 import {
   aboutBlock,
+  aftercareBlock,
+  beforeAfterBlock,
   faqBlock,
   heroSplit,
+  locationBlock,
   portfolioBlock,
   reviewsBlock,
   visitBlock,
   type KitIdFactory,
 } from "../section-kit";
 import { seqIds, servicesSection, shell, tuneHeading } from "./design-parts";
+import { maisonV2RichFooter } from "./maison-v2-footer";
 import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
 
 export { MAISON_V2_TOKEN_DEFAULTS };
@@ -87,11 +104,20 @@ function fullBleed(node: BuilderNode, extra: Props = {}): BuilderNode {
 }
 
 /**
- * The proposal's section rhythm (`.sec`): 84px above on desktop, 40px on the
- * phone, a short tail. Free padding, so the builder still edits it.
+ * The proposal's section rhythm (`.sec`, release 2.5): 88px above and below on
+ * desktop, 48px on the phone, so a band reads as a band. Free padding, so the
+ * builder still edits it.
  */
-const SEC_PAD: Props = { paddingTop: "84px", paddingBottom: "10px" };
-const SEC_PAD_MOBILE: Props = { paddingTop: "40px", paddingBottom: "8px" };
+const SEC_PAD: Props = { paddingTop: "88px", paddingBottom: "88px" };
+const SEC_PAD_MOBILE: Props = { paddingTop: "48px", paddingBottom: "48px" };
+
+/**
+ * A raised-surface band (release 2.5, G-2): hero, reviews, work, the optional
+ * blocks, FAQ and visit sit on the page colour; the ticker, menu and About sit
+ * on the raised surface, so the page alternates. A token ref, so the palette
+ * (and the custom accent) recolours it.
+ */
+const SURFACE_BAND: Props = { backgroundColor: styleTokenRef("color.surface-raised") };
 
 function withSecPad(style: Props): Props {
   const responsive = (style.responsive as Record<string, Props> | undefined) ?? {};
@@ -157,29 +183,45 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
         kids.length ? kids : undefined,
       );
     }
+    if (node.kind === "heading" && p.level === 1) {
+      // Release 2.7 (HE-1): her value proposition, "Manos que {i}hablan{/i} por ti.": her own headline,
+      // else seeded from her trade, else her name. Live, so a change in her profile shows up.
+      return withProps(node, { text: "{{headline}}", liveText: "hero_headline" });
+    }
     if (node.kind === "paragraph" && p.text === "{{primaryTypeLabel}}") {
-      return withProps(node, { layerLabel: "Hero eyebrow", style: { ...styleOf(node), lineHeight: "1.2" } });
+      // Release 2.5 (HE-2): "Nail Artist · Mérida", the trade and the city. Live since 2.7.
+      return withProps(node, {
+        text: "{{heroEyebrow}}",
+        liveText: "hero_eyebrow",
+        layerLabel: "Hero eyebrow",
+        style: { ...styleOf(node), lineHeight: "1.2" },
+      });
     }
     if (node.kind === "paragraph" && p.text === "{{tagline}}") {
-      // `.lede`: 22px under the heading (12px on the phone), 1.5 leading.
+      // `.lede`: 22px under the heading (12px on the phone), 1.5 leading. Release 2.7: her tagline, live.
       return withProps(node, {
+        liveText: "hero_tagline",
         layerLabel: "Hero lede",
         style: {
           ...styleOf(node),
           lineHeight: "1.5",
           marginTopFree: "22px",
-          maxWidthFree: "462px",
-          responsive: { mobile: { marginTopFree: "12px" } },
+          // `.lede`: 40ch on desktop, 34ch on the phone (HE-9); a px width made the text wrap differently.
+          maxWidthFree: "40ch",
+          responsive: { mobile: { marginTopFree: "12px", maxWidthFree: "34ch" } },
         },
       });
     }
     if (node.kind === "container" && kids.some((k) => propsOf(k).layerLabel === "Hero actions")) {
-      // Proof line under the CTAs (`.proofline`): years of craft, the studio.
+      // Proof line under the CTAs (`.proofline`, release 2.5): years of craft,
+      // languages, rating and review count. Each part drops out when unknown.
       const proof: BuilderNode = {
         id: makeId(),
         kind: "paragraph",
         props: {
-          text: "{{locationLine}}",
+          text: "{{proofLine}}",
+          // Release 2.7: live (years of craft, languages, rating, reviews), hidden when she has none.
+          liveText: "hero_proof",
           layerLabel: "Hero proof",
           style: { size: "sm", tone: "muted", lineHeight: "1.5", marginTopFree: "16px" },
         },
@@ -193,6 +235,8 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
     if (node.kind === "next_free_chip") {
       return withProps(node, {
         variant: "stacked",
+        // Release 2.5 (HE-6): the chip jumps to the menu.
+        href: "#services",
         style: {
           ...styleOf(node),
           left: "22px",
@@ -210,13 +254,18 @@ function maisonV2Hero(makeId: KitIdFactory): BuilderNode {
       });
     }
     if (node.kind === "image" && p.src === "{{gallery1}}") {
-      const { bottom: _b, maxWidthFree: _m, aspectRatio: _a, ...rest } = unrounded(styleOf(node));
+      const { bottom: _b, right: _r, maxWidthFree: _m, aspectRatio: _a, ...rest } = unrounded(styleOf(node));
       void _b;
+      void _r;
       void _m;
       void _a;
+      // Release 2.1: the inset sits bottom-left (above the next-free chip).
+      // Its own slotKey makes it a new keyed node, so existing sites take the
+      // move as an opt-in layout item rather than an automatic prop change.
       return withProps(node, {
+        slotKey: "hero_inset_bl",
         layerLabel: "Hero inset",
-        style: { ...rest, right: "-26px", top: "38px", width: "34%", aspectRatioFree: "3 / 4", borderWidth: "6px" },
+        style: { ...rest, left: "-22px", bottom: "92px", width: "32%", aspectRatioFree: "3 / 4", borderWidth: "6px" },
       });
     }
     return kids.length ? withProps(node, {}, kids) : node;
@@ -237,8 +286,10 @@ function maisonV2Ticker(makeId: KitIdFactory): BuilderNode {
     id: makeId(),
     kind: "marquee",
     props: {
+      // Her service names, like the demos (F26). `service1` falls back to the
+      // trade when she has no services, so the ticker never runs empty and
+      // never repeats the trade next to her real services.
       items: [
-        { text: "{{primaryTypeLabel}}" },
         { text: "{{service1}}" },
         { text: "{{service2}}" },
         { text: "{{service3}}" },
@@ -248,8 +299,16 @@ function maisonV2Ticker(makeId: KitIdFactory): BuilderNode {
       speed: "medium",
       pauseOnHover: true,
       layerLabel: "Ticker",
-      // `.tick`: 22px above, 4px below.
-      style: { marginTopFree: "22px", marginBottomFree: "4px" },
+      // `.tick` (release 2.5): a raised-surface band, 40px above (26px on the phone),
+      // 16px of air inside its hairlines. The 38s loop is the soft chrome's.
+      style: {
+        ...SURFACE_BAND,
+        marginTopFree: "40px",
+        marginBottomFree: "0px",
+        paddingTop: "16px",
+        paddingBottom: "16px",
+        responsive: { mobile: { marginTopFree: "26px" } },
+      },
     },
   } as BuilderNode;
 }
@@ -270,6 +329,8 @@ function maisonV2Work(makeId: KitIdFactory): BuilderNode {
   const kids = kidsOf(band).map((n) =>
     n.kind === "portfolio"
       ? withProps(n, {
+          // Release 2.5 (WK-1..WK-4): raised frames with a name and an arrow, six on the phone strip.
+          cardStyle: "framed",
           style: {
             ...styleOf(n),
             paddingX: "l",
@@ -300,16 +361,26 @@ function maisonV2Menu(makeId: KitIdFactory): BuilderNode {
     showPhoto: true,
     showDescription: false,
     columns: 2,
+    // Release 2.7 (MN-11): the currency intro line, "Prices in MXN.", editable.
+    subtitle: "{{menuSubtitle}}",
   });
   // The band carries the section rhythm: the catalog follows the website
   // theme, which paints its own ground and ignores node padding.
   return fullBleed(
     withProps(
       section,
-      { style: withSecPad(styleOf(section)) },
+      { style: { ...withSecPad(styleOf(section)), ...SURFACE_BAND } },
       kidsOf(section).map((n) =>
         n.kind === "services_catalog"
           ? withProps(n, {
+              // Release 2.5 (opt-in layout): two columns of raised ROW cards (76px
+              // thumb, soft pill button, whole-row click). Replaces the 2.3 photo-on-top
+              // cards (`services_two_col`); the own slotKey makes the swap a layout item
+              // the talent chooses, not an automatic prop change.
+              slotKey: "services_row_cards",
+              layout: "rows",
+              rowStyle: "card",
+              columns: 2,
               showModeChip: true,
               categoryShowAll: true,
               categoryShowCounts: true,
@@ -359,8 +430,34 @@ function maisonV2About(makeId: KitIdFactory): BuilderNode {
       return withProps(node, { style: { ...styleOf(node), lineHeight: "1.5", marginBottomFree: "10px" } });
     }
     if (node.kind === "container" && p.layerLabel === "About copy") {
-      // The copy column has no gap; each line carries its own margin.
-      return withProps(node, { style: { ...styleOf(node), gap: "0px" } }, kids);
+      // The copy column has no gap; each line carries its own margin. Release 2.5
+      // (AB-1): "See services" plus a text link that opens the chat.
+      const actions: BuilderNode = {
+        id: makeId(),
+        kind: "container",
+        props: {
+          slotKey: "about_actions",
+          layerLabel: "About actions",
+          layout: "row",
+          gap: "m",
+          align: "center",
+          responsive: { mobile: { layout: "row" } },
+          style: { marginTopFree: "20px", gap: "16px", flexWrap: "wrap" },
+        },
+        children: [
+          {
+            id: makeId(),
+            kind: "button",
+            props: { label: "See services", href: "#services", tone: "primary", layerLabel: "About services action" },
+          } as BuilderNode,
+          {
+            id: makeId(),
+            kind: "button",
+            props: { label: "Write me", href: "#talent-ask", tone: "secondary", layerLabel: "About chat action" },
+          } as BuilderNode,
+        ],
+      } as BuilderNode;
+      return withProps(node, { style: { ...styleOf(node), gap: "0px" } }, [...kids, actions]);
     }
     if (node.kind === "image") {
       const { aspectRatio: _a, ...rest } = unrounded(styleOf(node));
@@ -379,6 +476,7 @@ function maisonV2About(makeId: KitIdFactory): BuilderNode {
   void _py;
   return fullBleed(visit(withProps(about, { style: aboutStyle })), {
     ...withSecPad({ responsive: aboutStyle.responsive }),
+    ...SURFACE_BAND,
     gridTemplateColumns: "0.8fr 1fr",
     gap: "64px",
     responsive: { mobile: { paddingX: "s", ...SEC_PAD_MOBILE, gridTemplateColumns: "1fr", gap: "18px" } },
@@ -398,7 +496,9 @@ function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
         letterSpacing: "0.18em",
         size: "sm",
         lineHeight: "1.2",
-        textColor: styleTokenRef("color.accent"),
+        // Release 2.3 (critical, accessibility): the small uppercase eyebrow
+        // on the contact band read too faint in the accent colour.
+        textColor: styleTokenRef("color.ink"),
       },
     },
   } as BuilderNode;
@@ -429,101 +529,12 @@ function maisonV2Faq(makeId: KitIdFactory): BuilderNode {
         ...faqStyle,
         maxWidth: "full",
         paddingX: "l",
-        maxWidthFree: "856px",
         gap: "0px",
         responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px" } },
       }),
     },
     [eyebrow, ...kids],
   );
-}
-
-/**
- * Footer: the proposal's dark band (ink ground, page-colour text) with the
- * big italic line and a "See services" pill. Token refs only.
- */
-function maisonV2Footer(makeId: KitIdFactory, node: BuilderNode): BuilderNode {
-  const props = propsOf(node);
-  if (props.slotKey !== "footer" || node.kind !== "container") return node;
-  return {
-    ...node,
-    props: {
-      ...props,
-      anchorId: "site-footer",
-      align: "start",
-      style: {
-        ...((props.style as object) ?? {}),
-        backgroundColor: styleTokenRef("color.ink"),
-        textColor: styleTokenRef("color.background"),
-        maxWidth: "full",
-        paddingY: "xl",
-        paddingX: "l",
-        paddingTop: "70px",
-        paddingBottom: "120px",
-        // Children carry their own rhythm (`.foot` has no gap).
-        gap: "0px",
-        responsive: { mobile: { paddingX: "s", paddingLeft: "18px", paddingRight: "18px", paddingTop: "40px", paddingBottom: "130px" } },
-      },
-    },
-    children: [
-      {
-        id: makeId(),
-        kind: "heading",
-        props: { text: "See you soon.", level: 2, layerLabel: "Footer line", style: { lineHeight: "1" } },
-      } as BuilderNode,
-      {
-        id: makeId(),
-        kind: "button",
-        props: {
-          label: "See services",
-          href: "#services",
-          tone: "primary",
-          layerLabel: "Footer CTA",
-          style: { marginTopFree: "18px" },
-        },
-      } as BuilderNode,
-      // Fine print (`.fine`): social names left, "Hecho con Tulala" right.
-      {
-        id: makeId(),
-        kind: "container",
-        props: {
-          layout: "row",
-          gap: "s",
-          align: "center",
-          layerLabel: "Footer fine print",
-          responsive: { mobile: { layout: "row" } },
-          style: {
-            width: "100%",
-            maxWidth: "full",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            marginTopFree: "28px",
-            gap: "10px",
-          },
-        },
-        children: [
-          // Her published links (Instagram, WhatsApp, ...) as names, from the
-          // profile; the row hides itself when she has none.
-          {
-            id: makeId(),
-            kind: "social_links",
-            props: {
-              links: [],
-              display: "text",
-              ariaLabel: "Social links",
-              dataBinding: { sourceKey: "workspace_social_links" },
-              layerLabel: "Footer links",
-            },
-          } as BuilderNode,
-          {
-            id: makeId(),
-            kind: "paragraph",
-            props: { text: "Hecho con Tulala", layerLabel: "Footer credit", style: { lineHeight: "1.5" } },
-          } as BuilderNode,
-        ],
-      } as BuilderNode,
-    ],
-  } as unknown as BuilderNode;
 }
 
 /** Header: brand line under the name, booking-mode CTA pill to the menu. */
@@ -550,9 +561,14 @@ function maisonV2Header(node: BuilderNode): BuilderNode {
       // the section links hide there and no burger is drawn. Editable per item.
       regions: {
         ...regions,
-        center: (Array.isArray(regions.center) ? (regions.center as Props[]) : []).map((item) =>
-          item.type === "nav" ? { ...item, responsive: { ...((item.responsive as Props) ?? {}), mobile: "hide" } } : item,
-        ),
+        center: [
+          ...(Array.isArray(regions.center) ? (regions.center as Props[]) : []).map((item) =>
+            item.type === "nav" ? { ...item, responsive: { ...((item.responsive as Props) ?? {}), mobile: "hide" } } : item,
+          ),
+          // Release 2.6 (H-4): the phone section switcher replaces the hidden links.
+          // It reads the same menu links, so there is one list to edit.
+          { type: "section_switcher", responsive: { desktop: "hide", tablet: "hide", mobile: "show" } },
+        ],
         right,
       },
     },
@@ -576,8 +592,24 @@ function maisonV2Reviews(makeId: KitIdFactory): BuilderNode {
     withProps(
       band,
       {},
-      kidsOf(band).map((n) => (n.kind === "reviews" ? withProps(n, { showRating: false, showDots: false }) : n)),
+      kidsOf(band).map((n) => (n.kind === "reviews" ? withProps(n, { showRating: false, showDots: false, showArrows: true, limit: 9 }) : n)),
     ),
+  );
+}
+
+/**
+ * The v20 "Before you come" visit band, kept only so the release fixtures can
+ * rebuild v20 from code (release 21 swapped it for the Location band).
+ */
+export function legacyMaisonV2VisitBand(makeId: KitIdFactory): BuilderNode {
+  return padSection(
+    visitBlock(makeId, {
+      layout: "facts",
+      heading: "Before you come",
+      titleAccent: "come",
+      eyebrow: "Your visit",
+      band: false,
+    }),
   );
 }
 
@@ -587,30 +619,37 @@ export function buildMaisonV2Payload(): DesignPayload {
     tokenDefaults: { ...MAISON_V2_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navLinks: [
+        // Release 2.5 (H-3): the mockup's five links.
         { label: "Work", href: "#gallery" },
         { label: "Menu and prices", href: "#services" },
         { label: "Reviews", href: "#reviews" },
-        { label: "Your visit", href: "#visit" },
+        { label: "About", href: "#about" },
+        // Release 21: Location replaces the Your visit band, so the link follows it.
+        { label: "Location", href: "#location" },
       ],
     })
       .map(maisonV2Header)
-      .map((n) => maisonV2Footer(id, n)),
+      .map((n) => maisonV2RichFooter(id, n)),
+    // Release 2.8 (order, G-3): the proposal's order, Hero, Work, Menu, Reviews, About, FAQ,
+    // Location (the footer is the shell's). Before and after and Aftercare tips are not in
+    // the proposal: they stay available as optional blocks below, off the default page.
     homeTree: [
       maisonV2Hero(id),
       maisonV2Work(id),
       maisonV2Menu(id),
       maisonV2Reviews(id),
       maisonV2About(id),
-      padSection(
-        visitBlock(id, {
-          layout: "facts",
-          heading: "Before you come",
-          titleAccent: "come",
-          eyebrow: "Your visit",
-          band: false,
-        }),
-      ),
       maisonV2Faq(id),
+      // Release 21: Location (driven by the talent's address setting) REPLACES the
+      // old "Before you come" visit band, as in the mockup: one place for zone,
+      // hours and how to arrive. The visit kit block stays for other designs.
+      padSection(locationBlock(id, { band: false })),
+    ],
+    optionalBlocks: [
+      // Release 2.1 (optional block): two-image comparison.
+      padSection(beforeAfterBlock(id)),
+      // Release 2.4 (optional block): aftercare tips.
+      padSection(aftercareBlock(id)),
     ],
   };
 }

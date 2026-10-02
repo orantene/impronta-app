@@ -29,6 +29,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell, loadShellForRender } from "@/lib/site-admin/server/shell-reads";
 import { resolveShellSocialContact } from "@/lib/site-admin/server/shell-social-contact";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { stripDesignCredits } from "@/lib/talent-site/footer-socket";
 import { prepareLocalizedShellTree } from "./shell-locale-hrefs";
 import { resolveShellNavData } from "./shell-nav-data";
 import {
@@ -188,12 +189,14 @@ async function renderPublishedShellSide(
   const shell = await loadShellForRender(tenantId, locale);
   if (!shell) return null;
   const slots = shell.snapshot.slots ?? [];
-  const localizedTree = await prepareLocalizedShellTree(
+  // The footer socket carries the ONE Tulala credit: strip stored design credits.
+  const preparedTree = await prepareLocalizedShellTree(
     shell.snapshot,
     slots,
     tenantId,
     locale,
   );
+  const localizedTree = side === "footer" ? stripDesignCredits(preparedTree) : preparedTree;
   const plan = resolveShellSidePlan({ tree: localizedTree, slots, side });
   if (plan.mode === "none") return null;
 
@@ -420,7 +423,7 @@ async function renderShellSlot(
       }
       data-section-type-key={slot.sectionTypeKey}
       data-site-shell-side={slot.slotKey}
-      data-slot-key={slot.slotKey}
+      data-slot-key={slot.slotKey} data-parity-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
       data-builder-node-id={
         slot.sectionTypeKey === "site_header" && !sectionEjected
@@ -768,7 +771,7 @@ function renderFreeformShellLandmark({
       }
       data-section-type-key={sectionTypeKey}
       data-site-shell-side={node.props.slotKey ?? "header"}
-      data-slot-key={node.props.slotKey ?? undefined}
+      data-slot-key={node.props.slotKey ?? undefined} data-parity-key={node.props.slotKey ?? undefined}
       data-sort-order={node.props.sortOrder}
       data-builder-node-id={
         sectionTypeKey === "site_header" && node.props.ejected !== true

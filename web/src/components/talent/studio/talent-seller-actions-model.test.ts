@@ -10,16 +10,11 @@ test("six direct-client actions, in mockup order", () => {
   );
 });
 
-test("wired actions run only with an open conversation", () => {
-  for (const id of ["quote", "time", "deposit", "client"] as const) {
+test("every action runs only with an open conversation (F38: file and note are wired)", () => {
+  for (const id of ["quote", "time", "deposit", "file", "note", "client"] as const) {
     assert.equal(talentSellerActionBlock(id, true), null);
     assert.equal(talentSellerActionBlock(id, false), "Pick a conversation first");
   }
-});
-
-test("unwired actions are always disabled with an honest note", () => {
-  assert.match(talentSellerActionBlock("file", true) ?? "", /Not available yet/);
-  assert.match(talentSellerActionBlock("note", true) ?? "", /Not available yet/);
 });
 
 test("no em dashes in action copy", () => {

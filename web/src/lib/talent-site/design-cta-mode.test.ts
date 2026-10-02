@@ -85,8 +85,8 @@ for (const [name, build] of Object.entries(PAYLOADS)) {
 test("folio: chapter nav + Consultar CTA (tip Folio magazine)", () => {
   const p = buildFolioPayload();
   const nav = JSON.stringify(p.shellTree);
-  assert.ok(nav.includes('"label":"Editorial","href":"#chapter-1"'));
-  assert.ok(nav.includes('"label":"Runway","href":"#chapter-2"'));
+  assert.ok(nav.includes('"label":"Selected work","href":"#chapter-1"'));
+  assert.ok(nav.includes('"label":"More work","href":"#chapter-2"'));
   assert.ok(nav.includes('"label":"Rates","href":"#services"'));
   assert.ok(nav.includes('"label":"Consultar"') || nav.includes("Consultar"));
   assert.ok(!nav.includes('"label":"Book","href":"#gallery"'));
@@ -109,11 +109,12 @@ test("folio footer line per mode per locale", () => {
     assert.equal(localiseSeededDesignLabel("Inquire for bookings", "en", mode), en);
     assert.equal(localiseSeededDesignLabel("Inquire for bookings", "es", mode), es);
   }
-  // Tip Folio stamps Consultar + a fixed contact line (not mode-swapped Inquire).
+  // Tip Folio stamps Consultar (not mode-swapped Inquire); the contact line ships empty
+  // (demo wording lives in demos/folio-site-copy.ts, never the payload).
   const tip = rendered(buildFolioPayload, "es", "inquiry");
   assert.ok(
-    tip.some((s) => /editorials|editoriales|campaigns|campañas|runway|pasarela/i.test(s)),
-    "tip Folio keeps a fixed editorial contact line",
+    !tip.some((s) => /editorials|editoriales|campaigns|campañas|runway|pasarela/i.test(s)),
+    "tip Folio carries no editorial claim",
   );
   assert.ok(!tip.includes("Reserva en línea"));
   assert.ok(JSON.stringify(buildFolioPayload()).includes("Consultar"));

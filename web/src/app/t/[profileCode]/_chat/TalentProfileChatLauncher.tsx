@@ -17,6 +17,7 @@
  */
 
 import { setPendingOffering } from "./pending-offering-store";
+import { setPendingDraftMessage } from "./pending-draft-message";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
@@ -37,8 +38,11 @@ import {
 import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
 
+import { setChatPresence } from "@/components/public-booking/chat-presence-store";
+import { ChatHelpBubble } from "./ChatHelpBubble";
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherProjectPicker } from "./LauncherProjectPicker";
+import { useLiveReplyCue } from "./use-live-reply-cue";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { LauncherAvatarStack } from "./LauncherAvatarStack";
 import { FlyingAvatar } from "./FlyingAvatar";
@@ -68,6 +72,8 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   surfaceMode?: SurfaceMode;
   /** `chat.variant` = card (her own site): the one-to-one chat card. */
   chatCard?: ChatCardConfig | null;
+  /** `chat.help-bubble` = on: the once-per-visit help bubble above the button (DK-3). */
+  helpBubble?: boolean;
   /**
    * Phase 3 — lifecycle inputs for the resolver-driven pill label, resolved
    * server-side at the Mount seam (from getActiveGuestInquiry +
@@ -141,6 +147,7 @@ export function TalentProfileChatLauncher({
   openFullHref = null,
   surfaceMode = "light",
   chatCard = null,
+  helpBubble = false,
   activePhase = null,
   activeStatus = null,
   coordinatorId = null,
@@ -164,6 +171,8 @@ export function TalentProfileChatLauncher({
   useEffect(() => {
     if (open) setReplySeen(true);
   }, [open]);
+  // A reply that lands after page load lights the launcher too (use-live-reply-cue.ts).
+  const liveReply = useLiveReplyCue({ open, enabled: Boolean(existingInquiryId) || replySeen, tenantSlug, locale: brand.locale, onList: onListGuestInquiries });
   // Audit item 7 (Lane G) — below ~700px the free-floating avatar cluster (up to
   // 3 circles breaking the pill's top edge, or the "+N …more" chip) has been
   // observed drifting over profile content (review text / section headers) in
@@ -189,9 +198,11 @@ export function TalentProfileChatLauncher({
     };
     window.addEventListener("tulala:open-guest-chat", onOpenClean);
     const onAskQuestion = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { demo?: boolean } | null;
+      const detail = (e as CustomEvent).detail as { demo?: boolean; message?: unknown } | null;
       // Demo harness panels consume the event without a live dock write.
       if (detail?.demo === true) return;
+      // An on-page app (Nail Designer) hands over a starting message: pre-fill only.
+      if (typeof detail?.message === "string") setPendingDraftMessage(detail.message);
       setOpen(true);
     };
     window.addEventListener("tulala:ask-question", onAskQuestion);
@@ -481,7 +492,7 @@ export function TalentProfileChatLauncher({
   // any local open (which marks it seen). Drives BOTH the resolver's `replied`
   // state ("{agency} replied") and the pulse ring, so opening the thread clears
   // the label and the pulse together.
-  const unseenAgencyReply = unreadCoordinatorReply && !replySeen;
+  const unseenAgencyReply = (unreadCoordinatorReply && !replySeen) || liveReply;
   const ctaState = resolveInquiryCta({
     talentProfileId: focusTalentId,
     isInLineup: focusTalentId ? cart.isInCart(focusTalentId) : false,
@@ -520,6 +531,14 @@ export function TalentProfileChatLauncher({
     mounted,
     narrowLauncher,
   );
+
+  // DK-1: publish her photo + unread state for the catalog dock's chat button.
+  // Mounted only when chat is on and inquiries are open, so the dot is honest.
+  const presencePhoto = brand.photoUrl ?? null;
+  useEffect(() => {
+    setChatPresence({ photoUrl: presencePhoto, name: talentFirst, unread: unseenAgencyReply, open });
+    return () => setChatPresence(null);
+  }, [presencePhoto, talentFirst, unseenAgencyReply, open]);
 
   if (!mounted) return null;
 
@@ -635,6 +654,18 @@ export function TalentProfileChatLauncher({
             </div>
           )}
 
+        {/* DK-3: once-per-visit help bubble above the button (site token, off by default). */}
+        {helpBubble && !open ? (
+          <ChatHelpBubble
+            profileCode={talentProfileCode}
+            name={talentFirst}
+            photoUrl={presencePhoto}
+            t={t}
+            chatOpen={open}
+            onOpenChat={() => setOpen(true)}
+          />
+        ) : null}
+
         {/* While the panel is open the round launcher is hidden. The client
             closes with the X in the panel corner, on phone and desktop. */}
         {!open && <button
@@ -662,6 +693,9 @@ export function TalentProfileChatLauncher({
             <NewMessagePulse active={repliedPulse} accent={accent} />
           )}
           <ChatGlyph color={accentInk} />
+          {!open && unseenAgencyReply ? (
+            <span aria-hidden data-launcher-unread="" style={{ position: "absolute", top: 4, right: 4, width: 12, height: 12, borderRadius: "50%", background: accentInk, boxShadow: `0 0 0 2px ${accent}` }} />
+          ) : null}
           <span className="tl-fab-lbl" aria-hidden>
             {fabHoverLabel}
           </span>
@@ -751,5 +785,9 @@ export const GUEST_CHAT_FAB_CSS = `
 @keyframes tl-fab-ring{0%{opacity:.5;transform:scale(.9)}100%{opacity:0;transform:scale(1.25)}}
 .tl-fab:focus-visible{outline:2px solid var(--tl-fab-accent);outline-offset:3px}
 .tl-fab[data-gone="true"]{transform:translate(-40px,-6px) scale(.4);opacity:0;pointer-events:none}
+/* ONE dock holds booking and chat: while the catalog dock carries its own chat button (the pill capsule
+   or the selection dock), the round launcher must not draw a second one over it. Pure CSS, so it holds
+   from the first paint and for every design, with no timing against the dock's own mount. */
+body:has(.cb-bar[data-show="true"] .cb-bar-chat,.cb-dock[data-show="true"]) .tl-fab{visibility:hidden;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.tl-fab,.tl-fab-lbl,.tl-fab::before{transition:none!important;animation:none!important}}
 `;

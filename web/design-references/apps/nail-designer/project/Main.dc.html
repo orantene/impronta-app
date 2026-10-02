@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nail Studio — desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500&amp;family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&amp;display=swap">
+<style>
+body{margin:0;background:#F3ECE6;color:#2B2221;font-family:'DM Sans',system-ui,sans-serif}
+button{font-family:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid #A63D57;outline-offset:2px}
+</style>
+</helmet>
+<div style="width:1280px;height:820px;box-sizing:border-box;display:grid;grid-template-columns:minmax(0, 1fr) 420px;background:#F3ECE6;color:#2B2221;font-family:'DM Sans',system-ui,sans-serif;overflow:hidden;">
+<section style="display:flex;flex-direction:column;gap:20px;min-width:0;min-height:0;padding:28px 36px;">
+<header style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+<div style="display:flex;flex-direction:column;gap:2px;"><div style="font-family:'Fraunces',Georgia,serif;font-size:34px;font-weight:500;letter-spacing:-0.01em;color:#2B2221;">Nail <span style="font-style:italic;color:{{accent}};">Studio</span></div><div style="font-size:14px;color:#6E5F5B;">Design a manicure, nail by nail.</div></div>
+<div style="display:flex;gap:8px;">
+<button onClick="{{undo}}" disabled="{{noUndo}}" style="height:44px;padding:0 16px;display:flex;align-items:center;gap:8px;border:1px solid #DCCFC6;border-radius:999px;background:#FFFCFA;color:#2B2221;font-size:14px;font-weight:500;cursor:pointer;opacity:{{undoOpacity}};"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></svg>Undo</button>
+<button onClick="{{reset}}" style="height:44px;padding:0 16px;display:flex;align-items:center;gap:8px;border:1px solid #DCCFC6;border-radius:999px;background:#FFFCFA;color:#2B2221;font-size:14px;font-weight:500;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>Reset</button>
+</div>
+</header>
+<div style="position:relative;flex-grow:1;min-height:0;border-radius:28px;background:#EADFD6;overflow:hidden;">
+<div style="position:absolute;top:20px;left:20px;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:#FFFCFA;font-size:13px;font-weight:600;color:#2B2221;box-shadow:0 1px 2px rgba(43,34,33,.08);">
+<span style="width:8px;height:8px;border-radius:50%;background:{{accent}};"></span>Editing · {{editingLabel}}</div>
+<div style="position:absolute;left:0;right:0;bottom:-70px;display:flex;align-items:flex-end;justify-content:center;gap:18px;">
+<sc-for list="{{fingers}}" as="f" hint-placeholder-count="5">
+<div style="position:relative;flex-shrink:0;width:{{f.w}}px;height:{{f.h}}px;transform:{{f.transform}};transform-origin:50% 100%;">
+<div style="position:absolute;inset:0;background:{{skin}};border-radius:{{f.fingerRadius}};box-shadow:inset -10px 0 18px rgba(60,30,20,.12), inset 6px 0 10px rgba(255,255,255,.18);"></div>
+<div style="position:absolute;left:24%;right:24%;top:{{f.crease}}px;height:12px;border-top:2px solid rgba(60,30,20,.12);border-radius:50%;"></div>
+<button onClick="{{f.pick}}" aria-label="{{f.label}}" aria-pressed="{{f.on}}" style="position:absolute;left:50%;top:{{f.nailTop}}px;margin-left:{{f.ml}}px;width:{{f.nw}}px;height:{{f.nh}}px;padding:0;border:0;background:rgba(0,0,0,0);cursor:pointer;border-radius:{{radius}};outline:{{f.outline}};outline-offset:6px;">
+<span style="position:absolute;inset:0;display:block;border-radius:{{radius}};clip-path:{{clip}};background:{{f.bg}};box-shadow:inset 0 -3px 0 rgba(0,0,0,.10), inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;"><span style="position:absolute;inset:0;display:block;background:{{f.shine}};"></span></span>
+<span style="position:absolute;left:{{f.stLeft}}px;top:{{f.stTop}}px;width:{{f.stW}}px;height:{{f.stW}}px;display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));">
+<sc-if value="{{f.isGem}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><polygon points="12,2 20,9 12,22 4,9" fill="#E6F4FF" stroke="#8DB6D1"></polygon><polygon points="12,2 15.5,9 12,22 8.5,9" fill="#FFFFFF"></polygon><polyline points="4,9 20,9" fill="none" stroke="#8DB6D1"></polyline></svg></sc-if>
+<sc-if value="{{f.isStar}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><polygon points="12,2 14.9,8.6 22,9.3 16.6,14 18.2,21 12,17.3 5.8,21 7.4,14 2,9.3 9.1,8.6" fill="#EBC75E" stroke="#B48A26"></polygon></svg></sc-if>
+<sc-if value="{{f.isHeart}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><path d="M12 21 C5 16.5 2 12.8 2 8.8 C2 5.6 4.5 3.5 7.2 3.5 C9.3 3.5 11 4.8 12 6.6 C13 4.8 14.7 3.5 16.8 3.5 C19.5 3.5 22 5.6 22 8.8 C22 12.8 19 16.5 12 21 Z" fill="#FFF6F4" stroke="#C9A7A0"></path></svg></sc-if>
+<sc-if value="{{f.isFlower}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><circle cx="12" cy="6.5" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="17.2" cy="10.3" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="15.2" cy="16.4" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="8.8" cy="16.4" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="6.8" cy="10.3" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="12" cy="12" r="2.8" fill="#F2C14E"></circle></svg></sc-if>
+<sc-if value="{{f.isPearls}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><circle cx="7.5" cy="6" r="3.6" fill="#FBF7EE" stroke="#D2C4AE"></circle><circle cx="12" cy="12.2" r="3.2" fill="#FBF7EE" stroke="#D2C4AE"></circle><circle cx="16.5" cy="18.2" r="2.8" fill="#FBF7EE" stroke="#D2C4AE"></circle></svg></sc-if>
+</span>
+</button>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}"><div style="position:absolute;top:20px;right:20px;padding:10px 16px;border-radius:999px;background:#2B2221;color:#FFFCFA;font-size:13px;font-weight:500;">{{toast}}</div></sc-if>
+<div style="position:absolute;right:20px;bottom:18px;font-size:13px;color:#6E5F5B;background:rgba(255,252,250,.85);padding:6px 12px;border-radius:999px;">Tap a nail to style it on its own</div>
+</div>
+<div style="display:flex;align-items:center;gap:12px;">
+<div style="display:flex;gap:10px;flex-grow:1;min-width:0;overflow-x:auto;padding:2px;">
+<sc-for list="{{looks}}" as="l" hint-placeholder-count="3"><button onClick="{{l.pick}}" style="flex-shrink:0;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px 8px 12px;border:1px solid #E6DAD2;border-radius:16px;background:#FFFCFA;cursor:pointer;text-align:left;color:#2B2221;">
+<span style="display:flex;align-items:flex-end;gap:3px;"><sc-for list="{{l.nails}}" as="n" hint-placeholder-count="5"><span style="position:relative;display:block;width:10px;height:17px;border-radius:{{n.radius}};clip-path:{{n.clip}};background:{{n.bg}};box-shadow:inset 0 -2px 0 rgba(0,0,0,.08), inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;"><span style="position:absolute;inset:0;display:block;background:{{n.shine}};"></span></span></sc-for></span>
+<span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:14px;font-weight:600;">{{l.name}}</span><span style="font-size:12px;color:#6E5F5B;text-transform:capitalize;">{{l.meta}}</span></span>
+</button></sc-for>
+</div>
+<button onClick="{{randomize}}" style="height:48px;padding:0 20px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:#FFFCFA;color:#2B2221;border:1px solid #DCCFC6;font-size:15px;font-weight:600;cursor:pointer;flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true"><path d="M16 3h5v5"></path><path d="M4 20 21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>Surprise me</button>
+<button onClick="{{save}}" style="height:48px;padding:0 20px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;background:{{accent}};color:#FFFFFF;border:1px solid {{accent}};font-size:15px;font-weight:600;cursor:pointer;flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Save look</button>
+</div>
+</section>
+<aside style="display:flex;flex-direction:column;min-height:0;background:#FFFCFA;border-left:1px solid #E6DAD2;">
+<div style="display:flex;flex-direction:column;gap:12px;padding:24px 24px 0;">
+<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6E5F5B;">Apply to</div>
+<div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:4px;padding:4px;border-radius:999px;background:#F1E8E2;">
+<button onClick="{{setAll}}" style="height:40px;border:0;border-radius:999px;background:{{segAllBg}};color:{{segAllFg}};font-size:14px;font-weight:600;cursor:pointer;">All nails</button>
+<button onClick="{{setOne}}" style="height:40px;border:0;border-radius:999px;background:{{segOneBg}};color:{{segOneFg}};font-size:14px;font-weight:600;cursor:pointer;">{{oneLabel}}</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));border-bottom:1px solid #EFE6DF;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height:44px;padding:0;border:0;border-bottom:2px solid {{t.line}};background:rgba(0,0,0,0);color:{{t.fg}};font-size:14px;font-weight:600;cursor:pointer;">{{t.label}}</button></sc-for>
+</div>
+</div>
+<div style="flex-grow:1;min-height:0;overflow-y:auto;padding:22px 24px 28px;">
+<sc-if value="{{isColor}}" hint-placeholder-val="{{true}}"><div style="display:flex;flex-direction:column;gap:28px;"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Polish</h3><span style="font-size:13px;color:#6E5F5B;">{{c1Name}}</span></div><div style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{colors}}" as="c" hint-placeholder-count="18">
+<button onClick="{{c.pick}}" aria-label="{{c.label}}" aria-pressed="{{c.on}}" title="{{c.name}}" style="width:100%;aspect-ratio:1;min-height:44px;padding:0;border:0;border-radius:50%;background:{{c.hex}};box-shadow:{{c.ring}};cursor:pointer;"></button>
+</sc-for>
+</div><label style="display:flex;align-items:center;gap:12px;font-size:14px;color:#2B2221;cursor:pointer;"><input type="color" value="{{c1Hex}}" onChange="{{setC1Custom}}" style="width:44px;height:44px;padding:3px;border:1px solid #E6DAD2;border-radius:12px;background:#FFFFFF;cursor:pointer;">Mix a custom polish</label></div><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Accent</h3><span style="font-size:13px;color:#6E5F5B;">{{c2Name}}</span></div><p style="margin:0;font-size:13px;line-height:1.45;color:#6E5F5B;">Used for tips, dots, stripes, moons and marbling.</p><div style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{colors2}}" as="c" hint-placeholder-count="18">
+<button onClick="{{c.pick}}" aria-label="{{c.label}}" aria-pressed="{{c.on}}" title="{{c.name}}" style="width:100%;aspect-ratio:1;min-height:44px;padding:0;border:0;border-radius:50%;background:{{c.hex}};box-shadow:{{c.ring}};cursor:pointer;"></button>
+</sc-for>
+</div><label style="display:flex;align-items:center;gap:12px;font-size:14px;color:#2B2221;cursor:pointer;"><input type="color" value="{{c2Hex}}" onChange="{{setC2Custom}}" style="width:44px;height:44px;padding:3px;border:1px solid #E6DAD2;border-radius:12px;background:#FFFFFF;cursor:pointer;">Mix a custom accent</label></div></div></sc-if>
+<sc-if value="{{isArt}}" hint-placeholder-val="{{false}}"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Nail art</h3></div><div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{patterns}}" as="p" hint-placeholder-count="8"><button onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;padding:14px 4px 10px;border:1px solid {{p.border}};border-radius:16px;background:{{p.tileBg}};cursor:pointer;color:#2B2221;font-size:12px;font-weight:500;"><span style="position:relative;display:block;width:34px;height:50px;border-radius:50% 50% 46% 46% / 40% 40% 24% 24%;background:{{p.bg}};box-shadow:inset 0 -2px 0 rgba(0,0,0,.08), inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;"><span style="position:absolute;inset:0;display:block;background:{{p.shine}};"></span></span>{{p.name}}</button></sc-for>
+</div></div></sc-if>
+<sc-if value="{{isFinish}}" hint-placeholder-val="{{false}}"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Finish</h3></div><div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{finishes}}" as="p" hint-placeholder-count="5"><button onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;padding:14px 4px 10px;border:1px solid {{p.border}};border-radius:16px;background:{{p.tileBg}};cursor:pointer;color:#2B2221;font-size:12px;font-weight:500;"><span style="position:relative;display:block;width:40px;height:58px;border-radius:50% 50% 46% 46% / 40% 40% 24% 24%;background:{{p.bg}};box-shadow:inset 0 -2px 0 rgba(0,0,0,.08), inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;"><span style="position:absolute;inset:0;display:block;background:{{p.shine}};"></span></span>{{p.name}}</button></sc-for>
+</div></div></sc-if>
+<sc-if value="{{isShape}}" hint-placeholder-val="{{false}}"><div style="display:flex;flex-direction:column;gap:28px;"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Shape</h3></div><div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{shapes}}" as="p" hint-placeholder-count="6"><button onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;padding:14px 4px 10px;border:1px solid {{p.border}};border-radius:16px;background:{{p.tileBg}};cursor:pointer;color:#2B2221;font-size:12px;font-weight:500;"><span style="position:relative;display:block;width:36px;height:58px;border-radius:{{p.radius}};clip-path:{{p.clip}};background:{{p.bg}};box-shadow:inset 0 -2px 0 rgba(0,0,0,.08), inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;"><span style="position:absolute;inset:0;display:block;background:{{p.shine}};"></span></span>{{p.name}}</button></sc-for>
+</div></div><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Length</h3></div><div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:4px;padding:4px;border-radius:999px;background:#F1E8E2;">
+<sc-for list="{{lengths}}" as="l" hint-placeholder-count="3"><button onClick="{{l.pick}}" aria-pressed="{{l.on}}" style="height:40px;border:0;border-radius:999px;background:{{l.bg}};color:{{l.fg}};font-size:14px;font-weight:600;cursor:pointer;">{{l.name}}</button></sc-for>
+</div></div><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Skin tone</h3></div><div style="display:grid;grid-template-columns:repeat(6, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{skins}}" as="c" hint-placeholder-count="6"><button onClick="{{c.pick}}" aria-label="{{c.label}}" aria-pressed="{{c.on}}" title="{{c.name}}" style="width:100%;aspect-ratio:1;min-height:44px;padding:0;border:0;border-radius:50%;background:{{c.hex}};box-shadow:{{c.ring}};cursor:pointer;"></button></sc-for>
+</div></div></div></sc-if>
+<sc-if value="{{isExtras}}" hint-placeholder-val="{{false}}"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;"><h3 style="margin:0;font-size:15px;font-weight:600;color:#2B2221;">Charms &amp; stickers</h3></div><p style="margin:0;font-size:13px;line-height:1.45;color:#6E5F5B;">Tip: switch to one nail first for a single accent charm.</p><div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;">
+<sc-for list="{{stickers}}" as="s" hint-placeholder-count="6"><button onClick="{{s.pick}}" aria-pressed="{{s.on}}" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;min-height:44px;padding:14px 4px 10px;border:1px solid {{s.border}};border-radius:16px;background:{{s.tileBg}};cursor:pointer;color:#2B2221;font-size:12px;font-weight:500;"><span style="display:block;width:36px;height:36px;"><sc-if value="{{s.isNone}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="#6E5F5B" style="stroke-width:1.6;" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><line x1="6.5" y1="17.5" x2="17.5" y2="6.5"></line></svg></sc-if><sc-if value="{{s.isGem}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><polygon points="12,2 20,9 12,22 4,9" fill="#E6F4FF" stroke="#8DB6D1"></polygon><polygon points="12,2 15.5,9 12,22 8.5,9" fill="#FFFFFF"></polygon><polyline points="4,9 20,9" fill="none" stroke="#8DB6D1"></polyline></svg></sc-if>
+<sc-if value="{{s.isStar}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><polygon points="12,2 14.9,8.6 22,9.3 16.6,14 18.2,21 12,17.3 5.8,21 7.4,14 2,9.3 9.1,8.6" fill="#EBC75E" stroke="#B48A26"></polygon></svg></sc-if>
+<sc-if value="{{s.isHeart}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><path d="M12 21 C5 16.5 2 12.8 2 8.8 C2 5.6 4.5 3.5 7.2 3.5 C9.3 3.5 11 4.8 12 6.6 C13 4.8 14.7 3.5 16.8 3.5 C19.5 3.5 22 5.6 22 8.8 C22 12.8 19 16.5 12 21 Z" fill="#FFF6F4" stroke="#C9A7A0"></path></svg></sc-if>
+<sc-if value="{{s.isFlower}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><circle cx="12" cy="6.5" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="17.2" cy="10.3" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="15.2" cy="16.4" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="8.8" cy="16.4" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="6.8" cy="10.3" r="4" fill="#FFFFFF" stroke="#E2D6D0"></circle><circle cx="12" cy="12" r="2.8" fill="#F2C14E"></circle></svg></sc-if>
+<sc-if value="{{s.isPearls}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true"><circle cx="7.5" cy="6" r="3.6" fill="#FBF7EE" stroke="#D2C4AE"></circle><circle cx="12" cy="12.2" r="3.2" fill="#FBF7EE" stroke="#D2C4AE"></circle><circle cx="16.5" cy="18.2" r="2.8" fill="#FBF7EE" stroke="#D2C4AE"></circle></svg></sc-if></span>{{s.name}}</button></sc-for>
+</div></div></sc-if>
+</div>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#A63D57","options":["#A63D57","#2B2221","#1F6B52","#2448A6"]},"$preview":{"width":1280,"height":820}}'>
+const SCALE = 1;
+const MOBILE = false;
+const COLORS = [
+  ['Cherry','#B3122E'],['Rosewood','#8E3B46'],['Blush','#E8A9A6'],['Ballet','#F2D4CF'],['Nude','#D9B39A'],['Mocha','#7B5544'],
+  ['Coral','#F2735B'],['Tangerine','#F39A3B'],['Butter','#F4DC8A'],['Sage','#A7B99A'],['Emerald','#1F6B52'],['Sky','#9CC5E3'],
+  ['Cobalt','#2448A6'],['Lilac','#C4A8E0'],['Plum','#5B2A58'],['Milk','#F7F3EE'],['Graphite','#4A4A4F'],['Onyx','#16151A']
+].map(function (x) { return { name: x[0], hex: x[1] }; });
+const PATTERNS = [
+  { id: 'solid', name: 'Solid' }, { id: 'french', name: 'French tip' }, { id: 'ombre', name: 'Ombré' }, { id: 'dots', name: 'Polka' },
+  { id: 'stripes', name: 'Stripes' }, { id: 'moon', name: 'Half-moon' }, { id: 'check', name: 'Checker' }, { id: 'marble', name: 'Marble' }
+];
+const FINISHES = [
+  { id: 'gloss', name: 'Gloss' }, { id: 'matte', name: 'Matte' }, { id: 'chrome', name: 'Chrome' },
+  { id: 'glitter', name: 'Glitter' }, { id: 'pearl', name: 'Pearl' }
+];
+const SHAPES = [
+  { id: 'square', name: 'Square', radius: '10% 10% 46% 46% / 6% 6% 24% 24%', clip: 'none' },
+  { id: 'squoval', name: 'Squoval', radius: '30% 30% 46% 46% / 16% 16% 24% 24%', clip: 'none' },
+  { id: 'round', name: 'Round', radius: '50% 50% 46% 46% / 32% 32% 24% 24%', clip: 'none' },
+  { id: 'almond', name: 'Almond', radius: '50% 50% 46% 46% / 72% 72% 24% 24%', clip: 'none' },
+  { id: 'stiletto', name: 'Stiletto', radius: '0 0 46% 46% / 0 0 24% 24%', clip: 'polygon(50% 0%, 64% 14%, 80% 32%, 94% 52%, 100% 66%, 100% 100%, 0% 100%, 0% 66%, 6% 52%, 20% 32%, 36% 14%)' },
+  { id: 'coffin', name: 'Coffin', radius: '6% 6% 46% 46% / 4% 4% 24% 24%', clip: 'polygon(22% 0%, 78% 0%, 100% 64%, 100% 100%, 0% 100%, 0% 64%)' }
+];
+const LENGTHS = [{ id: 'short', name: 'Short', k: 0.9 }, { id: 'medium', name: 'Medium', k: 1.2 }, { id: 'long', name: 'Long', k: 1.6 }];
+const STICKERS = [
+  { id: 'none', name: 'None' }, { id: 'gem', name: 'Crystal' }, { id: 'star', name: 'Star' },
+  { id: 'heart', name: 'Heart' }, { id: 'flower', name: 'Flower' }, { id: 'pearls', name: 'Pearls' }
+];
+const SKINS = [
+  { name: 'Porcelain', hex: '#F4D9C6' }, { name: 'Light', hex: '#E9BE9E' }, { name: 'Tan', hex: '#CF9670' },
+  { name: 'Olive', hex: '#B07A52' }, { name: 'Brown', hex: '#7E5236' }, { name: 'Deep', hex: '#4F3222' }
+];
+const FINGERS = [
+  { name: 'Pinky', w: 64, h: 270, rot: -7, tx: 0, ty: 0 },
+  { name: 'Ring', w: 74, h: 340, rot: -2, tx: 0, ty: 0 },
+  { name: 'Middle', w: 78, h: 370, rot: 0, tx: 0, ty: 0 },
+  { name: 'Index', w: 76, h: 340, rot: 4, tx: 0, ty: 0 },
+  { name: 'Thumb', w: 92, h: 240, rot: 30, tx: 18, ty: 56 }
+];
+const SHINE = {
+  gloss: 'linear-gradient(105deg, rgba(255,255,255,0) 20%, rgba(255,255,255,.55) 27%, rgba(255,255,255,0) 38%), radial-gradient(70% 30% at 50% 6%, rgba(255,255,255,.35), rgba(255,255,255,0) 70%)',
+  matte: 'linear-gradient(rgba(255,255,255,.14), rgba(255,255,255,.04))',
+  chrome: 'linear-gradient(115deg, rgba(255,255,255,.1) 5%, rgba(255,255,255,.85) 26%, rgba(0,0,0,.28) 46%, rgba(255,255,255,.65) 66%, rgba(0,0,0,.18) 88%)',
+  glitter: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,.95) 0 0.8px, rgba(255,255,255,0) 1.6px) 0 0 / 7px 9px, radial-gradient(circle at 60% 70%, rgba(255,255,255,.75) 0 0.8px, rgba(255,255,255,0) 1.6px) 0 0 / 11px 6px, radial-gradient(circle at 50% 50%, rgba(255,226,150,.85) 0 0.7px, rgba(255,226,150,0) 1.4px) 0 0 / 5px 13px, linear-gradient(105deg, rgba(255,255,255,0) 20%, rgba(255,255,255,.4) 27%, rgba(255,255,255,0) 38%)',
+  pearl: 'linear-gradient(140deg, rgba(255,235,248,.55), rgba(205,232,255,.35) 45%, rgba(255,250,235,.5) 75%, rgba(255,255,255,.25)), linear-gradient(105deg, rgba(255,255,255,0) 22%, rgba(255,255,255,.45) 28%, rgba(255,255,255,0) 38%)'
+};
+function hexA(hex, a) {
+  const n = parseInt(String(hex).slice(1, 7), 16) || 0;
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+function patternBg(n, s) {
+  const a = n.c1, b = n.c2, d = Math.max(6, Math.round(12 * s));
+  const h = Math.round(d * 0.55);
+  switch (n.pattern) {
+    case 'french': return 'radial-gradient(130% 80% at 50% 96%, ' + a + ' 78%, ' + b + ' 79%)';
+    case 'ombre': return 'linear-gradient(to top, ' + a + ' 8%, ' + b + ' 92%)';
+    case 'dots': return 'radial-gradient(circle, ' + b + ' 0 22%, ' + hexA(b, 0) + ' 26%) 0 0 / ' + d + 'px ' + d + 'px, ' + a;
+    case 'stripes': return 'repeating-linear-gradient(135deg, ' + a + ' 0 ' + h + 'px, ' + b + ' ' + h + 'px ' + d + 'px)';
+    case 'moon': return 'radial-gradient(58% 30% at 50% 100%, ' + b + ' 97%, ' + a + ' 100%)';
+    case 'check': return 'conic-gradient(' + b + ' 25%, ' + a + ' 0 50%, ' + b + ' 0 75%, ' + a + ' 0) 0 0 / ' + d + 'px ' + d + 'px';
+    case 'marble': return 'linear-gradient(155deg, ' + hexA(b, 0) + ' 38%, ' + hexA(b, .7) + ' 42%, ' + hexA(b, 0) + ' 47%), linear-gradient(35deg, ' + hexA(b, 0) + ' 58%, ' + hexA(b, .5) + ' 61%, ' + hexA(b, 0) + ' 65%), radial-gradient(45% 35% at 30% 30%, ' + hexA(b, .45) + ', ' + hexA(b, 0) + ' 70%), ' + a;
+    default: return a;
+  }
+}
+function flags(id) {
+  return { isNone: id === 'none', isGem: id === 'gem', isStar: id === 'star', isHeart: id === 'heart', isFlower: id === 'flower', isPearls: id === 'pearls' };
+}
+function nail(c1, c2, pattern, finish, sticker) { return { c1: c1, c2: c2, pattern: pattern, finish: finish, sticker: sticker || 'none' }; }
+function five(n) { return [0, 1, 2, 3, 4].map(function () { return Object.assign({}, n); }); }
+const START = [
+  nail('#E8A9A6', '#F7F3EE', 'french', 'gloss'), nail('#8E3B46', '#F7F3EE', 'solid', 'gloss', 'gem'),
+  nail('#E8A9A6', '#F7F3EE', 'french', 'gloss'), nail('#E8A9A6', '#F7F3EE', 'french', 'gloss'), nail('#E8A9A6', '#F7F3EE', 'french', 'gloss')
+];
+const STARTER_LOOKS = [
+  { name: 'Rosé French', shape: 'almond', length: 'medium', nails: START },
+  { name: 'Midnight Chrome', shape: 'coffin', length: 'long', nails: [nail('#2448A6', '#16151A', 'solid', 'chrome'), nail('#16151A', '#2448A6', 'solid', 'glitter', 'star'), nail('#2448A6', '#16151A', 'solid', 'chrome'), nail('#2448A6', '#16151A', 'solid', 'chrome'), nail('#2448A6', '#16151A', 'solid', 'chrome')] },
+  { name: 'Garden Party', shape: 'round', length: 'short', nails: [nail('#A7B99A', '#F7F3EE', 'dots', 'gloss'), nail('#F4DC8A', '#F7F3EE', 'solid', 'gloss', 'flower'), nail('#A7B99A', '#F7F3EE', 'dots', 'gloss'), nail('#A7B99A', '#F7F3EE', 'dots', 'gloss'), nail('#A7B99A', '#F7F3EE', 'dots', 'gloss')] }
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      nails: START.map(function (n) { return Object.assign({}, n); }),
+      shape: 'almond', length: 'medium', skin: '#E9BE9E',
+      target: 'all', sel: null, tab: 'color', history: [],
+      looks: STARTER_LOOKS, toast: ''
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  snap() {
+    const s = this.state;
+    return s.history.concat([{ nails: s.nails, shape: s.shape, length: s.length, skin: s.skin }]).slice(-40);
+  }
+  apply(patch, quiet) {
+    const s = this.state;
+    const nails = s.nails.map(function (n, i) {
+      return (s.target === 'all' || i === s.sel) ? Object.assign({}, n, patch) : n;
+    });
+    this.setState({ nails: nails, history: quiet ? s.history : this.snap() });
+  }
+  setGlobal(patch) { this.setState(Object.assign({}, patch, { history: this.snap() })); }
+  undo() {
+    const h = this.state.history;
+    if (!h.length) return;
+    this.setState(Object.assign({}, h[h.length - 1], { history: h.slice(0, -1) }));
+  }
+  reset() {
+    this.setState({ nails: START.map(function (n) { return Object.assign({}, n); }), shape: 'almond', length: 'medium', target: 'all', sel: null, history: this.snap() });
+    this.flash('Reset to the starter look');
+  }
+  selectNail(i) {
+    const s = this.state;
+    if (s.target === 'one' && s.sel === i) this.setState({ target: 'all', sel: null });
+    else this.setState({ target: 'one', sel: i });
+  }
+  setTarget(t) {
+    const s = this.state;
+    this.setState({ target: t, sel: t === 'one' ? (s.sel == null ? 2 : s.sel) : null });
+  }
+  randomize() {
+    const r = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+    const c1 = r(COLORS).hex;
+    let c2 = r(COLORS).hex;
+    if (c2 === c1) c2 = c1 === '#F7F3EE' ? '#16151A' : '#F7F3EE';
+    const pat = r(PATTERNS).id, fin = r(FINISHES).id, acc = r(PATTERNS).id, st = r(STICKERS.slice(1)).id;
+    const nails = [0, 1, 2, 3, 4].map(function (i) {
+      return i === 1 ? nail(c2, c1, acc, fin, st) : nail(c1, c2, pat, fin, 'none');
+    });
+    this.setState({ nails: nails, shape: r(SHAPES).id, history: this.snap() });
+  }
+  save() {
+    const s = this.state;
+    const look = { name: 'My look ' + (s.looks.length - STARTER_LOOKS.length + 1), shape: s.shape, length: s.length, nails: s.nails.map(function (n) { return Object.assign({}, n); }) };
+    this.setState({ looks: [look].concat(s.looks).slice(0, 12) });
+    this.flash('Saved as “' + look.name + '”');
+  }
+  loadLook(l) {
+    this.setState({ nails: l.nails.map(function (n) { return Object.assign({}, n); }), shape: l.shape, length: l.length, target: 'all', sel: null, history: this.snap() });
+    this.flash('Applied “' + l.name + '”');
+  }
+  flash(msg) {
+    const self = this;
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(function () { self.setState({ toast: '' }); }, 1800);
+  }
+  renderVals() {
+    const self = this, s = this.state;
+    const accent = this.props.accent ?? '#A63D57';
+    const shape = SHAPES.find(function (x) { return x.id === s.shape; }) || SHAPES[0];
+    const len = (LENGTHS.find(function (x) { return x.id === s.length; }) || LENGTHS[1]).k;
+    const cur = s.target === 'one' && s.sel != null ? s.nails[s.sel] : s.nails[2];
+    const tile = function (on) {
+      return { on: on, border: on ? accent : '#E6DAD2', tileBg: on ? '#FBEFF2' : '#FFFCFA', ring: on ? '0 0 0 2px #FFFCFA, 0 0 0 4px ' + accent : 'inset 0 0 0 1px rgba(0,0,0,.14)' };
+    };
+    const fingers = FINGERS.map(function (F, i) {
+      const n = s.nails[i];
+      const w = Math.round(F.w * SCALE), h = Math.round(F.h * SCALE);
+      const nw = Math.round(w * 0.72), baseH = Math.round(w * 0.9), nh = Math.round(baseH * len);
+      const bed = Math.round(w * 0.9 + 14 * SCALE);
+      const on = s.target === 'one' && s.sel === i;
+      const stW = Math.round(nw * 0.52);
+      return Object.assign({
+        w: w, h: h,
+        transform: 'rotate(' + F.rot + 'deg) translate(' + Math.round(F.tx * SCALE) + 'px, ' + Math.round(F.ty * SCALE) + 'px)',
+        fingerRadius: Math.round(w / 2) + 'px ' + Math.round(w / 2) + 'px 22px 22px',
+        crease: Math.round(h * 0.52), nw: nw, nh: nh, ml: -Math.round(nw / 2), nailTop: bed - nh,
+        bg: patternBg(n, SCALE), shine: SHINE[n.finish] || SHINE.gloss,
+        stW: stW, stTop: Math.round(nh - baseH * 0.52 - stW / 2), stLeft: Math.round((nw - stW) / 2),
+        on: on, outline: on ? '2px dashed ' + accent : '2px dashed rgba(0,0,0,0)',
+        label: F.name + ' nail' + (on ? ', selected' : ''),
+        pick: function () { self.selectNail(i); }
+      }, flags(n.sticker));
+    });
+    const tabIds = [['color', 'Color'], ['art', 'Art'], ['finish', 'Finish'], ['shape', 'Shape'], ['extras', 'Extras']];
+    if (MOBILE) tabIds.push(['looks', 'Looks']);
+    const tabs = tabIds.map(function (t) {
+      const on = s.tab === t[0];
+      return { label: t[1], on: on, fg: on ? '#2B2221' : '#6E5F5B', line: on ? accent : 'rgba(0,0,0,0)', pick: function () { self.setState({ tab: t[0] }); } };
+    });
+    const colorList = function (key) {
+      return COLORS.map(function (c) {
+        const t = tile(cur[key].toUpperCase() === c.hex);
+        return { name: c.name, hex: c.hex, ring: t.ring, on: t.on, label: (key === 'c1' ? 'Polish ' : 'Accent ') + c.name, pick: function () { const p = {}; p[key] = c.hex; self.apply(p); } };
+      });
+    };
+    const nameOf = function (hex) { const c = COLORS.find(function (x) { return x.hex === String(hex).toUpperCase(); }); return c ? c.name : 'Custom ' + String(hex).toUpperCase(); };
+    const lookList = s.looks.map(function (l) {
+      const sh = SHAPES.find(function (x) { return x.id === l.shape; }) || SHAPES[0];
+      return {
+        name: l.name, meta: sh.name + ' · ' + l.length,
+        nails: l.nails.map(function (n) { return { bg: patternBg(n, 0.4), shine: SHINE[n.finish], radius: sh.radius, clip: sh.clip }; }),
+        pick: function () { self.loadLook(l); }
+      };
+    });
+    const selName = s.sel != null ? FINGERS[s.sel].name : null;
+    return {
+      accent: accent, skin: s.skin, radius: shape.radius, clip: shape.clip, fingers: fingers,
+      editingLabel: s.target === 'all' ? 'All nails' : selName + ' nail',
+      oneLabel: selName ? selName + ' only' : 'One nail',
+      segAllBg: s.target === 'all' ? '#2B2221' : 'rgba(0,0,0,0)', segAllFg: s.target === 'all' ? '#FFFCFA' : '#2B2221',
+      segOneBg: s.target === 'one' ? '#2B2221' : 'rgba(0,0,0,0)', segOneFg: s.target === 'one' ? '#FFFCFA' : '#2B2221',
+      setAll: function () { self.setTarget('all'); }, setOne: function () { self.setTarget('one'); },
+      tabs: tabs,
+      isColor: s.tab === 'color', isArt: s.tab === 'art', isFinish: s.tab === 'finish', isShape: s.tab === 'shape', isExtras: s.tab === 'extras', isLooks: s.tab === 'looks',
+      colors: colorList('c1'), colors2: colorList('c2'),
+      c1Hex: cur.c1, c2Hex: cur.c2, c1Name: nameOf(cur.c1), c2Name: nameOf(cur.c2),
+      setC1Custom: function (e) { self.apply({ c1: e.target.value }, true); },
+      setC2Custom: function (e) { self.apply({ c2: e.target.value }, true); },
+      patterns: PATTERNS.map(function (p) {
+        return Object.assign({ name: p.name, bg: patternBg(Object.assign({}, cur, { pattern: p.id }), 0.5), shine: SHINE[cur.finish], pick: function () { self.apply({ pattern: p.id }); } }, tile(cur.pattern === p.id));
+      }),
+      finishes: FINISHES.map(function (f) {
+        return Object.assign({ name: f.name, bg: patternBg(cur, 0.5), shine: SHINE[f.id], pick: function () { self.apply({ finish: f.id }); } }, tile(cur.finish === f.id));
+      }),
+      shapes: SHAPES.map(function (x) {
+        return Object.assign({ name: x.name, radius: x.radius, clip: x.clip, bg: patternBg(cur, 0.5), shine: SHINE[cur.finish], pick: function () { self.setGlobal({ shape: x.id }); } }, tile(s.shape === x.id));
+      }),
+      lengths: LENGTHS.map(function (x) {
+        const on = s.length === x.id;
+        return { name: x.name, on: on, bg: on ? '#2B2221' : 'rgba(0,0,0,0)', fg: on ? '#FFFCFA' : '#2B2221', pick: function () { self.setGlobal({ length: x.id }); } };
+      }),
+      skins: SKINS.map(function (x) {
+        return Object.assign({ name: x.name, hex: x.hex, label: 'Skin tone ' + x.name, pick: function () { self.setState({ skin: x.hex }); } }, tile(s.skin === x.hex));
+      }),
+      stickers: STICKERS.map(function (x) {
+        return Object.assign({ name: x.name, pick: function () { self.apply({ sticker: x.id }); } }, flags(x.id), tile(cur.sticker === x.id));
+      }),
+      looks: lookList,
+      noUndo: s.history.length === 0, undoOpacity: s.history.length ? 1 : 0.45,
+      undo: function () { self.undo(); }, reset: function () { self.reset(); },
+      randomize: function () { self.randomize(); }, save: function () { self.save(); },
+      toast: s.toast, hasToast: !!s.toast
+    };
+  }
+}
+
+</script>
+</body>
+</html>

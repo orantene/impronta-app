@@ -1,5 +1,7 @@
 "use client";
 
+import { ConsentEmbed } from "@/components/consent/consent-embed";
+
 import { ExternalLink, MapPin, Navigation } from "lucide-react";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { withGoogleMapsLanguage } from "@/lib/i18n/vendor-locale";
@@ -53,16 +55,18 @@ export function EventLocationMap({
       </div>
 
       {!compact && (
-        <div className="overflow-hidden rounded-xl border border-border/40 shadow-sm">
-          <iframe
+        <div className="overflow-hidden rounded-xl border border-border/40 shadow-sm" style={{ height: 180 }}>
+          <ConsentEmbed
             src={embedUrl}
-            width="100%"
-            height="180"
-            style={{ border: 0, display: "block" }}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+            provider="maps"
+            locale={mapLocale}
             title={`Map: ${loc}`}
-            aria-label={`Google Maps preview for ${loc}`}
+            className="block h-full w-full border-0"
+            iframeProps={{
+              loading: "lazy",
+              referrerPolicy: "no-referrer-when-downgrade",
+              "aria-label": `Google Maps preview for ${loc}`,
+            }}
           />
         </div>
       )}

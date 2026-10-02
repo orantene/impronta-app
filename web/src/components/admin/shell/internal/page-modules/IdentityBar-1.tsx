@@ -30,9 +30,12 @@ import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
+import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
+import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 
 export function TulalaIdentityBar() {
+  const origin = useCurrentOrigin();
   const {
     state,
     openDrawer,
@@ -405,7 +408,7 @@ export function TulalaIdentityBar() {
                 eye when the talent had no agency. */}
             {(() => {
               const ownPage = bridgeTalentSelfProfile?.profileCode
-                ? `https://tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
+                ? talentPublicProfileHref(bridgeTalentSelfProfile.profileCode, origin)
                 : null;
               const show = studioV2
                 ? (inTalent ? Boolean(ownPage) : true)
@@ -417,8 +420,8 @@ export function TulalaIdentityBar() {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Preview site"
-              title="Preview public site"
+              aria-label={copy.t("Preview site")}
+              title={copy.t("Preview public site")}
               className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
             >
               <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">

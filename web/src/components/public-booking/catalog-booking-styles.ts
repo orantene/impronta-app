@@ -13,6 +13,10 @@ export const CATALOG_BOOKING_CSS = `
 .jb-sheet{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:var(--cb-surface);color:var(--cb-ink);border-radius:22px 22px 0 0;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);box-shadow:0 -24px 60px -28px rgba(36,33,38,.45);animation:jb-rise 300ms cubic-bezier(.22,1,.36,1)}
 @keyframes jb-rise{from{transform:translateY(28px);opacity:.5}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.jb-sheet,.jb-back{animation:none}}
+/* Busy ring (A-14): hidden everywhere except a soft-chrome site (motion-css.ts turns it on). */
+.cb-spinner{display:none;width:16px;height:16px;margin-right:8px;border-radius:50%;border:2.5px solid color-mix(in srgb,currentColor 18%,transparent);border-top-color:currentColor;vertical-align:-3px;animation:cb-spin 1s linear infinite}
+@keyframes cb-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.cb-spinner{animation:none}}
 .jb-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:20px 20px 16px;border-bottom:1px solid var(--cb-line)}
 .jb-head h2{margin:5px 0 0;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.5rem;letter-spacing:-.02em;line-height:1.1}
 .jb-kicker{margin:0;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--cb-primary)}
@@ -59,9 +63,17 @@ export const CATALOG_BOOKING_CSS = `
 .jb-field span{font-size:.875rem;font-weight:600;display:flex;align-items:center;gap:8px}
 .jb-field span i{font-style:normal;font-size:.6875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--cb-muted);background:var(--cb-soft);border-radius:99px;padding:3px 8px}
 .jb-field input{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
-.jb-field input:focus-visible{outline:2px solid var(--cb-primary);outline-offset:1px}
+.jb-field textarea{min-height:64px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:12px 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink);resize:vertical}
+.jb-field select{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 12px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
+.jb-chips{display:flex;flex-wrap:wrap;gap:8px}
+.jb-chip{min-height:40px;padding:0 14px;border-radius:99px;border:1px solid var(--cb-edge);background:var(--cb-surface);color:var(--cb-ink);font:inherit;font-size:.875rem;cursor:pointer}
+.jb-chip[aria-pressed="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
+.jb-field textarea:focus-visible,.jb-field input:focus-visible{outline:2px solid var(--cb-primary);outline-offset:1px}
 .jb-field input[aria-invalid="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
 .jb-field em{font-style:normal;font-size:.8125rem;color:var(--cb-primary)}
+.jb-taken{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-surface)}
+.jb-taken p{margin:0;font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
+.jb-taken .jb-times{margin-top:10px}
 .jb-error{margin:0 0 12px;font-size:.875rem;color:var(--cb-primary)}
 .jb-done{text-align:center;padding:8px 0 4px}
 .jb-check{width:60px;height:60px;border-radius:99px;background:var(--cb-soft);color:var(--cb-primary);display:grid;place-items:center;font-size:1.5rem;margin:0 auto 16px}
@@ -130,7 +142,12 @@ export const CATALOG_BOOKING_CSS = `
 .cb-dock-x:focus-visible,.cb-dock-ask:focus-visible,.cb-dock-go:focus-visible,.cb-dock-toast button:focus-visible{outline:2px solid var(--cb-primary);outline-offset:2px}
 .cb-dock-toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);z-index:82;background:var(--cb-ink);color:var(--cb-surface);border-radius:999px;padding:9px 8px 9px 16px;font-size:13px;display:flex;gap:10px;align-items:center;opacity:0;pointer-events:none;white-space:nowrap;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);transition:opacity .35s var(--cb-ease,ease),transform .35s cubic-bezier(.2,.9,.25,1.15)}
 .cb-dock-toast[data-show="true"]{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.cb-dock .cb-dock-toast[data-in-dock="true"]{position:absolute!important;left:50%!important;right:auto!important;bottom:calc(100% + 10px)!important}
+/* One bar at the bottom: the consent banner steps aside while the booking dock or bar is up. */
+body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data-show="true"]) [data-consent-banner]{display:none}
 .cb-dock-toast button{appearance:none;background:color-mix(in srgb,var(--cb-surface) 14%,transparent);color:var(--cb-surface);border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.cb-dock-th-icon{display:grid;place-items:center;background:var(--cb-blush);color:var(--cb-primary)}
+.cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}
 @media (min-width:720px){.cb-dock{left:auto;right:32px;bottom:32px;width:min(440px,calc(100vw - 64px))}.cb-dock-toast{bottom:112px}}
 @media (prefers-reduced-motion:reduce){.cb-dock,.cb-dock *,.cb-dock-toast,.cb-dock-go::after{transition:none!important;animation:none!important}}
 `;

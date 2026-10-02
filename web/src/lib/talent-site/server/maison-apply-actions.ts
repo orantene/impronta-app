@@ -25,6 +25,7 @@ import { provisionTalentMaxSite } from "./provision-max-site";
 import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook, coerceTokenMap } from "./theme-apply-core";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
 import {
@@ -209,7 +210,7 @@ export async function applyMaisonDesignAction(input: {
     };
   }
 
-  const design = await loadMaisonCatalogRow(admin, "design", designSlug);
+  const design = await loadApplyDesignRow(admin, designSlug);
   if (!design) {
     return { ok: false, code: "theme_not_found", error: "Maison design not found." };
   }

@@ -20,18 +20,31 @@
  */
 
 import { CLIENTS_ES_TEXT } from "./dashboard-i18n-clients";
+import { FEES_ES_TEXT } from "./dashboard-i18n-fees";
 import { LANGUAGES_ES_TEXT } from "./dashboard-i18n-languages";
 import { LINKS_ES_TEXT } from "./dashboard-i18n-links";
+import { LOCATION_ES_TEXT } from "./dashboard-i18n-location";
 import { MONEY_ES_TEXT } from "./dashboard-i18n-money";
 import { MONEY_HOME_ES_TEXT } from "./dashboard-i18n-money-home";
+import { TALENT_CLIENT_PANELS_ES_TEXT } from "./dashboard-i18n-talent-client-panels";
+import { TALENT_GAPS_ES_TEXT } from "./dashboard-i18n-talent-gaps";
+import { DOMAIN_ERRORS_ES_TEXT } from "./dashboard-i18n-domain-errors";
+import { SWEEP_R1_ES_TEXT } from "./dashboard-i18n-sweep-r1";
 import { WEBSITE_ES_TEXT } from "./dashboard-i18n-website";
 
 export const RAIL_ES_TEXT: Record<string, string> = {
+  // First, so a generic key already translated elsewhere keeps its wording.
+  ...TALENT_CLIENT_PANELS_ES_TEXT,
   ...LINKS_ES_TEXT,
   ...WEBSITE_ES_TEXT,
   ...MONEY_ES_TEXT,
   ...MONEY_HOME_ES_TEXT,
+  ...FEES_ES_TEXT,
   ...CLIENTS_ES_TEXT,
+  ...TALENT_GAPS_ES_TEXT,
+  ...SWEEP_R1_ES_TEXT,
+  ...DOMAIN_ERRORS_ES_TEXT,
+  ...LOCATION_ES_TEXT,
   ...LANGUAGES_ES_TEXT,
   // The four Appointments sub-views (W39). They are tabs of one route, but the
   // rail draws them as rows, so each needs its own literal. "Appointments" is
@@ -62,10 +75,18 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent Messages + Actions: shown when no thread is open (kept out of
   // dashboard-i18n.ts — that file is at its 3968-line size-ratchet budget).
   "Pick a conversation first": "Elige una conversación primero",
+  "Added by you": "Añadida por ti",
+  "Direct": "Directo",
+  "Your website": "Tu sitio web",
+  "At the counter": "En el mostrador",
+  "Booking saved": "Reserva guardada",
+  "View booking": "Ver reserva",
+  "New conversation": "Nueva conversación",
+  "Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation.":
+    "Tus clientas te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes iniciar una con + Nueva conversación.",
+  "Copy your link": "Copiar tu enlace",
+  "Open your page": "Abrir tu página",
   "Pick services, add extras.": "Elige servicios y extras.",
-  "Not available yet. Paste a link in the message for now.":
-    "Aún no disponible. Por ahora pega un enlace en el mensaje.",
-  "Not available yet. Private notes are coming.": "Aún no disponible. Las notas privadas vienen pronto.",
   "The client sees the services, the total and one Accept button.":
     "El cliente ve los servicios, el total y un botón de Aceptar.",
   "What the client pays": "Lo que paga el cliente",

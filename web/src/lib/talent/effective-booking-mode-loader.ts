@@ -3,6 +3,7 @@
  * cores (catalog-grid, package-selector) keep running under node:test; it
  * only reads through the client it is handed.
  */
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { logServerError } from "@/lib/server/safe-error";
 import { withEffectiveBookingMode, withPublicAvailability } from "@/lib/talent/offering-policy-resolver";
 import type { OfferingBookingMode, OfferingReserveMode } from "@/lib/talent/offerings-types";
@@ -49,6 +50,7 @@ export async function withEffectiveBookingModes<
     if (touched.some((o) => typeof o.kind === "string")) hours = await loadWorkingHoursPresence(admin, ids);
   }
   const payoutsReady = isPlatformCheckoutReady();
+  const plans = ids.length > 0 ? await loadPlanAllowsInstant(admin, ids) : new Map<string, boolean>();
   return offerings.map((o) => {
     if (!needsResolve(o)) return o;
     const d = o.talentProfileId ? (defaults.get(o.talentProfileId) ?? {}) : {};
@@ -61,7 +63,12 @@ export async function withEffectiveBookingModes<
         reserveMode: o.reserveMode ?? "full",
       },
       d,
-      { switches: null, hasWorkingHours: hours.get(o.talentProfileId) ?? null, payoutsReady },
+      {
+        switches: null,
+        hasWorkingHours: hours.get(o.talentProfileId) ?? null,
+        payoutsReady,
+        planAllowsInstant: plans.get(o.talentProfileId),
+      },
     ) as T;
   });
 }

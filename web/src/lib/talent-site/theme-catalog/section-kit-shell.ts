@@ -73,6 +73,19 @@ export interface KitShellOptions {
   navLinks?: ReadonlyArray<KitShellNavLink>;
   /** Override `site_header` primary CTA + freeform region CTA label. */
   primaryCtaLabel?: string;
+  /**
+   * Gridline utility bar as the shell header (`buildKitShell` only): dark ink
+   * bar with name, subtitle, emergencies pill, desktop action and tap-to-call.
+   * The call link is the `{{callHref}}` token, so no number means no button.
+   */
+  utilityBar?: {
+    subtitle?: string;
+    statusOnLabel?: string;
+    statusOffLabel?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    callLabel?: string;
+  };
 }
 
 /**
@@ -125,7 +138,32 @@ export function buildKitShell(
         }))
       : [{ id: makeId(), label: "Home", href: homeHref }];
 
-  const header: BuilderNode = {
+  const header: BuilderNode = opts.utilityBar
+    ? ({
+        id: makeId(),
+        kind: "container",
+        props: { layout: "stack", align: "stretch", gap: "s", layerLabel: "Header", style: { gap: "0px" } },
+        children: [
+          {
+            id: makeId(),
+            kind: "utility_bar",
+            props: {
+              name: opts.displayName,
+              subtitle: opts.utilityBar.subtitle ?? "",
+              ...(opts.logoUrl ? { logoUrl: opts.logoUrl } : {}),
+              showStatus: true,
+              ...(opts.utilityBar.statusOnLabel ? { statusOnLabel: opts.utilityBar.statusOnLabel } : {}),
+              ...(opts.utilityBar.statusOffLabel ? { statusOffLabel: opts.utilityBar.statusOffLabel } : {}),
+              showCall: true,
+              callHref: "{{callHref}}",
+              ...(opts.utilityBar.callLabel ? { callLabel: opts.utilityBar.callLabel } : {}),
+              ctaLabel: opts.utilityBar.ctaLabel ?? opts.primaryCtaLabel ?? "",
+              ctaHref: opts.utilityBar.ctaHref ?? "/contact",
+            },
+          },
+        ],
+      } as BuilderNode)
+    : ({
     id: makeId(),
     kind: "container",
     props: {
@@ -149,7 +187,7 @@ export function buildKitShell(
         },
       },
     ],
-  } as BuilderNode;
+  } as BuilderNode);
 
   const footer: BuilderNode = {
     id: makeId(),

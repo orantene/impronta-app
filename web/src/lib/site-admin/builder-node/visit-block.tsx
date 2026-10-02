@@ -6,6 +6,10 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 
+import type { TalentLocationPublic } from "@/lib/talent/location-settings";
+
+import { renderAreaBlock } from "./area-block";
+import { renderLocationBlock } from "./location-block";
 import { VISIT_DEFAULT_PROPS, type VisitLayout } from "./visit-defaults";
 import type { TalentVisitFact, TalentVisitFactIcon } from "./visit-types";
 import type { BuilderVisitNode } from "./types";
@@ -94,10 +98,21 @@ export function renderVisitBlock(args: {
   node: BuilderVisitNode;
   facts: ReadonlyArray<TalentVisitFact>;
   styleAttr?: CSSProperties;
+  /** Public-safe location for the "location" layout (see location-block.tsx). */
+  location?: TalentLocationPublic | null;
+  locale?: string;
+  /** Booking policy page of this host (the location layout's "Pagos, cambios..." link). */
+  policyHref?: string;
 }): ReactNode {
   const { node, facts, styleAttr } = args;
   const p = node.props;
   const layout = (p.layout ?? VISIT_DEFAULT_PROPS.layout ?? "facts") as VisitLayout;
+  if (layout === "location") {
+    return renderLocationBlock({ node, location: args.location, facts, locale: args.locale, styleAttr, policyHref: args.policyHref });
+  }
+  if (layout === "area") {
+    return renderAreaBlock({ node, location: args.location, facts, locale: args.locale, styleAttr });
+  }
   const band = p.band !== false;
   const showMap = p.showMap !== false;
   const mapUrl = (p.mapImageUrl ?? "").trim();

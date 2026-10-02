@@ -142,6 +142,24 @@ export function isPostAuthNextAllowedForActiveUser(
   return path === dashboardBase || path.startsWith(`${dashboardBase}/`);
 }
 
+/**
+ * True when a post-auth `next` is a TALENT surface (`/talent/...` or the
+ * tenant-scoped `/<slug>/talent/...`). Such a `next` means the visitor already
+ * said they are talent (`/register?as=talent`), so the role chooser is skipped.
+ */
+export function isTalentSurfaceNext(normalizedNext: string): boolean {
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    postAuthPathnameOnly(normalizedNext),
+  );
+  const segments = pathnameWithoutLocale.split("/").filter(Boolean);
+  if (segments[0] === "talent") return true;
+  return (
+    segments.length >= 2 &&
+    !TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(segments[0] ?? "") &&
+    segments[1] === "talent"
+  );
+}
+
 export function isOnboardingNextAllowed(normalizedNext: string): boolean {
   if (isWorkspaceOnboardingPath(normalizedNext)) {
     return true;

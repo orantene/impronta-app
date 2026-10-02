@@ -26,6 +26,7 @@
  * Contract: web/src/lib/inquiry/guest-chat-contract.ts (pure types).
  */
 
+import { safePublicName } from "@/lib/messaging/public-name";
 import { loadGuestThreadV5Extras } from "./guest-thread-v5";
 import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -43,6 +44,8 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { assertAcceptingNewContact, isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { verifyTalentOfferingIntent } from "@/lib/messaging/talent-offering-intent";
+import { clampTaskBrief } from "@/lib/talent/offering-task-brief";
+import { formatIntakeBlock } from "@/lib/talent/offering-intake";
 import { resolveTalentSiteHostTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
@@ -389,7 +392,7 @@ async function loadParticipantIdentities(
       .select("id, display_name")
       .in("id", talentIds);
     for (const t of talents ?? []) {
-      talentNameById.set(t.id as string, (t.display_name as string | null) ?? null);
+      talentNameById.set(t.id as string, safePublicName(t.display_name as string | null));
     }
   }
 
@@ -630,6 +633,11 @@ async function onDirectTalentChannel(tenantId: string | null): Promise<boolean> 
   return isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId });
 }
 
+/** The stored "Requesting:" prefix is written in the visitor's language (e2e: it leaked English into ES threads). */
+function requestingWord(locale: string | null | undefined): string {
+  return locale === "es" ? "Solicito" : "Requesting";
+}
+
 function notAcceptingMessage(locale: string | null | undefined): string {
   return locale === "es"
     ? "Ahora no recibe mensajes nuevos. Si tienes una reserva, usa el enlace de tu email de confirmación."
@@ -654,7 +662,10 @@ export async function startGuestChatInquiry(
   // Storefront carry: when the guest clicked a specific offering, make the
   // request VISIBLE in the thread (coordinator + guest both see exactly what
   // was asked for) and persist the structured payload in source_context below.
-  const offering = input.offeringIntent ? null : (input.offering ?? null);
+  const rawOffering = input.offeringIntent ? null : (input.offering ?? null);
+  // G9b: the task-picker brief is visitor text; re-clamp, drop when empty.
+  const offeringBrief = clampTaskBrief(rawOffering?.brief);
+  const offering = rawOffering ? { ...rawOffering, brief: offeringBrief ?? undefined } : null;
   const rawFirstMessage = input.firstMessage?.trim() ?? "";
   // Skip server prefix when the client already stamped one (picker / booking-sheet
   // chat handoff). Avoids "Requesting: …\n\nQuestion about …" double headers.
@@ -680,13 +691,18 @@ export async function startGuestChatInquiry(
         : null;
   const offeringPrefix =
     offering && !clientPrefixed
-      ? `Requesting: ${offeringTitle}${
+      ? `${requestingWord(input.locale)}: ${offeringTitle}${
           offeringAmount != null
             ? ` (${offering.currency} ${(offeringAmount / 100).toLocaleString()})`
             : ""
         }\n\n`
       : "";
-  const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
+  // G13: the service's intake answers, readable in the thread for both sides
+  // (the structured copy rides source_context.offering.brief.intake).
+  const intakeBlock = formatIntakeBlock(offeringBrief?.intake ?? [], input.locale ?? "en");
+  const firstMessage = rawFirstMessage
+    ? `${offeringPrefix}${rawFirstMessage}${intakeBlock ? `\n\n${intakeBlock}` : ""}`
+    : rawFirstMessage;
 
   const missing: string[] = [];
   if (!contactFirstName) missing.push("requester.first_name");

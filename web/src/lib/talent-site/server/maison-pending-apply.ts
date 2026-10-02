@@ -21,6 +21,7 @@ import {
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { isMaisonLivePending } from "./maison-pending-design";
 import { coerceTokenMap } from "./theme-apply-core";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import { applyDesign, applyLook } from "./theme-apply-core";
 import { restoreMaisonDraftSnapshot } from "./maison-design-snapshot";
@@ -141,7 +142,7 @@ export async function materializeMaisonLivePendingIfAny(
     return { ok: true };
   }
 
-  const design = await loadMaisonCatalogRow(admin, "design", proposed.designSlug || "maison");
+  const design = await loadApplyDesignRow(admin, proposed.designSlug || "maison");
   if (!design) {
     return { ok: false, error: "Maison design not found." };
   }

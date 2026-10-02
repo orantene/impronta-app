@@ -79,7 +79,7 @@ export function TalentSiteDomainPanel({
       setError(null);
       setDomains(result.domains);
     } else {
-      setError(result.error);
+      setError(copy.t(result.error));
       setMessage(null);
       if (result.domains) setDomains(result.domains);
     }

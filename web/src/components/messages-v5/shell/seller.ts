@@ -9,6 +9,8 @@
  * so the shell stays locale-agnostic and the shared catalogues do not grow.
  */
 
+import type { ReactNode } from "react";
+
 /** Translated strings the talent page hands the shell (EN or ES). */
 export type SellerChrome = {
   /** Quote builder subtitle: what the client sees. */
@@ -17,6 +19,19 @@ export type SellerChrome = {
   readonly summaryTotal: string;
   readonly summaryDeposit: string;
   readonly summaryBalance: string;
+  /** Inbox title: "Messages" / "Mensajes" (mockup msg_d), not the staff "Inbox". */
+  readonly inboxTitle?: string;
+  readonly newConversation?: string;
+  /** Her four inbox filters (mockup msg_d). When set they replace the staff segments and chips. */
+  readonly filters?: { readonly all: string; readonly needs: string; readonly quotes: string; readonly agency: string };
+  /** Under the title: "{count} waiting on you" (the inbox fills the count). */
+  readonly waitingOnYou?: string;
+  /** First run (zero conversations): how clients reach her, plus a share action. */
+  readonly firstRunTitle?: string;
+  readonly firstRunBody?: string;
+  readonly firstRunAction?: ReactNode;
+  /** Every conversation she has, across segments; null while unknown. First run needs 0 (F54). */
+  readonly totalConversations?: number | null;
 };
 
 /** Thread menu entries a talent can actually run (the rest refuse on her engine). */

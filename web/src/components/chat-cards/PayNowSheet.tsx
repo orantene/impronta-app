@@ -35,12 +35,17 @@ const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 // locale is what stops the first (pre-hydration) "en" render from freezing the
 // language for the rest of the session.
 const stripePromises = new Map<string, Promise<Stripe | null>>();
-function getStripePromise(locale: StripeJsLocale | undefined): Promise<Stripe | null> | null {
-  if (!PUBLISHABLE_KEY) return null;
-  const key = locale ?? "";
+function getStripePromise(
+  locale: StripeJsLocale | undefined,
+  /** Publishable key of the platform that owns this charge (MX sellers differ). */
+  publishableKey: string | null | undefined,
+): Promise<Stripe | null> | null {
+  const pk = publishableKey || PUBLISHABLE_KEY;
+  if (!pk) return null;
+  const key = `${pk}|${locale ?? ""}`;
   let promise = stripePromises.get(key);
   if (!promise) {
-    promise = loadStripe(PUBLISHABLE_KEY, locale ? { locale } : undefined);
+    promise = loadStripe(pk, locale ? { locale } : undefined);
     stripePromises.set(key, promise);
   }
   return promise;
@@ -62,6 +67,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
   const dashboardLocale = useDashboardLocale();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [mock, setMock] = useState(false);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [succeeded, setSucceeded] = useState(false);
@@ -77,6 +83,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
       } else if (r.mock) {
         setMock(true);
       } else if (r.clientSecret) {
+        setPublishableKey(r.publishableKey ?? null);
         setClientSecret(r.clientSecret);
       } else {
         setLoadError(t("dashboard.clientPay.couldNotInit"));
@@ -96,7 +103,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
   // PaymentIntent resolves — well after that — so the real locale is the one
   // Stripe.js is created with.
   const paymentLocale = stripeJsLocale(dashboardLocale);
-  const stripeP = getStripePromise(paymentLocale);
+  const stripeP = getStripePromise(paymentLocale, publishableKey);
   const canRenderElements = !!clientSecret && !!stripeP;
 
   return (

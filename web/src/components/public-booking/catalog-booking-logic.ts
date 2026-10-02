@@ -55,7 +55,7 @@ export function resolveCatalogConfirmOutcome(input: {
         message:
           result.error ??
           (es
-            ? "Ese horario acaba de ocuparse. Elegí otro."
+            ? "Ese horario acaba de ocuparse. Elige otro."
             : "That time was just taken. Pick another."),
       };
     }
@@ -70,7 +70,7 @@ export function resolveCatalogConfirmOutcome(input: {
     return {
       kind: "payment_missing",
       message: es
-        ? "No se pudo abrir el pago. Probá de nuevo o enviá una consulta."
+        ? "No se pudo abrir el pago. Prueba de nuevo o envía una consulta."
         : "Could not open payment. Try again or send an inquiry.",
     };
   }

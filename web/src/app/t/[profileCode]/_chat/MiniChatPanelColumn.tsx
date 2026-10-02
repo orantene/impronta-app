@@ -23,6 +23,7 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
+import type { ChatCardConfig } from "@/lib/talent-site/chat-card";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -35,11 +36,14 @@ import { GuestDockChrome } from "./GuestDockChrome";
 import { GuestDockHomeView } from "./GuestDockHomeView";
 import { GuestDockLineupView } from "./GuestDockLineupView";
 import { GuestDockProjectsView } from "./GuestDockProjectsView";
+import { CardDockServicesView } from "./CardDockServicesView";
+import { CardDockAskFooter, CardDockBackToBooking, CardDockIntro } from "./CardDockChatExtras";
 import type { GuestDockView } from "./guest-dock-view";
-import { GuestDetailChips } from "./GuestDetailChips";
+import { GuestComposerNotices } from "./GuestComposerNotices";
+import { GuestLegacyDetailChips } from "./GuestLegacyDetailChips";
 import { GuestDetailsControl } from "./GuestDetailsControl";
 import { GuestHablarOfferPreview } from "./GuestHablarOfferPreview";
-import { guestHeaderThreadState, isPrivateDraftThread } from "./guest-thread-state";
+import { guestHeaderThreadState, hasSentGuestMessage, isPrivateDraftThread } from "./guest-thread-state";
 import type { GuestHeaderThreadState } from "./GuestPanelHeader";
 import { GuestThreadSwitcherDrawer } from "./GuestThreadSwitcherDrawer";
 import { MiniChatComposer } from "./MiniChatComposer";
@@ -256,13 +260,15 @@ export type MiniChatPanelColumnProps = {
   onStartFresh?: (() => void) | null;
   /** DOCK v2 — signed-in client dashboard link for the Home Account card. */
   dashboardHref?: string | null;
+  /** `chat.variant = card`: the card skin (header icons, token palette, intro). */
+  card?: ChatCardConfig | null;
 };
 
 export function MiniChatPanelColumn({
   brand,
-  accent,
-  accentInk,
-  surfaceMode = "light",
+  accent: accentProp,
+  accentInk: accentInkProp,
+  surfaceMode: surfaceModeProp = "light",
   talentFirst,
   tenantSlug,
   talentProfileId,
@@ -346,7 +352,12 @@ export function MiniChatPanelColumn({
   onScanConversation = null,
   onStartFresh = null,
   dashboardHref = null,
+  card = null,
 }: MiniChatPanelColumnProps) {
+  // Card skin: the site's own tokens drive every dock surface (paletteFor("card")).
+  const accent = card?.colors.accent ?? accentProp;
+  const accentInk = card?.colors.onAccent ?? accentInkProp;
+  const surfaceMode: SurfaceMode = card ? "card" : surfaceModeProp;
   // Guest UI locale rides along on `brand` (resolved server-side from the
   // tenant's default_locale, since guests have no LOCALE_COOKIE).
   const t = createTranslator(brand.locale ?? "en");
@@ -369,6 +380,7 @@ export function MiniChatPanelColumn({
     inquiryRecordExists: Boolean(inquiryRecordExists),
     contactPromoted,
     hasReceipt: receipt != null,
+    hasSentMessage: hasSentGuestMessage(rows),
     showGate,
     showSentAirlock,
   };
@@ -459,6 +471,7 @@ export function MiniChatPanelColumn({
         projectsCount={inquiries.length}
         t={t}
         onClose={onClose}
+        card={card}
       />
 
       <GuestThreadSwitcherDrawer
@@ -512,19 +525,36 @@ export function MiniChatPanelColumn({
       )}
 
       {/* Lineup */}
-      {activeDockView === "lineup" && (
-        <GuestDockLineupView
-          accent={accent}
-          accentInk={accentInk}
-          surfaceMode={surfaceMode}
-          t={t}
-          sourcePage={sourcePage}
-          onRemoveCartTalent={onRemoveCartTalent}
-          onStartInquiry={startInquiryInChat}
-          {...dock.lineupItemsProps}
-          catalog={dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
-        />
-      )}
+      {activeDockView === "lineup" && (() => {
+        const lineup = (
+          <GuestDockLineupView
+            accent={accent}
+            accentInk={accentInk}
+            surfaceMode={surfaceMode}
+            t={t}
+            sourcePage={sourcePage}
+            onRemoveCartTalent={onRemoveCartTalent}
+            onStartInquiry={card ? undefined : startInquiryInChat}
+            {...dock.lineupItemsProps}
+            catalog={card && (brand.dockServiceMenu?.length ?? 0) > 0 ? null : dock.catalogProps({ tenantSlug, inquiryId, sourcePage, onEnsureInquiry: onEnsureInquiryForItems, onAsk: (text) => { onDraftChange(text); onDockViewChange?.("chat"); } })}
+          />
+        );
+        return card ? (
+          <CardDockServicesView
+            offerings={offerings}
+            locale={brand.locale ?? "en"}
+            t={t}
+            selectionCount={cartTalentNames.length + (v5?.items?.lines.length ?? 0)}
+            sending={sending || inCooldown}
+            onSend={onSendToAgency ?? startInquiryInChat}
+            onBackToChat={() => onDockViewChange?.("chat")}
+            onAdded={onClose}
+            menu={brand.dockServiceMenu}
+          >
+            {lineup}
+          </CardDockServicesView>
+        ) : lineup;
+      })()}
 
       {/* Projects */}
       {activeDockView === "projects" && (
@@ -541,11 +571,13 @@ export function MiniChatPanelColumn({
             onDockViewChange?.("chat");
           }}
           onBookAgain={dock.onBookAgainInquiry}
+          onBrowseServices={card ? () => onDockViewChange?.("lineup") : undefined}
         />
       )}
 
       {activeDockView === "chat" && (
         <>
+      {card && !showGate ? <CardDockBackToBooking locale={brand.locale ?? "en"} t={t} onBack={onClose} /> : null}
       {/* Conversation body — or dev `?hablar_preview=offer` DoR OFERTA fixture. */}
       {offerPreview ? (
         <GuestHablarOfferPreview
@@ -583,6 +615,7 @@ export function MiniChatPanelColumn({
         cardModel={dock.cardModel}
         now={dock.now}
         sendBarActive={sendBarActive}
+        cardIntro={card ? <CardDockIntro greeting={card.customGreeting?.trim() || interpolate(t("public.guestChat.cardGreeting"), { name: talentFirst || brand.talentDisplayName || brand.agencyName })} /> : undefined}
       />
       )}
 
@@ -613,79 +646,26 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {captchaRequired && !showGate && (
-        <div
-          data-guest-chat-captcha-slot
-          style={{
-            padding: "9px 14px",
-            borderTop: `1px solid ${C.borderSoft}`,
-            background: C.surfaceFaint,
-            fontSize: 11.5,
-            color: C.inkMuted,
-          }}
-        >
-          {t("public.guestChat.captchaNotice")}
-        </div>
-      )}
+      {!showGate && <GuestComposerNotices captchaRequired={captchaRequired} error={error} inCooldown={inCooldown} cooldownSecs={cooldownSecs} C={C} t={t} />}
 
-      {error && !showGate && (
-        <div
-          role="alert"
-          style={{
-            padding: "7px 14px",
-            fontSize: 11.5,
-            color: C.danger,
-            background: "rgba(161,58,58,0.06)",
-          }}
-        >
-          {error}
-          {inCooldown
-            ? ` ${interpolate(t("public.guestChat.tryAgainIn"), { secs: cooldownSecs })}`
-            : ""}
-        </div>
-      )}
-
-      {/* ── U4 / P1: LEGACY detail chips (no unified inquiry) ─────────────── */}
-      {/* Legacy path only (no onEnsureInquiry); the unified path uses
-          GuestDetailChipRow below the conversation, the single detail surface. */}
-      {!showGate && !extrasEnabled && (onPatchChip || (inquiryId && onCaptureChip)) && (
-        <GuestDetailChips
+      {/* U4 / P1: LEGACY detail chips (no unified inquiry); see GuestLegacyDetailChips. */}
+      {!showGate && !extrasEnabled && (
+        <GuestLegacyDetailChips
           inquiryId={inquiryId}
-          alwaysShow={Boolean(onPatchChip)}
+          identity={identity}
+          tenantSlug={tenantSlug}
+          talentProfileId={talentProfileId}
           accent={accent}
           accentInk={accentInk}
           t={t}
           surfaceMode={surfaceMode}
-          capturedKinds={capturedChipKinds}
-          capturedValues={capturedChipValues}
-          fieldState={chipFieldState}
-          remoteFlashKinds={chipRemoteFlashKinds}
-          onPatch={onPatchChip ?? undefined}
-          onCapture={async (input: GuestChipInput) => {
-            // Legacy direct-capture fallback (only reached when onPatchChip is
-            // absent). The unified path uses onPatch above.
-            if (!onCaptureChip) {
-              return { ok: false as const, code: "engine_error" as const, message: "" };
-            }
-            const r = await onCaptureChip(input);
-            if (r.ok) onCapturedChipKind(input.kind);
-            return r;
-          }}
-          onAddMoreDetails={
-            // #683: /client/messages requires an authenticated client, so a guest
-            // would 404 there; hide the escalation for guests. When extrasEnabled
-            // the GuestDetailChipRow is the canonical detail surface, so this
-            // legacy chip block never renders there anyway; only the legacy
-            // non-guest path keeps the deep-link to the full form.
-            identity === "guest" || extrasEnabled
-              ? undefined
-              : () => {
-                  window.open(
-                    `/${tenantSlug}/client/messages?new=1&talent=${talentProfileId}`,
-                    "_blank",
-                  );
-                }
-          }
+          capturedChipKinds={capturedChipKinds}
+          capturedChipValues={capturedChipValues}
+          chipFieldState={chipFieldState}
+          chipRemoteFlashKinds={chipRemoteFlashKinds}
+          onPatchChip={onPatchChip}
+          onCaptureChip={onCaptureChip}
+          onCapturedChipKind={onCapturedChipKind}
         />
       )}
 
@@ -741,7 +721,7 @@ export function MiniChatPanelColumn({
         offerPreview={offerPreview}
         threadStatus={threadStatus}
         offerings={offerings}
-        onPickOffering={onPickOffering}
+        onPickOffering={card ? undefined : onPickOffering}
         onDraftChange={onDraftChange}
         draft={draft}
         locale={brand.locale ?? "en"}
@@ -749,7 +729,10 @@ export function MiniChatPanelColumn({
         accent={accent}
         surfaceMode={surfaceMode}
         v5={v5}
+        hideAskCard={Boolean(card)}
       />
+
+      {card && !showGate ? <CardDockAskFooter t={t} threadEmpty={rows.every((m) => m.authorRole === "system")} onPick={(q) => { onDraftChange(q); textareaRef.current?.focus(); }} /> : null}
 
       {!showGate && (brand.dockCardsV5 === true || dock.nextStepProps.bookAgainNotice) && <GuestNextStep {...dock.nextStepProps} />}
 
@@ -760,7 +743,7 @@ export function MiniChatPanelColumn({
           honeypot={honeypot}
           onHoneypotChange={onHoneypotChange}
           onSubmit={onSubmit}
-          placeholder={guestComposerPlaceholder(t, {
+          placeholder={card && !inquiryId ? t("public.guestChat.cardComposerPlaceholder") : guestComposerPlaceholder(t, {
             frontDoorChrome,
             agencyPublicSurface: Boolean(brand.agencyPublicSurface),
             inquiryId,
@@ -777,7 +760,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {!showGate && extrasEnabled && onSendToAgency && !guestThreadBlocksSendBar(rows) && (
+      {!showGate && extrasEnabled && onSendToAgency && !threadStateInput.hasSentMessage && !guestThreadBlocksSendBar(rows) && (
         <SendToAgencyBar
           accent={accent}
           accentInk={accentInk}

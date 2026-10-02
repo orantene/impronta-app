@@ -14,15 +14,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   LOCALE_COOKIE,
   localeCookieIsAutoWritten,
+  stampLocaleOwner,
   seedTalentDashboardLocaleCookie,
 } from "@/i18n/locale-middleware";
+import { LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
 import {
   safeTalentNextPath,
   TALENT_LOCALE_SEED_ATTEMPT_COOKIE,
   TALENT_LOCALE_SEED_ATTEMPT_MAX_AGE_SECONDS,
-  talentLocaleSeedTarget,
+  talentLocaleSeedPlan,
 } from "@/lib/site-admin/server/talent-locale-seed";
 
 export const dynamic = "force-dynamic";
@@ -44,11 +46,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { seedPrimary } = await loadTalentLocaleState(scope.talentProfile.id);
   if (!seedPrimary) return res;
-  const target = talentLocaleSeedTarget({
+  const plan = talentLocaleSeedPlan({
     cookieLocale: request.cookies.get(LOCALE_COOKIE)?.value ?? null,
     cookieIsAuto: localeCookieIsAutoWritten(request),
+    cookieOwner: request.cookies.get(LOCALE_OWNER_COOKIE)?.value ?? null,
+    userId: scope.session.user.id,
     primary: seedPrimary,
   });
-  if (target) seedTalentDashboardLocaleCookie(res, target);
+  if (plan.locale) seedTalentDashboardLocaleCookie(res, plan.locale);
+  if (plan.stamp) stampLocaleOwner(res, scope.session.user.id);
   return res;
 }

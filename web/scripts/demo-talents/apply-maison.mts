@@ -1,3 +1,5 @@
+// SUPERSEDED by `npm run demos:rebuild` (scripts/demo-talents/rebuild.mjs): one command, backup + restore, dry run by default.
+console.error("[demo-talents] superseded: use `npm run demos:rebuild` (dry run by default, --write to apply).");
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -93,7 +95,8 @@ for (const e of entries) {
   const look = galleryTokens ? null : await loadMaisonCatalogRow(admin, "look", `maison-${paletteKey}`);
   if (!galleryTokens && !look) throw new Error(`look maison-${paletteKey} not found`);
 
-  const design = await loadMaisonCatalogRow(admin, "design", designSlug);
+  const { loadDemoDesignRow } = await import("../../src/lib/talent-site/theme-releases/release-design.server");
+const design = await loadDemoDesignRow(admin, designSlug);
   if (!design) throw new Error(`design ${designSlug} not found`);
   const d = await applyDesign(admin, {
     talentProfileId: e.talentProfileId,

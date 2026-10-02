@@ -171,6 +171,7 @@ export const BUILDER_2027_ANCHOR_GROUPS: Readonly<
             { value: "row", label: "One row" },
             { value: "grid", label: "Grid" },
             { value: "split", label: "Two columns" },
+            { value: "spec", label: "Spec grid" },
           ],
         },
         {

@@ -24,10 +24,7 @@ import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { validateSectionProps } from "@/lib/site-admin/forms/sections";
-import {
-  findInvalidInquiryCtas,
-  isSectionHidden,
-} from "./publish-preflight-rules";
+import { findInvalidInquiryCtas, findSectionSwitcherIssues, isSectionHidden } from "./publish-preflight-rules";
 import {
   classifyCanonicalIssue,
   classifyHrefIssue,
@@ -60,6 +57,7 @@ import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
 import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
+import { collectAppPreflightIssues } from "./publish-preflight-apps";
 import { BRAND_IDENTITY_MESSAGE, brandIdentityAppliesTo, brandIdentityVerdict } from "./publish-preflight-brand-identity";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -88,7 +86,8 @@ export interface PreflightIssue {
     | "layout"
     | "mobile_overflow"
     | "performance"
-    | "brand_identity";
+    | "brand_identity"
+    | "app_config";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   /**
@@ -166,13 +165,20 @@ function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResu
   }
   const validation = validateBuilderNodeTree(builderTree);
   if (!validation.ok) {
+    // Talents get a plain message; the technical detail is for staff (server log).
+    logServerError(
+      "publish-preflight.talentPage.builderTree",
+      new Error(
+        validation.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path}: ${issue.message}`)
+          .join("; "),
+      ),
+    );
     issues.push({
       severity: "error",
       category: "builder_payload",
-      message: `Builder tree is invalid: ${validation.issues
-        .slice(0, 2)
-        .map((issue) => `${issue.path}: ${issue.message}`)
-        .join("; ")}`,
+      message: "There is a problem with a section of your page. Save again or contact support.",
     });
     return { ok: true, issues };
   }
@@ -201,6 +207,7 @@ function runTalentPagePublishPreflight(builderTreeInput: unknown): PreflightResu
   for (const issue of collectMobileOverflowPreflightIssues(validation.tree)) {
     issues.push(issue);
   }
+  for (const issue of collectAppPreflightIssues(validation.tree)) issues.push(issue);
   return { ok: true, issues };
 }
 
@@ -432,6 +439,8 @@ export async function runPublishPreflight(input?: {
       });
     }
 
+    for (const message of findSectionSwitcherIssues(sectionName, r.section_type_key, props)) issues.push({ severity: "warn", category: "link_integrity", sectionId: r.id, message });
+
     // Generic link integrity audit.
     for (const candidate of collectLinkCandidates(props)) {
       const hrefIssue = classifyHrefIssue(candidate.href);
@@ -614,6 +623,7 @@ export async function runPublishPreflight(input?: {
         )) {
           issues.push(overflowIssue);
         }
+        for (const appIssue of collectAppPreflightIssues(validation.tree)) issues.push(appIssue);
 
         // Paid-plan blocks: social_feed is gated to paid workspaces. The Add
         // gallery already refuses the insert on free plans; this is the

@@ -18,6 +18,7 @@ import { parseMaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/
 import { gate } from "./site-action-gate";
 import type { ThemeActionResult } from "./theme-action-types";
 import { applyDesign, applyLook } from "./theme-apply-core";
+import { loadApplyDesignRow } from "@/lib/talent-site/theme-releases/release-design.server";
 import { loadMaisonCatalogRow } from "./maison-catalog-row";
 import {
   captureMaisonDraftSnapshot,
@@ -569,7 +570,7 @@ export async function reapplyMaisonDemoLayoutAction(): Promise<
   if (!captured.ok) {
     return { ok: false, code: "server_error", error: captured.error };
   }
-  const design = await loadMaisonCatalogRow(admin, "design", DESIGN_SLUG);
+  const design = await loadApplyDesignRow(admin, DESIGN_SLUG);
   if (!design) {
     return { ok: false, code: "theme_not_found", error: "Maison design not found." };
   }

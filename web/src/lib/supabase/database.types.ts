@@ -763,6 +763,7 @@ export type Database = {
       }
       agency_bookings: {
         Row: {
+          policy_version_id: string | null
           access_notes: string | null
           balance_collection_method: string | null
           balance_due_at: string | null
@@ -839,6 +840,7 @@ export type Database = {
           wardrobe_notes: string | null
         }
         Insert: {
+          policy_version_id?: string | null
           access_notes?: string | null
           balance_collection_method?: string | null
           balance_due_at?: string | null
@@ -915,6 +917,7 @@ export type Database = {
           wardrobe_notes?: string | null
         }
         Update: {
+          policy_version_id?: string | null
           access_notes?: string | null
           balance_collection_method?: string | null
           balance_due_at?: string | null
@@ -6804,6 +6807,7 @@ export type Database = {
       }
       inquiries: {
         Row: {
+          policy_version_id: string | null
           access_notes: string | null
           assigned_staff_id: string | null
           booked_at: string | null
@@ -6875,6 +6879,7 @@ export type Database = {
           wardrobe_notes: string | null
         }
         Insert: {
+          policy_version_id?: string | null
           access_notes?: string | null
           assigned_staff_id?: string | null
           booked_at?: string | null
@@ -6946,6 +6951,7 @@ export type Database = {
           wardrobe_notes?: string | null
         }
         Update: {
+          policy_version_id?: string | null
           access_notes?: string | null
           assigned_staff_id?: string | null
           booked_at?: string | null
@@ -8029,6 +8035,7 @@ export type Database = {
       }
       inquiry_offers: {
         Row: {
+          policy_version_id: string | null
           accepted_at: string | null
           balance_collection_method: string | null
           coordinator_fee: number
@@ -8052,6 +8059,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          policy_version_id?: string | null
           accepted_at?: string | null
           balance_collection_method?: string | null
           coordinator_fee?: number
@@ -8075,6 +8083,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          policy_version_id?: string | null
           accepted_at?: string | null
           balance_collection_method?: string | null
           coordinator_fee?: number
@@ -9640,6 +9649,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          policy_version_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -9664,6 +9674,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          policy_version_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -9688,6 +9699,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          policy_version_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string

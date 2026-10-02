@@ -4,6 +4,7 @@ import {
   resolveAccountHref,
   resolveAuthenticatedDestination,
   resolvePostAuthDestination,
+  isTalentSurfaceNext,
 } from "@/lib/auth-flow";
 import { resolveAuthRoutingDecision } from "@/lib/auth-routing";
 import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
@@ -704,4 +705,13 @@ test("an onboarding user may reach /claim instead of being bounced to role selec
     }).redirectTo,
     "/onboarding/role",
   );
+});
+
+test("isTalentSurfaceNext recognises talent surfaces only", () => {
+  assert.equal(isTalentSurfaceNext("/talent/profile/fields"), true);
+  assert.equal(isTalentSurfaceNext("/es/talent/today"), true);
+  assert.equal(isTalentSurfaceNext("/impronta/talent"), true);
+  assert.equal(isTalentSurfaceNext("/client"), false);
+  assert.equal(isTalentSurfaceNext("/impronta/client/inquiries"), false);
+  assert.equal(isTalentSurfaceNext("/"), false);
 });

@@ -16,6 +16,8 @@ import { ES_ICON_TEXT } from "./editor-i18n-es-icons";
 import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
 import { ES_INSPECTOR_TEXT_3 } from "./editor-i18n-es-inspectors-3";
 import { ES_BUILDER_2027_TEXT } from "./editor-i18n-es-builder-2027";
+import { ES_ADD_GALLERY_2 } from "./editor-i18n-es-add-gallery-2";
+import { ES_APPS_TEXT } from "./editor-i18n-es-apps";
 import { ES_CAROUSEL_TEXT } from "./editor-i18n-es-carousel";
 import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
 import { ES_PUBLISH_TEXT } from "./editor-i18n-es-publish";
@@ -25,10 +27,9 @@ import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
 import { ES_SHORTCUT_TEXT } from "./editor-i18n-es-shortcuts";
 
 export const ES_TEXT: Record<string, string> = {
+  "Device": "Dispositivo",
   ...ES_SECTION_CATALOG_TEXT,
-  // WAVE 4.5 — the per-section Editor panel bodies + shared field primitives.
-  // Spread BEFORE the canvas/explicit keys so a hand-tuned chrome string still
-  // wins on a collision (the section-catalog parity guard pins that ordering).
+  // WAVE 4.5: section Editor panel bodies; spread BEFORE canvas keys so chrome wins (parity guard).
   ...ES_SECTION_PANEL_TEXT,
   ...ES_SECTION_PANEL_TEXT_2,
   // WAVE 4 (canvas bars, preflight, AI panels) — split out for the line cap.
@@ -39,13 +40,12 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_INSPECTOR_TEXT,
   // Overflow splits of ES_INSPECTOR_TEXT (P3 2026-08-16; LUMINA 2026-09-16).
   ...ES_INSPECTOR_TEXT_2, ...ES_INSPECTOR_TEXT_3,
+  ...ES_ADD_GALLERY_2, ...ES_APPS_TEXT,
   ...ES_BUILDER_2027_TEXT, // BUILDER 2027 · P2A native kinds
   ...ES_ICON_TEXT,
   // ── Animation tab (2026-08-20 rebuild of the entrance-motion surface) ──
   ...ES_ANIMATION_TEXT,
-  // WAVE 4.6 (builder registry: node-kind labels + descriptions, element
-  // library, "My blocks" / "Component library"). Disjoint from every other
-  // catalog by construction, enforced by the cross-file duplicate guard.
+  // WAVE 4.6 builder registry (disjoint; cross-file duplicate guard).
   ...ES_BUILDER_REGISTRY_TEXT,
   // ── Media surfaces (picker locks, MediaField, Assets library) ─────────
   ...ES_MEDIA_TEXT,

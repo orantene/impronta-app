@@ -38,8 +38,6 @@ function seoForSitePage(canonical: string): MaxSiteSeo {
   const jsonLd = buildTalentProfileJsonLd({
     canonicalUrl: canonical, // SITE canonical, NOT the profile
     name: "Sofía Vega",
-    givenName: "Sofía",
-    familyName: "Vega",
     description: "Editorial photographer.",
     imageUrl: "https://cdn.tulala.digital/logo.png",
     inLanguage: "en",

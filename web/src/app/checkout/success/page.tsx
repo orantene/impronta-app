@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getStripe } from "@/lib/stripe/client";
+import { getStripe, getStripeMx, withObjectPlatformFallback } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -24,18 +24,19 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * and lets `deriveGuestBookingPresentation` decide what may be said.
  */
 async function resolveTransactionId(sp: SP): Promise<string | null> {
-  const stripe = getStripe();
-  if (stripe && sp.session_id && sp.session_id.startsWith("cs_")) {
+  const sessionId = sp.session_id;
+  if (sessionId && sessionId.startsWith("cs_")) {
     try {
-      const session = await stripe.checkout.sessions.retrieve(sp.session_id);
-      return session.client_reference_id ?? null;
+      // The session may belong to the US or the MX platform; ask US, then MX.
+      const session = await withObjectPlatformFallback((c) => c.checkout.sessions.retrieve(sessionId));
+      if (session) return session.client_reference_id ?? null;
     } catch (err) {
       logServerError("checkout/success.retrieve", err);
       return null;
     }
   }
   // Mock mode only: no Stripe, the transaction id rides the URL.
-  if (!stripe && sp.tx && UUID_RE.test(sp.tx)) return sp.tx;
+  if (!getStripe() && !getStripeMx() && sp.tx && UUID_RE.test(sp.tx)) return sp.tx;
   return null;
 }
 

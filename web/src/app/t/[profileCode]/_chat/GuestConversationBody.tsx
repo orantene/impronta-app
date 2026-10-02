@@ -10,7 +10,7 @@
  * MiniChatPanelColumn. No logic changes.
  */
 
-import { useMemo, type RefObject } from "react";
+import { useMemo, type ReactNode, type RefObject } from "react";
 
 import type {
   GuestIdentityTier,
@@ -33,6 +33,7 @@ import { clusterSystemRows } from "./cluster-system-rows";
 import { NewMessagePulse } from "./NewMessagePulse";
 import { SentAirlock } from "./SentAirlock";
 import { TrustGateNudge } from "./TrustGateNudge";
+import { CARD_SOLID_BG } from "./card-dock-skin";
 import { FONT_DISPLAY, type Palette, type SurfaceMode } from "./mini-chat-styles";
 import type {
   AddClaimEmailCallback,
@@ -76,6 +77,8 @@ export type GuestConversationBodyProps = {
   cardModel: GuestClientCardsModel;
   /** L13: the column's clock (ticks while a hold counts down). */
   now: Date;
+  /** Card skin: replaces the greeting bubble (note line + her greeting). */
+  cardIntro?: ReactNode;
 };
 
 export function GuestConversationBody({
@@ -104,6 +107,7 @@ export function GuestConversationBody({
   sendBarActive = false,
   cardModel,
   now,
+  cardIntro,
 }: GuestConversationBodyProps) {
   // L13: the card model + clock come from the column (it also feeds the
   // next-step block above the composer, so both act through one model).
@@ -125,11 +129,11 @@ export function GuestConversationBody({
           overflowY: "auto",
           // P0-4b: keep wheel/touch scroll inside the thread, never the page.
           overscrollBehavior: "contain",
-          padding: "14px 14px 6px",
+          padding: cardIntro ? "12px 16px 8px" : "14px 14px 6px",
           display: "flex",
           flexDirection: "column",
-          gap: 9,
-          background: C.surface,
+          gap: cardIntro ? 12 : 9,
+          background: cardIntro ? CARD_SOLID_BG : C.surface,
         }}
       >
       {/* Jon 360 Phase 1: SENT airlock — non-blocking overlay on a real send. */}
@@ -165,7 +169,8 @@ export function GuestConversationBody({
         // whose only rows are SYSTEM notes (e.g. "Lineup · 3 talent") should
         // still show the greeting, so the panel opens alive instead of blank.
         // So: show while every row is a system note; hide once any
-        // guest/coordinator message lands.
+        // guest/coordinator message lands. The card skin supplies its own.
+        cardIntro ?? (
         <div
           style={{
             alignSelf: "flex-start",
@@ -192,7 +197,7 @@ export function GuestConversationBody({
             ? t("public.guestChat.greetingTalentPickFirst")
             : brand.greeting?.trim()
               ? brand.greeting.trim()
-              : interpolate(t("public.guestChat.greetingDefault"), {
+              : interpolate(t(brand.soloTalent ? "public.guestChat.greetingSolo" : "public.guestChat.greetingDefault"), {
                   // FULL display name, not the first-name split. #1766 gave this
                   // line the tenant's own `brand.greeting` when there is one;
                   // this is the fallback beneath it, and it read
@@ -207,6 +212,7 @@ export function GuestConversationBody({
                   name: brand.talentDisplayName.trim() || talentFirst,
                 })}
         </div>
+        )
       ) : null}
 
       {/* W1-1 — fold consecutive system notes into ONE quiet caption cluster

@@ -44,3 +44,32 @@ test("missing translation falls back to English (no swap)", () => {
   assert.ok(!("DJ" in m));
   assert.equal(m[en.slice(0, 160).trim()], clampWords(en));
 });
+
+test("the marquee's baked English service titles swap to the locale's title (platform)", () => {
+  const offerings = [
+    { title: "Russian manicure with gel", titleI18n: { en: "Russian manicure with gel", es: "Manicura rusa con gel" } },
+    { title: "Semi-permanent gel, hands", titleI18n: { en: "Semi-permanent gel, hands", es: "Esmaltado semipermanente, manos" } },
+    { title: "Untranslated", titleI18n: { en: "Untranslated" } },
+  ];
+  const es = buildTalentLocaleSwaps({ bioI18n: null, typeNames: [], homeCity: null, offerings }, "es");
+  assert.equal(es["Russian manicure with gel"], "Manicura rusa con gel");
+  assert.equal(es["Semi-permanent gel, hands"], "Esmaltado semipermanente, manos");
+  assert.ok(!("Untranslated" in es), "no translation means no swap");
+  const en = buildTalentLocaleSwaps({ bioI18n: null, typeNames: [], homeCity: null, offerings }, "en");
+  assert.deepEqual(en, {});
+});
+
+test("an ASCII-folded baked city swaps to its accented form, alone and in the eyebrow (data)", () => {
+  const src = {
+    bioI18n: null,
+    typeNames: [{ en: "Nail Artist", es: "Manicurista" }],
+    homeCity: { en: "Cancun", es: "Cancún" },
+    cityAliases: ["Cancun"],
+  };
+  const es = buildTalentLocaleSwaps(src, "es");
+  assert.equal(es["Cancun"], "Cancún");
+  assert.equal(es["Nail Artist · Cancun"], "Manicurista · Cancún");
+  assert.equal(es["Based in Cancun"], "Con base en Cancún");
+  const en = buildTalentLocaleSwaps({ ...src, homeCity: { en: "Cancún" } }, "en");
+  assert.equal(en["Cancun"], "Cancún");
+});

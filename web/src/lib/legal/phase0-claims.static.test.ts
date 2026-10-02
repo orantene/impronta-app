@@ -1,0 +1,86 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+/**
+ * Legal Phase 0: public and admin copy must not claim behaviour the code does
+ * not implement. These static checks keep removed claims from coming back.
+ */
+const read = (p: string) => readFileSync(p, "utf8");
+
+test("payments copy does not call the talent merchant of record", () => {
+  assert.doesNotMatch(read("src/lib/marketing/features/feature-payments.ts"), /merchant of record/i);
+});
+
+test("privacy page has no unimplemented promises", () => {
+  const s = read("src/app/(marketing)/legal/privacy/page.tsx");
+  assert.doesNotMatch(s, /consent banner/i);
+  assert.doesNotMatch(s, /within 30 days/i);
+  // Owner decision 2026-10-01: these periods are stated, from retention-config.ts.
+  assert.match(s, /3 years after the last activity/);
+  assert.match(read("src/app/(marketing)/legal/privacy/privacy-es.tsx"), /3 años después de la última actividad/);
+  assert.match(s, /90 days/);
+  assert.match(s, /LEGAL_REVIEW_PENDING/);
+  assert.doesNotMatch(s, /CSV \+ JSON/);
+  for (const p of ["Vercel", "Supabase", "Stripe", "Resend", "Sentry", "Google Maps", "Anthropic", "OpenAI", "Upstash"]) {
+    assert.ok(s.includes(p), `subprocessor ${p} listed`);
+  }
+});
+
+test("tracking tag copy is not described as consent-gated", () => {
+  for (const f of ["messages/en.json", "messages/es.json", "src/lib/integrations/catalog.ts"]) {
+    const s = read(f);
+    assert.doesNotMatch(s, /consent-gated/i, f);
+    assert.doesNotMatch(s, /gated behind visitor consent/i, f);
+    assert.doesNotMatch(s, /siempre sujet[oa]s? al consentimiento del visitante/i, f);
+  }
+});
+
+test("JSON-LD never carries legal first/last name", () => {
+  for (const f of [
+    "src/lib/seo/talent-json-ld.ts",
+    "src/lib/talent-site/server/max-site-seo.server.ts",
+    "src/app/t/[profileCode]/profile-view.tsx",
+  ]) {
+    assert.doesNotMatch(read(f), /givenName|familyName/, f);
+  }
+});
+
+test("self-cancel copy does not promise a link-based cancel", () => {
+  const s = read("src/lib/site-admin/builder-node/visit-sources.ts");
+  assert.doesNotMatch(s, /Cambias o cancelas desde tu enlace|Change or cancel from your link/);
+  assert.doesNotMatch(
+    read("src/components/talent/website-settings/WebsiteSettingsGroups.tsx"),
+    /refunded in full before that/,
+  );
+});
+
+test("terms state talent merchant of record and 18+ in EN and ES, marked for review", () => {
+  const s = read("src/app/(marketing)/legal/terms/page.tsx");
+  assert.match(s, /merchant of record/);
+  const es = read("src/app/(marketing)/legal/terms/terms-es.tsx");
+  assert.match(es, /comerciante registrado/);
+  assert.match(es, /LEGAL_REVIEW_PENDING/);
+  assert.match(s, /18 or older/);
+  assert.match(es, /18 años o más/);
+  assert.match(s, /LEGAL_REVIEW_PENDING/);
+  const panel = read("src/components/talent/money/MoneyPayoutsPanel.tsx");
+  assert.match(panel, /merchant of record/);
+  assert.match(panel, /LEGAL_REVIEW_PENDING/);
+});
+
+test("no legal page claims Tulala covers chargebacks; chargebacks belong to the talent", () => {
+  const pages = [
+    "src/app/(marketing)/legal/terms/page.tsx",
+    "src/app/(marketing)/legal/terms/terms-es.tsx",
+    "src/app/(marketing)/legal/privacy/page.tsx",
+    "src/app/(marketing)/legal/privacy/privacy-es.tsx",
+  ];
+  for (const p of pages) {
+    const s = read(p).replace(/\s+/g, " ");
+    assert.doesNotMatch(s, /\{PLATFORM_BRAND\.name\} (covers it|lo cubre)/, p);
+    assert.doesNotMatch(s, /Tulala covers|Tulala cubre/i, p);
+  }
+  assert.match(read(pages[0]).replace(/\s+/g, " "), /chargebacks and disputes are the talent&rsquo;s responsibility/);
+  assert.match(read(pages[1]).replace(/\s+/g, " "), /contracargos y las disputas son responsabilidad del talento/);
+});

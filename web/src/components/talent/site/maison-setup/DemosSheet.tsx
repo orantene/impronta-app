@@ -93,7 +93,7 @@ export function DemosSheet({
         {detailT(
           locale,
           colorsKept
-            ? "Switching demo changes photos, sample text and sections. Your colors are kept."
+            ? "Switching demo changes photos, sample text and sections. Colors change only when you pick a palette."
             : "Each demo can change photos, sample text, sections and its default colors.",
         )}
       </p>

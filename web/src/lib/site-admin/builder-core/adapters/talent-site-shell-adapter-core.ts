@@ -33,6 +33,11 @@ import type {
   RevisionsLoadResult,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import {
+  DRAFT_REV_CONFLICT_CODE,
+  resolveExpectedDraftRev,
+  versionAfterWrite,
+} from "@/lib/talent-site/history/draft-rev";
 
 import type {
   BuilderSurfaceAdapter,
@@ -64,11 +69,24 @@ export interface TalentSiteShellRow {
   styleClasses?: unknown;
   /** STYLE-1 — site-scoped presets envelope (talent_sites.style_presets). */
   stylePresets?: unknown;
+  /** Theme releases Phase 2 — `talent_sites.draft_rev` (the CAS version). */
+  draftRev?: number | null;
 }
 
-/** pageVersion = `updated_at` epoch seconds (matches every freeform adapter). */
 function versionFromRow(row: TalentSiteShellRow): number {
+  if (typeof row.draftRev === "number") return row.draftRev;
   return Math.floor(new Date(row.updatedAt).getTime() / 1000);
+}
+
+/** A shell draft write (`draftRev` set once the site carries one). */
+export type TalentSiteShellWriteResult =
+  | { ok: true; updatedAt: string; draftRev?: number | null }
+  | { ok: false; error: string; code?: string };
+
+function shellWriteFailure(result: { error: string; code?: string }) {
+  return result.code === DRAFT_REV_CONFLICT_CODE
+    ? { ok: false as const, error: result.error, code: DRAFT_REV_CONFLICT_CODE }
+    : { ok: false as const, error: result.error };
 }
 
 /** Patch the adapter writes to `talent_sites` on a shell save. */
@@ -95,12 +113,14 @@ export interface TalentSiteShellAdapterActions {
   saveShell: (input: {
     talentProfileId: string;
     patch: TalentSiteShellPatch;
-  }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
+    /** The editor's CAS version (draft_rev); a mismatch returns VERSION_CONFLICT. */
+    expectedDraftRev?: number | null;
+  }) => Promise<TalentSiteShellWriteResult>;
   /** Bake `shell_tree → shell_published` (publishes ONLY the shell). */
   publishShell: (input: {
     talentProfileId: string;
   }) => Promise<
-    | { ok: true; publishedAt: string; updatedAt: string }
+    | { ok: true; publishedAt: string; updatedAt: string; draftRev?: number | null }
     | { ok: false; error: string }
   >;
   /**
@@ -114,7 +134,8 @@ export interface TalentSiteShellAdapterActions {
   restoreRevision?: (input: {
     talentProfileId: string;
     revisionId: string;
-  }) => Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }>;
+    expectedDraftRev?: number | null;
+  }) => Promise<TalentSiteShellWriteResult>;
   /**
    * REV-1b — OPTIONAL: list the talent's shell revisions (newest-first) via an
    * OWNER-gated read of `talent_site_revisions`. The RevisionsDrawer's default
@@ -128,6 +149,11 @@ export interface TalentSiteShellAdapterActions {
   loadShellRevisions?: (input: {
     talentProfileId: string;
   }) => Promise<RevisionsLoadResult>;
+  /**
+   * Theme releases Phase 2 — the SITE's history timeline. Preferred over
+   * `loadShellRevisions` when bound (restore then targets history entries).
+   */
+  loadTimeline?: (input: { talentProfileId: string }) => Promise<RevisionsLoadResult>;
 }
 
 /** Build a freeform composition from the talent shell row. Pure — no I/O. */
@@ -213,6 +239,7 @@ export function createTalentSiteShellAdapter(
     talentProfileId: string,
     builderTree: BuilderNodeTree | undefined,
     stylePatch: Pick<TalentSiteShellPatch, "style_classes" | "style_presets"> = {},
+    expectedVersion?: number,
   ): Promise<CompositionSaveResult> {
     guard("talent_sites");
     if (!talentProfileId) {
@@ -225,12 +252,10 @@ export function createTalentSiteShellAdapter(
         updatedAt: new Date().toISOString(),
         ...stylePatch,
       },
+      expectedDraftRev: resolveExpectedDraftRev(expectedVersion),
     });
-    if (!result.ok) return { ok: false, error: result.error };
-    return {
-      ok: true,
-      pageVersion: Math.floor(new Date(result.updatedAt).getTime() / 1000),
-    };
+    if (!result.ok) return shellWriteFailure(result);
+    return { ok: true, pageVersion: versionAfterWrite(result) };
   }
 
   return {
@@ -253,6 +278,7 @@ export function createTalentSiteShellAdapter(
         captured || ctx.pageId || "",
         input.builderTree,
         talentSiteShellStyleRegistryPatch(input),
+        input.expectedVersion,
       );
     },
 
@@ -264,8 +290,9 @@ export function createTalentSiteShellAdapter(
         captured || ctx.pageId || "",
         input.builderTree,
         talentSiteShellStyleRegistryPatch(input),
+        input.expectedVersion,
       );
-      if (!result.ok) return { ok: false, error: result.error };
+      if (!result.ok) return { ok: false, error: result.error, code: result.code };
       return {
         ok: true,
         pageVersion: result.pageVersion,
@@ -284,11 +311,7 @@ export function createTalentSiteShellAdapter(
       }
       const result = await actions.publishShell({ talentProfileId });
       if (!result.ok) return { ok: false, error: result.error };
-      return {
-        ok: true,
-        pageVersion: Math.floor(new Date(result.updatedAt).getTime() / 1000),
-        publishedAt: result.publishedAt,
-      };
+      return { ok: true, pageVersion: versionAfterWrite(result), publishedAt: result.publishedAt };
     },
 
     // REV-1 — restore a saved shell revision's freeform tree onto the draft.
@@ -313,14 +336,10 @@ export function createTalentSiteShellAdapter(
             const result = await actions.restoreRevision!({
               talentProfileId,
               revisionId: input.revisionId,
+              expectedDraftRev: resolveExpectedDraftRev(input.expectedVersion),
             });
-            if (!result.ok) return { ok: false, error: result.error };
-            return {
-              ok: true,
-              pageVersion: Math.floor(
-                new Date(result.updatedAt).getTime() / 1000,
-              ),
-            };
+            if (!result.ok) return shellWriteFailure(result);
+            return { ok: true, pageVersion: versionAfterWrite(result) };
           },
         }
       : {}),
@@ -331,7 +350,7 @@ export function createTalentSiteShellAdapter(
     // `talentProfileId` (falling back to `ctx.pageId`, exactly like load/save).
     // Closes the drawer's LIST gap: the talent owns the read, instead of
     // falling through to the staff-gated homepage loader.
-    ...(actions.loadShellRevisions
+    ...(actions.loadTimeline || actions.loadShellRevisions
       ? {
           async loadRevisions(
             ctx: BuilderSurfaceContext,
@@ -345,6 +364,7 @@ export function createTalentSiteShellAdapter(
                   "talent_site_shell loadRevisions: talentProfileId is required.",
               };
             }
+            if (actions.loadTimeline) return actions.loadTimeline({ talentProfileId });
             return actions.loadShellRevisions!({ talentProfileId });
           },
         }

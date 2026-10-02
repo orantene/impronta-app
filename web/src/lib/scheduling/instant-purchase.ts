@@ -44,7 +44,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import { hoursRowHasWorkingHours, loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { instantReadiness, readinessGaps, takesMoneyOnline } from "@/lib/talent/accepting-readiness";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
+import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
+import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 
 export type InstantPurchaseInput = {
   tenantId: string;
@@ -66,6 +69,10 @@ export type InstantPurchaseInput = {
   openThread: boolean;
   /** Cookie guest id so `/c/[inquiryId]` owns the thread after confirm. */
   guestSessionId?: string | null;
+  /** Gridline G9b: task-picker brief, onto the thread inquiry's source_context. */
+  brief?: OfferingTaskBrief | null;
+  /** G13: buyer locale for the intake answers' heading in the thread. */
+  locale?: string | null;
   /**
    * True only for the point of sale booking a walk-in at the desk. Staff are
    * the confirmation there, so the inquiry-only posture and the public open
@@ -259,6 +266,12 @@ export async function placeInstantPurchase(
     staffDesk || input.agencyRouted === true
       ? null
       : await loadTalentSiteSwitches(admin, input.talentProfileId);
+  // F27: the plan ceiling is enforced here too, so a crafted request cannot
+  // book instantly on a plan whose public site only offers request.
+  const planAllowsInstant =
+    staffDesk || input.agencyRouted === true
+      ? undefined
+      : (await loadPlanAllowsInstant(admin, [input.talentProfileId])).get(input.talentProfileId);
   const readiness = staffDesk
     ? null
     : instantReadiness(
@@ -268,6 +281,7 @@ export async function placeInstantPurchase(
           durationMinutes: policy.durationMinutes,
           takesMoneyOnline: takesMoneyOnline(effective.reserveMode, input.payInPerson === true),
           payoutsReady: isPlatformCheckoutReady(),
+          planAllowsInstant,
         }),
       );
 
@@ -445,5 +459,9 @@ export async function placeInstantPurchase(
         : undefined,
     openThread: input.openThread,
     guestSessionId: input.guestSessionId ?? null,
+    brief: input.brief ?? null,
+    locale: input.locale ?? null,
+    // Snapshot: the talent's published policy the buyer saw at checkout.
+    policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });
 }

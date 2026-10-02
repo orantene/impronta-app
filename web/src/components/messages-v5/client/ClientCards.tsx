@@ -38,11 +38,14 @@ import {
   type ChangeView,
   type ChoicesView,
   type ClientOfferSummary,
+  guestVisibleOfferVersion,
   type ConfirmationView,
   type PaymentView,
   type TicketsView,
   type TimesView,
 } from "@/lib/messages-v5/client-thread-view";
+
+import { EngineFeeLines } from "@/components/payments/FeeLines";
 
 import { Card, CardLine, CardTotal } from "../kit/Card";
 import { fill, type KitCopy } from "../kit/copy";
@@ -220,8 +223,10 @@ export function ClientTimesCard({
 
 export type OfferMode = "view" | "change" | "decline";
 
-export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
+export function ClientOfferCard({ offer, offers, copy, kit, business, locale, now, phase = "idle", refusal, payCode, onAccept, onDecline, onChange, onPay }: Common & {
   readonly offer: ClientOfferSummary;
+  /** All guest-visible offers on the thread; drives the guest-facing version number. */
+  readonly offers?: readonly ClientOfferSummary[];
   readonly now: Date;
   readonly payCode?: string | null;
   readonly onAccept?: (offer: ClientOfferSummary) => void;
@@ -246,9 +251,10 @@ export function ClientOfferCard({ offer, copy, kit, business, locale, now, phase
     ) : null;
   const refundLine = offer.refundPolicy && offer.refundPolicy in copy.offer.refund ? fill(copy.offer.refund[offer.refundPolicy as keyof typeof copy.offer.refund], { business }) : null;
   const depositLabel = [offer.depositPct != null && offer.depositPct > 0 ? fill(copy.offer.depositPct, { pct: offer.depositPct }) : copy.offer.depositLine, refundLine].filter(Boolean).join(" · ");
+  const visibleVersion = guestVisibleOfferVersion(offer, offers);
   const offerTitle =
-    state === "sent"
-      ? fill(copy.offer.titleVersion, { version: offer.version })
+    state === "sent" && visibleVersion != null
+      ? fill(copy.offer.titleVersion, { version: visibleVersion })
       : copy.offer.title;
 
   const foot =
@@ -412,6 +418,24 @@ export function ClientPaymentCard({ view, copy, business, locale, now, onPay }: 
           <CardLine label={copy.pay.paidAmount} amount={money(view.paidCents, view.currency)} />
           {view.dueCents! > 0 ? <CardLine label={copy.pay.balanceDue} amount={money(view.dueCents, view.currency)} /> : null}
         </>
+      ) : view.feeLines.length > 0 && !paid && !closed ? (
+        <EngineFeeLines
+          lines={view.feeLines}
+          currency={view.currency}
+          locale={locale}
+          label={(c) =>
+            c === "service_subtotal"
+              ? copy.pay.feeService
+              : c === "base_reservation_fee"
+                ? copy.pay.feeReservation
+                : c === "platform_fee"
+                  ? copy.pay.feePlatform
+                  : c === "processing_fee"
+                    ? copy.pay.feeProcessing
+                    : copy.pay.feeTotal
+          }
+          nonRefundable={copy.pay.feeNonRefundable}
+        />
       ) : (
         <CardLine label={kind} amount={amount} />
       )}

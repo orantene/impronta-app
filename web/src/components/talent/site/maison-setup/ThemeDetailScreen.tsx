@@ -14,6 +14,7 @@ import {
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { applyMaisonDesignAction } from "@/lib/talent-site/server/maison-apply-actions";
 import { publishMaxSiteAction } from "@/lib/talent-site/server/site-management-actions";
+import { isThemeApplyBusy, runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import {
   buildMaisonCustomPalette,
   defaultCustomFieldsFromPalette,
@@ -35,6 +36,8 @@ import {
 } from "./live-design-change";
 import { DemoStrip } from "./DemoStrip";
 import { DemosSheet } from "./DemosSheet";
+import { AppsTab } from "./GalleryAppsUi";
+import { appsForDetail, galleryAppsT } from "./gallery-apps";
 import { ColorSwatches, ColorsSheet, swatchStyle, type ColorsProps } from "./ColorsSheet";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -108,13 +111,20 @@ export function ThemeDetailScreen({
   const demos = orderedDemos(design);
   const { demo, requested, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
   const selectedDemoKey = requested?.key ?? demo?.key ?? null;
-  const colors = effectiveColors(design, demo, choices);
+  const detailApps = appsForDetail(design, demo);
+  const appsTabOn = detailApps.length > 0 && choices.detailTab === "apps";
+  const colors = effectiveColors(design, demo, choices, choices.contentMode);
   const usingCustom = colors.kind === "custom";
   const activeCustom = usingCustom ? choices.customPalette : null;
   const demoPaletteKey = demoDefaultPaletteKey(design, demo);
   const isDemoDefault = colors.kind === "palette" && colors.isDemoDefault;
   const selectedPaletteKey = colors.kind === "palette" ? colors.palette.key : null;
-  const tokens = previewTokensFor(design, colors, choices);
+  // A demo talent's own site shown on its default palette already wears its
+  // saved Look (server side, F19); pushing the gallery palette would repaint
+  // every demo in the design default.
+  const demoWearsOwnLook =
+    choices.contentMode === "demo" && isDemoDefault && demo?.source.kind === "demo-talent";
+  const tokens = demoWearsOwnLook ? null : previewTokensFor(design, colors, choices);
   const loadState = preview.loadState;
   const sendTokens = preview.sendTokens;
 
@@ -212,14 +222,14 @@ export function ThemeDetailScreen({
     // W68 — live colors-only → one Publish new colors dialog.
     startTransition(async () => {
       setApplyError(null);
-      const res = await applyMaisonDesignAction({
+      const res = await runThemeApply(() => applyMaisonDesignAction({
         paletteKey: maison && selectedPaletteKey ? selectedPaletteKey : choices.paletteKey,
         designSlug: design.slug,
         contentMode: choices.contentMode,
         customPalette: usingCustom && choices.customPalette ? choices.customPalette : null,
         // Non-Maison designs: the gallery-meta palette on screen.
         galleryPaletteKey: !maison && !usingCustom ? selectedPaletteKey : null,
-      });
+      }));
       if (!res.ok) {
         setApplyError(res.error);
         return;
@@ -259,6 +269,7 @@ export function ThemeDetailScreen({
   const handlePublishColors = () => {
     startTransition(async () => {
       setPublishColorsError(null);
+      if (isThemeApplyBusy()) return;
       const res = await publishMaxSiteAction();
       if (!res.ok) {
         setPublishColorsError(res.error);
@@ -276,6 +287,7 @@ export function ThemeDetailScreen({
     startTransition(async () => {
       setPublishDesignError(null);
       // Materializes pending_design and writes the design revision (Restore).
+      if (isThemeApplyBusy()) return;
       const res = await publishMaxSiteAction();
       if (!res.ok) {
         setPublishDesignError(res.error);
@@ -359,6 +371,31 @@ export function ThemeDetailScreen({
       ))}
     </div>
   );
+
+  const tabStrip =
+    detailApps.length > 0 ? (
+      <div
+        role="tablist"
+        data-testid="maison-detail-tabs"
+        className="grid grid-cols-2 rounded-lg border border-admin-border-soft p-0.5"
+      >
+        {(["preview", "apps"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={tab === "apps" ? appsTabOn : !appsTabOn}
+            data-testid={`maison-detail-tab-${tab}`}
+            onClick={() => onChange({ detailTab: tab })}
+            className={`min-h-11 rounded-md text-[13px] font-semibold ${
+              (tab === "apps") === appsTabOn ? "bg-admin-ink text-white" : "bg-transparent text-admin-ink"
+            }`}
+          >
+            {tab === "apps" ? `${galleryAppsT(locale, "apps")} · ${detailApps.length}` : maisonSetupT(locale, "Preview")}
+          </button>
+        ))}
+      </div>
+    ) : null;
 
   const plannedNote = plannedFallback ? (
     <p data-testid="maison-demo-planned-note" className="text-[12px] text-admin-ink-dim">
@@ -468,6 +505,10 @@ export function ThemeDetailScreen({
               selectedKey={selectedDemoKey}
               locale={locale}
               onSelect={selectDemo}
+              onOpenApps={(key) => {
+                selectDemo(key);
+                onChange({ detailTab: "apps" });
+              }}
             />
             {plannedNote}
           </div>
@@ -475,13 +516,19 @@ export function ThemeDetailScreen({
           {/* Phone: full-width Demo | My content above the preview */}
           <div className="md:hidden">{segment}</div>
           <div className="md:hidden">{plannedNote}</div>
+          {tabStrip}
 
-          <div className="min-h-0 flex-1 overflow-auto">{previewFrame}</div>
+          <div className="min-h-0 flex-1 overflow-auto">
+            {appsTabOn ? <AppsTab apps={detailApps} locale={locale} /> : previewFrame}
+          </div>
         </div>
 
         {/* Desktop right panel */}
-        <aside className="hidden w-[360px] shrink-0 flex-col border-l border-admin-border-soft bg-white md:flex">
-          <div className="flex-1 space-y-5 overflow-auto px-4 py-4">
+        <aside
+          data-maison-inspector=""
+          className="hidden w-[300px] shrink-0 flex-col border-l border-admin-border-soft bg-white md:sticky md:top-0 md:flex md:h-[calc(100dvh-6rem)] md:self-start lg:w-[360px]"
+        >
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-ink-dim">
                 {maisonSetupT(locale, "THEME")}
@@ -549,12 +596,12 @@ export function ThemeDetailScreen({
               <ColorSwatches {...colorsProps} />
               <p className="mt-2 text-[13px] font-semibold text-admin-ink" data-testid="maison-palette-name">
                 {usingCustom
-                  ? `${detailT(locale, "Custom colors")} · ${detailT(locale, "My colors")} · ${detailT(locale, "kept when you switch demos")}`
+                  ? `${detailT(locale, "Custom colors")} · ${detailT(locale, "My colors")} · ${detailT(locale, "the same when you switch demos")}`
                   : paletteName}
               </p>
               {colorsKept && !usingCustom ? (
                 <p className="mt-1 text-[12px] text-admin-ink-dim" data-testid="maison-colors-kept-note">
-                  {detailT(locale, "Switching demo changes photos, sample text and sections. Your colors are kept.")}
+                  {detailT(locale, "Switching demo changes photos, sample text and sections. Colors change only when you pick a palette.")}
                 </p>
               ) : null}
             </div>
@@ -648,7 +695,7 @@ export function ThemeDetailScreen({
           data-testid="maison-colors-kept-toast"
           className="fixed bottom-[110px] left-1/2 z-[80] -translate-x-1/2 rounded-full bg-admin-ink px-4 py-2 text-[13px] font-semibold text-white md:bottom-6"
         >
-          {detailT(locale, "✓ Your colors are kept")}
+          {detailT(locale, "✓ Colors unchanged")}
         </div>
       ) : null}
 

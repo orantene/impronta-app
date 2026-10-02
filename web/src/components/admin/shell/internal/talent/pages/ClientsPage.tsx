@@ -9,6 +9,7 @@ import {
   clientsRowAction,
   countClientsByFilter,
   filterClientsDirectory,
+  hasRepeatServices,
   type ClientsFilter,
   type ClientsRowAction,
 } from "@/lib/talent/clients-directory";
@@ -16,14 +17,17 @@ import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 import { PageHeader } from "../shared/page-chrome-1";
+import { restoreClient } from "@/lib/talent/client-records-actions";
+import { ClientArchiveSheet, ClientDetailsPanel, ClientNoteInline } from "./ClientPanels";
 
 const FILTERS: { id: ClientsFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "upcoming", label: "Upcoming" },
   { id: "outstanding", label: "Outstanding" },
-  { id: "follow", label: "Follow-up" },
+  { id: "follow", label: "Due for a refill" },
   { id: "fresh", label: "New" },
 ];
+
 
 function formatMoney(cents: number, currency: string | null): string {
   const amount = Math.round(cents) / 100;
@@ -35,18 +39,18 @@ function formatMoney(cents: number, currency: string | null): string {
   return code ? `$${formatted} ${code}` : `$${formatted}`;
 }
 
-function formatMonthYear(iso: string): string {
+function formatMonthYear(iso: string, dateLocale?: string): string {
   try {
-    return new Date(iso).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    return new Date(iso).toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
   } catch {
     return "";
   }
 }
 
-function formatDay(iso: string | null): string {
+function formatDay(iso: string | null, dateLocale?: string): string {
   if (!iso) return "";
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    return new Date(iso).toLocaleDateString(dateLocale, {
       weekday: "short",
       day: "numeric",
       month: "short",
@@ -132,6 +136,7 @@ function FilterChips(props: {
   counts: Record<ClientsFilter, number>;
   onChange: (f: ClientsFilter) => void;
   t: (s: string) => string;
+  showRefill: boolean;
 }) {
   return (
     <div
@@ -140,7 +145,7 @@ function FilterChips(props: {
       className="flex gap-2 overflow-x-auto pb-1"
       data-clients-filters
     >
-      {FILTERS.map((f) => {
+      {FILTERS.filter((f) => f.id !== "follow" || props.showRefill).map((f) => {
         const selected = props.filter === f.id;
         return (
           <button
@@ -181,11 +186,16 @@ function OutstandingCell({ row, t }: { row: TalentClientRow; t: (s: string) => s
 
 function ClientRecord(props: {
   row: TalentClientRow;
+  talentId: string | null;
+  onEdit: () => void;
+  onArchive: () => void;
+  onNote: (note: string | null) => void;
   onBack: () => void;
   t: (s: string) => string;
   router: ReturnType<typeof useRouter>;
 }) {
   const { row, t, router } = props;
+  const dateLocale = useDashboardText().isSpanish ? "es-MX" : "en-US";
   const action = clientsRowAction(row);
   const history = row.history ?? [];
   const completed = history.filter((h) => (h.state ?? (h.past ? "completed" : null)) === "completed");
@@ -214,16 +224,11 @@ function ClientRecord(props: {
               {[row.phone, row.email].filter(Boolean).join(" · ") || t("No phone or email on file")}
             </p>
             <p className="mt-0.5 font-admin-body text-[13px] text-admin-ink-muted">
-              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt)} · ` : ""}
+              {row.firstSeenAt ? `${t("Client since")} ${formatMonthYear(row.firstSeenAt, dateLocale)} · ` : ""}
               {row.source === "booking" ? t("From a booking") : t("From a message")}
             </p>
           </div>
-          <button
-            type="button"
-            disabled
-            title={t("Editing client details is not available yet.")}
-            className={`${btn} disabled:opacity-50`}
-          >
+          <button type="button" className={btn} onClick={props.onEdit} data-client-edit>
             {t("Edit details")}
           </button>
         </div>
@@ -233,7 +238,7 @@ function ClientRecord(props: {
           {row.nextStartsAt ? (
             <>
               <div className="mt-1 font-admin-body text-[17px] font-bold text-admin-ink">
-                {formatDay(row.nextStartsAt)}
+                {formatDay(row.nextStartsAt, dateLocale)}
               </div>
               <div className="mt-1 text-[13px] font-semibold text-admin-ink-muted">
                 {nextStatusLabel(row.nextStatus, t)}
@@ -256,6 +261,9 @@ function ClientRecord(props: {
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className={btn} onClick={props.onArchive} data-client-archive>
+            {t("Archive")}
+          </button>
           {row.conversationHref ? (
             <button type="button" className={btn} onClick={() => router.push(row.conversationHref!)}>
               {t("Message")}
@@ -294,7 +302,7 @@ function ClientRecord(props: {
                   }`}
                 >
                   <span className="w-[96px] shrink-0 font-admin-body text-[13.5px] text-admin-ink">
-                    {formatDay(h.startsAt)}
+                    {formatDay(h.startsAt, dateLocale)}
                   </span>
                   <span className="min-w-0 flex-1 font-admin-body text-[13px]">
                     <span className="block text-[14px] text-admin-ink">
@@ -337,20 +345,9 @@ function ClientRecord(props: {
       </div>
 
       <aside className="flex flex-col gap-3 lg:pt-10">
-        <div className="flex items-baseline gap-2">
-          <h3 className="flex-1 font-admin-body text-[16px] font-semibold text-admin-ink">{t("Private notes")}</h3>
-          <button
-            type="button"
-            disabled
-            title={t("Private notes are not available yet.")}
-            className="min-h-[32px] text-[13px] font-semibold text-admin-accent disabled:opacity-50"
-          >
-            {t("Edit")}
-          </button>
-        </div>
-        <div className="rounded-[12px] border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] text-admin-ink-muted">
-          {t("Private notes are not available yet. When they are, only you will see them: never in checkout, receipts, your public pages or message previews.")}
-        </div>
+        {props.talentId ? (
+          <ClientNoteInline key={`${row.id}:${row.note ?? ""}`} talentId={props.talentId} row={row} t={t} onSaved={props.onNote} />
+        ) : null}
         <details className="rounded-[12px] border border-admin-border-soft bg-white px-4 py-3" open>
           <summary className="cursor-pointer font-admin-body text-[14px] font-semibold text-admin-ink">
             {t("History in numbers")}
@@ -366,11 +363,11 @@ function ClientRecord(props: {
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("First visit")}</dt>
-              <dd className="text-admin-ink">{first ? formatDay(first.startsAt) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{first ? formatDay(first.startsAt, dateLocale) : t("None yet")}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-admin-ink-muted">{t("Last visit")}</dt>
-              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt) : t("None yet")}</dd>
+              <dd className="text-admin-ink">{completed[0] ? formatDay(completed[0].startsAt, dateLocale) : t("None yet")}</dd>
             </div>
           </dl>
         </details>
@@ -380,8 +377,9 @@ function ClientRecord(props: {
 }
 
 export function TalentClientsPage() {
-  const { bridgeTalentSelfProfile } = useAdminShell();
+  const { bridgeTalentSelfProfile, toast } = useAdminShell();
   const copy = useDashboardText();
+  const dateLocale = copy.isSpanish ? "es-MX" : "en-US";
   const t = copy.t;
   const router = useRouter();
   const [items, setItems] = useState<TalentClientRow[] | null>(null);
@@ -389,6 +387,10 @@ export function TalentClientsPage() {
   const [filter, setFilter] = useState<ClientsFilter>("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [panel, setPanel] = useState<
+    { kind: "add" } | { kind: "edit"; row: TalentClientRow } | { kind: "archive"; row: TalentClientRow } | null
+  >(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   useEffect(() => {
@@ -406,7 +408,7 @@ export function TalentClientsPage() {
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [talentId, reloadKey]);
 
   const counts = useMemo(
     () => countClientsByFilter(items ?? []),
@@ -423,25 +425,84 @@ export function TalentClientsPage() {
   );
   const selected = items?.find((r) => r.id === selectedId) ?? null;
 
+  const panels = talentId ? (
+    <>
+      {panel && (panel.kind === "add" || panel.kind === "edit") ? (
+        <ClientDetailsPanel
+          talentId={talentId}
+          row={panel.kind === "edit" ? panel.row : undefined}
+          t={t}
+          onClose={() => setPanel(null)}
+          onSaved={({ key, message }) => {
+            setPanel(null);
+            toast(message);
+            setReloadKey((n) => n + 1);
+            if (panel.kind === "add") setSelectedId(key);
+          }}
+        />
+      ) : null}
+      {panel?.kind === "archive" ? (
+        <ClientArchiveSheet
+          talentId={talentId}
+          row={panel.row}
+          t={t}
+          onClose={() => setPanel(null)}
+          onArchived={() => {
+            const archivedRow = panel.row;
+            setPanel(null);
+            setSelectedId(null);
+            setReloadKey((n) => n + 1);
+            toast(t("Client archived"), {
+              action: {
+                label: t("Undo"),
+                onClick: () => {
+                  void restoreClient(talentId, archivedRow.id).then((r) => {
+                    if (r.ok) setReloadKey((n) => n + 1);
+                    else toast(t("Could not save. Try again."));
+                  });
+                },
+              },
+            });
+          }}
+        />
+      ) : null}
+    </>
+  ) : null;
+
   if (selected) {
     return (
       <div>
         <PageHeader title={selected.name} subtitle={t("Client")} />
         <ClientRecord
           row={selected}
+          talentId={talentId}
+          onEdit={() => setPanel({ kind: "edit", row: selected })}
+          onArchive={() => setPanel({ kind: "archive", row: selected })}
+          onNote={(note) => {
+            toast(t("Note saved"));
+            setItems((prev) => prev?.map((r) => (r.id === selected.id ? { ...r, note } : r)) ?? prev);
+          }}
           onBack={() => setSelectedId(null)}
           t={t}
           router={router}
         />
+        {panels}
       </div>
     );
   }
 
   const total = items?.length ?? 0;
-  const subtitle =
+  const showRefill = hasRepeatServices(items ?? []);
+  const baseSubtitle =
     items == null
       ? t("People who booked or messaged you")
-      : `${total} ${t("people you have worked with or talked to")}`;
+      : `${total} ${t(total === 1 ? "person you have worked with or talked to" : "people you have worked with or talked to")}`;
+  const subtitle =
+    items != null && showRefill
+      ? t("{people} · {due} due for a refill")
+          .replace("{people}", `${total} ${t(total === 1 ? "person" : "people")}`)
+          .replace("{due}", String(counts.follow))
+      : baseSubtitle;
 
   return (
     <div data-clients-directory>
@@ -452,12 +513,11 @@ export function TalentClientsPage() {
           <button
             type="button"
             className="inline-flex h-9 items-center rounded-full bg-admin-ink px-3.5 font-admin-body text-[13px] font-semibold text-white"
-            onClick={() => {
-              // A client is added with their first booking (find-or-add on New booking).
-              router.push("/talent/bookings/new");
-            }}
+            onClick={() => setPanel({ kind: "add" })}
+            disabled={!talentId}
+            data-client-add
           >
-            {t("Add client")}
+            {t("Add a client")}
           </button>
         }
       />
@@ -490,12 +550,12 @@ export function TalentClientsPage() {
             />
           </label>
 
-          <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} />
+          <FilterChips filter={filter} counts={counts} onChange={setFilter} t={t} showRefill={showRefill} />
 
           <p className="px-0.5 font-admin-body text-[13.5px] text-admin-ink-muted">
             {visible.length} {t("of")} {total} {t("clients")}
             {filter === "follow"
-              ? ` · ${t("Follow-up suggestions need a rebooking interval on each service. None are ready yet.")}`
+              ? ` · ${t("Based on how often each client repeats a service.")}`
               : ""}
           </p>
 
@@ -545,7 +605,7 @@ export function TalentClientsPage() {
                         {row.completedCount > 0 ? (
                           <>
                             {[
-                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit),
+                              formatDay(lastCompleted(row)?.startsAt ?? row.lastVisit, dateLocale),
                               (() => {
                                 const h = lastCompleted(row);
                                 return h ? historyService(h, row.name) : null;
@@ -564,7 +624,7 @@ export function TalentClientsPage() {
                       <div className="text-[13.5px] text-admin-ink">
                         {row.nextStartsAt ? (
                           <>
-                            {formatDay(row.nextStartsAt)}
+                            {formatDay(row.nextStartsAt, dateLocale)}
                             <div className="mt-0.5 text-[12px] font-semibold text-admin-ink-muted">
                               {nextStatusLabel(row.nextStatus, t)}
                             </div>
@@ -627,9 +687,9 @@ export function TalentClientsPage() {
                             </span>
                             <span className="mt-0.5 block text-[14px] text-admin-ink-muted">
                               {row.nextStartsAt
-                                ? `${t("Next")}: ${formatDay(row.nextStartsAt)} · ${nextStatusLabel(row.nextStatus, t)}`
+                                ? `${t("Next")}: ${formatDay(row.nextStartsAt, dateLocale)} · ${nextStatusLabel(row.nextStatus, t)}`
                                 : row.completedCount > 0
-                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit)}` : ""}`
+                                  ? `${row.completedCount} ${t("completed")}${row.lastVisit ? ` · ${formatDay(row.lastVisit, dateLocale)}` : ""}`
                                   : t("No work yet")}
                             </span>
                           </span>
@@ -673,6 +733,7 @@ export function TalentClientsPage() {
           )}
         </div>
       )}
+      {panels}
     </div>
   );
 }

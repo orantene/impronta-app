@@ -41,7 +41,7 @@ test("the five designs are structurally distinct (section order differs)", () =>
 });
 
 /** W-01 — Maison v2 menu uses sticky category rail (chips on phone via CSS). */
-test("maison-v2 services_catalog uses categoryNav rail + rows", () => {
+test("maison-v2 services_catalog uses categoryNav rail + two-column cards", () => {
   const maison = COLLECTION_DESIGNS.find((d) => d.slug === "maison-v2");
   assert.ok(maison);
   const found: Array<Record<string, unknown>> = [];
@@ -57,7 +57,12 @@ test("maison-v2 services_catalog uses categoryNav rail + rows", () => {
   walk(maison!.buildPayload().homeTree);
   assert.equal(found.length, 1);
   assert.equal(found[0].categoryNav, "rail");
+  // Release 2.5: two columns of raised ROW cards under the keyed `services_row_cards` node
+  // (it replaced the 2.3 photo cards, `services_two_col`).
   assert.equal(found[0].layout, "rows");
+  assert.equal(found[0].rowStyle, "card");
+  assert.equal(found[0].columns, 2);
+  assert.equal(found[0].slotKey, "services_row_cards");
   assert.equal(found[0].showPhoto, true);
 });
 
@@ -91,10 +96,10 @@ test("maison-v2 hero has inset, italic accent name, next_free_chip, and no revea
 
   assert.ok(!kinds.includes("reveal"), "hero must stay visible at rest (no reveal wrapper)");
   assert.ok(kinds.includes("next_free_chip"), "next free chip in hero copy");
-  assert.ok(
-    texts.some((t) => t.includes("{i}") && t.includes("{{displayName}}")),
-    "display name uses italic marker",
-  );
+  // Release 2.7: the big line is her headline token (one italic accent word; the name in
+  // italics when she has no headline and her trade has no seed), a live hero line.
+  assert.ok(texts.includes("{{headline}}"), "the hero headline is the headline token");
+  assert.match(JSON.stringify(hero), /"liveText":"hero_headline"/);
   assert.ok(
     kinds.filter((k) => k === "image").length >= 2,
     "main headshot + inset gallery1",
@@ -134,7 +139,8 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
   const payload = maison!.buildPayload();
   const slots = payload.homeTree.map((n) => String((n.props as { slotKey?: string }).slotKey));
   assert.ok(slots.includes("about"));
-  assert.ok(slots.includes("visit"));
+  // Release 21: Location replaces the "Before you come" visit band.
+  assert.ok(slots.includes("location") && !slots.includes("visit"));
   assert.ok(slots.includes("contact"));
   assert.ok(slots.includes("reviews"));
 
@@ -151,7 +157,8 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
         children?: unknown;
       };
       if (node.kind === "split" && node.props?.slotKey === "about") aboutIsSplit = true;
-      if (node.kind === "visit") visitLayout = String(node.props?.layout ?? "");
+      // The optional Location block (2.5) is also a `visit`; this pin is about the facts one.
+      if (node.kind === "visit" && node.props?.layout !== "location") visitLayout = String(node.props?.layout ?? "");
       if (
         node.kind === "accordion" &&
         node.props?.bindSource === "talent_faq_items"
@@ -163,7 +170,7 @@ test("maison-v2 uses split about, visit facts, and FAQ contact presets", () => {
   };
   walk(payload.homeTree);
   assert.equal(aboutIsSplit, true);
-  assert.equal(visitLayout, "facts");
+  assert.equal(visitLayout, undefined, "no facts visit band in Maison v2 any more");
   assert.equal(faqBound, true);
   assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
 });
@@ -216,9 +223,12 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     title?: string;
     anchorId?: string;
   }> = [];
+  // After K1–K8 / authored overlay, the standalone contents block is removed
+  // (`homeTree:contents`); the issue index lives on the masthead's `contents` prop.
   const contentsFound: Array<{
     kind?: string;
     props?: Record<string, unknown>;
+    source?: "contents-block" | "masthead";
   }> = [];
   const mastheads: Array<{
     kind?: string;
@@ -257,10 +267,18 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
         });
       }
       if (node.kind === "contents") {
-        contentsFound.push({ kind: node.kind, props: node.props });
+        contentsFound.push({ kind: node.kind, props: node.props, source: "contents-block" });
       }
       if (node.kind === "masthead") {
         mastheads.push({ kind: node.kind, props: node.props });
+        const mastContents = node.props?.contents;
+        if (Array.isArray(mastContents) && mastContents.length > 0) {
+          contentsFound.push({
+            kind: "contents",
+            props: { items: mastContents },
+            source: "masthead",
+          });
+        }
       }
       if (node.kind === "comp_card") {
         compCards.push({ kind: node.kind, props: node.props });
@@ -321,7 +339,8 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     chapters.map((c) => c.anchorId),
     ["chapter-1", "chapter-2"],
   );
-  assert.equal(contentsFound.length, 1, "folio stamps shared contents block");
+  assert.equal(contentsFound.length, 1, "folio stamps contents on the masthead (standalone block removed)");
+  assert.equal(contentsFound[0]!.source, "masthead");
   const items =
     (contentsFound[0]!.props?.items as Array<{ label: string; anchor: string }>) ??
     [];
@@ -355,17 +374,22 @@ test("folio uses portfolio chapter layout and clears project-story gap", () => {
     String(statementNodes[0]!.props?.statement ?? ""),
     /Next issue/,
   );
-  assert.equal(statementNodes[0]!.props?.creditLine, "mateoferrer.tulala.digital");
-  assert.equal(
-    statementNodes[0]!.props?.contactLine,
-    "For editorials, runway and campaigns. I reply the same day.",
-  );
+  assert.equal(statementNodes[0]!.props?.creditLine, "", "no talent host baked into the design");
+  assert.equal(statementNodes[0]!.props?.contactLine, "", "no talent claim baked into the design");
   assert.ok(
     statementFooters.some(
       (s) => s.slotKey === "statement_footer" && s.originRole === "talent.statement_footer",
     ),
   );
-  assert.doesNotMatch(JSON.stringify(payload), /#[0-9a-fA-F]{3,8}/);
+  // Trees must stay token-driven; authored Look palettes legitimately carry hex.
+  assert.doesNotMatch(
+    JSON.stringify({
+      shellTree: payload.shellTree,
+      homeTree: payload.homeTree,
+      optionalBlocks: payload.optionalBlocks,
+    }),
+    /#[0-9a-fA-F]{3,8}/,
+  );
   assert.doesNotMatch(JSON.stringify(payload), /\u2014/);
 });
 

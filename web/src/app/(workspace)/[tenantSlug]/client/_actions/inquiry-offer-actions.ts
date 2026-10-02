@@ -31,6 +31,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import { sendClientMessageAction } from "./inquiry-message-actions";
 import { logServerError } from "@/lib/server/safe-error";
+import { recordTalentPolicyAcceptance, stampedPolicyVersionForOffer } from "@/lib/legal/acceptances";
 import { offerRefusalCode, type OfferRefusalCode } from "./offer-refusal";
 
 export type InquiryOfferActionState =
@@ -112,6 +113,16 @@ export async function approveOfferAction(
           : "Could not approve. Try again.",
     };
   }
+
+  // Legal 2.2: record the talent policy version already stamped on this offer
+  // (else its inquiry) as accepted with the approval. Best effort.
+  await recordTalentPolicyAcceptance({
+    talentPolicyVersionId: await stampedPolicyVersionForOffer({ inquiryId, offerId, tenantId: scope.tenantId }),
+    context: "offer_approval",
+    contextId: offerId,
+    actorUserId: session.user.id,
+    tenantId: scope.tenantId,
+  });
 
   revalidatePath(`/${tenantSlug}/client/messages`);
   revalidatePath(`/${tenantSlug}/client/inquiries/${inquiryId}`);

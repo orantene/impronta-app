@@ -16,6 +16,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
+import { useFirstPaintTipPlacement } from "./first-paint-tip-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -35,6 +36,7 @@ import {
   useBuilderTree,
 } from "./builder-tree-bridge";
 import { useCanUndo, useCanRedo } from "./history-bridge";
+import { useInlineTextEditActive } from "./canvas-lexical-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -59,6 +61,8 @@ import {
 } from "./kit";
 import { LayoutFlattenToast } from "./layout-flatten-toast";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
+import { useCanvasHelpers } from "./canvas-helpers-mode";
+import { useDismissPanelsOnCanvasClick } from "./use-dismiss-panels-on-canvas-click";
 import { MakeItYoursChecklist } from "./launch-checklist-panel";
 import { SelectionLayer } from "./selection-layer";
 import { CarouselEditModeBinding } from "./carousel-edit-mode-binding";
@@ -93,6 +97,7 @@ import {
 } from "./canvas-viewport";
 import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, resolveDeviceFrameHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
 import { useEditorLocale } from "./use-editor-locale";
+import { presenceBannerMessage } from "./presence-banner-copy";
 import { editorT, type EditorLocale } from "./editor-i18n";
 import { PendingImagesWatcher } from "./pending-images-watcher";
 
@@ -525,7 +530,8 @@ function EditShellInner({
   // listener on every keystroke. The handler now reads the tree
   // NON-REACTIVELY via `getBuilderTreeSnapshot()` — the same micro-store, same
   // value, zero subscription. Keep it that way.
-  const canUndo = useCanUndo();
+  const historyCanUndo = useCanUndo();
+  const canUndo = useInlineTextEditActive() || historyCanUndo;
   const canRedo = useCanRedo();
 
   /** Opens Page settings once per cms page id for default draft titles (workspace Add page). */
@@ -590,6 +596,8 @@ function EditShellInner({
   useEffect(() => {
     if (brandPanelOpen) setEverOpenedDesignPanel(true);
   }, [brandPanelOpen]);
+
+  useDismissPanelsOnCanvasClick(brandPanelOpen, themeOpen, closeBrandPanel, closeTheme);
 
   useEffect(() => {
     if (!compositionLoaded || !pageId || !pageMetadata) return;
@@ -1222,7 +1230,7 @@ function EditShellInner({
         {/* Preview toggle: when on, links navigate normally so the
          *  operator can test menus, anchors, and click targets. */}
         {!previewing ? <CanvasLinkInterceptor /> : null}
-        <FirstPaintTip />
+        <FirstPaintTip navigatorOpen={navigatorOpen} navigatorWidth={navigatorWidth} />
         <MakeItYoursChecklist />
         <IframeBridgeParent />
         {/* 4C — canvas viewport tools: zoom transform, space-drag pan, keyboard
@@ -1325,27 +1333,23 @@ function CanvasViewportComponents({
  * pass when one lands. Per-tenant storage would require tracking
  * tenant scope here just for a tip, which isn't worth the wiring.
  */
-function FirstPaintTip() {
+function FirstPaintTip(p: { navigatorOpen: boolean; navigatorWidth: number }) {
+  const tipPlacement = useFirstPaintTipPlacement(
+    p.navigatorOpen,
+    p.navigatorWidth,
+  );
+  const { t } = useEditorLocale();
+  // Same ON/OFF as coachmarks — default OFF so returning operators never see
+  // the always-on "Click any section…" pill unless they opt in via (i).
+  const { helpers } = useCanvasHelpers();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
   // W2-T3 — hovered-section VALUE from the bridge (this tip auto-dismisses on
   // first hover, so it genuinely subscribes; other edit-shell consumers that
   // don't read hover no longer re-render on a sweep).
   const hoveredSectionId = useHoveredSectionId();
-  // Session-scoped — once dismissed, stays dismissed across in-session
-  // navigations (page swap, locale switch, viewport-mode toggle that
-  // forces a remount). Without this, navigating to a different page
-  // re-mounted FirstPaintTip with fresh `dismissed=false` and the
-  // operator saw the tip again 5 seconds into their session.
-  //
-  // QA 2026-05-13 — read sessionStorage in a post-mount effect rather
-  // than in `useState` initializer. SSR has no sessionStorage so the
-  // initializer always returned false on server; on the client, after
-  // a prior dismissal it would return true, and the tree shape
-  // (rendered vs returned-null) differed between SSR and CSR → React
-  // hydration mismatch error in console. Both passes now render the
-  // tip initially; the effect dismisses it on the next tick if the
-  // session flag is set, which doesn't trip the hydration check.
+  // Persistent dismiss (coachmark + session) so once cleared it never returns
+  // for this tenant, even if helpers are turned back on briefly.
   const [dismissed, setDismissed] = useState(false);
   useEffect(() => {
     try {
@@ -1374,18 +1378,18 @@ function FirstPaintTip() {
   useEffect(() => {
     if (selectedSectionId || hoveredSectionId) dismiss();
   }, [selectedSectionId, hoveredSectionId, dismiss]);
-  if (dismissed) return null;
+  if (!helpers || dismissed) return null;
   return (
     <div
       data-edit-overlay="first-paint-tip"
-      className="pointer-events-none fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
+      className={tipPlacement.className}
       style={{
         // 2026-08-15 light unification — the tip was the last slate-dark
         // pill left over from the v1 operator chrome. It now wears the same
         // light control language as the chip / command palette / menus
         // (white surface, dark text, popover shadow) so first paint shows
         // ONE chrome voice.
-        top: 70,
+        ...tipPlacement.style,
         background: "rgba(255, 255, 255, 0.96)",
         color: CHROME.text,
         fontSize: 11.5,
@@ -1411,11 +1415,11 @@ function FirstPaintTip() {
         <path d="M12 20h9" />
         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
-      <span>Click any section to edit · Press ⌘K for quick actions</span>
+      <span>{t("Click any section to edit · Press ⌘K for quick actions")}</span>
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Dismiss tip"
+        aria-label={t("Dismiss tip")}
         className="pointer-events-auto ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-black/5"
         style={{
           color: CHROME.muted,
@@ -1625,6 +1629,7 @@ function MutationErrorToast() {
   const operationLabel = mutationError.operation
     ? humanizeMutationOperation(mutationError.operation, locale)
     : null;
+  const isConflict = mutationError.code === "VERSION_CONFLICT";
   const suggestion = mutationError.code
     ? mutationCodeSuggestion(mutationError.code, locale)
     : null;
@@ -1668,20 +1673,24 @@ function MutationErrorToast() {
       icon={null}
       className="max-w-[min(92vw,680px)]"
     >
-      <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
-        {t("Builder change blocked")}
-      </span>
+      {isConflict ? null : (
+        <span className="block text-[10px] uppercase tracking-[0.06em] opacity-80">
+          {t("Builder change blocked")}
+        </span>
+      )}
       <span className="block" style={{ color: CHROME.text2 }}>
-        {mutationError.message}
+        {isConflict
+          ? t("This page changed in another tab. Your last change was not saved.")
+          : t(mutationError.message)}
       </span>
-      {operationLabel || mutationError.code ? (
+      {isConflict ? null : operationLabel || mutationError.code ? (
         <span className="mt-1 block text-[10px] uppercase tracking-[0.04em] opacity-80">
           {[operationLabel, mutationError.code?.replaceAll("_", " ")]
             .filter(Boolean)
             .join(" · ")}
         </span>
       ) : null}
-      {suggestion ? (
+      {suggestion && !isConflict ? (
         <span
           className="mt-1 block text-[11px] font-normal"
           style={{ color: CHROME.text2 }}
@@ -1708,7 +1717,7 @@ function MutationErrorToast() {
               // explanation toast from refreshComposition).
               void reloadLatestAfterConflict();
             }}
-            title={t("Load the changes from the other tab or session. Your unsaved local changes are discarded and undo history resets.")}
+            title={t("Loads the newest version. Your last change is dropped and undo starts over.")}
           >
             {t("Reload latest")}
           </Button>
@@ -1731,7 +1740,7 @@ function MutationErrorToast() {
               const ok = window.confirm(confirmMsg);
               if (ok) void keepMyVersionAfterConflict();
             }}
-            title={t("Save your copy over the change from the other tab or session. Your undo history is kept.")}
+            title={t("Saves this copy over the other tab. Undo keeps working.")}
           >
             {t("Keep editing this copy")}
           </Button>
@@ -1787,23 +1796,12 @@ function PresenceBanner() {
 }
 
 function PresenceBannerInner() {
+  const { t, locale } = useEditorLocale();
   const { editors, others } = usePagePresence();
   if (others.length === 0) return null;
   const { peopleNames, myOtherTabs } = summarizeOtherEditors(editors, others);
 
-  let message: string | null = null;
-  if (peopleNames.length > 0) {
-    const names =
-      peopleNames.length === 1
-        ? peopleNames[0]
-        : peopleNames.length === 2
-          ? `${peopleNames[0]} and ${peopleNames[1]}`
-          : `${peopleNames[0]} and ${peopleNames.length - 1} others`;
-    message = `${names} ${peopleNames.length === 1 ? "is" : "are"} also editing this page`;
-    if (myOtherTabs > 0) message += " · also open in another tab of yours";
-  } else if (myOtherTabs > 0) {
-    message = `You have this page open in ${myOtherTabs === 1 ? "another tab" : `${myOtherTabs} other tabs`}, edits there can conflict`;
-  }
+  const message = presenceBannerMessage(peopleNames, myOtherTabs, locale, t);
   if (!message) return null;
 
   return (

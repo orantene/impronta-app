@@ -23,7 +23,7 @@ import { OptionRow } from "../kit/OptionRow";
 import { Btn } from "../kit/primitives";
 import { AlertLine } from "../kit/RefusalLine";
 import { Sheet } from "../kit/Sheet";
-import { Tray, defaultTrayGroups, type TrayItemKey } from "../kit/Tray";
+import { Tray, defaultTrayGroups, sellerTrayGroups, type TrayItemKey } from "../kit/Tray";
 import { channelAvailability, composerReducer, fallbackFor, initialComposerState, isResolvedRefusal, isVersionConflict, kitStateFor } from "./composer-machine";
 import type { ScreenVariant } from "./contracts";
 import type { ScreenCopy } from "./copy";
@@ -33,6 +33,10 @@ export type ComposerActions = {
   readonly note: (input: { inquiryId: string; body: string }) => Promise<ActionResult<{ messageId?: string }>>;
   readonly reopen: (input: { inquiryId: string; expectedVersion: number }) => Promise<ActionResult<{ version?: number }>>;
   readonly upload: (input: { inquiryId: string; file: File }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Talent seller engine: the tray drops staff verbs (hand over, close lost) her engine refuses. */
+  readonly seller?: boolean;
+  /** False when the engine has no voice-note path for this viewer (talent named on a guest chat): the mic is hidden. */
+  readonly voice?: boolean;
 };
 
 export const engineComposerActions: ComposerActions = {
@@ -265,16 +269,17 @@ export function ComposerWire(props: ComposerWireProps) {
     </Sheet>
   );
 
+  const trayGroups = actions.seller ? sellerTrayGroups(kit) : defaultTrayGroups(kit);
   const tray =
     sheet === "tray" ? (
       mobile ? (
         <Sheet open title={kit.composer.more} copy={kit} onClose={() => setSheet(null)} variant="mobile-h60" tight>
-          <Tray groups={defaultTrayGroups(kit)} variant="mobile" onPick={pickTray} />
+          <Tray groups={trayGroups} variant="mobile" onPick={pickTray} />
         </Sheet>
       ) : (
         <>
           <button type="button" className="scrim" aria-label={kit.sheet.close} onClick={() => setSheet(null)} />
-          <Tray groups={defaultTrayGroups(kit)} floating onPick={pickTray} />
+          <Tray groups={trayGroups} floating onPick={pickTray} />
         </>
       )
     ) : null;
@@ -304,6 +309,7 @@ export function ComposerWire(props: ComposerWireProps) {
         onPlus={() => setSheet("tray")}
         onAttach={() => setSheet("attach")}
         onVoice={() => setSheet("voice")}
+        hideVoice={actions.voice === false}
         onChannel={() => setSheet("via")}
         above={above}
         textareaId={textareaId}

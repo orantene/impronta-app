@@ -29,6 +29,7 @@ import {
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { ItemStateChips } from "./ItemStateChips";
+import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import {
   AddManyScreen,
@@ -83,6 +84,7 @@ export function ServicesHome({
   const [bannerId, setBannerId] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<OfferingDestination[]>([]);
   const [defaults, setDefaults] = useState<SellingDefaults | null>(null);
+  const loc = useLocationSettings(talentId);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [addons, setAddons] = useState<AddonGroup[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -252,9 +254,11 @@ export function ServicesHome({
         onChange={setDefaults}
         onBack={() => setScreen("list")}
         onOpenWebsiteSettings={() => setTalentPage("public-page")}
+        location={loc.location}
+        onLocationChange={loc.setLocation}
         onSave={async () => {
-          const res = await saveSellingDefaults(talentId, defaults);
-          setToast(res.ok ? copy.t("Saved") : res.error ?? copy.t("Could not save"));
+          const [res, locRes] = await Promise.all([saveSellingDefaults(talentId, defaults), loc.save()]);
+          setToast(res.ok && locRes.ok ? copy.t("Saved") : res.error ?? locRes.error ?? copy.t("Could not save"));
           setScreen("list");
         }}
       />
@@ -601,7 +605,7 @@ export function ServicesHome({
                 </span>
               </span>
             </button>
-            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} />
+            <ItemStateChips item={item} locale={locale} hideFailed={hideFailedIds.has(item.id)} instantReady={hasBookableHours !== false} />
             <button type="button" aria-label={copy.t("Row menu")} className="px-2" onClick={() => setMenuId(menuId === item.id ? null : item.id)}>
               ⋯
             </button>

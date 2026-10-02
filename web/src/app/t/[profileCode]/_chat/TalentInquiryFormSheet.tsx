@@ -26,6 +26,7 @@ import {
   type InquiryFormFieldError,
   type InquiryFormLine,
 } from "@/lib/talent/inquiry-form-payload";
+import { TASK_NOTE_MAX, briefFromDetail } from "@/lib/talent/offering-task-brief";
 import { submitTalentInquiryForm } from "../_actions/talent-inquiry-form-action";
 import { inquiryFormCopy, type InquiryFormCopyKey } from "./inquiry-form-copy";
 import {
@@ -51,7 +52,15 @@ function lineFromDetail(d: PendingOfferingDetail): InquiryFormLine {
     addOnLabels: d.selection?.addOnLabels ?? [],
     slotLabel: d.selection?.slotLabel ?? null,
     totalCents: d.selection?.totalCents ?? null,
+    // G9b: the task travels as context; its note pre-fills the message box.
+    // G13: intake answers from the sheet travel too.
+    brief: briefFromDetail(d, false),
   };
+}
+
+/** G9b: the task-picker note, used to pre-fill an empty message box. */
+function notePrefillFrom(d: PendingOfferingDetail | null | undefined): string {
+  return d?.task ? (d.note ?? "").trim() : "";
 }
 
 /**
@@ -98,8 +107,10 @@ export function TalentInquiryFormSheet({
   const tx = (k: InquiryFormCopyKey, vars?: Record<string, string>) =>
     inquiryFormCopy(locale, k, vars);
 
-  const openWith = useCallback((next: InquiryFormLine[]) => {
+  const openWith = useCallback((next: InquiryFormLine[], prefill = "") => {
     setLines(next);
+    // Pre-fill only an empty box: never overwrite what the visitor typed.
+    if (prefill) setMessage((m) => (m.trim() ? m : prefill));
     setErrors([]);
     setPhase((p) => (p === "sent" ? "edit" : p === "sending" ? p : "edit"));
     setOpen(true);
@@ -112,15 +123,18 @@ export function TalentInquiryFormSheet({
     };
     const onAsk = (e: Event) => {
       const d = (e as CustomEvent).detail as
-        | { demo?: boolean; offeringId?: string | null; offeringTitle?: string | null }
+        | { demo?: boolean; offeringId?: string | null; offeringTitle?: string | null; message?: unknown }
         | null;
       if (d?.demo === true) return;
+      // An on-page app (Nail Designer) hands over a starting message: pre-fill only.
+      const appMessage = typeof d?.message === "string" ? d.message.trim().slice(0, TASK_NOTE_MAX) : "";
       const fromStore = linesFromPending();
-      if (fromStore.length > 0) return openWith(fromStore);
+      if (fromStore.length > 0) return openWith(fromStore, appMessage || notePrefillFrom(peekPendingOffering()));
       openWith(
         d?.offeringId && d.offeringTitle
           ? [{ offeringId: d.offeringId, title: d.offeringTitle }]
           : [],
+        appMessage,
       );
     };
     const onOpenClean = () => {
@@ -133,7 +147,8 @@ export function TalentInquiryFormSheet({
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         if (sheetOpenRef.current) return; // the catalog sheet owns this click
-        openWith(d && typeof d === "object" && d.offeringId ? [lineFromDetail(d)] : []);
+        const ok = d && typeof d === "object" && d.offeringId;
+        openWith(ok ? [lineFromDetail(d)] : [], ok ? notePrefillFrom(d) : "");
       }, SHEET_CLAIM_MS);
     };
     window.addEventListener("tulala:maison-sheet", onSheet);

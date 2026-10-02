@@ -52,12 +52,15 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
     options: [
       { value: "editorial", en: "Editorial", es: "Editorial" },
       { value: "magazine", en: "Magazine", es: "Revista" },
+      { value: "utility", en: "Utility spec sheet", es: "Ficha técnica" },
       { value: "off", en: "Plain", es: "Simple" },
     ],
     fallback: "",
     advanced: true,
   },
   { key: "type.display-weight", group: "typography", label: L("Heading weight", "Peso de títulos"), control: "number", fallback: "450" },
+  // Width axis (font-stretch, percent). Only fonts with a `wdth` axis (Archivo) respond; 100% is normal.
+  { key: "type.stretch", group: "typography", label: L("Heading width", "Ancho de títulos"), control: "length", fallback: "100%", advanced: true },
   {
     key: "type.accent-style",
     group: "typography",
@@ -66,6 +69,7 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
     options: [
       { value: "italic", en: "Italic", es: "Cursiva" },
       { value: "normal", en: "Upright", es: "Recta" },
+      { value: "highlight", en: "Highlighter", es: "Resaltador" },
     ],
     fallback: "italic",
   },
@@ -118,6 +122,29 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
   { key: "button.chip-height", group: "buttons", label: L("Small buttons and chips height", "Alto de botones pequeños"), control: "length", fallback: "34px", advanced: true },
 
   // ── Shape ────────────────────────────────────────────────────────────────
+  {
+    key: "shape.chrome",
+    group: "shape",
+    label: L("Card and section look", "Aspecto de tarjetas y secciones"),
+    control: "enum",
+    options: [
+      { value: "soft", en: "Soft cards on alternating bands", es: "Tarjetas suaves sobre franjas alternas" },
+      { value: "flat", en: "Flat hairlines", es: "Líneas finas" },
+    ],
+    fallback: "flat",
+    advanced: true,
+  },
+  {
+    key: "footer.tone",
+    group: "shape",
+    label: L("Footer color", "Color del pie de página"),
+    control: "enum",
+    options: [
+      { value: "light", en: "Light, on the page surface", es: "Claro, sobre la superficie de la página" },
+      { value: "dark", en: "Dark band", es: "Franja oscura" },
+    ],
+    fallback: "light",
+  },
   { key: "shape.card-radius", group: "shape", label: L("Card corners", "Esquinas de tarjetas"), control: "length", fallback: "22px", bind: "radius" },
   { key: "shape.image-radius", group: "shape", label: L("Photo corners, phone", "Esquinas de fotos, móvil"), control: "length", fallback: "26px", bind: "radius" },
   { key: "shape.image-radius-desktop", group: "shape", label: L("Photo corners, desktop", "Esquinas de fotos, escritorio"), control: "length", fallback: "34px", bind: "radius" },
@@ -139,6 +166,7 @@ export const STYLE_TOKEN_DEFS: ReadonlyArray<StyleTokenDef> = [
   { key: "layout.header-pad-y", group: "spacing", label: L("Header height padding, desktop", "Relleno del encabezado, escritorio"), control: "length", fallback: "14px", advanced: true },
   { key: "layout.header-pad-y-phone", group: "spacing", label: L("Header height padding, phone", "Relleno del encabezado, móvil"), control: "length", fallback: "10px", advanced: true },
   { key: "layout.menu-rail-width", group: "spacing", label: L("Menu rail width", "Ancho del menú lateral"), control: "length", fallback: "240px", advanced: true },
+  { key: "layout.menu-row-gap", group: "spacing", label: L("Menu row spacing", "Espacio entre filas del menú"), control: "length", fallback: "13px", advanced: true },
 ];
 
 export const STYLE_TOKEN_KEYS: ReadonlySet<string> = new Set(STYLE_TOKEN_DEFS.map((d) => d.key));
@@ -163,6 +191,8 @@ export function styleTokenCssVar(key: string): string {
 export const STYLE_TOKEN_DATA_ATTRS: Readonly<Record<string, string>> = {
   "type.system": "data-token-type-system",
   "button.variant": "data-token-button-variant",
+  "shape.chrome": "data-token-shape-chrome",
+  "footer.tone": "data-token-footer-tone",
 };
 
 /** Keys projected as CSS vars (every non-attribute key). */

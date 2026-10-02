@@ -6,6 +6,8 @@
  * labels use Archivo Narrow, loaded by the magazine widgets). The accent
  * stays ink so the photography carries the colour.
  */
+import { authoredPaletteOverrides } from "./authored";
+import { GRIDLINE_DEFAULT_LOOK } from "./gridline-looks";
 import type { BuiltinLookEntry } from "../builtins/types";
 import type { LookPayload } from "../types";
 import {
@@ -74,6 +76,8 @@ function folioLookTokens(p: FolioPalette): LookPayload {
       "color.accent": p.ink,
       ...FOLIO_LOOK_TYPE_DEFAULTS,
       "background.mode": "plain",
+      // Editor-authored palette colours the code reflects (committed overlay).
+      ...(authoredPaletteOverrides("folio")[p.key] ?? {}),
     },
   };
 }
@@ -109,6 +113,7 @@ export const FOLIO_BUILTIN_LOOKS: readonly FolioBuiltinLookEntry[] = FOLIO_PALET
 /** The Look a Design opens in when the preview names none. */
 export const COLLECTION_DEFAULT_LOOK: Readonly<Record<string, string>> = {
   folio: "folio-stone",
+  gridline: GRIDLINE_DEFAULT_LOOK,
 };
 
 /** Resolve a Folio Look from code (never DB). Used by theme-preview. */

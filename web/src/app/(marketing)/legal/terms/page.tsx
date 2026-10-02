@@ -3,7 +3,12 @@ import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { TermsEs } from "./terms-es";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+
+// DRAFT PENDING LEGAL REVIEW (2026-10-01). Payment, refund, and chargeback
+// wording follows the working defaults decided by Oran. Do not ship to
+// production until reviewed.
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -17,12 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  if ((await getRequestLocale()) === "es") return <TermsEs />;
   return (
     <LegalPage
       eyebrow="Legal"
       title="Terms of Service"
-      lastUpdated="2026-04-01"
+      lastUpdated="2026-10-01"
       intro={
         <p>
           By using {PLATFORM_BRAND.name}{" "}you agree to these terms. We&rsquo;ve kept them short
@@ -37,8 +43,12 @@ export default function TermsPage() {
             <>
               <p>
                 You&rsquo;re responsible for keeping your account credentials secure and for
-                actions taken under your account. You must be 18+ to sign up. You can close
-                your account at any time.
+                actions taken under your account. Everyone who uses {PLATFORM_BRAND.name}, talents and clients alike, must
+                be 18 or older. To close your account, contact support and we will help you.
+              </p>
+              {/* LEGAL_REVIEW_PENDING: 18+ for talents and paying clients (owner decision 2026-10-01) */}
+              <p>
+                {"To be a talent, or a client who pays on Tulala, you must be 18 or older. If we learn that someone is under 18, we may close the account."}
               </p>
             </>
           ),
@@ -80,6 +90,70 @@ export default function TermsPage() {
                 current period. Taxes and currency localization apply by region.
               </p>
             </>
+          ),
+        },
+        {
+          heading: "Payments",
+          body: (
+            <>
+              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              <p>
+                {"The talent is the merchant of record for each card payment they receive, through their own Stripe Connect account. Chargebacks, lost disputes, and tax invoicing (for example, the CFDI in Mexico) are the talent\u2019s responsibility."}
+              </p>
+              <p>
+                The talent or workspace is the seller. {PLATFORM_BRAND.name} provides the
+                platform and the payment processing tools, using Stripe Connect. Card details
+                are entered with Stripe and never touch {PLATFORM_BRAND.name}. Funds go to the
+                talent or workspace once they have completed payout onboarding.
+              </p>
+              <p className="text-xs opacity-70">Pending legal review</p>
+              <p>
+                Refunds follow the refund policy the talent selected for the booking, and{" "}
+                {PLATFORM_BRAND.name} processes them. If a customer disputes a charge with their
+                bank, chargebacks and disputes are the talent&rsquo;s responsibility. If a
+                dispute is lost, {PLATFORM_BRAND.name} may deduct the disputed amount and any
+                dispute fee from the talent&rsquo;s future payouts.
+              </p>
+              <p>
+                Card processing fees: every card payment carries a processing fee that the
+                card networks and Stripe do not return. Depending on the talent&rsquo;s
+                settings, the talent absorbs this fee or it is added to the customer&rsquo;s
+                total. The full amount, including any fee, is always shown before the customer
+                pays.
+              </p>
+              <p>
+                Because processing fees are not returned, a refund is the refundable amount
+                under the talent&rsquo;s refund policy minus the processing fees on that
+                payment. Neither the talent nor {PLATFORM_BRAND.name} covers those fees. If the
+                actual fee cannot be confirmed yet, the refund waits until it can, rather than
+                being estimated.
+              </p>
+              <p>
+                {PLATFORM_BRAND.name} does not charge customers a separate booking fee.
+                Commission and fees for talents are disclosed in the plans.
+              </p>
+            </>
+          ),
+        },
+        {
+          heading: "Talent responsibilities",
+          body: (
+            <p>
+              Talents set their own prices, availability, and booking policies, and provide
+              their services themselves. Licences, certifications, and other credentials shown
+              on a profile are declared by the talent. {PLATFORM_BRAND.name} does not verify
+              them, and talents are responsible for holding any licence their work requires.
+            </p>
+          ),
+        },
+        {
+          heading: "Marketplace",
+          body: (
+            <p>
+              {PLATFORM_BRAND.name} provides the platform that connects clients with talents
+              and agencies. We are not the provider of talent services and are not a party to
+              the agreement between a client and a talent.
+            </p>
           ),
         },
         {

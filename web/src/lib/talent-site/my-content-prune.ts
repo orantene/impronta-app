@@ -12,8 +12,15 @@
  *  - Any other portfolio with no photos, a comp card with no rows, a services
  *    catalog with no offerings, and a rate card with no priced offering are
  *    removed.
- *  - A container left with no children is removed.
+ *  - A FAQ-bound accordion with no published questions, a visit block with no
+ *    facts and a reviews block with no reviews are removed (F31).
+ *  - A container left with no children is removed, and so is one that lost a
+ *    data block and now holds only its labels (eyebrow + heading), so an
+ *    empty "Questions / What I get asked" band never renders.
  *  - Every Contents entry that pointed at a removed anchor is removed.
+ *
+ * `pruneEmptyBoundSections` is the live-site subset (FAQ, visit, reviews and
+ * the orphaned labels): no photo redistribution, nothing the talent chose.
  */
 import { resolveCompCardDisplay } from "@/lib/site-admin/builder-node/comp-card-block";
 import { filterShotsForPortfolio } from "@/lib/site-admin/builder-node/portfolio-selection";
@@ -90,6 +97,59 @@ export function distributeChapterShots(
   return out;
 }
 
+/** Nodes that only label a section; a section left with only these is empty. */
+const LABEL_KINDS = new Set(["heading", "paragraph", "divider", "spacer"]);
+
+/** Data-bound blocks with nothing to show on the live site (F31). */
+function isEmptyBoundBlock(n: BuilderNode, ds: BuilderNodeRenderDataSources): boolean {
+  const p = propsOf(n);
+  if (n.kind === "accordion" && p.bindSource === "talent_faq_items") {
+    const authored = (n as AnyNode).children ?? [];
+    return (ds.talentFaqItems ?? []).length === 0 && authored.length === 0;
+  }
+  if (n.kind === "visit") {
+    // The location layout is driven by the location settings, not the facts.
+    if (p.layout === "location") return !ds.talentLocation;
+    return (ds.talentVisitFacts ?? []).length === 0;
+  }
+  if (n.kind === "reviews") return (ds.talentReviews ?? []).length === 0;
+  return false;
+}
+
+/**
+ * Walk `tree` with `leaf` deciding each data block; containers drop when
+ * empty, or when they lost a child and only labels remain.
+ */
+function pruneWith(
+  tree: readonly BuilderNode[],
+  leaf: (n: BuilderNode) => BuilderNode | null | undefined,
+): BuilderNode[] {
+  const keep = (n: BuilderNode): BuilderNode | null => {
+    const decided = leaf(n);
+    if (decided !== undefined) return decided;
+    const kids = (n as AnyNode).children;
+    if (Array.isArray(kids) && kids.length > 0) {
+      const next = kids.map(keep).filter((k): k is BuilderNode => k !== null);
+      if (next.length === 0) return null;
+      if (next.length < kids.length && next.every((k) => LABEL_KINDS.has(k.kind))) return null;
+      return next.length === kids.length && next.every((k, i) => k === kids[i])
+        ? n
+        : ({ ...n, children: next } as BuilderNode);
+    }
+    return n;
+  };
+  return tree.map(keep).filter((k): k is BuilderNode => k !== null);
+}
+
+/** Live-site subset: hide empty FAQ / visit / reviews sections. */
+export function pruneEmptyBoundSections(
+  tree: readonly BuilderNode[],
+  ds: BuilderNodeRenderDataSources,
+): BuilderNode[] {
+  const pruned = pruneWith(tree, (n) => (isEmptyBoundBlock(n, ds) ? null : undefined));
+  return fixContentsAfterPrune(tree, pruned);
+}
+
 function hasPricedOffering(ds: BuilderNodeRenderDataSources): boolean {
   return (ds.talentOfferings ?? []).some(
     (o) =>
@@ -114,8 +174,9 @@ export function pruneEmptyMyContentBlocks(
   const offerings = ds.talentOfferings ?? [];
   const priced = hasPricedOffering(ds);
 
-  const keep = (n: BuilderNode): BuilderNode | null => {
+  const leaf = (n: BuilderNode): BuilderNode | null | undefined => {
     const p = propsOf(n);
+    if (isEmptyBoundBlock(n, ds)) return null;
     if (n.kind === "portfolio") {
       if (isChapter(n)) {
         const ids = chapterShots.get(n.id) ?? [];
@@ -147,16 +208,14 @@ export function pruneEmptyMyContentBlocks(
       if (p.layout === "rate_card" && !priced) return null;
       return n;
     }
-    const kids = (n as AnyNode).children;
-    if (Array.isArray(kids) && kids.length > 0) {
-      const next = kids.map(keep).filter((k): k is BuilderNode => k !== null);
-      if (next.length === 0) return null;
-      return { ...n, children: next } as BuilderNode;
-    }
-    return n;
+    return undefined;
   };
 
-  const pruned = tree.map(keep).filter((k): k is BuilderNode => k !== null);
+  return fixContentsAfterPrune(tree, pruneWith(tree, leaf));
+}
+
+/** Drop every Contents entry that pointed at an anchor the prune removed. */
+function fixContentsAfterPrune(tree: readonly BuilderNode[], pruned: BuilderNode[]): BuilderNode[] {
   const before = anchorsOf(tree);
   const after = anchorsOf(pruned);
   const gone = new Set([...before].filter((a) => !after.has(a)));

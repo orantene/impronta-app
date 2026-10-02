@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
+import { loadTalentClients } from "@/lib/talent/clients-actions";
+import type { TalentClientRow } from "@/lib/talent/clients-merge";
+import { agendaMoneyRows, talentOwedSummary } from "@/lib/talent/money-home";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
@@ -9,24 +12,22 @@ import {
   type MoneyLanding,
 } from "@/lib/money/today-money-tiles";
 import type { WebsiteSlice, WebsiteSliceKey } from "@/lib/talent/website-eligibility";
+import { websiteSliceProgressSuffix } from "@/lib/talent/website-eligibility";
+import { useOpenWebsiteSlice } from "@/components/talent/website-reward/useOpenWebsiteSlice";
+import { WebsiteSetupToday, WebsiteTodayHero } from "@/components/talent/website-reward/WebsiteTodayHero";
 import type { TalentSelfProfile } from "../../data-bridge";
 import { PageHeader } from "../shared/page-chrome-1";
 import { PrimaryButton, SecondaryButton } from "../../primitives";
 import { MoneyBlock, NowBox, PaymentStateChip, TALENT_AGENDA_VARS } from "./primitives";
-import { AgendaFirstDay } from "./AgendaFirstDay";
 import { AgendaPayRequest } from "./AgendaPayRequest";
 import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from "./present";
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
-import {
-  firstDayCompletedStepIds,
-  hasBookingHoursWindows,
-} from "@/lib/talent-agenda/first-day";
+import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
 import {
   bookedLabel,
   durationMinutes,
   greetingFor,
-  owedFromAgenda,
   resolveQualityCardMode,
   resolveTodayMode,
   todayAppointmentAction,
@@ -36,7 +37,6 @@ import {
   type AttentionTone,
 } from "@/lib/talent-agenda/today-view";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
-import { MaisonWebsiteResumeCard } from "@/components/talent/website-reward/MaisonWebsiteResumeCard";
 import { useAgendaCopy } from "./use-agenda-copy";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
@@ -128,8 +128,6 @@ export function AgendaTodayPage({
   onNewBooking,
   onSendQuote,
   onOpenRecord,
-  onOpenAvailability,
-  onOpenServices,
   onOpenSite,
   onOpenProfile,
   onOpenMoney,
@@ -137,7 +135,6 @@ export function AgendaTodayPage({
   now,
   loadError,
   hours,
-  completionMissingKeys,
   eligibility,
   bookableCount = null,
   sitePublished = false,
@@ -211,7 +208,29 @@ export function AgendaTodayPage({
     clock,
     `${clock.getFullYear()}-${String(clock.getMonth() + 1).padStart(2, "0")}-${String(clock.getDate()).padStart(2, "0")}`,
   );
-  const owed = owedFromAgenda(items, clock);
+  // F69: same source as /talent/money. The client ledger (agency_bookings
+  // balances) plus the agenda's balances, via the one shared summary.
+  const [ledgerClients, setLedgerClients] = useState<TalentClientRow[] | null>(null);
+  const profileId = profile?.id ?? null;
+  useEffect(() => {
+    if (!profileId) return;
+    let cancelled = false;
+    void loadTalentClients(profileId)
+      .then((res) => {
+        if (!cancelled) setLedgerClients(res.ok ? res.items : []);
+      })
+      .catch(() => {
+        if (!cancelled) setLedgerClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
+  const owed = talentOwedSummary({
+    clients: ledgerClients,
+    agendaOwed: agendaMoneyRows(items, clock).owed,
+    currency: monthCollected?.currency ?? null,
+  });
   const idea = ideaDismissed ? null : rebookHint(items, clock);
 
   const firstName = profile?.displayName?.split(" ")[0] ?? "";
@@ -222,8 +241,16 @@ export function AgendaTodayPage({
   const shortDate = clock.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
   const subtitle = [longDate.charAt(0).toUpperCase() + longDate.slice(1), city].filter(Boolean).join(" · ");
 
+  // Stop waiting for the offerings count after a few seconds so a failed load
+  // still resolves to the regular Today instead of a permanent loading state.
+  const [factsSettled, setFactsSettled] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setFactsSettled(true), 6000);
+    return () => window.clearTimeout(id);
+  }, []);
   const mode = resolveTodayMode({
     agendaItemCount: items.length,
+    settled: factsSettled,
     bookableCount,
     // A published directory profile is also not a new talent.
     sitePublished: sitePublished || profile?.workflowStatus === "published",
@@ -231,15 +258,16 @@ export function AgendaTodayPage({
   const percent = eligibility?.percent ?? null;
   const qualityMode = resolveQualityCardMode({ percent, sitePublished });
   const requiredSlices = (eligibility?.slices ?? []).filter((s) => s.required);
+  const openSlice = useOpenWebsiteSlice();
   const leftCount = requiredSlices.filter((s) => s.done === false).length;
   const siteHost = siteUrl ? siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") : null;
 
   const open = (id: string) => (onOpenRecord ? () => onOpenRecord(id) : undefined);
 
-  // W75 / AUD-023 — Continue your website when Maison setup is mid-flow.
-  // Must mount on Agenda V2 Today (incl. first run); classic Today alone is not enough.
-  const resumeCard =
-    profile && onOpenSite ? <MaisonWebsiteResumeCard onContinue={onOpenSite} /> : null;
+  // F23 / F34: ONE website card on Today, driven by the same state as the
+  // pill and My presence (useWebsiteFlow). It replaced the Maison resume card,
+  // which read setup_choices and named a palette the talent never picked.
+  const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
 
   if (loadError) {
     return (
@@ -261,16 +289,19 @@ export function AgendaTodayPage({
     );
   }
 
+  if (mode === "loading") {
+    // Facts still in flight: a neutral header, no greeting and no body, so a
+    // new account never flashes the established Today before "Welcome".
+    return (
+      <div style={TALENT_AGENDA_VARS} className="space-y-4" aria-busy="true">
+        <PageHeader title={copy.t("Today")} subtitle={subtitle} />
+      </div>
+    );
+  }
+
   if (mode === "first_run") {
-    const completedStepIds = firstDayCompletedStepIds({
-      missingKeys: completionMissingKeys,
-      portfolioCount: profile?.portfolioCount,
-      primaryTypeLabel: profile?.primaryTypeLabel,
-      homeCity: profile?.homeCity,
-      profileCode: profile?.profileCode,
-      workflowStatus: profile?.workflowStatus,
-      hours,
-    });
+    // tc_new / tc_new_saved / tc_new_ready: one number (the website checklist)
+    // and one next step, same state as the pill (F34).
     return (
       <div style={TALENT_AGENDA_VARS} className="space-y-4">
         <PageHeader
@@ -282,17 +313,7 @@ export function AgendaTodayPage({
             </SecondaryButton>
           }
         />
-        {resumeCard}
-        <AgendaFirstDay
-          completedStepIds={completedStepIds}
-          hasAvailability={hasBookingHoursWindows(hours)}
-          liveSiteUrl={siteUrl}
-          onOpenAvailability={onOpenAvailability ?? onOpenCalendar}
-          onOpenServices={onOpenServices ?? (() => undefined)}
-          onOpenSite={onOpenSite ?? (() => undefined)}
-          onOpenProfile={onOpenProfile}
-          onEditSite={onOpenSite}
-        />
+        <WebsiteSetupToday canBook={hasBookingHoursWindows(hours)} />
       </div>
     );
   }
@@ -464,14 +485,8 @@ export function AgendaTodayPage({
       </section>
     );
   } else if (qualityMode === "ready") {
-    qualityCard = (
-      <section className={`${CARD} p-4`}>
-        <div className="text-[15px] font-semibold text-[var(--tc-primary)]">{copy.t("Your free website is ready")}</div>
-        <div className="mt-3">
-          <ActionButton label={copy.t("Create my website")} onClick={onOpenSite} />
-        </div>
-      </section>
-    );
+    // Rendered by WebsiteTodayHero at the top (same state as the pill).
+    qualityCard = null;
   } else if (qualityMode === "checklist" && percent != null) {
     qualityCard = (
       <section className={`${CARD} p-4`} data-testid="today-profile-quality">
@@ -500,9 +515,20 @@ export function AgendaTodayPage({
               >
                 {slice.done ? "✓" : ""}
               </span>
-              <span className={slice.done ? `${MUTED} line-through` : "text-[var(--tc-primary)]"}>
-                {copy.t(SLICE_LABEL[slice.key])}
-              </span>
+              {slice.done === false ? (
+                <button
+                  type="button"
+                  data-testid={`agenda-website-slice-${slice.key}`}
+                  onClick={() => openSlice(slice.key)}
+                  className="text-left text-[var(--tc-primary)] underline decoration-black/20 underline-offset-2"
+                >
+                  {copy.t(SLICE_LABEL[slice.key])}{websiteSliceProgressSuffix(slice)}
+                </button>
+              ) : (
+                <span className={slice.done ? `${MUTED} line-through` : "text-[var(--tc-primary)]"}>
+                  {copy.t(SLICE_LABEL[slice.key])}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -567,17 +593,17 @@ export function AgendaTodayPage({
               attention.slice(0, attentionLimit).map((item, index) => {
                 const act = todayAttentionAction(item);
                 return (
-                  <div key={item.id} className="flex items-start gap-3 border-t border-black/10 px-4 py-3">
+                  <div key={item.id} className="flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-black/10 px-4 py-3">
                     <span
                       className={`grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg text-[13px] font-bold ${TONE_CLASS[act.tone]}`}
                     >
                       {index + 1}
                     </span>
-                    <button type="button" onClick={open(item.id)} className="min-w-0 flex-1 text-left">
+                    <button type="button" onClick={open(item.id)} className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left">
                       <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{attentionTitle(item)}</div>
                       <div className="mt-px text-[12.5px] text-black/70">{attentionSub(item)}</div>
                     </button>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[1100px]:basis-full max-[1100px]:justify-start max-[1100px]:pl-[42px]">
                       <span className={`rounded-full px-2 py-0.5 text-[11.5px] font-medium ${TONE_CLASS[act.tone]}`}>
                         {act.tone === "brand" ? act.chip : copy.t(act.chip)}
                       </span>

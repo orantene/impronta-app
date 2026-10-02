@@ -5,6 +5,14 @@
  */
 
 export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
+  "Policies and privacy": "Políticas y privacidad",
+  "Paying in person": "Pago en persona",
+  "Shown on your policies": "Se muestra en tus políticas",
+  Cash: "Efectivo",
+  "Bank transfer": "Transferencia",
+  "Card on your terminal": "Tarjeta con tu terminal",
+  "Cancelling, deposit and what your clients read before they book":
+    "Cancelación, anticipo y lo que leen tus clientas antes de reservar",
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
   "Services & booking": "Servicios y reservas",
@@ -53,6 +61,8 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "The balance is paid at the visit.": "El resto se paga en la visita.",
   "Every service starts with this. A service with its own deposit keeps it.":
     "Cada servicio empieza con esto. Un servicio con su propio anticipo lo mantiene.",
+  "Sets the cancellation window shown to clients ({hours} hours). Refunds follow your published policy.":
+    "Define la ventana de cancelación que ven los clientes ({hours} horas). Los reembolsos siguen tu política publicada.",
   "Inside {hours} hours the deposit is kept. The client is refunded in full before that.":
     "Dentro de las {hours} horas se retiene el anticipo. Antes de eso se reembolsa todo al cliente.",
   "The deposit moves to the new date. Inside {hours} hours it is kept and a new one is asked for.":
@@ -118,9 +128,28 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Inquiries paused": "Consultas en pausa",
   "Taking new bookings": "Recibiendo nuevas reservas",
   "New bookings paused": "Nuevas reservas en pausa",
+  "Instant booking is not available on this plan": "La reserva inmediata no está disponible en este plan",
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",
   "Add a duration to this service to turn on instant booking":
     "Agrega una duración a este servicio para activar la reserva inmediata",
   // PAY-2 Option B — platform Checkout readiness, not Connect.
   "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
+  // LEGAL_REVIEW_PENDING: merchant of record + 18+ (owner decision 2026-10-01)
+  "You are the merchant of record for card payments from your clients, through your own Stripe Connect account. Chargebacks and tax invoicing (CFDI in Mexico) are yours. You and your paying clients must be 18 or older.":
+    "Tú eres el comerciante registrado de los pagos con tarjeta de tus clientes, a través de tu propia cuenta de Stripe Connect. Los contracargos y la facturación fiscal (CFDI en México) son tuyos. Tú y tus clientes que pagan deben tener 18 años o más.",
+  // G3a / G4 — emergencies today + public call number.
+  "Taking emergencies today": "Atiendo emergencias hoy",
+  "Shows on your website right away and turns itself off at the end of your day.":
+    "Se muestra en tu sitio al instante y se apaga solo al final de tu día.",
+  "Could not update. Try again.": "No se pudo actualizar. Inténtalo de nuevo.",
+  "A public number for the call button on your website":
+    "Un número público para el botón de llamar de tu sitio",
+  "Show a call button": "Mostrar un botón de llamar",
+  "Enter a number clients can call from your website. Leave it empty to hide the call button. Your private phone is never shown.":
+    "Escribe un número al que tus clientes puedan llamar desde tu sitio. Déjalo vacío para ocultar el botón de llamar. Tu teléfono privado nunca se muestra.",
+  "Use the full international number, starting with + and the country code.":
+    "Usa el número internacional completo, empezando con + y el código de país.",
+  "Could not save. Try again.": "No se pudo guardar. Inténtalo de nuevo.",
+  "Call button is on.": "El botón de llamar está activo.",
+  "Call button is off.": "El botón de llamar está apagado.",
 };

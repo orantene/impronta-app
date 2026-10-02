@@ -18,7 +18,11 @@
  *    `/template-preview/<slug>?kind=talent-theme&talent=<id>`.
  * Everything else is `planned` (Preview planned tile).
  */
+import { authoredPaletteOverrides } from "./collection/authored";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
+import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
+import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
+import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
 import {
   MAISON_PALETTES,
   MAISON_PALETTE_ORDER,
@@ -67,6 +71,7 @@ export type GalleryCategoryChip = (typeof GALLERY_CATEGORY_CHIPS)[number];
 export type GalleryProfession =
   | "nails"
   | "lashes"
+  | "brows"
   | "bridal_makeup"
   | "hair"
   | "barber"
@@ -86,7 +91,14 @@ export type GalleryProfession =
   | "interior_designer"
   | "tattoo"
   | "tutor"
-  | "guide";
+  | "guide"
+  | "electrician"
+  | "plumber"
+  | "carpenter"
+  | "appliance_repair"
+  | "computer_tech"
+  | "smart_home"
+  | "handyman";
 
 /** Same colour shape as a Maison palette, plus gallery flags. */
 export type GalleryPalette = Pick<
@@ -143,6 +155,7 @@ export const GALLERY_PROFESSIONS: Record<
 > = {
   nails: { label: { en: "Nail Artist", es: "Manicurista" }, chip: "beauty", synonyms: ["nails", "nail", "manicure", "manicurist", "uñas", "unas", "manicurista"] },
   lashes: { label: { en: "Lash Artist", es: "Lashista" }, chip: "beauty", synonyms: ["lashes", "lash", "eyelashes", "pestañas", "pestanas", "lashista"] },
+  brows: { label: { en: "Brow Artist", es: "Diseñadora de cejas" }, chip: "beauty", synonyms: ["brows", "brow", "eyebrows", "microblading", "lamination", "cejas", "ceja", "laminado"] },
   bridal_makeup: { label: { en: "Bridal Hair & Makeup", es: "Peinado y maquillaje de novia" }, chip: "beauty", synonyms: ["makeup", "make-up", "bridal", "mua", "maquillaje", "maquillista", "novia"] },
   hair: { label: { en: "Hair Stylist", es: "Estilista" }, chip: "beauty", synonyms: ["hair", "hairstylist", "stylist", "estilista", "peinado", "cabello"] },
   barber: { label: { en: "Barber", es: "Barbero" }, chip: "beauty", synonyms: ["barber", "barbershop", "barbero", "barberia", "barbería"] },
@@ -162,6 +175,13 @@ export const GALLERY_PROFESSIONS: Record<
   interior_designer: { label: { en: "Interior Designer", es: "Diseñador de interiores" }, chip: "home_local", synonyms: ["interior", "interiors", "interiorismo", "interiorista", "decorador", "decoradora"] },
   tattoo: { label: { en: "Tattoo Artist", es: "Tatuador" }, chip: "creative", synonyms: ["tattoo", "tattoos", "tatuador", "tatuadora", "tatuaje"] },
   tutor: { label: { en: "Tutor", es: "Tutor" }, chip: "home_local", synonyms: ["tutor", "teacher", "teaching", "maestro", "maestra", "profesor", "profesora", "clases"] },
+  electrician: { label: { en: "Electrician", es: "Electricista" }, chip: "home_local", synonyms: ["electrician", "electric", "electrical", "electricista", "electricidad", "luz", "tablero"] },
+  plumber: { label: { en: "Plumber", es: "Plomero" }, chip: "home_local", synonyms: ["plumber", "plumbing", "pipes", "leak", "plomero", "plomera", "plomeria", "plomería", "fuga", "drenaje"] },
+  carpenter: { label: { en: "Carpenter", es: "Carpintero" }, chip: "home_local", synonyms: ["carpenter", "carpentry", "woodwork", "furniture", "carpintero", "carpintera", "carpinteria", "carpintería", "muebles"] },
+  appliance_repair: { label: { en: "Appliance Technician", es: "Técnica de línea blanca" }, chip: "home_local", synonyms: ["appliance", "appliances", "repair", "washer", "fridge", "minisplit", "aire acondicionado", "lavadora", "refrigerador", "linea blanca", "línea blanca"] },
+  computer_tech: { label: { en: "Computer Technician", es: "Técnico de computadoras" }, chip: "tech", synonyms: ["computer", "pc", "laptop", "it", "support", "wifi", "computadora", "computadoras", "soporte", "tecnico", "técnico"] },
+  smart_home: { label: { en: "Smart Home Installer", es: "Instalador de casa inteligente" }, chip: "tech", synonyms: ["smart home", "home automation", "doorbell", "camera", "wifi", "casa inteligente", "domotica", "domótica", "chapa digital"] },
+  handyman: { label: { en: "Handyperson", es: "Arreglos en casa" }, chip: "home_local", synonyms: ["handyman", "handyperson", "repairs", "fix", "odd jobs", "arreglos", "reparaciones", "mantenimiento", "chambas"] },
   guide: { label: { en: "Local Guide", es: "Guía local" }, chip: "events", synonyms: ["guide", "tour", "host", "guía", "guia", "anfitriona", "acompañante"] },
 };
 
@@ -196,6 +216,33 @@ function pal(
 /** Maison v2 (Rosé proposal) type: Bodoni Moda display, Figtree body. */
 const FOLIO_FONTS = { heading: "Instrument Serif, Didot, Georgia, serif", body: "Archivo, system-ui, sans-serif" } as const;
 
+/** Gridline palettes come from its Looks (`gridline-looks.ts`), so hex lives in one file. */
+function gridlineGalleryPalettes(): GalleryPalette[] {
+  const lum = (hex: string) => {
+    const n = Number.parseInt(hex.replace("#", ""), 16);
+    const ch = [16, 8, 0].map((s) => {
+      const v = ((n >> s) & 255) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  };
+  const ratio = (a: string, b: string) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  return GRIDLINE_PALETTES.map((p) =>
+    pal(
+      p.key,
+      p.en,
+      p.es,
+      [p.bg, p.surface, p.line, p.ink, p.accent, ratio(p.accent, p.ink) >= ratio(p.accent, p.surface) ? p.ink : p.surface],
+      { muted: p.mute, tint: p.tint, ...(p.key === "dark" ? { dark: true } : {}), ...(p.key === "light" ? { highContrast: true } : {}) },
+    ),
+  );
+}
+
+const GRIDLINE_FONTS: GalleryFonts = { heading: GRIDLINE_HEADING_FONT, body: GRIDLINE_BODY_FONT };
+
 const MAISON_V2_FONTS: GalleryFonts = {
   heading: '"Bodoni Moda", Didot, "Bodoni 72", Georgia, serif',
   body: '"Figtree", system-ui, sans-serif',
@@ -219,6 +266,13 @@ function talentDemo(
   displayName: string,
 ): GalleryDemo {
   return { key, name, professions, defaultPalette, status: "built", source: { kind: "demo-talent", profileCode, siteSlug, displayName } };
+}
+
+/** The guide's demo talents for a design (theme-demos.ts), as built gallery demos. */
+function guideDemos(design: ThemeDemoDesign): GalleryDemo[] {
+  return themeDemosFor(design).map((d) =>
+    talentDemo(d.key, d.name, d.professions, d.palette, d.profileCode, d.siteSlug, d.displayName),
+  );
 }
 
 function planned(key: string, name: Localized, professions: GalleryProfession[], defaultPalette: string): GalleryDemo {
@@ -272,6 +326,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     palettes: [
       pal("rose", "Rosé", "Rosé", ["#FCF7F7", "#FFFFFF", "#EFDFE3", "#241417", "#B3174A", "#FFFFFF"], { muted: "#7B6468", tint: "#FBE6EC" }),
       pal("blush", "Blush", "Rubor", ["#FBF4F2", "#FFFFFF", "#EEDCD7", "#2B1C1E", "#B24E69", "#FFFFFF"], { muted: "#86706F", tint: "#F7E3E4" }),
+      pal("orchid", "Orchid", "Orquídea", ["#FAF7FB", "#FFFFFF", "#E9DFEE", "#1F1624", "#7A2F8F", "#FFFFFF"], { muted: "#766A7C", tint: "#F1E4F5" }),
       pal("noir-rose", "Noir rose", "Noir rosa", ["#151012", "#1E171A", "#34282C", "#F7EEF0", "#E3487E", "#FFFFFF"], { dark: true, muted: "#B8A5A9", tint: "#3A2029" }),
       pal("porcelain", "Porcelain & Ink", "Porcelana y tinta", ["#FFFFFF", "#F4F4F2", "#E2E2DE", "#141414", "#141414", "#FFFFFF"], { highContrast: true }),
       pal("sage", "Sage & Olive", "Salvia y oliva", ["#FFFFFF", "#F1F4EE", "#DFE5D9", "#1F241C", "#4A5A34", "#FFFFFF"]),
@@ -279,9 +334,8 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       // FEATURED: Alba is the proposal's own demo (content word for word from the artifact).
       talentDemo("alba-nail-artist", { en: "Nail & Lash Artist", es: "Uñas y pestañas" }, ["nails", "lashes"], "rose", "TAL-93020", "alba-nail-artist", "Alba"),
-      talentDemo("lash-artist", { en: "Lash Artist", es: "Lashista" }, ["lashes"], "rose", "TAL-93002", "renata-lashes", "Renata Salgado"),
-      talentDemo("nail-artist", { en: "Nail Artist", es: "Manicurista" }, ["nails"], "rose", "TAL-93003", "camila-nails", "Camila Rivas"),
-      talentDemo("private-chef", { en: "Private Chef", es: "Chef privado" }, ["chef"], "sage", "TAL-93006", "andres-cocina", "Andrés Molina"),
+      // The guide's seven Maison demos (Camila + Renata live, five drafts).
+      ...guideDemos("maison-v2"),
     ],
   }),
   design({
@@ -348,15 +402,26 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
       pal("dark", "Dark contrast", "Contraste oscuro", ["#0E0E0E", "#171717", "#2C2B29", "#F1EFEA", "#F1EFEA", "#0E0E0E"], { dark: true }),
     ],
     demos: [
-      // Featured Folio demo = Mateo Ferrer (artifact). Lucía stays as second built demo.
+      // Featured Folio demo = Mateo Ferrer (artifact).
       talentDemo("fashion-model", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93011", "mateo-ferrer", "Mateo Ferrer"),
-      talentDemo("fashion-model-lucia", { en: "Fashion Model", es: "Modelo de moda" }, ["model"], "stone", "TAL-93004", "lucia-herrera", "Lucía Herrera"),
-      talentDemo("bartender", { en: "Bartender", es: "Bartender" }, ["bartender"], "stone", "TAL-93007", "sofia-barra", "Sofía Campos"),
+      // The guide's seven Folio demos (Lucía live, six drafts).
+      ...guideDemos("folio"),
       planned("portrait-photographer", { en: "Portrait Photographer", es: "Fotógrafo de retrato" }, ["photographer"], "stone"),
       planned("graphic-designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "light"),
       planned("illustrator", { en: "Illustrator", es: "Ilustrador" }, ["illustrator"], "stone"),
       planned("interior-designer", { en: "Interior Designer", es: "Diseñador de interiores" }, ["interior_designer"], "light"),
-      planned("model-singer", { en: "Model & Singer", es: "Modelo y cantante" }, ["model", "singer"], "dark"),
+    ],
+  }),
+  design({
+    ...collection("gridline"),
+    fonts: GRIDLINE_FONTS,
+    styleTags: ["Bold", "Minimal"],
+    featureTags: ["Service menu", "Booking-ready", "Quote requests", "Service list"],
+    palettes: gridlineGalleryPalettes(),
+    // The reference demo (Alex Treviño) first, then the seven guide demos (theme-demos.ts, G15).
+    demos: [
+      talentDemo("alex-trevino", { en: "Electrician", es: "Electricista" }, ["electrician"], "default", "TAL-93030", "alex-trevino", "Alex Treviño"),
+      ...guideDemos("gridline"),
     ],
   }),
 ];
@@ -370,7 +435,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
  * `TALENT_GALLERY_EXTRA_DESIGNS=1` (server) or
  * `NEXT_PUBLIC_TALENT_GALLERY_EXTRA_DESIGNS=1` (client bundle) to show them.
  */
-export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio"];
+export const FINISHED_GALLERY_SLUGS: readonly string[] = [MAISON_THEME_KEY, "maison-v2", "folio", "gridline"];
 
 export function galleryExtraDesignsEnabled(): boolean {
   return (
@@ -394,7 +459,11 @@ export function galleryPaletteLookTokens(slug: string, paletteKey: string): Reco
   const d = getGalleryDesign(slug);
   const p = d?.palettes.find((x) => x.key === paletteKey);
   if (!d || !p) return null;
-  if (d.slug === MAISON_THEME_KEY) return maisonPaletteLookTokens(paletteKey as keyof typeof MAISON_PALETTES);
+  // Editor-authored colour edits the code already reflects (committed overlay).
+  const authored = authoredPaletteOverrides(d.slug)[paletteKey] ?? {};
+  if (d.slug === MAISON_THEME_KEY) {
+    return { ...maisonPaletteLookTokens(paletteKey as keyof typeof MAISON_PALETTES), ...authored };
+  }
   return {
     "color.background": p.page,
     "color.surface-raised": p.section,
@@ -407,6 +476,7 @@ export function galleryPaletteLookTokens(slug: string, paletteKey: string): Reco
     // The soft accent tint (mode chips, initials, image placeholders).
     ...(p.tint ? { "color.blush": p.tint } : {}),
     ...designTypographyTokens(d.slug),
+    ...authored,
   };
 }
 
@@ -590,7 +660,7 @@ const CHIP_SUGGESTIONS: Record<GalleryCategoryChip, string[]> = {
   wellness: ["solace", "mono"],
   creative: ["frame", "folio"],
   events: ["solace", "frame"],
-  home_local: ["mono", "solace"],
+  home_local: ["gridline", "mono"],
   tech: ["mono", "folio"],
 };
 

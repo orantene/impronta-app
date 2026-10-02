@@ -318,6 +318,52 @@ export function resolveDockedToolbarStack(
   return { placement: "docked", bars: placed };
 }
 
+export interface TextToolbarBottomInput {
+  /** The bar's left edge and width, viewport px. */
+  left: number;
+  width: number;
+  viewportHeight: number;
+  /** The bar's normal distance from the viewport bottom. */
+  baseBottom: number;
+  /** Bottom-band HUD rects (zoom controls, first-paint tip). */
+  hud: readonly AnchorOccluder[];
+  gap?: number;
+}
+
+/**
+ * F81 - the bottom-docked text toolbar shares the zoom bar's band. When the
+ * bar's horizontal span overlaps a bottom-band HUD rect (a 1024px window cannot
+ * fit both side by side) it lifts ABOVE that HUD instead of painting over it.
+ * Returns the CSS `bottom` value to use (>= `baseBottom`).
+ */
+export function resolveTextToolbarBottom(input: TextToolbarBottomInput): number {
+  const gap = input.gap ?? ANCHOR_OCCLUDER_GAP;
+  const right = input.left + input.width;
+  let topMost = Infinity;
+  for (const h of input.hud) {
+    if (h.right <= h.left || h.bottom <= h.top) continue;
+    if (h.top < input.viewportHeight / 2) continue; // not a bottom-band HUD
+    if (h.right <= input.left || h.left >= right) continue; // no horizontal overlap
+    topMost = Math.min(topMost, h.top);
+  }
+  if (topMost === Infinity) return input.baseBottom;
+  return Math.max(input.baseBottom, Math.round(input.viewportHeight - topMost + gap));
+}
+
+/** Bottom-band HUD chrome the text toolbar must clear. */
+export const TEXT_TOOLBAR_HUD_SELECTOR =
+  '[data-edit-overlay="zoom-controls"],[data-edit-overlay="first-paint-tip"]';
+
+export function measureTextToolbarHud(): AnchorOccluder[] {
+  if (typeof document === "undefined") return [];
+  const out: AnchorOccluder[] = [];
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>(TEXT_TOOLBAR_HUD_SELECTOR))) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) out.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+  }
+  return out;
+}
+
 // ── DOM half ────────────────────────────────────────────────────────────────
 
 /**

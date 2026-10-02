@@ -56,6 +56,12 @@ import { improntaLog } from "@/lib/server/structured-log";
 // Canonical registry keys for the ten Tier-A scalar fields.
 export const SCALAR_FIELD_KEYS = {
   tagline: "identity.tagline",
+  // Hero copy (Maison v2 2.7): the headline under the trade, and the years of craft.
+  headline: "identity.headline",
+  years_total: "experience.years_total",
+  // The same two lines per language ({ es, en }): the plain value stays the primary language.
+  headline_i18n: "identity.headline_i18n",
+  tagline_i18n: "identity.tagline_i18n",
   bio_tone: "about.bioTone",
   response_time: "identity.response_time",
   rate_card_visibility: "commercial.rateCardVisibility",
@@ -70,6 +76,7 @@ export const SCALAR_FIELD_KEYS = {
 // The text vs boolean split decides the emptiness contract + jsonb shape.
 const TEXT_KEYS = new Set([
   "tagline",
+  "headline",
   "bio_tone",
   "response_time",
   "rate_card_visibility",
@@ -78,6 +85,22 @@ const TEXT_KEYS = new Set([
   "drivers_license",
 ]);
 const BOOL_KEYS = new Set(["ask_for_quote", "travel_included", "lodging_included"]);
+// Whole numbers (years of craft): present ⇔ a finite number >= 0; 0 is a real value.
+const NUM_KEYS = new Set(["years_total"]);
+// Per-language maps ({ es, en }): present ⇔ at least one non-empty line.
+const MAP_KEYS = new Set(["headline_i18n", "tagline_i18n"]);
+
+/** A clean `{ locale: text }` map: trimmed, non-empty strings under short locale keys, else null. */
+export function cleanLocaleMap(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const key = k.trim().toLowerCase().slice(0, 2);
+    const text = typeof v === "string" ? v.trim().slice(0, 240) : "";
+    if (/^[a-z]{2}$/.test(key) && text) out[key] = text;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 // The helper accepts the deeply-generic Supabase client OR the service-role
 // client; both flow through the same query surface. `any` keeps the helper
@@ -90,6 +113,10 @@ type AnySupabase = SupabaseClient | any;
 // boolean. `undefined` is "untouched".
 export type ScalarFieldValues = {
   tagline?: string | null;
+  headline?: string | null;
+  years_total?: number | null;
+  headline_i18n?: Record<string, string> | null;
+  tagline_i18n?: Record<string, string> | null;
   bio_tone?: string | null;
   response_time?: string | null;
   rate_card_visibility?: string | null;
@@ -142,6 +169,12 @@ export async function syncScalarFieldValuesToCatalog(
         // Booleans: a stored `false` is a REAL value → present ⇔ not null.
         const present = raw !== null;
         edits.push({ key: fieldKey, present, value: present ? Boolean(raw) : null });
+      } else if (MAP_KEYS.has(col)) {
+        const map = cleanLocaleMap(raw);
+        edits.push({ key: fieldKey, present: map !== null, value: map });
+      } else if (NUM_KEYS.has(col)) {
+        const n = typeof raw === "number" && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : null;
+        edits.push({ key: fieldKey, present: n !== null, value: n });
       }
     }
     if (edits.length === 0) return;
@@ -231,6 +264,10 @@ export async function syncScalarFieldValuesToCatalog(
 
 export type ScalarFieldValueReads = {
   tagline?: string | null;
+  headline?: string | null;
+  years_total?: number | null;
+  headline_i18n?: Record<string, string> | null;
+  tagline_i18n?: Record<string, string> | null;
   bio_tone?: string | null;
   response_time?: string | null;
   rate_card_visibility?: string | null;
@@ -285,6 +322,11 @@ export async function readScalarFieldValuesFromCatalog(
       if (BOOL_KEYS.has(prop)) {
         // booleans → coerce; a real stored `false` stays `false`
         (out as Record<string, unknown>)[prop] = Boolean(row.value);
+      } else if (MAP_KEYS.has(prop)) {
+        (out as Record<string, unknown>)[prop] = cleanLocaleMap(row.value);
+      } else if (NUM_KEYS.has(prop)) {
+        const n = typeof row.value === "number" ? row.value : typeof row.value === "string" ? Number(row.value) : NaN;
+        (out as Record<string, unknown>)[prop] = Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
       } else {
         (out as Record<string, unknown>)[prop] = typeof row.value === "string" ? row.value : null;
       }

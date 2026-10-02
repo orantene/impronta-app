@@ -7,7 +7,13 @@ import { NEXT_FREE_CHIP_DEFAULT_PROPS } from "@/lib/site-admin/builder-node/next
 import { CONTACT_LAYER, TALENT_ASK_HREF } from "../contact-channels";
 import type { MaxSiteTemplateIdFactory } from "../max-site-templates/types";
 
-export type HeroCtaRow = { primaryLabel: string; primaryHref: string; secondaryLabel: string };
+export type HeroCtaRow = {
+  primaryLabel: string;
+  primaryHref: string;
+  secondaryLabel: string;
+  /** Optional in-page target for the ghost button (default: the Ask handoff). */
+  secondaryHref?: string;
+};
 
 /** One row: a solid primary (seeded, follows the booking mode) + a ghost Ask. */
 export function heroCtaRow(makeId: MaxSiteTemplateIdFactory, row: HeroCtaRow): BuilderNode {
@@ -30,7 +36,12 @@ export function heroCtaRow(makeId: MaxSiteTemplateIdFactory, row: HeroCtaRow): B
       {
         id: makeId(),
         kind: "button",
-        props: { label: row.secondaryLabel, href: TALENT_ASK_HREF, tone: "secondary", layerLabel: CONTACT_LAYER.ask },
+        props: {
+          label: row.secondaryLabel,
+          href: row.secondaryHref ?? TALENT_ASK_HREF,
+          tone: "secondary",
+          layerLabel: row.secondaryHref ? row.secondaryLabel : CONTACT_LAYER.ask,
+        },
       },
     ],
   } as BuilderNode;

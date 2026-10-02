@@ -9,7 +9,7 @@ import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 import { formatOfferingPrice, type TalentOffering } from "@/lib/talent/offerings-types";
 import { loadTalentClients } from "@/lib/talent/clients-actions";
-import type { TalentClientRow } from "@/lib/talent/clients-merge";
+import { clientPickerHint, dedupeClientsByPerson, type TalentClientRow } from "@/lib/talent/clients-merge";
 import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { dayWindows } from "./AgendaCalendarViews";
@@ -36,8 +36,10 @@ export function AgendaNewBooking({
   hours,
   onCancel,
   onSaved,
-  onOpenRecord,
+  embedded = false,
 }: {
+  /** Inside the shared New booking panel: single column, no page header. */
+  embedded?: boolean;
   talentTypeSlug?: string | null;
   talentProfileId?: string;
   newLabel?: string;
@@ -45,9 +47,7 @@ export function AgendaNewBooking({
   agendaItems?: readonly TalentAgendaItem[];
   hours?: BookingHours | null;
   onCancel: () => void;
-  onSaved?: () => void;
-  /** After a "Request payment" save, opens the new booking to send the link. */
-  onOpenRecord?: (id: string) => void;
+  onSaved?: (bookingId?: string) => void;
 }) {
   const profile = resolveTradeProfile(talentTypeSlug);
   const newLabel = profile.words.newLabel[0];
@@ -73,7 +73,7 @@ export function AgendaNewBooking({
       hours={hours ?? null}
       onCancel={onCancel}
       onSaved={onSaved}
-      onOpenRecord={onOpenRecord}
+      embedded={embedded}
     />
   );
 }
@@ -112,14 +112,14 @@ function SlotComposer({
   hours,
   onCancel,
   onSaved,
-  onOpenRecord,
+  embedded = false,
 }: {
+  embedded?: boolean;
   talentProfileId?: string;
   agendaItems: readonly TalentAgendaItem[];
   hours: BookingHours | null;
   onCancel: () => void;
-  onSaved?: () => void;
-  onOpenRecord?: (id: string) => void;
+  onSaved?: (bookingId?: string) => void;
 }) {
   const copy = useAgendaCopy();
   const locale = copy.locale === "es" ? "es" : "en";
@@ -177,13 +177,14 @@ function SlotComposer({
     if (starts && duration) setEnds(addMinutes(starts, duration));
   }, [starts, duration]);
 
+  const people = useMemo(() => dedupeClientsByPerson(clients), [clients]);
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return clients.slice(0, 6);
-    return clients
+    if (!q) return people.slice(0, 6);
+    return people
       .filter((c) => [c.name, c.phone ?? "", c.email ?? ""].some((v) => v.toLowerCase().includes(q)))
       .slice(0, 6);
-  }, [clients, query]);
+  }, [people, query]);
 
   const serviceName = selected?.title ?? (offeringId === OTHER ? service.trim() : "");
   const serviceReady = Boolean(serviceName);
@@ -250,8 +251,8 @@ function SlotComposer({
             ? copy.t("Saved as unpaid. Request a payment link from the booking when you are ready. The client has not been told.")
             : copy.t("Due later. The client has not been told."),
       );
-      if (pay === "request_link" && onOpenRecord) onOpenRecord(result.id);
-      else onSaved?.();
+      // F63: one outcome for every payment choice; the caller toasts with a View booking link.
+      onSaved?.(result.id);
     } finally {
       setSaving(false);
     }
@@ -281,8 +282,8 @@ function SlotComposer({
   ];
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-3">
-      <header>
+    <div className={embedded ? "space-y-3" : "mx-auto max-w-[1100px] space-y-3"}>
+      {embedded ? null : <header>
         <h1 className="text-[20px] font-semibold text-[var(--tc-primary)]">{copy.t("New booking")}</h1>
         <p className={`text-[12.5px] ${MUTED}`}>{copy.t("Add a booking you arranged yourself")}</p>
         <button
@@ -292,9 +293,9 @@ function SlotComposer({
         >
           ‹ {copy.t("Calendar")}
         </button>
-      </header>
+      </header>}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className={embedded ? "grid gap-4" : "grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]"}>
         <div className="overflow-hidden rounded-2xl border border-black/10 bg-white">
           {savedNote ? (
             <p className="m-5 mb-0 rounded-xl border border-[rgba(31,92,66,0.25)] bg-[rgba(31,92,66,0.08)] px-3 py-2 text-[13px] text-[var(--tc-ok)]">
@@ -343,7 +344,10 @@ function SlotComposer({
                           }}
                           className="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 text-left text-[13.5px] hover:bg-black/[0.03]"
                         >
-                          <span className="truncate font-medium text-[var(--tc-primary)]">{c.name}</span>
+                          <span className="min-w-0 truncate font-medium text-[var(--tc-primary)]">
+                            {c.name}
+                            {clientPickerHint(c, people) ? <span className={`ml-2 font-normal ${MUTED}`}>{clientPickerHint(c, people)}</span> : null}
+                          </span>
                           <span className={`shrink-0 text-[12px] ${MUTED}`}>
                             {c.completedCount > 0
                               ? `${c.completedCount} ${copy.t(c.completedCount === 1 ? "visit" : "visits")}`

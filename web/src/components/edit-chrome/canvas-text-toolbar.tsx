@@ -77,6 +77,7 @@ import {
 } from "@/lib/site-admin/builder-node/text-role";
 import { useEditContext } from "./edit-context";
 import { useEditorLocale } from "./use-editor-locale";
+import { measureTextToolbarHud, resolveTextToolbarBottom } from "./canvas-toolbar-anchor";
 
 export type CanvasTextKind = "heading" | "paragraph" | "rich_text" | "button";
 
@@ -185,7 +186,7 @@ function inspectorRightReservePx(inspectorDockOpen: boolean): number {
 function computeToolbarPosition(
   measuredWidth: number | null,
   rightReservePx: number,
-): { left: number } {
+): { left: number; bottom: number } {
   const viewportWidth =
     typeof window !== "undefined" ? window.innerWidth : TOOLBAR_MAX_WIDTH;
   const widthEstimate =
@@ -208,9 +209,19 @@ function computeToolbarPosition(
   );
   const centeredLeft = (viewportWidth - widthEstimate) / 2;
   const maxLeft = viewportWidth - rightReservePx - widthEstimate;
-  return {
-    left: Math.max(leftLimit, Math.min(centeredLeft, maxLeft)),
-  };
+  const left = Math.max(leftLimit, Math.min(centeredLeft, maxLeft));
+  // F81: lift above the zoom bar / first-paint tip when they share the band.
+  const bottom =
+    typeof window === "undefined"
+      ? TOOLBAR_BOTTOM_GUTTER
+      : resolveTextToolbarBottom({
+          left,
+          width: widthEstimate,
+          viewportHeight: window.innerHeight,
+          baseBottom: TOOLBAR_BOTTOM_GUTTER,
+          hud: measureTextToolbarHud(),
+        });
+  return { left, bottom };
 }
 
 function Divider() {
@@ -662,7 +673,7 @@ export function CanvasTextToolbar({
       onMouseDown={preventToolbarBlur}
       style={{
         position: "fixed",
-        bottom: TOOLBAR_BOTTOM_GUTTER,
+        bottom: position.bottom,
         left: position.left,
         zIndex: Z_INDEX.floatingControls,
         display: "inline-flex",

@@ -6,6 +6,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { stripLocaleFromPathname, withLocaleHref } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import { PrivacyChoicesLink } from "@/components/analytics/privacy-choices-link";
 import { CurrencyPicker } from "./currency-picker";
 import { MarketingLanguageToggle } from "./marketing-language-toggle";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
@@ -28,6 +29,7 @@ const FOOTER_HREFS = {
     "/network",
     "/legal/privacy",
     "/legal/terms",
+    "/legal/cookies",
   ],
 };
 
@@ -151,7 +153,8 @@ export async function MarketingFooter() {
           style={{ borderColor: "var(--plt-hairline)", color: "var(--plt-muted)" }}
         >
           <span>
-            &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {copy.legalLine}
+            &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {copy.legalLine}{" "}
+            <PrivacyChoicesLink locale={locale} />
           </span>
           {/* MUST wrap: language pill + currency picker + stage tag run
               359px wide — an inline-flex here overflowed every mobile page

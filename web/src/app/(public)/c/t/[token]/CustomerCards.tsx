@@ -60,7 +60,7 @@ export function CustomerCard(props: {
       <article className={cn(POS_SURFACE, "px-4 py-3")} data-card-kind={kind}>
         <p className="font-semibold">{props.model.title}</p>
         <p className="mt-1 text-[15px]">{props.body || props.model.summary}</p>
-        <p className={cn(POS_NOTE, "mt-2")}>{t("public.thread.keepSlot")}</p>
+        <p className={cn(POS_NOTE, "mt-2")}>{t("public.thread.keepSlotGeneric")}</p>
         {code ? (
           <a className={cn(POS_PRIMARY_ACTION, "mt-3")} href={`/pay/${code}`}>
             {t("public.thread.pay")}

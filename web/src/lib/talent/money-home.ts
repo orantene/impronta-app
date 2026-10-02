@@ -77,6 +77,9 @@ export function methodBucket(raw: string | null | undefined): MoneyMethodBucket 
  * show as 100k collected). Exclude until a real collected amount is on the row.
  */
 function isCollected(row: TalentEarningsRow): boolean {
+  // The ledger is the real answer when it has one: a part payment counts for
+  // what was actually collected, not for the whole booking.
+  if (row.collectedCents != null && row.collectedCents > 0) return true;
   if (row.status === "paid" || row.status === "invoiced") return true;
   if (row.status !== "pending") return false;
   const ps = (row.paymentStatus ?? "").trim().toLowerCase();
@@ -98,6 +101,18 @@ export function buildMoneyHomeView(input: {
   const byMethod: Record<MoneyMethodBucket, number> = { card: 0, cash: 0, transfer: 0, other: 0 };
   let collectedCents = 0;
   for (const r of payments) {
+    const ledger = r.collectedCents != null && r.collectedCents > 0 ? r.collectedCents : null;
+    if (ledger != null) {
+      collectedCents += ledger;
+      const split = r.collectedByMethod ?? {};
+      let assigned = 0;
+      for (const [m, cents] of Object.entries(split)) {
+        byMethod[methodBucket(m)] += cents;
+        assigned += cents;
+      }
+      if (assigned < ledger) byMethod[methodBucket(r.paymentMethod)] += ledger - assigned;
+      continue;
+    }
     collectedCents += r.grossCents;
     byMethod[methodBucket(r.paymentMethod)] += r.grossCents;
   }
@@ -255,4 +270,45 @@ export function agendaMoneyRows(
   }
   const byDate = (a: MoneyAgendaRow, b: MoneyAgendaRow) => a.startsAt.localeCompare(b.startsAt);
   return { owed: owed.sort(byDate), waiting: waiting.sort(byDate) };
+}
+
+/**
+ * F69: "Owed to you" as ONE number for every surface. The Money page and the
+ * Today card both call this, so they can never disagree.
+ *
+ * Owed = the client ledger (agency_bookings balances via loadTalentClients), or
+ * the agenda's balances when those are larger (booked work the ledger has not
+ * caught up with). `count` = ledger clients plus agenda balances the ledger does
+ * not already list.
+ */
+export function talentOwedSummary(input: {
+  clients: readonly TalentClientRow[] | null;
+  agendaOwed: readonly MoneyAgendaRow[];
+  currency: string | null;
+}): { cents: number; count: number; currency: string | null; others: { currency: string; cents: number }[] } {
+  const currency = input.currency?.toUpperCase() ?? null;
+  const cur = (v: string | null | undefined) => (v ?? currency ?? "").toUpperCase();
+  const inCur = (v: string | null | undefined) => currency == null || cur(v) === currency;
+  const ledgerAll = (input.clients ?? []).filter((c) => (c.amountOwedCents ?? 0) > 0);
+  const ledger = ledgerAll.filter((c) => inCur(c.currency));
+  const agendaMain = input.agendaOwed.filter((r) => inCur(r.currency));
+  const ledgerCents = ledger.reduce((n, c) => n + (c.amountOwedCents ?? 0), 0);
+  const agendaCents = agendaMain.reduce((n, r) => n + (r.amountCents ?? 0), 0);
+  const hrefs = new Set(ledger.map((c) => c.nextBookingHref).filter(Boolean));
+  const extra = agendaMain.filter((r) => !hrefs.has(r.bookingHref)).length;
+  // Never sum across currencies: other currencies are reported apart.
+  const otherMap = new Map<string, number>();
+  for (const c of ledgerAll) if (!inCur(c.currency)) otherMap.set(cur(c.currency), (otherMap.get(cur(c.currency)) ?? 0) + (c.amountOwedCents ?? 0));
+  for (const r of input.agendaOwed) {
+    if (inCur(r.currency) || (r.amountCents ?? 0) <= 0) continue;
+    const k = cur(r.currency);
+    const ledgerHas = ledgerAll.some((c) => cur(c.currency) === k && c.nextBookingHref && c.nextBookingHref === r.bookingHref);
+    if (!ledgerHas) otherMap.set(k, Math.max(otherMap.get(k) ?? 0, r.amountCents ?? 0));
+  }
+  return {
+    cents: Math.max(ledgerCents, agendaCents),
+    count: ledger.length + extra,
+    currency: currency ?? ledger[0]?.currency?.toUpperCase() ?? agendaMain[0]?.currency ?? null,
+    others: [...otherMap].map(([currency, cents]) => ({ currency, cents })),
+  };
 }

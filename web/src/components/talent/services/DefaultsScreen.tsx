@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { type SellingDefaults } from "@/lib/talent/services-settings-actions";
 import { whoPrimaryCtaLabel } from "@/lib/talent/selling-booking-settings";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import type { LocationSettings } from "@/lib/talent/location-settings";
+import { LocationSettingsCard } from "./LocationSettingsCard";
 
 // PDF p15 "Defaults · the rules every item starts with". Four cards in a
 // 2x2 grid (one column on phone), the arithmetic worked out under each rule.
@@ -114,7 +116,12 @@ export function DefaultsScreen({
   onBack,
   onSave,
   onOpenWebsiteSettings,
+  location,
+  onLocationChange,
 }: {
+  /** Address visibility and the private address (single source of truth). */
+  location?: LocationSettings | null;
+  onLocationChange?: (next: LocationSettings) => void;
   defaults: SellingDefaults;
   currency?: string;
   onChange: (next: SellingDefaults) => void;
@@ -318,6 +325,8 @@ export function DefaultsScreen({
             </p>
           )}
         </Card>
+
+        {location && onLocationChange ? <LocationSettingsCard value={location} onChange={onLocationChange} /> : null}
 
         {/* Preparation + gaps between appointments */}
         <Card title={copy.t("Preparation and gaps")} hint={copy.t("Blocked, never charged")}>

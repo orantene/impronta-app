@@ -44,6 +44,23 @@ function item(over: Partial<TalentAgendaItem> = {}): TalentAgendaItem {
   };
 }
 
+describe("resolveTodayMode loading", () => {
+  it("unknown facts are loading until the caller settles, then established", () => {
+    assert.equal(
+      resolveTodayMode({ agendaItemCount: 0, bookableCount: null, sitePublished: false, settled: false }),
+      "loading",
+    );
+    assert.equal(
+      resolveTodayMode({ agendaItemCount: 0, bookableCount: null, sitePublished: false, settled: true }),
+      "established",
+    );
+    assert.equal(
+      resolveTodayMode({ agendaItemCount: 0, bookableCount: 0, sitePublished: false, settled: false }),
+      "first_run",
+    );
+  });
+});
+
 describe("resolveTodayMode", () => {
   it("established talent with services and a live site is never first run", () => {
     assert.equal(

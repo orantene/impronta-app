@@ -31,6 +31,9 @@
 
 import Stripe from "stripe";
 import { getStripe } from "./stripe-checkout";
+import { getStripeFor } from "@/lib/stripe/client";
+import { resolveStripeAccountForSeller } from "@/lib/stripe/account-routing";
+import { loadAccountPlatform } from "@/lib/stripe/account-platform";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizePayoutCountry, payoutCountryLabel, requiresRecipientAgreement } from "@/lib/payments/payout-countries";
@@ -194,8 +197,7 @@ export async function createOrGetConnectedAccount(
   tenantSlug: string,
   opts: { country?: string | null; businessUrl?: string | null } = {},
 ): Promise<ConnectResult<{ stripeAccountId: string }>> {
-  const stripe = getStripe();
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
+  if (!getStripe()) return { ok: false, error: "Stripe is not configured." };
 
   const agency = await loadAgencyConnectFields(tenantSlug);
   if (!agency) return { ok: false, error: "Workspace not found." };
@@ -205,6 +207,10 @@ export async function createOrGetConnectedAccount(
   }
 
   const country = normalizePayoutCountry(opts.country) ?? PLATFORM_DEFAULT_COUNTRY;
+  // MX workspaces are created on the Mexico platform account.
+  const platform = resolveStripeAccountForSeller({ payoutCountry: country });
+  const stripe = getStripeFor(platform);
+  if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
   try {
     // An agency in a receive-only country (e.g. a Mexican or Argentine agency
@@ -240,6 +246,9 @@ export async function createOrGetConnectedAccount(
       .from("agencies")
       .update({
         stripe_account_id: account.id,
+        // Written only for mx: the US path must not touch a column whose
+        // migration may not be applied yet.
+        ...(platform === "mx" ? { stripe_account_platform: "mx" } : {}),
         stripe_account_status: deriveStatus(account),
         stripe_charges_enabled: !!account.charges_enabled,
         stripe_payouts_enabled: !!account.payouts_enabled,
@@ -287,11 +296,11 @@ export async function createOnboardingLink(
   returnUrl: string,
   refreshUrl: string,
 ): Promise<ConnectResult<{ url: string }>> {
-  const stripe = getStripe();
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
-
   const ensure = await createOrGetConnectedAccount(tenantSlug);
   if (!ensure.ok) return ensure;
+
+  const stripe = getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug }));
+  if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
   try {
     const link = await stripe.accountLinks.create({
@@ -315,7 +324,7 @@ export async function createOnboardingLink(
 export async function createDashboardLink(
   tenantSlug: string,
 ): Promise<ConnectResult<{ url: string }>> {
-  const stripe = getStripe();
+  const stripe = getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug }));
   if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
   const agency = await loadAgencyConnectFields(tenantSlug);
@@ -345,7 +354,7 @@ export async function createDashboardLink(
 export async function refreshAccountStatus(
   tenantSlug: string,
 ): Promise<ConnectResult<ConnectedAccountSnapshot>> {
-  const stripe = getStripe();
+  const stripe = getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug }));
   if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
   const agency = await loadAgencyConnectFields(tenantSlug);

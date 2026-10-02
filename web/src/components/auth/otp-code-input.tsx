@@ -17,6 +17,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -60,11 +61,25 @@ export function OtpCodeInput({
   const commit = useCallback(
     (next: string[]) => {
       setDigits(next);
-      const joined = next.join("");
-      if (joined.length === length && next.every(Boolean)) onComplete?.(joined);
     },
-    [length, onComplete],
+    [],
   );
+
+  // Fire `onComplete` from an effect, AFTER the joined value has rendered into
+  // the hidden input. Calling it inside the key handler submitted the form one
+  // render too early, with the last digit still missing from the posted value
+  // (server answered "Enter the code from your email." for a full code).
+  const firedFor = useRef("");
+  useEffect(() => {
+    const complete = value.length === length && digits.every(Boolean);
+    if (!complete) {
+      firedFor.current = "";
+      return;
+    }
+    if (firedFor.current === value) return;
+    firedFor.current = value;
+    onComplete?.(value);
+  }, [value, digits, length, onComplete]);
 
   const fillFrom = useCallback(
     (start: number, text: string) => {

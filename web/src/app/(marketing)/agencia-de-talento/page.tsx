@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
     }),
     description: pickLocale(locale, {
       en: `Hire from the ${PLATFORM_BRAND.name} global directory, or run your agency roster on your own domain with structured inquiries, priced offers, and payment inside the chat.`,
-      es: `Contrata desde el directorio global de ${PLATFORM_BRAND.name}, o gestiona el roster de tu agencia en tu propio dominio con solicitudes estructuradas, ofertas con precio y pago dentro del chat.`,
+      es: `Contrata talento en el directorio de ${PLATFORM_BRAND.name} o lleva el roster de tu agencia en tu propio dominio, con solicitudes, cotizaciones y pago en el chat.`,
     }),
     ...buildSpanishOnlyMarketingAlternates("/agencia-de-talento"),
   };

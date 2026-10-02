@@ -26,8 +26,7 @@ export interface TalentJsonLdInput {
   canonicalUrl: string;
   /** Display name — falls back to first+last, then profile code. */
   name: string;
-  givenName?: string | null;
-  familyName?: string | null;
+  // Legal first/last name are deliberately NOT accepted: display name only.
   /** Primary public role: "Model", "Dancer", "MC", etc. */
   jobTitle?: string | null;
   /** Public bio (already locale-resolved). */
@@ -48,6 +47,56 @@ export interface TalentJsonLdInput {
   /** Workspace / agency the talent is publicly affiliated with (if any). */
   affiliationName?: string | null;
   affiliationUrl?: string | null;
+  /**
+   * PUBLISHED services from the talent's offerings catalog (already filtered
+   * to what a visitor may see). Emitted as `Person.makesOffer` — one
+   * Offer -> Service per entry, provider = this Person. Real data only.
+   */
+  services?: TalentJsonLdService[] | null;
+}
+
+/** The catalog fields JSON-LD may state. Nothing here is derived or invented. */
+export interface TalentJsonLdService {
+  name: string;
+  description?: string | null;
+  /** Major-unit price stored as cents; only used when `priceDisplay` is exact/from. */
+  amountCents?: number | null;
+  currency?: string | null;
+  /** exact = state the price, from = minimum price, quote = no price stated. */
+  priceDisplay?: "exact" | "from" | "quote" | string | null;
+  durationMinutes?: number | null;
+}
+
+/** Cap, so a very large catalog cannot bloat the page. */
+const MAX_JSON_LD_SERVICES = 20;
+
+/** Minimal structural shape of a catalog offering (see TalentOffering). */
+export interface JsonLdOfferingSource {
+  kind: string;
+  title: string;
+  description: string | null;
+  priceDisplay: string;
+  amountCents: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  visibility?: string;
+}
+
+/** Catalog offerings -> JSON-LD services: services/packages only (a product is
+ *  not a Service), never agency-only. */
+export function offeringsToJsonLdServices(
+  offerings: readonly JsonLdOfferingSource[],
+): TalentJsonLdService[] {
+  return offerings
+    .filter((o) => (o.kind === "service" || o.kind === "package") && o.visibility !== "agency_only")
+    .map((o) => ({
+      name: o.title,
+      description: o.description,
+      amountCents: o.amountCents,
+      currency: o.currency,
+      priceDisplay: o.priceDisplay,
+      durationMinutes: o.durationMinutes,
+    }));
 }
 
 type JsonValue =
@@ -71,6 +120,47 @@ function compact<T extends Record<string, JsonValue | undefined>>(o: T): Record<
   return out;
 }
 
+function buildServiceOffers(
+  services: TalentJsonLdService[] | null | undefined,
+  personId: string,
+): JsonValue[] {
+  const out: JsonValue[] = [];
+  for (const svc of services ?? []) {
+    const name = svc.name?.trim();
+    if (!name) continue;
+    if (out.length >= MAX_JSON_LD_SERVICES) break;
+    const currency = svc.currency?.trim().toUpperCase() || null;
+    const cents = svc.amountCents;
+    const hasAmount =
+      typeof cents === "number" && Number.isFinite(cents) && cents > 0 && !!currency;
+    const price = hasAmount ? (cents / 100).toFixed(2) : null;
+    const exact = hasAmount && svc.priceDisplay === "exact";
+    const from = hasAmount && svc.priceDisplay === "from";
+    const mins = svc.durationMinutes;
+    out.push(
+      compact({
+        "@type": "Offer",
+        itemOffered: compact({
+          "@type": "Service",
+          name,
+          description: svc.description?.trim() ?? null,
+          provider: { "@id": personId },
+        }),
+        price: exact ? price : null,
+        priceCurrency: exact ? currency : null,
+        priceSpecification: from
+          ? { "@type": "PriceSpecification", minPrice: price, priceCurrency: currency }
+          : null,
+        eligibleDuration:
+          typeof mins === "number" && mins > 0
+            ? { "@type": "QuantitativeValue", value: mins, unitCode: "MIN" }
+            : null,
+      }),
+    );
+  }
+  return out;
+}
+
 /** Build the JSON-LD object for a single talent profile page.
  *  Returns null only if the input lacks the bare minimum (URL + name)
  *  — caller can skip emitting in that case. */
@@ -85,17 +175,20 @@ export function buildTalentProfileJsonLd(input: TalentJsonLdInput): Record<strin
   });
   const hasAddress = Object.keys(addressObj).length > 1; // more than "@type"
 
+  const personId = `${input.canonicalUrl}#person`;
+  const offers = buildServiceOffers(input.services, personId);
+
   const person: Record<string, JsonValue> = compact({
     "@type": "Person",
+    "@id": personId,
     name: input.name.trim(),
-    givenName: input.givenName?.trim() ?? null,
-    familyName: input.familyName?.trim() ?? null,
     jobTitle: input.jobTitle?.trim() ?? null,
     description: input.description?.trim() ?? null,
     url: input.canonicalUrl,
     image: input.imageUrl ?? null,
     address: hasAddress ? addressObj : null,
     sameAs: input.sameAs && input.sameAs.length > 0 ? input.sameAs : null,
+    makesOffer: offers.length > 0 ? offers : null,
     affiliation: input.affiliationName
       ? compact({
           "@type": "Organization",

@@ -1,9 +1,11 @@
 "use server";
 
+import { loadLedgerPaidByBooking } from "@/lib/bookings/ledger-paid";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { clientVisit } from "@/lib/talent/clients-directory";
+import { applyClientRecords, type ClientRecordOverlay } from "@/lib/talent/client-records";
 import {
   upsertClient,
   type TalentClientRow,
@@ -48,6 +50,30 @@ function emptyRow(
   };
 }
 
+/** The talent's own edits, notes and archives. A missing table is logged, not fatal. */
+async function loadClientOverlays(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+): Promise<ClientRecordOverlay[]> {
+  const { data, error } = await admin
+    .from("talent_client_records")
+    .select("client_key, name, email, phone, note, archived_at")
+    .eq("talent_profile_id", talentProfileId)
+    .limit(1000);
+  if (error) {
+    logServerError("talent.clients.overlays", error);
+    return [];
+  }
+  return (data ?? []).map((r) => ({
+    clientKey: r.client_key as string,
+    name: (r.name as string | null) ?? null,
+    email: (r.email as string | null) ?? null,
+    phone: (r.phone as string | null) ?? null,
+    note: (r.note as string | null) ?? null,
+    archivedAt: (r.archived_at as string | null) ?? null,
+  }));
+}
+
 /**
  * Clients list for the talent studio.
  * `talent_bookings` columns are `client_label` / no money fields (see
@@ -83,6 +109,13 @@ export async function loadTalentClients(
       return { ok: false, error: "Could not load clients." };
     }
 
+    // Ledger money per booking, so a part payment lowers what is owed by what
+    // was actually collected (not by the configured deposit).
+    const ledgerByBooking = await loadLedgerPaidByBooking(
+      admin,
+      [...new Set((legs ?? []).map((l) => l.booking_id as string).filter(Boolean))],
+    );
+
     for (const leg of legs ?? []) {
       const booking = Array.isArray(leg.agency_bookings)
         ? leg.agency_bookings[0]
@@ -104,7 +137,9 @@ export async function loadTalentClients(
       const basis = chargeCents > 0 ? chargeCents : totalCents;
       let owed: number | null = null;
       let overdue = false;
+      const ledgerPaid = ledgerByBooking.get(booking.id as string)?.paidCents ?? 0;
       if (booking.payment_status === "paid") owed = 0;
+      else if (ledgerPaid > 0) owed = Math.max(0, basis - ledgerPaid);
       else if (booking.payment_status === "partial") owed = Math.max(0, basis - deposit);
       else if (basis > 0) owed = basis;
       if (owed && owed > 0 && start && start < nowIso) overdue = true;
@@ -275,7 +310,8 @@ export async function loadTalentClients(
       const right = b.lastVisit ?? b.nextStartsAt ?? "";
       return right.localeCompare(left);
     });
-    return { ok: true, items };
+    const overlays = await loadClientOverlays(admin, talentProfileId);
+    return { ok: true, items: applyClientRecords(items, overlays) };
   } catch (err) {
     logServerError("talent.clients.load", err);
     return { ok: false, error: "Could not load clients." };

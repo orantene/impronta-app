@@ -3,12 +3,11 @@ import { test } from "node:test";
 
 import { confirmsByHandCopy, talentOffersInstantBooking } from "./talent-booking-mode";
 
-test("only Portfolio can book a time; free, Pro, and a missing plan confirm by hand", () => {
+test("instant booking is allowed on every talent plan, including free and a missing plan", () => {
   assert.equal(talentOffersInstantBooking("talent_portfolio"), true);
-  assert.equal(talentOffersInstantBooking("talent_basic"), false);
-  assert.equal(talentOffersInstantBooking("talent_pro"), false);
-  assert.equal(talentOffersInstantBooking(null), false);
-  assert.equal(talentOffersInstantBooking("website"), false);
+  assert.equal(talentOffersInstantBooking("talent_basic"), true);
+  assert.equal(talentOffersInstantBooking("talent_pro"), true);
+  assert.equal(talentOffersInstantBooking(null), true);
 });
 
 test("the hand-confirmation line is EN, ES, and FR", () => {

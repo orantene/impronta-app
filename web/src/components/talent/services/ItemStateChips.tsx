@@ -10,11 +10,14 @@ export function ItemStateChips({
   locale,
   showBooking = true,
   hideFailed = false,
+  instantReady,
 }: {
   item: TalentOffering;
   locale: string;
   showBooking?: boolean;
   hideFailed?: boolean;
+  /** false = no working hours yet, so instant reads as a request. */
+  instantReady?: boolean;
 }) {
   const word = publicationWord({ status: item.status, firstPublishedAt: item.firstPublishedAt });
   const soldOut = item.inventoryQty === 0;
@@ -24,7 +27,7 @@ export function ItemStateChips({
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {showBooking && (
         <span className="text-[11px] font-medium text-admin-ink-muted">
-          {bookingModeLabel(item, locale)}
+          {bookingModeLabel({ ...item, instantReady }, locale)}
         </span>
       )}
       <span

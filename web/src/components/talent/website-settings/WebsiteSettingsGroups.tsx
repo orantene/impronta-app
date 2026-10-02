@@ -9,7 +9,7 @@ import { useState, type ReactNode } from "react";
 import type { SellingDefaults } from "@/lib/talent/services-settings-actions";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 import { BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
-import { ChoiceCard, LiveOnSaveNote, SettingsCard, SourceBadge, Stepper } from "./primitives";
+import { ChoiceCard, LiveOnSaveNote, SettingsCard, SourceBadge, Stepper, Switch } from "./primitives";
 import {
   countCustom,
   defaultModeImpact,
@@ -351,6 +351,22 @@ export function PaymentsGroup(props: GroupProps & ServiceProps) {
           onChange={(n) => setDefaults({ ...d, depositPct: n })}
         />
       </SettingsCard>
+      <SettingsCard title={t("Paying in person")} aside={t("Shown on your policies")}>
+        {(["cash", "transfer", "card_terminal"] as const).map((m) => {
+          const on = (d.inPersonMethods ?? []).includes(m);
+          return (
+            <Switch
+              key={m}
+              checked={on}
+              label={t(m === "cash" ? "Cash" : m === "transfer" ? "Bank transfer" : "Card on your terminal")}
+              onChange={(next) => {
+                const cur = d.inPersonMethods ?? [];
+                setDefaults({ ...d, inPersonMethods: next ? [...cur.filter((x) => x !== m), m] : cur.filter((x) => x !== m) });
+              }}
+            />
+          );
+        })}
+      </SettingsCard>
       <InheritList {...props} field="depositPct" format={(v) => (v > 0 ? `${t("Deposit")} ${v}%` : t("No deposit"))} />
     </>
   );
@@ -368,7 +384,7 @@ export function SelfServiceGroup(props: GroupProps & ServiceProps) {
       <SettingsCard>
         <Stepper
           label={t("Cancelling")}
-          detail={t("Inside {hours} hours the deposit is kept. The client is refunded in full before that.").replace("{hours}", String(cancel))}
+          detail={t("Sets the cancellation window shown to clients ({hours} hours). Refunds follow your published policy.").replace("{hours}", String(cancel))}
           value={cancel}
           display={`${cancel} h`}
           step={12}

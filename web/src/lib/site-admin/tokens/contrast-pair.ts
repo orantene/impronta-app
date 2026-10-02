@@ -108,3 +108,55 @@ export function foregroundForPrimary(primary: string): string | null {
   const onLight = contrastRatio(primary, CONTRAST_ON_LIGHT) ?? 0;
   return onDark >= onLight ? CONTRAST_ON_DARK : CONTRAST_ON_LIGHT;
 }
+
+/**
+ * The foreground for a FILL that must carry text at WCAG AA (4.5:1): the brand pair
+ * (`foregroundForPrimary`) when it already reads, otherwise pure white or black, whichever wins.
+ * Some mid-tones (a #777777 accent) only reach 4.5:1 with a pure extreme. Null when the fill is
+ * not a colour we can measure.
+ */
+export function foregroundForFill(fill: string): string | null {
+  const brand = foregroundForPrimary(fill);
+  if (brand === null) return null;
+  if ((contrastRatio(fill, brand) ?? 0) >= 4.5) return brand;
+  const white = contrastRatio(fill, "#ffffff") ?? 0;
+  const black = contrastRatio(fill, "#000000") ?? 0;
+  return white >= black ? "#ffffff" : "#000000";
+}
+
+/** `#rrggbb`, uppercase not required; channels are clamped to 0..255. */
+function toHex(rgb: readonly [number, number, number]): string {
+  return `#${rgb.map((c) => Math.max(0, Math.min(255, Math.round(c * 255))).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Linear mix of two hex colours: `t` of `toward` into `from`. Null when either is not a hex colour. */
+export function mixHex(from: string, toward: string, t: number): string | null {
+  const a = parseHex(from);
+  const b = parseHex(toward);
+  if (!a || !b) return null;
+  return toHex([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+}
+
+/** The contrast a coloured text needs on its ground (WCAG AA, normal text). */
+export const ACCENT_TEXT_MIN_CONTRAST = 4.5;
+
+/**
+ * The accent, made safe to use AS TEXT on `ground` (release 2.5, PL-2): the
+ * accent itself when it already reads at 4.5:1, otherwise the accent moved in
+ * 10% steps toward black (on a light ground) or white (on a dark ground) until
+ * it does, at most 14 steps. Buttons keep the raw accent; only text uses this.
+ * Null when either colour is not a hex we can measure, so an unknown accent
+ * leaves the cascade alone (the CSS falls back to the raw accent).
+ */
+export function readableAccentText(accent: string, ground: string): string | null {
+  const groundLum = relativeLuminance(ground);
+  if (groundLum === null || relativeLuminance(accent) === null) return null;
+  const toward = groundLum > 0.4 ? "#000000" : "#ffffff";
+  let current = accent.trim();
+  for (let i = 0; i < 14 && (contrastRatio(current, ground) ?? 0) < ACCENT_TEXT_MIN_CONTRAST; i++) {
+    const next = mixHex(current, toward, 0.1);
+    if (!next) return null;
+    current = next;
+  }
+  return current;
+}

@@ -28,6 +28,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import { instantRequiresSlot } from "@/lib/scheduling/instant-book-gates";
+import { PolicyLinkSheet } from "@/components/public-booking/PolicyLinkSheet";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -390,6 +391,9 @@ export function OfferingInstantMount({
           <button type="button" disabled={busy} onClick={() => setSheet(null)} style={{ ...btn(false), border: "none", color: MUTED }}>
             {pickLocale(locale, { en: "Cancel", es: "Cancelar" })}
           </button>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 10, color: MUTED }}>
+          <PolicyLinkSheet talentProfileId={d.talentProfileId} locale={locale} />
         </div>
 
         <div style={{ minHeight: 14, marginTop: 8 }}>

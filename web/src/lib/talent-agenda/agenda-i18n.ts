@@ -18,6 +18,47 @@ const ES: Record<string, string> = {
   "Request a change": "Pedir un cambio",
   "QR code for the payment link": "Código QR del enlace de pago",
   "Copy link": "Copiar enlace",
+  // P0 panels: Finish and collect steps, Request payment QR, Send quote.
+  "Continue stays off until a method is selected.": "Continuar sigue apagado hasta elegir un método.",
+  Step: "Paso",
+  "Confirm and complete": "Confirmar y completar",
+  "Amount due": "Monto por cobrar",
+  "Amount not set": "Monto sin definir",
+  "Confirming marks the booking completed. Nothing else changes until you confirm.":
+    "Al confirmar, la reserva queda completada. Nada más cambia hasta que confirmes.",
+  "Finished and collected": "Terminada y cobrada",
+  "Records the cash as received by you. It never goes through a card payout.":
+    "Registra el efectivo como recibido por ti. Nunca pasa por un depósito con tarjeta.",
+  "Completes the booking and keeps it unpaid.": "Completa la reserva y la deja sin pagar.",
+  "Request created": "Solicitud creada",
+  "here is the link to pay": "aquí está el enlace para pagar",
+  "Created is not sent. Sending does not mark it paid.": "Crearla no la envía. Enviarla no la marca pagada.",
+  "Show QR": "Mostrar QR",
+  "Show this only when the client is with you.": "Muéstralo solo cuando la clienta esté contigo.",
+  "Could not create the image": "No se pudo crear la imagen",
+  "Open conversation": "Abrir conversación",
+  "Search your clients": "Buscar en tus clientas",
+  "No clients match.": "Ninguna clienta coincide.",
+  "Pick an existing client": "Elegir una clienta existente",
+  "What is it for?": "¿Para qué es?",
+  "Choose an offering": "Elige un servicio",
+  "Publish a service first. Quotes are made from your services.": "Publica un servicio primero. Las cotizaciones se hacen con tus servicios.",
+  "Note for the client": "Nota para la clienta",
+  "Sending quote… (2 of 2)": "Enviando cotización… (2 de 2)",
+  "Creating conversation… (1 of 2)": "Creando conversación… (1 de 2)",
+  "Enter the price of the quote.": "Escribe el precio de la cotización.",
+  "Quote sent": "Cotización enviada",
+  "Quote not sent": "Cotización no enviada",
+  "The client has your quote": "La clienta ya tiene tu cotización",
+  "The conversation was created but the quote did not go out": "La conversación se creó pero la cotización no salió",
+  "They can accept it from the link. You will see the answer in the conversation.":
+    "Puede aceptarla desde el enlace. Verás la respuesta en la conversación.",
+  "Open the conversation to send the quote from there. Nothing reached the client yet.":
+    "Abre la conversación para enviar la cotización desde ahí. Aún no llegó nada a la clienta.",
+  "Sends the client your quote for this service. They can accept it from the link.":
+    "Envía a la clienta tu cotización de este servicio. Puede aceptarla desde el enlace.",
+  "Add a phone or an email so the client can be reached.": "Agrega un teléfono o un correo para poder contactar a la clienta.",
+  "Could not create the quote. Nothing was sent.": "No se pudo crear la cotización. No se envió nada.",
   "Link copied": "Enlace copiado",
   "Terms and history": "Condiciones e historial",
   "Agency job: you cannot cancel or move it here. Ask the agency.": "Trabajo de agencia: no puedes cancelarlo ni moverlo aquí. Pídelo a la agencia.",
@@ -55,6 +96,7 @@ const ES: Record<string, string> = {
   // Payment states
   "Not requested": "Sin solicitud",
   "Deposit not requested": "Depósito sin solicitar",
+  "Awaiting payment": "Esperando pago",
   "Awaiting deposit": "Esperando depósito",
   "Checking payment": "Verificando pago",
   "Due at appointment": "Pago en cita",
@@ -192,6 +234,8 @@ const ES: Record<string, string> = {
   "Save availability": "Guardar disponibilidad",
   "Saving…": "Guardando…",
   "Availability saved.": "Disponibilidad guardada.",
+  "Suggested hours. Nothing is saved yet: clients cannot book until you press Save availability.":
+    "Horario sugerido. Aún no se guardó nada: nadie puede reservar hasta que pulses Guardar disponibilidad.",
   "Talent agenda": "Agenda de talento",
   "Open calendar": "Abrir calendario",
   "most urgent first": "los más urgentes primero",
@@ -240,6 +284,18 @@ const ES: Record<string, string> = {
   "What the client paid is refunded by your cancellation terms. The amount shows after you confirm.":
     "Lo que pagó el cliente se reembolsa según tus condiciones de cancelación. El monto se muestra al confirmar.",
   "No payment was taken, so there is nothing to refund.": "No se cobró ningún pago, así que no hay nada que reembolsar.",
+  "No payment was taken, so there is nothing to refund. The payment link is closed.":
+    "No se cobró ningún pago, así que no hay nada que reembolsar. El enlace de pago queda cerrado.",
+  "Refunds are not automatic. Refund the client by hand from Money.":
+    "Los reembolsos no son automáticos. Reembolsa al cliente a mano desde Dinero.",
+  "A card payment may be arriving. If it lands, refund the client by hand from Money.":
+    "Puede estar llegando un pago con tarjeta. Si llega, reembolsa al cliente a mano desde Dinero.",
+  "Checking what the client paid…": "Revisando lo que pagó el cliente…",
+  "The client paid": "El cliente pagó",
+  "Cancelled. The client paid": "Cancelado. El cliente pagó",
+  "Refund it by hand from Money.": "Reembolsa a mano desde Dinero.",
+  "A card payment is still arriving. The payment link is closed and the payment is flagged in Money. Refund it by hand.":
+    "Un pago con tarjeta todavía está llegando. El enlace de pago queda cerrado y el pago queda marcado en Dinero. Reembólsalo a mano.",
   Day: "Día",
   List: "Lista",
   "Calendar view": "Vista de calendario",
@@ -347,7 +403,7 @@ const ES: Record<string, string> = {
     "Reserva completada. Efectivo registrado contigo (sin pago con tarjeta).",
   "Booking completed. Transfer marked awaiting until you confirm paid.":
     "Reserva completada. Transferencia pendiente hasta que confirmes el cobro.",
-  "Booking completed. Card link ready — open it on this phone or send it.":
+  "Booking completed. Card link ready. Open it on this phone or send it.":
     "Reserva completada. Enlace de tarjeta listo: ábrelo en este teléfono o envíalo.",
   "Convert to a confirmed booking or release the hold to free the slot.":
     "Convierte a reserva confirmada o libera el hold para liberar el horario.",
@@ -395,7 +451,7 @@ const ES: Record<string, string> = {
     "Guardar se queda desactivado hasta elegir un pago.",
   Save: "Guardar",
   "Try one of these:": "Prueba una de estas:",
-  "No order attached — payment links require a booking or POS order.":
+  "No order attached. Payment links require a booking or POS order.":
     "Sin pedido: los enlaces de pago requieren una reserva o un pedido POS.",
   "Link created ✓": "Enlace creado ✓",
   "Could not save. Try another time.": "No se pudo guardar. Prueba otra hora.",
@@ -605,6 +661,7 @@ const ES: Record<string, string> = {
   "Working hours are over for this day": "Tu horario de este día ya terminó",
   "Fully booked": "Todo reservado",
   "No service set": "Sin servicio",
+  "No time assigned": "Sin hora asignada",
   "Not set yet": "Aún sin definir",
   "Price not set": "Precio sin definir",
   "Agree a price with the client, then send a payment link.": "Acuerda un precio con la clienta y luego envía un link de pago.",

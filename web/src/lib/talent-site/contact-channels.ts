@@ -4,6 +4,7 @@
  * each one. Empty WhatsApp and email links are dropped at hydrate time.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
+import { callHrefFromSocialLinks } from "@/lib/talent-site/public-call-number";
 import {
   appointmentModeRank,
   getAppointmentsPlanPolicy,
@@ -165,15 +166,17 @@ function digitsOf(value: string): string {
 }
 
 /**
- * Public contact links only. WhatsApp comes from a shell link, a wa.me link,
- * or her phone. Email comes from a mailto link she published. An invitation
- * address is not an input.
+ * Public contact links only. WhatsApp comes from a shell link or a wa.me link
+ * she set in her profile. Her private phone is NEVER a fallback: a number she
+ * did not opt in to WhatsApp with must not become a public link. Email comes from a mailto link she published. An invitation
+ * address is not an input. `callHref` follows the same rule: a `tel:` link
+ * only from the explicit public call number setting (G4), never from `phone`.
  */
 export function talentContactHrefs(input: {
   phone?: string | null;
   phoneE164?: string | null;
   socialLinks?: unknown;
-}): { whatsappHref: string; emailHref: string } {
+}): { whatsappHref: string; emailHref: string; callHref: string } {
   const links = Array.isArray(input.socialLinks) ? input.socialLinks : [];
   let whatsapp = "";
   let email = "";
@@ -197,9 +200,9 @@ export function talentContactHrefs(input: {
       if (EMAIL_RE.test(addr)) email = `mailto:${addr}`;
     }
   }
-  if (!whatsapp) {
-    const digits = digitsOf(input.phoneE164?.trim() || input.phone?.trim() || "");
-    if (digits.length >= 8) whatsapp = `https://wa.me/${digits}`;
-  }
-  return { whatsappHref: whatsapp, emailHref: email };
+  return {
+    whatsappHref: whatsapp,
+    emailHref: email,
+    callHref: callHrefFromSocialLinks(input.socialLinks),
+  };
 }

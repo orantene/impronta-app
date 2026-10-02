@@ -37,15 +37,22 @@ export async function loadSellingDefaultsByTalent(
   return { ok: true, defaults };
 }
 
+export type EffectiveBookingPolicy = {
+  cancellationHours: number | null;
+  depositPct: number | null;
+  /** The talent who owns the offering, null for an agency-owned one. */
+  talentProfileId: string | null;
+};
+
 /**
- * The cancellation window this offering was sold under: offering value, then
- * the talent default, then the platform 24 h. Null on a read failure or for a
- * flexible agency offering; callers treat null as "no window", as before.
+ * What this offering was sold under: offering value, then the talent default,
+ * then the platform 24 h (window) and the deposit chain. Null fields on a read
+ * failure or for a flexible agency offering; callers treat null as "no window".
  */
-export async function loadEffectiveCancellationHours(
+export async function loadEffectiveBookingPolicy(
   db: SupabaseClient,
   offeringId: string,
-): Promise<number | null> {
+): Promise<EffectiveBookingPolicy | null> {
   const { data, error } = await db
     .from("talent_offerings")
     .select("cancellation_hours, talent_profile_id, reserve_mode, deposit_pct")
@@ -62,15 +69,38 @@ export async function loadEffectiveCancellationHours(
   if (row.talent_profile_id) {
     const loaded = await loadSellingDefaultsByTalent(db, [row.talent_profile_id]);
     // A failed defaults read keeps the row's own value (the pre-resolver answer).
-    if (!loaded.ok) return row.cancellation_hours ?? null;
+    if (!loaded.ok) {
+      return {
+        cancellationHours: row.cancellation_hours ?? null,
+        depositPct: row.deposit_pct ?? null,
+        talentProfileId: row.talent_profile_id,
+      };
+    }
     sellingDefaults = loaded.defaults.get(row.talent_profile_id) ?? {};
   }
-  return resolveOfferingPolicy(
+  const effective = resolveOfferingPolicy(
     {
       reserveMode: row.reserve_mode,
       depositPct: row.deposit_pct,
       cancellationHours: row.cancellation_hours,
     },
     sellingDefaults,
-  ).cancellationHours;
+  );
+  return {
+    cancellationHours: effective.cancellationHours,
+    depositPct: effective.depositPct,
+    talentProfileId: row.talent_profile_id,
+  };
+}
+
+/**
+ * The cancellation window this offering was sold under: offering value, then
+ * the talent default, then the platform 24 h. Null on a read failure or for a
+ * flexible agency offering; callers treat null as "no window", as before.
+ */
+export async function loadEffectiveCancellationHours(
+  db: SupabaseClient,
+  offeringId: string,
+): Promise<number | null> {
+  return (await loadEffectiveBookingPolicy(db, offeringId))?.cancellationHours ?? null;
 }

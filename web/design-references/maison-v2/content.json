@@ -1,0 +1,451 @@
+{
+  "design": "maison-v2",
+  "profileCode": "TAL-93020",
+  "locale": "es",
+  "talent": {
+    "displayName": "Alba",
+    "tagline": "Manicura rusa, pestañas hechas a mano y cejas con diseño. Un estudio privado donde cada cita es solo tuya.",
+    "bio": "Empecé haciendo uñas a mis amigas en la prepa. Nueve años después sigo con la misma obsesión: que salgas sintiéndote tú, pero mejor. Trabajo sola, con cita, y solo con productos que yo misma uso.",
+    "trade": "Nail Artist",
+    "city": "Mérida",
+    "languages": [
+      "Español",
+      "English"
+    ],
+    "yearsOfCraft": 9
+  },
+  "hero": {
+    "eyebrow": "Nail Artist · Mérida",
+    "headline": "Manos que hablan por ti.",
+    "lines": [
+      "Manos que",
+      "hablan",
+      "por ti."
+    ],
+    "lede": "Manicura rusa, pestañas hechas a mano y cejas con diseño. Un estudio privado donde cada cita es solo tuya.",
+    "proofLine": "9 años de oficio · Español · English",
+    "ctas": [
+      "Ver servicios",
+      "Ver trabajos"
+    ],
+    "inset": {
+      "imageKey": "lashclose",
+      "alt": "Detalle de pestañas"
+    },
+    "imageKey": "hero",
+    "imageAlt": "Manos con manicura en tonos suaves"
+  },
+  "menu": {
+    "eyebrow": "El menú",
+    "title": "Servicios y precios",
+    "subtitle": "Precios en MXN. Puedes juntar pestañas y uñas en una sola cita.",
+    "ticker": [
+      "Pestañas",
+      "Uñas",
+      "Cejas",
+      "Novias",
+      "Manicura rusa",
+      "Volumen ruso"
+    ]
+  },
+  "payment": {
+    "depositPercent": 25,
+    "inPersonMethods": [
+      "Efectivo",
+      "Transferencia"
+    ],
+    "cancelHours": 24,
+    "rescheduleHours": 24,
+    "lateToleranceMinutes": 15
+  },
+  "portfolio": {
+    "eyebrow": "Trabajo reciente",
+    "title": "Trabajo reciente",
+    "items": [
+      {
+        "imageKey": "russian",
+        "caption": "Manicura rusa · francés fino",
+        "serviceId": "mrusa"
+      },
+      {
+        "imageKey": "lasheye",
+        "caption": "Volumen ruso · natural",
+        "serviceId": "lash4d"
+      },
+      {
+        "imageKey": "glitter",
+        "caption": "Gel · glitter lavanda",
+        "serviceId": "gel"
+      },
+      {
+        "imageKey": "acrylic",
+        "caption": "Acrílico · almendra",
+        "serviceId": "acril"
+      },
+      {
+        "imageKey": "lashwork",
+        "caption": "Clásicas · primera cita",
+        "serviceId": "clasic"
+      },
+      {
+        "imageKey": "nailart",
+        "caption": "Nail art · corazones",
+        "serviceId": "art"
+      }
+    ]
+  },
+  "services": [
+    {
+      "id": "lash4d",
+      "category": "Pestañas",
+      "name": "Extensiones de volumen ruso 4D con mapeo personalizado",
+      "shortName": "Volumen ruso 4D",
+      "durationLabel": "2 h 30 min",
+      "durationMinutes": 150,
+      "priceLabel": "Desde $1,250",
+      "priceAmount": 1250,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Abanicos hechos a mano de cuatro pestañas finas, con un mapeo pensado para la forma de tus ojos. Duran de 3 a 4 semanas con retoque.",
+      "includes": [],
+      "imageKey": "lasheye",
+      "payMode": "deposit",
+      "variants": [
+        {
+          "id": "nat",
+          "label": "Natural",
+          "note": "Abanicos ligeros, efecto rímel",
+          "priceDelta": 0,
+          "minutesDelta": 0
+        },
+        {
+          "id": "vol",
+          "label": "Volumen",
+          "note": "El más pedido, más densidad",
+          "priceDelta": 150,
+          "minutesDelta": 15
+        },
+        {
+          "id": "mega",
+          "label": "Mega volumen",
+          "note": "Máxima intensidad",
+          "priceDelta": 300,
+          "minutesDelta": 30
+        }
+      ],
+      "extras": [
+        {
+          "id": "ret",
+          "label": "Retiro de extensiones previas",
+          "priceDelta": 200,
+          "minutesDelta": 20
+        },
+        {
+          "id": "tint",
+          "label": "Tinte de cejas",
+          "priceDelta": 150,
+          "minutesDelta": 15
+        }
+      ]
+    },
+    {
+      "id": "clasic",
+      "category": "Pestañas",
+      "name": "Pestañas clásicas",
+      "shortName": "Pestañas clásicas",
+      "durationLabel": "2 h",
+      "durationMinutes": 120,
+      "priceLabel": "$900",
+      "priceAmount": 900,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Una extensión por cada pestaña natural. Discretas, para todos los días.",
+      "includes": [],
+      "imageKey": "lashapply",
+      "payMode": "deposit",
+      "extras": [
+        {
+          "id": "ret",
+          "label": "Retiro de extensiones previas",
+          "priceDelta": 200,
+          "minutesDelta": 20
+        }
+      ]
+    },
+    {
+      "id": "lift",
+      "category": "Pestañas",
+      "name": "Lifting y tinte de pestañas",
+      "shortName": "Lifting y tinte",
+      "durationLabel": "1 h",
+      "durationMinutes": 60,
+      "priceLabel": "$550",
+      "priceAmount": 550,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Curva desde la raíz sobre tu propia pestaña, con tinte negro. Dura de 6 a 8 semanas.",
+      "includes": [],
+      "imageKey": "lashlift",
+      "payMode": "free"
+    },
+    {
+      "id": "mrusa",
+      "category": "Uñas",
+      "name": "Manicura rusa con gel",
+      "shortName": "Manicura rusa",
+      "durationLabel": "1 h 30 min",
+      "durationMinutes": 90,
+      "priceLabel": "Desde $650",
+      "priceAmount": 650,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Cutícula trabajada en seco con torno, nivelación con rubber base y gel del color que elijas.",
+      "includes": [],
+      "imageKey": "russian",
+      "payMode": "free",
+      "variants": [
+        {
+          "id": "liso",
+          "label": "Color liso",
+          "note": "Un tono de la carta",
+          "priceDelta": 0,
+          "minutesDelta": 0
+        },
+        {
+          "id": "french",
+          "label": "Francés fino",
+          "note": "Línea delgada a mano",
+          "priceDelta": 100,
+          "minutesDelta": 15
+        },
+        {
+          "id": "cromo",
+          "label": "Cromo",
+          "note": "Acabado espejo",
+          "priceDelta": 120,
+          "minutesDelta": 15
+        }
+      ],
+      "extras": [
+        {
+          "id": "rub",
+          "label": "Refuerzo con rubber base",
+          "priceDelta": 120,
+          "minutesDelta": 10
+        }
+      ]
+    },
+    {
+      "id": "gel",
+      "category": "Uñas",
+      "name": "Gel semipermanente en manos",
+      "shortName": "Gel en manos",
+      "durationLabel": "1 h",
+      "durationMinutes": 60,
+      "priceLabel": "$480",
+      "priceAmount": 480,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Limado, cutícula básica y gel semipermanente. Dura de 2 a 3 semanas.",
+      "includes": [],
+      "imageKey": "gel",
+      "payMode": "free"
+    },
+    {
+      "id": "acril",
+      "category": "Uñas",
+      "name": "Acrílico esculpido, juego nuevo",
+      "shortName": "Acrílico esculpido",
+      "durationLabel": "2 h",
+      "durationMinutes": 120,
+      "priceLabel": "$950",
+      "priceAmount": 950,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Uñas esculpidas en acrílico sobre molde, con la forma y el largo que quieras.",
+      "includes": [],
+      "imageKey": "acrylic",
+      "payMode": "free"
+    },
+    {
+      "id": "art",
+      "category": "Uñas",
+      "name": "Nail art a mano alzada",
+      "shortName": "Nail art",
+      "durationLabel": null,
+      "durationMinutes": null,
+      "priceLabel": "Desde $120 por uña",
+      "priceAmount": 120,
+      "currency": "MXN",
+      "priceFrom": true,
+      "priceUnit": "por uña",
+      "mode": "request",
+      "ctaLabel": "Solicitar cita",
+      "description": "Diseños pintados a mano. Mándame tu idea o una foto de referencia y te confirmo tiempo y precio.",
+      "includes": [],
+      "imageKey": "nailart",
+      "modeNote": "Con confirmación"
+    },
+    {
+      "id": "lami",
+      "category": "Cejas",
+      "name": "Laminado de cejas con diseño",
+      "shortName": "Laminado de cejas",
+      "durationLabel": "50 min",
+      "durationMinutes": 50,
+      "priceLabel": "$500",
+      "priceAmount": 500,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Seleccionar",
+      "description": "Cejas peinadas y fijadas hacia arriba, con diseño y depilación con hilo.",
+      "includes": [],
+      "imageKey": "lashclose",
+      "payMode": "free"
+    },
+    {
+      "id": "novia",
+      "category": "Novias",
+      "name": "Novia: uñas y pestañas a domicilio",
+      "shortName": "Novia a domicilio",
+      "durationLabel": null,
+      "durationMinutes": null,
+      "priceLabel": "A cotizar",
+      "priceAmount": null,
+      "currency": "MXN",
+      "mode": "quote",
+      "ctaLabel": "Pedir cotización",
+      "description": "Para el día de tu boda, en tu hotel o casa. Incluye prueba previa. Cotizo según fecha, lugar y personas.",
+      "includes": [],
+      "imageKey": "bridal",
+      "modeNote": "Por evento"
+    }
+  ],
+  "reviews": {
+    "eyebrow": "Reseñas",
+    "title": "Lo que dicen",
+    "items": [
+      {
+        "quote": "Mis pestañas duraron casi cuatro semanas. Alba te explica todo y no se siente prisa.",
+        "author": "Daniela R.",
+        "service": "Volumen ruso 4D",
+        "initials": "DR"
+      },
+      {
+        "quote": "La manicura rusa más limpia que me han hecho. Tres semanas y sigue perfecta.",
+        "author": "Mariana C.",
+        "service": "Manicura rusa",
+        "initials": "MC"
+      },
+      {
+        "quote": "Me hizo uñas y pestañas para mi boda en el hotel. Llegó puntual y con todo listo.",
+        "author": "Fernanda T.",
+        "service": "Novia a domicilio",
+        "initials": "FT"
+      }
+    ],
+    "label": "Reseña de demo"
+  },
+  "about": {
+    "eyebrow": "Hola, soy Alba",
+    "title": "El detalle es mi oficio.",
+    "text": "Empecé haciendo uñas a mis amigas en la prepa. Nueve años después sigo con la misma obsesión: que salgas sintiéndote tú, pero mejor.\n\nTrabajo sola, con cita, y solo con productos que yo misma uso.",
+    "credentials": [
+      "Volumen ruso",
+      "Manicura rusa",
+      "Herramientas esterilizadas"
+    ],
+    "portraitKey": "portrait"
+  },
+  "faq": {
+    "eyebrow": "Preguntas",
+    "title": "Lo que me preguntan",
+    "items": [
+      {
+        "q": "¿Puedo hacerme pestañas y uñas el mismo día?",
+        "a": "Sí. Elige los dos servicios y te doy una sola cita: primero pestañas, luego manicura, con 10 minutos entre uno y otro."
+      },
+      {
+        "q": "¿Cuánto duran las extensiones?",
+        "a": "De 3 a 4 semanas. Te recomiendo retoque a las 2 o 3 semanas."
+      },
+      {
+        "q": "¿Qué pasa si llego tarde?",
+        "a": "Te espero hasta 15 minutos. Si vas a llegar más tarde, escríbele a Alba: te dice si se puede hacer el servicio completo o si conviene reprogramar."
+      },
+      {
+        "q": "¿Cómo pago?",
+        "a": "Para apartar pestañas, pagas en línea con tarjeta un anticipo del 25 % del precio. Los demás servicios no piden pago por adelantado. El resto se paga en persona el día de tu cita: efectivo o transferencia."
+      }
+    ]
+  },
+  "stats": [],
+  "location": {
+    "eyebrow": "Tu visita",
+    "title": "Dónde encontrarme",
+    "kind": "Estudio",
+    "studioKind": "studio",
+    "addressMode": "zone_only",
+    "zone": "García Ginerés",
+    "city": "Mérida",
+    "headline": "García Ginerés, Mérida",
+    "sub": "Zona aproximada",
+    "rows": [
+      {
+        "label": "Zona",
+        "value": "García Ginerés, Mérida (aproximada)"
+      },
+      {
+        "label": "Dirección exacta",
+        "value": "No se publica. Te la comparto con la confirmación de tu cita."
+      },
+      {
+        "label": "Horario",
+        "value": "Lunes a sábado, 9:00 a 20:00 · con cita"
+      }
+    ],
+    "arrivalNote": null
+  },
+  "footer": {
+    "headline": "Nos vemos pronto.",
+    "line": "Manicura rusa, pestañas y cejas en Mérida. Una clienta a la vez.",
+    "cta": "Reservar cita",
+    "columns": [
+      {
+        "title": "Dónde",
+        "text": "García Ginerés, Mérida\nCon cita, lunes a sábado"
+      }
+    ]
+  },
+  "mockupOnly": {
+    "note": "Fictional mockup data. Never written to the database by the demo rebuild.",
+    "hero": {
+      "rating": "4.9",
+      "reviewCount": 212,
+      "ratingLabel": "4.9 · 212 reseñas de demo",
+      "availability": "Hoy a las 12:00 · Próximo horario libre"
+    },
+    "footer": {
+      "contact": "Instagram · @alba.demo"
+    },
+    "location": {
+      "mapLabels": [
+        "García Ginerés",
+        "Itzimná",
+        "Centro",
+        "Altabrisa",
+        "MÉRIDA",
+        "PASEO DE MONTEJO"
+      ],
+      "publicAddressVariant": "Calle Ejemplo 123, Centro, Mérida",
+      "directionsLabel": "Ver zona en el mapa"
+    },
+    "reviewsNote": "Reseñas de demo, con iniciales. En un sitio real solo aparecen reseñas de citas completadas."
+  }
+}

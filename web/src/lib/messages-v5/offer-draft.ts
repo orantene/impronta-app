@@ -31,6 +31,8 @@
  * 2026-07-11 prod audit where an expired session ate a $5,000 offer).
  */
 
+import { resolveBookingCommissions, type PlatformCommissionConfig } from "@/lib/billing/commission";
+
 export type OfferDraftLineKind = "talent" | "house" | "custom";
 
 export type OfferDraftLine = {
@@ -136,6 +138,69 @@ export function draftPlatformFeeCents(state: OfferDraftState): number {
   const total = draftTotalCents(state);
   const talentNet = draftTalentNetCents(state);
   return Math.max(0, total - talentNet - state.coordinatorFeeCents);
+}
+
+/**
+ * Platform take for the internal split when the real commission config is not
+ * loaded in the editor: the platform default (600 bps total, half client
+ * surcharge). Display estimate only; the booking-time resolver is the truth.
+ */
+const DISPLAY_PLATFORM_CONFIG: PlatformCommissionConfig = {
+  default_take_bps: 600,
+  default_take_floor_cents: 0,
+  plan_tier_bps: {},
+  client_surcharge_bps: 300,
+};
+
+export type DraftInternalSplit = { talentNetCents: number; coordinatorFeeCents: number; platformFeeCents: number };
+
+/**
+ * Internal split for the "never sent" block. A solo talent selling her own
+ * service IS the merchant (seller of record = talent): no agency margin, no
+ * coordinator fee, and the platform takes its commission-model share, not 100%
+ * of the total (QA on Jor, 2026-10-01: talent net 0.00, platform 300.00 on a
+ * 300 MXN offer, because a talent's own lines carry no separate talent cost).
+ * Workspace offers keep the line-cost split.
+ */
+export function draftInternalSplit(
+  state: OfferDraftState,
+  opts: { soloTalent: boolean; platformConfig?: PlatformCommissionConfig },
+): DraftInternalSplit {
+  if (!opts.soloTalent) {
+    return {
+      talentNetCents: draftTalentNetCents(state),
+      coordinatorFeeCents: state.coordinatorFeeCents,
+      platformFeeCents: draftPlatformFeeCents(state),
+    };
+  }
+  const total = draftTotalCents(state);
+  if (total <= 0) return { talentNetCents: 0, coordinatorFeeCents: 0, platformFeeCents: 0 };
+  const snap = resolveBookingCommissions({
+    tenantId: "display",
+    workspacePlan: "free",
+    offerLineItems: [{ line_total_cents: total, talent_cost_total_cents: 0 }],
+    currencyCode: state.currencyCode.length === 3 ? state.currencyCode : "USD",
+    paymentMethod: "card",
+    sellerOfRecord: "talent",
+    platformConfig: opts.platformConfig ?? DISPLAY_PLATFORM_CONFIG,
+    tenantOverride: null,
+  });
+  return { talentNetCents: snap.talent_net_cents, coordinatorFeeCents: 0, platformFeeCents: snap.platform_fee_cents };
+}
+
+/**
+ * The number a person sees on an offer ("Oferta v1"). `version` on the row is
+ * an optimistic-lock counter that every save and send bumps, so a first offer
+ * read "v2" (QA on Jor, 2026-10-01). Visible revisions count the inquiry's
+ * offers from 1, oldest first. `offers` arrives newest first.
+ */
+export function visibleRevisionNumber(
+  offers: readonly { id: string }[],
+  offerId: string,
+  fallback = 1,
+): number {
+  const idx = offers.findIndex((o) => o.id === offerId);
+  return idx < 0 ? fallback : offers.length - idx;
 }
 
 let seq = 0;

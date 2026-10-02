@@ -80,6 +80,15 @@ export function deriveOfferingCta(input: {
 }
 
 /**
+ * A quote or inquiry service has no slots to pick: its only route is the ask
+ * flow (an unsent "Asking about" draft in the dock). It must never open the
+ * booking sheet, which would show "no times available" over the chat.
+ */
+export function opensAskFlowOnly(cta: OfferingCtaKind): boolean {
+  return cta === "ask_quote" || cta === "request";
+}
+
+/**
  * Unified public labels (EN + ES tú). Instant keeps the menu "Seleccionar" /
  * "Select" in the catalog and "Reservar" / "Book" on a profile card button.
  */

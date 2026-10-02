@@ -11,7 +11,7 @@
  * the legacy bubbles (cards_v5 off).
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
@@ -31,6 +31,7 @@ const TITLE_KEY = {
   refunded: "public.guestChat.nextRefundedTitle",
   declined: "public.guestChat.nextDeclinedTitle",
   pay_failed: "public.guestChat.nextPayFailedTitle",
+  pay_link_ask: "public.guestChat.payLinkAskTitle",
 } as const;
 const SUB_KEY = {
   pay: "public.guestChat.nextPaySub",
@@ -41,6 +42,7 @@ const SUB_KEY = {
   refunded: "public.guestChat.nextRefundedSub",
   declined: "public.guestChat.nextDeclinedSub",
   pay_failed: "public.guestChat.nextPayFailedSub",
+  pay_link_ask: "public.guestChat.payLinkAskSub",
 } as const;
 const BUTTON_KEY = {
   pay: "public.guestChat.nextPayButton",
@@ -48,6 +50,7 @@ const BUTTON_KEY = {
   declined: "public.guestChat.nextDeclinedButton",
   pay_failed: "public.guestChat.nextPayFailedButton",
   refunded: "public.guestChat.nextRefundedButton",
+  pay_link_ask: "public.guestChat.payLinkAsk",
 } as const;
 
 export function GuestNextStep({
@@ -83,12 +86,14 @@ export function GuestNextStep({
   /** Declined dock CTA — start another request (composer / browse). */
   onStartAnother?: (() => void) | null;
 }) {
+  const [askPhase, setAskPhase] = useState<"idle" | "busy" | "failed">("idle");
   const step = useMemo(() => {
     if (!v5) return null;
     return deriveGuestNextStep({
       threadStatus,
       offers: v5.offers,
       payCode: v5.payCode,
+      payAmountCents: v5.payAmountCents ?? null,
       timesPayloads: model.messages.filter((m) => m.kind === "professional_times").map((m) => m.payload),
       messageKinds,
       messages: model.messages.map((m) => ({ kind: m.kind, payload: m.payload, body: m.body })),
@@ -107,13 +112,41 @@ export function GuestNextStep({
   if (!step) return notice;
 
   const values = { ...step.values, business: businessName };
-  const busy = step.kind === "accept_offer" && step.offer ? model.actions.activity[step.offer.id]?.phase === "busy" : false;
+  // Deposit vs full follows the link's real amount against the total; the
+  // version is the guest's own count, hidden when there is only one offer.
+  const titleKey =
+    step.kind === "pay" && step.payKind === "deposit"
+      ? "public.guestChat.nextPayDepositTitle"
+      : step.kind === "pay" && step.payKind === "full"
+        ? "public.guestChat.nextPayFullTitle"
+        : step.kind === "accept_offer" && !step.values.version
+          ? "public.guestChat.nextAcceptTitleNoVersion"
+          : TITLE_KEY[step.kind];
+  const subKey =
+    step.kind === "pay" && step.payKind === "deposit"
+      ? "public.guestChat.nextPayDepositSub"
+      : step.kind === "pay" && step.payKind === "full"
+        ? "public.guestChat.nextPayFullSub"
+        : SUB_KEY[step.kind];
+  const busy =
+    step.kind === "accept_offer" && step.offer
+      ? model.actions.activity[step.offer.id]?.phase === "busy"
+      : step.kind === "pay_link_ask"
+        ? askPhase === "busy"
+        : false;
+  const askLink = async () => {
+    setAskPhase("busy");
+    const ok = await model.actions.onRequestPayLink();
+    if (!ok) setAskPhase("failed");
+  };
   const onClick =
     step.kind === "pay" && step.payCode
       ? () => model.actions.onPay(step.payCode as string)
       : step.kind === "accept_offer" && step.offer
         ? () => void model.actions.onAcceptOffer(step.offer as NonNullable<typeof step.offer>)
-        : step.kind === "pay_failed" && model.payCode
+        : step.kind === "pay_link_ask"
+          ? () => void askLink()
+          : step.kind === "pay_failed" && model.payCode
           ? () => model.actions.onPay(model.payCode as string)
           : step.kind === "refunded" && onBookAgain
             ? () => onBookAgain()
@@ -121,7 +154,7 @@ export function GuestNextStep({
               ? () => onStartAnother()
               : null;
   const buttonKey =
-    step.kind === "pay" || step.kind === "accept_offer" || step.kind === "declined" || step.kind === "pay_failed" || step.kind === "refunded"
+    step.kind === "pay" || step.kind === "accept_offer" || step.kind === "declined" || step.kind === "pay_failed" || step.kind === "refunded" || step.kind === "pay_link_ask"
       ? BUTTON_KEY[step.kind]
       : null;
   // Pay-failed without a live pay code still shows the card; hide a dead button.
@@ -135,8 +168,8 @@ export function GuestNextStep({
       style={{ padding: "10px 14px 8px", borderTop: `1px solid ${C.borderSoft}`, background: C.surface, display: "flex", flexDirection: "column", gap: 3, fontFamily: FONT }}
     >
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: C.inkMuted }}>{t("public.guestChat.nextLabel")}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>{interpolate(t(TITLE_KEY[step.kind]), values)}</div>
-      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton ? 6 : 0 }}>{interpolate(t(SUB_KEY[step.kind]), values)}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2 }}>{interpolate(t(titleKey), values)}</div>
+      <div style={{ fontSize: 12.5, color: C.inkDim, marginBottom: showButton ? 6 : 0 }}>{interpolate(t(step.kind === "pay_link_ask" && askPhase === "failed" ? "public.guestChat.payLinkAskFailed" : subKey), values)}</div>
       {showButton && onClick && buttonKey && (
         <button
           type="button"
@@ -146,7 +179,7 @@ export function GuestNextStep({
           data-guest-next-step-action
           style={{ width: "100%", border: "none", borderRadius: 12, padding: "12px 14px", background: accent, color: accentInk, fontSize: 14, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: FONT }}
         >
-          {interpolate(t(buttonKey), values)}
+          {interpolate(t(step.kind === "pay_link_ask" && askPhase === "busy" ? "public.guestChat.payLinkAsking" : buttonKey), values)}
         </button>
       )}
     </div>

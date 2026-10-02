@@ -241,10 +241,13 @@ const ES_CATALOG_FILES = [
   "src/components/edit-chrome/editor-i18n-es-media.ts",
   "src/components/edit-chrome/editor-i18n-es-publish.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels.ts",
+  "src/components/edit-chrome/editor-i18n-es-talent-chrome.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels-2.ts",
   "src/components/edit-chrome/editor-i18n-es-registry.ts",
   "src/components/edit-chrome/editor-i18n-es-shortcuts.ts",
   "src/components/edit-chrome/editor-i18n-es-builder-2027.ts",
+  "src/components/edit-chrome/editor-i18n-es-add-gallery-2.ts",
+  "src/components/edit-chrome/editor-i18n-es-apps.ts",
   "src/components/edit-chrome/editor-i18n-es-nav-chrome.ts",
   "src/components/edit-chrome/editor-i18n-es-talent-brand.ts",
 ];

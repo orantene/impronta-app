@@ -1,5 +1,7 @@
 "use client";
 
+import { getSiteUrl } from "@/lib/auth-flow";
+
 /**
  * Step 3 · Save it. Google, or an email that gets an 8-digit code. The
  * screen is the same whether the address is new or known. Signed-in people
@@ -26,10 +28,13 @@ export function SaveStep({
   path: OnboardingPath;
   busy: boolean;
   error: string | null;
-  onEmail: (email: string) => void;
+  onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
   const [email, setEmail] = useState("");
+  // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
+  // server action re-checks it; `disabled` here is only a convenience.
+  const [ageTerms, setAgeTerms] = useState(false);
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
   const next = path === "business" ? "/" : "/onboarding/talent-location";
@@ -40,7 +45,7 @@ export function SaveStep({
     : google.error === "failed" ? t("public.onboarding.save.googleFailed")
     : null;
   const submit = () => {
-    if (email.trim() && !busy) onEmail(email.trim());
+    if (email.trim() && ageTerms && !busy) onEmail(email.trim(), true);
   };
   return (
     <div data-testid="onb-save">
@@ -84,9 +89,24 @@ export function SaveStep({
           className="mt-1 h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]"
           style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", color: "var(--tl-ink)" }}
         />
+        <label className="mt-3 flex items-start gap-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }}>
+          <input
+            type="checkbox"
+            checked={ageTerms}
+            onChange={(e) => setAgeTerms(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0"
+            data-testid="onb-age-terms"
+          />
+          <span>
+            {t("public.auth.register.ageTermsPrefix")}{" "}
+            <a href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
+            {t("public.auth.register.ageTermsAnd")}{" "}
+            <a href={`${getSiteUrl()}/legal/privacy`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
+          </span>
+        </label>
         {error ? <Notice tone="error" testId="onb-error">{error}</Notice> : null}
         <div className="mt-4">
-          <PrimaryButton type="submit" disabled={busy || !email.trim()} testId="onb-email-cta">
+          <PrimaryButton type="submit" disabled={busy || !email.trim() || !ageTerms} testId="onb-email-cta">
             {busy ? t("public.onboarding.save.emailPending") : t("public.onboarding.save.emailCta")}
           </PrimaryButton>
         </div>
@@ -95,9 +115,9 @@ export function SaveStep({
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>
         {t("public.onboarding.save.terms").split(/(Terms|Términos|Privacy Policy|Política de privacidad)/).map((part, i) =>
           part === "Terms" || part === "Términos" ? (
-            <a key={i} href="/legal/terms" target="_blank" rel="noreferrer" className="underline">{part}</a>
+            <a key={i} href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{part}</a>
           ) : part === "Privacy Policy" || part === "Política de privacidad" ? (
-            <a key={i} href="/legal/privacy" target="_blank" rel="noreferrer" className="underline">{part}</a>
+            <a key={i} href={`${getSiteUrl()}/legal/privacy`} target="_blank" rel="noreferrer" className="underline">{part}</a>
           ) : (
             <span key={i}>{part}</span>
           ),

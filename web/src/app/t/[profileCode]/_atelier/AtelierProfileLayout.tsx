@@ -46,6 +46,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { ProfileFooterSocket } from "../_shared/ProfileFooterSocket";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
 import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
 import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
@@ -426,14 +427,12 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
       data-profile-theme="atelier"
     >
       {/* Fonts + scoped Atelier styles */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       {/* Page-scoped on purpose — Fraunces is loaded only on Atelier profiles, not
           globally. fonts.googleapis.com is already CSP-allowed (see
           app/google-fonts-link.tsx + builder render.tsx). */}
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,340;9..144,400;9..144,500&display=swap"
+        href="/api/fonts/css?family=Fraunces:opsz,wght@9..144,300;9..144,340;9..144,400;9..144,500&display=swap"
         rel="stylesheet"
       />
       <style dangerouslySetInnerHTML={{ __html: ATELIER_CSS }} />
@@ -757,14 +756,16 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
               >
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              {props.whitelabel ? null : (
-                <span className="at-foot__pw">
-                  Powered by <em>Tulala</em>
-                </span>
-              )}
             </div>
           </div>
         </footer>
+      ) : null}
+      {showFooter ? (
+        <ProfileFooterSocket
+          locale={locale}
+          whitelabel={props.whitelabel}
+          tokens={{ surface: "var(--pp-bg)", ink: "var(--pp-ink)", line: "var(--pp-line)" }}
+        />
       ) : null}
 
       {/* ── STICKY BOOK BAR ──────────────────────────────────────────────── */}

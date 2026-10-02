@@ -547,6 +547,10 @@ export async function messagingRequestPayment(input: {
     .single();
   if (snapshot.error) logServerError("messaging.requestPayment.snapshot", snapshot.error);
   const currency = (order as { currency?: string }).currency ?? "USD";
+  // Client fee breakdown from the booking's frozen commission snapshot; [] (and
+  // so omitted) unless it sums exactly to what this link charges.
+  const { loadPayLinkFeeLines } = await import("@/lib/payments/pay-link-fee-lines");
+  const feeLines = await loadPayLinkFeeLines(g.admin, parsed.data.orderId, minted.amountCents);
   const card = await insertMessage(g.admin, {
     tenantId: g.tenantId,
     inquiryId: parsed.data.inquiryId,
@@ -559,6 +563,7 @@ export async function messagingRequestPayment(input: {
       amountKind: parsed.data.amountKind,
       expiresAt: minted.expiresAt,
       currency,
+      ...(feeLines.length ? { feeLines } : {}),
     },
     senderUserId: g.userId,
   });

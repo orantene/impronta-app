@@ -40,6 +40,8 @@ export type ComposerProps = {
   readonly onPlus?: () => void;
   readonly onAttach?: () => void;
   readonly onVoice?: () => void;
+  /** Hide the mic when the engine has no voice-note path for this viewer. */
+  readonly hideVoice?: boolean;
   readonly onChannel?: () => void;
   readonly onSuggestion?: (text: string) => void;
   /** Slot above the box (the NextStepBar on desktop). */
@@ -48,7 +50,7 @@ export type ComposerProps = {
 };
 
 export function Composer(props: ComposerProps) {
-  const { mode, value, state, channel, copy, variant = "desktop", fallbackChannel, refusal, refusalAction, okText, suggestions, onModeChange, onChange, onSend, onRetry, onReopen, onPlus, onAttach, onVoice, onChannel, onSuggestion, above, textareaId } = props;
+  const { mode, value, state, channel, copy, variant = "desktop", fallbackChannel, refusal, refusalAction, okText, suggestions, onModeChange, onChange, onSend, onRetry, onReopen, onPlus, onAttach, onVoice, hideVoice, onChannel, onSuggestion, above, textareaId } = props;
   const c = copy.composer;
   const note = mode === "note";
   const locked = state === "resolved";
@@ -123,9 +125,11 @@ export function Composer(props: ComposerProps) {
       <button type="button" className="tool" onClick={onAttach} disabled={locked} aria-label={c.attach}>
         <Icon name="clip" size={mobile ? 18 : 16} />
       </button>
-      <button type="button" className="tool" onClick={onVoice} disabled={locked} aria-label={c.voice}>
-        <Icon name="mic" size={mobile ? 18 : 16} />
-      </button>
+      {hideVoice ? null : (
+        <button type="button" className="tool" onClick={onVoice} disabled={locked} aria-label={c.voice}>
+          <Icon name="mic" size={mobile ? 18 : 16} />
+        </button>
+      )}
       <button type="button" className={`send${canSend ? "" : " off"}`} onClick={onSend} disabled={!canSend} aria-label={sending ? c.sending : c.send} aria-busy={sending || undefined} data-composer-send>
         <Icon name="send" size={mobile ? 16 : 15} />
       </button>

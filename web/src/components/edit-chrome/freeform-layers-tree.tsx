@@ -60,6 +60,7 @@ import {
   useNavigatorDisclosure,
   NavigatorDisclosureChevron,
 } from "./use-navigator-disclosure";
+import { useEditorLocale } from "./use-editor-locale";
 import { useLayersTreeContainer } from "./use-roving-tree-focus";
 import {
   layerIcon,
@@ -1209,6 +1210,7 @@ function HeaderAddButton({
   disabled?: boolean;
   onClick: MouseEventHandler<HTMLButtonElement>;
 }) {
+  const { t } = useEditorLocale();
   const [hover, setHover] = useState(false);
   const lit = !disabled && (hover || active);
   return (
@@ -1248,7 +1250,7 @@ function HeaderAddButton({
       }}
     >
       <Plus size={13} strokeWidth={2.4} aria-hidden />
-      Add block
+      {t("Add block")}
     </button>
   );
 }

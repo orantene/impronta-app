@@ -23,6 +23,7 @@ import {
   menuShouldOpenUp,
   resolveAnchoredToolbarStack,
   resolveDockedToolbarStack,
+  resolveTextToolbarBottom,
   type AnchorOccluder,
 } from "./canvas-toolbar-anchor";
 import { CANVAS_FLOATING_BAR } from "./kit/tokens";
@@ -302,4 +303,28 @@ test("docked: a bar never rises into the edit topbar on a tiny viewport", () => 
     viewport: { width: 1280, height: 160 },
   });
   for (const bar of result.bars) assert.ok(bar.top >= ANCHOR_TOP_INSET);
+});
+
+// F81: the text toolbar lifts above the bottom HUD at 1024px.
+
+test("F81: text toolbar lifts above an overlapping zoom bar / tip instead of covering them", () => {
+  const vh = 768;
+  const base = CANVAS_FLOATING_BAR.bottom;
+  const zoom: AnchorOccluder = { left: 240, top: vh - base - 42, right: 480, bottom: vh - base };
+  const tip: AnchorOccluder = { left: 300, top: vh - base - 90, right: 700, bottom: vh - base - 60 };
+  const lifted = resolveTextToolbarBottom({ left: 152, width: 720, viewportHeight: vh, baseBottom: base, hud: [zoom, tip] });
+  // Clears the TOPMOST overlapping HUD (the tip), not just the zoom bar.
+  assert.ok(lifted >= vh - tip.top + ANCHOR_OCCLUDER_GAP);
+  assert.ok(lifted > base);
+});
+
+test("F81: no horizontal overlap (wide window) keeps the normal slot", () => {
+  const vh = 900;
+  const base = CANVAS_FLOATING_BAR.bottom;
+  const zoom: AnchorOccluder = { left: 240, top: vh - base - 42, right: 480, bottom: vh - base };
+  assert.equal(
+    resolveTextToolbarBottom({ left: 600, width: 500, viewportHeight: vh, baseBottom: base, hud: [zoom] }),
+    base,
+  );
+  assert.equal(resolveTextToolbarBottom({ left: 10, width: 500, viewportHeight: vh, baseBottom: base, hud: [] }), base);
 });

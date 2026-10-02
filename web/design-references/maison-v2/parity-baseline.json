@@ -1,0 +1,5 @@
+{
+  "design": "maison-v2",
+  "note": "Accepted known deltas for the parity tool. Green means no failure outside this list. Every entry needs a ticket; an entry without one is a load error. `check` may end in * for a prefix match; `width`, `demo` (profile code) and `layer` narrow an entry. Remove an entry when the report lists it as no longer failing.",
+  "accepted": []
+}

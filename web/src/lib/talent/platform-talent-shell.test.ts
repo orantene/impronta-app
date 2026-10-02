@@ -16,6 +16,10 @@ test("platform talent layout uses profile-by-user and optional agency context", 
 });
 
 test("platform talent layout hides agency switcher unless hybrid", () => {
-  assert.match(LAYOUT, /isHybrid && agencyOptions\.length > 1/);
-  assert.doesNotMatch(LAYOUT, /\{agencyOptions\.length > 1 \?/);
+  // #839 removed the raw layout-level agency <select> strip; the switcher now
+  // lives in the shell drawer, which receives isHybrid to gate hybrid-only chrome.
+  assert.doesNotMatch(LAYOUT, /agencyOptions/);
+  assert.doesNotMatch(LAYOUT, /<select\s/);
+  assert.match(LAYOUT, /const isHybrid = membership != null/);
+  assert.match(LAYOUT, /^\s+isHybrid,$/m);
 });

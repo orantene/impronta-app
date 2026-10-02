@@ -1,3 +1,22 @@
+import type { HeaderItem } from "./schema";
+
+/** How an item behaves on each breakpoint when the owner has not chosen (phone: brand stays, rest folds into the menu). */
+export function headerItemMobileDefault(item: HeaderItem): "show" | "menu" {
+  return item.type === "wordmark" || item.type === "logo" || item.type === "section_switcher" ? "show" : "menu";
+}
+
+/** `data-header-item` + per-breakpoint attrs. The section switcher is phone-only unless the owner says otherwise. */
+export function headerItemAttrs(item: HeaderItem): Record<string, string> {
+  const bp = item.responsive ?? {};
+  const wide = item.type === "section_switcher" ? "hide" : "show";
+  return {
+    "data-header-item": item.type,
+    "data-bp-desktop": bp.desktop ?? wide,
+    "data-bp-tablet": bp.tablet ?? bp.desktop ?? wide,
+    "data-bp-mobile": bp.mobile ?? headerItemMobileDefault(item),
+  };
+}
+
 /**
  * Render-time site chrome for the freeform header (`siteChrome`, injected by
  * the talent site renderer): the Demo pill and the talent site's own

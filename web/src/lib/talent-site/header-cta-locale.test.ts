@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   localiseTalentHeaderDefaults,
+  stripHiddenAskHeaderCta,
   talentHeaderCtaLabel,
 } from "./header-cta-locale";
 
@@ -39,5 +40,29 @@ test("AUD-027: render-max-site localises the header landmark props", () => {
     path.join(__dirname, "server", "render-max-site.tsx"),
     "utf8",
   );
-  assert.match(src, /localiseTalentHeaderDefaults\(/);
+  assert.match(src, /localiseTalentHeaderDefaults/);
+  assert.match(src, /stripHiddenAskHeaderCta/);
+});
+
+test("hidden ask: strip #talent-ask primary CTA before render", () => {
+  const props = {
+    primaryCta: { label: "Escríbeme", href: "#talent-ask" },
+    regions: {
+      right: [
+        { type: "cta", label: "Escríbeme", href: "#talent-ask" },
+        { type: "cta", label: "Book", href: "#services" },
+      ],
+    },
+  };
+  const kept = stripHiddenAskHeaderCta(props, true) as typeof props;
+  assert.equal(kept.primaryCta.label, "Escríbeme");
+  const stripped = stripHiddenAskHeaderCta(props, false) as {
+    primaryCta?: unknown;
+    regions: { right: { type: string; href: string }[] };
+  };
+  assert.equal(stripped.primaryCta, undefined);
+  assert.deepEqual(
+    stripped.regions.right.map((r) => r.href),
+    ["#services"],
+  );
 });

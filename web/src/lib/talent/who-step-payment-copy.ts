@@ -49,7 +49,7 @@ export function whoStepPaymentCopy(input: WhoStepPaymentCopyInput): string {
   const needsOnline = offeringRequiresOnlineCollect(input);
   if (needsOnline && input.onlineCollectReady === false) {
     return es
-      ? "El pago en línea no está disponible por ahora. Enviá una consulta para continuar."
+      ? "El pago en línea no está disponible por ahora. Envía una consulta para continuar."
       : "Online payment is not available right now. Send an inquiry to continue.";
   }
   if (input.reserveMode === "deposit") {
@@ -148,12 +148,12 @@ export function doneStepNextActionCopy(input: WhoStepPaymentCopyInput & {
   const needsOnline = offeringRequiresOnlineCollect(input);
   if (needsOnline && input.onlineCollectReady === false) {
     return es
-      ? "El pago en línea no está disponible. Escribí para continuar."
+      ? "El pago en línea no está disponible. Escribe para continuar."
       : "Online payment is not available. Message to continue.";
   }
   if (needsOnline) {
     return es
-      ? "Seguí al pago para terminar la reserva. El horario se libera si el pago no se completa."
+      ? "Sigue al pago para terminar la reserva. El horario se libera si el pago no se completa."
       : "Continue to payment to finish the booking. The time is released if payment is not completed.";
   }
   return es

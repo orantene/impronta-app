@@ -48,6 +48,8 @@ import {
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { sentCopyKeys } from "@/lib/inquiry/reserve-slot-taken";
+import { SlotTakenChips } from "./SlotTakenChips";
 import { SearchTalentField } from "./SearchTalentField";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -59,36 +61,9 @@ import type { BookableOffering } from "@/components/public-booking/pick-bookable
 const INQUIRY_DRAFT_AUTOSAVE_MS = 10_000;
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
-const FONT = '"Inter", system-ui, sans-serif';
-const FONT_DISPLAY =
-  'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
-
-const C = {
-  ink: "#0B0B0D",
-  inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
-  border: "rgba(24,24,27,0.10)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  surface: "#FAFAF7",
-  surfaceAlt: "#F7F7F2",
-  card: "#FFFFFF",
-  accent: "#1D4ED8",
-  accentSoft: "rgba(29,78,216,0.08)",
-  success: "#0F5132",
-  successSoft: "rgba(15,81,50,0.08)",
-  amber: "#92400E",
-  amberSoft: "rgba(146,64,14,0.08)",
-} as const;
-
-// ─── Talent picker option ────────────────────────────────────────────────────
-export type RosterLiteItem = {
-  id: string;
-  name: string;
-  primaryTypeLabel?: string;
-  city?: string;
-  /** Public card-thumbnail URL — renders the talent's face in the picker. */
-  photoUrl?: string | null;
-};
+import { C, FONT, FONT_DISPLAY, primaryBtn, primaryLinkStyle, type RosterLiteItem } from "./inquiry-drawer-tokens";
+export type { RosterLiteItem } from "./inquiry-drawer-tokens";
+import { SubmittedView } from "./InquirySubmittedView";
 
 // ─── Drawer props ────────────────────────────────────────────────────────────
 export type InquiryDrawerProps = {
@@ -101,6 +76,8 @@ export type InquiryDrawerProps = {
   tenantSlug: string;
   /** Agency display name for header copy. */
   agencyName: string;
+  /** Set on a solo talent page: sent copy names the talent, no coordinator. */
+  soloTalentName?: string | null;
   /**
    * Does this workspace represent people? From `preset.representsPeople`.
    *
@@ -156,6 +133,7 @@ export function InquiryDrawer({
   initialIntent,
   tenantSlug,
   agencyName,
+  soloTalentName = null,
   client,
   roster = [],
   enableDraftAutosave,
@@ -253,6 +231,8 @@ export function InquiryDrawer({
     FormData
   >(submitInquiryNowAction, { kind: "idle" });
   const submitted = submitState.kind === "submitted";
+  const sentKeys = sentCopyKeys(soloTalentName);
+  const sentVars = { agency: agencyName, talent: soloTalentName ?? agencyName };
 
   // B2 — once the inquiry is submitted, empty the inquiry cart so the next
   // inquiry doesn't pre-load this one's now-consumed shortlist. Runs once.
@@ -436,7 +416,7 @@ export function InquiryDrawer({
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: C.inkMuted, maxWidth: 520, lineHeight: 1.45 }}>
               {submitted
-                ? interpolate(t("public.inquiryDrawer.leadSent"), { agency: agencyName })
+                ? interpolate(t(sentKeys.lead), sentVars)
                 : step === "compose"
                   ? interpolate(
                       t(bookableOffering ? "public.inquiryDrawer.leadComposeAppointment"
@@ -482,7 +462,7 @@ export function InquiryDrawer({
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
             <>
-              <SubmittedView state={submitState} agencyName={agencyName} />
+              <SubmittedView state={submitState} agencyName={agencyName} soloTalentName={soloTalentName} />
               <AttachmentStatus phase={attachmentPhase} />
             </>
           ) : step === "compose" ? (
@@ -514,6 +494,17 @@ export function InquiryDrawer({
         </div>
 
         {/* Footer */}
+        {submitState.kind === "slot_taken" && !submitted ? (
+          <SlotTakenChips
+            times={submitState.nextFreeTimes}
+            timezone={submitState.timezone}
+            durationMinutes={submitState.durationMinutes}
+            borderColor={C.borderSoft}
+            background={C.surface}
+            buttonStyle={ghostBtn}
+            onPick={(slot) => { applySlot(slot); setStep("review"); }}
+          />
+        ) : null}
         <footer
           style={{
             display: "flex",
@@ -528,9 +519,11 @@ export function InquiryDrawer({
         >
           <div style={{ fontSize: 11.5, color: C.inkDim, lineHeight: 1.35, maxWidth: 320 }}>
             {submitted
-              ? interpolate(t("public.inquiryDrawer.footerSent"), { agency: agencyName })
+              ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
                 ? t("public.inquiryDrawer.footerNeedMore")
+                : submitState.kind === "slot_taken"
+                  ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
                   ? <span style={{ color: C.amber }}>{submitState.message}</span>
                   : interpolate(t("public.inquiryDrawer.footerReady"), { agency: agencyName })
@@ -1834,119 +1827,7 @@ function AttachmentStatus({
   );
 }
 
-type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 
-function SubmittedView({
-  state, agencyName,
-}: {
-  state: SubmittedState;
-  agencyName: string;
-}) {
-  const t = useT();
-  const messagesHref =
-    `/${state.tenantSlug}/client/messages`
-    + `?inquiry=${encodeURIComponent(state.inquiryId)}&just_submitted=1`;
-
-  // Guest follow-up CTA. The route is activation-dependent so the visitor
-  // never lands on a dead end:
-  //  • created  → a fresh account with no password yet → set-password flow.
-  //  • matched  → an existing account → password sign-in.
-  //  • unlinked → no account was linked → let them register.
-  const guestEmailQuery = state.guestEmail
-    ? `?email=${encodeURIComponent(state.guestEmail)}`
-    : "";
-  const guestCta =
-    state.guestActivation === "matched"
-      ? { href: `/login${guestEmailQuery}`, label: t("public.inquiryDrawer.guestCtaSignIn") }
-      : state.guestActivation === "created"
-        ? {
-            href: `/forgot-password${guestEmailQuery}`,
-            label: t("public.inquiryDrawer.guestCtaSetPassword"),
-          }
-        : { href: `/register${guestEmailQuery}`, label: t("public.inquiryDrawer.guestCtaCreate") };
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        textAlign: "center",
-        gap: 14,
-        padding: "28px 12px",
-        fontFamily: FONT,
-      }}
-    >
-      <div
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 999,
-          background: C.successSoft,
-          color: C.success,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 26,
-        }}
-      >
-        ✓
-      </div>
-      <div>
-        <div style={{ fontSize: 17, fontWeight: 600, color: C.ink, fontFamily: FONT_DISPLAY }}>
-          {t("public.inquiryDrawer.submittedTitle")}
-        </div>
-        <p style={{ margin: "6px auto 0", fontSize: 13, color: C.inkMuted, maxWidth: 380, lineHeight: 1.5 }}>
-          {interpolate(t("public.inquiryDrawer.submittedBody"), { agency: agencyName })}
-        </p>
-      </div>
-
-      {state.isGuest ? (
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 420,
-            background: C.card,
-            border: `1px solid ${C.borderSoft}`,
-            borderRadius: 10,
-            padding: "14px 16px",
-            textAlign: "left",
-          }}
-        >
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
-            {state.guestActivation === "matched"
-              ? t("public.inquiryDrawer.submittedGuestMatchedTitle")
-              : state.guestActivation === "created"
-                ? t("public.inquiryDrawer.submittedGuestCreatedTitle")
-                : t("public.inquiryDrawer.submittedGuestTrackTitle")}
-          </div>
-          <p style={{ margin: "5px 0 0", fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-            {state.guestActivation === "created"
-              ? state.guestEmail
-                ? interpolate(t("public.inquiryDrawer.submittedGuestCreatedBodyEmail"), { email: state.guestEmail })
-                : t("public.inquiryDrawer.submittedGuestCreatedBodyNoEmail")
-              : state.guestActivation === "matched"
-                ? state.guestEmail
-                  ? interpolate(t("public.inquiryDrawer.submittedGuestMatchedBodyEmail"), { email: state.guestEmail })
-                  : t("public.inquiryDrawer.submittedGuestMatchedBodyNoEmail")
-                : state.guestEmail
-                  ? interpolate(t("public.inquiryDrawer.submittedGuestUnlinkedBodyEmail"), { email: state.guestEmail })
-                  : t("public.inquiryDrawer.submittedGuestUnlinkedBodyNoEmail")}
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-            <a href={guestCta.href} style={primaryLinkStyle}>
-              {guestCta.label}
-            </a>
-          </div>
-        </div>
-      ) : (
-        <a href={messagesHref} style={primaryLinkStyle}>
-          {t("public.inquiryDrawer.viewInMessages")}
-        </a>
-      )}
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitives
@@ -2073,20 +1954,6 @@ const inputStyle: React.CSSProperties = {
   lineHeight: 1.4,
 };
 
-function primaryBtn(enabled: boolean): React.CSSProperties {
-  return {
-    height: 36,
-    padding: "0 16px",
-    borderRadius: 8,
-    background: enabled ? C.ink : "rgba(11,11,13,0.15)",
-    color: "#fff",
-    border: "none",
-    cursor: enabled ? "pointer" : "not-allowed",
-    fontFamily: FONT,
-    fontSize: 13,
-    fontWeight: 600,
-  };
-}
 
 const ghostBtn: React.CSSProperties = {
   height: 36,
@@ -2102,13 +1969,6 @@ const ghostBtn: React.CSSProperties = {
 };
 
 /** primaryBtn rendered as an <a> — used by the submitted-step CTAs. */
-const primaryLinkStyle: React.CSSProperties = {
-  ...primaryBtn(true),
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  textDecoration: "none",
-};
 
 // ─── Talent mini-card (selected-talent grid) ─────────────────────────────────
 const talentMiniCard: React.CSSProperties = {
@@ -2380,3 +2240,4 @@ export function InquiryDrawerShell({
     </div>
   );
 }
+

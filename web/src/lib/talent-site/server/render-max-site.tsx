@@ -1,9 +1,13 @@
 import "server-only";
 
 import type { ReactNode } from "react";
+import { loadHistoryPreviewSnapshot } from "../history/history.server";
+import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/talent-update.server";
 import { loadMaxSiteIsDemo, MaxSiteDemoFooter, MaxSiteDemoPill, withHeaderSiteChrome } from "./render-max-site-demo";
 import { splitShell } from "./render-max-site-shell";
 import { builderTreeHasFaqBind, builderTreeHasKind } from "./builder-tree-has-kind";
+import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
+import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { SitePageViewAnalytics } from "@/components/analytics/site-page-view-analytics";
@@ -20,7 +24,9 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
-import { localiseTalentHeaderDefaults } from "@/lib/talent-site/header-cta-locale";
+import { draftPreviewBannerText } from "@/lib/talent-site/draft-preview-copy";
+import { localiseTalentHeaderDefaults, stripHiddenAskHeaderCta } from "@/lib/talent-site/header-cta-locale";
+import { loadTalentAskVisible } from "./talent-ask-visible";
 import { prepareTalentSiteTrees, readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
@@ -61,14 +67,23 @@ import {
 } from "@/lib/talent-site/resolve-max-site-core";
 import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { scrubTalentSiteSeo } from "@/lib/talent-site/free-site-seo";
+import { talentSiteShowsPlatformBadge } from "@/lib/talent-site/free-site-badge";
+import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import {
-  talentSiteBadgeLabel,
-  talentSiteShowsPlatformBadge,
-} from "@/lib/talent-site/free-site-badge";
+  buildSocketModel,
+  headerShowsLanguageSwitch,
+  socketConsentToolingEnabled,
+  stripDesignCredits,
+} from "@/lib/talent-site/footer-socket";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { pruneUnconfirmedGuestStubs } from "@/lib/talent-site/prune-unconfirmed-guest-stubs";
 import { publicPageBody } from "@/lib/talent-site/talent-page-publish-core";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { DEFAULT_TALENT_LIVE_STATUS, loadTalentLiveStatus } from "@/lib/talent/live-status";
+import { LIVE_STATUS_CSS, liveStatusRootAttrs, toLiveStatusRenderContext } from "@/lib/talent/live-status-render";
+import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
 
 import {
   loadMaxSiteByProfileId,
@@ -82,8 +97,11 @@ import {
   loadTalentSiteIdentity,
 } from "./load-max-site";
 import { buildMaxSiteSeo } from "./max-site-seo.server";
+import { offeringsToJsonLdServices } from "@/lib/seo/talent-json-ld";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
 import { loadUsdRatesForSitePrices } from "./vanity-usd-rates"; import { loadTalentSocialLinks } from "./talent-social-links";
+import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
+import { policyDocForSlug } from "@/lib/talent-policies/public";
 
 /**
  * Talent Max Site — REUSABLE public render.
@@ -125,6 +143,10 @@ export interface RenderTalentMaxSiteInput {
   hrefMode?: "path" | "host-root";
   /** Owner draft preview (`?preview=draft`). Renders draft shell + draft pages. */
   previewDraft?: boolean;
+  /** With `previewDraft`: render one history entry's snapshot, read-only (`&history=<id>`). */
+  previewHistoryEntryId?: string | null;
+  /** Phase 4: owner preview of a theme update merged in memory (`?themeUpdate=<id>`). */
+  previewThemeUpdateId?: string | null;
   /**
    * SEO-2 — the absolute origin this page is served from, for the canonical URL.
    * `/t/site/[siteSlug]` routes pass the app origin (NEXT_PUBLIC_SITE_URL); the
@@ -171,7 +193,7 @@ export interface MaxSiteSeo {
 }
 
 export type RenderTalentMaxSiteResult =
-  | { kind: "render"; node: ReactNode; seo: MaxSiteSeo }
+  | { kind: "render"; node: ReactNode; seo: MaxSiteSeo; /** The locale the body rendered in (bounded to the talent languages). */ locale: string }
   | { kind: "not_found" };
 
 const NOT_FOUND: RenderTalentMaxSiteResult = { kind: "not_found" };
@@ -234,8 +256,15 @@ export async function renderTalentMaxSite(
     });
     if (!gateOpen) return NOT_FOUND;
 
+    // Theme releases Phase 2 — the owner's read-only preview of a saved version.
+    const snap = isOwnerDraftPreview && input.previewHistoryEntryId
+      ? await loadHistoryPreviewSnapshot(talentProfileId, input.previewHistoryEntryId)
+      : isOwnerDraftPreview && input.previewThemeUpdateId
+        ? await loadThemeUpdatePreviewSnapshot(talentProfileId, input.previewThemeUpdateId)
+        : null;
+
     // ── Pick the shell + page set for this view ─────────────────────────────
-    const shellSource = isOwnerDraftPreview ? site.shellTree : site.shellPublished;
+    const shellSource = snap?.shell ?? (isOwnerDraftPreview ? site.shellTree : site.shellPublished);
     const shellTree = coerceTree(shellSource);
 
     const allPages = await loadMaxSitePages(talentProfileId);
@@ -249,17 +278,21 @@ export async function renderTalentMaxSite(
     // Owner draft preview renders draft pages too; the public path requires
     // published (the pure core re-applies this — defense in depth over RLS).
     const requirePublished = !isOwnerDraftPreview;
+    // `/politicas` and `/privacidad` are platform pages: they take the site's
+    // shell and theme (the home page supplies both) and swap only the body.
+    const policyDoc = policyDocForSlug(input.pageSlug);
     const page = selectMaxSitePage(pages, {
-      pageSlug: input.pageSlug,
+      pageSlug: policyDoc ? null : input.pageSlug,
       requirePublished,
     });
     if (!page) return NOT_FOUND;
 
     // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
-    const body = coerceTree(publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
+    const snapBlocks = snap?.pages?.[page.id];
+    const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
     const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
-    if (!hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
+    if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
       return NOT_FOUND;
     }
@@ -288,10 +321,12 @@ export async function renderTalentMaxSite(
     const isDemo = await loadMaxSiteIsDemo(talentProfileId);
 
     // Site theme tokens + Design slug (token defaults).
-    const siteTokens = await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview });
+    const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
     const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
 
+    const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
     const node = await renderMaxSiteDocument({
+      mainOverride: policyModel ? policyMainNode(policyModel) : undefined,
       siteTokens,
       designSlug,
       shellTree: hydratedShell,
@@ -308,9 +343,14 @@ export async function renderTalentMaxSite(
       // removes it (same predicate as the /t/[code] profile footer).
       showPlatformBadge: talentSiteShowsPlatformBadge(planKey),
       isDemo,
+      talentName: identity?.name ?? null,
     });
 
+    // Public services -> Person.makesOffer; a load failure means no services, never a failed render.
+    const jsonLdServices = offeringsToJsonLdServices(await loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => []));
+
     const seo = buildMaxSiteSeo({
+      services: jsonLdServices,
       site,
       // PHASE 1 — SEO is Web Office. A talent without `personalSiteSeo` renders
       // with their stored SEO IGNORED (never deleted), so a lapsed Web Office
@@ -327,7 +367,7 @@ export async function renderTalentMaxSite(
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
-    return { kind: "render", node, seo };
+    return { kind: "render", node, seo: policyModel ? policySeo(seo, policyModel) : seo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
     return NOT_FOUND;
@@ -342,6 +382,8 @@ export async function renderTalentMaxSite(
  * page in place of `PublicHeader`.
  */
 async function renderMaxSiteDocument(args: {
+  /** Replaces the page body (policy pages); the shell still wraps it. */
+  mainOverride?: ReactNode;
   /** Site-level theme tokens (theme gallery); `{}` = today's cascade. */
   siteTokens: Readonly<Record<string, string>>;
   designSlug?: string | null;
@@ -360,6 +402,8 @@ async function renderMaxSiteDocument(args: {
   showPlatformBadge: boolean;
   /** Fictional demo talent: a Demo pill above the header + a footer line. */
   isDemo?: boolean;
+  /** The talent's display name: labels the first group of the Tulala strip. */
+  talentName?: string | null;
 }): Promise<ReactNode> {
   const {
     siteTokens,
@@ -380,14 +424,9 @@ async function renderMaxSiteDocument(args: {
   const designTokens = designSlice.tokens;
   const talentComponentStyleDefaults = designSlice.componentStyles;
 
-  // Captcha for native `form` nodes AND live `services_catalog` booking.
-  // /api/cms/forms/submit and createInstantBookingAction both enforce captcha
-  // per TENANT — a Max site that rendered no widget silently rejected every
-  // submission / confirm once a provider was configured (improntamodels
-  // 2026-08-16; book-jorgelina catalog sheet 2026-09-25). Gated on the tree
-  // actually containing a form or services_catalog so pages without one pay
-  // no query. Live catalog booking also needs the site key whenever the
-  // vanity host is not a draft preview (catalogBookingLive below).
+  // Captcha for `form` nodes + live `services_catalog` booking: both submit paths enforce it per
+  // tenant, so a missing widget silently rejected every submit (2026-08-16, 2026-09-25). Only
+  // queried when the tree has a form or catalog; live booking needs the key off draft previews.
   const pageNeedsCaptcha = (function needsCaptcha(nodes: unknown): boolean {
     if (Array.isArray(nodes)) return nodes.some(needsCaptcha);
     if (!nodes || typeof nodes !== "object") return false;
@@ -398,12 +437,12 @@ async function renderMaxSiteDocument(args: {
   // Data sources + live components for the PAGE body (tenant-scoped). The SHELL
   // tree is the talent's own header/footer (logo/nav/copyright) — simple nodes
   // with no tenant-scoped bindings — so it renders without a data-source load.
-  //
   // Exception: unrostered / free personal Max sites have `tenantId === null`,
   // which used to skip data sources entirely. Hablar/dock still loaded
   // offerings, but `services_catalog` rendered the empty state. Load catalog
   // sources by talent profile whenever the page tree needs them.
-  const pageNeedsServicesCatalog = builderTreeHasKind(blocks, "services_catalog");
+  const pageNeedsServicesCatalog =
+    builderTreeHasKind(blocks, "services_catalog") || builderTreeHasKind(blocks, "task_picker");
   const pageNeedsPortfolio = builderTreeHasKind(blocks, "portfolio");
   const pageNeedsReviews = builderTreeHasKind(blocks, "reviews");
   const pageNeedsVisit = builderTreeHasKind(blocks, "visit");
@@ -426,7 +465,7 @@ async function renderMaxSiteDocument(args: {
   // resolve captcha even if the tree scan missed a nested catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow, askVisible] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
@@ -457,7 +496,16 @@ async function renderMaxSiteDocument(args: {
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
       // the talent's own site, not an agency storefront.
       loadPublicOfferingsForProfile(talentProfileId, locale, null),
+      // G3b: "Atiendo emergencias hoy", read PER REQUEST (this route is
+      // force-dynamic). Service role: the table has no anon read by design.
+      (async () => {
+        const admin = createServiceRoleClient();
+        return admin ? loadTalentLiveStatus(admin, talentProfileId) : { ...DEFAULT_TALENT_LIVE_STATUS };
+      })(),
+      loadTalentAskVisible(talentProfileId),
     ]);
+  // Expiry is applied here, at render time: a lapsed flag renders as off.
+  const liveStatus = toLiveStatusRenderContext(liveStatusRow, new Date());
   const usdRates = await loadUsdRatesForSitePrices([
     ...talentOfferings,
     ...(dataSources.menuOfferings ?? []),
@@ -478,6 +526,7 @@ async function renderMaxSiteDocument(args: {
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
     onlineCollectReady: isPlatformCheckoutReady(),
+    liveStatus,
   };
 
   const captchaConfig = pageCaptcha
@@ -513,7 +562,28 @@ async function renderMaxSiteDocument(args: {
   const dataAttrs = hasTokens ? designTokensToDataAttrs(effectiveTokens) : {};
 
   const hasShell = hasRenderableBuilderNodes(shellTree, { mode: "freeform" });
-  const [headerTree, footerTree] = splitShell(shellTree); const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  const [headerTree, rawFooterTree] = splitShell(shellTree);
+  // The socket carries the ONE Tulala credit: hide any design-level credit at render time.
+  const footerTree = stripDesignCredits(rawFooterTree);
+  // Footer links to Location / Visit are decided against the sections this page really renders
+  // (an override page, such as a policy page, renders neither, so those links drop).
+  const renderedBlocks = pruneEmptyBoundSections(blocks, pricedDataSources);
+  const liveFooterTree = pruneDeadSectionLinks(footerTree, args.mainOverride ? [] : renderedBlocks, [headerTree]);
+  // The header's section links get the same treatment on the home page (a talent with no
+  // reviews has no #reviews band, so the link goes). Override pages keep their header as is.
+  const liveHeaderTree = args.mainOverride ? headerTree : pruneDeadSectionLinks(headerTree, renderedBlocks, [footerTree]);
+  const footerSocialLinks = builderTreeHasKind(footerTree, "social_links") ? await loadTalentSocialLinks(talentProfileId) : [];
+  const socketModel = buildSocketModel({
+    locale,
+    publicPathPrefix,
+    supportedLocales: args.localeCtx.settings.supportedLocales,
+    switcherHrefs: args.localeCtx.switcherHrefs,
+    showCredit: showPlatformBadge,
+    whitelabel: tenantId ? await loadTenantWhitelabel(tenantId) : false,
+    consentTooling: socketConsentToolingEnabled(),
+    talentName: args.talentName,
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+  });
 
   // Render one shell root. A `site_header`/`site_footer` SECTION LANDMARK carries
   // its config inline (`props.sectionProps`) and is rendered via the bespoke
@@ -529,7 +599,10 @@ async function renderMaxSiteDocument(args: {
     ) {
       const entry = getSectionType(root.props.sectionTypeKey);
       const schema = entry?.schemasByVersion[entry.currentVersion];
-      const localised = localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale);
+      const localised = stripHiddenAskHeaderCta(
+        localiseTalentHeaderDefaults(root.props.sectionProps ?? {}, locale),
+        askVisible,
+      );
       const parsed = schema?.safeParse(withHeaderSiteChrome(localised, root.props.sectionTypeKey, args.isDemo === true, args.localeCtx.settings.supportedLocales, args.localeCtx.switcherHrefs));
       if (!entry || !parsed?.success) return null;
       const Comp = entry.Component;
@@ -549,6 +622,7 @@ async function renderMaxSiteDocument(args: {
                 mode: "freeform",
                 includeRendererStyles: false,
                 includeFontLinks: false,
+                dataSources: { liveStatus },
                 captcha: captchaConfig,
                 visitorLocale: locale,
                 contentLocale: args.localeCtx.contentLocale,
@@ -565,6 +639,7 @@ async function renderMaxSiteDocument(args: {
           mode: "freeform",
           includeRendererStyles: false,
           includeFontLinks: false,
+          dataSources: { liveStatus },
           captcha: captchaConfig,
           visitorLocale: locale,
           contentLocale: args.localeCtx.contentLocale,
@@ -574,7 +649,7 @@ async function renderMaxSiteDocument(args: {
     );
   };
 
-  const headerLandmark = headerTree.find(
+  const headerLandmark = liveHeaderTree.find(
     (n) => n.kind === "section" && n.props.sectionTypeKey === "site_header",
   );
   const headerHasLandmark = Boolean(headerLandmark);
@@ -594,6 +669,7 @@ async function renderMaxSiteDocument(args: {
       data-theme-canvas-root=""
       data-talent-design={args.designSlug ?? undefined}
       {...dataAttrs}
+      {...liveStatusRootAttrs(liveStatus)}
       style={{
         ...(cssVars as React.CSSProperties),
         backgroundColor: "var(--token-color-background, #ffffff)",
@@ -604,6 +680,10 @@ async function renderMaxSiteDocument(args: {
     >
       {/* A11Y-2 — first focusable element on every talent Max site surface. */}
       <SkipToContent />
+      {/* G3b: hide the variant the root's live status does not match; the
+          island flips the root to "off" at local midnight in an open tab. */}
+      <style data-live-status-css="">{LIVE_STATUS_CSS}</style>
+      {liveStatus.emergenciesToday ? <LiveStatusExpiry until={liveStatus.emergenciesUntil} /> : null}
       {/* ANALYTICS-2 — first-party page-view for the talent Max site, feeding the
           SAME view_site_page stream + admin loader as storefront/talent-profile.
           Suppressed in the owner draft preview so previews aren't counted. */}
@@ -638,8 +718,7 @@ async function renderMaxSiteDocument(args: {
             fontFamily: '"Inter", system-ui, sans-serif',
           }}
         >
-          Draft preview — visitors see the published version until you publish
-          again.
+          {draftPreviewBannerText(locale)}
         </div>
       ) : null}
 
@@ -654,18 +733,19 @@ async function renderMaxSiteDocument(args: {
             data-talent-max-site-header=""
             {...(headerScrollThreshold != null ? { "data-scrolled": "false" } : {})}
           >
-            {headerTree.map((root) => renderShellRoot(root))}
+            {liveHeaderTree.map((root) => renderShellRoot(root))}
             {headerScrollThreshold != null ? (
               <HeaderScrollObserver thresholdPx={headerScrollThreshold} />
             ) : null}
           </div>
         ) : (
           <header data-talent-max-site-header="">
-            {renderBuilderNodes(headerTree, {
+            {renderBuilderNodes(liveHeaderTree, {
               publicPathPrefix,
               mode: "freeform",
               includeRendererStyles: false,
               includeFontLinks: false,
+              dataSources: { liveStatus },
               captcha: captchaConfig,
               visitorLocale: locale,
               contentLocale: args.localeCtx.contentLocale,
@@ -676,7 +756,7 @@ async function renderMaxSiteDocument(args: {
       ) : null}
 
       <main id="main-content" data-talent-max-site-main="" style={{ flex: "1 0 auto" }}>
-        {renderFreeformPageRootTree(blocks, {
+        {args.mainOverride ?? renderFreeformPageRootTree(renderedBlocks, {
           publicPathPrefix,
           mode: "freeform",
           includeRendererStyles: false,
@@ -695,9 +775,9 @@ async function renderMaxSiteDocument(args: {
 
       {hasShell && footerTree.length > 0 ? (
         <footer data-talent-max-site-footer="">
-          {renderBuilderNodes(footerTree, {
+          {renderBuilderNodes(liveFooterTree, {
             publicPathPrefix,
-            mode: "freeform", dataSources: { socialLinks: footerSocialLinks }, // her own links
+            mode: "freeform", dataSources: { socialLinks: footerSocialLinks, liveStatus }, // her own links
             includeRendererStyles: false,
             includeFontLinks: false,
             captcha: captchaConfig,
@@ -710,22 +790,9 @@ async function renderMaxSiteDocument(args: {
 
       {args.isDemo ? <MaxSiteDemoFooter locale={locale} /> : null}
 
-      {/* PHASE 1 — the free site's platform mark. Paid plans remove it. */}
-      {showPlatformBadge ? (
-        <div
-          data-talent-max-site-badge=""
-          style={{
-            padding: "16px",
-            textAlign: "center",
-            fontSize: 12,
-            color: "var(--token-color-ink-muted, rgba(11,11,13,0.45))",
-          }}
-        >
-          <a href="https://tulala.digital" rel="noopener" style={{ color: "inherit" }}>
-            {talentSiteBadgeLabel(locale)}
-          </a>
-        </div>
-      ) : null}
+      {/* Global Tulala footer socket: one shared bottom strip under every
+          design's own footer (replaces the scattered "Made with Tulala"). */}
+      <TalentSiteSocket model={socketModel} />
     </div>
   );
 }

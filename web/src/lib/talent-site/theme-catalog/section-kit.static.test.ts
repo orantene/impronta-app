@@ -11,13 +11,17 @@ import assert from "node:assert/strict";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
   TALENT_KIT_SECTION_ROLES,
+  TALENT_KIT_SECTIONS,
   TALENT_KIT_SHELL_ROLES,
   aboutBlock,
+  aftercareBlock,
+  beforeAfterBlock,
   buildKitShell,
   buildKitStandardShell,
   contactBlock,
   faqBlock,
   galleryBlock,
+  locationBlock,
   portfolioBlock,
   portfolioChaptersBlock,
   reviewsBlock,
@@ -29,6 +33,7 @@ import {
   heroCover,
   heroMasthead,
   heroSplit,
+  heroSpecBlock,
   servicesBlock,
 } from "./section-kit";
 
@@ -53,6 +58,18 @@ const SECTIONS: Array<[string, BuilderNode]> = [
       accent: true,
     }),
   ],
+  [
+    "heroSpecBlock",
+    heroSpecBlock(ids(), {
+      specs: [{ label: "Respuesta", value: "24 h" }],
+      badges: ["12 años"],
+      ctaRow: { primaryLabel: "Ver horarios", primaryHref: "#services", secondaryLabel: "Pregunta", secondaryHref: "#pick" },
+    }),
+  ],
+  ["heroSpecBlock empty", heroSpecBlock(ids())],
+  ["beforeAfterBlock", beforeAfterBlock(ids())],
+  ["aftercareBlock", aftercareBlock(ids())],
+  ["locationBlock", locationBlock(ids())],
   ["heroCentered", heroCentered(ids())],
   ["heroCentered accent", heroCentered(ids(), { accent: true })],
   ["heroCover", heroCover(ids())],
@@ -216,4 +233,32 @@ test("the kit source files carry no hex literal at all", async () => {
     const src = readFileSync(join(here, file), "utf8");
     assert.doesNotMatch(src, /["'`][^"'`]*#[0-9a-f]{3,8}\b/i, `${file} contains a quoted hex literal`);
   }
+});
+
+test("aftercareBlock: every visible text has an ES overlay and no dash in the copy", () => {
+  const section = aftercareBlock(ids());
+  const texts: Array<{ text: string; es?: string }> = [];
+  for (const node of walk([section])) {
+    const p = node.props as { text?: string; i18n?: { es?: { text?: string } } };
+    if (typeof p.text === "string") texts.push({ text: p.text, es: p.i18n?.es?.text });
+  }
+  assert.ok(texts.length >= 8, "eyebrow, heading and three tips (title + text)");
+  for (const t of texts) {
+    assert.ok(t.es && t.es.length > 0, `"${t.text}" needs an ES overlay`);
+    assert.doesNotMatch(`${t.text} ${t.es}`, /[\u2013\u2014]/, "no en or em dash in user-facing copy");
+  }
+  assert.equal(TALENT_KIT_SECTIONS.aftercare.originRole, "talent.aftercare");
+});
+
+test("locationBlock: the shared visit widget in its location layout, no data baked in", () => {
+  const section = locationBlock(ids());
+  const visit = [...walk([section])].find((n) => n.kind === "visit")!;
+  const props = visit.props as { layout?: string; title?: string; mapSide?: string; showMapButton?: boolean };
+  assert.equal(props.layout, "location");
+  assert.equal(props.title, "", "the heading is derived from the studio kind, not authored");
+  assert.equal(props.showMapButton, true);
+  assert.equal(TALENT_KIT_SECTIONS.location.originRole, "talent.location");
+  const json = JSON.stringify(section);
+  assert.doesNotMatch(json, /Mérida|Calle|exactAddress|exact_address/);
+  assert.doesNotMatch(json, /[–—]/);
 });

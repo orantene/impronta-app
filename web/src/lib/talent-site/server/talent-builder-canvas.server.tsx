@@ -34,9 +34,22 @@ import {
   loadMaxSiteDesignSlug,
   loadMaxSitePages,
   loadMaxSiteThemeTokens,
+  loadTalentSiteIdentity,
   loadTalentPlanKey,
   loadTalentSiteCtaMode,
 } from "./load-max-site";
+import { TalentSiteSocket } from "@/components/talent-site/talent-site-socket";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import {
+  buildSocketModel,
+  headerShowsLanguageSwitch,
+  socketConsentToolingEnabled,
+  socketLockedHint,
+  stripDesignCredits,
+} from "@/lib/talent-site/footer-socket";
+import { talentSiteShowsPlatformBadge } from "@/lib/talent-site/free-site-badge";
+import { treeHasLiveCandidates } from "../live-text";
+import { loadTalentLiveText } from "./load-live-text.server";
 import { loadTalentLocaleSwaps } from "./talent-locale-swaps.server";
 import { loadPreviewDataSources } from "./preview-my-content.server";
 import { loadTalentSiteLocaleContext, type TalentSiteLocaleContext } from "./talent-site-locale.server";
@@ -87,10 +100,17 @@ export async function buildTalentBuilderCanvasData(input: {
       loadMaxSiteIsDemo(talentProfileId),
     ]);
   const siteLocale = localeCtx.locale;
+  // F93 - the preview data sources depend only on the locale, so they load
+  // alongside the CTA/swaps batch and the shell prep instead of after them.
+  const dataSourcesP = loadPreviewDataSources(talentProfileId, input.tree, siteLocale);
+  dataSourcesP.catch(() => undefined);
+  // Lines that follow her profile load alongside the batch below (only when the page has any).
+  const liveP = treeHasLiveCandidates(input.tree) ? loadTalentLiveText(talentProfileId, siteLocale, localeCtx.chain) : Promise.resolve(null);
   const [ctaMode, swaps] = await Promise.all([
     loadTalentSiteCtaMode(talentProfileId, planKey),
     loadTalentLocaleSwaps(talentProfileId, siteLocale, localeCtx.chain),
   ]);
+  const live = await liveP;
 
   // Page layer: with the site theme on, the Theme drawer edits the SITE
   // draft and keeps the page draft layer as the per-page override, so the
@@ -130,9 +150,22 @@ export async function buildTalentBuilderCanvasData(input: {
   const shell = site?.siteSlug
     ? hydrateShellNav(fixed.shellTree, nav, site.siteSlug, "", "host-root")
     : fixed.shellTree;
-  const [headerTree, footerTree] = splitShell(shell);
+  const [headerTree, rawFooterTree] = splitShell(shell);
+  // The socket carries the ONE Tulala credit, so the canvas hides any design-level one too.
+  const footerTree = stripDesignCredits(rawFooterTree);
+  const socketModel = buildSocketModel({
+    locale: siteLocale,
+    publicPathPrefix: "",
+    supportedLocales: localeCtx.settings.supportedLocales,
+    switcherHrefs: localeCtx.switcherHrefs,
+    showCredit: talentSiteShowsPlatformBadge(planKey),
+    whitelabel: input.tenantId ? await loadTenantWhitelabel(input.tenantId) : false,
+    consentTooling: socketConsentToolingEnabled(),
+    talentName: (await loadTalentSiteIdentity(talentProfileId))?.name ?? null,
+    headerHasLanguageSwitch: headerShowsLanguageSwitch(headerTree),
+  });
 
-  const dataSources = await loadPreviewDataSources(talentProfileId, input.tree, siteLocale);
+  const dataSources = await dataSourcesP;
 
   const renderShell = (roots: BuilderNode[]): ReactNode =>
     roots.length === 0 ? null : (
@@ -170,12 +203,13 @@ export async function buildTalentBuilderCanvasData(input: {
     ),
     shellHeader: renderShell(headerTree),
     shellFooter: renderShell(footerTree),
-    labelLocale: { locale: siteLocale, ctaMode, swaps },
+    shellSocket: <TalentSiteSocket model={socketModel} hint={socketLockedHint(siteLocale)} clearDock={false} />,
+    labelLocale: { locale: siteLocale, ctaMode, swaps, ...(live ? { live } : {}) },
   };
 }
 
 /** One shell root, as `renderMaxSiteDocument` renders it (read-only). */
-function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
+export function renderShellRoot(root: BuilderNode, localeCtx: TalentSiteLocaleContext, isDemo: boolean): ReactNode {
   const locale = localeCtx.locale;
   const opts = {
     publicPathPrefix: "",

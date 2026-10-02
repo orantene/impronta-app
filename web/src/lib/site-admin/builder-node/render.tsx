@@ -83,6 +83,7 @@ import {
   collectBuilderNodeFontUsage,
 } from "./fonts-registry";
 import { buildGoogleFontsHrefFromUsage } from "./fonts-catalog";
+import { toFontProxyHref } from "@/lib/fonts/google-proxy";
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
@@ -137,7 +138,7 @@ import type {
   BuilderNodeStyleValue,
 } from "./types";
 import type { BuilderImageMediaAsset } from "@/lib/site-admin/media/types";
-import { isRenderableEmptySection } from "./render-prune";
+import { isIncompleteBeforeAfter, isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
 import { MenuBoardIsland } from "./menu-board-island";
@@ -150,7 +151,9 @@ import { menuBoardCopy } from "./menu-board-copy";
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
+import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
 import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallback";
@@ -162,9 +165,21 @@ import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
 import { renderStatementFooterBlock } from "./statement-footer-block";
 import { renderCompCardBlock } from "./comp-card-block";
+import { renderSpecTableBlock } from "./spec-table-block";
+import { renderUtilityBarBlock } from "./utility-bar-block";
+import { renderAlertBandBlock } from "./alert-band-block";
+import { renderTaskPickerBlock } from "./task-picker-block";
+import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
+import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 export interface BuilderNodeRenderDataSources {
+  /**
+   * G3b: the talent's live status ("Atiendo emergencias hoy"), read per request
+   * by renderTalentMaxSite. Absent = off. Widget contract (data-live-when
+   * markers) in lib/talent/live-status-render.ts.
+   */
+  liveStatus?: LiveStatusRenderContext;
   collections?: Readonly<Record<string, ReadonlyArray<BuilderDataSourceRecord>>>;
   tenantId?: string;
   /**
@@ -317,6 +332,10 @@ export interface BuilderNodeRenderDataSources {
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
+  /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
+  callHref?: string;
+  /** Public-safe location (exact address present only in "public" mode). */
+  talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
    * Comp card — public profile field rows for the measure strip.
    * Resolved by the SERVER caller; the renderer never invents measures.
@@ -4477,6 +4496,7 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog-buy{flex:1 0 100%;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
 .site-builder-node--services-catalog-price{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;white-space:nowrap;font-size:.9375rem;flex:0 0 auto}
 .site-builder-node--services-catalog-price small{font-size:.625rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--token-color-muted)}
+@media(max-width:480px){.site-builder-node--services-catalog-price{white-space:normal;text-wrap:balance;overflow-wrap:anywhere;min-width:0;flex:0 1 auto}}
 .site-builder-node--services-catalog-usd{display:block;font-size:.6875rem;color:var(--token-color-muted)}
 .site-builder-node--services-catalog-cta{appearance:none;border:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:.45rem 1rem;min-height:44px;font-size:.8125rem;font-weight:600;background:var(--token-color-ink);color:var(--token-color-surface-raised,#fff);flex:0 0 auto;white-space:nowrap}
 .site-builder-node--services-catalog[data-cta-variant="outline"] .site-builder-node--services-catalog-cta{background:transparent;color:var(--token-color-ink);border:1px solid var(--token-color-line)}
@@ -4612,6 +4632,10 @@ function renderBuilderNodeElement(
       // container without one — or with a URL that failed to parse — keeps
       // byte-identical markup.
       const bgMedia = renderBackgroundMediaLayer(node.props.backgroundMedia, node.id);
+      // F77: Before / After with an empty photo slot. Public: hidden until both
+      // are set. Builder: shown, with a prompt to choose the two photos.
+      const beforeAfterIncomplete = isIncompleteBeforeAfter(node);
+      if (beforeAfterIncomplete && !options.contentLocale?.editorPreview) return null;
       return (
         <ContainerTag
           key={node.id}
@@ -4636,6 +4660,24 @@ function renderBuilderNodeElement(
           style={containerStyle(node)}
         >
           {bgMedia}
+          {beforeAfterIncomplete ? (
+            <p
+              data-before-after-prompt=""
+              style={{
+                margin: 0,
+                padding: "12px 16px",
+                border: "1px dashed rgba(24,24,27,0.28)",
+                borderRadius: 12,
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "rgba(24,24,27,0.60)",
+              }}
+            >
+              {options.contentLocale?.locale === "es"
+                ? "Elige tus fotos de antes y después"
+                : "Choose your before and after photos"}
+            </p>
+          ) : null}
           {renderDataBoundContainerChildren(node, options)}
         </ContainerTag>
       );
@@ -5838,7 +5880,7 @@ function renderBuilderNodeElement(
         : [{ name: null, items: visible }];
 
       const navMode =
-        layout === "featured"
+        layout === "featured" || layout === "matrix"
           ? "flat"
           : !showCategoryNav && !accordionNav
             ? "flat"
@@ -5865,6 +5907,7 @@ function renderBuilderNodeElement(
           data-layout={layout}
           data-photo-radius={p.photoRadius ?? "soft"}
           data-cta-variant={p.rowCtaVariant ?? "outline"}
+          {...(p.rowStyle === "card" && layout === "rows" ? { "data-row-style": "card" } : {})}
           {...(p.nameLineClamp && p.nameLineClamp !== 2
             ? { "data-name-line-clamp": String(p.nameLineClamp) }
             : {})}
@@ -5872,7 +5915,7 @@ function renderBuilderNodeElement(
           data-density={p.density ?? "comfortable"}
           data-category-nav={categoryNav}
           data-show-photo={
-            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+            p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
               ? "true"
               : "false"
           }
@@ -5886,6 +5929,7 @@ function renderBuilderNodeElement(
           }}
         >
           <style>{SERVICES_CATALOG_CSS}</style>
+          {p.rowStyle === "card" && layout === "rows" ? <style>{SERVICES_CATALOG_ROW_CARD_CSS}</style> : null}
           <header className="site-builder-node--services-catalog-header">
             <div>
               {eyebrow ? <p className="site-builder-node--services-catalog-eyebrow">{eyebrow}</p> : null}
@@ -5919,7 +5963,7 @@ function renderBuilderNodeElement(
             <ServicesCatalogLoadingSkeleton
               locale={locale}
               showPhoto={
-                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
               }
               rows={Math.min(Math.max(visible.length, 4), 6)}
             />
@@ -5932,7 +5976,7 @@ function renderBuilderNodeElement(
                   groups={groups}
                   locale={locale}
                   showPhoto={
-                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                    p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
                   }
                   showDuration={p.showDuration !== false}
                   showUsdEquivalent={p.showUsdEquivalent !== false}
@@ -5945,7 +5989,7 @@ function renderBuilderNodeElement(
                 locale={locale}
                 nav={navMode}
                 showPhoto={
-                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card"
+                  p.showPhoto !== false && layout !== "compact_list" && layout !== "rate_card" && layout !== "matrix"
                 }
                 showDescription={p.showDescription !== false}
                 showCategory={p.showCategory === true}
@@ -5957,6 +6001,7 @@ function renderBuilderNodeElement(
                 showBadges={p.showBadges === true}
                 showModeChip={p.showModeChip === true}
                 priceInMeta={p.pricePlacement === "meta"}
+                rowCard={p.rowStyle === "card" && layout === "rows"}
                 confirmsByHand={confirmsByHand}
                 usdRates={usdRates}
                 ctaLabel={ctaLabel}
@@ -5975,6 +6020,8 @@ function renderBuilderNodeElement(
                 captcha={options.captcha ?? null}
                 bookingSettings={options.dataSources.talentOfferingsBookingSettings}
                 onlineCollectReady={options.dataSources.onlineCollectReady}
+                matrix={layout === "matrix"}
+                liveStatus={options.dataSources.liveStatus ?? null}
               />
             </CatalogIslandBoundary>
           )}
@@ -6006,6 +6053,9 @@ function renderBuilderNodeElement(
       return renderVisitBlock({
         node,
         facts: options.dataSources?.talentVisitFacts ?? [],
+        location: options.dataSources?.talentLocation,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -6027,6 +6077,46 @@ function renderBuilderNodeElement(
     }
     case "statement_footer": {
       return renderStatementFooterBlock({
+        node,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "utility_bar": {
+      return renderUtilityBarBlock({
+        node,
+        liveStatus: options.dataSources?.liveStatus,
+        callHref: options.dataSources?.callHref,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "alert_band": {
+      return renderAlertBandBlock({
+        node,
+        liveStatus: options.dataSources?.liveStatus,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "app_nail_designer": {
+      return renderNailDesignerBlock({
+        node,
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        text: (prop, value) =>
+          value ? resolveNodeLocalizedText(node, prop, value, options.contentLocale).value : "",
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "task_picker": {
+      return renderTaskPickerBlock({
+        node,
+        offerings: options.dataSources.talentOfferings ?? [],
+        locale: options.visitorLocale ?? options.contentLocale?.locale ?? "en",
+        confirmsByHand: options.dataSources.talentOfferingsConfirmsByHand ?? true,
+        bookingPosture: options.dataSources.talentOfferingsBookingSettings?.bookingPosture,
+        styleAttr: sharedNodeStyle(node.props.style),
+      });
+    }
+    case "spec_table": {
+      return renderSpecTableBlock({
         node,
         styleAttr: sharedNodeStyle(node.props.style),
       });
@@ -8659,6 +8749,9 @@ function renderBuilderNodeElement(
       const items = p.items ?? [];
       const eyebrow = text("eyebrow", p.eyebrow);
       const headline = text("headline", p.headline);
+      if (p.variant === "spec") {
+        return renderStatsSpecBlock({ node, styleAttr: sharedNodeStyle(p.style) });
+      }
       const animate = p.animate !== false;
       return (
         <section
@@ -9128,9 +9221,7 @@ export function BuilderNodeFontLinks({
   if (!href) return null;
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link rel="stylesheet" href={href} data-builder-node-fonts="" />
+      <link rel="stylesheet" href={toFontProxyHref(href)} data-builder-node-fonts="" />
     </>
   );
 }

@@ -62,6 +62,9 @@ interface IframeChildProps {
    *  among them) resolve against the tier the operator is actually
    *  previewing instead of always defaulting to "desktop". */
   initialDevice?: import("./edit-context-types").EditDevice;
+  /** Non-storefront builder mounts (talent / agency / lab) have no host
+   *  storefront DOM, so they pass the in-editor canvas region here. */
+  children?: React.ReactNode;
 }
 
 export function IframeChild({
@@ -77,6 +80,7 @@ export function IframeChild({
   canInsertRawHtmlElements = false,
   surfaceConfig,
   initialDevice,
+  children,
 }: IframeChildProps) {
   return (
     <EditErrorBoundary>
@@ -117,6 +121,7 @@ export function IframeChild({
           <IframeChromeOrPreview />
           <IframeBridgeChild />
         </div>
+        {children}
       </EditProvider>
     </EditErrorBoundary>
   );

@@ -132,7 +132,10 @@ const offer: ClientOfferSummary = {
 
 test("offer sent: lines, total, deposit and refund rule, validity, Oferta · vN title, Accept + Ask for a change + Decline row; never a net or commission word", () => {
   const html = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} now={now} onAccept={() => {}} onDecline={() => {}} onChange={() => {}} />);
-  assert.match(html, /Offer · v3/);
+  // First visible offer: no version (internal drafts consumed v1..v2).
+  assert.doesNotMatch(html, /Offer · v\d/);
+  const revised = renderToStaticMarkup(<ClientOfferCard {...base} offer={offer} offers={[{ ...offer, id: "old", version: 2 }, offer]} now={now} onAccept={() => {}} />);
+  assert.match(revised, /Offer · v2/);
   assert.doesNotMatch(html, /class="pill opp"/);
   assert.match(html, /Sofía Herrera · hostess × 2/);
   assert.match(html, /\$1,400\.00/);
@@ -160,7 +163,7 @@ test("offer ES: Oferta · vN + Aceptar / Pedir un cambio / Rechazar row", () => 
       onChange={() => {}}
     />,
   );
-  assert.match(html, /Oferta · v1/);
+  assert.doesNotMatch(html, /Oferta · v\d/);
   assert.match(html, /data-client-action="accept_offer"[^>]*>Aceptar</);
   assert.match(html, /data-client-action="ask_change"[^>]*>Pedir un cambio</);
   assert.match(html, /data-client-action="decline_offer"[^>]*>Rechazar</);

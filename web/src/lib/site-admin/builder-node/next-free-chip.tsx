@@ -14,6 +14,7 @@ import {
 } from "@/components/public-booking/pick-bookable-offering";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
+import { safeChipHref } from "./next-free-chip-href";
 import type { BuilderNextFreeChipNode } from "./types";
 
 export const NEXT_FREE_CHIP_CSS = `
@@ -21,6 +22,8 @@ export const NEXT_FREE_CHIP_CSS = `
 .sb-next-free[hidden],.sb-next-free[data-empty="1"]{display:none!important}
 .sb-next-free-label{font-weight:500;color:var(--token-color-muted,var(--token-color-ink))}
 .sb-next-free[data-variant="stacked"]{gap:9px;padding:9px 13px 9px 10px;border:0;border-radius:16px;font-size:12.5px;text-align:left;background:color-mix(in srgb,var(--token-color-surface-raised,var(--token-color-background,Canvas)) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px -16px color-mix(in srgb,var(--token-color-ink,CanvasText) 60%,transparent)}
+a.sb-next-free{text-decoration:none;cursor:pointer}
+a.sb-next-free:focus-visible{outline:2px solid var(--token-color-accent,var(--token-color-primary,currentColor));outline-offset:2px}
 .sb-next-free-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--token-color-success,var(--token-color-accent,currentColor));box-shadow:0 0 0 4px color-mix(in srgb,var(--token-color-success,var(--token-color-accent,currentColor)) 18%,transparent)}
 .sb-next-free-stack{display:flex;flex-direction:column;gap:1px}
 .sb-next-free-stack b{font-size:13.5px;font-weight:600;color:var(--token-color-ink,CanvasText)}
@@ -83,6 +86,7 @@ export function NextFreeChipIsland({
   days = 14,
   locale,
   variant = "inline",
+  href,
 }: {
   offerings: ReadonlyArray<TalentOffering>;
   offeringId?: string;
@@ -91,6 +95,8 @@ export function NextFreeChipIsland({
   days?: number;
   locale?: string;
   variant?: "inline" | "stacked";
+  /** Stacked only: a same-page anchor or site path makes the chip a link. */
+  href?: string;
 }) {
   const loc = pickLocale(locale);
   const label = (loc === "es" ? labelEs : labelEn).trim() || (loc === "es" ? "Próximo libre" : "Next free");
@@ -157,14 +163,24 @@ export function NextFreeChipIsland({
   }
 
   if (variant === "stacked") {
-    return (
-      <p className="sb-next-free" data-next-free-chip="" data-has-slot="1" data-variant="stacked">
+    const inner = (
+      <>
         <style>{NEXT_FREE_CHIP_CSS}</style>
         <span className="sb-next-free-dot" aria-hidden="true" />
         <span className="sb-next-free-stack">
           <b className="sb-next-free-when-strong">{when}</b>
           <small>{loc === "es" && label === "Próximo libre" ? "Próximo horario libre" : loc === "en" && label === "Next free" ? "Next free time" : label}</small>
         </span>
+      </>
+    );
+    const link = safeChipHref(href);
+    return link ? (
+      <a className="sb-next-free" href={link} data-next-free-chip="" data-has-slot="1" data-variant="stacked">
+        {inner}
+      </a>
+    ) : (
+      <p className="sb-next-free" data-next-free-chip="" data-has-slot="1" data-variant="stacked">
+        {inner}
       </p>
     );
   }
@@ -201,6 +217,7 @@ export function renderNextFreeChip(args: {
         days={p.days}
         locale={args.locale}
         variant={p.variant ?? "inline"}
+        href={p.href}
       />
     </div>
   );

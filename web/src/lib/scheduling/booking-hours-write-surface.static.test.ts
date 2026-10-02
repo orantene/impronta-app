@@ -20,7 +20,19 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const LIB = path.join(process.cwd(), "src", "lib");
-const ALLOWED_WRITERS = new Set([path.join(LIB, "server-actions", "booking-hours.ts")]);
+/**
+ * Second writer (F27, 2026-09-30): `sync-hours-from-pattern.server.ts`. The
+ * drawer's "When are you available" pattern is the talent choosing her own
+ * working days, i.e. the same human decision as Settings > Working hours, so
+ * the two are ONE store (see `pattern-hours.ts`). It still honours T1-07: it
+ * runs only from the talent's own save, rewrites hours only when she CHANGED
+ * the pattern, and never creates a row without a real timezone (her city,
+ * her browser, or a non-platform workspace zone; never a guessed UTC).
+ */
+const ALLOWED_WRITERS = new Set([
+  path.join(LIB, "server-actions", "booking-hours.ts"),
+  path.join(LIB, "scheduling", "sync-hours-from-pattern.server.ts"),
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

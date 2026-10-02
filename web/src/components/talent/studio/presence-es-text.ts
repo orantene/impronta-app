@@ -193,8 +193,9 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "Ends a relationship": "Termina una relación",
   "Open agencies": "Abrir agencias",
   "Close your account": "Cerrar tu cuenta",
-  "Everything goes: pages, clients, history, money records. Not possible while a booking is unfinished or money is owed to you.":
-    "Se va todo: páginas, clientes, historial, registros de dinero. No se puede con una reserva pendiente o dinero por cobrarte.",
+  "Your profile, pages and sign-in are removed after 14 days. Bookings and payment records are kept, anonymized.":
+    "Tu perfil, tus páginas y tu acceso se eliminan después de 14 días. Las reservas y los registros de pago se conservan, anonimizados.",
+  "Cancellable for 14 days": "Cancelable durante 14 días",
   "Cannot be undone": "No se puede deshacer",
   "Ask support": "Pedir a soporte",
   "Closing an account is handled by Tulala support for now. There is no self-serve button yet.":

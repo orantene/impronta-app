@@ -25,7 +25,13 @@ import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/Mana
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { MaisonSetupScreen } from "@/components/talent/site/maison-setup/maison-choices";
+import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { WebsiteEligibilityPanel } from "@/components/talent/studio/WebsiteEligibilityPanel";
+import {
+  consumeWebsiteSetupRequest,
+  WEBSITE_SETUP_REQUEST_EVENT,
+} from "@/components/talent/website-reward/useWebsiteFlow";
+import type { WebsiteSetupStep } from "@/lib/talent/website-flow";
 
 /** Maison Choose-a-design chrome — lazy so flag-off / non-site routes skip the chunk. */
 const MaisonSetupHost = dynamic(
@@ -39,11 +45,13 @@ const MyWebsiteCard = dynamic(
   { ssr: false },
 );
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
+import { takeOr } from "./public-page-bootstrap";
 import {
   loadMaxSiteManagerAction,
   publishMaxSiteAction,
 } from "@/lib/talent-site/server/site-management-actions";
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
+import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
 
 type Props = { locale?: "en" | "es" };
@@ -57,7 +65,7 @@ export function TalentMaxSiteManager({ locale = "en" }: Props) {
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await loadMaxSiteManagerAction();
+      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
       if (!res.ok) {
         setError(res.error);
         setState(null);
@@ -65,6 +73,8 @@ export function TalentMaxSiteManager({ locale = "en" }: Props) {
         setError(null);
         setState(res.data ?? null);
       }
+      // Design applied / published / unpublished: pill + cards re-read.
+      invalidateWebsiteEligibility();
     } catch (cause) {
       if (process.env.NODE_ENV !== "production") {
         // eslint-disable-next-line no-console -- dev-only signal for a thrown load
@@ -146,9 +156,28 @@ function ManagerBody({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
+  const [maisonForceReason, setMaisonForceReason] = useState<"restored" | "resume">("restored");
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
+  // Today / pill / My presence ask for a step; open the flow AT that step
+  // (a chosen design resumes at review, never back at the gallery).
+  const openSetup = useCallback((step: WebsiteSetupStep) => {
+    setSetupOpen(true);
+    if (step === "review") {
+      setMaisonForceReason("resume");
+      setMaisonForceScreen("review");
+    }
+  }, []);
+  useEffect(() => {
+    const take = () => {
+      const step = consumeWebsiteSetupRequest();
+      if (step) openSetup(step);
+    };
+    take();
+    window.addEventListener(WEBSITE_SETUP_REQUEST_EVENT, take);
+    return () => window.removeEventListener(WEBSITE_SETUP_REQUEST_EVENT, take);
+  }, [openSetup]);
   /** P5: "✓ <Design> is live" after a live design switch. */
   const [liveToast, setLiveToast] = useState<string | null>(null);
 
@@ -165,7 +194,9 @@ function ManagerBody({
   const maisonLive = Boolean(state.sitePublishedAt);
   const hostHidden = maisonLive || !setupOpen;
 
+  const applyBusy = useThemeApplyBusy();
   function handlePublish() {
+    if (isThemeApplyBusy()) return;
     startTransition(async () => {
       setActionError(null);
       const res = await publishMaxSiteAction();
@@ -189,18 +220,25 @@ function ManagerBody({
           legacyProfileTemplate={state.legacyProfileTemplate}
           publishedAt={state.sitePublishedAt}
           contentModeLabel="mine"
-          onChangeDesign={() => setMaisonForceScreen("gallery")}
-          onRestoredToReview={() => setMaisonForceScreen("review")}
+          onChangeDesign={() => {
+            setMaisonForceReason("restored");
+            setMaisonForceScreen("gallery");
+          }}
+          onRestoredToReview={() => {
+            setMaisonForceReason("restored");
+            setMaisonForceScreen("review");
+          }}
           liveToast={liveToast}
           onLiveToastDone={() => setLiveToast(null)}
         />
       ) : setupOpen ? null : (
-        <WebsiteEligibilityPanel onActivate={() => setSetupOpen(true)} />
+        <WebsiteEligibilityPanel onActivate={openSetup} />
       )}
 
       {/* Maison Choose-a-design / Theme detail / Review. Flag-off → null. */}
       <MaisonSetupHost
         forceScreen={maisonForceScreen}
+        forceScreenReason={maisonForceReason}
         onForceScreenConsumed={() => setMaisonForceScreen(null)}
         onPublished={(toast) => {
           setLiveToast(toast ?? null);
@@ -211,6 +249,7 @@ function ManagerBody({
         onCloseToSite={() => {
           setMaisonForceScreen(null);
           setSetupOpen(false);
+          invalidateWebsiteEligibility();
         }}
         siteLive={hostHidden}
         liveAddress={liveHost(state.publicSiteUrl)}
@@ -234,7 +273,7 @@ function ManagerBody({
           />
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <PrimaryButton onClick={handlePublish} disabled={pending}>
+              <PrimaryButton onClick={handlePublish} disabled={pending || applyBusy}>
                 {pending ? copy.t("Publishing…") : copy.t("Publish site")}
               </PrimaryButton>
               <button type="button" onClick={() => setSetupOpen(false)} style={linkButton}>

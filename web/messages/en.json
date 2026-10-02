@@ -95,7 +95,11 @@
         "claimEyebrow": "Profile claim",
         "inviteEyebrow": "Invitation",
         "operatorEyebrow": "Open your workspace",
-        "claimAgencyFallback": "Your agency"
+        "claimAgencyFallback": "Your agency",
+        "ageTermsPrefix": "I am 18 or older and agree to the",
+        "ageTermsTerms": "Terms",
+        "ageTermsAnd": "and the",
+        "ageTermsPrivacy": "Privacy Policy"
       },
       "roleRegister": {
         "talentTitle": "Join as Talent",
@@ -145,7 +149,8 @@
         "signInGeneric": "We couldn't sign you in. Check your details and try again.",
         "confirmPassword": "Enter and confirm your new password.",
         "passwordMismatch": "Password and confirmation do not match.",
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "ageTermsRequired": "Please confirm you are 18 or older and agree to the Terms and Privacy Policy."
       },
       "errors": {
         "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
@@ -217,6 +222,11 @@
         "resendIn": "Resend in {seconds}s",
         "resending": "Sending",
         "changeEmail": "Change email"
+      },
+      "acceptTerms": {
+        "title": "One last step",
+        "description": "Tulala is for adults only. Confirm your age and agree to our Terms and Privacy Policy to continue.",
+        "submit": "Continue"
       }
     },
     "profile": {
@@ -935,13 +945,38 @@
       "remoteNoteContact": "The agency updated your contact details.",
       "remoteNoteGeneric": "The agency updated your inquiry.",
       "greetingTalentPickFirst": "Hi, I'm here to help you find the right talent. Want someone specific, or should we recommend a fit?",
+      "greetingSolo": "Hi, I'm {name}'s booking assistant. Which service would you like, and when works for you?",
       "greetingDefault": "Hi, I'm {name}'s booking assistant. What's the event? Tell me a little and I'll line up the right talent for you.",
       "closeAria": "Close",
       "messageBrandAria": "Message {brand}",
-      "cardNote": "Write to {name}. Nothing is sent until you tap send.",
       "cardGreeting": "Hi, I'm {name} 👋 How can I help?",
-      "cardPlaceholder": "Write a message",
       "cardServicesAria": "See services",
+      "cardServicesTip": "Services",
+      "cardBookingsTip": "My bookings",
+      "cardPillTop": "Most requested",
+      "cardPricesIn": "Prices in {currency}",
+      "cardAskQuote": "Ask for a quote",
+      "cardAddService": "Add",
+      "cardRailOne": "1 service · {label}",
+      "cardRailMany": "{count} services · {label}",
+      "cardComposerPlaceholder": "Nothing is sent until you tap send.",
+      "cardNoBookings": "You have no bookings yet. Pick a service to get started.",
+      "cardSeeServices": "See services",
+      "cardChipWhenFor": "Any room this week for {service}?",
+      "cardChipDurationFor": "How long does {service} take?",
+      "cardBookingsAria": "My bookings",
+      "cardSendOrder": "Send request · {count}",
+      "helpBubbleTitle": "Can I help you choose?",
+      "helpBubbleDismiss": "Dismiss",
+      "helpBubbleOpenAria": "Open chat with {name}",
+      "cardBackToBooking": "Back to my booking",
+      "cardBrowseBack": "Back to chat",
+      "cardBrowseAdd": "Add",
+      "cardBrowseAsk": "Ask",
+      "cardBrowseAddAria": "Add {name} to my booking",
+      "cardBrowseAskAria": "Ask about {name}",
+      "cardBrowseQuote": "Quote",
+      "cardBrowseEmpty": "No services to show yet.",
       "cardReplyMinutes": "Usually replies in minutes",
       "cardReplyHour": "Usually replies in 1 h",
       "cardReplyHours": "Usually replies in {n} h",
@@ -1206,9 +1241,14 @@
       "nextPayTitle": "Pay {amount}",
       "nextPaySub": "Your date is confirmed once the payment lands.",
       "nextPayButton": "Pay now",
+      "nextPayDepositTitle": "Pay the deposit · {amount}",
+      "nextPayDepositSub": "The rest is paid later, as agreed.",
+      "nextPayFullTitle": "Pay in full · {amount}",
+      "nextPayFullSub": "This pays the full amount.",
       "nextAcceptTitle": "Accept offer v{version} · {total}",
       "nextAcceptSub": "Then {business} confirms the date. Ask for a change on the card if something is off.",
       "nextAcceptButton": "Accept offer",
+      "nextAcceptTitleNoVersion": "Accept offer · {total}",
       "nextWaitingTitle": "Waiting for {business} to confirm",
       "nextWaitingSub": "Your pick is held. Nothing is booked until they confirm.",
       "nextBookedTitle": "You're booked · {date}",
@@ -1269,6 +1309,7 @@
       "menuExpand": "Expand panel",
       "menuCollapse": "Collapse panel",
       "homeHeroLine": "Hi, tell us about your event and we'll line up the right talent.",
+      "homeHeroLineSolo": "Tell me what you need and I'll help you book.",
       "homeStartTitle": "Start a new inquiry",
       "homeStartSub": "Tell {name}'s team what you need",
       "homeContinueTitle": "Continue your inquiry",
@@ -1365,7 +1406,21 @@
       "headerJourneySent": "Sent",
       "headerJourneyThread": "In conversation",
       "headerJourneyClosed": "Closed",
-      "presenceViewing": "{name} is looking"
+      "presenceViewing": "{name} is looking",
+      "payCardFullAction": "Pay",
+      "payCardFullDetail": "Pay by card to confirm your booking.",
+      "confirmedPayInPerson": "Confirmed. You pay in person.",
+      "payCashPaid": "Paid in cash.",
+      "payTransferPaid": "Paid by transfer.",
+      "payDepositPaidLine": "Deposit paid. The balance is still due.",
+      "payDepositKicker": "Pay the deposit",
+      "payDepositDetail": "The card pays the deposit. Cash and transfer are recorded by the studio.",
+      "payLinkFailed": "We could not create the payment link. We will write to you soon.",
+      "payLinkAskTitle": "Payment link pending",
+      "payLinkAsk": "Get payment link",
+      "payLinkAsking": "Getting your link...",
+      "payLinkAskFailed": "We could not get the link. Try again in a moment.",
+      "payLinkAskSub": "Your offer is accepted. Ask for the link to pay."
     },
     "inquiryDrawer": {
       "dialogAria": "New inquiry",
@@ -1378,6 +1433,11 @@
       "titleComposeAppointment": "Reserve a time",
       "titleReview": "Looks good, ready to send?",
       "leadSent": "Your request is with {agency}.",
+      "soloLeadSent": "Sent. {talent} will reply soon.",
+      "soloSubmittedBody": "Sent. {talent} will reply soon. No commitment until you approve.",
+      "soloFooterSent": "Sent. {talent} will reply soon.",
+      "slotTakenIntro": "That time was just taken. Here are the next free times:",
+      "slotTakenNone": "That time was just taken. Pick another time.",
       "leadCompose": "Tell {agency} what you need. We'll match talent and draft an offer.",
       "leadComposeAppointment": "Pick a time and {agency} will confirm shortly.",
       "leadReview": "One last check before {agency} picks this up.",
@@ -1673,6 +1733,17 @@
       "choose": "Choose",
       "configure": "Configure",
       "keepSlot": "The pickup time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "keepSlotAppointment": "The appointment time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "keepSlotNoTime": "Your booking is confirmed once paid. The time is agreed with the talent. Nothing is charged until you pay.",
+      "keepSlotGeneric": "Your reserved time is kept while this payment link is valid. Nothing is charged until you pay.",
+      "fees": {
+        "service_subtotal": "Service",
+        "base_reservation_fee": "Reservation fee",
+        "platform_fee": "Platform fee",
+        "processing_fee": "Card processing",
+        "total_charged": "Total",
+        "nonRefundable": "Fees are non-refundable."
+      },
       "waitlist": "This session is full. Join the waitlist.",
       "dateMismatch": "That date is not available. Another date is offered below.",
       "accept": "Accept",
@@ -1681,7 +1752,7 @@
       "processing": "Payment is still open for verification. Nothing extra was taken.",
       "declined": "Nothing was taken. The slot is still held for a short time.",
       "expired": "This payment page is closed. Ask the business for a new link.",
-      "cancelled": "This payment was cancelled. Nothing was taken.",
+      "cancelled": "This payment is no longer available. Nothing was taken.",
       "unknown": "Payment status is unknown. Do not pay again. The business will confirm.",
       "paid": "Paid",
       "refunded": "Refunded. The money is on its way back.",
@@ -1690,6 +1761,8 @@
       "smsPlain": "Same order and the same secure page, in plain text. This channel cannot show cards.",
       "talentView": "You see the client, the service and the chair notes. Not the conversation or other prices.",
       "payBy": "Pay by this time to keep the slot.",
+      "payByNoTime": "Pay when you are ready. The time is agreed with the talent.",
+      "closedMaybePaid": "This payment page is closed. If you already paid, the talent will refund you.",
       "replaced": "This payment link was replaced. Ask for the new one."
     },
     "storefront": {
@@ -2020,6 +2093,16 @@
         "changeLater": "Your Look, colours and photos can all be changed in the builder.",
         "continue": "Continue"
       }
+    },
+    "consent": {
+      "ariaLabel": "Cookie and analytics choices",
+      "message": "We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept.",
+      "privacyLink": "Privacy policy",
+      "cookiesLink": "Cookie policy",
+      "accept": "Accept",
+      "decline": "Decline",
+      "closeLabel": "Close and decide later",
+      "privacyChoices": "Privacy choices"
     }
   },
   "dashboard": {
@@ -2239,6 +2322,7 @@
       "openInNewTab": "Open in new tab",
       "personalPage": "Personal page",
       "roleFallback": "Talent",
+      "chooseTrade": "Choose what you do",
       "roleAlso": "also",
       "editor": {
         "qualityTitle": "Profile quality",
@@ -2342,6 +2426,8 @@
         "sendRequest": "Send request",
         "pickFromBookings": "Pick from my bookings",
         "inviteByEmail": "Invite by email instead",
+        "pickClient": "Pick a client you worked with",
+        "otherEmail": "Someone else? Type their email",
         "sendError": "Could not send the request."
       },
       "tabAll": "All · {count}",
@@ -2504,7 +2590,9 @@
         "version_conflict": "The offer changed while you were reviewing. Refresh to see the latest.",
         "forbidden": "You don't have permission to approve this offer.",
         "unavailable": "Could not approve right now. Try again."
-      }
+      },
+      "termsUpdatedTitle": "Terms updated since your request.",
+      "termsUpdatedBody": "The booking policy on this offer is different from the one you saw when you sent your request. Review the booking terms before you approve."
     },
     "clientStatus": {
       "submitted": "Submitted",
@@ -2783,6 +2871,8 @@
       "reviewsSubtitleSome": "Reviews talent left about you, and the reviews you've written.",
       "reviewsSubtitleNone": "Reviews appear here after your bookings are completed.",
       "socialTitle": "Social verification",
+      "deleteAccountTitle": "Delete my account",
+      "deleteAccountSubtitle": "Permanently remove your account after a 14-day grace period.",
       "socialSubtitle": "Connect social or professional accounts as optional trust proof for agencies and talent.",
       "signInEmail": "Email / password",
       "signInGoogle": "Google",
@@ -2915,18 +3005,10 @@
         "upgradeTo": "Upgrade to {tier}",
         "current": "· current",
         "whereYouAppear": "Where you appear · {tier}",
-        "personalCustomLabel": "Your custom domain",
-        "personalCustomSub": "Max tier · your own URL, no Tulala branding",
         "personalFallbackLabel": "Tulala personal page (fallback)",
         "personalTulalaLabel": "Tulala personal page",
         "personalFallbackSub": "Active until you connect a custom domain",
         "personalCanonicalSub": "{tier} tier · canonical URL",
-        "agencyRosterLabel": "{agency} roster",
-        "agencyRosterSub": "{domain} · agency-controlled",
-        "hubDiscoverLabel": "Tulala Hub · Discover",
-        "hubDiscoverSub": "Cross-agency hub feed · search-ranked",
-        "hubVerticalLabel": "Tulala Hub · Hospitality vertical",
-        "hubVerticalSub": "Vertical-specific hub the talent is listed on",
         "copiedToast": "Copied {url}",
         "tierFreeHeadline": "Default canonical page on Tulala",
         "tierFreeBullet1": "Canonical URL: tulala.digital/t/{slug}",
@@ -2950,7 +3032,6 @@
         "active": "Active",
         "hiddenUntilInquire": "Hidden until they inquire",
         "hiddenBullet1": "Full measurements (private, agency-controlled)",
-        "hiddenBullet2": "Rate ranges (rate card visibility = {visibility})",
         "hiddenBullet3": "Limits and wardrobe constraints",
         "hiddenBullet4": "Documents, emergency contact, agency-internal notes"
       },
@@ -5163,7 +5244,7 @@
         "groupWebsite": "Website",
         "groupWebsiteBlurb": "Power your public storefront with your own provider keys and code.",
         "groupAnalytics": "Analytics & marketing",
-        "groupAnalyticsBlurb": "Drop your own measurement IDs in. Tags are injected on your storefront, gated behind visitor consent.",
+        "groupAnalyticsBlurb": "Drop your own measurement IDs in. Tags are injected on your storefront. You are responsible for any visitor consent your jurisdiction requires.",
         "groupSocial": "Social channels",
         "groupSocialBlurb": "Connect verified brand channels and decide what appears on the public site.",
         "groupSecurity": "Security",
@@ -10578,7 +10659,7 @@
         },
         "ga4": {
           "label": "Google Analytics 4",
-          "description": "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
+          "description": "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront, and only as far as the visitor's cookie choice allows.",
           "steps": {
             "s1": "Open Google Analytics → Admin (gear, bottom-left).",
             "s2": "Under the Property column choose \"Data streams\", then select (or create) your Web stream.",
@@ -10591,7 +10672,7 @@
         },
         "meta_pixel": {
           "label": "Meta Pixel",
-          "description": "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront (consent-gated).",
+          "description": "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront, and only after the visitor accepts cookies.",
           "steps": {
             "s1": "Open Meta Events Manager (business.facebook.com/events_manager).",
             "s2": "Select your pixel / dataset in the Data Sources list on the left.",
@@ -10604,7 +10685,7 @@
         },
         "tiktok_pixel": {
           "label": "TikTok Pixel",
-          "description": "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront (consent-gated).",
+          "description": "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront, and only after the visitor accepts cookies.",
           "steps": {
             "s1": "Open TikTok Ads Manager → Assets → Events.",
             "s2": "Under \"Web Events\", open (or create) your pixel.",
@@ -10617,7 +10698,7 @@
         },
         "linkedin_insight": {
           "label": "LinkedIn Insight Tag",
-          "description": "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront (consent-gated).",
+          "description": "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront, and only after the visitor accepts cookies.",
           "steps": {
             "s1": "Open LinkedIn Campaign Manager → Analyze → Insight Tag.",
             "s2": "Choose \"Install my Insight Tag\" / \"Manage Insight Tag\".",
@@ -10630,7 +10711,7 @@
         },
         "gtm": {
           "label": "Google Tag Manager",
-          "description": "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront (consent-gated).",
+          "description": "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront, and only as far as the visitor's cookie choice allows.",
           "steps": {
             "s1": "Open Google Tag Manager (tagmanager.google.com).",
             "s2": "Select your account and the container for this website.",
@@ -18542,6 +18623,7 @@
         "title": "Inbox",
         "newConversation": "New",
         "threads": "{count} conversations",
+        "threadsOne": "{count} conversation",
         "visitor": "Visitor",
         "unassigned": "unassigned",
         "you": "You",
@@ -18663,8 +18745,11 @@
       "offer": {
         "draft": "Draft",
         "sentV": "Sent · v{version}",
+        "sentPlain": "Sent",
+        "talentAcceptedLine": "A talent accepted the invitation.",
         "viewedAt": "Viewed {time}",
         "acceptedV": "Accepted v{version}",
+        "acceptedPlain": "Accepted",
         "declined": "Declined",
         "expired": "Expired",
         "validUntil": "Valid until {date}",
@@ -19179,6 +19264,12 @@
             "keepSlot": "Paying keeps your booking.",
             "cancelled": "This payment was cancelled. Ask {business} if you still want to pay.",
             "cancelledPill": "Cancelled",
+            "feeService": "Service",
+            "feeReservation": "Reservation fee",
+            "feePlatform": "Platform fee",
+            "feeProcessing": "Card processing",
+            "feeTotal": "Total",
+            "feeNonRefundable": "Fees are non-refundable.",
             "total": "Total",
             "paidAmount": "Paid",
             "balanceDue": "Balance due",
@@ -19546,6 +19637,32 @@
           "why": "No action is needed right now."
         }
       }
+    },
+    "talentUsdc": {
+      "badgeRecommended": "Recommended",
+      "badgeAvailable": "Available in {country}",
+      "label": "USDC, digital dollars",
+      "title": "Get paid in USDC",
+      "intro": "USDC is a digital dollar. Your share of each booking goes straight to your own wallet.",
+      "benefitFast": "Arrives in minutes, not days",
+      "benefitStable": "Stays in US dollars (1 USDC = 1 USD)",
+      "benefitNoBank": "No bank account needed",
+      "benefitConvert": "Convert to pesos or your local currency anytime",
+      "howTitle": "How it works",
+      "step1Title": "Set up payouts",
+      "step1Body": "Create your secure payout account. It takes a few minutes.",
+      "step2Title": "Link your wallet in Stripe",
+      "step2Body": "Add your wallet address and choose USDC as your payout currency.",
+      "step3Title": "Get paid in USDC",
+      "step3Body": "Each booking payout lands in your wallet automatically.",
+      "cta": "Link your wallet in Stripe",
+      "opening": "Opening...",
+      "bankHint": "Prefer a bank? You can set that up below instead.",
+      "walletTitle": "What is a wallet?",
+      "walletBody1": "A wallet is an app or account that holds digital money, like USDC, and has its own address. You choose it and you control it.",
+      "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
+      "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
+      "checking": "Checking if USDC payouts are available for you..."
     }
   },
   "admin": {

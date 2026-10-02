@@ -16,10 +16,32 @@
  */
 import { notFound } from "next/navigation";
 
+import { isPlatformAdmin } from "@/lib/access/platform-role";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { renderTalentMaxSite } from "@/lib/talent-site/server/render-max-site";
 import { TalentOfferingIntentQuery } from "@/app/%5Ftalent-site/TalentOfferingIntentQuery";
+import { DocumentLang } from "@/components/i18n/DocumentLang";
 import { TalentSiteMessagesDock } from "@/app/%5Ftalent-site/TalentSiteMessagesDock";
+
+async function isAdminViewingDemo(talentProfileId: string): Promise<boolean> {
+  const session = await getCachedActorSession();
+  if (!isPlatformAdmin(session.profile)) return false;
+  const admin = createServiceRoleClient();
+  if (!admin) return false;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("is_demo")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("live-site-preview/is-demo", error);
+    return false;
+  }
+  return data?.is_demo === true;
+}
 
 export async function LiveSitePreview({
   talentProfileId,
@@ -31,7 +53,9 @@ export async function LiveSitePreview({
   const id = talentProfileId?.trim();
   if (!id) notFound();
   const scope = await requireTalentSelf();
-  if (!scope.ok || scope.talentProfile.id !== id) notFound();
+  const isOwner = scope.ok && scope.talentProfile.id === id;
+  // Platform admins may preview DEMO talents' live sites (theme release QA).
+  if (!isOwner && !(await isAdminViewingDemo(id))) notFound();
 
   const result = await renderTalentMaxSite({
     talentProfileId: id,
@@ -44,9 +68,10 @@ export async function LiveSitePreview({
   // real panel here too (and the design harness can measure its open state).
   return (
     <>
+      <DocumentLang locale={result.locale} />
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={id} locale={locale} />
+      <TalentSiteMessagesDock talentProfileId={id} locale={result.locale} />
     </>
   );
 }

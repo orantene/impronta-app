@@ -19,6 +19,8 @@
 
 import type { ThreadMessage } from "@/lib/messaging/types";
 import { formatOrderMoney } from "@/lib/orders/money-format";
+import type { FeeLine } from "@/lib/billing/processing-fee-payer";
+import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
 
 export const CLIENT_GROUP_WINDOW_MS = 3 * 60 * 1000;
 
@@ -298,6 +300,21 @@ export type ClientOfferSummary = {
   readonly lines: readonly { readonly label: string; readonly units: number; readonly amountCents: number }[];
 };
 
+/**
+ * The version the GUEST sees on an offer card. Internal drafts consume version
+ * numbers the guest never saw, so a first sent offer could read "v3". Count
+ * only the offers the guest can see, starting at 1; with a single visible
+ * offer there is nothing to disambiguate, so return null (no version shown).
+ */
+export function guestVisibleOfferVersion(
+  offer: Pick<ClientOfferSummary, "id" | "version">,
+  offers: readonly Pick<ClientOfferSummary, "id" | "version">[] | undefined,
+): number | null {
+  const all = offers ?? [];
+  if (all.length <= 1) return null;
+  return 1 + all.filter((o) => o.version < offer.version).length;
+}
+
 export type OfferCardState = "sent" | "accepted" | "declined" | "expired";
 
 export function offerCardState(offer: ClientOfferSummary, now: Date): OfferCardState {
@@ -358,6 +375,8 @@ export type PaymentView = {
   readonly paidCents: number | null;
   readonly dueCents: number | null;
   readonly method: string | null;
+  /** Client fee breakdown stamped at request time; [] unless it sums to amountCents. */
+  readonly feeLines: readonly FeeLine[];
 };
 
 export function readPayment(payload: Record<string, unknown> | null): PaymentView {
@@ -375,6 +394,7 @@ export function readPayment(payload: Record<string, unknown> | null): PaymentVie
     paidCents: num(p.paidCents),
     dueCents: num(p.dueCents),
     method: str(p.method),
+    feeLines: validClientFeeLines(p.feeLines, num(p.amountCents)),
   };
 }
 

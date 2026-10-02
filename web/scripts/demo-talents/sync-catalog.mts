@@ -6,7 +6,7 @@
  * Run (from web/):
  *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
  *     npx tsx --tsconfig scripts/demo-talents/tsconfig.json --env-file=<env> \
- *     scripts/demo-talents/sync-catalog.mts
+ *     scripts/demo-talents/sync-catalog.mts [--flip-catalog]
  */
 import { createClient } from "@supabase/supabase-js";
 import { syncBuiltinTalentThemes } from "../../src/lib/talent-site/theme-catalog/sync-builtins.server";
@@ -19,5 +19,9 @@ if (!targetRef || !url.includes(`${targetRef}.supabase.co`)) {
 const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const result = await syncBuiltinTalentThemes(admin, null);
+// Default is GATED: a design version bump writes the version snapshot + a draft
+// release and leaves the catalog row alone ("Make default" flips it). Pass
+// --flip-catalog for the old behaviour (bump overwrites the catalog row).
+const flipCatalog = process.argv.includes("--flip-catalog");
+const result = await syncBuiltinTalentThemes(admin, null, { flipCatalog });
 console.log(JSON.stringify(result, null, 2));

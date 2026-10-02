@@ -28,6 +28,7 @@ import type {
 } from "@/lib/messaging/types";
 
 import type { KitCopy } from "../kit/copy";
+import type { SellerChrome } from "../shell/seller";
 import type { InboxFilterKey, InboxSegment } from "../kit/InboxSegments";
 
 /** Desktop grammar (also 1194) or the mobile kit (below 900). */
@@ -44,6 +45,8 @@ export type InboxLoadState = "idle" | "loading" | "ok" | "empty" | "failed";
 export type InboxProps = {
   /** Talent seller mode: no owner / Unassigned metadata on rows (a solo talent has no team). */
   readonly seller?: boolean;
+  /** Talent seller chrome (title, first-run empty state); null for staff. */
+  readonly sellerChrome?: SellerChrome | null;
   readonly rows: readonly InboxRow[];
   readonly filter: InboxFilter;
   readonly onFilter: (filter: InboxFilter) => void;

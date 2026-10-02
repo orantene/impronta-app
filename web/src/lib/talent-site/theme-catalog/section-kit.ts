@@ -46,10 +46,14 @@ export const TALENT_KIT_SECTIONS = {
   reviews: { slotKey: "reviews", originRole: "talent.reviews" },
   comp_card: { slotKey: "comp_card", originRole: "talent.comp_card" },
   contact: { slotKey: "contact", originRole: "talent.contact" },
-  statement_footer: {
-    slotKey: "statement_footer",
-    originRole: "talent.statement_footer",
-  },
+  statement_footer: { slotKey: "statement_footer", originRole: "talent.statement_footer" },
+  before_after: { slotKey: "before_after", originRole: "talent.before_after" },
+  aftercare: { slotKey: "aftercare", originRole: "talent.aftercare" },
+  location: { slotKey: "location", originRole: "talent.location" },
+  proof: { slotKey: "proof", originRole: "talent.proof" },
+  area: { slotKey: "area", originRole: "talent.area" },
+  emergency: { slotKey: "emergency", originRole: "talent.emergency" },
+  tasks: { slotKey: "tasks", originRole: "talent.tasks" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -321,6 +325,7 @@ export function heroSplit(
             props: {
               src: "{{gallery1}}",
               alt: "",
+              priority: true,
               style: {
                 position: "absolute",
                 right: "-6px",
@@ -656,98 +661,22 @@ export function servicesBlock(
   } as BuilderNode;
 }
 
-// ── GALLERY ──────────────────────────────────────────────────────────────────
-
-/** Masonry keeps an editorial rhythm; each tile still reserves its frame. */
-const MASONRY_TILE_RATIOS = ["3 / 4", "1 / 1", "4 / 5", "4 / 5", "3 / 4", "1 / 1"] as const;
-
-/**
- * A gallery tile reserves its frame before the photo loads (lazy images with
- * no size collapsed to 0px, leaving a ~300px blank run at 390 and a layout
- * jump). `cover` crops into the frame. The first tile loads eagerly.
- */
-function galleryTile(makeId: KitIdFactory, index: number, masonry: boolean): BuilderNode {
-  return {
-    id: makeId(),
-    kind: "image",
-    props: {
-      src: `{{gallery${index}}}`,
-      alt: "{{displayName}}",
-      ...(index === 0 ? { priority: true } : {}),
-      style: {
-        radius: "md",
-        objectFit: "cover",
-        width: "100%",
-        ...(masonry
-          ? { aspectRatioFree: MASONRY_TILE_RATIOS[index] }
-          : { aspectRatio: "3:4" }),
-      },
-    },
-  } as BuilderNode;
-}
-
-/** Gallery: `masonry` or a fixed `grid` of six `{{gallery0..5}}` tiles. */
-export function galleryBlock(
-  makeId: KitIdFactory,
-  opts: { mode?: "masonry" | "grid"; columns?: 2 | 3 | 4; heading?: string } = {},
-): BuilderNode {
-  const tiles = [0, 1, 2, 3, 4, 5].map((i) => galleryTile(makeId, i, opts.mode !== "grid"));
-  const grid: BuilderNode =
-    opts.mode === "grid"
-      ? ({
-          id: makeId(),
-          kind: "container",
-          props: {
-            layout: "grid",
-            columns: opts.columns ?? 3,
-            gap: "m",
-            responsive: { mobile: { layout: "stack" } },
-          },
-          children: tiles,
-        } as BuilderNode)
-      : ({
-          id: makeId(),
-          kind: "masonry",
-          props: { columns: opts.columns ?? 3, gap: "m" },
-          children: tiles,
-        } as BuilderNode);
-
-  return {
-    id: makeId(),
-    kind: "container",
-    props: stampKitSection("gallery", {
-      layout: "stack",
-      gap: "m",
-      align: "start",
-      layerLabel: "Gallery",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m" },
-    }),
-    children: [
-      {
-        id: makeId(),
-        kind: "heading",
-        props: { text: opts.heading ?? "Selected work", level: 2, style: { size: "lg" } },
-      },
-      grid,
-    ],
-  } as BuilderNode;
-}
 
 /**
  * W-12 / W-14 / Visit / FAQ live-bound bands live in `section-kit-bands.ts`.
  */
 export {
-  portfolioBlock,
-  portfolioChaptersBlock,
-  reviewsBlock,
-  visitBlock,
-  faqBlock,
-  contentsBlock,
-  heroMasthead,
-  statementFooterBlock,
-  compCardBlock,
-  measureStripBlock,
+  portfolioBlock, portfolioChaptersBlock, reviewsBlock, visitBlock, faqBlock, contentsBlock,
+  heroMasthead, statementFooterBlock, compCardBlock, measureStripBlock,
 } from "./section-kit-bands";
+export { galleryBlock } from "./section-kit-gallery";
+export { beforeAfterBlock } from "./section-kit-before-after";
+export { aftercareBlock } from "./section-kit-aftercare";
+export { locationBlock } from "./section-kit-location";
+export { areaBlock, proofBlock } from "./section-kit-proof";
+export { heroSpecBlock } from "./section-kit-hero-spec";
+export { emergencyBlock } from "./section-kit-emergency";
+export { taskPickerBlock } from "./section-kit-tasks";
 
 // ── CONTACT ──────────────────────────────────────────────────────────────────
 

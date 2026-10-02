@@ -36,7 +36,7 @@ import { interpolate } from "@/i18n/interpolate";
 
 import { ExpandedChatLayout } from "./ExpandedChatLayout";
 import { MiniChatPanelColumn } from "./MiniChatPanelColumn";
-import { CardChatPanel } from "./CardChatColumn";
+import { CardDockPanel } from "./CardDockPanel";
 import { usePresenceChime } from "./usePresenceChime";
 import { useUnifiedInquiry } from "./use-unified-inquiry";
 import type { UnifiedInquiryPatch } from "./use-unified-inquiry";
@@ -246,7 +246,7 @@ export function MiniChatPanel({
       if (h.lastName != null) setLastName(h.lastName);
       if (h.phone) setPhone(h.phone);
       if (h.email) setEmail(h.email);
-      if (h.draftPrefix) {
+      if (h.draftPrefix && !chatCard) {
         setDraft((cur) => (cur.trim() ? cur : h.draftPrefix!));
         setDockViewState("chat");
       }
@@ -262,6 +262,7 @@ export function MiniChatPanel({
     tenantSlug,
     refreshKey: dockView === "projects",
     activeInquiryId: inquiryId,
+    locale: brand.locale,
   });
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
@@ -486,14 +487,13 @@ export function MiniChatPanel({
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    const focusTimer = setTimeout(() => textareaRef.current?.focus(), 60);
+    const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
+    const focusTimer = phone ? undefined : setTimeout(() => textareaRef.current?.focus(), 60);
     return () => {
       window.removeEventListener("keydown", onKey);
-      clearTimeout(focusTimer);
+      if (focusTimer) clearTimeout(focusTimer);
     };
   }, [open, onClose]);
 
@@ -765,8 +765,8 @@ export function MiniChatPanel({
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
-  // `chat.variant = card`: same engine + props, the one-to-one card chrome.
-  if (chatCard) return <CardChatPanel {...columnProps} card={chatCard} compact={compactSheet} keyboardInsetPx={keyboardInsetPx} />;
+  // `chat.variant = card`: the SAME dock column inside the card frame (tabs, rail, views all live).
+  if (chatCard) return <CardDockPanel card={chatCard} compact={compactSheet} keyboardInsetPx={keyboardInsetPx} columnProps={columnProps} />;
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────
   if (expanded) {
     return (

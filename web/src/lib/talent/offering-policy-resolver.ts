@@ -254,7 +254,13 @@ export function withPublicAvailability<
 >(
   offering: T,
   sellingDefaults: unknown,
-  ctx: { switches?: AcceptingSwitches | null; hasWorkingHours?: boolean | null; payoutsReady: boolean },
+  ctx: {
+    switches?: AcceptingSwitches | null;
+    hasWorkingHours?: boolean | null;
+    payoutsReady: boolean;
+    /** F27: plan ceiling; false = free tier, request only. */
+    planAllowsInstant?: boolean;
+  },
 ): T {
   const readiness =
     ctx.hasWorkingHours == null
@@ -266,6 +272,7 @@ export function withPublicAvailability<
             durationMinutes: offering.durationMinutes ?? null,
             takesMoneyOnline: takesMoneyOnline(offering.reserveMode, offering.allowPayInPerson === true),
             payoutsReady: ctx.payoutsReady,
+            planAllowsInstant: ctx.planAllowsInstant,
           }),
         );
   const eff = resolveEffectiveBookingMode({ offering, defaults: sellingDefaults, readiness });

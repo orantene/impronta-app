@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import type { TalentClientRow } from "./clients-merge";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings, type TalentEarningsRow } from "./earnings-types";
-import { agendaMoneyRows, buildMoneyHomeView, methodBucket, moneyMonths, shiftMonth } from "./money-home";
+import { agendaMoneyRows, buildMoneyHomeView, methodBucket, moneyMonths, shiftMonth, talentOwedSummary } from "./money-home";
+import { readFileSync } from "node:fs";
 
 describe("agendaMoneyRows", () => {
   const now = new Date(2026, 8, 28, 12, 0);
@@ -16,6 +17,14 @@ describe("agendaMoneyRows", () => {
     payment: "awaiting" as const,
     money: { totalCents: 0, paidCents: 0, dueCents: 0, currency: "MXN" },
   };
+  it("Money month select does not use CSS capitalize (Octubre De bug)", () => {
+    const src = readFileSync(
+      new URL("../../components/talent/money/MoneyHomePage.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.equal(/className="[^"]*\bcapitalize\b/.test(src), false);
+    assert.match(src, /\$\{month\} de \$\{y\}/);
+  });
   it("lists holds awaiting a deposit as waiting requests, with no invented amount", () => {
     const out = agendaMoneyRows([{ ...base, id: "h1" }], now);
     assert.equal(out.owed.length, 0);
@@ -24,27 +33,30 @@ describe("agendaMoneyRows", () => {
     assert.equal(out.waiting[0]!.dueByToday, true);
     assert.equal(out.waiting[0]!.service, "");
   });
-  it("counts balances due on booked work as owed", () => {
+  it("does not count cancelled bookings as waiting payment requests", () => {
     const out = agendaMoneyRows(
       [
         {
           ...base,
-          id: "b1",
+          id: "c2",
           kind: "booking",
-          booking: "confirmed",
-          payment: "partial",
-          title: "Gel polish",
-          money: { totalCents: 90000, paidCents: 30000, dueCents: 60000, currency: "MXN" },
+          booking: "cancelled",
+          payment: "awaiting",
+          money: { totalCents: 50000, paidCents: 0, dueCents: 50000, currency: "MXN" },
         },
-        { ...base, id: "c1", booking: "cancelled" },
+        {
+          ...base,
+          id: "h2",
+          kind: "hold",
+          booking: "cancelled",
+          payment: "awaiting",
+          money: { totalCents: 1, paidCents: 0, dueCents: 1, currency: "MXN" },
+        },
       ],
       now,
     );
-    assert.deepEqual(
-      out.owed.map((r) => [r.id, r.amountCents, r.service]),
-      [["b1", 60000, "Gel polish"]],
-    );
     assert.equal(out.waiting.length, 0);
+    assert.equal(out.owed.length, 0);
   });
 });
 
@@ -182,5 +194,46 @@ describe("money-home", () => {
   it("lists months with data plus the current one", () => {
     const m = moneyMonths(earnings([row({ workDate: "2026-07-02", payoutDate: "2026-08-01" })]), "2026-09");
     assert.deepEqual(m, ["2026-09", "2026-08", "2026-07"]);
+  });
+});
+
+describe("F69 talentOwedSummary: Today card and Money page share one number", () => {
+  const three = [
+    client({ id: "a", name: "A", amountOwedCents: 3000, currency: "USD", nextBookingHref: "/talent/bookings/a" }),
+    client({ id: "b", name: "B", amountOwedCents: 2800, currency: "USD", nextBookingHref: "/talent/bookings/b" }),
+    client({ id: "c", name: "C", amountOwedCents: 1000, currency: "USD", nextBookingHref: "/talent/bookings/c" }),
+  ];
+  it("shows the ledger balances when the agenda has none (the Today US$0 bug)", () => {
+    const s = talentOwedSummary({ clients: three, agendaOwed: [], currency: "USD" });
+    assert.equal(s.cents, 6800);
+    assert.equal(s.count, 3);
+    assert.equal(s.currency, "USD");
+    const view = buildMoneyHomeView({ earnings: { ...EMPTY_TALENT_EARNINGS, totals: { ...EMPTY_TALENT_EARNINGS.totals, currency: "USD" } }, clients: three, month: "2026-09" });
+    assert.equal(s.cents, view.owedCents, "identical to the Money page ledger");
+  });
+  it("takes the larger of ledger and agenda, and does not double count a shared booking", () => {
+    const row = { id: "x", name: "A", service: "", startsAt: "2026-09-01T10:00:00Z", amountCents: 9000, currency: "USD", kind: "balance" as const, overdue: false, dueByToday: true, orderId: null, bookingHref: "/talent/bookings/a" };
+    const s = talentOwedSummary({ clients: three, agendaOwed: [row], currency: "USD" });
+    assert.equal(s.cents, 9000);
+    assert.equal(s.count, 3);
+  });
+  it("agenda only until the ledger loads; other currencies stay out", () => {
+    assert.deepEqual(talentOwedSummary({ clients: null, agendaOwed: [], currency: "USD" }), { cents: 0, count: 0, currency: "USD", others: [] });
+    const mxn = [client({ id: "m", amountOwedCents: 5000, currency: "MXN" })];
+    assert.equal(talentOwedSummary({ clients: mxn, agendaOwed: [], currency: "USD" }).cents, 0);
+  });
+  it("never sums across currencies: MXN agenda rows are reported apart from USD", () => {
+    const row = { id: "x", name: "Z", service: "", startsAt: "2026-09-01T10:00:00Z", amountCents: 8400, currency: "MXN", kind: "balance" as const, overdue: false, dueByToday: true, orderId: null, bookingHref: "/talent/bookings/z" };
+    const s = talentOwedSummary({ clients: three, agendaOwed: [row], currency: "USD" });
+    assert.equal(s.cents, 6800);
+    assert.deepEqual(s.others, [{ currency: "MXN", cents: 8400 }]);
+  });
+  it("Today card and Money page both read the shared summary", () => {
+    for (const f of ["../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx", "../../components/talent/money/MoneyHomePage.tsx"]) {
+      const src = readFileSync(new URL(f, import.meta.url), "utf8");
+      assert.ok(src.includes("talentOwedSummary("), f);
+    }
+    const today = readFileSync(new URL("../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx", import.meta.url), "utf8");
+    assert.ok(today.includes("loadTalentClients("), "Today reads the same client ledger");
   });
 });

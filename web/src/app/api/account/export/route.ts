@@ -28,12 +28,17 @@ import { NextResponse } from "next/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { buildAccountExport, exportFilename } from "@/lib/account/export-bundle";
+import {
+  accountExportZip,
+  buildAccountExport,
+  exportFilename,
+  exportZipFilename,
+} from "@/lib/account/export-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getCachedActorSession();
   if (!session.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
@@ -49,6 +54,19 @@ export async function GET() {
     userId: session.user.id,
     email: session.user.email ?? null,
   });
+
+  // ?format=csv → a zip with one CSV per section.
+  if (new URL(request.url).searchParams.get("format") === "csv") {
+    const zip = await accountExportZip(bundle);
+    return new NextResponse(Buffer.from(zip), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${exportZipFilename(new Date())}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
 
   return new NextResponse(JSON.stringify(bundle, null, 2), {
     status: 200,

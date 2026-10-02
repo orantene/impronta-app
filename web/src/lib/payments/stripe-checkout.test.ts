@@ -156,6 +156,12 @@ test("a null inquiryId omits inquiry_id from payment_intent_data too", async () 
   assert.equal("inquiry_id" in piMeta, false);
 });
 
+test("no payment_method_types is sent: Stripe's dashboard configuration decides (dynamic methods)", async () => {
+  const { calls, stripe } = fakeStripe();
+  await createCheckoutSessionForTransaction(input(), { stripe });
+  assert.equal("payment_method_types" in calls[0].params, false);
+});
+
 test("F5: only a Stripe refusal is a definite failure; network/5xx/unknown are uncertain", () => {
   assert.equal(checkoutFailureIsUncertain({ type: "StripeInvalidRequestError" }), false);
   assert.equal(checkoutFailureIsUncertain({ type: "StripeCardError" }), false);

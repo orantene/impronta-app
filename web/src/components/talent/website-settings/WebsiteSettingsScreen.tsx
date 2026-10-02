@@ -43,9 +43,12 @@ import {
   switchSaveImpact,
 } from "@/lib/talent/accepting-readiness";
 import { NavRow, SaveBar, StatusChip, UnsavedExitSheet, type SaveStatus } from "./primitives";
+import { CallNumberGroup } from "./CallNumberGroup";
+import { LiveStatusCard } from "./LiveStatusCard";
 import { ConfirmSheet, LanguagesGroup, languagesSummary } from "./LanguagesGroup";
 import { languagesChangeCount, type LanguagesDraft } from "./languages-model";
 import { useLanguagesDraft } from "./use-languages-draft";
+import { PoliciesView } from "./PoliciesView";
 import { BookingGroup, PaymentsGroup, SelfServiceGroup, TimingGroup, postureLabel } from "./WebsiteSettingsGroups";
 import {
   switchChangeCount,
@@ -69,7 +72,7 @@ function fieldsOf(o: TalentOffering): ServiceFields {
   };
 }
 
-type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis";
+type View = "home" | "site" | "lang" | "booking" | "timing" | "pay" | "self" | "chat" | "vis" | "contact" | "policies";
 
 export function WebsiteSettingsScreen({
   talentId,
@@ -163,6 +166,7 @@ export function WebsiteSettingsScreen({
                 durationMinutes: o.durationMinutes ?? null,
                 takesMoneyOnline: takesMoneyOnline(o.reserveMode, o.allowPayInPerson === true),
                 payoutsReady: swReadiness.payoutsReady,
+                planAllowsInstant: swReadiness.planAllowsInstant,
               })[0];
               return gap ? t(READINESS_GAP_COPY[gap]) : null;
             })()
@@ -278,10 +282,12 @@ export function WebsiteSettingsScreen({
     self: t("Client self-service"),
     chat: t("Chat & inquiries"),
     vis: t("Appearance & visibility"),
+    contact: t("Contact"),
+    policies: t("Policies and privacy"),
   };
 
   const header = (
-    <div className="mb-4 flex items-center gap-2">
+    <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
       <button
         type="button"
         onClick={back}
@@ -289,10 +295,11 @@ export function WebsiteSettingsScreen({
       >
         ‹ {view === "home" ? t("My website") : t("Settings")}
       </button>
-      <h1 className="min-w-0 flex-1 truncate text-[18px] font-semibold text-admin-ink">{titles[view]}</h1>
+      <h1 className="min-w-0 flex-1 text-[18px] max-[720px]:basis-[calc(100%-5rem)] min-[721px]:truncate font-semibold text-admin-ink">{titles[view]}</h1>
       {/* No chip until settings load: "Saved" would be a claim about nothing. */}
       {draft && saved ? (
       <StatusChip
+        className="max-[720px]:order-last max-[720px]:basis-full max-[720px]:w-fit max-[720px]:flex-none"
         status={status}
         unsaved={unsaved}
         labels={{ saved: t("Saved · live now"), unsaved: t("{n} unsaved"), saving: t("Saving…"), failed: partial ? t("Some changes saved") : t("Couldn’t save") }}
@@ -318,6 +325,19 @@ export function WebsiteSettingsScreen({
     );
   }
 
+  // Policies owns its header, sticky publish footer and confirm sheet: it reads
+  // facts from their stores and does not ride this screen's draft / Save flow.
+  if (view === "policies") {
+    return (
+      <PoliciesView
+        talentId={talentId}
+        isSpanish={copy.isSpanish}
+        onBack={() => setView("home")}
+        onEdit={(target) => setView(target)}
+      />
+    );
+  }
+
   const d = draft.defaults;
   // Display only: same overlay the booking path uses (defaults win, then hours row).
   const noticeMin = resolveEffectiveMinNoticeMin({ hoursMinNoticeMin: hoursNoticeMin, sellingDefaults: d });
@@ -335,7 +355,7 @@ export function WebsiteSettingsScreen({
           .map((s) => s.title)
       : [];
   const defaultGap = swReadiness
-    ? readinessGaps({ hasWorkingHours: swReadiness.hasWorkingHours, takesMoneyOnline: false, payoutsReady: swReadiness.payoutsReady })[0]
+    ? readinessGaps({ hasWorkingHours: swReadiness.hasWorkingHours, takesMoneyOnline: false, payoutsReady: swReadiness.payoutsReady, planAllowsInstant: swReadiness.planAllowsInstant })[0]
     : undefined;
   const defaultInstantGap = defaultGap ? t(READINESS_GAP_COPY[defaultGap]) : null;
   const instantCount = Object.values(draft.services).filter((f) => f.bookingMode != null).length;
@@ -343,6 +363,7 @@ export function WebsiteSettingsScreen({
   return (
     <div className="mx-auto max-w-xl px-4 font-admin-body">
       {header}
+      {view === "home" ? <LiveStatusCard t={t} /> : null}
       {view === "home" ? (
         <div className="overflow-hidden rounded-xl border border-admin-border-soft bg-white">
           <NavRow
@@ -389,6 +410,16 @@ export function WebsiteSettingsScreen({
           />
           <NavRow title={titles.chat} summary={chatSummary(t, draftSw)} onOpen={() => setView("chat")} />
           <NavRow title={titles.vis} summary={visibilitySummary(t, draftSw)} onOpen={() => setView("vis")} />
+          <NavRow
+            title={titles.contact}
+            summary={t("A public number for the call button on your website")}
+            onOpen={() => setView("contact")}
+          />
+          <NavRow
+            title={titles.policies}
+            summary={t("Cancelling, deposit and what your clients read before they book")}
+            onOpen={() => setView("policies")}
+          />
         </div>
       ) : null}
       {view === "booking" ? (
@@ -401,6 +432,7 @@ export function WebsiteSettingsScreen({
       ) : null}
       {view === "chat" ? <ChatInquiriesGroup {...switchProps} strandedTitles={strandedTitles} /> : null}
       {view === "vis" ? <VisibilityGroup {...switchProps} /> : null}
+      {view === "contact" ? <CallNumberGroup t={t} /> : null}
       {status === "failed" && partial ? (
         <p role="alert" className="mt-3 rounded-lg bg-amber-50 px-3.5 py-3 text-[13px] text-amber-900">
           {t("Some changes saved. Still unsaved: {items}. Retry sends only these.").replace(

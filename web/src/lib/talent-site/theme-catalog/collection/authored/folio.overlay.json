@@ -1,0 +1,118 @@
+{
+  "authoredVersion": 23,
+  "codeHash": "b7d6817c3758ffb6db659f10f360c286d6078b5cae8fdb2c42e82651149cf44f",
+  "payloadHash": "1thfjjk3ghg",
+  "tokenDefaults": {
+    "button.height": {
+      "from": "44px",
+      "to": "46px"
+    },
+    "button.padding-x": {
+      "from": "16px",
+      "to": "20px"
+    },
+    "layout.gutter": {
+      "to": "40px"
+    },
+    "layout.gutter-phone": {
+      "to": "16px"
+    },
+    "layout.section-pad-top": {
+      "to": "90px"
+    },
+    "layout.section-pad-top-phone": {
+      "to": "52px"
+    },
+    "type.body-size": {
+      "to": "14px"
+    }
+  },
+  "palettes": {
+    "stone": {
+      "color.accent": {
+        "to": "#111111"
+      },
+      "color.ink": {
+        "to": "#111111"
+      },
+      "color.line": {
+        "to": "#D3D0C8"
+      },
+      "color.muted": {
+        "to": "#6A6760"
+      },
+      "color.primary": {
+        "to": "#111111"
+      },
+      "color.surface-raised": {
+        "to": "#F7F6F3"
+      }
+    }
+  },
+  "props": {
+    "homeTree:hero/masthead": [
+      {
+        "path": "designKey",
+        "to": "masthead"
+      },
+      {
+        "path": "props.style.marginTop",
+        "to": "none"
+      }
+    ],
+    "homeTree:gallery": [
+      {
+        "path": "props.style.gap",
+        "to": "0px"
+      }
+    ],
+    "homeTree:gallery/portfolio": [
+      {
+        "path": "props.style",
+        "to": {}
+      }
+    ],
+    "homeTree:gallery/portfolio#2": [
+      {
+        "path": "props.style",
+        "to": {}
+      }
+    ],
+    "homeTree:comp_card": [
+      {
+        "path": "props.style.width",
+        "to": "auto"
+      }
+    ],
+    "homeTree:comp_card/comp_card": [
+      {
+        "path": "props.style",
+        "to": {}
+      }
+    ],
+    "homeTree:services/services_catalog": [
+      {
+        "path": "props.style",
+        "to": {}
+      }
+    ],
+    "homeTree:contact/accordion": [
+      {
+        "path": "props.style",
+        "to": {}
+      }
+    ],
+    "homeTree:statement_footer/statement_footer": [
+      {
+        "path": "props.style",
+        "to": {}
+      }
+    ]
+  },
+  "removed": [
+    "homeTree:contents"
+  ],
+  "added": [],
+  "order": {},
+  "labelsEs": {}
+}

@@ -65,9 +65,12 @@ export function catalogBookingDraftPrefix(
   const price =
     cents != null ? ` (${formatOfferingPrice(cents, detail.currency, locale)})` : "";
   const title = bits.length ? `${detail.title} · ${bits.join(" · ")}` : detail.title;
+  // G9b: the task-picker note pre-fills the composer after the prefix; the
+  // visitor edits it there and nothing is sent until they press send.
+  const note = detail.task ? (detail.note ?? "").trim() : "";
   return pickLocale(locale, {
-    en: `Question about ${title}${price} — `,
-    es: `Consulta sobre ${title}${price} — `,
+    en: `Question about ${title}${price} — ${note}`,
+    es: `Consulta sobre ${title}${price} — ${note}`,
   });
 }
 

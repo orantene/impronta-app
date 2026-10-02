@@ -17,6 +17,7 @@
  *   so the role-selection step is bypassed.
  */
 
+import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -559,6 +560,8 @@ function ModalForm({
           style={{ color: "var(--plt-ink)" }}
         />
       </AuthFieldShell>
+
+      <AgeTermsCheckbox locale={locale} />
 
       <AuthSubmitButton pending={pending} idle={t.createCta} busy={t.creating} />
     </form>

@@ -15,7 +15,7 @@
  */
 
 import type { ClientOfferSummary } from "./client-thread-view";
-import { offerCardState, offerDepositCents } from "./client-thread-view";
+import { guestVisibleOfferVersion, offerCardState, offerDepositCents } from "./client-thread-view";
 import {
   deriveGuestOutcomeFromMessages,
   type GuestOutcomeKind,
@@ -30,7 +30,8 @@ export type GuestNextStepKind =
   | "paid"
   | "refunded"
   | "declined"
-  | "pay_failed";
+  | "pay_failed"
+  | "pay_link_ask";
 
 export type GuestNextStep = {
   readonly kind: GuestNextStepKind;
@@ -40,12 +41,28 @@ export type GuestNextStep = {
   readonly offer?: ClientOfferSummary;
   /** The pay code, for `pay`. */
   readonly payCode?: string;
+  /**
+   * For `pay`: what the link collects. `deposit` only when the amount is
+   * below the order total; `full` otherwise; null when no total is known.
+   */
+  readonly payKind?: GuestPayKind | null;
 };
+
+export type GuestPayKind = "deposit" | "full";
+
+/** PURE: a deposit is a link for LESS than the total. Anything else is paying in full. */
+export function guestPayKind(amountCents: number | null | undefined, totalCents: number | null | undefined): GuestPayKind | null {
+  if (amountCents == null || !Number.isFinite(amountCents) || amountCents <= 0) return null;
+  if (totalCents == null || !Number.isFinite(totalCents) || totalCents <= 0) return null;
+  return amountCents < totalCents ? "deposit" : "full";
+}
 
 export type GuestNextStepInput = {
   readonly threadStatus: string;
   readonly offers: readonly ClientOfferSummary[];
   readonly payCode: string | null;
+  /** What the open link really charges; wins over any offer-derived guess. */
+  readonly payAmountCents?: number | null;
   /** The `professional_times` payloads in the thread (a pick holds a slot). */
   readonly timesPayloads: readonly (Record<string, unknown> | null)[];
   readonly records: readonly { readonly fulfilmentState: string | null; readonly recordDate: string | null }[];
@@ -102,6 +119,12 @@ function threadOutcome(input: GuestNextStepInput): GuestOutcomeKind | null {
   return legacyOutcomeFromKinds(input.messageKinds ?? []);
 }
 
+function visibleVersion(offer: ClientOfferSummary, offers: readonly ClientOfferSummary[]): string {
+  const visible = offers.filter((o) => o.status !== "draft");
+  const n = guestVisibleOfferVersion(offer, visible);
+  return n == null ? "" : String(n);
+}
+
 export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | null {
   const { now } = input;
   if (input.threadStatus === "draft" || input.threadStatus === "closed") return null;
@@ -122,18 +145,30 @@ export function deriveGuestNextStep(input: GuestNextStepInput): GuestNextStep | 
     // a bare "Pay" because only the pending offer was consulted.
     const about = offer ?? latestAccepted(input.offers);
     const deposit = about ? offerDepositCents(about) : null;
-    const amount = about ? (deposit ?? about.totalCents) : null;
+    const amount = input.payAmountCents ?? (about ? (deposit ?? about.totalCents) : null);
     return {
       kind: "pay",
       payCode: input.payCode,
-      values: { amount: amount != null && about ? input.money(amount, about.currency) : "" },
+      payKind: guestPayKind(amount, about?.totalCents ?? null),
+      values: { amount: amount != null && about ? input.money(amount, about.currency) : amount != null ? input.money(amount, "USD") : "" },
     };
+  }
+  if (!offer) {
+    // Accepted, money still due, and no open link (minting failed or it expired):
+    // the visitor can ask for one. Never when paid or when the visit is pay-in-person.
+    const accepted = latestAccepted(input.offers);
+    const cards = input.messages ?? [];
+    const settled = cards.some((m) => m.kind === "payment_paid" || m.payload?.state === "paid" || (m.kind === "booking_confirmed" && m.payload?.payInPerson === true));
+    if (accepted && accepted.totalCents > 0 && !settled) {
+      return { kind: "pay_link_ask", offer: accepted, values: {} };
+    }
   }
   if (offer) {
     return {
       kind: "accept_offer",
       offer,
-      values: { version: String(offer.version), total: input.money(offer.totalCents, offer.currency) },
+      // The guest's own count (internal drafts never show as "v3"); "" = no version shown.
+      values: { version: visibleVersion(offer, input.offers), total: input.money(offer.totalCents, offer.currency) },
     };
   }
   if (heldTime(input.timesPayloads, now)) return { kind: "waiting_confirm", values: {} };
