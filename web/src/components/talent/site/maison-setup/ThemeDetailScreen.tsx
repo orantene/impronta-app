@@ -36,12 +36,16 @@ import {
 } from "./live-design-change";
 import { DemoStrip } from "./DemoStrip";
 import { DemosSheet } from "./DemosSheet";
+import { DemoProfilePanel } from "./DemoProfilePanel";
+import { GalleryDesignTags } from "./GalleryDesignTags";
 import { AppsTab } from "./GalleryAppsUi";
 import { appsForDetail, galleryAppsT } from "./gallery-apps";
 import { ColorSwatches, ColorsSheet, swatchStyle, type ColorsProps } from "./ColorsSheet";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import { demosCountLabel, detailT, resultsForLabel } from "./theme-detail-copy";
+import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
+import { demoCardPersonName } from "@/lib/talent-site/demos/demo-profile-meta";
 import {
   demoDefaultPaletteKey,
   demoPreviewParam,
@@ -156,7 +160,7 @@ export function ThemeDetailScreen({
   );
   const designTitle = design.name;
   const description = locale === "es" ? design.description.es : design.description.en;
-  const demoTitle = demo ? (locale === "es" ? demo.name.es : demo.name.en) : "";
+  const demoTitle = demo ? demoCardPersonName(demo, locale) : "";
   const swatch =
     activeCustom
       ? { section: activeCustom.fields.section, accent: activeCustom.fields.accent }
@@ -542,27 +546,10 @@ export function ThemeDetailScreen({
                   </span>
                 ) : null}
               </p>
-              <div className="mt-2 flex flex-wrap gap-1.5" data-maison-tags="">
-                {design.styleTags.map((tag) => (
-                  <span
-                    key={`s-${tag}`}
-                    data-maison-tag-kind="style"
-                    className="rounded-full border border-admin-border-soft px-2 py-0.5 text-[11.5px] text-admin-ink"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {design.featureTags.map((tag) => (
-                  <span
-                    key={`f-${tag}`}
-                    data-maison-tag-kind="layout"
-                    className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[11.5px] text-admin-ink"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              <GalleryDesignTags design={design} locale={locale} onFilter={onBackToGallery} />
             </div>
+
+            <DemoProfilePanel demo={demo} locale={locale} />
 
             <div>
               <p className="mb-2 text-[13px] font-semibold text-admin-ink">{maisonSetupT(locale, "Show")}</p>
@@ -651,7 +638,7 @@ export function ThemeDetailScreen({
           onClick={() => openSheet("demos")}
           className="min-h-11 shrink-0 whitespace-nowrap rounded-xl border border-admin-border-soft px-3 text-[14px] font-semibold text-admin-ink max-[379px]:px-[9px]"
         >
-          {demosCountLabel(locale, demos.length)}
+          {demosCountLabel(locale, countUsableDemos(demos))}
         </button>
         <button
           type="button"

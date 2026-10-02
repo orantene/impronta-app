@@ -2,6 +2,7 @@
 
 /** Phone Demos sheet (P4, cr_demos / fg_demos). One sheet at a time. */
 import type { GalleryDemo, GalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
 import type { MaisonSetupLocale } from "./maison-setup-copy";
 import { DemoCard } from "./DemoStrip";
 import { demosCountLabel, detailT } from "./theme-detail-copy";
@@ -83,7 +84,7 @@ export function DemosSheet({
   return (
     <PhoneSheet sheet="demos" onClose={onClose}>
       <SheetHeader
-        title={demosCountLabel(locale, demos.length)}
+        title={demosCountLabel(locale, countUsableDemos(demos))}
         locale={locale}
         onClose={onClose}
         testId="maison-phone-demos-close"

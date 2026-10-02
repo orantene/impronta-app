@@ -18,6 +18,7 @@ import gridlineContent from "../../../../design-references/gridline/content.json
 import maisonContent from "../../../../design-references/maison-v2/content.json";
 import type { DemoDesign } from "./types";
 import { GRIDLINE_DEMO_FIXTURES } from "./gridline-demo-fixtures";
+import { FOLIO_DEMO_FIXTURES } from "./folio-demo-fixtures";
 
 export type FixtureMode = "instant" | "request" | "inquiry" | "quote";
 
@@ -252,6 +253,7 @@ const FIXTURES: Readonly<Record<string, DemoContentFixture>> = {
   folio: folioContent as unknown as DemoContentFixture,
   gridline: gridlineContent as unknown as DemoContentFixture,
   ...GRIDLINE_DEMO_FIXTURES,
+  ...FOLIO_DEMO_FIXTURES,
 };
 
 export function loadDemoContentFixture(key: string): DemoContentFixture {

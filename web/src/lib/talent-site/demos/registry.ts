@@ -19,8 +19,8 @@ const FROM_THEME_DEMOS: DemoRegistryEntry[] = THEME_DEMOS.map((d) => ({
   profileCode: d.profileCode,
   palette: d.palette,
   reference: false,
-  // Gridline's trade demos each own a content fixture keyed by their profile code.
-  ...(d.design === "gridline" ? { contentFixture: d.profileCode } : {}),
+  // Gridline and Folio guide demos each own a content fixture keyed by profile code.
+  ...(d.design === "gridline" || d.design === "folio" ? { contentFixture: d.profileCode } : {}),
 }));
 
 const REFERENCES: DemoRegistryEntry[] = [

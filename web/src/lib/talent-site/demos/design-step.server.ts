@@ -23,7 +23,8 @@ import { loadDemoDesignRow } from "@/lib/talent-site/theme-releases/release-desi
 import { loadDemoContentFixture } from "./content-fixture";
 import { matchOfferings, type ExistingOffering } from "./fixture-plan";
 import { gridlineCopyFromFixture } from "./gridline-site-copy";
-import { FOLIO_DEMO_SITE_COPY } from "./folio-site-copy";
+import { folioSiteCopyFor } from "./folio-site-copy";
+import { demoSiteSwitchColumns } from "./demo-site-settings";
 import { placeDemoApps } from "./app-placement";
 import { applyDemoSiteCopy } from "./site-copy";
 import type { DemoDesign } from "./types";
@@ -139,12 +140,12 @@ async function gridlineCopiedTrees(
   return { shellTree: out.shell, homeTree: out.home };
 }
 
-/** Folio: the design ships neutral wording; every Folio demo gets the demo wording through site-copy. */
-function folioCopiedTrees(built: { shellTree: unknown; homeTree: unknown }): { shellTree: unknown; homeTree: unknown } {
+/** Folio: the design ships neutral wording; every Folio demo gets its own site-copy. */
+function folioCopiedTrees(built: { shellTree: unknown; homeTree: unknown }, profileCode: string): { shellTree: unknown; homeTree: unknown } {
   const out = applyDemoSiteCopy(
     built.shellTree as never,
     built.homeTree as never,
-    { folio: FOLIO_DEMO_SITE_COPY },
+    { folio: folioSiteCopyFor(profileCode) },
     () => null,
     () => "unused",
   );
@@ -213,7 +214,7 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
     !style && spec.design === "gridline" && !!spec.contentFixture
       ? ((await gridlineCopiedTrees(admin, tp.id, spec.contentFixture, built)) as Trees)
       : !style && spec.design === "folio"
-        ? (folioCopiedTrees(built) as Trees)
+        ? (folioCopiedTrees(built, spec.profileCode) as Trees)
         : null;
   const styledTrees = style
     ? styleTrees(built, style, await loadMedia(admin, tp.id), spec.profileCode)
@@ -297,6 +298,7 @@ export async function writeDemoDraft(
       pending_design: null,
       draft_updated_at: now,
       updated_at: now,
+      ...demoSiteSwitchColumns(spec.profileCode),
     })
     .eq("id", site.id)
     .eq("talent_profile_id", tp.id);
