@@ -1,0 +1,56 @@
+# TEMPORARY for PR #2473 — delete after green Vercel failure is diagnosed.
+# Dumps `vercel inspect --logs` for the failed preview using repo VERCEL_TOKEN.
+name: tmp vercel inspect
+
+on:
+  push:
+    branches:
+      - feat/support-desk-flag-host
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: Vercel deployment id (dpl_…)
+        required: true
+        default: dpl_48zDknUeXpZkwe6GTXJyE7SBUWPf
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect failed deployment logs
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_ID: ${{ github.event.inputs.deployment_id || 'dpl_48zDknUeXpZkwe6GTXJyE7SBUWPf' }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "VERCEL_TOKEN secret missing"
+            exit 1
+          fi
+          npm install -g vercel@latest
+          echo "=== vercel inspect $DEPLOYMENT_ID ==="
+          npx vercel inspect "$DEPLOYMENT_ID" --scope oran-tenes-projects --token "$VERCEL_TOKEN" || true
+          echo "=== vercel inspect --logs ==="
+          npx vercel inspect "$DEPLOYMENT_ID" --logs --scope oran-tenes-projects --token "$VERCEL_TOKEN" 2>&1 | tee /tmp/vercel-inspect.log | tail -n 400
+          echo "=== REST deployment ==="
+          curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$DEPLOYMENT_ID?teamId=team_otRX11wclvw89c5ls7A7UsZd" \
+            | tee /tmp/vercel-dpl.json | head -c 8000
+          echo
+          echo "=== REST events (last) ==="
+          curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v3/deployments/$DEPLOYMENT_ID/events?builds=1&direction=backward&limit=50&teamId=team_otRX11wclvw89c5ls7A7UsZd" \
+            | tee /tmp/vercel-events.json | head -c 12000
+          echo
+
+      - name: Upload inspect artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-inspect-${{ github.run_id }}
+          path: |
+            /tmp/vercel-inspect.log
+            /tmp/vercel-dpl.json
+            /tmp/vercel-events.json
+          if-no-files-found: warn
