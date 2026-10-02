@@ -47,7 +47,11 @@ test("services matrix: schema, renderer, inspector and add gallery are all wired
   assert.ok(render.includes("liveStatus={options.dataSources.liveStatus ?? null}"));
   assert.ok(libAt("site-admin/builder-node/services-catalog-filter.tsx").includes("<CatalogMatrix"));
   assert.ok(read("services-catalog-inspector.tsx").includes('<option value="matrix">Comparison matrix</option>'));
-  const gallery = libAt("site-admin/add-gallery/registry-catalog-sections-connected.ts");
+  // The booking-family cards were split out of registry-catalog-sections-connected.ts into
+  // -booking.ts (file-size extraction); the pin reads both files.
+  const gallery =
+    libAt("site-admin/add-gallery/registry-catalog-sections-connected.ts") +
+    libAt("site-admin/add-gallery/registry-catalog-sections-connected-booking.ts");
   assert.ok(gallery.includes('id: "conn-services-matrix-native"'));
   assert.ok(gallery.includes('layout: "matrix"'));
 });

@@ -699,7 +699,6 @@ export function canvasChildPrimaryLabel(node: BuilderNode): string {
     case "heading":
       return stripInlineMarkers(node.props.text);
     case "paragraph":
-      return truncateNodeLabel(stripInlineMarkers(node.props.text), 56);
     case "rich_text":
       return truncateNodeLabel(stripInlineMarkers(node.props.text), 56);
     case "button":
