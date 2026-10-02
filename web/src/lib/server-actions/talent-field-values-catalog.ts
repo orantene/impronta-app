@@ -198,13 +198,18 @@ export async function setTalentFieldVisibilityAsTalent(
   // eslint-disable-next-line ratchet/no-untenanted-from
   const { data: def } = await supabase
     .from("profile_field_definitions")
-    .select("id, talent_editable, deprecated_at")
+    .select("id, talent_editable, deprecated_at, is_sensitive")
     .eq("id", v.field_definition_id)
     .maybeSingle();
   if (!def) return { ok: false, error: "Unknown field." };
   if (def.deprecated_at) return { ok: false, error: "Field no longer accepts input." };
   if (def.talent_editable === false) {
     return { ok: false, error: "This field can only be edited by the workspace admin." };
+  }
+  // Sensitive fields (licence numbers, weight, allergies…) are never public.
+  // The read policy enforces this too (20261231298400); this keeps the UI honest.
+  if (def.is_sensitive && v.visibility.includes("public")) {
+    return { ok: false, error: "This field is private and can't be shown publicly." };
   }
 
   const { data: rosterRow } = await tenantScopedQuery(
