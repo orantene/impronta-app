@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import type { HqQueueRow, HqTicketContext } from "@/lib/support/load-hq";
@@ -345,12 +346,12 @@ export function SupportDeskShell({
         })}
       </nav>
       <div className="border-t border-admin-border p-2">
-        <a
+        <Link
           href="/platform/admin/support"
           className="block rounded-md px-2.5 py-2 text-[12px] text-admin-ink-muted hover:bg-admin-surface"
         >
           {t("dashboard.platform.support.pageTitle")} ↗
-        </a>
+        </Link>
       </div>
     </aside>
   );

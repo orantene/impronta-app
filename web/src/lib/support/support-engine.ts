@@ -4,7 +4,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { updateContact, keepTicketOpen } from "./support-engine-contact";
-import { adminClient, claimIfUnassigned, insertEvent, loadTicketById } from "./support-engine-db";
+import {
+  adminClient, claimIfUnassigned, findMessageByClientSendKey, insertEvent, loadTicketById,
+} from "./support-engine-db";
 import { auditHq, auditTenant, notify } from "./support-engine-emit";
 import { supportFrom } from "./support-from";
 import { assignEscalationOwner } from "./escalation-owner";
@@ -196,7 +198,6 @@ export async function appendMessage(input: {
   aiMeta?: Record<string, unknown> | null;
   skipNotify?: boolean;
   asHq?: boolean;
-  /** When set, a prior message with the same key returns that row (no duplicate). */
   clientSendKey?: string;
 }): Promise<SupportEngineResult<{ message: SupportMessageRow; ticket: SupportTicketRow }>> {
   const admin = adminClient();
@@ -217,14 +218,7 @@ export async function appendMessage(input: {
 
   const sendKey = input.clientSendKey?.trim() || null;
   if (sendKey) {
-    const { data: prior } = await supportFrom(admin, "support_messages")
-      .select("*")
-      .eq("ticket_id", working.id)
-      .filter("metadata->>client_send_key", "eq", sendKey)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const priorMsg = prior ? mapMessageRow(prior) : null;
+    const priorMsg = await findMessageByClientSendKey(admin, working.id, sendKey);
     if (priorMsg) {
       const fresh = (await loadTicketById(working.id, admin)) ?? working;
       return { ok: true, data: { message: priorMsg, ticket: fresh } };
@@ -790,18 +784,7 @@ export async function reopenTicket(input: {
 }
 
 export const supportEngine = {
-  createTicket,
-  appendMessage,
-  changeStatus,
-  escalateTicket,
-  assignTicket,
-  setPriority,
-  setCategory,
-  rateTicket,
-  markRead,
-  reopenTicket,
-  updateContact,
-  keepTicketOpen,
-  claimIfUnassigned,
-  loadTicketById,
+  createTicket, appendMessage, changeStatus, escalateTicket, assignTicket,
+  setPriority, setCategory, rateTicket, markRead, reopenTicket, updateContact,
+  keepTicketOpen, claimIfUnassigned, loadTicketById,
 };
