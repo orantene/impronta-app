@@ -42,20 +42,20 @@ test("every registered overlay applies to current code and reproduces its snapsh
   }
 });
 
-test("folio v18: buildPayload, designTokenDefaults and the sync rule reflect the authored version", () => {
-  assert.equal(authoredOverlayVersion("folio"), 18);
+test("folio v22: buildPayload, designTokenDefaults and the sync rule reflect the authored version", () => {
+  assert.equal(authoredOverlayVersion("folio"), 22);
   const shipped = COLLECTION_DESIGNS.find((d) => d.slug === "folio")!.buildPayload();
   assert.equal(shipped.tokenDefaults?.["button.padding-x"], "20px");
-  assert.equal(shipped.tokenDefaults?.["type.hero-size-desktop"], "clamp(72px,15cqi,240px)");
+  assert.equal(shipped.tokenDefaults?.["type.hero-size-desktop"], "clamp(84px,19cqi,300px)");
   assert.equal(designTokenDefaults("folio")["button.padding-x"], "20px");
-  assert.equal(designTokenDefaults("folio")["type.hero-size-desktop"], "clamp(72px,15cqi,240px)");
+  assert.equal(designTokenDefaults("folio")["type.hero-size-desktop"], "clamp(84px,19cqi,300px)");
   // Raw code still carries the kit values (code tables untouched).
   assert.equal(rawOf("folio").tokenDefaults?.["button.padding-x"], "16px");
 
-  // Sync: latest is authored v18 == the overlaid code -> unchanged, not pending.
+  // Sync: latest is authored v22 == the overlaid code -> unchanged, not pending.
   const v18 = clone(shipped);
   const entry = COLLECTION_DESIGNS.find((d) => d.slug === "folio")!;
-  const latest = { version: 18, payload: v18, source: "authored", meta: { code_hash: hashBuiltinPayload(rawOf("folio")) } };
+  const latest = { version: 22, payload: v18, source: "authored", meta: { code_hash: hashBuiltinPayload(rawOf("folio")) } };
   assert.deepEqual(
     decideAuthoredSync({
       codeHash: hashBuiltinPayload(shipped),
@@ -75,11 +75,11 @@ test("folio v18: buildPayload, designTokenDefaults and the sync rule reflect the
   assert.deepEqual(plan.designChanges, []);
   assert.equal(plan.unchanged, 1);
 
-  // Release manager: Open to talents / Make default allowed for v18.
+  // Release manager: Open to talents / Make default allowed for v22.
   for (const target of ["optin", "default"] as const) {
-    assert.deepEqual(checkAuthoredChannelGate(target, { version: 18, source: "authored" }, authoredOverlayVersion("folio")), { ok: true });
+    assert.deepEqual(checkAuthoredChannelGate(target, { version: 22, source: "authored" }, authoredOverlayVersion("folio")), { ok: true });
   }
-  assert.equal(checkAuthoredChannelGate("optin", { version: 19, source: "authored" }, authoredOverlayVersion("folio")).ok, false);
+  assert.equal(checkAuthoredChannelGate("optin", { version: 23, source: "authored" }, authoredOverlayVersion("folio")).ok, false);
 });
 
 // ---- round-trip property ---------------------------------------------------
