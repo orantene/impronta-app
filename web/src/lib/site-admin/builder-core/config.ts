@@ -178,15 +178,15 @@ export interface BuilderContextConfig {
    */
   surfaceTalentTier?: string | null;
   /**
-   * Phase 1 — true when the operator may insert/paste/duplicate nested blocks
-   * and sections on this surface (`personalSiteSections` for a talent
-   * surface). Distinct from `capabilities.customCss`/`capabilities.motion`,
+   * Phase 1 / Track B — true when the operator may insert/paste/duplicate/move
+   * nested blocks and sections on this surface (`personalSiteSections` for a
+   * talent surface). Distinct from `capabilities.customCss`/`capabilities.motion`,
    * which happen to be driven by the same site capability on talent surfaces
    * today but are conceptually separate flags. The client chokepoint
    * (`guardBuilderNodeMutation` / `assertAdvancedLibraryAllowsOperation`)
    * reads this to deny structural edits with a lock chip instead of a bare
    * message. Undefined ⇒ no additional gate beyond the existing advanced-
-   * library check (every non-talent surface).
+   * library check (every non-talent surface — agency / workspace / Lab).
    */
   structuralEdits?: boolean;
   /**
