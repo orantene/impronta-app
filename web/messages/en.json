@@ -21660,8 +21660,8 @@
       "planRenews": "and we'll set you up. Your current plan renews {date}.",
       "planFreeNoRenewal": "and we'll set you up. Your current plan is free with no renewal.",
       "startingCheckout": "Starting checkout…",
-      "checkoutNotConfigured": "Self-serve checkout isn't live yet. Email sales@tulala.digital and we'll set you up.",
-      "checkoutFailed": "Couldn't start checkout. Please try again, or email sales@tulala.digital.",
+      "checkoutNotConfigured": "Self-serve checkout isn't live yet. Email hello@tulala.digital and we'll set you up.",
+      "checkoutFailed": "Couldn't start checkout. Please try again, or email hello@tulala.digital.",
       "checkoutNetworkError": "Network issue starting checkout. Please try again."
     },
     "today": {

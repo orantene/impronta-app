@@ -3,10 +3,13 @@
  *
  * Endpoint: POST /api/webhooks/resend
  *
- * Consumes Resend delivery events (email.delivered / opened / clicked /
- * bounced / complained), stamps the matching `notification_dispatch_log` row's
- * delivery column, and on hard bounce / complaint adds an `email_suppressions`
- * row so the address is never mailed again.
+ * Consumes Resend webhook events:
+ *   - Delivery (email.delivered / opened / clicked / bounced / complained):
+ *     stamps `notification_dispatch_log` and may add `email_suppressions`.
+ *   - Inbound (`email.received`): persists to `resend_inbound_emails`, then
+ *     best-effort forwards to Gmail (Track C — see
+ *     `lib/email/resend-inbound-forward.ts`). Store is the retention guarantee
+ *     until Support Desk Phase 3.
  *
  * Configuration (required):
  *   RESEND_WEBHOOK_SECRET      — Svix signing secret (`whsec_…`) from the
@@ -27,6 +30,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { improntaLog } from "@/lib/server/structured-log";
 import { logServerError } from "@/lib/server/safe-error";
+import { processResendInboundEmail } from "@/lib/email/resend-inbound-forward";
 import {
   applyResendEvent,
   verifyResendSignature,
@@ -61,6 +65,31 @@ export async function POST(req: NextRequest) {
   }
   if (!event?.type) {
     return NextResponse.json({ error: "Missing event type" }, { status: 400 });
+  }
+
+  if (event.type === "email.received") {
+    try {
+      const inbound = await processResendInboundEmail(event);
+      void improntaLog("notif.webhook.resend.inbound", {
+        ok: inbound.ok,
+        stored: inbound.stored,
+        forwardStatus: inbound.forwardStatus ?? null,
+        detail: inbound.detail,
+      });
+      // Retention: if we stored the row, ack 200 even when Gmail forward
+      // failed — Resend retry would only re-hit the unique key. If store
+      // failed, 500 so Resend retries delivery.
+      if (!inbound.stored) {
+        return NextResponse.json(
+          { error: "Inbound store failed", detail: inbound.detail },
+          { status: 500 },
+        );
+      }
+      return NextResponse.json({ received: true, inbound });
+    } catch (err) {
+      logServerError("webhooks.resend.inbound", err);
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
   }
 
   const admin = createServiceRoleClient();

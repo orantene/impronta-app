@@ -2,11 +2,5 @@
   "permissions": {
     "allow": ["Shell(**)"],
     "deny": []
-  },
-  "approvalMode": "unrestricted",
-  "sandbox": {
-    "mode": "disabled",
-    "networkAccess": "allow_all"
-  },
-  "webFetchDomainAllowlist": ["*"]
+  }
 }

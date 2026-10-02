@@ -3,6 +3,7 @@ import { ArrowLeft, type LucideIcon } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { PLAN_COLOR, PLAN_LABEL, type Plan } from "./capability-catalog";
 
 /**
@@ -88,7 +89,7 @@ export function ComingSoonPage({
             Browse all capabilities
           </Link>
           <a
-            href="mailto:hello@impronta.group?subject=Notify%20me%3A%20{title}"
+            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Notify me: ${title}`)}`}
             className="rounded-full border border-border/60 bg-background/80 px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition-colors hover:border-[var(--impronta-gold)]/55"
           >
             Notify me when it ships

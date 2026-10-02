@@ -12,6 +12,7 @@ import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { trackProductEvent } from "@/lib/analytics/track-client";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import type { TrialDoorOffer } from "@/lib/server-actions/trial-door";
 
 /**
@@ -94,10 +95,12 @@ export function GlobalUpgradeModal({
         if (result.ok) {
           window.location.href = result.redirectUrl;
         } else if (result.noStripe) {
-          // Network has no self-serve price configured — hand off to sales.
-          // Address matches the product domain (Tulala) so replies route to
-          // the same inbox the user is corresponding with from /get-started.
-          window.open("mailto:hello@tulala.digital?subject=Network%20setup", "_blank");
+          // Network has no self-serve price configured — hand off to support.
+          // Same inbox as /get-started and every other public contact surface.
+          window.open(
+            `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Network setup")}`,
+            "_blank",
+          );
           setOpen(false);
         } else {
           toast.error(result.error);

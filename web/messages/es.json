@@ -21660,8 +21660,8 @@
       "planRenews": "y te ayudamos. Tu plan actual se renueva el {date}.",
       "planFreeNoRenewal": "y te ayudamos. Tu plan actual es gratuito y no se renueva.",
       "startingCheckout": "Abriendo el pago…",
-      "checkoutNotConfigured": "El pago en línea aún no está disponible. Escribe a sales@tulala.digital y te ayudamos.",
-      "checkoutFailed": "No se pudo abrir el pago. Inténtalo de nuevo o escribe a sales@tulala.digital.",
+      "checkoutNotConfigured": "El pago en línea aún no está disponible. Escribe a hello@tulala.digital y te ayudamos.",
+      "checkoutFailed": "No se pudo abrir el pago. Inténtalo de nuevo o escribe a hello@tulala.digital.",
       "checkoutNetworkError": "Hubo un problema de red al abrir el pago. Inténtalo de nuevo."
     },
     "today": {
