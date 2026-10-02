@@ -21,6 +21,10 @@ import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-iden
 import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENANT_SLUG_HEADER, HOST_TALENT_PROFILE_HEADER } from "@/lib/saas/host-context";
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
+import {
+  supportDeskHostDeadResponse,
+  supportDeskHostSurfaceResponse,
+} from "@/lib/support/desk-host";
 import { talentSiteRewriteReentryResponse } from "@/lib/saas/talent-site-rewrite-reentry";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import { brandedAdminRedirectPath, brandedAdminRewritePath, normalizeBrandedNextParam } from "@/lib/saas/branded-admin-url";
@@ -186,6 +190,20 @@ export async function proxy(request: NextRequest) {
       new URL("/_host-unregistered", request.url),
       { status: 404 },
     );
+  }
+
+  // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
+  // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
+  // flag is on, still restrict to the desk surface (not a full app host).
+  {
+    const deskDead = supportDeskHostDeadResponse(request, hostContext.hostname);
+    if (deskDead) return deskDead;
+    const deskSurface = supportDeskHostSurfaceResponse(
+      request,
+      pathname,
+      hostContext.hostname,
+    );
+    if (deskSurface) return deskSurface;
   }
 
   // A suspended workspace's public storefront is not served (agency + hub
