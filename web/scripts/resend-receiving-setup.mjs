@@ -6,9 +6,16 @@
  *
  *   cd web && node scripts/resend-receiving-setup.mjs
  *   cd web && node scripts/resend-receiving-setup.mjs --enable
+ *   cd web && node scripts/resend-receiving-setup.mjs --ensure-domains
+ *   cd web && node scripts/resend-receiving-setup.mjs --ensure-domains --enable
  *
- * --enable turns on receiving for tulala.digital + demo.tulala.digital when the
- * API supports it; otherwise follow the printed Dashboard steps.
+ * Targets:
+ *   - tulala.digital → hello@ / help@ / support@ (catch-all once MX is live)
+ *   - demo.tulala.digital → demo talent inboxes (password reset receive path)
+ *
+ * --ensure-domains creates a missing domain in Resend (then print DNS rows).
+ * --enable turns on receiving when the API supports it; otherwise follow the
+ * printed Dashboard steps.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -17,6 +24,7 @@ import { Resend } from "resend";
 
 const TARGETS = ["tulala.digital", "demo.tulala.digital"];
 const enableFlag = process.argv.includes("--enable");
+const ensureDomainsFlag = process.argv.includes("--ensure-domains");
 
 function loadEnvLocal() {
   const path = resolve(process.cwd(), ".env.local");
@@ -51,25 +59,52 @@ if (!apiKey) {
 
 const resend = new Resend(apiKey);
 
-const { data: list, error: listError } = await resend.domains.list();
-if (listError) {
-  console.error("domains.list failed:", listError.message ?? listError);
-  process.exit(1);
+async function listDomains() {
+  const { data: list, error: listError } = await resend.domains.list();
+  if (listError) {
+    console.error("domains.list failed:", listError.message ?? listError);
+    process.exit(1);
+  }
+  return list?.data ?? [];
 }
 
-const domains = list?.data ?? [];
+let domains = await listDomains();
 console.log("\nResend domains (receiving + DNS):\n");
 
 for (const name of TARGETS) {
-  const row = domains.find((d) => d.name === name);
+  let row = domains.find((d) => d.name === name);
+
+  if (!row && ensureDomainsFlag) {
+    console.log(`— ${name}: NOT FOUND — creating via Resend API…`);
+    const { data: created, error: createError } = await resend.domains.create({
+      name,
+    });
+    if (createError || !created?.id) {
+      console.log(
+        `    create failed — add domain in Dashboard → Domains → Add (${createError?.message ?? "unknown"})`,
+      );
+      console.log("");
+      continue;
+    }
+    console.log(`    created id=${created.id} — verify SPF/DKIM DNS next`);
+    domains = await listDomains();
+    row = domains.find((d) => d.name === name) ?? created;
+  }
+
   if (!row) {
-    console.log(`— ${name}: NOT FOUND in Resend — add/verify domain first`);
+    console.log(
+      `— ${name}: NOT FOUND in Resend — re-run with --ensure-domains or add/verify in Dashboard`,
+    );
+    console.log("");
     continue;
   }
 
   const { data: detail, error: getError } = await resend.domains.get(row.id);
   if (getError || !detail) {
-    console.log(`— ${name}: could not load domain detail (${getError?.message ?? "unknown"})`);
+    console.log(
+      `— ${name}: could not load domain detail (${getError?.message ?? "unknown"})`,
+    );
+    console.log("");
     continue;
   }
 
@@ -98,7 +133,9 @@ for (const name of TARGETS) {
       );
       console.log(`    (${patchError.message ?? patchError})`);
     } else {
-      console.log("    enable receiving: requested via API — re-run to see MX rows");
+      console.log(
+        "    enable receiving: requested via API — re-run to see MX rows",
+      );
     }
   } else if (!enableFlag) {
     console.log(
@@ -108,7 +145,24 @@ for (const name of TARGETS) {
   console.log("");
 }
 
-console.log("Vercel DNS (tulala.digital project): add the MX row Resend shows for each domain.");
-console.log("Webhook: POST https://tulala.digital/api/webhooks/resend — event email.received");
-console.log("Forward target: RESEND_INBOUND_FORWARD_TO (default orantene@gmail.com)");
-console.log("After proof: set NEXT_PUBLIC_SUPPORT_EMAIL_CAN_RECEIVE=1 in Vercel production + redeploy.\n");
+console.log(
+  "Vercel DNS (tulala.digital project): add the MX row Resend shows for each domain.",
+);
+console.log(
+  "Catch-all: once MX is verified, hello@ / help@ / support@ and *@demo.tulala.digital all hit the same webhook.",
+);
+console.log(
+  "Webhook: POST https://tulala.digital/api/webhooks/resend — event email.received",
+);
+console.log(
+  "Store+forward: email.received → resend_inbound_emails → Gmail (RESEND_INBOUND_FORWARD_TO).",
+);
+console.log(
+  "Apply migration first: cd web && npm run db:push  (20261231320000_resend_inbound_emails)",
+);
+console.log(
+  "Forward target: RESEND_INBOUND_FORWARD_TO (default orantene@gmail.com)",
+);
+console.log(
+  "After proof: set NEXT_PUBLIC_SUPPORT_EMAIL_CAN_RECEIVE=1 in Vercel production + redeploy.\n",
+);

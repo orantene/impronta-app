@@ -49,6 +49,7 @@
     "stripe:live": "node scripts/stripe-target.mjs live",
     "resend:receiving:status": "node scripts/resend-receiving-setup.mjs",
     "resend:receiving:enable": "node scripts/resend-receiving-setup.mjs --enable",
+    "resend:receiving:ensure": "node scripts/resend-receiving-setup.mjs --ensure-domains --enable",
     "db:push": "npx -y supabase@latest db push --linked --include-all --yes",
     "sql:dry-run": "node --env-file=.env.vercel.local scripts/sql-dry-run.mjs",
     "guide:generate": "node --env-file=.env.local --import tsx scripts/guide/generate-guide-articles.mjs",
