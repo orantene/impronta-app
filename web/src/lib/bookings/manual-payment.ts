@@ -249,7 +249,7 @@ export function supabaseManualPaymentStore(admin: SupabaseClient): ManualPayment
         id: row.id,
         tenantId: row.tenant_id,
         status: row.status,
-        totalCents: totalClientRevenueToCents(row.total_client_revenue),
+        totalCents: totalClientRevenueToCents(row.total_client_revenue as string | number | null | undefined),
         currency: (row.currency_code || "MXN").toUpperCase(),
       };
     },
