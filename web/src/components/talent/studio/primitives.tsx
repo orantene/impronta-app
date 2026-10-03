@@ -6,11 +6,11 @@ export type ChipTone = "ok" | "info" | "warn" | "risk" | "idle" | "brand";
 
 const CHIP: Record<ChipTone, string> = {
   ok: "bg-admin-green-soft text-admin-green",
-  info: "bg-[rgba(91,107,160,0.10)] text-[#5B6BA0]",
+  info: "bg-[var(--tc-soft,#E8F3F1)] text-[var(--tc-action-ink,#245850)]",
   warn: "bg-[rgba(82,96,109,0.10)] text-[#52606D]",
   risk: "bg-[rgba(176,48,58,0.10)] text-[#B0303A]",
   idle: "bg-[rgba(11,11,13,0.05)] text-[rgba(11,11,13,0.55)]",
-  brand: "bg-admin-brand-soft text-admin-brand",
+  brand: "bg-[var(--tc-soft,#E8F3F1)] text-[var(--tc-action-ink,#245850)]",
 };
 
 export function StatusChip({ tone, children }: { tone: ChipTone; children: ReactNode }) {
@@ -24,7 +24,8 @@ export function StatusChip({ tone, children }: { tone: ChipTone; children: React
 type BtnKind = "primary" | "sec" | "qt" | "dgr";
 
 const BTN: Record<BtnKind, string> = {
-  primary: "bg-admin-brand text-white",
+  primary:
+    "border border-[var(--tc-action,#3B8277)] bg-[var(--tc-action,#3B8277)] text-white hover:border-[var(--tc-action-hover,#326F66)] hover:bg-[var(--tc-action-hover,#326F66)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)] disabled:opacity-40",
   sec: "border border-admin-border bg-white text-admin-ink",
   qt: "bg-transparent text-admin-ink-muted",
   dgr: "bg-[rgba(176,48,58,0.10)] text-[#B0303A]",

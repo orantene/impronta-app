@@ -145,7 +145,7 @@ export function ThemeUpdateNotice({
       role="status"
       aria-live="polite"
       data-theme-update-toast
-      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-admin-ink px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
+      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[310] mx-auto max-w-md rounded-xl bg-[var(--tc-action,#3B8277)] px-4 py-3 text-center text-[14px] font-semibold text-white shadow-lg"
     >
       {toast}
     </div>
@@ -209,7 +209,7 @@ export function ThemeUpdateNotice({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex min-h-11 items-center rounded-lg bg-admin-ink px-4 text-[14px] font-semibold text-white"
+            className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tc-action,#3B8277)] bg-[var(--tc-action,#3B8277)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tc-action-hover,#326F66)] hover:bg-[var(--tc-action-hover,#326F66)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)]"
             data-theme-update-whats-new
           >
             {t("whatsNew")}
@@ -219,7 +219,7 @@ export function ThemeUpdateNotice({
               type="button"
               disabled={busy}
               onClick={() => void apply(notice.draftRev)}
-              className="inline-flex min-h-11 items-center rounded-lg bg-admin-ink px-4 text-[14px] font-semibold text-white disabled:opacity-60"
+              className="inline-flex min-h-11 items-center rounded-lg border border-[var(--tc-action,#3B8277)] bg-[var(--tc-action,#3B8277)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tc-action-hover,#326F66)] hover:bg-[var(--tc-action-hover,#326F66)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)] disabled:opacity-60"
               data-theme-update-apply-again
             >
               {busy ? t("applying") : t("applyShort")}
