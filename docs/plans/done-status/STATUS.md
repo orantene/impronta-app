@@ -1,9 +1,9 @@
-Updated: 2026-10-03 17:03Z · Scoreboard: ✅ 3 / 🟡 65 / ❌ 17 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 17:21Z · Scoreboard: ✅ 3 / 🟡 63 / ❌ 17 / ⏸ 3 / ❓ 14
 Live SHA: c4f0a097a · origin/production: c4f0a097a · Main SHA: c4f0a097a
 Top 3 blockers right now
-1. TOP — **Live = main = production** `c4f0a097a` ([#2492](https://github.com/orantene/impronta-app/pull/2492) avatar menu **LIVE**). HTML sentry-release on `app.tulala.digital` + `tulala.digital` = `c4f0a097ae83ec7c4e57edc0751bbbf0b2f50891` (rechecked 17:03Z); Link preload `dpl=dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD`. Vercel READY prod `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD` (meta sha match; target production; `githubCommitRef=production`). Tip Structural **SUCCESS** [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027); Promote **SUCCESS** [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889); post-deploy alias **SUCCESS** [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870). Merge chain **closed on main+production**: #2487→#2490→#2495→#2492 (`d6c160060`→`25db98f0e`→`df336f40f`→`c4f0a097a`). #94 → ✅ (deploy-health). **FULL PACK PASS** unchanged on remount. #13 stays 🟡 until Free-talent Cloud Chrome avatar walk (code is live). #55/#57 stay ❌ until Free locked-editor live walk (`TALENT_FREE_WEBSITE_ENABLED`).
-2. Stories 4–7 (live Cloud Chrome) — wall **PASS** on TAL-93900 (`internal/stories-qa-oct3.md`); S4 custom-site inquire **PASS** (`internal/story-04-jor.md` + inbox row); S6 fee toggle **PASS** (restored seller-pays); S5/S7 **PARTIAL** blocked on exact UI `Cuenta de depósito: Sin configurar` (Oran Stripe test secrets / Connect — `docs/plans/payouts-sandbox-audit.md`). Money #45/#49/#46 stay ❌ (no post-promote paid walk). #26/#47 not ✅.
-3. Support Desk flag OFF, parked: `support.tulala.digital` 404 (rechecked 17:03Z); #2477 draft CONFLICTING only open PR. Merge lane clear — no non-draft open PRs. Sandbox/payouts blocked on Oran. Live `/legal/refunds` EN+ES HTTP 200 on tip `c4f0a097a` (rechecked 17:03Z on `tulala.digital`).
+1. TOP — **Live = main = production** `c4f0a097a` ([#2492](https://github.com/orantene/impronta-app/pull/2492) avatar menu **LIVE**). Tip Structural **SUCCESS** [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027); Promote **SUCCESS** [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889); alias **SUCCESS** [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870); Vercel READY `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD`. Oran decisions (2026-10-03 17:21Z): domain search/buy **owner-parked** (#60 → ⏸; no prod registrar tokens; Buscar Coming-soon PR in progress on `fix/domain-search-coming-soon`). Free Builder flag **confirmed Production** by Oran — #55/#57 stay ❌ until Valeria live evidence (check in flight). #13 stays 🟡 (Free avatar walk). #94 ✅.
+2. Money / S5–S7 paid QA — moved to **LOCAL Mac agent** (not cloud secrets). Live still shows `Cuenta de depósito: Sin configurar`. Money #45/#49/#46 stay ❌; #26/#47 stay 🟡 until a paid walk. Wall+S4 inquire PASS; S6 fee toggle PASS.
+3. Support Desk stays ⏸ / parked — `SUPPORT_DESK_ENABLED` off; `support.tulala.digital` 404; #2477 draft CONFLICTING. Do not merge Desk / do not enable flag. Live `/legal/refunds` EN+ES 200 on tip.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
 
@@ -21,22 +21,22 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 | 8 | Whole ES flow, no English leaks | 🟡 | Onboarding key parity is in code. | No full ES walk of signup through the live site. | S1 check (ES, phone and desktop) | — | 2026-10-03 |
 | 11 | “What to do next” on a new home | 🟡 | `FirstSessionChecklist` on Today (`TodayPage.tsx`). | Not seen on a brand-new talent home, ES or EN. | S1 check | — | 2026-10-03 |
 | 15 | No placeholder data on a real dashboard | ✅ | Live wall re-proof 2026-10-03 (`internal/stories-qa-oct3.md`): TAL-93900 on `app.tulala.digital` — Today/Services/Money/Inbox load with no “Profile created — you're in!” / roster wall (`media/stories-qa/s3-wall-*.png`). #2490 ancestor of live tip `c4f0a097a` (HTML sentry-release + Vercel `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD`). | None for wall. Broader placeholder hunt not a separate fail this pass. | S1 check | — | 2026-10-03 |
-| 54 | Free site is one page and publishes | 🟡 | Free plan is home-only in `talent-membership.ts` plus publish core. Needs `TALENT_FREE_WEBSITE_ENABLED`. | Not published from a fresh Free account or from Valeria TAL-93901. | S1 step 5 | — | 2026-10-03 |
+| 54 | Free site is one page and publishes | 🟡 | Free plan is home-only in `talent-membership.ts` plus publish core. Oran confirmed `TALENT_FREE_WEBSITE_ENABLED` on Production; Valeria live check in flight. | Not published / proven from Valeria TAL-93901 yet. Not ✅. | S1 step 5 | — | 2026-10-03 |
 
 ## Story 2 — Valeria on the Free plan (S2)
 
-Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Avatar [#2492](https://github.com/orantene/impronta-app/pull/2492) **LIVE** on tip `c4f0a097a` (promote+alias+HTML); #13 stays 🟡 until Free-talent Cloud Chrome avatar walk. #55 and #57 stay ❌. #59 stays not run.
+Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Avatar [#2492](https://github.com/orantene/impronta-app/pull/2492) **LIVE** on tip `c4f0a097a` (promote+alias+HTML); #13 stays 🟡 until Free-talent Cloud Chrome avatar walk. Oran confirmed `TALENT_FREE_WEBSITE_ENABLED` on **Production**; live Valeria Free Builder check in flight — #55/#57 stay ❌ until evidence (not ✅). #59 stays not run.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 13 | Avatar links Site, Builder, Money, Messages, Settings | 🟡 | [#2492](https://github.com/orantene/impronta-app/pull/2492) **LIVE** on tip `c4f0a097a` (Structural SUCCESS [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027); Promote [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889); alias [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870); HTML sentry-release + Vercel `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD`). Prior branch walk showed Builder, Money, Messages, Settings (`media/story-02-avatar-menu.png`, `internal/story-02-avatar-proof.md`). | Need Free-talent Cloud Chrome avatar walk on live domains. Not ✅. | S2 step 1 | — | 2026-10-03 |
-| 55 | Free Add and Move blocked in UI and server | ❌ | FAIL prior: Web Office upsell, not locked editor (`media/story-02-avatar-builder.png`). [#2495](https://github.com/orantene/impronta-app/pull/2495) Free provision ancestor of live tip `c4f0a097a` (Vercel `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD`). Needs `TALENT_FREE_WEBSITE_ENABLED` + live Free locked-editor walk. | Add/Move locks not shown on live Free account this pass. Not ✅. | S2 steps 3–5 | — | 2026-10-03 |
-| 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL prior: editor never opened (upsell). #2495 ancestor of live `c4f0a097a` — Free editor path still needs flag + walk. | Need Free editor that opens on live. | S2 step 2 | — | 2026-10-03 |
+| 55 | Free Add and Move blocked in UI and server | ❌ | FAIL prior: Web Office upsell, not locked editor (`media/story-02-avatar-builder.png`). [#2495](https://github.com/orantene/impronta-app/pull/2495) Free provision ancestor of live tip `c4f0a097a`. Oran confirmed `TALENT_FREE_WEBSITE_ENABLED` on Production; live Valeria check in flight. | Stay ❌ until locked-editor evidence. Not ✅. | S2 steps 3–5 | — | 2026-10-03 |
+| 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL prior: editor never opened (upsell). #2495 ancestor of live `c4f0a097a`. Oran confirmed Free Builder flag on Production; Valeria live check in flight. | Stay ❌ until Free editor open + back-arrow evidence. Not ✅. | S2 step 2 | — | 2026-10-03 |
 | 59 | Website Settings change the live site | 🟡 | Not run. `/talent/site` killed the dev server (OOM) before settings opened. No booking-mode or pause-banner change. Public `/t/TAL-QAFIXFREE` did load (`media/story-02-08-public.png`, Diego as lash artist). | Settings were never toggled, so the live site was not rechecked. Not ✅. | S2 step 6 | — | 2026-10-03 |
 
 ## Story 3 — Jor services and money setup (S3)
 
-Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Services/Money/Inbox — no PROFILE CREATED wall. #2490 is an ancestor of live `c4f0a097a`. S4 inquire PASS on custom site (`internal/story-04-jor.md`). S5/S7 PARTIAL — `Cuenta de depósito: Sin configurar`. “Manicure Gel QA” local Save failed (env); offering exists via SQL for inquire proof.
+Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Services/Money/Inbox — no PROFILE CREATED wall. #2490 is an ancestor of live `c4f0a097a`. S4 inquire PASS on custom site (`internal/story-04-jor.md`). S5/S7 PARTIAL — `Cuenta de depósito: Sin configurar`; **paid QA moved to LOCAL Mac agent** (Oran: not cloud secrets). “Manicure Gel QA” local Save failed (env); offering exists via SQL for inquire proof.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
@@ -56,22 +56,22 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 23 | Double booking is impossible | 🟡 | #2468 is an ancestor of live production `0972d4f0a`. DB exclusion covers agenda, holds, and chat proposals. | Same slot was not booked twice from a second guest. No live check, so this is not ✅. | S4 step 7 | — | 2026-10-03 |
 | 28 | Confirmation and reminder messages | 🟡 | Booking and reminder templates plus cron exist on main. | No live booking email or in-app reminder checked for language and branding. | S4 step 5 (client side) | — | 2026-10-03 |
 | 33 | Thread stays in sync with Agenda and Money | 🟡 | Messages v5 record chips (`context-view.ts`, `payment-view.ts`). Flag `NEXT_PUBLIC_MESSAGES_V5` / Studio v2 defaults off. | No paid thread compared with Agenda and Money. v5 may be off in production. | S4 step 5 | — | 2026-10-03 |
-| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | Prior A5.1 PAID at $100.00 not $101.50; Money $0. #2486+#2487 ancestors of live `c4f0a097a`. S5/S7 blocked on `Cuenta de depósito: Sin configurar`. | No post-promote live money walk. | S4 steps 4–5 | D15 | 2026-10-03 |
+| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | Prior A5.1 PAID at $100.00 not $101.50; Money $0. #2486+#2487 ancestors of live `c4f0a097a`. S5/S7 paid QA → **LOCAL Mac agent** (not cloud secrets); live still `Cuenta de depósito: Sin configurar`. | No post-promote paid money walk yet. | S4 steps 4–5 | D15 | 2026-10-03 |
 | 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | #2482 is an ancestor of live production `0972d4f0a` (`feat(api)/: receipt PDF fee lines + non-refundable note`). Confirmation copy already had fee lines. | Not ✅ until a live receipt PDF from a paid booking. | S4 step 5 | — | 2026-10-03 |
-| 49 | Money totals: earned, owed, cash, pending | ❌ | Prior vanity PAID still $0 Collected. #2486 on live `c4f0a097a`. Sandbox/payouts blocked — `Cuenta de depósito: Sin configurar` (Oran Stripe). | No post-promote live Money walk. | S4 step 6 | — | 2026-10-03 |
+| 49 | Money totals: earned, owed, cash, pending | ❌ | Prior vanity PAID still $0 Collected. #2486 on live `c4f0a097a`. Paid QA → LOCAL Mac agent; live payouts still unset (`Cuenta de depósito: Sin configurar`). | No post-promote live Money walk. | S4 step 6 | — | 2026-10-03 |
 
 ## Story 5 — Carla asks for a refund (S5)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2481 ancestor of live `c4f0a097a`. S5 live retest PARTIAL (`internal/story-05-07-jor-live-retest.md`): day/slot on Bozo PASS; paid refund **blocked** — pay-in-studio + `Cuenta de depósito: Sin configurar`. | Not ✅ until a live refund on a paid booking. | S5 step 1 | — | 2026-10-03 |
-| 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine on live tip. S5 PARTIAL — no online paid booking to refund (`Cuenta de depósito: Sin configurar`). | A5.3 not run. Not ✅. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
+| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2481 ancestor of live `c4f0a097a`. S5 live retest PARTIAL (`internal/story-05-07-jor-live-retest.md`): day/slot on Bozo PASS; paid refund blocked — pay-in-studio + deposit unset. Oran: S5 paid QA → **LOCAL Mac agent**. | Not ✅ until a paid refund walk (Mac). | S5 step 1 | — | 2026-10-03 |
+| 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine on live tip. S5 PARTIAL — no online paid booking; paid QA → LOCAL Mac agent. | A5.3 not run. Not ✅. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
 
 ## Story 6 — Diego pays the card fee (S6)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 46 | Client-pays fee charges about $104.84; talent gets $100 | ❌ | Live A5.2 previously charged $100. #2487 on live `c4f0a097a`. S6 fee toggle **PASS** + restored (`internal/stories-qa-oct3.md`); live charge blocked by payouts unset. | Talent net $100 not paid out. Not ✅. | S6 steps 1–3 | — | 2026-10-03 |
+| 46 | Client-pays fee charges about $104.84; talent gets $100 | ❌ | Live A5.2 previously charged $100. #2487 on live `c4f0a097a`. S6 fee toggle **PASS** + restored; live charge blocked by payouts unset. Paid charge QA → LOCAL Mac agent. | Talent net $100 not paid out. Not ✅. | S6 steps 1–3 | — | 2026-10-03 |
 
 ## Story 7 — Offer, pay, and control in the thread (S7)
 
@@ -112,7 +112,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 |---|---|---|---|---|---|---|---|
 | 56 | Paid plan can add, move, duplicate, remove sections | 🟡 | Web Office grants `personalSiteSections`. Navigator can duplicate, move, and remove. | Not done on a paid talent in the builder. | S10 step 1 | — | 2026-10-03 |
 | 58 | Font, size, colour, and shape are editable | 🟡 | Style panel covers text, font, size, and colour. | Not every token and shape of every design is editable. Not published and rechecked. | S10 step 2 | — | 2026-10-03 |
-| 60 | Custom domain with clear ES and EN errors | 🟡 | `TalentSiteDomainPanel` plus ES/EN error copy and `legal-domain-qa.test.tsx`. Web Office gated. | A fake domain was not submitted on the live drawer. | S10 step 4 | — | 2026-10-03 |
+| 60 | Custom domain with clear ES and EN errors | ⏸ | Oran **owner-parked** domain search/buy — do not add Vercel registrar tokens to production. Diagnosis: `internal/domain-search-diagnosis.md`. Buscar Coming-soon PR in progress (`fix/domain-search-coming-soon`). Connect + Get help remain the live paths. | Search/buy parked (not ❌). Connect/Help still work once UI ships. | S10 step 4 | — | 2026-10-03 |
 | 61 | SEO: title, description, canonical, sitemap, hreflang | 🟡 | `https://tulala.digital/sitemap.xml` HTTP 200 at 2026-10-03 00:29Z. Talent SEO helpers are on main. | A talent host was not view-sourced for title, canonical, and hreflang. | S10 step 5 | — | 2026-10-03 |
 | 63 | Legal footer links use the right language | 🟡 | `footer-socket.ts` `localizedLegalUrl` rewrites ES to `/es/legal/...`. | Not checked on a live ES talent footer. | S10 step 6 | — | 2026-10-03 |
 | 71 | Switch theme without losing content | 🟡 | `applyDesign` keeps profile and services and replaces the custom page tree. | Theme switch not done on TAL-93900. Builder edits would be replaced. | S10 step 3 | — | 2026-10-03 |
@@ -152,7 +152,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 84 | Transactional mail: right language and brand | 🟡 | EN/ES templates for booking, payment, reminder, and password reset are on main. | No booking or payment mail opened from a live talent flow. Reset send is rate-limited. | S13 step 6 | — | 2026-10-03 |
 | 85 | Talent can choose which notifications | 🟡 | `TalentNotificationsDrawer` saves prefs. Keys are `new-offer`, `hold-expiring`, and similar, not the catalog category ids the dispatcher reads. | Toggles may not change what is sent. Not proven with one real event. | S13 (own: toggle one pref, trigger the event) | — | 2026-10-03 |
 | 86 | Support from the dashboard or site: AI, then a human | 🟡 | Launchers and `/api/ai/support-chat` plus `requestHumanAction` are on main. `/support` was HTTP 200 on 2026-10-02. | Not walked as a talent or a guest through AI then human on production. | S13 steps 1–2 | — | 2026-10-03 |
-| 87 | Owner works support in the Desk, including hello@ | 🟡 | #2479 and #2483 ancestors of live `c4f0a097a`. Migrations applied. `SUPPORT_DESK_ENABLED` off. | `https://support.tulala.digital` HTTP 404 rechecked 2026-10-03 17:03Z. Flag OFF; parked. Draft #2477 CONFLICTING. | S13 step 3 | — | 2026-10-03 |
+| 87 | Owner works support in the Desk, including hello@ | ⏸ | #2479 and #2483 ancestors of live `c4f0a097a`. Migrations applied. Oran: Support Desk stays parked; `SUPPORT_DESK_ENABLED` off. | `https://support.tulala.digital` 404. Do not merge #2477 / do not enable flag. | S13 step 3 | — | 2026-10-03 |
 | 88 | Tickets show plan, bookings, payments, errors | 🟡 | `TicketContextCard` has plan, recent bookings, payment status, and diagnostics. | No payments ledger panel. Talent-as-requester lookup is weak. Not opened on a live ticket. | S13 step 2 | — | 2026-10-03 |
 
 ## Story 14 — The platform is healthy (S14)
@@ -166,7 +166,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 17:03Z: 1 (#2477 draft CONFLICTING, created 2026-10-02). Author `orantene`. Live=main=production tip `c4f0a097a` (#2492). Zero non-draft open PRs — merge lane clear. | None older than 2 days. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on tip; no logged console capture this wake. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live production equals main at `187558dca`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` refreshed this wake (2026-10-03 17:03Z). Live=main=production `c4f0a097a` (#2492 LIVE); #94 ✅. Stories wall+S4 PASS; S5/S7 PARTIAL on deposit unset (Oran Stripe). FULL PACK PASS. Desk parked. No new Claude replies. Do not message Oran (#2492 already told). | Board working note, not every-PR owner proof. | S14 step 5 | — | 2026-10-03 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` refreshed 2026-10-03 17:21Z. Oran decisions: domain search/buy ⏸; S5/S7 paid QA → Mac local; Desk ⏸ flag off; Free Builder flag confirmed Production (Valeria check in flight, not ✅). Live tip `c4f0a097a`. REPLIES.md untouched. | Board working note. | S14 step 5 | — | 2026-10-03 |
 
 ## No story yet
 
@@ -212,7 +212,10 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-Standing PM wake 17:03Z on `status/done-board` (from `d296a3d52` / prior 16:46Z). REPLIES.md stub unchanged — no new Claude replies; not overwritten. Do not message Oran (#2492 already told).
-**Changed vs 16:46Z:** Tip state **unchanged** — Live = main = production = HTML sentry-release = `c4f0a097a` (#2492 avatar menu **LIVE**). Rechecked 17:03Z: Structural SUCCESS [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027) → Promote SUCCESS [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889) → alias SUCCESS [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870) → Vercel READY `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD` (HTML Link `dpl=` match on app+apex; meta sha + `githubCommitRef=production`). Merge chain still closed: #2487→#2490→#2495→#2492. #94 stays ✅. #15 stays ✅. #13 stays 🟡 (code live; Free avatar walk not re-run).
-Stories 4–7 unchanged: wall+S4 inquire PASS; S6 fee toggle PASS; S5/S7 PARTIAL blocked on `Cuenta de depósito: Sin configurar` (Oran Stripe). Money #45/#49/#46 still ❌. Pack FULL PASS. Desk #2477 draft parked; `/legal/refunds` EN+ES 200 on `tulala.digital`; `support.tulala.digital` 404.
-Open PRs (1): #2477 draft CONFLICTING only — merge lane clear (zero non-draft). No new non-draft ready PR. Scoreboard: ✅ 3 / 🟡 65 / ❌ 17 / ⏸ 1 / ❓ 14. No new ✅ this wake.
+Oran decisions wake 2026-10-03 17:21Z on `status/done-board` (from `0cfcfb8fd` / prior 17:03Z). REPLIES.md untouched (Claude owns). Tip SHA unchanged `c4f0a097a`.
+**Changed vs 17:03Z:**
+- #60 Custom domain search/buy → ⏸ owner-parked (not ❌). No Vercel registrar tokens in production. Buscar Coming-soon PR in progress (`fix/domain-search-coming-soon`). Connect + Get help stay live paths.
+- S5/S7 paid QA → LOCAL Mac agent (not cloud secrets). Money rows #45/#49/#46 stay ❌; #26/#47 stay 🟡. Live deposit still unset.
+- #87 Support Desk → ⏸ parked; `SUPPORT_DESK_ENABLED` off; do not merge #2477.
+- Free Builder: Oran confirmed flag on Production; #54/#55/#57 evidence updated; stay not ✅ until Valeria live proof (check in flight).
+Scoreboard: ✅ 3 / 🟡 63 / ❌ 17 / ⏸ 3 / ❓ 14.
