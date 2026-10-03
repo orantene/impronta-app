@@ -14,7 +14,7 @@ Personas: **paid** = TAL-93900 (Jor clone) · **free** = Valeria TAL-93901 · **
 
 | Feature | PRs | Gate(s) | Prod state | Visible to: paid / free / fresh / visitor / admin | Last verified live | Owner | Notes |
 |---|---|---|---|---|---|---|---|
-| Presence tabs (My website / Where I appear / Discover networks) | #2494 #2497 + Studio | `TALENT_STUDIO_V2` | **ON** (`1`) | ✅ / ✅ / ✅ / n/a / n/a | 2026-10-03 · `media/built-vs-live-audit/tal-93900-jor/10-presence.png` + sibling Studio shots | product | Dev-default killed in PR `cursor/kill-feature-flag-dev-defaults-c337` |
+| Presence tabs (My website / Where I appear / Discover networks) | #2494 #2497 + Studio | `TALENT_STUDIO_V2` | **ON** (`1`) | ✅ / ✅ / ✅ / n/a / n/a | 2026-10-03 · `media/built-vs-live-audit/tal-93900-jor/10-presence.png` + sibling Studio shots | product | Dev-default killed in [#2504](https://github.com/orantene/impronta-app/pull/2504) |
 | Studio shell (identity bar, mobile bottom nav, trial chip) | Studio V2 | `TALENT_STUDIO_V2` | **ON** | ✅ / ✅ / ✅ / n/a / n/a | 2026-10-03 · `media/talent-studio-v2-live/05-identity-bar.png` | product | |
 | Agenda V2 (Today / Calendar) | prior | `TALENT_AGENDA_V2=all` | **ON** | ✅ / ✅ / ✅ / n/a / n/a | 2026-10-03 · jor `02-today.png` | product | |
 | Messages v5 (talent inbox / fee lines) | #2460 | `TALENT_STUDIO_V2` **or** `NEXT_PUBLIC_MESSAGES_V5` | **ON** (both `1`) | ✅ / ✅ / ✅ / n/a / n/a | 2026-10-03 · jor `20-messages.png` | product | Accept/Decline + net split still need Story 7 click-through |

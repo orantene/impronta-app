@@ -87,4 +87,4 @@ Hide dead buttons; do not advertise unfinished surfaces.
 
 **Come later:** AI booker, theme/demo scale, premium apps, onboarding publish defaults, front-door chat owed fixes, full paid Connect walks.
 
-**Engineering guardrail shipping:** PR `cursor/kill-feature-flag-dev-defaults-c337` — flags no longer default ON in `NODE_ENV=development`; static test prevents regression.
+**Engineering guardrail shipping:** [#2504](https://github.com/orantene/impronta-app/pull/2504) (`cursor/kill-feature-flag-dev-defaults-c337`) — flags no longer default ON in `NODE_ENV=development`; static test prevents regression.
