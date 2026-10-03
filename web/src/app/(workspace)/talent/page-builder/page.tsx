@@ -13,12 +13,13 @@
  * Gating (Phase 1): the editor requires a SITE to exist AND
  * `personalSiteEdit` (`siteCapabilities`). While `TALENT_FREE_WEBSITE_ENABLED`
  * is off, `personalSiteEdit` resolves Max-only, so this is byte-identical to
- * the old "is Max" gate — only `talent_portfolio` ever has a provisioned
- * site. A talent who CAN edit but has no site yet (Free tier, switch on,
- * before the create wizard ships) is redirected to the Public page screen
- * instead of an empty editor. A talent who cannot edit at all sees the "Web
- * Office" upsell (not a 404). An anonymous / non-talent user is redirected to
- * login by the talent layout's session guard.
+ * the old "is Max" gate — only `talent_portfolio` ever reaches the editor. When
+ * the switch is on, Free/Pro get `personalSiteEdit` too: this route
+ * idempotently provisions their site (same scaffold as Max; Add/Move stay
+ * locked via `personalSiteSections`) so Builder opens the locked editor
+ * instead of bouncing to Public page / a hard upsell. A talent who cannot
+ * edit at all still sees the "Web Office" upsell (not a 404). An anonymous /
+ * non-talent user is redirected to login by the talent layout's session guard.
  *
  * The talent layout renders this route bare (no dashboard shell) so the editor
  * owns the full viewport.
@@ -98,19 +99,23 @@ async function resolveBuilderTenantId(profileId: string): Promise<string | null>
   return (data as { created_by_agency_id: string | null } | null)?.created_by_agency_id ?? null;
 }
 
-/** "A site exists": Max is provisioned (idempotent, Max-gated) so it always
- *  does; a lower tier that can edit is probed for a site slug. */
+/**
+ * "A site exists": any talent who can edit gets an idempotent provision
+ * (`provisionTalentMaxSite` is capability-gated, not Max-hardcoded). Free with
+ * the switch on must land in the locked editor — probing without provisioning
+ * left Free talents stuck on Public page / 404 with no site row.
+ */
 async function resolveSiteExists(input: {
   profileId: string;
-  isMax: boolean;
   canEdit: boolean;
   userId: string;
 }): Promise<boolean> {
-  if (input.isMax) {
-    await provisionTalentMaxSite(input.profileId, input.userId);
-    return true;
-  }
   if (!input.canEdit) return false;
+  const result = await provisionTalentMaxSite(input.profileId, input.userId);
+  if (result.ok) return true;
+  logServerError("talentPageBuilder/siteProvision", new Error(result.error));
+  // Fall back to a slug probe so a transient provision error does not hide an
+  // already-created site from the editor.
   const admin = createServiceRoleClient();
   if (!admin) return false;
   const { data: siteRow, error: siteError } = await admin
@@ -118,9 +123,6 @@ async function resolveSiteExists(input: {
     .select("site_slug")
     .eq("talent_profile_id", input.profileId)
     .maybeSingle();
-  // PostgREST does not throw: a denied policy and "no row yet" both arrive as
-  // data:null. Record the difference instead of reading a failed probe as
-  // "this talent has no site".
   if (siteError) logServerError("talentPageBuilder/siteExistsProbe", siteError);
   return !siteError && !!(siteRow as { site_slug: string | null } | null)?.site_slug;
 }
@@ -167,7 +169,6 @@ export default async function TalentPageBuilderRoute({
   // locales). Only provision -> (pages, editor row) is a real dependency.
   const siteCapabilities = buildTalentSiteCapabilities(profile.talentPlanKey);
   const canEdit = siteCapabilities.personalSiteEdit;
-  const isMax = profile.talentPlanKey === "talent_portfolio" || profile.talentTier === "max";
 
   // F132 - the builder is mounted bare (no dashboard layout), so it reconciles
   // the language cookie itself: a foreign or unowned cookie never overrides the
@@ -196,12 +197,12 @@ export default async function TalentPageBuilderRoute({
     // talent's own languages (primary first), not the managing agency's.
     loadTalentLocaleSettings(profile.id),
     resolveBuilderTenantId(profile.id),
-    resolveSiteExists({ profileId: profile.id, isMax, canEdit, userId: session.user.id }),
+    resolveSiteExists({ profileId: profile.id, canEdit, userId: session.user.id }),
   ]);
 
-  // Phase 1 gate: "a site exists AND the talent can edit it" replaces the old
-  // "is Max" gate (see resolveSiteExists). A lower tier (switch on) may be able
-  // to edit but have no site yet: send it back to the Public page screen.
+  // Phase 1 gate: edit capability + a provisioned site. Provision usually
+  // succeeds above; if it failed and no site row exists, Public page is the
+  // recovery surface (create/design flow), not an empty editor.
   if (canEdit && !siteExists) {
     redirect("/talent/public-page");
   }

@@ -391,7 +391,10 @@ export function ServicesHome({
           // Direct write, not editor.saveDraft: saveDraft reads the hook's own
           // draft state, which this screen never starts, so a new item saved
           // through it returned null and nothing was written.
-          const payload: TalentOffering = { ...next, status: publish ? "published" : next.status };
+          // Save draft must force status "draft" — blankOffering defaults to
+          // published, and keeping next.status left "Save draft" validating as
+          // a live Instant offering (no price → silent refuse).
+          const payload: TalentOffering = { ...next, status: publish ? "published" : "draft" };
           const res = await upsertTalentOffering(talentId, payload);
           if (!res.ok) throw new Error(res.error);
           if (pendingImageIds?.length) {

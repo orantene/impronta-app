@@ -165,8 +165,11 @@ export function EditorScreen({
       const pending = isNew ? photos.filter((p) => !p.id.startsWith("url-")).map((p) => p.id) : undefined;
       await onSave(item, publish, pending);
       setBaseline(JSON.stringify(item));
-    } catch {
-      setError(copy.t("It did not save. Everything you entered is still here. Try again."));
+    } catch (err) {
+      // Surface the server/validation sentence when we have one — the generic
+      // line alone hid "needs a price" / "Server configuration error" during QA.
+      const detail = err instanceof Error && err.message.trim() ? err.message.trim() : null;
+      setError(detail ?? copy.t("It did not save. Everything you entered is still here. Try again."));
     } finally {
       setBusy(null);
     }
