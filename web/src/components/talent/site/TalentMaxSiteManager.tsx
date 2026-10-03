@@ -22,6 +22,10 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
 import { ManagerThemeGallery } from "@/components/talent/site/theme-gallery/ManagerThemeGallery";
+import {
+  PresenceLiveFallback,
+  type PresenceLiveFallbackScreen,
+} from "@/components/talent/site/PresenceLiveFallback";
 import { COLORS, FONTS, useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { MaisonSetupScreen } from "@/components/talent/site/maison-setup/maison-choices";
@@ -196,6 +200,10 @@ function ManagerBody({
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
   const [maisonForceReason, setMaisonForceReason] = useState<"restored" | "resume">("restored");
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
+  /** Bootstrap settled — distinguishes "still loading" from "cohort off". */
+  const [maisonBootstrapSettled, setMaisonBootstrapSettled] = useState(false);
+  /** Live card fallback when MaisonSetupHost stays off for this talent. */
+  const [liveFallback, setLiveFallback] = useState<PresenceLiveFallbackScreen | null>(null);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
   /** Same entitlement gate as CustomDomainRow (capability + trial → plans). */
@@ -249,6 +257,17 @@ function ManagerBody({
   // Live card for ANY published design slug (maison, maison-v2, solace, …).
   const maisonLive = Boolean(state.sitePublishedAt);
   const hostHidden = maisonLive || !setupOpen;
+
+  // Cohort-off live talents: Change design / Apps must not no-op.
+  useEffect(() => {
+    if (!maisonBootstrapSettled || !maisonForceScreen) return;
+    if (maisonSetupEnabled) return;
+    if (maisonForceScreen === "apps") setLiveFallback("apps");
+    else if (maisonForceScreen === "gallery" || maisonForceScreen === "review") {
+      setLiveFallback("gallery");
+    }
+    setMaisonForceScreen(null);
+  }, [maisonBootstrapSettled, maisonForceScreen, maisonSetupEnabled]);
 
   const applyBusy = useThemeApplyBusy();
   function handlePublish() {
@@ -344,8 +363,23 @@ function ManagerBody({
         }}
         siteLive={hostHidden}
         liveAddress={liveHost(state.publicSiteUrl)}
-        onEnabledChange={setMaisonSetupEnabled}
+        onEnabledChange={(enabled) => {
+          setMaisonSetupEnabled(enabled);
+          setMaisonBootstrapSettled(true);
+        }}
       />
+
+      {liveFallback ? (
+        <PresenceLiveFallback
+          screen={liveFallback}
+          locale={locale === "es" ? "es" : "en"}
+          onClose={() => setLiveFallback(null)}
+          onApplied={async () => {
+            setLiveFallback(null);
+            await onReload();
+          }}
+        />
+      ) : null}
 
       {/* Maison flag off: the theme gallery is the design gallery (AUD-034). */}
       {hostHidden || maisonSetupEnabled ? null : (
