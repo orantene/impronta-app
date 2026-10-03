@@ -19,6 +19,7 @@ import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
 import { readAgendaV2Mode } from "@/lib/talent-agenda/flag";
+import { talentStudioV2Enabled } from "@/lib/talent/studio-flag";
 
 /** Same truthy contract as builder-rollout-ramp's parseRolloutCronFlag. */
 function parseTruthyFlag(envValue: string | undefined): boolean {
@@ -55,17 +56,10 @@ function envRaw(env: NodeJS.ProcessEnv, name: string): string | null {
 /**
  * Pure env half — unit-testable without Supabase. DB-backed rows are filled
  * by `resolveProdGatingFlags`.
+ *
+ * Studio / desk resolve through the canonical helpers (explicit env only —
+ * never NODE_ENV defaults; see #2504).
  */
-/**
- * Studio v2 gate mirrored for injectable env (talentStudioV2Enabled reads
- * process.env only). Keep in lockstep with `@/lib/talent/studio-flag`.
- */
-function studioV2Enabled(env: NodeJS.ProcessEnv): boolean {
-  if (env.TALENT_STUDIO_V2 === "0") return false;
-  if (env.TALENT_STUDIO_V2 === "1") return true;
-  return env.NODE_ENV === "development";
-}
-
 export function resolveEnvProdGatingFlags(
   env: NodeJS.ProcessEnv = process.env,
 ): ProdGatingFlag[] {
@@ -80,7 +74,7 @@ export function resolveEnvProdGatingFlags(
       key: "TALENT_STUDIO_V2",
       source: "env",
       env: envRaw(env, "TALENT_STUDIO_V2"),
-      resolved: studioV2Enabled(env),
+      resolved: talentStudioV2Enabled(env),
     },
     {
       key: "TALENT_AGENDA_V2",

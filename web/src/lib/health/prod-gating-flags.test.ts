@@ -48,15 +48,17 @@ test("resolveEnvProdGatingFlags: prod-like ON matrix", () => {
   assert.equal(byKey.SUPPORT_DESK_ENABLED.resolved, true);
 });
 
-test("resolveEnvProdGatingFlags: unset desk/studio OFF on Vercel production", () => {
-  const flags = resolveEnvProdGatingFlags({
-    NODE_ENV: "production",
-    VERCEL_ENV: "production",
-  });
-  const byKey = Object.fromEntries(flags.map((f) => [f.key, f]));
-  assert.equal(byKey.TALENT_STUDIO_V2.resolved, false);
-  assert.equal(byKey.SUPPORT_DESK_ENABLED.resolved, false);
-  assert.equal(byKey.TALENT_AGENDA_V2.resolved, "off");
+test("resolveEnvProdGatingFlags: unset desk/studio OFF (no NODE_ENV default)", () => {
+  for (const nodeEnv of ["production", "development"] as const) {
+    const flags = resolveEnvProdGatingFlags({
+      NODE_ENV: nodeEnv,
+      VERCEL_ENV: "production",
+    });
+    const byKey = Object.fromEntries(flags.map((f) => [f.key, f]));
+    assert.equal(byKey.TALENT_STUDIO_V2.resolved, false, `studio under NODE_ENV=${nodeEnv}`);
+    assert.equal(byKey.SUPPORT_DESK_ENABLED.resolved, false, `desk under NODE_ENV=${nodeEnv}`);
+    assert.equal(byKey.TALENT_AGENDA_V2.resolved, "off");
+  }
 });
 
 test("resolveEnvProdGatingFlags: catalog includes every FEATURES.md env + DB key", () => {
