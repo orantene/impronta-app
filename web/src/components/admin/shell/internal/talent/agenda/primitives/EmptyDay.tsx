@@ -31,7 +31,7 @@ export function EmptyDay({
         <button
           type="button"
           onClick={onAction}
-          className="mt-3 inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-primary)] px-4 text-[13px] text-white"
+          className="mt-3 inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[13px] text-white"
         >
           {actionLabel}
         </button>

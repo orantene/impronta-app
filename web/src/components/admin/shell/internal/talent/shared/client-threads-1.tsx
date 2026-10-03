@@ -61,7 +61,7 @@ function TalentMessagesFab() {
           width: 56,
           height: 56,
           borderRadius: 999,
-          background: COLORS.fill,
+          background: "var(--tc-action)",
           color: "#fff",
           border: "none",
           cursor: "pointer",

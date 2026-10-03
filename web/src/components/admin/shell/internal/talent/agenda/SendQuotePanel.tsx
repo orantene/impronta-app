@@ -229,7 +229,7 @@ function SendQuoteForm({
             type="button"
             onClick={create}
             disabled={!canCreate}
-            className="min-h-[48px] flex-1 rounded-full bg-[var(--tc-primary)] px-5 text-[15px] font-semibold text-white disabled:opacity-40 md:flex-none"
+            className="min-h-[48px] flex-1 rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-5 text-[15px] font-semibold text-white disabled:opacity-40 md:flex-none"
           >
             {pending ? (step === 2 ? copy.t("Sending quote… (2 of 2)") : copy.t("Creating conversation… (1 of 2)")) : copy.t("Send quote")}
           </button>

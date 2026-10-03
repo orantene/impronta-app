@@ -148,6 +148,8 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 // the host-shape logic can be unit-tested without mounting this shell. Add new
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
+import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "./internal/talent/visual/tokens";
+import "./internal/talent/visual/talent-visual.css";
 
 
 function ConditionalAdminShellRoot() {
@@ -1173,7 +1175,8 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
-  const { bridgeTenantIdentity, workspaceFabEnabled } = useAdminShell();
+  const { bridgeTenantIdentity, workspaceFabEnabled, state } = useAdminShell();
+  const talentVisual = state.surface === "talent";
   // Whitelabel accent — only set for whitelabel-tier tenants (the loader
   // already gates + hex-validates it). When present, `--tulala-accent` and
   // `--tulala-accent-deep` re-tint every accent token in the shell; when
@@ -2102,11 +2105,13 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
         <div
           className="tulala-shell"
           data-dev={showDevBar ? "1" : "0"}
+          data-talent-visual={talentVisual ? "1" : undefined}
           style={{
             // CSS var consumed by sticky descendants (IdentityBar +
             // mode-shell topbars/sidebars) so they offset correctly
             // whether the dev control bar is shown or hidden.
             ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
+            ...(talentVisual ? TALENT_VISUAL_VARS : {}),
             // Real height of the fixed mobile bottom nav (64px content +
             // 1px top border) plus the device's home-indicator inset.
             // Every mobile surface that pins itself to the viewport must
@@ -2117,10 +2122,10 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
             // shell's accent tokens from the agency's brand color.
             ...accentVars,
-            background: COLORS.surface,
+            background: talentVisual ? TALENT_VISUAL.canvas : COLORS.surface,
             minHeight: "100vh",
             fontFamily: FONTS.body,
-            color: COLORS.ink,
+            color: talentVisual ? TALENT_VISUAL.ink : COLORS.ink,
             display: "flex",
             flexDirection: "column",
           }}

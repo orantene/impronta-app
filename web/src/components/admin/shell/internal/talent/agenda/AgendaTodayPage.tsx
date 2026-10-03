@@ -482,7 +482,7 @@ export function AgendaTodayPage({
               href={siteUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-[36px] items-center rounded-full bg-[var(--tc-primary)] px-3.5 text-[13px] font-medium text-white"
+              className="inline-flex min-h-[36px] items-center rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-3.5 text-[13px] font-medium text-white"
             >
               {copy.t("View website")}
             </a>

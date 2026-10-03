@@ -18,7 +18,7 @@ const METHODS: ReadonlyArray<readonly [ManualPaymentMethod, string]> = [
 const btnBase =
   "inline-flex h-11 items-center justify-center rounded-full border px-4 font-admin-body text-[13.5px] font-semibold sm:h-9";
 const btnSec = `${btnBase} border-admin-border-soft bg-white text-admin-ink`;
-const btnPri = `${btnBase} border-admin-ink bg-admin-ink text-white disabled:opacity-50`;
+const btnPri = `${btnBase} border-[var(--tc-action)] bg-[var(--tc-action)] text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50`;
 
 function money(cents: number, currency: string): string {
   const amount = Math.round(cents) / 100;

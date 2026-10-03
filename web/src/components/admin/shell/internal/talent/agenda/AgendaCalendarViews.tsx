@@ -355,7 +355,7 @@ export function WeekGrid({
               <span className={MUTED}>{day.toLocaleDateString(copy.locale === "es" ? "es-MX" : "en-US", { weekday: "short" })}</span>
               <span
                 className={`inline-flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[14px] tabular-nums ${
-                  today ? "bg-[var(--tc-primary)] text-white" : ""
+                  today ? "bg-[var(--tc-soft)] font-semibold text-[var(--tc-action-ink)]" : ""
                 }`}
               >
                 {day.getDate()}
@@ -426,7 +426,7 @@ export function WeekGrid({
 export function WeekLegend() {
   const copy = useAgendaCopy();
   const rows: [string, string][] = [
-    ["border border-[rgba(11,11,13,0.12)] border-l-4 border-l-[var(--tc-accent)] bg-white", `✓ ${copy.t("Confirmed")}`],
+    ["border border-[var(--tc-border)] border-l-4 border-l-[var(--tc-ok)] bg-white", `✓ ${copy.t("Confirmed")}`],
     ["border border-dashed border-[rgba(138,90,17,0.5)] bg-[rgba(138,90,17,0.08)]", `◷ ${copy.t("On hold (blocks time until it expires)")}`],
     ["border border-dashed border-[rgba(59,76,202,0.4)] bg-white", `◌ ${copy.t("Request (does not block)")}`],
     ["border border-[rgba(11,11,13,0.12)] border-l-4 border-l-[var(--tc-primary)] bg-white", copy.t("Agency job")],
@@ -663,7 +663,7 @@ export function MonthGrid({
           >
             <span
               className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full tabular-nums ${
-                today ? "bg-[var(--tc-primary)] text-white" : ""
+                today ? "bg-[var(--tc-soft)] font-semibold text-[var(--tc-action-ink)]" : ""
               }`}
             >
               {day.getDate()}
@@ -720,7 +720,7 @@ export function CompactMonth({
             aria-current={sameDay(day, clock) ? "date" : undefined}
             onClick={() => onPick(day)}
             className={`flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-full text-[14px] tabular-nums ${
-              on ? "bg-[var(--tc-primary)] text-white" : inMonth ? "" : "text-[rgba(11,11,13,0.4)]"
+              on ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]" : inMonth ? "" : "text-[rgba(11,11,13,0.4)]"
             }`}
           >
             {day.getDate()}
@@ -773,7 +773,7 @@ export function WeekStrip({
             aria-current={today ? "date" : undefined}
             onClick={() => onPick(day)}
             className={`flex min-h-[60px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[12px] ${
-              on ? "bg-[var(--tc-primary)] text-white" : today ? "border border-[var(--tc-primary)]" : ""
+              on ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]" : today ? "border border-[var(--tc-action)]" : ""
             }`}
           >
             <span className={on ? "" : MUTED}>{day.toLocaleDateString(locale, { weekday: "short" })}</span>

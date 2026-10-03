@@ -325,7 +325,7 @@ export function CalendarList({
             onClick={() => onFilter(f)}
             className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] ${
               filter === f
-                ? "border-[var(--tc-primary)] bg-[var(--tc-primary)] text-white"
+                ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
                 : "border-[rgba(11,11,13,0.12)] bg-white text-[var(--tc-primary)]"
             }`}
           >

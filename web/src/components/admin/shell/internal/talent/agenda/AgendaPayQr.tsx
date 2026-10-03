@@ -125,7 +125,7 @@ export function PayQrPopover({ url, caption }: { url: string; caption?: string }
             <button
               type="button"
               onClick={() => void download()}
-              className="min-h-[44px] flex-1 rounded-full bg-[var(--tc-primary)] px-4 text-[13.5px] font-semibold text-white"
+              className="min-h-[44px] flex-1 rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[13.5px] font-semibold text-white"
             >
               {copy.t("Download")}
             </button>

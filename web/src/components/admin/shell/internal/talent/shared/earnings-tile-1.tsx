@@ -169,8 +169,9 @@ export function EarningsTile({
                 border:      "none",
                 borderRadius: RADIUS.sm,
                 cursor:      "pointer",
-                background:  cycle === c ? COLORS.fill : "transparent",
-                color:       cycle === c ? "#fff" : COLORS.inkMuted,
+                background:  cycle === c ? "var(--tc-soft)" : "transparent",
+                color:       cycle === c ? "var(--tc-ink)" : "var(--tc-muted)",
+                boxShadow:   cycle === c ? "inset 0 0 0 1px var(--tc-action)" : "none",
                 fontFamily:  FONTS.body,
                 transition:  `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
               }}

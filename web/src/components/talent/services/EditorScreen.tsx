@@ -199,7 +199,7 @@ export function EditorScreen({
       : `${kindWord} · ${word === "hidden" ? copy.t("Hidden") : copy.t("Draft")}`;
 
   const btn = "rounded-lg border border-admin-border-soft bg-white px-4 py-2 text-[14px] font-semibold text-admin-ink disabled:opacity-60";
-  const primary = "rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white disabled:border disabled:border-admin-border-soft disabled:bg-white disabled:text-admin-ink";
+  const primary = "rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:border disabled:border-admin-border-soft disabled:bg-white disabled:text-admin-ink";
 
   return (
     <div className="font-admin-body">
@@ -427,7 +427,7 @@ export function EditorScreen({
                       <button key={w} type="button" aria-pressed={on} onClick={() => {
                         const next = on ? where.filter((x) => x !== w) : [...where, w];
                         patchAttr("where", next.length ? next : [w]);
-                      }} className={`rounded-lg px-3 py-1.5 text-[14px] font-semibold ${on ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.05] text-admin-ink-muted"}`}>
+                      }} className={`rounded-lg px-3 py-1.5 text-[14px] font-semibold ${on ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "bg-black/[0.05] text-admin-ink-muted"}`}>
                         {whereLabel[w]}
                       </button>
                     );
@@ -462,7 +462,7 @@ export function EditorScreen({
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     {[0, 20, 25, 30, 50].map((pct) => (
-                      <button key={pct} type="button" onClick={() => patch({ depositPct: pct || null, reserveMode: pct ? "deposit" : item.reserveMode })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${depositPct === pct || (!depositPct && pct === 0) ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.05] text-admin-ink-muted"}`}>
+                      <button key={pct} type="button" onClick={() => patch({ depositPct: pct || null, reserveMode: pct ? "deposit" : item.reserveMode })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${depositPct === pct || (!depositPct && pct === 0) ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "bg-black/[0.05] text-admin-ink-muted"}`}>
                         {pct ? `${pct}%` : copy.t("None")}
                       </button>
                     ))}
@@ -481,7 +481,7 @@ export function EditorScreen({
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       {[12, 24, 48, 72].map((h) => (
-                        <button key={h} type="button" onClick={() => patch({ cancellationHours: h })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${cancelHours === h ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.05] text-admin-ink-muted"}`}>
+                        <button key={h} type="button" onClick={() => patch({ cancellationHours: h })} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold ${cancelHours === h ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "bg-black/[0.05] text-admin-ink-muted"}`}>
                           {h} h
                         </button>
                       ))}
@@ -514,7 +514,7 @@ export function EditorScreen({
                           const ids = on ? g.offeringIds.filter((x) => x !== item.id) : [...g.offeringIds, item.id];
                           await upsertAddonGroup(talentId, { id: g.id, name: g.name, amountCents: g.amountCents, durationMinutes: g.durationMinutes, offeringIds: ids });
                           await onRefreshAddons();
-                        }} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${on ? "bg-emerald-900/[0.1] text-emerald-900" : "border border-admin-border-soft text-admin-ink"}`}>
+                        }} className={`rounded-lg px-3 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${on ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "border border-admin-border-soft text-admin-ink"}`}>
                           {on ? copy.t("On this service") : copy.t("Add to this service")}
                         </button>
                       </li>
@@ -529,7 +529,7 @@ export function EditorScreen({
                 <button type="button" className="mt-1.5 rounded-lg border border-admin-border-soft px-4 text-[14px] font-semibold" onClick={() => onOpenExtra?.()}>
                   {copy.t("Create an extra")}
                 </button>
-                <button type="button" disabled={!extra.name.trim()} className="mt-1.5 rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-50" onClick={async () => {
+                <button type="button" disabled={!extra.name.trim()} className="mt-1.5 rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50" onClick={async () => {
                   const res = await upsertAddonGroup(talentId, {
                     name: extra.name,
                     amountCents: Math.round(Number(extra.price || 0) * 100),
@@ -553,7 +553,7 @@ export function EditorScreen({
         <aside className="space-y-4 xl:border-l xl:border-admin-border-soft xl:pl-6">
           <div className="flex items-center justify-between">
             <p className={LABEL}>{copy.t("What the client sees")}</p>
-            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${isLive ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-black/[0.06] text-admin-ink-muted"}`}>
+            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${isLive ? "tc-status tc-status-ok" : "bg-black/[0.06] text-admin-ink-muted"}`}>
               {isLive ? copy.t("Live") : word === "hidden" ? copy.t("Hidden") : copy.t("Draft")}
             </span>
           </div>
@@ -561,7 +561,7 @@ export function EditorScreen({
           <div className="rounded-2xl border border-admin-border-soft bg-white px-4 py-4">
             <div className="flex items-center justify-between">
               <p className={LABEL}>{copy.t("Ready to publish?")}</p>
-              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${ready ? "bg-emerald-900/[0.1] text-emerald-900" : "bg-amber-100 text-amber-900"}`}>
+              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${ready ? "tc-status tc-status-ok" : "tc-status tc-status-warn"}`}>
                 {ready ? copy.t("Yes") : copy.t("Not yet")}
               </span>
             </div>
@@ -781,7 +781,7 @@ function PortfolioSheet({
           <span className="text-[13px] text-admin-ink-dim">{picked.length} {copy.t("selected")}</span>
           <span className="flex gap-3">
             <button type="button" className="text-[14px] text-admin-ink" onClick={onClose}>{copy.t("Cancel")}</button>
-            <button type="button" className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white" onClick={() => void onPick(picked.map((id) => chosen.find((p) => p.id === id)).filter((p): p is PortfolioPhoto => Boolean(p)).map((p) => ({ id: p.id, url: p.url })))}>
+            <button type="button" className="rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => void onPick(picked.map((id) => chosen.find((p) => p.id === id)).filter((p): p is PortfolioPhoto => Boolean(p)).map((p) => ({ id: p.id, url: p.url })))}>
               {copy.t("Use these photos")}
             </button>
           </span>

@@ -113,7 +113,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             className={`min-h-[44px] rounded-full px-4 py-2 text-[13px] text-white ${
-              destructive ? "bg-[var(--tc-risk)]" : "bg-[var(--tc-primary)]"
+              destructive ? "bg-[var(--tc-risk)]" : "bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)]"
             }`}
           >
             {confirmLabel}
