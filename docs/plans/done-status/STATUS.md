@@ -1,8 +1,8 @@
-Updated: 2026-10-03 02:29Z · Scoreboard: ✅ 2 / 🟡 65 / ❌ 18 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 02:36Z · Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14
 Live SHA: 07804b573 · Main SHA: 07804b573
 Top 3 blockers right now
 1. Scheduling questions are on production `07804b573` (structural gate run 37087206959 passed; alias run 37089284626 passed). They are not ✅. There is no live quote or booking walk. #18 stays not ✅.
-2. #2490, #2491, and #2492 are not merged. #2490 is open (local phone-wall shot only). #2491 is a draft (day chip softened in code, fresh shot not taken). #2492 is a draft and the avatar click-through is still running. #13 stays ❌.
+2. #2490, #2491, and #2492 are not merged. #2492 branch `cursor/story2-avatar-links-58f5` shows Builder, Money, Messages, and Settings on the free account, and each row lands. That is not on main or production, so #13 is 🟡, not ✅. Builder still opens the Web Office upsell, so #55 and #57 stay ❌.
 3. #2482 is rebased to `b01109ba5`. Vercel and the other checks passed. Structural run 37089224431 is still pending, so the money queue is not merged. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
@@ -25,13 +25,13 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 
 ## Story 2 — Valeria on the Free plan (S2)
 
-Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Re-checked 02:29Z: #13, #55, and #57 stay ❌. #59 stays not run. None of these rows are ✅.
+Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Avatar branch proof 02:36Z (`internal/story-02-avatar-proof.md`): #13 is 🟡 on `cursor/story2-avatar-links-58f5`, not ✅. #55 and #57 stay ❌. #59 stays not run.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | FAIL on localhost 2026-10-03. Avatar has My website, My Tulala profile, Where I appear, notifications, language, help, sign out. Shot: `media/story-02-03b-avatar-items.png`. Account showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. | Draft #2492 is not merged. Re-checked 02:29Z: the live click-through is still running, so this stays ❌. | S2 step 1 | — | 2026-10-03 |
-| 55 | Free Add and Move blocked in UI and server | ❌ | FAIL on localhost 2026-10-03. The builder did not open a locked Free editor. The run logged the Web Office upsell (“The Page Builder is a Web Office feature”), then the dev server OOM’d and `/talent/page-builder` 404’d. `TALENT_FREE_WEBSITE_ENABLED` was unset. Not a green. | Add and Move locks were never shown, and the server reject was not exercised. #2471 is on production, but this pass did not prove it. | S2 steps 3–5 | — | 2026-10-03 |
-| 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL on localhost 2026-10-03. The editor never opened (Web Office upsell, then `/talent/page-builder` 404 after OOM). Back arrow and “no new page” were not observable. | Need a Free editor that actually opens. Code tests exist; this live pass did not see them. | S2 step 2 | — | 2026-10-03 |
+| 13 | Avatar links Site, Builder, Money, Messages, Settings | 🟡 | Branch proof 2026-10-03 on `cursor/story2-avatar-links-58f5` @ `dfaabe31f` (draft #2492). Free account menu shows Builder, Money, Messages, and Settings. Each row lands. Builder lands on the Web Office upsell, not a 404. Shot: `media/story-02-avatar-menu.png`. Note: `internal/story-02-avatar-proof.md`. | Not on main or production (`mergedAt` null). Not ✅. The earlier menu without those links is `media/story-02-03b-avatar-items.png`. | S2 step 1 | — | 2026-10-03 |
+| 55 | Free Add and Move blocked in UI and server | ❌ | FAIL. The builder is still the Web Office upsell. Avatar proof on `cursor/story2-avatar-links-58f5` landed Builder on “The Page Builder is a Web Office feature”, not a locked editor (`media/story-02-avatar-builder.png`). | Add and Move locks were never shown, and the server reject was not exercised. | S2 steps 3–5 | — | 2026-10-03 |
+| 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL. The editor never opened. The avatar Builder row on `cursor/story2-avatar-links-58f5` landed on the Web Office upsell, not the editor. Back arrow and “no new page” were not observable. | Need a Free editor that actually opens. | S2 step 2 | — | 2026-10-03 |
 | 59 | Website Settings change the live site | 🟡 | Not run. `/talent/site` killed the dev server (OOM) before settings opened. No booking-mode or pause-banner change. Public `/t/TAL-QAFIXFREE` did load (`media/story-02-08-public.png`, Diego as lash artist). | Settings were never toggled, so the live site was not rechecked. Not ✅. | S2 step 6 | — | 2026-10-03 |
 
 ## Story 3 — Jor services and money setup (S3)
@@ -210,9 +210,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-15-minute refresh at 2026-10-03 02:29Z. Pulled `status/done-board` first (already at `031f2ef1a`).
+Avatar branch proof applied at 2026-10-03 02:36Z from `internal/story-02-avatar-proof.md`. Pulled `status/done-board` first (already at `aca8c6c32`).
 REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
-SHAs re-fetched: main and production are both `07804b573`. Structural gate run 37087206959 is `completed` / `success`. Alias run 37089284626 is `completed` / `success`. #94 moves ❌ → ✅ on that check.
-No scheduling question marked ✅. #18 moves ❌ → 🟡 because the fix is on production and there is no live quote walk. #13 stays ❌.
-#2482 is rebased to `b01109ba5`. Vercel and the other checks passed. Structural run 37089224431 is still in progress. #2490, #2491, and #2492 are not merged.
-Scoreboard: ✅ 2 / 🟡 65 / ❌ 18 / ⏸ 1 / ❓ 14. #97 stays ✅ (`gh pr list` 02:29Z, same 9 open PRs, all under 2 days, author `orantene`).
+#13 moves ❌ → 🟡. On `cursor/story2-avatar-links-58f5` @ `dfaabe31f` (draft #2492) the free account menu shows Builder, Money, Messages, and Settings, and each row lands. Shot: `media/story-02-avatar-menu.png`. Not on main or production, so not ✅.
+#55 and #57 stay ❌. Builder still lands on the Web Office upsell, not a locked editor.
+Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14.
