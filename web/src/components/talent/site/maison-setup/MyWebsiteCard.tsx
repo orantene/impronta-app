@@ -2,11 +2,23 @@
 
 /**
  * Wave 3 Mi sitio web hero: large live preview, status + domain chip,
- * one primary Edit site, quiet icon secondaries, presence tiles below.
+ * one primary Edit site, labeled secondary actions, presence tiles below.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import {
+  Blocks,
+  CircleHelp,
+  Droplets,
+  History,
+  Link2,
+  Monitor,
+  Settings,
+  Smartphone,
+  SwatchBook,
+} from "lucide-react";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state/context";
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { loadTalentGoLiveAction } from "@/lib/talent-site/history/history-actions";
@@ -62,13 +74,13 @@ function IconBtn({
   tip,
   onClick,
   testId,
-  children,
+  icon: Icon,
 }: {
   label: string;
   tip: string;
   onClick: () => void;
   testId: string;
-  children: React.ReactNode;
+  icon: LucideIcon;
 }) {
   return (
     <button
@@ -77,10 +89,27 @@ function IconBtn({
       aria-label={label}
       title={tip}
       onClick={onClick}
-      className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft bg-white text-[16px] text-admin-ink"
+      className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-admin-border-soft bg-white px-3 text-[13px] font-semibold text-admin-ink hover:bg-admin-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)]"
     >
-      {children}
+      <span
+        className="grid size-8 place-items-center rounded-lg bg-[var(--tc-soft,#E8F3F1)] text-[var(--tc-action-ink,#245850)]"
+        aria-hidden
+      >
+        <Icon className="size-4" strokeWidth={1.75} />
+      </span>
+      <span>{label}</span>
     </button>
+  );
+}
+
+function TileIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span
+      className="grid size-9 place-items-center rounded-lg bg-[var(--tc-soft,#E8F3F1)] text-[var(--tc-action-ink,#245850)]"
+      aria-hidden
+    >
+      <Icon className="size-4" strokeWidth={1.75} />
+    </span>
   );
 }
 
@@ -105,14 +134,14 @@ export function PresenceSiteTiles({
   const tiles: Array<{
     id: string;
     label: string;
-    icon: string;
+    icon: LucideIcon;
     onClick?: () => void;
     testId: string;
   }> = [
-    { id: "domain", label: t("Domain"), icon: "🔗", onClick: onOpenDomain, testId: "presence-tile-domain" },
-    { id: "questions", label: t("Questions"), icon: "❓", onClick: onOpenQuestions, testId: "presence-tile-questions" },
-    { id: "settings", label: t("Settings"), icon: "⚙", onClick: onOpenSettings, testId: "presence-tile-settings" },
-    { id: "apps", label: t("Apps"), icon: "🧩", onClick: onOpenApps, testId: "presence-tile-apps" },
+    { id: "domain", label: t("Domain"), icon: Link2, onClick: onOpenDomain, testId: "presence-tile-domain" },
+    { id: "questions", label: t("Questions"), icon: CircleHelp, onClick: onOpenQuestions, testId: "presence-tile-questions" },
+    { id: "settings", label: t("Settings"), icon: Settings, onClick: onOpenSettings, testId: "presence-tile-settings" },
+    { id: "apps", label: t("Apps"), icon: Blocks, onClick: onOpenApps, testId: "presence-tile-apps" },
   ];
   return (
     <div
@@ -126,11 +155,9 @@ export function PresenceSiteTiles({
           data-testid={tile.testId}
           disabled={!tile.onClick}
           onClick={tile.onClick}
-          className="flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-xl border border-admin-border-soft bg-admin-canvas px-2 text-center disabled:opacity-40"
+          className="flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border border-admin-border-soft bg-admin-canvas px-2 text-center disabled:opacity-40"
         >
-          <span className="text-[18px]" aria-hidden>
-            {tile.icon}
-          </span>
+          <TileIcon icon={tile.icon} />
           <span className="text-[12.5px] font-semibold text-admin-ink">{tile.label}</span>
         </button>
       ))}
@@ -275,20 +302,25 @@ export function MyWebsiteCard({
               </span>
             </p>
             <div className="flex rounded-lg border border-admin-border-soft p-0.5">
-              {(["desktop", "phone"] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={device === d}
-                  aria-label={t(d === "desktop" ? "Desktop" : "Phone")}
-                  onClick={() => setDevice(d)}
-                  className={`grid h-9 w-9 place-items-center rounded-md text-[14px] ${
-                    device === d ? "bg-admin-surface-alt ring-1 ring-admin-ink" : "text-admin-ink-muted"
-                  }`}
-                >
-                  {d === "desktop" ? "🖥" : "📱"}
-                </button>
-              ))}
+              {(["desktop", "phone"] as const).map((d) => {
+                const DeviceIcon = d === "desktop" ? Monitor : Smartphone;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={device === d}
+                    aria-label={t(d === "desktop" ? "Desktop" : "Phone")}
+                    onClick={() => setDevice(d)}
+                    className={`grid h-9 w-9 place-items-center rounded-md ${
+                      device === d
+                        ? "bg-[var(--tc-soft,#E8F3F1)] text-[var(--tc-action-ink,#245850)] ring-1 ring-[var(--tc-action,#3B8277)]"
+                        : "text-admin-ink-muted"
+                    }`}
+                  >
+                    <DeviceIcon className="size-4" strokeWidth={1.75} aria-hidden />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -367,34 +399,31 @@ export function MyWebsiteCard({
             {t("Edit site")}
           </Link>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-testid="maison-site-secondary-actions">
             <IconBtn
               label={t("Change design")}
               tip={t("Change design")}
               testId="maison-change-design"
+              icon={SwatchBook}
               onClick={onChangeDesign}
-            >
-              🎨
-            </IconBtn>
+            />
             <IconBtn
               label={t("Colors")}
               tip={t("Colors")}
               testId="maison-design-options"
+              icon={Droplets}
               onClick={() => setOptionsOpen(true)}
-            >
-              💧
-            </IconBtn>
+            />
             <IconBtn
               label={t("History")}
               tip={t("Restore previous design")}
               testId="maison-restore-previous"
+              icon={History}
               onClick={() => {
                 setRestoreOpen(true);
                 setOptionsOpen(true);
               }}
-            >
-              ⏱
-            </IconBtn>
+            />
           </div>
         </div>
       </div>
