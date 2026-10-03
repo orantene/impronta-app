@@ -37,6 +37,7 @@ import {
   catalogTotalCents,
   catalogWeekdayShort,
   demoSlotsFor,
+  firstOpenDemoDayIndex,
   formatClock,
   groupIsoSlotsByDay,
   type CatalogBookingMode,
@@ -101,7 +102,7 @@ export function CatalogBookingSheet({
   const [step, setStep] = useState<Step>("choose");
   const [variantId, setVariantId] = useState<string | null>(null);
   const [addOnIds, setAddOnIds] = useState<string[]>([]);
-  const [dayIndex, setDayIndex] = useState(0);
+  const [dayIndex, setDayIndex] = useState(() => (mode === "demo" ? firstOpenDemoDayIndex(catalogNextDays()) : 0));
   const [time, setTime] = useState<string | null>(null);
   const [liveStarts, setLiveStarts] = useState<string | null>(null);
   const [liveTz, setLiveTz] = useState("UTC");
@@ -150,7 +151,7 @@ export function CatalogBookingSheet({
       setDetail(d.intake?.length ? { ...d, answers: preselectIntakeFromTask(d.intake, d.task, d.answers) } : d);
       setVariantId(null);
       setAddOnIds([]);
-      setDayIndex(0);
+      setDayIndex(mode === "live" ? 0 : firstOpenDemoDayIndex(days));
       setTime(null);
       setLiveStarts(null);
       setName("");
@@ -168,7 +169,7 @@ export function CatalogBookingSheet({
     const names = ["tulala:offering-instant", "tulala:offering-slot", "tulala:offering-request"];
     names.forEach((n) => window.addEventListener(n, open));
     return () => names.forEach((n) => window.removeEventListener(n, open));
-  }, [mode]);
+  }, [mode, days]);
 
   // CH-3: "back to my booking" re-opens the sheet with every pick kept (G9b: the task note rides on detail).
   useEffect(() => {

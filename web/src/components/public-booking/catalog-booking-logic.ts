@@ -282,6 +282,16 @@ export function catalogNextDays(count = 12): Date[] {
   return out;
 }
 
+/**
+ * First day on the demo strip that is open. Sunday is closed and still listed,
+ * but it must not be the selected day: the strip starts tomorrow, so a Saturday
+ * visit otherwise opens on Sunday with no times.
+ */
+export function firstOpenDemoDayIndex(days: readonly Date[]): number {
+  const index = days.findIndex((d) => d.getDay() !== 0);
+  return index >= 0 ? index : 0;
+}
+
 export function localDayKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
