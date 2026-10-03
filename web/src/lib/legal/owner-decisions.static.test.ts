@@ -11,6 +11,8 @@ const PAGES = [
   "src/app/(marketing)/legal/terms/terms-es.tsx",
   "src/app/(marketing)/legal/privacy/page.tsx",
   "src/app/(marketing)/legal/privacy/privacy-es.tsx",
+  "src/app/(marketing)/legal/refunds/page.tsx",
+  "src/app/(marketing)/legal/refunds/refunds-es.tsx",
 ];
 
 test("retention constants follow the 2026-10-01 owner decisions", () => {
@@ -36,6 +38,8 @@ test("legal pages do not claim Tulala collects on the talent's behalf", () => {
   assert.match(read(PAGES[1]), /Pendiente de revisión legal/);
   assert.match(read(PAGES[2]), /Pending legal review/);
   assert.match(read(PAGES[3]), /Pendiente de revisión legal/);
+  assert.match(read(PAGES[4]), /Pending legal review/);
+  assert.match(read(PAGES[5]), /Pendiente de revisión legal/);
 });
 
 test("signup acceptance: accepted vs missing", () => {

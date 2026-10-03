@@ -234,7 +234,7 @@ export function CameraAddScreen({
           type="button"
           disabled={!canPublish}
           onClick={() => void save("published")}
-          className="flex-[2] rounded-lg bg-emerald-900 py-3 text-[15px] font-semibold text-white disabled:opacity-50"
+          className="flex-[2] rounded-lg bg-[var(--tc-action)] py-3 text-[15px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
         >
           {busy === "published" ? copy.t("Publishing…") : copy.t("Publish now")}
         </button>

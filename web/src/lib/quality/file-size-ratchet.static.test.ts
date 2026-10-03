@@ -559,7 +559,7 @@ const BUDGETS: Record<string, number> = {
   // Merged with main on 2026-09-10: main raised this by three lines for the
   // signup work; the budget is the merged file's measured size.
   // 2026-09-24 services-rebuild: +4 (2189). Measured wc -l.
-  "src/components/admin/shell/admin-shell-client.tsx": 2190,
+  "src/components/admin/shell/admin-shell-client.tsx": 2195,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;

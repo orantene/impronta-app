@@ -60,7 +60,7 @@ export function ConfirmSheet({
           <button
             type="button"
             onClick={onConfirm}
-            className="min-h-[44px] rounded-lg bg-emerald-900 text-[14px] font-semibold text-white"
+            className="min-h-[44px] rounded-lg bg-[var(--tc-action)] text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
           >
             {confirm}
           </button>

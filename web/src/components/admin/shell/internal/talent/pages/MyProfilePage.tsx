@@ -228,7 +228,7 @@ export function MyProfilePage() {
           href={previewHref}
           target="_blank"
           rel="noreferrer"
-          className="block rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] font-semibold text-admin-brand"
+          className="block rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] font-semibold text-[var(--tc-action)]"
         >
           {previewHref.replace(/^https?:\/\//, "")}
         </a>

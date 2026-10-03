@@ -409,7 +409,6 @@ export function ThemeDetailScreen({
       ))}
     </div>
   );
-
   const plannedNote = plannedFallback ? (
     <p data-testid="maison-demo-planned-note" className="text-[12px] text-admin-ink-dim">
       {detailT(locale, "Showing the featured demo · this demo's preview is planned")}

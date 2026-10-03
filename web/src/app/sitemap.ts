@@ -319,6 +319,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/legal/privacy",
       "/legal/terms",
       "/legal/cookies",
+      "/legal/refunds",
       // Talent-category landing pages, derived from the content model so
       // adding a category is a single data edit, not a sitemap edit too.
       ...TALENT_CATEGORIES.map((c) => `/for/${c.slug}`),

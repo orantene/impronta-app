@@ -1,0 +1,92 @@
+/*
+ * Talent dashboard only. The attribute is set when the shell surface is
+ * talent. Agency admin, public /t/ sites, and /talent/page-builder (which
+ * renders outside this shell) do not receive it.
+ */
+
+/* Beat `.tulala-shell …:focus-visible` from AdminShellContent's later
+   inline <style> (equal attr/class specificity otherwise loses to it). */
+.tulala-shell[data-talent-visual="1"] button:focus-visible,
+.tulala-shell[data-talent-visual="1"] a:focus-visible,
+.tulala-shell[data-talent-visual="1"] [role="button"]:focus-visible,
+.tulala-shell[data-talent-visual="1"] input:focus-visible,
+.tulala-shell[data-talent-visual="1"] textarea:focus-visible,
+.tulala-shell[data-talent-visual="1"] select:focus-visible {
+  outline: 2px solid var(--tc-action);
+  outline-offset: 2px;
+}
+
+[data-talent-visual="1"] .tulala-mnav-tab--active {
+  color: var(--tc-action);
+}
+
+[data-talent-visual="1"] .tulala-mnav-tab--active .tulala-mnav-tab-icon {
+  background: var(--tc-soft);
+}
+
+/* Messages kit is shared with agency. Retint only inside the talent shell. */
+[data-talent-visual="1"] .msgv5 {
+  --msgv5-ground: var(--tc-canvas);
+  --msgv5-side: var(--tc-canvas);
+  --msgv5-paper: var(--tc-canvas);
+  --msgv5-ink: var(--tc-ink);
+  --msgv5-green: var(--tc-action);
+  --msgv5-green-strong: var(--tc-action-hover);
+  --msgv5-green-ink: var(--tc-action-ink);
+  --msgv5-green-soft: var(--tc-soft);
+  --msgv5-green-line: color-mix(in srgb, var(--tc-action) 35%, transparent);
+  --msgv5-green-line-30: color-mix(in srgb, var(--tc-action) 30%, transparent);
+  --msgv5-green-line-25: color-mix(in srgb, var(--tc-action) 25%, transparent);
+  --msgv5-green-shadow: color-mix(in srgb, var(--tc-action) 25%, transparent);
+}
+
+.tc-status {
+  border: 1px solid transparent;
+}
+
+.tc-status-info {
+  background: var(--tc-info-soft);
+  color: var(--tc-info);
+  border-color: color-mix(in srgb, var(--tc-info) 28%, transparent);
+}
+
+.tc-status-ok {
+  background: var(--tc-ok-soft);
+  color: var(--tc-ok);
+  border-color: color-mix(in srgb, var(--tc-ok) 28%, transparent);
+}
+
+.tc-status-warn {
+  background: var(--tc-warn-soft);
+  color: var(--tc-warn);
+  border-color: color-mix(in srgb, var(--tc-warn) 28%, transparent);
+}
+
+.tc-status-risk {
+  background: var(--tc-risk-soft);
+  color: var(--tc-risk);
+  border-color: color-mix(in srgb, var(--tc-risk) 28%, transparent);
+}
+
+.tc-status-neutral {
+  background: var(--tc-canvas);
+  color: var(--tc-ink);
+  border-color: var(--tc-border);
+}
+
+.tc-status-muted {
+  background: var(--tc-canvas);
+  color: var(--tc-muted);
+  border-color: var(--tc-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-talent-visual="1"] *,
+  [data-talent-visual="1"] *::before,
+  [data-talent-visual="1"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

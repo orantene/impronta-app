@@ -23,7 +23,7 @@ const DAY_COLORS: Record<string, { bg: string; label: string; border: string }> 
   hold:      { bg: "rgba(217,119,6,0.08)", label: "rgba(180,100,0,1)", border: "rgba(217,119,6,0.3)" },
   available: { bg: COLORS.surfaceAlt, label: COLORS.inkMuted, border: COLORS.borderSoft },
   blocked:   { bg: COLORS.card,       label: COLORS.inkDim,   border: COLORS.borderSoft },
-  today:     { bg: COLORS.accent,    label: "#fff",          border: COLORS.accent },
+  today:     { bg: "var(--tc-soft)", label: "var(--tc-ink)", border: "var(--tc-action)" },
 };
 
 

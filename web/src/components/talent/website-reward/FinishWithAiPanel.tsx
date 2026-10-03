@@ -139,7 +139,7 @@ export function FinishWithAiPanel({ open, onClose, onSaved, locale }: Props) {
                 onClose();
               });
             }}
-            className="flex-1 rounded-full bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white disabled:opacity-50"
+            className="flex-1 rounded-full bg-[var(--tc-action)] px-4 py-3 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
           >
             {copy.t("Use this intro")}
           </button>

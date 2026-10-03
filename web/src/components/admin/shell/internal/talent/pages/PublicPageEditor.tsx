@@ -111,7 +111,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             role="tab"
             aria-selected={tab === item.id}
             onClick={() => setTab(item.id)}
-            className={`-mb-px min-h-11 border-b-[2.5px] px-0.5 text-[14px] font-semibold ${tab === item.id ? "border-admin-brand text-admin-brand" : "border-transparent text-admin-ink-muted hover:text-admin-ink"}`}
+            className={`-mb-px min-h-11 border-b-[2.5px] px-0.5 text-[14px] font-semibold ${tab === item.id ? "border-[var(--tc-action)] text-[var(--tc-ink)]" : "border-transparent text-admin-ink-muted hover:text-admin-ink"}`}
           >
             {item.label}
           </button>

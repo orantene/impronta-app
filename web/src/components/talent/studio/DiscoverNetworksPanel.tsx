@@ -19,8 +19,9 @@ import { usePresenceText } from "./presence-i18n";
 
 type View = "browse" | "detail" | "review" | "result" | "apply";
 
+/** Solid next-step fill — L44 PrimaryButton contract (`--tulala-primary-fill` on talent grid). */
 const BTN_PRIMARY =
-  "inline-flex min-h-11 items-center rounded-full bg-admin-ink px-5 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-11 items-center rounded-full border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-5 text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:cursor-not-allowed disabled:opacity-50";
 const BTN_SECONDARY =
   "inline-flex min-h-11 items-center rounded-full border border-admin-border-soft bg-white px-4 text-[13px] font-semibold text-admin-ink";
 const BTN_QUIET = "inline-flex min-h-11 items-center px-3 text-[13px] font-semibold text-admin-ink-muted";

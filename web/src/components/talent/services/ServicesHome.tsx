@@ -432,7 +432,7 @@ export function ServicesHome({
           <button type="button" className="rounded-full border border-admin-border-soft px-3 py-1.5 text-[13px]" onClick={() => { void refreshExtras(); setScreen("defaults"); }}>
             {copy.t("Defaults")}
           </button>
-          <button type="button" className="rounded-full bg-admin-brand px-3 py-1.5 text-[13px] font-semibold text-white" onClick={() => setTypeOpen(true)}>
+          <button type="button" className="rounded-full bg-[var(--tc-action)] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => setTypeOpen(true)}>
             + {copy.t("Add item")}
           </button>
           <div className="relative">
@@ -477,7 +477,7 @@ export function ServicesHome({
               key={chip.id}
               type="button"
               onClick={() => setFilter(chip.id)}
-              className={`rounded-full px-2.5 py-1 text-[12px] ${filter === chip.id ? "bg-admin-ink text-white" : "bg-[rgba(11,11,13,0.06)] text-admin-ink"}`}
+              className={`rounded-full px-2.5 py-1 text-[12px] ${filter === chip.id ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]" : "border border-transparent bg-[rgba(11,11,13,0.06)] text-admin-ink"}`}
             >
               {chip.label}{editor.loading ? "" : ` ${chip.count}`}
             </button>
@@ -692,7 +692,7 @@ export function ServicesHome({
       <div className="sticky bottom-3 z-10 mt-4 sm:hidden">
         <button
           type="button"
-          className="h-11 w-full rounded-full bg-admin-brand text-[14px] font-semibold text-white shadow-admin-rest"
+          className="h-11 w-full rounded-full bg-[var(--tc-action)] text-[14px] font-semibold text-white shadow-admin-rest hover:bg-[var(--tc-action-hover)]"
           onClick={() => setTypeOpen(true)}
         >
           + {copy.t("Add item")}
@@ -712,7 +712,7 @@ export function ServicesHome({
                 type="button"
                 onClick={() => setKind(k)}
                 aria-pressed={on}
-                className={`mt-3 flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left ${on ? "border-emerald-900/60 bg-emerald-900/[0.06]" : "border-admin-border-soft bg-white"}`}
+                className={`mt-3 flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left ${on ? "border-[var(--tc-action)] bg-[var(--tc-soft)]" : "border-admin-border-soft bg-white"}`}
               >
                 <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-admin-ink-muted" fill="none" stroke="currentColor" strokeWidth="1.4">
                   {k === "service" ? (
@@ -724,7 +724,7 @@ export function ServicesHome({
                   )}
                 </svg>
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-[15px] font-semibold ${on ? "text-emerald-900" : "text-admin-ink"}`}>
+                  <span className={`block text-[15px] font-semibold ${on ? "text-[var(--tc-ink)]" : "text-admin-ink"}`}>
                     {k === "service" ? copy.t("A service") : k === "package" ? copy.t("A package") : copy.t("A product")}
                   </span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-admin-ink-muted">
@@ -736,7 +736,7 @@ export function ServicesHome({
                   </span>
                 </span>
                 {on && (
-                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-emerald-900" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-[var(--tc-action)]" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 )}
               </button>
               );
@@ -747,7 +747,7 @@ export function ServicesHome({
             </div>
             <div className="flex items-center justify-end gap-4 border-t border-admin-border-soft px-5 py-3">
               <button type="button" className="text-[14px] text-admin-ink" onClick={() => setTypeOpen(false)}>{copy.t("Cancel")}</button>
-              <button type="button" className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white" onClick={() => { void refreshExtras(); openEditor(null, kind); }}>
+              <button type="button" className="rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]" onClick={() => { void refreshExtras(); openEditor(null, kind); }}>
                 {copy.t("Continue")}
               </button>
             </div>
@@ -770,7 +770,7 @@ export function ServicesHome({
               <button type="button" className="rounded-full px-3 py-2 text-[13px]" onClick={() => setHideTarget(null)}>{copy.t("Cancel")}</button>
               <button
                 type="button"
-                className="rounded-full bg-admin-brand px-4 py-2 text-[13px] text-white"
+                className="rounded-full bg-[var(--tc-action)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
                 onClick={() => {
                   const target = hideTarget;
                   setHideTarget(null);

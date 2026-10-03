@@ -83,7 +83,7 @@ export function CallNumberGroup({ t }: { t: T }) {
         type="button"
         onClick={save}
         disabled={!dirty || state === "saving"}
-        className="mb-1 min-h-[44px] w-full rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-40"
+        className="mb-1 min-h-[44px] w-full rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40"
       >
         {state === "saving" ? t("Saving…") : t("Save")}
       </button>

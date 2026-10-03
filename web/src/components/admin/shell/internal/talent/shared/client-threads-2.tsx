@@ -133,7 +133,7 @@ export function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                   item.onOpen();
                 }}
                 style={{
-                  background: COLORS.fill,
+                  background: "var(--tc-action)",
                   color: "#fff",
                   border: "none",
                   borderRadius: 8,
@@ -310,13 +310,13 @@ export function InboxFilterChips({
               gap: 6,
               padding: "6px 11px",
               borderRadius: 999,
-              background: active ? COLORS.fill : "#fff",
-              border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+              background: active ? "var(--tc-soft)" : "#fff",
+              border: `1px solid ${active ? "var(--tc-action)" : COLORS.borderSoft}`,
               cursor: "pointer",
               fontFamily: FONTS.body,
               fontSize: 12.5,
-              fontWeight: 500,
-              color: active ? "#fff" : COLORS.ink,
+              fontWeight: active ? 600 : 500,
+              color: active ? "var(--tc-ink)" : COLORS.ink,
               transition: `background ${TRANSITION.micro}`,
             }}
           >

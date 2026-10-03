@@ -569,7 +569,7 @@ function SlotComposer({
                 type="button"
                 disabled={!canSave}
                 onClick={() => void save()}
-                className="min-h-[44px] rounded-xl bg-[var(--tc-primary)] px-4 text-[13.5px] font-semibold text-white disabled:bg-black/[0.08] disabled:text-black/40"
+                className="min-h-[44px] rounded-xl bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[13.5px] font-semibold text-white disabled:bg-black/[0.08] disabled:text-black/40"
               >
                 {saving ? copy.t("Saving…") : copy.t("Save booking")}
               </button>
