@@ -116,7 +116,8 @@ test("G3-PRESENCE: hero + tiles on MyWebsiteCard", () => {
   assert.match(card, /presence-tile-questions/);
   assert.match(card, /presence-tile-settings/);
   assert.match(card, /presence-tile-apps/);
-  assert.match(card, /maison-edit-site[\s\S]*?bg-\[var\(--tulala-primary-fill\)\]/);
+  // Shell mounts --tulala-primary-fill; hex fallback keeps /dev/maison-visual harness readable.
+  assert.match(card, /maison-edit-site[\s\S]*?bg-\[var\(--tulala-primary-fill,#3B8277\)\]/);
   assert.match(card, /History/);
   // Phone preview uses a real phone-width iframe viewport (not scaled 1280).
   assert.match(card, /phone:\s*\{\s*w:\s*390/);
