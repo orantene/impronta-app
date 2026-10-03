@@ -341,7 +341,7 @@ export const FLAG_GROUPS: ReadonlyArray<FlagGroup> = [
       {
         key: "talent_studio_v2",
         label: "Talent Studio v2",
-        description: "New talent dashboard. Default off. Local dev turns it on with TALENT_STUDIO_V2=1.",
+        description: "New talent dashboard. Default off. Set TALENT_STUDIO_V2=1 to enable (no NODE_ENV default).",
         labelKey: "dashboard.platform.operations.flagTalentStudioV2Label",
         descriptionKey: "dashboard.platform.operations.flagTalentStudioV2Desc",
         control: { kind: "toggle" },
