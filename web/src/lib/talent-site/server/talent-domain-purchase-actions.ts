@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import { normalizeCustomDomainHostname } from "@/app/(workspace)/[tenantSlug]/admin/settings/domain-utils";
 import {
   checkRegistrarSearchRateLimit,
+  readVercelRegistrarConfig,
   searchDomainQuote,
   type DomainSearchQuote,
 } from "@/lib/saas/vercel-domains-registrar";
@@ -41,6 +42,11 @@ export type TalentDomainCheckoutResult =
 export type TalentDomainHelpResult =
   | { ok: true; ticketId: string; ticketNumber: number }
   | { ok: false; error: string };
+
+/** True only when Vercel Registrar env is present (search/buy). Connect/help do not need this. */
+export async function isTalentDomainSearchConfiguredAction(): Promise<boolean> {
+  return readVercelRegistrarConfig() != null;
+}
 
 async function guardUnlockedDomainOwner(): Promise<
   | {

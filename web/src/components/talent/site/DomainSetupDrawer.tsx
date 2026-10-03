@@ -13,6 +13,7 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import { PrimaryButton, SecondaryButton } from "@/components/admin/shell/internal/primitives";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
 import {
+  isTalentDomainSearchConfiguredAction,
   requestTalentDomainHelpAction,
   searchTalentDomainAction,
   startTalentDomainPurchaseCheckoutAction,
@@ -37,6 +38,9 @@ const EMPTY_CONTACT: ContactForm = {
   country: "US",
 };
 
+const NOT_CONFIGURED_SEARCH_ERROR =
+  "Domain search is not configured yet. Use Connect or Get help instead.";
+
 export function DomainSetupDrawerBody({
   provisioning = false,
 }: {
@@ -48,6 +52,8 @@ export function DomainSetupDrawerBody({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Default false so missing registrar token never flashes a searchable Buy path.
+  const [searchConfigured, setSearchConfigured] = useState(false);
 
   const [query, setQuery] = useState("");
   const [quote, setQuote] = useState<DomainSearchQuote | null>(null);
@@ -59,6 +65,16 @@ export function DomainSetupDrawerBody({
   useEffect(() => {
     if (provisioning) setPath("provisioning");
   }, [provisioning]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void isTalentDomainSearchConfiguredAction().then((ok) => {
+      if (!cancelled) setSearchConfigured(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const priceLabel = useMemo(() => {
     if (!quote?.priceCents) return null;
@@ -74,11 +90,21 @@ export function DomainSetupDrawerBody({
   }
 
   function search() {
+    if (!searchConfigured) {
+      go("search");
+      return;
+    }
     startTransition(async () => {
       setError(null);
       setQuote(null);
       const result = await searchTalentDomainAction(query);
       if (!result.ok) {
+        // Honest parked state — never show the red "not configured" error in the drawer.
+        if (result.error === NOT_CONFIGURED_SEARCH_ERROR) {
+          setSearchConfigured(false);
+          setError(null);
+          return;
+        }
         setError(copy.t(result.error));
         return;
       }
@@ -142,12 +168,23 @@ export function DomainSetupDrawerBody({
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <p style={lead}>{copy.t("Choose how you want to set up your custom domain.")}</p>
-        <PathCard
-          title={copy.t("Buy domain")}
-          body={copy.t("Search here, pay the registrar price, we register it for you.")}
-          mark={copy.t("Buy")}
-          onClick={() => go("search")}
-        />
+        {searchConfigured ? (
+          <PathCard
+            title={copy.t("Buy domain")}
+            body={copy.t("Search here, pay the registrar price, we register it for you.")}
+            mark={copy.t("Buy")}
+            onClick={() => go("search")}
+          />
+        ) : (
+          <PathCard
+            title={copy.t("Buy domain")}
+            body={copy.t(
+              "Domain search and purchase are coming soon. Use Connect or Get help for now.",
+            )}
+            mark={copy.t("Coming soon")}
+            disabled
+          />
+        )}
         <PathCard
           title={copy.t("Connect existing")}
           body={copy.t("Point a domain you already own at your website.")}
@@ -228,7 +265,32 @@ export function DomainSetupDrawerBody({
     );
   }
 
-  // search
+  // search — when registrar token is missing, show Coming soon (not a red error).
+  if (!searchConfigured) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
+        <div
+          style={{
+            borderRadius: 14,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: COLORS.surfaceAlt,
+            padding: "14px 16px",
+          }}
+        >
+          <p style={{ ...lead, color: COLORS.ink, fontWeight: 650 }}>{copy.t("Coming soon")}</p>
+          <p style={{ margin: "8px 0 0", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+            {copy.t(
+              "Domain search and purchase are coming soon. Use Connect or Get help for now.",
+            )}
+          </p>
+        </div>
+        <PrimaryButton onClick={() => go("connect")}>{copy.t("Connect existing")}</PrimaryButton>
+        <SecondaryButton onClick={() => go("help")}>{copy.t("Get help")}</SecondaryButton>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <SecondaryButton onClick={() => go("choose")}>{copy.t("Back")}</SecondaryButton>
@@ -366,18 +428,25 @@ function PathCard({
   body,
   mark,
   onClick,
+  disabled = false,
 }: {
   title: string;
   body: string;
   mark: string;
-  onClick: () => void;
+  onClick?: () => void;
+  disabled?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  const interactive = !disabled && typeof onClick === "function";
   return (
     <button
       type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
+      onClick={interactive ? onClick : undefined}
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+      onMouseEnter={() => {
+        if (interactive) setHovered(true);
+      }}
       onMouseLeave={() => setHovered(false)}
       style={{
         display: "flex",
@@ -386,9 +455,10 @@ function PathCard({
         textAlign: "left",
         padding: "14px 16px",
         borderRadius: 14,
-        border: `1px solid ${hovered ? COLORS.border : COLORS.borderSoft}`,
-        background: hovered ? COLORS.surfaceAlt : COLORS.card,
-        cursor: "pointer",
+        border: `1px solid ${hovered && interactive ? COLORS.border : COLORS.borderSoft}`,
+        background: hovered && interactive ? COLORS.surfaceAlt : COLORS.card,
+        cursor: interactive ? "pointer" : "default",
+        opacity: disabled ? 0.85 : 1,
         fontFamily: FONTS.body,
         transition: "background 120ms ease, border-color 120ms ease",
       }}
@@ -404,7 +474,7 @@ function PathCard({
           borderRadius: 8,
           display: "grid",
           placeItems: "center",
-          background: COLORS.ink,
+          background: disabled ? COLORS.inkMuted : COLORS.ink,
           color: COLORS.card,
           fontSize: 10,
           fontWeight: 700,

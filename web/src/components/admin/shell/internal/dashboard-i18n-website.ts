@@ -78,6 +78,8 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Choose how you want to set up your custom domain.": "Elige cómo quieres configurar tu dominio personalizado.",
   "Buy domain": "Comprar dominio",
   "Search here, pay the registrar price, we register it for you.": "Busca aquí, paga el precio del registrador, nosotros lo registramos.",
+  "Domain search and purchase are coming soon. Use Connect or Get help for now.":
+    "La búsqueda y compra de dominios estarán disponibles próximamente. Por ahora usa Conectar u Obtener ayuda.",
   "Connect existing": "Conectar uno existente",
   "Point a domain you already own at your website.": "Apunta un dominio que ya tengas a tu sitio.",
   "Ask Tulala to help finish domain setup.": "Pide a Tulala que te ayude a terminar la configuración del dominio.",
