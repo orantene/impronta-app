@@ -103,7 +103,7 @@ Audit / QA cohort (Vercel Production `TALENT_MAISON_THEME_TALENTS`):
 | `TAL-QAFIXFREE` | `6d4e7d73-8577-42fb-b0d3-d2e55a64ca14` | Free fixture (`qa-talent-free@impronta.test`) |
 | `TAL-93900` | `c99f8adb-8ebb-4aad-911a-897e73efd369` | demo-jor-clone / `jorg-beauty-qa` (main Wave 4 QA fixture) |
 
-Not live Jor (`f048e578-cbae-45db-9a3b-34239abea136` / `TAL-JORGBEAUTY`). The allow-list is **env-only** — code has no hard-coded seed list; update the Vercel Production value and redeploy (or wait for the next production pointer build) for the new id to take effect.
+Not live Jor (`f048e578-cbae-45db-9a3b-34239abea136` / `TAL-JORGBEAUTY`). The allow-list is **env-only** — code has no hard-coded seed list; update the Vercel Production value and redeploy (or wait for the next production pointer build) for the new id to take effect. TAL-93900's UUID is **durable across demo cleanup/reseed**: `clone-jor.mts` inserts with pinned `CLONE.profileId` (`c99f8adb-…`).
 
 **Critical (binding plan correction):** `TALENT_THEME_GALLERY_ENABLED` is already on in production. Therefore:
 
