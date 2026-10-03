@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { WEB_ROOT, blankComments } from "./supabase-unchecked-read";
 
 /** Paths (under web/) that are known feature-flag helpers. Expand when adding gates. */
+/** Known env-gated enable helpers (incl. names without "flag"). Expand when adding gates. */
 const FLAG_HELPER_FILES = [
   "src/lib/talent/studio-flag.ts",
   "src/lib/support/desk-flag.ts",
@@ -21,6 +22,8 @@ const FLAG_HELPER_FILES = [
   "src/lib/access/talent-website-settings.ts",
   "src/lib/access/talent-maison-theme.ts",
   "src/lib/access/talent-site-subdomains.ts",
+  "src/lib/access/talent-tier-label.ts",
+  "src/lib/access/talent-site-tier-expansion.ts",
   "src/lib/talent-site/footer-socket.ts",
   "src/lib/media/private-access.ts",
   "src/lib/site-admin/site-shell-flag.ts",
@@ -29,7 +32,12 @@ const FLAG_HELPER_FILES = [
   "src/lib/client-billing/pricing-flag.ts",
 ];
 
-/** Also scan any *flag*.ts under lib/ that looks like an env gate. */
+/**
+ * Discover all feature-flag helpers under lib/:
+ *  - every path in FLAG_HELPER_FILES
+ *  - any *.ts whose filename matches /flag/i
+ *  - any access/*.ts that exports an *Enabled helper reading process.env
+ */
 function discoverFlagFiles(): string[] {
   const found = new Set(FLAG_HELPER_FILES);
   const libRoot = join(WEB_ROOT, "src", "lib");
@@ -44,9 +52,25 @@ function discoverFlagFiles(): string[] {
         continue;
       }
       if (!name.endsWith(".ts") || name.includes(".test.")) continue;
-      if (!/flag/i.test(name)) continue;
       const rel = full.slice(WEB_ROOT.length + 1).replace(/\\/g, "/");
-      found.add(rel);
+      if (/flag/i.test(name)) {
+        found.add(rel);
+        continue;
+      }
+      // Catch access/* enable helpers that omit "flag" from the filename.
+      if (rel.startsWith("src/lib/access/")) {
+        try {
+          const src = blankComments(readFileSync(full, "utf8"));
+          if (
+            /export\s+function\s+\w*Enabled\b/.test(src) &&
+            /process\.env\./.test(src)
+          ) {
+            found.add(rel);
+          }
+        } catch {
+          // ignore unreadable
+        }
+      }
     }
   }
   walk(libRoot);
