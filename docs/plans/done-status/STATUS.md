@@ -1,1 +1,1 @@
-PLACEHOLDER_LOAD_FROM_FILE
+$file:/workspace/docs/plans/done-status/STATUS.md
