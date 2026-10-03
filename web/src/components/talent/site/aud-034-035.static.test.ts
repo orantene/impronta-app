@@ -16,7 +16,8 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 
 test("AUD-034: Maison flag on hides the legacy starter-template gallery", () => {
   const mgr = read("TalentMaxSiteManager.tsx");
-  assert.match(mgr, /onEnabledChange=\{setMaisonSetupEnabled\}/);
+  assert.match(mgr, /setMaisonSetupEnabled\(enabled\)/);
+  assert.match(mgr, /PresenceLiveFallback/);
   assert.match(
     mgr,
     /\{hostHidden \|\| maisonSetupEnabled \? null : \(\s*<>\s*<ManagerThemeGallery/,
