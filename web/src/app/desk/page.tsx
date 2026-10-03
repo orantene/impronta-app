@@ -4,6 +4,7 @@
  * Master switch: `SUPPORT_DESK_ENABLED` (default OFF on Vercel).
  */
 
+import { SupportDeskForbidden } from "@/components/support-desk/SupportDeskForbidden";
 import { SupportDeskPortal } from "@/components/support-desk/SupportDeskPortal";
 import { loadDeskPage } from "@/lib/support/desk/load-desk-page";
 import { SUPPORT_DESK_HOST_PATH } from "@/lib/support/desk/desk-url";
@@ -24,12 +25,17 @@ export default async function SupportDeskPage({
     ? `${SUPPORT_DESK_HOST_PATH}?${qs}`
     : SUPPORT_DESK_HOST_PATH;
 
-  const data = await loadDeskPage({
+  const result = await loadDeskPage({
     ticketId: sp.ticket ?? null,
     view: sp.view ?? null,
     loginNext,
   });
 
+  if (!result.ok) {
+    return <SupportDeskForbidden email={result.email} />;
+  }
+
+  const data = result.data;
   const openCount = data.rows.filter((r) => r.ticket.status === "open").length;
 
   return (
@@ -44,4 +50,3 @@ export default async function SupportDeskPage({
     />
   );
 }
-

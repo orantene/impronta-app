@@ -15,7 +15,29 @@ describe("desk shell wiring", () => {
     const page = readFileSync(join(WEB_SRC, "app/desk/page.tsx"), "utf8");
     assert.match(page, /loadDeskPage/);
     assert.match(page, /SupportDeskPortal/);
+    assert.match(page, /SupportDeskForbidden/);
     assert.doesNotMatch(page, /SupportDeskShell/);
+  });
+
+  it("loadDeskPage uses decideDeskAccess (forbidden, not soft 404 for non-admin)", () => {
+    const src = readFileSync(
+      join(WEB_SRC, "lib/support/desk/load-desk-page.ts"),
+      "utf8",
+    );
+    assert.match(src, /decideDeskAccess/);
+    assert.match(src, /reason === "forbidden"/);
+    assert.match(src, /reason === "flag_off"/);
+    assert.doesNotMatch(
+      src,
+      /if \(!isPlatformAdmin\(session\.profile\)\) notFound\(\)/,
+    );
+  });
+
+  it("middleware rescopes Desk host-only auth cookies for non-admin /desk", () => {
+    const mw = readFileSync(join(WEB_SRC, "lib/supabase/middleware.ts"), "utf8");
+    assert.match(mw, /shouldAttemptDeskAuthRescope/);
+    assert.match(mw, /DESK_AUTH_RESCOPE_COOKIE/);
+    assert.match(mw, /isSupportDeskHost/);
   });
 
   it("SupportDeskPortal wraps SupportHqShell + NotificationPermissionCard", () => {

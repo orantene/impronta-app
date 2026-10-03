@@ -6,6 +6,7 @@ import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadSupportCannedReplies } from "@/lib/platform/support-canned";
 import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
+import { decideDeskAccess } from "@/lib/support/desk/desk-access";
 import { loadHqFeatureRequests } from "@/lib/support/feature-requests";
 import { loadHqInsightsDashboard } from "@/lib/support/insights/load";
 import { loadHqSupportQueue } from "@/lib/support/load-hq";
@@ -24,24 +25,44 @@ export type DeskPageData = {
   selfUserId: string | null;
 };
 
+export type DeskPageResult =
+  | { ok: true; data: DeskPageData }
+  | { ok: false; reason: "forbidden"; email: string | null };
+
 /**
  * Shared gate + loader for `/desk`.
- * Flag off → 404. Unauthed → login. Non–platform-admin → 404.
+ * Flag off → soft 404. Unauthed → login. Non–platform-admin → honest forbidden
+ * (never soft 404 — that lied to Oran when a talent session hit `/desk`).
  * Loads the same HQ Support payload so the portal can mount `SupportHqShell`.
  */
 export async function loadDeskPage(opts: {
   ticketId?: string | null;
   view?: string | null;
   loginNext: string;
-}): Promise<DeskPageData> {
-  if (!isSupportDeskEnabled()) notFound();
-
+}): Promise<DeskPageResult> {
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) {
+
+  const decision = decideDeskAccess({
+    flagEnabled: isSupportDeskEnabled(),
+    hasUser: Boolean(session.user),
+    isPlatformAdmin: isPlatformAdmin(session.profile),
+  });
+
+  if (decision.allow === false && decision.reason === "flag_off") notFound();
+  if (decision.allow === false && decision.reason === "unauthenticated") {
     redirect(`/login?next=${encodeURIComponent(opts.loginNext)}`);
   }
-  if (!isPlatformAdmin(session.profile)) notFound();
+  if (decision.allow === false && decision.reason === "forbidden") {
+    return {
+      ok: false,
+      reason: "forbidden",
+      email: session.user?.email ?? null,
+    };
+  }
+
+  // decision.allow === true → session.user is set
+  const user = session.user!;
 
   const [rows, cannedReplies, insights, ideas] = await Promise.all([
     loadHqSupportQueue(),
@@ -55,12 +76,15 @@ export async function loadDeskPage(opts: {
     view === "insights" ? "insights" : view === "ideas" ? "ideas" : "queue";
 
   return {
-    rows,
-    cannedReplies,
-    insights,
-    ideas,
-    initialTicketId: opts.ticketId ?? null,
-    initialView,
-    selfUserId: session.user.id,
+    ok: true,
+    data: {
+      rows,
+      cannedReplies,
+      insights,
+      ideas,
+      initialTicketId: opts.ticketId ?? null,
+      initialView,
+      selfUserId: user.id,
+    },
   };
 }

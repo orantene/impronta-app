@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
 import { loadAccessProfile } from "@/lib/access-profile";
@@ -8,6 +9,11 @@ import {
   shouldAttachAuthDebug,
 } from "@/lib/auth-routing";
 import type { AccessProfile } from "@/lib/auth-flow";
+import {
+  DESK_AUTH_RESCOPE_COOKIE,
+  shouldAttemptDeskAuthRescope,
+} from "@/lib/support/desk/desk-access";
+import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import {
   ACCESS_PROFILE_REFRESH_COOKIE,
   ACCESS_PROFILE_REFRESH_VALUE,
@@ -249,9 +255,9 @@ export async function updateSession(
   // Scope auth cookies to the shared parent domain (".tulala.digital") so a
   // session rotated/created on any first-party subdomain is visible across all
   // of them. `undefined` for hosts we don't share across → host-only as before.
-  const authCookieDomain = cookieDomainForHost(
-    request.headers.get("x-impronta-host-name") ?? request.headers.get("host"),
-  );
+  const requestHost =
+    request.headers.get("x-impronta-host-name") ?? request.headers.get("host");
+  const authCookieDomain = cookieDomainForHost(requestHost);
 
   const supabase = createServerClient(url, anon, {
     // Flag-gated refresh-token coordination. OFF (default) →
@@ -348,6 +354,16 @@ export async function updateSession(
           domain: authCookieDomain,
         });
         res.headers.append("set-cookie", `${name}=; Path=/; Max-Age=0`);
+      } else if (isSupportDeskHost(requestHost)) {
+        // Desk hosts write host-only cookies but still RECEIVE parent-domain
+        // sessions from app/marketing. Stale clear must sweep BOTH scopes or a
+        // survivor keeps poisoning login (CROSS-SCOPE).
+        res.cookies.set(name, "", {
+          maxAge: 0,
+          path: "/",
+          domain: ".tulala.digital",
+        });
+        res.headers.append("set-cookie", `${name}=; Path=/; Max-Age=0`);
       } else {
         // Host-only hosts (custom domains, localhost): one host-only deletion.
         res.cookies.set(name, "", { maxAge: 0, path: "/" });
@@ -380,6 +396,42 @@ export async function updateSession(
       forgetAccessProfileMemo(user.id);
       sessionProfile = (await loadAccessProfileMemo(supabase, user.id, refreshCookie)).profile;
     }
+  }
+
+  // Desk CROSS-SCOPE recovery: host-only talent/client cookies on
+  // support.tulala.digital can shadow a parent-domain platform-admin session.
+  // Clear host-only auth cookies once and retry `/desk` so the admin parent
+  // session can win. After one attempt, loadDeskPage shows an honest forbidden
+  // page instead of a soft 404.
+  if (
+    shouldAttemptDeskAuthRescope({
+      isSupportDeskHost: isSupportDeskHost(requestHost),
+      pathname: pathnameForAuth,
+      hasUser: Boolean(user),
+      isPlatformAdmin: isPlatformAdmin(sessionProfile),
+      alreadyRescoped:
+        request.cookies.get(DESK_AUTH_RESCOPE_COOKIE)?.value === "1",
+    })
+  ) {
+    const rescopeUrl = request.nextUrl.clone();
+    const rescopeRes = attachGuestCookie(NextResponse.redirect(rescopeUrl));
+    const authNames = new Set<string>();
+    for (const c of request.cookies.getAll()) {
+      if (isSupabaseAuthCookie(c.name)) authNames.add(c.name);
+    }
+    for (const name of authNames) {
+      // Host-only only — leave Domain=.tulala.digital untouched.
+      rescopeRes.cookies.set(name, "", { maxAge: 0, path: "/" });
+    }
+    rescopeRes.cookies.set(DESK_AUTH_RESCOPE_COOKIE, "1", {
+      maxAge: 120,
+      path: "/",
+      sameSite: "lax",
+    });
+    return {
+      response: rescopeRes,
+      requestHeaders: forwardedHeaders,
+    };
   }
 
   // Sprint 2.1 — write the verified actor onto `forwardedHeaders` so
