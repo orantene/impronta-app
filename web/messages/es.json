@@ -2096,6 +2096,7 @@
     },
     "consent": {
       "ariaLabel": "Opciones de cookies y analítica",
+      "title": "Cookies y analítica",
       "message": "Usamos cookies y analítica para entender cómo se usa este sitio. Los anuncios y los píxeles de seguimiento permanecen apagados a menos que aceptes.",
       "privacyLink": "Política de privacidad",
       "cookiesLink": "Política de cookies",

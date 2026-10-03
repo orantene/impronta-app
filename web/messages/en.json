@@ -2096,6 +2096,7 @@
     },
     "consent": {
       "ariaLabel": "Cookie and analytics choices",
+      "title": "Cookies & analytics",
       "message": "We use cookies and analytics to understand how this site is used. Ads and tracking pixels stay off unless you accept.",
       "privacyLink": "Privacy policy",
       "cookiesLink": "Cookie policy",
