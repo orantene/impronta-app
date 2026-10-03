@@ -179,16 +179,17 @@
     ];
     return `
       <div class="hub">
-        <div class="brand-mark"><span class="logo">T</span> Tulala Support Desk</div>
+        ${brandWordmark()}
         <h1>Phase 0.5 interaction prototype</h1>
         <p class="lede">Clickable HTML mockups for Oran design review. Every control is simulated. Prefer light mode; toggle dark from the bar. Desktop target 1440px · mobile 390px.</p>
         <div class="hub-review">
           <strong>Review brief</strong>
           <ol>
             <li>Walk screens A–I in light, then flip dark on B / C / F / I.</li>
-            <li>Check forest brand primary, dashed internal-note chrome, AI draft Approve/Edit/Reject, and explicit reply recipient line.</li>
+            <li><strong>Oran feedback (2026-10-03):</strong> Tulala mark + Support Desk wordmark; global ops search; Inbox + green presence + avatar; customer-first header with SLA countdown; Assist <code>NOT SENT</code> + Approve / Reject / Edit; short Canned/Macro/Attach + strong teal Send; quieter right rail.</li>
+            <li>Also check forest brand primary, dashed internal-note chrome, and explicit reply recipient line.</li>
             <li>Mobile H: queues → list → thread → context → keyboard → attach → note → AI → back (draft kept).</li>
-            <li>This is a design reference only. Live Desk shell is already on production behind <code>SUPPORT_DESK_ENABLED</code> (default OFF). Approving mockups does not enable the flag.</li>
+            <li>Design reference only. Live Desk shell is on production behind <code>SUPPORT_DESK_ENABLED</code> (default OFF). Approving mockups does not enable the flag.</li>
           </ol>
           <div class="hub-login-states">
             <span class="code">A · login states</span>
@@ -233,7 +234,7 @@
     return `
       <div class="login-wrap">
         <div class="login-card">
-          <div class="brand-mark"><span class="logo">T</span> Tulala Support</div>
+          ${brandWordmark()}
           <h1>${title}</h1>
           <p class="sub">${sub}</p>
           ${v === "invalid" ? `<div class="alert alert-error">Invalid email or password. <button class="btn btn-sm btn-ghost" data-go="login/forgot">Forgot password?</button></div>` : ""}
@@ -279,15 +280,50 @@
       </div>`;
   }
 
+  function brandWordmark(compact) {
+    return `<div class="brand-mark${compact ? " brand-mark-compact" : ""}"><span class="logo" aria-hidden="true">T</span><span class="brand-text"><span class="brand-name">Tulala</span><span class="brand-product">Support Desk</span></span></div>`;
+  }
+
+  function deskChrome() {
+    const me = D().agents[D().me] || D().agents.maya;
+    return `
+      <header class="desk-chrome">
+        <a class="desk-chrome-brand" href="#/inbox/needs_you" data-go="inbox/needs_you">${brandWordmark()}</a>
+        <label class="desk-global-search">
+          <span class="desk-global-search-icon" aria-hidden="true">⌕</span>
+          <input type="search" placeholder="Search name, email, booking, payment…" data-go-on-focus="cmdk/search" aria-label="Search name, email, booking, payment" />
+        </label>
+        <div class="desk-chrome-presence">
+          <button class="desk-inbox-btn" type="button" data-go="inbox/needs_you" title="Inbox">
+            Inbox <span class="dot dot-success desk-presence-dot" title="Online"></span>
+          </button>
+          <span class="avatar avatar-sm desk-agent-avatar" title="${esc(me.name)}">${esc(me.initials)}</span>
+        </div>
+      </header>`;
+  }
+
+  function deskFrame(bodyInner, opts = {}) {
+    const collapsed = opts.collapsed ?? state.contextCollapsed;
+    const style = opts.style || "--context-w:320px;height:100%;position:relative";
+    return `
+      <div class="desk-shell ${collapsed ? "context-collapsed" : ""}" style="${style}">
+        ${deskChrome()}
+        <div class="desk-body">
+          ${bodyInner}
+        </div>
+        ${opts.overlay || ""}
+      </div>`;
+  }
+
   function rail(activeQueue) {
     const owner = state.role === "owner";
     return `
       <aside class="pane pane-rail">
-        <div class="pane-header">
-          <div class="brand-mark"><span class="logo">T</span> Desk</div>
+        <div class="pane-header pane-header-rail">
+          <span class="rail-label">Views</span>
         </div>
         <div class="pane-body">
-          <div class="nav-section">Views</div>
+          <div class="nav-section">Queues</div>
           ${D()
             .queues.map(
               (q) => `
@@ -320,7 +356,7 @@
           </div>
         </div>
         <div style="padding:8px 12px;border-bottom:1px solid var(--desk-border)">
-          <input placeholder="Search name, email, booking, payment…" style="width:100%;padding:8px 10px;border:1px solid var(--desk-border);border-radius:8px;background:var(--desk-surface)" data-go-on-focus="cmdk/search" />
+          <input class="list-filter" placeholder="Filter this view…" aria-label="Filter this view" data-go-on-focus="cmdk/search" />
         </div>
         <div class="pane-body">
           ${rows
@@ -334,11 +370,11 @@
                   <div class="conv-preview">${esc(c.preview)}</div>
                   <div class="conv-meta">
                     ${statusPill(c.status)}
-                    ${c.sla === "warn" ? `<span class="pill pill-coral">SLA warn</span>` : ""}
+                    ${c.sla === "warn" ? `<span class="pill pill-sla-warn">SLA warn</span>` : ""}
                     ${c.sla === "breach" ? `<span class="pill pill-critical">SLA breach</span>` : ""}
                     <span class="pill pill-muted" title="Language">${esc(c.language)}</span>
                     <span class="pill pill-muted" title="Assignee">${assignee}</span>
-                    <span class="pill pill-muted" title="Source">${esc(c.hub)}</span>
+                    <span class="pill pill-muted conv-hub" title="Source">${esc(c.hub)}</span>
                   </div>
                 </span>
                 <span>${c.unread ? `<span class="dot dot-brand" title="Unread"></span>` : ""}</span>
@@ -373,7 +409,7 @@
           return `<div class="msg ${m.ok ? "customer" : "customer"}"><span class="avatar avatar-sm">AC</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)}</span><span>${esc(m.time)}</span></div><div class="attach-chip ${m.ok ? "" : "fail"}">${m.ok ? "📎" : "⚠"} ${esc(m.name)} · ${esc(m.size)}${m.reason ? ` · ${esc(m.reason)}` : ""}</div></div></div>`;
         }
         if (m.type === "ai-draft") {
-          return `<div class="msg ai-draft"><span class="avatar avatar-sm avatar-ai">AI</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)} · draft</span><span>${esc(m.time)}</span><span class="pill pill-ai">Confidence ${esc(m.confidence)}</span><span class="sim-tag">Not sent</span></div><div class="msg-bubble">${esc(m.text)}</div><div class="ai-actions"><button class="btn btn-sm btn-primary" data-action="approve-ai">Approve & send</button><button class="btn btn-sm" data-action="edit-ai">Edit draft</button><button class="btn btn-sm btn-danger" data-action="reject-ai">Reject</button>${m.confidence === "low" ? `<button class="btn btn-sm" data-go="composer/escalate">Escalate — low confidence</button>` : ""}</div></div></div>`;
+          return `<div class="msg ai-draft"><span class="avatar avatar-sm avatar-ai">AI</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)} · draft</span><span>${esc(m.time)}</span><span class="pill pill-ai">Confidence ${esc(m.confidence)}</span><span class="pill pill-not-sent" title="Draft has not been sent to the customer">NOT SENT</span></div><div class="msg-bubble">${esc(m.text)}</div><div class="ai-actions"><button class="btn btn-sm btn-primary" data-action="approve-ai">Approve & send</button><button class="btn btn-sm btn-danger" data-action="reject-ai">Reject</button><button class="btn btn-sm" data-action="edit-ai">Edit draft</button>${m.confidence === "low" ? `<button class="btn btn-sm" data-go="composer/escalate">Escalate — low confidence</button>` : ""}</div></div></div>`;
         }
         if (m.type === "note") {
           return `<div class="msg note"><span class="avatar avatar-sm">MR</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)}</span><span class="pill pill-coral">Internal note · not visible to customer</span><span>${esc(m.time)}</span></div><div class="msg-bubble">${esc(m.text)}</div></div></div>`;
@@ -443,12 +479,12 @@
             : ""
         }
         <div class="composer-toolbar">
-          <button class="btn btn-sm" data-go="composer/canned" ${disabled ? "disabled" : ""}>Canned</button>
-          <button class="btn btn-sm" data-go="composer/macro" ${disabled ? "disabled" : ""}>Macro</button>
-          <button class="btn btn-sm" data-go="composer/attach" ${disabled ? "disabled" : ""}>Attach</button>
-          <button class="btn btn-sm" data-go="composer/mention" ${disabled ? "disabled" : ""}>@</button>
+          <button class="btn btn-sm btn-tool" data-go="composer/canned" ${disabled ? "disabled" : ""}>Canned ▾</button>
+          <button class="btn btn-sm btn-tool" data-go="composer/macro" ${disabled ? "disabled" : ""}>Macro ▾</button>
+          <button class="btn btn-sm btn-tool" data-go="composer/attach" ${disabled ? "disabled" : ""}>Attach</button>
+          <button class="btn btn-sm btn-tool" data-go="composer/mention" ${disabled ? "disabled" : ""}>@</button>
           <span class="spacer"></span>
-          <button class="btn btn-primary" data-action="send" ${disabled ? "disabled" : ""}>${mode === "note" ? "Add note" : "Send reply"}</button>
+          <button class="btn btn-primary btn-send" data-action="send" ${disabled ? "disabled" : ""}>${mode === "note" ? "Add note" : "Send reply"}</button>
         </div>
         ${opts.leaveWarn ? `<div class="alert alert-warn" style="margin-top:8px">Unsaved draft — leave anyway? <button class="btn btn-sm" data-go="inbox/needs_you">Discard</button> <button class="btn btn-sm btn-primary" data-action="toast" data-msg="Stayed · draft kept">Keep editing</button></div>` : ""}
       </div>`;
@@ -460,8 +496,10 @@
     const hideSensitive = role === "guest" || role === "agent" && variant === "empty";
     const canHistory = role === "owner" || role === "agent" || role === "specialist";
     const showPayments = role === "owner" || role === "specialist" || (role === "agent" && variant === "rich");
-    const section = (title, body) => `
-      <details class="context-section" open>
+    // Keep verification / type / language / plan / related / bookings / quotes open;
+    // collapse diagnostic noise by default (Oran B rail density).
+    const section = (title, body, opts = {}) => `
+      <details class="context-section"${opts.open === false ? "" : " open"}>
         <summary>${title}</summary>
         <div class="context-body">${body}</div>
       </details>`;
@@ -497,48 +535,57 @@
           ${section("Language", esc(ctx.language))}
           ${section("Plan", esc(ctx.plan))}
           ${section("Related talent / agency", listOrEmpty(ctx.related, "None linked"))}
-          ${section("Website", listOrEmpty(ctx.website, "No website context"))}
-          ${section("Services", listOrEmpty(ctx.services, "No services"))}
+          ${section("Website", listOrEmpty(ctx.website, "No website context"), { open: false })}
+          ${section("Services", listOrEmpty(ctx.services, "No services"), { open: false })}
           ${section("Bookings", listOrEmpty(ctx.bookings, "No bookings"))}
           ${section("Quotes", listOrEmpty(ctx.quotes, "No quotes"))}
           ${section(
             "Payments",
-            showPayments ? listOrEmpty(ctx.payments, "No payments") : `<div class="unavailable">Hidden for this role</div>`
+            showPayments ? listOrEmpty(ctx.payments, "No payments") : `<div class="unavailable">Hidden for this role</div>`,
+            { open: false }
           )}
-          ${section("Refunds", listOrEmpty(ctx.refunds, "No refunds"))}
+          ${section("Refunds", listOrEmpty(ctx.refunds, "No refunds"), { open: false })}
           ${section(
             "Previous conversations",
             !canHistory || ctx.previous === "hidden"
               ? `<div class="unavailable">Unverified guest — history withheld</div>`
-              : listOrEmpty(ctx.previous, "No previous")
+              : listOrEmpty(ctx.previous, "No previous"),
+            { open: false }
           )}
-          ${section("Diagnostics", role === "guest" ? `<div class="unavailable">Agents only</div>` : listOrEmpty(ctx.diagnostics, "None"))}
-          ${section("Replay sessions", role === "owner" || role === "specialist" ? listOrEmpty(ctx.replays, "None") : `<div class="unavailable">Owner / specialist</div>`)}
-          ${section("Feature requests", listOrEmpty(ctx.features, "None"))}
-          ${section("Escalations", listOrEmpty(ctx.escalations, "None"))}
-          ${section("Internal risk / priority", ctx.flags.map((f) => `<span class="pill pill-coral">${esc(f)}</span>`).join(" "))}
+          ${section("Diagnostics", role === "guest" ? `<div class="unavailable">Agents only</div>` : listOrEmpty(ctx.diagnostics, "None"), { open: false })}
+          ${section("Replay sessions", role === "owner" || role === "specialist" ? listOrEmpty(ctx.replays, "None") : `<div class="unavailable">Owner / specialist</div>`, { open: false })}
+          ${section("Feature requests", listOrEmpty(ctx.features, "None"), { open: false })}
+          ${section("Escalations", listOrEmpty(ctx.escalations, "None"), { open: false })}
+          ${section("Internal risk / priority", ctx.flags.map((f) => `<span class="pill pill-coral">${esc(f)}</span>`).join(" "), { open: false })}
         </div>
       </aside>`;
   }
 
   function threadPane(id, extras = {}) {
     const c = D().conversations.find((x) => x.id === id) || D().conversations[0];
+    const emailLine = c.email ? esc(c.email) : "No email on file";
+    const slaPill =
+      c.sla === "warn"
+        ? `<span class="pill pill-sla-warn">SLA warn · 12m left</span>`
+        : c.sla === "breach"
+          ? `<span class="pill pill-critical">SLA breach · overdue</span>`
+          : "";
     return `
       <section class="pane pane-thread" style="position:relative">
         <div class="thread-toolbar">
-          <div>
-            <div style="font-weight:650">${esc(c.customer)}</div>
-            <div style="font-size:11px;color:var(--desk-ink-dim)">${channelIcon(c.channel)} ${esc(c.channel)} · ${esc(c.source)} · ${esc(c.hub)}</div>
+          <div class="thread-customer">
+            <div class="thread-customer-name">${esc(c.customer)}</div>
+            <div class="thread-customer-meta">${emailLine} · ${esc(c.hub || c.source)}</div>
+            <div class="thread-subject-secondary">${esc(c.preview)}</div>
           </div>
           ${statusPill(c.status)}
           <span class="pill pill-muted">${c.assignee ? esc(D().agents[c.assignee].name) : "Unassigned"}</span>
-          ${c.sla === "warn" ? `<span class="pill pill-coral">SLA warn · 12m left</span>` : ""}
-          <span style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap">
-            <button class="btn btn-sm" data-go="cmdk/assign">Assign</button>
-            <button class="btn btn-sm" data-go="cmdk/status">Status</button>
-            <button class="btn btn-sm" data-go="cmdk/snooze">Snooze</button>
-            <button class="btn btn-sm" data-action="toggle-context">${state.contextCollapsed ? "Show context" : "Hide context"}</button>
-            <button class="btn btn-sm" data-go="cmdk/default">⌘K</button>
+          ${slaPill}
+          <span class="thread-actions">
+            <button class="btn btn-sm" data-go="cmdk/assign">Assign ▾</button>
+            <button class="btn btn-sm" data-go="cmdk/status">Status ▾</button>
+            <button class="btn btn-sm" data-go="cmdk/snooze">Snooze ▾</button>
+            <button class="icon-btn" data-action="toggle-context" title="${state.contextCollapsed ? "Show context" : "Hide context"}">⋮</button>
           </span>
         </div>
         <div class="thread-messages">${renderMessages(D().threadC1)}</div>
@@ -553,13 +600,12 @@
     if (state.viewport === "mobile") {
       return renderMobile("list");
     }
-    return `
-      <div class="desk-shell ${state.contextCollapsed ? "context-collapsed" : ""}" style="--context-w:320px;height:100%;position:relative">
+    return deskFrame(`
         ${rail(state.queue)}
         ${conversationList(state.queue)}
         ${threadPane(state.activeId)}
         ${state.contextCollapsed ? "" : contextPanel("rich")}
-      </div>`;
+    `);
   }
 
   function renderThread(id) {
@@ -584,23 +630,21 @@
     };
     state.composerMode = (map[mode] || map.reply).mode || "reply";
     if (state.viewport === "mobile") return renderMobile("composer");
-    return `
-      <div class="desk-shell ${state.contextCollapsed ? "context-collapsed" : ""}" style="height:100%">
+    return deskFrame(`
         ${rail(state.queue)}
         ${conversationList(state.queue)}
         ${threadPane("c1", { composer: map[mode] || map.reply })}
         ${contextPanel("rich")}
-      </div>`;
+    `);
   }
 
   function renderContext(variant) {
-    return `
-      <div class="desk-shell" style="height:100%">
+    return deskFrame(`
         ${rail(state.queue)}
         ${conversationList(state.queue)}
         ${threadPane(variant === "empty" ? "c3" : "c1")}
         ${contextPanel(variant === "empty" ? "empty" : "rich")}
-      </div>`;
+    `);
   }
 
   function renderCmdk(variant) {
@@ -628,14 +672,15 @@
           <div style="padding:8px 12px;border-top:1px solid var(--desk-border);font-size:11px;color:var(--desk-ink-dim)">Esc closes · ↑↓ navigate · simulated only</div>
         </div>
       </div>`;
-    return `
-      <div class="desk-shell" style="height:100%;position:relative">
+    return deskFrame(
+      `
         ${rail(state.queue)}
         ${conversationList(state.queue)}
         ${threadPane("c1")}
         ${contextPanel("rich")}
-        ${overlay}
-      </div>`;
+    `,
+      { overlay }
+    );
   }
 
   function renderEmpty(kind) {
@@ -655,8 +700,7 @@
       skeleton: null,
     };
     if (kind === "skeleton") {
-      return `
-        <div class="desk-shell" style="height:100%">
+      return deskFrame(`
           ${rail("needs_you")}
           <section class="pane pane-list"><div class="pane-header"><h2>Loading</h2></div><div class="pane-body" style="padding:12px;display:flex;flex-direction:column;gap:10px">
             ${[1, 2, 3, 4, 5].map(() => `<div class="skeleton" style="height:64px"></div>`).join("")}
@@ -667,13 +711,13 @@
           <aside class="pane pane-context"><div class="pane-header"><h2>Customer</h2></div><div class="pane-body" style="padding:12px;display:flex;flex-direction:column;gap:8px">
             ${[1, 2, 3, 4].map(() => `<div class="skeleton" style="height:40px"></div>`).join("")}
           </div></aside>
-        </div>`;
+      `);
     }
     if (kind === "restricted") return renderCmdk("default");
     const p = panels[kind] || panels.inbox;
     return `
       <div style="height:100%;display:flex;flex-direction:column">
-        <div class="pane-header"><div class="brand-mark"><span class="logo">T</span> Desk</div>
+        <div class="pane-header">${brandWordmark(true)}
           <div style="margin-left:auto;display:flex;gap:4px;flex-wrap:wrap">
             ${Object.keys(panels)
               .filter((k) => k !== "skeleton")
@@ -702,7 +746,8 @@
     return `
       <div class="insights">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div class="brand-mark"><span class="logo">T</span> Insights</div>
+          ${brandWordmark()}
+          <span class="pill pill-muted">Insights</span>
           <span class="pill pill-info">Layout only</span>
           <span class="sim-tag">Sample figures · not live</span>
           <span style="margin-left:auto;font-size:12px;color:var(--desk-ink-dim)">${esc(i.range)}</span>
@@ -805,7 +850,7 @@
         <div style="padding:8px 12px;border-bottom:1px solid var(--desk-border);display:flex;gap:6px;flex-wrap:wrap">
           ${statusPill("open")}
           <span class="pill pill-muted">Maya</span>
-          <span class="pill pill-coral">SLA warn</span>
+          <span class="pill pill-sla-warn">SLA warn · 12m left</span>
         </div>
         <div class="mobile-body" style="padding:12px">${renderMessages(D().threadC1.slice(0, s === "ai" ? 5 : 8))}</div>
         ${
