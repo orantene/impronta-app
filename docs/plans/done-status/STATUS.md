@@ -1,8 +1,8 @@
-Updated: 2026-10-03 01:44Z · Scoreboard: ✅ 1 / 🟡 64 / ❌ 20 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 01:57Z · Scoreboard: ✅ 1 / 🟡 64 / ❌ 20 / ⏸ 1 / ❓ 14
 Live SHA: ba672f613 · Main SHA: 07804b573
 Top 3 blockers right now
-1. Main is 07804b573 (#2489 merged 2026-10-03T01:43:48Z, Sunday booking-day fix). Its structural gate is still in progress (run 37087206959). Production stays ba672f613 until that gate is green. Scheduling questions stay not ✅. #18 stays ❌.
-2. #2490 is open. A local shot shows the phone wall gone. The PR is not merged. #2491 softened the selected day chip in code. The fresh shot is not taken. Not merged. #2492’s avatar click-through is still running. #13 stays ❌.
+1. Main is still 07804b573 (#2489 merged 2026-10-03T01:43:48Z). Re-checked 01:57Z: structural gate run 37087206959 is still in progress. Production is still ba672f613. Scheduling questions stay not ✅. #18 stays ❌.
+2. #2490, #2491, and #2492 are not merged. #2490 is open (local phone-wall shot only). #2491 is a draft (day chip softened in code, fresh shot not taken). #2492 is a draft and the avatar click-through is still running. #13 stays ❌.
 3. Money queue #2482 → #2481 → #2480 → #2486 → #2487 stays behind this main commit until its structural gate passes. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
@@ -25,11 +25,11 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 
 ## Story 2 — Valeria on the Free plan (S2)
 
-Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Re-checked 01:42Z: #13, #55, and #57 stay ❌. #59 stays not run. None of these rows are ✅.
+Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Re-checked 01:57Z: #13, #55, and #57 stay ❌. #59 stays not run. None of these rows are ✅.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | FAIL on localhost 2026-10-03. Avatar has My website, My Tulala profile, Where I appear, notifications, language, help, sign out. Shot: `media/story-02-03b-avatar-items.png`. Account showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. | Draft #2492 adds Builder, Money, Messages, and Settings. The live click-through is still running and is not done, so this stays ❌. Not merged. | S2 step 1 | — | 2026-10-03 |
+| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | FAIL on localhost 2026-10-03. Avatar has My website, My Tulala profile, Where I appear, notifications, language, help, sign out. Shot: `media/story-02-03b-avatar-items.png`. Account showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. | Draft #2492 is not merged. Re-checked 01:57Z: the live click-through is still running, so this stays ❌. | S2 step 1 | — | 2026-10-03 |
 | 55 | Free Add and Move blocked in UI and server | ❌ | FAIL on localhost 2026-10-03. The builder did not open a locked Free editor. The run logged the Web Office upsell (“The Page Builder is a Web Office feature”), then the dev server OOM’d and `/talent/page-builder` 404’d. `TALENT_FREE_WEBSITE_ENABLED` was unset. Not a green. | Add and Move locks were never shown, and the server reject was not exercised. #2471 is on production, but this pass did not prove it. | S2 steps 3–5 | — | 2026-10-03 |
 | 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL on localhost 2026-10-03. The editor never opened (Web Office upsell, then `/talent/page-builder` 404 after OOM). Back arrow and “no new page” were not observable. | Need a Free editor that actually opens. Code tests exist; this live pass did not see them. | S2 step 2 | — | 2026-10-03 |
 | 59 | Website Settings change the live site | 🟡 | Not run. `/talent/site` killed the dev server (OOM) before settings opened. No booking-mode or pause-banner change. Public `/t/TAL-QAFIXFREE` did load (`media/story-02-08-public.png`, Diego as lash artist). | Settings were never toggled, so the live site was not rechecked. Not ✅. | S2 step 6 | — | 2026-10-03 |
@@ -40,7 +40,7 @@ Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-
 |---|---|---|---|---|---|---|---|
 | 16 | Create, edit, reorder, hide, delete a service | 🟡 | `ServicesHome` / offerings editor on main: price, duration, variants, add-ons. | TAL-93900 wall blocks the editor. “Manicure Gel QA” was never saved (Cloud QA 2026-10-03). | S3 step 1 | — | 2026-10-03 |
 | 17 | Edits show on the public site and in chat | 🟡 | Public `/t/[code]` is `force-dynamic`. Catalog reads offerings live. | No saved edit to compare on the site and in chat. Wall blocks the editor. | S3 step 2 | — | 2026-10-03 |
-| 18 | Quote services never open the booking sheet | ❌ | The failure was on `27a47c66b` (`not ok 37`, run 37080540629). #2489 is now merged as main `07804b573`. The PR gate passed (run 37085801499). The gate on this main commit is still in progress (run 37087206959). | Not ✅ until that main gate is green. Not on production `ba672f613`. | S3 step 3 | — | 2026-10-03 |
+| 18 | Quote services never open the booking sheet | ❌ | The failure was on `27a47c66b` (`not ok 37`, run 37080540629). #2489 is merged as main `07804b573`. Re-checked 01:57Z: the gate on that commit (run 37087206959) is still in progress. | Not ✅ until that main gate is green. Not on production `ba672f613`. | S3 step 3 | — | 2026-10-03 |
 | 19 | ES and EN names survive save | 🟡 | `OfferingTextFields` plus `i18nPair` tests on main. | Not saved and reloaded on TAL-93900 (wall). | S3 step 1 | — | 2026-10-03 |
 | 20 | Where it happens, plus travel rules | 🟡 | Per-service where (studio / client / remote) and travel defaults in the editor. | Not set on a service and checked on the public site. | S3 step 1 | — | 2026-10-03 |
 | 44 | Stripe US Express status in the dashboard | 🟡 | Linh TAL-93103 localhost 2026-10-02: Money showed “Stripe · verified” after KYC (`media/a3-linh-money-verified-check.png`). Account charges and payouts enabled. | That pass was localhost, not tulala.digital, and not Jor. TAL-93900 wall blocks Story 3 step 4. | S3 step 4 | — | 2026-10-03 |
@@ -158,10 +158,10 @@ Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ❌ | Re-checked 2026-10-03 01:44Z: `origin/main` is `07804b573` (#2489). Structural gate on that commit is in progress (run 37087206959), not green. `origin/production` is still `ba672f613`. | Production does not move until this main gate passes. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | ❌ | Re-checked 2026-10-03 01:57Z: `origin/main` is still `07804b573`. Run 37087206959 is still in progress, not green. `origin/production` is still `ba672f613`. | Production does not move until this main gate passes. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `ba672f613` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 01:44Z: 9 open (#2477, #2480, #2481, #2482, #2486, #2487, #2490, #2491, #2492). #2489 is merged. All still-open PRs were created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2490 is open. #2491 and #2492 are drafts. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 01:57Z: same 9 open (#2477, #2480, #2481, #2482, #2486, #2487, #2490, #2491, #2492). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2490 is open and not merged. #2491 and #2492 are drafts and not merged. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | No logged-in console capture this pass. | TAL-93900 wall blocks dashboard, builder, inbox, and money. Public `/t/TAL-93900` was not console-audited. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Last promote is `ba672f613`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
 | 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` updated 2026-10-03 ~00:25Z. Oran items there are the Desk flag, D-083 Stripe clicks, and legal review of refunds. | Not a live product check. Board is a working note, not proven against every open PR owner. | S14 step 5 | — | 2026-10-03 |
@@ -210,8 +210,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-Main moved. Pulled `status/done-board` first (already at `ac1e77ea8`).
-REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply. The file was not overwritten.
-Main SHA set to `07804b573` (#2489 merged 2026-10-03T01:43:48Z, “talent: open demo booking on the first open day”). Production stays `ba672f613`. Structural gate on the new main commit is in progress (run 37087206959), not green. No scheduling question marked ✅. #18 stays ❌.
-Money queue stays behind this main commit until that gate passes.
-Scoreboard unchanged: ✅ 1 / 🟡 64 / ❌ 20 / ⏸ 1 / ❓ 14. #97 stays ✅ (`gh pr list` 01:44Z, 9 open after #2489 merged, all under 2 days, author `orantene`).
+15-minute refresh at 2026-10-03 01:57Z. Pulled `status/done-board` first (already at `0baa6279c`).
+REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
+SHAs re-fetched: main `07804b573`, production `ba672f613`. Run 37087206959 is still `in_progress`. No scheduling question marked ✅. #13 stays ❌.
+#2490, #2491, and #2492 are not merged (`mergedAt` null).
+Scoreboard unchanged: ✅ 1 / 🟡 64 / ❌ 20 / ⏸ 1 / ❓ 14. #97 stays ✅ (`gh pr list` 01:57Z, same 9 open PRs, all under 2 days, author `orantene`).
