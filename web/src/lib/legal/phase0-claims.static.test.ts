@@ -75,6 +75,8 @@ test("no legal page claims Tulala covers chargebacks; chargebacks belong to the 
     "src/app/(marketing)/legal/terms/terms-es.tsx",
     "src/app/(marketing)/legal/privacy/page.tsx",
     "src/app/(marketing)/legal/privacy/privacy-es.tsx",
+    "src/app/(marketing)/legal/refunds/page.tsx",
+    "src/app/(marketing)/legal/refunds/refunds-es.tsx",
   ];
   for (const p of pages) {
     const s = read(p).replace(/\s+/g, " ");
@@ -83,4 +85,6 @@ test("no legal page claims Tulala covers chargebacks; chargebacks belong to the 
   }
   assert.match(read(pages[0]).replace(/\s+/g, " "), /chargebacks and disputes are the talent&rsquo;s responsibility/);
   assert.match(read(pages[1]).replace(/\s+/g, " "), /contracargos y las disputas son responsabilidad del talento/);
+  assert.match(read(pages[4]).replace(/\s+/g, " "), /chargebacks and disputes are the talent&rsquo;s responsibility/);
+  assert.match(read(pages[5]).replace(/\s+/g, " "), /contracargos y las disputas son responsabilidad del talento/);
 });

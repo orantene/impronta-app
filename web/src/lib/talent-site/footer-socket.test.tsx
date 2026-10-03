@@ -214,14 +214,25 @@ test("the first group carries the talent's name, not 'Este sitio'", () => {
   assert.equal(shortTalentName("Jorg Beauty"), "Jorg Beauty");
 });
 
-test("the Tulala group has Cookies, pointing at the platform cookies page", () => {
+test("the Tulala group has Cookies and Refunds, pointing at the platform pages", () => {
   const m = model();
-  assert.deepEqual(m.tulalaLinks.map((l) => l.key), ["tulala-terms", "tulala-privacy", "tulala-cookies"]);
+  assert.deepEqual(m.tulalaLinks.map((l) => l.key), [
+    "tulala-terms",
+    "tulala-privacy",
+    "tulala-cookies",
+    "tulala-refunds",
+  ]);
   const cookies = m.tulalaLinks.find((l) => l.key === "tulala-cookies")!;
   assert.equal(cookies.label, "Cookies");
   assert.equal(cookies.href, "https://tulala.digital/es/legal/cookies");
   assert.equal(cookies.external, true);
   assert.match(html(), /data-socket-link="tulala-cookies"/);
+  const refunds = m.tulalaLinks.find((l) => l.key === "tulala-refunds")!;
+  assert.equal(refunds.label, "Reembolsos");
+  assert.equal(refunds.href, "https://tulala.digital/es/legal/refunds");
+  assert.equal(refunds.external, true);
+  assert.match(html(), /data-socket-link="tulala-refunds"/);
+  assert.equal(model({ locale: "en" }).tulalaLinks.find((l) => l.key === "tulala-refunds")!.label, "Refunds");
 });
 
 test("the credit reads 'Sitio creado con Tulala.digital' (EN 'Site made with'), linked, on the right, whitelabel-aware", () => {
