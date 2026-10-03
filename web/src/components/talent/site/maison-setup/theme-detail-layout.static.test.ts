@@ -16,8 +16,10 @@ test("F107: the desktop inspector is viewport-bound, sticky, and scrolls inside 
   assert.match(cls, /md:sticky/);
   assert.match(cls, /md:h-\[calc\(100dvh-/);
   assert.match(cls, /md:self-start/);
-  assert.match(cls, /w-\[300px\]/); // fits from 1024px
-  assert.match(cls, /lg:w-\[360px\]/);
+  // Wave 3 G3-CHROME: slim ~30% rail (was fixed 300/360px)
+  assert.match(cls, /w-\[280px\]/);
+  assert.match(cls, /md:w-\[30%\]/);
+  assert.match(cls, /md:max-w-\[340px\]/);
   assert.match(src, /min-h-0 flex-1 space-y-5 overflow-y-auto/);
 });
 
