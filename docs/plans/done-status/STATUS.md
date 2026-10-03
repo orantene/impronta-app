@@ -1,8 +1,8 @@
-Updated: 2026-10-03 00:55Z · Scoreboard: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 01:06Z · Scoreboard: ✅ 1 / 🟡 64 / ❌ 20 / ⏸ 1 / ❓ 14
 Live SHA: ba672f613 · Main SHA: 27a47c66b
 Top 3 blockers right now
 1. Main is still red at 27a47c66b. Re-checked 00:55Z: run 37080540629 is still failed (8 scheduling tests). Production is still ba672f613, the last green (run 37074973497). A scheduling-gate fix is running and unmerged, so #18 stays ❌.
-2. TAL-93900 wall fix is running and not landed, so Stories 3–7 stay blocked. Talent visual refresh is running and not proven. Valeria Story 2 is still proving on the QA machine. Cloud VM Inquire on /t/TAL-93900 still says “Directory is not configured.”
+2. Story 2 failed on localhost (2026-10-03). `qa-talent-free` is Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901, and the same unrostered wall is on that dashboard. Wall fix is open PR #2490, not merged. #13, #55, and #57 failed. #59 was not run. Talent visual refresh is still running and not proven.
 3. Money queue #2482 → #2481 → #2480 → #2486 → #2487 stays held because main is red. #2481 is green (structural gate SUCCESS) and still waits behind #2482. #2482’s own structural gate failed the same 8 scheduling tests (run 37080567517), not a new receipt defect. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
@@ -25,14 +25,14 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 
 ## Story 2 — Valeria on the Free plan (S2)
 
-Valeria Story 2 is still proving on the QA machine (2026-10-03 00:55Z). That pass is not finished, so these rows are not ✅.
+Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-free@impronta.test` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. The same unrostered wall covered the dashboard. None of these rows are ✅.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | `TalentAccountMenuSection` has website, Tulala profile, Where I appear, plus Notifications, Language, Help, Sign out. | Builder, Money, Messages, and Settings are not in the dashboard avatar menu. Story 2 proof on the QA machine is not finished. | S2 step 1 | — | 2026-10-03 |
-| 55 | Free Add and Move blocked in UI and server | 🟡 | #2471 is on production `ba672f613` (merge `472b618a6`). Guard denies add and reorder. | Valeria Story 2 is proving on the QA machine. No finished live pass yet, and the save endpoint was not probed here. | S2 steps 3–5 | — | 2026-10-03 |
-| 57 | Builder back arrow to dashboard, no new pages | 🟡 | `talent-builder-identity.tsx` back href plus tests that forbid “New page” on the talent topbar. | Valeria Story 2 is proving on the QA machine. Not a finished live pass. | S2 step 2 | — | 2026-10-03 |
-| 59 | Website Settings change the live site | 🟡 | `WebsiteSettingsScreen` persists booking mode, chat, pause banner, address, logo. | Valeria Story 2 is proving on the QA machine. Not toggled and rechecked live yet. | S2 step 6 | — | 2026-10-03 |
+| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | FAIL on localhost 2026-10-03. Avatar has My website, My Tulala profile, Where I appear, notifications, language, help, sign out. Shot: `media/story-02-03b-avatar-items.png`. Account showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. | Builder, Money, Messages, and Settings are missing. Unrostered wall is on this Free dashboard. Wall fix is open PR #2490, not merged. | S2 step 1 | — | 2026-10-03 |
+| 55 | Free Add and Move blocked in UI and server | ❌ | FAIL on localhost 2026-10-03. The builder did not open a locked Free editor. The run logged the Web Office upsell (“The Page Builder is a Web Office feature”), then the dev server OOM’d and `/talent/page-builder` 404’d. `TALENT_FREE_WEBSITE_ENABLED` was unset. Not a green. | Add and Move locks were never shown, and the server reject was not exercised. #2471 is on production, but this pass did not prove it. | S2 steps 3–5 | — | 2026-10-03 |
+| 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL on localhost 2026-10-03. The editor never opened (Web Office upsell, then `/talent/page-builder` 404 after OOM). Back arrow and “no new page” were not observable. | Need a Free editor that actually opens. Code tests exist; this live pass did not see them. | S2 step 2 | — | 2026-10-03 |
+| 59 | Website Settings change the live site | 🟡 | Not run. `/talent/site` killed the dev server (OOM) before settings opened. No booking-mode or pause-banner change. Public `/t/TAL-QAFIXFREE` did load (`media/story-02-08-public.png`, Diego as lash artist). | Settings were never toggled, so the live site was not rechecked. Not ✅. | S2 step 6 | — | 2026-10-03 |
 
 ## Story 3 — Jor services and money setup (S3)
 
@@ -161,7 +161,7 @@ Valeria Story 2 is still proving on the QA machine (2026-10-03 00:55Z). That pas
 | 94 | Main green, and production equals that green main | ❌ | Re-checked 2026-10-03 00:55Z: structural gate on `27a47c66b` is still failed (run 37080540629, scheduling, 8 tests, conclusion failure). `origin/production` is still `ba672f613` (last green, run 37074973497). | Main is red. A scheduling-gate fix is running and unmerged. Promote on `27a47c66b` stays skipped. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `ba672f613` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 00:55Z: same 6 open (#2477, #2480, #2481, #2482, #2486, #2487). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None. Scheduling-gate fix, wall fix, and visual refresh are running and have no open PR yet. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 01:06Z: 9 open (#2477, #2480, #2481, #2482, #2486, #2487, #2489, #2490, #2491). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. Wall fix is open #2490. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | No logged-in console capture this pass. | TAL-93900 wall blocks dashboard, builder, inbox, and money. Public `/t/TAL-93900` was not console-audited. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Last promote is `ba672f613`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
 | 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` updated 2026-10-03 ~00:25Z. Oran items there are the Desk flag, D-083 Stripe clicks, and legal review of refunds. | Not a live product check. Board is a working note, not proven against every open PR owner. | S14 step 5 | — | 2026-10-03 |
@@ -210,9 +210,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-15-minute refresh at 2026-10-03 00:55Z. Pulled `status/done-board` first (already at `ca445e9a2`).
+Story 2 localhost proof applied at 2026-10-03 01:06Z from `internal/story-02-valeria.md`. Pulled `status/done-board` first (already at `0596641bb`).
 REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
-SHAs re-fetched: production `ba672f613`, main `27a47c66b`. Run 37080540629 is still `completed` / `failure`. No new ✅.
-Still in flight, not done: scheduling-gate fix, TAL-93900 wall fix, talent visual refresh, Valeria Story 2.
-Money queue stays held because main is red. #2481 structural gate is SUCCESS and still waits behind #2482. #2482 structural gate failed the same 8 scheduling tests (run 37080567517), not a new receipt defect.
-Scoreboard unchanged: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14. #97 stays ✅ on a fresh `gh pr list` (same 6 open PRs, all under 2 days, author `orantene`).
+#13 stays ❌ (avatar missing Builder, Money, Messages, Settings; shot `media/story-02-03b-avatar-items.png`). #55 and #57 move 🟡 → ❌ (locked Free editor never opened; Web Office upsell, then OOM and `/talent/page-builder` 404). #59 stays 🟡 (not run; `/talent/site` killed the dev server). None marked ✅.
+Account `qa-talent-free` showed Diego Pestañas / TAL-QAFIXFREE, not Valeria TAL-93901. Same unrostered wall. Wall fix is open PR #2490, not merged.
+Scoreboard: ✅ 1 / 🟡 64 / ❌ 20 / ⏸ 1 / ❓ 14. #97 stays ✅ (`gh pr list` 01:06Z, 9 open, all under 2 days, author `orantene`).
