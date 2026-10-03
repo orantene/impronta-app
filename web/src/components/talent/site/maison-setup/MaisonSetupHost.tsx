@@ -12,6 +12,13 @@ import { saveMaisonSetupChoicesAction } from "@/lib/talent-site/server/maison-ch
 import { ChooseDesignScreen } from "./ChooseDesignScreen";
 import { ThemeDetailScreen } from "./ThemeDetailScreen";
 import { ReviewWebsiteScreen } from "./ReviewWebsiteScreen";
+import { AppsLibraryScreen } from "./AppsLibraryScreen";
+import { AppDetailScreen } from "./AppDetailScreen";
+import {
+  openAppDetailPatch,
+  openAppsLibraryPatch,
+  openDesignWithAppPatch,
+} from "./gallery-apps-flow";
 import {
   defaultMaisonChoices,
   exploreDesignPatch,
@@ -157,6 +164,8 @@ export function MaisonSetupHost({
         ...(forceScreen === "detail" || forceScreen === "gallery"
           ? { contentMode: "demo" as const }
           : {}),
+        // Wave 4: presence Apps tile opens the library, not a stale app page.
+        ...(forceScreen === "apps" ? { appId: null } : {}),
       };
       // Resuming is navigation only: never persist on arrival (F58).
       if (!resume) persistChoices(talentProfileId, merged);
@@ -228,6 +237,23 @@ export function MaisonSetupHost({
           onClose={closeToSite}
           liveAddress={siteLive ? liveAddress : undefined}
         />
+      ) : choices.screen === "apps" ? (
+        <AppsLibraryScreen
+          locale={locale}
+          onOpenApp={(appId) => patch(openAppDetailPatch(appId))}
+          onBack={closeToSite}
+          onClose={closeToSite}
+        />
+      ) : choices.screen === "app" ? (
+        <AppDetailScreen
+          locale={locale}
+          appId={choices.appId}
+          previewDevice={choices.previewDevice}
+          onDeviceChange={(previewDevice) => patch({ previewDevice })}
+          onOpenDesign={(designSlug) => patch(openDesignWithAppPatch(designSlug))}
+          onBackToLibrary={() => patch(openAppsLibraryPatch())}
+          onClose={closeToSite}
+        />
       ) : choices.screen === "review" ? (
         <ReviewWebsiteScreen
           locale={locale}
@@ -270,6 +296,8 @@ export function MaisonSetupHost({
           fromLiveSite={sitePublished}
           liveLookSlug={liveLookSlug}
           liveCustomPalette={liveCustomPalette}
+          onBrowseAppsLibrary={() => patch(openAppsLibraryPatch())}
+          onOpenAppDetail={(appId) => patch(openAppDetailPatch(appId))}
         />
       )}
     </>

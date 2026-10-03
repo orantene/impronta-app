@@ -636,7 +636,13 @@ export function ImportStarterPanel({
                     </button>
                     {detailKey === svc.key ? (
                       <p className="mt-1 text-[12px] text-admin-ink-dim">
-                        ${svc.priceMxn} MXN · {svc.durationMin} min
+                        {svc.priceMxn == null || svc.priceDisplay === "quote"
+                          ? locale === "es"
+                            ? "A cotizar"
+                            : "Quote"
+                          : `$${svc.priceMxn} ${svc.currency ?? "MXN"}`}
+                        {svc.durationMin != null ? ` · ${svc.durationMin} min` : ""}
+                        {svc.bookingMode ? ` · ${svc.bookingMode}` : ""}
                       </p>
                     ) : null}
                   </div>

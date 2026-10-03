@@ -2,6 +2,9 @@
  * Wave 3: import catalogs for every finished design.
  * Maison seed → existing starter pack. Demo-talent → content fixture groups
  * (services, faqs, section texts). Groups with zero items are omitted.
+ *
+ * Demos without their own `contentFixture` do not fall back to a reference
+ * design fixture (Alba / maison-v2): import is hidden for those profiles.
  */
 import { DEMO_REGISTRY } from "@/lib/talent-site/demos/registry";
 import { loadDemoContentFixture } from "@/lib/talent-site/demos/content-fixture";
@@ -33,17 +36,31 @@ function namespacedKey(fixtureKey: string, kind: "svc" | "faq" | "sec", rest: st
   return `${fixtureKey}:${kind}:${rest}`;
 }
 
+function bookingModeOf(
+  mode: string,
+): NonNullable<MaisonStarterService["bookingMode"]> {
+  if (mode === "instant") return "instant";
+  if (mode === "quote" || mode === "inquiry") return "inquiry";
+  return "request";
+}
+
 function fromFixture(fixtureKey: string, demoSlug: string): GalleryImportCatalog | null {
   try {
     const fx = loadDemoContentFixture(fixtureKey);
-    const services: MaisonStarterService[] = (fx.services ?? []).map((s) => ({
-      key: namespacedKey(fixtureKey, "svc", s.id || slugKey(s.name)),
-      name: s.name,
-      category: s.category || "General",
-      priceMxn: s.priceAmount ?? 0,
-      durationMin: s.durationMinutes ?? 0,
-      imageReuse: "preview_only" as const,
-    }));
+    const services: MaisonStarterService[] = (fx.services ?? []).map((s) => {
+      const quote = s.priceAmount === null;
+      return {
+        key: namespacedKey(fixtureKey, "svc", s.id || slugKey(s.name)),
+        name: s.name,
+        category: s.category || "General",
+        priceMxn: s.priceAmount,
+        durationMin: s.durationMinutes,
+        currency: s.currency,
+        bookingMode: bookingModeOf(s.mode),
+        priceDisplay: quote ? "quote" : s.priceFrom ? "from" : "exact",
+        imageReuse: "preview_only" as const,
+      };
+    });
     const faqs: MaisonStarterFaq[] = (fx.faq?.items ?? []).map((q, i) => ({
       key: namespacedKey(fixtureKey, "faq", `${i}:${slugKey(q.q.slice(0, 40))}`),
       question: q.q,
@@ -84,11 +101,9 @@ export function galleryImportCatalogFor(
   if (demo.source.kind === "demo-talent") {
     const profileCode = demo.source.profileCode;
     const entry = DEMO_REGISTRY.find((d) => d.profileCode === profileCode);
-    const fixtureKey =
-      entry?.contentFixture ??
-      (designSlug === "maison-v2" || designSlug === "folio" || designSlug === "gridline"
-        ? designSlug
-        : null);
+    // Only demos with an authored fixture key may import — never fall back to
+    // the design's reference fixture (e.g. Camila → Alba/maison-v2).
+    const fixtureKey = entry?.contentFixture;
     if (!fixtureKey) return null;
     return fromFixture(fixtureKey, `${designSlug}:${demo.key}`);
   }

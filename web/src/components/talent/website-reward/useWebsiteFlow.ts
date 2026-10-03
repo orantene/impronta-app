@@ -21,11 +21,42 @@ import {
 /** Setup step requested from another surface; /talent/site consumes it. */
 let pendingSetupStep: WebsiteSetupStep | null = null;
 export const WEBSITE_SETUP_REQUEST_EVENT = "tulala:website-setup-request";
+const SETUP_STEP_STORAGE_KEY = "tulala:website-setup-step";
+
+/** Ask My website to open the setup flow at `step` (survives soft + hard nav). */
+export function requestWebsiteSetup(step: WebsiteSetupStep): void {
+  pendingSetupStep = step;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(SETUP_STEP_STORAGE_KEY, step);
+  } catch {
+    /* private mode / quota */
+  }
+  window.dispatchEvent(new Event(WEBSITE_SETUP_REQUEST_EVENT));
+}
 
 export function consumeWebsiteSetupRequest(): WebsiteSetupStep | null {
   const step = pendingSetupStep;
   pendingSetupStep = null;
-  return step;
+  if (step) {
+    try {
+      window.sessionStorage?.removeItem(SETUP_STEP_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    return step;
+  }
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.sessionStorage.getItem(SETUP_STEP_STORAGE_KEY);
+    if (stored === "gallery" || stored === "review") {
+      window.sessionStorage.removeItem(SETUP_STEP_STORAGE_KEY);
+      return stored;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 /*
@@ -132,8 +163,7 @@ export function useWebsiteFlow() {
 
   /** Open the setup flow at the step the talent is on (never restarts). */
   const continueSetup = useCallback(() => {
-    pendingSetupStep = step;
-    window.dispatchEvent(new Event(WEBSITE_SETUP_REQUEST_EVENT));
+    requestWebsiteSetup(step);
     setTalentPage("public-page");
     router.push("/talent/site");
   }, [router, setTalentPage, step]);

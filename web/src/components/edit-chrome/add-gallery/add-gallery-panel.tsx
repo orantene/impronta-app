@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   codeGalleryItemsForPolicy,
@@ -40,6 +41,8 @@ import {
   galleryLockedHint,
   isGalleryItemStructurallyLocked,
 } from "@/lib/site-admin/add-gallery/structural-lock";
+import { requestWebsiteSetup } from "@/components/talent/website-reward/useWebsiteFlow";
+import { takeBuilderAppIntent } from "../builder-app-intent";
 import { TabBar } from "./add-gallery-tab-bar";
 import { GalleryCard } from "./add-gallery-cards";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -200,6 +203,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [pending, setPending] = useState(false);
   // Live-render preview popup — the item whose preview is open (null = closed).
   const [previewItem, setPreviewItem] = useState<AddGalleryItem | null>(null);
+  // Gallery "Add to my site" → land on Apps (and optionally focus one app).
+  const [focusAppId, setFocusAppId] = useState<string | null>(null);
 
   // P1 — merged catalog seeded synchronously from code; refreshed on open.
   const allowedTabIds = useMemo(
@@ -215,6 +220,16 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       }),
     [gallerySurface],
   );
+
+  useEffect(() => {
+    if (!open) return;
+    const intent = takeBuilderAppIntent();
+    if (!intent) return;
+    setTab("apps");
+    setFocusAppId(intent);
+    const app = codeSeed.find((i) => i.tab === "apps" && i.id === intent);
+    if (app) setQuery(app.label);
+  }, [open, codeSeed]);
   const [mergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
   // Admin-editable catalog structure; empty until open-effect fetch resolves.
@@ -523,7 +538,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("Search sections and blocks")}
+              placeholder={t(tab === "apps" ? "Search apps" : "Search sections and blocks")}
               className="w-full rounded-[10px] border py-[9px] pl-[34px] pr-[12px] text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
               style={{
                 borderColor: CHROME.line,
@@ -548,6 +563,27 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
 
         {gallerySurface.structuralEdits === false && tab !== "shell" ? (
           <GalleryLockedNotice locale={locale} />
+        ) : null}
+        {focusAppId ? (
+          <span hidden data-testid="add-gallery-focus-app" data-app-id={focusAppId} />
+        ) : null}
+        {tab === "apps" ? (
+          <div
+            className="mx-[16px] mb-[8px] flex flex-wrap items-center gap-[8px] rounded-[10px] border px-[12px] py-[8px] text-[12px]"
+            style={{ borderColor: CHROME.line, background: CHROME.paper, color: CHROME.ink }}
+            data-testid="add-gallery-apps-designs-link"
+          >
+            <span style={{ color: CHROME.muted }}>{t("Apps look best in matching designs.")}</span>
+            <Link
+              href="/talent/site"
+              data-testid="add-gallery-browse-designs"
+              className="font-semibold underline-offset-2 hover:underline"
+              style={{ color: CHROME.ink }}
+              onClick={() => requestWebsiteSetup("gallery")}
+            >
+              {t("Browse designs")}
+            </Link>
+          </div>
         ) : null}
         <div className="flex min-h-0 flex-1">
           {!query.trim() && categories.length > 0 ? (

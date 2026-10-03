@@ -91,13 +91,11 @@ test("badge opens detail on the apps tab; default stays preview", () => {
   assert.equal(exploreDesignPatch("maison-v2").detailTab, "preview");
 });
 
-test("browse card: badge in the title row, pills in text area, app-fit line", async () => {
+test("browse card: badge in the title row, chips below (Wave 3 card)", async () => {
   const { readFileSync } = await import("node:fs");
-  const src = readFileSync(new URL("./GalleryBrowseScreen.tsx", import.meta.url), "utf8");
+  const src = readFileSync(new URL("./GalleryDesignCard.tsx", import.meta.url), "utf8");
   const title = src.indexOf('data-testid="design-card-title-row"');
   assert.ok(title > 0 && src.indexOf("<AppBadge", title) > title);
-  assert.ok(src.indexOf("design-card-labels") < title);
-  const img = src.slice(src.indexOf("<ThemeGalleryPreviewFrame"), src.indexOf("design-card-labels"));
-  assert.doesNotMatch(img, /absolute left-2\.5|Last viewed|<AppBadge/);
-  assert.match(src, /design-card-app-fit/);
+  assert.match(src, /design-card-chip-line/);
+  assert.doesNotMatch(src, /design-card-app-fit/);
 });

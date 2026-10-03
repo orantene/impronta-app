@@ -39,8 +39,12 @@ type Props = {
   showTiles?: boolean;
 };
 
-const PREVIEW_W = 1280;
-const PREVIEW_H = 960;
+/** Real iframe viewports so phone CSS breakpoints fire (not a shrunk desktop). */
+const PREVIEW_VIEWPORT = {
+  desktop: { w: 1280, h: 960 },
+  phone: { w: 390, h: 844 },
+} as const;
+const PREVIEW_MAX_W = { desktop: 560, phone: 280 } as const;
 
 function formatSince(iso: string | null, locale: MaisonSetupLocale): string | null {
   if (!iso) return null;
@@ -77,6 +81,60 @@ function IconBtn({
     >
       {children}
     </button>
+  );
+}
+
+/** Domain / Questions / Settings / Apps — live card + pre-publish setup. */
+export function PresenceSiteTiles({
+  locale,
+  onOpenDomain,
+  onOpenQuestions,
+  onOpenSettings,
+  onOpenApps,
+  topRule = false,
+}: {
+  locale: MaisonSetupLocale;
+  onOpenDomain?: () => void;
+  onOpenQuestions?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
+  /** When true, draw a top rule (live card sits above the tiles). */
+  topRule?: boolean;
+}) {
+  const t = (key: string) => maisonSetupT(locale, key);
+  const tiles: Array<{
+    id: string;
+    label: string;
+    icon: string;
+    onClick?: () => void;
+    testId: string;
+  }> = [
+    { id: "domain", label: t("Domain"), icon: "🔗", onClick: onOpenDomain, testId: "presence-tile-domain" },
+    { id: "questions", label: t("Questions"), icon: "❓", onClick: onOpenQuestions, testId: "presence-tile-questions" },
+    { id: "settings", label: t("Settings"), icon: "⚙", onClick: onOpenSettings, testId: "presence-tile-settings" },
+    { id: "apps", label: t("Apps"), icon: "🧩", onClick: onOpenApps, testId: "presence-tile-apps" },
+  ];
+  return (
+    <div
+      data-testid="presence-site-tiles"
+      className={`grid grid-cols-2 gap-2 p-4 sm:grid-cols-4${topRule ? " border-t border-admin-border-soft" : ""}`}
+    >
+      {tiles.map((tile) => (
+        <button
+          key={tile.id}
+          type="button"
+          data-testid={tile.testId}
+          disabled={!tile.onClick}
+          onClick={tile.onClick}
+          className="flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-xl border border-admin-border-soft bg-admin-canvas px-2 text-center disabled:opacity-40"
+        >
+          <span className="text-[18px]" aria-hidden>
+            {tile.icon}
+          </span>
+          <span className="text-[12.5px] font-semibold text-admin-ink">{tile.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -184,21 +242,9 @@ export function MyWebsiteCard({
     }
   };
 
-  const tiles: Array<{
-    id: string;
-    label: string;
-    icon: string;
-    onClick?: () => void;
-    testId: string;
-  }> = [
-    { id: "domain", label: t("Domain"), icon: "🔗", onClick: onOpenDomain, testId: "presence-tile-domain" },
-    { id: "questions", label: t("Questions"), icon: "❓", onClick: onOpenQuestions, testId: "presence-tile-questions" },
-    { id: "settings", label: t("Settings"), icon: "⚙", onClick: onOpenSettings, testId: "presence-tile-settings" },
-    { id: "apps", label: t("Apps"), icon: "🧩", onClick: onOpenApps, testId: "presence-tile-apps" },
-  ];
-
-  const previewMaxW = device === "phone" ? 280 : 560;
-  const scale = previewMaxW / PREVIEW_W;
+  const viewport = PREVIEW_VIEWPORT[device];
+  const previewMaxW = PREVIEW_MAX_W[device];
+  const scale = previewMaxW / viewport.w;
 
   return (
     <section
@@ -248,11 +294,12 @@ export function MyWebsiteCard({
 
           <div
             data-testid="maison-live-thumb"
+            data-preview-device={device}
             className="relative mx-auto overflow-hidden rounded-xl border border-admin-border-soft bg-admin-canvas"
             style={{
               width: "100%",
               maxWidth: previewMaxW,
-              height: PREVIEW_H * scale,
+              height: viewport.h * scale,
             }}
           >
             {thumbSrc ? (
@@ -261,8 +308,8 @@ export function MyWebsiteCard({
                 title={t("Website preview")}
                 className="absolute left-0 top-0 border-0"
                 style={{
-                  width: PREVIEW_W,
-                  height: PREVIEW_H,
+                  width: viewport.w,
+                  height: viewport.h,
                   transform: `scale(${scale})`,
                   transformOrigin: "0 0",
                 }}
@@ -353,26 +400,14 @@ export function MyWebsiteCard({
       </div>
 
       {showTiles ? (
-        <div
-          data-testid="presence-site-tiles"
-          className="grid grid-cols-2 gap-2 border-t border-admin-border-soft p-4 sm:grid-cols-4"
-        >
-          {tiles.map((tile) => (
-            <button
-              key={tile.id}
-              type="button"
-              data-testid={tile.testId}
-              disabled={!tile.onClick}
-              onClick={tile.onClick}
-              className="flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-xl border border-admin-border-soft bg-admin-canvas px-2 text-center disabled:opacity-40"
-            >
-              <span className="text-[18px]" aria-hidden>
-                {tile.icon}
-              </span>
-              <span className="text-[12.5px] font-semibold text-admin-ink">{tile.label}</span>
-            </button>
-          ))}
-        </div>
+        <PresenceSiteTiles
+          locale={locale}
+          topRule
+          onOpenDomain={onOpenDomain}
+          onOpenQuestions={onOpenQuestions}
+          onOpenSettings={onOpenSettings}
+          onOpenApps={onOpenApps}
+        />
       ) : null}
 
       <DesignOptionsPanel
