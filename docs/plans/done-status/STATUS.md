@@ -1,9 +1,9 @@
-Updated: 2026-10-03 00:32Z · Scoreboard: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 00:39Z · Scoreboard: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14
 Live SHA: ba672f613 · Main SHA: 27a47c66b
 Top 3 blockers right now
-1. Main is red at 27a47c66b. Structural gate failed (scheduling, 8 tests) in run 37080540629, so production cannot leave ba672f613 (last green, run 37074973497). Gallery #2474 and #2475 sit on that red tip.
-2. TAL-93900 shows the “not linked to an agency” wall (fix in flight, no PR). Stories 3–7 cannot be proven until it is gone. Cloud VM Inquire on /t/TAL-93900 says “Directory is not configured.”
-3. Money queue is still open and not on main: #2482, then #2481, #2480, #2486, #2487. A live vanity checkout charged $100, not $101.50 or $104.84, and Money Collected stayed $0.
+1. Main is still red at 27a47c66b. Re-checked 00:39Z: run 37080540629 is still failed (8 scheduling tests). Production is still ba672f613, the last green (run 37074973497). A scheduling-gate fix is running and unmerged, so #18 stays ❌.
+2. TAL-93900 wall fix is running and not landed, so Stories 3–7 stay blocked. Talent visual refresh is running and not proven. Cloud VM Inquire on /t/TAL-93900 still says “Directory is not configured.”
+3. Money queue #2482 → #2481 → #2480 → #2486 → #2487 is held because main is red. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
 
@@ -25,12 +25,14 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 
 ## Story 2 — Valeria on the Free plan (S2)
 
+Valeria Story 2 is proving on the QA machine (2026-10-03 00:39Z). That pass is not finished, so these rows are not ✅.
+
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | `TalentAccountMenuSection` has website, Tulala profile, Where I appear, plus Notifications, Language, Help, Sign out. | Builder, Money, Messages, and Settings are not in the dashboard avatar menu. | S2 step 1 | — | 2026-10-03 |
-| 55 | Free Add and Move blocked in UI and server | 🟡 | #2471 is on production `ba672f613` (merge `472b618a6`). Guard denies add and reorder. | Not clicked on Valeria TAL-93901, and the save endpoint was not probed. | S2 steps 3–5 | — | 2026-10-03 |
-| 57 | Builder back arrow to dashboard, no new pages | 🟡 | `talent-builder-identity.tsx` back href plus tests that forbid “New page” on the talent topbar. | Not opened in the builder as Valeria. | S2 step 2 | — | 2026-10-03 |
-| 59 | Website Settings change the live site | 🟡 | `WebsiteSettingsScreen` persists booking mode, chat, pause banner, address, logo. | Not toggled on a live talent site and checked in a second tab. | S2 step 6 | — | 2026-10-03 |
+| 13 | Avatar links Site, Builder, Money, Messages, Settings | ❌ | `TalentAccountMenuSection` has website, Tulala profile, Where I appear, plus Notifications, Language, Help, Sign out. | Builder, Money, Messages, and Settings are not in the dashboard avatar menu. Story 2 proof on the QA machine is not finished. | S2 step 1 | — | 2026-10-03 |
+| 55 | Free Add and Move blocked in UI and server | 🟡 | #2471 is on production `ba672f613` (merge `472b618a6`). Guard denies add and reorder. | Valeria Story 2 is proving on the QA machine. No finished live pass yet, and the save endpoint was not probed here. | S2 steps 3–5 | — | 2026-10-03 |
+| 57 | Builder back arrow to dashboard, no new pages | 🟡 | `talent-builder-identity.tsx` back href plus tests that forbid “New page” on the talent topbar. | Valeria Story 2 is proving on the QA machine. Not a finished live pass. | S2 step 2 | — | 2026-10-03 |
+| 59 | Website Settings change the live site | 🟡 | `WebsiteSettingsScreen` persists booking mode, chat, pause banner, address, logo. | Valeria Story 2 is proving on the QA machine. Not toggled and rechecked live yet. | S2 step 6 | — | 2026-10-03 |
 
 ## Story 3 — Jor services and money setup (S3)
 
@@ -38,7 +40,7 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 |---|---|---|---|---|---|---|---|
 | 16 | Create, edit, reorder, hide, delete a service | 🟡 | `ServicesHome` / offerings editor on main: price, duration, variants, add-ons. | TAL-93900 wall blocks the editor. “Manicure Gel QA” was never saved (Cloud QA 2026-10-03). | S3 step 1 | — | 2026-10-03 |
 | 17 | Edits show on the public site and in chat | 🟡 | Public `/t/[code]` is `force-dynamic`. Catalog reads offerings live. | No saved edit to compare on the site and in chat. Wall blocks the editor. | S3 step 2 | — | 2026-10-03 |
-| 18 | Quote services never open the booking sheet | ❌ | Main tip test failed 2026-10-03: “Track D10: quote tulala:offering-request never opens the booking sheet” (`not ok 37`, run 37080540629). | Quote CTA is broken on red main `27a47c66b`. Not checked on production `ba672f613`. | S3 step 3 | — | 2026-10-03 |
+| 18 | Quote services never open the booking sheet | ❌ | Main tip test failed 2026-10-03: “Track D10: quote tulala:offering-request never opens the booking sheet” (`not ok 37`, run 37080540629). Re-checked 00:39Z: that run is still failed. | Quote CTA is broken on red main `27a47c66b`. A scheduling-gate fix is running and unmerged. Not checked on production `ba672f613`. | S3 step 3 | — | 2026-10-03 |
 | 19 | ES and EN names survive save | 🟡 | `OfferingTextFields` plus `i18nPair` tests on main. | Not saved and reloaded on TAL-93900 (wall). | S3 step 1 | — | 2026-10-03 |
 | 20 | Where it happens, plus travel rules | 🟡 | Per-service where (studio / client / remote) and travel defaults in the editor. | Not set on a service and checked on the public site. | S3 step 1 | — | 2026-10-03 |
 | 44 | Stripe US Express status in the dashboard | 🟡 | Linh TAL-93103 localhost 2026-10-02: Money showed “Stripe · verified” after KYC (`media/a3-linh-money-verified-check.png`). Account charges and payouts enabled. | That pass was localhost, not tulala.digital, and not Jor. TAL-93900 wall blocks Story 3 step 4. | S3 step 4 | — | 2026-10-03 |
@@ -52,22 +54,22 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 | 23 | Double booking is impossible | 🟡 | #2468 is on production `ba672f613`. DB exclusion covers agenda, holds, and chat proposals. | Same slot was not booked twice from a second guest. | S4 step 7 | — | 2026-10-03 |
 | 28 | Confirmation and reminder messages | 🟡 | Booking and reminder templates plus cron exist on main. | No live booking email or in-app reminder checked for language and branding. | S4 step 5 (client side) | — | 2026-10-03 |
 | 33 | Thread stays in sync with Agenda and Money | 🟡 | Messages v5 record chips (`context-view.ts`, `payment-view.ts`). Flag `NEXT_PUBLIC_MESSAGES_V5` / Studio v2 defaults off. | No paid thread compared with Agenda and Money. v5 may be off in production. | S4 step 5 | — | 2026-10-03 |
-| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | A5.1 Checkout+DB went PAID (booking `746f8850-ffbb-4400-802b-5cd949761beb`, session `cs_test_a1PznC0K…`) but `amount_total` was $100.00, not $101.50. Money Collected stayed $0. | Pass-through collect is not on main. Draft #2487 pins seller-pays at 10150¢ and is unmerged. Attribution fix is draft #2486. | S4 steps 4–5 | D15 | 2026-10-03 |
-| 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | Confirmation copy has fee lines on main. Receipt PDF fee lines are open #2482 (not merged). | No receipt PDF from a live paid booking. #2482 is not on main or production. | S4 step 5 | — | 2026-10-03 |
-| 49 | Money totals: earned, owed, cash, pending | ❌ | #2468 totals code is on production. Live vanity order `f87627b1-2210-44b6-a659-3ade89756030` was PAID and Money still showed $0 Collected (missing `booking_talent` and commission snapshot). | Draft #2486 attributes order-backed vanity checkout. Not merged. Cancelled-booking exclusion not walked. | S4 step 6 | — | 2026-10-03 |
+| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | A5.1 Checkout+DB went PAID (booking `746f8850-ffbb-4400-802b-5cd949761beb`, session `cs_test_a1PznC0K…`) but `amount_total` was $100.00, not $101.50. Money Collected stayed $0. | Pass-through collect is not on main. Draft #2487 pins seller-pays at 10150¢. Attribution fix is draft #2486. Both are held because main is red. | S4 steps 4–5 | D15 | 2026-10-03 |
+| 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | Confirmation copy has fee lines on main. Receipt PDF fee lines are open #2482 (not merged). | No receipt PDF from a live paid booking. #2482 is first in the money queue and is held because main is red. | S4 step 5 | — | 2026-10-03 |
+| 49 | Money totals: earned, owed, cash, pending | ❌ | #2468 totals code is on production. Live vanity order `f87627b1-2210-44b6-a659-3ade89756030` was PAID and Money still showed $0 Collected (missing `booking_talent` and commission snapshot). | Draft #2486 is held because main is red. Cancelled-booking exclusion not walked. | S4 step 6 | — | 2026-10-03 |
 
 ## Story 5 — Carla asks for a refund (S5)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. Money Refund button is open #2481 (`executeBookingRefund`), not merged. | No paid booking cancelled on tulala.digital. Refund click is not on main. | S5 step 1 | — | 2026-10-03 |
+| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. Money Refund button is open #2481 (`executeBookingRefund`), not merged. | No paid booking cancelled on tulala.digital. #2481 is held because main is red. | S5 step 1 | — | 2026-10-03 |
 | 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine and #2469 tests are on production `ba672f613`. | A5.3 not run. Both live charges were flat $100 with empty payout rows, so the fee-correct amounts were never refunded. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
 
 ## Story 6 — Diego pays the card fee (S6)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 46 | Client-pays fee charges about $104.84; talent gets $100 | ❌ | Live A5.2 on Linh charged $100.00 (session `cs_test_a1fUxaxfw…`, order `812cf5f5-eacd-41bd-8ead-de56fbb7c5c3`) while `processing_fee_payer=client`. | Draft #2487 proves $104.84 on Stripe test session `cs_test_a1tBUzzC…` (2026-10-03). That is not a Jor booking and is not merged. Talent net of exactly $100 was not paid out. | S6 steps 1–3 | — | 2026-10-03 |
+| 46 | Client-pays fee charges about $104.84; talent gets $100 | ❌ | Live A5.2 on Linh charged $100.00 (session `cs_test_a1fUxaxfw…`, order `812cf5f5-eacd-41bd-8ead-de56fbb7c5c3`) while `processing_fee_payer=client`. | Draft #2487 proves $104.84 on Stripe test session `cs_test_a1tBUzzC…` (2026-10-03). That is not a Jor booking. #2487 is held because main is red. Talent net of exactly $100 was not paid out. | S6 steps 1–3 | — | 2026-10-03 |
 
 ## Story 7 — Offer, pay, and control in the thread (S7)
 
@@ -156,10 +158,10 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ❌ | Structural gate on `27a47c66b` failed 2026-10-03 (run 37080540629, scheduling, 8 failures). Last green is `ba672f613` (run 37074973497), which is `origin/production`. | Main is red, so the tip is not production. Promote on `27a47c66b` was skipped. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | ❌ | Re-checked 2026-10-03 00:39Z: structural gate on `27a47c66b` is still failed (run 37080540629, scheduling, 8 tests, conclusion failure). `origin/production` is still `ba672f613` (last green, run 37074973497). | Main is red. A scheduling-gate fix is running and unmerged. Promote on `27a47c66b` stays skipped. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `ba672f613` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 00:29Z: 6 open (#2477, #2480, #2481, #2482, #2486, #2487). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 00:39Z: same 6 open (#2477, #2480, #2481, #2482, #2486, #2487). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None. Scheduling-gate fix, wall fix, and visual refresh are running and have no open PR yet. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | No logged-in console capture this pass. | TAL-93900 wall blocks dashboard, builder, inbox, and money. Public `/t/TAL-93900` was not console-audited. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Last promote is `ba672f613`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
 | 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` updated 2026-10-03 ~00:25Z. Oran items there are the Desk flag, D-083 Stripe clicks, and legal review of refunds. | Not a live product check. Board is a working note, not proven against every open PR owner. | S14 step 5 | — | 2026-10-03 |
@@ -208,10 +210,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-First STATUS.md on `status/done-board`. No earlier board to diff.
-REPLIES.md was missing. A stub was added (“Claude writes replies here.”). It was read before this write. There were no Claude replies, so no doubt was closed.
-SHAs re-fetched 2026-10-03 00:31Z: production `ba672f613`, main `27a47c66b`. Structural gate on the tip failed (run 37080540629). Promote was skipped.
-Rows are grouped by Stories 1–14, then a “No story yet” group for #9, #10, #12, #14, #51–53, #62, #70, #89–91, and #93, all ❓.
-Only #97 is ✅. Evidence is `gh pr list` at 2026-10-03 00:29Z.
-#42 stays ⏸ (MCP booking, owner go). #51, #52, #90, and #93 are ❓ with doubts D5, D6, D11, and D13 asking whether they should be ⏸.
-#18 moved to ❌ because the quote-sheet test failed on red main. #45, #46, and #49 stay ❌ on the $100 charge and the $0 Money total. #70 stays ❓ (no story) even though #2474 and #2475 are merged to main.
+15-minute refresh at 2026-10-03 00:39Z. Pulled `status/done-board` first (already at `fbf8590ad`).
+REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
+SHAs re-fetched: production `ba672f613`, main `27a47c66b`. Run 37080540629 is still `completed` / `failure`. No new ✅.
+In flight, not done: scheduling-gate fix (unmerged), TAL-93900 wall fix, talent visual refresh, Valeria Story 2 on the QA machine. Money queue #2482 → #2481 → #2480 → #2486 → #2487 stays held because main is red.
+Scoreboard unchanged: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14. #97 stays ✅ on a fresh `gh pr list` (same 6 open PRs, all under 2 days, author `orantene`).
