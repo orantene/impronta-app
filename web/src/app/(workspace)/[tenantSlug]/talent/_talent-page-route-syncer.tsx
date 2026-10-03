@@ -8,10 +8,9 @@
  * of each talent surface page (talent/inbox/page.tsx etc.). It must be a
  * descendant of TalentShellClient so it has AdminShellProvider context.
  *
- * On mount it calls setTalentPage(page) which updates the shell's active surface
- * WITHOUT triggering router.push (the URL is already correct — the guard in
- * AdminShellProvider skips the push when pathname already matches).
- * This eliminates the flash-of-wrong-page on hard refresh.
+ * On mount it calls setTalentPage(page, { navigate: false }). The URL is
+ * already correct. Navigating from here used to push the previous page
+ * (Today) back over Money when the setter identity changed mid-transition.
  */
 
 import { useEffect } from "react";
@@ -52,9 +51,9 @@ export function TalentPageRouteSyncer({ page }: { page: TalentPage }) {
       reloadIntoShellOnce();
       return;
     }
-    setTalentPage(page);
-    // We only want to re-sync if the `page` prop changes (e.g. soft
-    // navigation to a different route). setTalentPage is stable (useCallback).
+    // The URL is already this page. Navigating here pushed Today back over
+    // Money when this effect re-ran on a setter identity change.
+    setTalentPage(page, { navigate: false });
   }, [page, setTalentPage]);
 
   return null;

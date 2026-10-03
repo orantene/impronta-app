@@ -139,7 +139,7 @@ type Ctx = {
   setPage: (p: WorkspacePage) => void;
   /** Update active surface from route mount without pushing a navigation. */
   syncPage: (p: WorkspacePage) => void;
-  setTalentPage: (p: TalentPage) => void;
+  setTalentPage: (p: TalentPage, opts?: { navigate?: boolean }) => void;
   /** Switch the talent's plan tier (dev/test affordance until billing is live). */
   setTalentTier: (t: TalentSubscriptionTier) => void;
   setClientPlan: (p: ClientPlan) => void;
@@ -1146,8 +1146,12 @@ export function AdminShellProvider({
   }, [workspaceType]);
   // talent
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
-  const setTalentPage = useCallback((p: TalentPage) => {
+  const setTalentPage = useCallback((p: TalentPage, opts?: { navigate?: boolean }) => {
     setTalentPageRaw(p);
+    // Route sync sets the page from a URL that is already correct. Navigating
+    // again bounces a Money click back to Today when the previous syncer
+    // re-fires during the transition.
+    if (opts?.navigate === false) return;
     if (initialSurface !== "talent") return;
     if (typeof window === "undefined") return;
     const currentPath = window.location.pathname;
