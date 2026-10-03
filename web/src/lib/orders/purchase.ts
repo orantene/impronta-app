@@ -45,6 +45,10 @@ export type {
   PurchaseResult,
 };
 import { pricePurchase, amountToCollectCents } from "@/lib/orders/purchase-pricing";
+import {
+  purchaseSellerForCollect,
+  resolvePassThroughCollectCents,
+} from "@/lib/orders/purchase-pass-through-collect";
 
 /**
  * ONE purchase pipeline.
@@ -224,11 +228,27 @@ export async function createPurchase(
       return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
     }
 
-    const collectCents = amountToCollectCents(
+    const baseCollectCents = amountToCollectCents(
       priced.subtotalCents,
       policy.collect,
       policy.depositPct,
     );
+    // pass_through: Checkout must collect the client surcharge (+ card-fee
+    // gross-up when the seller picks processing_fee_payer='client'). Without
+    // this, instant-book charged the bare catalog subtotal ($100 instead of
+    // ~$104.84 on a client-pays USD booking).
+    const collectCents =
+      baseCollectCents > 0 && !policy.payInPerson
+        ? await resolvePassThroughCollectCents(admin, {
+            baseCollectCents,
+            currencyCode: orderCurrency,
+            seller: purchaseSellerForCollect(
+              priced.lines,
+              baseCollectCents,
+              priced.subtotalCents,
+            ),
+          })
+        : baseCollectCents;
 
     // ── 4. Resolve the buyer, IF this order needs one. Money does not
     //       require a name; a PRODUCT may. See lib/orders/purchase-buyer.ts.
