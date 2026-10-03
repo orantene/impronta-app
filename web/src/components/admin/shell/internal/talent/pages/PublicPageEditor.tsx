@@ -69,15 +69,40 @@ export function PublicPageEditor({ locale = "en" }: Props) {
     };
   }, []);
   const talentId = settingsEnabled ? (bridgeTalentSelfProfile?.id ?? null) : null;
-  if (settingsOpen && talentId) {
-    return <WebsiteSettingsScreen talentId={talentId} initialView={intent ?? undefined} onClose={() => setSettingsOpen(false)} />;
-  }
+  const openWebsiteSettings = () => {
+    if (talentId) setSettingsOpen(true);
+  };
+  const settingsSheet =
+    settingsOpen && talentId ? (
+      <div
+        className="fixed inset-0 z-50 flex justify-end bg-black/30"
+        data-testid="presence-website-settings-sheet"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setSettingsOpen(false);
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={copy.t("Website settings")}
+          className="flex h-full w-full max-w-xl flex-col bg-white shadow-xl"
+        >
+          <div className="flex-1 overflow-auto px-4 py-3">
+            <WebsiteSettingsScreen
+              talentId={talentId}
+              initialView={intent ?? undefined}
+              onClose={() => setSettingsOpen(false)}
+            />
+          </div>
+        </div>
+      </div>
+    ) : null;
   const settingsEntry = talentId ? (
     <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
       <NavRow
         title={copy.t("Website settings")}
         summary={copy.t("Address, logo, pages, booking, payments and cancelling")}
-        onOpen={() => setSettingsOpen(true)}
+        onOpen={openWebsiteSettings}
       />
     </div>
   ) : null;
@@ -92,6 +117,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
         <AvailableBlocks locale={locale} />
         {settingsEntry}
         <LegacyPresence locale={locale} />
+        {settingsSheet}
       </>
     );
   }
@@ -130,9 +156,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             locale={locale}
             hideDomainRow
             onOpenQuestions={() => setFaqOpen(true)}
-            onOpenSettings={() => {
-              if (talentId) setSettingsOpen(true);
-            }}
+            onOpenSettings={openWebsiteSettings}
           />
           {faqOpen ? (
             <div
@@ -159,9 +183,9 @@ export function PublicPageEditor({ locale = "en" }: Props) {
               </div>
             </div>
           ) : null}
-          {/* Flag on: NavRow → WebsiteSettingsScreen. MyWebsiteCard (Settings tile)
-              only mounts after first publish — keep this entry before then.
-              Flag off: collapsed MaxSiteSettingsPanels fallback. */}
+          {/* Settings tile → right drawer (presence-website-settings-sheet). NavRow
+              stays as a secondary entry (pre-publish + deep links). Flag off:
+              collapsed MaxSiteSettingsPanels fallback. */}
           {talentId ? (
             settingsEntry
           ) : (
@@ -174,10 +198,12 @@ export function PublicPageEditor({ locale = "en" }: Props) {
               </div>
             </details>
           )}
+          {settingsSheet}
         </>
       )}
       {tab === "appear" && <TalentSiteAppearancesPanel locale={locale} />}
       {tab === "nets" && <DiscoverNetworksPanel talentId={bridgeTalentSelfProfile?.id ?? null} />}
+      {tab !== "site" ? settingsSheet : null}
     </>
   );
 }

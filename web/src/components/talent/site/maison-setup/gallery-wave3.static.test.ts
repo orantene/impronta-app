@@ -119,6 +119,11 @@ test("G3-PRESENCE: hero + tiles on MyWebsiteCard", () => {
   // Shell mounts --tulala-primary-fill; hex fallback keeps /dev/maison-visual harness readable.
   assert.match(card, /maison-edit-site[\s\S]*?bg-\[var\(--tulala-primary-fill,#3B8277\)\]/);
   assert.match(card, /History/);
+  // Labeled Lucide actions — no emoji chrome on the secondary row / tiles.
+  assert.match(card, /SwatchBook/);
+  assert.match(card, /Droplets/);
+  assert.match(card, /maison-site-secondary-actions/);
+  assert.doesNotMatch(card, /🎨|💧|⏱|🔗|❓|⚙|🧩/);
   // Phone preview uses a real phone-width iframe viewport (not scaled 1280).
   assert.match(card, /phone:\s*\{\s*w:\s*390/);
   assert.match(card, /data-preview-device/);
@@ -141,6 +146,13 @@ test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-ga
   );
   // Flag-on path keeps NavRow settingsEntry (not only !talentId collapsed panels).
   assert.match(editor, /talentId \?\s*\(\s*settingsEntry/);
+  // Website settings open in the Presence right drawer (not a full-page takeover).
+  assert.match(editor, /presence-website-settings-sheet/);
+  assert.match(editor, /onOpenSettings=\{openWebsiteSettings\}/);
+  assert.doesNotMatch(
+    editor,
+    /if \(settingsOpen && talentId\) \{\s*return <WebsiteSettingsScreen/,
+  );
   assert.doesNotMatch(editor, /onOpenDomain=\{\(\) => openDrawer\("talent-custom-domain"\)\}/);
   const manager = readFileSync(
     join(process.cwd(), "src/components/talent/site/TalentMaxSiteManager.tsx"),
