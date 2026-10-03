@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f3f6f4"/>
+      <stop offset="100%" stop-color="#e7ece8"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <rect x="48" y="48" width="864" height="444" rx="18" fill="#fff" stroke="#1c1a19" stroke-width="2"/>
+  <text x="80" y="120" font-family="Georgia, serif" font-size="28" fill="#1c1a19">G3-COLORS · AFTER</text>
+  <text x="80" y="170" font-family="Georgia, serif" font-size="42" fill="#1c1a19">Colours sheet</text>
+  <foreignObject x="80" y="210" width="780" height="220">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: system-ui, sans-serif; font-size: 22px; line-height: 1.45; color: #3a3734;">Side sheet with live preview strip, four visual pickers, contrast badge, hex under Advanced only, brand primary (admin-ink),  close. No green Guardar.</div>
+  </foreignObject>
+  <text x="80" y="460" font-family="system-ui, sans-serif" font-size="16" fill="#6b6660">Track G Wave 3 · talent gallery only</text>
+</svg>

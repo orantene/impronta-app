@@ -20,6 +20,8 @@ const ES: Record<string, string> = {
   "the same when you switch demos": "no cambian al cambiar de demo",
   "✓ Colors unchanged": "✓ Colores sin cambios",
   "Import starter content from this demo ›": "Importar contenido inicial de este demo ›",
+  "Use demo content ›": "Usar contenido del demo ›",
+  Personalise: "Personalizar",
   "Demo content": "Contenido de demo",
   "Demo colors": "Colores del demo",
   "Use demo colors": "Usar colores del demo",

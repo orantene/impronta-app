@@ -47,9 +47,13 @@ import { demosCountLabel, detailT, resultsForLabel } from "./theme-detail-copy";
 import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
 import { demoCardPersonName } from "@/lib/talent-site/demos/demo-profile-meta";
 import {
+  ContentModeToggle,
+  DetailDesktopHeader,
+  DetailPhoneHeader,
+} from "./ThemeDetailChrome";
+import {
   demoDefaultPaletteKey,
   demoPreviewParam,
-  demoSupportsImport,
   demoSwitchPatch,
   detailDesign,
   effectiveColors,
@@ -60,6 +64,7 @@ import {
   resolveActiveDemo,
   useDemoColorsPatch,
 } from "./theme-detail-model";
+import { demoHasImportCatalog } from "@/lib/talent-site/theme-catalog/gallery-import-catalog";
 
 type Props = {
   locale: MaisonSetupLocale;
@@ -178,7 +183,8 @@ export function ThemeDetailScreen({
         : colors.palette.name.en
       : "";
   const colorsKept = usingCustom || !isDemoDefault;
-  const showImport = maison && demoSupportsImport(demo);
+  // Wave 3: import entry on every finished design with a non-empty catalog.
+  const showImport = demoHasImportCatalog(design.slug, demo);
 
   const backLabel = fromLiveSite
     ? maisonSetupT(locale, "My website")
@@ -359,28 +365,11 @@ export function ThemeDetailScreen({
   );
 
   const segment = (
-    <div
-      data-maison-content-mode=""
-      className="grid grid-cols-2 rounded-lg border border-admin-border-soft p-0.5"
-      role="tablist"
-      aria-label={maisonSetupT(locale, "Show")}
-    >
-      {(["demo", "mine"] as const).map((mode) => (
-        <button
-          key={mode}
-          type="button"
-          role="tab"
-          aria-selected={choices.contentMode === mode}
-          data-testid={`maison-mode-${mode}`}
-          onClick={() => onChange({ contentMode: mode, status: "Choices saved" })}
-          className={`min-h-11 rounded-md text-[13px] font-semibold ${
-            choices.contentMode === mode ? "bg-admin-ink text-white" : "bg-transparent text-admin-ink"
-          }`}
-        >
-          {maisonSetupT(locale, mode === "demo" ? "Demo" : "My content")}
-        </button>
-      ))}
-    </div>
+    <ContentModeToggle
+      locale={locale}
+      mode={choices.contentMode}
+      onChange={(mode) => onChange({ contentMode: mode, status: "Choices saved" })}
+    />
   );
 
   const tabStrip =
@@ -399,7 +388,9 @@ export function ThemeDetailScreen({
             data-testid={`maison-detail-tab-${tab}`}
             onClick={() => onChange({ detailTab: tab })}
             className={`min-h-11 rounded-md text-[13px] font-semibold ${
-              (tab === "apps") === appsTabOn ? "bg-admin-ink text-white" : "bg-transparent text-admin-ink"
+              (tab === "apps") === appsTabOn
+                ? "bg-admin-surface-alt text-admin-ink ring-1 ring-admin-ink"
+                : "bg-transparent text-admin-ink-muted"
             }`}
           >
             {tab === "apps" ? `${galleryAppsT(locale, "apps")} · ${detailApps.length}` : maisonSetupT(locale, "Preview")}
@@ -421,94 +412,33 @@ export function ThemeDetailScreen({
       data-design-slug={design.slug}
       className="relative flex min-h-[70vh] flex-col font-admin-body"
     >
-      {/* Desktop top bar */}
-      <header className="hidden items-center gap-3 border-b border-admin-border-soft px-4 py-3 md:flex md:min-h-16">
-        <button
-          type="button"
-          onClick={fromLiveSite ? onClose : onBackToGallery}
-          className="min-h-11 max-w-[220px] truncate text-[13.5px] font-semibold text-admin-ink"
-          data-testid={fromLiveSite ? "maison-back-my-website" : "maison-back-designs"}
-        >
-          ‹ {backLabel}
-        </button>
-        <span aria-hidden className="h-6 w-px bg-admin-border-soft" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold text-admin-ink">{designTitle}</p>
-          <p className="truncate text-[12px] text-admin-ink-muted">{description}</p>
-        </div>
-        {fromLiveSite ? (
-          <span
-            data-testid="maison-live-stays-pill"
-            className="inline max-w-[220px] shrink-0 text-[11.5px] text-admin-ink-dim"
-          >
-            {maisonSetupT(locale, "Your live site stays as it is until you publish.")}
-          </span>
-        ) : null}
-        <span
-          data-maison-status=""
-          data-testid="maison-status-word"
-          className="shrink-0 text-[12.5px] font-semibold text-emerald-900"
-        >
-          {choices.status === "Choices saved" ? "✓ " : ""}
-          {maisonSetupT(locale, choices.status)}
-        </span>
-        <div className="flex rounded-lg border border-admin-border-soft p-0.5">
-          {(["desktop", "phone"] as const).map((device) => (
-            <button
-              key={device}
-              type="button"
-              data-testid={`maison-device-${device}`}
-              aria-pressed={choices.previewDevice === device}
-              onClick={() => onChange({ previewDevice: device })}
-              className={`min-h-11 rounded-md px-3 text-[12.5px] font-semibold ${
-                choices.previewDevice === device ? "bg-admin-ink text-white" : "text-admin-ink"
-              }`}
-            >
-              {maisonSetupT(locale, device === "desktop" ? "Desktop" : "Phone")}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={maisonSetupT(locale, "Close")}
-          className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
-        >
-          ✕
-        </button>
-      </header>
+      <DetailDesktopHeader
+        locale={locale}
+        backLabel={backLabel}
+        fromLiveSite={fromLiveSite}
+        designTitle={designTitle}
+        onBack={fromLiveSite ? onClose : onBackToGallery}
+        onClose={onClose}
+        device={choices.previewDevice}
+        onDevice={(device) => onChange({ previewDevice: device })}
+        status={choices.status}
+        liveStays={fromLiveSite}
+      />
+      <DetailPhoneHeader
+        locale={locale}
+        backLabel={backLabel}
+        fromLiveSite={fromLiveSite}
+        designTitle={designTitle}
+        demoTitle={demoTitle}
+        paletteName={paletteName}
+        onBack={fromLiveSite ? onClose : onBackToGallery}
+        onClose={onClose}
+        status={choices.status}
+      />
 
-      {/* Phone compact header: <Theme> / <Demo> · <Palette> */}
-      <header className="flex min-h-14 items-center gap-2 border-b border-admin-border-soft px-3 py-2 md:hidden">
-        <button
-          type="button"
-          onClick={fromLiveSite ? onClose : onBackToGallery}
-          className="grid h-11 w-11 place-items-center text-[18px]"
-          aria-label={backLabel}
-        >
-          ‹
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold text-admin-ink">{designTitle}</p>
-          <p className="truncate text-[11.5px] text-admin-ink-muted">
-            {demoTitle} · {paletteName}
-          </p>
-        </div>
-        <span data-maison-status="" className="text-[11.5px] font-semibold text-emerald-900">
-          {maisonSetupT(locale, choices.status)}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={maisonSetupT(locale, "Close")}
-          className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
-        >
-          ✕
-        </button>
-      </header>
-
+      {/* Wave 3: preview-first (~70%) + slim rail */}
       <div className="flex flex-1 flex-col md:flex-row">
-        <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 md:p-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 md:w-[70%] md:p-4">
           <div className="hidden md:block">
             <DemoStrip
               design={design}
@@ -538,10 +468,10 @@ export function ThemeDetailScreen({
           </div>
         </div>
 
-        {/* Desktop right panel */}
+        {/* Desktop right panel — slim Wave 3 rail */}
         <aside
           data-maison-inspector=""
-          className="hidden w-[300px] shrink-0 flex-col border-l border-admin-border-soft bg-white md:sticky md:top-0 md:flex md:h-[calc(100dvh-6rem)] md:self-start lg:w-[360px]"
+          className="hidden w-[280px] shrink-0 flex-col border-l border-admin-border-soft bg-white md:sticky md:top-0 md:flex md:h-[calc(100dvh-6rem)] md:w-[30%] md:max-w-[340px] md:self-start"
         >
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
             <div>
@@ -566,6 +496,7 @@ export function ThemeDetailScreen({
               <p className="mb-2 text-[13px] font-semibold text-admin-ink">{maisonSetupT(locale, "Show")}</p>
               {segment}
               <p className="mt-2 text-[12px] leading-snug text-admin-ink-muted">
+                <span aria-hidden>ⓘ </span>
                 {maisonSetupT(
                   locale,
                   choices.contentMode === "demo"
@@ -606,17 +537,19 @@ export function ThemeDetailScreen({
 
             {showImport ? (
               <div>
-                <p className="mb-2 text-[13px] font-semibold text-admin-ink">{maisonSetupT(locale, "Personalise")}</p>
                 <button
                   type="button"
                   data-testid="maison-import-entry"
                   onClick={() => setImportOpen(true)}
                   className="flex min-h-12 w-full items-center justify-between rounded-xl border border-admin-border-soft px-3 text-left text-[13px] font-semibold text-admin-ink"
                 >
-                  {detailT(locale, "Import starter content from this demo ›")}
+                  {detailT(locale, "Use demo content ›")}
                 </button>
                 <p className="mt-1.5 text-[12px] text-admin-ink-dim">
-                  {MAISON_STARTER_COUNTS.total} · {maisonSetupT(locale, "Optional. Imported items are saved as drafts.")}
+                  {maison
+                    ? `${MAISON_STARTER_COUNTS.total} · `
+                    : ""}
+                  {maisonSetupT(locale, "Optional. Imported items are saved as drafts.")}
                 </p>
               </div>
             ) : null}
@@ -700,6 +633,8 @@ export function ThemeDetailScreen({
       {importOpen ? (
         <ImportStarterPanel
           locale={locale}
+          designSlug={design.slug}
+          demoKey={selectedDemoKey}
           onClose={() => setImportOpen(false)}
           onContinueDesigning={() => setImportOpen(false)}
         />

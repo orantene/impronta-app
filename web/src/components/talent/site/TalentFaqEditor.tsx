@@ -148,14 +148,16 @@ export function TalentFaqEditor() {
         >
           + {copy.t("Add a question")}
         </button>
-        <button
-          type="button"
-          className="inline-flex h-[30px] cursor-pointer items-center rounded-[8px] border border-emerald-900 bg-emerald-900 px-3 font-admin-body text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={!dirty || status === "saving"}
-          onClick={() => void save()}
-        >
-          {copy.t("Save")}
-        </button>
+        {dirty ? (
+          <button
+            type="button"
+            className="inline-flex h-[30px] cursor-pointer items-center rounded-[8px] border border-admin-ink bg-admin-ink px-3 font-admin-body text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={status === "saving"}
+            onClick={() => void save()}
+          >
+            {copy.t("Save")}
+          </button>
+        ) : null}
         <span className="text-[12px] text-admin-ink-muted" aria-live="polite">
           {status === "saved" && !dirty
             ? copy.t("Saved")

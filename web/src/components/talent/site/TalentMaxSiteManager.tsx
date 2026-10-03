@@ -56,7 +56,23 @@ import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
 
 type Props = { locale?: "en" | "es" };
 
-export function TalentMaxSiteManager({ locale = "en" }: Props) {
+type ManagerProps = Props & {
+  onOpenDomain?: () => void;
+  onOpenQuestions?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
+  /** When true, CustomDomainRow is omitted (Wave 3 Domain tile owns it). */
+  hideDomainRow?: boolean;
+};
+
+export function TalentMaxSiteManager({
+  locale = "en",
+  onOpenDomain,
+  onOpenQuestions,
+  onOpenSettings,
+  onOpenApps,
+  hideDomainRow = false,
+}: ManagerProps) {
   const copy = useDashboardText();
   const [state, setState] = useState<MaxSiteManagerState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,7 +133,18 @@ export function TalentMaxSiteManager({ locale = "en" }: Props) {
     return <UpsellCard />;
   }
 
-  return <ManagerBody state={state} onReload={reload} locale={locale} />;
+  return (
+    <ManagerBody
+      state={state}
+      onReload={reload}
+      locale={locale}
+      onOpenDomain={onOpenDomain}
+      onOpenQuestions={onOpenQuestions}
+      onOpenSettings={onOpenSettings}
+      onOpenApps={onOpenApps}
+      hideDomainRow={hideDomainRow}
+    />
+  );
 }
 
 // ── Upsell (non-Max) ─────────────────────────────────────────────────────────
@@ -146,10 +173,20 @@ function ManagerBody({
   state,
   onReload,
   locale,
+  onOpenDomain,
+  onOpenQuestions,
+  onOpenSettings,
+  onOpenApps,
+  hideDomainRow = false,
 }: {
   state: MaxSiteManagerState;
   onReload: () => Promise<void>;
   locale: "en" | "es";
+  onOpenDomain?: () => void;
+  onOpenQuestions?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
+  hideDomainRow?: boolean;
 }) {
   const copy = useDashboardText();
   const { openDrawer } = useAdminShell();
@@ -230,6 +267,17 @@ function ManagerBody({
           }}
           liveToast={liveToast}
           onLiveToastDone={() => setLiveToast(null)}
+          onOpenDomain={onOpenDomain ?? (() => openDrawer("talent-custom-domain"))}
+          onOpenQuestions={onOpenQuestions}
+          onOpenSettings={onOpenSettings}
+          onOpenApps={
+            onOpenApps ??
+            (() => {
+              setMaisonForceReason("restored");
+              setMaisonForceScreen("gallery");
+            })
+          }
+          showTiles
         />
       ) : setupOpen ? null : (
         <WebsiteEligibilityPanel onActivate={openSetup} />
@@ -287,7 +335,9 @@ function ManagerBody({
         </>
       )}
 
-      <CustomDomainRow canManage={state.capabilities.personalSiteCustomDomain} />
+      {hideDomainRow ? null : (
+        <CustomDomainRow canManage={state.capabilities.personalSiteCustomDomain} />
+      )}
     </div>
   );
 }

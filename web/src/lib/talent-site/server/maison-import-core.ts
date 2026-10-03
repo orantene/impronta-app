@@ -14,6 +14,7 @@ import {
   type DuplicateResolution,
   type ExistingServiceMatch,
   type ImportSelectionState,
+  type MaisonStarterCatalog,
   type MaisonStarterService,
 } from "@/lib/talent-site/theme-catalog/maison/maison-starter-catalog";
 
@@ -179,11 +180,11 @@ async function insertFaqDraft(
   return { ok: true, id };
 }
 
-export async function commitMaisonStarterImport(
+export async function commitStarterImportWithCatalog(
   admin: SupabaseClient,
   input: MaisonImportCommitInput,
+  catalog: MaisonStarterCatalog,
 ): Promise<{ ok: true; data: MaisonImportCommitResult } | { ok: false; error: string }> {
-  const catalog = loadMaisonStarterCatalog();
   const existing = await listExistingServicesForImport(admin, input.talentProfileId);
 
   const { data: batchRow, error: batchErr } = await admin
@@ -300,6 +301,13 @@ export async function commitMaisonStarterImport(
       failed,
     },
   };
+}
+
+export async function commitMaisonStarterImport(
+  admin: SupabaseClient,
+  input: MaisonImportCommitInput,
+): Promise<{ ok: true; data: MaisonImportCommitResult } | { ok: false; error: string }> {
+  return commitStarterImportWithCatalog(admin, input, loadMaisonStarterCatalog());
 }
 
 export type UndoImportDecision = {
