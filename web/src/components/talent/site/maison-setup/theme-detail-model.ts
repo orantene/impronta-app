@@ -51,9 +51,10 @@ export function resolveActiveDemo(
   return { demo: featured, requested, plannedFallback: requested !== null };
 }
 
-/** `?demo=` value for the preview route; only demo-talent sources need one. */
+/** `?demo=` value for the preview route (demo-talent + maison-seed). */
 export function demoPreviewParam(designSlug: string, demo: GalleryDemo | null): string | null {
-  if (!demo || demo.status !== "built" || demo.source.kind !== "demo-talent") return null;
+  if (!demo || demo.status !== "built") return null;
+  if (demo.source.kind !== "demo-talent" && demo.source.kind !== "maison-seed") return null;
   return `${designSlug}:${demo.key}`;
 }
 

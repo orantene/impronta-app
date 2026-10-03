@@ -49,7 +49,8 @@ export const EDITORIAL_RICH_FOOTER_CSS = [
   // ── The big line: italic display, one line, accent word in the text-safe accent.
   `${F} h2{margin:0;font-size:${v("type.footer-title-size")};line-height:1;white-space:nowrap;font-weight:${v("type.display-weight")}}`,
   `${F} h2 em{font-style:${v("type.accent-style")};font-weight:${v("type.accent-weight")};color:${ACCENT_TEXT}}`,
-  `${DARK} h2 em{color:inherit}`,
+  `${DARK} h2{color:${PAGE}}`,
+  `${DARK} h2 em{color:${PAGE}}`,
   `${MQ_DESK}{${F} h2{font-size:${v("type.footer-title-size-desktop")}}}`,
   `${MQ_TINY}{${F} h2{font-size:34px}}`,
 

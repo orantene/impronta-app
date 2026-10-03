@@ -15,8 +15,13 @@ export function cloneNailDesignerDefaultProps(): NailDesignerProps {
 
 export const NAIL_STUDIO_PATH = "/apps/nail-studio/index.html";
 
-export function nailStudioSrc(locale: string): string {
-  return `${NAIL_STUDIO_PATH}?lang=${locale.toLowerCase().startsWith("es") ? "es" : "en"}`;
+export function nailStudioSrc(
+  locale: string,
+  opts: { layout?: "desktop" | "phone" } = {},
+): string {
+  const lang = locale.toLowerCase().startsWith("es") ? "es" : "en";
+  const layout = opts.layout === "desktop" ? "&layout=desktop" : opts.layout === "phone" ? "&layout=phone" : "";
+  return `${NAIL_STUDIO_PATH}?lang=${lang}${layout}`;
 }
 
 type StudioNail = { c1?: unknown; c2?: unknown; pattern?: unknown; finish?: unknown; charms?: unknown };

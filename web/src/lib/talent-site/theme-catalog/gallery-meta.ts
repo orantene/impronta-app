@@ -23,6 +23,7 @@ import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/d
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
+import { countUsableDemos } from "./usable-demos";
 import {
   MAISON_PALETTES,
   MAISON_PALETTE_ORDER,
@@ -629,7 +630,7 @@ export function searchGallery(input: GallerySearchInput = {}): GallerySearchOutp
   const present = new Set(designs.flatMap((d) => d.professions));
   return {
     results,
-    demoCount: results.reduce((n, r) => n + r.matchingDemos.length, 0),
+    demoCount: results.reduce((n, r) => n + countUsableDemos(r.matchingDemos), 0),
     themeCount: results.length,
     suggestionsWhenEmpty: results.length ? [] : GALLERY_EMPTY_SUGGESTIONS.filter((s) => present.has(s.profession)),
   };

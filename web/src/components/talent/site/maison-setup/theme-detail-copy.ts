@@ -27,6 +27,19 @@ const ES: Record<string, string> = {
   "High contrast": "Alto contraste",
   Dark: "Oscuro",
   Selected: "Seleccionado",
+  "This demo": "Este demo",
+  City: "Ciudad",
+  Languages: "Idiomas",
+  Booking: "Reservas",
+  Currency: "Moneda",
+  Apps: "Apps",
+  Sections: "Secciones",
+  "No apps": "Sin apps",
+  "City not set": "Ciudad no definida",
+  "Layout and sample content change. Your services, prices and domain stay yours.":
+    "Cambian el diseño y el contenido de muestra. Tus servicios, precios y dominio se quedan.",
+  "What changes: layout, colours, sections, apps. What stays yours: services, prices, booking settings, languages, domain.":
+    "Qué cambia: diseño, colores, secciones, apps. Qué se queda: servicios, precios, ajustes de reserva, idiomas, dominio.",
 };
 
 export function detailT(locale: MaisonSetupLocale, key: string): string {

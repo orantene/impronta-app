@@ -37,8 +37,12 @@ export const SERVICES_CATALOG_ROW_CARD_CSS = [
   `${CARD_PHOTO} ${P}copy{grid-column:2;grid-row:1}`,
   `${CARD_PHOTO} ${P}buy{grid-column:3;grid-row:1}`,
   `${CARD}:focus-within{border-color:${ACCENT}}`,
-  // Two columns on desktop, 14px apart.
-  `@media (min-width:900px){${LIST}{column-gap:14px}}`,
+  // Two columns when space allows; auto-fit so a single card never leaves an empty track (G1-P0-01).
+  `@media (min-width:900px){${LIST}{grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));column-gap:14px}}`,
+  // Preview / rail: never bleed past the content track.
+  `${CAT}[data-row-style="card"][data-layout="rows"]{min-width:0;overflow-x:clip}`,
+  `${CAT}[data-row-style="card"][data-layout="rows"] ${P}groups{min-width:0}`,
+  `${CARD}{min-width:0}`,
 
   // Thumb (wrapped so the zoom is clipped to its corners).
   `${CARD} ${P}thumb{display:block;width:76px;height:76px;border-radius:14px;overflow:hidden;background:${TINT};flex:0 0 auto}`,

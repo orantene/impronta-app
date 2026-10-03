@@ -189,7 +189,11 @@ test("Money has no refund or cash-correction entry point without a real writer",
     const s = readFileSync(join(dir, f), "utf8");
     assert.doesNotMatch(s, /openMoneyTask\(\s*["'](refund|cash_correct)/, f);
     assert.doesNotMatch(s, /["'](Issue refund|Correct cash|Cash correction)["']/, f);
+    assert.doesNotMatch(s, /MoneyRefundSheet/, f);
   }
+  // Real writer: MoneyHomePage → refundOwnBookingPayment → executeBookingRefund.
+  const home = readFileSync(join(dir, "MoneyHomePage.tsx"), "utf8");
+  assert.match(home, /refundOwnBookingPayment/);
   assert.match(
     readFileSync(join(dir, "MoneyPage.tsx"), "utf8"),
     /Refund \/ correct have no writer yet, so they have no entry point either/,

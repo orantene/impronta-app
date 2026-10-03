@@ -691,7 +691,10 @@ export function SelectionLayer() {
     inspectorTabRequest,
     inspectorDockOpen,
     registerCanvasGeometryDirtyListener,
+    gallerySurface,
   } = useEditContext();
+  // Track B — Free talent page builder: no Add / Move / reorder / duplicate / paste.
+  const structureLocked = gallerySurface.structuralEdits === false;
   // Latest-value ref for `device` — the keyboard NUDGE effect (below) reads
   // this at keydown time instead of closing over `device` directly. A window
   // `keydown` listener re-subscribes only when its effect's deps change; on
@@ -5167,12 +5170,12 @@ export function SelectionLayer() {
             state={contextMenu}
             targetLabel={selectedNodeLabel}
             isChildNode={contextMenuIsChildNode}
-            canAddInside={canInsertIntoSelectedNode}
+            canAddInside={canInsertIntoSelectedNode && !structureLocked}
             isSectionHidden={isHidden}
             nodeLocked={contextMenuNodeLocked}
             canWrapOrConvert={contextMenuCanWrapOrConvert}
-            nodeCanMoveUp={contextMenuMoveContext.canMoveUp}
-            nodeCanMoveDown={contextMenuMoveContext.canMoveDown}
+            nodeCanMoveUp={contextMenuMoveContext.canMoveUp && !structureLocked}
+            nodeCanMoveDown={contextMenuMoveContext.canMoveDown && !structureLocked}
             onClose={closeContextMenu}
             onEdit={() => {
               requestInlineEdit(contextMenu?.builderNodeId ?? null);
@@ -5871,17 +5874,21 @@ export function SelectionLayer() {
                 }
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
-                  selectedSiblingContext?.canMoveUp && selectedBuilderNodeId
+                  !structureLocked &&
+                  selectedSiblingContext?.canMoveUp &&
+                  selectedBuilderNodeId
                     ? () => void commitChildMove(selectedBuilderNodeId, "up")
                     : null
                 }
                 onMoveDown={
-                  selectedSiblingContext?.canMoveDown && selectedBuilderNodeId
+                  !structureLocked &&
+                  selectedSiblingContext?.canMoveDown &&
+                  selectedBuilderNodeId
                     ? () => void commitChildMove(selectedBuilderNodeId, "down")
                     : null
                 }
                 onAddBefore={
-                  selectedSiblingContext
+                  !structureLocked && selectedSiblingContext
                     ? () =>
                         setNodeInsertTarget({
                           nodeId: selectedSiblingContext.parentNodeId,
@@ -5892,7 +5899,7 @@ export function SelectionLayer() {
                     : null
                 }
                 onAddAfter={
-                  selectedSiblingContext
+                  !structureLocked && selectedSiblingContext
                     ? () =>
                         setNodeInsertTarget({
                           nodeId: selectedSiblingContext.parentNodeId,
@@ -5911,14 +5918,20 @@ export function SelectionLayer() {
                   void commitChildCut();
                 }}
                 onPaste={
-                  copiedBuilderNodeKind && selectedBuilderNodeId
+                  !structureLocked &&
+                  copiedBuilderNodeKind &&
+                  selectedBuilderNodeId
                     ? () => void commitChildPaste(selectedBuilderNodeId)
                     : null
                 }
-                onDuplicate={() => {
-                  if (!selectedBuilderNodeId) return;
-                  void commitChildDuplicate(selectedBuilderNodeId);
-                }}
+                onDuplicate={
+                  structureLocked
+                    ? null
+                    : () => {
+                        if (!selectedBuilderNodeId) return;
+                        void commitChildDuplicate(selectedBuilderNodeId);
+                      }
+                }
                 onRemoveTrigger={() => setConfirmRemove(true)}
                 onRemoveConfirm={() => {
                   void commitNodeRemoval().then(() => {
@@ -6520,6 +6533,7 @@ export function SelectionLayer() {
        *  when the operator hovers near a section boundary. Routes through the
        *  same insertBuilderNode / insertBuilderSectionEmbed paths as the chip
        *  toolbar so undo/redo and persistence come for free. */}
+      {!structureLocked ? (
       <CanvasBetweenBlocksInsert
         advancedElementLibraryEnabled={advancedElementLibraryEnabled}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
@@ -6528,6 +6542,7 @@ export function SelectionLayer() {
         onInsert={commitBetweenBlocksInsert}
         onInsertSectionEmbed={commitBetweenBlocksSectionEmbed}
       />
+      ) : null}
 
       {/* AI "revise this block" modal — opened from the block chip's sparkle
           action. Reads the selected block's content, previews a revised
@@ -7256,7 +7271,7 @@ function BlockChipToolBar({
   // Paste is null when the clipboard is empty (nothing to paste).
   onCut: () => void;
   onPaste: (() => void) | null;
-  onDuplicate: () => void;
+  onDuplicate: (() => void) | null;
   onRemoveTrigger: () => void;
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
@@ -7437,8 +7452,8 @@ function BlockChipToolBar({
       <ChipBtn
         light={light}
         style={btnStyle}
-        disabled={disabled}
-        onClick={onDuplicate}
+        disabled={disabled || !onDuplicate}
+        onClick={() => onDuplicate?.()}
         aria-label={t("Duplicate block")}
         data-selection-block-action="duplicate"
         title={t("Duplicate")}
@@ -7528,7 +7543,7 @@ function BlockChipOverflowMenu({
   // clipboard gesture is reachable from one menu. Paste is null when empty.
   onCut: () => void;
   onPaste: (() => void) | null;
-  onDuplicate: () => void;
+  onDuplicate: (() => void) | null;
 }) {
   const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
@@ -7632,7 +7647,10 @@ function BlockChipOverflowMenu({
           >
             {t("Paste")}
           </ContextMenuButton>
-          <ContextMenuButton disabled={disabled} onClick={() => run(onDuplicate)}>
+          <ContextMenuButton
+            disabled={disabled || !onDuplicate}
+            onClick={() => onDuplicate && run(onDuplicate)}
+          >
             {t("Duplicate")}
           </ContextMenuButton>
         </div>

@@ -12,6 +12,7 @@ import { SupportQueueClient } from "./SupportQueueClient";
 import { SupportIdeasView } from "./SupportIdeasView";
 import { SupportInsightsView } from "./SupportInsightsView";
 import { SupportCannedEditor } from "./SupportCannedEditor";
+import { supportDeskOpenFromHqHref } from "@/lib/support/desk/desk-url";
 
 export function SupportHqShell({
   rows,
@@ -21,6 +22,7 @@ export function SupportHqShell({
   initialOpenCount,
   initialTicketId,
   initialView,
+  deskEnabled = false,
 }: {
   rows: HqQueueRow[];
   insights: HqInsightsDashboard;
@@ -29,6 +31,8 @@ export function SupportHqShell({
   initialOpenCount: number;
   initialTicketId: string | null;
   initialView: "queue" | "insights" | "ideas";
+  /** Server-evaluated `isSupportDeskEnabled()` — never read the flag on the client. */
+  deskEnabled?: boolean;
 }) {
   const t = useT();
   const [view, setView] = useState<"queue" | "insights" | "ideas">(initialView);
@@ -117,6 +121,25 @@ export function SupportHqShell({
       >
         {t("dashboard.platform.support.cannedReplies")}
       </button>
+      {deskEnabled ? (
+        <a
+          href={supportDeskOpenFromHqHref()}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "6px 12px",
+            borderRadius: 8,
+            border: `1px solid ${HQ.border}`,
+            background: "transparent",
+            color: HQ.inkMuted,
+            fontSize: 12,
+            cursor: "pointer",
+            textDecoration: "none",
+          }}
+        >
+          {t("dashboard.platform.support.deskOpenFromHq")} ↗
+        </a>
+      ) : null}
       </div>
       {cannedOpen ? (
         <SupportCannedEditor

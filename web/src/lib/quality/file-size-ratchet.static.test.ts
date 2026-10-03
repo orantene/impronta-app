@@ -186,7 +186,10 @@ const BUDGETS: Record<string, number> = {
   // footer rows select in place only when the node exists in THIS tree;
   // otherwise they open the ShellEditConfirm hand-off dialog (its OWN module;
   // what lands here is the guard, the state, and the mount).
-  "src/components/edit-chrome/navigator-panel.tsx": 4539,
+  // Track B (2026-10-02): NodeInlineActionButton extracted to
+  // navigator-inline-action-button.tsx; Free structure-lock wiring (no Add /
+  // Move / dup / paste) lands here net-smaller. Re-baselined to measured.
+  "src/components/edit-chrome/navigator-panel.tsx": 4474,
   // +68 (info-tip program): `NavLocaleToggle` — the locale switcher for
   // FREEFORM surfaces. Freeform stores one cms_pages row per locale and the
   // public route loads strictly that row, so the in-place ContentLocaleToggle

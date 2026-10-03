@@ -17,7 +17,7 @@ import {
   loadMaxSiteDesignSlug,
   loadMaxSitePages,
 } from "@/lib/talent-site/server/load-max-site";
-import type { DemoPreviewSource } from "./demo-preview-source";
+import type { DemoTalentPreviewSource } from "./demo-preview-source";
 
 /**
  * P4 — render a gallery-meta demo talent's content read-only in the theme
@@ -27,7 +27,7 @@ import type { DemoPreviewSource } from "./demo-preview-source";
  * Preview rendering writes nothing; the demo guard blocks booking taps.
  */
 export async function resolveDemoPreviewHydration(
-  source: DemoPreviewSource,
+  source: DemoTalentPreviewSource,
   /** The caller already verified a platform admin (`?source=code`): no talent session needed. */
   opts: { platformAdminVerified?: boolean } = {},
 ): Promise<(TemplatePreviewHydration & { demoTalentProfileId: string }) | null> {

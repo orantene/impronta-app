@@ -59,8 +59,15 @@ test("Apps tab lists the app with a live playground and no Pro pill when free", 
   const html = renderToStaticMarkup(<AppsTab apps={[nail]} locale="es" />);
   assert.match(html, /Diseñador de uñas/);
   assert.match(html, /data-testid="gallery-app-playground-app_nail_designer"/);
-  assert.match(html, /<iframe[^>]*src="\/apps\/nail-studio\/index\.html\?lang=es"/);
+  assert.match(html, /<iframe[^>]*src="\/apps\/nail-studio\/index\.html\?lang=es(?:&amp;layout=desktop)?"/);
+  assert.match(html, /data-gallery-app-device="desktop"/);
   assert.doesNotMatch(html, /gallery-app-pro/);
+});
+
+test("Apps tab phone device forces phone layout on the playground", () => {
+  const html = renderToStaticMarkup(<AppsTab apps={[nail]} locale="en" previewDevice="phone" />);
+  assert.match(html, /data-gallery-app-device="phone"/);
+  assert.match(html, /layout=phone/);
 });
 
 test("Pro pill shows only for premium apps", () => {

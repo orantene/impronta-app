@@ -4,24 +4,22 @@
  * Modelled on `lib/site-admin/builder-node/free-plan-builder-tree-guard.ts`,
  * which does the same job for free WORKSPACES. The rule here:
  *
- *   without `personalSiteSections`, a draft save may not introduce a NEW node
- *   id nested under a section.
+ *   without `personalSiteSections`, a draft save may not change the structural
+ *   shape of the tree relative to what is already stored (the published /
+ *   baseline tree the save path passes as `previousTree`).
  *
  * What that allows, which is the whole of the free editing story:
- *   - prop patches (text, images, logo, links) — ids are stable;
- *   - hidden / visibility toggles — ids are stable;
- *   - reorders — ids move, ids do not change;
- *   - removals — ids disappear, and a shrinking set can never introduce one.
+ *   - prop patches (text, images, logo, links) — ids and order stay stable;
+ *   - hidden / visibility toggles — ids and order stay stable;
+ *   - removals — ids disappear, and a shrinking set can never introduce one
+ *     or reorder what remains.
  *
- * What it refuses: inserting, pasting or duplicating a block (a new id appears
- * under a section, or an existing id appears MORE times than before) and
- * adding a whole new section (the section count grows, even for an empty one).
- * Both are Web Office.
+ * What it refuses: inserting, pasting or duplicating a block; adding a section;
+ * reordering blocks or sections (same ids, different order). Those are Web Office.
  *
- * Section nodes' OWN ids are not collected, mirroring the workspace guard:
- * composition-driven section identities may legitimately churn when a Design is
- * applied, and a Design apply rewrites the trees server-side rather than coming
- * through this chokepoint at all.
+ * Section nodes' OWN ids ARE included in the order fingerprint (so section
+ * reorders are visible), but composition-driven Design applies rewrite trees
+ * server-side rather than coming through this chokepoint at all.
  *
  * PURE — no IO, no runtime imports beyond the node types, so it unit-tests with
  * plain object literals and can sit on any save path.
@@ -45,7 +43,8 @@ function childrenOf(node: BuilderNode): readonly BuilderNode[] {
 
 /**
  * How many times each non-section node id occurs UNDER a section, at any
- * depth, plus how many section nodes the tree holds.
+ * depth, plus how many section nodes the tree holds, plus the document-order
+ * fingerprint of every structural id (sections + nested children).
  *
  * Root-level non-section nodes are deliberately excluded: the talent home tree
  * is a list of sections, so anything a talent can insert lands under one, and
@@ -56,27 +55,36 @@ function childrenOf(node: BuilderNode): readonly BuilderNode[] {
  * REUSING every id in it. A set comparison sees no new id and waves it
  * through; a count comparison sees the same id twice where it was there once.
  *
- * SECTIONS, counted but not identified: section ids are deliberately not
- * collected (composition-driven section identities churn when a Design is
- * applied), but the NUMBER of sections still may not grow through this
- * chokepoint, which is what stops an empty new section being appended.
+ * ORDER: the sequence of section ids and nested child ids in document order.
+ * A reorder keeps every count identical; only the sequence changes. Removals
+ * keep relative order of what remains (a subsequence), so they still pass.
  */
 export interface TalentSiteTreeShape {
   /** id -> how many times it appears nested under a section. */
   readonly childCounts: ReadonlyMap<string, number>;
   /** How many `kind === "section"` nodes the tree holds, at any depth. */
   readonly sectionCount: number;
+  /**
+   * Document-order fingerprint: every section id, then every nested
+   * non-section id under sections, depth-first.
+   */
+  readonly structuralOrder: readonly string[];
 }
 
 export function collectTalentSiteTreeShape(tree: unknown): TalentSiteTreeShape {
   const childCounts = new Map<string, number>();
   let sectionCount = 0;
+  const structuralOrder: string[] = [];
 
   const walk = (node: BuilderNode, insideSection: boolean): void => {
     const isSection = node.kind === "section";
-    if (isSection) sectionCount += 1;
+    if (isSection) {
+      sectionCount += 1;
+      if (typeof node.id === "string" && node.id) structuralOrder.push(node.id);
+    }
     if (!isSection && insideSection && typeof node.id === "string" && node.id) {
       childCounts.set(node.id, (childCounts.get(node.id) ?? 0) + 1);
+      structuralOrder.push(node.id);
     }
     for (const child of childrenOf(node)) {
       walk(child, insideSection || isSection);
@@ -84,7 +92,7 @@ export function collectTalentSiteTreeShape(tree: unknown): TalentSiteTreeShape {
   };
 
   for (const root of asTree(tree)) walk(root, false);
-  return { childCounts, sectionCount };
+  return { childCounts, sectionCount, structuralOrder };
 }
 
 /**
@@ -96,10 +104,27 @@ export function collectTalentSiteSectionChildIds(tree: unknown): Set<string> {
   return new Set(collectTalentSiteTreeShape(tree).childCounts.keys());
 }
 
+/**
+ * True when `next` is a subsequence of `previous` (same relative order; ids
+ * may be dropped). Used so Free removals stay allowed while reorders refuse.
+ */
+export function isStructuralOrderPreserved(
+  previous: readonly string[],
+  next: readonly string[],
+): boolean {
+  let i = 0;
+  for (const id of next) {
+    while (i < previous.length && previous[i] !== id) i += 1;
+    if (i >= previous.length) return false;
+    i += 1;
+  }
+  return true;
+}
+
 /** The refusal copy, en + es. Named for the one paid tier: Web Office. */
 const SECTIONS_LOCKED = {
-  en: "Adding sections and blocks is part of Web Office. Your free website can edit, hide and reorder everything it already has.",
-  es: "Añadir secciones y bloques es parte de Web Office. Tu sitio gratuito puede editar, ocultar y reordenar todo lo que ya tiene.",
+  en: "Available on Web Office. Your free website can edit and hide what it already has.",
+  es: "Disponible en Oficina Web. Tu sitio gratuito puede editar y ocultar lo que ya tiene.",
 } as const;
 
 export function freeSiteSectionsLockedMessage(locale?: string | null): string {
@@ -107,8 +132,9 @@ export function freeSiteSectionsLockedMessage(locale?: string | null): string {
 }
 
 /**
- * Compare a draft save against the tree currently stored and refuse when it
- * introduces a new nested node id.
+ * Compare a draft save against the tree currently stored (the published /
+ * baseline body the save path passes) and refuse when it introduces a new
+ * nested node id, grows counts, or reorders blocks.
  *
  * `canInsertSections` is the caller's `personalSiteSections` capability: true
  * short-circuits to `{ ok: true }`, so a Web Office talent (and every talent
@@ -142,6 +168,12 @@ export function assertFreeTalentSiteTreeMutation(input: {
   // all, so the count is the only thing that catches it. Reorders and removals
   // never raise this number.
   if (next.sectionCount > previous.sectionCount) return refuse();
+
+  // Same ids, different order (or a forged payload that resequences while
+  // dropping nothing). Removals keep a subsequence of the previous order.
+  if (!isStructuralOrderPreserved(previous.structuralOrder, next.structuralOrder)) {
+    return refuse();
+  }
 
   return { ok: true };
 }

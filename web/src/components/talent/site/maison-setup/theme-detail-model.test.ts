@@ -85,11 +85,11 @@ describe("demo resolution", () => {
     assert.equal(r.plannedFallback, true);
   });
 
-  it("only demo-talent built demos produce a preview param", () => {
+  it("built demo-talent and maison-seed demos produce a preview param", () => {
     assert.equal(demoPreviewParam("folio", folio.demos.find((d) => d.key === "commercial-model")!), "folio:commercial-model");
     assert.equal(demoPreviewParam("folio", folio.demos.find((d) => d.key === "illustrator")!), null);
     const maison = getGalleryDesign("maison")!;
-    assert.equal(demoPreviewParam("maison", maison.demos[0]!), null);
+    assert.equal(demoPreviewParam("maison", maison.demos[0]!), "maison:nails");
   });
 });
 

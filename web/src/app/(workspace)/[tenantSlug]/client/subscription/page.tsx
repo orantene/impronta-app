@@ -27,6 +27,7 @@ import { ProUpgradeButton } from "./ProUpgradeButton";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -248,7 +249,7 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
                   />
                 ) : (
                   <a
-                    href={`mailto:sales@tulala.digital?subject=${encodeURIComponent(`Upgrade to ${tier.name}`)}`}
+                    href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${tier.name}`)}`}
                     style={{
                       display: "block", padding: "10px 0", textAlign: "center",
                       background: tier.accent ? C.accent : "transparent",
@@ -276,8 +277,8 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
       }}>
         <strong>{t("client.subscription.pricingNoteTitle")}</strong>{" "}
         {t("client.subscription.pricingNoteBody")}{" "}
-        <a href="mailto:sales@tulala.digital" style={{ color: C.accent, textDecoration: "underline" }}>
-          sales@tulala.digital
+        <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: C.accent, textDecoration: "underline" }}>
+          {SUPPORT_EMAIL}
         </a>{" "}
         {sub.currentPeriodEnd
           ? interpolate(t("client.subscription.planRenews"), {

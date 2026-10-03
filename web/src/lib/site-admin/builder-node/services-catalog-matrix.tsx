@@ -54,8 +54,8 @@ const ROW_LABELS: Record<RowKey, { es: string; en: string }> = {
 const ROW_ORDER: RowKey[] = ["price", "duration", "booking", "materials", "warranty", "response"];
 
 export const SERVICES_MATRIX_CSS = `
-.sb-mx{container:sbmx/inline-size;width:100%;min-width:0;box-sizing:border-box;color:var(--token-color-ink)}
-.sb-mx-scroll{display:none;overflow-x:auto;scrollbar-width:thin}
+.sb-mx{container:sbmx/inline-size;width:100%;min-width:0;box-sizing:border-box;color:var(--token-color-ink);overflow-x:clip}
+.sb-mx-scroll{display:none;overflow-x:auto;scrollbar-width:thin;max-width:100%}
 .sb-mx-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;background:var(--token-color-surface-raised,var(--token-color-background));border:var(--token-shape-rule-width,1.5px) solid var(--token-color-ink);border-radius:var(--site-radius-md,10px);overflow:hidden}
 .sb-mx-table th,.sb-mx-table td{position:relative;padding:10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--token-color-line)}
 .sb-mx-table tr:last-child th,.sb-mx-table tr:last-child td{border-bottom:0}

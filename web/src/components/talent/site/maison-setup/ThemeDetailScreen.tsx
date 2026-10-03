@@ -36,12 +36,16 @@ import {
 } from "./live-design-change";
 import { DemoStrip } from "./DemoStrip";
 import { DemosSheet } from "./DemosSheet";
+import { DemoProfilePanel } from "./DemoProfilePanel";
+import { GalleryDesignTags } from "./GalleryDesignTags";
 import { AppsTab } from "./GalleryAppsUi";
 import { appsForDetail, galleryAppsT } from "./gallery-apps";
 import { ColorSwatches, ColorsSheet, swatchStyle, type ColorsProps } from "./ColorsSheet";
 import type { MaisonSetupChoices, MaisonPhoneSheet } from "./maison-choices";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import { demosCountLabel, detailT, resultsForLabel } from "./theme-detail-copy";
+import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
+import { demoCardPersonName } from "@/lib/talent-site/demos/demo-profile-meta";
 import {
   demoDefaultPaletteKey,
   demoPreviewParam,
@@ -149,14 +153,15 @@ export function ThemeDetailScreen({
   // preview paints its colours and fonts on first load, not the platform's.
   const lookSlug = selectedPaletteKey ? galleryPreviewLookSlug(design, selectedPaletteKey) : null;
   const showDemoContent = choices.contentMode === "demo";
+  const demoParam = showDemoContent ? demoPreviewParam(design.slug, demo) : null;
   const url = preview.src(
     design.slug,
     lookSlug,
-    showDemoContent ? demoPreviewParam(design.slug, demo) : null,
+    demoParam,
   );
   const designTitle = design.name;
   const description = locale === "es" ? design.description.es : design.description.en;
-  const demoTitle = demo ? (locale === "es" ? demo.name.es : demo.name.en) : "";
+  const demoTitle = demo ? demoCardPersonName(demo, locale) : "";
   const swatch =
     activeCustom
       ? { section: activeCustom.fields.section, accent: activeCustom.fields.accent }
@@ -326,6 +331,17 @@ export function ThemeDetailScreen({
           : "w-full overflow-hidden rounded-xl border border-admin-border-soft"
       }
     >
+      {/* G1-P0-05: demo chip lives on the frame chrome, never over scroll content. */}
+      {demoParam ? (
+        <div className="flex justify-end border-b border-admin-border-soft/70 bg-admin-canvas/80 px-3 py-1.5">
+          <span
+            data-testid="gallery-demo-content-chip"
+            className="rounded bg-admin-ink/85 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white"
+          >
+            {maisonSetupT(locale, "DEMO CONTENT")}
+          </span>
+        </div>
+      ) : null}
       <div className="relative">
         <ThemeGalleryPreviewFrame
           preview={preview}
@@ -338,11 +354,6 @@ export function ThemeDetailScreen({
           virtualWidth={choices.previewDevice === "phone" ? undefined : 1280}
           aspectRatio={choices.previewDevice === "phone" ? undefined : "16 / 11"}
         />
-        {showDemoContent ? (
-          <span className="absolute bottom-3 left-3 rounded bg-admin-ink/85 px-2 py-1 text-[10px] font-bold tracking-wide text-white">
-            {maisonSetupT(locale, "DEMO CONTENT")}
-          </span>
-        ) : null}
       </div>
     </div>
   );
@@ -519,7 +530,11 @@ export function ThemeDetailScreen({
           {tabStrip}
 
           <div className="min-h-0 flex-1 overflow-auto">
-            {appsTabOn ? <AppsTab apps={detailApps} locale={locale} /> : previewFrame}
+            {appsTabOn ? (
+              <AppsTab apps={detailApps} locale={locale} previewDevice={choices.previewDevice} />
+            ) : (
+              previewFrame
+            )}
           </div>
         </div>
 
@@ -542,27 +557,10 @@ export function ThemeDetailScreen({
                   </span>
                 ) : null}
               </p>
-              <div className="mt-2 flex flex-wrap gap-1.5" data-maison-tags="">
-                {design.styleTags.map((tag) => (
-                  <span
-                    key={`s-${tag}`}
-                    data-maison-tag-kind="style"
-                    className="rounded-full border border-admin-border-soft px-2 py-0.5 text-[11.5px] text-admin-ink"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {design.featureTags.map((tag) => (
-                  <span
-                    key={`f-${tag}`}
-                    data-maison-tag-kind="layout"
-                    className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[11.5px] text-admin-ink"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              <GalleryDesignTags design={design} locale={locale} onFilter={onBackToGallery} />
             </div>
+
+            <DemoProfilePanel demo={demo} locale={locale} />
 
             <div>
               <p className="mb-2 text-[13px] font-semibold text-admin-ink">{maisonSetupT(locale, "Show")}</p>
@@ -651,7 +649,7 @@ export function ThemeDetailScreen({
           onClick={() => openSheet("demos")}
           className="min-h-11 shrink-0 whitespace-nowrap rounded-xl border border-admin-border-soft px-3 text-[14px] font-semibold text-admin-ink max-[379px]:px-[9px]"
         >
-          {demosCountLabel(locale, demos.length)}
+          {demosCountLabel(locale, countUsableDemos(demos))}
         </button>
         <button
           type="button"

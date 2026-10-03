@@ -7,9 +7,17 @@ import { useEffect, useRef } from "react";
 
 import { isNailStudioMessage, nailStudioSrc, nailStudioSummary } from "./nail-designer-model";
 
-export const NAIL_STUDIO_FRAME_CSS = ".sb-nd-frame{height:900px}@media (min-width:768px){.sb-nd-frame{height:780px}}";
+export const NAIL_STUDIO_FRAME_CSS =
+  ".sb-nd{min-width:0}.sb-nd-frame{height:900px;width:100%}@media (min-width:768px){.sb-nd-frame{height:780px}}.sb-nd[data-nd-layout=desktop] .sb-nd-frame{min-width:min(100%,821px)}";
 
-export function NailStudioFrame({ locale }: { locale: string }) {
+export function NailStudioFrame({
+  locale,
+  layout,
+}: {
+  locale: string;
+  /** Force desktop or phone layout inside the iframe (gallery Apps device toggle). */
+  layout?: "desktop" | "phone";
+}) {
   const ref = useRef<HTMLIFrameElement>(null);
   const es = locale.toLowerCase().startsWith("es");
 
@@ -42,7 +50,7 @@ export function NailStudioFrame({ locale }: { locale: string }) {
       <iframe
         ref={ref}
         className="sb-nd-frame"
-        src={nailStudioSrc(locale)}
+        src={nailStudioSrc(locale, layout ? { layout } : {})}
         title={es ? "Diseñador de uñas" : "Nail Designer"}
         loading="lazy"
         allow="clipboard-write; web-share"

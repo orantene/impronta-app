@@ -41,8 +41,10 @@ name: CI — structural quality gate
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  workflow_dispatch:
 
 # Cancel superseded runs on a PR ref, so a second push doesn't stack up.
 #

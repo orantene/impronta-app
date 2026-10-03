@@ -34,7 +34,7 @@ export type TalentPlanCapability =
  *   personalSiteEdit        edit page/shell content, slug, publish the site
  *   personalSitePublish     the PUBLIC read-time gate (the site serves at all)
  *   personalSiteDesignPresets  pick + switch Design and Look (FREE, all tiers)
- *   personalSiteSections    insert / paste / duplicate nested blocks + sections
+ *   personalSiteSections    insert / paste / duplicate / move nested blocks + sections
  *   personalSitePages       add, delete, reorder, set-home extra pages
  *   personalSiteSeo         per-page SEO columns (write AND render)
  *   personalSiteAnalytics   the site analytics surface

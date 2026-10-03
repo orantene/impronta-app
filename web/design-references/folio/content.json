@@ -263,7 +263,24 @@
   },
   "about": null,
   "faq": {
-    "items": []
+    "items": [
+      {
+        "q": "¿Viajas fuera de CDMX?",
+        "a": "Sí, con traslado y hospedaje cubiertos. Cuéntame la ciudad y las fechas."
+      },
+      {
+        "q": "¿Incluye derechos de uso?",
+        "a": "Las tarifas base son para uso editorial. Pauta, territorio y plazo se cotizan aparte."
+      },
+      {
+        "q": "¿Cuánto tarda en responder?",
+        "a": "El mismo día hábil. Si es urgente, escribe la fecha en el asunto."
+      },
+      {
+        "q": "¿Haces fittings previos?",
+        "a": "Sí. La prueba de vestuario se agenda por separado antes de la sesión o el show."
+      }
+    ]
   },
   "stats": [
     {

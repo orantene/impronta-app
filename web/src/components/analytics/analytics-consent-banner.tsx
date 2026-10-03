@@ -96,7 +96,9 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
   // Prototype routes (e.g. /prototypes/drawer-preview) are designer/dev
   // sandboxes, not customer-facing; suppress on those paths.
   const pathname = usePathname();
-  const isPrototypeRoute = pathname?.startsWith("/prototypes") ?? false;
+  const isPreviewRoute =
+    (pathname?.startsWith("/prototypes") ?? false) ||
+    (pathname?.startsWith("/template-preview") ?? false);
   const t = translatorFor(locale);
 
   useEffect(() => {
@@ -140,7 +142,7 @@ export function AnalyticsConsentBanner({ locale: rootLocale = "en" }: { locale?:
     setOpen(false);
   }, []);
 
-  if (!mounted || !open || isPrototypeRoute) return null;
+  if (!mounted || !open || isPreviewRoute) return null;
 
   return (
     <>

@@ -120,6 +120,11 @@ export const PLATFORM_RESERVED_SLUGS = [
   "template-preview",
   "platform",
   "share",
+  // Support Desk product shell (`/desk`). Resolves on app + support hosts
+  // (and is allow-listed for agency reachability probes), so a CMS page
+  // slugged "desk" could never open. Mirrored in
+  // `…20261231340000_reserve_desk_slug.sql`.
+  "desk",
   // Public storefront surfaces (AGENCY_STOREFRONT_PREFIXES).
   "directory",
   "models",

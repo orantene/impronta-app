@@ -26,6 +26,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { useT } from "@/i18n/use-t";
 import type { Translator } from "@/i18n/interpolate";
+import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 
 import { SiteCard } from "./site-card";
@@ -407,7 +408,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                 {bandLocked && band.ctaLabel ? (
                   band.tier === "network" ? (
                     <Link
-                      href="mailto:hello@impronta.group"
+                      href={`mailto:${SUPPORT_EMAIL}`}
                       className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
                       style={{ color: accent.fg }}
                     >

@@ -22,6 +22,8 @@ export type { CreateAgendaPayLinkResult } from "./booking-actions";
 export { proposeReschedule, respondToReschedule } from "./reschedule-actions";
 export { cancelBookingWithRefund, cancelPaymentPreview } from "./cancel-actions";
 export type { CancelWithRefundResult } from "./cancel-actions";
+export { refundOwnBookingPayment } from "./refund-actions";
+export type { RefundOwnBookingResult } from "./refund-actions";
 // loadTalentAgenda stays in ./load (server-only) — import from there, not this barrel.
 export { tradeCalendarRules } from "./trade-calendar";
 export {

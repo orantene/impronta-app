@@ -87,7 +87,7 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .site-header.site-header{padding:0}`,
   `${S} .site-header .site-header__inner.site-header__inner{width:auto;max-width:none;margin:0;min-height:0;padding:${v("layout.header-pad-y-phone")} ${v("layout.gutter-phone")};gap:12px}`,
   `${S} .site-header__brand{display:flex;align-items:baseline;gap:7px;line-height:1}`,
-  `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:${v("type.accent-style")};font-weight:500;font-size:${v("type.logo-size")};line-height:normal;letter-spacing:-0.02em;text-transform:none}`,
+  `${S} .site-header__brand-label{font-family:var(--site-heading-font,Georgia,serif);font-style:${v("type.accent-style")};font-weight:500;font-size:${v("type.logo-size")};line-height:normal;letter-spacing:-0.02em;text-transform:none;color:var(--token-color-ink)}`,
   `${S} .site-header__brand-tagline{font-family:var(--site-body-font,inherit);font-size:9.5px;line-height:normal;font-weight:${v("type.label-weight")};letter-spacing:0.2em;text-transform:uppercase;color:var(--token-color-muted)}`,
   `${S} .site-header__nav-list{gap:22px}`,
   `${S} .site-header__nav-link{font-size:${v("type.nav-size")};font-weight:400;color:var(--token-color-muted);text-transform:none;letter-spacing:0;text-decoration:none}`,
@@ -146,7 +146,7 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{top:90px;gap:4px}`,
   `${S} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{height:42px;border-radius:${v("shape.rail-radius")};border-color:transparent;background:none;font-size:${v("type.body-size")};justify-content:space-between}`,
   `${S} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-background)}`,
-  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,1),minmax(0,1fr));column-gap:36px}`,
+  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));column-gap:36px}`,
   `${S} .site-builder-node--services-catalog-group-title{font-size:${v("type.group-title-size-desktop")};margin-top:10px}`,
   `}`,
 
@@ -181,13 +181,14 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   // ── FAQ: hairline rows, "+" in the accent. Item chrome is a renderer default, hence !important.
   `${S} #contact .site-builder-node--accordion{gap:0!important}`,
   `${S} #contact .site-builder-node--accordion-item{border:0!important;border-bottom:${RULE} solid var(--token-color-line)!important;border-radius:0!important;padding:14px 0!important}`,
-  `${S} #contact .site-builder-node--accordion-item > summary{list-style:none;display:flex;justify-content:space-between;gap:12px;font-size:${v("type.body-size")};font-weight:600!important;cursor:pointer}`,
+  `${S} #contact .site-builder-node--accordion-item > summary{list-style:none;display:flex;justify-content:space-between;gap:12px;font-size:${v("type.body-size")};font-weight:600!important;cursor:pointer;color:var(--token-color-ink)}`,
   `${S} #contact .site-builder-node--accordion-item > summary::-webkit-details-marker{display:none}`,
   `${S} #contact .site-builder-node--accordion-item > summary::after{content:"+";font-size:22px;line-height:1;font-weight:400;color:${ACCENT_TEXT}}`,
   `${S} #contact .site-builder-node--accordion-item[open] > summary::after{content:"\\2013"}`,
   `${S} #contact .site-builder-node--accordion-item p{font-size:14px;color:var(--token-color-muted)}`,
 
   // ── Footer: ink band, big accent-style line, page-colour pill.
+  `${S} #site-footer{background:var(--token-color-ink);color:var(--token-color-background)}`,
   `${S} #site-footer h2{margin:0;font-style:${v("type.accent-style")};font-weight:${v("type.accent-weight")};font-size:${v("type.footer-title-size")};line-height:1;color:var(--token-color-background)}`,
   `${S} #site-footer p.site-builder-node--paragraph{color:color-mix(in srgb,var(--token-color-background) 60%,transparent);font-size:11.5px}`,
   `${S} #site-footer .site-builder-node--button{background:var(--token-color-background);color:var(--token-color-ink);border:0}`,
@@ -221,6 +222,12 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
 
   // Release 2.5: the soft chrome (shape.chrome = soft). Appended last so its rules win equal-scope ties.
   EDITORIAL_SOFT_CHROME_CSS,
+
+  // G1-P0-04: soft accent-em must not darken the dark rich footer headline.
+  '[data-theme-canvas-root][data-token-footer-tone="dark"] #s-foot h2,[data-theme-canvas-root][data-token-footer-tone="dark"] #s-foot h2 em{color:var(--token-color-background)}',
+
+  // G1-P0-05: hide catalog dock / Ver servicios bar inside theme gallery previews.
+  "[data-theme-canvas-root][data-talent-theme-preview] .cb-island > .cb-dock,[data-theme-canvas-root][data-talent-theme-preview] .cb-island > .cb-bar{display:none!important}",
 ].join("\n");
 
 /**
