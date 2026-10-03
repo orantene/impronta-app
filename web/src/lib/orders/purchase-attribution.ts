@@ -22,7 +22,10 @@ import "server-only";
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
+import {
+  computeBookingTalentRowTotals,
+  sumBookingHeaderFromRows,
+} from "@/lib/booking-pricing";
 import { persistBookingCommissionSnapshot } from "@/lib/billing/commission-engine";
 import { resolveOwningPartyForTalent } from "@/lib/inquiry/owning-party-resolver";
 import { centsToTotalClientRevenue } from "@/lib/money/total-client-revenue";
@@ -52,57 +55,144 @@ type OrderLinePayee = {
   talent_cost_cents: number;
 };
 
-async function ensureInquiryForAttribution(
+/**
+ * Keep booking ↔ order ↔ txn on one inquiry. Filling only the booking left
+ * `booking_transactions.source_inquiry_id` null, so markPaid healed with a
+ * second inquiry and desynced the Money spine (Codex P1 on #2486).
+ */
+async function stampInquiryLinks(
   admin: SupabaseClient,
-  input: AttributePurchaseInput,
-): Promise<string | null> {
-  if (input.inquiryId) {
-    const { error: linkErr } = await admin
-      .from("agency_bookings")
-      .update({ source_inquiry_id: input.inquiryId })
-      .eq("id", input.bookingId)
-      .is("source_inquiry_id", null);
-    if (linkErr) logServerError("orders.attribute/link-inquiry", linkErr);
-    return input.inquiryId;
-  }
-
-  const { data: inqRow, error: inqErr } = await admin
-    .from("inquiries")
-    .insert({
-      tenant_id: input.tenantId,
-      source_workspace_id: input.tenantId,
-      contact_name:
-        input.contact?.displayName ?? input.contact?.email ?? "Guest",
-      contact_email: input.contact?.email ?? "",
-      contact_phone: input.contact?.phone ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (inqErr || !inqRow) {
-    logServerError("orders.attribute/inquiry", inqErr);
-    return null;
-  }
-
-  const inquiryId = (inqRow as { id: string }).id;
-
+  input: { bookingId: string; orderId: string; inquiryId: string },
+): Promise<boolean> {
   const { error: orderLinkErr } = await admin
     .from("orders")
-    .update({ inquiry_id: inquiryId })
+    .update({ inquiry_id: input.inquiryId })
     .eq("id", input.orderId)
     .is("inquiry_id", null);
   if (orderLinkErr) logServerError("orders.attribute/order-inquiry", orderLinkErr);
 
   const { error: bookingLinkErr } = await admin
     .from("agency_bookings")
-    .update({ source_inquiry_id: inquiryId })
-    .eq("id", input.bookingId);
+    .update({ source_inquiry_id: input.inquiryId })
+    .eq("id", input.bookingId)
+    .is("source_inquiry_id", null);
   if (bookingLinkErr) {
     logServerError("orders.attribute/booking-inquiry", bookingLinkErr);
+    return false;
+  }
+
+  const { error: txnLinkErr } = await admin
+    .from("booking_transactions")
+    .update({ source_inquiry_id: input.inquiryId })
+    .eq("booking_id", input.bookingId)
+    .is("source_inquiry_id", null);
+  if (txnLinkErr) logServerError("orders.attribute/txn-inquiry", txnLinkErr);
+
+  return true;
+}
+
+async function ensureInquiryForAttribution(
+  admin: SupabaseClient,
+  input: AttributePurchaseInput,
+): Promise<string | null> {
+  let inquiryId = input.inquiryId;
+
+  // Prefer an inquiry already linked to the booking (createPurchase / a prior
+  // attribution pass) so markPaid does not open a second one.
+  if (!inquiryId) {
+    const { data: bookingRow, error: bookingReadErr } = await admin
+      .from("agency_bookings")
+      .select("source_inquiry_id")
+      .eq("id", input.bookingId)
+      .maybeSingle();
+    if (bookingReadErr) {
+      logServerError("orders.attribute/booking-inquiry.read", bookingReadErr);
+    } else {
+      inquiryId =
+        (bookingRow as { source_inquiry_id: string | null } | null)
+          ?.source_inquiry_id ?? null;
+    }
+  }
+
+  if (!inquiryId) {
+    const { data: orderRow, error: orderReadErr } = await admin
+      .from("orders")
+      .select("inquiry_id")
+      .eq("id", input.orderId)
+      .maybeSingle();
+    if (orderReadErr) {
+      logServerError("orders.attribute/order-inquiry.read", orderReadErr);
+    } else {
+      inquiryId =
+        (orderRow as { inquiry_id: string | null } | null)?.inquiry_id ?? null;
+    }
+  }
+
+  if (!inquiryId) {
+    const { data: inqRow, error: inqErr } = await admin
+      .from("inquiries")
+      .insert({
+        tenant_id: input.tenantId,
+        source_workspace_id: input.tenantId,
+        contact_name:
+          input.contact?.displayName ?? input.contact?.email ?? "Guest",
+        contact_email: input.contact?.email ?? "",
+        contact_phone: input.contact?.phone ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (inqErr || !inqRow) {
+      logServerError("orders.attribute/inquiry", inqErr);
+      return null;
+    }
+    inquiryId = (inqRow as { id: string }).id;
+  }
+
+  if (
+    !(await stampInquiryLinks(admin, {
+      bookingId: input.bookingId,
+      orderId: input.orderId,
+      inquiryId,
+    }))
+  ) {
     return null;
   }
 
   return inquiryId;
+}
+
+async function refreshBookingHeaderTotals(
+  admin: SupabaseClient,
+  input: { bookingId: string; tenantId: string },
+): Promise<void> {
+  const { data: rows, error } = await admin
+    .from("booking_talent")
+    .select("talent_cost_total, client_charge_total, gross_profit")
+    .eq("booking_id", input.bookingId)
+    .eq("tenant_id", input.tenantId);
+  if (error) {
+    logServerError("orders.attribute/header.read", error);
+    return;
+  }
+  const totals = sumBookingHeaderFromRows(
+    (rows ?? []) as Array<{
+      talent_cost_total: number;
+      client_charge_total: number;
+      gross_profit: number;
+    }>,
+  );
+  const { error: upErr } = await admin
+    .from("agency_bookings")
+    .update({
+      total_talent_cost: totals.total_talent_cost,
+      total_client_revenue: totals.total_client_revenue,
+      gross_profit: totals.gross_profit,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.bookingId)
+    .eq("tenant_id", input.tenantId);
+  if (upErr) logServerError("orders.attribute/header.update", upErr);
 }
 
 async function ensureDefaultRequirementGroup(
@@ -438,6 +528,15 @@ export async function attributePurchaseBooking(
     ) {
       return { ok: false, error: "Could not attribute the house lane." };
     }
+  }
+
+  // Peek sheet reads agency_bookings.total_talent_cost / gross_profit directly
+  // (Codex P2 on #2486) — keep the header in sync with the legs we just wrote.
+  if (talentLegs > 0) {
+    await refreshBookingHeaderTotals(admin, {
+      bookingId: input.bookingId,
+      tenantId: input.tenantId,
+    });
   }
 
   const commission = await persistBookingCommissionSnapshot(

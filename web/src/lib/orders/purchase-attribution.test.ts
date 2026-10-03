@@ -30,6 +30,9 @@ function attributionFake(opts: {
   existingLeg?: boolean;
   existingParticipant?: boolean;
   persistFails?: boolean;
+  /** Booking already linked — reuse instead of inserting a second inquiry. */
+  existingBookingInquiryId?: string | null;
+  existingOrderInquiryId?: string | null;
 } = {}) {
   const calls: Call[] = [];
   const lines = opts.lines ?? [
@@ -40,10 +43,22 @@ function attributionFake(opts: {
       talent_cost_cents: 10000,
     },
   ];
+  let bookingTalentSelectMode: "leg" | "header" = "leg";
 
   const from = (table: string) => {
     const api: Record<string, unknown> = {
-      select: () => api,
+      select: (cols?: string) => {
+        if (
+          table === "booking_talent"
+          && typeof cols === "string"
+          && cols.includes("talent_cost_total")
+        ) {
+          bookingTalentSelectMode = "header";
+        } else if (table === "booking_talent") {
+          bookingTalentSelectMode = "leg";
+        }
+        return api;
+      },
       insert: (payload: unknown) => {
         calls.push({ table, op: "insert", payload });
         return api;
@@ -78,6 +93,24 @@ function attributionFake(opts: {
         if (table === "agency_talent_roster") {
           return { data: null, error: null };
         }
+        if (table === "agency_bookings") {
+          return {
+            data:
+              opts.existingBookingInquiryId != null
+                ? { source_inquiry_id: opts.existingBookingInquiryId }
+                : { source_inquiry_id: null },
+            error: null,
+          };
+        }
+        if (table === "orders") {
+          return {
+            data:
+              opts.existingOrderInquiryId != null
+                ? { inquiry_id: opts.existingOrderInquiryId }
+                : { inquiry_id: null },
+            error: null,
+          };
+        }
         return { data: null, error: null };
       },
       single: async () => {
@@ -95,6 +128,18 @@ function attributionFake(opts: {
     ) => {
       if (table === "order_lines") return resolve({ data: lines, error: null });
       if (table === "agency_talent_roster") return resolve({ data: [], error: null });
+      if (table === "booking_talent" && bookingTalentSelectMode === "header") {
+        return resolve({
+          data: [
+            {
+              talent_cost_total: 100,
+              client_charge_total: 100,
+              gross_profit: 0,
+            },
+          ],
+          error: null,
+        });
+      }
       return resolve({ data: [], error: null });
     };
     return api;
@@ -294,6 +339,49 @@ test("attributePurchaseBooking creates an inquiry when the thread was never open
       && (c.payload as { source_inquiry_id?: string }).source_inquiry_id === INQUIRY,
   );
   assert.ok(bookingLink, "booking.source_inquiry_id must be stamped");
+  const txnLink = calls.find(
+    (c) =>
+      c.table === "booking_transactions"
+      && c.op === "update"
+      && (c.payload as { source_inquiry_id?: string }).source_inquiry_id === INQUIRY,
+  );
+  assert.ok(txnLink, "txn.source_inquiry_id must be stamped with the first inquiry");
+  const header = calls.find(
+    (c) =>
+      c.table === "agency_bookings"
+      && c.op === "update"
+      && typeof (c.payload as { total_talent_cost?: unknown }).total_talent_cost === "number",
+  );
+  assert.ok(header, "booking header totals must refresh after talent legs");
+  assert.equal((header.payload as { total_talent_cost: number }).total_talent_cost, 100);
+});
+
+test("attributePurchaseBooking reuses booking.source_inquiry_id instead of opening a second inquiry", async () => {
+  const EXISTING = "77777777-7777-7777-7777-777777777777";
+  const { calls, admin } = attributionFake({
+    existingBookingInquiryId: EXISTING,
+  });
+  const r = await attributePurchaseBooking(admin, {
+    tenantId: TENANT,
+    bookingId: BOOKING,
+    orderId: ORDER,
+    inquiryId: null,
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.ok && r.inquiryId, EXISTING);
+  assert.ok(
+    !calls.some((c) => c.table === "inquiries" && c.op === "insert"),
+    "must not insert a second inquiry when booking already has one",
+  );
+  assert.ok(
+    calls.some(
+      (c) =>
+        c.table === "booking_transactions"
+        && c.op === "update"
+        && (c.payload as { source_inquiry_id?: string }).source_inquiry_id === EXISTING,
+    ),
+    "heal must stamp the txn onto the existing inquiry",
+  );
 });
 
 test("createPurchase wires attributePurchaseBooking after the thread", () => {
