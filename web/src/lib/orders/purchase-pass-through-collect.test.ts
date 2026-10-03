@@ -10,6 +10,7 @@ import {
   passThroughCollectCents,
   purchaseSellerForCollect,
   resolvePassThroughCollectCents,
+  sellerOfRecordFromOwningParty,
 } from "./purchase-pass-through-collect";
 import type { ProcessorFeeRates } from "@/lib/billing/commission";
 
@@ -78,7 +79,27 @@ describe("passThroughCollectCents — worked examples", () => {
   });
 });
 
-describe("purchaseSellerForCollect", () => {
+describe("sellerOfRecordFromOwningParty", () => {
+  it("maps talent → talent seller", () => {
+    assert.deepEqual(sellerOfRecordFromOwningParty({ type: "talent", id: "tal-1" }), {
+      sellerOfRecord: "talent",
+      partyId: "tal-1",
+    });
+  });
+
+  it("maps agency/workspace → workspace fee-payer lane", () => {
+    assert.deepEqual(sellerOfRecordFromOwningParty({ type: "agency", id: "ag-1" }), {
+      sellerOfRecord: "workspace",
+      partyId: "ag-1",
+    });
+    assert.deepEqual(sellerOfRecordFromOwningParty({ type: "workspace", id: "ws-1" }), {
+      sellerOfRecord: "workspace",
+      partyId: "ws-1",
+    });
+  });
+});
+
+describe("purchaseSellerForCollect (sync legacy helper)", () => {
   it("prefers the talent line for instant-book", () => {
     const s = purchaseSellerForCollect(
       [
@@ -95,6 +116,7 @@ describe("purchaseSellerForCollect", () => {
     assert.deepEqual(s, {
       sellerOfRecord: "talent",
       partyId: "tal-1",
+      baseCollectCents: 10_000,
       talentCostCents: 10_000,
     });
   });
@@ -113,6 +135,7 @@ describe("purchaseSellerForCollect", () => {
       10_000,
     );
     assert.equal(s?.talentCostCents, 5_000);
+    assert.equal(s?.baseCollectCents, 5_000);
   });
 
   it("falls back to workspace owner when there is no talent line", () => {
@@ -131,17 +154,21 @@ describe("purchaseSellerForCollect", () => {
     assert.deepEqual(s, {
       sellerOfRecord: "workspace",
       partyId: "ws-1",
+      baseCollectCents: 2_000,
       talentCostCents: 0,
     });
   });
 });
 
 describe("resolvePassThroughCollectCents — env / RPC gate", () => {
-  const seller = {
-    sellerOfRecord: "talent" as const,
-    partyId: "tal-1",
-    talentCostCents: 10_000,
-  };
+  const sellers = [
+    {
+      sellerOfRecord: "talent" as const,
+      partyId: "tal-1",
+      baseCollectCents: 10_000,
+      talentCostCents: 10_000,
+    },
+  ];
 
   async function withEnv<T>(value: string | undefined, fn: () => Promise<T>): Promise<T> {
     const prev = process.env.COMMISSION_PROCESSING_PASS_THROUGH;
@@ -166,7 +193,7 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
         await resolvePassThroughCollectCents(admin, {
           baseCollectCents: 10_000,
           currencyCode: "USD",
-          seller,
+          sellers,
         }),
         10_000,
       );
@@ -197,14 +224,14 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
         await resolvePassThroughCollectCents(admin, {
           baseCollectCents: 10_000,
           currencyCode: "USD",
-          seller,
+          sellers,
         }),
         10_484,
       );
     });
   });
 
-  it("fail-soft on RPC error: returns bare collect", async () => {
+  it("fail-soft on mode RPC error: returns bare collect", async () => {
     await withEnv("1", async () => {
       const admin = {
         rpc: async () => ({ data: null, error: { message: "boom" } }),
@@ -213,9 +240,41 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
         await resolvePassThroughCollectCents(admin, {
           baseCollectCents: 10_000,
           currencyCode: "USD",
-          seller,
+          sellers,
         }),
         10_000,
+      );
+    });
+  });
+
+  it("payer RPC fail: default seller and keep pass-through surcharge (P2)", async () => {
+    await withEnv("1", async () => {
+      const admin = {
+        rpc: async (fn: string) => {
+          if (fn === "engine_platform_processing_mode") {
+            return {
+              data: {
+                processing_mode: "pass_through",
+                pass_through_take_bps: 150,
+                processor_fee_rates: { default: US, usd: US },
+              },
+              error: null,
+            };
+          }
+          if (fn === "engine_processing_fee_payer") {
+            return { data: null, error: { message: "payer boom" } };
+          }
+          throw new Error(`unexpected rpc ${fn}`);
+        },
+      };
+      // seller-pays pass_through on $100 → $101.50 (not bare $100)
+      assert.equal(
+        await resolvePassThroughCollectCents(admin, {
+          baseCollectCents: 10_000,
+          currencyCode: "USD",
+          sellers,
+        }),
+        10_150,
       );
     });
   });
