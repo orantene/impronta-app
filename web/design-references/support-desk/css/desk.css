@@ -897,13 +897,13 @@ a:hover {
   color: var(--desk-note-ink);
 }
 .recipient-line {
-  font-size: 11px;
-  color: var(--desk-ink-dim);
+  font-size: 12px;
+  color: var(--desk-ink-muted);
   margin-bottom: 6px;
 }
 .recipient-line strong {
-  color: var(--desk-ink-muted);
-  font-weight: 600;
+  color: var(--desk-ink);
+  font-weight: 650;
 }
 .composer.note-mode {
   background: var(--desk-note);
@@ -976,6 +976,14 @@ a:hover {
 }
 .conv-hub {
   max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conv-source {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--desk-ink-dim);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }

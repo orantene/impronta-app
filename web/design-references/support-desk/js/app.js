@@ -186,7 +186,7 @@
           <strong>Review brief</strong>
           <ol>
             <li>Walk screens A–I in light, then flip dark on B / C / F / I.</li>
-            <li><strong>Oran feedback (2026-10-03):</strong> Tulala mark + Support Desk wordmark; global ops search; Inbox + green presence + avatar; customer-first header with SLA countdown; Assist <code>NOT SENT</code> + Approve / Reject / Edit; short Canned/Macro/Attach + strong teal Send; quieter right rail.</li>
+            <li><strong>Oran feedback (2026-10-03):</strong> Tulala mark + Support Desk wordmark; global ops search; Inbox + green presence + avatar; customer-first header with SLA countdown; Assist <code>NOT SENT</code> + Approve / Edit / Reject; short Canned/Macro/Attach + strong teal Send; quieter right rail; ES tickets use Spanish previews.</li>
             <li>Also check forest brand primary, dashed internal-note chrome, and explicit reply recipient line.</li>
             <li>Mobile H: queues → list → thread → context → keyboard → attach → note → AI → back (draft kept).</li>
             <li>Design reference only. Live Desk shell is on production behind <code>SUPPORT_DESK_ENABLED</code> (default OFF). Approving mockups does not enable the flag.</li>
@@ -372,8 +372,8 @@
                     ${c.sla === "breach" ? `<span class="pill pill-critical">SLA breach</span>` : ""}
                     <span class="pill pill-muted" title="Language">${esc(c.language)}</span>
                     <span class="pill pill-muted" title="Assignee">${assignee}</span>
-                    <span class="pill pill-muted conv-hub" title="Source">${esc(c.hub)}</span>
                   </div>
+                  <div class="conv-source" title="Source">${esc(c.hub)}</div>
                 </span>
                 <span>${c.unread ? `<span class="dot dot-brand" title="Unread"></span>` : ""}</span>
               </button>`;
@@ -407,7 +407,7 @@
           return `<div class="msg ${m.ok ? "customer" : "customer"}"><span class="avatar avatar-sm">AC</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)}</span><span>${esc(m.time)}</span></div><div class="attach-chip ${m.ok ? "" : "fail"}">${m.ok ? "📎" : "⚠"} ${esc(m.name)} · ${esc(m.size)}${m.reason ? ` · ${esc(m.reason)}` : ""}</div></div></div>`;
         }
         if (m.type === "ai-draft") {
-          return `<div class="msg ai-draft"><span class="avatar avatar-sm avatar-ai">AI</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)} · draft</span><span>${esc(m.time)}</span><span class="pill pill-ai">Confidence ${esc(m.confidence)}</span><span class="pill pill-not-sent" title="Draft has not been sent to the customer">NOT SENT</span></div><div class="msg-bubble">${esc(m.text)}</div><div class="ai-actions"><button class="btn btn-sm btn-primary" data-action="approve-ai">Approve & send</button><button class="btn btn-sm btn-danger" data-action="reject-ai">Reject</button><button class="btn btn-sm" data-action="edit-ai">Edit draft</button>${m.confidence === "low" ? `<button class="btn btn-sm" data-go="composer/escalate">Escalate — low confidence</button>` : ""}</div></div></div>`;
+          return `<div class="msg ai-draft"><span class="avatar avatar-sm avatar-ai">AI</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)} · draft</span><span>${esc(m.time)}</span><span class="pill pill-ai">Confidence ${esc(m.confidence)}</span><span class="pill pill-not-sent" title="Draft has not been sent to the customer">NOT SENT</span></div><div class="msg-bubble">${esc(m.text)}</div><div class="ai-actions"><button class="btn btn-sm btn-primary" data-action="approve-ai">Approve & send</button><button class="btn btn-sm" data-action="edit-ai">Edit draft</button><button class="btn btn-sm btn-danger" data-action="reject-ai">Reject</button>${m.confidence === "low" ? `<button class="btn btn-sm" data-go="composer/escalate">Escalate — low confidence</button>` : ""}</div></div></div>`;
         }
         if (m.type === "note") {
           return `<div class="msg note"><span class="avatar avatar-sm">MR</span><div class="msg-body"><div class="msg-meta"><span class="who">${esc(m.who)}</span><span class="pill pill-coral">Internal note · not visible to customer</span><span>${esc(m.time)}</span></div><div class="msg-bubble">${esc(m.text)}</div></div></div>`;

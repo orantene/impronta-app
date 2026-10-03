@@ -38,5 +38,6 @@ Open:
 
 1. Click through hub → A–I (light + dark, 1440 + 390)
 2. Confirm forest brand / note chrome / AI draft card / recipient line
-3. Approve, revise, or reject as reference for future Desk polish
-4. Keep `SUPPORT_DESK_ENABLED` OFF until an explicit enable decision
+3. Confirm Oran B-target chrome: Tulala mark + “Support Desk” wordmark, ops global search, Inbox presence + avatar, customer-first ticket header with SLA countdown; ES tickets use Spanish previews
+4. Approve, revise, or reject as reference for future Desk polish
+5. Keep `SUPPORT_DESK_ENABLED` OFF until an explicit enable decision
