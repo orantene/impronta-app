@@ -127,9 +127,9 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
       {introSaved && (
         <p
           role="status"
-          className="mb-2 flex items-center gap-2 rounded-xl bg-emerald-900/[0.08] px-3 py-2 text-[13px] font-semibold text-emerald-900"
+          className="mb-2 flex items-center gap-2 rounded-xl bg-[var(--tc-ok-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--tc-ok)]"
         >
-          <span aria-hidden className="grid h-5 w-5 place-items-center rounded-full bg-emerald-900 text-[11px] text-white">✓</span>
+          <span aria-hidden className="grid h-5 w-5 place-items-center rounded-full bg-[var(--tc-ok)] text-[11px] text-white">✓</span>
           {copy.t("Intro saved")}
         </p>
       )}
@@ -151,7 +151,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
           className={`inline-flex items-center gap-2.5 rounded-xl border border-admin-border-soft bg-white px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
           aria-label={onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
         >
-          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+          <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--tc-ok)]" />
           <span className="min-w-0">
             <span className="block text-[12.5px] font-semibold leading-tight text-admin-ink">
               {onWebOffice ? copy.t("Manage website") : copy.isSpanish ? "Sitio en vivo" : "Website live"}
@@ -178,15 +178,15 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
         <button
           type="button"
           onClick={onPress}
-          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-emerald-900/15 bg-emerald-900/[0.06] px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
+          className={`inline-flex min-w-[220px] items-center gap-3 rounded-xl border border-[var(--tc-action)] bg-[var(--tc-soft)] px-3 py-1.5 text-left font-admin-body ${placement === "services" ? "w-full" : ""}`}
           aria-label={labels.title}
         >
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[12.5px] font-semibold leading-tight text-emerald-900">{labels.title}</span>
+            <span className="block truncate text-[12.5px] font-semibold leading-tight text-[var(--tc-ink)]">{labels.title}</span>
             <span className="block truncate text-[11px] leading-tight text-admin-ink-muted">{labels.detail}</span>
             {reward === "notReady" && percent != null && (
               <span aria-hidden className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-black/10">
-                <span className="block h-full rounded-full bg-emerald-900" style={{ width: `${Math.min(100, percent)}%` }} />
+                <span className="block h-full rounded-full bg-[var(--tc-action)]" style={{ width: `${Math.min(100, percent)}%` }} />
               </span>
             )}
           </span>
@@ -233,7 +233,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                 </span>
                 <div className="min-w-0">
                   <p className="text-[13.5px] font-semibold text-admin-ink">{copy.t("A real page at your own address")}</p>
-                  {siteHost && <p className="truncate text-[12.5px] text-emerald-900">{siteHost}</p>}
+                  {siteHost && <p className="truncate text-[12.5px] text-[var(--tc-action)]">{siteHost}</p>}
                   <p className="mt-0.5 text-[12.5px] leading-snug text-admin-ink-muted">
                     {copy.t("Built from your profile and the things you sell. Free, and yours to keep.")}
                   </p>
@@ -283,7 +283,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
               <button
                 type="button"
                 onClick={() => openSlice(firstMissingWebsiteSlice(eligibility.slices))}
-                className="w-full rounded-lg bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white"
+                className="w-full rounded-lg bg-[var(--tc-action)] px-4 py-3 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
               >
                 {copy.t("Continue your profile")}
               </button>
@@ -335,7 +335,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   setIntroOwn(false);
                   setIntroText(introDraft);
                 }}
-                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-admin-border-soft bg-white text-admin-ink" : "border-emerald-900 bg-emerald-900 text-white"}`}
+                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-admin-border-soft bg-white text-admin-ink" : "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]"}`}
               >
                 {copy.t("Keep it")}
               </button>
@@ -345,7 +345,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   setIntroOwn(true);
                   setIntroText("");
                 }}
-                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-emerald-900 bg-emerald-900 text-white" : "border-admin-border-soft bg-white text-admin-ink"}`}
+                className={`flex-1 rounded-full border px-3 py-2 text-[13px] font-semibold ${introOwn ? "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]" : "border-admin-border-soft bg-white text-admin-ink"}`}
               >
                 {copy.t("Write my own")}
               </button>
@@ -369,7 +369,7 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
                   }
                 });
               }}
-              className="w-full rounded-full bg-emerald-900 px-4 py-3 text-[14px] font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-full bg-[var(--tc-action)] px-4 py-3 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50"
             >
               {copy.t("Save and continue")}
             </button>

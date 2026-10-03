@@ -51,6 +51,8 @@ export const TALENT_VISUAL_VARS: CSSProperties = {
   ["--tc-info-soft" as string]: TALENT_VISUAL.infoSoft,
   ["--tulala-primary-fill" as string]: TALENT_VISUAL.action,
   ["--tulala-primary-fill-deep" as string]: TALENT_VISUAL.actionHover,
+  /** Selected mode pill. Agency falls back when this variable is absent. */
+  ["--tc-mode-ring" as string]: `inset 0 0 0 1px ${TALENT_VISUAL.action}`,
 };
 
 /** The one solid action. Rare. */

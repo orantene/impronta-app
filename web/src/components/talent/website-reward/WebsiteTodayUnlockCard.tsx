@@ -89,7 +89,7 @@ export function WebsiteTodayUnlockCard(_props: Props = {}) {
               type="button"
               data-testid="finish-with-ai-cta"
               onClick={() => setAiOpen(true)}
-              className="rounded-[9px] bg-emerald-900 px-4 py-2.5 text-[12.5px] font-bold text-white"
+              className="rounded-[9px] bg-[var(--tc-action)] px-4 py-2.5 text-[12.5px] font-bold text-white hover:bg-[var(--tc-action-hover)]"
             >
               ✦ {copy.t("Finish with AI")}
             </button>
@@ -110,7 +110,7 @@ export function WebsiteTodayUnlockCard(_props: Props = {}) {
           </button>
         </div>
         {toast ? (
-          <p className="mt-2 text-[12px] font-semibold text-emerald-900" role="status">
+          <p className="mt-2 text-[12px] font-semibold text-[var(--tc-ok)]" role="status">
             {toast}
           </p>
         ) : null}

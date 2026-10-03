@@ -82,7 +82,7 @@ export function WebsiteTodayHero({ canBook }: { canBook: boolean }) {
       <section className="flex flex-col gap-4 rounded-2xl border border-admin-border-soft bg-white p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-7">
         <span
           aria-hidden
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-900/10 text-[22px] text-emerald-900 sm:h-16 sm:w-16 sm:text-[28px]"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--tc-ok-soft)] text-[22px] text-[var(--tc-ok)] sm:h-16 sm:w-16 sm:text-[28px]"
         >
           ✓
         </span>
@@ -94,7 +94,7 @@ export function WebsiteTodayHero({ canBook }: { canBook: boolean }) {
               type="button"
               data-testid="website-today-hero-cta"
               onClick={flow.continueSetup}
-              className="mt-3.5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-900 px-5 text-[15px] font-semibold text-white sm:min-h-11 sm:w-auto"
+              className="mt-3.5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[var(--tc-action)] px-5 text-[15px] font-semibold text-white hover:bg-[var(--tc-action-hover)] sm:min-h-11 sm:w-auto"
             >
               {flow.text.todayCta}
             </button>
@@ -124,7 +124,7 @@ export function WebsiteSetupToday({ canBook }: { canBook: boolean }) {
         <div className="mb-4 flex items-center gap-3">
           <span
             aria-hidden
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-[3px] border-emerald-900/70 text-[13px] font-bold tabular-nums text-emerald-900"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-[3px] border-[var(--tc-action)] text-[13px] font-bold tabular-nums text-[var(--tc-action-ink)]"
           >
             {pct}%
           </span>
@@ -151,7 +151,7 @@ export function WebsiteSetupToday({ canBook }: { canBook: boolean }) {
               type="button"
               data-testid="website-setup-next"
               onClick={() => openSlice(nextKey)}
-              className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-900 px-5 text-[15px] font-semibold text-white sm:min-h-11 sm:w-auto"
+              className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[var(--tc-action)] px-5 text-[15px] font-semibold text-white hover:bg-[var(--tc-action-hover)] sm:min-h-11 sm:w-auto"
             >
               {T("Open", "Abrir")}
             </button>
@@ -164,7 +164,7 @@ export function WebsiteSetupToday({ canBook }: { canBook: boolean }) {
               <li key={s.key} className="flex min-h-11 items-center gap-3 text-[15px]">
                 <span
                   aria-hidden
-                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px] ${s.done ? "bg-emerald-800 text-white" : "border-[1.5px] border-black/20"}`}
+                  className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[13px] ${s.done ? "bg-[var(--tc-ok)] text-white" : "border-[1.5px] border-black/20"}`}
                 >
                   {s.done ? "✓" : ""}
                 </span>

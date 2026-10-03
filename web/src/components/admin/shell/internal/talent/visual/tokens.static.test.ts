@@ -51,6 +51,14 @@ test("service filters are soft and service actions are teal", () => {
   assert.doesNotMatch(ledger, /background: active \? COLORS\.fill/);
 });
 
+test("today website actions are teal and the mode pill falls back to slate", () => {
+  const hero = read("components/talent/website-reward/WebsiteTodayHero.tsx");
+  assert.match(hero, /data-testid="website-today-hero-cta"[\s\S]*bg-\[var\(--tc-action\)\]/);
+  assert.doesNotMatch(hero, /bg-emerald-900 px-5/);
+  const mode = read("components/admin/shell/internal/page-modules/IdentityBar-2.tsx");
+  assert.match(mode, /var\(--tc-soft, \$\{COLORS\.fill\}\)/);
+});
+
 test("agenda primary token is type, not the solid button fill", () => {
   const agenda = read("components/admin/shell/internal/talent/agenda/primitives/tokens.ts");
   assert.match(agenda, /primary: TALENT_VISUAL\.ink/);

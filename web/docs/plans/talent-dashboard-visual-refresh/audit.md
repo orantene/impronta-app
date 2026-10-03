@@ -6,7 +6,7 @@ Scope is the platform talent shell at `/talent/*`. Public `/t/` sites, `/talent/
 
 | Page | What was dark | After |
 |---|---|---|
-| Today | Agenda “next” actions used `--tc-primary` (`#1A1A1A`) as a fill. Legacy Today split-button used slate `#4D4855`. | Solid actions are teal. Type stays ink. |
+| Today | Agenda “next” actions used `--tc-primary` (`#1A1A1A`) as a fill. Legacy Today split-button used slate `#4D4855`. Website setup and “Finish with AI” used forest `#064e3b`. | Solid actions are teal. Type stays ink. Setup progress and “saved” use the success tint. The public-site preview button on the photo stays light. |
 | Attention | Same agenda tokens. | Same. |
 | Calendar | Day selection, list filters, and the add button were black fills. The undo bar was a black strip. | Selected days and filters are a soft tint plus a border. Add and save are teal. Undo is a soft bar with a teal text action. |
 | Messages | Approve uses the shared messages kit (green `#2b8a63`). Send and some filters used slate. Info toggle was a slate fill. | Kit greens remap to teal only under `[data-talent-visual]`. Send is teal. Filters and the info toggle are soft. |
@@ -15,7 +15,7 @@ Scope is the platform talent shell at `/talent/*`. Public `/t/` sites, `/talent/
 | Services | Filter chips were `bg-admin-ink`. Add, save, publish, and continue were forest `bg-admin-brand` / `bg-emerald-900`. Booking-mode choices were solid forest pills. | Filters and mode choices are a soft tint plus an action border. Those actions are teal. The public-card preview button stays forest so it still matches the public site. |
 | Profile | “Finish” was an ink button. Tier chips used ink or forest. | Finish is teal. Tier chip is a soft label. |
 | Reviews | Filter tabs were ink pills. | Soft selected chips. |
-| Settings | Shared `PrimaryButton` / form chrome. | Primary fill follows the talent shell. |
+| Settings | Shared `PrimaryButton` / form chrome. Website settings save, switches, and policy locale chips used forest. | Primary fill follows the talent shell. Save is teal. Locale chips and choice cards are a soft tint. Switches use the action color when on. |
 | Sidebar | Active row was a white card. Unread badge was forest. Max plan chip was an ink pill. | Active row is the soft tint with an action border. Badge is teal. Plan chip is a soft label. |
 
 ## Shared pieces
