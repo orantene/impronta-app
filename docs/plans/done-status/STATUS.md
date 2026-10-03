@@ -1,1 +1,1 @@
-file:///home/ubuntu/.cursor/projects/workspace/agent-tools/status-push-2316.txt
+$file:/tmp/CONTENT_ONLY.md
