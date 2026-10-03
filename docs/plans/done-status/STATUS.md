@@ -1,9 +1,9 @@
-Updated: 2026-10-03 03:23Z · Scoreboard: ✅ 1 / 🟡 67 / ❌ 17 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 03:44Z · Scoreboard: ✅ 1 / 🟡 67 / ❌ 17 / ⏸ 1 / ❓ 14
 Live SHA: e6e00420b · Main SHA: fc3896083
 Top 3 blockers right now
 1. Scheduling questions are on production `e6e00420b` (structural gate run 37090740160 passed; promote run 37092375314 passed). They are not ✅. There is no live quote or booking walk. #18 stays not ✅.
-2. #2490, #2491, and #2492 are not merged. #2490 branch `cursor/unrostered-talent-wall-89c0` showed no PROFILE CREATED wall for Jorg at desktop and 390. That is branch-only, so wall questions stay not ✅. #13 stays 🟡 on the avatar branch. #55 and #57 stay ❌.
-3. #2481 merged to main `fc3896083`. Production is still `e6e00420b` until structural gate run 37092968599 passes. Not hand-pushed. #26 and #47 stay 🟡 until a live refund walk. #48 stays 🟡 until a live receipt PDF. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
+2. Talent PRs #2490, #2491, and #2492 were rebased onto main `fc3896083` and are waiting CI. They are not merged. The wall and avatar proofs stay branch-only, so those rows stay not ✅. #13 stays 🟡. #55 and #57 stay ❌.
+3. Money PRs #2486 and #2487 were rebased onto main and are waiting CI. #2480 is still open. Production is still `e6e00420b` until structural gate run 37092968599 passes. Not hand-pushed. #26 and #47 stay 🟡 until a live refund walk. #48 stays 🟡 until a live receipt PDF. The live vanity charge is still $100.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
 
@@ -29,7 +29,7 @@ Localhost proof 2026-10-03 (`internal/story-02-valeria.md`). Account `qa-talent-
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 13 | Avatar links Site, Builder, Money, Messages, Settings | 🟡 | Branch proof 2026-10-03 on `cursor/story2-avatar-links-58f5` @ `dfaabe31f` (draft #2492). Free account menu shows Builder, Money, Messages, and Settings. Each row lands. Builder lands on the Web Office upsell, not a 404. Shot: `media/story-02-avatar-menu.png`. Note: `internal/story-02-avatar-proof.md`. | Not on main or production (`mergedAt` null). Not ✅. The earlier menu without those links is `media/story-02-03b-avatar-items.png`. | S2 step 1 | — | 2026-10-03 |
+| 13 | Avatar links Site, Builder, Money, Messages, Settings | 🟡 | Branch proof 2026-10-03 on `cursor/story2-avatar-links-58f5` (draft #2492). The PR was rebased onto main; head is now `4861ae17c` and CI is still pending. The walk showed Builder, Money, Messages, and Settings, and each row lands. Builder lands on the Web Office upsell, not a 404. Shot: `media/story-02-avatar-menu.png`. | Not on main or production. Not ✅. | S2 step 1 | — | 2026-10-03 |
 | 55 | Free Add and Move blocked in UI and server | ❌ | FAIL. The builder is still the Web Office upsell. Avatar proof on `cursor/story2-avatar-links-58f5` landed Builder on “The Page Builder is a Web Office feature”, not a locked editor (`media/story-02-avatar-builder.png`). | Add and Move locks were never shown, and the server reject was not exercised. | S2 steps 3–5 | — | 2026-10-03 |
 | 57 | Builder back arrow to dashboard, no new pages | ❌ | FAIL. The editor never opened. The avatar Builder row on `cursor/story2-avatar-links-58f5` landed on the Web Office upsell, not the editor. Back arrow and “no new page” were not observable. | Need a Free editor that actually opens. | S2 step 2 | — | 2026-10-03 |
 | 59 | Website Settings change the live site | 🟡 | Not run. `/talent/site` killed the dev server (OOM) before settings opened. No booking-mode or pause-banner change. Public `/t/TAL-QAFIXFREE` did load (`media/story-02-08-public.png`, Diego as lash artist). | Settings were never toggled, so the live site was not rechecked. Not ✅. | S2 step 6 | — | 2026-10-03 |
@@ -56,22 +56,22 @@ Wall proof 03:16Z (`internal/story-04-jor.md`): on #2490 (`cursor/unrostered-tal
 | 23 | Double booking is impossible | 🟡 | #2468 is on production `e6e00420b`. DB exclusion covers agenda, holds, and chat proposals. | Same slot was not booked twice from a second guest. No live check, so this is not ✅. | S4 step 7 | — | 2026-10-03 |
 | 28 | Confirmation and reminder messages | 🟡 | Booking and reminder templates plus cron exist on main. | No live booking email or in-app reminder checked for language and branding. | S4 step 5 (client side) | — | 2026-10-03 |
 | 33 | Thread stays in sync with Agenda and Money | 🟡 | Messages v5 record chips (`context-view.ts`, `payment-view.ts`). Flag `NEXT_PUBLIC_MESSAGES_V5` / Studio v2 defaults off. | No paid thread compared with Agenda and Money. v5 may be off in production. | S4 step 5 | — | 2026-10-03 |
-| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | A5.1 Checkout+DB went PAID (booking `746f8850-ffbb-4400-802b-5cd949761beb`, session `cs_test_a1PznC0K…`) but `amount_total` was $100.00, not $101.50. Money Collected stayed $0. | Pass-through collect is not on main. Draft #2487 pins seller-pays at 10150¢. Attribution fix is draft #2486. Neither is merged. | S4 steps 4–5 | D15 | 2026-10-03 |
+| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | A5.1 Checkout+DB went PAID (booking `746f8850-ffbb-4400-802b-5cd949761beb`, session `cs_test_a1PznC0K…`) but `amount_total` was $100.00, not $101.50. Money Collected stayed $0. | Pass-through collect is not on main. Draft #2487 (`456404a13`) and draft #2486 (`8b50ccf06`) were rebased onto main and are waiting CI. Neither is merged. | S4 steps 4–5 | D15 | 2026-10-03 |
 | 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | #2482 is on main and production `e6e00420b` (`feat(api)/: receipt PDF fee lines + non-refundable note`). Confirmation copy already had fee lines. | Not ✅ until a live receipt PDF from a paid booking. | S4 step 5 | — | 2026-10-03 |
-| 49 | Money totals: earned, owed, cash, pending | ❌ | #2468 totals code is on production. Live vanity order `f87627b1-2210-44b6-a659-3ade89756030` was PAID and Money still showed $0 Collected (missing `booking_talent` and commission snapshot). | Draft #2486 is not merged. Cancelled-booking exclusion not walked. | S4 step 6 | — | 2026-10-03 |
+| 49 | Money totals: earned, owed, cash, pending | ❌ | #2468 totals code is on production. Live vanity order `f87627b1-2210-44b6-a659-3ade89756030` was PAID and Money still showed $0 Collected (missing `booking_talent` and commission snapshot). | Draft #2486 was rebased to `8b50ccf06`. Vercel failed on that head. The structural gate is still pending. Not merged. Cancelled-booking exclusion not walked. | S4 step 6 | — | 2026-10-03 |
 
 ## Story 5 — Carla asks for a refund (S5)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2481 merged to main `fc3896083` at 2026-10-03T03:22:09Z (head `c57629a77`). #2468 on production still shows refund-pending. Production is still `e6e00420b`. Structural gate run 37092968599 is in progress. | Not ✅ until a live refund walk on a paid booking. The Money button is not on production yet. | S5 step 1 | — | 2026-10-03 |
+| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2481 merged to main `fc3896083` at 2026-10-03T03:22:09Z (head `c57629a77`). #2468 on production still shows refund-pending. Production is still `e6e00420b`. Structural gate run 37092968599 was still in progress at 03:44Z. | Not ✅ until a live refund walk on a paid booking. The Money button is not on production yet. | S5 step 1 | — | 2026-10-03 |
 | 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine and #2469 tests are on production `e6e00420b`. #2481 merged the Money refund button to main `fc3896083`. That is not a fee-net refund. | A5.3 not run. Both live charges were flat $100 with empty payout rows, so the fee-correct amounts were never refunded. Not ✅ until a live refund walk. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
 
 ## Story 6 — Diego pays the card fee (S6)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 46 | Client-pays fee charges about $104.84; talent gets $100 | ❌ | Live A5.2 on Linh charged $100.00 (session `cs_test_a1fUxaxfw…`, order `812cf5f5-eacd-41bd-8ead-de56fbb7c5c3`) while `processing_fee_payer=client`. | Draft #2487 proves $104.84 on Stripe test session `cs_test_a1tBUzzC…` (2026-10-03). That is not a Jor booking. #2487 is not merged. Talent net of exactly $100 was not paid out. | S6 steps 1–3 | — | 2026-10-03 |
+| 46 | Client-pays fee charges about $104.84; talent gets $100 | ❌ | Live A5.2 on Linh charged $100.00 (session `cs_test_a1fUxaxfw…`, order `812cf5f5-eacd-41bd-8ead-de56fbb7c5c3`) while `processing_fee_payer=client`. | Draft #2487 proves $104.84 on Stripe test session `cs_test_a1tBUzzC…` (2026-10-03). That is not a Jor booking. Rebased to `456404a13` and waiting CI. Not merged. Talent net of exactly $100 was not paid out. | S6 steps 1–3 | — | 2026-10-03 |
 
 ## Story 7 — Offer, pay, and control in the thread (S7)
 
@@ -160,10 +160,10 @@ Wall proof 03:16Z (`internal/story-04-jor.md`): on #2490 (`cursor/unrostered-tal
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Re-checked 2026-10-03 03:23Z: `origin/main` is `fc3896083` (#2481). `origin/production` is still `e6e00420b`. Structural gate run 37092968599 is in progress. The previous match (`e6e00420b`, gate 37090740160, alias 37092563179) is no longer the tip. | Production was not hand-pushed. Not ✅ until this main commit’s gate passes and the pointer matches. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | 🟡 | Re-checked 2026-10-03 03:44Z: `origin/main` is `fc3896083` (#2481). `origin/production` is still `e6e00420b`. Structural gate run 37092968599 was still in progress. The previous match (`e6e00420b`, gate 37090740160, alias 37092563179) is no longer the tip. | Production was not hand-pushed. Not ✅ until this main commit’s gate passes and the pointer matches. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 03:23Z: 7 (#2477, #2480, #2486, #2487, #2490, #2491, #2492). #2481 and #2482 are merged. All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2490 is open and not merged. #2491 and #2492 are drafts. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 03:44Z: 7 (#2477, #2480, #2486, #2487, #2490, #2491, #2492). #2481 and #2482 are merged. All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2490, #2491, #2492, #2486, and #2487 were rebased onto main and are waiting CI. #2480 is still open. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | No logged-in console capture this pass. | Live TAL-93900 wall still blocks those pages. #2490 removed the wall only on the branch, and that pass was not a console audit. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Production is now `e6e00420b`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
 | 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` updated 2026-10-03 ~00:25Z. Oran items there are the Desk flag, D-083 Stripe clicks, and legal review of refunds. | Not a live product check. Board is a working note, not proven against every open PR owner. | S14 step 5 | — | 2026-10-03 |
@@ -183,7 +183,7 @@ These questions are not named by a QA story. They stay ❓ until a story says wh
 | 53 | Free, Web Office, and higher plans are purchasable | ❓ | Checkout session and plan catalog exist in code. Live Stripe price IDs were not re-checked. | No story. | No story | D7 | 2026-10-03 |
 | 62 | Bilingual talent site, ES primary and EN secondary | ❓ | `LanguagesGroup` and `LIVE_SITE_LOCALES = ["es","en"]` exist. Coverage UI expects gaps. | No story. Full bilingual content is not proven. | No story | D8 | 2026-10-03 |
 | 70 | Gallery matches the 2026 standard | ❓ | #2474 and #2475 are on production `e6e00420b`. No live gallery walk. | No story. | No story | D9 | 2026-10-03 |
-| 89 | Terms, Privacy, and refund policies in ES and EN | ❓ | 2026-10-03 00:29Z: `/legal/terms` 200, `/es/legal/terms` 200, `/legal/privacy` 200, `/legal/refunds` 404. #2480 (refunds page) is open. | No story. | No story | D10 | 2026-10-03 |
+| 89 | Terms, Privacy, and refund policies in ES and EN | ❓ | 2026-10-03 00:29Z: `/legal/terms` 200, `/es/legal/terms` 200, `/legal/privacy` 200, `/legal/refunds` 404. #2480 is still open at `cc5b41dc5`. Its structural gate was in progress at 03:44Z. | No story. | No story | D10 | 2026-10-03 |
 | 90 | Talent is merchant of record in checkout copy | ❓ | Terms and Money say merchant of record with `LEGAL_REVIEW_PENDING`. `CheckoutView.tsx` has no merchant-of-record line. Lawyer review is still pending. | No story. | No story | D11 | 2026-10-03 |
 | 91 | Retention 3y / 30d / 90d runs and logs a dry-run | ❓ | Cron jobs exist. 3y inquiry retention and 30d media reaper dry-run unless flags are on. `logsDays: 90` is config-only; audit trim uses 180 days. | No story. No production dry-run log reviewed. | No story | D12 | 2026-10-03 |
 | 93 | Mexico tax / CFDI decided | ❓ | `docs/mx-tax-withholding-decision.md`: no platform MX withholding for now. Accountant still to do. | No story. | No story | D13 | 2026-10-03 |
@@ -199,7 +199,7 @@ D6 (#52). No story. Also deferred (USDC payouts). Confirm ⏸, or keep ❓?
 D7 (#53). No story for buying Free, Web Office, or a higher plan. Which Stripe price IDs and which test card count as yes?
 D8 (#62). No story for a bilingual talent site. Do language settings plus hreflang count, or must every section be filled in ES and EN?
 D9 (#70). No story for the 2026 gallery. #2474 and #2475 are on production `e6e00420b`. What live pass counts as yes?
-D10 (#89). No story. Terms and Privacy return 200. `/legal/refunds` returns 404 and #2480 is open. Does the refund page have to be live before this leaves ❓?
+D10 (#89). No story. Terms and Privacy return 200. `/legal/refunds` returns 404 and #2480 is still open. Does the refund page have to be live before this leaves ❓?
 D11 (#90). No story. Lawyer merchant-of-record review is still pending, and checkout has no MoR line. Confirm ⏸?
 D12 (#91). No story for the retention dry-run. Which cron log is the proof?
 D13 (#93). No story. CFDI / MX tax is deferred. Confirm ⏸?
@@ -212,8 +212,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-Pulled `status/done-board` first (already at `8bf62acde`). REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
-#2481 merged at 2026-10-03T03:22:09Z. Main tip is `fc3896083`. Production is still `e6e00420b`. Structural gate run 37092968599 is in progress. Production was not hand-pushed.
-#26 and #47 stay 🟡 until a live refund walk. #48 stays 🟡 until a live receipt PDF. #13 stays 🟡.
-#94 moves ✅ → 🟡 because production does not equal the new main.
+Pulled `status/done-board` first (already at `798bb7bc4`). REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
+Main is still `fc3896083`. Production is still `e6e00420b`. Structural gate run 37092968599 was still in progress at 03:44Z. Production was not hand-pushed.
+Talent PRs #2490 (`cadb39438`), #2491 (`8f6c80e86`), and #2492 (`4861ae17c`) were rebased onto main and are waiting CI. Money PRs #2486 (`8b50ccf06`) and #2487 (`456404a13`) were rebased onto main and are waiting CI. #2480 is still open at `cc5b41dc5`.
+No status emoji changed. #13 stays 🟡.
 Scoreboard: ✅ 1 / 🟡 67 / ❌ 17 / ⏸ 1 / ❓ 14.
