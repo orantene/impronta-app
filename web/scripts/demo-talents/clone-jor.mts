@@ -13,7 +13,8 @@
  * The clone is a demo (is_demo, app_metadata.demo_batch, TAL-93900,
  * @impronta.test), not in the directory, and logged in the seed manifest with
  * NO storage paths, so `seed.mts --remove` deletes the clone's rows but never
- * Jor's files.
+ * Jor's files. Profile id is pinned (`CLONE.profileId`) so Vercel allow-lists
+ * like `TALENT_MAISON_THEME_TALENTS` survive cleanup/reseed.
  *
  * Run (from web/):
  *   NODE_PATH=scripts/demo-talents/stubs DEMO_SEED_TARGET_REF=<ref> \
@@ -27,6 +28,8 @@ import { DEMO_BATCH } from "./demos";
 
 const JOR_PROFILE_ID = "f048e578-cbae-45db-9a3b-34239abea136";
 const CLONE = {
+  /** Stable across seed --remove + re-clone; keep in sync with Maison allow-list. */
+  profileId: "c99f8adb-8ebb-4aad-911a-897e73efd369",
   profileCode: "TAL-93900",
   email: "demo-jor-clone@impronta.test",
   siteSlug: "jorg-beauty-qa",
@@ -127,6 +130,11 @@ Object.assign(profilePatch, {
 });
 const existing = await must<Row | null>(admin.from("talent_profiles").select("id, user_id").eq("profile_code", CLONE.profileCode).maybeSingle(), "find clone");
 if (existing && existing.user_id !== userId) throw new Error("REFUSE: TAL-93900 linked to another user");
+if (existing && existing.id !== CLONE.profileId) {
+  throw new Error(
+    `REFUSE: TAL-93900 id is ${existing.id}, expected stable ${CLONE.profileId}; run seed --remove then re-clone`,
+  );
+}
 let cloneId: string;
 if (existing) {
   cloneId = existing.id as string;
@@ -136,7 +144,16 @@ if (existing) {
   await must(admin.from("media_assets").delete().eq("owner_talent_profile_id", cloneId).select("id"), "clear media");
 } else {
   const row = await must<Row>(
-    admin.from("talent_profiles").insert({ ...profilePatch, profile_code: CLONE.profileCode, public_slug_part: CLONE.siteSlug }).select("id").single(),
+    admin
+      .from("talent_profiles")
+      .insert({
+        ...profilePatch,
+        id: CLONE.profileId,
+        profile_code: CLONE.profileCode,
+        public_slug_part: CLONE.siteSlug,
+      })
+      .select("id")
+      .single(),
     "insert clone",
   );
   cloneId = row.id as string;
