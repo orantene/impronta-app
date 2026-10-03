@@ -165,6 +165,7 @@ export async function TalentSiteFreeformRenderer({
       componentStyleDefaults,
       captcha: captchaConfig,
       visitorLocale: locale,
+      contentLocale: { locale, defaultLocale: "en", chain: [locale, "en"] },
       ...experimentContext,
       renderSectionEmbed,
     });

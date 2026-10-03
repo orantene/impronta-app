@@ -78,8 +78,14 @@ test("every soft rule is scoped to the soft chrome (or is the anchor-scroll shee
   }
   assert.doesNotMatch(soft, HEX);
   assert.doesNotMatch(soft, /maison/i);
-  // The base editorial sheet carries the soft sheet LAST, so equal-scope ties go to it.
-  assert.ok(EDITORIAL_TYPE_SYSTEM_CSS.endsWith(soft));
+  // Soft chrome still wins equal-scope ties; Wave 1 appends dark-footer + preview
+  // dock hygiene after it (must beat soft accent-em / apply on every type system).
+  assert.ok(EDITORIAL_TYPE_SYSTEM_CSS.includes(soft));
+  const afterSoft = EDITORIAL_TYPE_SYSTEM_CSS.slice(EDITORIAL_TYPE_SYSTEM_CSS.lastIndexOf(soft) + soft.length);
+  assert.match(
+    afterSoft,
+    /^\n\[data-theme-canvas-root\]\[data-token-footer-tone="dark"\] #s-foot h2[\s\S]*\n\[data-theme-canvas-root\]\[data-talent-theme-preview\] \.cb-island > \.cb-dock/,
+  );
   // Folio's magazine system has no soft rules.
   assert.ok(!MAGAZINE_TYPE_SYSTEM_CSS.includes("shape-chrome"));
 });
@@ -203,7 +209,7 @@ test("MN-6 MN-7 MN-8: sticky phone chips under the header, desktop rail below it
 
 test("FQ-1: each question is a raised card, '+' in a 32px tint circle that turns 45 degrees, two columns on desktop", () => {
   assert.match(soft, /accordion-item\{background:var\(--token-color-surface-raised[^}]*border-radius:18px!important;padding:0 20px!important/);
-  assert.match(soft, /summary\{align-items:center;min-height:64px;font-size:16px\}/);
+  assert.match(soft, /summary\{align-items:center;min-height:64px;font-size:16px;color:var\(--token-color-ink\)\}/);
   assert.match(soft, /summary::after\{[^}]*width:32px;height:32px;border-radius:50%;background:var\(--token-color-blush/);
   assert.match(soft, /\[open\] > summary::after\{content:"\+";transform:rotate\(45deg\)\}/);
   assert.match(soft, /accordion\{grid-template-columns:1fr 1fr!important/);

@@ -50,15 +50,28 @@ export function AppBadge({
   );
 }
 
-const PLAYGROUND: Record<string, (locale: MaisonSetupLocale) => ReactNode> = {
-  app_nail_designer: (locale) => (
-    <section className="sb-nd">
-      <NailStudioFrame locale={locale} />
+type PreviewDevice = "phone" | "desktop";
+
+const PLAYGROUND: Record<
+  string,
+  (locale: MaisonSetupLocale, device: PreviewDevice) => ReactNode
+> = {
+  app_nail_designer: (locale, device) => (
+    <section className="sb-nd" data-nd-layout={device}>
+      <NailStudioFrame locale={locale} layout={device} />
     </section>
   ),
 };
 
-export function AppsTab({ apps, locale }: { apps: ReadonlyArray<AppLibraryEntry>; locale: MaisonSetupLocale }) {
+export function AppsTab({
+  apps,
+  locale,
+  previewDevice = "desktop",
+}: {
+  apps: ReadonlyArray<AppLibraryEntry>;
+  locale: MaisonSetupLocale;
+  previewDevice?: PreviewDevice;
+}) {
   if (apps.length === 0) {
     return (
       <p data-testid="gallery-apps-empty" className="p-4 text-[13px] text-admin-ink-dim">
@@ -93,8 +106,16 @@ export function AppsTab({ apps, locale }: { apps: ReadonlyArray<AppLibraryEntry>
                 {galleryAppsT(locale, "play")}
               </p>
             </header>
-            <div data-testid={`gallery-app-playground-${app.nativeKind}`} className="overflow-x-auto px-2 pb-3">
-              {play ? play(locale) : null}
+            <div
+              data-testid={`gallery-app-playground-${app.nativeKind}`}
+              data-gallery-app-device={previewDevice}
+              className={
+                previewDevice === "phone"
+                  ? "mx-auto w-full max-w-[375px] overflow-x-auto px-2 pb-3"
+                  : "overflow-x-auto px-2 pb-3"
+              }
+            >
+              {play ? play(locale, previewDevice) : null}
             </div>
           </article>
         );

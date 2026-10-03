@@ -153,10 +153,11 @@ export function ThemeDetailScreen({
   // preview paints its colours and fonts on first load, not the platform's.
   const lookSlug = selectedPaletteKey ? galleryPreviewLookSlug(design, selectedPaletteKey) : null;
   const showDemoContent = choices.contentMode === "demo";
+  const demoParam = showDemoContent ? demoPreviewParam(design.slug, demo) : null;
   const url = preview.src(
     design.slug,
     lookSlug,
-    showDemoContent ? demoPreviewParam(design.slug, demo) : null,
+    demoParam,
   );
   const designTitle = design.name;
   const description = locale === "es" ? design.description.es : design.description.en;
@@ -330,6 +331,17 @@ export function ThemeDetailScreen({
           : "w-full overflow-hidden rounded-xl border border-admin-border-soft"
       }
     >
+      {/* G1-P0-05: demo chip lives on the frame chrome, never over scroll content. */}
+      {demoParam ? (
+        <div className="flex justify-end border-b border-admin-border-soft/70 bg-admin-canvas/80 px-3 py-1.5">
+          <span
+            data-testid="gallery-demo-content-chip"
+            className="rounded bg-admin-ink/85 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white"
+          >
+            {maisonSetupT(locale, "DEMO CONTENT")}
+          </span>
+        </div>
+      ) : null}
       <div className="relative">
         <ThemeGalleryPreviewFrame
           preview={preview}
@@ -342,11 +354,6 @@ export function ThemeDetailScreen({
           virtualWidth={choices.previewDevice === "phone" ? undefined : 1280}
           aspectRatio={choices.previewDevice === "phone" ? undefined : "16 / 11"}
         />
-        {showDemoContent ? (
-          <span className="absolute bottom-3 left-3 rounded bg-admin-ink/85 px-2 py-1 text-[10px] font-bold tracking-wide text-white">
-            {maisonSetupT(locale, "DEMO CONTENT")}
-          </span>
-        ) : null}
       </div>
     </div>
   );
@@ -523,7 +530,11 @@ export function ThemeDetailScreen({
           {tabStrip}
 
           <div className="min-h-0 flex-1 overflow-auto">
-            {appsTabOn ? <AppsTab apps={detailApps} locale={locale} /> : previewFrame}
+            {appsTabOn ? (
+              <AppsTab apps={detailApps} locale={locale} previewDevice={choices.previewDevice} />
+            ) : (
+              previewFrame
+            )}
           </div>
         </div>
 
