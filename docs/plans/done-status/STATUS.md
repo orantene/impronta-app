@@ -1,9 +1,9 @@
-Updated: 2026-10-03 00:39Z · Scoreboard: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 00:55Z · Scoreboard: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14
 Live SHA: ba672f613 · Main SHA: 27a47c66b
 Top 3 blockers right now
-1. Main is still red at 27a47c66b. Re-checked 00:39Z: run 37080540629 is still failed (8 scheduling tests). Production is still ba672f613, the last green (run 37074973497). A scheduling-gate fix is running and unmerged, so #18 stays ❌.
-2. TAL-93900 wall fix is running and not landed, so Stories 3–7 stay blocked. Talent visual refresh is running and not proven. Cloud VM Inquire on /t/TAL-93900 still says “Directory is not configured.”
-3. Money queue #2482 → #2481 → #2480 → #2486 → #2487 is held because main is red. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
+1. Main is still red at 27a47c66b. Re-checked 00:55Z: run 37080540629 is still failed (8 scheduling tests). Production is still ba672f613, the last green (run 37074973497). A scheduling-gate fix is running and unmerged, so #18 stays ❌.
+2. TAL-93900 wall fix is running and not landed, so Stories 3–7 stay blocked. Talent visual refresh is running and not proven. Valeria Story 2 is still proving on the QA machine. Cloud VM Inquire on /t/TAL-93900 still says “Directory is not configured.”
+3. Money queue #2482 → #2481 → #2480 → #2486 → #2487 stays held because main is red. #2481 is green (structural gate SUCCESS) and still waits behind #2482. #2482’s own structural gate failed the same 8 scheduling tests (run 37080567517), not a new receipt defect. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
 
@@ -25,7 +25,7 @@ Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ onl
 
 ## Story 2 — Valeria on the Free plan (S2)
 
-Valeria Story 2 is proving on the QA machine (2026-10-03 00:39Z). That pass is not finished, so these rows are not ✅.
+Valeria Story 2 is still proving on the QA machine (2026-10-03 00:55Z). That pass is not finished, so these rows are not ✅.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
@@ -55,14 +55,14 @@ Valeria Story 2 is proving on the QA machine (2026-10-03 00:39Z). That pass is n
 | 28 | Confirmation and reminder messages | 🟡 | Booking and reminder templates plus cron exist on main. | No live booking email or in-app reminder checked for language and branding. | S4 step 5 (client side) | — | 2026-10-03 |
 | 33 | Thread stays in sync with Agenda and Money | 🟡 | Messages v5 record chips (`context-view.ts`, `payment-view.ts`). Flag `NEXT_PUBLIC_MESSAGES_V5` / Studio v2 defaults off. | No paid thread compared with Agenda and Money. v5 may be off in production. | S4 step 5 | — | 2026-10-03 |
 | 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | A5.1 Checkout+DB went PAID (booking `746f8850-ffbb-4400-802b-5cd949761beb`, session `cs_test_a1PznC0K…`) but `amount_total` was $100.00, not $101.50. Money Collected stayed $0. | Pass-through collect is not on main. Draft #2487 pins seller-pays at 10150¢. Attribution fix is draft #2486. Both are held because main is red. | S4 steps 4–5 | D15 | 2026-10-03 |
-| 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | Confirmation copy has fee lines on main. Receipt PDF fee lines are open #2482 (not merged). | No receipt PDF from a live paid booking. #2482 is first in the money queue and is held because main is red. | S4 step 5 | — | 2026-10-03 |
+| 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | Confirmation copy has fee lines on main. Receipt PDF fee lines are open #2482 (not merged). | No receipt PDF from a live paid booking. #2482 is first in the money queue. Its structural gate failed the same 8 scheduling tests as red main (run 37080567517, 00:55Z), so it is held. | S4 step 5 | — | 2026-10-03 |
 | 49 | Money totals: earned, owed, cash, pending | ❌ | #2468 totals code is on production. Live vanity order `f87627b1-2210-44b6-a659-3ade89756030` was PAID and Money still showed $0 Collected (missing `booking_talent` and commission snapshot). | Draft #2486 is held because main is red. Cancelled-booking exclusion not walked. | S4 step 6 | — | 2026-10-03 |
 
 ## Story 5 — Carla asks for a refund (S5)
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. Money Refund button is open #2481 (`executeBookingRefund`), not merged. | No paid booking cancelled on tulala.digital. #2481 is held because main is red. | S5 step 1 | — | 2026-10-03 |
+| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. Money Refund button is open #2481 (`executeBookingRefund`). #2481 structural gate is SUCCESS (00:55Z), including Local Supabase. | No paid booking cancelled on tulala.digital. #2481 is green and still waits behind #2482 because main is red. | S5 step 1 | — | 2026-10-03 |
 | 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine and #2469 tests are on production `ba672f613`. | A5.3 not run. Both live charges were flat $100 with empty payout rows, so the fee-correct amounts were never refunded. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
 
 ## Story 6 — Diego pays the card fee (S6)
@@ -158,10 +158,10 @@ Valeria Story 2 is proving on the QA machine (2026-10-03 00:39Z). That pass is n
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ❌ | Re-checked 2026-10-03 00:39Z: structural gate on `27a47c66b` is still failed (run 37080540629, scheduling, 8 tests, conclusion failure). `origin/production` is still `ba672f613` (last green, run 37074973497). | Main is red. A scheduling-gate fix is running and unmerged. Promote on `27a47c66b` stays skipped. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | ❌ | Re-checked 2026-10-03 00:55Z: structural gate on `27a47c66b` is still failed (run 37080540629, scheduling, 8 tests, conclusion failure). `origin/production` is still `ba672f613` (last green, run 37074973497). | Main is red. A scheduling-gate fix is running and unmerged. Promote on `27a47c66b` stays skipped. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `ba672f613` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 00:39Z: same 6 open (#2477, #2480, #2481, #2482, #2486, #2487). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None. Scheduling-gate fix, wall fix, and visual refresh are running and have no open PR yet. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | `gh pr list` 2026-10-03 00:55Z: same 6 open (#2477, #2480, #2481, #2482, #2486, #2487). All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None. Scheduling-gate fix, wall fix, and visual refresh are running and have no open PR yet. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | No logged-in console capture this pass. | TAL-93900 wall blocks dashboard, builder, inbox, and money. Public `/t/TAL-93900` was not console-audited. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Last promote is `ba672f613`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
 | 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` updated 2026-10-03 ~00:25Z. Oran items there are the Desk flag, D-083 Stripe clicks, and legal review of refunds. | Not a live product check. Board is a working note, not proven against every open PR owner. | S14 step 5 | — | 2026-10-03 |
@@ -210,8 +210,9 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-15-minute refresh at 2026-10-03 00:39Z. Pulled `status/done-board` first (already at `fbf8590ad`).
+15-minute refresh at 2026-10-03 00:55Z. Pulled `status/done-board` first (already at `ca445e9a2`).
 REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
 SHAs re-fetched: production `ba672f613`, main `27a47c66b`. Run 37080540629 is still `completed` / `failure`. No new ✅.
-In flight, not done: scheduling-gate fix (unmerged), TAL-93900 wall fix, talent visual refresh, Valeria Story 2 on the QA machine. Money queue #2482 → #2481 → #2480 → #2486 → #2487 stays held because main is red.
+Still in flight, not done: scheduling-gate fix, TAL-93900 wall fix, talent visual refresh, Valeria Story 2.
+Money queue stays held because main is red. #2481 structural gate is SUCCESS and still waits behind #2482. #2482 structural gate failed the same 8 scheduling tests (run 37080567517), not a new receipt defect.
 Scoreboard unchanged: ✅ 1 / 🟡 66 / ❌ 18 / ⏸ 1 / ❓ 14. #97 stays ✅ on a fresh `gh pr list` (same 6 open PRs, all under 2 days, author `orantene`).
