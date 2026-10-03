@@ -6,16 +6,28 @@ For Oran. One page. Detail + flag matrix: [FEATURES.md](./FEATURES.md) · [VISIB
 
 ---
 
+## Live prove 21:12Z
+
+Persona sweep on tip `7d30bb9d1` (LIVE only · `app.tulala.digital` + public talent hosts). Report: [persona-visibility-sweep.md](../../../internal/persona-visibility-sweep.md) · Shots: [media/built-vs-live-audit/](../../../media/built-vs-live-audit/)
+
+| | Count | Highlights |
+|---|---|---|
+| ✅ | **26** | Presence tabs, Website settings, Messages, Today, identity bar, public sites + booking CTAs, platform HQ (except Desk) — paid + Free + fresh register UI |
+| ⚠ | **2** | Theme gallery entry opens; template previews hang on **Cargando vista previa** |
+| ❌ | **3** | Talent-site cookie Accept/Decline absent · Support Desk `/platform/admin/support/desk` **404** (waiting tip `1d56220d1`) · brand-new signup → published E2E not walked |
+
+---
+
 ## Live and ready to launch
 
 What a talent gets on **tulala.digital / app.tulala.digital** today:
 
-- **Presence Studio v2** — tabs Mi sitio web / Dónde aparezco / Descubrir redes (paid + Free)
+- **Presence Studio v2** — tabs Mi sitio web / Dónde aparezco / Descubrir redes (paid + Free) — live-proved 21:12Z
 - **Today / Calendar (Agenda V2)** for all talents
-- **Messages v5** path (Studio + env bake)
+- **Messages v5** path (Studio + env bake) — inbox ✅
 - **Free website + Free Builder** (Valeria / fresh Free)
-- **Website settings** for all talents
-- **Theme gallery** env ON (finished Maison / Folio / Gridline set; entry path being confirmed by sibling shots)
+- **Website settings** for all talents — ✅
+- **Theme gallery** env ON (finished Maison / Folio / Gridline set; entry ✅, preview load ⚠)
 - **Talent subdomains** `*.tulala.digital`
 - **Preview eye** → live site
 - **Dashboard teal / Alba** visual tokens
@@ -66,6 +78,10 @@ What a talent gets on **tulala.digital / app.tulala.digital** today:
 | Front-door chat paid flip + `?order=` cold load | Finish + live prove (owed) |
 | Messages Accept/Decline + net split E2E | Story 7 QA |
 | Website settings → each setting changes live site | Story 2 |
+| Theme gallery preview load hang | Entry works; fix Cargando vista previa |
+| Talent cookie Accept/Decline on public sites | ❌ live; wait #2502 / consent tooling |
+| Support Desk host 404 | Wait tip `1d56220d1` + prove |
+| Brand-new talent signup → published URL | E2E unproven (register UI ✅ only) |
 | Bilingual ES+EN talent prove | Story / live |
 | Paid money path (Connect + KYC + durable QA password) | Ops |
 | AI booking assistant (S8) | Build later |
