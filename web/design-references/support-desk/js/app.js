@@ -319,11 +319,8 @@
     const owner = state.role === "owner";
     return `
       <aside class="pane pane-rail">
-        <div class="pane-header pane-header-rail">
-          <span class="rail-label">Views</span>
-        </div>
         <div class="pane-body">
-          <div class="nav-section">Queues</div>
+          <div class="nav-section">Views</div>
           ${D()
             .queues.map(
               (q) => `
