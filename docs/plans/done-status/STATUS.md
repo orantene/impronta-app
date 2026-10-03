@@ -1,1 +1,1 @@
-@/tmp/STATUS.full.2115.md
+FILE_CONTENTS_FROM_/tmp/STATUS.full.2115.md
