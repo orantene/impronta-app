@@ -6,6 +6,7 @@ import {
   SUPPORT_DESK_LOCAL_PATH,
   supportDeskHref,
   supportDeskOpenFromHqHref,
+  supportDeskPortalRedirectHref,
 } from "./desk-url";
 
 describe("desk-url", () => {
@@ -36,6 +37,17 @@ describe("desk-url", () => {
       assert.equal(supportDeskOpenFromHqHref(), SUPPORT_DESK_HOST_PATH);
     } else {
       assert.match(supportDeskOpenFromHqHref(), /^https:\/\/support\.tulala\.digital\/desk$/);
+    }
+  });
+
+  it("portal redirect preserves ticket + view on the open-from-HQ base", () => {
+    const href = supportDeskPortalRedirectHref({ ticketId: "t1", view: "ideas" });
+    assert.match(href, /[?&]ticket=t1/);
+    assert.match(href, /[?&]view=ideas/);
+    if (process.env.NODE_ENV === "development") {
+      assert.ok(href.startsWith(SUPPORT_DESK_HOST_PATH));
+    } else {
+      assert.match(href, /^https:\/\/support\.tulala\.digital\/desk\?/);
     }
   });
 });

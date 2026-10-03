@@ -1,9 +1,10 @@
 /**
  * Support Desk product entry (`support.tulala.digital/desk` and app-host `/desk`).
- * Reuses HQ queue loaders + actions. Master switch: `SUPPORT_DESK_ENABLED`.
+ * Mirrors Platform HQ Support via `SupportDeskPortal` → `SupportHqShell`.
+ * Master switch: `SUPPORT_DESK_ENABLED` (default OFF on Vercel).
  */
 
-import { SupportDeskShell } from "@/components/support-desk/SupportDeskShell";
+import { SupportDeskPortal } from "@/components/support-desk/SupportDeskPortal";
 import { loadDeskPage } from "@/lib/support/desk/load-desk-page";
 import { SUPPORT_DESK_HOST_PATH } from "@/lib/support/desk/desk-url";
 
@@ -25,15 +26,22 @@ export default async function SupportDeskPage({
 
   const data = await loadDeskPage({
     ticketId: sp.ticket ?? null,
+    view: sp.view ?? null,
     loginNext,
   });
 
+  const openCount = data.rows.filter((r) => r.ticket.status === "open").length;
+
   return (
-    <SupportDeskShell
+    <SupportDeskPortal
       rows={data.rows}
+      insights={data.insights}
       cannedReplies={data.cannedReplies}
+      ideas={data.ideas}
+      initialOpenCount={openCount}
       initialTicketId={data.initialTicketId}
-      selfUserId={data.selfUserId}
+      initialView={data.initialView}
     />
   );
 }
+

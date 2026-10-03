@@ -49,3 +49,19 @@ export function supportDeskOpenFromHqHref(): string {
   }
   return `https://${SUPPORT_DESK_PRIMARY_HOST}${SUPPORT_DESK_HOST_PATH}`;
 }
+
+/**
+ * Target for retiring `/platform/admin/support` when the Desk flag is on —
+ * preserves ticket/view query onto the portal entry.
+ */
+export function supportDeskPortalRedirectHref(opts?: {
+  ticketId?: string | null;
+  view?: string | null;
+}): string {
+  const base = supportDeskOpenFromHqHref();
+  const params = new URLSearchParams();
+  if (opts?.ticketId) params.set("ticket", opts.ticketId);
+  if (opts?.view) params.set("view", opts.view);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}

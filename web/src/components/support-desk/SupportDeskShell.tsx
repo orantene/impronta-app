@@ -1,8 +1,12 @@
 "use client";
 
 /**
- * Support Desk shell — three-pane desktop + mobile stack.
- * Reuses HQ loaders/actions/engine. Flag-gated by the page.
+ * LEGACY three-pane Desk shell (Phase 1b).
+ *
+ * Product entry `/desk` now mounts `SupportDeskPortal` → `SupportHqShell`
+ * so the portal mirrors the HQ Support page. Keep this file for presence /
+ * send-idempotency helpers and static contracts until those land on the
+ * shared HQ drawer path. Do not wire new product routes here.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
