@@ -106,6 +106,11 @@ const AVATAR_DESTINATIONS = [
  * `window.open`: a link is what this is, so middle-click, "copy link address"
  * and the screen-reader link role all work, and the URL is inspectable in the
  * DOM instead of living only inside a click handler.
+ *
+ * `navigation` is explicit: public profile / site rows must open in a new
+ * tab even when `publicSiteUrl` is the root-relative hub fallback
+ * (`/t/${profileCode}` from dashboard-state). Protocol sniffing alone
+ * treats that path as in-app and would replace the dashboard tab.
  */
 function RowShell({
   children,
@@ -113,16 +118,17 @@ function RowShell({
   ariaLabel,
   href,
   testId,
+  navigation = "same-tab",
 }: {
   children: ReactNode;
   onClick: () => void;
   ariaLabel: string;
   href?: string;
   testId?: string;
+  navigation?: "same-tab" | "new-tab";
 }) {
   if (href) {
-    // Public profile URLs leave the app. Dashboard routes stay in this tab.
-    const external = /^https?:\/\//i.test(href);
+    const external = navigation === "new-tab";
     return (
       <a
         href={href}
@@ -201,11 +207,13 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         </div>
       </div>
 
-      {/* My website */}
+      {/* My website — public surface; always a new tab when a URL exists
+          (absolute personal site OR root-relative `/t/<code>` fallback). */}
       <RowShell
         testId="website"
         ariaLabel={copy.t("My website")}
         href={hasSite && site?.publicSiteUrl ? site.publicSiteUrl : undefined}
+        navigation="new-tab"
         onClick={() => {
           onNavigate();
           if (!(hasSite && site?.publicSiteUrl)) {
@@ -226,12 +234,13 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         </span>
       </RowShell>
 
-      {/* My Tulala profile */}
+      {/* My Tulala profile — public surface; always a new tab. */}
       {selfEntry?.publicUrl ? (
         <RowShell
           testId="self-profile"
           ariaLabel={copy.t("My Tulala profile")}
           href={selfEntry.publicUrl}
+          navigation="new-tab"
           onClick={onNavigate}
         >
           <RowIcon>

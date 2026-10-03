@@ -546,7 +546,10 @@ function AccountMenuTrigger({
       {open && (
         <div
           role="menu"
-          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
+          // Viewport-bounded height + scroll so Sign out / lower controls
+          // stay reachable on short screens (Story 2 avatar rows + "Where I
+          // appear" can push the menu past the fold).
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] max-h-[min(480px,calc(100dvh-72px))] min-w-[240px] overflow-x-hidden overflow-y-auto rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
         >
           <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {isTalentSurface ? (
