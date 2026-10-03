@@ -1,5 +1,6 @@
 /**
  * Journeys 2 / 24–25 — Desk product wiring static contracts.
+ * Portal reuses HQ Support guts; flag stays OFF on Vercel by default.
  */
 
 import assert from "node:assert/strict";
@@ -10,11 +11,31 @@ import { describe, it } from "node:test";
 const WEB_SRC = join(process.cwd(), "src");
 
 describe("desk shell wiring", () => {
-  it("Desk page loads queue via loadDeskPage + SupportDeskShell", () => {
+  it("Desk page mounts HQ Support via SupportDeskPortal (not a parallel inbox)", () => {
     const page = readFileSync(join(WEB_SRC, "app/desk/page.tsx"), "utf8");
     assert.match(page, /loadDeskPage/);
-    assert.match(page, /SupportDeskShell/);
-    assert.match(page, /isSupportDeskEnabled|loadDeskPage/);
+    assert.match(page, /SupportDeskPortal/);
+    assert.doesNotMatch(page, /SupportDeskShell/);
+  });
+
+  it("SupportDeskPortal wraps SupportHqShell + NotificationPermissionCard", () => {
+    const portal = readFileSync(
+      join(WEB_SRC, "components/support-desk/SupportDeskPortal.tsx"),
+      "utf8",
+    );
+    assert.match(portal, /SupportHqShell/);
+    assert.match(portal, /NotificationPermissionCard/);
+    assert.doesNotMatch(portal, /mockup/i);
+  });
+
+  it("HQ support page redirects to Desk portal when flag is on", () => {
+    const page = readFileSync(
+      join(WEB_SRC, "app/(workspace)/platform/admin/support/page.tsx"),
+      "utf8",
+    );
+    assert.match(page, /isSupportDeskEnabled/);
+    assert.match(page, /supportDeskPortalRedirectHref/);
+    assert.match(page, /redirect\(/);
   });
 
   it("local QA stub redirects to /desk (no mockup-wait copy)", () => {
@@ -28,7 +49,7 @@ describe("desk shell wiring", () => {
     assert.doesNotMatch(page, /Phase 0\.5/);
   });
 
-  it("HQ shell exposes Open Support Desk when deskEnabled", () => {
+  it("HQ shell still exposes Open Support Desk when deskEnabled (legacy entry)", () => {
     const shell = readFileSync(
       join(WEB_SRC, "app/(workspace)/platform/admin/support/SupportHqShell.tsx"),
       "utf8",
@@ -38,7 +59,7 @@ describe("desk shell wiring", () => {
     assert.match(shell, /deskOpenFromHq/);
   });
 
-  it("Desk shell reuses HQ actions (no second ticket write path)", () => {
+  it("legacy SupportDeskShell kept hq-actions wiring (superseded by portal)", () => {
     const shell = readFileSync(
       join(WEB_SRC, "components/support-desk/SupportDeskShell.tsx"),
       "utf8",
