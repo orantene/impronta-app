@@ -119,7 +119,7 @@ export async function loadTalentPersonalSiteDashboardState(
       };
       let customDomain: string | null = null;
       if (siteMeta.site_published_at) {
-        const { data: domainRow } = await admin
+        const { data: domainRow, error: domainErr } = await admin
           .from("talent_site_domains")
           .select("domain")
           .eq("talent_profile_id", scope.talentProfile.id)
@@ -127,7 +127,10 @@ export async function loadTalentPersonalSiteDashboardState(
           .eq("status", "active")
           .limit(1)
           .maybeSingle();
-        customDomain = (domainRow as { domain?: string | null } | null)?.domain ?? null;
+        // Domain lookup failure degrades to vanity/path — never blocks the dashboard.
+        if (!domainErr) {
+          customDomain = (domainRow as { domain?: string | null } | null)?.domain ?? null;
+        }
       }
       personalSiteUrl = publishedPersonalSiteUrl({
         siteSlug: siteMeta.site_slug,
