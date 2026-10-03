@@ -247,9 +247,7 @@ export async function loadTalentSelfProfileByUser(
     if (!supabase) return null;
     const trusted = createServiceRoleClient() ?? supabase;
 
-    const { data: profileRow, error: profileErr } = await supabase
-      .from("talent_profiles")
-      .select(`
+    const profileSelect = `
         id,
         display_name,
         first_name,
@@ -263,7 +261,18 @@ export async function loadTalentSelfProfileByUser(
         height_cm,
         contact_policy,
         home_city_text,
-        availability_data,
+        availability_data
+    `;
+    // limit(1), not maybeSingle: a second row makes maybeSingle an error,
+    // and the layout then 404s every /talent/* route including /talent/money.
+    // Prefer service-role when configured: the layout 404s every /talent/*
+    // sub-route when this read returns null, while /talent itself can still
+    // resolve via a later admin fallback. Using `trusted` keeps Today/Money
+    // reachable for the same actor the root page already recognized.
+    let { data: profileRows, error: profileErr } = await trusted
+      .from("talent_profiles")
+      .select(`
+        ${profileSelect},
         talent_profile_taxonomy (
           relationship_type,
           taxonomy_terms ( name_i18n )
@@ -274,10 +283,24 @@ export async function loadTalentSelfProfileByUser(
         )
       `)
       .eq("user_id", userId)
-      .maybeSingle();
+      .limit(1);
 
+    if (profileErr) {
+      logServerError("talent.loadSelfProfileByUser.profile", profileErr);
+      // Embeds can fail the whole read. The scalar row is enough to open
+      // Today and Money; missing taxonomy just leaves those fields empty.
+      const fallback = await trusted
+        .from("talent_profiles")
+        .select(profileSelect)
+        .eq("user_id", userId)
+        .limit(1);
+      profileRows = fallback.data as typeof profileRows;
+      profileErr = fallback.error;
+      if (profileErr) logServerError("talent.loadSelfProfileByUser.profileFallback", profileErr);
+    }
+
+    const profileRow = profileRows?.[0] ?? null;
     if (profileErr || !profileRow) {
-      if (profileErr) logServerError("talent.loadSelfProfileByUser.profile", profileErr);
       return null;
     }
 

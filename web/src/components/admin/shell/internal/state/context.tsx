@@ -139,7 +139,7 @@ type Ctx = {
   setPage: (p: WorkspacePage) => void;
   /** Update active surface from route mount without pushing a navigation. */
   syncPage: (p: WorkspacePage) => void;
-  setTalentPage: (p: TalentPage) => void;
+  setTalentPage: (p: TalentPage, opts?: { navigate?: boolean }) => void;
   /** Switch the talent's plan tier (dev/test affordance until billing is live). */
   setTalentTier: (t: TalentSubscriptionTier) => void;
   setClientPlan: (p: ClientPlan) => void;
@@ -1146,8 +1146,12 @@ export function AdminShellProvider({
   }, [workspaceType]);
   // talent
   const [talentPage, setTalentPageRaw] = useState<TalentPage>(initialTalentPage ?? "today");
-  const setTalentPage = useCallback((p: TalentPage) => {
+  const setTalentPage = useCallback((p: TalentPage, opts?: { navigate?: boolean }) => {
     setTalentPageRaw(p);
+    // Route sync sets the page from a URL that is already correct. Navigating
+    // again bounces a Money click back to Today when the previous syncer
+    // re-fires during the transition.
+    if (opts?.navigate === false) return;
     if (initialSurface !== "talent") return;
     if (typeof window === "undefined") return;
     const currentPath = window.location.pathname;
@@ -1616,7 +1620,9 @@ export function AdminShellProvider({
   // Skipped in production (cutover) mode — page is driven by Next.js
   // routing, not ?page= query params.
   useEffect(() => {
-    if (tenantSlugRef.current) return;
+    // Platform /talent/* owns the path. A missing agency slug must not
+    // fall through to the prototype query rewriter, or Money stays on Today.
+    if (tenantSlugRef.current || platformTalentRoutesRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const s = params.get("surface");
     const pl = params.get("plan");
@@ -1666,7 +1672,7 @@ export function AdminShellProvider({
   // the active surface to keep URLs short and shareable.
   // Skipped in production (cutover) mode — URL is owned by Next.js router.
   useEffect(() => {
-    if (tenantSlugRef.current) return;
+    if (tenantSlugRef.current || platformTalentRoutesRef.current) return;
     // Skip until URL-read has applied. Otherwise the very first paint
     // writes defaults to the URL and discards whatever the user navigated to.
     if (!urlHydrated) return;

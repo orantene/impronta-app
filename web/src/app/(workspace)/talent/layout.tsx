@@ -32,6 +32,8 @@ import { SupportLauncherShellMount } from "@/components/support/SupportLauncherS
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
 import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
+import { loadUnrosteredWallFacts } from "@/lib/talent/unrostered-wall-load";
+import { unrosteredWallBypassesShell } from "@/lib/talent/unrostered-wall";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
@@ -173,10 +175,27 @@ export default async function PlatformTalentLayout({
 
   const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
   if (!baseProfile) {
-    if (isTalentRoot) {
-      return children;
+    // Root owns the wall / onboarding decision. Sub-routes used to call
+    // notFound() here whenever the user-scoped profile read missed — that
+    // turned a successful /talent → /talent/today redirect into a branded
+    // 404 for demo-jor-clone (and any talent whose first layout read flaked).
+    // Hand the page the children without shell so the route can still run;
+    // a later navigation reloads the shell once the profile is readable.
+    if (isTalentRoot || pathname.startsWith("/talent/")) {
+      return <>{children}</>;
     }
     notFound();
+  }
+
+  // The unrostered wall is the whole /talent page. TalentShellClient renders
+  // children and then Today, so a profile with no roster and no published
+  // site must not enter the shell. A talent who has either keeps the shell;
+  // an unproven read does too (the page sends them to Today).
+  if (isTalentRoot) {
+    const wallFacts = await loadUnrosteredWallFacts(baseProfile.id);
+    if (unrosteredWallBypassesShell(wallFacts)) {
+      return <>{children}</>;
+    }
   }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
