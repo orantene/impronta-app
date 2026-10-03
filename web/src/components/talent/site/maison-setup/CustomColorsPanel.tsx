@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Custom colors editor (W60–W65) — four fields, live preview, advisory contrast,
- * suggestion preview, save as My colors, phone keyboard strip.
+ * Wave 3 custom colours: side sheet, 4 visual pickers, contrast badge,
+ * hex only under Advanced, brand primary (not green), ✕ close.
  */
 
 import { useMemo, useState } from "react";
@@ -55,13 +55,13 @@ export function CustomColorsPanel({
     section: initialFields.section,
   });
   const [name, setName] = useState(
-    initialName ??
-      (locale === "es" ? "Mis colores" : "My colors"),
+    initialName ?? (locale === "es" ? "Mis colores" : "My colors"),
   );
   const [previewSuggestion, setPreviewSuggestion] = useState(false);
   const [focusedField, setFocusedField] = useState<FieldKey | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const advisory = useMemo(() => evaluateMaisonCustomContrast(fields), [fields]);
 
@@ -107,8 +107,7 @@ export function CustomColorsPanel({
   const handleSave = () => {
     if (!isCompleteCustomFields(fields)) return;
     const en = name.trim() || "My colors";
-    const es =
-      locale === "es" ? en : en === "My colors" ? "Mis colores" : en;
+    const es = locale === "es" ? en : en === "My colors" ? "Mis colores" : en;
     const palette = buildMaisonCustomPalette(fields, { en, es });
     onSaved(palette);
     setToast(
@@ -117,23 +116,22 @@ export function CustomColorsPanel({
   };
 
   const keyboardOpen = focusedField !== null;
+  const t = (en: string, es: string) => (locale === "es" ? es : en);
 
   return (
     <div
       data-testid="maison-custom-colors-panel"
       data-maison-custom-colors=""
       data-maison-kbd={keyboardOpen ? "open" : "closed"}
+      data-gallery-wave3-colors=""
       className="fixed inset-0 z-[80] flex justify-end bg-black/30"
     >
       <div
-        className={`flex h-full w-full flex-col bg-white shadow-xl md:max-w-[420px] ${
-          keyboardOpen ? "md:max-w-[420px]" : ""
-        }`}
+        className="flex h-full w-full flex-col bg-white shadow-xl md:max-w-[420px]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="maison-custom-colors-title"
       >
-        {/* Phone keyboard strip preview (W65) */}
         {keyboardOpen ? (
           <div
             data-testid="maison-custom-kbd-strip"
@@ -147,33 +145,50 @@ export function CustomColorsPanel({
                 }}
               />
               <span className="truncate text-[13px] font-semibold text-admin-ink">
-                {locale === "es" ? "Vista previa" : "Preview"}
+                {t("Preview", "Vista previa")}
               </span>
             </div>
           </div>
         ) : null}
 
         <header className="border-b border-admin-border-soft px-4 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 text-[13px] font-semibold text-admin-ink-muted"
-          >
-            {maisonSetupT(locale, "Close")}
-          </button>
-          <h2
-            id="maison-custom-colors-title"
-            className="mt-1 text-[18px] font-semibold text-admin-ink"
-            data-testid="maison-custom-colors-heading"
-          >
-            {maisonSetupT(locale, "Custom colors")}
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2
+              id="maison-custom-colors-title"
+              className="text-[18px] font-semibold text-admin-ink"
+              data-testid="maison-custom-colors-heading"
+            >
+              {maisonSetupT(locale, "Custom colors")}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={maisonSetupT(locale, "Close")}
+              className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
+            >
+              ✕
+            </button>
+          </div>
           <p className="mt-0.5 text-[13px] text-admin-ink-muted">
-            {maisonSetupT(
-              locale,
-              "Only colors change. Photos, content and layout stay.",
-            )}
+            {maisonSetupT(locale, "Only colors change. Photos, content and layout stay.")}
           </p>
+          {/* Live preview strip beside controls */}
+          <div
+            data-testid="maison-custom-live-preview"
+            className="mt-3 flex h-16 items-stretch overflow-hidden rounded-xl border border-admin-border-soft"
+          >
+            <span className="w-1/4" style={{ background: fields.page }} />
+            <span className="w-1/4" style={{ background: fields.section }} />
+            <span className="flex w-1/4 items-center justify-center text-[11px] font-semibold" style={{ background: fields.page, color: fields.text }}>
+              Aa
+            </span>
+            <span
+              className="flex w-1/4 items-center justify-center text-[11px] font-semibold text-white"
+              style={{ background: displayAccent }}
+            >
+              CTA
+            </span>
+          </div>
         </header>
 
         <div className="flex-1 space-y-4 overflow-auto px-4 py-4">
@@ -183,46 +198,21 @@ export function CustomColorsPanel({
               data-testid={`maison-custom-field-${meta.key}`}
               className="flex min-h-11 items-center gap-3"
             >
-              <span
-                className="h-10 w-10 shrink-0 rounded-full border border-admin-border-soft"
-                style={{ background: fields[meta.key] }}
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold text-admin-ink">
-                  {locale === "es" ? meta.labelEs : meta.labelEn}
-                </span>
-                <input
-                  type="text"
-                  inputMode="text"
-                  enterKeyHint="done"
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={hexDraft[meta.key]}
-                  onChange={(e) => setField(meta.key, e.target.value)}
-                  onFocus={() => setFocusedField(meta.key)}
-                  onBlur={() => setFocusedField(null)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  data-testid={`maison-custom-hex-${meta.key}`}
-                  className="mt-0.5 w-full min-h-11 rounded-lg border border-admin-border-soft px-2 font-mono text-[13px] uppercase text-admin-ink"
-                />
-              </span>
               <input
                 type="color"
                 value={normalizeMaisonHex(fields[meta.key]) ?? "#000000"}
                 onChange={(e) => setField(meta.key, e.target.value)}
                 aria-label={locale === "es" ? meta.labelEs : meta.labelEn}
-                className="h-11 w-11 shrink-0 cursor-pointer rounded-lg border border-admin-border-soft bg-transparent p-0"
+                className="h-12 w-12 shrink-0 cursor-pointer rounded-full border border-admin-border-soft bg-transparent p-0"
               />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-admin-ink">
+                  {locale === "es" ? meta.labelEs : meta.labelEn}
+                </span>
+              </span>
             </label>
           ))}
 
-          {/* Contrast advisory (W62–W63) — never blocks */}
           <div
             data-testid="maison-contrast-advisory"
             data-advisory-ok={advisory.ok ? "true" : "false"}
@@ -231,20 +221,19 @@ export function CustomColorsPanel({
             {advisory.ok ? (
               <p
                 data-testid="maison-contrast-readable"
-                className="text-[13px] font-semibold text-emerald-900"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-admin-ink"
               >
-                ✓ {locale === "es" ? "El texto se lee bien" : "Text is readable"}
+                <span className="inline-grid h-6 place-items-center rounded-full bg-admin-surface-alt px-2 text-[11px]">
+                  ✓
+                </span>
+                {maisonSetupT(locale, "Text is readable")}
               </p>
             ) : advisory.messageKey ? (
               <>
                 <p className="text-[13px] font-semibold text-admin-ink">
                   {advisory.messageKey === "adjust_button_contrast"
-                    ? locale === "es"
-                      ? "Ajustar contraste del botón"
-                      : "Adjust button contrast"
-                    : locale === "es"
-                      ? "Ajustar contraste del texto"
-                      : "Adjust text contrast"}
+                    ? maisonSetupT(locale, "Adjust button contrast")
+                    : maisonSetupT(locale, "Adjust text contrast")}
                 </p>
                 <p className="mt-1 text-[12.5px] text-admin-ink-muted">
                   {locale === "es" ? advisory.messageEs : advisory.messageEn}
@@ -256,16 +245,13 @@ export function CustomColorsPanel({
                       style={{ background: advisory.suggestionAccent }}
                       aria-hidden
                     />
-                    <span className="font-mono text-[12px] text-admin-ink">
-                      {advisory.suggestionAccent}
-                    </span>
                     <button
                       type="button"
                       data-testid="maison-contrast-preview-suggestion"
                       onClick={handlePreviewSuggestion}
                       className="min-h-11 rounded-full border border-admin-border-soft px-3 text-[12.5px] font-semibold"
                     >
-                      {locale === "es" ? "Vista previa" : "Preview suggestion"}
+                      {t("Preview suggestion", "Vista previa")}
                     </button>
                   </div>
                 ) : null}
@@ -275,18 +261,16 @@ export function CustomColorsPanel({
                     className="mt-3 rounded-lg bg-admin-surface-alt px-3 py-2 text-[12px] text-admin-ink"
                   >
                     {locale === "es"
-                      ? `Vista previa · Acento ${fields.accent} → ${advisory.suggestionAccent}. No se aplica hasta que elijas.`
-                      : `Previewing the suggestion · Accent ${fields.accent} → ${advisory.suggestionAccent}. Not applied until you choose.`}
+                      ? `Vista previa · Acento ajustado. No se aplica hasta que elijas.`
+                      : `Previewing the suggestion. Not applied until you choose.`}
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         type="button"
                         data-testid="maison-contrast-use-adjustment"
                         onClick={handleUseAdjustment}
-                        className="min-h-11 rounded-xl bg-emerald-900 px-3 text-[12.5px] font-semibold text-white"
+                        className="min-h-11 rounded-xl bg-admin-ink px-3 text-[12.5px] font-semibold text-white"
                       >
-                        {locale === "es"
-                          ? "Usar este ajuste"
-                          : "Use this adjustment"}
+                        {maisonSetupT(locale, "Use this adjustment")}
                       </button>
                       <button
                         type="button"
@@ -294,7 +278,7 @@ export function CustomColorsPanel({
                         onClick={handleKeepColor}
                         className="min-h-11 rounded-xl border border-admin-border-soft px-3 text-[12.5px] font-semibold"
                       >
-                        {locale === "es" ? "Conservar mi color" : "Keep my color"}
+                        {maisonSetupT(locale, "Keep my color")}
                       </button>
                     </div>
                   </div>
@@ -308,41 +292,81 @@ export function CustomColorsPanel({
               className="mt-2 min-h-11 text-[12px] font-semibold text-admin-ink-dim"
               onClick={() => setDetailsOpen((o) => !o)}
             >
-              {locale === "es" ? "Detalles de contraste" : "Contrast details"}{" "}
-              {detailsOpen ? "▴" : "▾"}
+              {maisonSetupT(locale, "Contrast details")} {detailsOpen ? "▴" : "▾"}
             </button>
             {detailsOpen ? (
               <p
                 data-testid="maison-contrast-details"
                 className="mt-1 text-[12px] text-admin-ink-dim"
               >
-                {locale === "es" ? "Texto en página" : "Text on page"}{" "}
-                {advisory.textOnPage?.toFixed(1) ?? "—"}:1 ·{" "}
-                {locale === "es" ? "Texto del botón" : "Button text"}{" "}
-                {advisory.buttonContrast?.toFixed(1) ?? "—"}:1
+                {t("Text on page", "Texto en página")} {advisory.textOnPage?.toFixed(1) ?? "—"}:1 ·{" "}
+                {t("Button text", "Texto del botón")} {advisory.buttonContrast?.toFixed(1) ?? "—"}:1
               </p>
             ) : null}
           </div>
 
-          <label className="block">
-            <span className="text-[12px] font-semibold text-admin-ink">
-              {locale === "es" ? "Nombre de la paleta" : "Palette name"}
-            </span>
-            <input
-              type="text"
-              data-testid="maison-custom-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full min-h-11 rounded-lg border border-admin-border-soft px-3 text-[13px]"
-            />
-          </label>
+          <div>
+            <button
+              type="button"
+              data-testid="maison-custom-advanced-toggle"
+              className="min-h-11 text-[13px] font-semibold text-admin-ink"
+              onClick={() => setAdvancedOpen((o) => !o)}
+              aria-expanded={advancedOpen}
+            >
+              {maisonSetupT(locale, "Advanced")} {advancedOpen ? "▴" : "▾"}
+            </button>
+            {advancedOpen ? (
+              <div className="mt-2 space-y-3" data-testid="maison-custom-advanced">
+                {FIELD_META.map((meta) => (
+                  <label key={`hex-${meta.key}`} className="block">
+                    <span className="text-[12px] font-semibold text-admin-ink-muted">
+                      {locale === "es" ? meta.labelEs : meta.labelEn}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="text"
+                      enterKeyHint="done"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      value={hexDraft[meta.key]}
+                      onChange={(e) => setField(meta.key, e.target.value)}
+                      onFocus={() => setFocusedField(meta.key)}
+                      onBlur={() => setFocusedField(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      data-testid={`maison-custom-hex-${meta.key}`}
+                      className="mt-0.5 w-full min-h-11 rounded-lg border border-admin-border-soft px-2 font-mono text-[13px] uppercase text-admin-ink"
+                    />
+                  </label>
+                ))}
+                <label className="block">
+                  <span className="text-[12px] font-semibold text-admin-ink">
+                    {maisonSetupT(locale, "Palette name")}
+                  </span>
+                  <input
+                    type="text"
+                    data-testid="maison-custom-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1 w-full min-h-11 rounded-lg border border-admin-border-soft px-3 text-[13px]"
+                  />
+                </label>
+              </div>
+            ) : (
+              <input type="hidden" data-testid="maison-custom-name" value={name} readOnly />
+            )}
+          </div>
         </div>
 
         <footer className="sticky bottom-0 border-t border-admin-border-soft bg-white px-4 py-3">
           {toast ? (
             <p
               data-testid="maison-custom-toast"
-              className="mb-2 text-[12px] font-semibold text-emerald-900"
+              className="mb-2 text-[12px] font-semibold text-admin-ink"
             >
               {toast}
             </p>
@@ -352,9 +376,9 @@ export function CustomColorsPanel({
             data-testid="maison-custom-save"
             disabled={!isCompleteCustomFields(fields)}
             onClick={handleSave}
-            className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-40"
+            className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-40"
           >
-            {locale === "es" ? "Guardar colores" : "Save colors"}
+            {maisonSetupT(locale, "Save colors")}
           </button>
         </footer>
       </div>

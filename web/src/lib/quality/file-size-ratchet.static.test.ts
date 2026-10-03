@@ -132,7 +132,8 @@ const BUDGETS: Record<string, number> = {
   // `locale` and `onLockedOperation` plus their dependency entries. Everything
   // that COULD leave did: the CustomEvent payload lives in the new
   // `edit-chrome/talent-lock-broadcast.ts`, not in this file.
-  "src/components/edit-chrome/edit-context.tsx": 6308,
+  // Wave 4 Apps deep-link: openAddMenu on context value (+3).
+  "src/components/edit-chrome/edit-context.tsx": 6311,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
@@ -230,7 +231,8 @@ const BUDGETS: Record<string, number> = {
   // declaration block instead put it under, and this file is no longer where
   // the list grows each time another panel earns its own chunk. Re-baselined to
   // the measured value, per this guard's own procedure.
-  "src/components/edit-chrome/edit-shell.tsx": 2362,
+  // Wave 4: ?panel=add|apps&app=… → openAddMenu + builder-app-intent (+7).
+  "src/components/edit-chrome/edit-shell.tsx": 2369,
   // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
   // `responsive[tier]` when a non-desktop viewport is active instead of
   // silently rewriting the desktop base, plus its override dot and reset. The
@@ -559,7 +561,7 @@ const BUDGETS: Record<string, number> = {
   // Merged with main on 2026-09-10: main raised this by three lines for the
   // signup work; the budget is the merged file's measured size.
   // 2026-09-24 services-rebuild: +4 (2189). Measured wc -l.
-  "src/components/admin/shell/admin-shell-client.tsx": 2190,
+  "src/components/admin/shell/admin-shell-client.tsx": 2195,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState, useTransition, type ReactNode } from "rea
 import Link from "next/link";
 import {
   commitMaisonImportAction,
+  loadGalleryImportPreviewAction,
   loadMaisonImportPreviewAction,
   retryMaisonImportItemAction,
   undoMaisonImportAction,
@@ -25,10 +26,20 @@ import {
 } from "@/lib/talent-site/theme-catalog/maison/maison-starter-catalog";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
+function detailTSafe(locale: MaisonSetupLocale, key: string): string {
+  if (key === "Use demo content") {
+    return locale === "es" ? "Usar contenido del demo" : "Use demo content";
+  }
+  return maisonSetupT(locale, key);
+}
+
 type Step = "choose" | "review" | "result";
 
 type Props = {
   locale: MaisonSetupLocale;
+  /** Wave 3: which design/demo the import is for (all finished designs). */
+  designSlug?: string;
+  demoKey?: string | null;
   onClose: () => void;
   onContinueDesigning: () => void;
 };
@@ -43,15 +54,21 @@ function groupTriState(selected: number, total: number): "all" | "some" | "none"
   return "some";
 }
 
-export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Props) {
+export function ImportStarterPanel({
+  locale,
+  designSlug,
+  demoKey = null,
+  onClose,
+  onContinueDesigning,
+}: Props) {
   const [step, setStep] = useState<Step>("choose");
   const [preview, setPreview] = useState<MaisonImportPreview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sel, setSel] = useState<ImportSelectionState>(emptyImportSelection);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    services: false,
-    faqs: false,
-    sections: false,
+    services: true,
+    faqs: true,
+    sections: true,
   });
   const [resolutions, setResolutions] = useState<Record<string, DuplicateResolution>>({});
   const [changeKey, setChangeKey] = useState<string | null>(null);
@@ -65,14 +82,16 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
 
   useEffect(() => {
     startTransition(async () => {
-      const res = await loadMaisonImportPreviewAction();
+      const res = designSlug
+        ? await loadGalleryImportPreviewAction({ designSlug, demoKey })
+        : await loadMaisonImportPreviewAction();
       if (!res.ok) {
         setLoadError(res.error);
         return;
       }
       setPreview(res.data);
     });
-  }, []);
+  }, [designSlug, demoKey]);
 
   const counts = selectionCounts(sel);
   const catalog = preview?.catalog;
@@ -110,7 +129,11 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
   function handleCommit() {
     startTransition(async () => {
       setActionError(null);
-      const res = await commitMaisonImportAction({ selection: sel, resolutions });
+      const res = await commitMaisonImportAction({
+        selection: sel,
+        resolutions,
+        ...(designSlug ? { designSlug, demoKey } : {}),
+      });
       if (!res.ok) {
         setActionError(res.error);
         return;
@@ -346,7 +369,7 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
           <button
             type="button"
             data-testid="maison-import-continue"
-            className="min-h-12 flex-1 rounded-xl bg-emerald-900 text-[14px] font-semibold text-white"
+            className="min-h-12 flex-1 rounded-xl bg-admin-ink text-[14px] font-semibold text-white"
             onClick={onContinueDesigning}
           >
             {locale === "es" ? "Seguir diseñando" : "Continue designing"}
@@ -517,7 +540,7 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
             data-testid="maison-import-commit"
             disabled={pending}
             onClick={handleCommit}
-            className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-50"
+            className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-50"
           >
             {locale === "es" ? "Importar contenido seleccionado" : "Import selected content"}
           </button>
@@ -534,12 +557,19 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
   return shell(
     <>
       <header className="border-b border-admin-border-soft px-4 py-3">
-        <button type="button" onClick={onClose} className="text-[13px] font-semibold text-admin-ink-muted">
-          {maisonSetupT(locale, "Close")}
-        </button>
-        <h2 className="mt-1 text-[18px] font-semibold text-admin-ink" data-testid="maison-import-heading">
-          {locale === "es" ? "Agregar contenido inicial" : "Add starter content"}
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-[18px] font-semibold text-admin-ink" data-testid="maison-import-heading">
+            {detailTSafe(locale, "Use demo content")}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={maisonSetupT(locale, "Close")}
+            className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
+          >
+            ✕
+          </button>
+        </div>
         <p className="mt-0.5 text-[13px] text-admin-ink-muted">
           {locale === "es"
             ? "Elige lo que te ayude. Lo importado se guarda como borradores."
@@ -548,7 +578,8 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
       </header>
 
       <div className="flex-1 space-y-2 overflow-auto px-4 py-3">
-        {/* Services group */}
+        {/* Services group — omit when empty (Wave 3) */}
+        {catalog.services.length === 0 ? null : (
         <div data-testid="maison-import-group-services" className="rounded-xl border border-admin-border-soft">
           <div className="flex items-center gap-1 px-2 py-1">
             <button
@@ -605,7 +636,13 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
                     </button>
                     {detailKey === svc.key ? (
                       <p className="mt-1 text-[12px] text-admin-ink-dim">
-                        ${svc.priceMxn} MXN · {svc.durationMin} min
+                        {svc.priceMxn == null || svc.priceDisplay === "quote"
+                          ? locale === "es"
+                            ? "A cotizar"
+                            : "Quote"
+                          : `$${svc.priceMxn} ${svc.currency ?? "MXN"}`}
+                        {svc.durationMin != null ? ` · ${svc.durationMin} min` : ""}
+                        {svc.bookingMode ? ` · ${svc.bookingMode}` : ""}
                       </p>
                     ) : null}
                   </div>
@@ -613,8 +650,10 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
               ))
             : null}
         </div>
+        )}
 
-        {/* FAQ group */}
+        {/* FAQ group — omit when empty */}
+        {catalog.faqs.length === 0 ? null : (
         <div data-testid="maison-import-group-faqs" className="rounded-xl border border-admin-border-soft">
           <div className="flex items-center gap-1 px-2 py-1">
             <button
@@ -659,9 +698,10 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
               ))
             : null}
         </div>
+        )}
 
-        {/* Section text — no images group (W47) */}
-        {!catalog.imagesLicensedForReuse ? null : null}
+        {/* Section text — omit when empty; no images group (W47) */}
+        {catalog.sectionText.length === 0 ? null : (
         <div data-testid="maison-import-group-sections" className="rounded-xl border border-admin-border-soft">
           <div className="flex items-center gap-1 px-2 py-1">
             <button
@@ -706,6 +746,7 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
               ))
             : null}
         </div>
+        )}
 
         <p className="text-[12px] text-admin-ink-dim" data-testid="maison-import-preview-only-note">
           {locale === "es"
@@ -723,7 +764,7 @@ export function ImportStarterPanel({ locale, onClose, onContinueDesigning }: Pro
           data-testid="maison-import-review"
           disabled={counts.total === 0 || pending}
           onClick={() => setStep("review")}
-          className="min-h-12 w-full rounded-xl bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-40"
+          className="min-h-12 w-full rounded-xl bg-admin-ink text-[14px] font-semibold text-white disabled:opacity-40"
         >
           {locale === "es" ? "Revisar importación" : "Review import"}
         </button>

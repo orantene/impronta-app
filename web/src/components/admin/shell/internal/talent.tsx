@@ -11,8 +11,9 @@ import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
-import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
+import { resolveTalentPublicPreviewDestinations } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { bookingIdFromTalentPath } from "./state/talent-page-segment";
 import { WorkingHoursPanelHost, openWorkingHoursPanel } from "./talent/agenda/WorkingHoursPanel";
 import { NewBookingPanelHost, openNewBookingPanel } from "./talent/agenda/NewBookingPanel";
@@ -63,11 +64,11 @@ export function TalentSurface() {
     <div
       data-tulala-workspace-grid
       // Talent Studio primaries are the brand fill, not the workspace slate.
-      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-admin-surface [--tulala-primary-fill:var(--color-admin-brand)] [--tulala-primary-fill-deep:var(--color-admin-brand-deep)]"
+      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-[var(--tc-canvas)] [--tulala-primary-fill:var(--tc-action)] [--tulala-primary-fill-deep:var(--tc-action-hover)]"
     >
       {/* The column carries the rail background so it runs the full page
           height; the sticky aside inside only pins the nav. */}
-      <div data-tulala-app-sidebar-col className="border-r border-admin-border-soft bg-admin-surface-alt">
+      <div data-tulala-app-sidebar-col className="border-r border-[var(--tc-border)] bg-[var(--tc-canvas)]">
         <TalentSidebar />
       </div>
       <main
@@ -119,8 +120,8 @@ function TalentSidebarNavButton({
       aria-current={active ? "page" : undefined}
       className={`flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] border px-[10px] py-[8px] text-left font-admin-body text-[13px] tracking-[0.05px] [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)] ${
         active
-          ? "border-admin-border-soft bg-white font-semibold text-admin-ink shadow-admin-rest"
-          : "border-transparent bg-transparent font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink"
+          ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
+          : "border-transparent bg-transparent font-medium text-[var(--tc-muted)] hover:bg-[var(--tc-soft)] hover:text-[var(--tc-ink)]"
       }`}
     >
       <Icon
@@ -136,7 +137,7 @@ function TalentSidebarNavButton({
         <span
           title={badgeTitle}
           aria-label={badgeTitle ?? `${badge}`}
-          className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-admin-brand px-[5px] text-[10px] font-bold leading-none text-white"
+          className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--tc-action)] px-[5px] text-[10px] font-bold leading-none text-white"
         >
           {badge > 99 ? "99+" : badge}
         </span>
@@ -158,21 +159,35 @@ function TalentSidebar() {
   useRovingTabindex(railNavRef, "button");
 
   // Prefer bridge data so a freshly-provisioned talent sees their own
-  // public URL, not the demo talent's.
+  // public URL, not the demo talent's. When a personal website is live,
+  // default there (same rule as the top-bar eye); hub remains available
+  // from the eye chooser / account menu.
   const origin = useCurrentOrigin();
-  const previewHref = bridgeTalentSelfProfile?.profileCode
-    ? talentPublicProfileHref(bridgeTalentSelfProfile.profileCode, origin)
-    : (bridgeTalentSelfProfile ? null : `https://${MY_TALENT_PROFILE.publicUrl}`);
+  const siteLoad = useTalentSiteDashboardInitialLoad();
+  const previewResolved = bridgeTalentSelfProfile?.profileCode
+    ? resolveTalentPublicPreviewDestinations({
+        profileCode: bridgeTalentSelfProfile.profileCode,
+        publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+        currentOrigin: origin,
+      })
+    : null;
+  const previewHref = previewResolved
+    ? previewResolved.defaultHref
+    : bridgeTalentSelfProfile
+      ? null
+      : `https://${MY_TALENT_PROFILE.publicUrl}`;
+  const previewLabel =
+    previewResolved?.destinations[0]?.kind === "website" ? "Preview site" : "Preview profile";
 
   const tier = state.talentTier;
   const trialOn = studioV2 && bridgeTalentPlanTrial?.active === true;
   const tierLabel = copy.t(trialOn ? "Trial" : TALENT_TIER_META[tier].label);
   const tierChipClass =
     tier === "max"
-      ? "bg-admin-ink text-white border border-admin-ink"
+      ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-action-ink)]"
       : tier === "pro"
-        ? "bg-[rgba(15,79,62,0.10)] text-admin-accent border border-[rgba(15,79,62,0.28)]"
-        : "bg-[rgba(11,11,13,0.05)] text-admin-ink-muted border border-[rgba(11,11,13,0.10)]";
+        ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-action-ink)]"
+        : "border border-[var(--tc-border)] bg-white text-[var(--tc-muted)]";
 
   const unread = bridgeTalentUnread ?? 0;
 
@@ -204,7 +219,7 @@ function TalentSidebar() {
   return (
     <aside
       data-tulala-app-sidebar
-      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
+      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto bg-[var(--tc-canvas)] px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
       {/* Keyboard users can bypass the rail nav entirely. */}
       <a href="#tulala-talent-content" className="skip-to-main">
@@ -259,7 +274,7 @@ function TalentSidebar() {
             className="flex w-full items-center gap-[8px] rounded-[8px] px-[10px] py-[8px] font-admin-body text-[12.5px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
           >
             <Icon name="external" size={12} stroke={1.7} color="currentColor" />
-            {copy.t("Preview profile")}
+            {copy.t(previewLabel)}
           </a>
         )}
         {/* Support Center launcher portals in here instead of floating. */}

@@ -292,7 +292,7 @@ export function PoliciesView({
               type="button"
               aria-pressed={previewLocale === l}
               onClick={() => setPreviewLocale(l)}
-              className={`${toggle} ${previewLocale === l ? "bg-emerald-900 text-white" : "border border-admin-border-soft bg-white text-admin-ink"}`}
+              className={`${toggle} ${previewLocale === l ? "border border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]" : "border border-admin-border-soft bg-white text-admin-ink"}`}
             >
               {l === "es" ? tt("Spanish") : tt("English")}
             </button>
@@ -351,7 +351,7 @@ export function PoliciesView({
               setJustPublished(null);
               setReviewOpen(true);
             }}
-            className="min-h-[44px] flex-[2] rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-40"
+            className="min-h-[44px] flex-[2] rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40"
           >
             {tt("Review and publish")}
           </button>
@@ -409,7 +409,7 @@ export function PoliciesView({
                 type="button"
                 disabled={publishing}
                 onClick={() => void publish()}
-                className="min-h-[44px] rounded-lg bg-emerald-900 text-[14px] font-semibold text-white disabled:opacity-60"
+                className="min-h-[44px] rounded-lg bg-[var(--tc-action)] text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-60"
               >
                 {publishing ? tt("Publishing") : fill(tt("Publish version {n}"), { n: nextVersion })}
               </button>

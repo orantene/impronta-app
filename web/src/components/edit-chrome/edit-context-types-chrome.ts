@@ -89,6 +89,7 @@ export interface EditContextChromeAndSessionValue {
   toggleSearchPanel: () => void;
   closeSearchPanel: () => void;
   addMenuOpen: boolean;
+  openAddMenu: () => void;
   toggleAddMenu: () => void;
   closeAddMenu: () => void;
   allPagesPanelOpen: boolean;

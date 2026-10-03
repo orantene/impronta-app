@@ -722,8 +722,8 @@ export function ReviewsPage() {
                         onClick={() => setTab(key)}
                         className={`min-h-11 rounded-[999px] border px-[14px] text-[12.5px] font-semibold ${
                           active
-                            ? "border-admin-ink bg-admin-ink text-white"
-                            : "border-admin-border-soft bg-white text-admin-ink-muted"
+                            ? "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]"
+                            : "border-[var(--tc-border)] bg-white text-[var(--tc-muted)]"
                         }`}
                       >
                         {interpolate(t(label), { count: counts[key] })}

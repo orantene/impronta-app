@@ -634,7 +634,7 @@ export function AgendaBookingRecord({
             type="button"
             onClick={() => setShowFinish(true)}
             aria-label={copy.t("Finish and collect")}
-            className="w-full min-h-[44px] rounded-xl bg-[var(--tc-primary)] py-3 text-[14px] font-semibold text-white"
+            className="w-full min-h-[44px] rounded-xl bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] py-3 text-[14px] font-semibold text-white"
           >
             {copy.t("Finish and collect")}
           </button>

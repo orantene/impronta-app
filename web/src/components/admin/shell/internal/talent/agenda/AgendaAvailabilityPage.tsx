@@ -414,7 +414,7 @@ export function AgendaAvailabilityPage({
           type="button"
           disabled={!canSave || saving}
           onClick={() => void save()}
-          className="min-h-[44px] rounded-full bg-[var(--tc-primary)] px-5 text-[13px] text-white disabled:opacity-40"
+          className="min-h-[44px] rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-5 text-[13px] text-white disabled:opacity-40"
         >
           {saving ? copy.t("Saving…") : copy.t("Save availability")}
         </button>

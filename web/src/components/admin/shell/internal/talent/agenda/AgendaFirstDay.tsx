@@ -103,7 +103,7 @@ export function AgendaFirstDay({
           <button
             type="button"
             onClick={onOpenSite}
-            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-primary)] px-4 text-[14px] text-white"
+            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[14px] text-white"
           >
             {copy.t("Create your website")}
           </button>
@@ -112,7 +112,7 @@ export function AgendaFirstDay({
             type="button"
             onClick={nextTarget}
             disabled={!nextTarget}
-            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-primary)] px-4 text-[14px] text-white disabled:opacity-50"
+            className="mt-4 min-h-[44px] w-full rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[14px] text-white disabled:opacity-50"
           >
             {copy.t(next.label)}
           </button>
@@ -133,7 +133,7 @@ export function AgendaFirstDay({
               href={liveSiteUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-primary)] px-4 text-[13px] font-medium text-white"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] px-4 text-[13px] font-medium text-white"
             >
               {copy.t("View")}
             </a>

@@ -78,7 +78,7 @@ export async function completeOrderForTransaction(
   try {
     const { data: txn, error: txnErr } = await admin
       .from("booking_transactions")
-      .select("id, order_id, gross_amount_cents, status")
+      .select("id, order_id, gross_amount_cents, net_amount_cents, status")
       .eq("id", transactionId)
       .maybeSingle();
 
@@ -125,7 +125,7 @@ export async function completeOrderForTransaction(
     // collected total reaches what the order says it costs.
     const { data: paidRows, error: paidErr } = await admin
       .from("booking_transactions")
-      .select("gross_amount_cents")
+      .select("gross_amount_cents, net_amount_cents")
       .eq("order_id", orderId)
       .eq("status", "paid");
 
@@ -134,10 +134,24 @@ export async function completeOrderForTransaction(
       return { ok: false, reason: "unavailable" };
     }
 
-    const collected = (paidRows ?? []).reduce(
-      (sum, r) => sum + Number((r as { gross_amount_cents: number }).gross_amount_cents ?? 0),
-      0,
-    );
+    // Credit only the service principal toward `orders.total_cents`. Pass-
+    // through Checkout stores principal in `net_amount_cents` and fees in the
+    // gross surplus — summing gross would understate the outstanding balance
+    // (or mark a high deposit paid early). Legacy rows have net === gross.
+    const collected = (paidRows ?? []).reduce((sum, r) => {
+      const row = r as {
+        gross_amount_cents?: number | null;
+        net_amount_cents?: number | null;
+      };
+      const gross = Number(row.gross_amount_cents ?? 0);
+      const net =
+        row.net_amount_cents == null ? null : Number(row.net_amount_cents);
+      const principal =
+        net != null && Number.isFinite(net) && net >= 0 && net <= gross
+          ? net
+          : gross;
+      return sum + principal;
+    }, 0);
 
     if (collected < row.total_cents) {
       // Part-paid. The order stays where it is and the balance is still owed —

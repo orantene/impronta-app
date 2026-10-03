@@ -19,7 +19,7 @@ import {
   type MaisonCustomPaletteStored,
 } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 
-export type MaisonSetupScreen = "gallery" | "detail" | "review";
+export type MaisonSetupScreen = "gallery" | "detail" | "review" | "apps" | "app";
 export type MaisonPreviewDevice = "desktop" | "phone";
 export type MaisonStatusWord = "Preview" | "Choices saved" | "Draft saved" | "Live";
 export type MaisonPhoneSheet = null | "demos" | "colors";
@@ -48,6 +48,8 @@ export type MaisonSetupChoices = {
   designPaletteKey: string | null;
   /** Theme detail tab: the live preview (default) or the market Apps tab. */
   detailTab?: "preview" | "apps";
+  /** Wave 4: app library entry id when `screen === "app"`. */
+  appId?: string | null;
 };
 
 export const MAISON_CHOICES_STORAGE_PREFIX = "maison-setup-choices:";
@@ -66,6 +68,8 @@ export function defaultMaisonChoices(): MaisonSetupChoices {
     demoKey: null,
     fromQuery: null,
     designPaletteKey: null,
+    detailTab: "preview",
+    appId: null,
   };
 }
 
@@ -102,7 +106,12 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
   if (!raw || typeof raw !== "object") return base;
   const o = raw as Record<string, unknown>;
   const screen =
-    o.screen === "detail" || o.screen === "review" ? o.screen : "gallery";
+    o.screen === "detail" ||
+    o.screen === "review" ||
+    o.screen === "apps" ||
+    o.screen === "app"
+      ? o.screen
+      : "gallery";
   const paletteKey =
     typeof o.paletteKey === "string" && isMaisonPaletteKey(o.paletteKey)
       ? o.paletteKey
@@ -122,6 +131,9 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
     typeof o.designSlug === "string" && isCollectionDesignSlug(o.designSlug)
       ? o.designSlug.trim().toLowerCase()
       : "maison";
+  const detailTab = o.detailTab === "apps" ? "apps" : "preview";
+  const appId =
+    typeof o.appId === "string" && o.appId.trim() ? o.appId.trim() : null;
   return {
     screen,
     paletteKey,
@@ -135,6 +147,8 @@ export function parseMaisonChoices(raw: unknown): MaisonSetupChoices {
     demoKey: parseDemoKey(designSlug, o.demoKey),
     fromQuery: parseFromQuery(o.fromQuery),
     designPaletteKey: parseDesignPaletteKey(designSlug, o.designPaletteKey),
+    detailTab,
+    appId,
   };
 }
 
@@ -182,7 +196,14 @@ export function persistableMaisonChoices(
  */
 export function isMaisonSetupResumable(choices: MaisonSetupChoices): boolean {
   if (choices.status === "Live") return false;
-  if (choices.screen === "detail" || choices.screen === "review") return true;
+  if (
+    choices.screen === "detail" ||
+    choices.screen === "review" ||
+    choices.screen === "apps" ||
+    choices.screen === "app"
+  ) {
+    return true;
+  }
   return choices.status === "Choices saved" || choices.status === "Draft saved";
 }
 

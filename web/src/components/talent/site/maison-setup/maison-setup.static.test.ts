@@ -81,8 +81,12 @@ test("W34: phone sheets are mutually exclusive state", () => {
 });
 
 test("W30–W32: Demo|My content, status words, five palettes", () => {
-  const detail = read("ThemeDetailScreen.tsx") + read("ColorsSheet.tsx") + read("DemosSheet.tsx");
-  assert.match(detail, /maison-mode-\$\{mode\}/);
+  const detail =
+    read("ThemeDetailScreen.tsx") +
+    read("ThemeDetailChrome.tsx") +
+    read("ColorsSheet.tsx") +
+    read("DemosSheet.tsx");
+  assert.match(detail, /maison-mode-\$\{m\}/);
   assert.match(detail, /\(\["demo", "mine"\]/);
   assert.match(detail, /maison-status-word/);
   // P4: palettes come from gallery-meta for every design (Maison included).

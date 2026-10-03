@@ -81,13 +81,12 @@ const METHOD_LABEL: Record<MoneyMethodBucket, string> = {
 
 const pill =
   "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 font-admin-body text-[13.5px] sm:h-9";
-const pillOn = `${pill} bg-admin-ink font-semibold text-white`;
-const pillOff = `${pill} border border-admin-border-soft bg-white text-admin-ink`;
+const pillOn = `${pill} border border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]`;
+const pillOff = `${pill} border border-[var(--tc-border)] bg-white text-[var(--tc-ink)]`;
 const btnBase =
   "inline-flex h-11 items-center justify-center rounded-full border px-4 font-admin-body text-[13.5px] font-semibold sm:h-9";
-const btnSec = `${btnBase} border-admin-border-soft bg-white text-admin-ink`;
-// Primary: one class set only (a second bg/text pair lost to the white one).
-const btnPri = `${btnBase} border-admin-ink bg-admin-ink text-white`;
+const btnSec = `${btnBase} border-[var(--tc-border)] bg-white text-[var(--tc-ink)]`;
+const btnPri = `${btnBase} border-[var(--tc-action)] bg-[var(--tc-action)] text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40`;
 
 function SummaryCard(props: {
   title: string;

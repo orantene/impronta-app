@@ -45,7 +45,7 @@ function seedOfferings(): TalentOffering[] {
     description: null,
     priceType: "flat_package",
     priceDisplay: "exact",
-    amountCents: Math.round(s.priceMxn * 100),
+    amountCents: s.priceMxn == null ? null : Math.round(s.priceMxn * 100),
     currency: "MXN",
     bookingMode: "request",
     reserveMode: "deposit",

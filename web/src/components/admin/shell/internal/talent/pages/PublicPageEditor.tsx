@@ -54,6 +54,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   // PR 7: "Manage languages" / "Change in Website settings" deep-link here.
   const [intent] = useState<WebsiteSettingsIntentView | null>(() => takeWebsiteSettingsIntent());
   const [settingsOpen, setSettingsOpen] = useState(intent !== null);
+  const [faqOpen, setFaqOpen] = useState(false);
   // Dark launch (TALENT_WEBSITE_SETTINGS_ENABLED): flag off → no entry row, no screen.
   const [settingsEnabled, setSettingsEnabled] = useState(false);
   useEffect(() => {
@@ -110,7 +111,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
             role="tab"
             aria-selected={tab === item.id}
             onClick={() => setTab(item.id)}
-            className={`-mb-px min-h-11 border-b-[2.5px] px-0.5 text-[14px] font-semibold ${tab === item.id ? "border-admin-brand text-admin-brand" : "border-transparent text-admin-ink-muted hover:text-admin-ink"}`}
+            className={`-mb-px min-h-11 border-b-[2.5px] px-0.5 text-[14px] font-semibold ${tab === item.id ? "border-[var(--tc-action)] text-[var(--tc-ink)]" : "border-transparent text-admin-ink-muted hover:text-admin-ink"}`}
           >
             {item.label}
           </button>
@@ -123,12 +124,46 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           </Suspense>
           <ThemeUpdateNotice surface="presence" locale={locale} />
           <AvailableBlocks locale={locale} />
-          <TalentMaxSiteManager locale={locale} />
-          <TalentFaqEditor />
-          {/* Address, logo, pages and domain live in Website settings. Flag
-              off → keep them reachable under a collapsed row, not deleted. */}
-          {settingsEntry ? (
-            <div className="mt-6">{settingsEntry}</div>
+          {/* Wave 3: hero + tiles on the manager; FAQ / settings open from tiles.
+              Domain tile is entitlement-gated inside TalentMaxSiteManager. */}
+          <TalentMaxSiteManager
+            locale={locale}
+            hideDomainRow
+            onOpenQuestions={() => setFaqOpen(true)}
+            onOpenSettings={() => {
+              if (talentId) setSettingsOpen(true);
+            }}
+          />
+          {faqOpen ? (
+            <div
+              className="fixed inset-0 z-50 flex justify-end bg-black/30"
+              data-testid="presence-faq-sheet"
+            >
+              <div className="flex h-full w-full max-w-lg flex-col bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-admin-border-soft px-4 py-3">
+                  <h2 className="text-[16px] font-semibold text-admin-ink">
+                    {copy.t("Questions and answers")}
+                  </h2>
+                  <button
+                    type="button"
+                    aria-label={copy.t("Close")}
+                    onClick={() => setFaqOpen(false)}
+                    className="grid h-11 w-11 place-items-center text-[18px]"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto px-4 py-3">
+                  <TalentFaqEditor />
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {/* Flag on: NavRow → WebsiteSettingsScreen. MyWebsiteCard (Settings tile)
+              only mounts after first publish — keep this entry before then.
+              Flag off: collapsed MaxSiteSettingsPanels fallback. */}
+          {talentId ? (
+            settingsEntry
           ) : (
             <details className="mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
               <summary className="min-h-11 cursor-pointer px-4 py-3 text-[15px] font-semibold text-admin-ink">

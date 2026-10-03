@@ -30,12 +30,10 @@ import { TALENT_UNREAD } from "./WorkspaceTopbar";
 import { useWorkspaceNav } from "./workspace-nav";
 import { WebsiteRewardControl } from "@/components/talent/website-reward/WebsiteRewardControl";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
-import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
-import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { TalentPreviewEyeControl } from "./TalentPreviewEyeControl";
 
 
 export function TulalaIdentityBar() {
-  const origin = useCurrentOrigin();
   const {
     state,
     openDrawer,
@@ -403,34 +401,26 @@ export function TulalaIdentityBar() {
             {inTalent ? <LanguageMenu /> : null}
             <NotificationsBell />
 
-            {/* Preview. Studio v2 opens the talent's own public page.
-                The previous bar opened the agency homepage, and hid the
-                eye when the talent had no agency. */}
-            {(() => {
-              const ownPage = bridgeTalentSelfProfile?.profileCode
-                ? talentPublicProfileHref(bridgeTalentSelfProfile.profileCode, origin)
-                : null;
-              const show = studioV2
-                ? (inTalent ? Boolean(ownPage) : true)
-                : !(inTalent && agencyCount === 0);
-              if (!show) return null;
-              const href = studioV2 && inTalent && ownPage ? ownPage : (tenantSlug ? `/${tenantSlug}` : "/");
-              return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={copy.t("Preview site")}
-              title={copy.t("Preview public site")}
-              className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
-            >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </a>
-              );
-            })()}
+            {/* Preview. Studio v2: prefer the live personal website, with a
+                chooser when hub + website both exist. Pre-v2 still opens the
+                agency homepage and hides the eye when there is no agency. */}
+            {studioV2 && inTalent ? (
+              <TalentPreviewEyeControl profileCode={bridgeTalentSelfProfile?.profileCode} />
+            ) : !(inTalent && agencyCount === 0) ? (
+              <a
+                href={tenantSlug ? `/${tenantSlug}` : "/"}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={copy.t("Preview site")}
+                title={copy.t("Preview public site")}
+                className="inline-flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-[8px] border border-admin-border-soft bg-white text-admin-ink-muted no-underline hover:border-admin-border hover:text-admin-ink [transition:border-color_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </a>
+            ) : null}
 
             {/* User identity — avatar-only menu trigger; the full name + email
                 live in the dropdown header, the aria-label, and a tooltip. */}

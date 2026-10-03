@@ -382,7 +382,7 @@ export function AgendaCalendarPage({
                 aria-label={copy.t("Add")}
                 aria-expanded={overlay === "add"}
                 onClick={() => setOverlay("add")}
-                className="min-h-[44px] min-w-[44px] rounded-full bg-[var(--tc-primary)] text-[20px] text-white"
+                className="min-h-[44px] min-w-[44px] rounded-full bg-[var(--tc-action)] text-[20px] text-white hover:bg-[var(--tc-action-hover)]"
               >
                 +
               </button>
@@ -503,10 +503,10 @@ export function AgendaCalendarPage({
       {undo ? (
         <div
           role="status"
-          className="flex items-center justify-between rounded-[16px] bg-[var(--tc-primary)] px-4 py-1 text-white"
+          className="flex items-center justify-between rounded-[16px] border border-[var(--tc-action)] bg-[var(--tc-soft)] px-4 py-1 text-[var(--tc-ink)]"
         >
           <span className="text-[13px]">{`${undo.label} ${copy.t("blocked")}`}</span>
-          <button type="button" className="min-h-[44px] px-2 text-[13px] font-semibold" onClick={() => void undoBlock()}>
+          <button type="button" className="min-h-[44px] px-2 text-[13px] font-semibold text-[var(--tc-action)]" onClick={() => void undoBlock()}>
             {copy.t("Undo")}
           </button>
         </div>

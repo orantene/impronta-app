@@ -13,6 +13,9 @@ export const ES_APPS_TEXT: Record<string, string> = {
   "Apps": "Apps",
   "Add Apps": "Agregar apps",
   "All apps": "Todas las apps",
+  "Search apps": "Buscar apps",
+  "Browse designs": "Ver diseños",
+  "Apps look best in matching designs.": "Las apps se ven mejor en diseños que combinan.",
   "Nail Designer": "Diseñador de uñas",
   "Visitors design a manicure nail by nail and send it with their booking request. Drop it in and it works, nothing to set up.":
     "Tus visitantes diseñan una manicura uña por uña y la envían con su solicitud de reserva. Solo agrégala y funciona, no hay nada que configurar.",

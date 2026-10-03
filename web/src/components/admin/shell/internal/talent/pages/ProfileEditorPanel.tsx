@@ -73,7 +73,7 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
         <button
           type="button"
           onClick={() => openSection(SLICE_SHELL_SECTION[sum.firstOpen!])}
-          className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-admin-ink px-4 text-[13px] font-semibold text-white"
+          className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-[var(--tc-action)] bg-[var(--tc-action)] px-4 text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
         >
           {t("dashboard.talentMyProfile.editor.finish")}
         </button>

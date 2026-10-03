@@ -21,7 +21,7 @@ type T = (s: string) => string;
 const FIELD =
   "h-11 w-full rounded-[12px] border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] text-admin-ink outline-none focus:border-admin-ink";
 const PRIMARY =
-  "inline-flex h-11 flex-1 items-center justify-center rounded-full bg-admin-ink px-4 font-admin-body text-[14px] font-semibold text-white disabled:opacity-50";
+  "inline-flex h-11 flex-1 items-center justify-center rounded-full border border-[var(--tc-action)] bg-[var(--tc-action)] px-4 font-admin-body text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-50";
 const SECONDARY =
   "inline-flex h-11 items-center justify-center rounded-full border border-admin-border-soft bg-white px-4 font-admin-body text-[14px] font-semibold text-admin-ink";
 

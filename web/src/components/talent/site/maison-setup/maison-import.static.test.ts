@@ -46,6 +46,21 @@ test("import actions are Maison-flag gated", () => {
   assert.match(src, /feature_disabled/);
 });
 
+test("retry recovers catalog from batch source_demo_slug (not Maison-only)", () => {
+  const core = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/server/maison-import-core.ts"),
+    "utf8",
+  );
+  assert.match(core, /galleryImportCatalogForBatchSlug/);
+  assert.match(core, /source_demo_slug/);
+  const catalog = readFileSync(
+    join(process.cwd(), "src/lib/talent-site/theme-catalog/gallery-import-catalog.ts"),
+    "utf8",
+  );
+  assert.match(catalog, /galleryImportCatalogForBatchSlug/);
+  assert.match(catalog, /namespacedKey|fixtureKey.*svc/);
+});
+
 test("W59: Services website-setup banner", () => {
   const banner = readFileSync(
     join(process.cwd(), "src/components/talent/services/ServicesWebsiteSetupBanner.tsx"),
