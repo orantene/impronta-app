@@ -1,9 +1,9 @@
-Updated: 2026-10-03 17:21Z · Scoreboard: ✅ 3 / 🟡 63 / ❌ 17 / ⏸ 3 / ❓ 14
+Updated: 2026-10-03 17:36Z · Scoreboard: ✅ 3 / 🟡 63 / ❌ 17 / ⏸ 3 / ❓ 14
 Live SHA: c4f0a097a · origin/production: c4f0a097a · Main SHA: c4f0a097a
 Top 3 blockers right now
-1. TOP — **Live = main = production** `c4f0a097a` ([#2492](https://github.com/orantene/impronta-app/pull/2492) avatar menu **LIVE**). Tip Structural **SUCCESS** [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027); Promote **SUCCESS** [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889); alias **SUCCESS** [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870); Vercel READY `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD`. Oran decisions (2026-10-03 17:21Z): domain search/buy **owner-parked** (#60 → ⏸; no prod registrar tokens; Buscar Coming-soon PR in progress on `fix/domain-search-coming-soon`). Free Builder flag **confirmed Production** by Oran — #55/#57 stay ❌ until Valeria live evidence (check in flight). #13 stays 🟡 (Free avatar walk). #94 ✅.
-2. Money / S5–S7 paid QA — moved to **LOCAL Mac agent** (not cloud secrets). Live still shows `Cuenta de depósito: Sin configurar`. Money #45/#49/#46 stay ❌; #26/#47 stay 🟡 until a paid walk. Wall+S4 inquire PASS; S6 fee toggle PASS.
-3. Support Desk stays ⏸ / parked — `SUPPORT_DESK_ENABLED` off; `support.tulala.digital` 404; #2477 draft CONFLICTING. Do not merge Desk / do not enable flag. Live `/legal/refunds` EN+ES 200 on tip.
+1. TOP — **Live = main = production** `c4f0a097a` ([#2492](https://github.com/orantene/impronta-app/pull/2492) avatar menu **LIVE**). Rechecked 2026-10-03 17:36Z: HTML sentry-release on `app.tulala.digital` = `c4f0a097ae83ec7c4e57edc0751bbbf0b2f50891`; Vercel READY prod `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD` (`githubCommitRef=production`, meta sha match). #94 ✅. Domain search/buy stays ⏸ (#60) — no registrar tokens; Buscar Coming-soon PR in progress (`fix/domain-search-coming-soon`). Free Builder flag confirmed Production by Oran — #55/#57 stay ❌ until Valeria evidence (not ✅). #13 stays 🟡.
+2. Money / S5–S7 paid QA — **LOCAL Mac agent** (not cloud secrets). Live still `Cuenta de depósito: Sin configurar`. #45/#49/#46 ❌; #26/#47 🟡. Wall+S4 inquire PASS; S6 fee toggle PASS.
+3. Support Desk leftovers stay parked — `SUPPORT_DESK_ENABLED` **OFF**; `support.tulala.digital` HTTP 404 (rechecked 2026-10-03 17:36Z); #2477 draft CONFLICTING only open PR. Do not merge / do not enable flag.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
 
@@ -152,7 +152,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 84 | Transactional mail: right language and brand | 🟡 | EN/ES templates for booking, payment, reminder, and password reset are on main. | No booking or payment mail opened from a live talent flow. Reset send is rate-limited. | S13 step 6 | — | 2026-10-03 |
 | 85 | Talent can choose which notifications | 🟡 | `TalentNotificationsDrawer` saves prefs. Keys are `new-offer`, `hold-expiring`, and similar, not the catalog category ids the dispatcher reads. | Toggles may not change what is sent. Not proven with one real event. | S13 (own: toggle one pref, trigger the event) | — | 2026-10-03 |
 | 86 | Support from the dashboard or site: AI, then a human | 🟡 | Launchers and `/api/ai/support-chat` plus `requestHumanAction` are on main. `/support` was HTTP 200 on 2026-10-02. | Not walked as a talent or a guest through AI then human on production. | S13 steps 1–2 | — | 2026-10-03 |
-| 87 | Owner works support in the Desk, including hello@ | ⏸ | #2479 and #2483 ancestors of live `c4f0a097a`. Migrations applied. Oran: Support Desk stays parked; `SUPPORT_DESK_ENABLED` off. | `https://support.tulala.digital` 404. Do not merge #2477 / do not enable flag. | S13 step 3 | — | 2026-10-03 |
+| 87 | Owner works support in the Desk, including hello@ | ⏸ | #2479 and #2483 ancestors of live `c4f0a097a`. Migrations applied. Oran: Support Desk stays parked; `SUPPORT_DESK_ENABLED` **OFF**. | `https://support.tulala.digital` HTTP 404 rechecked 2026-10-03 17:36Z. Do not merge #2477 / do not enable flag. | S13 step 3 | — | 2026-10-03 |
 | 88 | Tickets show plan, bookings, payments, errors | 🟡 | `TicketContextCard` has plan, recent bookings, payment status, and diagnostics. | No payments ledger panel. Talent-as-requester lookup is weak. Not opened on a live ticket. | S13 step 2 | — | 2026-10-03 |
 
 ## Story 14 — The platform is healthy (S14)
@@ -160,13 +160,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | Re-checked 2026-10-03 17:03Z: `origin/main` = `origin/production` = live HTML sentry-release = `c4f0a097a` (#2492 LIVE). Tip Structural **SUCCESS** [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027); Promote **SUCCESS** [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889); alias **SUCCESS** [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870). Vercel READY prod `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD` (meta sha match; `githubCommitRef=production`; HTML Link `dpl=` same). Domains embed `c4f0a097a…`. | None for deploy-health. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | ✅ | Re-checked 2026-10-03 17:36Z: `origin/main` = `origin/production` = live HTML sentry-release = `c4f0a097a` (#2492 LIVE). Tip Structural **SUCCESS** [37121761027](https://github.com/orantene/impronta-app/actions/runs/37121761027); Promote **SUCCESS** [37123505889](https://github.com/orantene/impronta-app/actions/runs/37123505889); alias **SUCCESS** [37123688870](https://github.com/orantene/impronta-app/actions/runs/37123688870). Vercel READY prod `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD` (meta sha match; `githubCommitRef=production`; HTML Link `dpl=` same). Domains embed `c4f0a097a…`. | None for deploy-health. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after promote of `0972d4f0a` (#2498) to live (nor after remount/`8b3143018` pack prove). | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 17:03Z: 1 (#2477 draft CONFLICTING, created 2026-10-02). Author `orantene`. Live=main=production tip `c4f0a097a` (#2492). Zero non-draft open PRs — merge lane clear. | None older than 2 days. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 17:36Z: 1 (#2477 draft CONFLICTING, created 2026-10-02). Author `orantene`. Live=main=production tip `c4f0a097a` (#2492). Zero non-draft open PRs — merge lane clear. | None older than 2 days. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on tip; no logged console capture this wake. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live production equals main at `187558dca`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` refreshed 2026-10-03 17:21Z. Oran decisions: domain search/buy ⏸; S5/S7 paid QA → Mac local; Desk ⏸ flag off; Free Builder flag confirmed Production (Valeria check in flight, not ✅). Live tip `c4f0a097a`. REPLIES.md untouched. | Board working note. | S14 step 5 | — | 2026-10-03 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` refreshed 2026-10-03 17:36Z. Tip live=main=production `c4f0a097a`. Domain #60 ⏸; Desk #87 ⏸ flag OFF; S5/S7 → Mac local; Free Builder flag confirmed Production (Valeria in flight, not ✅). REPLIES.md untouched. | Board working note. | S14 step 5 | — | 2026-10-03 |
 
 ## No story yet
 
@@ -212,10 +212,5 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-Oran decisions wake 2026-10-03 17:21Z on `status/done-board` (from `0cfcfb8fd` / prior 17:03Z). REPLIES.md untouched (Claude owns). Tip SHA unchanged `c4f0a097a`.
-**Changed vs 17:03Z:**
-- #60 Custom domain search/buy → ⏸ owner-parked (not ❌). No Vercel registrar tokens in production. Buscar Coming-soon PR in progress (`fix/domain-search-coming-soon`). Connect + Get help stay live paths.
-- S5/S7 paid QA → LOCAL Mac agent (not cloud secrets). Money rows #45/#49/#46 stay ❌; #26/#47 stay 🟡. Live deposit still unset.
-- #87 Support Desk → ⏸ parked; `SUPPORT_DESK_ENABLED` off; do not merge #2477.
-- Free Builder: Oran confirmed flag on Production; #54/#55/#57 evidence updated; stay not ✅ until Valeria live proof (check in flight).
-Scoreboard: ✅ 3 / 🟡 63 / ❌ 17 / ⏸ 3 / ❓ 14.
+PM 15-min wake 2026-10-03 17:36Z on `status/done-board` (from `9b88f55ab` / prior 17:21Z). REPLIES.md untouched (Claude owns). Do not message Oran.
+**Recheck vs 17:21Z:** Tip **unchanged** — Live = main = production = HTML sentry-release = `c4f0a097a` (#2492 LIVE). Vercel READY prod `dpl_BR3mdrA163SmKuHfVqZFeEPHTNxD` (`githubCommitRef=production`). `support.tulala.digital` still 404; Desk flag OFF. Domain #60 stays ⏸ (Buscar Coming-soon PR in progress). S5/S7 paid QA stays LOCAL Mac. No new ✅ without evidence. Open PRs: #2477 draft CONFLICTING only. Scoreboard: ✅ 3 / 🟡 63 / ❌ 17 / ⏸ 3 / ❓ 14.
