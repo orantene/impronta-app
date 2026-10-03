@@ -203,7 +203,9 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         <Avatar initials={initials} size={40} tone="ink" hashSeed={name} photoUrl={photoUrl} />
         <div className="min-w-0">
           <div className="text-admin-13 font-semibold text-admin-ink">{name}</div>
-          <div className="mt-px text-admin-11h text-admin-ink-muted">{copy.t("Talent")}</div>
+          <div className="mt-px text-admin-11h text-admin-ink-muted">
+            {bridgeTalentSelfProfile?.profileCode || copy.t("Talent")}
+          </div>
         </div>
       </div>
 
