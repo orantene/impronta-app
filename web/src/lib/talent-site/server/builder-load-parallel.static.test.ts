@@ -19,6 +19,19 @@ test("F93: the builder route loads its independent reads in parallel batches", (
   assert.doesNotMatch(src, /const talentLocale = await loadTalentLocaleSettings/);
 });
 
+test("Free locked editor: builder provisions any canEdit site, not Max-only", () => {
+  const src = read("app/(workspace)/talent/page-builder/page.tsx");
+  // Story 2 #55/#57: Free with the switch on must get a site row so the locked
+  // editor mounts. Max-only provision left Free on Public page / upsell.
+  assert.match(src, /if\s*\(\s*!input\.canEdit\s*\)\s*return\s+false/);
+  assert.match(src, /provisionTalentMaxSite\(\s*input\.profileId,\s*input\.userId\s*\)/);
+  assert.doesNotMatch(src, /if\s*\(\s*input\.isMax\s*\)/);
+  assert.doesNotMatch(
+    src,
+    /resolveSiteExists\(\{\s*profileId:\s*profile\.id,\s*isMax/,
+  );
+});
+
 test("F93: preview data sources start before the CTA/swaps batch and shell prep", () => {
   const src = read("lib/talent-site/server/talent-builder-canvas.server.tsx");
   const early = src.indexOf("const dataSourcesP = loadPreviewDataSources(");

@@ -28,6 +28,7 @@ import {
 } from "@/lib/talent/offerings-types";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
+import { resolveOfferingEditorSaveStatus } from "./offering-editor-save";
 import { ItemStateChips } from "./ItemStateChips";
 import { useLocationSettings } from "./LocationSettingsCard";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -388,10 +389,16 @@ export function ServicesHome({
         onOpenWorkingHours={openWorkingHours}
         onBack={() => setScreen("list")}
         onSave={async (next, publish, pendingImageIds) => {
-          // Direct write, not editor.saveDraft: saveDraft reads the hook's own
-          // draft state, which this screen never starts, so a new item saved
-          // through it returned null and nothing was written.
-          const payload: TalentOffering = { ...next, status: publish ? "published" : next.status };
+          // Direct upsert (hook saveDraft never sees this screen's draft). Status
+          // via resolveOfferingEditorSaveStatus — draft vs keep-live (Codex P1).
+          const payload: TalentOffering = {
+            ...next,
+            status: resolveOfferingEditorSaveStatus({
+              publish,
+              offeringId: next.id,
+              currentStatus: next.status,
+            }),
+          };
           const res = await upsertTalentOffering(talentId, payload);
           if (!res.ok) throw new Error(res.error);
           if (pendingImageIds?.length) {

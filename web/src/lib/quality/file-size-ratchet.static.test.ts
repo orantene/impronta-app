@@ -457,7 +457,10 @@ const BUDGETS: Record<string, number> = {
   // dashboard-i18n-money.ts (folded into RAIL_ES_TEXT) — same reason; keep 3968.
   // 2026-10-01 dashboard-es sweep: profile-editor ES block (skills .. verifications)
   // moved to dashboard-i18n-talent-editors.ts (spread at the same position), 3968 -> 3836.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3836,
+  // 2026-10-03 #2495 Codex P2: +6 offering save/validation ES strings (server
+  // config, name, currency, book-how, deposit %, cancel hours). Keep adjacent
+  // to the other services-editor keys in ES_TEXT; raise with the growth.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3842,
   "src/components/admin/shell/internal/help.tsx": 744,
   // 2026-08-28 support M2: DRAWER_HELP extracted so the AI corpus can import
   // the registry from a server module without pulling the HelpPanel island.

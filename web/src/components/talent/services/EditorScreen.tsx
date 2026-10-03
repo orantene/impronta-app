@@ -26,6 +26,7 @@ import { MatrixFields } from "./MatrixFields";
 import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
+import { localizeOfferingSaveError } from "./offering-editor-save";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
@@ -165,8 +166,11 @@ export function EditorScreen({
       const pending = isNew ? photos.filter((p) => !p.id.startsWith("url-")).map((p) => p.id) : undefined;
       await onSave(item, publish, pending);
       setBaseline(JSON.stringify(item));
-    } catch {
-      setError(copy.t("It did not save. Everything you entered is still here. Try again."));
+    } catch (err) {
+      // Prefer server/validation text; localize ES (Codex P2) — no raw English.
+      const detail = err instanceof Error && err.message.trim() ? err.message.trim() : null;
+      const generic = copy.t("It did not save. Everything you entered is still here. Try again.");
+      setError(detail ? localizeOfferingSaveError(detail, { isSpanish: es, t: copy.t, generic }) : generic);
     } finally {
       setBusy(null);
     }
