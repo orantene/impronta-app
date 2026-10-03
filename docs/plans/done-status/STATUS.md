@@ -1,1 +1,1 @@
-$file:/workspace/docs/plans/done-status/STATUS.md
+file:///workspace/docs/plans/done-status/STATUS.md
