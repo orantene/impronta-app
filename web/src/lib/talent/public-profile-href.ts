@@ -64,7 +64,12 @@ export function resolveTalentPublicPreviewDestinations(input: {
   const destinations: TalentPublicPreviewDestination[] = [];
 
   const hubHref = code ? talentPublicProfileHref(code, input.currentOrigin) : null;
-  const websiteHref = normalizeDistinctPersonalSiteHref(input.publicSiteUrl, code, hubHref);
+  const websiteHref = normalizeDistinctPersonalSiteHref(
+    input.publicSiteUrl,
+    code,
+    hubHref,
+    input.currentOrigin,
+  );
 
   if (websiteHref) {
     destinations.push({ kind: "website", href: websiteHref });
@@ -83,15 +88,22 @@ function normalizeDistinctPersonalSiteHref(
   publicSiteUrl: string | null | undefined,
   profileCode: string,
   hubHref: string | null,
+  currentOrigin?: string | null,
 ): string | null {
   const raw = (publicSiteUrl ?? "").trim();
   if (!raw || !profileCode) return null;
+
+  // Relative `/t/site/...` must stay on the local origin during localhost QA
+  // (subdomains off); elsewhere keep the canonical public host.
+  const relativeBase = isLocalDevOrigin(currentOrigin)
+    ? new URL(currentOrigin as string).origin
+    : CANONICAL_PROFILE_ORIGIN;
 
   let absolute: string;
   try {
     absolute = raw.startsWith("http://") || raw.startsWith("https://")
       ? new URL(raw).toString().replace(/\/$/, "")
-      : new URL(raw, CANONICAL_PROFILE_ORIGIN).toString().replace(/\/$/, "");
+      : new URL(raw, relativeBase).toString().replace(/\/$/, "");
   } catch {
     return null;
   }

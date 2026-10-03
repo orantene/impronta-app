@@ -52,6 +52,24 @@ test("preview destinations collapse when publicSiteUrl is only the hub path", ()
   assert.equal(resolved.defaultHref, "https://tulala.digital/t/TAL-93900");
 });
 
+test("relative /t/site URLs resolve against local origin in local QA", () => {
+  const resolved = resolveTalentPublicPreviewDestinations({
+    profileCode: "TAL-93900",
+    publicSiteUrl: "/t/site/jorg-beauty-qa",
+    currentOrigin: "http://localhost:3001",
+  });
+  assert.equal(resolved.defaultHref, "http://localhost:3001/t/site/jorg-beauty-qa");
+  assert.equal(resolved.destinations[0]?.kind, "website");
+});
+
+test("relative /t/site URLs keep the canonical host outside local QA", () => {
+  const resolved = resolveTalentPublicPreviewDestinations({
+    profileCode: "TAL-93900",
+    publicSiteUrl: "/t/site/jorg-beauty-qa",
+  });
+  assert.equal(resolved.defaultHref, "https://tulala.digital/t/site/jorg-beauty-qa");
+});
+
 test("the public-preview drawer uses her real code and the origin-aware helper", () => {
   const src = readFileSync(
     join(process.cwd(), "src/components/admin/shell/internal/talent-drawers/profile-extras.tsx"),

@@ -77,5 +77,6 @@ test("dashboard public URL prefers the published personal site, then hub /t/code
   );
   assert.match(dashState, /publishedPersonalSiteUrl/);
   assert.match(dashState, /talentSitePathUrl/);
+  assert.match(dashState, /maxSitePublicGate/);
   assert.equal(dashState.includes("`/t/${profileCode}/site`"), false);
 });

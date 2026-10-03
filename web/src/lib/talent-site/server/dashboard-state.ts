@@ -14,6 +14,7 @@ import { provisionTalentPersonalSiteIfMissing } from "@/lib/talent-site/server/p
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
+import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 import { talentSitePathUrl, talentSitePublicUrl } from "@/lib/talent-site/site-public-url";
 import { assertTalentCanEditPersonalSite } from "@/lib/server/talent-self-guard";
 
@@ -39,14 +40,23 @@ function mapSiteRow(row: TalentSiteRow): TalentSiteDashboardState["site"] {
  *   1. primary active custom domain
  *   2. `<slug>.tulala.digital` when the subdomain switch is on
  *   3. `/t/site/<slug>` path form when published
- * Unpublished / no-slug sites leave this null so callers fall back to the hub.
+ * Unpublished / no-slug / plan-gated sites leave this null so callers fall
+ * back to the hub (same `maxSitePublicGate` the public renderer uses).
  */
 function publishedPersonalSiteUrl(input: {
   siteSlug: string | null | undefined;
   sitePublishedAt: string | null | undefined;
   customDomain: string | null | undefined;
+  planKey: string | null | undefined;
 }): string | null {
-  if (!input.sitePublishedAt) return null;
+  if (
+    !maxSitePublicGate({
+      sitePublishedAt: input.sitePublishedAt ?? null,
+      planKey: input.planKey,
+    })
+  ) {
+    return null;
+  }
   const domain = (input.customDomain ?? "").trim().toLowerCase();
   if (domain) return `https://${domain}`;
   const slug = input.siteSlug ?? null;
@@ -136,6 +146,7 @@ export async function loadTalentPersonalSiteDashboardState(
         siteSlug: siteMeta.site_slug,
         sitePublishedAt: siteMeta.site_published_at,
         customDomain,
+        planKey: scope.planKey,
       });
     }
   }
