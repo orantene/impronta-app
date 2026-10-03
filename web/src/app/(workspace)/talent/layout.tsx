@@ -175,8 +175,14 @@ export default async function PlatformTalentLayout({
 
   const baseProfile = await loadTalentSelfProfileByUser(session.user.id);
   if (!baseProfile) {
-    if (isTalentRoot) {
-      return children;
+    // Root owns the wall / onboarding decision. Sub-routes used to call
+    // notFound() here whenever the user-scoped profile read missed — that
+    // turned a successful /talent → /talent/today redirect into a branded
+    // 404 for demo-jor-clone (and any talent whose first layout read flaked).
+    // Hand the page the children without shell so the route can still run;
+    // a later navigation reloads the shell once the profile is readable.
+    if (isTalentRoot || pathname.startsWith("/talent/")) {
+      return <>{children}</>;
     }
     notFound();
   }

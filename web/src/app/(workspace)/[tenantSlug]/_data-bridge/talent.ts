@@ -265,7 +265,11 @@ export async function loadTalentSelfProfileByUser(
     `;
     // limit(1), not maybeSingle: a second row makes maybeSingle an error,
     // and the layout then 404s every /talent/* route including /talent/money.
-    let { data: profileRows, error: profileErr } = await supabase
+    // Prefer service-role when configured: the layout 404s every /talent/*
+    // sub-route when this read returns null, while /talent itself can still
+    // resolve via a later admin fallback. Using `trusted` keeps Today/Money
+    // reachable for the same actor the root page already recognized.
+    let { data: profileRows, error: profileErr } = await trusted
       .from("talent_profiles")
       .select(`
         ${profileSelect},
@@ -285,7 +289,7 @@ export async function loadTalentSelfProfileByUser(
       logServerError("talent.loadSelfProfileByUser.profile", profileErr);
       // Embeds can fail the whole read. The scalar row is enough to open
       // Today and Money; missing taxonomy just leaves those fields empty.
-      const fallback = await supabase
+      const fallback = await trusted
         .from("talent_profiles")
         .select(profileSelect)
         .eq("user_id", userId)
