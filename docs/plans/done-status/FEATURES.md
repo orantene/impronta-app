@@ -84,3 +84,4 @@ Personas: **paid** = TAL-93900 (Jor clone) · **free** = Valeria TAL-93901 · **
 3. Weekly live sweep (Monday + after big merges): re-verify rows; disappeared → ❌ top priority.
 4. Daily summary line: `Features: X live / Y hidden-on-purpose / Z hidden-by-mistake (fixed today: …)`.
 5. Smoke extension (follow-up): `deploy:smoke` should fail if critical flags missing expected prod values.
+6. **Done board Live proof:** a STATUS.md ✅ requires a production screenshot from `app.tulala.digital` as TAL-93900 (linked in Evidence). Localhost / code-only / tip SHA without shot → 🟡 or **Live proof owed**. See [STATUS.md](./STATUS.md) Process.

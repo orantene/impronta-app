@@ -6,6 +6,8 @@ How to use: each question must be answered **YES, proven live** (screenshot or t
 "Yes on localhost", "yes in code" or "yes behind a flag" = NOT done. Mark each: ✅ live-proven · 🟡 built, not proven · ❌ missing.
 Test on TAL-93900 (Jor's test copy), Valeria TAL-93901 (Free), and a fresh sign-up, in ES and EN, on a phone (390px) and desktop.
 
+**Live proof (required for ✅ on the Done board):** screenshot from production **`app.tulala.digital`** (never localhost) as **TAL-93900**, linked/attached in [`docs/plans/done-status/STATUS.md`](./done-status/STATUS.md). Tip SHA alone is not enough — stay 🟡 or mark **Live proof owed** until the shot exists. Canonical scoreboard: that STATUS.md on branch `status/done-board`.
+
 ---
 
 ## 1. Sign-up and onboarding
