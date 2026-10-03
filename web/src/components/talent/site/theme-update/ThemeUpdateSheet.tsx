@@ -36,7 +36,7 @@ import type { TalentUpdateNotice, UpdatePreview } from "@/lib/talent-site/theme-
 import type { PlacementOption, TalentReleaseItem } from "@/lib/talent-site/theme-releases/talent-update/view";
 
 const BTN_PRIMARY =
-  "inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--tc-action,#3B8277)] bg-[var(--tc-action,#3B8277)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tc-action-hover,#326F66)] hover:bg-[var(--tc-action-hover,#326F66)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)] disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)] disabled:opacity-60";
 const BTN_GHOST =
   "inline-flex min-h-11 items-center justify-center rounded-lg border border-admin-border-soft bg-white px-4 text-[14px] font-semibold text-admin-ink disabled:opacity-60";
 

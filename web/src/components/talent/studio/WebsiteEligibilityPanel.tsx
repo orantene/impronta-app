@@ -38,7 +38,7 @@ export function WebsiteEligibilityPanel({ onActivate }: { onActivate?: (step: We
             type="button"
             data-testid="website-activate"
             onClick={() => onActivate(flow.step)}
-            className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-[var(--tc-action,#3B8277)] bg-[var(--tc-action,#3B8277)] px-4 text-[13px] font-semibold text-white hover:border-[var(--tc-action-hover,#326F66)] hover:bg-[var(--tc-action-hover,#326F66)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)]"
+            className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-4 text-[13px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
           >
             {flow.text.cta}
           </button>
