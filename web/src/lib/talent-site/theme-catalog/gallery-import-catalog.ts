@@ -12,7 +12,7 @@ import {
   type MaisonStarterSectionText,
   type MaisonStarterService,
 } from "@/lib/talent-site/theme-catalog/maison/maison-starter-catalog";
-import type { GalleryDemo } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { getGalleryDesign, type GalleryDemo } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
 export type GalleryImportCatalog = MaisonStarterCatalog & {
   source: "maison-seed" | "demo-fixture";
@@ -28,11 +28,16 @@ function slugKey(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/** Prefix keys with fixture id so idempotency/undo cannot collide across demos. */
+function namespacedKey(fixtureKey: string, kind: "svc" | "faq" | "sec", rest: string): string {
+  return `${fixtureKey}:${kind}:${rest}`;
+}
+
 function fromFixture(fixtureKey: string, demoSlug: string): GalleryImportCatalog | null {
   try {
     const fx = loadDemoContentFixture(fixtureKey);
     const services: MaisonStarterService[] = (fx.services ?? []).map((s) => ({
-      key: `svc:${s.id || slugKey(s.name)}`,
+      key: namespacedKey(fixtureKey, "svc", s.id || slugKey(s.name)),
       name: s.name,
       category: s.category || "General",
       priceMxn: s.priceAmount ?? 0,
@@ -40,24 +45,12 @@ function fromFixture(fixtureKey: string, demoSlug: string): GalleryImportCatalog
       imageReuse: "preview_only" as const,
     }));
     const faqs: MaisonStarterFaq[] = (fx.faq?.items ?? []).map((q, i) => ({
-      key: `faq:${i}:${slugKey(q.q.slice(0, 40))}`,
+      key: namespacedKey(fixtureKey, "faq", `${i}:${slugKey(q.q.slice(0, 40))}`),
       question: q.q,
     }));
+    // Biography/About copy is not written by commitStarterImportWithCatalog yet —
+    // hide until that path persists section text (otherwise "content added" is a no-op).
     const sectionText: MaisonStarterSectionText[] = [];
-    if (fx.talent?.bio) {
-      sectionText.push({
-        key: "sec:bio",
-        labelEn: fx.talent.bio.slice(0, 80),
-        labelEs: fx.talent.bio.slice(0, 80),
-      });
-    }
-    if (fx.about?.text) {
-      sectionText.push({
-        key: "sec:about",
-        labelEn: fx.about.title || "About",
-        labelEs: fx.about.title || "Acerca de",
-      });
-    }
     const total = services.length + faqs.length + sectionText.length;
     if (total === 0) return null;
     return {
@@ -100,6 +93,27 @@ export function galleryImportCatalogFor(
     return fromFixture(fixtureKey, `${designSlug}:${demo.key}`);
   }
   return null;
+}
+
+/**
+ * Recover the catalog used by an import batch (`source_demo_slug`).
+ * Maison seed batches store `maison-nails`; fixture batches store `designSlug:demoKey`.
+ */
+export function galleryImportCatalogForBatchSlug(
+  sourceDemoSlug: string,
+): GalleryImportCatalog | null {
+  if (!sourceDemoSlug) return null;
+  if (sourceDemoSlug === "maison-nails") {
+    return { ...loadMaisonStarterCatalog(), source: "maison-seed" };
+  }
+  const sep = sourceDemoSlug.indexOf(":");
+  if (sep <= 0) return null;
+  const designSlug = sourceDemoSlug.slice(0, sep);
+  const demoKey = sourceDemoSlug.slice(sep + 1);
+  const design = getGalleryDesign(designSlug);
+  if (!design) return null;
+  const demo = design.demos.find((d) => d.key === demoKey) ?? null;
+  return galleryImportCatalogFor(designSlug, demo);
 }
 
 /** True when the demo can show a non-empty import chooser. */

@@ -189,7 +189,7 @@ function ManagerBody({
   hideDomainRow?: boolean;
 }) {
   const copy = useDashboardText();
-  const { openDrawer } = useAdminShell();
+  const { openDrawer, bridgeTalentPlanTrial } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
@@ -197,6 +197,24 @@ function ManagerBody({
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
+  /** Same entitlement gate as CustomDomainRow (capability + trial → plans). */
+  const handleOpenDomain = useCallback(() => {
+    const trialOn = bridgeTalentPlanTrial?.active === true;
+    if (!state.capabilities.personalSiteCustomDomain || trialOn) {
+      openDrawer("talent-tier-compare");
+      return;
+    }
+    if (onOpenDomain) {
+      onOpenDomain();
+      return;
+    }
+    openDrawer("talent-custom-domain");
+  }, [
+    bridgeTalentPlanTrial?.active,
+    onOpenDomain,
+    openDrawer,
+    state.capabilities.personalSiteCustomDomain,
+  ]);
   // Today / pill / My presence ask for a step; open the flow AT that step
   // (a chosen design resumes at review, never back at the gallery).
   const openSetup = useCallback((step: WebsiteSetupStep) => {
@@ -267,7 +285,7 @@ function ManagerBody({
           }}
           liveToast={liveToast}
           onLiveToastDone={() => setLiveToast(null)}
-          onOpenDomain={onOpenDomain ?? (() => openDrawer("talent-custom-domain"))}
+          onOpenDomain={handleOpenDomain}
           onOpenQuestions={onOpenQuestions}
           onOpenSettings={onOpenSettings}
           onOpenApps={

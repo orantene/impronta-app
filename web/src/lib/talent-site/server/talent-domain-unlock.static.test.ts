@@ -61,6 +61,9 @@ test("TalentMaxSiteManager mounts CustomDomainRow on My website", () => {
   );
   assert.match(src, /CustomDomainRow/);
   assert.match(src, /capabilities\.personalSiteCustomDomain/);
+  // Domain tile (Wave 3) uses the same entitlement gate as CustomDomainRow.
+  assert.match(src, /handleOpenDomain/);
+  assert.match(src, /talent-tier-compare/);
 });
 
 test("purchase actions re-check Web Office + block trial", () => {

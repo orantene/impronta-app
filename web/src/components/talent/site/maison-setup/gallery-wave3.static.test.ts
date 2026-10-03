@@ -65,10 +65,32 @@ test("G3-IMPORT: catalogs for finished designs; entry not Maison-only", () => {
   assert.ok(cat);
   assert.ok(cat!.counts.total > 0);
   assert.equal(cat!.services.length === 0 || cat!.services.length > 0, true);
+  // Fixture service keys are namespaced by fixture id (no cross-demo collision).
+  if (cat!.services.length > 0) {
+    assert.ok(cat!.services.every((s) => s.key.includes(":svc:")));
+  }
+  // Section text not offered until commit persists biography/about copy.
+  assert.equal(cat!.sectionText.length, 0);
   const panel = read("ImportStarterPanel.tsx");
   assert.match(panel, /loadGalleryImportPreviewAction/);
   assert.match(panel, /designSlug/);
   assert.match(panel, /catalog\.services\.length === 0/);
+});
+
+test("G3-IMPORT: service keys do not collide across Gridline demos", () => {
+  const grid = getGalleryDesign("gridline")!;
+  const built = grid.demos.filter((d) => d.status === "built");
+  assert.ok(built.length >= 2);
+  const keys = new Set<string>();
+  for (const demo of built) {
+    const cat = galleryImportCatalogFor("gridline", demo);
+    if (!cat) continue;
+    for (const svc of cat.services) {
+      assert.equal(keys.has(svc.key), false, `duplicate key ${svc.key}`);
+      keys.add(svc.key);
+    }
+  }
+  assert.ok(keys.size > 0);
 });
 
 test("G3-PRESENCE: hero + tiles on MyWebsiteCard", () => {
@@ -81,4 +103,21 @@ test("G3-PRESENCE: hero + tiles on MyWebsiteCard", () => {
   assert.match(card, /presence-tile-apps/);
   assert.match(card, /maison-edit-site[\s\S]*?bg-admin-ink/);
   assert.match(card, /History/);
+});
+
+test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-gated", () => {
+  const editor = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/talent/pages/PublicPageEditor.tsx"),
+    "utf8",
+  );
+  // Flag-on path keeps NavRow settingsEntry (not only !talentId collapsed panels).
+  assert.match(editor, /talentId \?\s*\(\s*settingsEntry/);
+  assert.doesNotMatch(editor, /onOpenDomain=\{\(\) => openDrawer\("talent-custom-domain"\)\}/);
+  const manager = readFileSync(
+    join(process.cwd(), "src/components/talent/site/TalentMaxSiteManager.tsx"),
+    "utf8",
+  );
+  assert.match(manager, /handleOpenDomain/);
+  assert.match(manager, /talent-tier-compare/);
+  assert.match(manager, /personalSiteCustomDomain/);
 });

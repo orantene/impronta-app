@@ -49,7 +49,7 @@ type PresenceTab = "site" | "appear" | "nets";
 export function PublicPageEditor({ locale = "en" }: Props) {
   const studio = useTalentStudioV2();
   const copy = useDashboardText();
-  const { bridgeTalentSelfProfile, openDrawer } = useAdminShell();
+  const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
   // PR 7: "Manage languages" / "Change in Website settings" deep-link here.
   const [intent] = useState<WebsiteSettingsIntentView | null>(() => takeWebsiteSettingsIntent());
@@ -124,11 +124,11 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           </Suspense>
           <ThemeUpdateNotice surface="presence" locale={locale} />
           <AvailableBlocks locale={locale} />
-          {/* Wave 3: hero + tiles on the manager; FAQ / settings open from tiles. */}
+          {/* Wave 3: hero + tiles on the manager; FAQ / settings open from tiles.
+              Domain tile is entitlement-gated inside TalentMaxSiteManager. */}
           <TalentMaxSiteManager
             locale={locale}
             hideDomainRow
-            onOpenDomain={() => openDrawer("talent-custom-domain")}
             onOpenQuestions={() => setFaqOpen(true)}
             onOpenSettings={() => {
               if (talentId) setSettingsOpen(true);
@@ -159,8 +159,12 @@ export function PublicPageEditor({ locale = "en" }: Props) {
               </div>
             </div>
           ) : null}
-          {/* Flag off → keep Website settings reachable under a collapsed row. */}
-          {!talentId ? (
+          {/* Flag on: NavRow → WebsiteSettingsScreen. MyWebsiteCard (Settings tile)
+              only mounts after first publish — keep this entry before then.
+              Flag off: collapsed MaxSiteSettingsPanels fallback. */}
+          {talentId ? (
+            settingsEntry
+          ) : (
             <details className="mt-6 rounded-xl border border-admin-border-soft bg-white font-admin-body">
               <summary className="min-h-11 cursor-pointer px-4 py-3 text-[15px] font-semibold text-admin-ink">
                 {copy.t("Website settings")}
@@ -169,7 +173,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
                 <MaxSiteSettingsPanels />
               </div>
             </details>
-          ) : null}
+          )}
         </>
       )}
       {tab === "appear" && <TalentSiteAppearancesPanel locale={locale} />}
