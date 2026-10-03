@@ -10685,6 +10685,7 @@ export type Database = {
           default_theme_tokens_talent: Json | null
           default_theme_updated_at: string | null
           default_theme_updated_by: string | null
+          guest_captcha_enforced: boolean
           id: boolean
           instant_book_default: boolean
           media_private_access_enabled: boolean
@@ -10715,6 +10716,7 @@ export type Database = {
           default_theme_tokens_talent?: Json | null
           default_theme_updated_at?: string | null
           default_theme_updated_by?: string | null
+          guest_captcha_enforced?: boolean
           id?: boolean
           instant_book_default?: boolean
           media_private_access_enabled?: boolean
@@ -10745,6 +10747,7 @@ export type Database = {
           default_theme_tokens_talent?: Json | null
           default_theme_updated_at?: string | null
           default_theme_updated_by?: string | null
+          guest_captcha_enforced?: boolean
           id?: boolean
           instant_book_default?: boolean
           media_private_access_enabled?: boolean
