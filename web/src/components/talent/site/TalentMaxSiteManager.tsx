@@ -292,7 +292,7 @@ function ManagerBody({
             onOpenApps ??
             (() => {
               setMaisonForceReason("restored");
-              setMaisonForceScreen("gallery");
+              setMaisonForceScreen("apps");
             })
           }
           showTiles

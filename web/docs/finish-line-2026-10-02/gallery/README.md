@@ -27,3 +27,17 @@ Finding IDs closed on `feat/gallery-wave-3`. Cloud Chrome live screenshots block
 | **G3-PRESENCE** | Mi presencia hero + tiles | Hero preview, Editar sitio primary, Domain/Questions/Settings/Apps tiles |
 
 Files: `G3-*-after.svg` in this folder.
+
+## Wave 4 — Apps flow
+
+Finding IDs closed on `feat/gallery-wave-4`. Cloud Chrome live screenshots blocked (no `:3001`). Code-verified SVG after cards:
+
+| ID | Audit area | After proof |
+|---|---|---|
+| **G4-APPS-LIBRARY** | Sugeridas + Todas | `AppsLibraryScreen` suggested/all grids |
+| **G4-APP-PAGE** | Try-it · Se ve mejor en · Agregar | `AppDetailScreen` playground + design thumbs + Web Office path |
+| **G4-FOLIO-APPS-TAB** | Folio + Gridline Apps tab | Theme detail always shows Apps tab + browse all |
+
+Also: presence Apps tile → library; builder Apps search + Browse designs link; Nail Designer host-width auto layout residual.
+
+Files: `G4-*-after.svg` in this folder.

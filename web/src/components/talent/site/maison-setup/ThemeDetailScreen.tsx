@@ -84,6 +84,9 @@ type Props = {
   liveLookSlug?: string | null;
   liveCustomPalette?: MaisonCustomPaletteStored | null;
   fromLiveSite?: boolean;
+  /** Wave 4: open Apps library / app detail from the Apps tab. */
+  onBrowseAppsLibrary?: () => void;
+  onOpenAppDetail?: (appId: string) => void;
 };
 
 export function ThemeDetailScreen({
@@ -100,6 +103,8 @@ export function ThemeDetailScreen({
   liveLookSlug = null,
   liveCustomPalette = null,
   fromLiveSite = false,
+  onBrowseAppsLibrary,
+  onOpenAppDetail,
 }: Props) {
   const preview = useThemePreview({ talentProfileId, locale });
   const [applyError, setApplyError] = useState<string | null>(null);
@@ -121,7 +126,9 @@ export function ThemeDetailScreen({
   const { demo, requested, plannedFallback } = resolveActiveDemo(design, choices.demoKey);
   const selectedDemoKey = requested?.key ?? demo?.key ?? null;
   const detailApps = appsForDetail(design, demo);
-  const appsTabOn = detailApps.length > 0 && choices.detailTab === "apps";
+  // Wave 4: Apps tab on every finished design (Folio + Gridline included),
+  // even when this design has no recommended apps yet.
+  const appsTabOn = choices.detailTab === "apps";
   const colors = effectiveColors(design, demo, choices, choices.contentMode);
   const usingCustom = colors.kind === "custom";
   const activeCustom = usingCustom ? choices.customPalette : null;
@@ -372,32 +379,36 @@ export function ThemeDetailScreen({
     />
   );
 
-  const tabStrip =
-    detailApps.length > 0 ? (
-      <div
-        role="tablist"
-        data-testid="maison-detail-tabs"
-        className="grid grid-cols-2 rounded-lg border border-admin-border-soft p-0.5"
-      >
-        {(["preview", "apps"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={tab === "apps" ? appsTabOn : !appsTabOn}
-            data-testid={`maison-detail-tab-${tab}`}
-            onClick={() => onChange({ detailTab: tab })}
-            className={`min-h-11 rounded-md text-[13px] font-semibold ${
-              (tab === "apps") === appsTabOn
-                ? "bg-admin-surface-alt text-admin-ink ring-1 ring-admin-ink"
-                : "bg-transparent text-admin-ink-muted"
-            }`}
-          >
-            {tab === "apps" ? `${galleryAppsT(locale, "apps")} · ${detailApps.length}` : maisonSetupT(locale, "Preview")}
-          </button>
-        ))}
-      </div>
-    ) : null;
+  const tabStrip = (
+    <div
+      role="tablist"
+      data-testid="maison-detail-tabs"
+      data-gallery-wave4-detail-tabs=""
+      className="grid grid-cols-2 rounded-lg border border-admin-border-soft p-0.5"
+    >
+      {(["preview", "apps"] as const).map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          role="tab"
+          aria-selected={tab === "apps" ? appsTabOn : !appsTabOn}
+          data-testid={`maison-detail-tab-${tab}`}
+          onClick={() => onChange({ detailTab: tab })}
+          className={`min-h-11 rounded-md text-[13px] font-semibold ${
+            (tab === "apps") === appsTabOn
+              ? "bg-admin-surface-alt text-admin-ink ring-1 ring-admin-ink"
+              : "bg-transparent text-admin-ink-muted"
+          }`}
+        >
+          {tab === "apps"
+            ? detailApps.length > 0
+              ? `${galleryAppsT(locale, "apps")} · ${detailApps.length}`
+              : galleryAppsT(locale, "apps")
+            : maisonSetupT(locale, "Preview")}
+        </button>
+      ))}
+    </div>
+  );
 
   const plannedNote = plannedFallback ? (
     <p data-testid="maison-demo-planned-note" className="text-[12px] text-admin-ink-dim">
@@ -461,7 +472,13 @@ export function ThemeDetailScreen({
 
           <div className="min-h-0 flex-1 overflow-auto">
             {appsTabOn ? (
-              <AppsTab apps={detailApps} locale={locale} previewDevice={choices.previewDevice} />
+              <AppsTab
+                apps={detailApps}
+                locale={locale}
+                previewDevice={choices.previewDevice}
+                onBrowseAll={onBrowseAppsLibrary}
+                onOpenApp={onOpenAppDetail}
+              />
             ) : (
               previewFrame
             )}

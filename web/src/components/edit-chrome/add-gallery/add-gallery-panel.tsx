@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   codeGalleryItemsForPolicy,
@@ -523,7 +524,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("Search sections and blocks")}
+              placeholder={t(tab === "apps" ? "Search apps" : "Search sections and blocks")}
               className="w-full rounded-[10px] border py-[9px] pl-[34px] pr-[12px] text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
               style={{
                 borderColor: CHROME.line,
@@ -548,6 +549,22 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
 
         {gallerySurface.structuralEdits === false && tab !== "shell" ? (
           <GalleryLockedNotice locale={locale} />
+        ) : null}
+        {tab === "apps" ? (
+          <div
+            className="mx-[16px] mb-[8px] flex flex-wrap items-center gap-[8px] rounded-[10px] border px-[12px] py-[8px] text-[12px]"
+            style={{ borderColor: CHROME.line, background: CHROME.paper, color: CHROME.ink }}
+            data-testid="add-gallery-apps-designs-link"
+          >
+            <span style={{ color: CHROME.muted }}>{t("Apps look best in matching designs.")}</span>
+            <Link
+              href="/talent"
+              className="font-semibold underline-offset-2 hover:underline"
+              style={{ color: CHROME.ink }}
+            >
+              {t("Browse designs")}
+            </Link>
+          </div>
         ) : null}
         <div className="flex min-h-0 flex-1">
           {!query.trim() && categories.length > 0 ? (
