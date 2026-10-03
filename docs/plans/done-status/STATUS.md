@@ -1,9 +1,9 @@
-Updated: 2026-10-03 23:45Z · Scoreboard: ✅ 5 / 🟡 64 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: c3214cac3 · origin/production: c3214cac3 · Main SHA: 56f0c147d
+Updated: 2026-10-03 23:49Z · Scoreboard: ✅ 5 / 🟡 64 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: c3214cac3 · origin/production: fd789c22b · Main SHA: 56f0c147d
 Top 3 blockers right now
-1. TOP — **Live = origin/production = HTML** `c3214cac3` ([#2505](https://github.com/orantene/impronta-app/pull/2505) READY `dpl_AmaKaEA8…`). **`origin/main` still ahead** `56f0c147d` ([#2508](https://github.com/orantene/impronta-app/pull/2508)+[#2507](https://github.com/orantene/impronta-app/pull/2507)+[#2506](https://github.com/orantene/impronta-app/pull/2506)) — production pointer / Live not caught up (rechecked 23:45Z). **#94 🟡**. Live-proof rule stands. Done-bar **#15/#16/#17/#44/#97 ✅**.
-2. Support Desk — [#2505](https://github.com/orantene/impronta-app/pull/2505) **tipped LIVE**. #87 **🟡** — Desk live re-prove still pending (prior Oran soft Page not found on older tip: `media/oran-live-sweep/13-desk.png`). `SUPPORT_DESK_ENABLED` **ON** (leave ON). [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
-3. Money S4–S7 — **KYC LIVE on TAL-93900**; **Paid still FAIL** — guest hCaptcha (`bc-0d95ddb3`). Open [#2509](https://github.com/orantene/impronta-app/pull/2509) HQ guest-captcha switch (mergeable blocked) — leave to owner; do not steal. **No paid ✅**.
+1. TOP — **three-way tip split (HTML wins for Live):** Live HTML = `c3214cac3` ([#2505](https://github.com/orantene/impronta-app/pull/2505) READY `dpl_AmaKaEA8…`). **`origin/production` advanced** to `fd789c22b` ([#2508](https://github.com/orantene/impronta-app/pull/2508); Vercel prod **BUILDING** `dpl_CsSyDvwt…`). **`origin/main` still ahead** `56f0c147d` ([#2507](https://github.com/orantene/impronta-app/pull/2507)+[#2506](https://github.com/orantene/impronta-app/pull/2506) not on production yet). **#94 🟡**. Live-proof rule stands. Done-bar **#15/#16/#17/#44/#97 ✅**.
+2. Support Desk — Live tip still [#2505](https://github.com/orantene/impronta-app/pull/2505). #87 **🟡** — Desk live re-prove still pending (`media/oran-live-sweep/13-desk.png`). `SUPPORT_DESK_ENABLED` **ON** (leave ON). [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
+3. Money S4–S7 — **KYC LIVE on TAL-93900**; **Paid still FAIL** — guest hCaptcha (`bc-0d95ddb3`). Open [#2509](https://github.com/orantene/impronta-app/pull/2509) HQ guest-captcha switch — leave; do not steal. **No paid ✅**.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -170,13 +170,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-03 23:45Z: **Live HTML** = `origin/production` = `c3214cac3` (`dpl_AmaKaEA8…`). **`origin/main` = `56f0c147d`** — [#2508](https://github.com/orantene/impronta-app/pull/2508)/[#2507](https://github.com/orantene/impronta-app/pull/2507)/[#2506](https://github.com/orantene/impronta-app/pull/2506) on main; production pointer still lagging. Not ✅ until Live = production = that green main. **Live proof N/A (ops)**. | Wait CI → `production` FF → HTML tip = `56f0c147d`. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-03 23:49Z: **Live HTML** `c3214cac3` (`dpl_AmaKaEA8…`); **`origin/production`** `fd789c22b` (#2508 BUILDING `dpl_CsSyDvwt…`); **`origin/main`** `56f0c147d` (#2507+#2506 still ahead). Not ✅ until Live = production = green main. **Live proof N/A (ops)**. | Wait prod build+alias → then FF remaining main commits → HTML = `56f0c147d`. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 23:45Z: [#2477](https://github.com/orantene/impronta-app/pull/2477) draft; [#2509](https://github.com/orantene/impronta-app/pull/2509) guest-captcha HQ switch (blocked) — leave. [#2506](https://github.com/orantene/impronta-app/pull/2506)/[#2507](https://github.com/orantene/impronta-app/pull/2507)/[#2508](https://github.com/orantene/impronta-app/pull/2508) on main (not Live). **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 23:49Z: [#2477](https://github.com/orantene/impronta-app/pull/2477) draft; [#2509](https://github.com/orantene/impronta-app/pull/2509) guest-captcha HQ switch — leave. #2508 on `production` (BUILDING); #2507/#2506 on main only. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store STATUS refreshed 2026-10-03 23:45Z. Live/production/HTML `c3214cac3`; main `56f0c147d`. #94 🟡 tip lag; Desk/#87 🟡; money captcha FAIL + open #2509 leave. Scoreboard ✅5; Live-proof rule stands. REPLIES.md untouched. | Board working note. | S14 step 5 | — | 2026-10-03 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store STATUS refreshed 2026-10-03 23:49Z. Live HTML `c3214cac3`; production `fd789c22b` BUILDING; main `56f0c147d`. #94 🟡; Desk/#87 🟡; money captcha + #2509 leave. Scoreboard ✅5; Live-proof rule stands. REPLIES.md untouched. | Board working note. | S14 step 5 | — | 2026-10-03 |
 
 ## No story yet
 
@@ -222,8 +222,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-Done-board tip re-prove 2026-10-03 23:45Z on `status/done-board` (plain push). REPLIES.md untouched. **Live-proof rule stands.** **Do not unset** `SUPPORT_DESK_ENABLED` (ON).
-**Tip SHAs:** Live = `origin/production` = HTML = `c3214cac3` (READY `dpl_AmaKaEA8…`). Main still `56f0c147d` — tip lag unchanged; **#94 🟡**.
+Done-board tip re-prove 2026-10-03 23:49Z on `status/done-board` (plain push). REPLIES.md untouched. **Live-proof rule stands.** **Do not unset** `SUPPORT_DESK_ENABLED` (ON).
+**Tip SHAs:** Live HTML = `c3214cac3` (`dpl_AmaKaEA8…`). **`origin/production` → `fd789c22b`** (#2508 BUILDING `dpl_CsSyDvwt…`). Main = `56f0c147d` (#2507+#2506 still ahead). **#94 🟡**.
 - Desk/#87 **🟡** — re-prove pending. Do not merge #2477.
-- Money: KYC ✅ `#44`; paid FAIL hCaptcha (`bc-0d95ddb3`). Open [#2509](https://github.com/orantene/impronta-app/pull/2509) — leave (mergeable blocked).
+- Money: KYC ✅ `#44`; paid FAIL hCaptcha (`bc-0d95ddb3`). Open [#2509](https://github.com/orantene/impronta-app/pull/2509) — leave.
 - Scoreboard ✅ 5 / 🟡 64 / ❌ 15 / ⏸ 2 / ❓ 14. PM merges this wake: **none**.
