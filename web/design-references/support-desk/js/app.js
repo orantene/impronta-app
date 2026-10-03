@@ -281,7 +281,8 @@
   }
 
   function brandWordmark(compact) {
-    return `<div class="brand-mark${compact ? " brand-mark-compact" : ""}"><span class="logo" aria-hidden="true">T</span><span class="brand-text"><span class="brand-name">Tulala</span><span class="brand-product">Support Desk</span></span></div>`;
+    // Tulala mark (logo) + “Support Desk” wordmark — not one mashed title string (Oran).
+    return `<div class="brand-mark${compact ? " brand-mark-compact" : ""}" title="Tulala Support Desk"><span class="logo" aria-hidden="true">T</span><span class="brand-text"><span class="brand-name visually-hidden">Tulala</span><span class="brand-product">Support Desk</span></span></div>`;
   }
 
   function deskChrome() {
