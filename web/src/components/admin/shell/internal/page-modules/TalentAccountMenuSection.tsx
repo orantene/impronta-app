@@ -87,6 +87,19 @@ const ROW_SHELL_CLASS =
   "flex w-full min-h-[44px] items-center gap-[10px] rounded-[8px] border-none bg-transparent px-[12px] py-[8px] text-left font-admin-body cursor-pointer box-border hover:bg-[rgba(11,11,13,0.04)]";
 
 /**
+ * Story 2 avatar destinations. "My website" already covers Site.
+ * Routes are the ones the talent shell already serves: Builder is the
+ * page builder, Money/Messages/Settings match the left rail
+ * (`messages` → `/talent/inbox`).
+ */
+const AVATAR_DESTINATIONS = [
+  { testId: "builder", label: "Builder", href: "/talent/page-builder", icon: "layers" },
+  { testId: "money", label: "Money", href: "/talent/money", icon: "credit" },
+  { testId: "messages", label: "Messages", href: "/talent/inbox", icon: "mail" },
+  { testId: "settings", label: "Settings", href: "/talent/settings", icon: "settings" },
+] as const;
+
+/**
  * A menu row, 44px min height for a comfortable mobile target.
  *
  * With `href` it renders a real anchor rather than a button that calls
@@ -108,11 +121,13 @@ function RowShell({
   testId?: string;
 }) {
   if (href) {
+    // Public profile URLs leave the app. Dashboard routes stay in this tab.
+    const external = /^https?:\/\//i.test(href);
     return (
       <a
         href={href}
-        target="_blank"
-        rel="noopener noreferrer"
+        target={external ? "_blank" : undefined}
+        rel={external ? "noopener noreferrer" : undefined}
         role="menuitem"
         aria-label={ariaLabel}
         onClick={onClick}
@@ -312,6 +327,23 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
           })}
         </div>
       )}
+
+      {AVATAR_DESTINATIONS.map((link) => (
+        <RowShell
+          key={link.testId}
+          testId={link.testId}
+          ariaLabel={copy.t(link.label)}
+          href={link.href}
+          onClick={onNavigate}
+        >
+          <RowIcon>
+            <Icon name={link.icon} size={14} stroke={1.7} color="var(--color-admin-ink-muted)" />
+          </RowIcon>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-medium text-admin-ink">{copy.t(link.label)}</span>
+          </span>
+        </RowShell>
+      ))}
 
       <div role="none" aria-hidden className="mt-1 mb-1 border-t border-admin-border-soft" />
     </div>
