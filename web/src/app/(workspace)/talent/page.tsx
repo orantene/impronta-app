@@ -22,7 +22,7 @@ import {
 } from "@/lib/talent/active-agency-context";
 import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadUnrosteredWallFacts } from "@/lib/talent/unrostered-wall-load";
-import { showUnrosteredTalentWall } from "@/lib/talent/unrostered-wall";
+import { unrosteredWallBypassesShell } from "@/lib/talent/unrostered-wall";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 
@@ -61,7 +61,8 @@ export default async function PlatformTalentRootPage({
   if (profileId) {
     const facts = await loadUnrosteredWallFacts(profileId);
     // An unread gate is not proof of "no roster and no site".
-    if (!facts.proven || !showUnrosteredTalentWall(facts)) {
+    // The same predicate tells the layout to skip the shell when it is true.
+    if (!unrosteredWallBypassesShell(facts)) {
       try {
         const store = await cookies();
         if (!store.get(ACTIVE_TALENT_TENANT_COOKIE)?.value) {
