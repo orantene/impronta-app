@@ -362,7 +362,7 @@ export function MyWebsiteCard({
           <Link
             href="/talent/page-builder"
             data-testid="maison-edit-site"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill)] bg-[var(--tulala-primary-fill)] px-5 text-[14px] font-semibold text-white hover:border-[var(--tulala-primary-fill-deep)] hover:bg-[var(--tulala-primary-fill-deep)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tulala-primary-fill)]"
           >
             {t("Edit site")}
           </Link>
