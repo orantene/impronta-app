@@ -293,8 +293,8 @@ function ModeTogglePillButton({
       aria-pressed={active}
       onClick={onClick}
       style={{
-        background: active ? COLORS.fill : "transparent",
-        color: active ? "#fff" : COLORS.inkMuted,
+        background: active ? `var(--tc-soft, ${COLORS.fill})` : "transparent",
+        color: active ? "var(--tc-ink, #fff)" : COLORS.inkMuted,
         border: "none",
         borderRadius: 999,
         // height matches container minus 6px padding (3+3) so the
@@ -314,7 +314,7 @@ function ModeTogglePillButton({
         transition: "background .2s ease, color .2s ease",
         flex: 1,
         justifyContent: "center",
-        boxShadow: active ? "0 1px 2px rgba(11,11,13,0.12)" : "none",
+        boxShadow: active ? "var(--tc-mode-ring, 0 1px 2px rgba(11,11,13,0.12))" : "none",
       }}
       onMouseEnter={(e) => {
         if (!active) {
@@ -406,7 +406,7 @@ export function IdentityBarIconButton({
             height: 14,
             padding: "0 3px",
             borderRadius: 999,
-            background: COLORS.accent,
+            background: `var(--tc-action, ${COLORS.accent})`,
             color: "#fff",
             fontSize: 9,
             fontWeight: 700,

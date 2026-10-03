@@ -156,7 +156,7 @@ function FilterChips(props: {
             onClick={() => props.onChange(f.id)}
             className={
               selected
-                ? "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-admin-ink px-3.5 font-admin-body text-[14px] font-semibold text-white"
+                ? "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[var(--tc-action)] bg-[var(--tc-soft)] px-3.5 font-admin-body text-[14px] font-semibold text-[var(--tc-ink)]"
                 : "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-admin-border-soft bg-white px-3.5 font-admin-body text-[14px] text-admin-ink"
             }
           >
@@ -276,7 +276,7 @@ function ClientRecord(props: {
           ) : null}
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center rounded-full bg-admin-ink px-4 font-admin-body text-[14px] font-semibold text-white"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--tc-action)] bg-[var(--tc-action)] px-4 font-admin-body text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
             onClick={() => router.push("/talent/bookings/new")}
           >
             {t("Book appointment")}
@@ -512,7 +512,7 @@ export function TalentClientsPage() {
         actions={
           <button
             type="button"
-            className="inline-flex h-9 items-center rounded-full bg-admin-ink px-3.5 font-admin-body text-[13px] font-semibold text-white"
+            className="inline-flex h-9 items-center rounded-full border border-[var(--tc-action)] bg-[var(--tc-action)] px-3.5 font-admin-body text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40"
             onClick={() => setPanel({ kind: "add" })}
             disabled={!talentId}
             data-client-add

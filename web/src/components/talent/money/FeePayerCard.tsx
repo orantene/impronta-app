@@ -101,12 +101,12 @@ export function FeePayerCard({ currency }: { currency: string }) {
       onClick={() => void change(id)}
       className={`min-h-[44px] flex-1 rounded-[12px] border px-4 py-3 text-left font-admin-body ${
         feePayer === id
-          ? "border-admin-ink bg-admin-ink text-white"
-          : "border-admin-border-soft bg-white text-admin-ink"
+          ? "border-[var(--tc-action)] bg-[var(--tc-soft)] text-[var(--tc-ink)]"
+          : "border-[var(--tc-border)] bg-white text-[var(--tc-ink)]"
       }`}
     >
-      <span className="block text-[14px] font-semibold">{label}</span>
-      <span className={`mt-0.5 block text-[12.5px] ${feePayer === id ? "text-white/80" : "text-admin-ink-muted"}`}>
+      <span className={`block text-[14px] ${feePayer === id ? "font-semibold" : "font-medium"}`}>{label}</span>
+      <span className="mt-0.5 block text-[12.5px] text-[var(--tc-muted)]">
         {hint}
       </span>
     </button>
@@ -123,7 +123,7 @@ export function FeePayerCard({ currency }: { currency: string }) {
         <div
           role="note"
           data-testid="fee-payer-tip"
-          className="mb-3 flex items-start gap-3 rounded-[10px] bg-admin-ink/[0.04] px-3 py-2.5"
+          className="mb-3 flex items-start gap-3 rounded-[10px] border border-[var(--tc-border)] bg-[var(--tc-soft)] px-3 py-2.5"
         >
           <div className="min-w-0 flex-1">
             <p className="font-admin-body text-[13.5px] font-semibold text-admin-ink">
@@ -131,7 +131,7 @@ export function FeePayerCard({ currency }: { currency: string }) {
             </p>
             <button
               type="button"
-              className="mt-2 inline-flex h-9 items-center rounded-full bg-admin-ink px-4 font-admin-body text-[13px] font-semibold text-white"
+              className="mt-2 inline-flex h-9 items-center rounded-full border border-[var(--tc-action)] bg-[var(--tc-action)] px-4 font-admin-body text-[13px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
               onClick={() => {
                 void change("client").then((ok) => {
                   if (ok) {

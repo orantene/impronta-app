@@ -184,7 +184,7 @@ export function DefaultsScreen({
         <button
           type="button"
           onClick={onSave}
-          className="h-10 rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white hover:bg-emerald-950"
+          className="h-10 rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
         >
           {copy.t("Save changes")}
         </button>
@@ -395,7 +395,7 @@ export function DefaultsScreen({
                     onClick={() => patch({ bookingPosture: m.id })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
                       on
-                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
                         : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
                     }`}
                   >
@@ -423,7 +423,7 @@ export function DefaultsScreen({
                     onClick={() => patch({ whoPrimaryCta: c.id })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-40 ${
                       on
-                        ? "border-emerald-900 bg-emerald-900 text-white"
+                        ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"
                         : "border-admin-border-soft bg-white text-admin-ink hover:border-admin-ink/40"
                     }`}
                   >

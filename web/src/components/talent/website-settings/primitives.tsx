@@ -79,7 +79,7 @@ export function SaveBar({
         onClick={onSave}
         disabled={(!dirty && !failed) || saving}
         aria-describedby={idle ? "ws-savebar-why" : undefined}
-        className={`${TARGET} flex-[2] rounded-lg bg-emerald-900 px-4 text-[14px] font-semibold text-white disabled:opacity-40`}
+        className={`${TARGET} flex-[2] rounded-lg bg-[var(--tc-action)] px-4 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40`}
       >
         {saving ? labels.saving : failed ? labels.retry : labels.save}
       </button>
@@ -116,7 +116,7 @@ export function UnsavedExitSheet({
         <h2 className="text-[17px] font-semibold text-admin-ink">{title}</h2>
         <p className="mt-1 text-[14px] text-admin-ink-muted">{body}</p>
         <div className="mt-4 grid gap-2">
-          <button type="button" onClick={onSaveAndLeave} className={`${TARGET} rounded-lg bg-emerald-900 text-[14px] font-semibold text-white`}>
+          <button type="button" onClick={onSaveAndLeave} className={`${TARGET} rounded-lg bg-[var(--tc-action)] text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]`}>
             {labels.saveLeave}
           </button>
           <button type="button" onClick={onDiscard} className={`${TARGET} rounded-lg border border-red-200 bg-white text-[14px] font-semibold text-red-800`}>
@@ -191,12 +191,12 @@ export function ChoiceCard({
         if (!disabled) onSelect();
       }}
       className={`${TARGET} flex w-full items-start gap-3 rounded-lg border px-3.5 py-3 text-left ${
-        checked ? "border-emerald-900 bg-emerald-900/[0.04]" : "border-admin-border-soft bg-white"
+        checked ? "border-[var(--tc-action)] bg-[var(--tc-soft)]" : "border-admin-border-soft bg-white"
       } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
     >
       <span
         aria-hidden
-        className={`mt-0.5 size-4 shrink-0 rounded-full border-2 ${checked ? "border-emerald-900 bg-emerald-900" : "border-admin-ink-dim"}`}
+        className={`mt-0.5 size-4 shrink-0 rounded-full border-2 ${checked ? "border-[var(--tc-action)] bg-[var(--tc-action)]" : "border-admin-ink-dim"}`}
       />
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold text-admin-ink">{title}</span>
@@ -233,7 +233,7 @@ export function Switch({
         onClick={() => onChange(!checked)}
         className="flex h-[44px] w-[52px] shrink-0 items-center"
       >
-        <span className={`relative h-7 w-12 rounded-full transition ${checked ? "bg-emerald-900" : "bg-black/[0.15]"}`}>
+        <span className={`relative h-7 w-12 rounded-full transition ${checked ? "bg-[var(--tc-action)]" : "bg-black/[0.15]"}`}>
           <span className={`absolute top-0.5 size-6 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`} />
         </span>
       </button>

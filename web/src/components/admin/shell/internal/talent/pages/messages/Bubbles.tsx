@@ -136,7 +136,7 @@ export function SendButtonWithSchedule({ disabled, onSend }: {
           height: 34,
           borderRadius: 999,
           border: "none",
-          background: !disabled ? COLORS.fill : "rgba(11,11,13,0.06)",
+          background: !disabled ? "var(--tc-action)" : "rgba(11,11,13,0.06)",
           color: !disabled ? "#fff" : COLORS.inkDim,
           cursor: !disabled ? "pointer" : "not-allowed",
           display: "inline-flex",

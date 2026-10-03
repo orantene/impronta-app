@@ -69,7 +69,7 @@ export function AgendaHoldFlows({
               <button
                 type="button"
                 onClick={() => setConfirming("convert")}
-                className="min-h-[44px] flex-1 rounded-xl bg-[var(--tc-primary)] text-[13px] font-semibold text-white"
+                className="min-h-[44px] flex-1 rounded-xl bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)] text-[13px] font-semibold text-white"
               >
                 {copy.t("Convert to booking")}
               </button>
@@ -101,7 +101,7 @@ export function AgendaHoldFlows({
                   disabled={pending}
                   onClick={confirming === "convert" ? handleConvert : handleRelease}
                   className={`min-h-[44px] flex-1 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40 ${
-                    confirming === "release" ? "bg-[#B42318]" : "bg-[var(--tc-primary)]"
+                    confirming === "release" ? "bg-[#B42318]" : "bg-[var(--tc-action)] hover:bg-[var(--tc-action-hover)]"
                   }`}
                 >
                   {pending ? copy.t("Working…") : copy.t("Confirm")}

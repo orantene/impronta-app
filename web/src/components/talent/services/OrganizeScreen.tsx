@@ -417,7 +417,7 @@ function RenameView({
             type="button"
             disabled={!canSave}
             onClick={() => void onConfirm(next)}
-            className="rounded-lg bg-emerald-900 px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-40"
+            className="rounded-lg bg-[var(--tc-action)] px-4 py-2 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)] disabled:opacity-40"
           >
             {copy.t("Rename all")} {rows.length}
           </button>
