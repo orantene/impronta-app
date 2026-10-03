@@ -59,6 +59,14 @@ test("today website actions are teal and the mode pill falls back to slate", () 
   assert.match(mode, /var\(--tc-soft, \$\{COLORS\.fill\}\)/);
 });
 
+test("today week strip marks the current day with a soft tint", () => {
+  const strip = read("components/admin/shell/internal/talent/shared/week-rhythm-1.tsx");
+  assert.match(strip, /today:\s*\{[^}]*bg: "var\(--tc-soft\)"/);
+  assert.match(strip, /today:\s*\{[^}]*border: "var\(--tc-action\)"/);
+  assert.doesNotMatch(strip, /today:\s*\{[^}]*COLORS\.accent/);
+  assert.doesNotMatch(strip, /today:\s*\{[^}]*label: "#fff"/);
+});
+
 test("agenda primary token is type, not the solid button fill", () => {
   const agenda = read("components/admin/shell/internal/talent/agenda/primitives/tokens.ts");
   assert.match(agenda, /primary: TALENT_VISUAL\.ink/);

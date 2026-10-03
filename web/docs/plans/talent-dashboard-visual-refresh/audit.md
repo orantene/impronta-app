@@ -6,7 +6,7 @@ Scope is the platform talent shell at `/talent/*`. Public `/t/` sites, `/talent/
 
 | Page | What was dark | After |
 |---|---|---|
-| Today | Agenda “next” actions used `--tc-primary` (`#1A1A1A`) as a fill. Legacy Today split-button used slate `#4D4855`. Website setup and “Finish with AI” used forest `#064e3b`. | Solid actions are teal. Type stays ink. Setup progress and “saved” use the success tint. The public-site preview button on the photo stays light. |
+| Today | Agenda “next” actions used `--tc-primary` (`#1A1A1A`) as a fill. Legacy Today split-button used slate `#4D4855`. Website setup and “Finish with AI” used forest `#064e3b`. The week strip painted the current day as a solid accent chip with white type. | Solid actions are teal. Type stays ink. The current day is a soft tint with an action border. Setup progress and “saved” use the success tint. The public-site preview button on the photo stays light. |
 | Attention | Same agenda tokens. | Same. |
 | Calendar | Day selection, list filters, and the add button were black fills. The undo bar was a black strip. | Selected days and filters are a soft tint plus a border. Add and save are teal. Undo is a soft bar with a teal text action. |
 | Messages | Approve uses the shared messages kit (green `#2b8a63`). Send and some filters used slate. Info toggle was a slate fill. | Kit greens remap to teal only under `[data-talent-visual]`. Send is teal. Filters and the info toggle are soft. |
