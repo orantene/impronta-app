@@ -64,16 +64,18 @@ test("REPOINT: /t/[code] always resolves the discovery profile (never the Max sn
   assert.match(GATE_SRC, /isTemplateAllowedForTier/);
 });
 
-test("dashboard public URL is canonical /t/code without /site", () => {
+test("dashboard public URL prefers the published personal site, then hub /t/code", () => {
   const dashState = readFileSync(
     join(process.cwd(), "src/lib/talent-site/server/dashboard-state.ts"),
     "utf8",
   );
-  // Phase 2 prefers the talent's own host when the subdomain switch is on, but
-  // the canonical fallback MUST stay `/t/<code>` (never `/t/<code>/site`).
+  // Live website first (custom domain / vanity /t/site/<slug>); hub is fallback.
+  // Never invent `/t/<code>/site` — that path is not a real surface.
   assert.match(
     dashState,
-    /publicSiteUrl: subdomainSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
+    /publicSiteUrl: personalSiteUrl \?\? \(profileCode \? `\/t\/\$\{profileCode\}` : null\)/,
   );
-  assert.equal(dashState.includes("/site`"), false);
+  assert.match(dashState, /publishedPersonalSiteUrl/);
+  assert.match(dashState, /talentSitePathUrl/);
+  assert.equal(dashState.includes("`/t/${profileCode}/site`"), false);
 });

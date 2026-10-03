@@ -11,8 +11,9 @@ import { PageHeader } from "./talent/shared/page-chrome-1";
 import { useTalentStudioV2 } from "@/components/talent/studio/flag";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { tradeCalendarRules } from "@/lib/talent-agenda/trade-calendar";
-import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
+import { resolveTalentPublicPreviewDestinations } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { bookingIdFromTalentPath } from "./state/talent-page-segment";
 import { WorkingHoursPanelHost, openWorkingHoursPanel } from "./talent/agenda/WorkingHoursPanel";
 import { NewBookingPanelHost, openNewBookingPanel } from "./talent/agenda/NewBookingPanel";
@@ -158,11 +159,25 @@ function TalentSidebar() {
   useRovingTabindex(railNavRef, "button");
 
   // Prefer bridge data so a freshly-provisioned talent sees their own
-  // public URL, not the demo talent's.
+  // public URL, not the demo talent's. When a personal website is live,
+  // default there (same rule as the top-bar eye); hub remains available
+  // from the eye chooser / account menu.
   const origin = useCurrentOrigin();
-  const previewHref = bridgeTalentSelfProfile?.profileCode
-    ? talentPublicProfileHref(bridgeTalentSelfProfile.profileCode, origin)
-    : (bridgeTalentSelfProfile ? null : `https://${MY_TALENT_PROFILE.publicUrl}`);
+  const siteLoad = useTalentSiteDashboardInitialLoad();
+  const previewResolved = bridgeTalentSelfProfile?.profileCode
+    ? resolveTalentPublicPreviewDestinations({
+        profileCode: bridgeTalentSelfProfile.profileCode,
+        publicSiteUrl: siteLoad?.ok ? siteLoad.state.publicSiteUrl : null,
+        currentOrigin: origin,
+      })
+    : null;
+  const previewHref = previewResolved
+    ? previewResolved.defaultHref
+    : bridgeTalentSelfProfile
+      ? null
+      : `https://${MY_TALENT_PROFILE.publicUrl}`;
+  const previewLabel =
+    previewResolved?.destinations[0]?.kind === "website" ? "Preview site" : "Preview profile";
 
   const tier = state.talentTier;
   const trialOn = studioV2 && bridgeTalentPlanTrial?.active === true;
@@ -259,7 +274,7 @@ function TalentSidebar() {
             className="flex w-full items-center gap-[8px] rounded-[8px] px-[10px] py-[8px] font-admin-body text-[12.5px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
           >
             <Icon name="external" size={12} stroke={1.7} color="currentColor" />
-            {copy.t("Preview profile")}
+            {copy.t(previewLabel)}
           </a>
         )}
         {/* Support Center launcher portals in here instead of floating. */}

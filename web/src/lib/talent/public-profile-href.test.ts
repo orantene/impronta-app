@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { isLocalDevOrigin, talentPublicProfileHref, talentPublicProfileLabel } from "./public-profile-href";
+import {
+  isLocalDevOrigin,
+  resolveTalentPublicPreviewDestinations,
+  talentPublicProfileHref,
+  talentPublicProfileLabel,
+} from "./public-profile-href";
 
 test("F41: production and server render keep the canonical host", () => {
   assert.equal(talentPublicProfileHref("TAL-93901", null), "https://tulala.digital/t/TAL-93901");
@@ -22,6 +27,31 @@ test("F41: only local hosts count as local", () => {
   assert.equal(isLocalDevOrigin("http://tulala.test"), true);
 });
 
+test("preview destinations prefer a live personal website over the hub", () => {
+  const resolved = resolveTalentPublicPreviewDestinations({
+    profileCode: "TAL-93900",
+    publicSiteUrl: "https://jorg-beauty-qa.tulala.digital",
+  });
+  assert.deepEqual(
+    resolved.destinations.map((d) => d.kind),
+    ["website", "hub"],
+  );
+  assert.equal(resolved.defaultHref, "https://jorg-beauty-qa.tulala.digital");
+  assert.equal(resolved.destinations[1]?.href, "https://tulala.digital/t/TAL-93900");
+});
+
+test("preview destinations collapse when publicSiteUrl is only the hub path", () => {
+  const resolved = resolveTalentPublicPreviewDestinations({
+    profileCode: "TAL-93900",
+    publicSiteUrl: "/t/TAL-93900",
+  });
+  assert.deepEqual(
+    resolved.destinations.map((d) => d.kind),
+    ["hub"],
+  );
+  assert.equal(resolved.defaultHref, "https://tulala.digital/t/TAL-93900");
+});
+
 test("the public-preview drawer uses her real code and the origin-aware helper", () => {
   const src = readFileSync(
     join(process.cwd(), "src/components/admin/shell/internal/talent-drawers/profile-extras.tsx"),
@@ -34,4 +64,13 @@ test("the public-preview drawer uses her real code and the origin-aware helper",
   assert.equal(drawer.includes("https://tulala.digital"), false);
   assert.equal(drawer.includes("MY_TALENT_PROFILE"), false);
   assert.equal(drawer.includes("marta-reyes"), false);
+});
+
+test("the identity-bar eye uses the preview destination control", () => {
+  const src = readFileSync(
+    join(process.cwd(), "src/components/admin/shell/internal/page-modules/IdentityBar-1.tsx"),
+    "utf8",
+  );
+  assert.match(src, /TalentPreviewEyeControl/);
+  assert.equal(src.includes("talentPublicProfileHref(bridgeTalentSelfProfile.profileCode"), false);
 });
