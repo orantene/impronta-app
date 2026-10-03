@@ -7,10 +7,10 @@ function env(partial: DeskFlagEnv): DeskFlagEnv {
   return partial;
 }
 
-test("unset + development → ON (local QA default)", () => {
+test("unset → OFF in development (no NODE_ENV default)", () => {
   assert.equal(
     isSupportDeskEnabled(env({ NODE_ENV: "development" })),
-    true,
+    false,
   );
 });
 
@@ -21,7 +21,7 @@ test("unset + production NODE_ENV → OFF", () => {
   );
 });
 
-test("unset + VERCEL_ENV=production → OFF even if NODE_ENV=development", () => {
+test("unset + VERCEL_ENV=production → OFF", () => {
   assert.equal(
     isSupportDeskEnabled(
       env({ NODE_ENV: "development", VERCEL_ENV: "production" }),
@@ -53,7 +53,7 @@ test("explicit 1/true/on forces ON in production", () => {
   }
 });
 
-test("explicit 0/false/off forces OFF in development", () => {
+test("explicit 0/false/off forces OFF even when set alongside development", () => {
   for (const v of ["0", "false", "off", " False "]) {
     assert.equal(
       isSupportDeskEnabled(

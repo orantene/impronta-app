@@ -1,11 +1,10 @@
 /**
  * Support Desk master switch (`SUPPORT_DESK_ENABLED`).
  *
- * Contract (Phase 1a):
- *   - Local `next dev` (NODE_ENV=development, no Vercel env): ON by default.
- *   - Production / preview (VERCEL_ENV set): OFF unless explicitly enabled.
- *   - Explicit `SUPPORT_DESK_ENABLED=1|true|on` forces ON.
- *   - Explicit `SUPPORT_DESK_ENABLED=0|false|off` forces OFF.
+ * Contract:
+ *   - Explicit `SUPPORT_DESK_ENABLED=1|true|on` → ON.
+ *   - Explicit `SUPPORT_DESK_ENABLED=0|false|off` → OFF.
+ *   - Unset → OFF everywhere (local, preview, production). No NODE_ENV default.
  *
  * When OFF, `support.tulala.digital` is dead at the proxy even if the host is
  * seeded in `agency_domains`, and the local QA route
@@ -31,10 +30,5 @@ export function isSupportDeskEnabled(
   const raw = readRaw(env);
   if (raw === "0" || raw === "false" || raw === "off") return false;
   if (raw === "1" || raw === "true" || raw === "on") return true;
-  // Unset: never on in a Vercel deploy (production or preview). On only for
-  // local next-dev where an agent can QA without flipping a remote env var.
-  if (env.VERCEL_ENV === "production" || env.VERCEL_ENV === "preview") {
-    return false;
-  }
-  return env.NODE_ENV === "development";
+  return false;
 }

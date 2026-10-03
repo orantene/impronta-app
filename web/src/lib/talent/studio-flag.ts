@@ -1,11 +1,21 @@
 /**
- * Talent Studio v2.
- * Production default is off (NODE_ENV is "production" and the env var is unset).
- * This local dashboard turns it on because `next dev` sets NODE_ENV=development.
- * TALENT_STUDIO_V2=0 forces it off. TALENT_STUDIO_V2=1 forces it on.
+ * Talent Studio v2 (Presence tabs, identity bar, Messages v5 path, mobile nav).
+ *
+ * Explicit env only — never default ON from NODE_ENV. Local and prod behave the
+ * same: unset/missing → OFF. Set TALENT_STUDIO_V2=1 (or true/on) to enable;
+ * TALENT_STUDIO_V2=0 (or false/off) forces off.
  */
-export function talentStudioV2Enabled(): boolean {
-  if (process.env.TALENT_STUDIO_V2 === "0") return false;
-  if (process.env.TALENT_STUDIO_V2 === "1") return true;
-  return process.env.NODE_ENV === "development";
+
+export type StudioFlagEnv = {
+  TALENT_STUDIO_V2?: string;
+  NODE_ENV?: string;
+};
+
+export function talentStudioV2Enabled(
+  env: StudioFlagEnv = typeof process !== "undefined" ? process.env : {},
+): boolean {
+  const raw = (env.TALENT_STUDIO_V2 ?? "").trim().toLowerCase();
+  if (raw === "0" || raw === "false" || raw === "off") return false;
+  if (raw === "1" || raw === "true" || raw === "on") return true;
+  return false;
 }
