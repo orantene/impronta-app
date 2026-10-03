@@ -15,6 +15,7 @@ import {
   catalogTotalCents,
   catalogWillWriteBooking,
   demoSlotsFor,
+  firstOpenDemoDayIndex,
   resolveCatalogConfirmOutcome,
   submitCatalogBooking,
 } from "./catalog-booking-logic";
@@ -121,6 +122,17 @@ test("Sunday has no demo hours", () => {
   const sunday = new Date(2026, 8, 6);
   assert.equal(sunday.getDay(), 0);
   assert.deepEqual(demoSlotsFor(sunday, 60), []);
+});
+
+test("the demo strip does not open on a leading Sunday", () => {
+  // 2026-10-04 is a Sunday. A Saturday visit's strip starts there.
+  const sunday = new Date(2026, 9, 4);
+  const monday = new Date(2026, 9, 5);
+  assert.equal(sunday.getDay(), 0);
+  assert.equal(monday.getDay(), 1);
+  assert.equal(firstOpenDemoDayIndex([sunday, monday]), 1);
+  assert.equal(firstOpenDemoDayIndex([monday]), 0);
+  assert.equal(firstOpenDemoDayIndex([sunday]), 0);
 });
 
 test("row CTA follows Maison labels", () => {
