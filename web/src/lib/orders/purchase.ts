@@ -44,7 +44,8 @@ export type {
   PurchaseRefusalReason,
   PurchaseResult,
 };
-import { pricePurchase, amountToCollectCents } from "@/lib/orders/purchase-pricing";
+import { pricePurchase } from "@/lib/orders/purchase-pricing";
+import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
 
 /**
  * ONE purchase pipeline.
@@ -224,14 +225,7 @@ export async function createPurchase(
       return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
     }
 
-    const collectCents = amountToCollectCents(
-      priced.subtotalCents,
-      policy.collect,
-      policy.depositPct,
-    );
-
-    // ── 4. Resolve the buyer, IF this order needs one. Money does not
-    //       require a name; a PRODUCT may. See lib/orders/purchase-buyer.ts.
+    // ── 4. Buyer before promo (per-customer) and before pass-through collect.
     const buyer = await resolvePurchaseBuyer(admin, {
       tenantId: input.tenantId,
       contact: input.contact,
@@ -246,20 +240,11 @@ export async function createPurchase(
     const customerId = buyer.customerId;
     const guestSessionId = buyer.guestSessionId;
 
-    // ── 5. Create the order. `draft` until capacity is held and the payment
-    //       decision is made, so an abandoned cart never looks pending.
-    // ── 5b. Promo, resolved BEFORE the order exists so a bad code is refused
-    // without one being created and unwound. Counts here are advisory; 5c
-    // re-counts under a row lock and is the authority.
+    // ── 5b. Promo BEFORE pass-through — fees apply to the discounted total.
     let promoDiscountCents = 0;
     let promoCodeId: string | null = null;
     if (input.promoCode) {
-      // A DISCOUNT CODE IS TIED TO A BUYER. `redeem_tenant_promo` counts
-      // redemptions per customer under a row lock, so honouring a code on an
-      // order with no customer would make `per_customer_limit` unenforceable
-      // for exactly the buyers who are hardest to identify. Refuse rather than
-      // drop the code silently, which is the overcharge-by-silence this block
-      // already refuses to commit.
+      // Codes are per-customer; without a buyer, per_customer_limit is unenforceable.
       if (!customerId) {
         return {
           ok: false,
@@ -275,15 +260,9 @@ export async function createPurchase(
           id: l.offeringId,
           totalCents: l.totalCents,
           variantId: l.variantId,
-          // Lines do not carry an event id; a tier-scoped code narrows by
-          // variant, and the event half of its scope is enforced by the
-          // catalog resolving that variant to this event in the first place.
           eventId: null,
         })),
       });
-      // REFUSES rather than proceeding at full price. A code that was typed and
-      // then ignored is an overcharge the customer only discovers on the
-      // receipt.
       if (!resolved.ok) {
         return {
           ok: false,
@@ -295,10 +274,24 @@ export async function createPurchase(
       promoCodeId = resolved.codeId;
     }
 
-    // One name for what the order costs, because the settle decision at step 9
-    // asks the same question the insert answers and the two must not drift.
-    // `orders_total_is_derived` refuses a row where they do.
+    // Settle + insert must agree; `orders_total_is_derived` refuses drift.
     const totalCents = priced.subtotalCents - promoDiscountCents;
+
+    const { baseCollectCents, collectCents } = await resolveCheckoutCollectCents(
+      admin,
+      {
+        tenantId: input.tenantId,
+        orderCurrency,
+        lines: priced.lines,
+        subtotalCents: priced.subtotalCents,
+        totalCents,
+        collect: policy.collect,
+        depositPct: policy.depositPct,
+        payInPerson: policy.payInPerson,
+      },
+    );
+
+    // ── 5. Create the order. `draft` until capacity is held and payment decided.
 
     const { data: orderRow, error: orderErr } = await admin
       .from("orders")
@@ -626,6 +619,11 @@ export async function createPurchase(
     bookingId = anchor.bookingId;
 
     if (collectCents > 0 && bookingId) {
+      // `gross` is what Stripe Checkout charges (principal + pass-through fees).
+      // `net` stores the service principal credited toward `orders.total_cents`
+      // so a deposit of 30% on $100 with fees (~$30.45) still leaves $70 owed,
+      // not $69.55 — and a high deposit cannot mark the order paid early.
+      const principalCents = baseCollectCents;
       const { data: txnRow, error: txnErr } = await admin
         .from("booking_transactions")
         .insert({
@@ -637,8 +635,8 @@ export async function createPurchase(
           payer_email: input.contact.email ?? null,
           gross_amount_cents: collectCents,
           platform_fee_basis_points: 0,
-          platform_fee_cents: 0,
-          net_amount_cents: collectCents,
+          platform_fee_cents: Math.max(0, collectCents - principalCents),
+          net_amount_cents: principalCents,
           currency: orderCurrency,
           provider: "stripe",
           // MUST be 'draft'. A trigger on booking_transactions enforces the
@@ -789,5 +787,3 @@ export async function createPurchase(
     return { ok: false, reason: "engine_error", error: "Could not place the order." };
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
