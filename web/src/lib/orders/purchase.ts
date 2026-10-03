@@ -12,6 +12,7 @@ import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
 import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
 import { openPurchaseThread } from "@/lib/orders/purchase-thread";
+import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import {
   resolvePurchasePolicy,
@@ -738,6 +739,26 @@ export async function createPurchase(
         brief: input.brief ?? null,
         locale: input.locale ?? null,
       });
+    }
+
+    // ── 10b. Money attribution: booking_talent + commission snapshot.
+    //
+    // Without this, Talent Money Collected stays $0 on a paid order-backed
+    // vanity checkout (no roster leg, no snapshot). Fatal when a booking
+    // exists: a payable sale with no attribution cannot pay the talent.
+    if (bookingId) {
+      const attributed = await attributePurchaseBooking(admin, {
+        tenantId: input.tenantId,
+        bookingId,
+        orderId: createdOrderId,
+        inquiryId,
+        contact: input.contact,
+      });
+      if (!attributed.ok) {
+        await unwind(`purchase attribution failed: ${attributed.error}`);
+        return { ok: false, reason: "engine_error", error: attributed.error };
+      }
+      if (!inquiryId && attributed.inquiryId) inquiryId = attributed.inquiryId;
     }
 
     // Messages v5 / S2: the thread's record chips follow the order. Non-fatal.

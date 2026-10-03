@@ -38,6 +38,7 @@ import {
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
+import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -877,6 +878,43 @@ export async function markPaid(
     // holds the talent/agency payout (the snapshot covers the full gross_charged, so
     // paying out on a 30% deposit would over-pay). The balance txn triggers it.
     if (!isDeposit && !paidAfterCancel) {
+      // Heal order-backed vanity checkouts that paid before attribution existed:
+      // booking_talent + commission snapshot must exist or transfers skip.
+      try {
+        const sbAttr = createServiceRoleClient();
+        if (sbAttr && result.data.bookingId) {
+          const { data: orderRow, error: orderRowErr } = await sbAttr
+            .from("booking_transactions")
+            .select("order_id")
+            .eq("id", result.data.id)
+            .maybeSingle();
+          if (orderRowErr) {
+            logServerError(
+              "transactions.markPaid.attributePurchase",
+              `transaction ${result.data.id}: could not load order_id (${orderRowErr.message})`,
+            );
+          } else {
+            const orderId =
+              (orderRow as { order_id?: string | null } | null)?.order_id ?? null;
+            if (orderId) {
+              const healed = await attributePurchaseBooking(sbAttr, {
+                tenantId: result.data.sourceTenantId,
+                bookingId: result.data.bookingId,
+                orderId,
+                inquiryId: result.data.sourceInquiryId ?? null,
+              });
+              if (!healed.ok) {
+                logServerError(
+                  "transactions.markPaid.attributePurchase",
+                  `booking ${result.data.bookingId}: ${healed.error}`,
+                );
+              }
+            }
+          }
+        }
+      } catch (attrErr) {
+        logServerError("transactions.markPaid.attributePurchase", attrErr);
+      }
       try {
         await executeBookingTransfers(result.data.id);
       } catch (transferErr) {
