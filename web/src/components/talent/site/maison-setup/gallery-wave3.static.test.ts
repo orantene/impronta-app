@@ -149,6 +149,13 @@ test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-ga
   // Website settings open in the Presence right drawer (not a full-page takeover).
   assert.match(editor, /presence-website-settings-sheet/);
   assert.match(editor, /onOpenSettings=\{openWebsiteSettings\}/);
+  // Codex P1: backdrop/Escape go through the screen's guarded close, not setSettingsOpen(false).
+  assert.match(editor, /requestSettingsCloseRef/);
+  assert.match(editor, /onRegisterClose/);
+  assert.doesNotMatch(
+    editor,
+    /if \(e\.target === e\.currentTarget\) setSettingsOpen\(false\)/,
+  );
   assert.doesNotMatch(
     editor,
     /if \(settingsOpen && talentId\) \{\s*return <WebsiteSettingsScreen/,

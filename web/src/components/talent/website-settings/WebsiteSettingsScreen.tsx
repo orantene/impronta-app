@@ -12,7 +12,7 @@
  *    columns, so a Services-editor edit made meanwhile survives; WSF B2)
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
 import {
@@ -78,11 +78,14 @@ export function WebsiteSettingsScreen({
   talentId,
   onClose,
   initialView,
+  onRegisterClose,
 }: {
   talentId: string;
   onClose: () => void;
   /** Deep link (PR 7): open straight on a group, e.g. "lang". */
   initialView?: "lang";
+  /** Parent sheet registers the guarded close (back / Escape / backdrop). */
+  onRegisterClose?: (close: (() => void) | null) => void;
 }) {
   const copy = useDashboardText();
   // Screen strings live in the lazy chunk, not the global admin map.
@@ -271,6 +274,14 @@ export function WebsiteSettingsScreen({
     }
     onClose();
   };
+  const backRef = useRef(back);
+  useEffect(() => {
+    backRef.current = back;
+  });
+  useEffect(() => {
+    onRegisterClose?.(() => backRef.current());
+    return () => onRegisterClose?.(null);
+  }, [onRegisterClose]);
 
   const titles: Record<View, string> = {
     home: t("Website settings"),
