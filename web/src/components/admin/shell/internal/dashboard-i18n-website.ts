@@ -53,6 +53,9 @@ export const WEBSITE_ES_TEXT: Record<string, string> = {
   "Could not load your website.": "No se pudo cargar tu sitio.",
   "Loading your website…": "Cargando tu sitio…",
   "Edit site": "Editar sitio",
+  // Avatar menu quick link to /talent/page-builder. Money, Messages, and
+  // Settings already have Spanish entries in the main dictionary.
+  "Builder": "Constructor",
   "Publish site": "Publicar sitio",
   "Back to My website": "Volver a Mi sitio web",
   "Something went wrong.": "Algo salió mal.",
