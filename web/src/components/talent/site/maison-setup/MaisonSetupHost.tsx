@@ -153,9 +153,9 @@ export function MaisonSetupHost({
         ...prev,
         screen: forceScreen,
         phoneSheet: null,
-        // Change design from live card → My content (spec §10.1).
-        ...(forceScreen === "detail" && sitePublished
-          ? { contentMode: "mine" as const }
+        // Wave 3: browsing the gallery defaults to Demo so cards change the preview.
+        ...(forceScreen === "detail" || forceScreen === "gallery"
+          ? { contentMode: "demo" as const }
           : {}),
       };
       // Resuming is navigation only: never persist on arrival (F58).

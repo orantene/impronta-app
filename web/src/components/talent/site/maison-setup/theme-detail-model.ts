@@ -179,7 +179,10 @@ export function detailDesign(slug: string): GalleryDesign {
   return getGalleryDesign(slug) ?? getGalleryDesign(MAISON_SLUG)!;
 }
 
-/** Only the Maison starter pack can be imported today. */
+/**
+ * Wave 3: built demos can open import. Prefer `demoHasImportCatalog` at the
+ * call site so empty catalogs stay hidden.
+ */
 export function demoSupportsImport(demo: GalleryDemo | null): boolean {
-  return demo?.source.kind === "maison-seed";
+  return demo != null && demo.status === "built";
 }

@@ -14,8 +14,10 @@ import {
   type DuplicateResolution,
   type ExistingServiceMatch,
   type ImportSelectionState,
+  type MaisonStarterCatalog,
   type MaisonStarterService,
 } from "@/lib/talent-site/theme-catalog/maison/maison-starter-catalog";
+import { galleryImportCatalogForBatchSlug } from "@/lib/talent-site/theme-catalog/gallery-import-catalog";
 
 export type MaisonImportCommitInput = {
   talentProfileId: string;
@@ -179,11 +181,11 @@ async function insertFaqDraft(
   return { ok: true, id };
 }
 
-export async function commitMaisonStarterImport(
+export async function commitStarterImportWithCatalog(
   admin: SupabaseClient,
   input: MaisonImportCommitInput,
+  catalog: MaisonStarterCatalog,
 ): Promise<{ ok: true; data: MaisonImportCommitResult } | { ok: false; error: string }> {
-  const catalog = loadMaisonStarterCatalog();
   const existing = await listExistingServicesForImport(admin, input.talentProfileId);
 
   const { data: batchRow, error: batchErr } = await admin
@@ -300,6 +302,13 @@ export async function commitMaisonStarterImport(
       failed,
     },
   };
+}
+
+export async function commitMaisonStarterImport(
+  admin: SupabaseClient,
+  input: MaisonImportCommitInput,
+): Promise<{ ok: true; data: MaisonImportCommitResult } | { ok: false; error: string }> {
+  return commitStarterImportWithCatalog(admin, input, loadMaisonStarterCatalog());
 }
 
 export type UndoImportDecision = {
@@ -419,7 +428,25 @@ export async function retryFailedMaisonImportItem(
     starterKey: string;
   },
 ): Promise<{ ok: true; offeringId: string } | { ok: false; error: string }> {
-  const catalog = loadMaisonStarterCatalog();
+  const { data: batch, error } = await admin
+    .from("talent_content_import_batches")
+    .select("created_record_ids, failed_items, source_demo_slug")
+    .eq("id", input.batchId)
+    .eq("talent_profile_id", input.talentProfileId)
+    .maybeSingle();
+  if (error) {
+    logServerError("maison.import.retryRead", error);
+    return { ok: false, error: "Could not load the import." };
+  }
+  if (!batch) return { ok: false, error: "Import not found." };
+
+  const sourceDemoSlug =
+    typeof (batch as { source_demo_slug?: unknown }).source_demo_slug === "string"
+      ? (batch as { source_demo_slug: string }).source_demo_slug
+      : "maison-nails";
+  // Use the same catalog the batch was committed with — not Maison-only.
+  const catalog = galleryImportCatalogForBatchSlug(sourceDemoSlug);
+  if (!catalog) return { ok: false, error: "Unknown starter catalog for this import." };
   const starter = catalog.services.find((s) => s.key === input.starterKey);
   if (!starter) return { ok: false, error: "Unknown starter item." };
 
@@ -432,33 +459,23 @@ export async function retryFailedMaisonImportItem(
   });
   if (!inserted.ok) return { ok: false, error: inserted.error };
 
-  const { data: batch, error } = await admin
+  const created = ((batch as { created_record_ids?: { offerings?: string[] } })
+    .created_record_ids ?? {}) as { offerings?: string[] };
+  const offerings = [...(created.offerings ?? []), inserted.id];
+  const failed = (
+    ((batch as { failed_items?: Array<{ starterKey: string }> }).failed_items ?? []) as Array<{
+      starterKey: string;
+    }>
+  ).filter((f) => f.starterKey !== input.starterKey);
+  await admin
     .from("talent_content_import_batches")
-    .select("created_record_ids, failed_items")
-    .eq("id", input.batchId)
-    .eq("talent_profile_id", input.talentProfileId)
-    .maybeSingle();
-  if (error) {
-    logServerError("maison.import.retryRead", error);
-  } else if (batch) {
-    const created = ((batch as { created_record_ids?: { offerings?: string[] } })
-      .created_record_ids ?? {}) as { offerings?: string[] };
-    const offerings = [...(created.offerings ?? []), inserted.id];
-    const failed = (
-      ((batch as { failed_items?: Array<{ starterKey: string }> }).failed_items ?? []) as Array<{
-        starterKey: string;
-      }>
-    ).filter((f) => f.starterKey !== input.starterKey);
-    await admin
-      .from("talent_content_import_batches")
-      .update({
-        created_record_ids: { ...created, offerings },
-        failed_items: failed,
-        status: failed.length ? "partial" : "complete",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", input.batchId);
-  }
+    .update({
+      created_record_ids: { ...created, offerings },
+      failed_items: failed,
+      status: failed.length ? "partial" : "complete",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.batchId);
 
   return { ok: true, offeringId: inserted.id };
 }

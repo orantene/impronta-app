@@ -80,7 +80,7 @@ export function ColorSwatches(props: ColorsProps) {
         onClick={props.onOpenCustom}
         className="min-h-11 rounded-full border border-admin-border-soft px-3 text-[12.5px] font-semibold text-admin-ink"
       >
-        ✎ {detailT(locale, "Custom colors")}
+        {detailT(locale, "Personalise")}
       </button>
     </div>
   );

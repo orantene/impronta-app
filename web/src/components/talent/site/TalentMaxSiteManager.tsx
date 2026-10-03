@@ -56,7 +56,23 @@ import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
 
 type Props = { locale?: "en" | "es" };
 
-export function TalentMaxSiteManager({ locale = "en" }: Props) {
+type ManagerProps = Props & {
+  onOpenDomain?: () => void;
+  onOpenQuestions?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
+  /** When true, CustomDomainRow is omitted (Wave 3 Domain tile owns it). */
+  hideDomainRow?: boolean;
+};
+
+export function TalentMaxSiteManager({
+  locale = "en",
+  onOpenDomain,
+  onOpenQuestions,
+  onOpenSettings,
+  onOpenApps,
+  hideDomainRow = false,
+}: ManagerProps) {
   const copy = useDashboardText();
   const [state, setState] = useState<MaxSiteManagerState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,7 +133,18 @@ export function TalentMaxSiteManager({ locale = "en" }: Props) {
     return <UpsellCard />;
   }
 
-  return <ManagerBody state={state} onReload={reload} locale={locale} />;
+  return (
+    <ManagerBody
+      state={state}
+      onReload={reload}
+      locale={locale}
+      onOpenDomain={onOpenDomain}
+      onOpenQuestions={onOpenQuestions}
+      onOpenSettings={onOpenSettings}
+      onOpenApps={onOpenApps}
+      hideDomainRow={hideDomainRow}
+    />
+  );
 }
 
 // ── Upsell (non-Max) ─────────────────────────────────────────────────────────
@@ -146,13 +173,23 @@ function ManagerBody({
   state,
   onReload,
   locale,
+  onOpenDomain,
+  onOpenQuestions,
+  onOpenSettings,
+  onOpenApps,
+  hideDomainRow = false,
 }: {
   state: MaxSiteManagerState;
   onReload: () => Promise<void>;
   locale: "en" | "es";
+  onOpenDomain?: () => void;
+  onOpenQuestions?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
+  hideDomainRow?: boolean;
 }) {
   const copy = useDashboardText();
-  const { openDrawer } = useAdminShell();
+  const { openDrawer, bridgeTalentPlanTrial } = useAdminShell();
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [maisonForceScreen, setMaisonForceScreen] = useState<MaisonSetupScreen | null>(null);
@@ -160,6 +197,24 @@ function ManagerBody({
   const [maisonSetupEnabled, setMaisonSetupEnabled] = useState(false);
   /** Before live: the gallery opens only from "Activate your free website". */
   const [setupOpen, setSetupOpen] = useState(false);
+  /** Same entitlement gate as CustomDomainRow (capability + trial → plans). */
+  const handleOpenDomain = useCallback(() => {
+    const trialOn = bridgeTalentPlanTrial?.active === true;
+    if (!state.capabilities.personalSiteCustomDomain || trialOn) {
+      openDrawer("talent-tier-compare");
+      return;
+    }
+    if (onOpenDomain) {
+      onOpenDomain();
+      return;
+    }
+    openDrawer("talent-custom-domain");
+  }, [
+    bridgeTalentPlanTrial?.active,
+    onOpenDomain,
+    openDrawer,
+    state.capabilities.personalSiteCustomDomain,
+  ]);
   // Today / pill / My presence ask for a step; open the flow AT that step
   // (a chosen design resumes at review, never back at the gallery).
   const openSetup = useCallback((step: WebsiteSetupStep) => {
@@ -230,6 +285,17 @@ function ManagerBody({
           }}
           liveToast={liveToast}
           onLiveToastDone={() => setLiveToast(null)}
+          onOpenDomain={handleOpenDomain}
+          onOpenQuestions={onOpenQuestions}
+          onOpenSettings={onOpenSettings}
+          onOpenApps={
+            onOpenApps ??
+            (() => {
+              setMaisonForceReason("restored");
+              setMaisonForceScreen("gallery");
+            })
+          }
+          showTiles
         />
       ) : setupOpen ? null : (
         <WebsiteEligibilityPanel onActivate={openSetup} />
@@ -287,7 +353,9 @@ function ManagerBody({
         </>
       )}
 
-      <CustomDomainRow canManage={state.capabilities.personalSiteCustomDomain} />
+      {hideDomainRow ? null : (
+        <CustomDomainRow canManage={state.capabilities.personalSiteCustomDomain} />
+      )}
     </div>
   );
 }

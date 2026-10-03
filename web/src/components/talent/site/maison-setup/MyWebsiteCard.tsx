@@ -1,12 +1,8 @@
 "use client";
 
 /**
- * My website card after publish (W40 + P1 mockup): the ONLY thing on the My
- * website tab once the site is live. Left: live preview thumbnail. Right:
- * Live · since, address, Design · palette · content, unpublished state, then
- * View website · Edit site · Change design · Design options, and a Restore
- * previous design link. Works for ANY published design slug.
- * Design options body: DesignOptionsPanel (PR8 / W69).
+ * Wave 3 Mi sitio web hero: large live preview, status + domain chip,
+ * one primary Edit site, quiet icon secondaries, presence tiles below.
  */
 
 import { useEffect, useState } from "react";
@@ -26,26 +22,25 @@ type Props = {
   locale: MaisonSetupLocale;
   publicSiteUrl: string | null;
   siteSlug: string | null;
-  /** Applied design slug (maison, maison-v2, solace, mono, frame, folio…). */
   themeDesignSlug: string | null;
   themeLookSlug: string | null;
-  /** `talent_profiles.profile_template`; names a hand-built site. */
   legacyProfileTemplate?: string | null;
-  /** ISO time the site went live. */
   publishedAt: string | null;
   contentModeLabel?: "mine" | "demo";
   onChangeDesign: () => void;
-  /** After restore → open Review (W70). */
   onRestoredToReview?: () => void;
-  /** P5: toast after a live design switch ("✓ <Design> is live"). */
   liveToast?: string | null;
   onLiveToastDone?: () => void;
+  /** Wave 3 tiles */
+  onOpenDomain?: () => void;
+  onOpenQuestions?: () => void;
+  onOpenSettings?: () => void;
+  onOpenApps?: () => void;
+  showTiles?: boolean;
 };
 
 const PREVIEW_W = 1280;
 const PREVIEW_H = 960;
-const THUMB_W = 240;
-const SCALE = THUMB_W / PREVIEW_W;
 
 function formatSince(iso: string | null, locale: MaisonSetupLocale): string | null {
   if (!iso) return null;
@@ -56,6 +51,33 @@ function formatSince(iso: string | null, locale: MaisonSetupLocale): string | nu
     month: "short",
     year: "numeric",
   });
+}
+
+function IconBtn({
+  label,
+  tip,
+  onClick,
+  testId,
+  children,
+}: {
+  label: string;
+  tip: string;
+  onClick: () => void;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-label={label}
+      title={tip}
+      onClick={onClick}
+      className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft bg-white text-[16px] text-admin-ink"
+    >
+      {children}
+    </button>
+  );
 }
 
 export function MyWebsiteCard({
@@ -71,19 +93,20 @@ export function MyWebsiteCard({
   onRestoredToReview,
   liveToast = null,
   onLiveToastDone,
+  onOpenDomain,
+  onOpenQuestions,
+  onOpenSettings,
+  onOpenApps,
+  showTiles = true,
 }: Props) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [customPalette, setCustomPalette] = useState<MaisonCustomPaletteStored | null>(null);
-  /** null = unknown (options state unavailable) → the line is not shown. */
   const [hasPending, setHasPending] = useState<boolean | null>(null);
+  const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const [copied, setCopied] = useState(false);
   const hasNamedPalette =
     lookSlugToGalleryPaletteKey(themeDesignSlug, themeLookSlug) !== null;
-  // The live vanity domain refuses to be framed from the app host (and
-  // /t/site 308s to it), so the thumbnail renders the talent's CURRENT
-  // published site through the same-origin, owner-only live-site preview.
-  // Works for any live site, including one built by hand before the design
-  // catalog (no design slug).
   const talentId = useAdminShellOptional()?.bridgeTalentSelfProfile?.id ?? null;
   const thumbSrc = talentId
     ? `/template-preview/current?kind=live-site&talent=${encodeURIComponent(talentId)}&locale=${locale}`
@@ -105,7 +128,6 @@ export function MyWebsiteCard({
   useEffect(() => {
     if (optionsOpen) return;
     let alive = true;
-    // F137: the SAME go-live summary the builder chip uses, so the two agree.
     void takeOr("goLive", "card", loadTalentGoLiveAction)
       .then((res) => {
         if (alive) setHasPending(res.ok ? goLiveHasPending(res.summary) : null);
@@ -126,8 +148,6 @@ export function MyWebsiteCard({
 
   const t = (key: string) => maisonSetupT(locale, key);
   const hasDesignSlug = Boolean(themeDesignSlug?.trim());
-  // A hand-built site (no design slug) names its colors only when a custom
-  // palette is saved; otherwise the palette part is omitted.
   const paletteName = hasDesignSlug
     ? paletteDisplayName({
         locale,
@@ -147,18 +167,44 @@ export function MyWebsiteCard({
     .join(" · ");
   const address = siteSlug ? `${siteSlug}.tulala.digital` : publicSiteUrl ?? "";
   const since = formatSince(publishedAt, locale);
-  const secondaryBtn =
-    "inline-flex min-h-11 items-center rounded-xl border border-admin-border-soft bg-white px-4 text-[13px] font-semibold text-admin-ink";
 
   const closeOptions = () => {
     setOptionsOpen(false);
     setRestoreOpen(false);
   };
 
+  const copyAddress = async () => {
+    if (!address || typeof navigator === "undefined" || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const tiles: Array<{
+    id: string;
+    label: string;
+    icon: string;
+    onClick?: () => void;
+    testId: string;
+  }> = [
+    { id: "domain", label: t("Domain"), icon: "🔗", onClick: onOpenDomain, testId: "presence-tile-domain" },
+    { id: "questions", label: t("Questions"), icon: "❓", onClick: onOpenQuestions, testId: "presence-tile-questions" },
+    { id: "settings", label: t("Settings"), icon: "⚙", onClick: onOpenSettings, testId: "presence-tile-settings" },
+    { id: "apps", label: t("Apps"), icon: "🧩", onClick: onOpenApps, testId: "presence-tile-apps" },
+  ];
+
+  const previewMaxW = device === "phone" ? 280 : 560;
+  const scale = previewMaxW / PREVIEW_W;
+
   return (
     <section
       data-testid="maison-my-website-card"
       data-maison-my-website=""
+      data-gallery-wave3-hero=""
       data-design-slug={themeDesignSlug ?? undefined}
       className="overflow-hidden rounded-2xl border border-admin-border-soft bg-white font-admin-body"
     >
@@ -166,100 +212,169 @@ export function MyWebsiteCard({
         <div
           role="status"
           data-testid="maison-design-live-toast"
-          className="border-b border-emerald-200 bg-emerald-50 px-4 py-2 text-[13px] font-semibold text-emerald-900"
+          className="border-b border-admin-border-soft bg-admin-surface-alt px-4 py-2 text-[13px] font-semibold text-admin-ink"
         >
           {liveToast}
         </div>
       ) : null}
-      <div className="flex flex-col gap-4 p-4 sm:flex-row">
-        <div
-          aria-hidden
-          data-testid="maison-live-thumb"
-          className="relative shrink-0 overflow-hidden rounded-xl border border-admin-border-soft bg-white"
-          style={{ width: THUMB_W, height: PREVIEW_H * SCALE, maxWidth: "100%" }}
-        >
-          {thumbSrc ? (
-            <iframe
-              src={thumbSrc}
-              title={t("Website preview")}
-              tabIndex={-1}
-              className="pointer-events-none absolute left-0 top-0 border-0"
-              style={{
-                width: PREVIEW_W,
-                height: PREVIEW_H,
-                transform: `scale(${SCALE})`,
-                transformOrigin: "0 0",
-              }}
-            />
-          ) : null}
-        </div>
+
+      <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-stretch">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[13px] font-semibold text-admin-ink">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" aria-hidden />
-            <span data-testid="maison-live-pill">
-              {t("Live")}
-              {since ? ` · ${t("since")} ${since}` : ""}
-            </span>
-          </p>
-          <p
-            data-testid="maison-live-address"
-            className="mt-1 truncate text-[17px] font-bold text-admin-ink"
-          >
-            {address}
-          </p>
-          <p data-testid="maison-live-summary" className="mt-0.5 text-[13px] text-admin-ink-muted">
-            {summary}
-          </p>
-          {hasPending != null ? (
-            <p data-testid="maison-live-pending" className="mt-0.5 text-[13px] text-admin-ink-muted">
-              {hasPending ? t("Unpublished changes") : t("No unpublished changes")}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold text-admin-ink">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" aria-hidden />
+              <span data-testid="maison-live-pill">
+                {t("Live")}
+                {since ? ` · ${t("since")} ${since}` : ""}
+              </span>
             </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
+            <div className="flex rounded-lg border border-admin-border-soft p-0.5">
+              {(["desktop", "phone"] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={device === d}
+                  aria-label={t(d === "desktop" ? "Desktop" : "Phone")}
+                  onClick={() => setDevice(d)}
+                  className={`grid h-9 w-9 place-items-center rounded-md text-[14px] ${
+                    device === d ? "bg-admin-surface-alt ring-1 ring-admin-ink" : "text-admin-ink-muted"
+                  }`}
+                >
+                  {d === "desktop" ? "🖥" : "📱"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            data-testid="maison-live-thumb"
+            className="relative mx-auto overflow-hidden rounded-xl border border-admin-border-soft bg-admin-canvas"
+            style={{
+              width: "100%",
+              maxWidth: previewMaxW,
+              height: PREVIEW_H * scale,
+            }}
+          >
+            {thumbSrc ? (
+              <iframe
+                src={thumbSrc}
+                title={t("Website preview")}
+                className="absolute left-0 top-0 border-0"
+                style={{
+                  width: PREVIEW_W,
+                  height: PREVIEW_H,
+                  transform: `scale(${scale})`,
+                  transformOrigin: "0 0",
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-3 lg:max-w-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              data-testid="maison-live-address"
+              className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-admin-border-soft bg-admin-surface-alt px-3 py-1.5 text-[13px] font-semibold text-admin-ink"
+            >
+              {address}
+            </span>
+            <button
+              type="button"
+              aria-label={t("Copy address")}
+              title={copied ? "✓" : t("Copy address")}
+              onClick={() => void copyAddress()}
+              className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft text-[14px]"
+            >
+              {copied ? "✓" : "⧉"}
+            </button>
             {publicSiteUrl ? (
               <Link
                 href={publicSiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid="maison-view-website"
-                className={secondaryBtn}
+                aria-label={t("Open site")}
+                title={t("Open site")}
+                className="grid h-11 w-11 place-items-center rounded-xl border border-admin-border-soft text-[14px] text-admin-ink"
               >
-                {t("View website")} ↗
+                ↗
               </Link>
             ) : null}
-            <Link href="/talent/page-builder" data-testid="maison-edit-site" className={secondaryBtn}>
-              {t("Edit site")}
-            </Link>
-            <button
-              type="button"
-              data-testid="maison-change-design"
-              onClick={onChangeDesign}
-              className="inline-flex min-h-11 items-center rounded-xl bg-admin-ink px-4 text-[13px] font-semibold text-white"
-            >
-              {t("Change design")}
-            </button>
-            <button
-              type="button"
-              data-testid="maison-design-options"
-              onClick={() => setOptionsOpen(true)}
-              className={secondaryBtn}
-            >
-              {t("Design options")}
-            </button>
           </div>
-          <button
-            type="button"
-            data-testid="maison-restore-previous"
-            onClick={() => {
-              setRestoreOpen(true);
-              setOptionsOpen(true);
-            }}
-            className="mt-2 min-h-11 text-[13px] font-semibold text-admin-ink-muted underline underline-offset-2 hover:text-admin-ink"
+
+          <p data-testid="maison-live-summary" className="text-[13px] text-admin-ink-muted">
+            {summary}
+          </p>
+          {hasPending != null ? (
+            <p data-testid="maison-live-pending" className="text-[13px] text-admin-ink-muted">
+              {hasPending ? t("Unpublished changes") : t("No unpublished changes")}
+            </p>
+          ) : null}
+
+          <Link
+            href="/talent/page-builder"
+            data-testid="maison-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
           >
-            {t("Restore previous design")}
-          </button>
+            {t("Edit site")}
+          </Link>
+
+          <div className="flex flex-wrap gap-2">
+            <IconBtn
+              label={t("Change design")}
+              tip={t("Change design")}
+              testId="maison-change-design"
+              onClick={onChangeDesign}
+            >
+              🎨
+            </IconBtn>
+            <IconBtn
+              label={t("Colors")}
+              tip={t("Colors")}
+              testId="maison-design-options"
+              onClick={() => setOptionsOpen(true)}
+            >
+              💧
+            </IconBtn>
+            <IconBtn
+              label={t("History")}
+              tip={t("Restore previous design")}
+              testId="maison-restore-previous"
+              onClick={() => {
+                setRestoreOpen(true);
+                setOptionsOpen(true);
+              }}
+            >
+              ⏱
+            </IconBtn>
+          </div>
         </div>
       </div>
+
+      {showTiles ? (
+        <div
+          data-testid="presence-site-tiles"
+          className="grid grid-cols-2 gap-2 border-t border-admin-border-soft p-4 sm:grid-cols-4"
+        >
+          {tiles.map((tile) => (
+            <button
+              key={tile.id}
+              type="button"
+              data-testid={tile.testId}
+              disabled={!tile.onClick}
+              onClick={tile.onClick}
+              className="flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-xl border border-admin-border-soft bg-admin-canvas px-2 text-center disabled:opacity-40"
+            >
+              <span className="text-[18px]" aria-hidden>
+                {tile.icon}
+              </span>
+              <span className="text-[12.5px] font-semibold text-admin-ink">{tile.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <DesignOptionsPanel
         locale={locale}
         open={optionsOpen}

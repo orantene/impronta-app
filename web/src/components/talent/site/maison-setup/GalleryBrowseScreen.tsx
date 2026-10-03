@@ -1,31 +1,19 @@
 "use client";
 
 /**
- * P3 browse gallery (mockup fg_gallery, fg_gallery_music, fg_tags_open,
- * fg_gallery_tag, fg_search_kbd, fg_search_model, fg_search_empty, fg_multi,
- * fg_multi_combined, fg_search_back, fg_live_explore).
- *
- * Only visibleGalleryDesigns() appear (the finished three unless the
- * extra-designs flag is on). Query, filters, scroll and the
- * last opened card live in sessionStorage so Back restores them.
+ * P3 browse gallery + Wave 3 redesign: full-height preview cards, one filter
+ * row (trade chips + Filters sheet), suggested ribbon. Tag soup removed.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   GALLERY_CATEGORY_CHIPS,
-  GALLERY_FEATURE_TAGS,
   GALLERY_PROFESSIONS,
-  GALLERY_STYLE_TAGS,
-  galleryPreviewLookSlug,
-  getGalleryDesign,
   suggestedDesignsForTrade,
   visibleGalleryDesigns,
   type GalleryCategoryChip,
   type GallerySearchResult,
   type GalleryStyleTag,
 } from "@/lib/talent-site/theme-catalog/gallery-meta";
-import { countUsableDemos } from "@/lib/talent-site/theme-catalog/usable-demos";
-import { demoCardPersonName } from "@/lib/talent-site/demos/demo-profile-meta";
-import { ThemeGalleryPreviewFrame } from "@/components/talent/site/theme-gallery/ThemeGalleryPreviewFrame";
 import { useThemePreview } from "@/components/talent/site/theme-gallery/useThemePreview";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 import {
@@ -41,9 +29,8 @@ import {
   saveGalleryBrowseState,
   type GalleryBrowseState,
 } from "./gallery-browse-state";
-
-import { AppBadge } from "./GalleryAppsUi";
-import { appNames, appsOnDesign, galleryAppsT } from "./gallery-apps";
+import { GalleryDesignCard } from "./GalleryDesignCard";
+import { GalleryFiltersSheet } from "./GalleryFiltersSheet";
 
 export type GalleryExploreOptions = { demoKey?: string; fromQuery?: string; tab?: "apps" };
 
@@ -89,11 +76,11 @@ export function GalleryBrowseScreen({
   const [hydrated, setHydrated] = useState(false);
   const [draft, setDraft] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
-  const [openMenu, setOpenMenu] = useState<"style" | "tags" | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [pendingTags, setPendingTags] = useState<string[]>([]);
+  const [pendingStyle, setPendingStyle] = useState<GalleryStyleTag | null>(null);
   const restoredScroll = useRef(false);
 
-  // Restore once on mount (sessionStorage is client only).
   useEffect(() => {
     const saved = loadGalleryBrowseState();
     setState(saved);
@@ -112,7 +99,6 @@ export function GalleryBrowseScreen({
     if (state.scrollY > 0 && typeof window !== "undefined") {
       const y = state.scrollY;
       window.requestAnimationFrame(() => {
-        // Inside the setup overlay the dialog scrolls, never the window.
         const box = document.querySelector<HTMLElement>("[data-maison-setup-overlay]");
         if (box) box.scrollTop = y;
         else window.scrollTo(0, y);
@@ -127,12 +113,9 @@ export function GalleryBrowseScreen({
     () => (searchFocused && draft !== state.query ? gallerySearchSuggestions(draft, locale) : []),
     [searchFocused, draft, state.query, locale],
   );
-  const pendingCount = useMemo(
-    () => deriveGalleryView({ ...state, tags: pendingTags }).output.themeCount,
-    [state, pendingTags],
-  );
 
   const active = isFilterActive(state);
+  const filtersOn = Boolean(state.style) || state.tags.length > 0;
   const searching = view.terms.length > 0;
   const multi = view.terms.length >= 2;
   const { output } = view;
@@ -145,7 +128,7 @@ export function GalleryBrowseScreen({
   };
   const reset = () => {
     setDraft("");
-    setOpenMenu(null);
+    setFiltersOpen(false);
     setState((s) => resetFilters(s));
   };
   const explore = (r: GallerySearchResult, tab?: "apps") => {
@@ -163,9 +146,6 @@ export function GalleryBrowseScreen({
       ...(tab ? { tab } : {}),
     });
   };
-
-  const styleLabel = (tag: string) => t(tag);
-  const suggestedNames = suggested.map((s) => getGalleryDesign(s)?.name ?? s);
 
   const resultLine = (() => {
     if (!active || output.themeCount === 0) return null;
@@ -185,224 +165,26 @@ export function GalleryBrowseScreen({
     return <b className="font-semibold text-admin-ink">{m === 1 ? t("1 theme · {n} demos", { n }) : t("{m} themes · {n} demos", { m, n })}</b>;
   })();
 
-  const renderCard = (r: GallerySearchResult) => {
-    const d = r.design;
-    const matching = searching || Boolean(state.chip);
-    const demo = r.featuredDemo;
-    const demoName = demo ? demoCardPersonName(demo, locale) : null;
-    const n = matching ? countUsableDemos(r.matchingDemos) : countUsableDemos(d.demos);
-    const countLabel = matching
-      ? n === 1
-        ? t("1 matching demo")
-        : t("{n} matching demos", { n })
-      : n === 1
-        ? t("1 demo")
-        : t("{n} demos", { n });
-    const isLast = state.lastViewed === d.slug;
-    const badge = state.combined && multi && r.combinesBoth ? t("Combines both") : suggested.includes(d.slug) ? t("Suggested") : null;
-    const cardApps = appsOnDesign(d);
-    const allTags = [...d.styleTags, ...d.featureTags];
-    const highlighted = new Set<string>([...state.tags, ...(state.style ? [state.style] : [])]);
-    return (
-      <article
-        key={d.slug}
-        data-design-slug={d.slug}
-        data-maison-theme-card=""
-        data-testid={d.slug === "maison" ? "maison-theme-card" : `design-card-${d.slug}`}
-        data-last-viewed={isLast ? "" : undefined}
-        className={`flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-white ${
-          isLast ? "border-admin-ink ring-2 ring-admin-ink" : "border-admin-border-soft"
-        }`}
-      >
-        <div className="relative">
-        <button
-          type="button"
-          onClick={() => explore(r)}
-          className="relative block w-full text-left"
-          aria-label={`${t("Explore")} ${d.name}`}
-        >
-          <ThemeGalleryPreviewFrame preview={preview} url={preview.src(d.slug, galleryPreviewLookSlug(d, demo?.defaultPalette), demo && demo.status === "built" && demo.source.kind === "demo-talent" ? `${d.slug}:${demo.key}` : null)} locale={locale} title={d.name} virtualWidth={1280} aspectRatio="4 / 3" />
-        </button>
-        </div>
-        <div className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3.5">
-          {badge || isLast ? (
-            <p data-testid="design-card-labels" className="flex flex-wrap items-center gap-x-2 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-admin-ink-dim">
-              {badge ? <span data-card-label="suggested">{badge}</span> : null}
-              {isLast ? <span data-card-label="last-viewed">{t("Last viewed")}</span> : null}
-            </p>
-          ) : null}
-          <div data-testid="design-card-title-row" className="flex items-start justify-between gap-2">
-            <h3 className="min-w-0 text-[19px] font-semibold text-admin-ink">
-              {d.name}
-              {searching && demoName ? <span className="font-medium text-admin-ink-muted"> · {demoName}</span> : null}
-            </h3>
-            <AppBadge
-              apps={cardApps}
-              locale={locale}
-              testId={`design-app-badge-${d.slug}`}
-              onOpen={() => explore(r, "apps")}
-              className="mt-0.5"
-            />
-          </div>
-          <p className="text-[14px] leading-snug text-admin-ink-muted">{d.description[locale]}</p>
-          <div className="flex flex-wrap gap-1.5" aria-label={t("Tags")}>
-            {allTags.map((tag) => {
-              const on = highlighted.has(tag);
-              const isStyle = (GALLERY_STYLE_TAGS as readonly string[]).includes(tag);
-              return (
-                <span
-                  key={tag}
-                  data-tag-active={on ? "" : undefined}
-                  className={`inline-flex h-[26px] items-center whitespace-nowrap rounded-md px-2 text-[12.5px] ${
-                    on
-                      ? "bg-admin-ink font-bold text-white"
-                      : isStyle
-                        ? "border border-admin-border-soft font-medium text-admin-ink"
-                        : "bg-admin-surface-alt font-medium text-admin-ink"
-                  }`}
-                >
-                  {styleLabel(tag)}
-                </span>
-              );
-            })}
-          </div>
-          {demoName ? (
-            <p className="mt-0.5 text-[13.5px] text-admin-ink">
-              <span className="text-admin-ink-muted">{matching ? t("Matching demo:") : t("Featured demo:")}</span>{" "}
-              <b className="font-semibold">{demoName}</b>
-            </p>
-          ) : null}
-          {cardApps.length ? (
-            <p data-testid="design-card-app-fit" className="text-[13.5px] text-admin-ink">
-              <span className="text-admin-ink-muted">{galleryAppsT(locale, "bestFit")}</span>{" "}
-              <b className="font-semibold">{appNames(cardApps, locale)}</b>
-            </p>
-          ) : null}
-          <div className="mt-auto flex items-center gap-2 pt-1">
-            <span className="whitespace-nowrap rounded-full bg-admin-surface-alt px-2.5 py-1 text-[12.5px] font-semibold text-admin-ink">
-              {countLabel}
-            </span>
-            <span className="flex-1" />
-            <button
-              type="button"
-              onClick={() => explore(r)}
-              data-testid={d.slug === "maison" ? "maison-explore-theme" : `design-explore-${d.slug}`}
-              className="min-h-11 text-[14px] font-semibold text-admin-ink underline-offset-2 hover:underline"
-            >
-              {t("Explore theme →")}
-            </button>
-          </div>
-        </div>
-      </article>
-    );
-  };
+  const renderCard = (r: GallerySearchResult) => (
+    <GalleryDesignCard
+      key={r.design.slug}
+      result={r}
+      locale={locale}
+      preview={preview}
+      suggested={suggested.includes(r.design.slug)}
+      lastViewed={state.lastViewed === r.design.slug}
+      matching={searching || Boolean(state.chip)}
+      onExplore={() => explore(r)}
+      onOpenApps={() => explore(r, "apps")}
+    />
+  );
 
   const grid = (list: GallerySearchResult[]) => (
     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">{list.map(renderCard)}</div>
   );
 
-  const menuButton = (kind: "style" | "tags", label: string, on: boolean) => (
-    <button
-      type="button"
-      aria-haspopup="dialog"
-      aria-expanded={openMenu === kind}
-      onClick={() => {
-        setPendingTags(state.tags);
-        setOpenMenu(openMenu === kind ? null : kind);
-      }}
-      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] border bg-white px-3 text-[14px] text-admin-ink sm:min-h-10 ${
-        on ? "border-admin-ink font-semibold" : "border-admin-border-soft font-medium"
-      }`}
-    >
-      {label} ▾
-    </button>
-  );
-
-  const tagRow = (tag: string, count: number) => {
-    const on = pendingTags.includes(tag);
-    return (
-      <button
-        key={tag}
-        type="button"
-        role="checkbox"
-        aria-checked={on}
-        onClick={() => setPendingTags((p) => (on ? p.filter((x) => x !== tag) : [...p, tag]))}
-        className="flex min-h-11 w-full items-center gap-2.5 border-b border-admin-border-soft text-left"
-      >
-        <span
-          className={`inline-grid h-5 w-5 place-items-center rounded-md text-[12px] ${
-            on ? "bg-admin-ink text-white" : "border-[1.5px] border-admin-border-soft"
-          }`}
-          aria-hidden
-        >
-          {on ? "✓" : ""}
-        </span>
-        <span className="flex-1 text-[14.5px] text-admin-ink">{t(tag)}</span>
-        <span className="text-[13px] text-admin-ink-muted">{count}</span>
-      </button>
-    );
-  };
-
-  const menuPanel = openMenu ? (
-    <>
-      <button
-        type="button"
-        aria-label={t("Close")}
-        onClick={() => setOpenMenu(null)}
-        className="fixed inset-0 z-40 cursor-default bg-admin-ink/20"
-      />
-      <div
-        role="dialog"
-        aria-label={openMenu === "style" ? t("Visual style") : t("Tags")}
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[75vh] overflow-auto rounded-t-2xl bg-white px-4 pb-4 pt-3 shadow-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:rounded-2xl"
-      >
-        {openMenu === "style" ? (
-          <div className="flex flex-col">
-            {[null, ...GALLERY_STYLE_TAGS].map((s) => (
-              <button
-                key={s ?? "any"}
-                type="button"
-                role="radio"
-                aria-checked={state.style === s}
-                onClick={() => {
-                  update({ style: s as GalleryStyleTag | null });
-                  setOpenMenu(null);
-                }}
-                className={`flex min-h-11 items-center justify-between border-b border-admin-border-soft text-left text-[14.5px] text-admin-ink ${
-                  state.style === s ? "font-semibold" : ""
-                }`}
-              >
-                <span>{s ? t(s) : t("Any")}</span>
-                {s ? <span className="text-[13px] text-admin-ink-muted">{counts.styleTags[s]}</span> : null}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div>
-            <div className="mb-1 text-[12px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">{t("Style")}</div>
-            {GALLERY_STYLE_TAGS.filter((x) => counts.styleTags[x] > 0).map((x) => tagRow(x, counts.styleTags[x]))}
-            <div className="mb-1 mt-2.5 text-[12px] font-bold uppercase tracking-[0.08em] text-admin-ink-muted">
-              {t("Layout and features")}
-            </div>
-            {GALLERY_FEATURE_TAGS.filter((x) => counts.featureTags[x] > 0).map((x) => tagRow(x, counts.featureTags[x]))}
-            <button
-              type="button"
-              onClick={() => {
-                update({ tags: pendingTags });
-                setOpenMenu(null);
-              }}
-              className="mt-3 min-h-12 w-full rounded-xl bg-admin-ink text-[15px] font-semibold text-white"
-            >
-              {pendingCount === 1 ? t("Show 1 theme") : t("Show {n} themes", { n: pendingCount })}
-            </button>
-          </div>
-        )}
-      </div>
-    </>
-  ) : null;
-
   return (
-    <div data-gallery-browse="" className="flex flex-col gap-4">
+    <div data-gallery-browse="" data-gallery-wave3="" className="flex flex-col gap-4">
       {liveAddress ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-admin-border-soft bg-white px-3.5 py-3">
           <span className="min-w-0 flex-1 text-[14px] text-admin-ink">
@@ -412,9 +194,10 @@ export function GalleryBrowseScreen({
             <button
               type="button"
               onClick={onBackToMyWebsite}
-              className="min-h-11 text-[14px] font-semibold text-admin-ink underline-offset-2 hover:underline"
+              className="grid h-11 w-11 place-items-center text-[18px] text-admin-ink"
+              aria-label={t("Back to My website")}
             >
-              {t("Back to My website")}
+              ✕
             </button>
           ) : null}
         </div>
@@ -429,7 +212,6 @@ export function GalleryBrowseScreen({
         </p>
       </div>
 
-      {/* Search */}
       <form
         role="search"
         className="relative"
@@ -496,7 +278,7 @@ export function GalleryBrowseScreen({
         ) : null}
       </form>
 
-      {/* Filters */}
+      {/* Wave 3: one filter row — trade chips + Filters */}
       <div className="relative flex flex-col gap-2">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {multi
@@ -522,28 +304,43 @@ export function GalleryBrowseScreen({
                     aria-pressed={on}
                     onClick={() => update({ chip: c })}
                     className={`${PILL} ${
-                      on ? "bg-admin-ink font-semibold text-white" : "border border-admin-border-soft bg-white font-medium text-admin-ink"
+                      on
+                        ? "bg-admin-ink font-semibold text-white"
+                        : "border border-admin-border-soft bg-white font-medium text-admin-ink"
                     }`}
                   >
                     {c ? t(CHIP_LABEL[c]) : t("All")}
                   </button>
                 );
               })}
-        </div>
-        <div className="relative flex flex-wrap items-center gap-2">
-          {menuButton("style", `${t("Visual style")}: ${state.style ? t(state.style) : t("Any")}`, Boolean(state.style))}
-          {menuButton(
-            "tags",
-            `${t("Tags")}: ${state.tags.length === 0 ? t("Any") : state.tags.length === 1 ? t(state.tags[0]!) : state.tags.length}`,
-            state.tags.length > 0,
-          )}
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={filtersOpen}
+            data-testid="gallery-filters-button"
+            onClick={() => {
+              setPendingTags(state.tags);
+              setPendingStyle(state.style);
+              setFiltersOpen((o) => !o);
+            }}
+            className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[14px] sm:min-h-10 ${
+              filtersOn ? "border-admin-ink font-semibold text-admin-ink" : "border-admin-border-soft bg-white font-medium text-admin-ink"
+            }`}
+          >
+            {t("Filters")}
+            {filtersOn ? (
+              <span className="inline-grid h-5 min-w-5 place-items-center rounded-full bg-admin-ink px-1 text-[11px] text-white">
+                {(state.style ? 1 : 0) + state.tags.length}
+              </span>
+            ) : null}
+          </button>
           {multi ? (
             <button
               type="button"
               role="switch"
               aria-checked={state.combined}
               onClick={() => update({ combined: !state.combined })}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-[10px] border bg-white px-3 text-[14px] font-semibold text-admin-ink sm:min-h-10 ${
+              className={`inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border bg-white px-3 text-[14px] font-semibold text-admin-ink sm:min-h-10 ${
                 state.combined ? "border-admin-ink" : "border-admin-border-soft"
               }`}
             >
@@ -564,20 +361,25 @@ export function GalleryBrowseScreen({
               {t("Reset filters")}
             </button>
           ) : null}
-          {menuPanel}
         </div>
+        {filtersOpen ? (
+          <GalleryFiltersSheet
+            locale={locale}
+            state={state}
+            counts={counts}
+            pendingTags={pendingTags}
+            pendingStyle={pendingStyle}
+            onPendingTags={setPendingTags}
+            onPendingStyle={setPendingStyle}
+            onApply={() => {
+              update({ tags: pendingTags, style: pendingStyle });
+              setFiltersOpen(false);
+            }}
+            onClose={() => setFiltersOpen(false)}
+            t={t}
+          />
+        ) : null}
       </div>
-
-      {suggestedNames.length ? (
-        <p className="text-[13.5px] text-admin-ink-muted">
-          {suggestedNames.length >= 2
-            ? t("Suggested from your profile: {a} and {b}. Every theme stays open to you.", {
-                a: suggestedNames[0]!,
-                b: suggestedNames[1]!,
-              })
-            : t("Suggested from your profile: {a}. Every theme stays open to you.", { a: suggestedNames[0]! })}
-        </p>
-      ) : null}
 
       {resultLine ? <p className="text-[14px] text-admin-ink-muted">{resultLine}</p> : null}
 
