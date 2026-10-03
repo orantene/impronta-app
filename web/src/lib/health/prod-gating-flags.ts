@@ -16,6 +16,7 @@ import {
 import { readWebsiteSettingsMode } from "@/lib/access/talent-website-settings";
 import { resolvePrivateMediaAccess } from "@/lib/media/private-access";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { isSupportDeskEnabled } from "@/lib/support/desk-flag";
 import { readAgendaV2Mode } from "@/lib/talent-agenda/flag";
@@ -238,28 +239,32 @@ export async function resolveProdGatingFlags(
 
   const admin = createServiceRoleClient();
   if (admin) {
-    const { data: ps } = await admin
+    const { data: ps, error: psError } = await admin
       .from("platform_settings")
       .select("workspace_fab_enabled, media_private_access_enabled")
       .eq("id", true)
       .maybeSingle();
+    if (psError) {
+      // Leave DB placeholders as null — smoke fails closed on missing resolved.
+      logServerError("health.prodGatingFlags.platform_settings", psError);
+    } else {
+      const fab = !!ps?.workspace_fab_enabled;
+      const mediaDb = !!ps?.media_private_access_enabled;
+      patch(byKey, "platform_settings.workspace_fab_enabled", {
+        db: fab,
+        resolved: fab,
+      });
+      patch(byKey, "platform_settings.media_private_access_enabled", {
+        db: mediaDb,
+        resolved: mediaDb,
+      });
 
-    const fab = !!ps?.workspace_fab_enabled;
-    const mediaDb = !!ps?.media_private_access_enabled;
-    patch(byKey, "platform_settings.workspace_fab_enabled", {
-      db: fab,
-      resolved: fab,
-    });
-    patch(byKey, "platform_settings.media_private_access_enabled", {
-      db: mediaDb,
-      resolved: mediaDb,
-    });
-
-    const mediaEffective = resolvePrivateMediaAccess(mediaDb);
-    patch(byKey, "MEDIA_PRIVATE_ACCESS_ENABLED", {
-      db: mediaDb,
-      resolved: mediaEffective.enabled,
-    });
+      const mediaEffective = resolvePrivateMediaAccess(mediaDb);
+      patch(byKey, "MEDIA_PRIVATE_ACCESS_ENABLED", {
+        db: mediaDb,
+        resolved: mediaEffective.enabled,
+      });
+    }
 
     // Same RPC the commission engine uses when arming pass_through.
     const modeRes = (await admin.rpc("engine_platform_processing_mode" as never)) as {
@@ -269,7 +274,9 @@ export async function resolveProdGatingFlags(
       } | null;
       error?: { message?: string } | null;
     };
-    if (!modeRes.error && modeRes.data) {
+    if (modeRes.error) {
+      logServerError("health.prodGatingFlags.processing_mode", modeRes.error);
+    } else if (modeRes.data) {
       const mode = modeRes.data.processing_mode ?? null;
       const bps =
         typeof modeRes.data.pass_through_take_bps === "number"
