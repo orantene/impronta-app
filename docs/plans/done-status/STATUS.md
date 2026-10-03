@@ -1,1 +1,1 @@
-file:///workspace/docs/plans/done-status/STATUS.md
+file:///home/ubuntu/.cursor/projects/workspace/agent-tools/status-push-2316.txt
