@@ -4,12 +4,14 @@
  * renders outside this shell) do not receive it.
  */
 
-[data-talent-visual="1"] button:focus-visible,
-[data-talent-visual="1"] a:focus-visible,
-[data-talent-visual="1"] [role="button"]:focus-visible,
-[data-talent-visual="1"] input:focus-visible,
-[data-talent-visual="1"] textarea:focus-visible,
-[data-talent-visual="1"] select:focus-visible {
+/* Beat `.tulala-shell …:focus-visible` from AdminShellContent's later
+   inline <style> (equal attr/class specificity otherwise loses to it). */
+.tulala-shell[data-talent-visual="1"] button:focus-visible,
+.tulala-shell[data-talent-visual="1"] a:focus-visible,
+.tulala-shell[data-talent-visual="1"] [role="button"]:focus-visible,
+.tulala-shell[data-talent-visual="1"] input:focus-visible,
+.tulala-shell[data-talent-visual="1"] textarea:focus-visible,
+.tulala-shell[data-talent-visual="1"] select:focus-visible {
   outline: 2px solid var(--tc-action);
   outline-offset: 2px;
 }

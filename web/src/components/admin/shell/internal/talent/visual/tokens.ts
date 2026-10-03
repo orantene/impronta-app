@@ -2,6 +2,11 @@
 
 import type { CSSProperties } from "react";
 
+/* Status chips and focus/mnav/msg retints. Loaded here so standalone
+   consumers (e.g. /dev/talent-agenda → BookingStateChip) get tc-status-*
+   without requiring the admin shell client. */
+import "./talent-visual.css";
+
 /**
  * Talent dashboard color language. Mounted on the talent shell only.
  * `--tc-primary` is type. `--tc-action` is the only solid fill.

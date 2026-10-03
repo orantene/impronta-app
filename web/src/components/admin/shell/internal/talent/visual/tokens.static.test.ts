@@ -20,6 +20,16 @@ test("talent action teal is separate from ink", () => {
   assert.match(src, /\["--tc-primary" as string\]: TALENT_VISUAL\.ink/);
   assert.match(src, /\["--tc-action" as string\]: TALENT_VISUAL\.action/);
   assert.match(src, /\["--tulala-primary-fill" as string\]: TALENT_VISUAL\.action/);
+  assert.match(src, /import "\.\/talent-visual\.css"/);
+});
+
+test("talent focus outline beats the shell focus rule", () => {
+  const css = read("components/admin/shell/internal/talent/visual/talent-visual.css");
+  assert.match(
+    css,
+    /\.tulala-shell\[data-talent-visual="1"\] button:focus-visible/,
+  );
+  assert.match(css, /outline:\s*2px solid var\(--tc-action\)/);
 });
 
 test("fee choice and client filters are not ink fills", () => {

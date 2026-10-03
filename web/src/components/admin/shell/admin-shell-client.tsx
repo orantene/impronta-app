@@ -149,7 +149,6 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 // canonical pages to the matcher list there.
 import { pathIsCanonical } from "./canonical-routes";
 import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "./internal/talent/visual/tokens";
-import "./internal/talent/visual/talent-visual.css";
 
 
 function ConditionalAdminShellRoot() {
