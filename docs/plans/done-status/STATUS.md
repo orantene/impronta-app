@@ -1,9 +1,9 @@
-Updated: 2026-10-03 03:22Z · Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14
-Live SHA: e6e00420b · Main SHA: e6e00420b
+Updated: 2026-10-03 03:23Z · Scoreboard: ✅ 1 / 🟡 67 / ❌ 17 / ⏸ 1 / ❓ 14
+Live SHA: e6e00420b · Main SHA: fc3896083
 Top 3 blockers right now
 1. Scheduling questions are on production `e6e00420b` (structural gate run 37090740160 passed; promote run 37092375314 passed). They are not ✅. There is no live quote or booking walk. #18 stays not ✅.
 2. #2490, #2491, and #2492 are not merged. #2490 branch `cursor/unrostered-talent-wall-89c0` showed no PROFILE CREATED wall for Jorg at desktop and 390. That is branch-only, so wall questions stay not ✅. #13 stays 🟡 on the avatar branch. #55 and #57 stay ❌.
-3. #2482 is on main and production `e6e00420b`. #48 stays 🟡 until a live receipt PDF. #2481 is reopened at `c57629a77` and not merged. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
+3. #2481 merged to main `fc3896083`. Production is still `e6e00420b` until structural gate run 37092968599 passes. Not hand-pushed. #26 and #47 stay 🟡 until a live refund walk. #48 stays 🟡 until a live receipt PDF. The live vanity charge is still $100, not $101.50 or $104.84, and Money Collected stayed $0.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with a live check.
 
@@ -64,8 +64,8 @@ Wall proof 03:16Z (`internal/story-04-jor.md`): on #2490 (`cursor/unrostered-tal
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. #2481 is still open at `c57629a77` (`mergedAt` null). Structural gate on that head succeeded (run 37090894182). Local Supabase was still pending at 03:22Z. | No paid booking cancelled on tulala.digital. Not merged, so not ✅. | S5 step 1 | — | 2026-10-03 |
-| 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine and #2469 tests are on production `e6e00420b`. | A5.3 not run. Both live charges were flat $100 with empty payout rows, so the fee-correct amounts were never refunded. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
+| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2481 merged to main `fc3896083` at 2026-10-03T03:22:09Z (head `c57629a77`). #2468 on production still shows refund-pending. Production is still `e6e00420b`. Structural gate run 37092968599 is in progress. | Not ✅ until a live refund walk on a paid booking. The Money button is not on production yet. | S5 step 1 | — | 2026-10-03 |
+| 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine and #2469 tests are on production `e6e00420b`. #2481 merged the Money refund button to main `fc3896083`. That is not a fee-net refund. | A5.3 not run. Both live charges were flat $100 with empty payout rows, so the fee-correct amounts were never refunded. Not ✅ until a live refund walk. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
 
 ## Story 6 — Diego pays the card fee (S6)
 
@@ -160,10 +160,10 @@ Wall proof 03:16Z (`internal/story-04-jor.md`): on #2490 (`cursor/unrostered-tal
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | Re-checked 2026-10-03 03:22Z: `origin/main` and `origin/production` are both `e6e00420b`. Structural gate run 37090740160 completed success. Promote run 37092375314 completed success. Alias run 37092563179 completed success for that SHA. | None. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | 🟡 | Re-checked 2026-10-03 03:23Z: `origin/main` is `fc3896083` (#2481). `origin/production` is still `e6e00420b`. Structural gate run 37092968599 is in progress. The previous match (`e6e00420b`, gate 37090740160, alias 37092563179) is no longer the tip. | Production was not hand-pushed. Not ✅ until this main commit’s gate passes and the pointer matches. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 03:16Z: 8 (#2477, #2480, #2481, #2486, #2487, #2490, #2491, #2492). #2482 is merged. All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2481 is reopened at `c57629a77` and not merged. #2490 is open and not merged. #2491 and #2492 are drafts. | S14 step 5 | — | 2026-10-03 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 03:23Z: 7 (#2477, #2480, #2486, #2487, #2490, #2491, #2492). #2481 and #2482 are merged. All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2490 is open and not merged. #2491 and #2492 are drafts. | S14 step 5 | — | 2026-10-03 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | No logged-in console capture this pass. | Live TAL-93900 wall still blocks those pages. #2490 removed the wall only on the branch, and that pass was not a console audit. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Production is now `e6e00420b`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
 | 100 | PM board current; Blocked-on-Oran items are real | 🟡 | Store `docs/plans/PM-BOARD.md` updated 2026-10-03 ~00:25Z. Oran items there are the Desk flag, D-083 Stripe clicks, and legal review of refunds. | Not a live product check. Board is a working note, not proven against every open PR owner. | S14 step 5 | — | 2026-10-03 |
@@ -212,9 +212,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-15-min wake at 2026-10-03 03:22Z. Pulled `status/done-board` first (already at `33d0359c8`).
-REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
-Alias run 37092563179 completed success for `e6e00420b`. #94 stays ✅. #2482 is live on that SHA. #48 stays 🟡 until a live receipt PDF from a paid booking.
-#2481 is still open at `c57629a77` (`mergedAt` null). Local Supabase was still pending. Not merged.
-#13 stays 🟡. No status emoji changed.
-Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14.
+Pulled `status/done-board` first (already at `8bf62acde`). REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
+#2481 merged at 2026-10-03T03:22:09Z. Main tip is `fc3896083`. Production is still `e6e00420b`. Structural gate run 37092968599 is in progress. Production was not hand-pushed.
+#26 and #47 stay 🟡 until a live refund walk. #48 stays 🟡 until a live receipt PDF. #13 stays 🟡.
+#94 moves ✅ → 🟡 because production does not equal the new main.
+Scoreboard: ✅ 1 / 🟡 67 / ❌ 17 / ⏸ 1 / ❓ 14.
