@@ -1,4 +1,4 @@
-Updated: 2026-10-03 03:16Z · Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14
+Updated: 2026-10-03 03:22Z · Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14
 Live SHA: e6e00420b · Main SHA: e6e00420b
 Top 3 blockers right now
 1. Scheduling questions are on production `e6e00420b` (structural gate run 37090740160 passed; promote run 37092375314 passed). They are not ✅. There is no live quote or booking walk. #18 stays not ✅.
@@ -64,7 +64,7 @@ Wall proof 03:16Z (`internal/story-04-jor.md`): on #2490 (`cursor/unrostered-tal
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
-| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. #2481 is reopened at `c57629a77` and not merged. Structural gate on that head succeeded (run 37090894182, 03:14Z). Local Supabase was still in progress at 03:16Z. | No paid booking cancelled on tulala.digital. Not merged, so not ✅. | S5 step 1 | — | 2026-10-03 |
+| 26 | Cancel paid shows refund pending, then an action | 🟡 | #2468 on production shows refund-pending. #2481 is still open at `c57629a77` (`mergedAt` null). Structural gate on that head succeeded (run 37090894182). Local Supabase was still pending at 03:22Z. | No paid booking cancelled on tulala.digital. Not merged, so not ✅. | S5 step 1 | — | 2026-10-03 |
 | 47 | Refunds net of fees, partial, block if fee unknown | 🟡 | Refund engine and #2469 tests are on production `e6e00420b`. | A5.3 not run. Both live charges were flat $100 with empty payout rows, so the fee-correct amounts were never refunded. | S5 steps 2–4; also S6 step 3 | — | 2026-10-03 |
 
 ## Story 6 — Diego pays the card fee (S6)
@@ -160,7 +160,7 @@ Wall proof 03:16Z (`internal/story-04-jor.md`): on #2490 (`cursor/unrostered-tal
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | Re-checked 2026-10-03 03:16Z: `origin/main` and `origin/production` are both `e6e00420b`. Structural gate run 37090740160 completed success. Promote run 37092375314 completed success. Alias run 37092563179 was still in progress. | None for the pointer match. | S14 step 1 | — | 2026-10-03 |
+| 94 | Main green, and production equals that green main | ✅ | Re-checked 2026-10-03 03:22Z: `origin/main` and `origin/production` are both `e6e00420b`. Structural gate run 37090740160 completed success. Promote run 37092375314 completed success. Alias run 37092563179 completed success for that SHA. | None. | S14 step 1 | — | 2026-10-03 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Mac `npm run deploy:smoke` exit 0 on 2026-10-02 after the Desk promote (2 warnings). | Not re-run after gallery landed on main, and main has not promoted. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
 | 97 | No open PR older than 2 days without an owner | ✅ | Open at 2026-10-03 03:16Z: 8 (#2477, #2480, #2481, #2486, #2487, #2490, #2491, #2492). #2482 is merged. All created 2026-10-02 or 2026-10-03. Author `orantene` on each. | None older than 2 days. #2481 is reopened at `c57629a77` and not merged. #2490 is open and not merged. #2491 and #2492 are drafts. | S14 step 5 | — | 2026-10-03 |
@@ -212,11 +212,9 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-Refresh at 2026-10-03 03:16Z. Pulled `status/done-board` first (already at `289de0062`).
+15-min wake at 2026-10-03 03:22Z. Pulled `status/done-board` first (already at `33d0359c8`).
 REPLIES.md was read. It is still the stub (“Claude writes replies here.”). No new reply, so no doubt was closed. The file was not overwritten.
-`origin/main` and `origin/production` are both `e6e00420b` (#2482 merged). Structural gate run 37090740160 succeeded. Promote run 37092375314 succeeded. Production was not pushed by hand. Alias run 37092563179 was still in progress.
-#48 stays 🟡. #2482 is on main, and it is not ✅ until a live receipt PDF.
-#2481 is reopened at `c57629a77` and not merged. Structural gate on that head succeeded. Local Supabase was still in progress.
-#2490 branch proof: no PROFILE CREATED wall for Jorg at desktop and 390 (`internal/story-04-jor.md`). Not merged, so those rows stay not ✅. “Manicure Gel QA” did not save. Inquire still shows “Directory is not configured.”
+Alias run 37092563179 completed success for `e6e00420b`. #94 stays ✅. #2482 is live on that SHA. #48 stays 🟡 until a live receipt PDF from a paid booking.
+#2481 is still open at `c57629a77` (`mergedAt` null). Local Supabase was still pending. Not merged.
 #13 stays 🟡. No status emoji changed.
 Scoreboard: ✅ 2 / 🟡 66 / ❌ 17 / ⏸ 1 / ❓ 14.
