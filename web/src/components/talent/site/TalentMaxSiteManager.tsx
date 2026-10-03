@@ -44,6 +44,7 @@ const MyWebsiteCard = dynamic(
     import("@/components/talent/site/maison-setup/MyWebsiteCard").then((m) => m.MyWebsiteCard),
   { ssr: false },
 );
+import { PresenceSiteTiles } from "@/components/talent/site/maison-setup/MyWebsiteCard";
 import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { takeOr } from "./public-page-bootstrap";
 import {
@@ -298,7 +299,31 @@ function ManagerBody({
           showTiles
         />
       ) : setupOpen ? null : (
-        <WebsiteEligibilityPanel onActivate={openSetup} />
+        <>
+          <WebsiteEligibilityPanel onActivate={openSetup} />
+          {/* Pre-publish: Domain / Questions / Settings / Apps stay reachable
+              when MyWebsiteCard (live-only) is not mounted. */}
+          {hideDomainRow || onOpenQuestions || onOpenSettings || onOpenApps ? (
+            <div
+              data-testid="presence-prepublish-tools"
+              className="overflow-hidden rounded-2xl border border-admin-border-soft bg-white font-admin-body"
+            >
+              <PresenceSiteTiles
+                locale={locale}
+                onOpenDomain={handleOpenDomain}
+                onOpenQuestions={onOpenQuestions}
+                onOpenSettings={onOpenSettings}
+                onOpenApps={
+                  onOpenApps ??
+                  (() => {
+                    setMaisonForceReason("restored");
+                    setMaisonForceScreen("apps");
+                  })
+                }
+              />
+            </div>
+          ) : null}
+        </>
       )}
 
       {/* Maison Choose-a-design / Theme detail / Review. Flag-off → null. */}

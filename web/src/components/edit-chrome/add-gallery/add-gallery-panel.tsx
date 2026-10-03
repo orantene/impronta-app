@@ -41,6 +41,8 @@ import {
   galleryLockedHint,
   isGalleryItemStructurallyLocked,
 } from "@/lib/site-admin/add-gallery/structural-lock";
+import { requestWebsiteSetup } from "@/components/talent/website-reward/useWebsiteFlow";
+import { takeBuilderAppIntent } from "../builder-app-intent";
 import { TabBar } from "./add-gallery-tab-bar";
 import { GalleryCard } from "./add-gallery-cards";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -201,6 +203,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const [pending, setPending] = useState(false);
   // Live-render preview popup — the item whose preview is open (null = closed).
   const [previewItem, setPreviewItem] = useState<AddGalleryItem | null>(null);
+  // Gallery "Add to my site" → land on Apps (and optionally focus one app).
+  const [focusAppId, setFocusAppId] = useState<string | null>(null);
 
   // P1 — merged catalog seeded synchronously from code; refreshed on open.
   const allowedTabIds = useMemo(
@@ -216,6 +220,16 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       }),
     [gallerySurface],
   );
+
+  useEffect(() => {
+    if (!open) return;
+    const intent = takeBuilderAppIntent();
+    if (!intent) return;
+    setTab("apps");
+    setFocusAppId(intent);
+    const app = codeSeed.find((i) => i.tab === "apps" && i.id === intent);
+    if (app) setQuery(app.label);
+  }, [open, codeSeed]);
   const [mergedItems, setMergedItems] =
     useState<ReadonlyArray<AddGalleryItem>>(codeSeed);
   // Admin-editable catalog structure; empty until open-effect fetch resolves.
@@ -550,6 +564,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
         {gallerySurface.structuralEdits === false && tab !== "shell" ? (
           <GalleryLockedNotice locale={locale} />
         ) : null}
+        {focusAppId ? (
+          <span hidden data-testid="add-gallery-focus-app" data-app-id={focusAppId} />
+        ) : null}
         {tab === "apps" ? (
           <div
             className="mx-[16px] mb-[8px] flex flex-wrap items-center gap-[8px] rounded-[10px] border px-[12px] py-[8px] text-[12px]"
@@ -558,9 +575,11 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
           >
             <span style={{ color: CHROME.muted }}>{t("Apps look best in matching designs.")}</span>
             <Link
-              href="/talent"
+              href="/talent/site"
+              data-testid="add-gallery-browse-designs"
               className="font-semibold underline-offset-2 hover:underline"
               style={{ color: CHROME.ink }}
+              onClick={() => requestWebsiteSetup("gallery")}
             >
               {t("Browse designs")}
             </Link>

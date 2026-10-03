@@ -113,17 +113,22 @@ async function insertServiceDraft(
   );
   if (existingId) return { ok: true, id: existingId };
 
-  const blank = blankOffering(input.talentProfileId, "MXN", input.sortOrder);
+  const currency = input.starter.currency ?? "MXN";
+  const quote =
+    input.starter.priceDisplay === "quote" || input.starter.priceMxn == null;
+  const blank = blankOffering(input.talentProfileId, currency, input.sortOrder);
   const offering = {
     ...blank,
     title: input.starter.name,
     category: input.starter.category,
-    amountCents: input.starter.priceMxn * 100,
+    amountCents: quote ? null : Math.round((input.starter.priceMxn as number) * 100),
     durationMinutes: input.starter.durationMin,
     status: "draft" as const,
-    bookingMode: "request" as const,
+    bookingMode: input.starter.bookingMode ?? "request",
     reserveMode: "full" as const,
-    priceDisplay: "exact" as const,
+    priceType: quote ? ("custom" as const) : ("flat_package" as const),
+    priceDisplay: input.starter.priceDisplay ?? (quote ? "quote" : "exact"),
+    currency,
     attributes: {
       maison_starter_key: input.starter.key,
       maison_import_batch_id: input.batchId,

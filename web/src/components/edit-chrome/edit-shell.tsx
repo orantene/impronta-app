@@ -19,6 +19,7 @@
 import { useFirstPaintTipPlacement } from "./first-paint-tip-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { requestBuilderAppIntent } from "./builder-app-intent";
 
 import { createClient } from "@/lib/supabase/client";
 import { EditErrorBoundary } from "./edit-error-boundary";
@@ -481,6 +482,7 @@ function EditShellInner({
     searchPanelOpen,
     closeSearchPanel,
     addMenuOpen,
+    openAddMenu,
     closeAddMenu,
     allPagesPanelOpen,
     closeAllPagesPanel,
@@ -643,6 +645,11 @@ function EditShellInner({
     // palette / shortcut overlay / pages dropdown shouldn't stack oddly.
     dismissCompetingEditorChrome();
 
+    const appId = searchParams.get("app");
+    if ((panel === "add" || panel === "apps") && appId) {
+      requestBuilderAppIntent(appId);
+    }
+
     const dispatch: Record<string, (() => void) | "noop"> = {
       publish: openPublish,
       pageSettings: openPageSettings,
@@ -653,6 +660,9 @@ function EditShellInner({
       schedule: openSchedule,
       comments: openComments,
       pages: requestPagesPickerOpen,
+      // Wave 4: gallery "Add to my site" → open Add gallery (Apps tab via intent).
+      add: openAddMenu,
+      apps: openAddMenu,
       // Canvas is the sections navigator; landing in edit mode is enough.
       // The legacy slot-writer panels (templates / templateGallery / library /
       // sectionsLibrary) were removed when the builder went freeform-only.
@@ -664,6 +674,7 @@ function EditShellInner({
     const next = new URLSearchParams(searchParams.toString());
     next.delete("panel");
     next.delete("template");
+    next.delete("app");
     const qs = next.toString();
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     router.replace(`${pathname}${qs ? `?${qs}` : ""}${hash}`, { scroll: false });
@@ -680,6 +691,7 @@ function EditShellInner({
     openSchedule,
     openComments,
     requestPagesPickerOpen,
+    openAddMenu,
     pageSlug,
     dismissCompetingEditorChrome,
   ]);

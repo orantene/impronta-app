@@ -58,7 +58,11 @@ test("G3-IMPORT: catalogs for finished designs; entry not Maison-only", () => {
   const folio = getGalleryDesign("folio")!;
   const grid = getGalleryDesign("gridline")!;
   assert.ok(demoHasImportCatalog("maison", maison.demos.find((d) => d.status === "built") ?? null));
-  assert.ok(demoHasImportCatalog("maison-v2", v2.demos.find((d) => d.status === "built") ?? null));
+  // Alba (reference) has contentFixture; guide demos without one must not import Alba.
+  const alba = v2.demos.find((d) => d.key === "alba-nail-artist") ?? null;
+  assert.ok(demoHasImportCatalog("maison-v2", alba));
+  const camila = v2.demos.find((d) => d.source.kind === "demo-talent" && d.source.profileCode === "TAL-93003");
+  assert.equal(demoHasImportCatalog("maison-v2", camila ?? null), false);
   assert.ok(demoHasImportCatalog("folio", folio.demos.find((d) => d.status === "built") ?? null));
   assert.ok(demoHasImportCatalog("gridline", grid.demos.find((d) => d.status === "built") ?? null));
   const cat = galleryImportCatalogFor("folio", folio.demos.find((d) => d.status === "built") ?? null);
@@ -71,6 +75,17 @@ test("G3-IMPORT: catalogs for finished designs; entry not Maison-only", () => {
   }
   // Section text not offered until commit persists biography/about copy.
   assert.equal(cat!.sectionText.length, 0);
+  // Quote services keep null price (never coerced to 0).
+  const gridCat = galleryImportCatalogFor(
+    "gridline",
+    grid.demos.find((d) => d.status === "built") ?? null,
+  );
+  assert.ok(gridCat);
+  const quoteSvc = gridCat!.services.find((s) => s.priceDisplay === "quote" || s.priceMxn == null);
+  if (quoteSvc) {
+    assert.equal(quoteSvc.priceMxn, null);
+    assert.ok(quoteSvc.currency === "MXN" || quoteSvc.currency === "USD");
+  }
   const panel = read("ImportStarterPanel.tsx");
   assert.match(panel, /loadGalleryImportPreviewAction/);
   assert.match(panel, /designSlug/);
@@ -103,6 +118,19 @@ test("G3-PRESENCE: hero + tiles on MyWebsiteCard", () => {
   assert.match(card, /presence-tile-apps/);
   assert.match(card, /maison-edit-site[\s\S]*?bg-admin-ink/);
   assert.match(card, /History/);
+  // Phone preview uses a real phone-width iframe viewport (not scaled 1280).
+  assert.match(card, /phone:\s*\{\s*w:\s*390/);
+  assert.match(card, /data-preview-device/);
+});
+
+test("G3-PRESENCE: pre-publish Domain/Questions tiles outside live card", () => {
+  const manager = readFileSync(
+    join(process.cwd(), "src/components/talent/site/TalentMaxSiteManager.tsx"),
+    "utf8",
+  );
+  assert.match(manager, /presence-prepublish-tools/);
+  assert.match(manager, /PresenceSiteTiles/);
+  assert.match(manager, /hideDomainRow \|\| onOpenQuestions/);
 });
 
 test("G3-PRESENCE: settings reachable before publish; domain tile entitlement-gated", () => {

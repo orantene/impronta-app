@@ -67,6 +67,11 @@ test("G4-APP: try-it, Se ve mejor en, Agregar / Oficina Web path", () => {
   assert.match(html, /app-detail-see-plans/);
   assert.match(html, /app-detail-design-maison-v2/);
   assert.match(html, /layout=desktop/);
+  // Add to site carries the app into the builder Add gallery.
+  assert.match(html, /panel=add/);
+  assert.match(html, new RegExp(`app=${encodeURIComponent(nail.id)}`));
+  const detail = read("AppDetailScreen.tsx");
+  assert.match(detail, /requestBuilderAppIntent/);
 });
 
 test("G4-BACK: App↔templates + library patches", () => {
@@ -126,6 +131,9 @@ test("G4-BUILDER: Apps tab search + designs back-link", () => {
   assert.match(panel, /Search apps/);
   assert.match(panel, /add-gallery-apps-designs-link/);
   assert.match(panel, /Browse designs/);
+  assert.match(panel, /href="\/talent\/site"/);
+  assert.match(panel, /requestWebsiteSetup\("gallery"\)/);
+  assert.match(panel, /takeBuilderAppIntent/);
   const es = readFileSync(
     join(process.cwd(), "src/components/edit-chrome/editor-i18n-es-apps.ts"),
     "utf8",

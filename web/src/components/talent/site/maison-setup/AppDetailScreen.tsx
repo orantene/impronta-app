@@ -6,6 +6,7 @@
  */
 import Link from "next/link";
 import { useState } from "react";
+import { requestBuilderAppIntent } from "@/components/edit-chrome/builder-app-intent";
 import { GALLERY_LOCKED_UPGRADE_HREF, galleryLockedHint } from "@/lib/site-admin/add-gallery/structural-lock";
 import { NailStudioFrame } from "@/lib/site-admin/builder-node/nail-designer-frame";
 import {
@@ -152,8 +153,15 @@ export function AppDetailScreen({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Link
-          href="/talent/page-builder"
+          href={
+            app
+              ? `/talent/page-builder?panel=add&app=${encodeURIComponent(app.id)}`
+              : "/talent/page-builder"
+          }
           data-testid="app-detail-add-to-site"
+          onClick={() => {
+            if (app) requestBuilderAppIntent(app.id);
+          }}
           className="inline-flex min-h-12 items-center justify-center rounded-xl bg-admin-ink px-5 text-[14px] font-semibold text-white"
         >
           {galleryAppsT(locale, "addToSite")}
