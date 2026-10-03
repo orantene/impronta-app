@@ -184,11 +184,13 @@ test("marketing host: the Saved-shelf batch lookup is allowed; the rest of /api/
 test("read-only deploy diagnostics: /api/health/* allowed on every host kind", () => {
   // /api/health/guest-chat reports only the boolean presence of the Upstash KV
   // env vars (no secrets, no tenant data) and must be reachable unauthenticated
-  // so deploy:smoke can probe the deployed runtime. It is host-agnostic
-  // (SHARED_API_PREFIXES) like /api/cron and /api/stripe.
-  const p = "/api/health/guest-chat";
-  for (const kind of ["app", "agency", "hub", "marketing"] as const) {
-    assert.equal(isPathAllowedForHostKind(kind, p), true, `${kind} should allow ${p}`);
+  // so deploy:smoke can probe the deployed runtime. /api/health/flags is the
+  // platform-admin / CRON_SECRET gated prod-gating matrix probe (same prefix).
+  // Both are host-agnostic (SHARED_API_PREFIXES) like /api/cron and /api/stripe.
+  for (const p of ["/api/health/guest-chat", "/api/health/flags"] as const) {
+    for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+      assert.equal(isPathAllowedForHostKind(kind, p), true, `${kind} should allow ${p}`);
+    }
   }
 });
 

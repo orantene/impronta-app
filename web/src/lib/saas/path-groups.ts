@@ -55,11 +55,14 @@ export const PROTOTYPE_PREFIX = "/prototypes" as const;
  *        any seeded `agency_domains` row.
  *   - `/api/health/*` → read-only deploy diagnostics (e.g.
  *        `/api/health/guest-chat` reports only the BOOLEAN presence of the
- *        Upstash KV env vars — no secret values, no tenant data).
- *        Intentionally unauthenticated so `deploy:smoke` can probe the
- *        deployed runtime without a session; without this entry the proxy
- *        rewrote it to a 404 and the smoke check could never read the
- *        anti-spam signal.
+ *        Upstash KV env vars — no secret values, no tenant data;
+ *        `/api/health/flags` lists live prod-gating flag values and is
+ *        platform-admin / CRON_SECRET gated — smoke compares them to
+ *        `scripts/prod-flag-expectations.mjs`).
+ *        guest-chat is intentionally unauthenticated so `deploy:smoke` can
+ *        probe the deployed runtime without a session; without this entry
+ *        the proxy rewrote it to a 404 and the smoke check could never read
+ *        the anti-spam signal.
  *   - `/api/dev/reset-guest` → QA/E2E fresh-guest-session reset (W0-H). Unlike
  *        the rest of `/api/dev/*` (bypassed in proxy.ts for dev + preview
  *        ONLY), this single route is also allowed through on production hosts
