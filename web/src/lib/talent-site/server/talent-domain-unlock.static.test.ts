@@ -29,6 +29,19 @@ test("DomainSetupDrawer exposes buy, connect, and help paths", () => {
   assert.match(src, /requestTalentDomainHelpAction/);
   assert.match(src, /TalentSiteDomainPanel/);
   assert.match(src, /Vercel Registrar quote|Vercel price/);
+  // Missing registrar token → Coming soon on Buy; Connect/Help stay live.
+  assert.match(src, /isTalentDomainSearchConfiguredAction/);
+  assert.match(src, /Domain search and purchase are coming soon/);
+  assert.match(src, /Coming soon/);
+});
+
+test("domain purchase actions expose registrar search availability probe", () => {
+  const src = readFileSync(
+    join(ROOT, "lib/talent-site/server/talent-domain-purchase-actions.ts"),
+    "utf8",
+  );
+  assert.match(src, /export async function isTalentDomainSearchConfiguredAction/);
+  assert.match(src, /readVercelRegistrarConfig/);
 });
 
 test("domain checkout charges exact registrar quote cents (no markup)", () => {
