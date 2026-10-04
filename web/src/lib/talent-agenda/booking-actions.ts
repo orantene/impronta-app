@@ -507,6 +507,60 @@ export type CreateAgendaPayLinkResult =
 
 
 
+const AGENDA_PAY_BOOKING_COLS =
+  "id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status, contact_name, contact_email, contact_phone";
+
+/**
+ * Instant-book vanity can leave `talent_bookings.id` ≠ `agency_bookings.id`.
+ * Pedir depósito opens the talent mirror URL; resolve the commercial row via
+ * `source_inquiry_id` when the ids diverge.
+ */
+async function loadAgencyBookingForPayLink(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  bookingId: string,
+): Promise<
+  | { ok: true; row: Record<string, unknown> }
+  | { ok: false; reason: "unavailable" | "not_found" }
+> {
+  const { data: row, error } = await admin
+    .from("agency_bookings")
+    .select(AGENDA_PAY_BOOKING_COLS)
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (error) {
+    logServerError("agenda.createPayLink.load", error);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (row) return { ok: true, row: row as Record<string, unknown> };
+
+  const { data: mirror, error: mirrorErr } = await admin
+    .from("talent_bookings")
+    .select("inquiry_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (mirrorErr) {
+    logServerError("agenda.createPayLink.mirror", mirrorErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  const inquiryId =
+    typeof mirror?.inquiry_id === "string" && mirror.inquiry_id ? mirror.inquiry_id : null;
+  if (!inquiryId) return { ok: false, reason: "not_found" };
+
+  const { data: viaInquiry, error: viaErr } = await admin
+    .from("agency_bookings")
+    .select(AGENDA_PAY_BOOKING_COLS)
+    .eq("source_inquiry_id", inquiryId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (viaErr) {
+    logServerError("agenda.createPayLink.viaInquiry", viaErr);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (!viaInquiry) return { ok: false, reason: "not_found" };
+  return { ok: true, row: viaInquiry as Record<string, unknown> };
+}
+
 /**
  * Mint (or reuse) a payment link for a booking. Creates an order shell when
  * the booking has none (manual slots).
@@ -522,37 +576,30 @@ export async function createAgendaBookingPayLink(input: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
-  const { data: row, error } = await admin
-    .from("agency_bookings")
-    .select(
-      "id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status, contact_name, contact_email, contact_phone",
-    )
-    .eq("id", input.bookingId)
-    .maybeSingle();
-  if (error) {
-    logServerError("agenda.createPayLink.load", error);
-    return { ok: false, reason: "unavailable" };
-  }
-  if (!row) return { ok: false, reason: "not_found" };
+  const loaded = await loadAgencyBookingForPayLink(admin, input.bookingId);
+  if (!loaded.ok) return loaded;
+  const row = loaded.row;
   if (!row.tenant_id) return { ok: false, reason: "no_tenant" };
   if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
 
-  const total = totalClientRevenueToCents(row.total_client_revenue);
+  const agencyBookingId = String(row.id);
+  const total = totalClientRevenueToCents(row.total_client_revenue as string | number | null | undefined);
   const amountCents =
     input.amountCents != null && input.amountCents > 0 ? input.amountCents : total;
   if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
 
+  const tenantId = String(row.tenant_id);
   const shell = await ensureAgendaOrderShell(admin, {
-    bookingId: input.bookingId,
-    tenantId: String(row.tenant_id),
+    bookingId: agencyBookingId,
+    tenantId,
     talentId: own.talentId,
-    title: row.title ?? null,
+    title: typeof row.title === "string" ? row.title : null,
     amountCents,
-    currencyCode: row.currency_code ?? null,
+    currencyCode: typeof row.currency_code === "string" ? row.currency_code : null,
     existingOrderId: row.order_id ? String(row.order_id) : null,
-    contactName: row.contact_name ?? null,
-    contactEmail: row.contact_email ?? null,
-    contactPhone: row.contact_phone ?? null,
+    contactName: typeof row.contact_name === "string" ? row.contact_name : null,
+    contactEmail: typeof row.contact_email === "string" ? row.contact_email : null,
+    contactPhone: typeof row.contact_phone === "string" ? row.contact_phone : null,
   });
   if (!shell.ok) return shell;
 
@@ -561,7 +608,7 @@ export async function createAgendaBookingPayLink(input: {
   const { data: priorOpen, error: priorErr } = await admin
     .from("payment_links")
     .select("id")
-    .eq("tenant_id", String(row.tenant_id))
+    .eq("tenant_id", tenantId)
     .eq("order_id", shell.orderId)
     .eq("status", "open");
   if (priorErr) {
@@ -572,7 +619,7 @@ export async function createAgendaBookingPayLink(input: {
     const { cancelPaymentLink } = await import("@/lib/payments/links");
     for (const prior of priorOpen as { id: string }[]) {
       const cancelled = await cancelPaymentLink(admin, {
-        tenantId: String(row.tenant_id),
+        tenantId,
         linkId: prior.id,
         asReplaced: true,
       });
@@ -587,7 +634,7 @@ export async function createAgendaBookingPayLink(input: {
   const publicOrigin = await resolveAgendaPayPublicOrigin(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client
     admin as any,
-    String(row.tenant_id),
+    tenantId,
     input.publicOrigin,
     { talentProfileId: own.talentId },
   );
@@ -597,12 +644,12 @@ export async function createAgendaBookingPayLink(input: {
     "@/lib/payments/payment-request-attempt"
   );
   const minted = await createPaymentLink(admin, {
-    tenantId: String(row.tenant_id),
+    tenantId,
     orderId: shell.orderId,
     amountCents,
     // Unique per mint so remints are not rebound to a cancelled/replaced row.
     idempotencyKey: agendaFinishCardPayKey({
-      bookingId: input.bookingId,
+      bookingId: agencyBookingId,
       amountCents,
       attemptId: newPaymentRequestAttemptId(),
     }),

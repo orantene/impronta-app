@@ -80,6 +80,15 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     assert.doesNotMatch(src, /reason:\s*"no_order"/);
   });
 
+  it("createAgendaBookingPayLink resolves talent mirror ids via source_inquiry_id", () => {
+    const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
+    assert.match(src, /loadAgencyBookingForPayLink/);
+    assert.match(src, /talent_bookings/);
+    assert.match(src, /source_inquiry_id/);
+    // Commercial shell + mint must key off the agency booking id, not the mirror URL id.
+    assert.match(src, /bookingId:\s*agencyBookingId/);
+  });
+
   it("createAgendaBookingPayLink rewrites app origin onto a tenant /pay host", () => {
     const src = readFileSync(join(root, "booking-actions.ts"), "utf8");
     assert.match(src, /resolveAgendaPayPublicOrigin/);
