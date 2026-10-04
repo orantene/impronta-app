@@ -2887,7 +2887,6 @@ const ES_TEXT: Record<string, string> = {
   "Request a change →": "Solicitar un cambio →",
   "Review & sign": "Revisar y firmar",
   "Reviews": "Reseñas",
-  "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",
   "Run your own talent business?": "¿Manejas tu propio negocio de talento?",
   "Running 5 min late": "Llego 5 min tarde",
   "Schedule": "Horario",
