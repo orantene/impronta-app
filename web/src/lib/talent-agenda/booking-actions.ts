@@ -24,6 +24,7 @@ import {
 
 import { ownBookingGate, talentBookingMirrorEq } from "./ownership";
 import type { OwnBookingResult } from "./ownership";
+import { resolveAgendaPayLinkBooking } from "./resolve-agenda-pay-booking";
 
 export type AgendaActionOk = { ok: true; already?: boolean };
 export type AgendaActionFail = { ok: false; reason: string };
@@ -510,6 +511,9 @@ export type CreateAgendaPayLinkResult =
 /**
  * Mint (or reuse) a payment link for a booking. Creates an order shell when
  * the booking has none (manual slots).
+ *
+ * UI booking ids may be diverged talent_bookings mirrors; commercial money
+ * lives on agency_bookings (resolved via source_inquiry_id when ids differ).
  */
 export async function createAgendaBookingPayLink(input: {
   bookingId: string;
@@ -522,18 +526,14 @@ export async function createAgendaBookingPayLink(input: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
-  const { data: row, error } = await admin
-    .from("agency_bookings")
-    .select(
-      "id, tenant_id, order_id, title, total_client_revenue, currency_code, payment_status, contact_name, contact_email, contact_phone",
-    )
-    .eq("id", input.bookingId)
-    .maybeSingle();
-  if (error) {
-    logServerError("agenda.createPayLink.load", error);
-    return { ok: false, reason: "unavailable" };
-  }
-  if (!row) return { ok: false, reason: "not_found" };
+  const resolved = await resolveAgendaPayLinkBooking(admin, {
+    bookingId: input.bookingId,
+    talentId: own.talentId,
+  });
+  if (!resolved.ok) return resolved;
+  const row = resolved.row;
+  // Always mint against the commercial agency row (may differ from UI mirror id).
+  const commercialBookingId = row.id;
   if (!row.tenant_id) return { ok: false, reason: "no_tenant" };
   if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
 
@@ -543,7 +543,7 @@ export async function createAgendaBookingPayLink(input: {
   if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
 
   const shell = await ensureAgendaOrderShell(admin, {
-    bookingId: input.bookingId,
+    bookingId: commercialBookingId,
     tenantId: String(row.tenant_id),
     talentId: own.talentId,
     title: row.title ?? null,
@@ -602,7 +602,7 @@ export async function createAgendaBookingPayLink(input: {
     amountCents,
     // Unique per mint so remints are not rebound to a cancelled/replaced row.
     idempotencyKey: agendaFinishCardPayKey({
-      bookingId: input.bookingId,
+      bookingId: commercialBookingId,
       amountCents,
       attemptId: newPaymentRequestAttemptId(),
     }),
