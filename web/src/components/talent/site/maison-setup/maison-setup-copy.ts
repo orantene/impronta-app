@@ -103,6 +103,11 @@ const ES: Record<string, string> = {
   "Section order and menu style return to the demo's. Your content stays.":
     "El orden de secciones y el estilo del menú vuelven a los de la demo. Tu contenido se queda.",
   Reapply: "Reaplicar",
+  "Refresh from my profile": "Actualizar desde mi perfil",
+  "Pull your latest photos, name, bio and services into this design.":
+    "Trae tus fotos, nombre, bio y servicios más recientes a este diseño.",
+  Refresh: "Actualizar",
+  "Content refreshed from your profile": "Contenido actualizado desde tu perfil",
   "Discard design changes": "Descartar cambios de diseño",
   "Drop unpublished design changes.": "Descarta los cambios de diseño sin publicar.",
   "No unpublished design changes right now.":
