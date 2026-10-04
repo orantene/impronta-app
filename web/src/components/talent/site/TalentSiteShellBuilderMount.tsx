@@ -58,6 +58,7 @@ export function TalentSiteShellBuilderMount({
   talentDisplayName = null,
   siteCapabilities,
   locale,
+  onExit,
   sitePages,
   talentLocales,
 }: TalentSiteShellBuilderMountProps) {
@@ -98,6 +99,8 @@ export function TalentSiteShellBuilderMount({
               : "Site shell"
           }
           canInsertRawHtmlElements={false}
+          headerVariant={onExit ? "lab" : "live"}
+          onExit={onExit}
         />
         </FirstPaintTipBottomProvider>
 </TalentAiTranslateProvider>
