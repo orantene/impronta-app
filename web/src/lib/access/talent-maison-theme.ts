@@ -10,12 +10,10 @@
  * production. Shipping Maison into the catalog without its own switch would
  * show a half-built theme to real talents.
  *
- * Owner ruling (2026-09-27): stay OFF in production for everyone; enable
- * QA fixtures via `talents` + allow-list (not `all` until audit is done).
- * Prod cohort (Vercel `TALENT_MAISON_THEME_TALENTS`): TAL-QAFIXFREE
- * (`6d4e7d73-8577-42fb-b0d3-d2e55a64ca14`) and demo-jor-clone / TAL-93900
- * (`c99f8adb-8ebb-4aad-911a-897e73efd369`, pinned in `clone-jor.mts`).
- * Do not put live Jor (`f048e578-…` / TAL-JORGBEAUTY) on the allow-list.
+ * Prod (2026-10-04 Built-vs-Live): `TALENT_MAISON_THEME_ENABLED=all` so every
+ * talent can apply Maison. The allow-list env is retained unused while
+ * mode=all (legacy cohort: TAL-QAFIXFREE + TAL-93900). Prefer `all` over
+ * expanding the list for finished themes.
  */
 
 export type MaisonThemeMode = "off" | "talents" | "all";

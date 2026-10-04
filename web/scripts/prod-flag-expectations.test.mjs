@@ -30,6 +30,11 @@ test("mismatchReason: allow-list contains", () => {
   );
 });
 
+test("EXPECTED_PROD_FLAGS: Maison mode is all (no silent cohort)", () => {
+  assert.equal(EXPECTED_PROD_FLAGS.TALENT_MAISON_THEME_ENABLED.resolved, "all");
+  assert.equal(EXPECTED_PROD_FLAGS.TALENT_MAISON_THEME_ENABLED.envPresent, true);
+});
+
 test("mismatchReason: unset welcome email", () => {
   assert.equal(
     mismatchReason(
