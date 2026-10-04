@@ -149,4 +149,6 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   // Talent avatar account menu — keep out of grandfathered dashboard-i18n.ts
   // (size ratchet 3842). IdentityBar AccountMenuItem keys copy.t(sub).
   "Run your own roster. Free plan, 1 minute.": "Administra tu propio roster. Plan gratis, 1 minuto.",
+  // Agenda/Today missing client label sentinel — keep out of grandfathered dashboard-i18n.ts.
+  "Untitled client": "Cliente sin nombre",
 };
