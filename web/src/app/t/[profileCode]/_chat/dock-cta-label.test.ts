@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
-import { dockServiceCtaLabel, dockStorefrontCtaLabel } from "./dock-cta-label";
+import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLabel } from "./dock-cta-label";
 
 const CASES: Array<[OfferingCtaKind, string, string]> = [
   ["book_now", "Select", "Seleccionar"],
@@ -33,4 +33,15 @@ test("service and class storefront rows never say Buy now", () => {
     }
   }
   assert.equal(dockStorefrontCtaLabel("ticket", "en", "Buy now"), "Buy now");
+});
+
+test("Select / Request / Buy open the booking sheet when an offering id is present", () => {
+  const id = "off-1";
+  assert.equal(dockServiceOpensBookingSheet("book_now", id), true);
+  assert.equal(dockServiceOpensBookingSheet("request_to_book", id), true);
+  assert.equal(dockServiceOpensBookingSheet("buy_now", id), true);
+  assert.equal(dockServiceOpensBookingSheet("ask_quote", id), false);
+  assert.equal(dockServiceOpensBookingSheet("request", id), false);
+  assert.equal(dockServiceOpensBookingSheet("book_now", null), false);
+  assert.equal(dockServiceOpensBookingSheet("book_now", "default-custom-quote"), false);
 });

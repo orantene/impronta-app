@@ -13,7 +13,10 @@
  *                                       tickets keep the i18n buy label)
  *   anything         → Ask             (prefills the composer, no write)
  *   talent service   → mode label      (dockServiceCtaLabel: Select / Request /
- *                                       Request a quote / Ask, EN + ES)
+ *                                       Request a quote / Ask, EN + ES).
+ *                                       Select / Request / Buy open the page
+ *                                       CatalogBookingSheet (same event as the
+ *                                       card skin); quote and Ask stay in chat.
  *
  * A visitor with no inquiry yet gets one on the first add (the panel's
  * ensure path), then the add runs once the thread token arrives.
@@ -31,7 +34,9 @@ import { messagingClientAddItem } from "@/lib/server-actions/messaging-client";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
 
-import { dockServiceCtaLabel, dockStorefrontCtaLabel } from "./dock-cta-label";
+import { requestChatAddService } from "@/components/public-booking/chat-catalog-events";
+
+import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLabel } from "./dock-cta-label";
 
 import { getGuestItemsCatalog, type GuestCatalogGroup, type GuestCatalogRow } from "../_actions/guest-catalog-actions";
 import { FONT, type paletteFor } from "./mini-chat-styles";
@@ -70,6 +75,7 @@ export type GuestDockCatalogProps = {
   onAsk: (text: string) => void;
   /** This talent's services. When present, chips are their category names. */
   serviceMenu?: readonly {
+    offeringId?: string | null;
     title: string;
     category: string;
     amountCents?: number | null;
@@ -240,7 +246,9 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         </div>
       )}
       {usingServices
-        ? serviceMenu.filter((item) => item.category === activeService).map((item) => (
+        ? serviceMenu.filter((item) => item.category === activeService).map((item) => {
+            const openSheet = dockServiceOpensBookingSheet(item.cta, item.offeringId);
+            return (
             <div key={item.title} data-guest-catalog-row="service" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</div>
@@ -253,9 +261,23 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                   </div>
                 ) : null}
               </div>
-              <SmallButton label={dockServiceCtaLabel(item.cta, locale)} primary={item.cta === "book_now" || item.cta === "request_to_book"} onClick={() => onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: item.title, business: businessName }))} C={C} accent={accent} accentInk={accentInk} />
+              <SmallButton
+                label={dockServiceCtaLabel(item.cta, locale)}
+                primary={item.cta === "book_now" || item.cta === "request_to_book" || item.cta === "buy_now"}
+                onClick={() => {
+                  if (openSheet && item.offeringId) {
+                    requestChatAddService(item.offeringId);
+                    return;
+                  }
+                  onAsk(interpolate(t("public.guestChat.catalogAskPrefill"), { item: item.title, business: businessName }));
+                }}
+                C={C}
+                accent={accent}
+                accentInk={accentInk}
+              />
             </div>
-          ))
+            );
+          })
         : null}
       {!usingServices && visible.map((row) => {
         const isTalent = row.category === "talent" && row.talentProfileId;
