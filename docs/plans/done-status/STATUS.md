@@ -1,9 +1,9 @@
-Updated: 2026-10-04 03:30Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 03:33Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 3a74b3ab230 · origin/production: 3a74b3ab230 · Main SHA: f9867250d0
 Top 3 blockers right now
-1. TOP — Live = production = HTML = `3a74b3ab230`. Main tip **`f9867250d0`** ([#2517](https://github.com/orantene/impronta-app/pull/2517) **MERGED** 03:22Z) past `07200ab`. Tip Structural `37173108547` (`07200`) **IN_PROGRESS** ~49/75 (`tests — notifications`); tip Structural (`f986`) **PENDING**. Next tip for Edit + captcha after green. Maison tip-prove PASS on Live. **#94 🟡**. Never ✅ without evidence.
-2. **Open gates:** Part A [#2519](https://github.com/orantene/impronta-app/pull/2519) only (+ tip chase). Front-chat PAID **blocked** on Soft Gel price (owner `bc-732572d4`). Handover **not READY**. Captcha OFF until money PASS / LIVE ≥ tip. Do not merge #2477; do not steal Desk.
-3. Money S4–S7 — **KYC LIVE on TAL-93900**. **`guest_captcha_enforced` OFF** since **2026-10-04 00:19:41Z**. **No paid ✅** without Continuar al pago prod screenshot after tip advances.
+1. TOP — **S4 / PAID flip BLOCKED (no fake ✅):** Soft Gel pay card minted → Stripe Checkout reached, but session is **`cs_live_`** — TEST `4242` rejected (“card used in live mode”). Needs **Oran test-keys** or approved alt charge path. Evidence `internal/front-chat-tip-prove/paid-flip-finish-3a74.md`. **`guest_captcha_enforced` stays OFF until money PASS.** Live=`3a74b3ab230` · Main=`f9867250d0`. Maison tip-prove PASS stands. Never ✅ without evidence.
+2. Tip chase — Structural `37173108547` (`07200`) **IN_PROGRESS** ~71/75 (`build — next production build`); tip Structural (`f986`) PENDING. Next tip for Edit + captcha after green. **#94 🟡**. Open [#2519](https://github.com/orantene/impronta-app/pull/2519) only (+ tip chase). Handover **not READY**. Do not merge #2477; do not steal Desk.
+3. Money S4–S7 — KYC LIVE on TAL-93900. Captcha OFF. Pay path past captcha to Checkout, still **no PAID** (live Stripe keys). **No paid ✅**.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -66,7 +66,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 23 | Double booking is impossible | 🟡 | #2468 is an ancestor of live production `0972d4f0a`. DB exclusion covers agenda, holds, and chat proposals. | Same slot was not booked twice from a second guest. No live check, so this is not ✅. | S4 step 7 | — | 2026-10-03 |
 | 28 | Confirmation and reminder messages | 🟡 | Booking and reminder templates plus cron exist on main. | No live booking email or in-app reminder checked for language and branding. | S4 step 5 (client side) | — | 2026-10-03 |
 | 33 | Thread stays in sync with Agenda and Money | 🟡 | Messages v5 record chips (`context-view.ts`, `payment-view.ts`). Flag `NEXT_PUBLIC_MESSAGES_V5` / Studio v2 defaults off. | No paid thread compared with Agenda and Money. v5 may be off in production. | S4 step 5 | — | 2026-10-03 |
-| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | TAL-93900 KYC **verified** (`#44 ✅`). Cloud re-prove 22:53Z tip `10698158d` (`internal/cloud-money-s4-s7-live-prove.md`): Bozo $100 + Continuar al pago → **hCaptcha** puzzle (`media/cloud-stripe-s4-s7/t93900-s4-07b-captcha.png`). No Stripe Checkout / no PAID / Cobrado $0. | Guest hCaptcha blocks paid path. Not ✅. | S4 steps 4–5 | D15 | 2026-10-03 |
+| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | TAL-93900 KYC **verified** (`#44 ✅`). LIVE `3a74` Soft Gel Pedir depósito minted `/pay/…` → Stripe Checkout **`cs_live_`** — TEST `4242` rejected (`internal/front-chat-tip-prove/paid-flip-finish-3a74.md`, `internal/front-chat-live-qa-3a74.md`). Prior hCaptcha path on older tip superseded for this prove. **No PAID / no fake ✅.** | Oran test-keys or approved alt. Captcha stays OFF until money PASS. | S4 steps 4–5 | D15 | 2026-10-04 |
 | 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | #2482 is an ancestor of live production `0972d4f0a` (`feat(api)/: receipt PDF fee lines + non-refundable note`). Confirmation copy already had fee lines. | Not ✅ until a live receipt PDF from a paid booking. | S4 step 5 | — | 2026-10-03 |
 | 49 | Money totals: earned, owed, cash, pending | ❌ | TAL-93900 Money tip `10698158d`/live `c3214cac3`: Cobrado $0 / empty Pagos after captcha-blocked S4 (`media/cloud-stripe-s4-s7/t93900-03-money.png`, `t93900-s4-10-money-after.png`). KYC verified but no PAID booking. | Need PAID booking first. Not ✅. | S4 step 6 | — | 2026-10-03 |
 
@@ -176,7 +176,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:30Z: [#2519](https://github.com/orantene/impronta-app/pull/2519) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2517](https://github.com/orantene/impronta-app/pull/2517) **MERGED** 03:22Z. Merged also: #2510/#2511/#2515/#2516/#2520 (Live/prod `3a74b3ab230`; Main `f9867250d0`). **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:30Z. Live=prod HTML `3a74b3ab230` / Main `f9867250d0` (#2517 merged). Open #2519 only. Structural `07200` ~49/75; tip `f986` pending. Front-chat Soft Gel block. Handover not READY. #94 🟡. Scoreboard ✅6; never ✅ without evidence. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:33Z. Live `3a74` / Main `f986725`. Open #2519. S4 PAID flip blocked on `cs_live_` (Oran test-keys). Captcha OFF until money PASS. Maison PASS stands. Handover not READY. #94 🟡. Scoreboard ✅6; never ✅ without evidence. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -222,11 +222,10 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 03:30Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without evidence.** Sole STATUS writer. No Oran ping.
-**Tip SHAs (honest):** Live HTML = `origin/production` = `3a74b3ab230`. Main tip = `f9867250d0` ([#2517](https://github.com/orantene/impronta-app/pull/2517) MERGED 03:22Z) past `07200ab` (#2520). Structural `37173108547` (`07200`) IN_PROGRESS ~49/75; tip Structural (`f986`) PENDING. Not tip-green. **#94 🟡**.
-- **Maison tip-prove PASS** on LIVE `3a74b3ab` — Nail Designer + `/es` (`internal/maison-v2-tip-prove-pass-3a74.md`). **Not full gate ✅**.
-- **Front-chat:** PAID flip **blocked** on Soft Gel price — owner `bc-732572d4` (`internal/front-chat-live-qa-3a74.md`).
-- **Handover:** not READY (`docs/jorgelina-handover-ready.md`).
-- **Open gates:** [#2519](https://github.com/orantene/impronta-app/pull/2519) only (+ tip chase). Do **not** list #2517 as open. Merged: #2510/#2511/#2515/#2516/#2517/#2520. Captcha OFF until money PASS / LIVE tip advance.
+STATUS 2026-10-04 03:33Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without evidence.** Sole STATUS writer. No Oran ping this wake (blocker recorded only).
+**Tip SHAs (honest):** Live HTML = `origin/production` = `3a74b3ab230`. Main tip = `f9867250d0` (#2517). Structural `07200` ~71/75; tip Structural (`f986`) PENDING. **#94 🟡**.
+- **S4 / PAID flip BLOCKER:** Checkout reached on LIVE Soft Gel path but session is **`cs_live_`** — TEST `4242` rejected. Needs Oran test-keys or approved alt. Captcha **stays OFF** until money PASS. Evidence `internal/front-chat-tip-prove/paid-flip-finish-3a74.md`. **#45 stays ❌ — no fake ✅.**
+- **Maison tip-prove PASS** stands on LIVE `3a74` (`internal/maison-v2-tip-prove-pass-3a74.md`).
+- **Handover:** not READY. **Open:** [#2519](https://github.com/orantene/impronta-app/pull/2519) only (+ tip chase).
 - Built-vs-Live DONE; `CRON_SECRET` still missing for flags smoke. Do not merge #2477. No notes.md Active rewrite.
 - Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14.
