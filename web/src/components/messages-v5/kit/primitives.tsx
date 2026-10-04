@@ -202,3 +202,19 @@ export function formatWhen(iso: string | null, now: Date, locale = "en"): string
   if (diffDays < 7) return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(then);
   return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(then);
 }
+
+/**
+ * How long a Needs-reply thread has been waiting on the talent.
+ * Short units match `formatWhen`; day+ uses "Waiting Nd" so older asks stand out.
+ */
+export function formatWaiting(iso: string | null, now: Date, locale = "en"): string {
+  if (!iso) return "";
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return "";
+  const diffMin = Math.max(0, Math.round((now.getTime() - then.getTime()) / 60000));
+  if (diffMin < 60) return locale.startsWith("es") ? `${Math.max(1, diffMin)}m espera` : `${Math.max(1, diffMin)}m waiting`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return locale.startsWith("es") ? `${diffH}h espera` : `${diffH}h waiting`;
+  const diffDays = Math.max(1, Math.round((now.getTime() - then.getTime()) / 86400000));
+  return locale.startsWith("es") ? `${diffDays}d espera` : `Waiting ${diffDays}d`;
+}
