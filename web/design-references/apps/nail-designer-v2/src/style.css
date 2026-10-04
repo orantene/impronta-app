@@ -221,10 +221,12 @@ body{margin:0;background:#F3ECE6}
 .nd-mhead h2{margin:0;font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:500}
 .nd-x{width:40px;height:40px;border-radius:50%;border:0;background:var(--soft);font-size:20px;cursor:pointer}
 .nd-mimg{display:block;width:100%;aspect-ratio:1600/1440;border-radius:16px;background:#E4D9D2;object-fit:cover}
-.nd-mimg-sq{aspect-ratio:1/1}
+.nd-mimg-sq{aspect-ratio:1/1;max-height:min(38vh,300px);width:auto;max-width:100%;margin:0 auto}
 .nd-mbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.nd-mbtns-save{grid-template-columns:1fr}
+.nd-mbtns-save{grid-template-columns:1fr 1fr}
+.nd-mbtns-save .primary,.nd-mbtns-save [data-act=quote],.nd-mbtns-save [data-act=chat]{grid-column:1/-1}
 .nd-mbtns .nd-pill{width:100%}
+.nd-save-modal .nd-sheet{gap:12px;max-height:min(100%,920px)}
 .nd-wa{background:#1F8F4E!important;border-color:#1F8F4E!important;color:#fff}
 .nd-link{display:flex;gap:8px}
 .nd-link input{flex:1;min-width:0;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font:inherit;font-size:13px;color:var(--muted)}
