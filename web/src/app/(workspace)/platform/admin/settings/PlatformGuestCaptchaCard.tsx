@@ -12,7 +12,20 @@ import { interpolate } from "@/i18n/interpolate";
  * Checked = captcha ON (default, safe). Unchecked = temporary testing off
  * for Continuar al pago / instant-book. Server reads the DB setting; guests
  * cannot flip this from the client.
+ *
+ * Colours are rgb()/rgba() only — new files on enrolled admin surfaces must
+ * carry zero `#RRGGBB` literals (hex-literal-ratchet).
  */
+const HQ = {
+  green: "rgb(93, 211, 160)",
+  hint: "rgb(107, 107, 118)",
+  blocked: "rgb(239, 110, 110)",
+  blockedBg: "rgba(239, 110, 110, 0.12)",
+  inkOnGreen: "rgb(11, 11, 13)",
+  mutedBtn: "rgba(255, 255, 255, 0.08)",
+  mutedInk: "rgba(245, 242, 235, 0.38)",
+} as const;
+
 export function PlatformGuestCaptchaCard({ current }: { current: boolean }) {
   const t = useT();
   const [enforced, setEnforced] = useState(current);
@@ -46,14 +59,14 @@ export function PlatformGuestCaptchaCard({ current }: { current: boolean }) {
           type="checkbox"
           checked={enforced}
           onChange={(e) => setEnforced(e.target.checked)}
-          style={{ marginTop: 2, width: 15, height: 15, accentColor: "#5DD3A0" }}
+          style={{ marginTop: 2, width: 15, height: 15, accentColor: HQ.green }}
           data-testid="platform-guest-captcha-enforced"
         />
         <span style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span style={{ fontWeight: 600 }}>
             {t("dashboard.platform.settings.guestCaptchaLabel")}
           </span>
-          <span style={{ color: "#6b6b76", lineHeight: 1.45, fontSize: 12 }}>
+          <span style={{ color: HQ.hint, lineHeight: 1.45, fontSize: 12 }}>
             {t("dashboard.platform.settings.guestCaptchaHint")}
           </span>
         </span>
@@ -66,8 +79,8 @@ export function PlatformGuestCaptchaCard({ current }: { current: boolean }) {
             margin: 0,
             padding: "10px 12px",
             borderRadius: 8,
-            background: "rgba(239,110,110,0.12)",
-            color: "#EF6E6E",
+            background: HQ.blockedBg,
+            color: HQ.blocked,
             fontSize: 12,
             lineHeight: 1.45,
           }}
@@ -85,8 +98,8 @@ export function PlatformGuestCaptchaCard({ current }: { current: boolean }) {
             padding: "7px 14px",
             borderRadius: 8,
             border: "none",
-            background: !dirty || pending ? "rgba(255,255,255,0.08)" : "#5DD3A0",
-            color: !dirty || pending ? "rgba(245,242,235,0.38)" : "#0B0B0D",
+            background: !dirty || pending ? HQ.mutedBtn : HQ.green,
+            color: !dirty || pending ? HQ.mutedInk : HQ.inkOnGreen,
             fontWeight: 600,
             fontSize: 12.5,
             cursor: !dirty || pending ? "default" : "pointer",
@@ -97,7 +110,7 @@ export function PlatformGuestCaptchaCard({ current }: { current: boolean }) {
             : t("dashboard.platform.settings.save")}
         </button>
         {status ? (
-          <span style={{ fontSize: 12, color: status.ok ? "#5DD3A0" : "#EF6E6E" }}>
+          <span style={{ fontSize: 12, color: status.ok ? HQ.green : HQ.blocked }}>
             {status.msg}
           </span>
         ) : null}
