@@ -25,6 +25,18 @@ Examples:
 3. **Cutover redirect** — a bare demo host (`{siteSlug}.tulala.digital`) 308s to `{siteSlug}-demo.tulala.digital` in `talentSiteHostResponse`.
 4. **Namespace** — `platform_subdomain_label_taken` treats `{siteSlug}-demo` as taken when a demo already holds `siteSlug`, so a real talent cannot claim a demo’s public host label.
 
+## Design vanity hosts (finished gallery)
+
+These labels are **not** `talent_sites.site_slug` values. They alias to each design’s featured published demo via `talent_site_subdomain_lookup` (migration `20261231345000_design_demo_host_aliases.sql`):
+
+| Host | Resolves to |
+|---|---|
+| `maison-v2-demo.tulala.digital` (also bare `maison-v2`) | `alba-nail-artist` |
+| `folio-demo.tulala.digital` (also bare `folio`) | `mateo-ferrer` |
+| `gridline-demo.tulala.digital` (also bare `gridline`) | `alex-trevino` |
+
+Do **not** seed these (or talent `{siteSlug}-demo` hosts) into `agency_domains` — that table wins first and would serve them as agency/app hosts instead of talent sites.
+
 ## Going forward
 
 New demo seeds keep an unsuffixed `siteSlug`. Seed/apply scripts verify lookup with `{siteSlug}-demo` and log that host. Do not rename `site_slug` to include `-demo`.
