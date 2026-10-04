@@ -1,10 +1,10 @@
-Updated: 2026-10-04 03:52Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: 07200ab28bf · origin/production: 07200ab28bf · Main SHA: f9867250d0
+Updated: 2026-10-04 03:53Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: 07200ab28bf · origin/production: 07200ab28bf · Main SHA: 8821a50a56a
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
-1. TOP — **Captcha OFF prove FAIL on LIVE `07200` (no fake ✅):** HQ OFF but Soy humano / hCaptcha still shown (`FAIL_CAPTCHA_STILL_SHOWN`). Evidence `docs/guest-captcha-off-prove-fail-07200ab.md`. Booking-none hotfix **still no PR** — shipper `bc-1544f18c` + Hotfix sibling (`cursor/guest-captcha-booking-none-2e8e` / `{provider:"none"}`). Tip hosts still mint **`cs_live_`**. Never ✅ without Live proof. **No Oran ping.**
-2. Money S4 — **`qa-2.tulala.digital` claimed** to Preview `qa/stripe-test-r2` for **`cs_test_`** path; paid-path `bc-08ebe404` **executing** (scout `internal/cloud-money-cs-test-path.md`). Tip/`jorg-beauty-qa` still `cs_live_`. **No PAID ✅ yet.** KYC LIVE on TAL-93900.
-3. Tip / open lane — LIVE=prod=HTML=`07200ab28bf`. **Edit PASS** · **Maison PASS**. Tip Structural (`f986` #2517) **IN_PROGRESS** (~28/75). Open [#2519](https://github.com/orantene/impronta-app/pull/2519) (Part A) · [#2522](https://github.com/orantene/impronta-app/pull/2522) DRAFT agenda (CI) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Handover **not READY**. **#94 🟡**.
+1. TOP — **Captcha OFF prove FAIL on LIVE `07200` (no fake ✅):** HQ OFF but Soy humano still (`FAIL_CAPTCHA_STILL_SHOWN`). Evidence `docs/guest-captcha-off-prove-fail-07200ab.md`. Booking-none [#2524](https://github.com/orantene/impronta-app/pull/2524) DRAFT (`bc-1544f18c` / `cursor/guest-captcha-booking-none-58f5`) — pending CI → undraft → merge → tip → re-prove. Tip still **`cs_live_`**. Never ✅ without Live tip-prove. **No Oran ping.**
+2. Money S4 — `qa-2.tulala.digital` → `qa/stripe-test-r2` **`cs_test_`** executing (`bc-08ebe404`; `internal/cloud-money-cs-test-path.md`). Tip/`jorg-beauty-qa` still `cs_live_`. **No PAID ✅.**
+3. Tip / open lane — LIVE=prod=HTML=`07200ab28bf` (not yet Main). **Edit PASS** · **Maison PASS**. [#2519](https://github.com/orantene/impronta-app/pull/2519) **MERGED** → Main `8821a50a56a` (Structural PENDING; not LIVE). Open [#2522](https://github.com/orantene/impronta-app/pull/2522) DRAFT agenda · [#2524](https://github.com/orantene/impronta-app/pull/2524) DRAFT captcha none · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Prior tip Structural (`f986`) still IN_PROGRESS. Handover **not READY**. **#94 🟡**. No Part A ✅ until tip-prove.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 03:52Z: **Live HTML** = `origin/production` = `07200ab28bf` (#2520; `dpl_4xFdg7…` READY). **`origin/main` = `f9867250d0`** (#2517). Structural `07200` SUCCESS; tip Structural `f986` IN_PROGRESS (~28/75). Live=prod ≠ main tip. Edit/Maison PASS; captcha FAIL (no booking-none PR yet). **Live proof N/A (ops)**. | Drain tip Structural `f986` + captcha hotfix PR → promote → re-prove. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 03:53Z: **Live HTML** = `origin/production` = `07200ab28bf`. **`origin/main` = `8821a50a56a`** (#2519 after #2517/#2520). Structural `07200` SUCCESS; `f986` IN_PROGRESS; tip Structural `8821a50` PENDING. Live ≠ main. Edit/Maison PASS; captcha FAIL; #2524 DRAFT. **Live proof N/A (ops)**. | Drain Structural queue → promote → Live = Main; tip-prove #2519 / captcha. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:52Z: [#2519](https://github.com/orantene/impronta-app/pull/2519) Part A · [#2522](https://github.com/orantene/impronta-app/pull/2522) DRAFT agenda (CI) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Captcha booking-none: **no PR yet** (`bc-1544f18c`). Merged: #2510/#2511/#2515/#2516/#2517/#2520. Live/prod `07200ab28bf`; Main `f9867250d0`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:53Z: [#2522](https://github.com/orantene/impronta-app/pull/2522) DRAFT agenda · [#2524](https://github.com/orantene/impronta-app/pull/2524) DRAFT captcha none · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2519](https://github.com/orantene/impronta-app/pull/2519) **MERGED** 03:52Z → Main `8821a50a56a` (not LIVE). Live/prod `07200ab28bf`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:52Z ownership wake. Live/prod/HTML `07200ab`. Main `f986725`. Edit/Maison PASS · captcha FAIL · booking-none shipper `bc-1544f18c` (no PR). Money: `qa-2`→`qa/stripe-test-r2` `cs_test_` executing (`bc-08ebe404`); tip still `cs_live_`. Open #2519 · #2522 draft · #2477 do not merge. Handover not READY. #94 🟡. ✅6; never ✅ without Live proof. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:53Z. Live/prod/HTML `07200ab`. Main `8821a50` (#2519 MERGED — not LIVE; no tip-prove ✅). Open #2522 draft · #2524 draft captcha none · #2477 do not merge. Edit/Maison PASS · captcha FAIL · money `qa-2` `cs_test_` executing / tip `cs_live_`. Handover not READY. #94 🟡. ✅6; never ✅ without Live tip-prove. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -223,10 +223,11 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 03:52Z 15m wake on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
-**Tip SHAs (honest):** Live HTML = `origin/production` = `07200ab28bf`. Main tip = `f9867250d0`. Structural `07200` SUCCESS; tip Structural (`f986`) IN_PROGRESS (~28/75). **#94 🟡**.
+STATUS 2026-10-04 03:53Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without Live tip-prove.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
+**Tip SHAs (honest):** Live HTML = `origin/production` = `07200ab28bf`. **Main tip = `8821a50a56a`** (#2519 MERGED 03:52Z). Structural `f986` IN_PROGRESS; tip Structural `8821a50` PENDING. Live ≠ Main. **#94 🟡**.
+- **#2519 MERGED** to main — PayoutsShell ES. **Not LIVE** until promote; **no Part A ✅** until tip-prove.
 - **Edit PASS** · **Maison PASS** on LIVE `07200ab`.
-- **Captcha OFF FAIL** stands — Soy humano still. Booking-none **still no PR**; shipper `bc-1544f18c` + Hotfix sibling. Evidence `docs/guest-captcha-off-prove-fail-07200ab.md`.
-- **Money lane:** `qa-2.tulala.digital` claimed to `qa/stripe-test-r2` for `cs_test_` S4; paid-path `bc-08ebe404` executing (`internal/cloud-money-cs-test-path.md`). Tip still `cs_live_`. **#45 stays ❌ — no PAID ✅.**
-- **Open:** [#2519](https://github.com/orantene/impronta-app/pull/2519) Part A · [#2522](https://github.com/orantene/impronta-app/pull/2522) DRAFT agenda (CI) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
+- **Captcha OFF FAIL** stands. Booking-none [#2524](https://github.com/orantene/impronta-app/pull/2524) DRAFT opened (`bc-1544f18c`) — pending.
+- **Money:** `qa-2`→`cs_test_` executing (`bc-08ebe404`); tip still `cs_live_`. **#45 stays ❌.**
+- **Open:** [#2522](https://github.com/orantene/impronta-app/pull/2522) DRAFT agenda · [#2524](https://github.com/orantene/impronta-app/pull/2524) DRAFT captcha none · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
 - Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14. Stay owned.
