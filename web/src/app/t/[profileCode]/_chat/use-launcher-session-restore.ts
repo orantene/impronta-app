@@ -15,19 +15,27 @@ export function useLauncherSessionRestore({
   talentProfileId,
   open,
   setOpen,
+  /** Cold-load `?order=` (or similar): open once even without sessionStorage. */
+  forceOpen = false,
 }: {
   existingInquiryId: string | null;
   talentProfileId: string;
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
+  forceOpen?: boolean;
 }) {
   // Restore the open panel across a refresh (B1) so the conversation doesn't
   // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
   // tab forgets. Only auto-restore when there's a LIVE thread to show — never
   // auto-open an empty intro chat, which would read as spammy (strategy §10).
+  // `forceOpen` covers a cold `?order=` deep link (no prior open in this tab).
   const openStateKey = `tulala_guestchat_open:${talentProfileId}`;
   useEffect(() => {
     if (!existingInquiryId) return;
+    if (forceOpen) {
+      setOpen(true);
+      return;
+    }
     try {
       if (sessionStorage.getItem(openStateKey) === "1") setOpen(true);
     } catch {
@@ -35,7 +43,7 @@ export function useLauncherSessionRestore({
     }
     // existingInquiryId + openStateKey are stable for a given mount, so this
     // restores once and never re-opens after the user manually closes.
-  }, [existingInquiryId, openStateKey, setOpen]);
+  }, [existingInquiryId, openStateKey, setOpen, forceOpen]);
   useEffect(() => {
     try {
       if (open) sessionStorage.setItem(openStateKey, "1");

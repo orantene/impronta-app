@@ -166,9 +166,12 @@ function parseHex(hex: string): { r: number; g: number; b: number } | null {
 export async function TalentSiteMessagesDock({
   talentProfileId,
   locale,
+  orderId = null,
 }: {
   talentProfileId: string;
   locale: string;
+  /** Cold-load `?order=<uuid>` → open the owned inquiry in the dock. */
+  orderId?: string | null;
 }) {
   const admin = createServiceRoleClient();
   if (!admin) return null;
@@ -280,6 +283,7 @@ export async function TalentSiteMessagesDock({
           omitPlatformBrand
           chatCard={chatCard}
           helpBubble={resolveChatHelpBubble(siteChrome.tokens, siteChrome.designSlug, siteChrome.designVersion)}
+          orderId={orderId}
         />
       ) : askEntry === "form" ? (
         <TalentInquiryFormSheet
