@@ -77,3 +77,12 @@ test("solo service rows print a money line when priceLabel is set", () => {
   assert.match(src, /data-guest-service-price/);
   assert.match(src, /item\.priceLabel/);
 });
+
+test("talent service Select/Request opens CatalogBookingSheet, not Ask-only", () => {
+  const src = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
+  assert.match(src, /requestChatAddService/);
+  assert.match(src, /dockServiceOpensBookingSheet/);
+  assert.match(src, /from "@\/components\/public-booking\/chat-catalog-events"/);
+  const mount = read("app/t/[profileCode]/_chat/TalentProfileChatLauncherMount.tsx");
+  assert.match(mount, /offeringId: o\.id/);
+});

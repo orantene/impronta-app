@@ -268,6 +268,7 @@ export async function TalentProfileChatLauncherMount({
             if (!category) return null;
             const amountCents = o.visibility === "on_request" ? null : o.amountCents;
             return {
+              offeringId: o.id,
               title: o.title,
               category,
               amountCents,

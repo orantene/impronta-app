@@ -797,6 +797,8 @@ export type MiniChatBrand = {
    * `priceLabel` is the printed money line ("$500 MXN · ≈ US$28") when known.
    */
   dockServiceMenu?: readonly {
+    /** Real offering id — book/request CTAs open CatalogBookingSheet (not Ask). */
+    offeringId?: string | null;
     title: string;
     category: string;
     amountCents?: number | null;
