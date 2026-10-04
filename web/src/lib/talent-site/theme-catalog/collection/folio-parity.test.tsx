@@ -20,13 +20,13 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  editorial: "PLACEHOLDER_RECOMPUTE", // will re-pin to actual after rebase
+  editorial: "2c29e6f06863523b", // re-pinned after rebase onto #2527/#2528/#2529 + soft chrome (#2530)
   utility: "d46adc1808b45b81", // re-pinned after the Gridline FAQ heading fix
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",
   maison: "bb197b26f7793574",
   // Re-pinned after Gridline contentWidth/full + matrix viewport MQ (#2530).
-  gridline: "PLACEHOLDER_RECOMPUTE",
+  gridline: "b8598c1d2e2ac0fa",
 };
 
 function kinds(nodes: BuilderNode[]): string[] {
