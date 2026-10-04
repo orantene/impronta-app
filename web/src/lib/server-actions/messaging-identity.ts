@@ -3,9 +3,10 @@
 /**
  * Identity capture readers/writers for Messages v5 (D04 / M07).
  * Split out of `messaging-engine.ts` to keep that file under the max-lines
- * ratchet. Auth is `messagingInquiryManager` (staff OR active coordinator)
- * so talent inbox Capture identity Save is not refused with `not_allowed`
- * ("You cannot do that from here.") — same seam as catalog #2281 / offers.
+ * ratchet. Auth is `messagingInquiryManager` (staff OR active coordinator),
+ * then the hub talent seller via `talentSellerPaymentActor` — same fallback
+ * as `messagingRequestPayment`. Manager-only refused Soft Gel dock Capture
+ * identity Save with `not_allowed` (Tip Live Soft Gel, 2026-10-04).
  */
 
 import { z } from "zod";
@@ -16,6 +17,7 @@ import { normalizeEmail, normalizePhoneE164 } from "@/lib/customers/customer-ide
 import { matchCustomers } from "@/lib/messaging/match-customers";
 import { fail } from "@/lib/messaging/refusals";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { ActionResult } from "@/lib/messaging/types";
 
@@ -54,8 +56,19 @@ export async function messagingMatchCustomers(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
-  if (!g.ok) return g;
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  // Seller path: only her private pool (hub sellers share tenant_id). Managers
+  // keep the tenant-wide match they had before this seller fallback.
+  let g: Awaited<ReturnType<typeof messagingInquiryManager>> | Awaited<ReturnType<typeof talentSellerPaymentActor>>;
+  let ownerTalentProfileId: string | null = null;
+  if (gated.ok) {
+    g = gated;
+  } else {
+    const seller = await talentSellerPaymentActor(parsed.data.inquiryId);
+    if (!seller.ok) return seller;
+    g = seller;
+    ownerTalentProfileId = seller.talentProfileId;
+  }
   // D-MSG-336: tenants can exceed 200 customers. An unordered `.limit(200)`
   // missed the fixture customer (446 on journeys) so Same person? never
   // fired. Prefer identity-key lookup when email/phone is present; keep a
@@ -63,6 +76,9 @@ export async function messagingMatchCustomers(input: {
   const email = normalizeEmail(parsed.data.email);
   const phone = normalizePhoneE164(parsed.data.phone);
   let query = scoped(g.admin, "customers", g.tenantId).select("id, display_name, email, phone_e164");
+  if (ownerTalentProfileId) {
+    query = query.eq("owner_talent_profile_id", ownerTalentProfileId);
+  }
   if (email || phone) {
     const parts: string[] = [];
     if (email) parts.push(`email.eq.${email}`);
@@ -102,8 +118,11 @@ export async function messagingCaptureIdentity(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
   if (!g.ok) return g;
+  // Capture links an already-chosen customerId; pool scoping is enforced on
+  // match + createClient (seller private pool vs manager agency pool).
   return callRpc(g.admin, "messaging_set_identity", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,

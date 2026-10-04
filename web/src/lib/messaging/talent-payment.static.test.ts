@@ -15,6 +15,8 @@ test("request payment uses the talent seller actor and still mints with the POS 
   const actor = readFileSync(join(process.cwd(), "src/lib/messaging/talent-payment-actor.ts"), "utf8");
   assert.match(actor, /talentPaymentRefusal/);
   assert.match(actor, /not_her_sale|fail\(refusal\)/);
+  // Identity capture needs her profile id for the talent-owned customer pool.
+  assert.match(actor, /talentProfileId: actor\.talentProfileId/);
 });
 
 test("approve and decline go through the roster writers and the inquiry tenant", () => {
