@@ -1,10 +1,10 @@
-Updated: 2026-10-04 10:25Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 10:26Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 2982c647daf · origin/production: 2982c647daf · Main SHA: f70305561b34
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
 1. Parked — **#45 fee-line** ❌ (seller-pays $101.50 LIVE charge / D15 still unproven). Soft Gel Preview PAID + LIVE Guardar smoke PASS do **not** clear #45.
 2. Parked — Free **`QA_FREE_PASSWORD`** (Oran-only) blocks Free-persona drains that need that secret. Do not invent ✅.
-3. **Tip chase (do not ✅):** [#2531](https://github.com/orantene/impronta-app/pull/2531) **MERGED** — main tip now `f70305561b34` (Save look PNG → chat). LIVE/prod still `2982c647` / `dpl_9JkaxLvk…`. Tip Structural on `7da888feb4a` may be superseded — watch Structural `37194981797` on **new tip** (still **pending**; false “main CI success” ignored — admin/fidelity only). Prior intermediate promote fail on `3e075bea` expected. **No ✅ until LIVE advances.** Open: [#2526](https://github.com/orantene/impronta-app/pull/2526) undrafted waiting Structural · [#2530](https://github.com/orantene/impronta-app/pull/2530) draft · refunds BLOCKED. After LIVE: Oran Publish demos + `deploy:smoke`. No Oran ping. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
+3. **Tip chase (do not ✅):** [#2531](https://github.com/orantene/impronta-app/pull/2531) **MERGED** — main tip now `f70305561b34` (Save look PNG → chat). LIVE/prod still `2982c647` / `dpl_9JkaxLvk…`. Tip Structural on `7da888feb4a` may be superseded — watch Structural `37194981797` on **new tip** (still **pending**; false “main CI success” ignored — admin/fidelity only); prior `37193689685` on `7da888` still **in_progress**. Prior intermediate promote fail on `3e075bea` expected. **No ✅ until LIVE advances.** Open: [#2526](https://github.com/orantene/impronta-app/pull/2526) undrafted waiting Structural · [#2530](https://github.com/orantene/impronta-app/pull/2530) draft · refunds BLOCKED. After LIVE: Oran Publish demos + `deploy:smoke`. No Oran ping. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
