@@ -67,56 +67,21 @@ import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
 import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
 import { setPendingOffering } from "./pending-offering-store";
 import { consumeBookingSheetChatHandoff } from "./booking-sheet-chat-handoff";
+import { useLookPreviewOnOpen } from "./use-look-preview-on-open";
 import { useGateEmailCheck } from "./use-gate-email-check";
 import { useGuestInquiriesList } from "./use-guest-inquiries-list";
 import { createApplyFailure } from "./mini-chat-panel-apply-failure";
 import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
 import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
 import type { GuestDockView } from "./guest-dock-view";
+import {
+  normalizeDockView,
+  persistDockView,
+  readStoredDockView,
+  resolveInitialDockView,
+} from "./dock-view-session";
 
 type Stage = "intro" | "gate" | "thread";
-
-const DOCK_VIEW_STORAGE_KEY = "impronta.dockView";
-const DOCK_VIEWS: readonly GuestDockView[] = ["home", "chat", "lineup", "projects"];
-
-function readStoredDockView(): GuestDockView | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = window.sessionStorage.getItem(DOCK_VIEW_STORAGE_KEY);
-    if (stored && (DOCK_VIEWS as readonly string[]).includes(stored)) {
-      return stored as GuestDockView;
-    }
-  } catch {
-    /* sessionStorage unavailable (private mode) */
-  }
-  return null;
-}
-
-/** Remap stale "home" sessions to Hablar chat (empty-home = bubble + chips). */
-function normalizeDockView(view: GuestDockView): GuestDockView {
-  return view === "home" ? "chat" : view;
-}
-
-/** Remembered view wins (home→chat); otherwise open on Hablar chat. */
-function resolveInitialDockView(
-  existingInquiryId: string | null,
-  cartTalentIds: readonly string[] | undefined,
-): GuestDockView {
-  void existingInquiryId;
-  void cartTalentIds;
-  const stored = readStoredDockView();
-  if (stored) return normalizeDockView(stored);
-  return "chat";
-}
-
-function persistDockView(view: GuestDockView): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(DOCK_VIEW_STORAGE_KEY, view);
-  } catch {
-    /* best-effort */
-  }
-}
 
 export function MiniChatPanel({
   open,
@@ -180,6 +145,7 @@ export function MiniChatPanel({
   const lastSeenIsoRef = useRef<string | null>(null);
 
   const [draft, setDraft] = useState("");
+  const { lookPreviewUrl, clearLookPreview, clearLookPreviewChip } = useLookPreviewOnOpen(open);
   const prefillNames = splitGuestFullName(prefill?.name);
   const [firstName, setFirstName] = useState(prefill?.firstName ?? prefillNames.firstName);
   const [lastName, setLastName] = useState(prefill?.lastName ?? prefillNames.lastName);
@@ -252,7 +218,7 @@ export function MiniChatPanel({
       }
     }
     wasOpenRef.current = open;
-  }, [open, brand.locale]);
+  }, [open, brand.locale, chatCard]);
 
   // useGuestInquiriesList — W2-A also feeds Projects; refresh on enter only.
   const inquiries = useGuestInquiriesList({
@@ -534,6 +500,7 @@ export function MiniChatPanel({
     promoteContact: unified.promoteContact,
     onStartInquiry,
     onSendMessage,
+    onLookAttached: clearLookPreviewChip,
     setRows,
     setDraft,
     setStage,
@@ -685,6 +652,8 @@ export function MiniChatPanel({
       if (sentNote) setSentNote(false); // resuming composing clears the Sent note
       setDraft(v);
     },
+    lookPreviewUrl,
+    onClearLookPreview: clearLookPreview,
     onFirstNameChange: setFirstName,
     onLastNameChange: setLastName,
     onEmailChange: setEmail,
