@@ -1,10 +1,10 @@
-Updated: 2026-10-04 05:08Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 05:09Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: a384e274b03 · origin/production: a384e274b03 · Main SHA: bc4ef146999
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
-1. Money S4 / dock — Soft Gel money **PAID PASS** (`bc-0b8a62bd`): **`cs_test_`** · `dd7c…` · booking `99db917d=paid`. **#45 money half**. Dock stamp **FAIL** until [#2525](https://github.com/orantene/impronta-app/pull/2525) tips + re-prove [`bc-732572d4`](bc-732572d4-c19f-52fe-af64-5f9dab2abf81). Fix OPEN ready for review `04ccfeb85` · owner [`bc-184c7651`](bc-184c7651-2bf4-523f-8ff3-4e1ac542bbf1) · Codex P1s. **Possible `qa-stripe-r2` alias drift** onto prod tip `a384e`/`dpl_8gvjZEZ…` (observed sentry=`a384e`) — **restore in flight** (back to TEST/`dpl_4qUj…` lane). Tip still `cs_live_` on app. **#45 stays ❌**.
-2. Captcha — LIVE = prod = **`a384e274b03`** (#2524) READY **`dpl_8gvjZEZ…`**. Captcha OFF prove **in flight** [`bc-c81d48b1`](bc-c81d48b1-f116-55e4-872e-7823a8f82e8e). **No captcha ✅ yet.** **No Oran ping.**
-3. Tip / open lane — Live HTML = prod = **`a384e274b03`** READY `dpl_8gvjZEZ…`. Main **`bc4ef146999`** (#2522 MERGED; Structural still running). **Part A PASS** (prior Live `8821a50` payouts ES). Open: [#2525](https://github.com/orantene/impronta-app/pull/2525) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Handover **NOT READY** (dock #2525 tip-prove + captcha prove). **#94 🟡** (Main ahead of Live).
+1. Money S4 / dock — Soft Gel money **PAID PASS** (`bc-0b8a62bd`): **`cs_test_`** · `dd7c…` · booking `99db917d=paid` · evidence `internal/softgel-test-checkout-pass.md`. **#45 money half**. Dock stamp **FAIL** — [#2525](https://github.com/orantene/impronta-app/pull/2525) **OPEN** ready for review `04ccfeb85` · **Codex P1s** (owner-pool) · owner [`bc-184c7651`](bc-184c7651-2bf4-523f-8ff3-4e1ac542bbf1); re-prove after tip [`bc-732572d4`](bc-732572d4-c19f-52fe-af64-5f9dab2abf81). Tip still `cs_live_`. **#45 stays ❌**.
+2. Captcha — LIVE = prod = **`a384e274b03`** (#2524) READY **`dpl_8gvjZEZ…`** (HTML sentry-release match). Captcha **OFF/ON prove pending** [`bc-c81d48b1`](bc-c81d48b1-f116-55e4-872e-7823a8f82e8e) — **no captcha ✅**. **No Oran ping.**
+3. Tip / open lane — Live HTML = prod = **`a384e274b03`** READY `dpl_8gvjZEZ…`. Main **`bc4ef146999`** (#2522 MERGED; Structural IN_PROGRESS). **Part A PASS** on tip `8821a50` `/talent/payouts` ES (`bc-fef73fb5` · `docs/human-qa/A3-checklist-results.md` · `media/human-qa/a3-tipprove-payouts-es-1440-01.png`). Open: [#2525](https://github.com/orantene/impronta-app/pull/2525) + Codex P1s · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Handover **NOT READY**. **#94 🟡**.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 05:08Z: **Live HTML** = **`origin/production` = `a384e274b03`** (#2524) READY **`dpl_8gvjZEZ…`**. **`origin/main` = `bc4ef146999`** (#2522). Live=prod ≠ main. Captcha OFF prove **in flight** [`bc-c81d48b1`](bc-c81d48b1-f116-55e4-872e-7823a8f82e8e). **Live proof N/A (ops)**. | Drain Main `bc4ef146` Structural → promote → HTML = Main. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 05:09Z: **Live HTML** = **`origin/production` = `a384e274b03`** (#2524) READY **`dpl_8gvjZEZ…`** (app.tulala.digital sentry-release match). **`origin/main` = `bc4ef146999`** (#2522). Live=prod ≠ main. Captcha OFF/ON prove **pending**. **Live proof N/A (ops)**. | Drain Main `bc4ef146` Structural → promote → HTML = Main. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 05:08Z: [#2525](https://github.com/orantene/impronta-app/pull/2525) OPEN ready for review Soft Gel identity (`bc-184c7651`) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Live=prod `a384e` / `dpl_8gvjZEZ…`. Main `bc4ef146`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 05:09Z: [#2525](https://github.com/orantene/impronta-app/pull/2525) OPEN ready for review Soft Gel identity + **Codex P1s** (`bc-184c7651`) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Live=prod `a384e`. Main `bc4ef146`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 05:08Z. Live=prod `a384e` READY `dpl_8gvjZEZ…`; Main `bc4ef146`. Captcha prove **in flight**. Soft Gel money PAID; dock [#2525](https://github.com/orantene/impronta-app/pull/2525); **qa-stripe-r2** possible alias drift onto prod tip — restore in flight; **#45 stays ❌**. Handover **NOT READY**. #94 🟡. ✅6. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 05:09Z ownership. Live=prod `a384e`/`dpl_8gvjZEZ…`; Main `bc4ef146`. Evidence-only: Part A PASS `8821a50`; Soft Gel money PAID `cs_test_`; captcha OFF/ON prove **pending**; #2525 OPEN + Codex P1s; handover **NOT READY**. **#45 stays ❌**. #94 🟡. ✅6. REPLIES stub. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -225,11 +225,11 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 | Todo | State |
 |---|---|
-| gate-jor-edit-captcha | **in_progress** — Edit PASS · Maison PASS · Part A PASS · LIVE=prod `a384e` READY `dpl_8gvjZEZ…`; captcha OFF prove **in flight** [`bc-c81d48b1`](bc-c81d48b1-f116-55e4-872e-7823a8f82e8e) |
+| gate-jor-edit-captcha | **in_progress** — Edit PASS · Maison PASS · Part A PASS · LIVE=prod `a384e` READY `dpl_8gvjZEZ…`; captcha OFF/ON prove **pending** [`bc-c81d48b1`](bc-c81d48b1-f116-55e4-872e-7823a8f82e8e) |
 | part-b-inventory-matrix | **completed** |
 | jor-handover-ready | **in_progress** — **NOT READY** (dock #2525 tip-prove + captcha tip ≥ `a384e`) |
 | part-a-human-qa | **completed** — **PASS** LIVE `8821a50` / `dpl_yS2Aig…` `/talent/payouts` ES (`bc-fef73fb5`) — Depósitos / Ya estás lista para cobrar · `docs/human-qa/A3-checklist-results.md` · `internal/part-a-overnight-pulse.md` · `media/human-qa/a3-tipprove-payouts-es-1440-01.png` |
-| paid-qa-then-captcha-on | **in_progress** — Soft Gel money **PAID PASS** (`cs_test_`/`dd7c`/`99db917d=paid`) `bc-0b8a62bd` — #45 money half; dock fix [#2525](https://github.com/orantene/impronta-app/pull/2525) OPEN ready for review (`bc-184c7651`); re-prove after tip [`bc-732572d4`](bc-732572d4-c19f-52fe-af64-5f9dab2abf81); **#45 stays ❌** |
+| paid-qa-then-captcha-on | **in_progress** — Soft Gel money **PAID PASS** `cs_test_`/`dd7c`/`99db917d=paid` — #45 money half; [#2525](https://github.com/orantene/impronta-app/pull/2525) OPEN + Codex P1s (`bc-184c7651`); re-prove after tip `bc-732572d4`; captcha OFF/ON prove **pending**; **#45 stays ❌** |
 | built-vs-live | **completed** |
 | part-b-decision-memo | **completed** |
 | part-b-unify-prove | **in_progress** — Soft Gel paid; dock fix [#2525](https://github.com/orantene/impronta-app/pull/2525) OPEN ready for review (`bc-184c7651`) → re-prove after tip `bc-732572d4`; #2522 **MERGED** `bc4ef146` Agenda mint (not identity gate) |
@@ -237,10 +237,10 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 05:08Z on `status/done-board`. REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
-**Tip SHAs (honest):** Live HTML = `origin/production` = **`a384e274b03`** (#2524) READY **`dpl_8gvjZEZ…`**. Main = **`bc4ef146999`** (#2522). **#94 🟡**.
-- **LIVE READY** `dpl_8gvjZEZ…` @ `a384e274` (#2524). Captcha OFF prove **in flight** [`bc-c81d48b1`](bc-c81d48b1-f116-55e4-872e-7823a8f82e8e).
-- **`qa-stripe-r2` alias drift** possible onto prod tip (observed host sentry=`a384e` / `dpl_8gvjZEZ…`) — **restore in flight** to TEST/`dpl_4qUj…` Soft Gel `/pay` lane.
-- [#2525](https://github.com/orantene/impronta-app/pull/2525) OPEN ready for review Soft Gel identity — `bc-184c7651` · re-prove after tip `bc-732572d4`. Soft Gel money PAID. **#45 stays ❌**.
-- Part A PASS kept. Handover **NOT READY** (dock + captcha prove).
+STATUS 2026-10-04 05:09Z on `status/done-board` (ownership wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
+**Tip SHAs (honest):** Live HTML = `origin/production` = **`a384e274b03`** (#2524) READY **`dpl_8gvjZEZ…`** (verified app.tulala.digital sentry-release). Main = **`bc4ef146999`** (#2522). **#94 🟡**.
+- **Evidence kept:** Part A PASS on tip `8821a50` `/talent/payouts` ES · Soft Gel money PAID `cs_test_`/`dd7c` · no new ✅ flips.
+- **Captcha:** tip `a384e` LIVE — OFF/ON prove **pending** (`bc-c81d48b1`). No captcha ✅.
+- **[#2525](https://github.com/orantene/impronta-app/pull/2525)** OPEN ready for review Soft Gel identity capture + **Codex P1s** (owner pool) · `bc-184c7651`.
+- **Handover NOT READY** (dock #2525 tip-prove + captcha prove).
 - Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14. Stay owned.
