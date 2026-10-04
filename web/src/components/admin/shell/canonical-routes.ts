@@ -104,6 +104,14 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // /talent/page-builder — bare editor (talent layout opts out of the shell on
+  // hard load). Soft nav from My presence keeps TalentShellClient mounted
+  // because layouts do not remount; mark canonical so ConditionalAdminShellRoot
+  // yields and does not stack the SPA under the WYSIWYG canvas (Edit site
+  // looked like a stuck full marketing page).
+  (s) => s[0] === "talent" && s[1] === "page-builder",
+  // /talent/onboarding — same bare-layout soft-nav trap as page-builder.
+  (s) => s[0] === "talent" && s[1] === "onboarding",
   // Agenda V2 /talent/bookings/** and /talent/calendar/availability are
   // TalentPageRouteSyncer pages — they must stay SPA-shell routes (like
   // /talent/today), not canonical yielders, or the body paints blank.

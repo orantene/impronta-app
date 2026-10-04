@@ -99,6 +99,7 @@ import {
 import { DEFAULT_WORKSPACE_CANVAS_MODE, resolveBodyHorizontalPadding, resolveDeviceFrameHorizontalPadding, type WorkspaceCanvasMode } from "./workspace-layout";
 import { useEditorLocale } from "./use-editor-locale";
 import { presenceBannerMessage } from "./presence-banner-copy";
+import { summarizeOtherEditors } from "./summarize-other-editors";
 import { editorT, type EditorLocale } from "./editor-i18n";
 import { PendingImagesWatcher } from "./pending-images-watcher";
 
@@ -1777,28 +1778,6 @@ function MutationErrorToast() {
       ) : null}
     </EditToast>
   );
-}
-
-/**
- * WS1-A — summarize OTHER editors on the page for the presence banner + the
- * named version-conflict. Dedupes other PEOPLE by userId (multiple tabs of one
- * person collapse to one name) and counts THIS user's own other tabs separately.
- */
-function summarizeOtherEditors(
-  editors: ReturnType<typeof usePagePresence>["editors"],
-  others: ReturnType<typeof usePagePresence>["others"],
-): { peopleNames: string[]; myOtherTabs: number } {
-  const myUserId = editors.find((e) => e.isSelf)?.userId ?? null;
-  const peopleById = new Map<string, string>();
-  let myOtherTabs = 0;
-  for (const o of others) {
-    if (o.userId && myUserId && o.userId === myUserId) {
-      myOtherTabs += 1;
-    } else {
-      peopleById.set(o.userId ?? o.id, o.name);
-    }
-  }
-  return { peopleNames: [...peopleById.values()], myOtherTabs };
 }
 
 /** Renders "X is also editing" / "open in another tab" — a calm bottom-center heads-up. */

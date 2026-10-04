@@ -82,6 +82,7 @@ import { TalentBackLink, TalentIdentityMenu, useTalentBuilderIdentity } from "./
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { useEditContext } from "./edit-context";
+import { LabExitButton } from "./lab-exit-button";
 import {
   publishActiveContentLocale,
   useActiveContentLocale,
@@ -2710,45 +2711,6 @@ function ShareButton({
         </div>
       ) : null}
     </div>
-  );
-}
-
-// ── Lab Exit Button ───────────────────────────────────────────────────────────
-
-/**
- * Alternative exit button for the `"lab"` header variant.
- * Calls a JS callback instead of submitting the server-action form, so it
- * works when there's no live-site storefront to navigate back to.
- */
-function LabExitButton({
-  onExit,
-  exitLabel = "Exit",
-}: {
-  onExit?: () => void;
-  exitLabel?: string;
-}) {
-  return (
-    <TbTextBtn
-      type="button"
-      onClick={onExit}
-      title={exitLabel}
-    >
-      <svg
-        width={TB_ICON_PX}
-        height={TB_ICON_PX}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <line x1="19" y1="12" x2="5" y2="12" />
-        <polyline points="12 19 5 12 12 5" />
-      </svg>
-      {exitLabel}
-    </TbTextBtn>
   );
 }
 
