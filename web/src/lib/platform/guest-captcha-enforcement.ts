@@ -20,6 +20,7 @@ import {
 } from "./guest-captcha-enforcement-resolve";
 
 export {
+  GUEST_CAPTCHA_BOOKING_OFF,
   GUEST_CAPTCHA_ENFORCED_DEFAULT,
   resolveGuestCaptchaEnforced,
   splitGuestCaptchaConfigs,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  GUEST_CAPTCHA_BOOKING_OFF,
   GUEST_CAPTCHA_ENFORCED_DEFAULT,
   resolveGuestCaptchaEnforced,
   splitGuestCaptchaConfigs,
@@ -32,7 +33,9 @@ describe("splitGuestCaptchaConfigs", () => {
       false,
     );
     assert.deepEqual(formCaptchaConfig, active);
-    assert.equal(bookingCaptchaConfig, null);
+    // Non-null sentinel so `bookingCaptcha ?? formCaptcha` does not fall through.
+    assert.deepEqual(bookingCaptchaConfig, GUEST_CAPTCHA_BOOKING_OFF);
+    assert.equal(bookingCaptchaConfig.provider, "none");
   });
 
   it("passes booking captcha when HQ enforcement is on", () => {
@@ -44,12 +47,12 @@ describe("splitGuestCaptchaConfigs", () => {
     assert.deepEqual(bookingCaptchaConfig, active);
   });
 
-  it("returns nulls when tenant captcha is absent", () => {
+  it("returns booking-off (not null) when tenant captcha is absent", () => {
     const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(
       null,
       true,
     );
     assert.equal(formCaptchaConfig, null);
-    assert.equal(bookingCaptchaConfig, null);
+    assert.deepEqual(bookingCaptchaConfig, GUEST_CAPTCHA_BOOKING_OFF);
   });
 });
