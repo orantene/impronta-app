@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * BJ-07 / AUD-025 — lift Hablar when the services catalog sticky bar is showing
- * so the Continuar float and the pill do not fight for the same bottom-right
- * corner (and so Seleccionar on the last visible rows stays tappable at 390).
+ * BJ-07 / AUD-025 — lift Hablar when bottom chrome is showing so Continuar,
+ * the language suggestion strip, and the legacy Maison bar do not fight the
+ * same bottom-right corner (and so Seleccionar on the last rows stays tappable).
  */
 
 import { useEffect, useState } from "react";
@@ -14,8 +14,19 @@ import {
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
 } from "./mini-chat-styles";
 
-/** Gap between the Continuar bar top edge and the launcher bottom edge. */
+/** Gap between a sticky bottom chrome top edge and the launcher bottom edge. */
 const BOOKING_BAR_CLEARANCE_PX = 16;
+
+function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  return el.getBoundingClientRect().height > 0;
+}
+
+function chromeLiftFor(el: HTMLElement): number {
+  return Math.ceil(window.innerHeight - el.getBoundingClientRect().top) + BOOKING_BAR_CLEARANCE_PX;
+}
 
 export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   yieldBookingBar: boolean;
@@ -25,32 +36,42 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
 } {
   const [yieldBookingBar, setYieldBookingBar] = useState(false);
   const [selectionDockUp, setSelectionDockUp] = useState(false);
-  const [barLiftPx, setBarLiftPx] = useState(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX);
+  const [chromeLiftPx, setChromeLiftPx] = useState(0);
 
   useEffect(() => {
     if (!mounted) return;
     const measure = () => {
       // The pill capsule carries its own chat button: the FAB tucks away too.
       const pill = document.querySelector<HTMLElement>(".cb-bar[data-bar-style='pill'][data-show='true']");
-      setSelectionDockUp(Boolean(document.querySelector(".cb-dock[data-show='true']") || pill));
-      if (pill) {
-        setYieldBookingBar(false);
-        return;
+      const dock = document.querySelector<HTMLElement>(".cb-dock[data-show='true']");
+      setSelectionDockUp(Boolean(visibleFixedChrome(dock) || visibleFixedChrome(pill)));
+
+      let lift = 0;
+      let bookingUp = false;
+
+      if (!visibleFixedChrome(pill)) {
+        const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
+        // display:none bars (desktop idle) still match the attribute — skip them.
+        if (visibleFixedChrome(bar)) {
+          bookingUp = true;
+          lift = Math.max(lift, Math.max(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX, chromeLiftFor(bar)));
+        }
       }
-      const bar = document.querySelector<HTMLElement>(".cb-bar[data-show='true']");
-      if (!bar) {
-        setYieldBookingBar(false);
-        return;
+
+      // Locale suggestion + legacy Maison bar: lift Hablar even when the booking
+      // dock owns language-bar stacking (dock idle → strip is still guest-visible).
+      const locale = document.querySelector<HTMLElement>("[data-locale-suggestion]");
+      if (visibleFixedChrome(locale)) {
+        lift = Math.max(lift, chromeLiftFor(locale));
       }
-      // display:none bars (desktop idle) still match the attribute — skip them.
-      const style = window.getComputedStyle(bar);
-      if (style.display === "none" || style.visibility === "hidden") {
-        setYieldBookingBar(false);
-        return;
+      const mnBar = document.querySelector<HTMLElement>(".mn-bar[data-show='true']");
+      if (visibleFixedChrome(mnBar)) {
+        bookingUp = true;
+        lift = Math.max(lift, Math.max(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX, chromeLiftFor(mnBar)));
       }
-      const h = Math.ceil(bar.getBoundingClientRect().height);
-      setYieldBookingBar(true);
-      setBarLiftPx(Math.max(GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX, h + BOOKING_BAR_CLEARANCE_PX));
+
+      setYieldBookingBar(bookingUp);
+      setChromeLiftPx(lift);
     };
     measure();
     const mo = typeof MutationObserver !== "undefined" ? new MutationObserver(measure) : null;
@@ -58,7 +79,7 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ["data-show", "data-has-selection", "class", "style"],
+      attributeFilter: ["data-show", "data-has-selection", "data-locale-suggestion", "class", "style", "hidden"],
     });
     window.addEventListener("resize", measure);
     return () => {
@@ -70,7 +91,7 @@ export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {
   const launcherBottomPx =
     (narrowLauncher
       ? GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX
-      : GUEST_CHAT_LAUNCHER_BOTTOM_PX) + (yieldBookingBar ? barLiftPx : 0);
+      : GUEST_CHAT_LAUNCHER_BOTTOM_PX) + chromeLiftPx;
 
   return { yieldBookingBar, launcherBottomPx, selectionDockUp };
 }

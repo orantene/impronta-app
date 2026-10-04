@@ -64,13 +64,18 @@ export const EDITORIAL_SOFT_CHROME_CSS = [
   `${SOFT} .site-builder-node--marquee[data-bn-marquee-speed="medium"]{--bn-marquee-duration:38s}`,
 
   // ── Menu: group heading rule (MN-8), desktop rail (MN-7), sticky phone chips (MN-6).
+  // Phone chips use the same 72px header fallback as desktop so they never slide under
+  // the lockup before `--site-header-h` publishes. Dock/pill up → keep last rows clear.
   `${SOFT} .site-builder-node--services-catalog-group-title{margin:26px 0 14px;padding-bottom:10px;border-bottom:${RULE} solid var(--token-color-line)}`,
-  `${MQ_PHONE}{${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{position:sticky;top:calc(var(--site-header-h,0px) - 1px);z-index:4;margin:12px calc(${GUTTER_PHONE} * -1) 0;padding:8px ${GUTTER_PHONE};background:color-mix(in srgb,${SURFACE} 94%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 16px -14px ${soft(25)}}}`,
+  `${MQ_PHONE}{${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{position:sticky;top:calc(var(--site-header-h,72px) - 1px);z-index:4;margin:12px calc(${GUTTER_PHONE} * -1) 0;padding:8px ${GUTTER_PHONE};background:color-mix(in srgb,${SURFACE} 94%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 16px -14px ${soft(25)}}}`,
   `${MQ_DESK}{${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"]{min-width:0;gap:28px}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-groups{min-width:0;overflow-x:clip}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{top:calc(var(--site-header-h,72px) + 24px)}${SOFT} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill[data-active="true"]{background:${ACCENT};color:var(--token-color-accent-on,var(--token-color-primary-on,var(--token-color-background)));border-color:${ACCENT}}${SOFT} .site-builder-node--services-catalog-group-title{margin-top:10px}}`,
+  // Keep the last menu rows above the sticky See-services / Continuar chrome.
+  `html:has([data-theme-canvas-root][data-token-shape-chrome="soft"]):has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]){scroll-padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}`,
+  `body:has(.cb-dock[data-show="true"],.cb-bar[data-show="true"]) ${SOFT} .site-builder-node--services-catalog-groups{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}`,
 
-  // ── Reviews: raised cards without a hairline on the band (RV-2), 84% slides and an
-  // edge fade on the phone, three cards and no dead arrows on desktop (RV-3).
-  `${SOFT} .sb-reviews-card,${SOFT} .sb-reviews-card[data-accent]{border-color:transparent;background:${SURFACE}}`,
+  // ── Reviews: tint-mixed cards (not hard white-on-white when page≈section) (RV-2),
+  // 84% slides and an edge fade on the phone, three cards and no dead arrows on desktop (RV-3).
+  `${SOFT} .sb-reviews-card,${SOFT} .sb-reviews-card[data-accent]{border-color:transparent;background:color-mix(in srgb,${SURFACE} 70%,${TINT})}`,
   `${SOFT} .sb-reviews-initials{background:${TINT};color:${ACCENT_TEXT}}`,
   `@media (max-width:899px){${SOFT} .sb-reviews .site-builder-node--carousel-slide{flex-basis:84%}${SOFT} .sb-reviews .site-builder-node--carousel-track{margin:0 calc(${GUTTER_PHONE} * -1);padding:0 ${GUTTER_PHONE} 4px;-webkit-mask-image:linear-gradient(90deg,black 88%,transparent);mask-image:linear-gradient(90deg,black 88%,transparent)}}`,
   `${MQ_DESK}{${SOFT} .sb-reviews .site-builder-node--carousel-controls{display:none}${SOFT} .sb-reviews[data-reviews-layout="trio"] .site-builder-node--carousel-slide:nth-child(n+4){display:none}}`,
@@ -78,10 +83,10 @@ export const EDITORIAL_SOFT_CHROME_CSS = [
   // ── About: the secondary action is a text link (AB-1).
   `${SOFT} #about .site-builder-node--button[data-builder-button-tone="secondary"]{height:auto;min-height:36px;padding:0 2px;border:0;border-radius:0;background:none;color:${INK};font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px}`,
 
-  // ── FAQ: one raised card per question, "+" in a tint circle that turns into an x (FQ-1).
+  // ── FAQ: tint-mixed card per question, "+" in a tint circle that turns into an x (FQ-1).
   // Item chrome is a renderer default (inline), hence !important, as in the base sheet.
   `${SOFT} #contact .site-builder-node--accordion{display:grid!important;gap:10px!important}`,
-  `${SOFT} #contact .site-builder-node--accordion-item{background:${SURFACE};border:0!important;border-radius:18px!important;padding:0 20px!important;box-shadow:0 1px 2px ${soft(6)};transition:box-shadow .2s ease}`,
+  `${SOFT} #contact .site-builder-node--accordion-item{background:color-mix(in srgb,${SURFACE} 70%,${TINT});border:0!important;border-radius:18px!important;padding:0 20px!important;box-shadow:0 1px 2px ${soft(6)};transition:box-shadow .2s ease}`,
   `${SOFT} #contact .site-builder-node--accordion-item[open]{box-shadow:0 14px 30px -22px ${soft(35)}}`,
   `${SOFT} #contact .site-builder-node--accordion-item > summary{align-items:center;min-height:64px;font-size:16px;color:${INK}}`,
   `${SOFT} #contact .site-builder-node--accordion-item > summary::after{flex:0 0 auto;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:${TINT};color:${ACCENT_TEXT};font:500 20px/1 var(--site-body-font,inherit);transition:transform .2s ease}`,

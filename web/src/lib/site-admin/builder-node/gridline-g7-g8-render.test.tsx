@@ -262,6 +262,7 @@ test("matrix: a real table (sticky label column) AND stacked article cards from 
   assert.match(html, /<th scope="row">Respuesta<\/th>/);
   assert.match(SERVICES_MATRIX_CSS, /\.sb-mx-table tbody th\{position:sticky;left:0/);
   assert.match(SERVICES_MATRIX_CSS, /@container sbmx \(min-width:720px\)\{[^]*\.sb-mx-cards\{display:none\}/);
+  assert.match(SERVICES_MATRIX_CSS, /@media \(min-width:900px\)\{[^]*\.sb-mx-cards\{display:none\}/);
   assert.match(SERVICES_MATRIX_CSS, /\.sb-mx-scroll\{display:none/);
 });
 

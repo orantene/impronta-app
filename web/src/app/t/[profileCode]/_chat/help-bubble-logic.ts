@@ -95,13 +95,17 @@ export function findHelpBubbleAnchor(doc: Document): HelpBubbleAnchor | null {
   return null;
 }
 
-/** Fixed bottom bars the bubble must clear (the booking bar / selection dock). */
+/** Fixed bottom bars the bubble must clear (booking bar, dock, locale strip, legacy Maison). */
 export function findHelpBubbleBarTops(doc: Document): number[] {
   const out: number[] = [];
-  doc.querySelectorAll<HTMLElement>(".cb-bar[data-show='true'], .cb-dock[data-show='true']").forEach((el) => {
-    if (!visible(el)) return;
-    out.push(el.getBoundingClientRect().top);
-  });
+  doc
+    .querySelectorAll<HTMLElement>(
+      ".cb-bar[data-show='true'], .cb-dock[data-show='true'], [data-locale-suggestion], .mn-bar[data-show='true']",
+    )
+    .forEach((el) => {
+      if (!visible(el)) return;
+      out.push(el.getBoundingClientRect().top);
+    });
   return out;
 }
 

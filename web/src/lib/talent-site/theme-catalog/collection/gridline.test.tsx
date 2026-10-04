@@ -40,6 +40,8 @@ test("gridline home sections follow the mockup order and stamp parity keys", () 
   assert.match(json, /"layout":"matrix"/);
   assert.match(json, /"layout":"work_order"/);
   assert.match(json, /"layout":"area"/);
+  assert.match(json, /"contentWidth":"full"/);
+  assert.match(json, /"maxWidth":"full"/);
 });
 
 test("gridline bakes no hex and no talent-specific claim (spec cells, rows and tasks ship unfilled)", () => {
