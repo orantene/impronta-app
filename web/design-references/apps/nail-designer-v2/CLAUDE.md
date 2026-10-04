@@ -15,7 +15,7 @@ Workflow: edit `src/app.js` / `src/style.css`, run `python3 src/build.py`, open 
 
 ## Architecture (`app.js`, one IIFE mounted on `#nail-designer`)
 1. **Catalog** — `COLORS`, `PATTERNS` (45 art designs), `FINISHES` (7), `SHAPES` (6), `FREE` (length presets short…xxxl), `SKINS`, `FINGERS` (hand geometry in a 1000×800 drawing), `TRENDS` (ready-made looks).
-2. **Language** — `I18N.en` / `I18N.es`. Picks `?lang=`, then `data-lang`, then saved choice, then browser language.
+2. **Language** — `I18N.en` / `I18N.es`. No in-app EN/ES toggle (site chrome owns that). Picks `?lang=`, then `data-lang`, host `postMessage` `{type:'lang'}`, then saved choice, then browser language. Header reads: Nail Studio title → Tulala logo → Undo → Reset.
 3. **Helpers**.
 4. **Drawing (all SVG)** — `geom()` nail size, `nailPath()` shape outline, `artLayer()` patterns, `finishLayer()` finishes (lit by the lamp: `g.lx` direction, `g.lk` strength, `g.lc` colour), charms module (`CH` catalog, `gemSVG`, `pearlSVG`, `metalSVG`, `charmsSVG`), `nailSVG()`, `fingerPath()`, `fingerSVG()`, `handSVG()`.
 5. **State** — single object `S` (nails[5], shape, length (number), skin, target 'all'|'one', sel, tab, history, looks, lamp: lampF/lightLvl/lightCol, selCharm). `clean()` validates any incoming design. `encodeDesign()`/`decodeDesign()` for share links (`#d=`).
