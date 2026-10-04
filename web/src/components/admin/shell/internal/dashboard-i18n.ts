@@ -614,6 +614,29 @@ const ES_TEXT: Record<string, string> = {
   // Keyed on the exact server string in payouts-access-copy.ts — keep in sync.
   "Only the workspace owner can manage payouts. Ask your owner to connect the payout account.":
     "Solo la persona propietaria del espacio puede gestionar los pagos. Pídele que conecte la cuenta de pagos.",
+  // Talent PayoutsShell (Connect) — A3 human QA found EN chrome on ES dashboard.
+  "Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.":
+    "Cobra tus reservas directo en tu banco. Stripe maneja los datos bancarios y la verificación de identidad; nosotros nunca los vemos.",
+  "Loading your payout status…": "Cargando el estado de tus depósitos…",
+  "All set. Your bank is connected and ready for payouts.": "Listo. Tu banco está conectado y listo para depósitos.",
+  "Status refreshed.": "Estado actualizado.",
+  "Connect your bank": "Conecta tu banco",
+  "Done for now": "Listo por ahora",
+  "One quick thing": "Una cosa rápida",
+  "Please select your country of residence": "Selecciona tu país de residencia",
+  "This is where you bank and get paid. We'll save it to your profile for tax and payout routing.":
+    "Aquí es donde tienes tu banco y recibes pagos. Lo guardamos en tu perfil para impuestos y el enrutamiento de depósitos.",
+  "Select your country…": "Selecciona tu país…",
+  "Setting up…": "Configurando…",
+  "You're set up to get paid": "Ya estás lista para cobrar",
+  "Your share of each booking lands in your bank automatically.": "Tu parte de cada reserva llega a tu banco automáticamente.",
+  "Update bank or payout details": "Actualizar banco o datos de depósito",
+  "Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.":
+    "Conecta tu banco para recibir depósitos de reservas. Toma unos minutos y Stripe verifica tu identidad y tu banco de forma segura.",
+  "More ways to get paid": "Más formas de cobrar",
+  "Get paid to your local bank, anywhere": "Cobra en tu banco local, en cualquier país",
+  "When a client pays for a booking you're on, your share transfers to you automatically, on Stripe's standard schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.":
+    "Cuando un cliente paga una reserva tuya, tu parte se transfiere sola según el calendario estándar de Stripe (por lo general 2 días hábiles). Tú presentas tus impuestos y nosotros te damos el resumen de fin de año.",
   // Inbox date-group headers + stage transition menu
   "Today": "Hoy",
   "Yesterday": "Ayer",
