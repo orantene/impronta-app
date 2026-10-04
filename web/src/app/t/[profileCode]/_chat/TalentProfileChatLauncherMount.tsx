@@ -55,6 +55,8 @@ import {
   startGuestChatInquiry,
   checkGuestClaimEmail,
 } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+import { getGuestInquiryByOrder } from "@/app/t/[profileCode]/_actions/guest-order-resume-actions";
+import { parseGuestOrderQuery } from "@/lib/inquiry/guest-order-resume";
 // U2 thread switcher + U4 detail chips — injected as callbacks so the client
 // bundle imports no backend module.
 import { listGuestInquiries } from "@/app/t/[profileCode]/_actions/guest-inquiries-actions";
@@ -137,6 +139,11 @@ type TalentProfileChatLauncherMountProps = {
    * above the chat button (DK-3). Off everywhere unless the site asks for it.
    */
   helpBubble?: boolean;
+  /**
+   * Cold-load `?order=<uuid>` — when set, prefer that order's owned inquiry
+   * over the cookie resume pick and force-open the dock.
+   */
+  orderId?: string | null;
 };
 
 export async function TalentProfileChatLauncherMount({
@@ -159,6 +166,7 @@ export async function TalentProfileChatLauncherMount({
   omitPlatformBrand = false,
   chatCard = null,
   helpBubble = false,
+  orderId = null,
 }: TalentProfileChatLauncherMountProps) {
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
@@ -175,10 +183,18 @@ export async function TalentProfileChatLauncherMount({
   // L13: the tenant-wide dock switches + the per-business Items label.
   const dockFlags = await loadGuestDockFlags(tenantId, locale, wordsPresetOverride);
 
+  // Cold-load `?order=` wins over cookie resume when the guest owns that order.
+  const parsedOrder = parseGuestOrderQuery(orderId);
+  const orderResume = parsedOrder
+    ? await getGuestInquiryByOrder({ tenantSlug, orderId: parsedOrder })
+    : null;
+  const orderActive = orderResume?.ok ? orderResume.active : null;
+
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
   // of starting fresh. Always { active } | failure; any failure → fresh start.
-  const resume = await getActiveGuestInquiry({ tenantSlug, talentProfileId });
-  const active = resume.ok ? resume.active : null;
+  const resume = orderActive ? null : await getActiveGuestInquiry({ tenantSlug, talentProfileId });
+  const active = orderActive ?? (resume?.ok ? resume.active : null);
+  const forceOpen = Boolean(orderActive);
 
   // Phase 3 — resolve the resolver-driven label's lifecycle inputs server-side
   // (phase / coordinator / last-message-role / other-open) from the same guest
@@ -281,6 +297,7 @@ export async function TalentProfileChatLauncherMount({
       existingInquiryId={active?.inquiryId ?? null}
       existingContactPromoted={active?.contactPromoted ?? null}
       prefill={active?.prefill ?? null}
+      forceOpen={forceOpen}
       offerings={chatOfferings}
       onAttachOffering={attachOfferingToGuestInquiry}
       onStartInquiry={startGuestChatInquiry}

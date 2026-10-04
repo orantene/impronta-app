@@ -105,6 +105,11 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
    * Drives the NewMessagePulse dot on the pill alongside "{agency} replied".
    */
   unreadCoordinatorReply?: boolean;
+  /**
+   * Cold-load `?order=` (or similar deep link): open the panel once even when
+   * this tab never had it open (sessionStorage restore alone would stay shut).
+   */
+  forceOpen?: boolean;
 };
 
 function subscribeNoop(): () => void {
@@ -159,6 +164,7 @@ export function TalentProfileChatLauncher({
   ctaIdentity = "guest",
   unreadCoordinatorReply = false,
   isHub = false,
+  forceOpen = false,
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
@@ -441,7 +447,7 @@ export function TalentProfileChatLauncher({
 
   // Restore the open panel across a refresh (B1). Extracted to
   // useLauncherSessionRestore (W1-A decomposition pre-pass).
-  useLauncherSessionRestore({ existingInquiryId, talentProfileId, open, setOpen });
+  useLauncherSessionRestore({ existingInquiryId, talentProfileId, open, setOpen, forceOpen });
 
   // Phase 3 — directory front-door registration + repointed-cue open. Extracted
   // to useDirectoryFrontDoorSync (W1-A decomposition pre-pass).

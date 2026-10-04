@@ -105,7 +105,7 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string }>;
 }): Promise<Metadata> {
   if (!isSupabaseConfigured()) return {};
   const talentProfileId = await resolveTalentProfileId();
@@ -135,14 +135,14 @@ export default async function TalentSiteHostPage({
   searchParams,
 }: {
   params: Promise<{ pageSlug?: string[] }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; order?: string }>;
 }) {
   if (!isSupabaseConfigured()) notFound();
   const talentProfileId = await resolveTalentProfileId();
   if (!talentProfileId) notFound();
 
   const { pageSlug } = await params;
-  const { preview } = await searchParams;
+  const { preview, order } = await searchParams;
   const [locale, canonicalOrigin] = await Promise.all([
     getRequestLocale(),
     resolveCanonicalOrigin(),
@@ -177,7 +177,7 @@ export default async function TalentSiteHostPage({
       <DocumentLang locale={result.locale} />
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} />
+      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />
     </>
   );
 }
