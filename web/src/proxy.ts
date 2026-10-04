@@ -37,6 +37,7 @@ import {
 } from "@/lib/saas/surface-allow-list";
 import { marketingWorkspacePathRedirect, workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
+import { talentProfileCodeAliasRedirectResponse } from "@/lib/talent/profile-code-alias-middleware";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { talentSiteHostResponse } from "@/lib/saas/talent-site-host-response";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
@@ -542,6 +543,35 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = legacyTalentTarget;
       return NextResponse.redirect(url, 308);
+    }
+  }
+
+  // Retired vanity TAL codes → live TAL-<digits> (HTTP 301). Numeric codes
+  // short-circuit with no DB. Locale-prefixed /es/t/<code> uses the stripped
+  // canonicalPath below once locale handling has run; here we cover the
+  // unprefixed /t/<code> hot path after A1 locale strip above.
+  {
+    const aliasPath = originalHasLocalePrefix
+      ? stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings)
+      : originalPathname;
+    const aliasRedirect = await timed(
+      "proxy.talentCodeAlias",
+      talentProfileCodeAliasRedirectResponse(request, aliasPath),
+    );
+    if (aliasRedirect) {
+      if (originalHasLocalePrefix && aliasRedirect.headers.get("location")) {
+        // Preserve the visitor's locale prefix on the redirect target.
+        const loc = aliasRedirect.headers.get("location")!;
+        const localeSeg = originalPathname.split("/").filter(Boolean)[0];
+        if (localeSeg && loc.startsWith("/t/")) {
+          const url = request.nextUrl.clone();
+          const parsed = new URL(loc, request.nextUrl.origin);
+          url.pathname = `/${localeSeg}${parsed.pathname}`;
+          url.search = parsed.search;
+          return NextResponse.redirect(url, 301);
+        }
+      }
+      return aliasRedirect;
     }
   }
 
