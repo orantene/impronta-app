@@ -142,10 +142,13 @@ export default async function OnboardingRolePage({
   if (nextPath && isWorkspaceOnboardingPath(nextPath)) {
     redirect(nextPath);
   }
-  // "Join as Talent" already answered the role question: skip the chooser and
-  // go straight to the talent profile step, carrying `next` along.
+  // "Join as Talent" already answered the role question. Completing talent
+  // onboarding (same as the I'm Talent button) is required — a bare redirect
+  // to /talent/* while still onboarding is bounced back here by auth-routing.
   if (nextPath && isTalentSurfaceNext(nextPath)) {
-    redirect(`/onboarding/talent-location?next=${encodeURIComponent(nextPath)}`);
+    const fd = new FormData();
+    fd.set("next", nextPath);
+    await chooseTalentRole(fd);
   }
 
   return (
