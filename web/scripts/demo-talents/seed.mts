@@ -706,9 +706,24 @@ async function seedOne(d: DemoTalent, manifest: Manifest, pack: Pack | null) {
     : await admin.from("agency_talent_roster").insert(roster);
   if (rErr) throw rErr;
 
-  const { data: lookup, error: lErr } = await admin.rpc("talent_site_subdomain_lookup", { p_slug: d.siteSlug });
+  const demoHostSlug = `${d.siteSlug}-demo`;
+  const { data: lookup, error: lErr } = await admin.rpc("talent_site_subdomain_lookup", {
+    p_slug: demoHostSlug,
+  });
   if (lErr) throw lErr;
-  console.log("ok", d.profileCode, d.displayName, profileId, `${d.siteSlug}.tulala.digital`, "preset", preset, "photos", entry.mediaAssetIds.length, "lookup", JSON.stringify(lookup));
+  console.log(
+    "ok",
+    d.profileCode,
+    d.displayName,
+    profileId,
+    `${demoHostSlug}.tulala.digital`,
+    "preset",
+    preset,
+    "photos",
+    entry.mediaAssetIds.length,
+    "lookup",
+    JSON.stringify(lookup),
+  );
 }
 
 async function printLinks(manifest: Manifest) {

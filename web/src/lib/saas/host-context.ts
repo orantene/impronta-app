@@ -70,6 +70,13 @@ export type HostContext =
        * from a platform-issued one without re-parsing the host.
        */
       hostKind: "subdomain" | "custom";
+      /**
+       * From `talent_site_subdomain_lookup`. Demo subdomain hosts publish at
+       * `{site_slug}-demo.<apex>`; bare demo hosts 308 there.
+       */
+      isDemo: boolean;
+      /** Canonical `talent_sites.site_slug` (unsuffixed), when the RPC returns it. */
+      siteSlug: string | null;
     }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
@@ -363,8 +370,16 @@ export type TalentSiteEdgeClient = {
     args: { p_host: string } | { p_slug: string },
   ) => PromiseLike<{
     data:
-      | Array<{ talent_profile_id?: string | null }>
-      | { talent_profile_id?: string | null }
+      | Array<{
+          talent_profile_id?: string | null;
+          site_slug?: string | null;
+          is_demo?: boolean | null;
+        }>
+      | {
+          talent_profile_id?: string | null;
+          site_slug?: string | null;
+          is_demo?: boolean | null;
+        }
       | null;
     error: unknown;
   }>;
@@ -399,6 +414,8 @@ export async function resolveTalentSiteContext(
       hostname,
       talentProfileId,
       hostKind: "custom",
+      isDemo: false,
+      siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
     };
   } catch {
     return null;
@@ -442,6 +459,8 @@ export async function resolveTalentSubdomainContext(
       hostname,
       talentProfileId,
       hostKind: "subdomain",
+      isDemo: row?.is_demo === true,
+      siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
     };
   } catch {
     return null;

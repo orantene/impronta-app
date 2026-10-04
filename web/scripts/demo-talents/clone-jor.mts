@@ -270,5 +270,6 @@ const pageRows = jorPages.map((p) => {
 if (pageRows.length) await must(admin.from("talent_pages").insert(pageRows).select("id"), "pages");
 
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-const { data: lookup } = await admin.rpc("talent_site_subdomain_lookup", { p_slug: CLONE.siteSlug });
-console.log("clone", CLONE.profileCode, cloneId, `https://${CLONE.siteSlug}.tulala.digital`, `offerings ${offerRows.length} variants ${variantRows.length} addons ${addonRows.length} media ${mediaRows.length} pages ${pageRows.length}`, "lookup", JSON.stringify(lookup));
+const demoHostSlug = `${CLONE.siteSlug}-demo`;
+const { data: lookup } = await admin.rpc("talent_site_subdomain_lookup", { p_slug: demoHostSlug });
+console.log("clone", CLONE.profileCode, cloneId, `https://${demoHostSlug}.tulala.digital`, `offerings ${offerRows.length} variants ${variantRows.length} addons ${addonRows.length} media ${mediaRows.length} pages ${pageRows.length}`, "lookup", JSON.stringify(lookup));

@@ -78,15 +78,11 @@ const PAGE_COLUMNS =
 
 // Shared owner+Max gate lives in ./site-action-gate (reused by ./site-logo-actions).
 
-/**
- * The address the dashboard shows and links to. With the subdomain switch on the
- * site's real home is `<slug>.tulala.digital`; with it off (and for a slug that
- * is not a usable hostname label) this is exactly today's path.
- */
-function siteUrl(slug: string | null): string | null {
+/** Dashboard public address: host when subdomains are on, else `/t/site/<slug>`. */
+function siteUrl(slug: string | null, isDemo = false): string | null {
   if (!slug) return null;
   if (isTalentSiteSubdomainsEnabled()) {
-    const hostUrl = talentSitePublicUrl(slug);
+    const hostUrl = talentSitePublicUrl(slug, { isDemo });
     if (hostUrl) return hostUrl;
   }
   return talentSitePathUrl(slug);
@@ -171,11 +167,12 @@ export async function loadMaxSiteManagerAction(): Promise<
       sb.from("talent_sites").select(cols).eq("talent_profile_id", scope.talentProfile.id).maybeSingle(),
       sb.from("talent_pages").select(PAGE_COLUMNS).eq("talent_profile_id", scope.talentProfile.id).order("sort_order", { ascending: true }),
       loadLegacyProfileTemplate(sb, scope.talentProfile.id),
+      sb.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
     ]);
-  let [siteRes, pagesRes, legacyProfileTemplate] = await readAll();
+  let [siteRes, pagesRes, legacyProfileTemplate, demoRes] = await readAll();
   if (!siteScaffoldComplete(siteRes, pagesRes)) {
     await provisionTalentMaxSite(scope.talentProfile.id, scope.session.user.id);
-    [siteRes, pagesRes, legacyProfileTemplate] = await readAll();
+    [siteRes, pagesRes, legacyProfileTemplate, demoRes] = await readAll();
   }
   const { data: siteRow, error: siteErr } = siteRes;
   const { data: pageRows, error: pagesErr } = pagesRes;
@@ -188,6 +185,7 @@ export async function loadMaxSiteManagerAction(): Promise<
     return { ok: false, code: "server_error", error: "Could not load your pages." };
   }
 
+  const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
   const site = (siteRow ?? null) as {
     id: string;
     site_slug: string | null;
@@ -233,7 +231,7 @@ export async function loadMaxSiteManagerAction(): Promise<
       sitePublishedAt: site?.site_published_at ?? null,
       hasPublishedShell:
         Array.isArray(site?.shell_published) && site!.shell_published.length > 0,
-      publicSiteUrl: siteUrl(site?.site_slug ?? null),
+      publicSiteUrl: siteUrl(site?.site_slug ?? null, isDemo),
       themeDesignSlug: site?.theme_design_slug ?? null,
       themeLookSlug: site?.theme_look_slug ?? null,
       legacyProfileTemplate,

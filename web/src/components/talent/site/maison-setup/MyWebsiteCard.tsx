@@ -250,7 +250,17 @@ export function MyWebsiteCard({
   const summary = [`${t("Design:")} ${designName}`, paletteName, content]
     .filter(Boolean)
     .join(" · ");
-  const address = siteSlug ? `${siteSlug}.tulala.digital` : publicSiteUrl ?? "";
+  // Prefer the server-built public URL (demo hosts use `{slug}-demo.tulala.digital`).
+  const address = (() => {
+    if (publicSiteUrl) {
+      try {
+        return new URL(publicSiteUrl).host;
+      } catch {
+        return publicSiteUrl.replace(/^https?:\/\//, "").split("/")[0] ?? "";
+      }
+    }
+    return siteSlug ? `${siteSlug}.tulala.digital` : "";
+  })();
   const since = formatSince(publishedAt, locale);
 
   const closeOptions = () => {

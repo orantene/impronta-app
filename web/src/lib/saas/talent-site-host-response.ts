@@ -17,6 +17,7 @@ import {
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
 import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
 
@@ -37,8 +38,32 @@ export async function talentSiteHostResponse(
   request: NextRequest,
   pathname: string,
   sanitizedInboundHeaders: Headers,
-  hostContext: { hostname: string; talentProfileId: string },
+  hostContext: {
+    hostname: string;
+    talentProfileId: string;
+    hostKind?: "subdomain" | "custom";
+    isDemo?: boolean;
+    siteSlug?: string | null;
+  },
 ): Promise<NextResponse> {
+  // Demo convention: bare `{site_slug}.tulala.digital` 308s to the canonical
+  // `{site_slug}-demo.tulala.digital` public host. Custom domains are untouched.
+  if (
+    hostContext.hostKind === "subdomain" &&
+    (request.method === "GET" || request.method === "HEAD")
+  ) {
+    const canonicalHost = talentDemoBareHostRedirectHost({
+      hostname: hostContext.hostname,
+      siteSlug: hostContext.siteSlug,
+      isDemo: hostContext.isDemo === true,
+    });
+    if (canonicalHost && canonicalHost !== hostContext.hostname) {
+      const target = request.nextUrl.clone();
+      target.hostname = canonicalHost;
+      return NextResponse.redirect(target, 308);
+    }
+  }
+
   // The TALENT's own languages and URL grammar (primary unprefixed,
   // secondaries under `/<code>/`), see talent-site-locale-routing.ts.
   const [talentLangSettings, talentLocales] = await Promise.all([
