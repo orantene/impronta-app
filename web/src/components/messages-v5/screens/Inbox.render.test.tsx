@@ -184,7 +184,7 @@ test("F54: her own new conversation (awaiting the client) is listed under All", 
 const SELLER_FILTERS = {
   ...SELLER,
   filters: { all: "All", needs: "Needs reply", quotes: "Quotes out", agency: "Agency" },
-  waitingOnYou: "{count} waiting on you",
+  waitingOnYou: "{total} conversations · {needs} need a reply",
 };
 
 test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting line", () => {
@@ -194,8 +194,9 @@ test("msg_d: seller gets All / Needs reply / Quotes out / Agency and a waiting l
   ];
   const html = renderToStaticMarkup(<Inbox {...baseProps({ rows, seller: true, sellerChrome: SELLER_FILTERS })} />);
   assert.match(html, /data-inbox-seller-filters/);
-  for (const label of ["All", "Needs reply", "Quotes out", "Agency"]) assert.match(html, new RegExp(">" + label));
-  assert.match(html, /2 waiting on you/);
+  for (const label of ["All", "Needs reply", "Quotes out", "Agency"]) assert.match(html, new RegExp(label));
+  assert.match(html, /2 conversations · 2 need a reply/);
+  assert.match(html, /needs-dot/);
   assert.doesNotMatch(html, /Needs action/);
   assert.doesNotMatch(html, /data-inbox-chips/);
 });
