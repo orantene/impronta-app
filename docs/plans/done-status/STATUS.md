@@ -1,1 +1,1 @@
-$file:/tmp/STATUS_RESTORE_CONTENT.md
+$file:/workspace/docs/plans/done-status/.STATUS_RESTORE_PAYLOAD.md
