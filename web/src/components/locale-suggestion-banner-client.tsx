@@ -20,6 +20,11 @@ import { cn } from "@/lib/utils";
  * nothing on Cumulative Layout Shift no matter when it paints. It is rendered
  * in the SSR HTML (not mounted by an effect), so there is no pop-in either.
  *
+ * Bottom-dock yield: when a talent site's booking dock or "See services" pill
+ * (`.cb-dock` / `.cb-bar`) is up, booking CSS hides `[data-locale-suggestion]`
+ * the same way it hides the consent banner — see `catalog-booking-styles.ts`.
+ * Talent sites already expose ES/EN via `PublicLanguageToggle` in the header.
+ *
  * Accept is a real `<a href>`, not a router push: the locale switch is a full
  * navigation to a different URL, exactly like `PublicLanguageToggle`. The
  * cookie write happens in the click handler and the browser follows the link

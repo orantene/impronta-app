@@ -284,12 +284,16 @@ test("one bar: with no dock (Undo after removing the last service) the toast sta
   host.remove();
 });
 
-test("one bar: the in-dock toast rule and the consent-banner yield rule exist in the booking CSS", () => {
+test("one bar: the in-dock toast rule and the consent/locale-banner yield rules exist in the booking CSS", () => {
   const css = readFileSync(join(here, "catalog-booking-styles.ts"), "utf8");
   assert.match(css, /\.cb-dock \.cb-dock-toast\[data-in-dock="true"\]\{position:absolute!important/);
   assert.match(css, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-consent-banner\][^{]*\{display:none\}/);
+  assert.match(css, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-locale-suggestion\]/);
+  assert.match(css, /body:has\(\.cb-bar\[data-show="true"\]\) \[data-locale-suggestion\]/);
   const banner = readFileSync(join(here, "../analytics/analytics-consent-banner.tsx"), "utf8");
   assert.match(banner, /data-consent-banner/);
+  const localeBanner = readFileSync(join(here, "../locale-suggestion-banner-client.tsx"), "utf8");
+  assert.match(localeBanner, /data-locale-suggestion=\{locale\}/);
 });
 
 test("ES: the dock renders no English UI chrome", () => {
