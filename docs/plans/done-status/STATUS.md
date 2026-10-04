@@ -1,10 +1,10 @@
-Updated: 2026-10-04 04:27Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 04:30Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: f9867250d0 · origin/production: f9867250d0 · Main SHA: a384e274b03
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
-1. Money S4 — Soft Gel `/pay` **UNBLOCKED** on **`qa-stripe-r2.tulala.digital/pay/dd7c…`** (HTTP **200** Soft Gel $500) — `dpl_4qUj` + **prod pluhdap** + `sk_test_`. **`qa-2` cannot host `/pay`** (host kind `app`). S4 owner **`bc-0b8a62bd` Soft Gel TEST Checkout QA** → assert `cs_test_` → 4242 → PAID. Tip still `cs_live_`. Pulse `internal/softgel-s4-cleared-173fb.md` · `internal/qa2-service-role-pin.md`. **No PAID ✅.** Never ✅ without evidence.
+1. Money S4 — Soft Gel `/pay` **UNBLOCKED** / CLEARED on **`qa-stripe-r2.tulala.digital/pay/dd7c…`** (HTTP **200** Soft Gel $500) — `dpl_4qUj` + **prod pluhdap** + `sk_test_`. **`qa-2` cannot host `/pay`** (host kind `app`). S4 **`bc-0b8a62bd` Soft Gel TEST Checkout QA** running → assert `cs_test_` → 4242 → PAID. Tip still `cs_live_`. Pulse `internal/softgel-s4-cleared-173fb.md` · `internal/handover-pulse.md`. **No PAID ✅.** Never ✅ without evidence.
 2. Captcha — [#2524](https://github.com/orantene/impronta-app/pull/2524) **MERGED** → Main `a384e274b03`. Tip gate: Structural on `a384e` **PENDING** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388); `#2519` `8821a50` Structural still **IN_PROGRESS**. Live/prod still `f986` (#2517) — **not tipped**. Prior FAIL on older tip. **No captcha ✅.** **No Oran ping.**
-3. Tip / open lane — Live HTML = prod = `f9867250d0` (#2517); Main `a384e274b03` (#2524). [#2522](https://github.com/orantene/impronta-app/pull/2522) **OPEN** head `e1feeb423` — Codex P1×2 claimed fixed; CI re-running. Do not steal. Handover **NOT READY**. Theme/#2516 PASS · Built-vs-Live done. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. **#94 🟡**.
+3. Tip / open lane — Live HTML = prod = `f9867250d0` (#2517); Main `a384e274b03` (#2524). [#2522](https://github.com/orantene/impronta-app/pull/2522) **OPEN** head `e1feeb423` — Codex P1×2 claimed fixed; Fidelity SUCCESS; Admin+Structural **in flight**. Do not steal. Handover **NOT READY**. Theme/#2516 PASS · Built-vs-Live done. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. **#94 🟡**.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 04:25Z: **Live HTML** = **`origin/production` = `f9867250d0`** (#2517). **`origin/main` = `a384e274b03`** (#2524). Tip gate: Structural `a384e` **PENDING** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388); `#2519` `8821a50` Structural **IN_PROGRESS**. **#2519+#2524 not tipped yet.** Live=prod ≠ main. Captcha LIVE skip prove pending tip ≥ `a384e`. **Live proof N/A (ops)**. | Drain tip Structural `a384e`/`8821a50` → promote → HTML = Main → captcha skip re-prove. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 04:30Z: **Live HTML** = **`origin/production` = `f9867250d0`** (#2517). **`origin/main` = `a384e274b03`** (#2524). Tip gate: Structural `a384e` **PENDING** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388); `#2519` `8821a50` Structural **IN_PROGRESS**. **#2519+#2524 not tipped yet.** Live=prod ≠ main. Captcha LIVE skip prove pending tip ≥ `a384e`. **Live proof N/A (ops)**. | Drain tip Structural `a384e`/`8821a50` → promote → HTML = Main → captcha skip re-prove. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 04:26Z: [#2522](https://github.com/orantene/impronta-app/pull/2522) OPEN head `e1feeb423` — Codex P1×2 claimed fixed; CI re-running · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. #2524 MERGED → Main `a384e274b03`. Live=prod `f986725`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 04:30Z: [#2522](https://github.com/orantene/impronta-app/pull/2522) OPEN head `e1feeb423` — Fidelity SUCCESS; Admin+Structural in flight · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. #2524 MERGED → Main `a384e274b03`. Live=prod `f986725`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 04:27Z. Live=prod `f986725` (#2517); Main `a384e274` (#2524). Tip Structural pending `a384e`/`8821a50`. #2522 head `e1feeb423` P1×2 claimed fixed; CI re-running. Soft Gel `/pay` **UNBLOCKED** on `qa-stripe-r2` (`dpl_4qUj`+pluhdap+`sk_test_`); qa-2 app-gated; S4 **`bc-0b8a62bd`**. Theme/#2516 PASS · Built-vs-Live done. Handover **NOT READY**. #94 🟡. ✅6; never ✅ without Live proof. REPLIES stub. Sole STATUS writer. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 04:30Z. Live=prod `f986725` (#2517); Main `a384e274` (#2524). Tip Structural pending `a384e`/`8821a50`. #2522 `e1feeb423` Admin+Structural in flight. Soft Gel `/pay` UNBLOCKED on `qa-stripe-r2`; S4 **`bc-0b8a62bd`** Checkout in flight (not PAID). Theme/#2516 PASS · Built-vs-Live done. Handover **NOT READY**. #94 🟡. ✅6; never ✅ without Live proof. REPLIES stub. Sole STATUS writer. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -229,7 +229,7 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 | part-b-inventory-matrix | **completed** |
 | jor-handover-ready | **in_progress** — **NOT READY** (captcha/money/A3 tip-prove open) |
 | part-a-human-qa | **in_progress** — #2519 on Main `8821a50` ancestor; tip-prove after Live ≥ payouts tip |
-| paid-qa-then-captcha-on | **in_progress** — Soft Gel `/pay` **UNBLOCKED** on `qa-stripe-r2…/pay/dd7c…` (200 Soft Gel $500; `dpl_4qUj`+pluhdap+`sk_test_`); qa-2 cannot host `/pay` (app); S4 **`bc-0b8a62bd`** → `cs_test_` → PAID |
+| paid-qa-then-captcha-on | **in_progress** — Soft Gel `/pay` **UNBLOCKED**/CLEARED on `qa-stripe-r2…/pay/dd7c…` (200 Soft Gel $500; `dpl_4qUj`+pluhdap+`sk_test_`); qa-2 cannot host `/pay` (app); S4 **`bc-0b8a62bd`** Checkout in flight → `cs_test_` → PAID |
 | built-vs-live | **completed** |
 | part-b-decision-memo | **completed** |
 | part-b-unify-prove | **in_progress** — PAID/?order= first; #2522 OPEN `e1feeb423` — Codex P1×2 claimed fixed; CI re-running |
@@ -237,10 +237,10 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 04:27Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
-**Tip SHAs (honest):** Live HTML = `origin/production` = `f9867250d0` (#2517). Main = `a384e274b03` (#2524 MERGED). Tip Structural pending `a384e`/`8821a50`. **#2519+#2524 not tipped yet.** **#94 🟡**.
+STATUS 2026-10-04 04:30Z standing-orders wake on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
+**Tip SHAs (honest):** Live HTML = `origin/production` = `f9867250d0` (#2517). Main = `a384e274b03` (#2524 MERGED). Tip Structural pending `a384e` [`37176197388`] + `#2519` `8821a50` IN_PROGRESS. **#2519+#2524 not tipped yet.** **#94 🟡**.
 - **#2524 MERGED** `a384e274` — captcha LIVE skip prove **pending tip**.
-- **#2522 OPEN** head `e1feeb423` — Codex P1×2 claimed fixed; CI re-running. Do not steal.
-- **Soft Gel `/pay` UNBLOCKED:** `qa-stripe-r2.tulala.digital/pay/dd7c…` → **200** Soft Gel $500 (`dpl_4qUj` + prod pluhdap + `sk_test_`). **`qa-2` cannot host `/pay`** (app kind). S4 **`bc-0b8a62bd`**. **#45 stays ❌** until PAID evidence.
+- **#2522 OPEN** head `e1feeb423` — Codex P1×2 claimed fixed; Fidelity SUCCESS; Admin+Structural **in flight**. Do not steal. No merges this wake.
+- **Soft Gel `/pay` UNBLOCKED/CLEARED:** `qa-stripe-r2…/pay/dd7c…` → **200** Soft Gel $500 (`dpl_4qUj` + prod pluhdap + `sk_test_`). **`qa-2` cannot host `/pay`** (app kind). S4 **`bc-0b8a62bd`** Checkout in flight — **not PAID**. **#45 stays ❌.**
 - Theme/#2516 PASS · Built-vs-Live done · inventory/memo done. Handover **NOT READY**.
 - Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14. Stay owned.
