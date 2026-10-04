@@ -20,6 +20,16 @@ export type GuestCaptchaRenderConfig = {
 };
 
 /**
+ * Explicit booking-off sentinel. Must be a non-null object so
+ * `bookingCaptcha ?? formCaptcha` does not fall through to CMS form captcha
+ * when HQ guest booking enforcement is off.
+ */
+export const GUEST_CAPTCHA_BOOKING_OFF: GuestCaptchaRenderConfig = {
+  provider: "none",
+  siteKey: null,
+};
+
+/**
  * Split tenant captcha into CMS-form vs guest-booking configs.
  * HQ `guest_captcha_enforced` gates booking chrome only — forms stay on.
  */
@@ -28,7 +38,7 @@ export function splitGuestCaptchaConfigs(
   captchaEnforced: boolean,
 ): {
   formCaptchaConfig: GuestCaptchaRenderConfig | null;
-  bookingCaptchaConfig: GuestCaptchaRenderConfig | null;
+  bookingCaptchaConfig: GuestCaptchaRenderConfig;
 } {
   const formCaptchaConfig = pageCaptcha
     ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
@@ -36,6 +46,6 @@ export function splitGuestCaptchaConfigs(
   const bookingCaptchaConfig =
     pageCaptcha && captchaEnforced
       ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-      : null;
+      : GUEST_CAPTCHA_BOOKING_OFF;
   return { formCaptchaConfig, bookingCaptchaConfig };
 }
