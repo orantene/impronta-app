@@ -1,10 +1,10 @@
-Updated: 2026-10-04 10:31Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: 2982c647daf · origin/production: 2982c647daf · Main SHA: f70305561b34
+Updated: 2026-10-04 10:45Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: 2982c647daf · origin/production: 2982c647daf · Main SHA: b54d2b8038a2
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
 1. Parked — **#45 fee-line** ❌ (seller-pays $101.50 LIVE charge / D15 still unproven). Soft Gel Preview PAID + LIVE Guardar smoke PASS do **not** clear #45.
 2. Parked — Free **`QA_FREE_PASSWORD`** (Oran-only) blocks Free-persona drains that need that secret. Do not invent ✅.
-3. **Tip chase (do not ✅):** [#2531](https://github.com/orantene/impronta-app/pull/2531) **MERGED** — main tip now `f70305561b34` (Save look PNG → chat). LIVE/prod still `2982c647` / `dpl_9JkaxLvk…`. Tip Structural on `7da888feb4a` may be superseded — watch Structural `37194981797` on **new tip** (still **pending**; false “main CI success” ignored — admin/fidelity only); prior `37193689685` on `7da888` still **in_progress** (`tests — builder`); new-tip Structural `37194981797` still **0 jobs** pending. Prior intermediate promote fail on `3e075bea` expected. **No ✅ until LIVE advances.** Open: [#2526](https://github.com/orantene/impronta-app/pull/2526) undrafted waiting Structural · [#2530](https://github.com/orantene/impronta-app/pull/2530) draft · refunds BLOCKED. After LIVE: Oran Publish demos + `deploy:smoke`. No Oran ping. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
+3. **Tip chase (do not ✅):** [#2526](https://github.com/orantene/impronta-app/pull/2526) **MERGED** — main tip now `b54d2b8038a2` (demo `-demo` hosts; ancestor [#2531](https://github.com/orantene/impronta-app/pull/2531) `f70305561b34`). LIVE/prod still `2982c647` / `dpl_9JkaxLvk…`. Prior Structural `37193689685` on `7da888` **SUCCESS**; Structural `37194981797` on `f703055` in_progress + promote `37196402969` in_progress (may be intermediate vs new tip); new-tip Structural `37196414052` pending. **No ✅ until LIVE advances.** Open: [#2530](https://github.com/orantene/impronta-app/pull/2530) draft · refunds BLOCKED (Lavender+Linh). After LIVE: Oran Publish demos + `deploy:smoke`. No Oran ping. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 10:31Z: **Live HTML** = **`origin/production`** = `2982c647daf` / `dpl_9JkaxLvk…`. **`origin/main`** = `f70305561b34` ([#2531](https://github.com/orantene/impronta-app/pull/2531)). New-tip Structural `37194981797` pending (0 jobs); prior `37193689685` on `7da888` in_progress (`tests — builder`). **Do not ✅**. Overnight closed. **Live proof N/A (ops)**. | Watch Structural on tip → promote → Live HTML = `f70305561b34`. Then Oran Publish demos + `deploy:smoke`. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 10:45Z: **Live HTML** = **`origin/production`** = `2982c647daf` / `dpl_9JkaxLvk…`. **`origin/main`** = `b54d2b8038a2` ([#2526](https://github.com/orantene/impronta-app/pull/2526) MERGED). Promote/`f703055` Structural in flight; new-tip Structural pending. **Do not ✅**. Overnight closed. **Live proof N/A (ops)**. | Watch tip Structural → promote → Live HTML = `b54d2b8038a2` (or interim LIVE if `f703055` promotes first). Then Oran Publish demos + `deploy:smoke`. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 10:31Z: #2531 **MERGED** · tip chase · #2526 undrafted waiting Structural · #2530 draft · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | Watch tip Structural→promote. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 10:45Z: #2526+#2531 **MERGED** · tip chase · #2530 draft · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | Watch tip Structural→promote. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 10:31Z standing wake. Live=prod `2982c647` / Main `f70305561b34` (#2531). **#94 🟡** tip chase — Structural queued. No ✅ until LIVE. #2526 waiting Structural · #2530 draft. Refunds BLOCKED. **Parked:** Free `QA_FREE_PASSWORD` · #45. REPLIES stub. ✅6. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 10:45Z standing wake. Live=prod `2982c647` / Main `b54d2b8038a2` (#2526 MERGED). **#94 🟡** tip chase — no ✅ until LIVE. #2530 draft. Refunds BLOCKED. **Parked:** Free `QA_FREE_PASSWORD` · #45. REPLIES stub. ✅6. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,11 +237,11 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 10:31Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. Standing-orders tip `7d30bb9d1`/`✅12` **stale**.
-**Tip SHAs:** Live HTML = prod = `2982c647daf` / `dpl_9JkaxLvk…`. Main = `f70305561b34` ([#2531](https://github.com/orantene/impronta-app/pull/2531) MERGED — Save look PNG → chat). **#94 🟡** — **no ✅ until LIVE advances**. Scoreboard ✅ 6 / 🟡 63.
+STATUS 2026-10-04 10:45Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. Standing-orders tip `7d30bb9d1`/`✅12` **stale**.
+**Tip SHAs:** Live HTML = prod = `2982c647daf` / `dpl_9JkaxLvk…`. Main = `b54d2b8038a2` ([#2526](https://github.com/orantene/impronta-app/pull/2526) MERGED). **#94 🟡** — **no ✅ until LIVE advances**. Scoreboard ✅ 6 / 🟡 63.
 - Overnight **closed**. **Parked:** Free `QA_FREE_PASSWORD` · #45 fee-line ❌.
-- **Merged:** [#2531](https://github.com/orantene/impronta-app/pull/2531) → tip `f70305561b34` (ancestors #2527/#2528/#2529).
-- **Tip chase:** LIVE still `2982c647`. New-tip Structural `37194981797` pending **0 jobs**; prior `37193689685` (`7da888`) in_progress at `tests — builder`. Watch Structural → promote → LIVE. **No ✅ without LIVE evidence.**
-- **Open:** [#2526](https://github.com/orantene/impronta-app/pull/2526) undrafted waiting Structural · [#2530](https://github.com/orantene/impronta-app/pull/2530) draft · refunds **BLOCKED** (Lavender+Linh) [`bc-aab10947`](bc-aab10947-ebfa-5db2-b2a5-752d87110018).
+- **Merged this wake:** [#2526](https://github.com/orantene/impronta-app/pull/2526) demo `-demo` hosts → tip `b54d2b8038a2` (ancestor [#2531](https://github.com/orantene/impronta-app/pull/2531) `f70305561b34`).
+- **Tip chase:** Prior Structural `37193689685` (`7da888`) **SUCCESS**. Structural `37194981797` + promote `37196402969` in_progress on `f703055` (may be intermediate). New-tip Structural `37196414052` pending on `b54d2b803`. Watch Structural → promote → LIVE.
+- **Open:** [#2530](https://github.com/orantene/impronta-app/pull/2530) draft · refunds **BLOCKED** (Lavender+Linh) [`bc-aab10947`](bc-aab10947-ebfa-5db2-b2a5-752d87110018).
 - **After LIVE advances:** Oran Publish demos + `deploy:smoke`.
 - [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Full board kept (no stub).
