@@ -91,6 +91,7 @@ export function TalentMaxBuilderMount({
   workspacePlan = null,
   talentDisplayName = null,
   locale,
+  onExit,
   canvasRenderData = null,
   initialComposition = null,
   sitePages,
@@ -158,6 +159,10 @@ export function TalentMaxBuilderMount({
         canInsertRawHtmlElements={false}
         canvasRenderData={canvasRenderData}
         initialComposition={initialComposition}
+        // "lab" exit so the talent topbar Exit returns to My presence (soft nav
+        // out of a bare builder still reloads into the shell via the syncer).
+        headerVariant={onExit ? "lab" : "live"}
+        onExit={onExit}
       />
       </FirstPaintTipBottomProvider>
 </TalentAiTranslateProvider>

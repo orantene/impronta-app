@@ -92,7 +92,12 @@ export function TalentPageBuilderScreen({
   const router = useRouter();
 
   const handleExit = useCallback(() => {
-    // Back to the talent "My site" dashboard surface.
+    // Hard nav: a bare page-builder layout does not remount into the talent
+    // shell on soft push (see TalentPageRouteSyncer reloadIntoShellOnce).
+    if (typeof window !== "undefined") {
+      window.location.assign("/talent/site");
+      return;
+    }
     router.push("/talent/site");
   }, [router]);
 
