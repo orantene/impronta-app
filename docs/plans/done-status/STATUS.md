@@ -1,1 +1,1 @@
-PLACEHOLDER
+FILE_CONTENT_FROM_/tmp/mcp-create-args.json
