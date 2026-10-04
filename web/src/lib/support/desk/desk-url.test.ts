@@ -7,6 +7,7 @@ import {
   supportDeskHref,
   supportDeskOpenFromHqHref,
   supportDeskPortalRedirectHref,
+  supportDeskPostAuthDestination,
 } from "./desk-url";
 
 describe("desk-url", () => {
@@ -49,5 +50,28 @@ describe("desk-url", () => {
     } else {
       assert.match(href, /^https:\/\/support\.tulala\.digital\/desk\?/);
     }
+  });
+
+  it("post-auth remap sends /admin and / to /desk on Desk hosts only", () => {
+    assert.equal(
+      supportDeskPostAuthDestination("/admin", "support.tulala.digital"),
+      "/desk",
+    );
+    assert.equal(
+      supportDeskPostAuthDestination("/admin?x=1", "support.tulala.digital"),
+      "/desk?x=1",
+    );
+    assert.equal(
+      supportDeskPostAuthDestination("/", "desk.tulala.digital"),
+      "/desk",
+    );
+    assert.equal(
+      supportDeskPostAuthDestination("/desk", "support.tulala.digital"),
+      "/desk",
+    );
+    assert.equal(
+      supportDeskPostAuthDestination("/admin", "app.tulala.digital"),
+      "/admin",
+    );
   });
 });

@@ -313,6 +313,11 @@ test("post-auth redirects cross-role dashboard targets to the user's home", () =
   assert.equal(resolvePostAuthDestination(activeAgencyStaff, "/impronta/talent"), "/admin");
   assert.equal(resolvePostAuthDestination(activeClient, "/impronta/admin/site"), "/client");
   assert.equal(resolvePostAuthDestination(activeTalent, "/impronta/admin/site"), "/talent");
+  // Support Desk: platform admins may keep next=/desk through login.
+  assert.equal(resolvePostAuthDestination(activeAdmin, "/desk"), "/desk");
+  assert.equal(resolvePostAuthDestination(activeAdmin, "/desk?view=insights"), "/desk?view=insights");
+  assert.equal(resolvePostAuthDestination(activeAgencyStaff, "/desk"), "/admin");
+  assert.equal(resolvePostAuthDestination(activeTalent, "/desk"), "/talent");
 });
 
 test("post-auth honors public and locale-prefixed directory paths", () => {

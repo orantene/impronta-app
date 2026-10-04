@@ -22,6 +22,7 @@ import { resolveTenantContext, HOST_CONTEXT_HEADER, HOST_NAME_HEADER, HOST_TENAN
 import { offRosterTalentResponse } from "@/lib/saas/off-roster-talent-gate";
 import { suspendedWorkspaceResponse } from "@/lib/saas/suspended-workspace-gate";
 import {
+  supportDeskAdminRedirectResponse,
   supportDeskHostDeadResponse,
   supportDeskHostSurfaceResponse,
 } from "@/lib/support/desk-host";
@@ -198,6 +199,13 @@ export async function proxy(request: NextRequest) {
   {
     const deskDead = supportDeskHostDeadResponse(request, hostContext.hostname);
     if (deskDead) return deskDead;
+    // /admin bookmarks → /desk before the surface 404 (app.tulala /admin intact).
+    const deskAdmin = supportDeskAdminRedirectResponse(
+      request,
+      pathname,
+      hostContext.hostname,
+    );
+    if (deskAdmin) return deskAdmin;
     const deskSurface = supportDeskHostSurfaceResponse(
       request,
       pathname,

@@ -73,3 +73,38 @@ export function isSupabaseAuthCookie(name: string): boolean {
   if (!name.startsWith("sb-")) return false;
   return name.includes("-auth-token") || name.includes("-code-verifier");
 }
+
+/** Parent domains we may need to expire when Desk writes host-only auth. */
+export const SHARED_AUTH_COOKIE_PARENTS = SHARED_COOKIE_PARENTS;
+
+type CookieSetter = {
+  set: (
+    name: string,
+    value: string,
+    options?: {
+      maxAge?: number;
+      path?: string;
+      domain?: string;
+      sameSite?: "lax" | "strict" | "none";
+      httpOnly?: boolean;
+      secure?: boolean;
+    },
+  ) => unknown;
+};
+
+/**
+ * Expire parent-domain Supabase auth cookies (`.tulala.digital` / `.lvh.me`)
+ * so a host-only Desk session is not shadowed by an app/talent session.
+ * Call only on Support Desk hosts — never widens Desk cookies.
+ */
+export function expireParentDomainAuthCookies(
+  cookieJar: CookieSetter,
+  names: Iterable<string>,
+): void {
+  for (const name of names) {
+    if (!isSupabaseAuthCookie(name)) continue;
+    for (const domain of SHARED_COOKIE_PARENTS) {
+      cookieJar.set(name, "", { maxAge: 0, path: "/", domain });
+    }
+  }
+}

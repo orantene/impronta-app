@@ -21,6 +21,11 @@ import { createTranslator } from "@/i18n/messages";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+import {
+  clearParentDomainAuthCookiesOnDeskHost,
+  deskRequestHost,
+} from "@/lib/support/desk/desk-auth-cookies";
+import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
 import { claimGuestSupportOnAuth } from "@/lib/support/guest-claim-auth";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { headers } from "next/headers";
@@ -207,12 +212,17 @@ export async function signInWithEmail(
   }
 
   revalidatePath("/", "layout");
+  await clearParentDomainAuthCookiesOnDeskHost();
   // Host-safe: the post-auth destination (/admin, /client, /onboarding/role)
   // does not exist on the marketing apex or the hub, where this form is also
-  // served. A relative redirect there is a hard 404.
+  // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
+  const deskHost = await deskRequestHost();
   redirect(
     await hostSafeRedirectDestination(
-      resolvePostAuthDestination(profileData, nextPath),
+      supportDeskPostAuthDestination(
+        resolvePostAuthDestination(profileData, nextPath),
+        deskHost,
+      ),
     ),
   );
 }
@@ -367,12 +377,17 @@ export async function signUpWithEmail(
   const profileData = user
     ? await loadAccessProfile(supabase, user.id)
     : null;
+  await clearParentDomainAuthCookiesOnDeskHost();
   // Host-safe: the post-auth destination (/admin, /client, /onboarding/role)
   // does not exist on the marketing apex or the hub, where this form is also
-  // served. A relative redirect there is a hard 404.
+  // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
+  const deskHost = await deskRequestHost();
   redirect(
     await hostSafeRedirectDestination(
-      resolvePostAuthDestination(profileData, nextPath),
+      supportDeskPostAuthDestination(
+        resolvePostAuthDestination(profileData, nextPath),
+        deskHost,
+      ),
     ),
   );
 }

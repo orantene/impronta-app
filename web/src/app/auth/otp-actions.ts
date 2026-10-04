@@ -45,6 +45,11 @@ import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
 import { promoteFreshProfileToTalent } from "@/lib/auth/promote-talent-signup";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+import {
+  clearParentDomainAuthCookiesOnDeskHost,
+  deskRequestHost,
+} from "@/lib/support/desk/desk-auth-cookies";
+import { supportDeskPostAuthDestination } from "@/lib/support/desk/desk-url";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
@@ -344,11 +349,17 @@ export async function submitEmailCode(
   }
 
   revalidatePath("/", "layout");
+  await clearParentDomainAuthCookiesOnDeskHost();
   // Host-safe: /client and /onboarding/* do not exist on the marketing apex or
   // the hub, where this form is also served. A relative redirect there is a 404.
+  // On Desk hosts, /admin → /desk.
+  const deskHost = await deskRequestHost();
   redirect(
     await hostSafeRedirectDestination(
-      resolvePostAuthDestination(profileData, nextPath),
+      supportDeskPostAuthDestination(
+        resolvePostAuthDestination(profileData, nextPath),
+        deskHost,
+      ),
     ),
   );
 }
