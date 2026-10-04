@@ -280,6 +280,25 @@ export function PresenceProvider({
     selfRef.current = self;
   }, [self]);
 
+  // Channel ref so we can re-track when async auth resolves (selfId/selfName)
+  // without tearing down the Realtime subscription.
+  const channelRef = useRef<{
+    track: (payload: {
+      tabId: string;
+      userId: string | null;
+      name: string;
+    }) => Promise<unknown>;
+  } | null>(null);
+
+  // Keep the local self entry in sync when auth meta arrives; peers learn via
+  // the re-track effect below.
+  useEffect(() => {
+    setEditors((prev) => {
+      const rest = prev.filter((e) => !e.isSelf);
+      return [self, ...rest];
+    });
+  }, [self]);
+
   const buildEditorList = useCallback(
     (
       presenceState: Record<
@@ -312,6 +331,7 @@ export function PresenceProvider({
 
   useEffect(() => {
     if (!pageId) {
+      channelRef.current = null;
       setEditors([selfRef.current]);
       setOnline(false);
       return;
@@ -325,6 +345,7 @@ export function PresenceProvider({
     }
 
     if (!supa) {
+      channelRef.current = null;
       setEditors([selfRef.current]);
       setOnline(false);
       return;
@@ -336,6 +357,7 @@ export function PresenceProvider({
     const channel = supa.channel(channelName, {
       config: { presence: { key: tabId } },
     });
+    channelRef.current = channel;
 
     channel
       .on("presence", { event: "sync" }, () => {
@@ -372,6 +394,7 @@ export function PresenceProvider({
 
     return () => {
       setOnline(false);
+      channelRef.current = null;
       try {
         void channel.untrack();
         void supa!.removeChannel(channel);
@@ -380,6 +403,21 @@ export function PresenceProvider({
       }
     };
   }, [pageId, locale, tabId, buildEditorList]);
+
+  // Re-track when async auth resolves so peers see a real userId instead of
+  // the pre-auth null/"You" payload (and our own other tabs group correctly).
+  useEffect(() => {
+    const channel = channelRef.current;
+    if (!channel || !online) return;
+    if (!self.userId && self.name === "You") return;
+    void channel
+      .track({
+        tabId,
+        userId: self.userId,
+        name: self.name,
+      })
+      .catch(() => undefined);
+  }, [self.userId, self.name, tabId, online]);
 
   const value = useMemo<PresenceContextValue>(() => {
     const others = editors.filter((e) => !e.isSelf);

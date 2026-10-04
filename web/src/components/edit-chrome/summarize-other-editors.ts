@@ -1,8 +1,15 @@
 /**
  * Collapse presence peers into "other people" vs "my other tabs".
  *
- * Ghost tracks with the default self label ("You") and no userId used to land
- * in peopleNames, producing the LIVE banner "You is also editing this page".
+ * Grouping is by auth userId. Display-name matching is intentionally NOT used
+ * once this tab's auth has resolved — a peer can legitimately publish
+ * `userId: null` + default name "You" before their async getUser() completes,
+ * and hiding them would conceal a real co-editor.
+ *
+ * While THIS tab is still unresolved (`myUserId` null), null-ID peers named
+ * "You" are treated as our own pre-auth tracks (the alone-on-page ghost that
+ * produced "You is also editing this page"). PresenceProvider re-tracks once
+ * auth resolves so other tabs of ours pick up a real userId shortly after.
  */
 
 export type PresenceEditorLike = {
@@ -18,7 +25,6 @@ export function summarizeOtherEditors(
 ): { peopleNames: string[]; myOtherTabs: number } {
   const self = editors.find((e) => e.isSelf) ?? null;
   const myUserId = self?.userId ?? null;
-  const selfName = self?.name ?? null;
   const peopleById = new Map<string, string>();
   let myOtherTabs = 0;
   for (const o of others) {
@@ -26,12 +32,8 @@ export function summarizeOtherEditors(
       myOtherTabs += 1;
       continue;
     }
-    // Unresolved / ghost self tracks: name "You" (or our current selfName)
-    // with no userId — count as another tab of ours, never as a stranger.
-    if (
-      !o.userId &&
-      (o.name === "You" || (selfName != null && o.name === selfName))
-    ) {
+    // Pre-auth race only: both sides unresolved + default self label.
+    if (!o.userId && !myUserId && o.name === "You") {
       myOtherTabs += 1;
       continue;
     }

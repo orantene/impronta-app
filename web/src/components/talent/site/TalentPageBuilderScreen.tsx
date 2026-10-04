@@ -94,6 +94,8 @@ export function TalentPageBuilderScreen({
   const handleExit = useCallback(() => {
     // Hard nav: a bare page-builder layout does not remount into the talent
     // shell on soft push (see TalentPageRouteSyncer reloadIntoShellOnce).
+    // Draft flush happens in LabExitButton before this callback runs — do not
+    // assign here without that await (750ms autosave window / no keepalive).
     if (typeof window !== "undefined") {
       window.location.assign("/talent/site");
       return;

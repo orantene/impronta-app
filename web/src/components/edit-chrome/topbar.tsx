@@ -2719,19 +2719,43 @@ function ShareButton({
  * Alternative exit button for the `"lab"` header variant.
  * Calls a JS callback instead of submitting the server-action form, so it
  * works when there's no live-site storefront to navigate back to.
+ *
+ * Always awaits `flushBuilderTreeSave` before invoking `onExit` — talent Exit
+ * hard-navs away, and the 750ms autosave window has no keepalive fallback for
+ * the talent-page adapter (same contract as TalentBackLink / ExitForm).
  */
 function LabExitButton({
   onExit,
-  exitLabel = "Exit",
+  exitLabel,
 }: {
   onExit?: () => void;
   exitLabel?: string;
 }) {
+  const editCtx = useMaybeEditContext();
+  const { t } = useEditorLocale();
+  // Default "Exit" goes through editor i18n ("Salir" in es). Callers that pass
+  // a custom label (lab/theme surfaces) keep it verbatim — those strings are
+  // already localized at the call site.
+  const label = exitLabel && exitLabel !== "Exit" ? exitLabel : t("Exit");
+  const exitingRef = useRef(false);
+  const handleClick = () => {
+    if (!onExit || exitingRef.current) return;
+    const go = () => {
+      exitingRef.current = false;
+      onExit();
+    };
+    if (!editCtx) {
+      go();
+      return;
+    }
+    exitingRef.current = true;
+    void editCtx.flushBuilderTreeSave().catch(() => undefined).finally(go);
+  };
   return (
     <TbTextBtn
       type="button"
-      onClick={onExit}
-      title={exitLabel}
+      onClick={handleClick}
+      title={label}
     >
       <svg
         width={TB_ICON_PX}
@@ -2747,7 +2771,7 @@ function LabExitButton({
         <line x1="19" y1="12" x2="5" y2="12" />
         <polyline points="12 19 5 12 12 5" />
       </svg>
-      {exitLabel}
+      {label}
     </TbTextBtn>
   );
 }
