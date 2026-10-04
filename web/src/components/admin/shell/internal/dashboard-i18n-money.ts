@@ -149,4 +149,27 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "deposit $300": "anticipo $300",
   "Keeps her Fri 25 16:00 hold. Link ends with the hold at 11:40. If unpaid, nothing is owed and the time is released.": "Mantiene su apartado del vie 25 16:00. El enlace termina con el apartado a las 11:40. Si no paga, no se debe nada y se libera la hora.",
   "Hand model job Sat 26. Impronta pays 30 days after the job (by Mon 26 Oct). Not counted in Outstanding from clients.": "Trabajo de modelo de manos sáb 26. Impronta paga 30 días después (antes del lun 26 oct). No cuenta en Pendiente de clientas.",
+  // Talent PayoutsShell (Connect) — A3 ES localization.
+  "Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.":
+    "Cobra tus reservas directo en tu banco. Stripe maneja los datos bancarios y la verificación de identidad; nosotros nunca los vemos.",
+  "Loading your payout status…": "Cargando el estado de tus depósitos…",
+  "All set. Your bank is connected and ready for payouts.": "Listo. Tu banco está conectado y listo para depósitos.",
+  "Status refreshed.": "Estado actualizado.",
+  "Connect your bank": "Conecta tu banco",
+  "Done for now": "Listo por ahora",
+  "One quick thing": "Una cosa rápida",
+  "Please select your country of residence": "Selecciona tu país de residencia",
+  "This is where you bank and get paid. We'll save it to your profile for tax and payout routing.":
+    "Aquí es donde tienes tu banco y recibes pagos. Lo guardamos en tu perfil para impuestos y el enrutamiento de depósitos.",
+  "Select your country…": "Selecciona tu país…",
+  "Setting up…": "Configurando…",
+  "You're set up to get paid": "Ya estás lista para cobrar",
+  "Your share of each booking lands in your bank automatically.": "Tu parte de cada reserva llega a tu banco automáticamente.",
+  "Update bank or payout details": "Actualizar banco o datos de depósito",
+  "Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.":
+    "Conecta tu banco para recibir depósitos de reservas. Toma unos minutos y Stripe verifica tu identidad y tu banco de forma segura.",
+  "More ways to get paid": "Más formas de cobrar",
+  "Get paid to your local bank, anywhere": "Cobra en tu banco local, en cualquier país",
+  "When a client pays for a booking you're on, your share transfers to you automatically, on Stripe's standard schedule (typically 2 business days). You file your own taxes, and we hand you the year-end summary.":
+    "Cuando un cliente paga una reserva tuya, tu parte se transfiere sola según el calendario estándar de Stripe (por lo general 2 días hábiles). Tú presentas tus impuestos y nosotros te damos el resumen de fin de año.",
 };
