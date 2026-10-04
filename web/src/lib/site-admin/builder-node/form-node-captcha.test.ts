@@ -134,13 +134,50 @@ test("talent and share freeform renderers thread resolveTenantCaptcha", () => {
     );
     assert.match(
       src,
-      /captcha:\s*(pageCaptcha|captchaConfig)/,
+      /captcha:\s*(pageCaptcha|captchaConfig|formCaptchaConfig)/,
       `${rel} must pass captcha into the renderer`,
     );
     assert.match(
       src,
       /visitorLocale:\s*locale/,
       `${rel} must pass visitorLocale so the widget matches the page language`,
+    );
+  }
+});
+
+test("talent Max/freeform guest captcha respects HQ enforcement switch", () => {
+  const webRoot = join(__dirname, "../../../..");
+  const files = [
+    "src/lib/talent-site/server/render-max-site.tsx",
+    "src/components/talent/site/TalentSiteFreeformRenderer.tsx",
+    "src/app/t/[profileCode]/[pageSlug]/page.tsx",
+  ];
+  for (const rel of files) {
+    const src = readFileSync(join(webRoot, rel), "utf8");
+    assert.match(
+      src,
+      /isGuestCaptchaEnforced/,
+      `${rel} must honor platform_settings.guest_captcha_enforced on guest book chrome`,
+    );
+    assert.match(
+      src,
+      /bookingCaptchaConfig/,
+      `${rel} must build a booking-only captcha config`,
+    );
+    assert.match(
+      src,
+      /bookingCaptcha:\s*bookingCaptchaConfig/,
+      `${rel} must pass bookingCaptcha (not form captcha) into the booking gate`,
+    );
+    assert.match(
+      src,
+      /formCaptchaConfig/,
+      `${rel} must keep CMS form captcha ungated by HQ`,
+    );
+    assert.match(
+      src,
+      /splitGuestCaptchaConfigs/,
+      `${rel} must split form vs booking captcha via splitGuestCaptchaConfigs`,
     );
   }
 });

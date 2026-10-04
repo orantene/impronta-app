@@ -519,7 +519,20 @@ export interface BuilderNodeRenderOptions {
   // widget sends no token and EVERY submission is rejected — which is exactly
   // what happened to improntamodels.com on 2026-08-16. Keying render and
   // enforcement off the same tenant signal makes them impossible to diverge.
+  //
+  // Do NOT gate this on `platform_settings.guest_captcha_enforced` — that HQ
+  // switch is booking-only. CMS form submit still demands a token when the
+  // tenant has a provider.
   captcha?: {
+    provider: "hcaptcha" | "turnstile" | "none";
+    siteKey: string | null;
+  } | null;
+  // Guest booking sheet captcha (`services_catalog` → CatalogBookingSheet).
+  // Callers that honor HQ `guest_captcha_enforced` pass null / provider none
+  // here when OFF so Continuar al pago skips the challenge; leave `captcha`
+  // alone so CMS forms keep their widget. Absent → falls back to `captcha`
+  // for callers that have not split the two yet.
+  bookingCaptcha?: {
     provider: "hcaptcha" | "turnstile" | "none";
     siteKey: string | null;
   } | null;
@@ -6017,7 +6030,7 @@ function renderBuilderNodeElement(
                 categoryShowAll={p.categoryShowAll === true}
                 categoryShowCounts={p.categoryShowCounts === true}
                 enableCatalogSearch={p.enableCatalogSearch === true}
-                captcha={options.captcha ?? null}
+                captcha={options.bookingCaptcha ?? options.captcha ?? null}
                 bookingSettings={options.dataSources.talentOfferingsBookingSettings}
                 onlineCollectReady={options.dataSources.onlineCollectReady}
                 matrix={layout === "matrix"}
@@ -9011,6 +9024,8 @@ function normalizeBuilderNodeRenderOptions(
     // Absent in lighter contexts (tests, tenant-less previews) → the `form`
     // node renders no widget, exactly as before this option existed.
     captcha: options.captcha ?? null,
+    // Booking sheet only — null when HQ guest captcha is OFF (or unset).
+    bookingCaptcha: options.bookingCaptcha ?? null,
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
     includeRendererStyles: options.includeRendererStyles ?? true,
