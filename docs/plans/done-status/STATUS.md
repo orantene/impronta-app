@@ -232,7 +232,7 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 | paid-qa-then-captcha-on | **done** — Soft Gel **Preview** inquiry Checkout **PAID** `cs_test_` `/pay/98fy` + dock Paid stamp (`qa-stripe-r2`); captcha OFF+ON **LIVE PASS**; #2525 prod FF `2982c647`/`dpl_9Jkax` READY — Live HTML still `bc4ef` (**alias pending**); **#45 stays ❌** · **no Soft Gel LIVE ✅ until HTML** |
 | built-vs-live | **completed** |
 | part-b-decision-memo | **completed** |
-| part-b-unify-prove | **done** — Preview Soft Gel Capture+Solicitar + `/pay/98fy` Checkout **PAID** + dock Paid stamp (`qa-stripe-r2`, `cs_test_`) — **Preview only**; #2525 **MERGED** `2982c647` — LIVE tip awaits promote (`bc-59902e50`); Live still `bc4ef146` |
+| part-b-unify-prove | **done** — Preview Soft Gel Capture+Solicitar + `/pay/98fy` Checkout **PAID** + dock Paid stamp (`qa-stripe-r2`, `cs_test_`) — **Preview only**; #2525 prod FF `2982c647`/`dpl_9Jkax` — Live HTML still `bc4ef146` pending alias |
 | theme-release-fresh-signup | **completed** — #2516 tip-prove PASS TAL-93937 (`media/theme-release-signup/`) |
 
 ## Changes since last update
