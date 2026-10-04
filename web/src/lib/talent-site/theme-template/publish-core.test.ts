@@ -221,12 +221,18 @@ test("every KNOWN_PLACEHOLDER really hydrates (drift guard against default-talen
   const talent = new Proxy({} as Record<string, unknown>, {
     get: (_t, k) => (k === "gallery" ? ["G", "G", "G", "G", "G", "G"] : "Z"),
   }) as unknown as TalentProfileTokens;
+  // Maison rich-footer tokens ship with liveText (footer_intro…); render fills
+  // them via live-text.ts, not hydrateTalentTree. Still allow-listed so publish
+  // preflight accepts the catalog footer.
+  const liveTextOnly = new Set(["footerIntro", "footerWhere", "footerHours", "footerContact"]);
+  for (const name of liveTextOnly) assert.ok(KNOWN_PLACEHOLDERS.has(name), name);
   for (const name of KNOWN_PLACEHOLDERS) {
     if (name === "year") {
       const y = resolveYearToken([{ id: "y", kind: "paragraph", props: { text: "{{year}}" } } as unknown as BuilderNode], 2026);
       assert.equal((y[0]!.props as { text: string }).text, "2026");
       continue;
     }
+    if (liveTextOnly.has(name)) continue;
     const tree = [{ id: "p", kind: "paragraph", props: { text: `{{${name}}}` } } as unknown as BuilderNode];
     const out = hydrateTalentTree(tree, talent);
     const text = (out[0]?.props as { text?: string } | undefined)?.text ?? "";
