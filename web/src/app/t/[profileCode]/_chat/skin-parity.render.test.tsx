@@ -168,6 +168,54 @@ for (const { name, card } of SKINS) {
     );
     assert.match(html, /Tu oferta/);
   });
+
+  // ── B3 capability matrix (01-capability-matrix.md) — same assertions both skins ──
+
+  test(`[${name}] B3 pay: unpaid payment_request shows Pay CTA (/pay) and data-guest-pay=due`, () => {
+    const m = {
+      ...row("pay1", "staff", "$800 MXN"),
+      kind: "payment_request",
+      cardPayload: { state: "open", amount_label: "$800 MXN", paymentLinkCode: "paytest1", checkout_type: "full" },
+    } as StreamRow;
+    const html = renderToStaticMarkup(
+      <MiniChatMessageBubble m={m} accent="#2b8a63" locale="es" surfaceMode={card ? "card" : "light"} />,
+    );
+    assert.match(html, /data-guest-pay="due"/);
+    assert.match(html, /href="\/pay\/paytest1"/);
+    assert.match(html, /Pago|Payment/);
+  });
+
+  test(`[${name}] B3 pay: PAID stamp flips without a hard remount (data-guest-pay=paid, no /pay CTA)`, () => {
+    const m = {
+      ...row("pay2", "staff", "$800 MXN"),
+      kind: "payment_paid",
+      cardPayload: { state: "paid", amount_label: "$800 MXN", paymentLinkCode: "paytest1", checkout_type: "full" },
+    } as StreamRow;
+    const html = renderToStaticMarkup(
+      <MiniChatMessageBubble m={m} accent="#2b8a63" locale="es" surfaceMode={card ? "card" : "light"} />,
+    );
+    assert.match(html, /data-guest-pay="paid"/);
+    assert.match(html, /Pagado/);
+    assert.doesNotMatch(html, /href="\/pay\//);
+  });
+
+  test(`[${name}] B3 offers: offer_event keeps the scroll anchor for Review-it`, () => {
+    const m = {
+      ...row("off1", "staff", "Oferta lista"),
+      kind: "offer_event",
+      cardPayload: { lines: [{ label: "Gel", clientPriceLabel: "$500" }] },
+    } as StreamRow;
+    const html = renderToStaticMarkup(
+      <MiniChatMessageBubble m={m} accent="#2b8a63" locale="es" surfaceMode={card ? "card" : "light"} />,
+    );
+    assert.match(html, /data-guest-offer-anchor="true"/);
+    assert.match(html, /Oferta lista/);
+  });
+
+  test(`[${name}] B3 identity: brand / talent voice still labels the open thread`, () => {
+    const html = column(card);
+    assert.match(html, /Valeria Unas|Valeria/);
+  });
 }
 
 // ── architecture guard ───────────────────────────────────────────────────────
