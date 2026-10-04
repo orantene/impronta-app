@@ -43,12 +43,10 @@ import {
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
-import {
-  designTokensToCssVars,
-  designTokensToDataAttrs,
-} from "@/lib/site-admin/tokens/resolve";
+import { designTokensToCssVars, designTokensToDataAttrs } from "@/lib/site-admin/tokens/resolve";
 import { GoogleFontsLink } from "@/app/google-fonts-link";
 import { TypeSystemStyle } from "@/lib/talent-site/theme-catalog/collection/design-type-system-style";
 import { designTokenDefaults } from "@/lib/talent-site/theme-catalog/collection/design-token-defaults";
@@ -463,7 +461,7 @@ async function renderMaxSiteDocument(args: {
   // resolve captcha even if the tree scan missed a nested catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, talentOfferings, liveStatusRow, askVisible] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale, null, talentProfileId)
@@ -490,6 +488,7 @@ async function renderMaxSiteDocument(args: {
       resolveCaptcha && bookingTenantId
         ? resolveTenantCaptcha(bookingTenantId)
         : Promise.resolve(null),
+      isGuestCaptchaEnforced(),
       // D-MSG-421 — vanity hosts never went through profile-storefront-payload,
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is
       // the talent's own site, not an agency storefront.
@@ -527,9 +526,8 @@ async function renderMaxSiteDocument(args: {
     liveStatus,
   };
 
-  const captchaConfig = pageCaptcha
-    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-    : null;
+  const captchaConfig =
+    pageCaptcha && captchaEnforced ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey } : null;
 
   const renderSectionEmbed = tenantId
     ? makeSectionEmbedRenderer({

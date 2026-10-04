@@ -47,6 +47,7 @@ import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/build
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   designTokensToCssVars,
@@ -147,7 +148,7 @@ export default async function PublicTalentFreeformPage({
   // Data sources (bound media, collections, directory) + live component
   // instances — only load when the tree actually binds them AND a managing
   // tenant exists (the loaders are tenant-scoped service-role reads).
-  const [dataSources, components, tenantComponentStyleDefaults, pageCaptcha] =
+  const [dataSources, components, tenantComponentStyleDefaults, pageCaptcha, captchaEnforced] =
     await Promise.all([
       tenantId
         ? loadBuilderNodeDataSources(blocks, tenantId, locale)
@@ -161,11 +162,13 @@ export default async function PublicTalentFreeformPage({
       tenantId && pageHasFormNode
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
+      isGuestCaptchaEnforced(),
     ]);
 
-  const captchaConfig = pageCaptcha
-    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-    : null;
+  const captchaConfig =
+    pageCaptcha && captchaEnforced
+      ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+      : null;
 
   // Curated section_embed nodes need a tenant render context. The managing
   // agency tenant scopes credentials/host; previewSubject points the curated

@@ -15,6 +15,7 @@ import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -95,7 +96,7 @@ export async function TalentSiteFreeformRenderer({
   // service-role reads). Empty objects are the no-op default. The platform-
   // default theme provides componentStyleDefaults + tokens (light Modern 2026)
   // so the page renders at parity with the published talent freeform page.
-  const [dataSources, components, platformDefault, experimentContext, pageCaptcha] =
+  const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced] =
     await Promise.all([
       presetDataSources
         ? Promise.resolve(presetDataSources)
@@ -115,11 +116,13 @@ export async function TalentSiteFreeformRenderer({
       tenantId && pageHasFormNode
         ? resolveTenantCaptcha(tenantId)
         : Promise.resolve(null),
+      isGuestCaptchaEnforced(),
     ]);
 
-  const captchaConfig = pageCaptcha
-    ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
-    : null;
+  const captchaConfig =
+    pageCaptcha && captchaEnforced
+      ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+      : null;
 
   // Curated section_embed nodes need a tenant render context. previewSubject
   // points the curated sections at THIS talent. NOTE: the default tree is

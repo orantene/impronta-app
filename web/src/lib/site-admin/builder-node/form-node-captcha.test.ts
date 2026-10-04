@@ -144,3 +144,25 @@ test("talent and share freeform renderers thread resolveTenantCaptcha", () => {
     );
   }
 });
+
+test("talent Max/freeform guest captcha respects HQ enforcement switch", () => {
+  const webRoot = join(__dirname, "../../../..");
+  const files = [
+    "src/lib/talent-site/server/render-max-site.tsx",
+    "src/components/talent/site/TalentSiteFreeformRenderer.tsx",
+    "src/app/t/[profileCode]/[pageSlug]/page.tsx",
+  ];
+  for (const rel of files) {
+    const src = readFileSync(join(webRoot, rel), "utf8");
+    assert.match(
+      src,
+      /isGuestCaptchaEnforced/,
+      `${rel} must honor platform_settings.guest_captcha_enforced on guest book chrome`,
+    );
+    assert.match(
+      src,
+      /captchaEnforced/,
+      `${rel} must gate captchaConfig on captchaEnforced`,
+    );
+  }
+});
