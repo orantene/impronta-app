@@ -32,8 +32,9 @@ export type AgendaCommercialCandidate = Pick<
 >;
 
 /**
- * Prefer a booking_talent leg for this talent; among those, prefer order then
- * revenue so Soft Gel commercial money wins over empty shells.
+ * Only commercial rows this talent is on (booking_talent). Never fall back to
+ * every booking sharing the inquiry — that can mint against someone else's row.
+ * Among legs, prefer order then revenue so Soft Gel commercial money wins.
  */
 export function pickAgendaCommercialBooking(
   candidates: AgendaCommercialCandidate[],
@@ -41,9 +42,9 @@ export function pickAgendaCommercialBooking(
 ): AgendaCommercialCandidate | null {
   if (candidates.length === 0) return null;
   const onLeg = candidates.filter((c) => talentLegBookingIds.has(c.id));
-  const pool = onLeg.length > 0 ? onLeg : candidates;
+  if (onLeg.length === 0) return null;
   return (
-    [...pool].sort((a, b) => {
+    [...onLeg].sort((a, b) => {
       const aOrder = a.order_id ? 1 : 0;
       const bOrder = b.order_id ? 1 : 0;
       if (aOrder !== bOrder) return bOrder - aOrder;
@@ -53,6 +54,19 @@ export function pickAgendaCommercialBooking(
       );
     })[0] ?? null
   );
+}
+
+/**
+ * Amount still owed on the commercial booking id (ledger money-in subtracted).
+ * Callers must pass the agency_bookings id, never a diverged talent_bookings mirror.
+ */
+export function outstandingAgendaPayCents(input: {
+  totalClientRevenue: number | string | null;
+  paidCents: number;
+}): number {
+  const total = totalClientRevenueToCents(input.totalClientRevenue);
+  const paid = Math.max(0, Math.round(input.paidCents) || 0);
+  return Math.max(0, total - paid);
 }
 
 type AdminClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;

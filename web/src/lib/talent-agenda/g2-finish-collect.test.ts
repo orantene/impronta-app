@@ -85,6 +85,8 @@ describe("G2.1 / A0 finish-collect honesty", () => {
     assert.match(src, /resolveAgendaPayLinkBooking/);
     assert.match(src, /commercialBookingId/);
     assert.match(src, /bookingId:\s*commercialBookingId/);
+    assert.match(src, /outstandingAgendaPayCents/);
+    assert.match(src, /listLedger\(commercialBookingId\)/);
   });
 
   it("createAgendaBookingPayLink rewrites app origin onto a tenant /pay host", () => {

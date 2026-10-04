@@ -6,7 +6,10 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { pickAgendaCommercialBooking } from "./resolve-agenda-pay-booking";
+import {
+  outstandingAgendaPayCents,
+  pickAgendaCommercialBooking,
+} from "./resolve-agenda-pay-booking";
 
 describe("pickAgendaCommercialBooking", () => {
   it("prefers booking_talent leg with order + revenue over empty shells", () => {
@@ -30,7 +33,7 @@ describe("pickAgendaCommercialBooking", () => {
     assert.equal(picked?.id, "cd2d3c8e");
   });
 
-  it("falls back to highest-revenue candidate when no talent leg matches", () => {
+  it("returns not_found (null) when no talent leg matches — no inquiry-wide fallback", () => {
     const picked = pickAgendaCommercialBooking(
       [
         {
@@ -48,11 +51,27 @@ describe("pickAgendaCommercialBooking", () => {
       ],
       new Set(),
     );
-    assert.equal(picked?.id, "b");
+    assert.equal(picked, null);
   });
 
   it("returns null for an empty candidate list", () => {
     assert.equal(pickAgendaCommercialBooking([], new Set(["x"])), null);
+  });
+});
+
+describe("outstandingAgendaPayCents", () => {
+  it("subtracts commercial ledger paid from total_client_revenue (major → cents)", () => {
+    assert.equal(
+      outstandingAgendaPayCents({ totalClientRevenue: 500, paidCents: 200_00 }),
+      300_00,
+    );
+  });
+
+  it("clamps at zero when deposit already covers the total", () => {
+    assert.equal(
+      outstandingAgendaPayCents({ totalClientRevenue: 500, paidCents: 500_00 }),
+      0,
+    );
   });
 });
 
@@ -63,9 +82,12 @@ describe("createAgendaBookingPayLink mirror resolution contract", () => {
     const resolve = readFileSync(join(root, "resolve-agenda-pay-booking.ts"), "utf8");
     assert.match(actions, /resolveAgendaPayLinkBooking/);
     assert.match(actions, /commercialBookingId/);
+    assert.match(actions, /outstandingAgendaPayCents/);
+    assert.match(actions, /listLedger\(commercialBookingId\)/);
     assert.match(resolve, /source_inquiry_id/);
     assert.match(resolve, /talent_bookings/);
     assert.match(resolve, /booking_talent/);
     assert.match(resolve, /pickAgendaCommercialBooking/);
+    assert.match(resolve, /if \(onLeg\.length === 0\) return null/);
   });
 });

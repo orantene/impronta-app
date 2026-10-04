@@ -537,10 +537,26 @@ export async function createAgendaBookingPayLink(input: {
   if (!row.tenant_id) return { ok: false, reason: "no_tenant" };
   if (row.payment_status === "paid") return { ok: false, reason: "already_paid" };
 
-  const total = totalClientRevenueToCents(row.total_client_revenue);
-  const amountCents =
-    input.amountCents != null && input.amountCents > 0 ? input.amountCents : total;
-  if (amountCents <= 0) return { ok: false, reason: "invalid_amount" };
+  // Default mint amount = outstanding on the commercial id (not full revenue).
+  // UI dueCents is often 0/undefined when load joined by the diverged mirror id.
+  let amountCents =
+    input.amountCents != null && input.amountCents > 0 ? input.amountCents : 0;
+  if (amountCents <= 0) {
+    const { outstandingAgendaPayCents } = await import("./resolve-agenda-pay-booking");
+    const store = supabaseManualPaymentStore(admin);
+    let paidCents = 0;
+    try {
+      paidCents = sumMoneyIn(await store.listLedger(commercialBookingId));
+    } catch (err) {
+      logServerError("agenda.createPayLink.ledger", err);
+      return { ok: false, reason: "unavailable" };
+    }
+    amountCents = outstandingAgendaPayCents({
+      totalClientRevenue: row.total_client_revenue,
+      paidCents,
+    });
+  }
+  if (amountCents <= 0) return { ok: false, reason: "already_paid" };
 
   const shell = await ensureAgendaOrderShell(admin, {
     bookingId: commercialBookingId,
