@@ -1,10 +1,10 @@
-Updated: 2026-10-04 17:43Z · Scoreboard: ✅ 12 / 🟡 57 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 17:45Z · Scoreboard: ✅ 12 / 🟡 57 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
 **Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping from this agent. **Do not start a second worker** on in-flight agent files.
 Top 3 blockers right now
 1. **#45 fee-line** ❌ — prove on TAL-93900: seller-pays **$100** / client **$101.50**. Stay ❌ until live screenshots (money agent in-flight — do not steal).
-2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · Support Desk test handoff [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf) (Oran override — finish for testing; prefer gated path over global `SUPPORT_DESK_ENABLED` flip) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)/[#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535).
-3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Done: Free #55/#57/#59 ✅ · Lab #64/#65 ✅ + Publish demos v24 · `maison-v2-demo` LIVE 200. No Oran ping from board agent.
+2. **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · Support Desk test handoff [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf) (Oran override — finish for testing; prefer gated path over global `SUPPORT_DESK_ENABLED` flip) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)/[#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535) (structural CI still pending — do not merge yet).
+3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Done: Free #55/#57/#59 ✅ · Lab #64/#65 ✅ + Publish demos v24 · `maison-v2-demo` LIVE 200. Timer tip/`QA_JOR` blocked / old do-not-merge #2477 notes are stale. No Oran ping from board agent.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -177,7 +177,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | Open drafts owned: [#2477](https://github.com/orantene/impronta-app/pull/2477) → Support Desk handoff [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf) (Oran override). #2532/#2533/#2534/#2535 have active owners. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:43Z standing wake. Live=prod=main `15e65e2d5091`. **#94 ✅**. Free ✅ · Lab #64/#65 ✅ · maison-v2-demo LIVE. In-flight: money `bc-cbf5dc17` · inbox `bc-0d5f4b2c` · Desk `bc-867a8cbf` · #2532/#2534/#2535 — **no second worker**. #45 ❌. ✅12. No Oran ping from board. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:45Z standing wake. Live=prod=main `15e65e2d5091`. **#94 ✅**. Free ✅ · Lab #64/#65 ✅ · maison-v2-demo LIVE. In-flight: money `bc-cbf5dc17` · inbox `bc-0d5f4b2c` · Desk `bc-867a8cbf` · #2532/#2534/#2535 CI pending — **no second worker**. #45 ❌. ✅12. No Oran ping from board. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,8 +237,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 17:43Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without live screenshots.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. **Do not start a second worker.**
-**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Scoreboard ✅ 12 / 🟡 57.
+STATUS 2026-10-04 17:45Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without live screenshots.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. **Do not start a second worker.**
+**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. Timer tip `7d30bb9d1` stale — ignored. **#94 ✅**. Scoreboard ✅ 12 / 🟡 57.
 - **Done:** Free #55/#57/#59 ✅ · Lab #64/#65 ✅ + Publish demos v24 · `maison-v2-demo` LIVE 200.
-- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · Support Desk test handoff [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf) (Oran override — finish for testing; still prefer gated path over global `SUPPORT_DESK_ENABLED` flip) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)/[#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535).
-- **#45** ❌ still owed on money walk. #68 stays 🟡 (v24 demo screenshots). Desk reuse `bc-11e25be7` — do not steal.
+- **In-flight:** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Messages inbox [`bc-0d5f4b2c`](https://cursor.com/agents/bc-0d5f4b2c) · Support Desk test handoff [`bc-867a8cbf`](https://cursor.com/agents/bc-867a8cbf) (Oran override — finish for testing; prefer gated path; timer “do not merge #2477” is stale) · PRs [#2532](https://github.com/orantene/impronta-app/pull/2532)/[#2534](https://github.com/orantene/impronta-app/pull/2534)/[#2535](https://github.com/orantene/impronta-app/pull/2535) — structural CI still pending, do not merge yet.
+- Timer “S5/S7 blocked on `QA_JOR_CLONE_PASSWORD`” stale. Desk reuse `bc-11e25be7` — do not steal. **#45** ❌ still owed.
