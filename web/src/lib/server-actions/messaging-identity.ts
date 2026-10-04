@@ -57,8 +57,18 @@ export async function messagingMatchCustomers(input: {
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
   const gated = await messagingInquiryManager(parsed.data.inquiryId);
-  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
-  if (!g.ok) return g;
+  // Seller path: only her private pool (hub sellers share tenant_id). Managers
+  // keep the tenant-wide match they had before this seller fallback.
+  let g: Awaited<ReturnType<typeof messagingInquiryManager>> | Awaited<ReturnType<typeof talentSellerPaymentActor>>;
+  let ownerTalentProfileId: string | null = null;
+  if (gated.ok) {
+    g = gated;
+  } else {
+    const seller = await talentSellerPaymentActor(parsed.data.inquiryId);
+    if (!seller.ok) return seller;
+    g = seller;
+    ownerTalentProfileId = seller.talentProfileId;
+  }
   // D-MSG-336: tenants can exceed 200 customers. An unordered `.limit(200)`
   // missed the fixture customer (446 on journeys) so Same person? never
   // fired. Prefer identity-key lookup when email/phone is present; keep a
@@ -66,6 +76,9 @@ export async function messagingMatchCustomers(input: {
   const email = normalizeEmail(parsed.data.email);
   const phone = normalizePhoneE164(parsed.data.phone);
   let query = scoped(g.admin, "customers", g.tenantId).select("id, display_name, email, phone_e164");
+  if (ownerTalentProfileId) {
+    query = query.eq("owner_talent_profile_id", ownerTalentProfileId);
+  }
   if (email || phone) {
     const parts: string[] = [];
     if (email) parts.push(`email.eq.${email}`);
@@ -108,6 +121,8 @@ export async function messagingCaptureIdentity(input: {
   const gated = await messagingInquiryManager(parsed.data.inquiryId);
   const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
   if (!g.ok) return g;
+  // Capture links an already-chosen customerId; pool scoping is enforced on
+  // match + createClient (seller private pool vs manager agency pool).
   return callRpc(g.admin, "messaging_set_identity", {
     p_tenant_id: g.tenantId,
     p_inquiry_id: parsed.data.inquiryId,

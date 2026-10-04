@@ -125,11 +125,26 @@ export async function messagingCreateClientForThread(input: {
   if (!parsed.success) return fail("invalid");
   if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
   const gated = await messagingInquiryManager(parsed.data.inquiryId);
-  const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
-  if (!g.ok) return g;
+  // Seller path: talent-owned customer pool. Manager path: agency pool (null).
+  let g: Awaited<ReturnType<typeof messagingInquiryManager>> | Awaited<ReturnType<typeof talentSellerPaymentActor>>;
+  let ownerTalentProfileId: string | null = null;
+  if (gated.ok) {
+    g = gated;
+  } else {
+    const seller = await talentSellerPaymentActor(parsed.data.inquiryId);
+    if (!seller.ok) return seller;
+    g = seller;
+    ownerTalentProfileId = seller.talentProfileId;
+  }
   const { ensureCustomer } = await import("@/lib/customers/ensure-customer");
   const customer = await ensureCustomer(
-    { tenantId: g.tenantId, email: parsed.data.email ?? null, phone: parsed.data.phone ?? null, displayName: parsed.data.name },
+    {
+      tenantId: g.tenantId,
+      email: parsed.data.email ?? null,
+      phone: parsed.data.phone ?? null,
+      displayName: parsed.data.name,
+      ownerTalentProfileId,
+    },
     { admin: g.admin },
   );
   if (!customer.ok) return fail(customer.reason === "unavailable" ? "unavailable" : "invalid");

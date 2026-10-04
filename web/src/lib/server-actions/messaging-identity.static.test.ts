@@ -29,30 +29,35 @@ function sliceExport(src: string, name: string, nextNames: string[]) {
   return src.slice(startIdx, end);
 }
 
-function assertIdentityActorGate(body: string) {
+function assertSellerFallbackGate(body: string) {
   assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
   assert.match(body, /talentSellerPaymentActor\(parsed\.data\.inquiryId\)/);
-  assert.match(
-    body,
-    /const g = gated\.ok \? gated : await talentSellerPaymentActor\(parsed\.data\.inquiryId\)/,
-  );
   assert.doesNotMatch(body, /const g = await staff\(\)/);
 }
 
 test("messagingMatchCustomers gates via manager then talent seller", () => {
   const body = sliceExport(identity, "messagingMatchCustomers", ["messagingCaptureIdentity"]);
   assert.match(body, /inquiryId: string/);
-  assertIdentityActorGate(body);
+  assertSellerFallbackGate(body);
+  assert.match(body, /if \(gated\.ok\)/);
+  // Hub sellers share tenant_id — service-role match must stay in her pool.
+  assert.match(body, /ownerTalentProfileId = seller\.talentProfileId/);
+  assert.match(body, /\.eq\("owner_talent_profile_id", ownerTalentProfileId\)/);
 });
 
 test("messagingCaptureIdentity gates via manager then talent seller", () => {
   const body = sliceExport(identity, "messagingCaptureIdentity", []);
-  assertIdentityActorGate(body);
+  assertSellerFallbackGate(body);
 });
 
 test("messagingCreateClientForThread gates via manager then talent seller", () => {
   const body = sliceExport(start, "messagingCreateClientForThread", []);
-  assertIdentityActorGate(body);
+  assertSellerFallbackGate(body);
+  assert.match(body, /if \(gated\.ok\)/);
+  // Seller create → talent-owned pool; managers keep null ownership.
+  assert.match(body, /ownerTalentProfileId = seller\.talentProfileId/);
+  assert.match(body, /ownerTalentProfileId,/);
+  assert.match(body, /ensureCustomer\(/);
 });
 
 test("talentShellEngine wires real identity actions (not stubbed not_allowed)", () => {
