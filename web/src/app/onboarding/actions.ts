@@ -191,6 +191,21 @@ export async function chooseTalentRole(formData?: FormData): Promise<void> {
     }
     redirect(onboardingLoginPath(nextPath));
   }
+  // Mirror chooseClientRole: finish onboarding BEFORE leaving /onboarding/role.
+  // A bare redirect to /talent/profile/fields while account_status=onboarding is
+  // bounced straight back by auth-routing (fresh-signup role loop on prod).
+  const { supabase } = auth;
+  const { error } = await supabase.rpc("complete_talent_onboarding");
+  if (error) {
+    logServerError("onboarding/complete_talent_onboarding", error);
+    redirect("/onboarding/role?error=failed");
+  }
+  const jar = await cookies();
+  {
+    const refresh = buildAccessProfileRefreshCookie((await headers()).get("host"));
+    jar.set(refresh.name, refresh.value, refresh.options);
+  }
+  revalidatePath("/", "layout");
   redirect(talentLocationPath(nextPath));
 }
 

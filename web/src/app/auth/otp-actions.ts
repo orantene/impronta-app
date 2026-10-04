@@ -24,18 +24,25 @@
  * locale rides on `emailRedirectTo` as `?lang=` for the auth-email hook, and
  * tenant hosts get a workspace-activity audit row.
  *
- * Scope: client intent only. Operator and talent auth are untouched.
+ * Also used by password-signup confirmation (`SignupCodeConfirm`): when `next`
+ * is a talent signup path, promote client→talent before redirect.
  */
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { getAppUrl, normalizeNextPath, resolvePostAuthDestination } from "@/lib/auth-flow";
+import {
+  getAppUrl,
+  isTalentSignupNext,
+  normalizeNextPath,
+  resolvePostAuthDestination,
+} from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { createTranslator } from "@/i18n/messages";
 import { logServerError } from "@/lib/server/safe-error";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { promoteFreshProfileToTalent } from "@/lib/auth/promote-talent-signup";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
@@ -300,6 +307,7 @@ export async function submitEmailCode(
   }
 
   const user = data.user;
+  const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   if (user) {
     // First-confirm-wins guest-chat claim relink — the same mechanism the
     // emailed-link route runs, so a booker who types the code keeps the
@@ -309,6 +317,12 @@ export async function submitEmailCode(
     // Idempotent per revision; best effort, never blocks sign-in.
     if (String(formData.get("create") ?? "") === "1" && isAgeAndTermsConfirmed(formData.get("age_terms"))) {
       await recordSignupAcceptance(user.id);
+    }
+    // Talent password signup confirms through this same OTP action. Promote
+    // before resolving the post-auth destination when next is a talent signup
+    // path — otherwise a missing signup_intent leaves app_role=client.
+    if (isTalentSignupNext(nextPath)) {
+      await promoteFreshProfileToTalent(user.id);
     }
   }
 
@@ -329,7 +343,6 @@ export async function submitEmailCode(
     }
   }
 
-  const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   revalidatePath("/", "layout");
   // Host-safe: /client and /onboarding/* do not exist on the marketing apex or
   // the hub, where this form is also served. A relative redirect there is a 404.

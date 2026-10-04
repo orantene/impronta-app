@@ -2,6 +2,7 @@
 
 import {
   getAppUrl,
+  isTalentSignupNext,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -306,11 +307,9 @@ export async function signUpWithEmail(
   }
   const origin = getAppUrl();
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
-  // Talent-register flow: the modal passes next=/onboarding/talent-location.
-  // Tagging signup_intent in user metadata lets the handle_new_user trigger
-  // create the profile with app_role='talent' immediately, avoiding a brief
-  // window where a talent is misidentified as a client.
-  const signupIntent = nextPath.startsWith("/onboarding/talent") ? "talent" : undefined;
+  // Talent-register flow: `/register?as=talent` lands on `/talent/profile/fields`.
+  // Tagging signup_intent lets handle_new_user set app_role='talent' immediately.
+  const signupIntent = isTalentSignupNext(nextPath) ? "talent" : undefined;
   // Carry the page locale so the auth-email hook sends the confirm email in EN/ES.
   const lang = String(formData.get("locale") ?? "en") === "es" ? "es" : "en";
 

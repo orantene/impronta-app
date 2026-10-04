@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
   getAppUrl,
+  isTalentSignupNext,
   normalizeNextPath,
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
@@ -90,7 +91,9 @@ export async function GET(request: Request) {
       // metadata through the provider, so we promote here when the next path
       // indicates a talent onboarding intent and the profile is freshly created
       // (app_role='client', account_status='onboarding').
-      if (user && next.startsWith("/onboarding/talent")) {
+      // next used to be `/onboarding/talent-location`; live talent register now
+      // uses `/talent/profile/fields` — match both.
+      if (user && isTalentSignupNext(next)) {
         const admin = createServiceRoleClient();
         if (admin) {
           await admin
