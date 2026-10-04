@@ -4,8 +4,13 @@
  * A talent's site has two addresses:
  *   - the PATH address `/t/site/<slug>`, which is what exists today and stays
  *     the dev address and the redirect source, and
- *   - the HOST address `<slug>.tulala.digital`, which is what the site becomes
- *     once `TALENT_SITE_SUBDOMAINS_ENABLED` is on.
+ *   - the HOST address `<slug>.tulala.digital` (or `<slug>-demo.tulala.digital`
+ *     for demo profiles), which is what the site becomes once
+ *     `TALENT_SITE_SUBDOMAINS_ENABLED` is on.
+ *
+ * Demo convention (Oran, 2026-10-04): every demo talent's public host uses the
+ * `-demo` suffix — `https://{site_slug}-demo.tulala.digital`. `site_slug` itself
+ * stays unsuffixed (identity / path slug); only the host label gains `-demo`.
  *
  * Everything here is a pure string function so the host parser can be tested
  * against hostile input without a request. The parser is deliberately STRICT:
@@ -20,6 +25,9 @@
 
 /** DNS label: 1..63 chars, alphanumeric ends, hyphens allowed inside. */
 const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/** Public host suffix for `talent_profiles.is_demo = true` sites. */
+export const TALENT_DEMO_HOST_SUFFIX = "-demo" as const;
 
 /**
  * Roots under which a single label addresses a talent site.
@@ -47,23 +55,55 @@ export function isTalentSiteLabel(value: string | null | undefined): boolean {
 }
 
 /**
- * The host a slug is served at, e.g. `sofia-mendez.tulala.digital`.
+ * Host label for a site slug. Demo profiles publish at `{slug}-demo`; real
+ * talents keep `{slug}`. Returns null when the resulting label is not a usable
+ * DNS label (including when appending `-demo` would exceed 63 chars).
+ */
+export function talentSiteHostLabel(
+  slug: string | null | undefined,
+  opts: { isDemo?: boolean } = {},
+): string | null {
+  const base = (slug ?? "").trim();
+  if (!isTalentSiteLabel(base)) return null;
+  if (!opts.isDemo) return base;
+  const label = `${base}${TALENT_DEMO_HOST_SUFFIX}`;
+  return isTalentSiteLabel(label) ? label : null;
+}
+
+/**
+ * If `label` ends with `-demo`, return the base site slug; otherwise null.
+ * Does not prove the site is a demo — callers still check `is_demo`.
+ */
+export function stripTalentDemoHostSuffix(
+  label: string | null | undefined,
+): string | null {
+  const value = (label ?? "").trim().toLowerCase();
+  if (!value.endsWith(TALENT_DEMO_HOST_SUFFIX)) return null;
+  const base = value.slice(0, -TALENT_DEMO_HOST_SUFFIX.length);
+  return isTalentSiteLabel(base) ? base : null;
+}
+
+/**
+ * The host a slug is served at, e.g. `sofia-mendez.tulala.digital`, or
+ * `alba-nail-artist-demo.tulala.digital` when `isDemo` is true.
  * Returns null when the slug is not a usable label.
  */
 export function talentSiteHost(
   slug: string | null | undefined,
   root: TalentSiteSubdomainRoot = TALENT_SITE_PRIMARY_ROOT,
+  opts: { isDemo?: boolean } = {},
 ): string | null {
-  const label = (slug ?? "").trim();
-  if (!isTalentSiteLabel(label)) return null;
+  const label = talentSiteHostLabel(slug, opts);
+  if (!label) return null;
   return `${label}.${root}`;
 }
 
 /**
  * The absolute public URL of a talent site, e.g.
- * `https://sofia-mendez.tulala.digital`. `pageSlug` appends an inner page.
- * Returns null when the slug is not a usable label, so a caller can fall back to
- * {@link talentSitePathUrl} rather than emitting a broken link.
+ * `https://sofia-mendez.tulala.digital` (or `…-demo.tulala.digital` for demos).
+ * `pageSlug` appends an inner page. Returns null when the slug is not a usable
+ * label, so a caller can fall back to {@link talentSitePathUrl} rather than
+ * emitting a broken link.
  */
 export function talentSitePublicUrl(
   slug: string | null | undefined,
@@ -74,9 +114,13 @@ export function talentSitePublicUrl(
     protocol?: "http" | "https";
     /** Local dev port, appended to the host when set. */
     port?: number | null;
+    /** Demo profiles use `{slug}-demo` as the public host label. */
+    isDemo?: boolean;
   } = {},
 ): string | null {
-  const host = talentSiteHost(slug, opts.root ?? TALENT_SITE_PRIMARY_ROOT);
+  const host = talentSiteHost(slug, opts.root ?? TALENT_SITE_PRIMARY_ROOT, {
+    isDemo: opts.isDemo,
+  });
   if (!host) return null;
   const protocol = opts.protocol ?? "https";
   const authority = opts.port ? `${host}:${opts.port}` : host;
@@ -158,11 +202,32 @@ export function talentSitePathRedirectTarget(input: {
   enabled: boolean;
   isProduction: boolean;
   root?: TalentSiteSubdomainRoot;
+  /** Demo profiles redirect to `{slug}-demo.<apex>`. */
+  isDemo?: boolean;
 }): string | null {
   if (!input.enabled || !input.isProduction) return null;
   if ((input.preview ?? "").trim()) return null;
   return talentSitePublicUrl(input.slug, {
     pageSlug: input.pageSlug,
     root: input.root,
+    isDemo: input.isDemo,
   });
+}
+
+/**
+ * Canonical demo host when a bare demo subdomain was hit, e.g.
+ * `alba-nail-artist.tulala.digital` → `alba-nail-artist-demo.tulala.digital`.
+ * Returns null when the host is not a talent subdomain, not a demo, or already
+ * uses the `-demo` suffix.
+ */
+export function talentDemoBareHostRedirectHost(input: {
+  hostname: string;
+  siteSlug: string | null | undefined;
+  isDemo: boolean;
+}): string | null {
+  if (!input.isDemo) return null;
+  const parts = splitTalentSiteHost(input.hostname);
+  if (!parts) return null;
+  if (parts.label.endsWith(TALENT_DEMO_HOST_SUFFIX)) return null;
+  return talentSiteHost(input.siteSlug ?? parts.label, parts.root, { isDemo: true });
 }

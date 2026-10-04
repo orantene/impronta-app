@@ -41,10 +41,10 @@ export type MaisonReviewState = {
   customPalette: MaisonCustomPaletteStored | null;
 };
 
-function siteUrl(slug: string | null): string | null {
+function siteUrl(slug: string | null, isDemo = false): string | null {
   if (!slug) return null;
   if (isTalentSiteSubdomainsEnabled()) {
-    const hostUrl = talentSitePublicUrl(slug);
+    const hostUrl = talentSitePublicUrl(slug, { isDemo });
     if (hostUrl) return hostUrl;
   }
   return talentSitePathUrl(slug);
@@ -88,15 +88,19 @@ export async function loadMaisonReviewStateAction(input?: {
   const sb = await getCachedServerSupabase();
   if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
 
-  const { data, error } = await sb
-    .from("talent_sites")
-    .select("site_slug, theme_design_slug, theme_look_slug, pending_design, custom_palette")
-    .eq("talent_profile_id", g.talentProfileId)
-    .maybeSingle();
+  const [{ data, error }, demoRes] = await Promise.all([
+    sb
+      .from("talent_sites")
+      .select("site_slug, theme_design_slug, theme_look_slug, pending_design, custom_palette")
+      .eq("talent_profile_id", g.talentProfileId)
+      .maybeSingle(),
+    sb.from("talent_profiles").select("is_demo").eq("id", g.talentProfileId).maybeSingle(),
+  ]);
   if (error) {
     logServerError("maison.review.load", error);
     return { ok: false, code: "server_error", error: "Could not load review state." };
   }
+  const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
   const row = (data ?? null) as {
     site_slug: string | null;
     theme_design_slug: string | null;
@@ -139,7 +143,7 @@ export async function loadMaisonReviewStateAction(input?: {
     ok: true,
     data: {
       siteSlug: row?.site_slug ?? null,
-      publicSiteUrl: siteUrl(row?.site_slug ?? null),
+      publicSiteUrl: siteUrl(row?.site_slug ?? null, isDemo),
       themeDesignSlug: row?.theme_design_slug ?? null,
       themeLookSlug: row?.theme_look_slug ?? null,
       canUndo: isMaisonPendingUndo(pending),

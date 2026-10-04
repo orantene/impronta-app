@@ -48,6 +48,7 @@ function publishedPersonalSiteUrl(input: {
   sitePublishedAt: string | null | undefined;
   customDomain: string | null | undefined;
   planKey: string | null | undefined;
+  isDemo?: boolean;
 }): string | null {
   if (
     !maxSitePublicGate({
@@ -61,7 +62,7 @@ function publishedPersonalSiteUrl(input: {
   if (domain) return `https://${domain}`;
   const slug = input.siteSlug ?? null;
   if (isTalentSiteSubdomainsEnabled()) {
-    const hostUrl = talentSitePublicUrl(slug);
+    const hostUrl = talentSitePublicUrl(slug, { isDemo: input.isDemo === true });
     if (hostUrl) return hostUrl;
   }
   return talentSitePathUrl(slug);
@@ -99,13 +100,17 @@ export async function loadTalentPersonalSiteDashboardState(
   }
 
   if (admin) {
-    const { data } = await admin
-      .from("talent_sites")
-      .select(
-        "id, talent_profile_id, site_kind, site_slug, site_published_at, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
-      )
-      .eq("talent_profile_id", scope.talentProfile.id)
-      .maybeSingle();
+    const [{ data }, demoRes] = await Promise.all([
+      admin
+        .from("talent_sites")
+        .select(
+          "id, talent_profile_id, site_kind, site_slug, site_published_at, status, draft_snapshot, published_snapshot, version, draft_updated_at, published_at, unpublished_at, plan_locked, pending_template_reset, created_by, updated_by, created_at, updated_at",
+        )
+        .eq("talent_profile_id", scope.talentProfile.id)
+        .maybeSingle(),
+      admin.from("talent_profiles").select("is_demo").eq("id", scope.talentProfile.id).maybeSingle(),
+    ]);
+    const isDemo = (demoRes.data as { is_demo?: boolean } | null)?.is_demo === true;
 
     if (data) {
       const row = data as unknown as TalentSiteRow;
@@ -147,6 +152,7 @@ export async function loadTalentPersonalSiteDashboardState(
         sitePublishedAt: siteMeta.site_published_at,
         customDomain,
         planKey: scope.planKey,
+        isDemo,
       });
     }
   }

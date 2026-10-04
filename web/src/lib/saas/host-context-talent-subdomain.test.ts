@@ -34,7 +34,7 @@ const PROFILE = "11111111-2222-3333-4444-555555555555";
 
 test("resolves a published talent subdomain to a talent_site context", async () => {
   const { client, calls } = fakeClient({
-    data: [{ talent_profile_id: PROFILE, site_slug: "sofia" }],
+    data: [{ talent_profile_id: PROFILE, site_slug: "sofia", is_demo: false }],
     error: null,
   });
   const ctx = await resolveTalentSubdomainContext(client, "sofia.tulala.digital");
@@ -44,9 +44,34 @@ test("resolves a published talent subdomain to a talent_site context", async () 
     hostname: "sofia.tulala.digital",
     talentProfileId: PROFILE,
     hostKind: "subdomain",
+    isDemo: false,
+    siteSlug: "sofia",
   });
   assert.deepEqual(calls, [
     { fn: "talent_site_subdomain_lookup", args: { p_slug: "sofia" } },
+  ]);
+});
+
+test("resolves a demo -demo host label and flags isDemo", async () => {
+  const { client, calls } = fakeClient({
+    data: [{ talent_profile_id: PROFILE, site_slug: "alba-nail-artist", is_demo: true }],
+    error: null,
+  });
+  const ctx = await resolveTalentSubdomainContext(
+    client,
+    "alba-nail-artist-demo.tulala.digital",
+  );
+  assert.deepEqual(ctx, {
+    kind: "talent_site",
+    tenantId: null,
+    hostname: "alba-nail-artist-demo.tulala.digital",
+    talentProfileId: PROFILE,
+    hostKind: "subdomain",
+    isDemo: true,
+    siteSlug: "alba-nail-artist",
+  });
+  assert.deepEqual(calls, [
+    { fn: "talent_site_subdomain_lookup", args: { p_slug: "alba-nail-artist-demo" } },
   ]);
 });
 
