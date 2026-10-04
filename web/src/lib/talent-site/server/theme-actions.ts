@@ -103,6 +103,44 @@ export async function applySiteLookAction(input: {
   return applyLook(r.admin, { siteId: site.siteId, look: loaded.row, userId: r.g.userId });
 }
 
+/**
+ * Re-hydrate the pinned Design from the talent's current profile (photos,
+ * services ticker, bio tokens) without switching Designs. Fills the "Refresh
+ * from my profile" builder action so a bad apply-time bake can be repaired.
+ */
+export async function refreshSiteContentFromProfileAction(): Promise<
+  ThemeActionResult<{ designSlug: string; designVersion: number }>
+> {
+  const r = await ready("personalSiteEdit");
+  if (!r.ok) return r;
+  const site = await ensureSiteId(r);
+  if (!site.ok) return site;
+  const { data, error } = await r.admin
+    .from("talent_sites")
+    .select("theme_design_slug")
+    .eq("id", site.siteId)
+    .maybeSingle();
+  if (error) {
+    logServerError("talentTheme.refreshFromProfile.read", error);
+    return { ok: false, code: "server_error", error: "Could not refresh from your profile." };
+  }
+  const designSlug = (data as { theme_design_slug?: string | null } | null)?.theme_design_slug?.trim();
+  if (!designSlug) {
+    return { ok: false, code: "theme_not_found", error: "No design is applied yet." };
+  }
+  const design = await loadApplyDesignRow(r.admin, designSlug);
+  if (!design) {
+    return { ok: false, code: "theme_not_found", error: "That design is not available." };
+  }
+  return applyDesign(r.admin, {
+    talentProfileId: r.g.talentProfileId,
+    siteId: site.siteId,
+    design,
+    displayName: r.g.displayName,
+    userId: r.g.userId,
+  });
+}
+
 /** Publish the site theme: draft tokens go live (CAS on theme_version). */
 export async function publishSiteThemeAction(): Promise<
   ThemeActionResult<{ themeVersion: number }>

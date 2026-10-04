@@ -4,7 +4,13 @@ import assert from "node:assert/strict";
 import { appsForDemo, appsForDesign, appsForTrade, APP_REGISTRY, tradesForDemoCode } from "@/lib/site-admin/add-gallery/apps-registry";
 import { THEME_DEMOS } from "@/lib/talent-site/theme-catalog/theme-demos";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { NAIL_BAND_ID, nailBand, placeDemoApps } from "./app-placement";
+import {
+  NAIL_BAND_ID,
+  nailBand,
+  placeDemoApps,
+  placeMaisonTradeApps,
+  tradesFromTypeLabels,
+} from "./app-placement";
 import { sameStable } from "./stable";
 
 const node = (id: string, layerLabel: string) => ({ id, kind: "container", props: { layerLabel }, children: [] }) as unknown as BuilderNode;
@@ -64,4 +70,18 @@ test("band: ES/EN copy, design tokens only (no hex)", () => {
 test("Andrés (TAL-93006) is a recorded chef: no app recommended, never nails", () => {
   assert.deepEqual(tradesForDemoCode("TAL-93006"), ["chef"]);
   assert.equal(appsForDemo({ profileCode: "TAL-93006" }).length, 0);
+});
+
+test("placeMaisonTradeApps: real nail talents get the band; lashes-only do not", () => {
+  const nails = placeMaisonTradeApps(home(), ["nails"], { designSlug: "maison-v2" });
+  assert.equal(nails.placed, true);
+  const i = nails.tree.findIndex((n) => n.id === NAIL_BAND_ID);
+  assert.equal(nails.tree[i - 1]!.id, "menu");
+  const lashes = placeMaisonTradeApps(home(), ["lashes"], { designSlug: "maison-v2" });
+  assert.equal(lashes.placed, false);
+  assert.equal(placeMaisonTradeApps(home(), ["nails"], { designSlug: "folio" }).placed, false);
+});
+
+test("tradesFromTypeLabels maps secondary Nail Artist (Jor) to nails", () => {
+  assert.ok(tradesFromTypeLabels(["Lash Artist", "Nail Artist", "Brow Artist"]).includes("nails"));
 });

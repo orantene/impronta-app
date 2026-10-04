@@ -14,6 +14,7 @@ import {
   restoreMaisonDesignRevisionAction,
   type MaisonDesignOptionsState,
 } from "@/lib/talent-site/server/maison-options-actions";
+import { refreshSiteContentFromProfileAction } from "@/lib/talent-site/server/theme-actions";
 import { runThemeApply } from "@/lib/talent-site/history/apply-busy";
 import { undoMaisonImportAction } from "@/lib/talent-site/server/maison-import-actions";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
@@ -104,6 +105,13 @@ export function DesignOptionsPanel({
       async () => runThemeApply(() => reapplyMaisonDemoLayoutAction()),
       maisonSetupT(locale, "Demo layout reapplied"),
       true,
+    );
+  }
+
+  function handleRefreshFromProfile() {
+    run(
+      async () => runThemeApply(() => refreshSiteContentFromProfileAction()),
+      maisonSetupT(locale, "Content refreshed from your profile"),
     );
   }
 
@@ -226,6 +234,17 @@ export function DesignOptionsPanel({
               actionLabel={maisonSetupT(locale, "Reapply")}
               disabled={pending}
               onAction={handleReapply}
+            />
+            <OptionRow
+              testId="maison-option-refresh-profile"
+              title={maisonSetupT(locale, "Refresh from my profile")}
+              line={maisonSetupT(
+                locale,
+                "Pull your latest photos, name, bio and services into this design.",
+              )}
+              actionLabel={maisonSetupT(locale, "Refresh")}
+              disabled={pending}
+              onAction={handleRefreshFromProfile}
             />
             {state?.canDiscard ? (
               <OptionRow

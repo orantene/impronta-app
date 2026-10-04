@@ -17,6 +17,7 @@ import { buildTemplateSnapshot } from "@/lib/talent-site/templates/build-templat
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadHeroProofData } from "./load-hero-proof";
 import { canonicalCityLabel } from "./city-label.server";
+import { pickHeadshotUrl } from "../media-pick";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
 
@@ -164,7 +165,7 @@ export async function loadTalentStarterProfileData(
 
   const { data: mediaRows } = await trusted
     .from("media_assets")
-    .select("storage_path, variant_kind")
+    .select("storage_path, variant_kind, sort_order")
     .eq("owner_talent_profile_id", talentProfileId)
     // Real media_variant_kind values only — `portfolio` is not an enum member
     // (it errors the whole .in query); `hero` is the valid 4:5 cover variant.
@@ -175,13 +176,25 @@ export async function loadTalentStarterProfileData(
     .limit(12);
 
   const BUCKET = "media-public";
-  const media: TalentPortfolioStarterMedia[] = (mediaRows ?? []).map((row) => {
-    const r = row as { storage_path: string };
+  const mediaRowsTyped = (mediaRows ?? []) as Array<{
+    storage_path: string;
+    variant_kind: string;
+    sort_order: number | null;
+  }>;
+  const media: TalentPortfolioStarterMedia[] = mediaRowsTyped.map((r) => {
     const url = trusted.storage.from(BUCKET).getPublicUrl(r.storage_path).data.publicUrl;
     return { url, alt: displayName };
   });
 
-  const headshotUrl = media[0]?.url ?? null;
+  // Prefer card/portrait over gallery work shots (demos already use MediaUrls.card).
+  const headshotUrl =
+    pickHeadshotUrl(
+      mediaRowsTyped.map((r) => ({
+        url: trusted.storage.from(BUCKET).getPublicUrl(r.storage_path).data.publicUrl,
+        variantKind: r.variant_kind,
+        sortOrder: r.sort_order,
+      })),
+    ) ?? null;
 
   // The full published bio (locale-resolved, NOT sliced). Same resolution the
   // slot templates use for `publicBio`, but the default freeform About renders

@@ -287,10 +287,11 @@ export async function renderTalentMaxSite(
     });
     if (!page) return NOT_FOUND;
 
-    // Guest: published body; scrub unconfirmed social stubs; localise seeded labels.
+    // Guest body + early design slug (live media / Maison trade-app fixups).
+    const designSlugEarly = await loadMaxSiteDesignSlug(talentProfileId);
     const snapBlocks = snap?.pages?.[page.id];
     const body = coerceTree(snapBlocks ?? publicPageBody(page, { draftPreview: isOwnerDraftPreview }));
-    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode });
+    const fixed = await prepareTalentSiteTrees({ talentProfileId, locale, chain: localeCtx.chain, logoUrl: site.logoUrl, shellTree, body, ctaMode, designSlug: designSlugEarly });
     const blocks = pruneUnconfirmedGuestStubs(fixed.body);
     if (!policyDoc && !hasRenderableBuilderNodes(blocks, { mode: "freeform" })) {
       // A published-but-empty page → 404 rather than a blank document.
@@ -317,13 +318,10 @@ export async function renderTalentMaxSite(
     // ── Talent identity for the SITE's JSON-LD + OG image (degrade-safe) ──────
     const identity = await loadTalentSiteIdentity(talentProfileId);
 
-    // ── Demo talent (fictional theme example): Demo pill + footer line ──────
+    // Demo pill + theme tokens (Design slug already loaded above).
     const isDemo = await loadMaxSiteIsDemo(talentProfileId);
-
-    // Site theme tokens + Design slug (token defaults).
     const siteTokens = snap?.tokens ?? (await loadMaxSiteThemeTokens(talentProfileId, { draft: isOwnerDraftPreview }));
-    const designSlug = await loadMaxSiteDesignSlug(talentProfileId);
-
+    const designSlug = designSlugEarly;
     const policyModel = policyDoc ? await loadTalentPolicyModel(talentProfileId, policyDoc, locale) : null;
     const node = await renderMaxSiteDocument({
       mainOverride: policyModel ? policyMainNode(policyModel) : undefined,

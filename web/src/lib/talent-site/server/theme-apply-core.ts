@@ -14,6 +14,7 @@ import type {
 } from "../theme-catalog/types";
 import { validateDesign, validateLook } from "../theme-catalog/validate";
 import { loadTemplateHydrationTokens } from "./apply-template-core";
+import { placeMaisonTradeApps, tradesFromTypeLabels } from "../demos/app-placement";
 import {
   refreshOriginFingerprints,
   stampDesignOrigin,
@@ -43,6 +44,8 @@ import { ensureSiteThemeUpdates } from "../theme-releases/lazy-fan-out.server";
  * Hydration reuses `apply-template-core.ts` (`loadTemplateHydrationTokens`:
  * `loadDefaultTalentFreeformContext` + `talentProfileTokens`, the Max badge
  * pruned) so a Design fills with exactly the data a starter template does.
+ * When tokens cannot load, `applyDesign` HARD-ERRORS — it never falls back to
+ * `fallbackHydrationTokens` (that empty bake left stock/blank heroes on LIVE).
  * Callers own auth: every writer trusts `siteId` / `talentProfileId`, which the
  * action layer resolves from the signed-in owner (site-action-gate).
  */
@@ -234,9 +237,20 @@ export async function applyDesign(
     return { ok: false, code: "invalid_theme", error: "That design is not available." };
   }
 
-  const tokens =
-    (await loadTemplateHydrationTokens(input.talentProfileId)) ??
-    fallbackHydrationTokens(input.displayName);
+  const tokens = await loadTemplateHydrationTokens(input.talentProfileId);
+  if (!tokens) {
+    // Never silently bake an empty profile into a Design (stock/blank hero,
+    // pruned bands). Callers must fix the profile load, not fall back.
+    logServerError("talentTheme.applyDesign.hydrationMissing", {
+      slug: design.slug,
+      talentProfileId: input.talentProfileId,
+    });
+    return {
+      ok: false,
+      code: "server_error",
+      error: "Could not load this talent's profile content. Try again in a moment.",
+    };
+  }
   const built = buildDesignTrees(design.payload, tokens, undefined, {
     design: design.slug,
     version: design.version,
@@ -245,6 +259,15 @@ export async function applyDesign(
     logServerError("talentTheme.applyDesign.invalidTree", { slug: design.slug, errors: built.errors });
     return { ok: false, code: "server_error", error: "Could not build that design." };
   }
+
+  // Trade apps (e.g. Nail Designer) belong after Menu for Maison v2 — same as demos.
+  const trades = tradesFromTypeLabels([
+    tokens.primaryTypeLabel,
+    tokens.secondaryType1,
+    tokens.secondaryType2,
+    tokens.secondaryType3,
+  ]);
+  const homeTree = placeMaisonTradeApps(built.homeTree, trades, { designSlug: design.slug }).tree;
 
   // Theme releases Phase 2 — ONE atomic write (shell + home + pin + token
   // origin + history entry), CAS on draft_rev when the caller sends it, so a
@@ -260,7 +283,7 @@ export async function applyDesign(
       theme_token_origin: tokenOriginMap(design.payload.tokenDefaults),
       ...(input.userId ? { updated_by: input.userId } : {}),
     },
-    pages: [{ home: true, patch: { blocks: built.homeTree } }],
+    pages: [{ home: true, patch: { blocks: homeTree } }],
     history: {
       kind: "design_apply",
       actor: input.actor ?? "talent",
