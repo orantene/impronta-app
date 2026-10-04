@@ -1,4 +1,4 @@
-Updated: 2026-10-04 12:10Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 12:15Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | ✅ | Rechecked 2026-10-04 12:10Z: **Live HTML** (`tulala.digital` / `improntamodels.com`) = **`origin/production`** = **`origin/main`** = `15e65e2d5091` / `dpl_3QPTZnu8…` (#2526+#2530). All hosts including `app.tulala.digital` on tip. Overnight closed. **Live proof N/A (ops)**. | Tip aligned. Oran READY ping (external). | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | ✅ | Rechecked 2026-10-04 12:15Z: **Live HTML** (`tulala.digital` / `improntamodels.com`) = **`origin/production`** = **`origin/main`** = `15e65e2d5091` / `dpl_3QPTZnu8…` (#2526+#2530). All hosts including `app.tulala.digital` on tip. Overnight closed. **Live proof N/A (ops)**. | Tip aligned. Oran READY ping (external). | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 12:10Z: tip LIVE READY · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 12:15Z: tip LIVE READY · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 12:10Z standing wake. Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` READY. **#94 ✅**. Oran READY ping (not from board). Refunds BLOCKED. **Parked:** Free `QA_FREE_PASSWORD` · #45. REPLIES stub. ✅7. No Oran ping from this agent. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 12:15Z standing wake. Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` READY. **#94 ✅**. Oran READY ping (not from board). Refunds BLOCKED. **Parked:** Free `QA_FREE_PASSWORD` · #45. REPLIES stub. ✅7. No Oran ping from this agent. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,7 +237,7 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 12:10Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping from this agent (Oran READY ping external).
+STATUS 2026-10-04 12:15Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping from this agent (Oran READY ping external).
 **Tip SHAs:** Live HTML = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…` (#2526+#2530 READY). **#94 ✅**. Scoreboard ✅ 7 / 🟡 62.
 - Overnight **closed**. **Parked:** Free `QA_FREE_PASSWORD` · #45 fee-line ❌.
 - **LIVE steady:** tip `15e65e2d5091` / `dpl_3QPTZnu8…` confirmed. **#94 ✅**. No tip chase. Do not re-nag Publish demos/smoke.
