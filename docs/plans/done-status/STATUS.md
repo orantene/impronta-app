@@ -1,10 +1,10 @@
-Updated: 2026-10-04 17:15Z · Scoreboard: ✅ 7 / 🟡 62 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 17:20Z · Scoreboard: ✅ 10 / 🟡 59 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 15e65e2d5091 · origin/production: 15e65e2d5091 · Main SHA: 15e65e2d5091
 **Ownership:** overnight done-board owner `bc-9c0ba4c9`. Sole STATUS writer on `status/done-board`. No Oran ping. **Do not start a second worker** on in-flight agent files.
 Top 3 blockers right now
 1. **#45 fee-line** ❌ — prove on TAL-93900: seller-pays **$100** / client **$101.50**. Stay ❌ until live screenshots (money agent in-flight — do not steal).
-2. **In-flight (no second worker):** TAL-93900 money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Free drains [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) · Builder Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · demo hosts [`bc-1cabf728`](https://cursor.com/agents/bc-1cabf728) · [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail Studio header (draft).
-3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. S5/S7 unblocked via new TAL money agent (timer “password blocked” is stale). Merge lane empty (already live). Wall/visual MERGED. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Desk reuse `bc-11e25be7` — do not steal. #83 Oran low-pri. 8/9 parked. No Oran ping.
+2. **In-flight (no second worker):** TAL-93900 money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Builder Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · demo hosts [`bc-1cabf728`](https://cursor.com/agents/bc-1cabf728) · [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail Studio header (draft).
+3. **LIVE READY:** Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…` · **#94 ✅**. Free drains **#55/#57/#59 ✅** via [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) (`docs/free-drains-55-57-59-2026-10-04.md` + `media/free-drains/`). S5/S7 via money agent. Merge lane empty. Wall/visual MERGED. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Ops: `QA_FREE_PASSWORD` trailing newline (trim). No Oran ping.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -41,9 +41,9 @@ Every **✅ DONE** row requires **Live proof**:
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 13 | Avatar links Site, Builder, Money, Messages, Settings | ✅ | [#2506](https://github.com/orantene/impronta-app/pull/2506) **LIVE PASS** 2026-10-04 tip `56f0c147d` (`dpl_AmBn9M3…`): TAL-93900 on `app.tulala.digital` — account menu open; subtitle **`TAL-93900`** (not generic “Talent”); links Mi sitio web · Constructor · Dinero · Mensajes · Ajustes. **Live proof:** `media/pr-2506-avatar-menu/tal-93900-avatar-menu-open.png`, `media/pr-2506-avatar-menu/tal-93900-subtitle-closeup.png`; note `internal/pr-2506-merge-prove.md`. Prior Free Valeria/Diego shots remain supporting (`media/free-avatar-menu/`, `media/done-walks/b13-*`). | None for avatar menu destinations + TAL subtitle on TAL-93900. | S2 step 1 | — | 2026-10-04 |
-| 55 | Free Add and Move blocked in UI and server | 🟡 | Prior Free Diego shots `a55-*` (tip `c4f0a097a`). **Oran 17:04Z:** `QA_FREE_PASSWORD` in Cloud secrets — spawn **NEW** Free agents (old VMs blind). Stay 🟡 until live screenshots re-linked under Live-proof rule. | **Live proof owed** — NEW Free agent; do not invent ✅. | S2 steps 3–5 | — | 2026-10-04 |
-| 57 | Builder back arrow to dashboard, no new pages | 🟡 | Prior Free builder shots `a57-*`. **Oran 17:04Z:** `QA_FREE_PASSWORD` in Cloud — **NEW** Free agents only. | **Live proof owed** — NEW Free agent screenshots for ✅. | S2 step 2 | — | 2026-10-04 |
-| 59 | Website Settings change the live site | 🟡 | Prior Free Diego Website Settings round-trip `b59*`. **Oran 17:04Z:** `QA_FREE_PASSWORD` in Cloud — **NEW** Free agents only. | **Live proof owed** — NEW Free agent screenshots for ✅. | S2 step 6 | — | 2026-10-04 |
+| 55 | Free Add and Move blocked in UI and server | ✅ | [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) 2026-10-04 tip `15e65e2d5091`: Free Diego TAL-QAFIXFREE on `app.tulala.digital` — Agregar “Disponible en Oficina Web” + Add/Move/duplicate/paste locked; Estructura locked. Evidence `docs/free-drains-55-57-59-2026-10-04.md` · `media/free-drains/55-03-builder.png`, `55-04-add-panel.png`, `55-20-structure.png`, `55-21-structure-add-block.png`. | None. | S2 steps 3–5 | — | 2026-10-04 |
+| 57 | Builder back arrow to dashboard, no new pages | ✅ | [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) tip `15e65e2d5091`: Páginas single INICIO / Editando ahora, no Nueva página CTA; topbar **Salir** → `/talent/site`. Evidence `docs/free-drains-55-57-59-2026-10-04.md` · `media/free-drains/57-40-pages-detail.png`, `57-41-back-control.png`, `57-42-after-back.png`. | None. | S2 step 2 | — | 2026-10-04 |
+| 59 | Website Settings change the live site | ✅ | [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) tip `15e65e2d5091`: Chat del sitio OFF→Guardar → public `qa-fixture-free-talent.tulala.digital` `.tl-fab` **0**; restore ON → `.tl-fab` **1**. Evidence `docs/free-drains-55-57-59-2026-10-04.md` · `media/free-drains/59-*.png`. | None. | S2 step 6 | — | 2026-10-04 |
 
 ## Story 3 — Jor services and money setup (S3)
 
@@ -177,7 +177,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 12:30Z: tip LIVE READY · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Overnight closed. **Live proof N/A (ops)**. | — | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:15Z standing wake. Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. In-flight: money `bc-cbf5dc17` · Free `bc-8630eaa6` · Lab `bc-cd5cf7c8` · demos `bc-1cabf728` · #2532 — **no second worker**. #45 ❌. ✅7. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 17:20Z. Live=prod=main `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Free #55/#57/#59 ✅ (`bc-8630eaa6`). In-flight: money `bc-cbf5dc17` · Lab `bc-cd5cf7c8` · demos `bc-1cabf728` · #2532 — **no second worker**. #45 ❌. ✅10. Ops: `QA_FREE_PASSWORD` trim trailing newline. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -237,8 +237,9 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 17:15Z on `status/done-board` (standing 15m wake). REPLIES.md stub. **Never ✅ without live screenshots.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping. **Do not start a second worker** on same files as in-flight agents.
-**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. Timer tip `7d30bb9d1` stale — ignored. **#94 ✅**. Scoreboard ✅ 7 / 🟡 62.
-- **In-flight (no steal):** TAL-93900 money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Free drains [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) · Builder Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · demo hosts [`bc-1cabf728`](https://cursor.com/agents/bc-1cabf728) · [#2532](https://github.com/orantene/impronta-app/pull/2532) Nail Studio header draft.
-- **S5/S7** unblocked via new TAL money agent (await evidence — no invent ✅). Timer “blocked on `QA_JOR_CLONE_PASSWORD`” is stale. **#45** ❌ fee prove still owed on that walk.
-- Merge lane empty (already live). Wall/visual MERGED. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Desk reuse `bc-11e25be7` — do not steal. #83 Oran low-pri. 8/9 parked.
+STATUS 2026-10-04 17:20Z on `status/done-board` — Free drains PASS reconciled (worker claimed ✅10/🟡59; remote still ✅7 — applied here). REPLIES.md stub. **Never ✅ without live screenshots.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
+**Tip SHAs:** Live HTML sentry-release = prod = main = `15e65e2d5091` / `dpl_3QPTZnu8…`. **#94 ✅**. Scoreboard ✅ 10 / 🟡 59.
+- **#55/#57/#59 🟡→✅** — [`bc-8630eaa6`](https://cursor.com/agents/bc-8630eaa6) Live Free Diego on tip `15e65e2d`. Evidence `docs/free-drains-55-57-59-2026-10-04.md` + `media/free-drains/`.
+- **Ops:** Cloud `QA_FREE_PASSWORD` had trailing newline — trim for Auth (worker synced fixture).
+- **In-flight (no second worker):** money [`bc-cbf5dc17`](https://cursor.com/agents/bc-cbf5dc17) · Lab [`bc-cd5cf7c8`](https://cursor.com/agents/bc-cd5cf7c8) · demos [`bc-1cabf728`](https://cursor.com/agents/bc-1cabf728) · [#2532](https://github.com/orantene/impronta-app/pull/2532). Free drains **done** — do not re-spawn.
+- **#45** ❌ still owed on money walk. Merge lane empty. Wall/visual MERGED. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. Desk reuse `bc-11e25be7` — do not steal.
