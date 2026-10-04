@@ -46,7 +46,7 @@ import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
-import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { loadGuestBookingCaptcha } from "@/lib/scheduling/guest-instant-chrome";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import {
   designTokensToCssVars,
@@ -159,7 +159,7 @@ export default async function PublicTalentFreeformPage({
         ? loadPublicComponentStyleDefaults(tenantId)
         : Promise.resolve({}),
       tenantId && pageHasFormNode
-        ? resolveTenantCaptcha(tenantId)
+        ? loadGuestBookingCaptcha(tenantId)
         : Promise.resolve(null),
     ]);
 

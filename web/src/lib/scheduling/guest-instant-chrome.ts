@@ -10,16 +10,33 @@ export type GuestInstantChrome = {
 
 const CAPTCHA_OFF: GuestCaptchaConfig = { provider: "none", siteKey: null };
 
+/**
+ * Captcha config for guest booking / catalog sheets / vanity sites.
+ * Honors HQ `platform_settings.guest_captcha_enforced` so Continuar al pago
+ * is not blocked by a widget the server will skip.
+ */
+export async function loadGuestBookingCaptcha(
+  tenantId: string | null | undefined,
+): Promise<GuestCaptchaConfig> {
+  if (!tenantId) return CAPTCHA_OFF;
+  const [captcha, captchaEnforced] = await Promise.all([
+    resolveTenantCaptcha(tenantId),
+    isGuestCaptchaEnforced(),
+  ]);
+  return captchaEnforced
+    ? { provider: captcha.provider, siteKey: captcha.siteKey }
+    : CAPTCHA_OFF;
+}
+
 export async function loadGuestInstantChrome(
   tenantId: string | null | undefined,
 ): Promise<GuestInstantChrome> {
   if (!tenantId) {
     return { signedIn: false, captcha: CAPTCHA_OFF };
   }
-  const [captcha, supabase, captchaEnforced] = await Promise.all([
-    resolveTenantCaptcha(tenantId),
+  const [captcha, supabase] = await Promise.all([
+    loadGuestBookingCaptcha(tenantId),
     createSupabaseServerClient(),
-    isGuestCaptchaEnforced(),
   ]);
   const user = supabase ? (await supabase.auth.getUser()).data.user : null;
   // Keep widget + server gate in sync: when HQ turns enforcement off, do not
@@ -27,8 +44,6 @@ export async function loadGuestInstantChrome(
   // sheet still blocks on).
   return {
     signedIn: !!user,
-    captcha: captchaEnforced
-      ? { provider: captcha.provider, siteKey: captcha.siteKey }
-      : CAPTCHA_OFF,
+    captcha,
   };
 }

@@ -14,7 +14,7 @@ import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/ex
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
-import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { loadGuestBookingCaptcha } from "@/lib/scheduling/guest-instant-chrome";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -113,7 +113,7 @@ export async function TalentSiteFreeformRenderer({
         surface: context?.experimentSurface ?? "talentSite",
       }),
       tenantId && pageHasFormNode
-        ? resolveTenantCaptcha(tenantId)
+        ? loadGuestBookingCaptcha(tenantId)
         : Promise.resolve(null),
     ]);
 

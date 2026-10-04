@@ -23,7 +23,7 @@ import {
 } from "@/lib/site-admin/builder-node/render";
 import { renderFreeformPageRootTree } from "@/lib/site-admin/builder-node/freeform-page-blocks";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
-import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { loadGuestBookingCaptcha } from "@/lib/scheduling/guest-instant-chrome";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { makeNativeLiveBlockRenderer } from "@/lib/site-admin/builder-node/native-live-block-renderer";
@@ -494,7 +494,7 @@ export default async function CmsPublicPage({
         return n.kind === "form" || hasForm(n.children);
       })(blocks);
       const pageCaptcha = pageHasFormNode
-        ? await resolveTenantCaptcha(publicScope.tenantId)
+        ? await loadGuestBookingCaptcha(publicScope.tenantId)
         : null;
 
       // ABTEST-1 — stable per-visitor seed + tenant/surface tags for any A/B

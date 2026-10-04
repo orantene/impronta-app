@@ -42,7 +42,7 @@ import {
 } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
-import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { loadGuestBookingCaptcha } from "@/lib/scheduling/guest-instant-chrome";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { isPlatformCheckoutReady } from "@/lib/talent/online-collect-ready";
 import {
@@ -490,7 +490,7 @@ async function renderMaxSiteDocument(args: {
       // talent's personal Max site.
       resolveExperimentRenderContext({ tenantId, surface: "talentSite" }),
       resolveCaptcha && bookingTenantId
-        ? resolveTenantCaptcha(bookingTenantId)
+        ? loadGuestBookingCaptcha(bookingTenantId)
         : Promise.resolve(null),
       // D-MSG-421 — vanity hosts never went through profile-storefront-payload,
       // so peso prices printed with no ≈ US$ line. Tenant stays null: this is

@@ -72,10 +72,8 @@ import {
 import { SectionVideoBackground } from "@/components/site/section-video-background";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
-import {
-  resolveGoogleMapsKeyForClient,
-  resolveTenantCaptcha,
-} from "@/lib/integrations/resolve";
+import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
+import { loadGuestBookingCaptcha } from "@/lib/scheduling/guest-instant-chrome";
 
 function resolveBuilderSectionBindingForSlotEntry(
   entry: HomepageSnapshot["slots"][number],
@@ -256,7 +254,7 @@ export async function HomepageCmsSections({
         ? resolveGoogleMapsKeyForClient(tenantId)
         : Promise.resolve(null),
       needsCaptcha
-        ? resolveTenantCaptcha(tenantId)
+        ? loadGuestBookingCaptcha(tenantId)
         : Promise.resolve(null),
       loadPublicBranding(tenantId),
     ]);
