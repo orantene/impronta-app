@@ -237,7 +237,7 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 06:15Z on `status/done-board` (standing 15m wake · tip LIVE). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
-**Tip SHAs:** Live=prod=main **`2982c647daf`** READY **`dpl_9JkaxLvk…`** — HTML re-confirmed app/tulala/jorg. Tip-chase `bc-59902e50` **DONE**. **#94 ✅** (Live≠Main cleared). Scoreboard ✅ 7 / 🟡 62 · **#45 ❌**.
-- Soft Gel LIVE optional smoke **in flight** (`bc-732572d4`) — inbox `inbox/status-tip-live-2982c-softgel.md`. **No Soft Gel LIVE ✅ yet**.
+STATUS 2026-10-04 06:16Z on `status/done-board` (Soft Gel LIVE Guardar PASS). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
+**Tip SHAs:** Live=prod=main **`2982c647daf`** READY **`dpl_9JkaxLvk…`**. Tip-chase **DONE**. **#94 ✅**. Scoreboard ✅ 7 / 🟡 62 · **#45 ❌**.
+- Soft Gel LIVE **Guardar smoke PASS** (`bc-732572d4`): identity confirmed · talent pool scoped — `internal/front-chat-tip-prove/softgel-2525-live-optional-smoke-PASS.md` · `media/front-chat/softgel-live-2982-identity-confirmed.png`. Overnight tip leftovers **closed**.
 - Handover **READY**. Agenda LIVE PASS. Soft Gel Preview PAID. Open PR: [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. No Oran ping.
