@@ -34,3 +34,14 @@ test("Nail Studio frame forwards imageDataUrl into ask-question", () => {
   assert.match(frame, /imageDataUrl/);
   assert.match(frame, /tulala:ask-question/);
 });
+
+test("Nail Studio Save look chat/quote emit includes imageDataUrl", () => {
+  const studio = readFileSync(
+    join(HERE, "../../../../../public/apps/nail-studio/index.html"),
+    "utf8",
+  );
+  assert.match(studio, /function emitHandoff/);
+  assert.match(studio, /imageDataUrl/);
+  assert.match(studio, /emitHandoff\('chat'\)/);
+  assert.match(studio, /emitHandoff\('quote'\)/);
+});
