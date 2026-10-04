@@ -44,10 +44,18 @@ export async function loadPublishedTalentPage(input: {
 
   const actions: PublishedTalentPageActions = {
     async loadTalentByProfileCode(profileCode) {
+      const { data: resolvedRows, error: resolveErr } = await pub.rpc(
+        "resolve_talent_profile_code",
+        { p_code: profileCode },
+      );
+      if (resolveErr) return null;
+      const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
+      if (!resolved?.profile_id) return null;
+
       const { data, error } = await pub
         .from("talent_profiles")
         .select("id, display_name, created_by_agency_id, talent_plan_key, profile_kind")
-        .eq("profile_code", profileCode)
+        .eq("id", resolved.profile_id as string)
         .neq("profile_kind", "resource")
         .is("deleted_at", null)
         .maybeSingle();

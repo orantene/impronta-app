@@ -1496,7 +1496,7 @@ ordering. Changes:
   Ortega (2), TAL-92004 Marco Sánchez (3), TAL-92002 Carmen Díaz (4),
   TAL-00033 Tina (5), TAL-00034 Nalea (6). All already approved+public;
   all have approved card/gallery media → real thumbnails.
-- QA fixture `TAL-AUDIT-0512` → roster `agency_visibility='roster_only'`,
+- QA fixture `TAL-93941` → roster `agency_visibility='roster_only'`,
   `is_featured=false` (removed from public).
 - Before-state (revert target): all 6 were `roster_only`,
   is_featured=false, level/pos 0; QA fixture was `site_visible`.
@@ -1539,7 +1539,7 @@ Commit `b6c6002c2` (scoped: starter-action.ts recipe + tracker) → push
 **Prod QA result:**
 - ✅ **Featured Talent now shows the 6 real profiles** (Sofía Herrera,
   Luis Ortega, Marco Sánchez, Carmen Díaz, Tina, Nalea) with real
-  thumbnails; **QA fixture TAL-AUDIT-0512 absent**. This proves WS-A
+  thumbnails; **QA fixture TAL-93941 absent**. This proves WS-A
   (roster `agency_visibility=featured` + `is_featured`) is LIVE —
   `featured_talent` resolves at request time from the roster DB.
 - ✅ shell + logo + editorial-noir + 9 sections + 0 "Curated" + 0 edit

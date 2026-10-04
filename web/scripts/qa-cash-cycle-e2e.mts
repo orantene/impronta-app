@@ -108,7 +108,7 @@ async function runOfferToBooking(
     event_location: "Ciudad de México, CDMX, Mexico",
     message: "QA cash-cycle E2E — efectivo settle proof (auto-cleaned).",
     source_channel: sourceChannel,
-    source_page: "/t/TAL-AUDIT-0512",
+    source_page: "/t/TAL-93941",
     client_user_id: ctx.clientUserId,
     actorUserId: ctx.clientUserId,
     talent_profile_ids: [MORENA_TALENT],

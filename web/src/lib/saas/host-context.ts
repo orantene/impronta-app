@@ -335,10 +335,21 @@ export async function isProfileCodeOnTenantRoster(
   if (!supabase) return true; // no client — fail open, never hide a real page
 
   try {
+    // Resolve vanity aliases first so retired /t/<old-code> URLs still pass
+    // the roster gate on agency hosts (same RPC the public profile uses).
+    const { data: resolvedRows } = await supabase.rpc("resolve_talent_profile_code", {
+      p_code: profileCode,
+    });
+    const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
+    const liveCode =
+      typeof resolved?.profile_code === "string" && resolved.profile_code
+        ? resolved.profile_code
+        : profileCode;
+
     const { data, error } = await supabase
       .from("talent_profiles")
       .select("id, agency_talent_roster!inner(tenant_id, status, agency_visibility, talent_site_hidden)")
-      .eq("profile_code", profileCode)
+      .eq("profile_code", liveCode)
       .neq("profile_kind", "resource")
       .eq("agency_talent_roster.tenant_id", tenantId)
       .eq("agency_talent_roster.status", "active")

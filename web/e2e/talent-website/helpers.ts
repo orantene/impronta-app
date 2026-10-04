@@ -22,7 +22,7 @@ export const MAISON_JOURNEY_READY = process.env.MAISON_JOURNEY_E2E === "1";
 export const TALENT_SITE_FIXTURE_READY = process.env.TALENT_SITE_E2E_FIXTURE_READY === "1";
 
 /** Live Jor Beauty profile code (production read-only check). */
-export const JOR_PROFILE_CODE = "TAL-JORGBEAUTY";
+export const JOR_PROFILE_CODE = "TAL-93938";
 export const JOR_SITE_SLUG = "book-jorgelina";
 export const JOR_PUBLIC_ORIGIN =
   process.env.JOR_LIVE_ORIGIN?.replace(/\/$/, "") ?? "https://tulala.digital";

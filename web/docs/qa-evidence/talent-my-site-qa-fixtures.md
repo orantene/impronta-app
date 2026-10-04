@@ -17,13 +17,13 @@ SQL source: `supabase/seed_talent_my_site_qa.sql`
 |------|-------|----------|------|----------------|
 | A Free | `tulum-talent-sofia@impronta.test` | `Impronta-Tulum-Talent-2026!` | `talent_basic` | `TAL-92001` |
 | B Pro | `tulum-talent-carmen@impronta.test` | `Impronta-Tulum-Talent-2026!` | `talent_pro` | `TAL-92002` |
-| C Max | `qa-talent-dashboard-audit@impronta.test` | (see reference QA creds) | `talent_portfolio` | `TAL-AUDIT-0512` |
+| C Max | `qa-talent-dashboard-audit@impronta.test` | (see reference QA creds) | `talent_portfolio` | `TAL-93941` |
 
 Do **not** use `qa-admin@impronta.test` for talent-surface My Site QA — `app_role=super_admin` redirects to the admin workspace.
 
 ## Agency sitemap roster
 
-After the seed, `TAL-92001`, `TAL-92002`, and `TAL-AUDIT-0512` have `created_by_agency_id` set to the Impronta demo tenant. `TAL-AUDIT-0512` is also reset to `talent_portfolio` for Flow C. On `impronta.local`, `/sitemap.xml` should list the roster URLs for these profiles (EN + ES).
+After the seed, `TAL-92001`, `TAL-92002`, and `TAL-93941` have `created_by_agency_id` set to the Impronta demo tenant. `TAL-93941` is also reset to `talent_portfolio` for Flow C. On `impronta.local`, `/sitemap.xml` should list the roster URLs for these profiles (EN + ES).
 
 ## Dev server
 

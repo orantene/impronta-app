@@ -6,7 +6,7 @@
 -- Accounts (password: Impronta-Tulum-Talent-2026! or TULUM_DEMO_TALENT_PASSWORD):
 --   Free Flow A: tulum-talent-sofia@impronta.test  → TAL-92001 (talent_basic)
 --   Pro Flow B:  tulum-talent-carmen@impronta.test → TAL-92002 (talent_pro)
---   Max Flow C:  qa-talent-dashboard-audit@impronta.test → TAL-AUDIT-0512 (talent_portfolio)
+--   Max Flow C:  qa-talent-dashboard-audit@impronta.test → TAL-93941 (talent_portfolio)
 --
 -- Agency sitemap (impronta.local): TAL-92001 + TAL-92002 get created_by_agency_id
 -- for the Impronta demo tenant so /sitemap.xml lists /t/<code> roster URLs.
@@ -45,7 +45,7 @@ SET
   talent_plan_key = 'talent_portfolio',
   created_by_agency_id = '00000000-0000-0000-0000-000000000001'::uuid,
   updated_at = now()
-WHERE profile_code = 'TAL-AUDIT-0512'
+WHERE profile_code = 'TAL-93941'
   AND deleted_at IS NULL;
 
 COMMIT;

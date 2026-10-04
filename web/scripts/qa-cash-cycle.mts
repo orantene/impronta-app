@@ -23,7 +23,7 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!.replace(/"/g, "");
 const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
 
 const TENANT = "00000000-0000-0000-0000-000000000001";
-const MORENA_TALENT = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // TAL-AUDIT-0512
+const MORENA_TALENT = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // TAL-93941
 const OFF_BRIDAL_TRIAL = "0f0e0001-0000-4000-8000-000000000001"; // instant + cash ok
 
 function ok(name: string, cond: unknown, extra = "") {
@@ -51,7 +51,7 @@ async function main() {
     actorUserId: user.id,
     contactName: "QA Client One",
     contactEmail: "qa-client-1@impronta.test",
-    sourcePage: "/t/TAL-AUDIT-0512",
+    sourcePage: "/t/TAL-93941",
     currencyCode: "EUR",
     offeringId: OFF_BRIDAL_TRIAL,
     payInPerson: true,

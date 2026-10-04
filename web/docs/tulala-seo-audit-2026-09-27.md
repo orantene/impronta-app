@@ -40,7 +40,7 @@ Builds on the July program (`tulala-seo-organic-marketing-audit-2026-07-22.md`,
   - Luna Alvarez: TAL-92117, 92121, 92127, 92130, 92133, 92136, 92139, 92142, 92146
   - Mateo Rossi: TAL-92118, 92122, 92128, 92131, 92134, 92137, 92140, 92143, 92147
   - Sofia Bennett: TAL-92119, 92123, 92129, 92132, 92135, 92138, 92141, 92144, 92148
-  - QA fixtures: TAL-QAFIXFREE, TAL-QAFIXMAX
+  - QA fixtures: TAL-93939, TAL-93940
   - Also review: TAL-92074 "OrlandoAdmin" (in the directory; the name reads like a test account).
 
 ## After deploy

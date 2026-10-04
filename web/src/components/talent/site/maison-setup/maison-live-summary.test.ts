@@ -1,6 +1,6 @@
 /**
  * Live card naming for sites with and without a catalog design slug (a site
- * built by hand before the design catalog, e.g. TAL-JORGBEAUTY).
+ * built by hand before the design catalog, e.g. TAL-93938).
  */
 import test from "node:test";
 import assert from "node:assert/strict";

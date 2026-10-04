@@ -26,10 +26,12 @@ test("profile route resolves Max site via platform helper on Tulala hosts", () =
 
 test("public loader uses published RPC first to resolve profile_code → id", () => {
   // The loader still hits the anon-executable published RPC first as the
-  // cheapest code→id lookup for a published talent, then falls back to a direct
-  // talent_profiles lookup. It NO LONGER parses the snapshot (the snapshot is
-  // not the profile render anymore — repoint #493).
+  // cheapest code→id lookup for a published talent, then falls back through
+  // resolve_talent_profile_code (canonical + vanity alias). It NO LONGER
+  // parses the snapshot (the snapshot is not the profile render anymore —
+  // repoint #493).
   assert.match(PUBLIC_LOAD_SRC, /talent_public_site_for_profile_code/);
+  assert.match(PUBLIC_LOAD_SRC, /resolve_talent_profile_code/);
   assert.match(PUBLIC_LOAD_SRC, /talent_profile_id/);
   // The dead snapshot-as-profile reads are gone: no snapshot validation, and
   // the orphaned owner-draft-preview loader has been removed.

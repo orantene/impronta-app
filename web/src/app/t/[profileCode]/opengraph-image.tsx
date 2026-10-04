@@ -72,18 +72,24 @@ export default async function Image({
   let heroUrl: string | null = null;
 
   if (supabase) {
-    const { data } = await supabase
-      .from("talent_profiles")
-      .select(
-        `id, profile_code, display_name, first_name, last_name,
-         talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_i18n ) )`,
-      )
-      .eq("profile_code", profileCode)
-      .eq("workflow_status", "approved")
-      .eq("visibility", "public")
-      .neq("profile_kind", "resource")
-      .is("deleted_at", null)
-      .maybeSingle();
+    const { data: resolvedRows } = await supabase.rpc("resolve_talent_profile_code", {
+      p_code: profileCode,
+    });
+    const resolved = Array.isArray(resolvedRows) ? resolvedRows[0] : resolvedRows;
+    const { data } = resolved?.profile_id
+      ? await supabase
+          .from("talent_profiles")
+          .select(
+            `id, profile_code, display_name, first_name, last_name,
+             talent_profile_taxonomy ( is_primary, taxonomy_terms ( kind, name_i18n ) )`,
+          )
+          .eq("id", resolved.profile_id as string)
+          .eq("workflow_status", "approved")
+          .eq("visibility", "public")
+          .neq("profile_kind", "resource")
+          .is("deleted_at", null)
+          .maybeSingle()
+      : { data: null };
     profile = (data as unknown as (OgProfile & { id: string }) | null) ?? null;
 
     if (profile) {

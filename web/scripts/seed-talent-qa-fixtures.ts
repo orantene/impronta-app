@@ -11,10 +11,10 @@
  * account with a password nobody scripting this can enter.
  *
  * Two fixtures:
- *   - TAL-QAFIXMAX  (talent_portfolio / Max) — the builder auto-provisions its
+ *   - TAL-93940  (talent_portfolio / Max) — the builder auto-provisions its
  *     site on first visit (`provisionTalentMaxSite`, page-builder/page.tsx),
  *     so nothing else needs seeding here.
- *   - TAL-QAFIXFREE (talent_basic / free) — as of 2026-09-24 (PR #2206),
+ *   - TAL-93939 (talent_basic / free) — as of 2026-09-24 (PR #2206),
  *     `provisionTalentMaxSite` no longer hard-refuses non-Max plans; it reads
  *     `talentPlanGrantsSiteCapability(planKey, "personalSiteEdit")` like every
  *     other gate, which grants `talent_basic` a real site when
@@ -63,13 +63,13 @@ interface FixtureSpec {
 
 const FIXTURES: FixtureSpec[] = [
   {
-    profileCode: "TAL-QAFIXMAX",
+    profileCode: "TAL-93940",
     email: "qa-talent-max@impronta.test",
     displayName: "QA Fixture — Max Talent",
     planKey: "talent_portfolio",
   },
   {
-    profileCode: "TAL-QAFIXFREE",
+    profileCode: "TAL-93939",
     email: "qa-talent-free@impronta.test",
     displayName: "QA Fixture — Free Talent",
     planKey: "talent_basic",
@@ -104,12 +104,25 @@ async function ensureAuthUser(email: string, displayName: string) {
 
 async function ensureTalentProfile(fx: FixtureSpec, userId: string): Promise<string> {
   const now = new Date().toISOString();
-  const { data: existing, error: selErr } = await admin
+  // Prefer live code, then owner user_id (fixtures survived the vanity→numeric
+  // renumber in 20261231344000 under stable UUIDs / user links).
+  const { data: byCode, error: selErr } = await admin
     .from("talent_profiles")
     .select("id, user_id, talent_plan_key")
     .eq("profile_code", fx.profileCode)
     .maybeSingle();
   if (selErr) throw selErr;
+  let existing = byCode;
+  if (!existing) {
+    const { data: byUser, error: byUserErr } = await admin
+      .from("talent_profiles")
+      .select("id, user_id, talent_plan_key")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (byUserErr) throw byUserErr;
+    existing = byUser;
+  }
 
   const patch = {
     display_name: fx.displayName,

@@ -75,7 +75,7 @@ function fail(name, detail = "") {
 
 // ── Pick a stable Max candidate (rostered, has user_id) ───────────────────
 const MAX_PROFILE_ID = "eb97dc64-af2b-4996-a48c-913a143cfa59"; // QA Talent Dashboard Audit
-const MAX_PROFILE_CODE = "TAL-AUDIT-0512";
+const MAX_PROFILE_CODE = "TAL-93941";
 const MAX_USER_ID = "4dc52f97-140b-4dc9-a722-4e915f3f86da";
 // Carmen (TAL-92002) — talent-only after register:tulum-demo-talent + seed:talent-my-site-qa
 const PRO_PROFILE_CODE = "TAL-92002";

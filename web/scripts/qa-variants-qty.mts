@@ -103,7 +103,7 @@ async function main() {
       actorUserId: user.id,
       contactName: "QA Client One",
       contactEmail: "qa-client-1@impronta.test",
-      sourcePage: "/t/TAL-AUDIT-0512",
+      sourcePage: "/t/TAL-93941",
       currencyCode: "EUR",
       offeringId,
       ...extra,

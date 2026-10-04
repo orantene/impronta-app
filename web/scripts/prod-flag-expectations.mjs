@@ -11,7 +11,7 @@
  * Do NOT flip SUPPORT_DESK or other flags from this file — expectations only.
  */
 
-/** Maison cohort allow-list (TAL-QAFIXFREE + TAL-93900). From talent-maison-theme.ts. */
+/** Maison cohort allow-list (TAL-93939 + TAL-93900). From talent-maison-theme.ts. */
 export const MAISON_COHORT_IDS = [
   "6d4e7d73-8577-42fb-b0d3-d2e55a64ca14",
   "c99f8adb-8ebb-4aad-911a-897e73efd369",

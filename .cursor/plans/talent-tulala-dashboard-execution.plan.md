@@ -94,7 +94,7 @@ Before editing code for any phase:
 ## QA accounts
 
 - `qa-talent-dashboard-audit@impronta.test` / `Impronta-QA-Talent-2026!` — Impronta + Morena Studio (2 agencies).
-- Profile code: `TAL-AUDIT-0512`.
+- Profile code: `TAL-93941`.
 
 ## Definition of done (whole plan)
 

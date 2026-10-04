@@ -55,12 +55,12 @@ const LOCALE = "en";
 const SLUG = "demo-forms";
 
 /**
- * TAL-AUDIT-0512 — a Max-tier talent on the Impronta roster.
+ * TAL-93941 — a Max-tier talent on the Impronta roster.
  * The inquiry-mode contact form targets this talent.
- * This UUID is the `talent_profiles.id` for TAL-AUDIT-0512.
+ * This UUID is the `talent_profiles.id` for TAL-93941.
  * The script resolves it at runtime from the DB — see resolveTargetTalentId().
  */
-const TARGET_TALENT_PROFILE_CODE = "TAL-AUDIT-0512";
+const TARGET_TALENT_PROFILE_CODE = "TAL-93941";
 
 // ---------------------------------------------------------------------------
 // Env
@@ -196,7 +196,7 @@ function buildContactFormSectionProps(inquiryTargetTalentId) {
     /** FORMS-2 — route submissions into the inquiry pipeline. */
     routingMode: "inquiry",
     /**
-     * FORMS-2 — target talent (TAL-AUDIT-0512).
+     * FORMS-2 — target talent (TAL-93941).
      * null = "message the agency" inquiry (no talent target).
      */
     inquiryTargetTalentId: inquiryTargetTalentId ?? null,

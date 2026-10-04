@@ -47,7 +47,7 @@ test("guard: the eight codes are accepted, Jor, QA users and real talents are re
     const d = decideDemoTarget({ profileCode: code, inRegistry: !!findDemo(code), isDemoFlag: true, email: `demo-x@demo.tulala.digital`, demoBatch: DEMO_BATCH });
     assert.equal(d.ok, true, code);
   }
-  for (const code of ["TAL-JORGBEAUTY", "TAL-93900", "TAL-93901", "TAL-QAFIXFREE", "TAL-93020X", "TAL-12345"]) {
+  for (const code of ["TAL-93938", "TAL-93900", "TAL-93901", "TAL-93939", "TAL-93020X", "TAL-12345"]) {
     assert.equal(findDemo(code), undefined, code);
     assert.equal(decideDemoTarget({ profileCode: code, inRegistry: false, isDemoFlag: true, email: "demo-x@impronta.test", demoBatch: DEMO_BATCH }).ok, false);
   }

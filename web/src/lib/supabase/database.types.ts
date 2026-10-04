@@ -16286,6 +16286,32 @@ export type Database = {
           },
         ]
       }
+      talent_profile_code_aliases: {
+        Row: {
+          created_at: string
+          old_code: string
+          talent_profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_code: string
+          talent_profile_id: string
+        }
+        Update: {
+          created_at?: string
+          old_code?: string
+          talent_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_profile_code_aliases_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_profiles: {
         Row: {
           ai_search_document: string | null
@@ -21317,6 +21343,15 @@ export type Database = {
         Returns: {
           tenant_id: string
           tenant_slug: string
+        }[]
+      }
+      resolve_talent_profile_code: {
+        Args: { p_code: string }
+        Returns: {
+          is_alias: boolean
+          profile_code: string
+          profile_id: string
+          requested_code: string
         }[]
       }
       review_is_arms_length_paid: {

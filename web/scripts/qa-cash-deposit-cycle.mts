@@ -165,7 +165,7 @@ async function main() {
   try {
     const r = await createInstantBooking(clientSb as never, {
       tenantId: TENANT, talentProfileId: TALENT, clientUserId: clientUser, actorUserId: clientUser,
-      contactName: "QA Client One", contactEmail: "qa-client-1@impronta.test", sourcePage: "/t/TAL-AUDIT-0512",
+      contactName: "QA Client One", contactEmail: "qa-client-1@impronta.test", sourcePage: "/t/TAL-93941",
       currencyCode: "EUR", offeringId: OFF_BRIDAL_TRIAL, payInPerson: true,
     } as never);
     const rr = r as { ok: boolean; bookingId?: string; inquiryId?: string; reason?: string };

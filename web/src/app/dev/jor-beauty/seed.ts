@@ -36,7 +36,7 @@ const IMG = "/mockups/jor-beauty/v2";
 const PORTRAIT = "/mockups/jor-beauty/jorgelina-portrait-v2.jpg";
 const LOGO = "/mockups/jor-beauty/jorg-beauty-logo.png";
 
-export const JOR_BEAUTY_PROFILE_CODE = "TA-JORGBEAUTY";
+export const JOR_BEAUTY_PROFILE_CODE = "TAL-93938";
 
 /** The four catalogue categories (talent_offerings.category). */
 export const JOR_CATEGORIES = [
