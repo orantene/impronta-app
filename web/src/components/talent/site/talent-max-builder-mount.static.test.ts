@@ -33,12 +33,19 @@ test("page-builder is a talent canonical route (soft-nav bare editor)", () => {
 
 test("LabExitButton flushes builder draft before onExit", () => {
   const src = readFileSync(
+    join(process.cwd(), "src/components/edit-chrome/lab-exit-button.tsx"),
+    "utf8",
+  );
+  assert.match(src, /export function LabExitButton/);
+  assert.match(src, /flushBuilderTreeSave/);
+  assert.match(src, /t\("Exit"\)/);
+});
+
+test("topbar imports LabExitButton (flush lives outside ratchet file)", () => {
+  const src = readFileSync(
     join(process.cwd(), "src/components/edit-chrome/topbar.tsx"),
     "utf8",
   );
-  const labIdx = src.indexOf("function LabExitButton");
-  assert.ok(labIdx >= 0);
-  const slice = src.slice(labIdx, labIdx + 1200);
-  assert.match(slice, /flushBuilderTreeSave/);
-  assert.match(slice, /t\("Exit"\)/);
+  assert.match(src, /import \{ LabExitButton \} from "\.\/lab-exit-button"/);
+  assert.doesNotMatch(src, /function LabExitButton/);
 });
