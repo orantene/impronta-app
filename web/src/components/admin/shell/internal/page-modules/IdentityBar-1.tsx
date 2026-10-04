@@ -622,7 +622,7 @@ function AccountMenuTrigger({
           {isTalentSurface && (
             <AccountMenuItem
               label="Start a workspace"
-              sub="Run your own roster — free plan, 1 minute"
+              sub="Run your own roster. Free plan, 1 minute."
               onClick={() => { setOpen(false); fireOpenStartWorkspaceDialog(); }}
             />
           )}
