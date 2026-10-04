@@ -1,0 +1,29 @@
+{
+  "design": "support-desk",
+  "phase": "0.5",
+  "liveDesk": {
+    "url": "https://support.tulala.digital/desk",
+    "flag": "SUPPORT_DESK_ENABLED=1",
+    "access": "platform_admin_super_admin_only",
+    "productionDeskUi": true
+  },
+  "mockup": {
+    "defaultUrl": "http://127.0.0.1:3099/support-desk/",
+    "serve": "cd web && npm run mockup:support-desk",
+    "screens": {
+      "A": "#/login/default",
+      "B": "#/inbox/needs_you",
+      "C": "#/thread/c1",
+      "D": "#/composer/reply",
+      "E": "#/context/rich",
+      "F": "#/cmdk/default",
+      "G": "#/empty/inbox",
+      "H": "#/mobile/queues",
+      "I": "#/insights"
+    },
+    "viewports": [1440, 390],
+    "themes": ["light", "dark"],
+    "simulated": true,
+    "productionDeskUi": false
+  }
+}
