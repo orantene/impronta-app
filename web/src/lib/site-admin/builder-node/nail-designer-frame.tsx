@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { isNailStudioMessage, nailStudioSrc, nailStudioSummary } from "./nail-designer-model";
 
 export const NAIL_STUDIO_FRAME_CSS =
-  ".sb-nd{min-width:0;width:100%}.sb-nd-frame{height:900px;width:100%}@media (min-width:768px){.sb-nd-frame{height:780px}}.sb-nd[data-nd-layout=desktop] .sb-nd-frame{min-width:min(100%,821px)}";
+  ".sb-nd{min-width:0;width:100%}.sb-nd-frame{height:900px;width:100%;border-radius:var(--site-radius-lg,16px);overflow:hidden}@media (min-width:768px){.sb-nd-frame{height:820px}}.sb-nd-host[data-nd-layout=desktop] .sb-nd-frame,.sb-nd[data-nd-layout=desktop] .sb-nd-frame{min-width:min(100%,900px)}";
 
 const DESKTOP_MIN = 821;
 
@@ -54,9 +54,13 @@ export function NailStudioFrame({
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (!isNailStudioMessage(e, ref.current?.contentWindow, window.location.origin)) return;
-      const design = (e.data as { design?: unknown }).design as Parameters<typeof nailStudioSummary>[0];
+      const data = e.data as { type?: string; design?: unknown };
+      const design = data.design as Parameters<typeof nailStudioSummary>[0];
+      const handoff = data.type === "quote" ? "quote" : "chat";
       window.dispatchEvent(
-        new CustomEvent("tulala:ask-question", { detail: { message: nailStudioSummary(design, locale) } }),
+        new CustomEvent("tulala:ask-question", {
+          detail: { message: nailStudioSummary(design, locale, handoff) },
+        }),
       );
     };
     window.addEventListener("message", onMessage);
