@@ -89,6 +89,7 @@
     en: {
       sub: 'Design a manicure, nail by nail.', undo: 'Undo', reset: 'Reset', editing: 'Editing', all: 'All nails', one: 'One nail',
       only: '{f} only', nailOf: '{f} nail', hint: 'Tap a nail to style it on its own', surprise: 'Surprise me', download: 'Download', share: 'Share', save: 'Save look',
+      saveLookTitle: 'Your look', saveIdeas: 'Save to my ideas', requestQuote: 'Request a quote', addToChat: 'Add to chat',
       applyTo: 'Apply to', copyAll: 'Copy this nail to all', copiedAll: 'Copied to every nail', turnOn: 'Turn on {x}', turnOff: 'Turn off {x}', layerOn: '{x} on', layerOff: '{x} off', charmsAll: 'Tap a charm to put it on every nail. Tap one nail to add several and drag them into place.', charmsOne: 'Tap to add. Drag a charm on the nail to move it; tap it for size, rotation and delete.', clearCharms: 'Clear charms', maxCharms: 'Up to 10 charms per nail', chSmaller: 'Smaller', chBigger: 'Bigger', chRotate: 'Rotate', chDup: 'Duplicate', chDel: 'Delete', light: 'Light', lightTip: 'Drag to move the light · tap for brightness and colour', lightLv: ['soft', 'medium', 'strong'], lightCols: ['warm', 'neutral', 'cool'], chCats: { crystal: 'Crystals', pearl: 'Pearls', metal: 'Metal', gel: '3D' }, tipSize: 'Tip size', auto: 'Auto', tipAuto: 'Back to automatic', wholeHand: 'Whole hand', zoomIn: 'Zoom in', zoomOut: 'Zoom out', fit: 'Show whole hand', prev: 'Previous nail', next: 'Next nail',
       tabs: ['Shape', 'Color', 'Art', 'Finish', 'Charms', 'Ideas'], polish: 'Polish', accent: 'Accent', accentNote: 'Used for tips, aura, dots, stripes, prints and marbling.',
       customPolish: 'Mix a custom polish', customAccent: 'Mix a custom accent', custom: 'Custom', nailArt: 'Nail art', finish: 'Finish', shape: 'Shape',
@@ -111,6 +112,7 @@
     es: {
       sub: 'Diseña tu manicure, uña por uña.', undo: 'Deshacer', reset: 'Reiniciar', editing: 'Editando', all: 'Todas las uñas', one: 'Una uña',
       only: 'Solo {f}', nailOf: 'Uña del {f}', hint: 'Toca una uña para diseñarla por separado', surprise: 'Sorpréndeme', download: 'Descargar', share: 'Compartir', save: 'Guardar diseño',
+      saveLookTitle: 'Tu diseño', saveIdeas: 'Guardar en Mis diseños', requestQuote: 'Pedir cotización', addToChat: 'Agregar al chat',
       applyTo: 'Aplicar a', copyAll: 'Copiar esta uña a todas', copiedAll: 'Copiado a todas las uñas', turnOn: 'Activar {x}', turnOff: 'Quitar {x}', layerOn: '{x}: activado', layerOff: '{x}: desactivado', charmsAll: 'Toca un aplique para ponerlo en todas las uñas. Toca una uña para agregar varios y moverlos.', charmsOne: 'Toca para agregar. Arrastra un aplique sobre la uña para moverlo; tócalo para cambiar tamaño, girarlo o eliminarlo.', clearCharms: 'Quitar apliques', maxCharms: 'Máximo 10 apliques por uña', chSmaller: 'Más pequeño', chBigger: 'Más grande', chRotate: 'Girar', chDup: 'Duplicar', chDel: 'Eliminar', light: 'Luz', lightTip: 'Arrastra para mover la luz · toca para intensidad y color', lightLv: ['suave', 'media', 'fuerte'], lightCols: ['cálida', 'neutra', 'fría'], chCats: { crystal: 'Cristales', pearl: 'Perlas', metal: 'Metal', gel: '3D' }, tipSize: 'Tamaño de la punta', auto: 'Auto', tipAuto: 'Volver a automático', wholeHand: 'Toda la mano', zoomIn: 'Acercar', zoomOut: 'Alejar', fit: 'Ver toda la mano', prev: 'Uña anterior', next: 'Uña siguiente',
       tabs: ['Forma', 'Color', 'Diseño', 'Acabado', 'Apliques', 'Ideas'], polish: 'Esmalte', accent: 'Acento', accentNote: 'Se usa en puntas, aura, lunares, rayas, estampados y mármol.',
       customPolish: 'Crea un esmalte personalizado', customAccent: 'Crea un acento personalizado', custom: 'Personalizado', nailArt: 'Diseño de uñas', finish: 'Acabado', shape: 'Forma',
@@ -145,6 +147,10 @@
     return /^es/i.test(navigator.language || '') ? 'es' : 'en';
   }
   var LANG = pickLang();
+  (function () {
+    var layoutQ = (location.search.match(/[?&]layout=(desktop|phone)/) || [])[1];
+    if (layoutQ) root.setAttribute('data-layout', layoutQ);
+  })();
   function L() { return I18N[LANG]; }
   function t(k, v) { var x = L()[k]; if (v) for (var key in v) x = x.replace('{' + key + '}', v[key]); return x; }
   function cap(x) { return x.charAt(0).toUpperCase() + x.slice(1); }
@@ -985,16 +991,15 @@
           '<button data-act="target" data-v="all">' + icon('hand', 16) + t('wholeHand') + '</button>' +
           '<button class="nd-arrow" data-act="step" data-v="1" aria-label="' + t('next') + '">' + icon('right') + '</button></div></div>' +
         '<div class="nd-bar">' +
-          '<button class="nd-pill big nd-dl" data-act="download">' + icon('download') + t('download') + '</button>' +
           '<button class="nd-pill big" data-act="share">' + icon('share') + t('share') + '</button>' +
-          '<button class="nd-pill big primary nd-save" data-act="save">' + icon('plus') + t('save') + '</button></div>' +
+          '<button class="nd-pill big primary nd-save" data-act="savelook">' + icon('plus') + t('save') + '</button></div>' +
       '</section>' +
       '<aside class="nd-panel"><div class="nd-ptop"><div class="nd-label">' + t('applyTo') + '</div>' +
         '<div class="nd-seg"><button data-act="target" data-v="all">' + t('all') + '</button><button data-act="target" data-v="one" class="nd-one"></button></div>' +
         '<button class="nd-copy" data-act="copyall" hidden>' + icon('copy', 15) + t('copyAll') + '</button>' +
         '<div class="nd-tabs">' + ['shape', 'color', 'art', 'finish', 'charms', 'ideas'].map(function (id, i) { return '<div class="nd-tab" data-tab="' + id + '"><button data-act="tab" data-v="' + id + '">' + L().tabs[i] + '</button>' + (LAYERS[id] ? '<button class="nd-tog" data-act="toggle" data-v="' + id + '"></button>' : '') + '</div>'; }).join('') + '<button class="nd-rand" data-act="random" aria-label="' + t('surprise') + '" title="' + t('surprise') + '">' + icon('shuffle', 17) + '</button></div></div>' +
         '<div class="nd-content"></div></aside>' +
-      '<div class="nd-modal" hidden role="dialog" aria-modal="true" aria-labelledby="nd-mt"><div class="nd-sheet">' +
+      '<div class="nd-modal nd-share-modal" hidden role="dialog" aria-modal="true" aria-labelledby="nd-mt"><div class="nd-sheet">' +
         '<div class="nd-mhead"><h2 id="nd-mt">' + t('shareTitle') + '</h2><button class="nd-x" data-act="close" aria-label="' + t('close') + '">×</button></div>' +
         '<img class="nd-mimg" alt="' + t('imgAlt') + '">' +
         '<div class="nd-mbtns"><button class="nd-pill big" data-act="dlimg">' + icon('download') + t('shareDl') + '</button>' +
@@ -1002,7 +1007,17 @@
           '<button class="nd-pill big nd-native" data-act="native" hidden>' + icon('more') + t('shareMore') + '</button></div>' +
         '<label class="nd-note" for="nd-linkin">' + t('linkLabel') + '</label>' +
         '<div class="nd-link"><input id="nd-linkin" readonly><button class="nd-pill" data-act="copylink">' + icon('copy', 16) + t('shareCopy') + '</button></div>' + promoCard('share') +
-      '</div></div>';
+      '</div></div>' +
+      '<div class="nd-modal nd-save-modal" hidden role="dialog" aria-modal="true" aria-labelledby="nd-slt"><div class="nd-sheet">' +
+        '<div class="nd-mhead"><h2 id="nd-slt">' + t('saveLookTitle') + '</h2><button class="nd-x" data-act="closesave" aria-label="' + t('close') + '">×</button></div>' +
+        '<img class="nd-mimg nd-mimg-sq" alt="' + t('imgAlt') + '">' +
+        '<div class="nd-mbtns nd-mbtns-save">' +
+          '<button class="nd-pill big" data-act="dlimg-clean">' + icon('download') + t('download') + '</button>' +
+          '<button class="nd-pill big" data-act="share-from-save">' + icon('share') + t('share') + '</button>' +
+          '<button class="nd-pill big primary" data-act="saveideas">' + icon('plus') + t('saveIdeas') + '</button>' +
+          '<button class="nd-pill big" data-act="quote">' + t('requestQuote') + '</button>' +
+          '<button class="nd-pill big" data-act="chat">' + t('addToChat') + '</button>' +
+        '</div></div></div>';
     svg = $('.nd-svg'); stage = $('.nd-stage');
     if (ro) { ro.disconnect(); ro.observe(stage); }
     requestAnimationFrame(function () { snapView(); updateZoomUI(); });
@@ -1249,7 +1264,25 @@
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
     });
   }
-  var lastBlob = null, lastUrl = null;
+  /** Clean square export for the Save look popup — hand only, no brand bar or canvas chrome. */
+  function makeCleanPNG() {
+    return new Promise(function (resolve, reject) {
+      var hb = handBox(), pad = Math.max(hb[2], hb[3]) * 0.1, side = Math.max(hb[2], hb[3]) + pad * 2;
+      var vx = hb[0] + hb[2] / 2 - side / 2, vy = hb[1] + hb[3] / 2 - side / 2;
+      var src = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="' + [vx, vy, side, side].map(f2).join(' ') + '"><rect x="' + f2(vx) + '" y="' + f2(vy) + '" width="' + f2(side) + '" height="' + f2(side) + '" fill="#E4D9D2"/><defs>' + DEFS + '</defs>' + handSVG(S, 'x', null, false, lampWorld()) + '</svg>';
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'); c.width = 1200; c.height = 1200;
+          c.getContext('2d').drawImage(img, 0, 0, 1200, 1200);
+          c.toBlob(function (b) { b ? resolve(b) : reject(new Error('blob')); }, 'image/png');
+        } catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+    });
+  }
+  var lastBlob = null, lastUrl = null, lastCleanBlob = null, lastCleanUrl = null;
   function saveBlob(b) {
     var a = document.createElement('a'), u = URL.createObjectURL(b);
     a.href = u; a.download = 'tulala-nail-studio.png'; document.body.appendChild(a); a.click(); a.remove();
@@ -1257,16 +1290,40 @@
     toast(t('downloaded')); emit('download');
   }
   function openShare() {
-    var m = $('.nd-modal'), link = shareLink();
+    var m = $('.nd-share-modal'), link = shareLink();
+    closeSaveLook(true);
     m.hidden = false;
     $('#nd-linkin').value = link;
     $('.nd-native').hidden = !navigator.share;
-    var img = $('.nd-mimg'); img.removeAttribute('src');
-    $('.nd-x').focus();
+    var img = $('.nd-share-modal .nd-mimg'); img.removeAttribute('src');
+    $('.nd-share-modal .nd-x').focus();
     emit('share', { link: link });
     makePNG().then(function (b) { lastBlob = b; if (lastUrl) URL.revokeObjectURL(lastUrl); lastUrl = URL.createObjectURL(b); img.src = lastUrl; }).catch(function () {});
   }
-  function closeShare() { $('.nd-modal').hidden = true; var s = $('[data-act=share]'); if (s) s.focus(); }
+  function closeShare() { var m = $('.nd-share-modal'); if (m) m.hidden = true; var s = $('[data-act=share]'); if (s) s.focus(); }
+  function openSaveLook() {
+    var m = $('.nd-save-modal');
+    closeShare();
+    m.hidden = false;
+    var img = $('.nd-save-modal .nd-mimg'); img.removeAttribute('src');
+    $('.nd-save-modal .nd-x').focus();
+    makeCleanPNG().then(function (b) {
+      lastCleanBlob = b;
+      if (lastCleanUrl) URL.revokeObjectURL(lastCleanUrl);
+      lastCleanUrl = URL.createObjectURL(b);
+      img.src = lastCleanUrl;
+    }).catch(function () {});
+  }
+  function closeSaveLook(silent) {
+    var m = $('.nd-save-modal'); if (m) m.hidden = true;
+    if (!silent) { var s = $('[data-act=savelook]'); if (s) s.focus(); }
+  }
+  function saveToIdeas() {
+    var look = { name: t('myLook', { n: S.looks.length + 1 }), shape: S.shape, length: S.length, skin: S.skin, nails: clone(S.nails) };
+    S.looks.unshift(look); S.looks = S.looks.slice(0, 24); writeLooks();
+    if (S.tab === 'ideas') renderPanel();
+    emit('save'); toast(t('saved', { n: look.name }));
+  }
   function copyLink() {
     var inp = $('#nd-linkin'), v = inp.value;
     function fallback() { inp.focus(); inp.select(); try { document.execCommand('copy'); toast(t('linkCopied')); } catch (e) {} }
@@ -1368,18 +1425,20 @@
       case 'reset': resetView(); snap(); S.nails = clone(START); S.shape = 'almond'; S.length = FREE.medium; S.skin = '#E9BE9E'; S.target = 'all'; S.sel = null; changed(); zoomTo(); toast(t('resetToast')); break;
       case 'random': randomize(); zoomTo(); break;
       case 'lang': setLang(LANG === 'es' ? 'en' : 'es'); break;
-      case 'save':
-        var look = { name: t('myLook', { n: S.looks.length + 1 }), shape: S.shape, length: S.length, skin: S.skin, nails: clone(S.nails) };
-        S.looks.unshift(look); S.looks = S.looks.slice(0, 24); writeLooks();
-        if (S.tab === 'ideas') renderPanel();
-        emit('save'); toast(t('saved', { n: look.name })); break;
+      case 'savelook': openSaveLook(); break;
+      case 'saveideas': saveToIdeas(); break;
       case 'look': var l = S.looks[+v]; if (l) { loadDesign(l); toast(t('applied', { n: l.name })); } break;
       case 'trend': var tr = TRENDS[+v]; if (tr) { loadDesign(tr); toast(t('applied', { n: L().t[tr.id] })); } break;
       case 'del': S.looks.splice(+v, 1); writeLooks(); renderPanel(); break;
       case 'download': makePNG().then(saveBlob).catch(function () {}); break;
       case 'share': openShare(); break;
+      case 'share-from-save': closeSaveLook(true); openShare(); break;
       case 'close': closeShare(); break;
+      case 'closesave': closeSaveLook(); break;
       case 'dlimg': (lastBlob ? Promise.resolve(lastBlob) : makePNG()).then(saveBlob).catch(function () {}); break;
+      case 'dlimg-clean': (lastCleanBlob ? Promise.resolve(lastCleanBlob) : makeCleanPNG()).then(saveBlob).catch(function () {}); break;
+      case 'quote': emit('quote'); closeSaveLook(); break;
+      case 'chat': emit('chat'); closeSaveLook(); break;
       case 'wa': window.open('https://wa.me/?text=' + encodeURIComponent(t('shareText') + ' · ' + summary() + '\n' + shareLink() + '\n' + t('madeWith')), '_blank', 'noopener'); break;
       case 'native': nativeShare(); break;
       case 'copylink': copyLink(); break;
@@ -1390,13 +1449,18 @@
     if (S.skinOpen && !(e.target.closest && e.target.closest('.nd-skinpick'))) { S.skinOpen = false; updateSkinUI(); updateTipUI(); }
     if (S.tipOpen && !(e.target.closest && e.target.closest('.nd-tipfloat'))) { S.tipOpen = false; updateTipUI(); }
   });
-  // Close the share sheet by tapping the backdrop
-  root.addEventListener('click', function (e) { if (e.target.classList && e.target.classList.contains('nd-modal')) closeShare(); });
-  // Keyboard: Enter/Space on a nail, Escape closes the share sheet, arrows move between nails when zoomed
+  // Close share / save sheets by tapping the backdrop
+  root.addEventListener('click', function (e) {
+    if (!(e.target.classList && e.target.classList.contains('nd-modal'))) return;
+    if (e.target.classList.contains('nd-save-modal')) closeSaveLook();
+    else closeShare();
+  });
+  // Keyboard: Enter/Space on a nail, Escape closes sheets, arrows move between nails when zoomed
   root.addEventListener('keydown', function (e) {
     var f = e.target.closest && e.target.closest('.nd-f');
     if (f && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectNail(+f.dataset.v); var nf = svg.querySelector('.nd-f[data-v="' + f.dataset.v + '"]'); if (nf) nf.focus(); return; }
-    if (e.key === 'Escape' && !$('.nd-modal').hidden) { closeShare(); return; }
+    if (e.key === 'Escape' && $('.nd-save-modal') && !$('.nd-save-modal').hidden) { closeSaveLook(); return; }
+    if (e.key === 'Escape' && $('.nd-share-modal') && !$('.nd-share-modal').hidden) { closeShare(); return; }
     if (e.key === 'Escape' && S.lampOpen) { S.lampOpen = false; updateLampUI(); $('.nd-lamp').focus(); return; }
     if (e.key === 'Escape' && S.tipOpen) { S.tipOpen = false; updateTipUI(); $('.nd-tip-btn').focus(); return; }
     if (e.key === 'Escape' && S.skinOpen) { S.skinOpen = false; updateSkinUI(); $('.nd-skin-cur').focus(); return; }

@@ -20,7 +20,7 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { MAGAZINE_TYPE_SYSTEM_CSS } from "./design-type-system";
 
 const PINS = {
-  editorial: "230a211fe4e4c8e5", // re-pinned after Track G Wave 1 P0 CSS (G1-P0-01..05)
+  editorial: "d1c6b981375e2b4c", // re-pinned after services-catalog --svc-columns grid fix
   utility: "d46adc1808b45b81", // re-pinned after the Gridline FAQ heading fix
   highlight: "f6ed134ba4b1cd9e",
   booking: "8f87f1ae1e51bc17",

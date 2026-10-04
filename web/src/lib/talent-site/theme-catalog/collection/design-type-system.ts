@@ -146,7 +146,7 @@ export const EDITORIAL_TYPE_SYSTEM_CSS = [
   `${S} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav{top:90px;gap:4px}`,
   `${S} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill{height:42px;border-radius:${v("shape.rail-radius")};border-color:transparent;background:none;font-size:${v("type.body-size")};justify-content:space-between}`,
   `${S} .site-builder-node--services-catalog-body[data-category-nav="rail"] > .site-builder-node--services-catalog-nav .site-builder-node--services-catalog-pill[data-active="true"]{background:var(--token-color-ink);color:var(--token-color-background)}`,
-  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));column-gap:36px}`,
+  `${S} .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));column-gap:36px}`,
   `${S} .site-builder-node--services-catalog-group-title{font-size:${v("type.group-title-size-desktop")};margin-top:10px}`,
   `}`,
 

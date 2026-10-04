@@ -44,10 +44,22 @@ test("the block renders an iframe on the owner's app with lang, allow, title and
   assert.equal(nailStudioSrc("es", { layout: "phone" }), "/apps/nail-studio/index.html?lang=es&layout=phone");
 });
 
-test("the message handler ignores foreign sources, origins and types", () => {
+test("the message handler accepts chat/quote handoffs and ignores foreign sources, origins and types", () => {
   const frame = {};
-  const data = { source: "nail-designer", type: "save", design: {} };
+  const data = { source: "nail-designer", type: "chat", design: {} };
   assert.equal(isNailStudioMessage({ source: frame, origin: "https://a.test", data }, frame, "https://a.test"), true);
+  assert.equal(
+    isNailStudioMessage({ source: frame, origin: "https://a.test", data: { ...data, type: "quote" } }, frame, "https://a.test"),
+    true,
+  );
+  assert.equal(
+    isNailStudioMessage({ source: frame, origin: "https://a.test", data: { ...data, type: "save" } }, frame, "https://a.test"),
+    false,
+  );
+  assert.equal(
+    isNailStudioMessage({ source: frame, origin: "https://a.test", data: { ...data, type: "share" } }, frame, "https://a.test"),
+    false,
+  );
   assert.equal(isNailStudioMessage({ source: {}, origin: "https://a.test", data }, frame, "https://a.test"), false);
   assert.equal(isNailStudioMessage({ source: frame, origin: "https://evil.test", data }, frame, "https://a.test"), false);
   assert.equal(isNailStudioMessage({ source: frame, origin: "https://a.test", data: { ...data, type: "change" } }, frame, "https://a.test"), false);
@@ -67,6 +79,8 @@ test("the summary names shape, length, colours, pattern, finish and charm count"
   const en = nailStudioSummary(design, "en");
   for (const w of ["coffin", "long", "#E8A9A6", "french", "gloss", "1 charms"]) assert.ok(en.includes(w), w);
   assert.match(nailStudioSummary(design, "es"), /forma coffin, largo larga/);
+  assert.match(nailStudioSummary(design, "en", "quote"), /quote for this nail design/);
+  assert.match(nailStudioSummary(design, "es", "quote"), /cotización para este diseño/);
   assert.doesNotMatch(en + nailStudioSummary(design, "es"), /—/);
 });
 

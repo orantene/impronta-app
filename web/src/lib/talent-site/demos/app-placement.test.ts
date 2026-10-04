@@ -7,6 +7,7 @@ import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
   NAIL_BAND_ID,
   nailBand,
+  normalizeNailBand,
   placeDemoApps,
   placeMaisonTradeApps,
   tradesFromTypeLabels,
@@ -58,13 +59,34 @@ test("placement: idempotent, even on an already-placed tree", () => {
   assert.equal(b.filter((n) => n.id === NAIL_BAND_ID).length, 1);
 });
 
-test("band: ES/EN copy, design tokens only (no hex)", () => {
-  const json = JSON.stringify(nailBand());
+test("band: ES/EN copy, full-bleed, no raised white surface, design tokens only (no hex)", () => {
+  const band = nailBand();
+  const style = (band.props as { style?: Record<string, unknown> }).style ?? {};
+  assert.equal(style.maxWidth, "full");
+  assert.equal(style.backgroundColor, undefined);
+  assert.equal(style.paddingTop, "88px");
+  const json = JSON.stringify(band);
   assert.doesNotMatch(json, /#[0-9a-fA-F]{3,8}\b/);
   assert.match(json, /Pruébalo/);
   assert.match(json, /Diseña tus uñas antes de tu cita/);
-  assert.match(json, /token:color\.surface-raised/);
+  assert.doesNotMatch(json, /surface-raised/);
   assert.doesNotMatch(json, /—/);
+});
+
+test("normalizeNailBand drops surface-raised and widens a stale published band", () => {
+  const stale = {
+    id: NAIL_BAND_ID,
+    kind: "container",
+    props: {
+      style: { maxWidth: "wide", paddingY: "l", paddingX: "m", backgroundColor: "token:color.surface-raised" },
+    },
+    children: [],
+  } as unknown as BuilderNode;
+  const next = normalizeNailBand(stale);
+  const style = (next.props as { style?: Record<string, unknown> }).style ?? {};
+  assert.equal(style.maxWidth, "full");
+  assert.equal(style.backgroundColor, undefined);
+  assert.equal(style.paddingTop, "88px");
 });
 
 test("Andrés (TAL-93006) is a recorded chef: no app recommended, never nails", () => {

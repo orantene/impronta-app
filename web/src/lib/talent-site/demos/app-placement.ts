@@ -9,7 +9,6 @@
  * only path that may carry Nail Designer.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { styleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { appsForDemo, appsForTrade } from "@/lib/site-admin/add-gallery/apps-registry";
 import { professionsForTerm } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { readOrigin } from "@/lib/talent-site/theme-releases/origin";
@@ -27,6 +26,45 @@ const COPY = {
 
 const label = (n: BuilderNode) => (n.props as { layerLabel?: string } | undefined)?.layerLabel;
 
+/**
+ * Maison section rhythm for the Nail Designer band: full-bleed gutters, 88/48
+ * vertical pad, no raised white surface (sits on the page colour like Reviews).
+ */
+const NAIL_BAND_STYLE = {
+  maxWidth: "full",
+  paddingX: "l",
+  paddingY: "none",
+  paddingTop: "88px",
+  paddingBottom: "88px",
+  responsive: {
+    mobile: {
+      paddingX: "s",
+      paddingLeft: "18px",
+      paddingRight: "18px",
+      paddingTop: "48px",
+      paddingBottom: "48px",
+    },
+  },
+} as const;
+
+/** Drop a stale surface-raised / wide constraint on an already-placed nail band. */
+export function normalizeNailBand(node: BuilderNode): BuilderNode {
+  if (node.id !== NAIL_BAND_ID || node.kind !== "container") return node;
+  const props = (node.props ?? {}) as Record<string, unknown>;
+  const prev = (props.style as Record<string, unknown> | undefined) ?? {};
+  const { backgroundColor: _bg, paddingY: _py, ...rest } = prev;
+  void _bg;
+  void _py;
+  return {
+    ...node,
+    props: {
+      ...props,
+      style: { ...rest, ...NAIL_BAND_STYLE },
+      responsive: { mobile: { layout: "stack" } },
+    },
+  } as unknown as BuilderNode;
+}
+
 /** The Nail Designer band: a Maison-style section holding the app node. */
 export function nailBand(): BuilderNode {
   const es = (k: keyof typeof COPY) => ({ es: { text: COPY[k].es } });
@@ -42,7 +80,7 @@ export function nailBand(): BuilderNode {
       align: "start",
       layerLabel: "Nail designer",
       anchorId: "nail-designer",
-      style: { maxWidth: "wide", paddingY: "l", paddingX: "m", backgroundColor: styleTokenRef("color.surface-raised") },
+      style: { ...NAIL_BAND_STYLE },
       responsive: { mobile: { layout: "stack" } },
     },
     children: [
@@ -102,7 +140,10 @@ export function treeLooksMaisonV2(nodes: ReadonlyArray<BuilderNode>): boolean {
 
 /** Insert the Nail Designer band after Menu when the tree does not already have it. */
 function placeNailBand(homeTree: BuilderNode[]): { tree: BuilderNode[]; placed: boolean } {
-  if (treeHasNailApp(homeTree)) return { tree: homeTree, placed: false };
+  if (treeHasNailApp(homeTree)) {
+    // Heal width / surface on bands already baked into a published tree.
+    return { tree: homeTree.map(normalizeNailBand), placed: false };
+  }
   const rest = homeTree.filter((n) => n.id !== NAIL_BAND_ID);
   const at = rest.findIndex((n) => label(n) === "Menu");
   if (at < 0) return { tree: homeTree, placed: false };

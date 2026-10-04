@@ -38,8 +38,14 @@ function lengthWord(v: unknown, es: boolean): string {
   return names[i];
 }
 
+export type NailStudioHandoff = "chat" | "quote";
+
 /** Short EN/ES text summary of a Nail Studio design (shape, length, colours, pattern, finish, charms). */
-export function nailStudioSummary(design: NailStudioDesign | null | undefined, locale: string): string {
+export function nailStudioSummary(
+  design: NailStudioDesign | null | undefined,
+  locale: string,
+  handoff: NailStudioHandoff = "chat",
+): string {
   const es = locale.toLowerCase().startsWith("es");
   const nails = (Array.isArray(design?.nails) ? design.nails : []) as StudioNail[];
   const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))];
@@ -50,12 +56,22 @@ export function nailStudioSummary(design: NailStudioDesign | null | undefined, l
   const charms = nails.reduce((a, n) => a + (Array.isArray(n.charms) ? n.charms.length : 0), 0);
   const shape = s(design?.shape) || "almond";
   const len = lengthWord(design?.length, es);
+  const detail = es
+    ? `forma ${shape}, largo ${len}, colores ${colours || "n/d"}, arte ${pattern}, acabado ${finish || "n/d"}, ${charms} adornos`
+    : `${shape} shape, ${len} length, colours ${colours || "n/a"}, pattern ${pattern}, finish ${finish || "n/a"}, ${charms} charms`;
+  if (handoff === "quote") {
+    return es
+      ? `Hola, quiero una cotización para este diseño de uñas: ${detail}.`
+      : `Hi, I'd like a quote for this nail design: ${detail}.`;
+  }
   return es
-    ? `Hola, quiero este diseño de uñas: forma ${shape}, largo ${len}, colores ${colours || "n/d"}, arte ${pattern}, acabado ${finish || "n/d"}, ${charms} adornos.`
-    : `Hi, I'd like this nail design: ${shape} shape, ${len} length, colours ${colours || "n/a"}, pattern ${pattern}, finish ${finish || "n/a"}, ${charms} charms.`;
+    ? `Hola, quiero este diseño de uñas: ${detail}.`
+    : `Hi, I'd like this nail design: ${detail}.`;
 }
 
-/** Accept a message only from our own iframe window and origin. */
+const NAIL_STUDIO_HANDOFF_TYPES = new Set(["chat", "quote"]);
+
+/** Accept a front-door handoff only from our own iframe window and origin. */
 export function isNailStudioMessage(
   e: { source: unknown; origin: string; data: unknown },
   frameWindow: unknown,
@@ -63,5 +79,5 @@ export function isNailStudioMessage(
 ): boolean {
   if (!frameWindow || e.source !== frameWindow || e.origin !== origin) return false;
   const d = e.data as { source?: unknown; type?: unknown } | null;
-  return !!d && typeof d === "object" && d.source === "nail-designer" && (d.type === "save" || d.type === "share");
+  return !!d && typeof d === "object" && d.source === "nail-designer" && NAIL_STUDIO_HANDOFF_TYPES.has(String(d.type));
 }

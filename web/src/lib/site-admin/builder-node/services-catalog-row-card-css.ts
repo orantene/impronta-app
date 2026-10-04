@@ -37,8 +37,9 @@ export const SERVICES_CATALOG_ROW_CARD_CSS = [
   `${CARD_PHOTO} ${P}copy{grid-column:2;grid-row:1}`,
   `${CARD_PHOTO} ${P}buy{grid-column:3;grid-row:1}`,
   `${CARD}:focus-within{border-color:${ACCENT}}`,
-  // Two columns when space allows; auto-fit so a single card never leaves an empty track (G1-P0-01).
-  `@media (min-width:900px){${LIST}{grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));column-gap:14px}}`,
+  // Honor `columns` / `--svc-columns` on desktop (Maison sets 2). Fixed tracks beat
+  // auto-fit + min(100%,22rem), which collapsed to one tall column beside the rail.
+  `@media (min-width:900px){${LIST}{grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));column-gap:14px}}`,
   // Preview / rail: never bleed past the content track.
   `${CAT}[data-row-style="card"][data-layout="rows"]{min-width:0;overflow-x:clip}`,
   `${CAT}[data-row-style="card"][data-layout="rows"] ${P}groups{min-width:0}`,
