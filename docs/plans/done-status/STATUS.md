@@ -1,7 +1,7 @@
-Updated: 2026-10-04 03:29Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Updated: 2026-10-04 03:30Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
 Live SHA: 3a74b3ab230 · origin/production: 3a74b3ab230 · Main SHA: f9867250d0
 Top 3 blockers right now
-1. TOP — Live = production = HTML = `3a74b3ab230`. Main tip **`f9867250d0`** ([#2517](https://github.com/orantene/impronta-app/pull/2517) **MERGED** 03:22Z) past `07200ab`. Tip Structural `37173108547` (`07200`) **IN_PROGRESS** ~42/75 (`tests — money`); tip Structural `37173904617` (`f986`) **PENDING**. Next tip for Edit + captcha after green. Maison tip-prove PASS on Live. **#94 🟡**. Never ✅ without evidence.
+1. TOP — Live = production = HTML = `3a74b3ab230`. Main tip **`f9867250d0`** ([#2517](https://github.com/orantene/impronta-app/pull/2517) **MERGED** 03:22Z) past `07200ab`. Tip Structural `37173108547` (`07200`) **IN_PROGRESS** ~49/75 (`tests — notifications`); tip Structural (`f986`) **PENDING**. Next tip for Edit + captcha after green. Maison tip-prove PASS on Live. **#94 🟡**. Never ✅ without evidence.
 2. **Open gates:** Part A [#2519](https://github.com/orantene/impronta-app/pull/2519) only (+ tip chase). Front-chat PAID **blocked** on Soft Gel price (owner `bc-732572d4`). Handover **not READY**. Captcha OFF until money PASS / LIVE ≥ tip. Do not merge #2477; do not steal Desk.
 3. Money S4–S7 — **KYC LIVE on TAL-93900**. **`guest_captcha_enforced` OFF** since **2026-10-04 00:19:41Z**. **No paid ✅** without Continuar al pago prod screenshot after tip advances.
 
@@ -170,13 +170,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 03:29Z: **Live HTML** = `origin/production` = `3a74b3ab230`. **`origin/main` = `f9867250d0`** (#2517 after #2520). Structural `07200` IN_PROGRESS ~42/75; tip Structural `f986` PENDING. Live=prod ≠ main. Maison tip-prove PASS on Live. **Live proof N/A (ops)**. | Drain Structural queue → promote → HTML = tip (Edit+captcha). | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 03:30Z: **Live HTML** = `origin/production` = `3a74b3ab230`. **`origin/main` = `f9867250d0`** (#2517 after #2520). Structural `07200` IN_PROGRESS ~49/75; tip Structural `f986` PENDING. Live=prod ≠ main. Maison tip-prove PASS on Live. **Live proof N/A (ops)**. | Drain Structural queue → promote → HTML = tip (Edit+captcha). | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:29Z: [#2519](https://github.com/orantene/impronta-app/pull/2519) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2517](https://github.com/orantene/impronta-app/pull/2517) **MERGED** 03:22Z. Merged also: #2510/#2511/#2515/#2516/#2520 (Live/prod `3a74b3ab230`; Main `f9867250d0`). **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 03:30Z: [#2519](https://github.com/orantene/impronta-app/pull/2519) · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. [#2517](https://github.com/orantene/impronta-app/pull/2517) **MERGED** 03:22Z. Merged also: #2510/#2511/#2515/#2516/#2520 (Live/prod `3a74b3ab230`; Main `f9867250d0`). **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:29Z. Live=prod HTML `3a74b3ab230` / Main `f9867250d0` (#2517 merged). Open #2519 only. Structural `07200` ~42/75; tip `f986` pending. Front-chat Soft Gel block. Handover not READY. #94 🟡. Scoreboard ✅6; never ✅ without evidence. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 03:30Z. Live=prod HTML `3a74b3ab230` / Main `f9867250d0` (#2517 merged). Open #2519 only. Structural `07200` ~49/75; tip `f986` pending. Front-chat Soft Gel block. Handover not READY. #94 🟡. Scoreboard ✅6; never ✅ without evidence. REPLIES stub. Sole STATUS writer. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -222,8 +222,8 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 ## Changes since last update
 
-STATUS 2026-10-04 03:29Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without evidence.** Sole STATUS writer. No Oran ping.
-**Tip SHAs (honest):** Live HTML = `origin/production` = `3a74b3ab230`. Main tip = `f9867250d0` ([#2517](https://github.com/orantene/impronta-app/pull/2517) MERGED 03:22Z) past `07200ab` (#2520). Structural `37173108547` (`07200`) IN_PROGRESS ~42/75; tip Structural `37173904617` (`f986`) PENDING. Not tip-green. **#94 🟡**.
+STATUS 2026-10-04 03:30Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without evidence.** Sole STATUS writer. No Oran ping.
+**Tip SHAs (honest):** Live HTML = `origin/production` = `3a74b3ab230`. Main tip = `f9867250d0` ([#2517](https://github.com/orantene/impronta-app/pull/2517) MERGED 03:22Z) past `07200ab` (#2520). Structural `37173108547` (`07200`) IN_PROGRESS ~49/75; tip Structural (`f986`) PENDING. Not tip-green. **#94 🟡**.
 - **Maison tip-prove PASS** on LIVE `3a74b3ab` — Nail Designer + `/es` (`internal/maison-v2-tip-prove-pass-3a74.md`). **Not full gate ✅**.
 - **Front-chat:** PAID flip **blocked** on Soft Gel price — owner `bc-732572d4` (`internal/front-chat-live-qa-3a74.md`).
 - **Handover:** not READY (`docs/jorgelina-handover-ready.md`).
