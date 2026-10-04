@@ -35,7 +35,9 @@ export const EXPECTED_PROD_FLAGS = {
   TALENT_WEBSITE_SETTINGS_ENABLED: { resolved: "all", envPresent: true },
   TALENT_SITE_SUBDOMAINS_ENABLED: { resolved: true, envPresent: true },
   NEXT_PUBLIC_MESSAGES_V5: { resolved: true, envPresent: true },
-  TALENT_MAISON_THEME_ENABLED: { resolved: "talents", envPresent: true },
+  // Prod Vercel (2026-10-04): mode=all for every talent. Allow-list retained
+  // unused while mode=all (legacy cohort ids still present in env).
+  TALENT_MAISON_THEME_ENABLED: { resolved: "all", envPresent: true },
   TALENT_MAISON_THEME_TALENTS: { contains: MAISON_COHORT_IDS, envPresent: true },
   BUILDER_AUTO_THUMBNAIL_ENABLED: { resolved: true, envPresent: true },
   BUILDER_ROLLOUT_CRON_ENABLED: { resolved: true, envPresent: true },
