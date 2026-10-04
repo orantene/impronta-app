@@ -1,10 +1,10 @@
-Updated: 2026-10-04 04:33Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
-Live SHA: f9867250d0 · origin/production: f9867250d0 · Main SHA: a384e274b03
+Updated: 2026-10-04 04:39Z · Scoreboard: ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14
+Live SHA: f9867250d0 · origin/production: 8821a50a56a · Main SHA: a384e274b03
 **Ownership:** overnight done-board owner `bc-9c0ba4c9` (~10h, Oran offline). Sole STATUS writer on `status/done-board`. No Oran ping.
 Top 3 blockers right now
-1. Money S4 — Soft Gel TEST Checkout **PASS** (`bc-0b8a62bd`): **`cs_test_`** · `dd7c…` · booking `99db917d` **`payment_status=paid`** on `qa-stripe-r2` (`dpl_4qUj`+pluhdap). Evidence `internal/softgel-test-checkout-pass.md` · `media/softgel-test-checkout/`. **Dock stamp still FAIL** (orphan `inquiry_id=null`). [#2522](https://github.com/orantene/impronta-app/pull/2522) still needed for Agenda mint. Tip still `cs_live_`. **#45 stays ❌** until dock or explicit money-only criterion. Never ✅ without evidence.
-2. Captcha — [#2524](https://github.com/orantene/impronta-app/pull/2524) **MERGED** → Main `a384e274b03`. Tip gate: Structural on `a384e` **PENDING** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388); `#2519` `8821a50` Structural still **IN_PROGRESS**. Live/prod still `f986` (#2517) — **not tipped**. Prior FAIL on older tip. **No captcha ✅.** **No Oran ping.**
-3. Tip / open lane — Live HTML = prod = `f9867250d0` (#2517); Main `a384e274b03` (#2524). [#2522](https://github.com/orantene/impronta-app/pull/2522) **OPEN** head `e1feeb423` — needed for Agenda mint; Fidelity/Admin SUCCESS; Structural **in flight**. Do not steal. Handover **NOT READY**. Theme/#2516 PASS · Built-vs-Live done. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. **#94 🟡**.
+1. Money S4 — Soft Gel money **PAID PASS** (`bc-0b8a62bd`): **`cs_test_`** · `dd7c…` · booking `99db917d` **`payment_status=paid`** on `qa-stripe-r2`. Evidence `internal/softgel-test-checkout-pass.md` · `media/softgel-test-checkout/`. **#45 money half**. Dock stamp **FAIL** until identity→**Solicitar pago** — front-chat **`bc-732572d4`** owns capture → Solicitar pago → hand Checkout QA. [#2522](https://github.com/orantene/impronta-app/pull/2522) = Agenda mint (not dock inquiry). Tip still `cs_live_`. **#45 stays ❌** (no full ✅). Never ✅ without evidence.
+2. Captcha — [#2524](https://github.com/orantene/impronta-app/pull/2524) **MERGED** → Main `a384e274b03`. Tip Structural `a384e` **IN_PROGRESS** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388) — captcha OFF prove **waits tip ≥ `a384e`**. Prior FAIL on older tip. **No captcha ✅.** **No Oran ping.**
+3. Tip / open lane — Live HTML still `f9867250d0` (#2517); **`origin/production` = `8821a50a56a`** (#2519 Structural **SUCCESS** → tip in flight/done; HTML lag). Main `a384e274b03` (#2524). Part A tip-prove **armed** on `#2519`. [#2522](https://github.com/orantene/impronta-app/pull/2522) **OPEN** `e1feeb423` Structural **in flight** — Agenda mint. Handover **NOT READY**. Theme/#2516 PASS · Built-vs-Live done. [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. **#94 🟡**.
 
 Rows are grouped by the 14 QA stories. Questions with no story stay ❓. ✅ only with Live proof (see below).
 
@@ -47,7 +47,7 @@ Every **✅ DONE** row requires **Live proof**:
 
 ## Story 3 — Jor services and money setup (S3)
 
-Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Services/Money/Inbox — no PROFILE CREATED wall. Pass C **#16 ✅**. **#44 ✅** — clone login Money shows **Stripe · verificada** (`media/cloud-stripe-s4-s7/t93900-03-money.png`; tip proved on `10698158d`, ancestor of live `c3214cac3`). S4 inquire PASS on custom site. Soft Gel TEST Checkout **PASS** on `qa-stripe-r2` (`cs_test_`/`dd7c`/`99db917d=paid`) — dock stamp still FAIL; tip still `cs_live_`; **#45 stays ❌**. Prior Oran→TAL-JORGBEAUTY “Not set up” was wrong persona.
+Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Services/Money/Inbox — no PROFILE CREATED wall. Pass C **#16 ✅**. **#44 ✅** — clone login Money shows **Stripe · verificada** (`media/cloud-stripe-s4-s7/t93900-03-money.png`; tip proved on `10698158d`, ancestor of live `c3214cac3`). S4 inquire PASS on custom site. Soft Gel money **PAID PASS** on `qa-stripe-r2` (`cs_test_`/`dd7c`/`99db917d=paid`) — **#45 money half**; dock stamp FAIL until identity→Solicitar pago (`bc-732572d4`); tip still `cs_live_`; **#45 stays ❌**. Prior Oran→TAL-JORGBEAUTY “Not set up” was wrong persona.
 
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
@@ -67,7 +67,7 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | 23 | Double booking is impossible | 🟡 | #2468 is an ancestor of live production `0972d4f0a`. DB exclusion covers agenda, holds, and chat proposals. | Same slot was not booked twice from a second guest. No live check, so this is not ✅. | S4 step 7 | — | 2026-10-03 |
 | 28 | Confirmation and reminder messages | 🟡 | Booking and reminder templates plus cron exist on main. | No live booking email or in-app reminder checked for language and branding. | S4 step 5 (client side) | — | 2026-10-03 |
 | 33 | Thread stays in sync with Agenda and Money | 🟡 | Messages v5 record chips (`context-view.ts`, `payment-view.ts`). Flag `NEXT_PUBLIC_MESSAGES_V5` / Studio v2 defaults off. | No paid thread compared with Agenda and Money. v5 may be off in production. | S4 step 5 | — | 2026-10-03 |
-| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | Soft Gel TEST Checkout **PASS** (`bc-0b8a62bd`): `cs_test_a1FcHgRZ…` · `dd7c…` · booking `99db917d` **`payment_status=paid`** · order `e200b436=paid` on `qa-stripe-r2` (`dpl_4qUj`+pluhdap). Evidence `internal/softgel-test-checkout-pass.md` · `media/softgel-test-checkout/`. Tip still **`cs_live_`**. **Dock stamp FAIL** (orphan `inquiry_id=null`). [#2522](https://github.com/orantene/impronta-app/pull/2522) still needed for Agenda mint. **Not full #45 ✅** until dock or explicit money-only criterion. | Dock stamp / Agenda mint (#2522) / fee-line prove ($101.50) still open. | S4 steps 4–5 | D15 | 2026-10-04 |
+| 45 | $100 seller-pays charges $101.50; talent nets the rest | ❌ | Soft Gel money **PAID PASS** (`bc-0b8a62bd`): `cs_test_a1FcHgRZ…` · `dd7c…` · booking `99db917d` **`payment_status=paid`** · order `e200b436=paid` on `qa-stripe-r2`. Evidence `internal/softgel-test-checkout-pass.md` · `media/softgel-test-checkout/`. **#45 money half**. Tip still **`cs_live_`**. Dock stamp **FAIL** until identity→**Solicitar pago** — front-chat **`bc-732572d4`**. [#2522](https://github.com/orantene/impronta-app/pull/2522) = Agenda mint (not dock inquiry). **Not full #45 ✅**. | Dock stamp (identity path) / Agenda mint (#2522) / fee-line prove ($101.50). | S4 steps 4–5 | D15 | 2026-10-04 |
 | 48 | Receipts and PDFs show fee lines and non-refundable | 🟡 | #2482 is an ancestor of live production `0972d4f0a` (`feat(api)/: receipt PDF fee lines + non-refundable note`). Confirmation copy already had fee lines. | Not ✅ until a live receipt PDF from a paid booking. | S4 step 5 | — | 2026-10-03 |
 | 49 | Money totals: earned, owed, cash, pending | ❌ | TAL-93900 Money tip `10698158d`/live `c3214cac3`: Cobrado $0 / empty Pagos after captcha-blocked S4 (`media/cloud-stripe-s4-s7/t93900-03-money.png`, `t93900-s4-10-money-after.png`). KYC verified but no PAID booking. | Need PAID booking first. Not ✅. | S4 step 6 | — | 2026-10-03 |
 
@@ -171,13 +171,13 @@ Wall **PASS** live on tip (`internal/stories-qa-oct3.md`): TAL-93900 Today/Servi
 | # | Question (short) | Status | Evidence | Blocker / what's missing | Story & how I test it | Doubt for Oran/Claude | Updated |
 |---|---|---|---|---|---|---|---|
 | 92 | No customer data across tenants | 🟡 | `npm run test:tenant-isolation` is in CI. Evidence logs live under `docs/plans/program/evidence/`. | Not re-run tonight, and Valeria was not aimed at a TAL-93900 booking URL. | S14 step 4 | — | 2026-10-03 |
-| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 04:30Z: **Live HTML** = **`origin/production` = `f9867250d0`** (#2517). **`origin/main` = `a384e274b03`** (#2524). Tip gate: Structural `a384e` **PENDING** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388); `#2519` `8821a50` Structural **IN_PROGRESS**. **#2519+#2524 not tipped yet.** Live=prod ≠ main. Captcha LIVE skip prove pending tip ≥ `a384e`. **Live proof N/A (ops)**. | Drain tip Structural `a384e`/`8821a50` → promote → HTML = Main → captcha skip re-prove. | S14 step 1 | — | 2026-10-04 |
+| 94 | Main green, and production equals that green main | 🟡 | Rechecked 2026-10-04 04:39Z: **Live HTML** still `f9867250d0` (#2517). **`origin/production` = `8821a50a56a`** (#2519 Structural **SUCCESS** → tip in flight; HTML lag). **`origin/main` = `a384e274b03`** (#2524). Structural `a384e` **IN_PROGRESS** [`37176197388`](https://github.com/orantene/impronta-app/actions/runs/37176197388). Live ≠ prod ≠ main. Part A tip-prove **armed**. Captcha OFF prove waits tip ≥ `a384e`. **Live proof N/A (ops)**. | Wait Live HTML ≥ `8821a50` (Part A) → then `a384e` Structural → promote → captcha skip re-prove. | S14 step 1 | — | 2026-10-04 |
 | 95 | deploy:smoke passes after every deploy | 🟡 | Cloud VM 2026-10-03 20:12Z on tip `7d30bb9d1` (`internal/deploy-smoke-2004.log`): HTTP/CSP/optimizer/Places/alias/auth-matrix/notification routes all ✓; **exit 1** — migration drift + taxonomy fail (no usable decrypted `SUPABASE_SERVICE_ROLE_KEY` / `.env.local` here); Resend domain ⚠ skipped (no `RESEND_API_KEY`). | Full exit 0 needs Mac/env with service role. HTTP production signals green — not ✅ until exit 0. | S14 step 1 | — | 2026-10-03 |
 | 96 | All migrations applied | 🟡 | Mac `db:check` PASS 2026-10-02 (“908 local migrations all applied”). Desk `db:push` reported remote up to date at `021528877`. | Not re-run from this VM against production `e6e00420b` (no Supabase creds here). | S14 step 1 | — | 2026-10-03 |
-| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 04:33Z: [#2522](https://github.com/orantene/impronta-app/pull/2522) OPEN head `e1feeb423` — still needed for Agenda mint; Structural in flight · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. #2524 MERGED → Main `a384e274b03`. Live=prod `f986725`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
+| 97 | No open PR older than 2 days without an owner | ✅ | Open 2026-10-04 04:39Z: [#2522](https://github.com/orantene/impronta-app/pull/2522) OPEN `e1feeb423` — Agenda mint; Structural in flight · [#2477](https://github.com/orantene/impronta-app/pull/2477) do not merge. #2524 MERGED → Main `a384e274b03`. Live HTML `f986725`; prod `8821a50`. **Live proof N/A (ops)**. | None older than 2 days without owner. | S14 step 5 | — | 2026-10-04 |
 | 98 | Zero console errors on dashboard, site, builder, inbox, money | 🟡 | Live wall/inbox walks on prior tip; no logged console capture this wake on `7d30bb9d1`. | No console audit artifact. | S14 step 2 | — | 2026-10-03 |
 | 99 | Sentry has no new top errors after the last deploy | ❓ | No Sentry token in this environment. Live/production/main HTML `c3214cac3`. | Cannot read the Sentry issue list. | S14 step 3 | D14 | 2026-10-03 |
-| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 04:33Z. Live=prod `f986725` (#2517); Main `a384e274` (#2524). Tip Structural pending. Soft Gel TEST Checkout **PASS** (`cs_test_`/`dd7c`/`99db917d=paid`) `bc-0b8a62bd`; dock stamp FAIL; #2522 still needed; **#45 stays ❌**. Theme/#2516 PASS · Built-vs-Live done. Handover **NOT READY**. #94 🟡. ✅6; never ✅ without Live proof. REPLIES stub. Sole STATUS writer. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
+| 100 | PM board current; Blocked-on-Oran items are real | 🟡 | STATUS 2026-10-04 04:39Z. Live HTML `f986725`; prod `8821a50` (#2519 tip in flight); Main `a384e274` (Structural in flight). Soft Gel money **PAID PASS**; dock identity path `bc-732572d4`; #2522 Agenda mint; **#45 stays ❌**. Part A tip-prove armed. Theme/#2516 PASS · Built-vs-Live done. Handover **NOT READY**. #94 🟡. ✅6; never ✅ without Live proof. REPLIES stub. Sole STATUS writer. No Oran ping. | Board working note. | S14 step 5 | — | 2026-10-04 |
 
 ## No story yet
 
@@ -225,22 +225,23 @@ D19 (#21). Cloud VM Inquire on `/t/TAL-93900` showed “Directory is not configu
 
 | Todo | State |
 |---|---|
-| gate-jor-edit-captcha | **in_progress** — Edit PASS · Maison PASS · #2524 merged `a384e274`; tip Structural pending `a384e`/`8821a50`; **#2519+#2524 not tipped** → LIVE captcha skip prove |
+| gate-jor-edit-captcha | **in_progress** — Edit PASS · Maison PASS · #2524 merged `a384e274`; Structural `a384e` **IN_PROGRESS**; captcha OFF prove waits tip ≥ `a384e` |
 | part-b-inventory-matrix | **completed** |
-| jor-handover-ready | **in_progress** — **NOT READY** (captcha/money/A3 tip-prove open) |
-| part-a-human-qa | **in_progress** — #2519 on Main `8821a50` ancestor; tip-prove after Live ≥ payouts tip |
-| paid-qa-then-captcha-on | **in_progress** — Soft Gel TEST Checkout **PASS** (`cs_test_`/`dd7c`/`99db917d=paid`) `bc-0b8a62bd`; dock stamp **FAIL** (`inquiry_id=null`); #2522 still needed for Agenda mint; **#45 stays ❌** |
+| jor-handover-ready | **in_progress** — **NOT READY** (captcha tip / dock stamp / Part A tip-prove) |
+| part-a-human-qa | **in_progress** — #2519 Structural **SUCCESS** → prod `8821a50`; tip-prove **armed** (Live HTML still `f986` lag) |
+| paid-qa-then-captcha-on | **in_progress** — Soft Gel money **PAID PASS** (`cs_test_`/`dd7c`/`99db917d=paid`) `bc-0b8a62bd` — #45 money half; dock stamp FAIL → identity/**Solicitar pago** `bc-732572d4`; **#45 stays ❌** |
 | built-vs-live | **completed** |
 | part-b-decision-memo | **completed** |
-| part-b-unify-prove | **in_progress** — Soft Gel paid exists; dock stamp FAIL; #2522 OPEN `e1feeb423` still needed for Agenda mint; Structural in flight |
+| part-b-unify-prove | **in_progress** — Soft Gel paid; dock identity path `bc-732572d4`; #2522 OPEN `e1feeb423` Agenda mint (not dock inquiry); Structural in flight |
 | theme-release-fresh-signup | **completed** — #2516 tip-prove PASS TAL-93937 (`media/theme-release-signup/`) |
 
 ## Changes since last update
 
-STATUS 2026-10-04 04:33Z on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
-**Tip SHAs (honest):** Live HTML = `origin/production` = `f9867250d0` (#2517). Main = `a384e274b03` (#2524 MERGED). Tip Structural pending `a384e`/`8821a50`. **#2519+#2524 not tipped yet.** **#94 🟡**.
-- **#2524 MERGED** `a384e274` — captcha LIVE skip prove **pending tip**.
-- **#2522 OPEN** head `e1feeb423` — still needed for Agenda mint; Fidelity/Admin SUCCESS; Structural **in flight**. Do not steal.
-- **Soft Gel TEST Checkout PASS** (`bc-0b8a62bd`): `cs_test_` · `dd7c…` · booking `99db917d` **`payment_status=paid`** on `qa-stripe-r2`. Evidence `internal/softgel-test-checkout-pass.md` · `media/softgel-test-checkout/`. **Dock stamp FAIL** (orphan `inquiry_id=null`). **#45 stays ❌** until dock or explicit money-only criterion.
+STATUS 2026-10-04 04:39Z standing wake on `status/done-board` (plain push). REPLIES.md stub. **Never ✅ without Live proof.** Sole STATUS writer `bc-9c0ba4c9`. No Oran ping.
+**Tip SHAs (honest):** Live HTML still `f9867250d0` (#2517). **`origin/production` = `8821a50a56a`** (#2519 Structural SUCCESS → tip in flight; HTML lag). Main = `a384e274b03` (#2524; Structural IN_PROGRESS). **#94 🟡**.
+- **#2519** Structural SUCCESS → production `8821a50`; Part A tip-prove **armed**. Live HTML not caught up yet.
+- **#2524 MERGED** `a384e274` — captcha OFF prove **waits tip ≥ `a384e`** (Structural still running).
+- **#2522 OPEN** `e1feeb423` — Structural in flight; **Agenda mint** (not dock inquiry). Do not steal.
+- **Soft Gel money PAID PASS** (`bc-0b8a62bd`): `cs_test_`/`dd7c`/`99db917d=paid`. **#45 money half**. Dock stamp FAIL until identity→Solicitar pago — front-chat **`bc-732572d4`**. **#45 stays ❌**.
 - Theme/#2516 PASS · Built-vs-Live done · inventory/memo done. Handover **NOT READY**.
 - Scoreboard ✅ 6 / 🟡 63 / ❌ 15 / ⏸ 2 / ❓ 14. Stay owned.
